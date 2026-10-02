@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -92,7 +93,13 @@ func newCombinedE2EOpenRouterPlanner(unavailable bool) (*productionSecurityAgent
 		}
 		action := plannerContext.AllowedActions[0]
 		targetID := plannerContext.UntrustedEvidence[0].ID
-		if action == "create_temporary_policy" {
+		if action == "run_test" || action == "rerun_test" || action == "start_attack_lab" {
+			if len(plannerContext.AllowedTargets) != 1 {
+				response.WriteHeader(http.StatusUnprocessableEntity)
+				return
+			}
+			targetID = plannerContext.AllowedTargets[0]
+		} else if action == "create_temporary_policy" {
 			targetID = plannerContext.Scope["environment_id"]
 		} else if action == "revoke_integration_connection" {
 			for _, candidate := range plannerContext.AllowedTargets {
@@ -103,7 +110,14 @@ func newCombinedE2EOpenRouterPlanner(unavailable bool) (*productionSecurityAgent
 			}
 		}
 		candidate, _ := json.Marshal(securityAgentPlannerCandidate{Version: 1, Summary: "Bounded production E2E response", Steps: []securityAgentPlannerStep{{Index: 0, Action: action, TargetID: targetID}}})
-		_, _ = response.Write(openRouterPlannerResponse(string(candidate)))
+		payload := openRouterPlannerResponse(string(candidate))
+		// Controlled transport pricing covers every automatic action; this is not
+		// a live-provider price claim. Real parsing and settlement remain active.
+		var envelope map[string]json.RawMessage
+		_ = json.Unmarshal(payload, &envelope)
+		envelope["usage"] = json.RawMessage(`{"prompt_tokens":120,"completion_tokens":40,"total_tokens":160,"cost":0.0000001}`)
+		payload, _ = json.Marshal(envelope)
+		_, _ = response.Write(payload)
 	}))
 	target, err := url.Parse(server.URL)
 	if err != nil {
@@ -145,6 +159,26 @@ func TestCombinedE2EOpenRouterPlannerUsesProductionHTTPBoundary(t *testing.T) {
 	}
 }
 
+func TestCombinedE2EExistingTestPlannerUsesPinnedTestNotTrigger(t *testing.T) {
+	for _, action := range []string{"run_test", "rerun_test"} {
+		t.Run(action, func(t *testing.T) {
+			planner, calls, closePlanner, err := newCombinedE2EOpenRouterPlanner(false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(closePlanner)
+			value := testSecurityAgentPlannerContext()
+			value.AllowedActions = []string{action}
+			value.ExistingTest = &apiserver.SecurityAgentExistingTestReference{DefinitionID: "pid_7f300002-0000-4000-8000-000000000002", DefinitionVersion: 1}
+			value.AllowedTargets = []string{value.ExistingTest.DefinitionID}
+			result := planner.Plan(context.Background(), value)
+			if result.Failure != "" || calls() != 1 || len(result.Candidate.Steps) != 1 || result.Candidate.Steps[0].TargetID != value.ExistingTest.DefinitionID {
+				t.Fatalf("pinned existing test lost: %+v calls=%d", result, calls())
+			}
+		})
+	}
+}
+
 func TestProductionCombinedE2ESecurityAgentWorker(t *testing.T) {
 	dsn := os.Getenv("ZASP_COMBINED_E2E_SECURITY_AGENT_DSN")
 	if dsn == "" {
@@ -172,7 +206,7 @@ func TestProductionCombinedE2ESecurityAgentWorker(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer closePlanner()
-	dependencies, err := composeSecurityAgentWorkerRuntime(config, database, planner)
+	dependencies, err := composeSecurityAgentWorkerRuntime(config, database, &budgetFixturePlanner{planner})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,15 +220,55 @@ func TestProductionCombinedE2ESecurityAgentWorker(t *testing.T) {
 		if plannerCalls() != 1 {
 			t.Fatalf("planner calls=%d", plannerCalls())
 		}
+		if err := dependencies.Processor.RunOnce(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if plannerCalls() != 1 {
+			t.Fatalf("unknown usage retried provider: calls=%d", plannerCalls())
+		}
 		if err := dependencies.Close(); err != nil {
 			t.Fatal(err)
 		}
-		t.Log("composed security agent persisted planner-unavailable without an action")
+		t.Log("composed security agent retained unknown planner usage without an action or retry")
 		return
 	}
 	if err := serveWorkerRuntime(ctx, os.Stdout, buildVersion, config, dependencies, net.Listen); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestMountedExistingTestPlannerWorker(t *testing.T) {
+	if os.Getenv("ZASP_EXISTING_TEST_MOUNTED") != "true" {
+		t.Skip("owned mounted runtime only")
+	}
+	dsn := os.Getenv("ZASP_COMBINED_E2E_SECURITY_AGENT_DSN")
+	parsed, err := url.Parse(dsn)
+	if err != nil || parsed.Scheme != "postgres" || parsed.Hostname() != "127.0.0.1" || parsed.Port() == "" || parsed.User.Username() != "zasp_e2e_security_agent_worker" || parsed.Path != "/postgres" || parsed.RawQuery != "sslmode=disable" {
+		t.Fatal("owned worker database rejected")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	database := combinedE2ERecoveryDatabase(t, ctx, dsn)
+	planner, _, closePlanner, err := newCombinedE2EOpenRouterPlanner(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closePlanner()
+	config := validSecurityAgentRuntimeConfig()
+	config.PostgresDSN = dsn
+	config.BatchSize = 1
+	runtime, err := composeSecurityAgentWorkerRuntime(config, database, &budgetFixturePlanner{planner})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Close()
+	if err := runtime.Ready(ctx); err != nil {
+		t.Fatal("registered55 planner readiness", err)
+	}
+	if err := runtime.Processor.RunOnce(ctx); err != nil {
+		t.Fatal("actual planner/preparation/dispatch", err)
+	}
+	t.Log("mounted planner/preparation/dispatch pass completed")
 }
 
 func TestProductionCombinedE2EAttackLabWorker(t *testing.T) {
@@ -1026,6 +1100,101 @@ func TestProductionCombinedE2EDiscoveryWorker(t *testing.T) {
 	t.Log("deterministic local provider and artifact authority completed public sync")
 }
 
+// Completion is an observed, successful repository finish for this exact run.
+// The repository validates the response; final gateway checks below still verify
+// the durable signed publication. No private-table read authority is added.
+type combinedE2ETemporaryPolicyFinishObserver struct {
+	apiserver.SecurityAgentActionAuthority
+	apiserver.SecurityAgentConnectorRevocationAuthority
+	expected apiserver.TemporaryPolicyEffectClaim
+	finished atomic.Bool
+}
+
+func (observer *combinedE2ETemporaryPolicyFinishObserver) FinishTemporaryPolicyEffect(ctx context.Context, claim apiserver.TemporaryPolicyEffectClaim, worker, lease, digest, audit, correlation string) (apiserver.TemporaryPolicyFinishResult, error) {
+	result, err := observer.SecurityAgentActionAuthority.FinishTemporaryPolicyEffect(ctx, claim, worker, lease, digest, audit, correlation)
+	want := observer.expected
+	state := "cleanup_pending"
+	if want.Phase == "cleanup" {
+		state = "cleaned"
+	}
+	if err == nil && claim.OrganizationID == want.OrganizationID && claim.WorkspaceID == want.WorkspaceID && claim.EnvironmentID == want.EnvironmentID && claim.RunID == want.RunID && claim.ActionKey == want.ActionKey && claim.Phase == want.Phase && result.RunID == claim.RunID && result.StepID == claim.StepID && result.Phase == claim.Phase && result.EffectState == state && result.ResultDigest == digest && result.OutcomeID != "" {
+		observer.finished.Store(true)
+	}
+	return result, err
+}
+
+func runCombinedE2ETemporaryPolicyWorkers(ctx context.Context, action, deployment workerProcessor, interval time.Duration, complete func() bool) error {
+	workerCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	terminal := make(chan error, 2)
+	completed := make(chan struct{}, 1)
+	var joined sync.WaitGroup
+	type failures struct {
+		count       int
+		first, last error
+	}
+	var actionFailures, deploymentFailures failures
+	start := func(name string, processor workerProcessor, failed *failures, checkCompletion bool) {
+		joined.Add(1)
+		go func() {
+			defer joined.Done()
+			var ready atomic.Bool
+			observed := workerProcessorFunc(func(ctx context.Context) error {
+				err := processor.RunOnce(ctx)
+				if err != nil && ctx.Err() == nil {
+					failed.count++
+					if failed.first == nil {
+						failed.first = err
+					}
+					failed.last = err
+					if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+						select {
+						case terminal <- fmt.Errorf("%s: %w", name, err):
+						default:
+						}
+					}
+				}
+				if err == nil && checkCompletion && complete() {
+					select {
+					case completed <- struct{}{}:
+					default:
+					}
+				}
+				return err
+			})
+			// Ordinary attempt errors retain production semantics: another poll,
+			// which can be empty until the existing lease expires naturally.
+			runWorkerPollingLoop(workerCtx, observed, interval, &ready)
+		}()
+	}
+	start("action", action, &actionFailures, true)
+	start("deployment", deployment, &deploymentFailures, false)
+	var result error
+	select {
+	case <-ctx.Done():
+		result = ctx.Err()
+	case result = <-terminal:
+	case <-completed:
+	}
+	cancel()
+	joined.Wait()
+	// A simultaneous completion cannot conceal cancellation or a terminal error.
+	result = errors.Join(result, ctx.Err())
+	select {
+	case err := <-terminal:
+		result = errors.Join(result, err)
+	default:
+	}
+	if result != nil {
+		for name, failed := range map[string]failures{"action": actionFailures, "deployment": deploymentFailures} {
+			if failed.count > 0 {
+				result = errors.Join(result, fmt.Errorf("%s failed attempts=%d: %w", name, failed.count, errors.Join(failed.first, failed.last)))
+			}
+		}
+	}
+	return result
+}
+
 func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 	actionDSN := os.Getenv("ZASP_COMBINED_E2E_ACTION_DSN")
 	if actionDSN == "" {
@@ -1051,7 +1220,12 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 	actionPrivateKey := append(ed25519.PrivateKey(nil), privateKey...)
 	policyPrivateKey := append(ed25519.PrivateKey(nil), privateKey...)
 	defer clear(privateKey)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// Allow one natural 60s lease expiry plus setup, deployment and verification.
+	budget := 90 * time.Second
+	if phase == "reconcile" {
+		budget = 30 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	defer cancel()
 
 	poolConfig, err := pgxpool.ParseConfig(actionDSN)
@@ -1091,6 +1265,28 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 		t.Log("connector revocation reconciled through the production action worker")
 		return
 	}
+	runID := combinedE2EProductID(t, os.Getenv("ZASP_COMBINED_E2E_ACTION_RUN_ID"))
+	gated, ok := dependencies.Processor.(readinessGatedWorkerProcessor)
+	if !ok {
+		t.Fatal("combined action readiness processor is missing")
+	}
+	processor, ok := gated.delegate.(*securityAgentActionProcessor)
+	if !ok {
+		t.Fatal("combined action processor is missing")
+	}
+	reconciler, ok := processor.config.Authority.(apiserver.SecurityAgentConnectorRevocationAuthority)
+	if !ok {
+		t.Fatal("combined action reconciler is missing")
+	}
+	finished := &combinedE2ETemporaryPolicyFinishObserver{
+		SecurityAgentActionAuthority:              processor.config.Authority,
+		SecurityAgentConnectorRevocationAuthority: reconciler,
+		expected: apiserver.TemporaryPolicyEffectClaim{
+			OrganizationID: "pid_10000001-0000-4000-8000-000000000001", WorkspaceID: "pid_10000002-0000-4000-8000-000000000002", EnvironmentID: "pid_10000003-0000-4000-8000-000000000003",
+			RunID: runID.String(), ActionKey: actionKey, Phase: phase,
+		},
+	}
+	processor.config.Authority = finished
 
 	policyDSN := os.Getenv("ZASP_COMBINED_E2E_POLICY_DEPLOYMENT_DSN")
 	if policyDSN == "" {
@@ -1124,30 +1320,10 @@ func TestProductionCombinedE2ETemporaryPolicyActionWorker(t *testing.T) {
 		_ = deployed.Close()
 		t.Fatal(err)
 	}
-	deploymentCtx, stopDeployment := context.WithCancel(ctx)
-	deploymentDone := make(chan error, 1)
-	go func() {
-		ticker := time.NewTicker(10 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			if err := deployed.Processor.RunOnce(deploymentCtx); err != nil && deploymentCtx.Err() == nil {
-				deploymentDone <- err
-				return
-			}
-			select {
-			case <-deploymentCtx.Done():
-				deploymentDone <- nil
-				return
-			case <-ticker.C:
-			}
-		}
-	}()
-	actionErr := dependencies.Processor.RunOnce(ctx)
-	stopDeployment()
-	deploymentErr := <-deploymentDone
+	pollErr := runCombinedE2ETemporaryPolicyWorkers(ctx, dependencies.Processor, deployed.Processor, config.PollInterval, finished.finished.Load)
 	closeErr := deployed.Close()
-	if actionErr != nil || deploymentErr != nil || closeErr != nil {
-		t.Fatalf("action=%v deployment=%v close=%v; database trace=%s; postgres trace=%s; deployment postgres trace=%s", actionErr, deploymentErr, closeErr, tracedDatabase.Trace(), postgresTrace.String(), policyPostgresTrace.String())
+	if pollErr != nil || closeErr != nil {
+		t.Fatalf("poll=%v close=%v; database trace=%s; postgres trace=%s; deployment postgres trace=%s", pollErr, closeErr, tracedDatabase.Trace(), postgresTrace.String(), policyPostgresTrace.String())
 	}
 
 	gatewayPool, err := pgxpool.New(ctx, os.Getenv("ZASP_COMBINED_E2E_GATEWAY_DSN"))

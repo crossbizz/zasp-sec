@@ -1,0 +1,167 @@
+diff --git a/deploy/staging/product/templates/attack-lab-reconciler.yaml b/deploy/staging/product/templates/attack-lab-reconciler.yaml
+index efa44095..672e88e5 100644
+--- a/deploy/staging/product/templates/attack-lab-reconciler.yaml
++++ b/deploy/staging/product/templates/attack-lab-reconciler.yaml
+@@ -83,7 +83,7 @@ spec:
+   template:
+     metadata:
+       labels: { app.kubernetes.io/name: security-agent-attack-lab-reconciler, app.kubernetes.io/part-of: zasp }
+-      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
++      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }}, eks.amazonaws.com/skip-containers: worker }
+     spec:
+       serviceAccountName: security-agent-attack-lab-reconciler
+       automountServiceAccountToken: false
+diff --git a/deploy/production/attack-lab-reconciler-rollout.mjs b/deploy/production/attack-lab-reconciler-rollout.mjs
+index c6246810..2829f98b 100644
+--- a/deploy/production/attack-lab-reconciler-rollout.mjs
++++ b/deploy/production/attack-lab-reconciler-rollout.mjs
+@@ -45,7 +45,7 @@ export function validateAttackLabReconcilerResources(resources, expected, schema
+   equal(objects, [{ objectName: expected.databaseSecretArn, objectType: "secretsmanager", objectAlias: "postgres-dsn" }]);
+   const deployment = one("Deployment"), pod = deployment.spec?.template?.spec;
+   requireValue(deployment.apiVersion === "apps/v1" && pod && Number.isInteger(pod.terminationGracePeriodSeconds) && pod.terminationGracePeriodSeconds > 20 && pod.terminationGracePeriodSeconds <= 300);
+-  equal(deployment.spec.template.metadata, { labels, annotations: { "zasp.io/schema-version": String(schemaVersion) } });
++  equal(deployment.spec.template.metadata, { labels, annotations: { "zasp.io/schema-version": String(schemaVersion), "eks.amazonaws.com/skip-containers": "worker" } });
+   const image = resources.find(r => r.kind === "Deployment" && r.metadata?.name === "agentsec-security-agent")?.spec?.template?.spec?.containers?.[0]?.image;
+   requireValue(matches(image, /^[a-z0-9][a-z0-9./_-]*(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$/));
+   const value = (name, value) => ({ name, value });
+@@ -77,7 +77,7 @@ export function validateAttackLabReconcilerResources(resources, expected, schema
+       { name: "identity", projected: { sources: [{ serviceAccountToken: { audience: "sts.amazonaws.com", expirationSeconds: 3600, path: "token" } }] } }],
+   });
+   equal(deployment.spec, { replicas: 2, revisionHistoryLimit: 3, progressDeadlineSeconds: 600,
+-    strategy: { type: "RollingUpdate", rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }, selector, template: { metadata: { labels, annotations: { "zasp.io/schema-version": String(schemaVersion) } }, spec: pod } });
++    strategy: { type: "RollingUpdate", rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }, selector, template: { metadata: { labels, annotations: { "zasp.io/schema-version": String(schemaVersion), "eks.amazonaws.com/skip-containers": "worker" } }, spec: pod } });
+   const pdb = one("PodDisruptionBudget"), hpa = one("HorizontalPodAutoscaler");
+   requireValue(pdb.apiVersion === "policy/v1" && hpa.apiVersion === "autoscaling/v2");
+   equal(pdb.spec, { minAvailable: 1, selector });
+diff --git a/deploy/production/attack-lab-reconciler-rollout.test.mjs b/deploy/production/attack-lab-reconciler-rollout.test.mjs
+index 34945a11..d9d9940f 100644
+--- a/deploy/production/attack-lab-reconciler-rollout.test.mjs
++++ b/deploy/production/attack-lab-reconciler-rollout.test.mjs
+@@ -23,6 +23,12 @@ test("57 mounts dedicated settlement authority and rejects additive credentials/
+     const changed=structuredClone(rows);mutate(changed);assert.throws(()=>check(changed),/release rejected/);
+   }
+   for(const schemaVersion of [49,56,58]) await assert.rejects(renderRelease(productionReleaseFixture,{schemaVersion,sessionSearchPhase:"precision-intake",attackLabReconciler:attack}),/release rejected/);
++  for(const change of [
++    rs=>{delete deployment(rs).spec.template.metadata.annotations["eks.amazonaws.com/skip-containers"];},
++    rs=>{deployment(rs).spec.template.metadata.annotations["eks.amazonaws.com/skip-containers"]="other-container";},
++    rs=>{delete deployment(rs).spec.template.metadata.annotations["eks.amazonaws.com/skip-containers"];deployment(rs).metadata.annotations={"eks.amazonaws.com/skip-containers":"worker"};},
++    rs=>{rs.find(r=>r.kind==="ServiceAccount"&&r.metadata.name===name).metadata.annotations={};},
++  ]){const changed=structuredClone(rows);change(changed);assert.throws(()=>check(changed),/release rejected/);}
+ });
+ 
+ test("57 keeps audit, existing-test and compliance registration commands in both phases",async()=>{
+diff --git a/services/platform/agentsec-worker/security_agent_attack_lab_deployment_test.go b/services/platform/agentsec-worker/security_agent_attack_lab_deployment_test.go
+index d1c2ebcc..e5ef3fd3 100644
+--- a/services/platform/agentsec-worker/security_agent_attack_lab_deployment_test.go
++++ b/services/platform/agentsec-worker/security_agent_attack_lab_deployment_test.go
+@@ -3,6 +3,7 @@ package main
+ import (
+ 	"encoding/json"
+ 	"os"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -18,12 +19,17 @@ func TestAttackLabDeploymentRenderedWorkerConfig(t *testing.T) {
+ 	}
+ 	var fixtures map[string][]struct {
+ 		Kind     string
+-		Metadata struct{ Name string }
+-		Spec     struct {
++		Metadata struct {
++			Name        string
++			Annotations map[string]string
++		}
++		Spec struct {
+ 			Template struct {
+-				Spec struct {
++				Metadata struct{ Annotations map[string]string }
++				Spec     struct {
+ 					Containers []struct {
+-						Env []struct {
++						Name string
++						Env  []struct {
+ 							Name      string
+ 							Value     string
+ 							ValueFrom *struct{ FieldRef struct{ FieldPath string } }
+@@ -37,6 +43,15 @@ func TestAttackLabDeploymentRenderedWorkerConfig(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	count := 0
++	var serviceAccountRole string
++	for _, r := range fixtures["enabled"] {
++		if r.Kind == "ServiceAccount" && r.Metadata.Name == "security-agent-attack-lab-reconciler" {
++			serviceAccountRole = r.Metadata.Annotations["eks.amazonaws.com/role-arn"]
++		}
++	}
++	if serviceAccountRole == "" {
++		t.Fatal("CSI service account role missing")
++	}
+ 	for _, r := range fixtures["enabled"] {
+ 		if r.Kind != "Deployment" || r.Metadata.Name != "security-agent-attack-lab-reconciler" {
+ 			continue
+@@ -59,11 +74,20 @@ func TestAttackLabDeploymentRenderedWorkerConfig(t *testing.T) {
+ 			}
+ 		}
+ 		values["ZASP_POSTGRES_DSN"] = "postgres://attack_lab_reconciler@db.internal/zasp?sslmode=verify-full"
+-		c, err := loadWorkerRuntimeConfig(mapLookup(values))
++		admitted := attackLabIRSAAdmissionEnvironment(values, serviceAccountRole, r.Spec.Template.Metadata.Annotations, r.Spec.Template.Spec.Containers[0].Name)
++		c, err := loadWorkerRuntimeConfig(mapLookup(admitted))
+ 		if err != nil || c.Mode != workerModeAttackLabReconciler || c.DatabaseAuthority != "zasp_security_agent_attack_lab_reconciler" || c.BatchSize != 1 || c.LeaseDuration != time.Minute {
+-			t.Fatalf("actual rendered loader rejected: %v", err)
++			t.Fatalf("actual rendered loader rejected after modeled IRSA admission: %v", err)
++		}
++		if c.AttackLabReconcilerRoleARN != serviceAccountRole || c.AttackLabReconcilerTokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" {
++			t.Fatal("explicit identity changed after admission")
++		}
++		for _, annotation := range []map[string]string{nil, {"eks.amazonaws.com/skip-containers": "other-container"}} {
++			if _, err := loadWorkerRuntimeConfig(mapLookup(attackLabIRSAAdmissionEnvironment(values, serviceAccountRole, annotation, "worker"))); err == nil {
++				t.Fatal("ambient admission authority accepted when worker is not skipped")
++			}
+ 		}
+-		for _, k := range []string{"ZASP_ATTACK_LAB_QUEUE_URL", "ZASP_TEST_RECONCILER_ROLE_ARN", "AWS_ROLE_ARN"} {
++		for _, k := range []string{"ZASP_ATTACK_LAB_QUEUE_URL", "ZASP_TEST_RECONCILER_ROLE_ARN", "AWS_ROLE_ARN", "AWS_WEB_IDENTITY_TOKEN_FILE"} {
+ 			v := map[string]string{}
+ 			for name, value := range values {
+ 				v[name] = value
+@@ -82,5 +106,26 @@ func TestAttackLabDeploymentRenderedWorkerConfig(t *testing.T) {
+ 			t.Fatal("default49 enabled57 workload")
+ 		}
+ 	}
+-	t.Log("real worker loader consumed untouched rendered env; only metadata.name and synthetic DSN substituted")
++	t.Log("real worker loader consumed rendered pod after locally modeled IRSA admission; metadata.name and synthetic DSN substituted; ambient injection still rejected")
++}
++
++// Model only the documented IRSA environment boundary, not a live webhook.
++// https://github.com/aws/amazon-eks-pod-identity-webhook#eks-walkthrough
++// A role-annotated service account injects these variables unless the Pod's
++// comma-separated skip-containers annotation names the container.
++func attackLabIRSAAdmissionEnvironment(values map[string]string, role string, annotations map[string]string, container string) map[string]string {
++	admitted := make(map[string]string, len(values)+2)
++	for k, v := range values {
++		admitted[k] = v
++	}
++	for _, skip := range strings.Split(annotations["eks.amazonaws.com/skip-containers"], ",") {
++		if skip == container {
++			return admitted
++		}
++	}
++	if role != "" {
++		admitted["AWS_ROLE_ARN"] = role
++		admitted["AWS_WEB_IDENTITY_TOKEN_FILE"] = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
++	}
++	return admitted
+ }
+diff --git a/deploy/production/attack-lab-reconciler-runtime.test.mjs b/deploy/production/attack-lab-reconciler-runtime.test.mjs
+index b625b1d0..115507df 100644
+--- a/deploy/production/attack-lab-reconciler-runtime.test.mjs
++++ b/deploy/production/attack-lab-reconciler-runtime.test.mjs
+@@ -25,7 +25,7 @@ test("actual Go57 worker and registration loaders accept only rendered dedicated
+   const pattern="^TestAttackLabDeploymentRendered(WorkerConfig|MigrationConfig)$";
+   const options={cwd:path.join(root,"services/platform"),env:{...launch.env,ZASP_ATTACK_LAB_RENDERED_FIXTURE:fixture},timeout:120000,maxBuffer:4*1024*1024};
+   const listed=await exec(launch.executable,["test","./agentsec-worker","./agentsec-migrate","-list",pattern],options);assert.match(listed.stdout,/TestAttackLabDeploymentRenderedWorkerConfig/);assert.match(listed.stdout,/TestAttackLabDeploymentRenderedMigrationConfig/);
+-  const {stdout,stderr}=await exec(launch.executable,["test","-race","./agentsec-worker","./agentsec-migrate","-run",pattern,"-count=1","-v"],options);
++  const {stdout,stderr}=await exec(launch.executable,["test","-race","./agentsec-worker","./agentsec-migrate","-run",pattern,"-count=1","-v"],options).catch(error=>{t.diagnostic(error.stdout??"");t.diagnostic(error.stderr??"");throw error;});
+   assert.doesNotMatch(stdout,/SKIP|FAIL/);assert.equal(stderr,"");t.diagnostic(stdout);
+  }finally{await rm(dir,{recursive:true,force:true})}
+ });

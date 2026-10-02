@@ -1,0 +1,120 @@
+DO $guard$
+BEGIN
+ IF NOT public.zasp_sa_attack_lab_readiness('-- export predecessor checksum','-- export predecessor fingerprint') THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export predecessor unavailable';
+ END IF;
+END $guard$;
+CREATE SCHEMA zasp_sa_export_prior AUTHORIZATION zasp_discovery_authority;
+REVOKE ALL ON SCHEMA zasp_sa_export_prior FROM PUBLIC;
+CREATE TABLE zasp_sa_export_prior.functions(signature text PRIMARY KEY,definition text NOT NULL,owner_name text NOT NULL,acl jsonb NOT NULL);
+ALTER TABLE zasp_sa_export_prior.functions OWNER TO zasp_discovery_authority;
+REVOKE ALL ON zasp_sa_export_prior.functions FROM PUBLIC;
+CREATE FUNCTION public.zasp_sa_export_save(signature_value text) RETURNS void LANGUAGE plpgsql SET search_path TO pg_catalog,public AS $save$
+DECLARE p pg_proc%ROWTYPE;
+BEGIN
+ SELECT * INTO STRICT p FROM pg_proc WHERE oid=signature_value::regprocedure;
+ INSERT INTO zasp_sa_export_prior.functions SELECT signature_value,pg_get_functiondef(p.oid),p.proowner::regrole::text,
+ COALESCE((SELECT jsonb_agg(jsonb_build_object('grantee',CASE WHEN a.grantee=0 THEN 'PUBLIC' ELSE a.grantee::regrole::text END,'grantable',a.is_grantable) ORDER BY a.ordinality) FROM aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) WITH ORDINALITY a WHERE a.privilege_type='EXECUTE'),'[]');
+END $save$;
+REVOKE ALL ON FUNCTION public.zasp_sa_export_save(text) FROM PUBLIC;
+
+DO $ancestry$
+DECLARE sig text;d text;needle text;n integer;
+BEGIN
+ FOREACH sig IN ARRAY ARRAY[
+ 'public.zasp_compliance_readiness(text,text)',
+ 'public.zasp_production_security_agent_existing_tests_readiness(text,text)',
+ 'public.zasp_sa_attack_lab_readiness(text,text)',
+ 'zasp_sa_attack_lab_prior.predecessor_ready(text,text)',
+ 'public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)',
+ 'public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)',
+ 'public.zasp_production_security_agent_attack_path_security_ready()',
+ 'public.zasp_production_workflow_compatibility_security_ready()'] LOOP
+  PERFORM public.zasp_sa_export_save(sig);
+  d:=pg_get_functiondef(sig::regprocedure);
+  IF strpos(sig,'readiness(')>0 OR strpos(sig,'predecessor_ready(')>0 THEN
+   IF strpos(d,'count(*)=57')=0 OR strpos(d,'version>57')=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export predecessor shape rejected';END IF;
+   d:=replace(replace(d,'count(*)=57','count(*)=58'),'version>57','version>58');
+   IF sig='public.zasp_sa_attack_lab_readiness(text,text)' THEN
+    EXECUTE replace(replace(d,'FUNCTION public.zasp_sa_attack_lab_readiness(','FUNCTION zasp_sa_export_prior.predecessor_ready('),'public.zasp_sa_attack_lab_live_fingerprint()=expected_fingerprint','true');
+    ALTER FUNCTION zasp_sa_export_prior.predecessor_ready(text,text) OWNER TO zasp_discovery_authority;
+    REVOKE ALL ON FUNCTION zasp_sa_export_prior.predecessor_ready(text,text) FROM PUBLIC;
+    d:=replace(d,'public.zasp_sa_attack_lab_live_fingerprint()=expected_fingerprint','public.zasp_sa_export_guard()');
+   END IF;
+  ELSE
+   n:=0;
+   FOREACH needle IN ARRAY ARRAY['later_release."version" > 57','later."version">57','later."version" > 57'] LOOP
+    n:=n+(length(d)-length(replace(d,needle,'')))/length(needle);
+    d:=replace(d,needle,replace(needle,'57','58'));
+   END LOOP;
+   IF n NOT IN(1,3) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export compatibility rejected';END IF;
+  END IF;
+  PERFORM set_config('check_function_bodies','off',true);
+  EXECUTE d;
+ END LOOP;
+ -- The predecessor fingerprint continues to cover all its live objects;
+ -- only release58's metadata rows are excluded from its ancestry input.
+ sig:='zasp_sa_attack_lab_prior.audit_fingerprint()';
+ PERFORM public.zasp_sa_export_save(sig);
+ d:=pg_get_functiondef(sig::regprocedure);
+ needle:='''production_security_agent_attack_lab_checksum'',''production_security_agent_attack_lab_fingerprint''';
+ IF strpos(d,needle)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export ancestry rejected';END IF;
+ EXECUTE replace(d,needle,needle||',''production_security_agent_exports_checksum'',''production_security_agent_exports_fingerprint''');
+ PERFORM set_config('check_function_bodies','on',true);
+END $ancestry$;
+
+-- export sources fragment
+-- export jobs fragment
+-- export links fragment
+-- export planner fragment
+-- export accounting fragment
+-- manual provenance fragment
+
+CREATE FUNCTION public.zasp_sa_export_function_identity(value oid) RETURNS text LANGUAGE sql STABLE SET search_path TO pg_catalog,public AS $identity$
+ SELECT replace(replace(pg_get_functiondef(value),'-- compiled export checksum','<compiled-checksum>'),'-- compiled export fingerprint','<compiled-fingerprint>')
+$identity$;
+CREATE FUNCTION public.zasp_sa_export_live_fingerprint() RETURNS text LANGUAGE sql STABLE SET search_path TO pg_catalog,public AS $fingerprint$
+ -- These two generic predecessors retain the registered migration login as
+ -- owner. Canonicalize that identity only for hashing; raw restoration bytes
+ -- remain untouched, and every other ACL entry/grant option stays significant.
+ WITH saved AS (
+ SELECT s.*,s.signature IN('public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)','public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)')
+ AND EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings b JOIN pg_roles r ON r.rolname=b.principal_name WHERE b.principal_name=s.owner_name AND b.authority_role='zasp_discovery_authority' AND pg_has_role(r.oid,'zasp_discovery_authority','MEMBER')) AS migration_owned
+ FROM zasp_sa_export_prior.functions s
+ ), identities(value) AS (
+ SELECT concat_ws('|','prior',public.zasp_sa_attack_lab_live_fingerprint())
+ UNION ALL SELECT concat_ws('|','saved',signature,definition,CASE WHEN migration_owned THEN '<registered-migration-principal>' ELSE 'owner:'||owner_name END,
+ CASE WHEN migration_owned THEN (SELECT jsonb_agg(CASE WHEN a->>'grantee'=owner_name THEN jsonb_set(a,'{grantee}','"<registered-migration-principal>"'::jsonb) ELSE a END ORDER BY n)::text FROM jsonb_array_elements(acl) WITH ORDINALITY x(a,n)) ELSE acl::text END) FROM saved
+ UNION ALL SELECT concat_ws('|','schema',nspname,nspowner::regrole::text,COALESCE(nspacl::text,'')) FROM pg_namespace WHERE nspname='zasp_sa_export_prior'
+ UNION ALL SELECT concat_ws('|','function',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid),p.proowner::regrole::text,p.prosecdef,p.provolatile,p.proparallel,p.proisstrict,p.proleakproof,COALESCE(p.proconfig::text,''),COALESCE(p.proacl::text,''),public.zasp_sa_export_function_identity(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND (starts_with(p.proname,'zasp_sa_export_') OR starts_with(p.proname,'zasp_sa_manual_'))
+ UNION ALL SELECT concat_ws('|','table',n.nspname,c.relname,c.relowner::regrole::text,c.relrowsecurity,c.relforcerowsecurity,COALESCE(c.relacl::text,'')) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE (n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND starts_with(c.relname,'zasp_sa_export_')) AND c.relkind='r'
+ UNION ALL SELECT concat_ws('|','column',n.nspname,c.relname,a.attnum,a.attname,format_type(a.atttypid,a.atttypmod),a.attnotnull,COALESCE(pg_get_expr(d.adbin,d.adrelid),''),COALESCE(a.attacl::text,'')) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_attribute a ON a.attrelid=c.oid LEFT JOIN pg_attrdef d ON (d.adrelid,d.adnum)=(a.attrelid,a.attnum) WHERE (n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND starts_with(c.relname,'zasp_sa_export_')) AND a.attnum>0 AND NOT a.attisdropped
+ UNION ALL SELECT concat_ws('|','constraint',c.relname,k.conname,pg_get_constraintdef(k.oid),k.convalidated) FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND starts_with(c.relname,'zasp_sa_export_')
+ UNION ALL SELECT concat_ws('|','policy',c.relname,p.polname,p.polcmd,p.polroles::regrole[]::text,pg_get_expr(p.polqual,p.polrelid),pg_get_expr(p.polwithcheck,p.polrelid)) FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid WHERE starts_with(c.relname,'zasp_sa_export_')
+ UNION ALL SELECT concat_ws('|','index',c.relname,pg_get_indexdef(i.indexrelid),i.indisvalid,i.indisready) FROM pg_index i JOIN pg_class c ON c.oid=i.indrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND starts_with(c.relname,'zasp_sa_export_')
+ UNION ALL SELECT concat_ws('|','trigger',n.nspname,c.relname,t.tgname,t.tgenabled,pg_get_triggerdef(t.oid)) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE NOT t.tgisinternal AND (n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND starts_with(c.relname,'zasp_sa_export_'))
+ ) SELECT encode(digest(convert_to(string_agg(value,E'\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities
+$fingerprint$;
+CREATE FUNCTION public.zasp_sa_export_readiness(expected_checksum text,expected_fingerprint text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog,public AS $ready$
+ SELECT COALESCE(expected_checksum='-- compiled export checksum' AND expected_fingerprint='-- compiled export fingerprint'
+ AND (SELECT count(*)=58 FROM public.zasp_schema_versions) AND NOT EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version<1 OR version>58)
+ AND EXISTS(SELECT 1 FROM public.zasp_schema_versions WHERE version=58 AND name='production_security_agent_exports' AND checksum=expected_checksum)
+ AND EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_security_agent_exports_checksum' AND value=expected_checksum)
+ AND EXISTS(SELECT 1 FROM public.zasp_schema_metadata WHERE key='production_security_agent_exports_fingerprint' AND value=expected_fingerprint)
+ AND zasp_sa_export_prior.predecessor_ready('-- export predecessor checksum','-- export predecessor fingerprint')
+ AND public.zasp_sa_export_live_fingerprint()=expected_fingerprint,false)
+$ready$;
+CREATE FUNCTION public.zasp_sa_export_guard() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO pg_catalog,public AS $guard$
+ SELECT public.zasp_sa_export_readiness('-- compiled export checksum','-- compiled export fingerprint')
+$guard$;
+-- export definition fragment
+DO $owners$
+DECLARE p regprocedure;
+BEGIN
+ FOR p IN SELECT oid::regprocedure FROM pg_proc WHERE pronamespace='public'::regnamespace AND (starts_with(proname,'zasp_sa_export_') OR starts_with(proname,'zasp_sa_manual_')) LOOP
+  EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',p);
+  EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',p);
+ END LOOP;
+END $owners$;
+GRANT EXECUTE ON FUNCTION public.zasp_sa_export_readiness(text,text) TO zasp_discovery_api,zasp_security_agent_api,zasp_security_agent_worker,zasp_compliance_worker,zasp_compliance_cleanup;
+DROP FUNCTION public.zasp_sa_export_save(text);

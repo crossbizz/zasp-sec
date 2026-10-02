@@ -2,22 +2,26 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { activityLink, type ActivityScope } from "../../domain/activity-links";
 import type { AttackPath, BreakOption, Finding } from "../../../apps/web/api/generated";
 import { useAPI } from "../../api/APIProvider";
 import { useAPIQuery } from "../../api/query";
 import { Badge, Button, Card, Drawer, Field, PageHeader } from "../../components/ui";
+import { SecurityAgentActivityPanel } from "../securityagents/SecurityAgentActivityPanel";
 import { workflowIdempotencyKey } from "../workflows/api";
 import { useRetainedWorkflowMutation } from "../workflows/useRetainedWorkflowMutation";
 import { createProductionRiskAPI, type ProductionRiskAPI, type VersionedRisk } from "./api";
 
-export function ProductionRiskView({ path, canWrite, api: suppliedAPI, onNavigate = navigateInBrowser }: { path: "/violations" | "/exposure/attack-paths"; canWrite: boolean; api?: ProductionRiskAPI; onNavigate?: (path: string) => void }) {
-  const { client } = useAPI();
+export function ProductionRiskView({ path, canWrite, api: suppliedAPI, onNavigate = navigateInBrowser, selectedID, activityScope, canReadRuns = false }: { path: "/violations" | "/exposure/attack-paths"; canWrite: boolean; canReadRuns?: boolean; api?: ProductionRiskAPI; onNavigate?: (path: string) => void; selectedID?: string; activityScope?: ActivityScope }) {
+  const { client, queryScopeKey, queryGeneration } = useAPI();
   const api = useMemo(() => suppliedAPI ?? createProductionRiskAPI(client), [client, suppliedAPI]);
-  return path === "/violations" ? <ProductionFindingsView api={api} canWrite={canWrite} onNavigate={onNavigate} /> : <ProductionAttackPathsView api={api} />;
+  if (selectedID && queryScopeKey === null) return <RiskState title="Activity detail" status="Revalidating activity access…" />;
+  const detailKey = `${queryScopeKey}/${queryGeneration}/${selectedID ?? "list"}`;
+  return path === "/violations" ? <ProductionFindingsView key={detailKey} api={api} canWrite={canWrite} onNavigate={onNavigate} selectedID={selectedID} activityScope={activityScope} canReadRuns={canReadRuns} /> : <ProductionAttackPathsView key={detailKey} api={api} selectedID={selectedID} onNavigate={onNavigate} activityScope={activityScope} canReadRuns={canReadRuns} />;
 }
 
-function ProductionFindingsView({ api, canWrite, onNavigate }: { api: ProductionRiskAPI; canWrite: boolean; onNavigate: (path: string) => void }) {
-  const query = useAPIQuery("risk:findings", useCallback((signal?: AbortSignal) => api.listFindings(signal), [api]));
+function ProductionFindingsView({ api, canWrite, onNavigate, selectedID, activityScope, canReadRuns }: { api: ProductionRiskAPI; canWrite: boolean; canReadRuns: boolean; onNavigate: (path: string) => void; selectedID?: string; activityScope?: ActivityScope }) {
+  const query = useAPIQuery("risk:findings", useCallback((signal?: AbortSignal) => api.listFindings(signal), [api]), !selectedID);
   const [detail, setDetail] = useState<VersionedRisk<Finding> | null>(null);
   const [detailState, setDetailState] = useState<"idle" | "loading" | "error">("idle");
   const [mutationError, setMutationError] = useState<string | null>(null);
@@ -36,18 +40,24 @@ function ProductionFindingsView({ api, canWrite, onNavigate }: { api: Production
     detailRequest.current = null;
   }, []);
 
-  const open = async (finding: Finding) => {
+  const open = useCallback(async (finding: Pick<Finding, "id">) => {
     detailRequest.current?.abort(); const controller = new AbortController(); detailRequest.current = controller;
 		setDetailState("loading"); setMutationError(null); setTicketID(null);
     try {
       const value = await api.getFinding(finding.id, controller.signal);
+      if (value.value.id !== finding.id) throw new TypeError("Finding detail identity mismatch");
       if (controller.signal.aborted || detailRequest.current !== controller) return;
 			const retainedTicket = loadFindingTicketAttempt(queryScopeKey, value.value.id, value.version);
 			setDetail(value); setTicketAttempt(retainedTicket); setTicketID(retainedTicket?.ticket_id ?? null); setDetailState("idle");
     } catch (error) {
       if (!controller.signal.aborted && detailRequest.current === controller) { setDetailState("error"); setMutationError(message(error, "Finding detail is unavailable.")); }
     }
-  };
+  }, [api, queryScopeKey]);
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => { if (active && selectedID) void open({ id: selectedID }); });
+    return () => { active = false; detailRequest.current?.abort(); };
+  }, [open, selectedID]);
   const close = () => { detailRequest.current?.abort(); detailRequest.current = null; setDetail(null); setReason(""); setMutationError(null); };
   const markUnderReview = async () => {
     if (!canWrite || !detail || locked) return;
@@ -91,11 +101,11 @@ function ProductionFindingsView({ api, canWrite, onNavigate }: { api: Production
 		} catch (error) { setMutationError(message(error, "Ticket creation failed.")); }
 	};
 
-  if (query.status === "loading" || query.status === "idle") return <RiskState title="Findings" status="Loading authorized findings…" />;
+  if (!selectedID && (query.status === "loading" || query.status === "idle")) return <RiskState title="Findings" status="Loading authorized findings…" />;
   if (query.status === "forbidden") return <RiskState title="Findings" alert="Findings are not authorized in this scope." />;
   if (query.status === "error") return <RiskState title="Findings" alert="Findings are unavailable." retry={() => void query.retry()} />;
   const findings = query.data ?? [];
-	return <div className="page"><PageHeader title="Findings" description="Authoritative scoped findings and their exact evidence." />{query.status === "stale" && <div role="alert" className="form-error">Showing stale findings. Retry before making decisions.</div>}<Card>{findings.length === 0 ? <p>No findings in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Finding</th><th>Severity</th><th>Status</th><th>Updated</th></tr></thead><tbody>{findings.map((finding) => <tr key={finding.id}><td><button className="row-title" aria-label={`Open ${finding.title}`} onClick={() => void open(finding)}>{finding.title}</button></td><td><Badge tone={finding.severity}>{finding.severity}</Badge></td><td>{finding.status.replace("_", " ")}</td><td>{finding.updated_at}</td></tr>)}</tbody></table></div>}</Card>{detailState === "loading" && <p role="status">Loading finding detail…</p>}{detailState === "error" && <p role="alert">{mutationError}</p>}{detail && <Drawer open title={detail.value.title} closeDisabled={locked} onClose={close}><FindingDetail finding={detail.value} onNavigate={onNavigate} />{canWrite && <section aria-label="Finding controls"><h3>Create ticket</h3><Button disabled={locked || ticketID !== null} onClick={() => void createTicket()}>{ticketAttempt && ticketAttempt.ticket_id === null ? "Retry ticket creation" : "Create ticket"}</Button>{ticketID && <p>Ticket {ticketID} created.</p>}<h3>Change status</h3><Button disabled={locked || detail.value.status === "under_review"} onClick={() => void markUnderReview()}>Mark under review</Button><h3>Accept risk</h3><Field multiline label="Risk acceptance reason" value={reason} disabled={locked} maxLength={512} onChange={(event) => setReason(event.target.value)} /><Button variant="danger" disabled={locked || reason.length < 1 || reason.trim() !== reason} onClick={() => void acceptRisk()}>Accept risk</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}{ticket.canRetry && <Button onClick={() => void retryTicket()}>Retry retained ticket creation</Button>}{update.canRetry && <Button onClick={() => void update.retry()}>Retry retained finding update</Button>}{accept.canRetry && <Button onClick={() => void accept.retry()}>Retry retained risk acceptance</Button>}{locked && <p role="status">Reconciling finding change…</p>}</Drawer>}</div>;
+	return <div className="page"><PageHeader title="Findings" description="Authoritative scoped findings and their exact evidence." />{query.status === "stale" && <div role="alert" className="form-error">Showing stale findings. Retry before making decisions.</div>}<Card>{selectedID ? <><p>Linked finding <code>{selectedID}</code></p><Button disabled={locked} onClick={() => void open({ id: selectedID })}>Reload linked finding</Button><Button disabled={locked} onClick={() => onNavigate("/violations")}>All findings</Button></> : findings.length === 0 ? <p>No findings in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Finding</th><th>Severity</th><th>Status</th><th>Updated</th></tr></thead><tbody>{findings.map((finding) => <tr key={finding.id}><td><button className="row-title" aria-label={`Open ${finding.title}`} onClick={() => void open(finding)}>{finding.title}</button></td><td><Badge tone={finding.severity}>{finding.severity}</Badge></td><td>{finding.status.replace("_", " ")}</td><td>{finding.updated_at}</td></tr>)}</tbody></table></div>}</Card>{detailState === "loading" && <p role="status">Loading finding detail…</p>}{detailState === "error" && <p role="alert">{mutationError}</p>}{detail && <Drawer open title={detail.value.title} closeDisabled={locked} onClose={close}><FindingDetail finding={detail.value} onNavigate={onNavigate} activityScope={activityScope} locked={locked} />{activityScope && detailState === "idle" && <SecurityAgentActivityPanel direction="runs" kind="finding" entityID={detail.value.id} scope={activityScope} permitted={canReadRuns} disabled={locked} onNavigate={onNavigate} />}{canWrite && <section aria-label="Finding controls"><h3>Create ticket</h3><Button disabled={locked || ticketID !== null} onClick={() => void createTicket()}>{ticketAttempt && ticketAttempt.ticket_id === null ? "Retry ticket creation" : "Create ticket"}</Button>{ticketID && <p>Ticket {ticketID} created.</p>}<h3>Change status</h3><Button disabled={locked || detail.value.status === "under_review"} onClick={() => void markUnderReview()}>Mark under review</Button><h3>Accept risk</h3><Field multiline label="Risk acceptance reason" value={reason} disabled={locked} maxLength={512} onChange={(event) => setReason(event.target.value)} /><Button variant="danger" disabled={locked || reason.length < 1 || reason.trim() !== reason} onClick={() => void acceptRisk()}>Accept risk</Button></section>}{mutationError && <p role="alert">{mutationError}</p>}{ticket.canRetry && <Button onClick={() => void retryTicket()}>Retry retained ticket creation</Button>}{update.canRetry && <Button onClick={() => void update.retry()}>Retry retained finding update</Button>}{accept.canRetry && <Button onClick={() => void accept.retry()}>Retry retained risk acceptance</Button>}{locked && <p role="status">Reconciling finding change…</p>}</Drawer>}</div>;
 }
 
 type StoredFindingTicketAttempt = Readonly<{ version: 1; finding_version: string; idempotency_key: string; ticket_id: string | null }>;
@@ -124,9 +134,9 @@ function storeFindingTicketAttempt(scopeKey: string | null, findingID: string, a
 	try { window.sessionStorage.setItem(key, JSON.stringify(attempt)); } catch { /* The in-memory attempt still supports exact replay in this page. */ }
 }
 
-function FindingDetail({ finding, onNavigate }: { finding: Finding; onNavigate: (path: string) => void }) {
+function FindingDetail({ finding, onNavigate, activityScope, locked }: { finding: Finding; onNavigate: (path: string) => void; activityScope?: ActivityScope; locked: boolean }) {
   const guidance = guidanceFor(finding);
-  return <div className="detail-content"><p><Badge tone={finding.severity}>{finding.severity}</Badge> · {finding.status.replace("_", " ")} · version {finding.version}</p>{finding.acceptance_reason && <><h3>Acceptance reason</h3><p>{finding.acceptance_reason}</p></>}<h3>Why</h3><p>{guidance.why}</p>{finding.risk_factors.length === 0 ? <p>No risk factors recorded.</p> : <dl>{finding.risk_factors.map((factor) => <div key={`${factor.name}/${factor.evidence_id}`}><dt>{factor.name}</dt><dd>Evidence <code>{factor.evidence_id}</code></dd></div>)}</dl>}<h3>Evidence</h3><ul>{finding.evidence_ids.map((id) => <li key={id}><code>{id}</code></li>)}</ul><h3>Path</h3>{finding.path_id ? <><p>Evidence-backed attack path <code>{finding.path_id}</code></p><Button onClick={() => onNavigate("/exposure/attack-paths")}>Open attack path</Button></> : <p>No evidence-backed attack path is linked to this finding.</p>}<h3>Fix</h3><p>{guidance.fix}</p><h3>Verify</h3><p>{guidance.verify}</p></div>;
+  return <div className="detail-content"><p><Badge tone={finding.severity}>{finding.severity}</Badge> · {finding.status.replace("_", " ")} · version {finding.version}</p>{finding.acceptance_reason && <><h3>Acceptance reason</h3><p>{finding.acceptance_reason}</p></>}<h3>Why</h3><p>{guidance.why}</p>{finding.risk_factors.length === 0 ? <p>No risk factors recorded.</p> : <dl>{finding.risk_factors.map((factor) => <div key={`${factor.name}/${factor.evidence_id}`}><dt>{factor.name}</dt><dd>Evidence <code>{factor.evidence_id}</code></dd></div>)}</dl>}<h3>Evidence</h3><ul>{finding.evidence_ids.map((id) => <li key={id}><code>{id}</code></li>)}</ul><h3>Path</h3>{finding.path_id ? <><p>Evidence-backed attack path <code>{finding.path_id}</code></p><Button disabled={locked || !activityScope} onClick={() => { if (activityScope) onNavigate(activityLink({ kind: "attack_path", id: finding.path_id! }, activityScope)); }}>Open attack path</Button></> : <p>No evidence-backed attack path is linked to this finding.</p>}<h3>Fix</h3><p>{guidance.fix}</p><h3>Verify</h3><p>{guidance.verify}</p></div>;
 }
 
 type FindingGuidance = Readonly<{ why: string; fix: string; verify: string }>;
@@ -160,8 +170,8 @@ function navigateInBrowser(path: string): void {
   if (typeof window !== "undefined") window.location.assign(path);
 }
 
-function ProductionAttackPathsView({ api }: { api: ProductionRiskAPI }) {
-  const query = useAPIQuery("risk:attack-paths", useCallback((signal?: AbortSignal) => api.listAttackPaths(signal), [api]));
+function ProductionAttackPathsView({ api, selectedID, onNavigate, activityScope, canReadRuns }: { api: ProductionRiskAPI; selectedID?: string; onNavigate: (path: string) => void; activityScope?: ActivityScope; canReadRuns: boolean }) {
+  const query = useAPIQuery("risk:attack-paths", useCallback((signal?: AbortSignal) => api.listAttackPaths(signal), [api]), !selectedID);
   const [selectedPathID, setSelectedPathID] = useState<string | null>(null);
   const [detail, setDetail] = useState<AttackPath | null>(null);
   const [options, setOptions] = useState<readonly BreakOption[] | null>(null);
@@ -177,22 +187,44 @@ function ProductionAttackPathsView({ api }: { api: ProductionRiskAPI }) {
     const controller = new AbortController(); request.current = controller;
     setSelectedPathID(path.id); setDetailError(null); setOptionsError(null); setDetail(null); setOptions(null);
     const isCurrent = () => !controller.signal.aborted && request.current === controller;
-    const detailRequest = api.getAttackPath(path.id, controller.signal).then(
-      (value) => { if (isCurrent()) setDetail(value); },
-      (error) => { if (isCurrent()) setDetailError(message(error, "Attack path detail is unavailable.")); },
-    );
+    const detailRequest = api.getAttackPath(path.id, controller.signal).then(value => {
+      if (!isCurrent()) return;
+      if (value.id !== path.id) throw new TypeError("Attack path detail identity mismatch");
+      setDetail(value);
+    }).catch(error => { if (isCurrent()) setDetailError(message(error, "Attack path detail is unavailable.")); });
     const optionsRequest = api.getAttackPathBreakOptions(path, controller.signal).then(
       (value) => { if (isCurrent()) setOptions(value); },
       (error) => { if (isCurrent()) setOptionsError(message(error, "Break options are unavailable.")); },
     );
     await Promise.allSettled([detailRequest, optionsRequest]);
   };
+  useEffect(() => {
+    if (!selectedID) return;
+    const controller = new AbortController(); request.current = controller;
+    const current = () => !controller.signal.aborted && request.current === controller;
+    queueMicrotask(() => {
+      if (!current()) return;
+      setSelectedPathID(selectedID);
+      void api.getAttackPath(selectedID, controller.signal).then(async value => {
+        if (!current()) return;
+        if (value.id !== selectedID) throw new TypeError("Attack path detail identity mismatch");
+        setDetail(value);
+        try {
+          const loaded = await api.getAttackPathBreakOptions(value, controller.signal);
+          if (current()) setOptions(loaded);
+        } catch (error) { if (current()) setOptionsError(message(error, "Break options are unavailable.")); }
+      }).catch(error => {
+        if (current()) { setDetailError(message(error, "Attack path detail is unavailable.")); setOptionsError("Break options require an authorized path detail."); }
+      });
+    });
+    return () => controller.abort();
+  }, [api, selectedID]);
   const close = () => { request.current?.abort(); request.current = null; setSelectedPathID(null); setDetail(null); setOptions(null); setDetailError(null); setOptionsError(null); };
-  if (query.status === "loading" || query.status === "idle") return <RiskState title="Attack Paths" status="Loading authorized attack paths…" />;
+  if (!selectedID && (query.status === "loading" || query.status === "idle")) return <RiskState title="Attack Paths" status="Loading authorized attack paths…" />;
   if (query.status === "forbidden") return <RiskState title="Attack Paths" alert="Attack paths are not authorized in this scope." />;
   if (query.status === "error") return <RiskState title="Attack Paths" alert="Attack paths are unavailable." retry={() => void query.retry()} />;
   const paths = query.data ?? [];
-  return <div className="page"><PageHeader title="Attack Paths" description="Bounded evidence paths from entry conditions to impact." />{query.status === "stale" && <div role="alert" className="form-error">Showing stale attack paths.</div>}<Card>{paths.length === 0 ? <p>No attack paths in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Path</th><th>State</th><th>Nodes</th><th>Updated</th></tr></thead><tbody>{paths.map((path) => <tr key={path.id}><td><button className="row-title" aria-label={`Open attack path ${path.id}`} onClick={() => void open(path)}>{path.entry_id} → {path.sink_id}</button></td><td>{path.state}</td><td>{path.node_ids.length}</td><td>{path.updated_at}</td></tr>)}</tbody></table></div>}</Card>{selectedPathID === null ? null : <Drawer open title="Attack path detail" onClose={close}>{detailError ? <p role="alert">{detailError}</p> : detail ? <><p>{detail.node_ids.join(" → ")}</p><p>State {detail.state}{detail.state === "blocked" ? ` · blocked edge ${detail.blocked_edge}` : ""}</p><h3>Evidence</h3><ul>{detail.evidence_ids.map((id) => <li key={id}><code>{id}</code></li>)}</ul></> : <p role="status">Loading path detail…</p>}<h3>Break path</h3>{optionsError ? <p role="alert">{optionsError}</p> : options === null ? <p role="status">Loading break options…</p> : options.length === 0 ? <p>No deterministic break options are available.</p> : <ol>{options.map((option) => <li key={`${option.kind}/${option.target_id}`}>{option.rank}. {option.kind === "remove_node" ? "Remove node" : "Enforce policy"} at <code>{option.target_id}</code> · evidence <code>{option.evidence_id}</code></li>)}</ol>}</Drawer>}</div>;
+  return <div className="page"><PageHeader title="Attack Paths" description="Bounded evidence paths from entry conditions to impact." />{query.status === "stale" && <div role="alert" className="form-error">Showing stale attack paths.</div>}<Card>{selectedID ? <><p>Linked attack path <code>{selectedID}</code></p><Button onClick={() => onNavigate("/exposure/attack-paths")}>All attack paths</Button></> : paths.length === 0 ? <p>No attack paths in this scope.</p> : <div className="table-scroll"><table className="data-table"><thead><tr><th>Path</th><th>State</th><th>Nodes</th><th>Updated</th></tr></thead><tbody>{paths.map((path) => <tr key={path.id}><td><button className="row-title" aria-label={`Open attack path ${path.id}`} onClick={() => void open(path)}>{path.entry_id} → {path.sink_id}</button></td><td>{path.state}</td><td>{path.node_ids.length}</td><td>{path.updated_at}</td></tr>)}</tbody></table></div>}</Card>{selectedPathID === null ? null : <Drawer open title="Attack path detail" onClose={close}>{detailError ? <p role="alert">{detailError}</p> : detail ? <><p>{detail.node_ids.join(" → ")}</p><p>State {detail.state}{detail.state === "blocked" ? ` · blocked edge ${detail.blocked_edge}` : ""}</p><h3>Evidence</h3><ul>{detail.evidence_ids.map((id) => <li key={id}><code>{id}</code></li>)}</ul>{activityScope && <SecurityAgentActivityPanel direction="runs" kind="attack_path" entityID={detail.id} scope={activityScope} permitted={canReadRuns} onNavigate={onNavigate} />}</> : <p role="status">Loading path detail…</p>}<h3>Break path</h3>{optionsError ? <p role="alert">{optionsError}</p> : options === null ? <p role="status">Loading break options…</p> : options.length === 0 ? <p>No deterministic break options are available.</p> : <ol>{options.map((option) => <li key={`${option.kind}/${option.target_id}`}>{option.rank}. {option.kind === "remove_node" ? "Remove node" : "Enforce policy"} at <code>{option.target_id}</code> · evidence <code>{option.evidence_id}</code></li>)}</ol>}</Drawer>}</div>;
 }
 
 function RiskState({ title, status, alert, retry }: { title: string; status?: string; alert?: string; retry?: () => void }) {

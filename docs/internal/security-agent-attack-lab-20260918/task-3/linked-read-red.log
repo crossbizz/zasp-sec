@@ -1,0 +1,246 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","node_modules/vitest/vitest.mjs","run","app/features/redteam/ProductionAttackLabView.test.tsx","-t","loads a linked execution"]
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ❯ app/features/redteam/ProductionAttackLabView.test.tsx (7 tests | 1 failed | 6 skipped) 1021ms
+     × loads a linked execution from the authorized read even outside the current list 1020ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/features/redteam/ProductionAttackLabView.test.tsx > production Attack Lab view > loads a linked execution from the authorized read even outside the current list
+TestingLibraryElementError: Unable to find role="dialog" and name "Attack Lab run"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mAttack Lab[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mVerify failed Red Team findings in an isolated, tenant-scoped, test-only sandbox.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mSafety approval[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mSelect a completed failing Red Team run. The server revalidates its live target, non-production environment, credential class, and exact destination before approval.[0m
+        [36m</p>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"field "[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mFailed Red Team run[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"select-wrap"[39m
+          [36m>[39m
+            [36m<select[39m
+              [33mdisabled[39m=[32m""[39m
+            [36m>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"pid_93000001-0000-4000-8000-000000000001"[39m
+              [36m>[39m
+                [0mpid_93000001-0000-4000-8000-000000000001[0m
+              [36m</option>[39m
+            [36m</select>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-chevron-down"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"15"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"15"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 9 6 6 6-6"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</span>[39m
+        [36m</label>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"button button--primary "[39m
+          [33mdisabled[39m=[32m""[39m
+        [36m>[39m
+          [0mRun Attack Lab[0m
+        [36m</button>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mRuns[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mNo Attack Lab runs in this scope.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mAttack Lab[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mVerify failed Red Team findings in an isolated, tenant-scoped, test-only sandbox.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mSafety approval[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mSelect a completed failing Red Team run. The server revalidates its live target, non-production environment, credential class, and exact destination before approval.[0m
+        [36m</p>[39m
+        [36m<label[39m
+          [33mclass[39m=[32m"field "[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mFailed Red Team run[0m
+          [36m</span>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"select-wrap"[39m
+          [36m>[39m
+            [36m<select[39m
+              [33mdisabled[39m=[32m""[39m
+            [36m>[39m
+              [36m<option[39m
+                [33mvalue[39m=[32m"pid_93000001-0000-4000-8000-000000000001"[39m
+              [36m>[39m
+                [0mpid_93000001-0000-4000-8000-000000000001[0m
+              [36m</option>[39m
+            [36m</select>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-chevron-down"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"15"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"15"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 9 6 6 6-6"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</span>[39m
+        [36m</label>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"button button--primary "[39m
+          [33mdisabled[39m=[32m""[39m
+        [36m>[39m
+          [0mRun Attack Lab[0m
+        [36m</button>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mRuns[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mNo Attack Lab runs in this scope.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ app/features/redteam/ProductionAttackLabView.test.tsx:42:25
+     40|     const value = api({ listAttackLabRuns: async () => [], getAttackLa…
+     41|     render(<APIProvider><QueryScope><ProductionAttackLabView api={valu…
+     42|     expect(await screen.findByRole("dialog", { name: "Attack Lab run" …
+       |                         ^
+     43|     expect(screen.getByText(/version-attack-lab-1/)).toBeVisible();
+     44|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 skipped (7)
+   Start at  03:23:40
+   Duration  2.38s (transform 152ms, setup 191ms, import 253ms, tests 1.02s, environment 716ms)
+
+
+Exit: 1 Signal: null

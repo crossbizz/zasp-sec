@@ -1,0 +1,6 @@
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres
+    automatic_discovery_scheduler_postgres_test.go:143: real lease wait=5.053854788s claim version=2→3 same due=2026-09-20T02:42:10.105529Z
+    automatic_discovery_scheduler_postgres_test.go:149: exact occurrence replay under verified new live lease must succeed: SQLSTATE=23505 message=schedule run conflict
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=29 data=/tmp/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres2453854105/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres (5.81s)
+FAIL

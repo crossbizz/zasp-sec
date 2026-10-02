@@ -1,0 +1,5 @@
+=== RUN   TestSecurityAgentExportReleasePostgres
+    security_agent_export_release_postgres_test.go:50: Runner58=invalid migration state observed fingerprint=ef60a611e04ccbf41380fb0851d265b5402a20e767ea4d07983f1f94abb3ba8d diagnostic=<nil>
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportReleasePostgres2917097348/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportReleasePostgres (5.43s)
+FAIL

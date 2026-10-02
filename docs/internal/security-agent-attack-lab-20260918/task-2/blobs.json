@@ -1,0 +1,287 @@
+[
+  {
+    "path": "services/platform/migrations/sql/0057_production_security_agent_attack_lab.up.sql",
+    "before": "d45e3b51fb16e4cf71340bd680e59ba21a97949d",
+    "after": "2f36858397d5431a0b6a1ccb8e26bb8cb3aca37f"
+  },
+  {
+    "path": "services/platform/migrations/sql/0057_production_security_agent_attack_lab.down.sql",
+    "before": "9e96cebe73542af5fd566e88e89f662283c83caf",
+    "after": "9e96cebe73542af5fd566e88e89f662283c83caf"
+  },
+  {
+    "path": "services/platform/migrations/security_agent_attack_lab_release.go",
+    "before": "99b4710c6dc6133f7d44b127c29e1068c5eec16d",
+    "after": "1fcd7570a62767193fa120c39ff634339ce47c76"
+  },
+  {
+    "path": "services/platform/migrations/sql/fragments/security_agent_attack_lab_reconcile.sql",
+    "before": null,
+    "after": "90585220dbd130c7afbca5b09a8a725ce6a4b8a2"
+  },
+  {
+    "path": "services/platform/migrations/sql/fragments/security_agent_attack_lab_settlement.sql",
+    "before": null,
+    "after": "0ed3baf25181feaf09e6ecbb1ed7937420483bba"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_reconciler.go",
+    "before": null,
+    "after": "959dddca37e6a1ec5b12bd63b72d2dde127d6af2"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_client.go",
+    "before": null,
+    "after": "0f3d840869f7282a422c12cf09247fd1dbeb0976"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_config.go",
+    "before": null,
+    "after": "6c5110c32d1f1b31cb85a1d3b09e9626ee9359ad"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_runtime_test.go",
+    "before": null,
+    "after": "974879527919cf8183aa2b99b1036d10cfcf28d5"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_attack_lab_settlement_postgres_test.go",
+    "before": null,
+    "after": "31a9e79af50349337cdf10aa31ceeb252967c975"
+  },
+  {
+    "path": "services/platform/agentsec-worker/runtime_config.go",
+    "before": "dd2cf7cf520e3ce99d824a7759a2c296b2b0b72b",
+    "after": "8060789e223a5f4b9556a7dabc197e746a2348c9"
+  },
+  {
+    "path": "services/platform/agentsec-worker/production_runtime.go",
+    "before": "f8f61bf3fc2e32bcc864af285a463dfa1aa6946f",
+    "after": "18919e50b790d414a421ef8af59f9d31477f261a"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_test_runtime.go",
+    "before": "becfb75f4da320b7e4c1c7cca888e5450ea5ddf4",
+    "after": "ae730baa088fcd26d051e2be52449f30b67ec57f"
+  },
+  {
+    "path": "services/platform/agentsec-worker/discovery_cloud.go",
+    "before": "ca41b2196df80d11cbe126f57acbd751d6fa4064",
+    "after": "8aace27033d8212da4b9e8ea435c295ae98d4a90"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_config_test.go",
+    "before": null,
+    "after": "af066e4d2bb2d9a0f22d97f556600929fb2f3e9b"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_evidence.go",
+    "before": null,
+    "after": "fe5a2821db3891596e74799f7a4b4a830e2d7619"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_evidence_test.go",
+    "before": null,
+    "after": "07683be3cdaa9c0f2189f2abf60fbf5bfa7d74d8"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_scheduler.go",
+    "before": null,
+    "after": "9b13029d277cc3bce9a397e1529347902511a291"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_runtime.go",
+    "before": null,
+    "after": "0a66ad00380d23622d2c9d0b7dc53a3f92617220"
+  },
+  {
+    "path": "deploy/production/attack-lab-reconciler-rollout.test.mjs",
+    "before": null,
+    "after": "34945a112fcae9118eee9d8bfd416602d02c3756"
+  },
+  {
+    "path": "deploy/production/attack-lab-reconciler-rollout.mjs",
+    "before": null,
+    "after": "c624681068c06aa71819988506e28c72c49ee68a"
+  },
+  {
+    "path": "deploy/production/attack-lab-reconciler-network.mjs",
+    "before": null,
+    "after": "7703a068ea41e40bf0c2910810c0250fcd528a2a"
+  },
+  {
+    "path": "deploy/production/attack-lab-reconciler-release-fixture.mjs",
+    "before": null,
+    "after": "0b46afcb6163a4c4af0204b192f481693f13a148"
+  },
+  {
+    "path": "deploy/production/release-contract.mjs",
+    "before": "792ba7fa45fc346bb9e111c2aab27c2e07c5c5a5",
+    "after": "6e0d70ee90c823cbcfeb7c10fd1dfcb1d65ab206"
+  },
+  {
+    "path": "deploy/production/session-search-rollout.mjs",
+    "before": "700b8a4bf3727118e21f18b10f81b1f33bccedfa",
+    "after": "33937e02a9b8b4800f39dd4a8192139d3ac4bed5"
+  },
+  {
+    "path": "deploy/production/audit-export-rollout.mjs",
+    "before": "4585f68a95f073717644063caa67705e09fbc6d2",
+    "after": "31ddeecd380338ef7f2605e0997b913477c94023"
+  },
+  {
+    "path": "deploy/production/compliance-export-rollout.mjs",
+    "before": "662c86c5d5136a0bd96ef563d8bcf03919adaccf",
+    "after": "01410a30ff451a7abfcb2b1867655fa7320c3f49"
+  },
+  {
+    "path": "deploy/production/test-reconciler-rollout.mjs",
+    "before": "7f3804245cabf8a3f0fbe8fcff4f6f875c8dc802",
+    "after": "7fcda64cbdc147a21d4c0d12248be9b9d968c33f"
+  },
+  {
+    "path": "deploy/staging/product/templates/attack-lab-reconciler.yaml",
+    "before": null,
+    "after": "efa4409531f8a33f6db953d17551597f1fa7df97"
+  },
+  {
+    "path": "deploy/staging/product/templates/test-reconciler.yaml",
+    "before": "c6518c7739c128734ca51fd7b236cf5d88f0a839",
+    "after": "492180a64009f62cf8480a508be05dd1a4033ef0"
+  },
+  {
+    "path": "deploy/staging/product/templates/_session-search.tpl",
+    "before": "2d8ebbd61c70ee52937f87b640a3234e6eb134b7",
+    "after": "ca2707b4ce9ce47f2c4ab6d588ec63ee6d2944ca"
+  },
+  {
+    "path": "deploy/staging/product/templates/_compliance-exports.tpl",
+    "before": "4a901c5feb50f27808da196ca395ca311b0652fe",
+    "after": "1107b0caae5736aa8cb1080275b2c940be91ff95"
+  },
+  {
+    "path": "deploy/staging/product/templates/audit-exports.yaml",
+    "before": "c97f057e9b0d79262df9bc0a350177c2c59bc681",
+    "after": "fd26301550f1413609955fee05d6d0f61f8077f5"
+  },
+  {
+    "path": "deploy/staging/product/templates/migration.yaml",
+    "before": "797a0685dcd13dbf2bba9cae95dfa297ced1392b",
+    "after": "ef0b72f1939679d2a481904327ebff9a404966e3"
+  },
+  {
+    "path": "deploy/staging/product/templates/resilience.yaml",
+    "before": "618a4a197c9d974f12a2c2838d742e14d817605d",
+    "after": "1c00c753e61f0daf16225f34473bd78d50cc14be"
+  },
+  {
+    "path": "deploy/staging/product/values.yaml",
+    "before": "2f2bac3d600c272f6a16458b9509a344509bb7de",
+    "after": "6579d3a50f01b18ca3a70408006de852aa5b2d07"
+  },
+  {
+    "path": "deploy/staging/attack_lab_reconciler.tf",
+    "before": null,
+    "after": "1aca248108d1297b7d04c31ce1be8ddedf0b300c"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_client_test.go",
+    "before": null,
+    "after": "16b3c675846433b948aa1b81e77d1b1ea4500466"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_json.go",
+    "before": null,
+    "after": "7969b193dd296b78c5b90eed39c29deda3941d14"
+  },
+  {
+    "path": "deploy/staging/product/templates/_attack-lab-reconciler.tpl",
+    "before": null,
+    "after": "4d5e6a6dd44023326736a4354cafbb6bf5260d75"
+  },
+  {
+    "path": "deploy/production/compliance-export-network.mjs",
+    "before": "a9186bd64996ffa6bf4d84f82ee8ca11af1f0ac2",
+    "after": "6a9c9e606f5a4643adf919e9dc59974902a3eded"
+  },
+  {
+    "path": "deploy/production/audit-export-network.mjs",
+    "before": "4c95001a3b8289bcb1fa7e18e8e32c6d96dfadd9",
+    "after": "fb25013a09a97fb84fa5cd0e1bea35e415ec4baa"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_scheduler_test.go",
+    "before": null,
+    "after": "4fab3436072d3181b4fb37ef345c79b6f70527bd"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_lifecycle_test.go",
+    "before": null,
+    "after": "0a673e5ff4603511b2d7f0107683feed369533b2"
+  },
+  {
+    "path": "deploy/production/attack-lab-reconciler-iam.test.mjs",
+    "before": null,
+    "after": "69f8ac6d702155f655dde0304e8d94362e25ead4"
+  },
+  {
+    "path": "deploy/staging/tests/attack_lab_reconciler_iam.tftest.hcl",
+    "before": null,
+    "after": "e0507b591276aa29dda6b5543a7b307262bfe84e"
+  },
+  {
+    "path": "services/platform/agentsec-migrate/compliance_deployment_postgres_test.go",
+    "before": "a45021c9d4e26afa022446d9ea5ac528c6f817e2",
+    "after": "8dc18dd6f3ff131f12d6e53b562820a5cf07b083"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_deployment_test.go",
+    "before": null,
+    "after": "d1c2ebcc8f068a8641d0bbf294d3ad30c9b4f29b"
+  },
+  {
+    "path": "services/platform/agentsec-migrate/attack_lab_deployment_config_test.go",
+    "before": null,
+    "after": "fcf02999bc8e086816f373605cfb96cbb7aa8ab5"
+  },
+  {
+    "path": "deploy/production/attack-lab-reconciler-runtime.test.mjs",
+    "before": null,
+    "after": "b625b1d0b7dfd4f37804bea07382a0d4c02bd779"
+  },
+  {
+    "path": "deploy/staging/product/templates/attack-lab-reconciler-network.yaml",
+    "before": null,
+    "after": "5d86efb0f80277c42463cad26beac6237c8d2bc6"
+  },
+  {
+    "path": "deploy/staging/product/templates/attack-lab-reconciler-operations.yaml",
+    "before": null,
+    "after": "2099d6cda980e62fa81f9931d35916c4fd58b345"
+  },
+  {
+    "path": "services/platform/migrations/production_compliance.go",
+    "before": "aa6c63819b8367c870034627abd3c4ac09b79c75",
+    "after": "dbde3f4ab681e49723bb025d9f9b156b1236c4e2"
+  },
+  {
+    "path": "deploy/production/compliance-export-helm.test.mjs",
+    "before": "07c54d7b8de66b870954e998099e8b8d6326fa38",
+    "after": "7474a1af3785a538bef5034423cfd7fca5d9704b"
+  },
+  {
+    "path": "deploy/production/compliance-export-rollout.test.mjs",
+    "before": "0907850c4009bcc8a25e551b879adcaf3085849d",
+    "after": "441553e0ab18bc3ac433499c42e07f147786c249"
+  },
+  {
+    "path": "deploy/production/test-reconciler-rollout.test.mjs",
+    "before": "05c12a342adbeb2aa2d663acf65b28a9c9705f96",
+    "after": "718a4fb7708b5acaae612d94b3fcd284896d2c91"
+  },
+  {
+    "path": "deploy/production/attack-lab-reconciler-alerts.test.mjs",
+    "before": null,
+    "after": "314889280800f34bdcec5ffdd825a197cb712538"
+  }
+]

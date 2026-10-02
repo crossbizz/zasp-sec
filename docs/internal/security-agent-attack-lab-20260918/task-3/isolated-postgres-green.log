@@ -1,0 +1,116 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","--test","scripts/owned-browser-postgres.test.mjs","scripts/isolated-postgres-bridge.test.mjs"]
+TAP version 13
+# Subtest: bridge forwards raw bytes only through its owned container and joins on stop
+ok 1 - bridge forwards raw bytes only through its owned container and joins on stop
+  ---
+  duration_ms: 10.247209
+  type: 'test'
+  ...
+# Subtest: bridge rejects foreign container identity and invalid bounds before listening
+ok 2 - bridge rejects foreign container identity and invalid bounds before listening
+  ---
+  duration_ms: 0.171709
+  type: 'test'
+  ...
+# Subtest: starts only pinned loopback ephemeral PostgreSQL and joins its exact container
+ok 3 - starts only pinned loopback ephemeral PostgreSQL and joins its exact container
+  ---
+  duration_ms: 1.665375
+  type: 'test'
+  ...
+# Subtest: rejects invalid ports before dispatch
+ok 4 - rejects invalid ports before dispatch
+  ---
+  duration_ms: 0.173375
+  type: 'test'
+  ...
+# Subtest: isolated browser PostgreSQL has no published port and joins its raw-wire bridge
+ok 5 - isolated browser PostgreSQL has no published port and joins its raw-wire bridge
+  ---
+  duration_ms: 0.780917
+  type: 'test'
+  ...
+# Subtest: initializes the same C UTF8 database as the pinned migration reference fixture
+ok 6 - initializes the same C UTF8 database as the pinned migration reference fixture
+  ---
+  duration_ms: 0.192792
+  type: 'test'
+  ...
+# Subtest: default startup leaves function instrumentation off
+ok 7 - default startup leaves function instrumentation off
+  ---
+  duration_ms: 0.223542
+  type: 'test'
+  ...
+# Subtest: readiness failure still removes the created container
+ok 8 - readiness failure still removes the created container
+  ---
+  duration_ms: 40.98875
+  type: 'test'
+  ...
+# Subtest: early server exit fails readiness even if the CLI already exited successfully
+ok 9 - early server exit fails readiness even if the CLI already exited successfully
+  ---
+  duration_ms: 0.32675
+  type: 'test'
+  ...
+# Subtest: failed start removes the exact created resource
+ok 10 - failed start removes the exact created resource
+  ---
+  duration_ms: 0.228542
+  type: 'test'
+  ...
+# Subtest: lost create response recovers only the invocation name and matching ownership label
+ok 11 - lost create response recovers only the invocation name and matching ownership label
+  ---
+  duration_ms: 0.371333
+  type: 'test'
+  ...
+# Subtest: ambiguous create cannot remove a container without matching ownership
+ok 12 - ambiguous create cannot remove a container without matching ownership
+  ---
+  duration_ms: 0.465917
+  type: 'test'
+  ...
+# Subtest: concurrent and repeated stop perform one exact cleanup
+ok 13 - concurrent and repeated stop perform one exact cleanup
+  ---
+  duration_ms: 0.244375
+  type: 'test'
+  ...
+# Subtest: cancellation joins an in-flight create then recovers and removes its resource
+ok 14 - cancellation joins an in-flight create then recovers and removes its resource
+  ---
+  duration_ms: 0.207
+  type: 'test'
+  ...
+# Subtest: hung commands are bounded and joined before cleanup
+ok 15 - hung commands are bounded and joined before cleanup
+  ---
+  duration_ms: 30.322583
+  type: 'test'
+  ...
+# Subtest: cleanup failure stays rejected even when repeated and absence checks still run
+ok 16 - cleanup failure stays rejected even when repeated and absence checks still run
+  ---
+  duration_ms: 0.315666
+  type: 'test'
+  ...
+# Subtest: successful CLI removal without observed container absence fails the join
+ok 17 - successful CLI removal without observed container absence fails the join
+  ---
+  duration_ms: 0.110833
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 128.58525
+
+Exit: 0 Signal: null

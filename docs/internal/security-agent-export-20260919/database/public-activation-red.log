@@ -1,0 +1,5 @@
+=== RUN   TestSecurityAgentExportDefinitionPublicLifecyclePostgres
+    security_agent_export_definition_postgres_test.go:27: public admission readiness=false error=ERROR: function zasp_sa_export_workflow_readiness(unknown, unknown) does not exist (SQLSTATE 42883)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportDefinitionPublicLifecyclePostgres2175355294/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportDefinitionPublicLifecyclePostgres (5.14s)
+FAIL

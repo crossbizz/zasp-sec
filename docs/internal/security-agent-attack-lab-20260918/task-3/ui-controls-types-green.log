@@ -1,0 +1,6 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","node_modules/typescript/bin/tsc","--noEmit"]
+app/features/securityagents/SecurityAgentsView.tsx(245,246): error TS2345: Argument of type '"*" | "create_temporary_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "start_attack_lab" | "update_finding_response"' is not assignable to parameter of type '"*" | "create_temporary_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "update_finding_response"'.
+  Type '"start_attack_lab"' is not assignable to type '"*" | "create_temporary_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "update_finding_response"'.
+
+Exit: 2 Signal: null

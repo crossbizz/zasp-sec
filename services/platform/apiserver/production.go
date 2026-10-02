@@ -11,11 +11,14 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
 )
 
 type CallbackProvider interface {
@@ -39,14 +42,19 @@ func (function CallbackProviderFunc) Complete(ctx context.Context, code, state s
 func (function CallbackProviderFunc) Ready(context.Context) error { return nil }
 
 type SessionGrant struct {
-	PrincipalID domain.ProductID
-	Scope       domain.Scope
-	Permissions []string
-	ExpiresAt   time.Time
-	ReturnTo    string
+	nativeAdmission *preparedIdentitySession
+	PrincipalID     domain.ProductID
+	Scope           domain.Scope
+	Permissions     []string
+	ExpiresAt       time.Time
+	ReturnTo        string
 }
 
 type CookiePolicy struct {
+	SecurityAgentOrderedHTTPEnabled bool
+	SingleTestRecoveryReady         func(context.Context) (bool, error)
+	SingleTestOriginalObserver      orchestration.SingleTestOriginalObserver
+
 	Secure                  bool
 	WorkflowSigningKey      []byte
 	TokenRevealKey          []byte
@@ -59,6 +67,7 @@ type CookiePolicy struct {
 	DiscoveryToolVersion    string
 	FindingTickets          FindingTicketCreator
 	IntegrationWebhookTests IntegrationWebhookTester
+	AuditPublicPages        *AuditPublicPageRepository
 }
 
 type sessionRepository interface {
@@ -83,10 +92,16 @@ func NewProductionHandlersWithSecurityAgent(repository, securityAgentRepository 
 }
 
 func newProductionHandlers(repository, securityAgentRepository *PostgresRepository, provider CallbackProvider, connector http.Handler, cookie CookiePolicy) (Dependencies, Authenticator, error) {
+	if cookie.AuditPublicPages != nil && !cookie.AuditPublicPages.configured() {
+		return Dependencies{}, nil, ErrRepositoryConfiguration
+	}
 	if repository == nil || nilInterface(repository.database) || nilInterface(provider) || nilInterface(connector) || len(cookie.TokenRevealKey) != 32 {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
 	securityAgentSchema := repository.schema == SecurityAgentExecutionSchemaVersion || isIdentityAdministrationSchema(repository.schema)
+	if cookie.SecurityAgentOrderedHTTPEnabled && !securityAgentSchema {
+		return Dependencies{}, nil, ErrRepositoryConfiguration
+	}
 	if securityAgentSchema != (securityAgentRepository != nil) || securityAgentRepository != nil && (nilInterface(securityAgentRepository.database) || !securityAgentRepository.securityAgentExecution || securityAgentRepository.schema != repository.schema) {
 		return Dependencies{}, nil, ErrRepositoryConfiguration
 	}
@@ -145,13 +160,33 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 		if securityAgentErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}
-		securityAgentHandler, securityAgentErr := NewSecurityAgentPublicHTTPHandler(securityAgentRepository, securityAgentDefinitions, SecurityAgentPublicHandlerConfig{Clock: cookie.Clock, NewProductID: newWorkflowProductID, SigningKey: cookie.WorkflowSigningKey})
+		securityAgentHandler, securityAgentErr := newSecurityAgentProductionHTTPHandler(context.Background(), securityAgentRepository, securityAgentDefinitions, SecurityAgentPublicHandlerConfig{Clock: cookie.Clock, NewProductID: newWorkflowProductID, SigningKey: cookie.WorkflowSigningKey}, cookie.SecurityAgentOrderedHTTPEnabled)
 		if securityAgentErr != nil {
-			return Dependencies{}, nil, ErrRepositoryConfiguration
+			return Dependencies{}, nil, securityAgentErr
 		}
 		workflowSurface, securityAgentErr = NewSecurityAgentWorkflowSurface(workflowSurface, securityAgentHandler)
 		if securityAgentErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
+		}
+		if cookie.SingleTestRecoveryReady != nil {
+			installed, err := cookie.SingleTestRecoveryReady(context.Background())
+			if err != nil {
+				return Dependencies{}, nil, ErrRepositoryUnavailable
+			}
+			if installed {
+				authority, err := NewSingleTestRecoveryRepository(securityAgentRepository.database, cookie.SingleTestOriginalObserver)
+				if err != nil {
+					return Dependencies{}, nil, err
+				}
+				handler, err := NewSingleTestRecoveryHTTPHandler(authority)
+				if err != nil {
+					return Dependencies{}, nil, err
+				}
+				workflowSurface, err = NewSingleTestRecoveryWorkflowSurface(workflowSurface, handler)
+				if err != nil {
+					return Dependencies{}, nil, err
+				}
+			}
 		}
 	}
 	if stringIn(repository.schema, RedTeamExecutionSchemaVersion, AttackLabExecutionSchemaVersion, ProductionRecoverySchemaVersion) {
@@ -214,7 +249,7 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 	}
 	return Dependencies{
 		Session:   session,
-		Identity:  &identityHTTPHandler{repository: repository, administration: repository, provider: provider, identityAdministration: identityAdministration, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
+		Identity:  &identityHTTPHandler{repository: repository, administration: repository, provider: provider, identityAdministration: identityAdministration, auditPublicPages: cookie.AuditPublicPages, signingKey: append([]byte(nil), cookie.WorkflowSigningKey...), tokenRevealKey: append([]byte(nil), cookie.TokenRevealKey...), now: cookie.Clock, version: version},
 		Inventory: inventorySurface,
 		Risk:      risk,
 		Workflow:  workflowSurface,
@@ -255,11 +290,12 @@ func mustDeploymentAuthenticator(authenticate Authenticator, mode string, organi
 }
 
 type sessionHTTPHandler struct {
-	repository     sessionRepository
-	provider       CallbackProvider
-	cookie         CookiePolicy
-	deploymentMode string
-	organizationID domain.ProductID
+	repository            sessionRepository
+	provider              CallbackProvider
+	cookie                CookiePolicy
+	deploymentMode        string
+	organizationID        domain.ProductID
+	auditExportsInstalled bool
 }
 
 func (handler *sessionHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -285,7 +321,7 @@ func (handler *sessionHTTPHandler) ServeHTTP(writer http.ResponseWriter, request
 		}
 		payload, err := handler.repository.Bootstrap(request.Context(), identity)
 		if err == nil {
-			payload, err = authorizedBootstrap(payload, identity)
+			payload, err = postLoginBootstrap(request.Context(), payload, identity, handler.auditExportsInstalled)
 		}
 		writeProductionResponse(writer, request, http.StatusOK, payload, err)
 	case "/api/v1/session/callback":
@@ -363,11 +399,18 @@ func (handler *sessionHTTPHandler) ServeHTTP(writer http.ResponseWriter, request
 }
 
 func authorizedBootstrap(payload json.RawMessage, identity RequestIdentity) (json.RawMessage, error) {
+	return authorizedBootstrapForInstallation(payload, identity, false)
+}
+
+func authorizedBootstrapForInstallation(payload json.RawMessage, identity RequestIdentity, auditExportsInstalled bool) (json.RawMessage, error) {
 	var value map[string]json.RawMessage
 	if json.Unmarshal(payload, &value) != nil {
 		return nil, ErrRepositoryUnavailable
 	}
 	capabilities := capabilitiesForPermissions(identity.Permissions)
+	if auditExportsInstalled && slices.Contains(identity.Permissions, "view_audit") {
+		capabilities = append(capabilities, "audit.exports")
+	}
 	replacements := map[string]any{
 		"organization_id": identity.Scope.OrganizationID().String(),
 		"workspace_id":    identity.Scope.WorkspaceID().String(),
@@ -432,6 +475,7 @@ type identityHTTPHandler struct {
 	administration         administrationRepository
 	provider               CallbackProvider
 	identityAdministration *identityAdministrationCoordinator
+	auditPublicPages       *AuditPublicPageRepository
 	signingKey             []byte
 	tokenRevealKey         []byte
 	now                    func() time.Time
@@ -439,6 +483,9 @@ type identityHTTPHandler struct {
 }
 
 func (handler *identityHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	bound := *handler
+	bound.signingKey = authorizationCursorKey(request.Context(), handler.signingKey)
+	handler = &bound
 	identity, ok := IdentityFromRequest(request)
 	if !ok {
 		writeProductionError(writer, request, ErrRepositoryAuthentication)
@@ -477,6 +524,10 @@ type administrationCursor struct {
 }
 
 func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation) {
+	if routed.OperationID == "listAuditEvents" && handler.auditPublicPages != nil {
+		handler.serveAuditPublicPage(writer, request, identity)
+		return
+	}
 	if request.Method != http.MethodGet {
 		handler.mutateAdministration(writer, request, identity, routed)
 		return
@@ -537,8 +588,11 @@ func (handler *identityHTTPHandler) serveAdministration(writer http.ResponseWrit
 				return
 			}
 			if workspace != identity.Scope.WorkspaceID().String() {
-				writeProductionError(writer, request, ErrRepositoryNotFound)
-				return
+				grant, checked := requestAuthorizationFromContext(request.Context())
+				if !checked || grant.OperationID != "listEnvironments" || !grant.Collection || grant.WorkspaceSelector != workspace {
+					writeProductionError(writer, request, ErrRepositoryNotFound)
+					return
+				}
 			}
 			parameters["workspace_id"] = workspace
 		}
@@ -1267,6 +1321,12 @@ func writeProductionResponse(writer http.ResponseWriter, request *http.Request, 
 }
 
 func writeProductionError(writer http.ResponseWriter, request *http.Request, err error) {
+	if request != nil {
+		if _, ok := request.Context().Value(postLoginContextKey{}).(postLoginAuthorization); ok && (authorization.RetryableConflict(err) || errors.Is(err, authorization.ErrUnavailable)) {
+			writePostLoginError(writer, request, err)
+			return
+		}
+	}
 	status, code, message, retryable := http.StatusServiceUnavailable, "provider_unavailable", "Provider unavailable", true
 	if errors.Is(err, ErrRepositoryAuthentication) {
 		status, code, message, retryable = http.StatusUnauthorized, "authentication_required", "Authentication required", false
@@ -1279,6 +1339,9 @@ func writeProductionError(writer http.ResponseWriter, request *http.Request, err
 	}
 	if errors.Is(err, ErrRepositoryConflict) {
 		status, code, message, retryable = http.StatusConflict, "operation_conflict", "Operation conflicted", false
+	}
+	if errors.Is(err, ErrRepositoryCostBudgetRequired) {
+		status, code, message, retryable = http.StatusBadRequest, "cost_budget_required", "Configure and save an explicit AI cost budget before enabling execution", false
 	}
 	correlation := fallbackCorrelationID
 	if request != nil {

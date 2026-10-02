@@ -1,0 +1,33 @@
+{
+  "format": "ordered-current-private-historical-source-v1",
+  "archiveManifestSHA256": "71dffc8ab32e112f92e94e4fb10eec52c399f5492a57111a311a1c3dc4065609",
+  "files": {
+    "sql/0080_authorization_worker_ordered_current_integrity.sql": "d42d975c4b9cbadf7c5b368d4f14b361cd917c65a114d9629307e73af3021e5f",
+    "tools/build-ordered-current-integrity.mjs": "0df6c0cb40df6bdf18dcc51ee660efedc1fcdccb34e6ba8dd0d406e7acb53c8b",
+    "tools/ordered-current-capture-intake-v1.mjs": "239e1e45c80a008eb15713a7683a64450ac6d60472e8005e91483c7a3298a1af",
+    "tools/ordered-current-catalog.mjs": "0901442f9885352359aae1065f12c5457a16176b2e13b487efea39719ccab840",
+    "tools/ordered-current-consolidated-reference-v2-ab.mjs": "c0369d8c4355a9c64028e2148ada9a66e32d5d9f514ea4587bdb95c34f7ff378",
+    "tools/ordered-current-consolidated-reference-v2.mjs": "d59c0884b55dc1c9fb233885c34dbac5d7d7a3d43b5a2f91d30788813fe07ef0",
+    "tools/ordered-current-consolidation-needs.mjs": "b21aa5ad26d0920010e5083b09810ae392fcec742084a73a00fbf28a2617cc1f",
+    "tools/ordered-current-deparse-frame.mjs": "1d84ec51e1f700ff96e84306fe606cb31279bf74bc709b3ff78f80644b8f007a",
+    "tools/ordered-current-direct-frame-v1.mjs": "4c15aee77f9a6d00d8c63a969487dbe9f2d024db0b0f3814aab76424fc9a533b",
+    "tools/ordered-current-direct-reference-v2.mjs": "dfe218686ec7151ae35e91d3d944176e666bdbb9e04d0ada99af0b850303658d",
+    "tools/ordered-current-missing-reference-contract-v1.mjs": "bcadfaca3a334bbc389f4db4d5f1549c6f8368b714e862970f79ca43ef7ece79",
+    "tools/ordered-current-missing-reference-native-packet.mjs": "11c9ada1178aac657f398f03cb6c25477f53c721a1ad36705154639eadcb04a6",
+    "tools/ordered-current-precision-conflict-settlement-v1.mjs": "28534a474a48a225287f273a69a0e6c12369cf85f42c5e2c5374b6c9f207c8b9",
+    "tools/ordered-current-private-successor-reference.mjs": "454f8e426f10462d414501fb2ff9204122d744e501261f4ac59039b2f8d99306",
+    "tools/ordered-current-private.mjs": "bf436fea1d3d01364bebb80881b5872321ddfe79663c614066344eeb8a059c70",
+    "tools/ordered-current-public-function-transforms.mjs": "804cff76c0e5a0e5e060913ccb517c16fc1fd7ea58d9f373c9822d1432c3f136",
+    "tools/ordered-current-public-selectors.mjs": "56faf97567dea71645706da7d16252d70d97f1c850c3117851bf990b29a05377",
+    "tools/ordered-current-reference-intake-v2.mjs": "d62d67bf6a6902199946fe1a2c1b262ded0d3ad4db0b92f97b509150a8ee6770",
+    "tools/ordered-current-reference-needs.mjs": "c2d7863dd400f1be54e2352018260efc522ec2062583bef943bbb030576873b3",
+    "tools/ordered-current-static-catalog.mjs": "1512b45520124977b8b3ef09b57acf19e31a9c5db31ca54d139c218ec56aa3f6",
+    "tools/ordered-current-temporal-selectors.mjs": "5fd96eaac6a7c490082a37c07e40f6e62c8f9e0a82f440b951afbfc94cb20221",
+    "tools/ordered-current-temporal-transforms.mjs": "67a512873f4c1fd9b1b58fcc14b9649e65313a3c5415cb2765c46317f0e0f6ec",
+    "tools/ordered-current-temporal72.mjs": "cd7013c07ef2cdbd1403534299b0396cf0e656120d32ba4e488469318d7da2ec",
+    "tools/ordered-current-transform-compiler.mjs": "63e64805a02b1f3fa46cde06395c8f16a29174bd0302e98b148d73cc701edc1b",
+    "tools/ordered-current-worker-edge-projections.mjs": "84def24449db6f49514c2d60de101eed2bdb5a2c80a5467a5c9e6bc03e602220",
+    "tools/ordered-current-worker-projections.mjs": "0bcd29c17c316416b38f978b22b4cb2ce561e0655d85b0cdd2f87439e85f65a8",
+    "tools/ordered-current-worker-source-closure-v1.mjs": "e13772208ae84576b6f536759f8007c3fe7704998a28eac38dce1c0a27c323ad"
+  }
+}

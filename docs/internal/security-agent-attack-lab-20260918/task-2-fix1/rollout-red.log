@@ -1,0 +1,37 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","--test","deploy/production/attack-lab-reconciler-rollout.test.mjs"]
+TAP version 13
+# Subtest: 57 mounts dedicated settlement authority and rejects additive credentials/network/RBAC
+not ok 1 - 57 mounts dedicated settlement authority and rejects additive credentials/network/RBAC
+  ---
+  duration_ms: 741.049292
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/attack-lab-reconciler-rollout.test.mjs:10:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/attack-lab-reconciler-rollout.test.mjs:31:65)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: 57 keeps audit, existing-test and compliance registration commands in both phases
+ok 2 - 57 keeps audit, existing-test and compliance registration commands in both phases
+  ---
+  duration_ms: 1033.354625
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1852.987875
+
+Exit: 1 Signal: null

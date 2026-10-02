@@ -1,0 +1,9 @@
+First connected registered-role checkpoint, session 13709, exit 0.
+This is not the final Task1 acceptance batch. The test uses controlled database
+source/identity fixtures, not a live provider or sandbox.
+
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres
+    security_agent_attack_lab_postgres_test.go:27: release57 observed fingerprint: c1c48e98455de1f47e035327ea72541800bd4f5aea732919033c26783d011a7e
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentAttackLabAuthorityPostgres716058687/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentAttackLabAuthorityPostgres (5.24s)
+PASS

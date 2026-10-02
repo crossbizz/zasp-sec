@@ -54,7 +54,7 @@ func TestSandboxExplicitCommands(t *testing.T) {
 	if !isForwardMigration([]string{"up-to-50"}) {
 		t.Fatal("release50 skips principal registration")
 	}
-	for _, args := range [][]string{{"down-to-49"}, {"up-to-50", "extra"}, {"up-to-52"}} {
+	for _, args := range [][]string{{"down-to-49"}, {"up-to-50", "extra"}, {"up-to-56"}} {
 		if isForwardMigration(args) {
 			t.Fatal("unexpected principal registration", args)
 		}

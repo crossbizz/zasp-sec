@@ -43,6 +43,7 @@ type CollectionInventoryAuthority struct {
 	Scope                              domain.Scope
 	IntegrationID, ConnectionID, JobID domain.ProductID
 	Attempt                            int
+	EffectID                           string
 	ObservedAt, CredentialExpiresAt    time.Time
 }
 
@@ -245,11 +246,11 @@ func (api *InventoryCollectionAPI) securityRequest(page CollectionPageRequest, m
 		phase = "posture"
 		remainingEntities = page.RemainingFindings
 	}
-	return CollectionSecurityRequest{Mode: mode, Scope: api.authority.Scope, IntegrationID: api.authority.IntegrationID, ConnectionID: api.authority.ConnectionID, JobID: api.authority.JobID, Attempt: api.authority.Attempt, CursorLineage: page.Page, Subject: page.Subject, Phase: phase, ObservedAt: api.authority.ObservedAt, CredentialExpiresAt: credentialExpiresAt, RemainingBytes: page.RemainingBytes, RemainingEntities: remainingEntities, RemainingRelationships: page.RemainingRelationships, SourceDigest: digest, Source: bytes.Clone(source)}
+	return CollectionSecurityRequest{Mode: mode, Scope: api.authority.Scope, IntegrationID: api.authority.IntegrationID, ConnectionID: api.authority.ConnectionID, JobID: api.authority.JobID, Attempt: api.authority.Attempt, EffectID: api.authority.EffectID, CursorLineage: page.Page, Subject: page.Subject, Phase: phase, ObservedAt: api.authority.ObservedAt, CredentialExpiresAt: credentialExpiresAt, RemainingBytes: page.RemainingBytes, RemainingEntities: remainingEntities, RemainingRelationships: page.RemainingRelationships, SourceDigest: digest, Source: bytes.Clone(source)}
 }
 
 func validCollectionInventoryAuthority(authority CollectionInventoryAuthority) bool {
-	return authority.Scope.Validate() == nil && !authority.IntegrationID.IsZero() && !authority.ConnectionID.IsZero() && !authority.JobID.IsZero() && authority.Attempt >= 1 && authority.Attempt <= 100 && exactUTCSecurityTime(authority.ObservedAt)
+	return authority.Scope.Validate() == nil && !authority.IntegrationID.IsZero() && !authority.ConnectionID.IsZero() && !authority.JobID.IsZero() && collection.ValidExecutionIdentity(authority.Attempt, authority.EffectID) && exactUTCSecurityTime(authority.ObservedAt)
 }
 
 func validInventoryPageRequest(request CollectionPageRequest) bool {
@@ -268,6 +269,11 @@ func inventoryRequestPhase(request CollectionPageRequest) (string, [16]byte, boo
 		return "", [16]byte{}, false
 	}
 	match := inventoryCursorPattern.FindStringSubmatch(request.Cursor.Value)
+	// A committed prior generation carries its subject-bound completion cursor.
+	// It starts a fresh account scan, not a resume of old inventory contents.
+	if len(match) == 4 && match[1] == "complete" && request.Page == 1 && match[2] == providercollection.CompleteCursorBinding(collection.ProviderAWS, request.Subject) {
+		return "account", [16]byte{}, true
+	}
 	if len(match) != 4 || match[2] != providercollection.CompleteCursorBinding(collection.ProviderAWS, request.Subject) || map[int]string{2: "iam", 3: "resources", 4: "posture"}[request.Page] != match[1] {
 		return "", [16]byte{}, false
 	}

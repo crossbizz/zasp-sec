@@ -1,0 +1,39 @@
+{
+  "name": "Attack Lab missing source",
+  "autonomy": "supervised",
+  "verdict": "verified",
+  "noSource": true,
+  "runID": "pid_82b23093-3c32-48f0-9b02-afd3967eabfb",
+  "testID": "pid_05adc7fd-a417-4679-8a3b-865b79570af9",
+  "detail": {
+    "run_context": {
+      "preflight_stop_reason": "attack_lab_preflight_unavailable",
+      "trigger": {
+        "kind": "finding",
+        "id": "pid_7f550001-0000-4000-8000-000000000001",
+        "version": 1
+      },
+      "rationale": null
+    },
+    "run": {
+      "id": "pid_82b23093-3c32-48f0-9b02-afd3967eabfb",
+      "agent_id": "pid_34c2b9fd-4751-424e-8beb-2e83bd728485",
+      "state": "needs_human",
+      "evidence_ids": [
+        "pid_7f550001-0000-4000-8000-000000000001"
+      ],
+      "definition_version": 3,
+      "version": 3
+    },
+    "evidence_ids": [
+      "pid_7f550001-0000-4000-8000-000000000001"
+    ],
+    "plan": null,
+    "authorization": "not_planned",
+    "approvals": [],
+    "execution": [],
+    "verification": "inconclusive"
+  },
+  "zeroEffects": true,
+  "claim": "real API and registered worker; no eligible source; no provider call or execution"
+}

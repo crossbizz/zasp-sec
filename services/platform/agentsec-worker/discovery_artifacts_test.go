@@ -35,13 +35,21 @@ func (stub *discoveryS3APIStub) PutObject(_ context.Context, input *s3.PutObject
 func (stub *discoveryS3APIStub) HeadObject(_ context.Context, input *s3.HeadObjectInput, _ ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
 	stub.head = input
 	digest := sha256.Sum256(stub.body)
-	return &s3.HeadObjectOutput{VersionId: aws.String("version-0001"), ContentLength: aws.Int64(int64(len(stub.body))), ContentType: aws.String("application/json"), ChecksumSHA256: aws.String(base64.StdEncoding.EncodeToString(digest[:])), ServerSideEncryption: "aws:kms", SSEKMSKeyId: aws.String("arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111"), Metadata: stub.metadata}, nil
+	key := aws.String("arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111")
+	if stub.put != nil {
+		key = stub.put.SSEKMSKeyId
+	}
+	return &s3.HeadObjectOutput{VersionId: aws.String("version-0001"), ContentLength: aws.Int64(int64(len(stub.body))), ContentType: aws.String("application/json"), ChecksumSHA256: aws.String(base64.StdEncoding.EncodeToString(digest[:])), ServerSideEncryption: "aws:kms", SSEKMSKeyId: key, Metadata: stub.metadata}, nil
 }
 
 func (stub *discoveryS3APIStub) GetObject(_ context.Context, input *s3.GetObjectInput, _ ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
 	stub.get = input
 	digest := sha256.Sum256(stub.body)
-	return &s3.GetObjectOutput{VersionId: aws.String("version-0001"), Body: io.NopCloser(bytes.NewReader(stub.body)), ContentLength: aws.Int64(int64(len(stub.body))), ContentType: aws.String("application/json"), ChecksumSHA256: aws.String(base64.StdEncoding.EncodeToString(digest[:])), ServerSideEncryption: "aws:kms", SSEKMSKeyId: aws.String("arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111"), Metadata: stub.metadata}, nil
+	key := aws.String("arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111")
+	if stub.put != nil {
+		key = stub.put.SSEKMSKeyId
+	}
+	return &s3.GetObjectOutput{VersionId: aws.String("version-0001"), Body: io.NopCloser(bytes.NewReader(stub.body)), ContentLength: aws.Int64(int64(len(stub.body))), ContentType: aws.String("application/json"), ChecksumSHA256: aws.String(base64.StdEncoding.EncodeToString(digest[:])), ServerSideEncryption: "aws:kms", SSEKMSKeyId: key, Metadata: stub.metadata}, nil
 }
 
 func TestProductionDiscoveryArtifactAuthorityUsesExactS3Boundary(t *testing.T) {

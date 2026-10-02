@@ -1,0 +1,90 @@
+combined E2E: disposable PostgreSQL ready
+combined E2E: schema 14 typed_inventory_cutover verified
+combined E2E: schema 15 runtime_data_plane verified
+combined E2E: schema 17 runtime_ingest_reconciliation verified
+combined E2E: schema 18 security_agent_execution verified
+combined E2E: schema 19 identity_administration verified
+combined E2E: schema 20 security_agent_controls verified
+combined E2E: schema 21 security_agent_autonomous_response verified
+combined E2E: schema 24 security_agent_session_isolation verified
+combined E2E: schema 27 production_recovery verified
+combined E2E: schema 28 production_policy_deployment verified
+combined E2E: schema 29 production_home_attention verified
+combined E2E: schema 30 production_approval_notification verified
+combined E2E: schema 31 production_workflow_compatibility verified
+combined E2E: schema 32 production_security_agent_planner verified
+combined E2E: schema 33 production_security_agent_attack_path verified
+combined E2E: schema 34 production_integration_setup verified
+combined E2E: schema 35 production_integration_webhook verified
+combined E2E: schema 37 production_red_team_safety verified
+combined E2E: schema 39 production_red_team_artifacts verified
+combined E2E: schema 40 production_runtime_sessions verified
+combined E2E: schema 41 production_runtime_session_reads verified
+combined E2E: schema 42 production_runtime_session_search verified
+combined E2E: schema 43 production_runtime_session_query verified
+combined E2E: schema 44 production_runtime_session_evidence verified
+combined E2E: schema 45 production_runtime_enrollment_pairing verified
+combined E2E: schema 46 production_reconciliation_lane_plan verified
+combined E2E: schema 47 production_runtime_candidate_authority verified
+combined E2E: schema 48 production_runtime_acceptance verified
+combined E2E: migrations and durable seed ready
+automatic discovery evidence directory: /var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/zasp-automatic-discovery-evidence-xHywgl
+combined E2E: cleanup browser
+combined E2E: cleanup Task4 workers
+combined E2E: cleanup api
+combined E2E: cleanup proxy
+combined E2E: cleanup identity
+combined E2E: cleanup policy history
+combined E2E: cleanup web
+combined E2E: cleanup postgres
+combined E2E: cleanup remaining processes
+combined E2E: cleanup files
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: === RUN   TestAutomaticDiscoveryCollectionProcess
+    automatic_discovery_process_test.go:66: provider boundary: page=1 complete=false entities=2 relationships=1 bytes=1140 sha256=75bae404af9b9d15a73db434d13496d0132b8eb4e6272c5fb03ea21f278c9179 error=<nil>
+    automatic_discovery_process_test.go:66: provider boundary: page=2 complete=false entities=1 relationships=1 bytes=976 sha256=6f478641565b8e775055d334dd55e353981f8eeb8b5388e9f1e7d3713756135e error=<nil>
+    automatic_discovery_process_test.go:66: provider boundary: page=3 complete=false entities=0 relationships=0 bytes=307 sha256=1c2c177a027335db373b94b415306c8f55d0c4228746c9127f90e9400210e267 error=<nil>
+    automatic_discovery_process_test.go:66: provider boundary: page=4 complete=false entities=0 relationships=0 bytes=307 sha256=d522bcbaf9826eb1217e6e27a90f95ea627716ca0d0be9ac086946a80a55e548 error=<nil>
+    automatic_discovery_process_test.go:66: provider boundary: page=5 complete=false entities=0 relationships=0 bytes=314 sha256=74870fa9463aaf2260f046d99d62c451de2e0455c255d3773e08e33343fca124 error=<nil>
+    automatic_discovery_process_test.go:66: provider boundary: page=6 complete=false entities=0 relationships=0 bytes=306 sha256=9d4d663a8d60d580e11e77f958e909c15b6e207e116594bb25b1e50f911dacdf error=<nil>
+    automatic_discovery_process_test.go:66: provider boundary: page=7 complete=false entities=1 relationships=2 bytes=1917 sha256=7524608ffeb16eda6af79ca9426df98e917d17cab93c3156da011514bfba44b6 error=<nil>
+    automatic_discovery_process_test.go:66: provider boundary: page=8 complete=false entities=0 relationships=0 bytes=305 sha256=bcc7aef7349b72c7f952dfb423f3faa24a10d6eafdc706a79f0f5bd25a181c4d error=<nil>
+    automatic_discovery_process_test.go:66: provider boundary: page=9 complete=false entities=0 relationships=0 bytes=300 sha256=4e846c305861b688960dd1d6ff19830abb360668594d73745114eb2d4da21e63 error=<nil>
+    automatic_discovery_process_test.go:66: provider boundary: page=10 complete=false entities=0 relationships=0 bytes=304 sha256=1f14f9e748ebc669fa085c5b2f53e5eaa92817aa1bdbd7bffa1aa9539f427e9e error=<nil>
+    automatic_discovery_process_test.go:66: provider boundary: page=11 complete=true entities=0 relationships=0 bytes=294 sha256=e0eea4e7a305dc493b4ab3c2ab62062b3bdbd568fc6e338712f98679f3811efb error=<nil>
+    automatic_discovery_process_test.go:51: parser boundary: outcome=<nil> error=collection failed: malformed
+    automatic_discovery_process_test.go:404: registered discovery trace: other,zasp_execution_principal_ready,other,zasp_execution_principal_ready,zasp_execution_claim_delivery:claimed:leased:1,zasp_execution_job_input,zasp_execution_finish_job:failed:malformed::failed:1
+    automatic_discovery_process_test.go:407: artifact boundary: bytes=1140 sha256=75bae404af9b9d15a73db434d13496d0132b8eb4e6272c5fb03ea21f278c9179 version=version-75bae404af9b9d15
+    automatic_discovery_process_test.go:407: artifact boundary: bytes=307 sha256=d522bcbaf9826eb1217e6e27a90f95ea627716ca0d0be9ac086946a80a55e548 version=version-d522bcbaf9826eb1
+    automatic_discovery_process_test.go:407: artifact boundary: bytes=306 sha256=9d4d663a8d60d580e11e77f958e909c15b6e207e116594bb25b1e50f911dacdf version=version-9d4d663a8d60d580
+    automatic_discovery_process_test.go:407: artifact boundary: bytes=1917 sha256=7524608ffeb16eda6af79ca9426df98e917d17cab93c3156da011514bfba44b6 version=version-7524608ffeb16eda
+    automatic_discovery_process_test.go:407: artifact boundary: bytes=300 sha256=4e846c305861b688960dd1d6ff19830abb360668594d73745114eb2d4da21e63 version=version-4e846c305861b688
+    automatic_discovery_process_test.go:407: artifact boundary: bytes=304 sha256=1f14f9e748ebc669fa085c5b2f53e5eaa92817aa1bdbd7bffa1aa9539f427e9e version=version-1f14f9e748ebc669
+    automatic_discovery_process_test.go:407: artifact boundary: bytes=8807 sha256=299ed7c35a48f1a4b88cafacf6bf2ec1cd7277ecf0555871cb6dca639d4d90f3 version=version-299ed7c35a48f1a4
+    automatic_discovery_process_test.go:407: artifact boundary: bytes=976 sha256=6f478641565b8e775055d334dd55e353981f8eeb8b5388e9f1e7d3713756135e version=version-6f478641565b8e77
+    automatic_discovery_process_test.go:407: artifact boundary: bytes=307 sha256=1c2c177a027335db373b94b415306c8f55d0c4228746c9127f90e9400210e267 version=version-1c2c177a027335db
+    automatic_discovery_process_test.go:407: artifact boundary: bytes=314 sha256=74870fa9463aaf2260f046d99d62c451de2e0455c255d3773e08e33343fca124 version=version-74870fa9463aaf22
+    automatic_discovery_process_test.go:407: artifact boundary: bytes=305 sha256=bcc7aef7349b72c7f952dfb423f3faa24a10d6eafdc706a79f0f5bd25a181c4d version=version-bcc7aef7349b72c7
+    automatic_discovery_process_test.go:407: artifact boundary: bytes=294 sha256=e0eea4e7a305dc493b4ab3c2ab62062b3bdbd568fc6e338712f98679f3811efb version=version-e0eea4e7a305dc49
+    automatic_discovery_process_test.go:412: complete provider did not produce a complete snapshot
+--- FAIL: TestAutomaticDiscoveryCollectionProcess (0.31s)
+FAIL
+
+
+1 !== 0
+
+    at collect (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:2405:12)
+    at async exerciseAutomaticDiscoveryBrowser (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:2432:5)
+    at async file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:335:5 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.1

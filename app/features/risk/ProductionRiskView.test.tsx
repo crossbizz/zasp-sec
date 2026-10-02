@@ -4,11 +4,13 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { APIProvider, useAPI } from "../../api/APIProvider";
+import { createAPIClient } from "../../../apps/web/api/client";
 import type { ProductionRiskAPI } from "./api";
 import { ProductionRiskView } from "./ProductionRiskView";
 
 const finding = { id: "pid_20000001-0000-4000-8000-000000000001", source: "posture", rule: "unapproved_tool", title: "Public tool access", severity: "high", status: "open", agent_id: "pid_20000004-0000-4000-8000-000000000004", path_id: "pid_30000001-0000-4000-8000-000000000001", evidence_ids: ["pid_20000002-0000-4000-8000-000000000002"], risk_factors: [{ name: "Public input", evidence_id: "pid_20000002-0000-4000-8000-000000000002" }], version: 1, created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:00:01Z" } as const;
 const path = { id: "pid_30000001-0000-4000-8000-000000000001", entry_id: "pid_30000002-0000-4000-8000-000000000002", sink_id: "pid_30000003-0000-4000-8000-000000000003", node_ids: ["pid_30000002-0000-4000-8000-000000000002", "pid_30000003-0000-4000-8000-000000000003"], state: "verified", evidence_ids: [finding.evidence_ids[0]], blocked_edge: -1, version: 1, created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:00:01Z" } as const;
+const activityScope = { organizationID: "pid_10000001-0000-4000-8000-000000000001", workspaceID: "pid_10000002-0000-4000-8000-000000000002", environmentID: "pid_10000003-0000-4000-8000-000000000003" };
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -23,8 +25,8 @@ function QueryScope({ children }: { children: ReactNode }) {
   return children;
 }
 
-function renderRisk(pathname: "/violations" | "/exposure/attack-paths", api: ProductionRiskAPI, canWrite = false, onNavigate = vi.fn()) {
-  return render(<APIProvider><QueryScope><ProductionRiskView path={pathname} api={api} canWrite={canWrite} onNavigate={onNavigate} /></QueryScope></APIProvider>);
+function renderRisk(pathname: "/violations" | "/exposure/attack-paths", api: ProductionRiskAPI, canWrite = false, onNavigate = vi.fn(), selectedID?: string) {
+  return render(<APIProvider><QueryScope><ProductionRiskView path={pathname} api={api} canWrite={canWrite} onNavigate={onNavigate} selectedID={selectedID} activityScope={activityScope} /></QueryScope></APIProvider>);
 }
 
 function fixtureAPI(overrides: Partial<ProductionRiskAPI> = {}): ProductionRiskAPI {
@@ -39,6 +41,79 @@ function fixtureAPI(overrides: Partial<ProductionRiskAPI> = {}): ProductionRiskA
 }
 
 describe("production risk views", () => {
+  it.each([
+    { kind: "finding", direct: true }, { kind: "attack_path", direct: true },
+    { kind: "finding", direct: false }, { kind: "attack_path", direct: false },
+  ] as const)("loads $kind reverse authority (direct=$direct) and removes it after permission loss", async ({ kind, direct }) => {
+    const requests: Request[] = []; const navigate = vi.fn();
+    const entity = kind === "finding" ? finding : path;
+    const pathname = kind === "finding" ? "/violations" : "/exposure/attack-paths";
+    const runID = "pid_78000009-0000-4000-8000-000000000009";
+    const client = createAPIClient({ fetch: async request => {
+      requests.push(request);
+      return new Response(JSON.stringify({ items: [{ id: runID, agent_id: finding.agent_id, state: "queued", evidence_ids: [finding.evidence_ids[0]], definition_version: 1, version: 1 }], coverage: "partial" }), { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+    } });
+    const api = fixtureAPI();
+    const view = render(<APIProvider client={client}><ProductionRiskView path={pathname} api={api} canWrite={false} canReadRuns onNavigate={navigate} selectedID={direct ? entity.id : undefined} activityScope={activityScope} /></APIProvider>);
+    if (!direct) await userEvent.click(await screen.findByRole("button", { name: kind === "finding" ? `Open ${finding.title}` : `Open attack path ${path.id}` }));
+    await userEvent.click(await screen.findByRole("button", { name: `Open run ${runID}` }));
+    expect(requests.map(request => new URL(request.url).pathname)).toEqual([`/api/v1/security-agent-activity/${kind}/${entity.id}/runs`]);
+    expect(navigate).toHaveBeenCalledWith(`/protect/security-agents?entity_id=${runID}&organization_id=${activityScope.organizationID}&workspace_id=${activityScope.workspaceID}&environment_id=${activityScope.environmentID}`);
+    expect(screen.getByText(/Coverage is incomplete/)).toBeVisible();
+    view.rerender(<APIProvider client={client}><ProductionRiskView path={pathname} api={api} canWrite={false} canReadRuns={false} onNavigate={navigate} selectedID={direct ? entity.id : undefined} activityScope={activityScope} /></APIProvider>);
+    expect(screen.queryByRole("button", { name: `Open run ${runID}` })).not.toBeInTheDocument();
+    expect(requests).toHaveLength(1);
+  });
+
+  it("refuses mismatched list-open path detail before reading related runs", async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ items: [], coverage: "partial" }), { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }));
+    const api = fixtureAPI({ getAttackPath: async () => ({ ...path, id: finding.id }) });
+    render(<APIProvider client={createAPIClient({ fetch: fetcher })}><ProductionRiskView path="/exposure/attack-paths" api={api} canWrite={false} canReadRuns activityScope={activityScope} /></APIProvider>);
+    await userEvent.click(await screen.findByRole("button", { name: `Open attack path ${path.id}` }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Attack path detail identity mismatch");
+    expect(screen.queryByText("Related Security Agent runs")).not.toBeInTheDocument();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("locks related run navigation while a finding mutation is unresolved", async () => {
+    const pending = deferred<Awaited<ReturnType<ProductionRiskAPI["updateFinding"]>>>();
+    const runID = "pid_78000009-0000-4000-8000-000000000009";
+    const client = createAPIClient({ fetch: async () => new Response(JSON.stringify({ items: [{ id: runID, agent_id: finding.agent_id, state: "queued", evidence_ids: [finding.evidence_ids[0]], definition_version: 1, version: 1 }], coverage: "partial" }), { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }) });
+    render(<APIProvider client={client}><ProductionRiskView path="/violations" api={fixtureAPI({ updateFinding: () => pending.promise })} canWrite canReadRuns onNavigate={vi.fn()} selectedID={finding.id} activityScope={activityScope} /></APIProvider>);
+    expect(await screen.findByRole("button", { name: `Open run ${runID}` })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Mark under review" }));
+    expect(screen.getByRole("button", { name: `Open run ${runID}` })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reload related activity" })).toBeDisabled();
+    await act(async () => pending.resolve(await fixtureAPI().updateFinding(finding.id, "under_review", '"1"', { idempotencyKey: "test" })));
+    expect(screen.getByRole("button", { name: `Open run ${runID}` })).toBeEnabled();
+  });
+
+  it("opens a linked finding directly without enumerating a list", async () => {
+    const list = vi.fn(async () => { throw new Error("List must not be required for an exact link"); });
+    const get = vi.fn(async (id: string) => {
+      expect(id).toBe(finding.id);
+      return { value: finding, version: '"1"' };
+    });
+    renderRisk("/violations", fixtureAPI({ listFindings: list, getFinding: get }), false, vi.fn(), finding.id);
+    expect(await screen.findByRole("dialog", { name: finding.title })).toHaveTextContent(finding.evidence_ids[0]);
+    expect(get).toHaveBeenCalledWith(finding.id, expect.any(AbortSignal));
+    expect(list).not.toHaveBeenCalled();
+    expect(screen.queryByText("No findings in this scope.")).not.toBeInTheDocument();
+  });
+
+  it("opens a linked attack path directly and binds break options to its fetched authority", async () => {
+    const list = vi.fn(async () => { throw new Error("List must not be required for an exact link"); });
+    const get = vi.fn(async (id: string) => { expect(id).toBe(path.id); return path; });
+    const options = vi.fn(fixtureAPI().getAttackPathBreakOptions);
+    renderRisk("/exposure/attack-paths", fixtureAPI({ listAttackPaths: list, getAttackPath: get, getAttackPathBreakOptions: options }), false, vi.fn(), path.id);
+    const dialog = await screen.findByRole("dialog", { name: "Attack path detail" });
+    await waitFor(() => expect(dialog).toHaveTextContent("1. Remove node"));
+    expect(dialog).toHaveTextContent(path.node_ids.join(" → "));
+    expect(options).toHaveBeenCalledWith(path, expect.any(AbortSignal));
+    expect(list).not.toHaveBeenCalled();
+    expect(screen.queryByText("No attack paths in this scope.")).not.toBeInTheDocument();
+  });
+
   it("renders API findings, details, evidence, and capability-gated retained mutations", async () => {
     const update = vi.fn(fixtureAPI().updateFinding);
     const accept = vi.fn(fixtureAPI().acceptFindingRisk);
@@ -67,7 +142,7 @@ describe("production risk views", () => {
     expect(dialog).toHaveTextContent(finding.path_id);
     expect(dialog).toHaveTextContent("approved integration allowlist");
     await userEvent.click(screen.getByRole("button", { name: "Open attack path" }));
-    expect(navigate).toHaveBeenCalledWith("/exposure/attack-paths");
+    expect(navigate).toHaveBeenCalledWith("/exposure/attack-paths?entity_id=pid_30000001-0000-4000-8000-000000000001&organization_id=pid_10000001-0000-4000-8000-000000000001&workspace_id=pid_10000002-0000-4000-8000-000000000002&environment_id=pid_10000003-0000-4000-8000-000000000003");
   });
 
   it("hides write controls without findings.write", async () => {
@@ -136,7 +211,7 @@ describe("production risk views", () => {
     await waitFor(() => expect(dialog).toHaveTextContent(`${path.node_ids[0]} → ${path.node_ids[1]}`));
     expect(dialog).toHaveTextContent("Loading break options…");
     await act(async () => options.reject(new Error("Break-option provider unavailable")));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Break-option provider unavailable");
+    expect(await screen.findByText("Break-option provider unavailable")).toHaveAttribute("role", "alert");
     expect(dialog).toHaveTextContent(`${path.node_ids[0]} → ${path.node_ids[1]}`);
   });
 

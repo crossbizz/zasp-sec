@@ -185,7 +185,7 @@ func (repository *DiscoveryRepository) RequestIntegrationSync(ctx context.Contex
 	if !validDiscoveryPublicRepository(repository, ctx) || !validRequestIdentity(identity, false) || !validPublicSyncRequest(input) {
 		return IntegrationSyncMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionPublicRequestSyncSQL,
+	payload, err := repository.database.QueryJSON(ctx, repository.discoveryPublicSQL(postgresExecutionPublicRequestSyncSQL),
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(),
 		input.IntegrationID, input.IdempotencyKey, input.ExpectedVersion, input.SyncID, input.JobID, input.OutboxID, input.RequestDigest, input.ParserVersion, input.ToolVersion,
 		input.AuditID, input.CorrelationID, input.ReceiptID,
@@ -198,7 +198,7 @@ func (repository *DiscoveryRepository) RequestIntegrationSync(ctx context.Contex
 		return IntegrationSyncMutationResult{}, ErrRepositoryUnavailable
 	}
 	var body IntegrationSync
-	if decodeStrictDiscovery(envelope.Body, &body) != nil || envelope.Version < 1 || !validPublicIntegrationSync(body, input.IntegrationID, body.ID) || !envelope.Replayed && body.ID != input.SyncID || !validPublicMutationIdentity(identity, envelope.AuditID, envelope.CorrelationID, envelope.ReceiptID) || !envelope.Replayed && (envelope.AuditID != input.AuditID || envelope.CorrelationID != input.CorrelationID || envelope.ReceiptID != input.ReceiptID) {
+	if decodeStrictDiscovery(envelope.Body, &body) != nil || envelope.Version < 1 || !repository.validSync(body, input.IntegrationID, body.ID) || !envelope.Replayed && body.ID != input.SyncID || !validPublicMutationIdentity(identity, envelope.AuditID, envelope.CorrelationID, envelope.ReceiptID) || !envelope.Replayed && (envelope.AuditID != input.AuditID || envelope.CorrelationID != input.CorrelationID || envelope.ReceiptID != input.ReceiptID) {
 		return IntegrationSyncMutationResult{}, ErrRepositoryUnavailable
 	}
 	canonicalizePublicIntegrationSync(&body)
@@ -209,7 +209,7 @@ func (repository *DiscoveryRepository) PutIntegrationSchedule(ctx context.Contex
 	if !validDiscoveryPublicRepository(repository, ctx) || !validRequestIdentity(identity, false) || !validPublicSchedulePut(input) {
 		return IntegrationScheduleMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionPublicPutScheduleSQL,
+	payload, err := repository.database.QueryJSON(ctx, repository.discoveryPublicSQL(postgresExecutionPublicPutScheduleSQL),
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(),
 		input.IntegrationID, input.IdempotencyKey, input.ExpectedVersion, input.CadenceSeconds, input.State, input.AuditID, input.CorrelationID, input.ReceiptID,
 	)
@@ -220,7 +220,7 @@ func (repository *DiscoveryRepository) DeleteIntegrationSchedule(ctx context.Con
 	if !validDiscoveryPublicRepository(repository, ctx) || !validRequestIdentity(identity, false) || !validPublicScheduleDelete(input) {
 		return IntegrationScheduleMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionPublicDeleteScheduleSQL,
+	payload, err := repository.database.QueryJSON(ctx, repository.discoveryPublicSQL(postgresExecutionPublicDeleteScheduleSQL),
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(),
 		input.IntegrationID, input.IdempotencyKey, input.ExpectedVersion, input.AuditID, input.CorrelationID, input.ReceiptID,
 	)
@@ -247,12 +247,12 @@ func (repository *DiscoveryRepository) GetIntegrationSync(ctx context.Context, s
 	if !validDiscoveryPublicRepository(repository, ctx) || scope.Validate() != nil || !validProductID(integrationID) || !validProductID(syncID) {
 		return IntegrationSyncRecord{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionPublicSyncDetailSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID, syncID)
+	payload, err := repository.database.QueryJSON(ctx, repository.discoveryPublicSQL(postgresExecutionPublicSyncDetailSQL), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID, syncID)
 	if err != nil {
 		return IntegrationSyncRecord{}, discoveryProviderError(err)
 	}
 	var result integrationSyncRecordEnvelope
-	if !exactJSONFields(payload, "body", "version") || decodeStrictDiscovery(payload, &result) != nil || !exactJSONFields(extractJSONField(payload, "body"), publicIntegrationSyncFields...) || result.Version < 1 || !validPublicIntegrationSync(result.Body, integrationID, syncID) {
+	if !exactJSONFields(payload, "body", "version") || decodeStrictDiscovery(payload, &result) != nil || !exactJSONFields(extractJSONField(payload, "body"), publicIntegrationSyncFields...) || result.Version < 1 || !repository.validSync(result.Body, integrationID, syncID) {
 		return IntegrationSyncRecord{}, ErrRepositoryUnavailable
 	}
 	canonicalizePublicIntegrationSync(&result.Body)
@@ -267,7 +267,7 @@ func (repository *DiscoveryRepository) ListIntegrationSyncs(ctx context.Context,
 	if beforeID != "" {
 		beforeIDValue = beforeID
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionPublicSyncHistorySQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID, beforeRequestedAt, beforeIDValue, limit)
+	payload, err := repository.database.QueryJSON(ctx, repository.discoveryPublicSQL(postgresExecutionPublicSyncHistorySQL), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID, beforeRequestedAt, beforeIDValue, limit)
 	if err != nil {
 		return IntegrationSyncPage{}, discoveryProviderError(err)
 	}
@@ -278,7 +278,7 @@ func (repository *DiscoveryRepository) ListIntegrationSyncs(ctx context.Context,
 	seen := make(map[string]struct{}, len(envelope.Items))
 	for index := range envelope.Items {
 		item := &envelope.Items[index]
-		if !exactJSONArrayObjectFields(extractJSONField(payload, "items"), index, publicIntegrationSyncFields...) || !validPublicIntegrationSync(*item, integrationID, item.ID) {
+		if !exactJSONArrayObjectFields(extractJSONField(payload, "items"), index, publicIntegrationSyncFields...) || !repository.validSync(*item, integrationID, item.ID) {
 			return IntegrationSyncPage{}, ErrRepositoryUnavailable
 		}
 		if _, duplicate := seen[item.ID]; duplicate {
@@ -320,7 +320,7 @@ func (repository *DiscoveryRepository) GetIntegrationSchedule(ctx context.Contex
 	if !validDiscoveryPublicRepository(repository, ctx) || scope.Validate() != nil || !validProductID(integrationID) {
 		return IntegrationSchedule{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionPublicScheduleDetailSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID)
+	payload, err := repository.database.QueryJSON(ctx, repository.discoveryPublicSQL(postgresExecutionPublicScheduleDetailSQL), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID)
 	if err != nil {
 		return IntegrationSchedule{}, discoveryProviderError(err)
 	}
@@ -336,12 +336,17 @@ func (repository *DiscoveryRepository) GetIntegrationFreshness(ctx context.Conte
 	if !validDiscoveryPublicRepository(repository, ctx) || scope.Validate() != nil || !validProductID(integrationID) {
 		return IntegrationFreshness{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionPublicFreshnessSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID)
+	payload, err := repository.database.QueryJSON(ctx, repository.discoveryPublicSQL(postgresExecutionPublicFreshnessSQL), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), integrationID)
 	if err != nil {
 		return IntegrationFreshness{}, discoveryProviderError(err)
 	}
 	var result IntegrationFreshness
-	if !validExactFreshnessPayload(payload) || decodeStrictDiscovery(payload, &result) != nil || !validPublicIntegrationFreshness(result, integrationID) {
+	if !validExactFreshnessPayload(payload) || decodeStrictDiscovery(payload, &result) != nil {
+		return IntegrationFreshness{}, ErrRepositoryUnavailable
+	}
+	remaining := result
+	remaining.LatestSync = nil
+	if !validPublicIntegrationFreshness(remaining, integrationID) || result.LatestSync != nil && !repository.validSync(*result.LatestSync, integrationID, result.LatestSync.ID) {
 		return IntegrationFreshness{}, ErrRepositoryUnavailable
 	}
 	result.UpdatedAt = result.UpdatedAt.UTC()

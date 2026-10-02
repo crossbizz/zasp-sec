@@ -1,0 +1,35 @@
+{{- $c := .Values.attackLabReconciler | default dict -}}
+{{- $monitoring := .Values.monitoring | default dict -}}
+{{- if $c.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: security-agent-attack-lab-reconciler-dependencies
+  annotations: { zasp.io/network-policy-boundary: native-cidr-snapshot }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: security-agent-attack-lab-reconciler } }
+  policyTypes: [Ingress, Egress]
+  {{- if $monitoring.enabled }}
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ required "monitoring namespace required" $monitoring.namespace | quote }} } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+  {{- else }}
+  ingress: []
+  {{- end }}
+  egress:
+    - to:
+      {{- range $cidr := $c.databaseCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to:
+      {{- range $cidr := uniq (concat $c.stsCIDRs $c.s3CIDRs) }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+{{- end }}

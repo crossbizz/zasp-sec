@@ -1,0 +1,465 @@
+--- a/services/platform/migrations/production_compliance.go
++++ b/services/platform/migrations/production_compliance.go
+@@ -4,6 +4,31 @@
+ 
+ const productionComplianceReadinessSQL = `SELECT public.zasp_compliance_readiness($1,$2)`
+ 
++// RegisterComplianceWorkers binds pre-created worker and cleanup logins through
++// release56's registration authority. It never creates credentials or migrates.
++func (runner *Runner) RegisterComplianceWorkers(ctx context.Context, executor, cleanup string) error {
++	if runner == nil || nilInterface(runner.database) {
++		return ErrInvalidRunner
++	}
++	return runner.withTransaction(ctx, func(ctx context.Context, tx Transaction) error {
++		if err := readProductionComplianceState(ctx, tx); err != nil {
++			return err
++		}
++		metadata := ProductionCompliance()
++		if err := requireMigrationReadiness(ctx, tx, productionComplianceReadinessSQL, metadata.Checksum(), ComplianceFingerprint()); err != nil {
++			return err
++		}
++		var registered bool
++		if err := scanRow(ctx, tx, `SELECT public.zasp_compliance_register_workers($1,$2,$3,$4)`, []any{executor, cleanup, metadata.Checksum(), ComplianceFingerprint()}, &registered); err != nil {
++			return fixedDatabaseError(ctx, err)
++		}
++		if !registered {
++			return ErrInvalidState
++		}
++		return requireMigrationReadiness(ctx, tx, productionComplianceReadinessSQL, metadata.Checksum(), ComplianceFingerprint())
++	})
++}
++
+ func readProductionComplianceState(ctx context.Context, queryer Queryer) error {
+ 	return readExactReleaseState(ctx, queryer, append(productionAuditExportsPredecessors(), ProductionAuditExports(), ProductionSecurityAgentBudgets(), ProductionSecurityAgentRunContext(), ProductionSecurityAgentExistingTests(), ProductionCompliance()))
+ }
+--- a/services/platform/agentsec-migrate/main.go
++++ b/services/platform/agentsec-migrate/main.go
+@@ -228,6 +228,16 @@
+ 			log.Fatal("release migration configuration rejected")
+ 		}
+ 		exportExecutor, exportOutbox, err = loadAuditExportWorkerRegistration(os.Getenv)
++		if err != nil {
++			log.Fatal("release migration configuration rejected")
++		}
++	}
++	var complianceExecutor, complianceCleanup string
++	if len(arguments) > 0 && arguments[0] == "register-compliance-workers" {
++		if len(arguments) != 1 {
++			log.Fatal("release migration configuration rejected")
++		}
++		complianceExecutor, complianceCleanup, err = loadComplianceWorkerRegistration(os.Getenv)
+ 		if err != nil {
+ 			log.Fatal("release migration configuration rejected")
+ 		}
+@@ -272,6 +282,8 @@
+ 		err = runner.RegisterAuditExportAPI(ctx, exportAPI)
+ 	} else if exportExecutor != "" {
+ 		err = runner.RegisterAuditExportWorkers(ctx, exportExecutor, exportOutbox)
++	} else if complianceExecutor != "" {
++		err = runner.RegisterComplianceWorkers(ctx, complianceExecutor, complianceCleanup)
+ 	} else {
+ 		err = runReleaseMigration(ctx, &registeredReleaseMigrationRunner{releaseMigrationRunner: runner, queryer: connection, registration: registration}, arguments)
+ 	}
+--- /dev/null
++++ b/services/platform/agentsec-migrate/compliance_registration.go
+@@ -0,0 +1,15 @@
++package main
++
++import "strings"
++
++func loadComplianceWorkerRegistration(getenv func(string) string) (string, string, error) {
++	if getenv == nil {
++		return "", "", errInvalidMigrationCommand
++	}
++	executor := getenv("ZASP_COMPLIANCE_WORKER_DB_PRINCIPAL")
++	cleanup := getenv("ZASP_COMPLIANCE_CLEANUP_DB_PRINCIPAL")
++	if !databasePrincipalPattern.MatchString(executor) || !databasePrincipalPattern.MatchString(cleanup) || executor == cleanup || strings.HasPrefix(executor, "zasp_") || strings.HasPrefix(cleanup, "zasp_") {
++		return "", "", errInvalidMigrationCommand
++	}
++	return executor, cleanup, nil
++}
+--- /dev/null
++++ b/services/platform/migrations/production_compliance_registration_test.go
+@@ -0,0 +1,131 @@
++package migrations
++
++import (
++	"context"
++	"errors"
++	"strings"
++	"testing"
++)
++
++type complianceRegistrar interface {
++	RegisterComplianceWorkers(context.Context, string, string) error
++}
++
++func complianceRegistrationRunner(t *testing.T, runner *Runner) complianceRegistrar {
++	t.Helper()
++	registrar, ok := any(runner).(complianceRegistrar)
++	if !ok {
++		t.Fatal("runner has no explicit compliance worker registration path")
++	}
++	return registrar
++}
++
++// Removing either readiness check, accepting false, interpolating identities or
++// using caller-supplied pins must break this transaction-boundary contract.
++func TestComplianceRegistrationTransaction(t *testing.T) {
++	for _, mode := range []string{"healthy", "lower-release", "future-release", "wrong-checksum", "initial-drift", "registration-false", "registration-error", "final-drift", "final-error", "commit-error", "rollback-error", "cancel-registration", "cancel-final"} {
++		t.Run(mode, func(t *testing.T) {
++			metadata := append(productionAuditExportsPredecessors(), ProductionAuditExports(), ProductionSecurityAgentBudgets(), ProductionSecurityAgentRunContext(), ProductionSecurityAgentExistingTests(), ProductionCompliance())
++			if mode == "wrong-checksum" {
++				metadata[55].checksum = "wrong"
++			}
++			rows := exactReleaseRows(metadata...)
++			if mode == "lower-release" {
++				rows[0] = fakeRow{values: []any{int64(55)}}
++			}
++			if mode == "future-release" {
++				rows[0] = fakeRow{values: []any{int64(57)}}
++			}
++			ctx, cancel := context.WithCancel(context.Background())
++			defer cancel()
++			var registration Row = fakeRow{values: []any{mode != "registration-false"}}
++			var final Row = fakeRow{values: []any{mode != "final-drift"}}
++			if mode == "registration-error" {
++				registration = fakeRow{err: errors.New("private SQL detail")}
++			}
++			if mode == "final-error" {
++				final = fakeRow{err: errors.New("private SQL detail")}
++			}
++			if mode == "cancel-registration" {
++				registration = complianceCancelRow{cancel: cancel}
++			}
++			if mode == "cancel-final" {
++				final = complianceCancelRow{cancel: cancel}
++			}
++			rows = append(rows, fakeRow{values: []any{mode != "initial-drift"}}, registration, final)
++			tx := &fakeTransaction{rows: rows}
++			if mode == "commit-error" {
++				tx.commitError = errors.New("private SQL detail")
++			}
++			if mode == "rollback-error" {
++				tx.rollbackError = errors.New("private SQL detail")
++				tx.rows[58] = fakeRow{values: []any{false}}
++			}
++			db := &fakeDatabase{transaction: tx}
++			runner, _ := NewRunner(db)
++			err := complianceRegistrationRunner(t, runner).RegisterComplianceWorkers(ctx, "compliance_executor", "compliance_cleanup")
++			events := strings.Join(db.events, "\n")
++			if mode == "healthy" {
++				if err != nil || !strings.Contains(events, "commit") || strings.Contains(events, "rollback") {
++					t.Fatalf("healthy registration: %v %s", err, events)
++				}
++			} else {
++				want := ErrInvalidState
++				if strings.HasSuffix(mode, "error") {
++					want = ErrDatabase
++				}
++				if strings.HasPrefix(mode, "cancel-") {
++					want = context.Canceled
++				}
++				if !errors.Is(err, want) || !strings.Contains(events, "rollback") || (mode != "commit-error" && strings.Contains(events, "commit")) || tx.rollbackContextError != nil {
++					t.Fatalf("refusal/rollback: %v %s", err, events)
++				}
++			}
++			called := strings.Contains(events, "query:SELECT public.zasp_compliance_register_workers($1,$2,$3,$4)")
++			preflightRefused := mode == "lower-release" || mode == "future-release" || mode == "wrong-checksum" || mode == "initial-drift"
++			if called == preflightRefused {
++				t.Fatalf("registration crossed preflight boundary: %s", events)
++			}
++			if called {
++				pins := ProductionCompliance().Checksum() + "," + ComplianceFingerprint()
++				if !strings.Contains(events, "args:compliance_executor,compliance_cleanup,"+pins) {
++					t.Fatalf("registration did not bind names and compiled pins: %s", events)
++				}
++				checks := 2
++				if strings.HasPrefix(mode, "registration-") || mode == "rollback-error" {
++					checks = 1
++				}
++				if strings.Count(events, "query:SELECT public.zasp_compliance_readiness($1,$2)\nargs:"+pins) != checks {
++					t.Fatalf("readiness protocol changed: %s", events)
++				}
++			}
++		})
++	}
++}
++
++type complianceCancelRow struct{ cancel context.CancelFunc }
++
++func (row complianceCancelRow) Scan(values ...any) error {
++	row.cancel()
++	*values[0].(*bool) = true
++	return nil
++}
++
++func TestComplianceRegistrationInvalidRunnerAndContext(t *testing.T) {
++	for _, runner := range []*Runner{nil, {}} {
++		if err := complianceRegistrationRunner(t, runner).RegisterComplianceWorkers(context.Background(), "worker", "cleanup"); !errors.Is(err, ErrInvalidRunner) {
++			t.Fatal(err)
++		}
++	}
++	db := &fakeDatabase{}
++	runner, _ := NewRunner(db)
++	registrar := complianceRegistrationRunner(t, runner)
++	if err := registrar.RegisterComplianceWorkers(nil, "worker", "cleanup"); !errors.Is(err, ErrInvalidContext) {
++		t.Fatal(err)
++	}
++	ctx, cancel := context.WithCancel(context.Background())
++	cancel()
++	if err := registrar.RegisterComplianceWorkers(ctx, "worker", "cleanup"); !errors.Is(err, context.Canceled) || len(db.events) != 0 {
++		t.Fatal("invalid context reached database", err)
++	}
++}
+--- /dev/null
++++ b/services/platform/agentsec-migrate/compliance_registration_test.go
+@@ -0,0 +1,58 @@
++package main
++
++import (
++	"context"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/zasp-ai/zasp-sec/services/platform/internal/testprocess"
++)
++
++// Invalid names must fail in main before even attempting the supplied DSN.
++func TestComplianceRegistrationBinaryPreflight(t *testing.T) {
++	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
++	defer cancel()
++	binary := filepath.Join(t.TempDir(), "agentsec-migrate")
++	if output, err := testprocess.Run(ctx, exec.Command("go", "build", "-o", binary, ".")); err != nil {
++		t.Fatalf("build: %v %s", err, output)
++	}
++	for _, tc := range []struct {
++		name, executor, cleanup string
++		extra                   bool
++		valid                   bool
++	}{
++		{"missing-both", "", "", false, false},
++		{"missing-worker", "", "cleanup_login", false, false},
++		{"missing-cleanup", "worker_login", "", false, false},
++		{"duplicate", "same_login", "same_login", false, false},
++		{"reserved-worker", "zasp_worker", "cleanup_login", false, false},
++		{"reserved-cleanup", "worker_login", "zasp_cleanup", false, false},
++		{"uppercase", "PRIVATE_MARKER", "cleanup_login", false, false},
++		{"whitespace", "worker_login ", "cleanup_login", false, false},
++		{"injection", "worker;private_marker", "cleanup_login", false, false},
++		{"short-worker", "ab", "cleanup_login", false, false},
++		{"long-cleanup", "worker_login", strings.Repeat("b", 64), false, false},
++		{"extra-argument", "worker_login", "cleanup_login", true, false},
++		{"valid-boundaries", "abc", strings.Repeat("b", 63), false, true},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			args := []string{"register-compliance-workers"}
++			if tc.extra {
++				args = append(args, "private_marker")
++			}
++			command := exec.Command(binary, args...)
++			command.Env = []string{"ZASP_MIGRATION_TIMEOUT=1s", "ZASP_POSTGRES_DSN=postgres://private_marker@127.0.0.1:1/private_marker?sslmode=disable", "ZASP_COMPLIANCE_WORKER_DB_PRINCIPAL=" + tc.executor, "ZASP_COMPLIANCE_CLEANUP_DB_PRINCIPAL=" + tc.cleanup}
++			output, err := testprocess.Run(ctx, command)
++			want := "release migration configuration rejected"
++			if tc.valid {
++				want = "release migration database unavailable"
++			}
++			if err == nil || !strings.Contains(string(output), want) || strings.Contains(strings.ToLower(string(output)), "private_marker") || strings.Contains(string(output), "worker_login") || strings.Contains(string(output), "cleanup_login") {
++				t.Fatalf("preflight failure: %v %s", err, output)
++			}
++		})
++	}
++}
+--- /dev/null
++++ b/services/platform/agentsec-migrate/compliance_registration_postgres_test.go
+@@ -0,0 +1,187 @@
++package main
++
++import (
++	"context"
++	"fmt"
++	"os"
++	"os/exec"
++	"runtime"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/jackc/pgx/v5"
++	"github.com/zasp-ai/zasp-sec/services/platform/internal/testprocess"
++	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
++)
++
++// Opt in only inside the owned Linux PostgreSQL fixture, with the actual CLI
++// pre-built offline and mounted at this path. Never consume an ambient DSN.
++func TestComplianceRegistrationBinaryOwnedPostgres(t *testing.T) {
++	if runtime.GOOS != "linux" || os.Getenv("ZASP_COMPLIANCE_REGISTRATION_BINARY") != "/compliance-migrate" {
++		t.Skip("requires owned Linux PostgreSQL fixture and mounted migration CLI")
++	}
++	dsn := startMigrationPostgres(t)
++	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
++	defer cancel()
++	owner := connectMigrationPostgres(t, ctx, dsn)
++	defer owner.Close(context.Background())
++	seed := func(statement string, args ...any) {
++		t.Helper()
++		if _, err := owner.Exec(ctx, statement, args...); err != nil {
++			t.Fatalf("owned fixture setup: %v", err)
++		}
++	}
++	seed(`CREATE ROLE fixture_admin LOGIN SUPERUSER; CREATE ROLE compliance_migrator LOGIN INHERIT SUPERUSER; CREATE ROLE compliance_executor LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS; CREATE ROLE compliance_cleanup LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS; CREATE ROLE compliance_other LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`)
++	adminConfig := owner.Config().Copy()
++	adminConfig.User = "fixture_admin"
++	admin, err := pgx.ConnectConfig(ctx, adminConfig)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer admin.Close(context.Background())
++	base := []string{"ZASP_MIGRATION_TIMEOUT=45s"}
++	forward := append([]string{}, base...)
++	forward = append(forward, "ZASP_MIGRATION_DB_PRINCIPAL=compliance_migrator")
++	for index, key := range []string{
++		discoveryAPIPrincipalEnvironment, discoveryWorkerPrincipalEnvironment, runtimeIngestPrincipalEnvironment,
++		runtimeWorkerPrincipalEnvironment, outboxWorkerPrincipalEnvironment, runtimeGatewayPrincipalEnvironment,
++		discoverySchedulerPrincipalEnvironment, projectionRiskPrincipalEnvironment, projectionGraphPrincipalEnvironment,
++		projectionSearchPrincipalEnvironment, runtimeCoordinatorPrincipalEnvironment, runtimeArchivePrincipalEnvironment,
++		runtimeIndexPrincipalEnvironment, runtimeCorrelationPrincipalEnvironment, runtimeProjectionPrincipalEnvironment,
++		gatewayControlPrincipalEnvironment, securityAgentAPIPrincipalEnvironment, securityAgentWorkerPrincipalEnvironment,
++		securityAgentActionPrincipalEnvironment, redTeamWorkerPrincipalEnvironment, redTeamOutboxPrincipalEnvironment,
++		redTeamAdapterPrincipalEnvironment, attackLabControllerPrincipalEnvironment, attackLabOutboxPrincipalEnvironment,
++		attackLabProxyPrincipalEnvironment, recoveryWorkerPrincipalEnvironment, recoveryOutboxPrincipalEnvironment,
++		policyDeploymentPrincipalEnvironment,
++	} {
++		name := fmt.Sprintf("compliance_prior_%02d", index)
++		seed(`CREATE ROLE ` + pgx.Identifier{name}.Sanitize() + ` LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`)
++		forward = append(forward, key+"="+name)
++	}
++	run := func(label string, args, environment []string, selectedDSN, want string) {
++		t.Helper()
++		bounded, stop := context.WithTimeout(ctx, 50*time.Second)
++		defer stop()
++		command := exec.Command("/compliance-migrate", args...)
++		command.Env = append(append([]string{}, environment...), "ZASP_POSTGRES_DSN="+selectedDSN)
++		output, err := testprocess.Run(bounded, command)
++		if bounded.Err() != nil || (err == nil) != (want == "") || (want != "" && !strings.Contains(string(output), want)) || (want == "" && len(output) != 0) {
++			t.Fatalf("%s: CLI result=%v output=%q", label, err, output)
++		}
++		for _, secret := range []string{selectedDSN, "compliance_executor", "compliance_cleanup", "compliance_other", "private_marker", "SQLSTATE"} {
++			if strings.Contains(string(output), secret) {
++				t.Fatalf("%s: public output disclosed private input", label)
++			}
++		}
++		t.Log("actual CLI:", label)
++	}
++	registration := func(executor, cleanup string) []string {
++		return append(append([]string{}, base...), "ZASP_COMPLIANCE_WORKER_DB_PRINCIPAL="+executor, "ZASP_COMPLIANCE_CLEANUP_DB_PRINCIPAL="+cleanup)
++	}
++	args := []string{"register-compliance-workers"}
++	settings := registration("compliance_executor", "compliance_cleanup")
++	dsn = strings.Replace(dsn, "zasp_test@", "compliance_migrator@", 1)
++	owner = connectMigrationPostgres(t, ctx, dsn)
++	defer owner.Close(context.Background())
++	run("bootstrap exact56 through published migration command", []string{"up-to-56"}, forward, dsn, "")
++	var count int
++	if err := owner.QueryRow(ctx, `SELECT count(*) FROM zasp_compliance_worker_bindings`).Scan(&count); err != nil || count != 0 {
++		t.Fatal("forward migration registered compliance workers implicitly", count, err)
++	}
++	// The registered migration login owns the release objects. Remove all
++	// superuser/role-creation powers before any compliance registration attempt.
++	if _, err := admin.Exec(ctx, `ALTER ROLE compliance_migrator NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`); err != nil {
++		t.Fatalf("fixture role demotion: %#v", err)
++	}
++	var authority bool
++	if err := owner.QueryRow(ctx, `SELECT session_user='compliance_migrator' AND r.rolcanlogin AND r.rolinherit AND NOT r.rolsuper AND NOT r.rolcreatedb AND NOT r.rolcreaterole AND NOT r.rolreplication AND NOT r.rolbypassrls AND pg_has_role(session_user,'zasp_discovery_authority','MEMBER') AND EXISTS(SELECT 1 FROM zasp_discovery_principal_bindings WHERE principal_name=session_user AND authority_role='zasp_discovery_authority') FROM pg_roles r WHERE r.rolname=session_user`).Scan(&authority); err != nil || !authority {
++		t.Fatal("registration fixture is not registered non-superuser authority", err)
++	}
++	t.Log("registered migration session verified: LOGIN INHERIT, NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS")
++	snapshot := func() string {
++		t.Helper()
++		var value string
++		if err := admin.QueryRow(ctx, `SELECT jsonb_build_object('bindings',(SELECT COALESCE(jsonb_agg(to_jsonb(b) ORDER BY principal_name),'[]') FROM zasp_compliance_worker_bindings b),'members',(SELECT COALESCE(jsonb_agg(to_jsonb(m) ORDER BY roleid,member,grantor),'[]') FROM pg_auth_members m),'versions',(SELECT jsonb_agg(to_jsonb(v) ORDER BY version) FROM zasp_schema_versions v),'metadata',(SELECT jsonb_agg(to_jsonb(m) ORDER BY key) FROM zasp_schema_metadata m))::text`).Scan(&value); err != nil {
++			t.Fatal(err)
++		}
++		return value
++	}
++	unchanged := func(before string) {
++		t.Helper()
++		if after := snapshot(); after != before {
++			t.Fatal("refusal/replay changed bindings, grants or release state")
++		}
++	}
++	before := snapshot()
++	run("missing second SQL login rolls back first grant", args, registration("compliance_executor", "missing_cleanup"), dsn, "release migration failed")
++	unchanged(before)
++	// A valid but already cross-authority login must not acquire the worker role.
++	run("cross-authority principal rejected", args, registration("compliance_prior_00", "compliance_cleanup"), dsn, "release migration failed")
++	unchanged(before)
++	run("explicit non-superuser worker registration", args, settings, dsn, "")
++	var exact bool
++	if err := admin.QueryRow(ctx, `SELECT (SELECT count(*)=2 AND bool_and((principal_name='compliance_executor' AND authority_role='zasp_compliance_worker') OR (principal_name='compliance_cleanup' AND authority_role='zasp_compliance_cleanup')) FROM zasp_compliance_worker_bindings) AND (SELECT count(*)=2 AND bool_and(NOT m.admin_option AND m.inherit_option AND NOT m.set_option AND ((p.rolname='compliance_executor' AND r.rolname='zasp_compliance_worker') OR (p.rolname='compliance_cleanup' AND r.rolname='zasp_compliance_cleanup'))) FROM pg_auth_members m JOIN pg_roles p ON p.oid=m.member JOIN pg_roles r ON r.oid=m.roleid WHERE p.rolname IN('compliance_executor','compliance_cleanup')) AND zasp_compliance_readiness($1,$2)`, migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()).Scan(&exact); err != nil || !exact {
++		t.Fatal("wrong capability binding, membership options or compiled readiness", err)
++	}
++	t.Log("exact worker/cleanup binding and INHERIT TRUE, SET FALSE, ADMIN FALSE grants verified with compiled56 readiness")
++	registered := snapshot()
++	run("idempotent replay", args, settings, dsn, "")
++	unchanged(registered)
++	for _, tc := range []struct{ label, executor, cleanup string }{
++		{"missing-name", "", "compliance_cleanup"}, {"duplicate-names", "compliance_executor", "compliance_executor"}, {"reserved-name", "zasp_compliance_worker", "compliance_cleanup"}, {"malformed-name", "private_marker;bad", "compliance_cleanup"},
++	} {
++		run(tc.label, args, registration(tc.executor, tc.cleanup), dsn, "release migration configuration rejected")
++		unchanged(registered)
++	}
++	run("extra argument", append(append([]string{}, args...), "private_marker"), settings, dsn, "release migration configuration rejected")
++	unchanged(registered)
++	run("different existing worker cannot replace binding", args, registration("compliance_other", "compliance_cleanup"), dsn, "release migration failed")
++	unchanged(registered)
++	for _, login := range []string{"compliance_executor", "compliance_cleanup", "compliance_prior_00", "compliance_other", "fixture_admin"} {
++		config := owner.Config().Copy()
++		config.User = login
++		connection, err := pgx.ConnectConfig(ctx, config)
++		if err != nil {
++			t.Fatal(err)
++		}
++		// Test SQL authority directly too, so a refusal cannot be credited solely
++		// to the CLI's release metadata access restrictions.
++		var allowed bool
++		err = connection.QueryRow(ctx, `SELECT zasp_compliance_register_workers($1,$2,$3,$4)`, "compliance_executor", "compliance_cleanup", migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()).Scan(&allowed)
++		_ = connection.Close(context.Background())
++		if err == nil {
++			t.Fatal("nonregistered identity invoked registration authority")
++		}
++		foreignDSN := strings.Replace(dsn, "compliance_migrator@", login+"@", 1)
++		run("nonregistered caller denied: "+login, args, settings, foreignDSN, "release migration failed")
++		unchanged(registered)
++	}
++	for _, drift := range []struct{ label, apply, restore string }{
++		{"wrong release checksum", `UPDATE zasp_schema_versions SET checksum=repeat('0',64) WHERE version=56`, `UPDATE zasp_schema_versions SET checksum=$1 WHERE version=56`},
++		{"unavailable compiled readiness", `UPDATE zasp_schema_metadata SET value=repeat('0',64) WHERE key='production_compliance_checksum'`, `UPDATE zasp_schema_metadata SET value=$1 WHERE key='production_compliance_checksum'`},
++	} {
++		if _, err := admin.Exec(ctx, drift.apply); err != nil {
++			t.Fatal(err)
++		}
++		drifted := snapshot()
++		run(drift.label, args, settings, dsn, "release migration failed")
++		unchanged(drifted)
++		if _, err := admin.Exec(ctx, drift.restore, migrations.ProductionCompliance().Checksum()); err != nil {
++			t.Fatal(err)
++		}
++		unchanged(registered)
++	}
++	if _, err := admin.Exec(ctx, `INSERT INTO zasp_schema_versions(version,name,checksum) VALUES(57,'unknown',repeat('0',64))`); err != nil {
++		t.Fatal(err)
++	}
++	future := snapshot()
++	run("future release refused", args, settings, dsn, "release migration failed")
++	unchanged(future)
++	if _, err := admin.Exec(ctx, `DELETE FROM zasp_schema_versions WHERE version=57`); err != nil {
++		t.Fatal(err)
++	}
++	unchanged(registered)
++	run("restored exact56 replay", args, settings, dsn, "")
++	unchanged(registered)
++}

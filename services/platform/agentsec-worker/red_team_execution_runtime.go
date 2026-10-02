@@ -30,14 +30,16 @@ type redTeamRunner interface {
 }
 
 type redTeamExecutionRequest struct {
-	LeaseToken  string
-	Scope       domain.Scope
-	Run         apiserver.RedTeamRun
-	Definition  apiserver.RedTeamDefinition
-	InputDigest [sha256.Size]byte
+	EvidenceVersion string
+	LeaseToken      string
+	Scope           domain.Scope
+	Run             apiserver.RedTeamRun
+	Definition      apiserver.RedTeamDefinition
+	InputDigest     [sha256.Size]byte
 }
 
 type redTeamExecutionResult struct {
+	EvidenceArtifact                                  []byte
 	InputArtifact                                     *apiserver.RedTeamArtifactReference
 	Verdict                                           string
 	Objective, Behavior, ErrorCode                    string
@@ -66,7 +68,10 @@ type redTeamProcessorConfig struct {
 	NewLeaseToken     func() (string, error)
 }
 
-type redTeamProcessor struct{ config redTeamProcessorConfig }
+type redTeamProcessor struct {
+	config        redTeamProcessorConfig
+	ownedDelivery func(context.Context, jobqueue.Delivery) (bool, error)
+}
 
 func newRedTeamProcessor(config redTeamProcessorConfig) (*redTeamProcessor, error) {
 	if config.HeartbeatInterval == 0 {
@@ -109,6 +114,15 @@ func (processor *redTeamProcessor) process(ctx context.Context, delivery jobqueu
 	if !ok {
 		return errWorkerExecution
 	}
+	if processor.ownedDelivery != nil {
+		owned, err := processor.ownedDelivery(ctx, delivery)
+		if err != nil {
+			return errWorkerExecution
+		}
+		if owned {
+			return processor.acknowledge(ctx, delivery.Receipt)
+		}
+	}
 	token, err := processor.config.NewLeaseToken()
 	if err != nil || len(token) != 32 {
 		return errWorkerExecution
@@ -119,7 +133,7 @@ func (processor *redTeamProcessor) process(ctx context.Context, delivery jobqueu
 		return errWorkerExecution
 	}
 	switch claim.Disposition {
-	case "retry_later":
+	case "retry_later", "reconcile_required":
 		return nil
 	case "ack_terminal":
 		return processor.acknowledge(ctx, delivery.Receipt)
@@ -130,7 +144,13 @@ func (processor *redTeamProcessor) process(ctx context.Context, delivery jobqueu
 	if payload.DefinitionID != claim.Definition.ID || payload.DefinitionVersion != claim.Definition.Version || claim.Run.ID != runID || claim.Run.DefinitionID != payload.DefinitionID || claim.Run.DefinitionVersion != payload.DefinitionVersion || claim.InputDigest != delivery.Job.AuthorityDigest {
 		return errWorkerExecution
 	}
-	request := redTeamExecutionRequest{Scope: delivery.Job.Scope, Run: claim.Run, Definition: claim.Definition, InputDigest: claim.InputDigest, LeaseToken: token}
+	if claim.EvidenceVersion != "" && claim.EvidenceVersion != "red-team-v2" {
+		return errWorkerExecution
+	}
+	request := redTeamExecutionRequest{EvidenceVersion: claim.EvidenceVersion, Scope: delivery.Job.Scope, Run: claim.Run, Definition: claim.Definition, InputDigest: claim.InputDigest, LeaseToken: token}
+	if claim.EvidenceVersion == "red-team-v2" {
+		return processor.runLinkedLeased(ctx, delivery, request, claim.LeaseExpiresAt)
+	}
 	return processor.runLeased(ctx, delivery, request, token)
 }
 

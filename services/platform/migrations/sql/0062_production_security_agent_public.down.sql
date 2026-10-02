@@ -1,0 +1,20 @@
+-- Refuse unexpected dependents; never cascade into release61 evidence.
+DROP FUNCTION zasp_ordered_public62.api(text,text,jsonb);
+DROP FUNCTION zasp_ordered_public62.candidates(jsonb);
+DROP FUNCTION zasp_ordered_public62.activate_resource(text,text,jsonb);
+DROP FUNCTION zasp_ordered_public62.resource_run(text,text,text,text);
+DROP FUNCTION zasp_ordered_public62.classify_mutation(text,text,text,text,text,text,text,text,bigint);
+DROP FUNCTION zasp_ordered_public62.classify_trigger_key(text,text,text,text,text,text);
+DROP FUNCTION zasp_ordered_public62.classify(text,text,text,text,text);
+DROP FUNCTION zasp_ordered_public62.mutate(text,text,jsonb);
+DROP FUNCTION zasp_ordered_public62.project(text,text,text,text);
+DROP FUNCTION zasp_ordered_public62.project_core(text,text,text,text,boolean);
+DROP FUNCTION zasp_ordered_public62.retained_application(text,text,text,text);
+DROP FUNCTION zasp_ordered_public62.history(text,text,text,text);
+DROP FUNCTION zasp_ordered_public62.definition(text,text,text,text,bigint,boolean);
+DROP FUNCTION zasp_ordered_public62.definition_shape(public.zasp_security_agent_definitions,text,boolean);
+DROP FUNCTION zasp_ordered_public62.authorize(text,text,text,text,boolean);
+DROP FUNCTION zasp_ordered_public62.ready(text,text);
+DROP FUNCTION zasp_ordered_public62.fingerprint();
+DROP TABLE zasp_ordered_public62.registration;
+DROP SCHEMA zasp_ordered_public62;

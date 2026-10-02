@@ -1,0 +1,518 @@
+TAP version 13
+# Subtest: release removes its owned export values after Helm success or refusal
+ok 1 - release removes its owned export values after Helm success or refusal
+  ---
+  duration_ms: 1181.879666
+  type: 'test'
+  ...
+# Subtest: release owns its export configuration while Helm runs
+ok 2 - release owns its export configuration while Helm runs
+  ---
+  duration_ms: 416.321333
+  type: 'test'
+  ...
+# Subtest: release refuses export activation outside its approved schema and phase
+ok 3 - release refuses export activation outside its approved schema and phase
+  ---
+  duration_ms: 1.9685
+  type: 'test'
+  ...
+# Subtest: full release renders export API workers and selected migration policy together
+ok 4 - full release renders export API workers and selected migration policy together
+  ---
+  duration_ms: 460.827292
+  type: 'test'
+  ...
+# Subtest: routing release requires the dual-version correlation worker
+ok 5 - routing release requires the dual-version correlation worker
+  ---
+  duration_ms: 389.228167
+  type: 'test'
+  ...
+# Subtest: sandbox compatibility staging explicitly pins49 before future activation
+ok 6 - sandbox compatibility staging explicitly pins49 before future activation
+  ---
+  duration_ms: 361.975
+  type: 'test'
+  ...
+# Subtest: compatibility staging explicitly pins48 without activating routing
+ok 7 - compatibility staging explicitly pins48 without activating routing
+  ---
+  duration_ms: 365.886375
+  type: 'test'
+  ...
+# Subtest: production CI runs sensor lineage and authenticated replay regressions
+ok 8 - production CI runs sensor lineage and authenticated replay regressions
+  ---
+  duration_ms: 1.88075
+  type: 'test'
+  ...
+# Subtest: customer edge selects precise source only explicitly
+ok 9 - customer edge selects precise source only explicitly
+  ---
+  duration_ms: 166.058167
+  type: 'test'
+  ...
+# Subtest: customer edge isolates lineage producer, consumer and layout initialization
+ok 10 - customer edge isolates lineage producer, consumer and layout initialization
+  ---
+  duration_ms: 72.974292
+  type: 'test'
+  ...
+# Subtest: session query API IAM grants only fixed read endpoints
+ok 11 - session query API IAM grants only fixed read endpoints
+  ---
+  duration_ms: 0.698375
+  type: 'test'
+  ...
+# Subtest: runtime session search bootstrap and worker IAM have separate fixed paths
+ok 12 - runtime session search bootstrap and worker IAM have separate fixed paths
+  ---
+  duration_ms: 1.660583
+  type: 'test'
+  ...
+# Subtest: Attack Lab release requires a separate same-account test role
+ok 13 - Attack Lab release requires a separate same-account test role
+  ---
+  duration_ms: 0.61625
+  type: 'test'
+  ...
+# Subtest: Attack Lab test IAM identity trusts only its run service account and denies cloud permissions
+ok 14 - Attack Lab test IAM identity trusts only its run service account and denies cloud permissions
+  ---
+  duration_ms: 0.824583
+  type: 'test'
+  ...
+# Subtest: Attack Lab routes image pulls through its own bucket-restricted S3 endpoint
+ok 15 - Attack Lab routes image pulls through its own bucket-restricted S3 endpoint
+  ---
+  duration_ms: 1.184959
+  type: 'test'
+  ...
+# Subtest: Attack Lab security group consumes the executable bounded egress contract
+ok 16 - Attack Lab security group consumes the executable bounded egress contract
+  ---
+  duration_ms: 1.901834
+  type: 'test'
+  ...
+# Subtest: production container builds are exact, non-root, health-bound, and secret-free
+ok 17 - production container builds are exact, non-root, health-bound, and secret-free
+  ---
+  duration_ms: 2.313
+  type: 'test'
+  ...
+# Subtest: customer edge renders database-free gateway, multi-node sensor, and pinned Tetragon
+ok 18 - customer edge renders database-free gateway, multi-node sensor, and pinned Tetragon
+  ---
+  duration_ms: 72.3335
+  type: 'test'
+  ...
+# Subtest: customer edge rejects mutable sensors, broad networks, shared secrets, and ambient state
+ok 19 - customer edge rejects mutable sensors, broad networks, shared secrets, and ambient state
+  ---
+  duration_ms: 0.376
+  type: 'test'
+  ...
+# Subtest: production release renders private Nango dependency plus a fail-closed local Collector
+ok 20 - production release renders private Nango dependency plus a fail-closed local Collector
+  ---
+  duration_ms: 927.946875
+  type: 'test'
+  ...
+# Subtest: rendered release rejects an unreviewed job identity
+ok 21 - rendered release rejects an unreviewed job identity
+  ---
+  duration_ms: 361.871458
+  type: 'test'
+  ...
+# Subtest: Grafana and New Relic Collector overlays bound remote failure with one exact secret
+ok 22 - Grafana and New Relic Collector overlays bound remote failure with one exact secret
+  ---
+  duration_ms: 715.65225
+  type: 'test'
+  ...
+# Subtest: release renders one TLS origin, split ports, private internals, and migration/schema gates
+ok 23 - release renders one TLS origin, split ports, private internals, and migration/schema gates
+  ---
+  duration_ms: 323.313333
+  type: 'test'
+  ...
+# Subtest: release runs the security agent with one exact database authority
+ok 24 - release runs the security agent with one exact database authority
+  ---
+  duration_ms: 333.773917
+  type: 'test'
+  ...
+# Subtest: release runs temporary policy actions with a separate signing identity
+ok 25 - release runs temporary policy actions with a separate signing identity
+  ---
+  duration_ms: 339.78825
+  type: 'test'
+  ...
+# Subtest: release deploys the central policy writer with one exact signing identity
+ok 26 - release deploys the central policy writer with one exact signing identity
+  ---
+  duration_ms: 329.152958
+  type: 'test'
+  ...
+# Subtest: release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies
+ok 27 - release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies
+  ---
+  duration_ms: 350.493666
+  type: 'test'
+  ...
+# Subtest: release ships the complete v15 runtime data plane behind exact workload authorities
+ok 28 - release ships the complete v15 runtime data plane behind exact workload authorities
+  ---
+  duration_ms: 343.133666
+  type: 'test'
+  ...
+# Subtest: release gives the runtime data plane bounded ingress and dependency egress
+ok 29 - release gives the runtime data plane bounded ingress and dependency egress
+  ---
+  duration_ms: 315.527125
+  type: 'test'
+  ...
+# Subtest: release monitors, scales, and independently alerts every runtime workload
+ok 30 - release monitors, scales, and independently alerts every runtime workload
+  ---
+  duration_ms: 330.708583
+  type: 'test'
+  ...
+# Subtest: release mounts distinct risk and graph projections behind exact DB, Neo4j, and schema authorities
+ok 31 - release mounts distinct risk and graph projections behind exact DB, Neo4j, and schema authorities
+  ---
+  duration_ms: 367.572
+  type: 'test'
+  ...
+# Subtest: release isolates the discovery outbox publisher behind exact DB, queue, and web-identity authority
+ok 32 - release isolates the discovery outbox publisher behind exact DB, queue, and web-identity authority
+  ---
+  duration_ms: 342.304708
+  type: 'test'
+  ...
+# Subtest: release mounts one readiness-gated discovery worker with exact provider and artifact authority
+ok 33 - release mounts one readiness-gated discovery worker with exact provider and artifact authority
+  ---
+  duration_ms: 332.896084
+  type: 'test'
+  ...
+# Subtest: release isolates the red team outbox runner and tenant target adapter
+ok 34 - release isolates the red team outbox runner and tenant target adapter
+  ---
+  duration_ms: 362.709833
+  type: 'test'
+  ...
+# Subtest: release isolates Attack Lab execution behind a proxy-only Fargate authority
+ok 35 - release isolates Attack Lab execution behind a proxy-only Fargate authority
+  ---
+  duration_ms: 351.735875
+  type: 'test'
+  ...
+# Subtest: release gives only API an explicit connector identity, reference-only config, and bounded provider egress
+ok 36 - release gives only API an explicit connector identity, reference-only config, and bounded provider egress
+  ---
+  duration_ms: 360.283083
+  type: 'test'
+  ...
+# Subtest: release gives finding tickets exact API-only webhook egress and secret-read authority
+ok 37 - release gives finding tickets exact API-only webhook egress and secret-read authority
+  ---
+  duration_ms: 332.94825
+  type: 'test'
+  ...
+# Subtest: release renders read-only synthetic and exact SLO budgets without credential values
+ok 38 - release renders read-only synthetic and exact SLO budgets without credential values
+  ---
+  duration_ms: 332.719083
+  type: 'test'
+  ...
+# Subtest: release rejects unpinned images and hostile public identifiers
+ok 39 - release rejects unpinned images and hostile public identifiers
+  ---
+  duration_ms: 331.437292
+  type: 'test'
+  ...
+# Subtest: terraform binds each shipped secret consumer to one exact least-privilege IRSA role
+ok 40 - terraform binds each shipped secret consumer to one exact least-privilege IRSA role
+  ---
+  duration_ms: 2.370958
+  type: 'test'
+  ...
+# Subtest: terraform isolates connector mutation and reference authorization behind one API-only web-identity role
+ok 41 - terraform isolates connector mutation and reference authorization behind one API-only web-identity role
+  ---
+  duration_ms: 1.255
+  type: 'test'
+  ...
+# Subtest: terraform isolates red team queue evidence and target credentials behind three identities
+ok 42 - terraform isolates red team queue evidence and target credentials behind three identities
+  ---
+  duration_ms: 0.801084
+  type: 'test'
+  ...
+# Subtest: terraform isolates Attack Lab queue evidence proxy and runner pod networks
+ok 43 - terraform isolates Attack Lab queue evidence proxy and runner pod networks
+  ---
+  duration_ms: 1.910916
+  type: 'test'
+  ...
+# Subtest: terraform provisions the exact encrypted v15 runtime plane and isolated identities
+ok 44 - terraform provisions the exact encrypted v15 runtime plane and isolated identities
+  ---
+  duration_ms: 1.307583
+  type: 'test'
+  ...
+# Subtest: production recovery renders isolated inert workers and least-privilege cloud authority
+ok 45 - production recovery renders isolated inert workers and least-privilege cloud authority
+  ---
+  duration_ms: 361.538291
+  type: 'test'
+  ...
+# Subtest: embedded migration release has explicit compatibility and forward chart phases
+not ok 46 - embedded migration release has explicit compatibility and forward chart phases
+  ---
+  duration_ms: 6.564542
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/gate.test.mjs:8:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    embedded migration needs an explicit rollout contract
+    
+    56 !== 55
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 55
+  actual: 56
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/gate.test.mjs:15:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: staging deployment binds thirty-two deployments and every init/runner/canary identity to one account
+ok 47 - staging deployment binds thirty-two deployments and every init/runner/canary identity to one account
+  ---
+  duration_ms: 1.465958
+  type: 'test'
+  ...
+# Subtest: staging evidence is deterministic, credential-free, and gates exact private readiness
+ok 48 - staging evidence is deterministic, credential-free, and gates exact private readiness
+  ---
+  duration_ms: 15.018416
+  type: 'test'
+  ...
+# Subtest: staging deployment forbids missing and inherited sandbox roles
+ok 49 - staging deployment forbids missing and inherited sandbox roles
+  ---
+  duration_ms: 0.208792
+  type: 'test'
+  ...
+# Subtest: release preflight validates all eleven images and least-privilege identities
+ok 50 - release preflight validates all eleven images and least-privilege identities
+  ---
+  duration_ms: 1.883
+  type: 'test'
+  ...
+# Subtest: release preflight forbids missing and inherited sandbox roles
+ok 51 - release preflight forbids missing and inherited sandbox roles
+  ---
+  duration_ms: 0.294667
+  type: 'test'
+  ...
+# Subtest: release preflight rejects public access, mutable images, stale workloads, and shared IAM
+ok 52 - release preflight rejects public access, mutable images, stale workloads, and shared IAM
+  ---
+  duration_ms: 0.931292
+  type: 'test'
+  ...
+# Subtest: staging retains all three original queue contracts independently of Red Team
+ok 53 - staging retains all three original queue contracts independently of Red Team
+  ---
+  duration_ms: 0.890833
+  type: 'test'
+  ...
+# Subtest: shared staging resources bind each queue to its encrypted DLQ and output
+ok 54 - shared staging resources bind each queue to its encrypted DLQ and output
+  ---
+  duration_ms: 0.5
+  type: 'test'
+  ...
+# Subtest: Red Team consumer authority stays on its separate queue
+ok 55 - Red Team consumer authority stays on its separate queue
+  ---
+  duration_ms: 0.147
+  type: 'test'
+  ...
+# Subtest: original queue guard rejects missing tests and changed schema or delivery settings
+ok 56 - original queue guard rejects missing tests and changed schema or delivery settings
+  ---
+  duration_ms: 1.095709
+  type: 'test'
+  ...
+# Subtest: shared-resource guard rejects crossed DLQs, redrive widening and missing output membership
+ok 57 - shared-resource guard rejects crossed DLQs, redrive widening and missing output membership
+  ---
+  duration_ms: 1.271417
+  type: 'test'
+  ...
+# Subtest: pins the isolated six-queue disposable LocalStack command
+ok 58 - pins the isolated six-queue disposable LocalStack command
+  ---
+  duration_ms: 0.66325
+  type: 'test'
+  ...
+# Subtest: re-proves the exact queue-definition runtime environment
+ok 59 - re-proves the exact queue-definition runtime environment
+  ---
+  duration_ms: 0.92275
+  type: 'test'
+  ...
+# Subtest: runs the exact child mode under the hard bounded proof supervisor
+ok 60 - runs the exact child mode under the hard bounded proof supervisor
+  ---
+  duration_ms: 0.423542
+  type: 'test'
+  ...
+# Subtest: leaves a hard supervisor margin beyond every Go cleanup phase
+ok 61 - leaves a hard supervisor margin beyond every Go cleanup phase
+  ---
+  duration_ms: 0.453375
+  type: 'test'
+  ...
+# Subtest: emits only the fixed outer success line
+ok 62 - emits only the fixed outer success line
+  ---
+  duration_ms: 0.235333
+  type: 'test'
+  ...
+# Subtest: cleanup failure wins without exposing runtime details
+ok 63 - cleanup failure wins without exposing runtime details
+  ---
+  duration_ms: 0.16375
+  type: 'test'
+  ...
+# Subtest: rejects unknown modes without changing established mode commands
+ok 64 - rejects unknown modes without changing established mode commands
+  ---
+  duration_ms: 0.140041
+  type: 'test'
+  ...
+# Subtest: pins the exact LocalStack version and digest in the disposable run command
+ok 65 - pins the exact LocalStack version and digest in the disposable run command
+  ---
+  duration_ms: 0.771292
+  type: 'test'
+  ...
+# Subtest: passes only the process endpoint and PATH to the Go proof
+ok 66 - passes only the process endpoint and PATH to the Go proof
+  ---
+  duration_ms: 0.108958
+  type: 'test'
+  ...
+# Subtest: builds with offline allowlisted Go tool caches and no ambient AWS configuration
+ok 67 - builds with offline allowlisted Go tool caches and no ambient AWS configuration
+  ---
+  duration_ms: 0.055208
+  type: 'test'
+  ...
+# Subtest: runs readiness and proof before exact cleanup and absence proof
+ok 68 - runs readiness and proof before exact cleanup and absence proof
+  ---
+  duration_ms: 0.202166
+  type: 'test'
+  ...
+# Subtest: propagates proof failure after cleanup
+ok 69 - propagates proof failure after cleanup
+  ---
+  duration_ms: 0.068458
+  type: 'test'
+  ...
+# Subtest: cleanup failure overrides proof success or failure
+ok 70 - cleanup failure overrides proof success or failure
+  ---
+  duration_ms: 0.216333
+  type: 'test'
+  ...
+# Subtest: bounded readiness timeout still removes the exact owned container
+ok 71 - bounded readiness timeout still removes the exact owned container
+  ---
+  duration_ms: 0.186542
+  type: 'test'
+  ...
+# Subtest: reconciles an ambiguous docker start only through exact current ownership
+ok 72 - reconciles an ambiguous docker start only through exact current ownership
+  ---
+  duration_ms: 0.491084
+  type: 'test'
+  ...
+# Subtest: does not reconcile a definitive docker rejection and always lists full IDs
+ok 73 - does not reconcile a definitive docker rejection and always lists full IDs
+  ---
+  duration_ms: 0.872375
+  type: 'test'
+  ...
+# Subtest: retains a direct candidate when docker start becomes ambiguous
+ok 74 - retains a direct candidate when docker start becomes ambiguous
+  ---
+  duration_ms: 0.437
+  type: 'test'
+  ...
+# Subtest: requires retained full-ID absence even when the exact name is absent
+ok 75 - requires retained full-ID absence even when the exact name is absent
+  ---
+  duration_ms: 0.314042
+  type: 'test'
+  ...
+# Subtest: revalidates exact temporary-directory identity before recursive removal
+ok 76 - revalidates exact temporary-directory identity before recursive removal
+  ---
+  duration_ms: 0.283458
+  type: 'test'
+  ...
+# Subtest: removes only an unchanged exact owned temporary directory
+ok 77 - removes only an unchanged exact owned temporary directory
+  ---
+  duration_ms: 0.13175
+  type: 'test'
+  ...
+# Subtest: cleans a retained exact candidate when start ownership verification throws
+ok 78 - cleans a retained exact candidate when start ownership verification throws
+  ---
+  duration_ms: 0.087041
+  type: 'test'
+  ...
+# Subtest: rejects an oversized readiness chunk immediately
+ok 79 - rejects an oversized readiness chunk immediately
+  ---
+  duration_ms: 17.793625
+  type: 'test'
+  ...
+# Subtest: bounds an endlessly streaming readiness response
+ok 80 - bounds an endlessly streaming readiness response
+  ---
+  duration_ms: 502.083166
+  type: 'test'
+  ...
+# Subtest: contains every runtime construction failure at the fixed-output boundary
+ok 81 - contains every runtime construction failure at the fixed-output boundary
+  ---
+  duration_ms: 0.533208
+  type: 'test'
+  ...
+# Subtest: contains an escaping orchestration failure at the fixed-output boundary
+ok 82 - contains an escaping orchestration failure at the fixed-output boundary
+  ---
+  duration_ms: 0.185834
+  type: 'test'
+  ...
+1..82
+# tests 82
+# suites 0
+# pass 81
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11728.391709

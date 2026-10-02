@@ -1,0 +1,13 @@
+=== RUN   TestComplianceRegisteredSourceAuthorityPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestComplianceRegisteredSourceAuthorityPostgres1562864794/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceRegisteredSourceAuthorityPostgres (7.11s)
+=== RUN   TestComplianceCompiledFingerprintPostgres
+    compliance_postgres_test.go:364: release56 checksum=4e41759d8c90a4ea5c0ea1e7d4fd820a7765e7b9cf920b40c2b332a714db4cd2 fingerprint=d2008245b2f03a223da99b9a0a22531fa21ce23b63fe91e8a0c32eba1fd22c35
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=53 data=/tmp/TestComplianceCompiledFingerprintPostgres3606376300/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceCompiledFingerprintPostgres (3.73s)
+=== RUN   TestComplianceEvidenceStrictDecoding
+--- PASS: TestComplianceEvidenceStrictDecoding (0.00s)
+=== RUN   TestComplianceRepositoryBindsScopeAndRejectsUnsafeInput
+--- PASS: TestComplianceRepositoryBindsScopeAndRejectsUnsafeInput (0.03s)
+PASS
+exit_code=0

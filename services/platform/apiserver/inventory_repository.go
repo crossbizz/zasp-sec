@@ -147,19 +147,61 @@ type SessionPage struct {
 }
 
 type HomeSummary struct {
-	AgentCount               int64 `json:"agent_count"`
-	HighRiskPaths            int64 `json:"high_risk_paths"`
-	VerifiedChanges          int64 `json:"verified_changes"`
-	BlockedChanges           int64 `json:"blocked_changes"`
-	PendingApprovals         int64 `json:"pending_approvals"`
-	OldestApprovalAgeSeconds int64 `json:"oldest_approval_age_seconds"`
-	NeedsHumanRuns           int64 `json:"needs_human_runs"`
-	FailedRuns               int64 `json:"failed_runs"`
-	InconclusiveRuns         int64 `json:"inconclusive_runs"`
-	RecentContained          int64 `json:"recent_contained"`
-	RecentRemediated         int64 `json:"recent_remediated"`
-	Healthy                  bool  `json:"healthy"`
-	AttentionRequired        bool  `json:"attention_required"`
+	AgentCount                   int64 `json:"agent_count"`
+	HighRiskPaths                int64 `json:"high_risk_paths"`
+	VerifiedChanges              int64 `json:"verified_changes"`
+	BlockedChanges               int64 `json:"blocked_changes"`
+	PendingApprovals             int64 `json:"pending_approvals"`
+	OldestApprovalAgeSeconds     int64 `json:"oldest_approval_age_seconds"`
+	NeedsHumanRuns               int64 `json:"needs_human_runs"`
+	FailedRuns                   int64 `json:"failed_runs"`
+	InconclusiveRuns             int64 `json:"inconclusive_runs"`
+	RecentContained              int64 `json:"recent_contained"`
+	RecentRemediated             int64 `json:"recent_remediated"`
+	Healthy                      bool  `json:"healthy"`
+	AttentionRequired            bool  `json:"attention_required"`
+	environmentHealthUnavailable bool
+}
+
+// The public wire has an explicit unknown state. Keep legacy in-process bool
+// consumers compatible, but never turn restricted counts into environment health.
+func (summary HomeSummary) MarshalJSON() ([]byte, error) {
+	type fields HomeSummary
+	if !summary.environmentHealthUnavailable {
+		return json.Marshal(fields(summary))
+	}
+	return json.Marshal(struct {
+		fields
+		Healthy           any `json:"healthy"`
+		AttentionRequired any `json:"attention_required"`
+	}{fields: fields(summary)})
+}
+
+func (summary *HomeSummary) UnmarshalJSON(payload []byte) error {
+	type fields HomeSummary
+	var wire struct {
+		fields
+		Healthy           json.RawMessage `json:"healthy"`
+		AttentionRequired json.RawMessage `json:"attention_required"`
+	}
+	if err := decodeStrictInventory(payload, &wire); err != nil {
+		return err
+	}
+	if len(wire.Healthy) == 0 || len(wire.AttentionRequired) == 0 {
+		return ErrRepositoryUnavailable
+	}
+	unknown := string(wire.Healthy) == "null"
+	if unknown != (string(wire.AttentionRequired) == "null") {
+		return ErrRepositoryUnavailable
+	}
+	if !unknown {
+		if json.Unmarshal(wire.Healthy, &wire.fields.Healthy) != nil || json.Unmarshal(wire.AttentionRequired, &wire.fields.AttentionRequired) != nil {
+			return ErrRepositoryUnavailable
+		}
+	}
+	*summary = HomeSummary(wire.fields)
+	summary.environmentHealthUnavailable = unknown
+	return nil
 }
 
 type InventoryRepository interface {
@@ -200,7 +242,8 @@ func (repository *PostgresInventoryRepository) ListInventoryPage(ctx context.Con
 	if !validInventoryCall(repository, ctx, scope, kind, after, limit) {
 		return InventoryPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresInventoryPageSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), kind, after, limit)
+	statement := authorizationReadStatement(ctx, postgresInventoryPageSQL, `SELECT zasp_authorization80.inventory_page($1,$2,$3,$4,NULLIF($5,''),$6)`)
+	payload, err := repository.database.QueryJSON(ctx, statement, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), kind, after, limit)
 	if err != nil {
 		return InventoryPage{}, inventoryProviderError(err)
 	}
@@ -335,12 +378,16 @@ func (repository *PostgresInventoryRepository) GetHomeSummary(ctx context.Contex
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || scope.Validate() != nil {
 		return HomeSummary{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresInventoryHomeSummarySQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresInventoryHomeSummarySQL, `SELECT zasp_authorization80.home_summary($1,$2,$3)`), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
 	if err != nil {
 		return HomeSummary{}, inventoryProviderError(err)
 	}
 	var summary HomeSummary
 	if decodeStrictInventory(payload, &summary) != nil || !validHomeSummary(summary) {
+		return HomeSummary{}, ErrRepositoryUnavailable
+	}
+	grant, checked := requestAuthorizationFromContext(ctx)
+	if checked && (grant.OperationID != "getHomeSummary" || summary.environmentHealthUnavailable == grant.EnvironmentView) || !checked && summary.environmentHealthUnavailable {
 		return HomeSummary{}, ErrRepositoryUnavailable
 	}
 	return summary, nil
@@ -519,7 +566,7 @@ func validHomeSummary(summary HomeSummary) bool {
 			return false
 		}
 	}
-	return summary.Healthy != summary.AttentionRequired
+	return summary.environmentHealthUnavailable && !summary.Healthy && !summary.AttentionRequired || !summary.environmentHealthUnavailable && summary.Healthy != summary.AttentionRequired
 }
 
 func parseInventoryTime(value string) (time.Time, bool) {

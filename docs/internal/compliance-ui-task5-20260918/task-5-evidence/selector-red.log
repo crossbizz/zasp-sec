@@ -1,0 +1,109 @@
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ❯ app/domain/compliance-links.test.ts (20 tests | 20 failed) 10ms
+     × retains the policy source and historical version 2ms
+     × retains the administration source and historical version 0ms
+     × retains the finding source and historical version 0ms
+     × retains the configuration source and historical version 0ms
+     × retains the red_team_test source and historical version 0ms
+     × retains the attack_lab_test source and historical version 0ms
+     × retains the workflow_policy source and historical version 0ms
+     × retains the red_team_mutation source and historical version 0ms
+     × rejects ambiguous selectors &source_id=policy-other 4ms
+     × rejects ambiguous selectors &entity_id=x 0ms
+     × rejects ambiguous selectors &unknown=x 1ms
+     × rejects ambiguous selectors #fragment 0ms
+     × rejects ambiguous selectors &token=secret 0ms
+     × rejects noncanonical versions 0 0ms
+     × rejects noncanonical versions 01 0ms
+     × rejects noncanonical versions 1e2 0ms
+     × rejects noncanonical versions -1 0ms
+     × rejects noncanonical versions 9007199254740992 0ms
+     × rejects noncanonical versions 1%32 0ms
+     × rejects encoded source IDs and foreign scope without changing scope 0ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 20 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > retains the policy source and historical version
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > retains the administration source and historical version
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > retains the finding source and historical version
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > retains the configuration source and historical version
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > retains the red_team_test source and historical version
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > retains the attack_lab_test source and historical version
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > retains the workflow_policy source and historical version
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > retains the red_team_mutation source and historical version
+Error: Not implemented
+ ❯ complianceLink app/domain/compliance-links.ts:4:106
+      2| import type { ActivityScope } from "./activity-links";
+      3| export type ComplianceLinkResult = { state: "none" | "invalid" | "scop…
+      4| export function complianceLink(_target: ComplianceEvidenceTarget, _sco…
+       |                                                                                                          ^
+      5| export function parseComplianceLink(_location: string, _scope: Activit…
+      6|
+ ❯ app/domain/compliance-links.test.ts:8:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/20]⎯
+
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > rejects ambiguous selectors &source_id=policy-other
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > rejects ambiguous selectors &entity_id=x
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > rejects ambiguous selectors &unknown=x
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > rejects ambiguous selectors #fragment
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > rejects ambiguous selectors &token=secret
+AssertionError: expected { state: 'none' } to deeply equal { state: 'invalid' }
+
+- Expected
++ Received
+
+  {
+-   "state": "invalid",
++   "state": "none",
+  }
+
+ ❯ app/domain/compliance-links.test.ts:13:146
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/20]⎯
+
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > rejects noncanonical versions 0
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > rejects noncanonical versions 01
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > rejects noncanonical versions 1e2
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > rejects noncanonical versions -1
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > rejects noncanonical versions 9007199254740992
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > rejects noncanonical versions 1%32
+AssertionError: expected { state: 'none' } to deeply equal { state: 'invalid' }
+
+- Expected
++ Received
+
+  {
+-   "state": "invalid",
++   "state": "none",
+  }
+
+ ❯ app/domain/compliance-links.test.ts:15:254
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/20]⎯
+
+ FAIL  app/domain/compliance-links.test.ts > typed compliance selectors > rejects encoded source IDs and foreign scope without changing scope
+AssertionError: expected { state: 'none' } to deeply equal { state: 'invalid' }
+
+- Expected
++ Received
+
+  {
+-   "state": "invalid",
++   "state": "none",
+  }
+
+ ❯ app/domain/compliance-links.test.ts:17:140
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/20]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  20 failed (20)
+   Start at  18:16:48
+   Duration  1.10s (transform 62ms, setup 239ms, import 16ms, tests 10ms, environment 661ms)

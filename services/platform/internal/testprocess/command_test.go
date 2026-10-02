@@ -160,7 +160,10 @@ func TestSandboxWorkerCommandFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer listener.Close()
-	if err := os.WriteFile(filepath.Join(root, "ready"), []byte(listener.Addr().String()), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "ready.tmp"), []byte(listener.Addr().String()), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(root, "ready.tmp"), filepath.Join(root, "ready")); err != nil {
 		t.Fatal(err)
 	}
 	for deadline := time.Now().Add(12 * time.Second); time.Now().Before(deadline); {

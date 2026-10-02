@@ -1,0 +1,226 @@
+package apiserver
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
+	"testing"
+	"time"
+)
+
+type lifecycleCatalogRepository struct {
+	*workflowRepositoryStub
+	available bool
+	err       error
+}
+
+func (r *lifecycleCatalogRepository) SecurityAgentExistingTestDefinitionsAvailable(context.Context) (bool, error) {
+	return r.available, r.err
+}
+
+// Catches a stale cached capability and accidental publication of unrelated
+// component-only actions or the unusable older multi-action test templates.
+func TestExistingTestLifecycleBatchCatalog(t *testing.T) {
+	r := &lifecycleCatalogRepository{workflowRepositoryStub: &workflowRepositoryStub{}}
+	h, err := newWorkflowHTTPHandler(r, []byte("0123456789abcdef0123456789abcdef"), time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, available := range []bool{false, true, false, true} {
+		r.available = available
+		for _, operation := range []string{"listSecurityActions", "listSecurityAgentTemplates"} {
+			response := httptest.NewRecorder()
+			h.ServeHTTP(response, workflowRequest(t, fixtureRequestIdentity(t), testCorrelationID, operation, nil, http.MethodGet, "/api/v1/security-actions", ""))
+			var body struct {
+				Items []struct {
+					Key            string   `json:"key"`
+					ID             string   `json:"id"`
+					DefaultActions []string `json:"default_actions"`
+					Verification   string   `json:"verification_condition"`
+				} `json:"items"`
+			}
+			if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &body) != nil {
+				t.Fatalf("catalog: %d %s", response.Code, response.Body.String())
+			}
+			got := []string{}
+			for _, item := range body.Items {
+				if operation == "listSecurityActions" {
+					got = append(got, item.Key)
+				} else if len(item.DefaultActions) == 1 && (item.DefaultActions[0] == "run_test" || item.DefaultActions[0] == "rerun_test") {
+					if item.Verification != "test_run" {
+						t.Fatal("template cannot configure test verification")
+					}
+					got = append(got, item.DefaultActions[0])
+				} else if len(item.DefaultActions) != 1 {
+					t.Fatal("published multi-action template")
+				}
+			}
+			want := []string{}
+			if operation == "listSecurityActions" {
+				want = []string{"create_temporary_policy", "isolate_session", "revoke_integration_connection", "update_finding_response"}
+				if available {
+					want = []string{"create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "update_finding_response"}
+				}
+			} else if available {
+				want = []string{"run_test", "rerun_test"}
+			}
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("%s capability=%t got=%v want=%v", operation, available, got, want)
+			}
+		}
+	}
+	r.err = errors.New("release drift")
+	response := httptest.NewRecorder()
+	h.ServeHTTP(response, workflowRequest(t, fixtureRequestIdentity(t), testCorrelationID, "listSecurityActions", nil, http.MethodGet, "/api/v1/security-actions", ""))
+	if response.Code != 503 {
+		t.Fatalf("probe error did not fail closed: %d", response.Code)
+	}
+}
+
+func TestExistingTestLifecycleBatchControlShape(t *testing.T) {
+	value := SecurityAgentExecutionControls{Global: SecurityAgentExecutionControl{Target: "global", ActionKey: "*", Version: 1}, Environment: SecurityAgentExecutionControl{Target: "environment", ActionKey: "*"}}
+	for _, key := range []string{"create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "update_finding_response"} {
+		value.Actions = append(value.Actions, SecurityAgentExecutionControl{Target: "action", ActionKey: key})
+	}
+	if !validSecurityAgentExecutionControls(value) {
+		t.Fatal("valid six-action disabled controls refused")
+	}
+	value.Actions[4].ActionKey = "rerun_test"
+	if validSecurityAgentExecutionControls(value) {
+		t.Fatal("duplicate control accepted")
+	}
+}
+
+func TestExistingTestLifecycleBatchRouting(t *testing.T) {
+	for _, op := range []string{"controls", "set_control", "finding", "attack_path", "session"} {
+		t.Run(op, func(t *testing.T) {
+			failure := errors.New("SQL boundary")
+			db := &existingTestReadRouteDatabase{workflowCallDatabase: workflowCallDatabase{err: failure}, available: true}
+			repo := &PostgresRepository{database: db, securityAgentExecution: true, schema: ProductionRecoverySchemaVersion}
+			identity := fixtureRequestIdentity(t)
+			identity.FreshAuthenticated = true
+			identity.FreshAuthExpiresAt = time.Now().UTC().Add(time.Minute)
+			id := "pid_8ba10000-0000-4000-8000-000000000001"
+			invoke := func() error {
+				if op == "controls" {
+					_, err := repo.GetSecurityAgentExecutionControls(context.Background(), identity)
+					return err
+				}
+				if op == "set_control" {
+					_, err := repo.SetSecurityAgentExecutionControl(context.Background(), identity, SecurityAgentExecutionControlMutation{Target: "action", ActionKey: "run_test", Enabled: true, ExpectedVersion: 0, IdempotencyKey: "lifecycle-route-control-01", FreshAuthExpiresAt: identity.FreshAuthExpiresAt, AuditID: id, CorrelationID: "pid_8ba10000-0000-4000-8000-000000000002", ReceiptID: "pid_8ba10000-0000-4000-8000-000000000003"})
+					return err
+				}
+				_, err := repo.RunSecurityAgent(context.Background(), identity, SecurityAgentRunRequest{DefinitionID: id, IdempotencyKey: "lifecycle-route-run-0001", ExpectedVersion: 3, RunID: id, TriggerKind: op, TriggerID: id, AuditID: id, CorrelationID: id, ReceiptID: id})
+				return err
+			}
+			if err := invoke(); !errors.Is(err, failure) {
+				t.Fatalf("public %s stopped before SQL: %v", op, err)
+			}
+			want := `SELECT public.zasp_production_security_agent_existing_tests_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
+			if op == "controls" {
+				want = lifecycleControlsSQL
+			}
+			if op == "set_control" {
+				want = lifecycleSetControlSQL
+			}
+			if db.query != want {
+				t.Fatalf("unpinned public route: %s", db.query)
+			}
+			db.query = ""
+			db.releaseErr = errors.New("drift")
+			if err := invoke(); !errors.Is(err, ErrRepositoryUnavailable) || db.query != "" {
+				t.Fatalf("drift queried SQL: %v %s", err, db.query)
+			}
+		})
+	}
+}
+
+func TestExistingTestLifecycleBatchActivationReadback(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	id := "pid_8ba20000-0000-4000-8000-000000000001"
+	for _, mode := range []string{"supervised", "autonomous"} {
+		body := map[string]any{"id": id, "name": "Read pinned test", "trigger_kind": "finding", "trigger_source": "credential", "environment_ids": []string{identity.Scope.EnvironmentID().String()}, "autonomy": mode, "max_steps": 1, "max_duration_seconds": 300, "temporary_policy_seconds": 600, "ai_token_budget": 1000, "concurrency_limit": 1, "allowed_actions": []string{"run_test"}, "verification_kind": "test_run", "definition_version": 1, "enabled": true, "existing_test": map[string]any{"definition_id": "pid_8ba20000-0000-4000-8000-000000000002", "definition_version": 7}}
+		raw, _ := json.Marshal(map[string]any{"organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "definition_id": id, "activation": mode, "version": 3, "definition_version": 1, "body": body, "updated_at": "2026-09-17T12:00:00Z"})
+		db := &existingTestReadRouteDatabase{workflowCallDatabase: workflowCallDatabase{response: raw}, available: true}
+		repo := &PostgresRepository{database: db, securityAgentExecution: true, schema: ProductionRecoverySchemaVersion}
+		if got, err := repo.GetSecurityAgentActivation(context.Background(), identity, id); err != nil || !got.Enabled || got.Activation != mode {
+			t.Fatalf("enabled readback %s: %+v %v", mode, got, err)
+		}
+		db.available = false
+		if _, err := repo.GetSecurityAgentActivation(context.Background(), identity, id); err == nil {
+			t.Fatal("enabled readback without55")
+		}
+	}
+}
+
+func TestExistingTestLifecycleBatchScheduleRouting(t *testing.T) {
+	db := &existingTestReadRouteDatabase{workflowCallDatabase: workflowCallDatabase{response: json.RawMessage(`{"created":1}`)}, available: true}
+	repo := &SecurityAgentWorkerRepository{database: db, scheduleSQL: postgresSecurityAgentScheduleV33SQL}
+	if got, err := repo.ScheduleSecurityAgentTriggers(context.Background(), "lifecycle-worker", 1); err != nil || got != 1 {
+		t.Fatalf("schedule %d %v", got, err)
+	}
+	if db.query != `SELECT public.zasp_production_security_agent_existing_tests_schedule($1,$2,$3,$4)` || len(db.args) != 4 {
+		t.Fatalf("legacy scheduler: %s", db.query)
+	}
+	db.releaseErr = errors.New("drift")
+	db.query = ""
+	if _, err := repo.ScheduleSecurityAgentTriggers(context.Background(), "lifecycle-worker", 1); err == nil || db.query != "" {
+		t.Fatal("scheduler drift did not fail closed")
+	}
+}
+
+func TestExistingTestLifecycleBatchHTTPTriggers(t *testing.T) {
+	for _, kind := range []string{"finding", "attack_path", "session"} {
+		t.Run(kind, func(t *testing.T) {
+			id := "pid_8ba30000-0000-4000-8000-000000000001"
+			trigger := "pid_8ba30000-0000-4000-8000-000000000002"
+			ids := []string{"pid_8ba30000-0000-4000-8000-000000000003", "pid_8ba30000-0000-4000-8000-000000000004", "pid_8ba30000-0000-4000-8000-000000000005"}
+			correlation := "pid_8ba30000-0000-4000-8000-000000000006"
+			stub := &securityAgentPublicAuthorityStub{runResult: SecurityAgentRunResult{ID: ids[0], AgentID: id, State: "queued", EvidenceIDs: []string{trigger}, DefinitionVersion: 3, Version: 1, AuditID: ids[1], ReceiptID: ids[2], CorrelationID: correlation}}
+			index := 0
+			h, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: time.Now, SigningKey: securityAgentTestSigningKey, NewProductID: func() (string, error) { id := ids[index]; index++; return id, nil }})
+			if err != nil {
+				t.Fatal(err)
+			}
+			identity := fixtureRequestIdentity(t)
+			identity.CredentialKind = CredentialBearerToken
+			request := workflowRequest(t, identity, correlation, "runSecurityAgent", map[string]string{"id": id}, http.MethodPost, "/api/v1/security-agents/"+id+"/runs", `{"environment_id":"`+identity.Scope.EnvironmentID().String()+`","trigger_kind":"`+kind+`","trigger_id":"`+trigger+`"}`)
+			request.Header.Set("Idempotency-Key", "lifecycle-http-run-0001")
+			request.Header.Set("If-Match", `"3"`)
+			response := httptest.NewRecorder()
+			h.ServeHTTP(response, request)
+			if response.Code != 202 {
+				t.Fatalf("public %s rejected: %d %s", kind, response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestExistingTestLifecycleBatchHTTPControls(t *testing.T) {
+	for _, action := range []string{"run_test", "rerun_test"} {
+		now := time.Now().UTC()
+		audit := "pid_8ba40000-0000-4000-8000-000000000001"
+		receipt := "pid_8ba40000-0000-4000-8000-000000000002"
+		stub := &securityAgentPublicAuthorityStub{controlResult: SecurityAgentExecutionControlResult{Target: "action", ActionKey: action, Enabled: true, Version: 1, AuditID: audit, ReceiptID: receipt, CorrelationID: testCorrelationID}}
+		ids := []string{audit, receipt}
+		h, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: func() time.Time { return now }, SigningKey: securityAgentTestSigningKey, NewProductID: func() (string, error) { id := ids[0]; ids = ids[1:]; return id, nil }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		identity := fixtureRequestIdentity(t)
+		identity.FreshAuthenticated = true
+		identity.FreshAuthExpiresAt = now.Add(time.Minute)
+		request := workflowRequest(t, identity, testCorrelationID, "setSecurityAgentExecutionControl", nil, http.MethodPut, "/api/v1/security-agent-execution-controls", `{"target":"action","action_key":"`+action+`","enabled":true}`)
+		request.Header.Set("Idempotency-Key", "lifecycle-http-control-01")
+		request.Header.Set("If-Match", `"0"`)
+		request.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
+		response := httptest.NewRecorder()
+		h.ServeHTTP(response, request)
+		if response.Code != 200 {
+			t.Fatalf("test action control refused: %d %s", response.Code, response.Body.String())
+		}
+	}
+}

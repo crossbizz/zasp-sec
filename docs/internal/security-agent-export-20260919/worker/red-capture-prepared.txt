@@ -1,0 +1,44 @@
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/valid
+    security_agent_export_worker_test.go:62: capture changed/refused exact valid bytes: worker execution unavailable
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/browser
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/run
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/step
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/selection
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/scope
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/digest
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/mapping
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/missing_binding
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/unknown_origin
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/extra_field
+--- FAIL: TestSecurityAgentExportWorkerCaptureBinding (0.22s)
+    --- FAIL: TestSecurityAgentExportWorkerCaptureBinding/valid (0.03s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/browser (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/run (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/step (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/selection (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/scope (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/digest (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/mapping (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/missing_binding (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/unknown_origin (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/extra_field (0.02s)
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/valid
+    security_agent_export_worker_test.go:115: prepared origin valid load=false: worker execution unavailable
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/browser
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/wrong_revision
+    security_agent_export_worker_test.go:118: accepted wrong_revision load=false
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/missing_binding
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/unknown_origin
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/bad_digest
+--- FAIL: TestSecurityAgentExportWorkerPreparedOrigin (0.11s)
+    --- FAIL: TestSecurityAgentExportWorkerPreparedOrigin/valid (0.00s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/browser (0.04s)
+    --- FAIL: TestSecurityAgentExportWorkerPreparedOrigin/wrong_revision (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/missing_binding (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/unknown_origin (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/bad_digest (0.02s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.452s
+FAIL

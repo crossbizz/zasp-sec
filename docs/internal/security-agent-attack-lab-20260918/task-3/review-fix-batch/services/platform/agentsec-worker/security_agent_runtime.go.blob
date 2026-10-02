@@ -1,0 +1,213 @@
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"sync"
+	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+)
+
+type securityAgentProcessorConfig struct {
+	Authority         apiserver.SecurityAgentWorkerAuthority
+	Planner           securityAgentPlanner
+	WorkerID          string
+	LeaseSeconds      int
+	BatchSize         int
+	HeartbeatInterval time.Duration
+	Now               func() time.Time
+	NewLeaseToken     func() (string, error)
+	NewProductID      func() (string, error)
+}
+
+type securityAgentProcessor struct {
+	config           securityAgentProcessorConfig
+	plannerAuthority apiserver.SecurityAgentPlannerAuthority
+}
+
+func newSecurityAgentProcessor(config securityAgentProcessorConfig) (*securityAgentProcessor, error) {
+	leaseDuration := time.Duration(config.LeaseSeconds) * time.Second
+	plannerAuthority, ok := config.Authority.(apiserver.SecurityAgentPlannerAuthority)
+	if config.Authority == nil || !ok || !plannerAuthority.SecurityAgentPlannerAvailable() || config.Planner == nil || !workerIdentityPattern.MatchString(config.WorkerID) || config.LeaseSeconds < 30 || config.LeaseSeconds > 300 || config.BatchSize < 1 || config.BatchSize > 25 || config.HeartbeatInterval < 10*time.Millisecond || config.HeartbeatInterval > leaseDuration/2 || config.Now == nil || config.NewLeaseToken == nil || config.NewProductID == nil || config.Now().IsZero() || config.Now().Location() != time.UTC {
+		return nil, errWorkerConfiguration
+	}
+	return &securityAgentProcessor{config: config, plannerAuthority: plannerAuthority}, nil
+}
+
+func (processor *securityAgentProcessor) RunOnce(ctx context.Context) error {
+	if processor == nil || ctx == nil || ctx.Err() != nil {
+		return errWorkerExecution
+	}
+	if _, err := processor.config.Authority.ExpireSecurityAgentApprovals(ctx, processor.config.WorkerID, processor.config.BatchSize); err != nil {
+		return errWorkerExecution
+	}
+	if _, err := processor.config.Authority.ScheduleSecurityAgentTriggers(ctx, processor.config.WorkerID, processor.config.BatchSize); err != nil {
+		return errWorkerExecution
+	}
+	leaseToken, err := processor.config.NewLeaseToken()
+	if err != nil || len(leaseToken) < 16 || len(leaseToken) > 128 {
+		return errWorkerExecution
+	}
+	claims, err := processor.config.Authority.ClaimSecurityAgentRuns(ctx, processor.config.WorkerID, leaseToken, processor.config.LeaseSeconds, processor.config.BatchSize)
+	if err != nil {
+		return errWorkerExecution
+	}
+	for _, claim := range claims {
+		if ctx.Err() != nil {
+			return nil
+		}
+		if err := processor.process(ctx, claim, leaseToken); err != nil {
+			return errWorkerExecution
+		}
+	}
+	return nil
+}
+
+func (processor *securityAgentProcessor) process(ctx context.Context, claim apiserver.SecurityAgentRunClaim, leaseToken string) error {
+	workCtx, cancel := context.WithCancel(ctx)
+	heartbeatDone := make(chan error, 1)
+	var once sync.Once
+	stop := func() { once.Do(cancel) }
+	go func() {
+		ticker := time.NewTicker(processor.config.HeartbeatInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-workCtx.Done():
+				heartbeatDone <- nil
+				return
+			case <-ticker.C:
+				if err := processor.config.Authority.HeartbeatSecurityAgentRun(workCtx, claim, processor.config.WorkerID, leaseToken, processor.config.LeaseSeconds); err != nil {
+					heartbeatDone <- err
+					stop()
+					return
+				}
+			}
+		}
+	}()
+
+	operationErr := processor.processClaim(workCtx, claim, leaseToken)
+	stop()
+	heartbeatErr := <-heartbeatDone
+	if ctx.Err() != nil {
+		return nil
+	}
+	// A validated committed result (including a durable stop) may clear the
+	// lease while a heartbeat is in flight. An unconfirmed operation or an
+	// unrelated heartbeat outage must still fail; neither is proof of success.
+	if (operationErr == nil || errors.Is(operationErr, apiserver.ErrSecurityAgentBudgetStopped)) && (heartbeatErr == nil || errors.Is(heartbeatErr, apiserver.ErrRepositoryConflict)) {
+		return nil
+	}
+	if operationErr != nil || heartbeatErr != nil {
+		return errWorkerExecution
+	}
+	return nil
+}
+
+func (processor *securityAgentProcessor) processClaim(ctx context.Context, claim apiserver.SecurityAgentRunClaim, leaseToken string) error {
+	if claim.Prepared {
+		ids, err := processor.newProductIDs(2)
+		if err != nil {
+			return err
+		}
+		result, err := processor.config.Authority.ExecuteSecurityAgentRun(ctx, claim, processor.config.WorkerID, leaseToken, ids[0], ids[1])
+		if err == nil && result.State == "needs_human" {
+			if result.RunID != claim.RunID || result.Version <= claim.Version || result.Version > 1000000 || result.StepID != "" || result.EffectState != "" || result.OutcomeID != "" || result.ResultDigest != "" {
+				return errWorkerExecution
+			}
+			return apiserver.ErrSecurityAgentBudgetStopped
+		}
+		if err == nil {
+			validState := result.State == "remediated" && result.EffectState == "verified" || result.State == "running" && result.EffectState == "pending"
+			if !validState || result.RunID != claim.RunID || result.Version <= claim.Version || result.Version > 1000000 || !validSecurityAgentPlannerProductID(result.StepID) || !validSecurityAgentPlannerProductID(result.OutcomeID) || !providerAckPattern.MatchString(result.ResultDigest) {
+				return errWorkerExecution
+			}
+		}
+		return err
+	}
+	contextAuthority, err := processor.plannerAuthority.LoadSecurityAgentPlannerContext(ctx, claim, processor.config.WorkerID, leaseToken)
+	if err != nil {
+		return err
+	}
+	plannerContext := securityAgentPlannerContext{
+		OrganizationID: contextAuthority.OrganizationID, WorkspaceID: contextAuthority.WorkspaceID, EnvironmentID: contextAuthority.EnvironmentID, RunID: contextAuthority.RunID, DefinitionID: contextAuthority.DefinitionID,
+		Purpose: contextAuthority.Purpose, OperatorGoal: contextAuthority.OperatorGoal, CatalogVersion: contextAuthority.CatalogVersion, MaximumSteps: contextAuthority.MaximumSteps,
+		AllowedActions: append([]string(nil), contextAuthority.AllowedActions...), AllowedTargets: append([]string(nil), contextAuthority.AllowedTargets...),
+	}
+	if contextAuthority.ExistingTest != nil {
+		reference := *contextAuthority.ExistingTest
+		plannerContext.ExistingTest = &reference
+	}
+	// Only a bounded trusted digest reaches the model, not private evidence
+	// references or the raw safety/source snapshot. Strings clone by value.
+	if len(contextAuthority.AttackLab) != 0 {
+		digest := sha256.Sum256(contextAuthority.AttackLab)
+		plannerContext.AttackLabDigest = "sha256:" + hex.EncodeToString(digest[:])
+	}
+	plannerContext.Evidence = make([]securityAgentPlannerEvidence, len(contextAuthority.Evidence))
+	for index, evidence := range contextAuthority.Evidence {
+		plannerContext.Evidence[index] = securityAgentPlannerEvidence{ID: evidence.ID, Kind: evidence.Kind, Version: evidence.Version, Summary: evidence.Summary}
+	}
+	plannerResult, err := processor.planWithBudget(ctx, claim, leaseToken, contextAuthority.InputDigest, plannerContext)
+	if err != nil {
+		return err
+	}
+	if plannerResult.Failure != "" {
+		ids, idErr := processor.newProductIDs(2)
+		if idErr != nil {
+			return idErr
+		}
+		failed, failErr := processor.plannerAuthority.FailSecurityAgentPlanner(ctx, claim, processor.config.WorkerID, leaseToken, apiserver.SecurityAgentPlannerFailure{InputDigest: contextAuthority.InputDigest, OutputDigest: plannerResult.OutputDigest, Model: plannerResult.Model, PolicyVersion: plannerResult.PolicyVersion, ErrorCode: string(plannerResult.Failure)}, ids[0], ids[1])
+		if failErr == nil && (failed.RunID != claim.RunID || failed.State != "failed" || failed.Version <= claim.Version || failed.Version > 1000000 || failed.ErrorCode != string(plannerResult.Failure)) {
+			return errWorkerExecution
+		}
+		return failErr
+	}
+	if len(plannerResult.Candidate.Steps) != 1 {
+		return errWorkerExecution
+	}
+	ids, err := processor.newProductIDs(3)
+	if err != nil {
+		return err
+	}
+	expiresAt := processor.config.Now().UTC().Add(15 * time.Minute).Truncate(time.Microsecond)
+	step := plannerResult.Candidate.Steps[0]
+	result, err := processor.plannerAuthority.AcceptSecurityAgentPlannerCandidate(ctx, claim, processor.config.WorkerID, leaseToken, apiserver.SecurityAgentPlannerSubmission{InputDigest: contextAuthority.InputDigest, OutputDigest: plannerResult.OutputDigest, Model: plannerResult.Model, PolicyVersion: plannerResult.PolicyVersion, Summary: plannerResult.Candidate.Summary, Action: step.Action, TargetID: step.TargetID}, ids[0], expiresAt, ids[1], ids[2])
+	if err == nil && result.State == "needs_human" {
+		if result.RunID != claim.RunID || result.Version <= claim.Version || result.Version > 1000000 || result.StepID != "" || result.ApprovalID != "" || result.PlanHash != "" {
+			return errWorkerExecution
+		}
+		return apiserver.ErrSecurityAgentBudgetStopped
+	}
+	if err == nil {
+		validState := result.State == "waiting_approval" && result.ApprovalID == ids[0] || result.State == "queued" && result.ApprovalID == ""
+		if !validState || result.RunID != claim.RunID || result.Version <= claim.Version || result.Version > 1000000 || !validSecurityAgentPlannerProductID(result.StepID) || !providerAckPattern.MatchString(result.PlanHash) {
+			return errWorkerExecution
+		}
+	}
+	return err
+}
+
+func (processor *securityAgentProcessor) newProductIDs(count int) ([]string, error) {
+	values := make([]string, count)
+	seen := make(map[string]struct{}, count)
+	for index := range values {
+		value, err := processor.config.NewProductID()
+		if err != nil {
+			return nil, errWorkerExecution
+		}
+		if _, err := domain.ParseProductID(value); err != nil {
+			return nil, errWorkerExecution
+		}
+		if _, duplicate := seen[value]; duplicate {
+			return nil, errWorkerExecution
+		}
+		seen[value] = struct{}{}
+		values[index] = value
+	}
+	return values, nil
+}

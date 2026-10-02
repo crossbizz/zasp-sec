@@ -1,0 +1,22 @@
+=== RUN   TestSecurityAgentExportPollingInFlightCancellation
+=== RUN   TestSecurityAgentExportPollingInFlightCancellation/claim_error
+=== RUN   TestSecurityAgentExportPollingInFlightCancellation/claim_cancel
+=== RUN   TestSecurityAgentExportPollingInFlightCancellation/settle_cancel
+--- PASS: TestSecurityAgentExportPollingInFlightCancellation (0.00s)
+    --- PASS: TestSecurityAgentExportPollingInFlightCancellation/claim_error (0.00s)
+    --- PASS: TestSecurityAgentExportPollingInFlightCancellation/claim_cancel (0.00s)
+    --- PASS: TestSecurityAgentExportPollingInFlightCancellation/settle_cancel (0.00s)
+=== RUN   TestSecurityAgentExportPollingFailureGates
+=== RUN   TestSecurityAgentExportPollingFailureGates/absent
+=== RUN   TestSecurityAgentExportPollingFailureGates/drift
+=== RUN   TestSecurityAgentExportPollingFailureGates/settlement_outage
+=== RUN   TestSecurityAgentExportPollingFailureGates/cancelled
+--- PASS: TestSecurityAgentExportPollingFailureGates (0.00s)
+    --- PASS: TestSecurityAgentExportPollingFailureGates/absent (0.00s)
+    --- PASS: TestSecurityAgentExportPollingFailureGates/drift (0.00s)
+    --- PASS: TestSecurityAgentExportPollingFailureGates/settlement_outage (0.00s)
+    --- PASS: TestSecurityAgentExportPollingFailureGates/cancelled (0.00s)
+=== RUN   TestSecurityAgentExportPollingPreservesRetryIdentity
+--- PASS: TestSecurityAgentExportPollingPreservesRetryIdentity (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	2.382s

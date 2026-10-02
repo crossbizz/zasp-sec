@@ -1,0 +1,5 @@
+=== RUN   TestComplianceRegistrationBinaryOwnedPostgres
+    compliance_registration_postgres_test.go:84: actual CLI: bootstrap exact56 through published migration command
+    compliance_registration_postgres_test.go:92: ERROR: permission denied to alter role (SQLSTATE 0A000)
+--- FAIL: TestComplianceRegistrationBinaryOwnedPostgres (5.94s)
+FAIL

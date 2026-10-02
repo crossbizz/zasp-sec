@@ -1,0 +1,9 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["go","test","-C","services/platform","-count=1","-run","^TestSecurityAgentAttackLabCatalogRequiresConnectedReadiness$","./apiserver"]
+--- FAIL: TestSecurityAgentAttackLabCatalogRequiresConnectedReadiness (0.00s)
+    security_agent_attack_lab_catalog_test.go:44: catalog supplied invalid product ID: pid_700000010-0000-4000-8000-0000000000010
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	1.072s
+FAIL
+
+Exit: 1 Signal: null

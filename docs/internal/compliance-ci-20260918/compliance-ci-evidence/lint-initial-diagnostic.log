@@ -1,0 +1,11 @@
+Command (worktree cwd):
+PATH=/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin node node_modules/eslint/bin/eslint.js scripts/browser-prerequisites.mjs scripts/browser-prerequisites.test.mjs scripts/production-combined-e2e.mjs
+
+Observed command output, transcribed from tool result:
+/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/browser-prerequisites.mjs
+  5:18  error  Unexpected control character(s) in regular expression: \x00, \x1f  no-control-regex
+
+1 problem (1 error, 0 warnings)
+EXIT_STATUS=1
+
+Resolution: use Unicode Cc property escape, with the additional C1 rejection first observed RED. No lint suppression.

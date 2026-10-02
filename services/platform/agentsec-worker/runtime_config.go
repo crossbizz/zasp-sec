@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 	"net"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,6 +17,10 @@ import (
 type workerMode string
 
 const (
+	workerModeComplianceExport     workerMode = "compliance-export"
+	workerModeComplianceCleanup    workerMode = "compliance-export-cleanup"
+	workerModeAuditExport          workerMode = "audit-export"
+	workerModeAuditExportOutbox    workerMode = "audit-export-outbox"
 	workerModeOutbox               workerMode = "outbox"
 	workerModeRuntimeOutbox        workerMode = "runtime-outbox"
 	workerModeRedTeamOutbox        workerMode = "red-team-outbox"
@@ -33,6 +39,8 @@ const (
 	workerModeProjectionGraph      workerMode = "projection-graph"
 	workerModeProjectionSearch     workerMode = "projection-search"
 	workerModeSecurityAgent        workerMode = "security-agent"
+	workerModeTestReconciler       workerMode = "security-agent-test-reconciler"
+	workerModeAttackLabReconciler  workerMode = "security-agent-attack-lab-reconciler"
 	workerModeSecurityAgentAction  workerMode = "security-agent-action"
 	workerModeRecoveryOutbox       workerMode = "recovery-outbox"
 	workerModeRecovery             workerMode = "recovery"
@@ -47,100 +55,115 @@ var (
 )
 
 type workerRuntimeConfig struct {
-	Mode                         workerMode
-	ProjectionKind               string
-	PostgresDSN                  string
-	DatabaseAuthority            string
-	WorkerID                     string
-	PollInterval                 time.Duration
-	LeaseDuration                time.Duration
-	BatchSize                    int
-	ShutdownTimeout              time.Duration
-	DiscoveryQueueURL            string
-	RuntimeQueueURL              string
-	RuntimeDeliverySchema        string
-	RedTeamQueueURL              string
-	AttackLabQueueURL            string
-	RecoveryQueueURL             string
-	RecoveryOutboxTopic          string
-	RecoveryOperationKind        string
-	RecoveryRoleARN              string
-	RecoveryTokenFile            string
-	RecoverySigningKMSKeyARN     string
-	RecoveryNeonProjectID        string
-	RecoveryNeonBranchID         string
-	RecoveryNeonSecretReference  string
-	RecoveryKubernetesURL        string
-	RecoveryKubernetesToken      string
-	RecoveryKubernetesCA         string
-	RecoveryRunnerImage          string
-	RecoveryRunnerServiceAccount string
-	RecoveryNeonEgressCIDRs      []string
-	RuntimeRoleARN               string
-	RuntimeTokenFile             string
-	RuntimeStageRoleARN          string
-	RuntimeStageTokenFile        string
-	RuntimeStageVersion          string
-	AWSRegion                    string
-	EvidenceBucket               string
-	EvidenceOwner                string
-	EvidenceKMSKeyARN            string
-	ParserVersion                string
-	ToolVersion                  string
-	DiscoveryRoleARN             string
-	DiscoveryTokenFile           string
-	DiscoverySecretPrefix        string
-	AWSCollectorVersion          string
-	KubernetesCollectorVersion   string
-	GitHubCollectorVersion       string
-	OktaCollectorVersion         string
-	KubernetesEgressCIDRs        []string
-	GitHubAppID                  string
-	GitHubPrivateKeyReference    string
-	OktaClientID                 string
-	OktaClientSecretReference    string
-	ProviderTimeout              time.Duration
-	DiscoveryReadinessTimeout    time.Duration
-	OpenSearchURL                string
-	OpenSearchIndex              string
-	RuntimeSessionIndex          string
-	Neo4jURI                     string
-	Neo4jCredential              string
-	Neo4jExpectedPrincipal       string
-	Neo4jExpectedRole            string
-	ProjectionRoleARN            string
-	ProjectionTokenFile          string
-	ProjectionSecretPrefix       string
-	OutboxRoleARN                string
-	OutboxTokenFile              string
-	RedTeamRoleARN               string
-	RedTeamTokenFile             string
-	RedTeamTargetEndpoint        string
-	RedTeamTargetTokenFile       string
-	RedTeamTargetCAFile          string
-	RedTeamRunnerTimeout         time.Duration
-	AttackLabRoleARN             string
-	AttackLabTokenFile           string
-	AttackLabNamespace           string
-	AttackLabRunnerService       string
-	AttackLabRunnerTestRoleARN   string
-	AttackLabRunnerImage         string
-	AttackLabSecurityGroup       string
-	AttackLabKubernetesURL       string
-	AttackLabKubernetesToken     string
-	AttackLabKubernetesCA        string
-	AttackLabProxyEndpoint       string
-	AttackLabProxyCAFile         string
-	AttackLabSigningKeyFile      string
-	AttackLabOperationTimeout    time.Duration
-	GatewaySigningKeyID          string
-	GatewaySigningPrivateFile    string
-	SecurityAgentPlannerEndpoint string
-	SecurityAgentPlannerModel    string
-	SecurityAgentPlannerToken    string
-	SecurityAgentPlannerTimeout  time.Duration
-	SecurityAgentPlannerTokens   int
-	SecurityAgentPlannerPolicy   string
+	RuntimeServices                  runtimeservices.Config
+	RuntimeDatabaseProfile           string
+	TemporalExecutorDSN              string
+	TemporalCompensationDSN          string
+	TemporalPricingBindingsFile      string
+	WorkerAuthorizationKeyFile       string
+	CompensationAuthorizationKeyFile string
+	ComplianceExports                *complianceExportConfiguration
+	AuditExports                     *auditExportWorkerConfiguration
+	Mode                             workerMode
+	ProjectionKind                   string
+	PostgresDSN                      string
+	DatabaseAuthority                string
+	WorkerID                         string
+	PollInterval                     time.Duration
+	LeaseDuration                    time.Duration
+	BatchSize                        int
+	ShutdownTimeout                  time.Duration
+	DiscoveryQueueURL                string
+	RuntimeQueueURL                  string
+	RuntimeDeliverySchema            string
+	RedTeamQueueURL                  string
+	AttackLabQueueURL                string
+	RecoveryQueueURL                 string
+	RecoveryOutboxTopic              string
+	RecoveryOperationKind            string
+	RecoveryRoleARN                  string
+	RecoveryTokenFile                string
+	RecoverySigningKMSKeyARN         string
+	RecoveryNeonProjectID            string
+	RecoveryNeonBranchID             string
+	RecoveryNeonSecretReference      string
+	RecoveryKubernetesURL            string
+	RecoveryKubernetesToken          string
+	RecoveryKubernetesCA             string
+	RecoveryRunnerImage              string
+	RecoveryRunnerServiceAccount     string
+	RecoveryNeonEgressCIDRs          []string
+	RuntimeRoleARN                   string
+	RuntimeTokenFile                 string
+	RuntimeStageRoleARN              string
+	RuntimeStageTokenFile            string
+	RuntimeStageVersion              string
+	AWSRegion                        string
+	EvidenceBucket                   string
+	EvidenceOwner                    string
+	EvidenceKMSKeyARN                string
+	ParserVersion                    string
+	ToolVersion                      string
+	DiscoveryRoleARN                 string
+	DiscoveryTokenFile               string
+	DiscoverySecretPrefix            string
+	AWSCollectorVersion              string
+	KubernetesCollectorVersion       string
+	GitHubCollectorVersion           string
+	OktaCollectorVersion             string
+	KubernetesEgressCIDRs            []string
+	GitHubAppID                      string
+	GitHubPrivateKeyReference        string
+	OktaClientID                     string
+	OktaClientSecretReference        string
+	ProviderTimeout                  time.Duration
+	DiscoveryReadinessTimeout        time.Duration
+	OpenSearchURL                    string
+	OpenSearchIndex                  string
+	RuntimeSessionIndex              string
+	Neo4jURI                         string
+	Neo4jCredential                  string
+	Neo4jExpectedPrincipal           string
+	Neo4jExpectedRole                string
+	ProjectionRoleARN                string
+	ProjectionTokenFile              string
+	ProjectionSecretPrefix           string
+	OutboxRoleARN                    string
+	OutboxTokenFile                  string
+	RedTeamRoleARN                   string
+	RedTeamTokenFile                 string
+	RedTeamTargetEndpoint            string
+	RedTeamTargetTokenFile           string
+	RedTeamTargetCAFile              string
+	RedTeamRunnerTimeout             time.Duration
+	RedTeamRunnerImage               string
+	AttackLabRoleARN                 string
+	AttackLabTokenFile               string
+	AttackLabNamespace               string
+	AttackLabRunnerService           string
+	AttackLabRunnerTestRoleARN       string
+	AttackLabRunnerImage             string
+	AttackLabSecurityGroup           string
+	AttackLabKubernetesURL           string
+	AttackLabKubernetesToken         string
+	AttackLabKubernetesCA            string
+	AttackLabProxyEndpoint           string
+	AttackLabProxyCAFile             string
+	AttackLabSigningKeyFile          string
+	AttackLabOperationTimeout        time.Duration
+	GatewaySigningKeyID              string
+	GatewaySigningPrivateFile        string
+	GatewayPolicyKeysFile            string
+	SecurityAgentPlannerEndpoint     string
+	SecurityAgentPlannerModel        string
+	SecurityAgentPlannerToken        string
+	SecurityAgentPlannerTimeout      time.Duration
+	SecurityAgentPlannerTokens       int
+	SecurityAgentPlannerPolicy       string
+	TestReconcilerRoleARN            string
+	TestReconcilerTokenFile          string
+	AttackLabReconcilerRoleARN       string
+	AttackLabReconcilerTokenFile     string
 }
 
 func validRuntimeSessionIndexSelection(config workerRuntimeConfig) bool {
@@ -183,6 +206,10 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 	if getenv == nil {
 		return workerRuntimeConfig{}, errWorkerConfiguration
 	}
+	services, servicesErr := runtimeservices.Load(getenv)
+	if servicesErr != nil {
+		return workerRuntimeConfig{}, errWorkerConfiguration
+	}
 	poll, pollErr := time.ParseDuration(getenv("ZASP_POLL_INTERVAL"))
 	lease, leaseErr := time.ParseDuration(getenv("ZASP_LEASE_DURATION"))
 	shutdown, shutdownErr := time.ParseDuration(getenv("ZASP_SHUTDOWN_TIMEOUT"))
@@ -194,7 +221,12 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 	plannerTokens, plannerTokensErr := strconv.Atoi(getenv("ZASP_SECURITY_AGENT_PLANNER_MAX_TOKENS"))
 	batch, batchErr := strconv.Atoi(getenv("ZASP_BATCH_SIZE"))
 	config := workerRuntimeConfig{
+		RuntimeServices:            services,
+		RuntimeDatabaseProfile:     getenv("ZASP_RUNTIME_DATABASE_PROFILE"),
+		WorkerAuthorizationKeyFile: getenv("ZASP_AUTHORIZATION_WORKER_KEY_FILE"), CompensationAuthorizationKeyFile: getenv("ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE"),
 		Mode: workerMode(getenv("ZASP_WORKER_MODE")), PostgresDSN: getenv("ZASP_POSTGRES_DSN"),
+		TemporalExecutorDSN: getenv("ZASP_TEMPORAL_EXECUTOR_POSTGRES_DSN"), TemporalCompensationDSN: getenv("ZASP_TEMPORAL_COMPENSATION_POSTGRES_DSN"), TemporalPricingBindingsFile: getenv("ZASP_TEMPORAL_PRICING_BINDINGS_FILE"),
+		TestReconcilerRoleARN: getenv("ZASP_TEST_RECONCILER_ROLE_ARN"), TestReconcilerTokenFile: getenv("ZASP_TEST_RECONCILER_WEB_IDENTITY_TOKEN_FILE"),
 		RuntimeDeliverySchema: getenv("ZASP_RUNTIME_DELIVERY_SCHEMA"),
 		RuntimeSessionIndex:   getenv("ZASP_RUNTIME_SESSION_INDEX"),
 		DatabaseAuthority:     getenv("ZASP_DATABASE_AUTHORITY"), WorkerID: getenv("ZASP_WORKER_ID"),
@@ -211,16 +243,29 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
 		Neo4jExpectedPrincipal: getenv("ZASP_NEO4J_EXPECTED_PRINCIPAL"), Neo4jExpectedRole: getenv("ZASP_NEO4J_EXPECTED_ROLE"),
 		ProjectionRoleARN: getenv("ZASP_PROJECTION_ROLE_ARN"), ProjectionTokenFile: getenv("ZASP_PROJECTION_WEB_IDENTITY_TOKEN_FILE"), ProjectionSecretPrefix: getenv("ZASP_PROJECTION_SECRET_PREFIX"),
 		OutboxRoleARN: getenv("ZASP_OUTBOX_ROLE_ARN"), OutboxTokenFile: getenv("ZASP_OUTBOX_WEB_IDENTITY_TOKEN_FILE"),
-		RedTeamRoleARN: getenv("ZASP_RED_TEAM_ROLE_ARN"), RedTeamTokenFile: getenv("ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE"), RedTeamTargetEndpoint: getenv("ZASP_RED_TEAM_TARGET_ENDPOINT"), RedTeamTargetTokenFile: getenv("ZASP_RED_TEAM_TARGET_TOKEN_FILE"), RedTeamTargetCAFile: getenv("ZASP_RED_TEAM_TARGET_CA_FILE"), RedTeamRunnerTimeout: redTeamRunnerTimeout,
+		RedTeamRoleARN: getenv("ZASP_RED_TEAM_ROLE_ARN"), RedTeamTokenFile: getenv("ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE"), RedTeamTargetEndpoint: getenv("ZASP_RED_TEAM_TARGET_ENDPOINT"), RedTeamTargetTokenFile: getenv("ZASP_RED_TEAM_TARGET_TOKEN_FILE"), RedTeamTargetCAFile: getenv("ZASP_RED_TEAM_TARGET_CA_FILE"), RedTeamRunnerTimeout: redTeamRunnerTimeout, RedTeamRunnerImage: getenv("ZASP_RED_TEAM_RUNNER_IMAGE"),
 		AttackLabRunnerTestRoleARN: getenv("ZASP_ATTACK_LAB_RUNNER_TEST_ROLE_ARN"), AttackLabRoleARN: getenv("ZASP_ATTACK_LAB_ROLE_ARN"), AttackLabTokenFile: getenv("ZASP_ATTACK_LAB_WEB_IDENTITY_TOKEN_FILE"), AttackLabNamespace: getenv("ZASP_ATTACK_LAB_NAMESPACE"), AttackLabRunnerService: getenv("ZASP_ATTACK_LAB_RUNNER_SERVICE_ACCOUNT"), AttackLabRunnerImage: getenv("ZASP_ATTACK_LAB_RUNNER_IMAGE"),
 		AttackLabSecurityGroup: getenv("ZASP_ATTACK_LAB_SECURITY_GROUP_ID"),
 		AttackLabKubernetesURL: getenv("ZASP_ATTACK_LAB_KUBERNETES_ENDPOINT"), AttackLabKubernetesToken: getenv("ZASP_ATTACK_LAB_KUBERNETES_TOKEN_FILE"), AttackLabKubernetesCA: getenv("ZASP_ATTACK_LAB_KUBERNETES_CA_FILE"), AttackLabProxyEndpoint: getenv("ZASP_ATTACK_LAB_PROXY_ENDPOINT"), AttackLabProxyCAFile: getenv("ZASP_ATTACK_LAB_PROXY_CA_FILE"), AttackLabSigningKeyFile: getenv("ZASP_ATTACK_LAB_EGRESS_SIGNING_KEY_FILE"), AttackLabOperationTimeout: attackLabOperationTimeout,
 		GatewaySigningKeyID: getenv("ZASP_GATEWAY_SIGNING_KEY_ID"), GatewaySigningPrivateFile: getenv("ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE"),
+		GatewayPolicyKeysFile:        getenv("ZASP_GATEWAY_POLICY_KEYS_FILE"),
 		SecurityAgentPlannerEndpoint: getenv("ZASP_SECURITY_AGENT_PLANNER_ENDPOINT"), SecurityAgentPlannerModel: getenv("ZASP_SECURITY_AGENT_PLANNER_MODEL"), SecurityAgentPlannerToken: getenv("ZASP_SECURITY_AGENT_PLANNER_TOKEN_FILE"), SecurityAgentPlannerTimeout: plannerTimeout, SecurityAgentPlannerTokens: plannerTokens, SecurityAgentPlannerPolicy: getenv("ZASP_SECURITY_AGENT_PLANNER_POLICY_VERSION"),
 		RuntimeRoleARN: getenv("ZASP_RUNTIME_ROLE_ARN"), RuntimeTokenFile: getenv("ZASP_RUNTIME_WEB_IDENTITY_TOKEN_FILE"),
 		RuntimeStageRoleARN: getenv("ZASP_RUNTIME_STAGE_ROLE_ARN"), RuntimeStageTokenFile: getenv("ZASP_RUNTIME_STAGE_WEB_IDENTITY_TOKEN_FILE"), RuntimeStageVersion: getenv("ZASP_RUNTIME_STAGE_VERSION"),
 	}
 	config.ProjectionKind = projectionKind(config.Mode)
+	if loadAttackLabReconcilerIdentity(getenv, &config) != nil {
+		return workerRuntimeConfig{}, errWorkerConfiguration
+	}
+	var auditExportErr error
+	config.ComplianceExports, auditExportErr = loadComplianceExportConfiguration(getenv, config.Mode)
+	if auditExportErr != nil {
+		return workerRuntimeConfig{}, errWorkerConfiguration
+	}
+	config.AuditExports, auditExportErr = loadAuditExportWorkerConfiguration(getenv, config.Mode)
+	if auditExportErr != nil || (config.Mode == workerModeAuditExport || config.Mode == workerModeAuditExportOutbox) && providerTimeoutErr != nil {
+		return workerRuntimeConfig{}, errWorkerConfiguration
+	}
 	if pollErr != nil || leaseErr != nil || shutdownErr != nil || batchErr != nil || config.Mode == workerModeDiscovery && (providerTimeoutErr != nil || discoveryReadinessTimeoutErr != nil) || config.Mode == workerModeRedTeam && redTeamRunnerTimeoutErr != nil || config.Mode == workerModeAttackLabController && attackLabOperationTimeoutErr != nil || config.Mode == workerModeSecurityAgent && (plannerTimeoutErr != nil || plannerTokensErr != nil) || !validWorkerRuntimeConfig(config) {
 		return workerRuntimeConfig{}, errWorkerConfiguration
 	}
@@ -235,6 +280,37 @@ func parseWorkerCIDRs(value string) []string {
 }
 
 func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
+	if !validWorkerRuntimeDatabaseProfile(config) {
+		return false
+	}
+	if config.RuntimeServices.Validate() != nil {
+		return false
+	}
+	if config.WorkerAuthorizationKeyFile != "" || config.CompensationAuthorizationKeyFile != "" {
+		if config.Mode == workerModeDiscovery && (config.TemporalCompensationDSN == "" || config.TemporalCompensationDSN == config.PostgresDSN) {
+			return false
+		}
+		if !config.RuntimeServices.Enabled || config.WorkerAuthorizationKeyFile == config.CompensationAuthorizationKeyFile {
+			return false
+		}
+		for _, path := range []string{config.WorkerAuthorizationKeyFile, config.CompensationAuthorizationKeyFile} {
+			if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+				return false
+			}
+		}
+	}
+	if !validComplianceExportConfiguration(config) {
+		return false
+	}
+	if config.Mode != workerModeTestReconciler && (config.TestReconcilerRoleARN != "" || config.TestReconcilerTokenFile != "") {
+		return false
+	}
+	if config.Mode != workerModeAttackLabReconciler && (config.AttackLabReconcilerRoleARN != "" || config.AttackLabReconcilerTokenFile != "") {
+		return false
+	}
+	if !validAuditExportWorkerConfiguration(config) {
+		return false
+	}
 	if config.RuntimeDeliverySchema != "" && (config.Mode != workerModeRuntimeCoordinator && config.Mode != workerModeRuntimeOutbox || config.RuntimeDeliverySchema != "runtime-event-v1" && config.RuntimeDeliverySchema != "runtime-event-v2") {
 		return false
 	}
@@ -246,6 +322,8 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 		return false
 	}
 	wantAuthority := map[workerMode]string{
+		workerModeComplianceExport: "zasp_compliance_worker", workerModeComplianceCleanup: "zasp_compliance_cleanup",
+		workerModeAuditExport: "zasp_audit_export_worker", workerModeAuditExportOutbox: "zasp_audit_export_outbox",
 		workerModeOutbox: "zasp_outbox_worker", workerModeRuntimeOutbox: "zasp_outbox_worker", workerModeRedTeamOutbox: "zasp_red_team_outbox_worker", workerModeAttackLabOutbox: "zasp_attack_lab_outbox_worker", workerModeAttackLabController: "zasp_attack_lab_controller", workerModeRedTeam: "zasp_red_team_worker", workerModeDiscovery: "zasp_discovery_worker", workerModeScheduler: "zasp_discovery_scheduler",
 		workerModeRuntimeCoordinator: "zasp_runtime_coordinator",
 		workerModeRuntimeArchive:     "zasp_runtime_archive_worker",
@@ -255,6 +333,8 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
 		workerModeRuntimeComplete:    "zasp_runtime_coordinator",
 		workerModeProjectionRisk:     "zasp_projection_risk_worker", workerModeProjectionGraph: "zasp_projection_graph_worker", workerModeProjectionSearch: "zasp_projection_search_worker",
 		workerModeSecurityAgent:       "zasp_security_agent_worker",
+		workerModeTestReconciler:      "zasp_security_agent_worker",
+		workerModeAttackLabReconciler: "zasp_security_agent_attack_lab_reconciler",
 		workerModeSecurityAgentAction: "zasp_security_agent_action_worker",
 		workerModeRecoveryOutbox:      "zasp_recovery_outbox_worker",
 		workerModeRecovery:            "zasp_recovery_worker",
@@ -280,7 +360,18 @@ var (
 )
 
 func validModeDependencies(config workerRuntimeConfig) bool {
+	if config.GatewayPolicyKeysFile != "" && (config.Mode != workerModeSecurityAgent || config.GatewayPolicyKeysFile != "/var/run/zasp-policy-verifier/policy-keys.json") {
+		return false
+	}
 	switch config.Mode {
+	case workerModeComplianceExport, workerModeComplianceCleanup:
+		return validComplianceExportConfiguration(config)
+	case workerModeTestReconciler:
+		return validExistingTestRuntimeAuthority(config)
+	case workerModeAttackLabReconciler:
+		return validAttackLabReconcilerAuthority(config)
+	case workerModeAuditExport, workerModeAuditExportOutbox:
+		return validAuditExportWorkerConfiguration(config)
 	case workerModeOutbox, workerModeRuntimeOutbox, workerModeRedTeamOutbox, workerModeAttackLabOutbox, workerModeRecoveryOutbox:
 		return validOutboxAWSAuthority(config)
 	case workerModeRecovery:
@@ -492,7 +583,7 @@ func validRedTeamRuntimeAuthority(config workerRuntimeConfig) bool {
 	parts := strings.Split(strings.TrimPrefix(queue.Path, "/"), "/")
 	return len(parts) == 2 && parts[0] == role[1] && parts[1] == "agentsec-red-team-tests" && queue.Hostname() == "sqs."+config.AWSRegion+".amazonaws.com" &&
 		workerRegionPattern.MatchString(config.AWSRegion) && workerBucketPattern.MatchString(config.EvidenceBucket) && workerAccountPattern.MatchString(config.EvidenceOwner) && role[1] == config.EvidenceOwner && kms[1] == config.AWSRegion && kms[2] == config.EvidenceOwner &&
-		config.RedTeamTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && redTeamTargetEndpointPattern.MatchString(config.RedTeamTargetEndpoint) && config.RedTeamTargetTokenFile == "/var/run/secrets/zasp-red-team/adapter-token" && config.RedTeamTargetCAFile == "/var/run/secrets/zasp-red-team/adapter-ca.crt" && config.RedTeamRunnerTimeout >= 30*time.Second && config.RedTeamRunnerTimeout <= 15*time.Minute
+		config.RedTeamTokenFile == "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" && redTeamTargetEndpointPattern.MatchString(config.RedTeamTargetEndpoint) && config.RedTeamTargetTokenFile == "/var/run/secrets/zasp-red-team/adapter-token" && config.RedTeamTargetCAFile == "/var/run/secrets/zasp-red-team/adapter-ca.crt" && config.RedTeamRunnerTimeout >= 30*time.Second && config.RedTeamRunnerTimeout <= 15*time.Minute && redTeamRunnerImageDigest(config.RedTeamRunnerImage) != ""
 }
 
 func validAttackLabRuntimeAuthority(config workerRuntimeConfig) bool {

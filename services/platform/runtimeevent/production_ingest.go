@@ -438,6 +438,9 @@ func safeProductionReady(ctx context.Context, repository ProductionIngestReposit
 			err = ErrProductionIngestUnavailable
 		}
 	}()
+	if postgres, ok := repository.(*PostgresProductionIngestRepository); ok {
+		return postgres.intakePreflight(ctx)
+	}
 	return repository.Ready(ctx)
 }
 func safeProductionAuthenticate(ctx context.Context, repository ProductionIngestRepository, credential *sensor.TokenCredential) (value IngestAuthority, err error) {

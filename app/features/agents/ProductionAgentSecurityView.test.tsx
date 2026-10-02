@@ -22,7 +22,7 @@ describe("production typed inventory API", () => {
   it("renders the tenant-scoped Security Agent attention queue and routes every operational card", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
-    const home = { agent_count: 4, high_risk_paths: 2, verified_changes: 3, blocked_changes: 1, pending_approvals: 5, oldest_approval_age_seconds: 900, needs_human_runs: 2, failed_runs: 1, inconclusive_runs: 3, recent_contained: 4, recent_remediated: 2, healthy: false, attention_required: true };
+    const home = { agent_count: 4, high_risk_paths: 2, verified_changes: 3, blocked_changes: 1, pending_approvals: 5, oldest_approval_age_seconds: 900, needs_human_runs: 2, failed_runs: 1, inconclusive_runs: 3, recent_contained: 4, recent_remediated: 2, healthy: false, attention_required: true } as const;
     const api: ProductionAgentSecurityAPI = {
       listAgents: async () => [], listTools: async () => [], listIdentities: async () => [], listRuntimes: async () => [],
       getAgent: async () => { throw new Error("unused"); }, getTool: async () => { throw new Error("unused"); }, getIdentity: async () => { throw new Error("unused"); }, getRuntime: async () => { throw new Error("unused"); },

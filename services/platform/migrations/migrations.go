@@ -869,7 +869,7 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
 		return 0, fixedDatabaseError(ctx, err)
 	}
-	if count < 1 || count > 51 {
+	if count < 1 || count > 61 {
 		return 0, ErrInvalidState
 	}
 	metadata := []Metadata{Baseline()}
@@ -989,8 +989,38 @@ func (runner *Runner) Version(ctx context.Context) (int64, error) {
 	if count >= 50 {
 		metadata = append(metadata, ProductionRuntimeSandboxBinding())
 	}
-	if count == 51 {
+	if count >= 51 {
 		metadata = append(metadata, ProductionRuntimePrecision())
+	}
+	if count >= 52 {
+		metadata = append(metadata, ProductionAuditExports())
+	}
+	if count >= 53 {
+		metadata = append(metadata, ProductionSecurityAgentBudgets())
+	}
+	if count >= 54 {
+		metadata = append(metadata, ProductionSecurityAgentRunContext())
+	}
+	if count >= 55 {
+		metadata = append(metadata, ProductionSecurityAgentExistingTests())
+	}
+	if count >= 56 {
+		metadata = append(metadata, ProductionCompliance())
+	}
+	if count >= 57 {
+		metadata = append(metadata, ProductionSecurityAgentAttackLab())
+	}
+	if count >= 58 {
+		metadata = append(metadata, ProductionSecurityAgentExports())
+	}
+	if count >= 59 {
+		metadata = append(metadata, ProductionSecurityAgentWebhooks())
+	}
+	if count >= 60 {
+		metadata = append(metadata, ProductionDiscoveryScheduleReplay())
+	}
+	if count == 61 {
+		metadata = append(metadata, ProductionSecurityAgentMultistep())
 	}
 	for _, expected := range metadata {
 		var version int64

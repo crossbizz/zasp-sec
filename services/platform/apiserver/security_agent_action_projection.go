@@ -1,0 +1,216 @@
+package apiserver
+
+import (
+	"bytes"
+	"encoding/json"
+	"time"
+)
+
+type SecurityAgentActionVerification struct {
+	State  string `json:"state"`
+	Source string `json:"source"`
+}
+
+type SecurityAgentActionRollback struct {
+	Support      string                          `json:"support"`
+	State        string                          `json:"state"`
+	Verification SecurityAgentActionVerification `json:"verification"`
+}
+
+type SecurityAgentActionResult struct {
+	State        string `json:"state"`
+	OutcomeID    string `json:"outcome_id,omitempty"`
+	ResultDigest string `json:"result_digest,omitempty"`
+}
+
+type SecurityAgentActionDetail struct {
+	StepID           string                           `json:"step_id"`
+	Action           string                           `json:"action"`
+	Arguments        *SecurityAgentActionArguments    `json:"arguments"`
+	Result           *SecurityAgentActionResult       `json:"result"`
+	TTLSeconds       *int                             `json:"ttl_seconds"`
+	ControlExpiresAt *time.Time                       `json:"control_expires_at"`
+	Rollback         SecurityAgentActionRollback      `json:"rollback"`
+	Verification     SecurityAgentActionVerification  `json:"verification"`
+	ExistingTest     *SecurityAgentExistingTestDetail `json:"existing_test,omitempty"`
+	AttackLab        *SecurityAgentAttackLabDetail    `json:"attack_lab,omitempty"`
+}
+
+func decodeSecurityAgentActionDetails(raw json.RawMessage, detail SecurityAgentRunDetail) ([]SecurityAgentActionDetail, error) {
+	var envelope struct {
+		RunID    string            `json:"run_id"`
+		PlanHash *string           `json:"plan_hash"`
+		Steps    []json.RawMessage `json:"steps"`
+	}
+	if !validSecurityAgentRunDetail(detail, detail.Run.ID) || !exactJSONFields(raw, "run_id", "plan_hash", "steps") || decodeStrictDiscovery(raw, &envelope) != nil || envelope.RunID != detail.Run.ID || envelope.Steps == nil {
+		return nil, ErrRepositoryUnavailable
+	}
+	if detail.Plan == nil {
+		if envelope.PlanHash != nil || len(envelope.Steps) != 0 {
+			return nil, ErrRepositoryUnavailable
+		}
+		return []SecurityAgentActionDetail{}, nil
+	}
+	if envelope.PlanHash == nil || *envelope.PlanHash != detail.Plan.PlanHash || len(envelope.Steps) != len(detail.Plan.Steps) {
+		return nil, ErrRepositoryUnavailable
+	}
+	executions := make(map[string]SecurityAgentExecutionStep, len(detail.Execution))
+	for _, execution := range detail.Execution {
+		executions[execution.StepID] = execution
+	}
+	result := make([]SecurityAgentActionDetail, 0, len(envelope.Steps))
+	for index, rawStep := range envelope.Steps {
+		var step struct {
+			StepID           string          `json:"step_id"`
+			Index            *int            `json:"index"`
+			Action           string          `json:"action"`
+			Arguments        json.RawMessage `json:"arguments"`
+			Effect           json.RawMessage `json:"effect"`
+			ControlExpiresAt *time.Time      `json:"control_expires_at"`
+			ApplyTargets     json.RawMessage `json:"apply_targets"`
+			CleanupTargets   json.RawMessage `json:"cleanup_targets"`
+			ExistingTest     json.RawMessage `json:"existing_test"`
+			AttackLab        json.RawMessage `json:"attack_lab"`
+		}
+		fields := []string{"step_id", "index", "action", "arguments", "effect", "control_expires_at", "apply_targets", "cleanup_targets"}
+		withExistingTest := exactJSONFields(rawStep, append(fields, "existing_test")...)
+		withAttackLab := exactJSONFields(rawStep, append(fields, "attack_lab")...)
+		if !withAttackLab && !withExistingTest && !exactJSONFields(rawStep, fields...) || decodeStrictDiscovery(rawStep, &step) != nil || step.Index == nil || *step.Index != index || step.StepID != detail.Plan.Steps[index].ID || step.Action != detail.Plan.Steps[index].Action || step.ControlExpiresAt != nil && (step.ControlExpiresAt.IsZero() || step.ControlExpiresAt.Location() != time.UTC) {
+			return nil, ErrRepositoryUnavailable
+		}
+		if withExistingTest {
+			if _, err := auditExportClosedObject(rawStep, len(rawStep), append(fields, "existing_test")...); err != nil {
+				return nil, ErrRepositoryUnavailable
+			}
+		}
+		if withAttackLab {
+			if _, err := auditExportClosedObject(rawStep, len(rawStep), append(fields, "attack_lab")...); err != nil {
+				return nil, ErrRepositoryUnavailable
+			}
+		}
+		arguments, err := decodeSecurityAgentActionArguments(step.Action, step.Arguments)
+		if err != nil {
+			return nil, ErrRepositoryUnavailable
+		}
+		if step.Action == "create_evidence_export" && (arguments == nil || arguments.TargetID != detail.Run.ID) {
+			return nil, ErrRepositoryUnavailable
+		}
+		apply, applyCount, err := decodeSecurityAgentTargetEvidence(step.ApplyTargets)
+		if err != nil {
+			return nil, ErrRepositoryUnavailable
+		}
+		cleanup, cleanupCount, err := decodeSecurityAgentTargetEvidence(step.CleanupTargets)
+		if err != nil {
+			return nil, ErrRepositoryUnavailable
+		}
+		value := SecurityAgentActionDetail{StepID: step.StepID, Action: step.Action, Arguments: arguments, ControlExpiresAt: step.ControlExpiresAt,
+			Verification: SecurityAgentActionVerification{State: "unavailable", Source: "none"},
+			Rollback:     SecurityAgentActionRollback{Support: "manual", State: "unavailable", Verification: SecurityAgentActionVerification{State: "unavailable", Source: "none"}}}
+		policy := stringIn(step.Action, "create_temporary_policy", "isolate_session")
+		if policy {
+			value.Verification = apply
+			value.Rollback = SecurityAgentActionRollback{Support: "automatic", State: "not_started", Verification: cleanup}
+			if arguments != nil {
+				ttl := arguments.TTLSeconds
+				value.TTLSeconds = &ttl
+			}
+		} else {
+			if applyCount != 0 || cleanupCount != 0 || step.ControlExpiresAt != nil {
+				return nil, ErrRepositoryUnavailable
+			}
+			if stringIn(step.Action, "revoke_integration_connection", "run_test", "rerun_test", "start_attack_lab", "create_evidence_export") {
+				value.Rollback.Support = "not_supported"
+			}
+		}
+		execution := executions[step.StepID]
+		if bytes.Equal(bytes.TrimSpace(step.Effect), []byte("null")) {
+			if applyCount != 0 || cleanupCount != 0 || step.ControlExpiresAt != nil || execution.OutcomeID != "" || execution.ResultDigest != "" {
+				return nil, ErrRepositoryUnavailable
+			}
+		} else {
+			var effect struct {
+				StepID       string `json:"step_id"`
+				Action       string `json:"action"`
+				State        string `json:"state"`
+				OutcomeID    string `json:"outcome_id"`
+				ResultDigest string `json:"result_digest"`
+			}
+			if !exactJSONFields(step.Effect, "step_id", "action", "state", "outcome_id", "result_digest") || decodeStrictDiscovery(step.Effect, &effect) != nil || effect.StepID != step.StepID || effect.Action != step.Action || !stringIn(effect.State, "pending", "leased", "succeeded", "known_failure", "unknown_outcome", "verified", "cleanup_pending", "cleaned", "cleanup_failed") || (effect.OutcomeID == "") != (effect.ResultDigest == "") || effect.OutcomeID != "" && (!validProductID(effect.OutcomeID) || !securityAgentPlanHashPattern.MatchString(effect.ResultDigest)) || effect.OutcomeID != execution.OutcomeID || effect.ResultDigest != execution.ResultDigest {
+				return nil, ErrRepositoryUnavailable
+			}
+			if stringIn(effect.State, "verified", "cleaned") && effect.OutcomeID == "" {
+				return nil, ErrRepositoryUnavailable
+			}
+			if step.Action == "create_evidence_export" && !stringIn(effect.State, "pending", "succeeded", "known_failure", "cleanup_pending") {
+				return nil, ErrRepositoryUnavailable
+			}
+			value.Result = &SecurityAgentActionResult{State: effect.State, OutcomeID: effect.OutcomeID, ResultDigest: effect.ResultDigest}
+			if policy {
+				switch effect.State {
+				case "cleanup_pending":
+					value.Rollback.State = "pending"
+				case "cleaned":
+					value.Rollback.State = "completed"
+				case "cleanup_failed":
+					value.Rollback.State = "failed"
+				case "leased":
+					if apply.State == "verified" || cleanupCount > 0 {
+						value.Rollback.State = "pending"
+					}
+				}
+			} else {
+				value.Verification = SecurityAgentActionVerification{State: "pending", Source: "effect_record"}
+				switch effect.State {
+				case "verified":
+					value.Verification.State = "verified"
+				case "known_failure":
+					value.Verification.State = "failed"
+				case "unknown_outcome":
+					value.Verification.State = "inconclusive"
+				case "cleanup_pending":
+					if step.Action != "create_evidence_export" {
+						return nil, ErrRepositoryUnavailable
+					}
+					value.Verification.State = "inconclusive"
+				case "cleaned", "cleanup_failed":
+					return nil, ErrRepositoryUnavailable
+				}
+			}
+		}
+		if withExistingTest {
+			value.ExistingTest, err = decodeSecurityAgentExistingTestPublic(step.ExistingTest, value)
+			if err != nil {
+				return nil, ErrRepositoryUnavailable
+			}
+		}
+		if withAttackLab {
+			value.AttackLab, err = decodeSecurityAgentAttackLabPublic(step.AttackLab, value)
+			if err != nil {
+				return nil, ErrRepositoryUnavailable
+			}
+		}
+		if !validSecurityAgentAttackLabPublic(value.AttackLab, value) {
+			return nil, ErrRepositoryUnavailable
+		}
+		result = append(result, value)
+	}
+	return result, nil
+}
+
+func decodeSecurityAgentTargetEvidence(raw json.RawMessage) (SecurityAgentActionVerification, int64, error) {
+	var counts struct {
+		Total    *int64 `json:"total"`
+		Verified *int64 `json:"verified"`
+	}
+	if !exactJSONFields(raw, "total", "verified") || decodeStrictDiscovery(raw, &counts) != nil || counts.Total == nil || counts.Verified == nil || *counts.Total < 0 || *counts.Total > 1000000 || *counts.Verified < 0 || *counts.Verified > *counts.Total {
+		return SecurityAgentActionVerification{}, 0, ErrRepositoryUnavailable
+	}
+	value := SecurityAgentActionVerification{State: "unavailable", Source: "policy_targets"}
+	if *counts.Total > 0 {
+		value.State = "pending"
+		if *counts.Total == *counts.Verified {
+			value.State = "verified"
+		}
+	}
+	return value, *counts.Total, nil
+}

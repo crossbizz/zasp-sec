@@ -40,6 +40,24 @@ func TestSecurityAgentProcessorPlansForApprovalThenExecutesOnlyApprovedWork(t *t
 	}
 }
 
+func TestSecurityAgentProcessorBudgetStopDoesNotCallPlanner(t *testing.T) {
+	for _, reason := range []error{apiserver.ErrSecurityAgentBudgetStopped, apiserver.ErrSecurityAgentAttackLabPreflightStopped} {
+		now := time.Now().UTC()
+		authority := &securityAgentWorkerAuthorityStub{claims: []apiserver.SecurityAgentRunClaim{securityAgentTestClaim("pid_78000001-0000-4000-8000-000000000001", false, now)}, contextErr: reason}
+		planner := successfulSecurityAgentPlanner()
+		processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{Authority: authority, Planner: planner, WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 1, HeartbeatInterval: 20 * time.Second, Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil }, NewProductID: func() (string, error) { return "", errors.New("stopped run requested a new artifact ID") }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := processor.RunOnce(context.Background()); err != nil {
+			t.Fatalf("durable stop treated as execution failure: %v", err)
+		}
+		if len(planner.contexts) != 0 || len(authority.prepared) != 0 || len(authority.executed) != 0 || len(authority.failedPlanner) != 0 {
+			t.Fatalf("stopped run dispatched work: planner=%d prepared=%v executed=%v failed=%v", len(planner.contexts), authority.prepared, authority.executed, authority.failedPlanner)
+		}
+	}
+}
+
 func TestSecurityAgentProcessorFailsClosedBeforeScheduleWhenApprovalExpiryReconciliationFails(t *testing.T) {
 	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
 	authority := &securityAgentWorkerAuthorityStub{expireErr: errors.New("expiry unavailable")}
@@ -103,23 +121,27 @@ func TestSecurityAgentProcessorKeepsLeaseThroughVerifiedEffect(t *testing.T) {
 	}
 }
 
-func TestSecurityAgentProcessorPersistsPlannerUnavailableWithoutPreparingOrExecuting(t *testing.T) {
-	now := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
-	claim := securityAgentTestClaim("pid_78000001-0000-4000-8000-000000000001", false, now)
-	authority := &securityAgentWorkerAuthorityStub{claims: []apiserver.SecurityAgentRunClaim{claim}}
-	planner := successfulSecurityAgentPlanner()
-	planner.result = securityAgentPlannerResult{Failure: securityAgentPlannerUnavailable, Model: "openai/gpt-5-mini", PolicyVersion: "security-agent-planner-v1"}
-	ids := []string{"pid_78000010-0000-4000-8000-000000000010", "pid_78000011-0000-4000-8000-000000000011"}
-	processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{
-		Authority: authority, Planner: planner, WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 1, HeartbeatInterval: 20 * time.Second,
-		Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil },
-		NewProductID: func() (string, error) { value := ids[0]; ids = ids[1:]; return value, nil },
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := processor.RunOnce(context.Background()); err != nil || len(authority.failedPlanner) != 1 || authority.failedPlanner[0] != "planner_unavailable" || len(authority.prepared) != 0 || len(authority.executed) != 0 {
-		t.Fatalf("run=%v failed=%v prepared=%v executed=%v", err, authority.failedPlanner, authority.prepared, authority.executed)
+func TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting(t *testing.T) {
+	for name, failureErr := range map[string]error{"unavailable": nil, "budget stopped": apiserver.ErrSecurityAgentBudgetStopped} {
+		t.Run(name, func(t *testing.T) {
+			now := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+			claim := securityAgentTestClaim("pid_78000001-0000-4000-8000-000000000001", false, now)
+			authority := &securityAgentWorkerAuthorityStub{claims: []apiserver.SecurityAgentRunClaim{claim}, plannerFailureErr: failureErr}
+			planner := successfulSecurityAgentPlanner()
+			planner.result.Failure = securityAgentPlannerRejected
+			ids := []string{"pid_78000010-0000-4000-8000-000000000010", "pid_78000011-0000-4000-8000-000000000011"}
+			processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{
+				Authority: authority, Planner: planner, WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 1, HeartbeatInterval: 20 * time.Second,
+				Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil },
+				NewProductID: func() (string, error) { value := ids[0]; ids = ids[1:]; return value, nil },
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := processor.RunOnce(context.Background()); err != nil || len(authority.failedPlanner) != 1 || authority.failedPlanner[0] != "planner_rejected" || len(authority.prepared) != 0 || len(authority.executed) != 0 {
+				t.Fatalf("run=%v failed=%v prepared=%v executed=%v", err, authority.failedPlanner, authority.prepared, authority.executed)
+			}
+		})
 	}
 }
 
@@ -132,6 +154,8 @@ func securityAgentTestClaim(runID string, prepared bool, now time.Time) apiserve
 }
 
 type securityAgentWorkerAuthorityStub struct {
+	plannerFailureErr  error
+	contextErr         error
 	claims             []apiserver.SecurityAgentRunClaim
 	expireCalls        int
 	expireErr          error
@@ -150,6 +174,20 @@ type securityAgentWorkerAuthorityStub struct {
 }
 
 func (*securityAgentWorkerAuthorityStub) SecurityAgentPlannerAvailable() bool { return true }
+
+// Explicit controlled accounting for the runtime unit fixtures. Real database
+// reservation, replay and stop semantics are covered by the owned PG cases.
+func (*securityAgentWorkerAuthorityStub) ReserveSecurityAgentPlannerBudget(_ context.Context, claim apiserver.SecurityAgentRunClaim, _, _ string, request apiserver.SecurityAgentBudgetReservation) (apiserver.SecurityAgentBudgetPermit, error) {
+	return apiserver.SecurityAgentBudgetPermit{Reservation: request, Version: claim.Version, ExpiresAt: time.Now().UTC().Add(time.Minute)}, nil
+}
+
+func (*securityAgentWorkerAuthorityStub) SettleSecurityAgentPlannerBudget(_ context.Context, _ apiserver.SecurityAgentRunClaim, _, _ string, usage apiserver.SecurityAgentBudgetUsage) (apiserver.SecurityAgentBudgetSettlement, error) {
+	ack := apiserver.SecurityAgentBudgetSettlement{ReservationID: usage.ReservationID, Known: usage.Known}
+	if !usage.Known {
+		ack.StopReason = "budget_usage_unknown"
+	}
+	return ack, nil
+}
 
 func (*securityAgentWorkerAuthorityStub) Ready(context.Context) error { return nil }
 
@@ -189,6 +227,9 @@ func (authority *securityAgentWorkerAuthorityStub) PrepareSecurityAgentRun(_ con
 
 func (authority *securityAgentWorkerAuthorityStub) LoadSecurityAgentPlannerContext(_ context.Context, claim apiserver.SecurityAgentRunClaim, _, _ string) (apiserver.SecurityAgentPlannerContext, error) {
 	authority.plannerContexts = append(authority.plannerContexts, claim.RunID)
+	if authority.contextErr != nil {
+		return apiserver.SecurityAgentPlannerContext{}, authority.contextErr
+	}
 	return apiserver.SecurityAgentPlannerContext{InputDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", OrganizationID: claim.OrganizationID, WorkspaceID: claim.WorkspaceID, EnvironmentID: claim.EnvironmentID, RunID: claim.RunID, DefinitionID: claim.DefinitionID, Purpose: securityAgentPlannerPurpose, OperatorGoal: "Select the safest bounded response", CatalogVersion: "security-agent-actions-v1", MaximumSteps: 1, AllowedActions: []string{"update_finding_response"}, AllowedTargets: []string{claim.TriggerID}, Evidence: []apiserver.SecurityAgentPlannerEvidence{{ID: claim.TriggerID, Kind: "finding", Version: 9, Summary: "Untrusted evidence"}}}, nil
 }
 
@@ -198,6 +239,9 @@ func (authority *securityAgentWorkerAuthorityStub) AcceptSecurityAgentPlannerCan
 
 func (authority *securityAgentWorkerAuthorityStub) FailSecurityAgentPlanner(_ context.Context, claim apiserver.SecurityAgentRunClaim, _, _ string, failure apiserver.SecurityAgentPlannerFailure, _, _ string) (apiserver.SecurityAgentPlannerFailureResult, error) {
 	authority.failedPlanner = append(authority.failedPlanner, failure.ErrorCode)
+	if authority.plannerFailureErr != nil {
+		return apiserver.SecurityAgentPlannerFailureResult{}, authority.plannerFailureErr
+	}
 	return apiserver.SecurityAgentPlannerFailureResult{RunID: claim.RunID, State: "failed", ErrorCode: failure.ErrorCode, Version: claim.Version + 1}, nil
 }
 
@@ -219,12 +263,27 @@ type securityAgentPlannerStub struct {
 }
 
 func successfulSecurityAgentPlanner() *securityAgentPlannerStub {
-	return &securityAgentPlannerStub{result: securityAgentPlannerResult{Candidate: securityAgentPlannerCandidate{Version: 1, Summary: "Review safely", Steps: []securityAgentPlannerStep{{Index: 0, Action: "update_finding_response", TargetID: "pid_70000005-0000-4000-8000-000000000005"}}}, OutputDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Model: "openai/gpt-5-mini", PolicyVersion: "security-agent-planner-v1"}}
+	return &securityAgentPlannerStub{result: securityAgentPlannerResult{Usage: &securityAgentBudgetUsage{}, Candidate: securityAgentPlannerCandidate{Version: 1, Summary: "Review safely", Steps: []securityAgentPlannerStep{{Index: 0, Action: "update_finding_response", TargetID: "pid_70000005-0000-4000-8000-000000000005"}}}, OutputDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Model: "openai/gpt-5-mini", PolicyVersion: "security-agent-planner-v1"}}
 }
 
-func (planner *securityAgentPlannerStub) Plan(_ context.Context, contextValue securityAgentPlannerContext) securityAgentPlannerResult {
+type securityAgentPreparedStub struct {
+	budget   apiserver.SecurityAgentBudgetReservation
+	dispatch func(context.Context) securityAgentPlannerResult
+}
+
+func (prepared *securityAgentPreparedStub) PlannerBudget() apiserver.SecurityAgentBudgetReservation {
+	return prepared.budget
+}
+func (prepared *securityAgentPreparedStub) Dispatch(ctx context.Context) securityAgentPlannerResult {
+	return prepared.dispatch(ctx)
+}
+
+func (planner *securityAgentPlannerStub) Prepare(_ context.Context, contextValue securityAgentPlannerContext) (securityAgentPreparedPlan, error) {
 	planner.contexts = append(planner.contexts, contextValue)
-	return planner.result
+	return &securityAgentPreparedStub{
+		budget:   apiserver.SecurityAgentBudgetReservation{Model: planner.result.Model, CostPolicyVersion: "fixture-policy", CostUnit: "openrouter_credit", MaximumTokens: 100, MaximumCostNanoCredits: 200},
+		dispatch: func(context.Context) securityAgentPlannerResult { return planner.result },
+	}, nil
 }
 
 func (*securityAgentPlannerStub) Close() error { return nil }

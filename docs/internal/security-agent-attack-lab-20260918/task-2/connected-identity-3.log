@@ -1,0 +1,34 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/usr/local/bin/docker","run","--rm","--pull=never","--name","zasp-attack-lab-task2","--network","none","--read-only","--user","postgres","--cpus","2","--memory","2g","--pids-limit","512","--tmpfs","/tmp:rw,exec,size=1400m","--tmpfs","/var/run/postgresql:rw","--env","ZASP_ATTACK_LAB_TASK2_WORKER_BINARY=/attack-lab-worker.test","--mount","type=bind,src=/private/tmp/zasp-attack-lab-task2-worker.test,dst=/attack-lab-worker.test,readonly","--mount","type=bind,src=/private/tmp/zasp-attack-lab-task2.test,dst=/attack-lab.test,readonly","--mount","type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly","-w","/workspace/services/platform/apiserver","--entrypoint","/attack-lab.test","postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba","-test.run","^TestSecurityAgentAttackLabRuntimePostgres$/^lost_create$","-test.v","-test.timeout","120s"]
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/lost_create
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/lost_create/production_truth
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/lost_create/revoked_approver
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/lost_create/wrong_scope_approver
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/lost_create/stale_authentication
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/lost_create/expired_lease
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/lost_create/source_evidence_drift
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/lost_create/definition_version_drift
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/lost_create/production_write_declaration
+=== NAME  TestSecurityAgentAttackLabRuntimePostgres/lost_create
+    security_agent_attack_lab_settlement_postgres_test.go:97: connected child: === RUN   TestAttackLabLinkedRuntimeOwnedPostgres
+            security_agent_attack_lab_runtime_test.go:37: registered controller diagnostic SELECT to_jsonb(session_user::text): "attack_lab_controller_login" <nil>
+            security_agent_attack_lab_runtime_test.go:37: registered controller diagnostic SELECT to_jsonb(zasp_attack_lab_principal_ready('zasp_attack_lab_controller')): true <nil>
+            security_agent_attack_lab_runtime_test.go:63: pending actual client: runtime unavailable
+        --- FAIL: TestAttackLabLinkedRuntimeOwnedPostgres (1.96s)
+        FAIL
+         exit status 1
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentAttackLabRuntimePostgreslost_create812554963/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentAttackLabRuntimePostgres (11.86s)
+    --- FAIL: TestSecurityAgentAttackLabRuntimePostgres/lost_create (11.85s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/lost_create/production_truth (0.10s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/lost_create/revoked_approver (0.09s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/lost_create/wrong_scope_approver (0.09s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/lost_create/stale_authentication (0.09s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/lost_create/expired_lease (0.10s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/lost_create/source_evidence_drift (0.09s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/lost_create/definition_version_drift (0.09s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/lost_create/production_write_declaration (0.09s)
+FAIL
+
+Exit: 1 Signal: null

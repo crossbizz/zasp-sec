@@ -128,7 +128,7 @@ func (repository *DiscoveryRepository) HeartbeatOutboxTopic(ctx context.Context,
 	if !validDiscoveryRepository(repository, ctx) || topic != "discovery-jobs" || len(worker) < 1 || len(worker) > 128 || len(leaseToken) < 16 || len(leaseToken) > 128 || leaseSeconds < 5 || leaseSeconds > 900 || expectedCount < 1 || expectedCount > 10 {
 		return OutboxLeaseHeartbeatResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionHeartbeatOutboxTopicSQL, topic, worker, leaseToken, leaseSeconds, expectedCount)
+	payload, err := repository.database.QueryJSON(ctx, repository.discoveryPublicSQL(postgresExecutionHeartbeatOutboxTopicSQL), topic, worker, leaseToken, leaseSeconds, expectedCount)
 	if err != nil {
 		return OutboxLeaseHeartbeatResult{}, discoveryProviderError(err)
 	}
@@ -144,7 +144,7 @@ func (repository *DiscoveryRepository) AcknowledgeOutboxTopic(ctx context.Contex
 	if !validDiscoveryRepository(repository, ctx) || topic != "discovery-jobs" || scope.Validate() != nil || !validProductID(id) || len(worker) < 1 || len(worker) > 128 || len(leaseToken) < 16 || len(leaseToken) > 128 || !outboxProviderAckPattern.MatchString(providerAck) {
 		return OutboxLeaseTransitionResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionAckOutboxTopicSQL, topic, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id, worker, leaseToken, providerAck)
+	payload, err := repository.database.QueryJSON(ctx, repository.discoveryPublicSQL(postgresExecutionAckOutboxTopicSQL), topic, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id, worker, leaseToken, providerAck)
 	if err != nil {
 		return OutboxLeaseTransitionResult{}, discoveryProviderError(err)
 	}
@@ -160,7 +160,7 @@ func (repository *DiscoveryRepository) RetryOutboxTopic(ctx context.Context, top
 	if !validDiscoveryRepository(repository, ctx) || topic != "discovery-jobs" || scope.Validate() != nil || !validProductID(id) || len(worker) < 1 || len(worker) > 128 || len(leaseToken) < 16 || len(leaseToken) > 128 || retrySeconds < 1 || retrySeconds > 3600 || code != "queue_publish_unknown" {
 		return OutboxLeaseTransitionResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionRetryOutboxTopicSQL, topic, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id, worker, leaseToken, retrySeconds, code)
+	payload, err := repository.database.QueryJSON(ctx, repository.discoveryPublicSQL(postgresExecutionRetryOutboxTopicSQL), topic, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id, worker, leaseToken, retrySeconds, code)
 	if err != nil {
 		return OutboxLeaseTransitionResult{}, discoveryProviderError(err)
 	}
@@ -205,6 +205,7 @@ type DiscoveryRepository struct {
 	database  JSONDatabase
 	schema    string
 	authority string
+	temporal  bool
 }
 
 func newDiscoveryRepositoryUnchecked(database JSONDatabase) (*DiscoveryRepository, error) {
@@ -254,6 +255,13 @@ func NewDiscoveryExecutionOutboxRepository(database JSONDatabase) (*DiscoveryRep
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	available, err := temporalDiscoveryAvailable(ctx, database, DiscoveryDatabaseAuthorityOutbox)
+	if err != nil {
+		return nil, ErrRepositoryConfiguration
+	}
+	if available {
+		return &DiscoveryRepository{database: database, schema: DiscoveryExecutionSchemaVersion, authority: DiscoveryDatabaseAuthorityOutbox, temporal: true}, nil
+	}
 	if !discoveryExecutionReady(ctx, database) {
 		return nil, ErrRepositoryConfiguration
 	}
@@ -274,6 +282,15 @@ func newDiscoveryRepositoryForAuthority(database JSONDatabase, authority string,
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), readinessTimeout)
 	defer cancel()
+	if authority == DiscoveryDatabaseAuthorityAPI || authority == DiscoveryDatabaseAuthorityOutbox {
+		available, err := temporalDiscoveryAvailable(ctx, database, authority)
+		if err != nil {
+			return nil, ErrRepositoryConfiguration
+		}
+		if available {
+			return &DiscoveryRepository{database: database, schema: DiscoveryExecutionSchemaVersion, authority: authority, temporal: true}, nil
+		}
+	}
 	repository, err := newDiscoveryRepositoryWithContext(ctx, database)
 	if err != nil {
 		return nil, err
@@ -290,6 +307,13 @@ func newDiscoveryRepositoryForAuthority(database JSONDatabase, authority string,
 func (repository *DiscoveryRepository) Ready(ctx context.Context) error {
 	if !validDiscoveryRepository(repository, ctx) || repository.authority == "" {
 		return ErrRepositoryUnavailable
+	}
+	if repository.temporal {
+		available, err := temporalDiscoveryAvailable(ctx, repository.database, repository.authority)
+		if err != nil || !available {
+			return ErrRepositoryUnavailable
+		}
+		return nil
 	}
 	if isDiscoveryExecutionSchema(repository.schema) && repository.authority == DiscoveryDatabaseAuthorityOutbox {
 		if !discoveryExecutionReady(ctx, repository.database) {
@@ -722,7 +746,7 @@ func (repository *DiscoveryRepository) ClaimOutboxTopic(ctx context.Context, top
 	if !validDiscoveryRepository(repository, ctx) || topic != "discovery-jobs" || len(worker) < 1 || len(worker) > 128 || len(leaseToken) < 16 || len(leaseToken) > 128 || leaseSeconds < 5 || leaseSeconds > 900 || limit < 1 || limit > 10 {
 		return nil, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionClaimOutboxTopicSQL, topic, worker, leaseToken, leaseSeconds, limit)
+	payload, err := repository.database.QueryJSON(ctx, repository.discoveryPublicSQL(postgresExecutionClaimOutboxTopicSQL), topic, worker, leaseToken, leaseSeconds, limit)
 	return decodeDiscoveryOutboxClaims(payload, err, topic, leaseSeconds, limit)
 }
 
@@ -1472,7 +1496,7 @@ func discoveryProviderError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if err == ErrRepositoryNotFound || err == ErrRepositoryConflict || err == ErrRepositoryOperation {
+	if err == ErrRepositoryNotFound || err == ErrRepositoryConflict || err == ErrRepositoryOperation || errors.Is(err, ErrRepositoryCostBudgetRequired) {
 		return err
 	}
 	return errors.Join(ErrRepositoryUnavailable, err)

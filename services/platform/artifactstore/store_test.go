@@ -16,6 +16,155 @@ import (
 
 const driverSecret = "artifact-driver-secret-must-not-escape"
 
+type plannedReferenceDriver struct {
+	Driver
+	plan func(DriverLocator) (string, error)
+}
+
+func (driver *plannedReferenceDriver) PlannedObjectReference(locator DriverLocator) (string, error) {
+	return driver.plan(locator)
+}
+
+func TestPlannedObjectReferenceRequiresSeparatePureDriverCapability(t *testing.T) {
+	request := validPutRequest(t)
+	for _, kind := range []string{"valid", "missing capability", "versioned", "scope", "reference", "empty result", "error", "panic"} {
+		t.Run(kind, func(t *testing.T) {
+			calls := 0
+			var driver Driver = &plannedReferenceDriver{Driver: &recordingDriver{}, plan: func(locator DriverLocator) (string, error) {
+				calls++
+				if locator.Scope != request.Scope || locator.Reference != request.Reference || locator.VersionID != "" || !strings.Contains(locator.Key, "/exports/") {
+					t.Fatal("planned locator lost scope/profile")
+				}
+				switch kind {
+				case "empty result":
+					return "", nil
+				case "error":
+					return "", errors.New(driverSecret)
+				case "panic":
+					panic(driverSecret)
+				}
+				return "s3://zasp-evidence/" + locator.Key, nil
+			}}
+			if kind == "missing capability" {
+				driver = &recordingDriver{}
+			}
+			store, err := NewExport(driver, validConfig())
+			if err != nil {
+				t.Fatal(err)
+			}
+			locator := request.Locator
+			switch kind {
+			case "versioned":
+				locator.VersionID = "version-1"
+			case "scope":
+				locator.Scope = domain.Scope{}
+			case "reference":
+				locator.Reference = domain.EvidenceRef{}
+			}
+			got, err := store.PlannedObjectReference(locator)
+			if kind == "valid" {
+				if err != nil || got == "" || calls != 1 {
+					t.Fatal("valid planned reference refused", err)
+				}
+			} else if !errors.Is(err, ErrReference) || got != "" || strings.Contains(err.Error(), driverSecret) {
+				t.Fatal("invalid reference escaped stable error", err)
+			}
+			if (kind == "versioned" || kind == "scope" || kind == "reference" || kind == "missing capability") && calls != 0 {
+				t.Fatal("invalid locator reached driver")
+			}
+		})
+	}
+}
+
+func TestPlannedObjectReferenceRejectsUninitializedStores(t *testing.T) {
+	request := validPutRequest(t)
+	var typedNil *plannedReferenceDriver
+	for _, store := range []*Store{nil, {}, {driver: typedNil}} {
+		if got, err := store.PlannedObjectReference(request.Locator); got != "" || !errors.Is(err, ErrReference) {
+			t.Fatal("uninitialized store returned a destination", err)
+		}
+	}
+}
+
+func TestExportStoreRejectsDriverProfileAndScopeSubstitution(t *testing.T) {
+	request := validPutRequest(t)
+	for _, item := range []struct {
+		name   string
+		mutate func(*DriverObject)
+	}{
+		{"legacy profile", func(o *DriverObject) { o.Key = strings.Replace(o.Key, "/exports/", "/artifacts/", 1) }},
+		{"foreign scope", func(o *DriverObject) { o.Scope = domain.Scope{} }},
+		{"foreign reference", func(o *DriverObject) { o.Reference = domain.EvidenceRef{} }},
+		{"changed bytes", func(o *DriverObject) {
+			o.Body = []byte(`{"different":true}`)
+			o.Size = int64(len(o.Body))
+			o.SHA256 = sha256.Sum256(o.Body)
+		}},
+	} {
+		t.Run(item.name, func(t *testing.T) {
+			driver := &recordingDriver{put: func(ctx context.Context, object DriverObject) (DriverObject, error) {
+				requireDeadline(t, ctx)
+				if !strings.Contains(object.Key, "/exports/") {
+					t.Fatal("store did not select export profile")
+				}
+				item.mutate(&object)
+				return object, nil
+			}}
+			store, err := NewExport(driver, validConfig())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := store.Put(context.Background(), request); !errors.Is(err, ErrPut) {
+				t.Fatal("substituted export response accepted", err)
+			}
+		})
+	}
+}
+
+func TestExportStoreEnforcesRequestBoundsBeforeDriverIO(t *testing.T) {
+	driver := &recordingDriver{put: func(context.Context, DriverObject) (DriverObject, error) {
+		t.Fatal("invalid export reached driver")
+		return DriverObject{}, nil
+	}, get: func(context.Context, DriverLocator) (DriverObject, error) {
+		t.Fatal("invalid export read reached driver")
+		return DriverObject{}, nil
+	}}
+	store, err := NewExport(driver, Config{OperationTimeout: time.Second, MaximumBytes: 1024})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*PutRequest){
+		func(r *PutRequest) { r.Body = bytes.Repeat([]byte("x"), 1025) },
+		func(r *PutRequest) { r.Reference, _ = domain.NewEvidenceRef(r.OrganizationID()) },
+		func(r *PutRequest) { r.Reference, _ = domain.NewEvidenceRef(r.WorkspaceID()) },
+		func(r *PutRequest) { r.Reference, _ = domain.NewEvidenceRef(r.EnvironmentID()) },
+		func(r *PutRequest) { r.Scope = domain.Scope{} },
+		func(r *PutRequest) { r.VersionID = "caller-version" },
+	} {
+		request := validPutRequest(t)
+		mutate(&request)
+		if _, err := store.Put(context.Background(), request); !errors.Is(err, ErrArtifact) {
+			t.Fatal("invalid export request accepted", err)
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := store.Put(ctx, validPutRequest(t)); !errors.Is(err, ErrPut) {
+		t.Fatal("canceled export Put", err)
+	}
+	if _, err := store.Get(ctx, validPutRequest(t).Locator); !errors.Is(err, ErrGet) {
+		t.Fatal("canceled export Get", err)
+	}
+	for _, config := range []Config{{OperationTimeout: time.Second, MaximumBytes: 64<<20 + 1}, {OperationTimeout: 31 * time.Second, MaximumBytes: 1}, {}} {
+		if _, err := NewExport(driver, config); !errors.Is(err, ErrConfiguration) {
+			t.Fatal("invalid export bounds accepted", err)
+		}
+	}
+	if _, err := NewExport(nil, validConfig()); !errors.Is(err, ErrConfiguration) {
+		t.Fatal("nil export driver accepted", err)
+	}
+}
+
 func TestStorePutGetDeleteHappyPath(t *testing.T) {
 	t.Parallel()
 

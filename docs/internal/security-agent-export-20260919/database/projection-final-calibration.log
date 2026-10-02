@@ -1,0 +1,8 @@
+$ /usr/local/bin/docker run --rm --name zasp-export-db-projection-final-calibrate --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(Release)Postgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentExportReleasePostgres
+    security_agent_export_release_postgres_test.go:50: Runner58=invalid migration state observed fingerprint=46b69c98336c9a93c168e9b451ae8da69fb248ee1706d6d2c419f31707b6a998 diagnostic=<nil>
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportReleasePostgres1258221646/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportReleasePostgres (5.84s)
+FAIL
+
+Container exit: 1

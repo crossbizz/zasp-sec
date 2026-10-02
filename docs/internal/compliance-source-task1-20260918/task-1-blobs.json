@@ -1,0 +1,62 @@
+[
+  {
+    "path": "services/platform/migrations/migrations.go",
+    "before": "70fd86362ab2b451f010b8c1f8e5909205b1211d",
+    "after": "909ddcdc39d03670c9c6e5d1475beddcfee700fa"
+  },
+  {
+    "path": "services/platform/agentsec-migrate/main.go",
+    "before": "828625d2945f3e0b4011bbb8890b2ca3e97bfa70",
+    "after": "8f8c4e36da2d649857bbe535e28f90e9da684230"
+  },
+  {
+    "path": "services/platform/agentsec-migrate/existing_tests_command_test.go",
+    "before": "72fb39ee856a65b30c221b467f79b60f9fc89ed5",
+    "after": "b24aec5d71b259b9955d9e62eede00ce4bacffbd"
+  },
+  {
+    "path": "services/platform/agentsec-migrate/release_readiness_test.go",
+    "before": "0bc3aff887d74f65f3724b0c1221ef2370817c0a",
+    "after": "354e5f5ed41fe231f7eb4c920fa6393606edbad5"
+  },
+  {
+    "path": "services/platform/migrations/compliance_release.go",
+    "before": null,
+    "after": "0e24a9be6feaa150e16b11a7f07b1da134698def"
+  },
+  {
+    "path": "services/platform/migrations/production_compliance.go",
+    "before": null,
+    "after": "573f26222a865aa031591acf4d26439a06eac7ce"
+  },
+  {
+    "path": "services/platform/migrations/sql/0056_production_compliance.up.sql",
+    "before": null,
+    "after": "aed20a126593638afa46fbe2f6e0190eb1fe0fc4"
+  },
+  {
+    "path": "services/platform/migrations/sql/0056_production_compliance.down.sql",
+    "before": null,
+    "after": "73bed8c606d2422d9072ae799297de675f47b1d7"
+  },
+  {
+    "path": "services/platform/apiserver/compliance_repository.go",
+    "before": null,
+    "after": "c5de5b8caf584a00d6c37c64e9e70e6158b17ba3"
+  },
+  {
+    "path": "services/platform/apiserver/compliance_repository_test.go",
+    "before": null,
+    "after": "d2ca44f5694036298528a26fa6b04fce7cf57f2a"
+  },
+  {
+    "path": "services/platform/apiserver/compliance_postgres_test.go",
+    "before": null,
+    "after": "1e016d3bb81eecdd6ad2e19851a66f1521144947"
+  },
+  {
+    "path": "services/platform/agentsec-migrate/compliance_command_test.go",
+    "before": null,
+    "after": "904bc9e91f0f50bee98869152d6636e946f9f99d"
+  }
+]

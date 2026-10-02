@@ -1,0 +1,1158 @@
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx (14 tests | 9 failed) 8270ms
+     × uses aggregate freshness, exposes typed source/time links, and filters frameworks and controls 1007ms
+     × reads exact source versions through the compliance detail endpoint 1006ms
+     × keeps deterministic detail denial 409 1009ms
+     × keeps deterministic detail denial 404 1012ms
+     × keeps deterministic detail denial 403 1003ms
+     × creates queued exports with the selected filters, recovers status on reload, and leaves evidence readable on download failure 1008ms
+     × renders failed export without hiding evidence 1006ms
+     × renders expired export without hiding evidence 1004ms
+     × drops late evidence responses on a changed principal and hides revoked authority immediately 78ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > uses aggregate freshness, exposes typed source/time links, and filters frameworks and controls
+TestingLibraryElementError: Unable to find role="link" and name "Open policy policy-production version 2"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mLocally complete control evidence and source freshness without certification claims.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 Security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--success"[39m
+          [36m>[39m
+            [0mfresh[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [0mpolicy-production[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mHIPAA · Configuration[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mmissing[0m
+          [36m</span>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mExports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mLocally complete control evidence and source freshness without certification claims.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 Security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--success"[39m
+          [36m>[39m
+            [0mfresh[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [0mpolicy-production[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mHIPAA · Configuration[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mmissing[0m
+          [36m</span>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mExports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:71:31
+     69|   it("uses aggregate freshness, exposes typed source/time links, and f…
+     70|     render(<SessionsComplianceView surface="compliance" client={compli…
+     71|     const link = await screen.findByRole("link", { name: "Open policy …
+       |                               ^
+     72|     expect(link.getAttribute("href")).toContain("source_kind=policy&so…
+     73|     expect(screen.getByText("2026-09-01T12:00:00Z")).toBeVisible();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > reads exact source versions through the compliance detail endpoint
+TestingLibraryElementError: Unable to find role="heading" and name "Evidence source"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mLocally complete control evidence and source freshness without certification claims.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 Security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--success"[39m
+          [36m>[39m
+            [0mfresh[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [0mpolicy-production[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mHIPAA · Configuration[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mmissing[0m
+          [36m</span>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mExports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mLocally complete control evidence and source freshness without certification claims.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 Security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--success"[39m
+          [36m>[39m
+            [0mfresh[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [0mpolicy-production[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mHIPAA · Configuration[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mmissing[0m
+          [36m</span>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mExports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:85:25
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 409
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 404
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 403
+TestingLibraryElementError: Unable to find role="alert"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mLocally complete control evidence and source freshness without certification claims.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 Security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--success"[39m
+          [36m>[39m
+            [0mfresh[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [0mpolicy-production[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mHIPAA · Configuration[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mmissing[0m
+          [36m</span>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mExports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mLocally complete control evidence and source freshness without certification claims.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 Security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--success"[39m
+          [36m>[39m
+            [0mfresh[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [0mpolicy-production[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mHIPAA · Configuration[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mmissing[0m
+          [36m</span>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mExports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:92:25
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > creates queued exports with the selected filters, recovers status on reload, and leaves evidence readable on download failure
+TestingLibraryElementError: Unable to find a label with the text of: Framework
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mLocally complete control evidence and source freshness without certification claims.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 Security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--success"[39m
+          [36m>[39m
+            [0mfresh[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [0mpolicy-production[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mHIPAA · Configuration[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mmissing[0m
+          [36m</span>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mExports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mLocally complete control evidence and source freshness without certification claims.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 Security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--success"[39m
+          [36m>[39m
+            [0mfresh[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [0mpolicy-production[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mHIPAA · Configuration[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mmissing[0m
+          [36m</span>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mExports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:102:48
+    100|     });
+    101|     const view = render(<SessionsComplianceView surface="compliance" c…
+    102|     await userEvent.selectOptions(await screen.findByLabelText("Framew…
+       |                                                ^
+    103|     await userEvent.selectOptions(screen.getByLabelText("Control"), "s…
+    104|     await userEvent.click(screen.getByRole("button", { name: "Create e…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders failed export without hiding evidence
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders expired export without hiding evidence
+TestingLibraryElementError: Unable to find role="button" and name "Create evidence export"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mLocally complete control evidence and source freshness without certification claims.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 Security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--success"[39m
+          [36m>[39m
+            [0mfresh[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [0mpolicy-production[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mHIPAA · Configuration[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mmissing[0m
+          [36m</span>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mExports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mLocally complete control evidence and source freshness without certification claims.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 Security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--success"[39m
+          [36m>[39m
+            [0mfresh[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [0mpolicy-production[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mHIPAA · Configuration[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mmissing[0m
+          [36m</span>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mExports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:119:40
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > drops late evidence responses on a changed principal and hides revoked authority immediately
+TestingLibraryElementError: Unable to find an accessible element with the role "alert"
+
+Here are the accessible roles:
+
+  heading:
+
+  Name "Compliance evidence":
+  [36m<h1 />[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  Name "":
+  [36m<p />[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mLocally complete control evidence and source freshness without certification claims.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 Security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--success"[39m
+          [36m>[39m
+            [0mfresh[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [0mpolicy-production[0m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mHIPAA · Configuration[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mmissing[0m
+          [36m</span>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mExports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:132:19
+    130|     await act(async () => finish(response({ items: [{ control, freshne…
+    131|     expect(screen.queryByText("policy-production")).not.toBeInTheDocum…
+    132|     expect(screen.getByRole("alert")).toHaveTextContent(/Access denied…
+       |                   ^
+    133|   });
+    134| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  9 failed | 5 passed (14)
+   Start at  18:21:32
+   Duration  9.72s (transform 136ms, setup 214ms, import 227ms, tests 8.27s, environment 906ms)

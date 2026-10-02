@@ -1,0 +1,10 @@
+Selected test names were first inspected using:
+env GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-budget-go-cache /opt/homebrew/bin/go test ./agentsec-worker ./apiserver ./agentsec-migrate -list '^(TestSecurityAgentAttackLabPreparedRequestBinding|TestSecurityAgentAttackLabProcessorPreservesDigestOnly|TestSecurityAgentExistingTestPlannerBinding|TestSecurityAgentExistingTestProcessorPreservesReference|TestSecurityAgentAttackLabReferenceContract|TestAttackLabExplicitReleaseCommands|TestAttackLabRegistrationBinaryPreflight)$'
+
+No Postgres tests were selected. Command (services/platform):
+env GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-budget-go-cache /opt/homebrew/bin/go test ./agentsec-worker ./apiserver ./agentsec-migrate -run '^(TestSecurityAgentAttackLabPreparedRequestBinding|TestSecurityAgentAttackLabProcessorPreservesDigestOnly|TestSecurityAgentExistingTestPlannerBinding|TestSecurityAgentExistingTestProcessorPreservesReference|TestSecurityAgentAttackLabReferenceContract|TestAttackLabExplicitReleaseCommands|TestAttackLabRegistrationBinaryPreflight)$' -count=1 -race
+
+Session27285 exit0.
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	2.231s
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	2.134s
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate	2.578s

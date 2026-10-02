@@ -1,0 +1,9 @@
+{
+  "containerName": "zasp-public-restart-pllzti",
+  "result": {
+    "status": 0,
+    "stdout": "",
+    "stderr": "Error response from daemon: No such container: zasp-public-restart-pllzti\n"
+  },
+  "temporaryRemoved": true
+}

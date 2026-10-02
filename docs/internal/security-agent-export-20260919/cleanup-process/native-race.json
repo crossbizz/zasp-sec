@@ -1,0 +1,20 @@
+{
+  "command": "/opt/homebrew/bin/go",
+  "args": [
+    "test",
+    "-race",
+    "./agentsec-worker",
+    "./artifactstore/s3driver",
+    "./internal/exportfixture",
+    "-run",
+    "^(TestSecurityAgentExportCleanupResponseTaxonomy|TestExport(Cleanup|ReadOnly).*|TestStore.*)$",
+    "-count=1",
+    "-v",
+    "-timeout=120s"
+  ],
+  "hashes": {
+    "services/platform/apiserver/security_agent_export_cleanup_process_postgres_test.go": "f6eed99c6c36d041d980d7903093a2fb820831c38f695b30ee550a4287110179",
+    "services/platform/agentsec-worker/security_agent_export_cleanup_process_test.go": "3c109a19aebf30581f584e7873497a03453dde80429a7a68c11dced0c4a05268"
+  },
+  "status": 0
+}

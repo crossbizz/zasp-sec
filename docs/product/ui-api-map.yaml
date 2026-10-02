@@ -138,12 +138,15 @@ screens:
       - id: view_audit_events
         operation_id: listAuditEvents
         availability: available
+      - id: view_security_agent_audit_event
+        operation_id: getSecurityAgentAuditEvent
+        availability: available
       - id: create_audit_export
         operation_id: createAuditExport
-        availability: planned
+        availability: api_available
       - id: view_audit_export
         operation_id: getAuditExport
-        availability: planned
+        availability: api_available
   - id: home
     label: Home
     actions:
@@ -465,9 +468,32 @@ screens:
       - id: view_security_agent_run
         operation_id: getSecurityAgentRun
         availability: available
+      - id: view_security_agent_export
+        operation_id: getSecurityAgentExport
+        availability: api_available
+      - id: authorize_security_agent_export_download
+        operation_id: createSecurityAgentExportDownloadGrant
+        availability: api_available
+      - id: download_security_agent_export
+        operation_id: downloadSecurityAgentExport
+        availability: api_available
+      - id: list_security_agent_activity_runs
+        operation_id: listSecurityAgentActivityRuns
+        availability: api_available
+      - id: list_security_agent_run_activity
+        operation_id: listSecurityAgentRunActivity
+        availability: api_available
       - id: cancel_security_agent_run
         operation_id: cancelSecurityAgentRun
         availability: available
+      # Contract/source availability only; native and deployed gates are in the
+      # authoritative docs/internal/implementation_status_v1.5.md ledger.
+      - id: view_single_test_cleanup_recovery
+        operation_id: getSingleTestCleanupRecovery
+        availability: api_available
+      - id: request_single_test_cleanup_recovery
+        operation_id: requestSingleTestCleanupRecovery
+        availability: api_available
       - id: view_security_agent_approvals
         operation_id: listSecurityAgentApprovals
         availability: available
@@ -488,10 +514,19 @@ screens:
         availability: available
       - id: create_compliance_export
         operation_id: createComplianceExport
-        availability: planned
+        availability: available
       - id: view_compliance_export
         operation_id: getComplianceExport
-        availability: planned
+        availability: available
+      - id: view_compliance_source
+        operation_id: getComplianceEvidence
+        availability: available
+      - id: request_compliance_download
+        operation_id: createComplianceDownloadGrant
+        availability: available
+      - id: download_compliance_export
+        operation_id: downloadComplianceExport
+        availability: available
   - id: data_controls
     label: Data Controls
     actions:

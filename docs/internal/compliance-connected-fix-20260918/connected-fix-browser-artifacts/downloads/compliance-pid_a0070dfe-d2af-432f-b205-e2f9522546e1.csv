@@ -1,0 +1,2 @@
+control_id,framework,freshness,evidence_count,evidence_id,asset_id,source,at,source_kind,source_id,source_version,metadata,organization_id,workspace_id,environment_id,mapping_revision,snapshot_at
+soc2_security-policies,soc2_security,stale,1,policy-compliance-browser,policy-compliance-browser,policy,2020-01-01T00:00:00Z,policy,policy-compliance-browser,7,"{""verification"":""definition_only""}",pid_10000001-0000-4000-8000-000000000001,pid_10000022-0000-4000-8000-000000000022,pid_10000023-0000-4000-8000-000000000023,product-evidence-v1,2026-09-19T03:23:45.091535Z

@@ -1,0 +1,78 @@
+--- a/deploy/staging/main.tf
++++ b/deploy/staging/main.tf
+@@ -744,6 +744,9 @@
+   name                       = "agentsec-${each.key}-dlq"
+   message_retention_seconds  = 1209600
+   visibility_timeout_seconds = 30
++  receive_wait_time_seconds  = contains(["background", "runtime-events", "tests"], each.key) ? 20 : null
++  max_message_size           = contains(["background", "runtime-events", "tests"], each.key) ? 262144 : null
++  delay_seconds              = contains(["background", "runtime-events", "tests"], each.key) ? 0 : null
+   kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn : aws_kms_key.staging.arn
+   tags                       = { Schema = each.value.schema }
+ }
+@@ -756,6 +759,7 @@
+   visibility_timeout_seconds = each.value.visibility
+   receive_wait_time_seconds  = 20
+   max_message_size           = 262144
++  delay_seconds              = contains(["background", "runtime-events", "tests"], each.key) ? 0 : null
+   kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn : aws_kms_key.staging.arn
+   redrive_policy = jsonencode({
+     deadLetterTargetArn = aws_sqs_queue.dead_letter[each.key].arn
+--- a/deploy/staging/queue-contract.test.mjs
++++ b/deploy/staging/queue-contract.test.mjs
+@@ -33,6 +33,55 @@
+   }
+ }
+ 
++// Evaluate only the narrow conditional form used for these optional attributes.
++// This is a source-contract projection, not Terraform expression evaluation.
++function scopedAttribute(resource, attribute, key) {
++  const expression = resource.match(new RegExp(`^\\s*${attribute}\\s*=\\s*(.+)$`, "m"))?.[1];
++  assert.ok(expression, `missing explicit ${attribute}`);
++  const conditional = expression.match(/^contains\((\[[^\]]*\]),\s*each\.key\)\s*\?\s*(\d+)\s*:\s*(null|\d+)$/);
++  assert.ok(conditional, `unsupported ${attribute} expression: ${expression}`);
++  const keys = JSON.parse(conditional[1]);
++  return keys.includes(key) ? Number(conditional[2]) : conditional[3] === "null" ? null : Number(conditional[3]);
++}
++
++function assertScopedAttribute(source, resourceName, attribute, value) {
++  const resource = block(source, `resource "aws_sqs_queue" "${resourceName}"`);
++  for (const key of Object.keys(queueContract(source))) {
++    assert.equal(scopedAttribute(resource, attribute, key), key in originalQueues ? value : null,
++      `${resourceName}.${attribute} for ${key} must preserve the original-only scope`);
++  }
++}
++
++// Removing a setting, changing its value, or changing either scope branch must fail.
++for (const [resourceName, attribute, value] of [
++  ["dead_letter", "receive_wait_time_seconds", 20],
++  ["dead_letter", "max_message_size", 262144],
++  ["dead_letter", "delay_seconds", 0],
++  ["work", "delay_seconds", 0],
++]) {
++  test(`${resourceName}.${attribute} pins the canonical value only for the original queues`, () => {
++    assertScopedAttribute(main, resourceName, attribute, value);
++  });
++
++  test(`${resourceName}.${attribute} guard rejects missing, changed and over-scoped settings`, () => {
++    assertScopedAttribute(main, resourceName, attribute, value);
++    const resource = block(main, `resource "aws_sqs_queue" "${resourceName}"`);
++    const line = resource.match(new RegExp(`^\\s*${attribute}\\s*=.+$`, "m"))[0];
++    const mutations = [
++      "",
++      line.replace(/\?\s*\d+/, `? ${value + 1}`),
++      line.replace('"tests"', '"not-an-original"'),
++      line.replace('"tests"', '"tests", "red-team-tests"'),
++      line.replace(/:\s*null$/, ": 0"),
++    ];
++    for (const changedLine of mutations) {
++      assert.notEqual(changedLine, line, "negative control must change the attribute");
++      const changed = main.replace(resource, resource.replace(line, changedLine));
++      assert.throws(() => assertScopedAttribute(changed, resourceName, attribute, value), assert.AssertionError);
++    }
++  });
++}
++
+ function assertSharedResources(source, outputSource) {
+   const work = block(source, 'resource "aws_sqs_queue" "work"');
+   const deadLetter = block(source, 'resource "aws_sqs_queue" "dead_letter"');

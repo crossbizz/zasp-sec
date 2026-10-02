@@ -59,14 +59,17 @@ func TestSDKJobBatchMethodsUseOneExactMultiEntryRequestEach(t *testing.T) {
 				md5Hex(entries[0].Body)+`"},{"Id":"entry-2","MessageId":"message-2","MD5OfMessageBody":"`+
 				md5Hex(entries[1].Body)+`"}],"Failed":[]}`), nil
 		case 2:
-			if target != "AmazonSQS.ReceiveMessage" || document["QueueUrl"] != jobQueueURL ||
-				document["MaxNumberOfMessages"] != float64(2) ||
-				!reflect.DeepEqual(document["MessageAttributeNames"], []any{"All"}) {
+			if target != "AmazonSQS.ReceiveMessage" || !reflect.DeepEqual(document, map[string]any{
+				"QueueUrl": jobQueueURL, "MaxNumberOfMessages": float64(2),
+				"MessageAttributeNames":       []any{"All"},
+				"MessageSystemAttributeNames": []any{"ApproximateReceiveCount"},
+				"VisibilityTimeout":           float64(5), "WaitTimeSeconds": float64(1),
+			}) {
 				t.Fatalf("receive request target=%q document=%#v", target, document)
 			}
 			return sdkJSONResponse(request, `{"Messages":[{"Body":"{\"one\":1}","MessageId":"message-1","ReceiptHandle":"receipt-1","MD5OfBody":"`+
-				md5Hex(entries[0].Body)+`","MessageAttributes":{"job_id":{"DataType":"String","StringValue":"job-1"}}},{"Body":"{\"two\":2}","MessageId":"message-2","ReceiptHandle":"receipt-2","MD5OfBody":"`+
-				md5Hex(entries[1].Body)+`","MessageAttributes":{"job_id":{"DataType":"String","StringValue":"job-2"}}}]}`), nil
+				md5Hex(entries[0].Body)+`","Attributes":{"ApproximateReceiveCount":"1"},"MessageAttributes":{"job_id":{"DataType":"String","StringValue":"job-1"}}},{"Body":"{\"two\":2}","MessageId":"message-2","ReceiptHandle":"receipt-2","MD5OfBody":"`+
+				md5Hex(entries[1].Body)+`","Attributes":{"ApproximateReceiveCount":"7"},"MessageAttributes":{"job_id":{"DataType":"String","StringValue":"job-2"}}}]}`), nil
 		case 3:
 			if target != "AmazonSQS.DeleteMessageBatch" || document["QueueUrl"] != jobQueueURL {
 				t.Fatalf("delete request target=%q document=%#v", target, document)
@@ -93,7 +96,8 @@ func TestSDKJobBatchMethodsUseOneExactMultiEntryRequestEach(t *testing.T) {
 		t.Fatalf("SendJobBatch() = %#v, %v", sent, err)
 	}
 	received, err := client.ReceiveJobMessages(context.Background(), jobQueueURL, 2)
-	if err != nil || len(received) != 2 || received[0].ReceiptHandle != "receipt-1" || received[1].MessageID != "message-2" {
+	if err != nil || len(received) != 2 || received[0].ReceiptHandle != "receipt-1" || received[1].MessageID != "message-2" ||
+		received[0].ReceiveCount != 1 || received[1].ReceiveCount != 7 {
 		t.Fatalf("ReceiveJobMessages() = %#v, %v", received, err)
 	}
 	deleted, err := client.DeleteJobBatch(context.Background(), jobQueueURL, []jobDeleteEntry{
@@ -105,6 +109,62 @@ func TestSDKJobBatchMethodsUseOneExactMultiEntryRequestEach(t *testing.T) {
 	}
 	if call != 3 {
 		t.Fatalf("SDK call count = %d", call)
+	}
+}
+
+func TestSDKJobReceiveRequiresBoundedSystemReceiveCount(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		attributes map[string]string
+		want       int
+	}{
+		{name: "first delivery", attributes: map[string]string{"ApproximateReceiveCount": "1"}, want: 1},
+		{name: "redelivery", attributes: map[string]string{"ApproximateReceiveCount": "7"}, want: 7},
+		{name: "upper bound", attributes: map[string]string{"ApproximateReceiveCount": "1000000000"}, want: 1_000_000_000},
+		{name: "missing"},
+		{name: "empty", attributes: map[string]string{"ApproximateReceiveCount": ""}},
+		{name: "zero", attributes: map[string]string{"ApproximateReceiveCount": "0"}},
+		{name: "negative", attributes: map[string]string{"ApproximateReceiveCount": "-1"}},
+		{name: "over bound", attributes: map[string]string{"ApproximateReceiveCount": "1000000001"}},
+		{name: "overflow", attributes: map[string]string{"ApproximateReceiveCount": "999999999999999999999999"}},
+		{name: "malformed", attributes: map[string]string{"ApproximateReceiveCount": "invalid"}},
+		{name: "fraction", attributes: map[string]string{"ApproximateReceiveCount": "1.5"}},
+		{name: "whitespace", attributes: map[string]string{"ApproximateReceiveCount": " 1"}},
+		{name: "wrong system attribute", attributes: map[string]string{"SentTimestamp": "1"}},
+		{name: "extra system attribute", attributes: map[string]string{"ApproximateReceiveCount": "1", "SentTimestamp": "1"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// A similarly named customer message attribute must never supply the count.
+			body, err := json.Marshal(map[string]any{"Messages": []any{map[string]any{
+				"Body": `{}`, "MessageId": "message-1", "ReceiptHandle": "receipt-1",
+				"Attributes": test.attributes,
+				"MessageAttributes": map[string]any{"ApproximateReceiveCount": map[string]string{
+					"DataType": "String", "StringValue": "99",
+				}},
+			}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			calls := 0
+			client := sdkJobClientWithTransport(roundTripFunc(func(request *http.Request) (*http.Response, error) {
+				calls++
+				return sdkJSONResponse(request, string(body)), nil
+			}))
+			received, err := client.ReceiveJobMessages(context.Background(), jobQueueURL, 1)
+			if test.want == 0 {
+				if !errors.Is(err, errProvider) || received != nil {
+					t.Fatalf("invalid count returned messages=%#v, error=%v", received, err)
+				}
+			} else if err != nil || len(received) != 1 || received[0].ReceiveCount != test.want {
+				t.Fatalf("receive count: messages=%#v, error=%v, want=%d", received, err, test.want)
+			}
+			if calls != 1 {
+				t.Fatalf("receive calls = %d, want 1", calls)
+			}
+		})
 	}
 }
 

@@ -64,6 +64,7 @@ spec:
             - { name: ZASP_DEPLOYMENT_MODE, value: {{ $root.Values.global.deploymentMode | quote }} }
             - { name: ZASP_PUBLIC_ORIGIN, value: {{ required "global.publicOrigin is required" $root.Values.global.publicOrigin | quote }} }
             {{- if eq .name "agentsec-api" }}
+            {{- include "zasp.runtimeServices.env" $root | nindent 12 }}
             - { name: ZASP_PRODUCT_LISTEN_ADDRESS, value: ":8080" }
             - { name: ZASP_INTERNAL_LISTEN_ADDRESS, value: ":8081" }
             - { name: ZASP_COOKIE_SECURE, value: "true" }
@@ -79,12 +80,24 @@ spec:
             - { name: ZASP_REQUEST_TIMEOUT, value: "10s" }
             - { name: ZASP_EXPECTED_SCHEMA_VERSION, value: {{ $root.Values.schema.expectedVersion | quote }} }
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_discovery_api" }
+            {{- if and $root.Values.attackLabReconciler.enabled (has (toString $root.Values.schema.expectedVersion) (list "57" "58")) }}
+            - { name: ZASP_SECURITY_AGENT_ATTACK_LAB_WORKFLOW, value: "enabled" }
+            {{- end }}
             - { name: ZASP_STYTCH_BASE_URL, value: "https://api.stytch.com" }
             - { name: ZASP_STYTCH_AUTHORIZE_URL, value: "https://api.stytch.com/v1/b2b/public/oauth/google/start" }
             - { name: ZASP_CONNECTOR_AWS_REGION, value: {{ required "connectors.awsRegion is required" $root.Values.connectors.awsRegion | quote }} }
             - { name: ZASP_CONNECTOR_ROLE_ARN, value: {{ required "connectors.roleArn is required" $root.Values.connectors.roleArn | quote }} }
             - { name: ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE, value: {{ required "connectors.webIdentityTokenFile is required" $root.Values.connectors.webIdentityTokenFile | quote }} }
             - { name: ZASP_CONNECTOR_KMS_KEY_ARN, value: {{ required "connectors.kmsKeyArn is required" $root.Values.connectors.kmsKeyArn | quote }} }
+            {{- if $root.Values.complianceExports.enabled }}
+            {{- include "zasp.complianceExports.apiEnv" $root | nindent 12 }}
+            {{- end }}
+            {{- if $root.Values.evidenceExportWorkflow.enabled }}
+            - { name: ZASP_SECURITY_AGENT_EVIDENCE_EXPORT_WORKFLOW, value: "enabled" }
+            {{- end }}
+            {{- if $root.Values.auditExports.enabled }}
+            {{- include "zasp.auditExports.apiEnv" $root | nindent 12 }}
+            {{- end }}
             - { name: ZASP_CONNECTOR_SECRET_PREFIX, value: {{ required "connectors.secretPrefix is required" $root.Values.connectors.secretPrefix | quote }} }
             - { name: ZASP_POLICY_HISTORY_ENDPOINT, value: {{ required "runtime.openSearchEndpoint is required" $root.Values.runtime.openSearchEndpoint | quote }} }
             - { name: ZASP_POLICY_HISTORY_INDEX, value: "zasp-runtime-events-v1" }
@@ -119,14 +132,19 @@ spec:
               export ZASP_STYTCH_ORGANIZATION_ID="$(cat /var/run/secrets/zasp/stytch-organization-id)"
               export ZASP_WORKFLOW_SIGNING_KEY="$(cat /var/run/secrets/zasp/workflow-signing-key)"
               export ZASP_TOKEN_REVEAL_KEY="$(cat /var/run/secrets/zasp/token-reveal-key)"
+              {{- if $root.Values.auditExports.enabled }}
+              {{- include "zasp.auditExports.apiSecretLoad" $root | nindent 14 }}
+              {{- end }}
               exec /app/agentsec-api
           volumeMounts:
+            {{- include "zasp.runtimeServices.mount" $root | nindent 12 }}
             - { name: runtime-secrets, mountPath: /var/run/secrets/zasp, readOnly: true }
             - { name: connector-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
             - { name: nango-service-key, mountPath: /var/run/secrets/zasp-nango, readOnly: true }
           {{- end }}
       {{- if eq .name "agentsec-api" }}
       volumes:
+        {{- include "zasp.runtimeServices.volume" $root | nindent 8 }}
         - name: runtime-secrets
           csi:
             driver: secrets-store.csi.k8s.io
@@ -151,7 +169,7 @@ metadata:
   name: agentsec-discovery-scheduler
   labels: { app.kubernetes.io/name: agentsec-discovery-scheduler, app.kubernetes.io/part-of: zasp }
 spec:
-  replicas: {{ .Values.replicas.discoveryScheduler }}
+  replicas: {{ ternary 0 .Values.replicas.discoveryScheduler (eq .Values.rollout.discoveryScheduleReplayPhase "maintenance") }}
   revisionHistoryLimit: 3
   progressDeadlineSeconds: 600
   strategy:
@@ -186,6 +204,8 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "scheduler" }
+            - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
+            {{- include "zasp.runtimeServices.env" . | nindent 12 }}
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_discovery_scheduler" }
             - name: ZASP_WORKER_ID
               valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
@@ -195,8 +215,11 @@ spec:
             - { name: ZASP_SHUTDOWN_TIMEOUT, value: "15s" }
             - { name: ZASP_DISCOVERY_PARSER_VERSION, value: {{ required "discovery.parserVersion is required" .Values.discovery.parserVersion | quote }} }
             - { name: ZASP_DISCOVERY_TOOL_VERSION, value: {{ required "discovery.toolVersion is required" .Values.discovery.toolVersion | quote }} }
-          volumeMounts: [{ name: scheduler-secrets, mountPath: /var/run/secrets/zasp-scheduler, readOnly: true }]
+          volumeMounts:
+            - { name: scheduler-secrets, mountPath: /var/run/secrets/zasp-scheduler, readOnly: true }
+            {{- include "zasp.runtimeServices.mount" . | nindent 12 }}
       volumes:
+        {{- include "zasp.runtimeServices.volume" . | nindent 8 }}
         - name: scheduler-secrets
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.schedulerProviderClassName | quote }} } }
 ---
@@ -223,6 +246,27 @@ spec:
       enableServiceLinks: false
       terminationGracePeriodSeconds: 40
       securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      {{- if .Values.authorizationTemporal.profile }}
+      initContainers:
+        {{- include "zasp.workerKeys.init" (dict "image" .Values.global.productImages.agentsecWorker "uid" 65532) | nindent 8 }}
+        - name: materialize-temporal-provider-files
+          image: {{ .Values.global.productImages.agentsecWorker | quote }}
+          command: ["/bin/sh", "-ec"]
+          args: ['umask 077; cp /provider-source/gateway-signing-private-key /provider/gateway-signing-private-key; cp /provider-source/adapter-token /provider/adapter-token; cp /provider-source/adapter-ca.crt /provider/adapter-ca.crt; chmod 0400 /provider/*']
+          securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          volumeMounts:
+            - { name: temporal-provider-source, mountPath: /provider-source, readOnly: true }
+            - { name: temporal-provider, mountPath: /provider }
+        - name: materialize-policy-verifier
+          image: {{ .Values.global.productImages.agentsecWorker | quote }}
+          command: ["/bin/sh", "-ec"]
+          args: ['umask 077; cp /public-keys/policy-keys.json /keys/policy-keys.json; chmod 0400 /keys/policy-keys.json']
+          securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { cpu: 100m, memory: 32Mi } }
+          volumeMounts:
+            - { name: policy-verifier-source, mountPath: /public-keys, readOnly: true }
+            - { name: policy-verifier, mountPath: /keys }
+      {{- end }}
       topologySpreadConstraints:
         - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-security-agent } } }
         - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-security-agent } } }
@@ -237,10 +281,38 @@ spec:
           readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
           livenessProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
           lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", "sleep 10"] } } }
+          {{- if .Values.authorizationTemporal.profile }}
+          resources: { requests: { cpu: 100m, memory: 256Mi, ephemeral-storage: 128Mi }, limits: { cpu: "2", memory: 2Gi, ephemeral-storage: 1Gi } }
+          {{- else }}
           resources: { requests: { cpu: 100m, memory: 96Mi, ephemeral-storage: 32Mi }, limits: { cpu: "1", memory: 256Mi, ephemeral-storage: 128Mi } }
+          {{- end }}
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "security-agent" }
+            {{- if .Values.authorizationTemporal.profile }}
+            - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
+            {{- include "zasp.runtimeServices.env" . | nindent 12 }}
+            {{- include "zasp.workerKeys.env" . | nindent 12 }}
+            - name: ZASP_TEMPORAL_EXECUTOR_POSTGRES_DSN
+              valueFrom: { secretKeyRef: { name: {{ .Values.authorizationTemporal.executorDSNSecret | quote }}, key: postgres-dsn } }
+            - name: ZASP_TEMPORAL_COMPENSATION_POSTGRES_DSN
+              valueFrom: { secretKeyRef: { name: {{ .Values.authorizationTemporal.compensationDSNSecret | quote }}, key: postgres-dsn } }
+            - { name: ZASP_TEMPORAL_PRICING_BINDINGS_FILE, value: /var/run/zasp-pricing/bindings.json }
+            - { name: ZASP_GATEWAY_SIGNING_KEY_ID, value: {{ .Values.gatewayPolicy.signingKeyID | quote }} }
+            - { name: ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE, value: /var/run/zasp-temporal-provider/gateway-signing-private-key }
+            - { name: ZASP_GATEWAY_POLICY_KEYS_FILE, value: /var/run/zasp-policy-verifier/policy-keys.json }
+            - { name: ZASP_AWS_REGION, value: {{ .Values.redTeam.awsRegion | quote }} }
+            - { name: ZASP_RED_TEAM_ROLE_ARN, value: {{ .Values.authorizationTemporal.workerRoleArn | quote }} }
+            - { name: ZASP_RED_TEAM_WEB_IDENTITY_TOKEN_FILE, value: {{ .Values.redTeam.webIdentityTokenFile | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET, value: {{ .Values.redTeam.evidenceBucket | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET_OWNER, value: {{ .Values.redTeam.evidenceBucketOwner | quote }} }
+            - { name: ZASP_EVIDENCE_KMS_KEY_ARN, value: {{ .Values.redTeam.evidenceKMSKeyArn | quote }} }
+            - { name: ZASP_RED_TEAM_TARGET_ENDPOINT, value: {{ .Values.redTeam.targetEndpoint | quote }} }
+            - { name: ZASP_RED_TEAM_TARGET_TOKEN_FILE, value: /var/run/zasp-temporal-provider/adapter-token }
+            - { name: ZASP_RED_TEAM_TARGET_CA_FILE, value: /var/run/zasp-temporal-provider/adapter-ca.crt }
+            - { name: ZASP_RED_TEAM_RUNNER_TIMEOUT, value: {{ .Values.redTeam.runnerTimeout | quote }} }
+            - { name: ZASP_RED_TEAM_RUNNER_IMAGE, value: {{ .Values.global.productImages.agentsecWorker | quote }} }
+            {{- end }}
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_security_agent_worker" }
             - name: ZASP_WORKER_ID
               valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
@@ -254,8 +326,36 @@ spec:
             - { name: ZASP_SECURITY_AGENT_PLANNER_TIMEOUT, value: "10s" }
             - { name: ZASP_SECURITY_AGENT_PLANNER_MAX_TOKENS, value: "512" }
             - { name: ZASP_SECURITY_AGENT_PLANNER_POLICY_VERSION, value: "security-agent-planner-v1" }
-          volumeMounts: [{ name: security-agent-secrets, mountPath: /var/run/secrets/zasp-security-agent, readOnly: true }]
+          volumeMounts:
+            - { name: security-agent-secrets, mountPath: /var/run/secrets/zasp-security-agent, readOnly: true }
+            {{- if .Values.authorizationTemporal.profile }}
+            {{- include "zasp.runtimeServices.mount" . | nindent 12 }}
+            {{- include "zasp.workerKeys.mount" . | nindent 12 }}
+            - { name: temporal-pricing, mountPath: /var/run/zasp-pricing, readOnly: true }
+            - { name: temporal-provider, mountPath: /var/run/zasp-temporal-provider, readOnly: true }
+            - { name: policy-verifier, mountPath: /var/run/zasp-policy-verifier, readOnly: true }
+            - { name: temporal-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+            - { name: runner-temp, mountPath: /tmp }
+            {{- end }}
       volumes:
+        {{- if .Values.authorizationTemporal.profile }}
+        {{- include "zasp.runtimeServices.volume" . | nindent 8 }}
+        {{- include "zasp.workerKeys.volumes" . | nindent 8 }}
+        - name: temporal-pricing
+          configMap: { name: {{ .Values.authorizationTemporal.pricingBindingsConfigMap | quote }}, items: [{ key: bindings.json, path: bindings.json }] }
+        - name: policy-verifier-source
+          configMap: { name: {{ required "authorizationTemporal.gatewayPolicyKeysConfigMap is required" .Values.authorizationTemporal.gatewayPolicyKeysConfigMap | quote }}, defaultMode: 288, items: [{ key: policy-keys.json, path: policy-keys.json }] }
+        - name: policy-verifier
+          emptyDir: { medium: Memory, sizeLimit: 64Ki }
+        - name: temporal-provider-source
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: zasp-temporal-provider-files } }
+        - name: temporal-provider
+          emptyDir: { medium: Memory, sizeLimit: 256Ki }
+        - name: temporal-web-identity
+          projected: { defaultMode: 288, sources: [{ serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 900, path: token } }] }
+        - name: runner-temp
+          emptyDir: { sizeLimit: 1Gi }
+        {{- end }}
         - name: security-agent-secrets
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.securityAgentProviderClassName | quote }} } }
 ---
@@ -404,6 +504,10 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: "discovery" }
+            {{- if .Values.authorizationTemporal.profile }}
+            - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
+            {{- include "zasp.runtimeServices.env" . | nindent 12 }}
+            {{- end }}
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_discovery_worker" }
             - name: ZASP_WORKER_ID
               valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
@@ -434,10 +538,16 @@ spec:
             - { name: ZASP_DISCOVERY_READINESS_TIMEOUT, value: {{ required "discovery.readinessTimeout is required" .Values.discovery.readinessTimeout | quote }} }
           volumeMounts:
             - { name: discovery-worker-secrets, mountPath: /var/run/secrets/zasp-discovery-worker, readOnly: true }
+            {{- if .Values.authorizationTemporal.profile }}
+            {{- include "zasp.runtimeServices.mount" . | nindent 12 }}
+            {{- end }}
             - { name: discovery-web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
       volumes:
         - name: discovery-worker-secrets
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.workerProviderClassName | quote }} } }
+        {{- if .Values.authorizationTemporal.profile }}
+        {{- include "zasp.runtimeServices.volume" . | nindent 8 }}
+        {{- end }}
         - name: discovery-web-identity
           projected:
             defaultMode: 256

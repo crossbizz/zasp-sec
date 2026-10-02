@@ -1,0 +1,63 @@
+{{- $c := .Values.attackLabReconciler | default dict -}}
+{{- $monitoring := .Values.monitoring | default dict -}}
+{{- if $c.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: security-agent-attack-lab-reconciler }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app.kubernetes.io/name: security-agent-attack-lab-reconciler } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: security-agent-attack-lab-reconciler }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: security-agent-attack-lab-reconciler }
+  minReplicas: 2
+  maxReplicas: 6
+  metrics: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } } }]
+{{- if $monitoring.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: security-agent-attack-lab-reconciler
+  labels: { app.kubernetes.io/name: security-agent-attack-lab-reconciler, app.kubernetes.io/part-of: zasp }
+spec:
+  type: ClusterIP
+  publishNotReadyAddresses: true
+  selector: { app.kubernetes.io/name: security-agent-attack-lab-reconciler }
+  ports: [{ name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: security-agent-attack-lab-reconciler
+  labels: { app.kubernetes.io/name: security-agent-attack-lab-reconciler, app.kubernetes.io/part-of: zasp }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: security-agent-attack-lab-reconciler, app.kubernetes.io/part-of: zasp } }
+  namespaceSelector: { matchNames: [{{ .Release.Namespace | quote }}] }
+  endpoints: [{ port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: security-agent-attack-lab-reconciler-availability
+  labels: { app.kubernetes.io/part-of: zasp }
+spec:
+  groups:
+    - name: zasp.attack-lab-reconciler.availability
+      rules:
+        - alert: ZaspAttackLabReconcilerUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="security-agent-attack-lab-reconciler"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="security-agent-attack-lab-reconciler"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "Attack Lab reconciler workload is unavailable or absent" }
+        - alert: ZaspAttackLabReconcilerNotReady
+          expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service="security-agent-attack-lab-reconciler"} == 0 or up{namespace="{{ .Release.Namespace }}",service="security-agent-attack-lab-reconciler"} == 0 or (up{namespace="{{ .Release.Namespace }}",service="security-agent-attack-lab-reconciler"} == 1 unless on (namespace,service,instance) agentsec_ready{namespace="{{ .Release.Namespace }}",service="security-agent-attack-lab-reconciler"}) or absent(up{namespace="{{ .Release.Namespace }}",service="security-agent-attack-lab-reconciler"})
+          for: 10m
+          labels: { severity: ticket }
+          annotations: { summary: "Attack Lab reconciler readiness is unavailable" }
+{{- end }}
+{{- end }}

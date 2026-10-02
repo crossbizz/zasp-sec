@@ -1,0 +1,161 @@
+TAP version 13
+# Subtest: compliance API startup rejects shell authority and command changes with and without audit
+    # Subtest: compliance-only: worker authority export
+    not ok 1 - compliance-only: worker authority export
+      ---
+      duration_ms: 8.021625
+      type: 'test'
+      location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:28:17'
+      failureType: 'testCodeFailure'
+      error: 'Missing expected exception.'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      operator: 'throws'
+      stack: |-
+        TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:31:14)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Test.start (node:internal/test_runner/test:944:17)
+        TestContext.test (node:internal/test_runner/test:373:20)
+        TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:28:17)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: compliance-only: replacement command
+    not ok 2 - compliance-only: replacement command
+      ---
+      duration_ms: 7.796125
+      type: 'test'
+      location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:28:17'
+      failureType: 'testCodeFailure'
+      error: 'Missing expected exception.'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      operator: 'throws'
+      stack: |-
+        TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:31:14)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Test.start (node:internal/test_runner/test:944:17)
+        TestContext.test (node:internal/test_runner/test:373:20)
+        TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:28:17)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: compliance-only: extra argument
+    not ok 3 - compliance-only: extra argument
+      ---
+      duration_ms: 7.117125
+      type: 'test'
+      location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:28:17'
+      failureType: 'testCodeFailure'
+      error: 'Missing expected exception.'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      operator: 'throws'
+      stack: |-
+        TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:31:14)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Test.start (node:internal/test_runner/test:944:17)
+        TestContext.test (node:internal/test_runner/test:373:20)
+        TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:28:17)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: compliance-only: replacement executable
+    not ok 4 - compliance-only: replacement executable
+      ---
+      duration_ms: 8.795208
+      type: 'test'
+      location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:28:17'
+      failureType: 'testCodeFailure'
+      error: 'Missing expected exception.'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      operator: 'throws'
+      stack: |-
+        TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:31:14)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Test.start (node:internal/test_runner/test:944:17)
+        TestContext.test (node:internal/test_runner/test:373:20)
+        TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:28:17)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: compliance-only: missing secret load
+    not ok 5 - compliance-only: missing secret load
+      ---
+      duration_ms: 6.791166
+      type: 'test'
+      location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:28:17'
+      failureType: 'testCodeFailure'
+      error: 'Missing expected exception.'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      operator: 'throws'
+      stack: |-
+        TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:31:14)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Test.start (node:internal/test_runner/test:944:17)
+        TestContext.test (node:internal/test_runner/test:373:20)
+        TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:28:17)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: audit: worker authority export
+    ok 6 - audit: worker authority export
+      ---
+      duration_ms: 6.212333
+      type: 'test'
+      ...
+    # Subtest: audit: replacement command
+    ok 7 - audit: replacement command
+      ---
+      duration_ms: 6.402084
+      type: 'test'
+      ...
+    # Subtest: audit: extra argument
+    ok 8 - audit: extra argument
+      ---
+      duration_ms: 5.973291
+      type: 'test'
+      ...
+    # Subtest: audit: replacement executable
+    ok 9 - audit: replacement executable
+      ---
+      duration_ms: 5.442791
+      type: 'test'
+      ...
+    # Subtest: audit: missing secret load
+    ok 10 - audit: missing secret load
+      ---
+      duration_ms: 5.935583
+      type: 'test'
+      ...
+    1..10
+not ok 1 - compliance API startup rejects shell authority and command changes with and without audit
+  ---
+  duration_ms: 1105.519542
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:15:1'
+  failureType: 'subtestsFailed'
+  error: '5 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 11
+# suites 0
+# pass 5
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1194.800458

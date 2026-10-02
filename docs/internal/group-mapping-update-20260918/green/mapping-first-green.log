@@ -1,0 +1,9 @@
+b2af1698b9948c8a8fcb343865fbad9c2cb9cd214d3256828a5840ed31fed4cc  /private/tmp/zasp-group-mapping-update-red.test
+TestGroupMappingExpectedVersionUpdateMountedPostgres
+=== RUN   TestGroupMappingExpectedVersionUpdateMountedPostgres
+    group_mapping_update_postgres_test.go:30: compiled56 checksum=f5871c564709034eaf89f325fcb732a3f3314ecc0ff95f7a0ec99f6d674ddfc1 fingerprint=8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced
+    group_mapping_update_postgres_test.go:129: positive create: registered=security_agent_v33_discovery_api_login security_admin/manage_identity HTTP200 role=security_engineer version1 audit1 session revoked
+    group_mapping_update_postgres_test.go:144: stale version0 conflict409 and foreign tenant target404 controls passed with no audit or foreign mapping change
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestGroupMappingExpectedVersionUpdateMountedPostgres3809043225/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestGroupMappingExpectedVersionUpdateMountedPostgres (5.12s)
+PASS

@@ -1,0 +1,100 @@
+=== RUN   TestComplianceHTTPPostgresGrantLifecycle
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestComplianceHTTPPostgresGrantLifecycle709250892/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceHTTPPostgresGrantLifecycle (6.43s)
+=== RUN   TestComplianceRuntimePollingPostgres
+    compliance_runtime_postgres_test.go:66: joined interrupt: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined interrupt polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.64s)
+        PASS
+    compliance_runtime_postgres_test.go:74: joined resume: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined resume polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.53s)
+        PASS
+    compliance_runtime_postgres_test.go:79: joined cleanup_denied: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined cleanup_denied polling worker; provider PUT=0; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.62s)
+        PASS
+    compliance_runtime_postgres_test.go:84: joined cleanup: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined cleanup polling worker; provider PUT=0; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.62s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.64s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.46s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.47s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.51s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.47s)
+        PASS
+    compliance_runtime_postgres_test.go:96: joined reconcile: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined reconcile polling worker; provider PUT=0; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.57s)
+        PASS
+    compliance_runtime_postgres_test.go:103: joined revoked: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined revoked polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.68s)
+        PASS
+    compliance_runtime_postgres_test.go:114: joined lease_lost: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined lease_lost polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.58s)
+        PASS
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestComplianceRuntimePollingPostgres3315510333/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceRuntimePollingPostgres (11.79s)
+=== RUN   TestSecurityAgentExportPublicRestartPostgres
+    security_agent_export_public_restart_postgres_test.go:230: public restart compiled/installed58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f
+    security_agent_export_public_restart_postgres_test.go:244: joined  pid=201 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:256: joined  pid=207 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:258: joined  pid=213 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:259: joined  pid=219 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:260: joined  pid=225 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:262: joined A pid=231 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:265: joined  pid=236 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:274: joined  pid=242 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:274: joined  pid=247 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:274: joined  pid=252 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:274: joined  pid=258 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:295: joined  pid=264 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:297: joined  pid=269 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:299: checkpoint A: public setup/manual receipts survive new API processes
+    security_agent_export_public_restart_postgres_test.go:301: joined B pid=275 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:307: joined B-wait pid=283 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:312: joined  pid=291 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:313: joined  pid=297 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:314: checkpoint B: accepted plan retained; exactly one controlled model request and settled reservation
+    security_agent_export_public_restart_postgres_test.go:317: joined C pid=303 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:320: joined  pid=308 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:325: joined D pid=314 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:331: joined D-pending pid=323 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:336: checkpoints C/D: original independent decision, one dispatch, pending settlement no-op
+    security_agent_export_public_restart_postgres_test.go:338: joined E-interrupt pid=331 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:353: joined E-resume pid=339 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:403: checkpoint E: SIGTERM unknown write; real retry deadline; generation2 prepared replay; one immutable object
+    security_agent_export_public_restart_postgres_test.go:409: joined F pid=349 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:417: joined F-held pid=357 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:458: joined G pid=367 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:460: joined G-done pid=377 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:466: checkpoints F/G: dedicated30s lease survives loss, no theft, stale token refused, one runtime settlement
+    security_agent_export_public_restart_postgres_test.go:469: joined  pid=386 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:471: joined  pid=391 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:481: joined  pid=396 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:471: joined  pid=401 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:481: joined H-consume pid=407 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:481: joined  pid=413 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:471: joined  pid=419 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:481: joined  pid=425 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:543: checkpoint H: mounted download bytes=1186 sha256=394ea1ee92ca07d42359fd002d1f9e2cab4e2245f38b3af461d6b2e8d018f7a2; issue/restart and consume/lost-response/fresh-grant recovery
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=186 data=/tmp/TestSecurityAgentExportPublicRestartPostgres2362401511/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportPublicRestartPostgres (92.66s)
+PASS

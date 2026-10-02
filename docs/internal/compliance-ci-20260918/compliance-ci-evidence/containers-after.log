@@ -1,0 +1,12 @@
+657fad5b61a1a16f93c27afb20e263d4f8a18da3cf997762ab5fbbbecbfe4265 zasp-daemon-replay-0ed39cf2-a273-461e-8ff5-c4b0e770370e Exited (1) 2 days ago
+b681accdd906bb2b3c1015091497b74873593fdba847da9cd38026495a3c42b4 zasp-daemon-replay-eb8efdb0-8816-4708-9519-05fcc3c0e3bb Exited (1) 7 days ago
+10c69bde27044ebb19a158a5c51e476e3ae3f8783ffcd627d672a6b6070ddafe voxeval-local-postgres-1 Up 7 days (healthy)
+bdeb0a2df25ca35df18df1e2c9c72dcc3033aeb7e5a779546512c88f4e48ce5a voxeval-local-api-1 Up 7 days (healthy)
+6ff399b41c69d294cfb540cbd442e9b970620326a28eb161c5a1a3fa9bdb4bff voxeval-local-artifact-finalizer-1 Up 7 days (unhealthy)
+b5a9def19ab6484c4c5ff251c997823048c4091de3010e7fbbeb80fe0b057e94 voxeval-local-evaluation-worker-1 Up 7 days (unhealthy)
+d645bb618cb79089363a06835bcc6a02cc81b13361d07a080ae51e300522a396 voxeval-local-call-worker-1 Up 7 days (unhealthy)
+236d54b1e87011e272f3fb56d0044deb8852a81ffdd66e742b187e41a0e4a995 voxeval-local-reconciliation-worker-1 Up 7 days (healthy)
+02ee436ce72dd0287263fa67b4dc66a1576de4dfe8a2bcf8163eca4082e12bb0 voxeval-local-run-worker-1 Up 7 days (healthy)
+55dab6b9f5c238a8020cce8e2ac62c42f80d6ae4334f50d57552413cbe23c637 voxeval-local-twilio-simulator-1 Up 7 days (healthy)
+3772b49f732e4c1cf4be5afd3bae2fbba6a465f7b1c25a9347096cba8fdc394b voxeval-local-localstack-1 Up 7 days (healthy)
+dca2d3f469e46db7b3571df1b1f828b41fbc6e0cd40a1022d695481ab23aec6f voxeval-local-otel-collector-1 Up 7 days (healthy)

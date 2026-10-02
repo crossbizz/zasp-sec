@@ -19,6 +19,40 @@ function autonomousDetail(authorization = "autonomous") {
 }
 
 describe("security agent autonomous run detail", () => {
+  it.each([
+    { trigger: null, rationale: null },
+    { trigger: { kind: "finding", id: evidenceID, version: 1 }, rationale: { state: "available", summary: "Review exposed credential." } },
+    { trigger: { kind: "runtime_decision", id: evidenceID, version: 2_000_000 }, rationale: { state: "withheld", summary: "" } },
+  ])("preserves negotiated run context %j", (context) => {
+    const value = { ...autonomousDetail(), run_context: context };
+    expect(decodeSecurityAgentRunDetail(value)).toEqual(value);
+  });
+
+  it.each([
+    null, undefined, {},
+    { trigger: { kind: "manual", id: evidenceID, version: 1 }, rationale: null },
+    { trigger: null, rationale: { state: "available", summary: "Unbound explanation" } },
+    { trigger: { kind: "session", id: evidenceID, version: 1 }, rationale: null },
+    { trigger: { kind: "finding", id: evidenceID, version: Number.MAX_SAFE_INTEGER + 1 }, rationale: null },
+    ...["", "é".repeat(251), "unsafe\u202etext", "unsafe\ud800text"].map((summary) => ({ trigger: { kind: "finding", id: evidenceID, version: 1 }, rationale: { state: "available", summary } })),
+    { trigger: { kind: "finding", id: evidenceID, version: 1 }, rationale: { state: "withheld", summary: "leaked" } },
+    { trigger: { kind: "finding", id: evidenceID, version: 1 }, rationale: { state: "available", summary: "Review", provider: "hidden" } },
+  ])("rejects malformed run context %j", (context) => {
+    expect(() => decodeSecurityAgentRunDetail({ ...autonomousDetail(), run_context: context })).toThrow("schema mismatch");
+  });
+
+  it("rejects rationale without a displayed plan", () => {
+    expect(() => decodeSecurityAgentRunDetail({ ...autonomousDetail(), plan: null, authorization: "not_planned", execution: [], run_context: { trigger: { kind: "finding", id: evidenceID, version: 1 }, rationale: { state: "available", summary: "Unbound explanation" } } })).toThrow("schema mismatch");
+  });
+
+  it.each(["budget_deadline_exceeded", "budget_steps_exceeded", "budget_tokens_exceeded", "budget_cost_exceeded", "budget_usage_unknown"])("preserves known budget stop %s", (reason) => {
+    const value = { ...autonomousDetail(), budget_stop_reason: reason };
+    expect(decodeSecurityAgentRunDetail(value)).toEqual(value);
+  });
+
+  it.each([null, undefined, "", "provider secret", 1, {}])("rejects malformed budget stop %j", (reason) => {
+    expect(() => decodeSecurityAgentRunDetail({ ...autonomousDetail(), budget_stop_reason: reason })).toThrow("schema mismatch");
+  });
   it("accepts exact autonomous authorization without an approval", () => {
     expect(decodeSecurityAgentRunDetail(autonomousDetail()).plan?.steps[0]?.authorization).toBe("autonomous");
   });

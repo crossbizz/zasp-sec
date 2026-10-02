@@ -401,7 +401,7 @@ func validRedTeamRun(value RedTeamRun) bool {
 		}
 		return value.Verdict == "engine_error" && stringIn(value.ErrorCode, "denied", "malformed", "outcome_unknown", "exhausted") || stringIn(value.Verdict, "pass", "fail") && !hasError
 	case "failed":
-		return value.Attempt == 5 && !value.CancelRequested && hasStarted && hasCompleted && !hasVerdict && value.ErrorCode == "exhausted" && !hasEvidence
+		return hasStarted && hasCompleted && !hasVerdict && !hasEvidence && (value.Attempt == 5 && !value.CancelRequested && value.ErrorCode == "exhausted" || value.Attempt >= 1 && value.CancelRequested && value.ErrorCode == "outcome_unknown")
 	case "cancelled":
 		return value.CancelRequested && hasCompleted && !hasVerdict && value.ErrorCode == "cancelled" && !hasEvidence && (value.Attempt == 0 && !hasStarted || value.Attempt >= 1 && hasStarted)
 	default:

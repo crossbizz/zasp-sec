@@ -81,6 +81,9 @@ spec:
           resources: { requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi }, limits: { cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi } }
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
+            {{- if .Values.authorizationTemporal.profile }}
+            - { name: ZASP_RUNTIME_DATABASE_PROFILE, value: "canonical61-temporal78-authorization79-80-runtime-v1" }
+            {{- end }}
             {{- if has .Values.runtime.sessionSearchPhase (list "precision-consumers" "precision-intake") }}
             - { name: ZASP_RUNTIME_INGEST_SCHEMA, value: {{ ternary "runtime-event-v2" "runtime-event-v1" (eq .Values.runtime.sessionSearchPhase "precision-intake") | quote }} }
             {{- end }}
@@ -209,6 +212,9 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
           env:
             - { name: ZASP_WORKER_MODE, value: {{ $worker.mode | quote }} }
+            {{- if $root.Values.authorizationTemporal.profile }}
+            - { name: ZASP_RUNTIME_DATABASE_PROFILE, value: "canonical61-temporal78-authorization79-80-runtime-v1" }
+            {{- end }}
             - { name: ZASP_DATABASE_AUTHORITY, value: {{ $worker.authority | quote }} }
             - name: ZASP_WORKER_ID
               valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }

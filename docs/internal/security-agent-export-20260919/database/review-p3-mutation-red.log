@@ -1,0 +1,15 @@
+$ /usr/local/bin/docker run --rm --name zasp-export-db-review-p3-red --pull=never --network none -e ZASP_TEST_EXPORT_OMIT_SETTLED_GUARD=1 --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExportSettlementInterleavePostgres$/winner_settled_true$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentExportSettlementInterleavePostgres
+=== RUN   TestSecurityAgentExportSettlementInterleavePostgres/winner_settled_true
+    security_agent_export_postgres_test.go:1580: test-only clone mutation: removed only settled_at guard
+    security_agent_export_postgres_test.go:1640: real winner settled before stale row locking: {"state": "needs_human", "reason": "export_parent_stopped", "run_id": "pid_8e100001-0000-4000-8000-000000000001", "settled": true, "step_id": "pid_8e100005-0000-4000-8000-000000000005", "replayed": false, "export_id": "pid_a8b352f2-0ac3-4491-8ee8-bd86a64f7c19", "run_version": 4}
+    security_agent_export_postgres_test.go:1659: stale candidate claim after winner commit=[{"run_id": "pid_8e100001-0000-4000-8000-000000000001", "step_id": "pid_8e100005-0000-4000-8000-000000000005", "export_id": "pid_a8b352f2-0ac3-4491-8ee8-bd86a64f7c19", "run_version": 4, "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001", "lease_expires_at": "2026-09-19T15:25:53.600815+00:00"}]
+    security_agent_export_postgres_test.go:1661: stale candidate replaced a committed live/settled lease: [{"run_id": "pid_8e100001-0000-4000-8000-000000000001", "step_id": "pid_8e100005-0000-4000-8000-000000000005", "export_id": "pid_a8b352f2-0ac3-4491-8ee8-bd86a64f7c19", "run_version": 4, "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001", "lease_expires_at": "2026-09-19T15:25:53.600815+00:00"}]
+    security_agent_export_postgres_test.go:1670: stale candidate mutated winning lease/receipt
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportSettlementInterleavePostgreswinner_settl3146077653/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportSettlementInterleavePostgres (5.35s)
+    --- FAIL: TestSecurityAgentExportSettlementInterleavePostgres/winner_settled_true (5.35s)
+FAIL
+
+Container exit: 1
+

@@ -1,0 +1,204 @@
+diff --git a/services/platform/artifactstore/s3driver/driver.go b/services/platform/artifactstore/s3driver/driver.go
+index f789e68933fc3ccd7a6d49a691da12e2b76a3366..9ff51d8451494c86d3e4f16ca7f577bd51fdb3a8 100644
+--- a/services/platform/artifactstore/s3driver/driver.go
++++ b/services/platform/artifactstore/s3driver/driver.go
+@@ -171,6 +171,9 @@ func (driver *Driver) fetch(ctx context.Context, locator artifactstore.DriverLoc
+ 	body, readErr := io.ReadAll(io.LimitReader(output.Body, driver.config.MaximumBytes+1))
+ 	closeErr := output.Body.Close()
+ 	if readErr != nil || closeErr != nil || ctx.Err() != nil {
++		if ctx.Err() == nil && !errors.Is(closeErr, context.Canceled) && !errors.Is(closeErr, context.DeadlineExceeded) && sdkChecksumMismatch(readErr) {
++			return artifactstore.DriverObject{}, errors.Join(ErrGet, artifactstore.ErrIntegrity)
++		}
+ 		return artifactstore.DriverObject{}, safeReadError(ctx, errors.Join(readErr, closeErr))
+ 	}
+ 	if int64(len(body)) <= 0 || int64(len(body)) > driver.config.MaximumBytes {
+@@ -184,6 +187,15 @@ func (driver *Driver) fetch(ctx context.Context, locator artifactstore.DriverLoc
+ 	return cloneObject(object), nil
+ }
+ 
++// The pinned AWS checksum module emits an unexported concrete error only after
++// EOF checksum validation. It exposes no sentinel or marker interface. Match
++// its type identity, never provider diagnostic text; the real-SDK transport
++// regression must keep passing when the dependency is upgraded.
++func sdkChecksumMismatch(err error) bool {
++	t := reflect.TypeOf(err)
++	return t != nil && t.PkgPath() == "github.com/aws/aws-sdk-go-v2/service/internal/checksum" && t.Name() == "validationError"
++}
++
+ // Provider errors remain opaque. Cancellation is safe to classify, but does
+ // not establish that any successfully read object violated its pinned contract.
+ func safeReadError(ctx context.Context, err error) error {
+diff --git a/services/platform/apiserver/compliance_read_classification_test.go b/services/platform/apiserver/compliance_read_classification_test.go
+index 61eb59ddc7adf3f7ce66bef35b33172e49059adf..2f65e40fe71bf13f67dbe6f8b938ddf93ab94fb5 100644
+--- a/services/platform/apiserver/compliance_read_classification_test.go
++++ b/services/platform/apiserver/compliance_read_classification_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"errors"
+ 	"io"
+ 	"net/http"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -23,12 +24,88 @@ import (
+ const classificationKMS = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-4123-8123-123456789012"
+ const classificationSecret = "provider-secret-bucket-diagnostic"
+ 
+-var classificationModes = []string{"head-outage", "get-outage", "body-outage", "cancel", "deadline", "version", "metadata", "checksum", "body-mismatch", "envelope", "valid"}
++var classificationModes = []string{"head-outage", "get-outage", "body-outage", "cancel", "deadline", "version", "metadata", "checksum", "body-mismatch", "envelope", "valid",
++	"sdk-checksum", "sdk-body-outage", "sdk-spoof", "sdk-cancel", "sdk-valid"}
+ 
+ func classificationIntegrity(mode string) bool {
+-	return mode == "version" || mode == "metadata" || mode == "checksum" || mode == "body-mismatch" || mode == "envelope"
++	return mode == "version" || mode == "metadata" || mode == "checksum" || mode == "body-mismatch" || mode == "envelope" || mode == "sdk-checksum"
+ }
+ 
++func classificationValid(mode string) bool { return mode == "valid" || mode == "sdk-valid" }
++
++type classificationSDKTransport struct {
++	t *testing.T
++	p *classificationProvider
++}
++
++// Only HTTP transport is replaced. The installed SDK still deserializes the
++// pinned response and validates its body checksum at EOF.
++func (tr *classificationSDKTransport) RoundTrip(r *http.Request) (*http.Response, error) {
++	p := tr.p
++	key, _ := bucketlayout.ExportKey(p.artifact.Scope, p.artifact.Reference.ArtifactID())
++	if r.URL.Host != "classification.invalid" || r.URL.Path != "/compliance-exports/"+key || r.URL.Query().Get("versionId") != p.artifact.VersionID || r.Header.Get("X-Amz-Expected-Bucket-Owner") != "123456789012" || r.Header.Get("X-Amz-Checksum-Mode") != "ENABLED" {
++		tr.t.Error("SDK read omitted pinned request authority")
++		return nil, errors.New(classificationSecret)
++	}
++	h := http.Header{}
++	h.Set("Content-Length", strconv.FormatInt(p.artifact.Size, 10))
++	h.Set("Content-Type", "application/json")
++	h.Set("X-Amz-Version-Id", p.artifact.VersionID)
++	h.Set("X-Amz-Checksum-Sha256", base64.StdEncoding.EncodeToString(p.artifact.SHA256[:]))
++	h.Set("X-Amz-Server-Side-Encryption", "aws:kms")
++	h.Set("X-Amz-Server-Side-Encryption-Aws-Kms-Key-Id", classificationKMS)
++	for k, v := range p.metadata() {
++		h.Set("X-Amz-Meta-"+k, v)
++	}
++	var body io.ReadCloser = http.NoBody
++	switch r.Method {
++	case "HEAD":
++		if p.headHook != nil {
++			p.headHook()
++		}
++	case "GET":
++		content := append([]byte(nil), p.artifact.Body...)
++		if p.mode != "sdk-valid" {
++			content[0] ^= 1
++		}
++		body = io.NopCloser(strings.NewReader(string(content)))
++		switch p.mode {
++		case "sdk-body-outage":
++			body = io.NopCloser(io.MultiReader(strings.NewReader(string(content[:len(content)/2])), classificationReadError{err: io.ErrUnexpectedEOF}))
++		case "sdk-spoof":
++			// Even all advertised bytes plus checksum-looking diagnostics cannot
++			// impersonate the SDK's concrete validation error.
++			body = io.NopCloser(io.MultiReader(strings.NewReader(string(content)), classificationReadError{err: errors.New("checksum did not match: algorithm SHA256, expect private, actual " + classificationSecret)}))
++		case "sdk-cancel":
++			// Return all corrupt bytes and EOF after cancellation: the actual SDK
++			// mismatch exists, but the cancelled request must win classification.
++			body = &classificationCancelBody{Reader: strings.NewReader(string(content)), cancel: p.cancel}
++		}
++	default:
++		tr.t.Error("read client attempted a mutation")
++		return nil, errors.New(classificationSecret)
++	}
++	return &http.Response{StatusCode: 200, Status: "200 OK", Header: h, Body: body, ContentLength: p.artifact.Size, Request: r}, nil
++}
++
++type classificationReadError struct{ err error }
++
++func (r classificationReadError) Read([]byte) (int, error) { return 0, r.err }
++
++type classificationCancelBody struct {
++	*strings.Reader
++	cancel context.CancelFunc
++}
++
++func (r *classificationCancelBody) Read(p []byte) (int, error) {
++	n, err := r.Reader.Read(p)
++	if err == io.EOF {
++		r.cancel()
++	}
++	return n, err
++}
++func (r *classificationCancelBody) Close() error { return nil }
++
+ type classificationProvider struct {
+ 	artifact artifactstore.Artifact
+ 	mode     string
+@@ -93,7 +170,11 @@ func (p *classificationProvider) GetObject(ctx context.Context, _ *s3.GetObjectI
+ func classificationStore(t *testing.T, a artifactstore.Artifact, mode string, cancel context.CancelFunc) (*artifactstore.Store, *s3driver.Driver, *classificationProvider) {
+ 	t.Helper()
+ 	p := &classificationProvider{artifact: a, mode: mode, cancel: cancel}
+-	d, err := s3driver.NewExport(p, s3driver.Config{Bucket: "compliance-exports", ExpectedBucketOwner: "123456789012", KMSKeyARN: classificationKMS, MaximumBytes: compliancePackageMaximum})
++	var client s3driver.API = p
++	if strings.HasPrefix(mode, "sdk-") {
++		client = s3.New(s3.Options{Region: "us-east-1", BaseEndpoint: aws.String("https://classification.invalid"), UsePathStyle: true, Credentials: aws.AnonymousCredentials{}, HTTPClient: &http.Client{Transport: &classificationSDKTransport{t: t, p: p}}})
++	}
++	d, err := s3driver.NewExport(client, s3driver.Config{Bucket: "compliance-exports", ExpectedBucketOwner: "123456789012", KMSKeyARN: classificationKMS, MaximumBytes: compliancePackageMaximum})
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -126,7 +207,7 @@ func TestComplianceReadFailureClassification(t *testing.T) {
+ 						} else {
+ 							_, err = store.Get(ctx, db.artifact.Locator)
+ 						}
+-						if mode == "valid" || mode == "envelope" {
++						if classificationValid(mode) || mode == "envelope" {
+ 							if err != nil {
+ 								t.Fatal(err)
+ 							}
+@@ -139,7 +220,7 @@ func TestComplianceReadFailureClassification(t *testing.T) {
+ 						if !errors.Is(err, getError) || errors.Is(err, artifactstore.ErrIntegrity) != classificationIntegrity(mode) || strings.Contains(err.Error(), classificationSecret) {
+ 							t.Fatalf("%s read category: %v", layer, err)
+ 						}
+-						if mode == "cancel" && !errors.Is(err, context.Canceled) {
++						if (mode == "cancel" || mode == "sdk-cancel") && !errors.Is(err, context.Canceled) {
+ 							t.Fatal("cancellation category lost")
+ 						}
+ 						if mode == "deadline" && !errors.Is(err, context.DeadlineExceeded) {
+@@ -163,7 +244,7 @@ func TestComplianceReadFailureClassification(t *testing.T) {
+ 					db.operations = nil
+ 					w := complianceHTTPRequest(t, mounted, *identity, "POST", "/api/v1/compliance/exports/"+complianceHTTPJobID+"/download", `{"format":"human","token":"`+complianceHTTPToken+`"}`, func(r *http.Request) { *r = *r.WithContext(ctx) })
+ 					want := "read"
+-					if mode == "valid" {
++					if classificationValid(mode) {
+ 						want += ",consume"
+ 					} else if classificationIntegrity(mode) {
+ 						want += ",integrity_failure"
+@@ -171,7 +252,7 @@ func TestComplianceReadFailureClassification(t *testing.T) {
+ 					if strings.Join(db.operations, ",") != want {
+ 						t.Fatalf("read effects %v want %s", db.operations, want)
+ 					}
+-					if mode == "valid" {
++					if classificationValid(mode) {
+ 						if w.Code != 200 || !strings.Contains(w.Body.String(), "Persisted report") {
+ 							t.Fatalf("valid flow %d %s", w.Code, w.Body)
+ 						}
+diff --git a/services/platform/apiserver/compliance_read_classification_postgres_test.go b/services/platform/apiserver/compliance_read_classification_postgres_test.go
+index 0ea976f5d1ae0159119a70105cadf458113a373a..f85fb9c82dbec176e53b9c6452188a7bf644ecf9 100644
+--- a/services/platform/apiserver/compliance_read_classification_postgres_test.go
++++ b/services/platform/apiserver/compliance_read_classification_postgres_test.go
+@@ -81,7 +81,7 @@ func TestComplianceHTTPPostgresReadClassification(t *testing.T) {
+ 				}
+ 				downloadBody := `{"format":"human","token":"` + issued.Token + `"}`
+ 				w := invoke(ctx, path+"/download", downloadBody)
+-				if mode == "valid" {
++				if classificationValid(mode) {
+ 					if w.Code != 200 || w.Body.String() != "Frozen historical report" || w.Header().Get("Content-Disposition") == "" {
+ 						t.Fatalf("valid download %d %s", w.Code, w.Body)
+ 					}
+@@ -94,7 +94,7 @@ func TestComplianceHTTPPostgresReadClassification(t *testing.T) {
+ 					if err := f.owner.QueryRow(f.ctx, `SELECT used_at,read_expires_at FROM zasp_compliance_export_grants WHERE grant_digest=digest($1,'sha256')`, issued.Token).Scan(&used, &lease); err != nil {
+ 						t.Fatal(err)
+ 					}
+-					terminal := mode == "valid" || classificationIntegrity(mode)
++					terminal := classificationValid(mode) || classificationIntegrity(mode)
+ 					if (used != nil) != terminal {
+ 						t.Fatalf("terminal grant state: used=%v mode=%s", used != nil, mode)
+ 					}

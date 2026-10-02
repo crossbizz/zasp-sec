@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
@@ -38,6 +39,7 @@ type Operation struct {
 
 type operationRouter struct {
 	operations []registeredOperation
+	authorizer RequestAuthorizer
 }
 
 type registeredOperation struct {
@@ -124,11 +126,43 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 				writeRouterError(writer, request, http.StatusForbidden, "fresh_auth_required", "Fresh authentication required")
 				return
 			}
-			if operation.permission != "" && !requestHasPermission(request, operation.permission) {
+			routed := RoutedOperation{OperationID: operation.operationID, PathParameters: parameters}
+			if postLoginOperation(operation.operationID) && router.authorizer != nil {
+				preparer, supported := router.authorizer.(postLoginPreparer)
+				if !supported {
+					writePostLoginError(writer, request, authorization.ErrUnavailable)
+					return
+				}
+				identity, _ := IdentityFromRequest(request)
+				grant, err := preparer.preparePostLogin(request.Context(), identity, routed)
+				if err != nil {
+					writePostLoginError(writer, request, err)
+					return
+				}
+				request = request.WithContext(context.WithValue(request.Context(), postLoginContextKey{}, grant))
+			}
+			if operation.permission != "" && router.authorizer != nil {
+				identity, _ := IdentityFromRequest(request)
+				authorizationContext := context.WithValue(request.Context(), authorizationQueryContextKey{}, request.URL.Query())
+				grant, err := router.authorizer.Authorize(authorizationContext, identity, identity.credentialBinding, routed)
+				if err != nil {
+					switch {
+					case errors.Is(err, ErrRepositoryNotFound):
+						writeRouterError(writer, request, http.StatusNotFound, "not_found", "Resource not found")
+					case errors.Is(err, ErrAuthorizationDenied):
+						writeRouterError(writer, request, http.StatusForbidden, "request_forbidden", "Request forbidden")
+					case authorization.RetryableConflict(err):
+						writeRouterRetryableError(writer, request, http.StatusConflict, "authorization_changed", "Authorization changed; retry from a fresh request")
+					default:
+						writeRouterRetryableError(writer, request, http.StatusServiceUnavailable, "authorization_unavailable", "Authorization unavailable")
+					}
+					return
+				}
+				request = request.WithContext(context.WithValue(request.Context(), requestAuthorizationContextKey{}, grant))
+			} else if operation.permission != "" && !requestHasPermission(request, operation.permission) {
 				writeRouterError(writer, request, http.StatusForbidden, "request_forbidden", "Request forbidden")
 				return
 			}
-			routed := RoutedOperation{OperationID: operation.operationID, PathParameters: parameters}
 			request = request.WithContext(context.WithValue(request.Context(), routedOperationContextKey{}, routed))
 			operation.handler.ServeHTTP(writer, request)
 			return
@@ -139,6 +173,17 @@ func (router *operationRouter) ServeHTTP(writer http.ResponseWriter, request *ht
 		return
 	}
 	writeRouterError(writer, request, http.StatusNotFound, "not_found", "Product route not found")
+}
+
+func writePostLoginError(writer http.ResponseWriter, request *http.Request, err error) {
+	switch {
+	case errors.Is(err, authorization.ErrPending):
+		writeRouterRetryableError(writer, request, http.StatusConflict, "authorization_pending", "Authorization projection pending")
+	case authorization.RetryableConflict(err):
+		writeRouterRetryableError(writer, request, http.StatusConflict, "authorization_changed", "Authorization changed; retry from a fresh request")
+	default:
+		writeRouterRetryableError(writer, request, http.StatusServiceUnavailable, "authorization_unavailable", "Authorization unavailable")
+	}
 }
 
 func requestHasFreshAuthentication(request *http.Request) bool {
@@ -254,6 +299,9 @@ func matchSegments(pattern []routeSegment, path []string) (map[string]string, bo
 }
 
 func validRouteParameters(operationID string, parameters map[string]string) bool {
+	if operationID == "getComplianceEvidence" {
+		return len(parameters) == 2 && validComplianceTarget(ComplianceTarget{SourceKind: parameters["sourceKind"], SourceID: parameters["id"]}, false)
+	}
 	if operationID == "getSessionEvent" {
 		return len(parameters) == 2 && runtimeSessionTarget(parameters["id"]) && validAdministrationProductID(parameters["eventId"])
 	}

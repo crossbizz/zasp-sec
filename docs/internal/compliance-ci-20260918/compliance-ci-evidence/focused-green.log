@@ -1,0 +1,142 @@
+TAP version 13
+# Subtest: macOS preserves the existing application default
+ok 1 - macOS preserves the existing application default
+  ---
+  duration_ms: 0.734917
+  type: 'test'
+  ...
+# Subtest: explicit Linux executable with spaces and shell metacharacters is passed literally
+ok 2 - explicit Linux executable with spaces and shell metacharacters is passed literally
+  ---
+  duration_ms: 563.995125
+  type: 'test'
+  ...
+# Subtest: explicit relative browser path fails without fallback
+ok 3 - explicit relative browser path fails without fallback
+  ---
+  duration_ms: 0.392792
+  type: 'test'
+  ...
+# Subtest: explicit newline browser path fails without fallback
+ok 4 - explicit newline browser path fails without fallback
+  ---
+  duration_ms: 0.155458
+  type: 'test'
+  ...
+# Subtest: explicit NUL browser path fails without fallback
+ok 5 - explicit NUL browser path fails without fallback
+  ---
+  duration_ms: 0.072292
+  type: 'test'
+  ...
+# Subtest: explicit tab browser path fails without fallback
+ok 6 - explicit tab browser path fails without fallback
+  ---
+  duration_ms: 0.156209
+  type: 'test'
+  ...
+# Subtest: explicit DEL browser path fails without fallback
+ok 7 - explicit DEL browser path fails without fallback
+  ---
+  duration_ms: 0.061208
+  type: 'test'
+  ...
+# Subtest: explicit empty browser path fails without fallback
+ok 8 - explicit empty browser path fails without fallback
+  ---
+  duration_ms: 0.285208
+  type: 'test'
+  ...
+# Subtest: explicit nonexistent path fails despite a valid PATH fallback
+ok 9 - explicit nonexistent path fails despite a valid PATH fallback
+  ---
+  duration_ms: 2.894792
+  type: 'test'
+  ...
+# Subtest: explicit nonexecutable path fails despite a valid PATH fallback
+ok 10 - explicit nonexecutable path fails despite a valid PATH fallback
+  ---
+  duration_ms: 2.720833
+  type: 'test'
+  ...
+# Subtest: explicit directory path fails despite a valid PATH fallback
+ok 11 - explicit directory path fails despite a valid PATH fallback
+  ---
+  duration_ms: 2.650125
+  type: 'test'
+  ...
+# Subtest: Linux resolves installed Chrome from PATH and refuses missing defaults
+ok 12 - Linux resolves installed Chrome from PATH and refuses missing defaults
+  ---
+  duration_ms: 2.422583
+  type: 'test'
+  ...
+# Subtest: checked prerequisites reach setup once with resolved browser and PostgreSQL paths
+ok 13 - checked prerequisites reach setup once with resolved browser and PostgreSQL paths
+  ---
+  duration_ms: 237.51
+  type: 'test'
+  ...
+# Subtest: missing chrome prevents setup and identifies the prerequisite
+ok 14 - missing chrome prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 6.853208
+  type: 'test'
+  ...
+# Subtest: missing go prevents setup and identifies the prerequisite
+ok 15 - missing go prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 7.875166
+  type: 'test'
+  ...
+# Subtest: missing docker prevents setup and identifies the prerequisite
+ok 16 - missing docker prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 7.966125
+  type: 'test'
+  ...
+# Subtest: missing openssl prevents setup and identifies the prerequisite
+ok 17 - missing openssl prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 8.601167
+  type: 'test'
+  ...
+# Subtest: missing pg_config prevents setup and identifies the prerequisite
+ok 18 - missing pg_config prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 7.612
+  type: 'test'
+  ...
+# Subtest: missing pg/psql prevents setup and identifies the prerequisite
+ok 19 - missing pg/psql prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 215.471333
+  type: 'test'
+  ...
+# Subtest: missing node_modules/.bin/vinext prevents setup and identifies the prerequisite
+ok 20 - missing node_modules/.bin/vinext prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 197.584667
+  type: 'test'
+  ...
+# Subtest: missing dist/server/index.js prevents setup and identifies the prerequisite
+ok 21 - missing dist/server/index.js prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 205.065292
+  type: 'test'
+  ...
+# Subtest: the actual harness exits nonzero before setup for an invalid explicit browser
+ok 22 - the actual harness exits nonzero before setup for an invalid explicit browser
+  ---
+  duration_ms: 66.358458
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1601.21025

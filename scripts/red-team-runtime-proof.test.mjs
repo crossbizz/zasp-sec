@@ -4,6 +4,14 @@ import { readFile } from "node:fs/promises";
 import { buildRedTeamRuntimeArguments, createRedTeamRuntimeProof } from "./red-team-runtime-proof.mjs";
 
 const config={owner:"12345678-1234-4234-8234-123456789abc",binary:"/tmp/proof/worker.test",runner:"/workspace/workers/redteam-node/runner.mjs",dsn:"postgres://zasp_e2e@127.0.0.1:15432/postgres?sslmode=disable",awsEndpoint:"http://127.0.0.1:14566",runID:"pid_92700001-0000-4000-8000-000000000001"};
+test("linked mounted runtime selects only the bounded linked worker and mounts its adapter",()=>{
+  const args=buildRedTeamRuntimeArguments({...config,linked:{adapterBinary:"/tmp/proof/adapter.test",response:"pass"}});
+  assert.ok(args.includes("--pull=never"));
+  assert.ok(args.includes("type=bind,src=/tmp/proof/adapter.test,dst=/proof/adapter.test,readonly"));
+  assert.ok(args.includes("ZASP_EXISTING_TEST_MOUNTED_RESPONSE=pass"));
+  assert.equal(args[args.indexOf("-test.run")+1],"^TestProductionCombinedE2ERedTeamRuntime$");
+  for(const linked of [{adapterBinary:"relative",response:"pass"},{adapterBinary:"/tmp/a",response:"fake"}])assert.throws(()=>buildRedTeamRuntimeArguments({...config,linked}));
+});
 test("cached engine preparation performs no registry request", async () => {
   const calls = [];
   const proof = createRedTeamRuntimeProof(async (_executable, args) => {

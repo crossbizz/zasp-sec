@@ -54,6 +54,7 @@ type CollectionSecurityRequest struct {
 	ConnectionID           domain.ProductID
 	JobID                  domain.ProductID
 	Attempt                int
+	EffectID               string
 	CursorLineage          int
 	Subject                collection.SubjectBinding
 	Phase                  string
@@ -100,6 +101,7 @@ type securityAuthority struct {
 	ConnectionID           string `json:"connection_id"`
 	CredentialExpiresAt    string `json:"credential_expires_at"`
 	CursorLineage          int    `json:"cursor_lineage"`
+	EffectID               string `json:"effect_id,omitempty"`
 	EnvironmentID          string `json:"environment_id"`
 	IntegrationID          string `json:"integration_id"`
 	JobID                  string `json:"job_id"`
@@ -232,6 +234,9 @@ func (runner *SecurityRunner) Collect(ctx context.Context, request CollectionSec
 	defer clear(encodedCredential)
 	bounded, cancel := context.WithTimeout(ctx, runner.timeout)
 	defer cancel()
+	if err := collection.CheckEffectBoundary(bounded); err != nil {
+		return result, err
+	}
 	output, err := runner.process.Run(bounded, spec, input)
 	if err != nil || bounded.Err() != nil {
 		return CollectionSecurityResult{}, runner.classifyProcessFailure(ctx, bounded, err)
@@ -267,7 +272,7 @@ func containsSecurityFragment(output []byte, fragments [][]byte) bool {
 }
 
 func validSecurityRunnerRequest(request CollectionSecurityRequest, credential []byte) bool {
-	if request.Scope.Validate() != nil || request.IntegrationID.IsZero() || request.ConnectionID.IsZero() || request.JobID.IsZero() || request.Attempt < 1 || request.Attempt > 100 || request.CursorLineage < 1 || request.CursorLineage > 1_000_000 || request.Subject.Kind != "aws_account" || !securityAccountPattern.MatchString(request.Subject.ID) || request.RemainingBytes < 0 || request.RemainingBytes > 64*1024*1024 || request.RemainingEntities < 0 || request.RemainingEntities > 1_000 || request.RemainingRelationships < 0 || request.RemainingRelationships > 2_000 || request.SourceDigest == ([32]byte{}) || sha256.Sum256(request.Source) != request.SourceDigest || !exactUTCSecurityTime(request.ObservedAt) || !exactUTCSecurityTime(request.CredentialExpiresAt) || !request.CredentialExpiresAt.After(request.ObservedAt) || !canonicalSecurityObject(request.Source) {
+	if request.Scope.Validate() != nil || request.IntegrationID.IsZero() || request.ConnectionID.IsZero() || request.JobID.IsZero() || !collection.ValidExecutionIdentity(request.Attempt, request.EffectID) || request.CursorLineage < 1 || request.CursorLineage > 1_000_000 || request.Subject.Kind != "aws_account" || !securityAccountPattern.MatchString(request.Subject.ID) || request.RemainingBytes < 0 || request.RemainingBytes > 64*1024*1024 || request.RemainingEntities < 0 || request.RemainingEntities > 1_000 || request.RemainingRelationships < 0 || request.RemainingRelationships > 2_000 || request.SourceDigest == ([32]byte{}) || sha256.Sum256(request.Source) != request.SourceDigest || !exactUTCSecurityTime(request.ObservedAt) || !exactUTCSecurityTime(request.CredentialExpiresAt) || !request.CredentialExpiresAt.After(request.ObservedAt) || !canonicalSecurityObject(request.Source) {
 		return false
 	}
 	switch request.Mode {
@@ -367,7 +372,7 @@ func validProwlerSecurityResource(accountID string, finding prowlerSecurityFindi
 
 func securityAuthorityForRequest(request CollectionSecurityRequest) securityAuthority {
 	return securityAuthority{
-		Attempt: request.Attempt, CartographyVersion: "0.139.1", ConnectionID: request.ConnectionID.String(),
+		Attempt: request.Attempt, EffectID: request.EffectID, CartographyVersion: "0.139.1", ConnectionID: request.ConnectionID.String(),
 		CredentialExpiresAt: request.CredentialExpiresAt.Format(time.RFC3339), CursorLineage: request.CursorLineage,
 		EnvironmentID: request.Scope.EnvironmentID().String(), IntegrationID: request.IntegrationID.String(), JobID: request.JobID.String(),
 		ObservedAt: request.ObservedAt.Format(time.RFC3339), OrganizationID: request.Scope.OrganizationID().String(), Phase: request.Phase,

@@ -71,7 +71,7 @@ func TestProductionRedTeamRunnerInvokesFixedAdapterAndPersistsBoundInputAndNativ
 		}
 		return os.WriteFile(arguments[3], bytes, 0o600)
 	})
-	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{Artifacts: store, Command: command, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/dist/src/entrypoint.js", TargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", TargetTokenFile: tokenFile, TargetCAFile: caFile, TempRoot: root, Timeout: time.Minute, Clock: func() time.Time { return time.Now().UTC() }})
+	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{RunnerImage: "registry.example/zasp/red-team-worker@sha256:" + strings.Repeat("d", 64), Artifacts: store, Command: command, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/dist/src/entrypoint.js", TargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", TargetTokenFile: tokenFile, TargetCAFile: caFile, TempRoot: root, Timeout: time.Minute, Clock: func() time.Time { return time.Now().UTC() }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,6 +90,23 @@ func TestProductionRedTeamRunnerInvokesFixedAdapterAndPersistsBoundInputAndNativ
 	}
 	if result.InputArtifact == nil || result.InputArtifact.Reference == result.EvidenceReference || result.InputArtifact.SizeBytes != int64(len(store.puts[0].Body)) || !strings.Contains(string(store.puts[1].Body), `"schema_version":"red-team-evidence-bundle-v1"`) || !strings.Contains(string(store.puts[1].Body), `"native_artifact"`) || !strings.Contains(string(store.puts[1].Body), result.InputArtifact.Reference) {
 		t.Fatal("input reference or native artifact was not retained in the evidence bundle")
+	}
+}
+
+func TestProductionRedTeamRunnerAllowsUnpinnedLegacyV1Composition(t *testing.T) {
+	root := t.TempDir()
+	tokenFile := filepath.Join(root, "token")
+	if err := os.WriteFile(tokenFile, []byte(strings.Repeat("t", 64)), 0o400); err != nil {
+		t.Fatal(err)
+	}
+	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{Artifacts: &redTeamArtifactStoreStub{}, Command: redTeamCommandFunc(func(context.Context, string, []string, []string, string) error { return nil }), NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/dist/src/entrypoint.js", TargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", TargetTokenFile: tokenFile, TargetCAFile: writeRedTeamTestCA(t, root), TempRoot: root, Timeout: time.Minute, Clock: func() time.Time { return time.Now().UTC() }})
+	if err != nil || runner == nil {
+		t.Fatal("legacy v1 production runner no longer composes", err)
+	}
+	bad := runner.config
+	bad.RunnerImage = "registry.example/zasp/red-team-worker:latest"
+	if candidate, err := newProductionRedTeamRunner(bad); err == nil || candidate != nil {
+		t.Fatal("mutable nonempty image accepted")
 	}
 }
 

@@ -1,0 +1,10 @@
+# github.com/zasp-ai/zasp-sec/services/platform/apiserver [github.com/zasp-ai/zasp-sec/services/platform/apiserver.test]
+apiserver/security_agent_export_download_test.go:33:81: undefined: securityAgentExportReadReceipt
+apiserver/security_agent_export_download_test.go:49:9: undefined: securityAgentExportReadReceipt
+apiserver/security_agent_export_download_test.go:49: undefined: SecurityAgentExportBinding
+apiserver/security_agent_export_download_test.go:49: undefined: SecurityAgentExportSelection
+apiserver/security_agent_export_download_test.go:57:15: undefined: readSecurityAgentExportDownload
+apiserver/security_agent_export_download_test.go:115:16: undefined: readSecurityAgentExportDownload
+apiserver/security_agent_export_download_test.go:157:16: undefined: readSecurityAgentExportDownload
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver [build failed]
+FAIL

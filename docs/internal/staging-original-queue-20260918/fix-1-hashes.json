@@ -1,0 +1,95 @@
+{
+  "head": "8733b16f8d939d38a8157dd2519e57fc6f630542",
+  "before": [
+    {
+      "path": "deploy/staging/main.tf",
+      "bytes": 99510,
+      "sha256": "6e66af209bce409354cb718bf18b0203f32866ac826756d6b44c8dc2f6bbe8eb"
+    },
+    {
+      "path": "deploy/staging/queue-contract.test.mjs",
+      "bytes": 6995,
+      "sha256": "d3aac16508aa45592f4f9f91fbfdc71a517b0ba6032f18bdcdd0a99f504710fe"
+    }
+  ],
+  "after": [
+    {
+      "path": "deploy/staging/main.tf",
+      "bytes": 99932,
+      "sha256": "cc5bacf76f2b041bf0843eddfd29008730bb4b1eb3ea64989b070765153494aa"
+    },
+    {
+      "path": "deploy/staging/queue-contract.test.mjs",
+      "bytes": 9515,
+      "sha256": "b55eb7b4b14f0fbcc6d135167cdec60fb9788093e4c83fd3b6027af51ee6141b"
+    }
+  ],
+  "frozenEvidence": [
+    {
+      "path": "package.json",
+      "bytes": 16459,
+      "sha256": "287bb54fb5932d63229e34be79aa3343e5a6a4de10ee4a72ad65496f568449c3"
+    },
+    {
+      "path": "docs/internal/staging-original-queue-20260918/affected-node.log",
+      "bytes": 18575,
+      "sha256": "2db95bc0398ae7df137f350c879da8433647fe2152604b5f5c22f2c6b6275562"
+    },
+    {
+      "path": "docs/internal/staging-original-queue-20260918/affected-platform-go.log",
+      "bytes": 141,
+      "sha256": "ed77010a1abec4be90f0ba3a7471a209f2f83ab528b44c74809efb996fb3963f"
+    },
+    {
+      "path": "docs/internal/staging-original-queue-20260918/affected-proof-go.log",
+      "bytes": 62,
+      "sha256": "0e523d10681428ff1b3f7b1029f7629d7a0644de7961dd4897451bc4794530bf"
+    },
+    {
+      "path": "docs/internal/staging-original-queue-20260918/before-main.json",
+      "bytes": 132709,
+      "sha256": "2725d515f1d05dfdb410e1141a18c8efc87e19d8570937c121880909f46b120a"
+    },
+    {
+      "path": "docs/internal/staging-original-queue-20260918/before-package.json",
+      "bytes": 22043,
+      "sha256": "e35435365aab95c3deb37beb0ded055e59628da36784b546e426cef2caa27403"
+    },
+    {
+      "path": "docs/internal/staging-original-queue-20260918/green.log",
+      "bytes": 1220,
+      "sha256": "108feabe2a5bed22e890bba64cd5b5a57d83b0f4099d180e68ca6c85a406a102"
+    },
+    {
+      "path": "docs/internal/staging-original-queue-20260918/hashes.json",
+      "bytes": 1078,
+      "sha256": "36e6173779ecbf4b98cc50f39002ee065656d0677d8cb3dbff1a2693d24c78bc"
+    },
+    {
+      "path": "docs/internal/staging-original-queue-20260918/independent-review.md",
+      "bytes": 1806,
+      "sha256": "ba8c0ff498086d5cc4ee11d5e353a89b826eb4be27247f5cf80ae5bb05d9689f"
+    },
+    {
+      "path": "docs/internal/staging-original-queue-20260918/red.log",
+      "bytes": 2351,
+      "sha256": "5c9e4fbda4780d6b15549844ccb2e9f21a8599391c78c2e1986810f29479add0"
+    },
+    {
+      "path": "docs/internal/staging-original-queue-20260918/report.md",
+      "bytes": 6488,
+      "sha256": "c83f02817f41cbf3ea9e5ca30adeffd83187c5a1ddec2e2be802494331ed3f9b"
+    },
+    {
+      "path": "docs/internal/staging-original-queue-20260918/scoped.patch",
+      "bytes": 7876,
+      "sha256": "731332ef482ead9b64106f693c08022d965cc912a8a3b964a00e3ebe9d9c9a4f"
+    }
+  ],
+  "scopeCheck": "PASS: exactly four conditional attribute insertions in main.tf; test additions only; all initial evidence and package.json unchanged",
+  "fixPatch": {
+    "path": "docs/internal/staging-original-queue-20260918/fix-1.patch",
+    "bytes": 4191,
+    "sha256": "5c66d7e82e44cd4af6b659aafcc83506d93595bf605072df9957e3c2e1693832"
+  }
+}

@@ -1,0 +1,39 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/bin/zsh","-lc","/usr/local/bin/docker run --rm --pull=never --name zasp-attack-lab-task2 --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --env ZASP_ATTACK_LAB_TASK2_WORKER_BINARY=/attack-lab-worker.test --mount type=bind,src=/private/tmp/zasp-attack-lab-task2-worker.test,dst=/attack-lab-worker.test,readonly --mount type=bind,src=/private/tmp/zasp-attack-lab-task2.test,dst=/attack-lab.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /attack-lab.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentAttackLab(Settlement|Runtime)Postgres$/^create_denied$' -test.v -test.timeout 300s"]
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres
+    security_agent_attack_lab_settlement_postgres_test.go:32: observed57 fingerprint=9559c712af8fcbe177a7afc9501655f434bbddd53792af431da98dec37ace12d
+    security_agent_attack_lab_settlement_postgres_test.go:132: observed concurrent registered cancellation and settlement: cancellation retained; queued/stale proof refused
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentAttackLabSettlementPostgres228638413/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentAttackLabSettlementPostgres (11.15s)
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/create_denied
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/create_denied/production_truth
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/create_denied/revoked_approver
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/create_denied/wrong_scope_approver
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/create_denied/stale_authentication
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/create_denied/expired_lease
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/create_denied/source_evidence_drift
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/create_denied/definition_version_drift
+=== RUN   TestSecurityAgentAttackLabRuntimePostgres/create_denied/production_write_declaration
+=== NAME  TestSecurityAgentAttackLabRuntimePostgres/create_denied
+    security_agent_attack_lab_settlement_postgres_test.go:318: === RUN   TestAttackLabLinkedRuntimeOwnedPostgres
+            security_agent_attack_lab_runtime_test.go:70: registered controller diagnostic SELECT to_jsonb(session_user::text): "attack_lab_controller_login" <nil>
+            security_agent_attack_lab_runtime_test.go:70: registered controller diagnostic SELECT to_jsonb(zasp_attack_lab_principal_ready('zasp_attack_lab_controller')): true <nil>
+            security_agent_attack_lab_runtime_test.go:157: LOCAL controlled Create403: no Job, no proxy execution, existing controller terminal cleanup, actual client Failed settlement
+        --- PASS: TestAttackLabLinkedRuntimeOwnedPostgres (1.63s)
+        PASS
+        
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=59 data=/tmp/TestSecurityAgentAttackLabRuntimePostgrescreate_denied1724558076/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentAttackLabRuntimePostgres (10.73s)
+    --- PASS: TestSecurityAgentAttackLabRuntimePostgres/create_denied (10.73s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/create_denied/production_truth (0.09s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/create_denied/revoked_approver (0.09s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/create_denied/wrong_scope_approver (0.09s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/create_denied/stale_authentication (0.09s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/create_denied/expired_lease (0.08s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/create_denied/source_evidence_drift (0.09s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/create_denied/definition_version_drift (0.11s)
+        --- PASS: TestSecurityAgentAttackLabRuntimePostgres/create_denied/production_write_declaration (0.10s)
+PASS
+
+Exit: 0 Signal: null

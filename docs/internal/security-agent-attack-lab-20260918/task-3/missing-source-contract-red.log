@@ -1,0 +1,412 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npm","test","--","--run","apps/web/api/decoders.attack-lab.test.ts","app/features/securityagents/SecurityAgentsView.test.tsx","-t","preflight stop|unavailable Attack Lab preflight"]
+
+> zasp-agent-security-console@0.1.0 test
+> vitest run --run apps/web/api/decoders.attack-lab.test.ts app/features/securityagents/SecurityAgentsView.test.tsx -t preflight stop|unavailable Attack Lab preflight
+
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ❯ apps/web/api/decoders.attack-lab.test.ts (13 tests | 1 failed | 12 skipped) 6ms
+     × accepts a closed preflight stop only on an unplanned Needs human run 6ms
+ ❯ app/features/securityagents/SecurityAgentsView.test.tsx (76 tests | 1 failed | 75 skipped) 1032ms
+   × shows an unavailable Attack Lab preflight without inventing a plan or execution 1031ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/features/securityagents/SecurityAgentsView.test.tsx > shows an unavailable Attack Lab preflight without inventing a plan or execution
+TestingLibraryElementError: Unable to find an element with the text: /Attack Lab preflight unavailable/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33minert[39m=[32m""[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mSecurity agents[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mTenant-scoped response definitions, redacted plans, supervised approvals, autonomous actions, outcomes, and verification.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mLinked Security Agent run[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [36m<code>[39m
+            [0mpid_40000004-0000-4000-8000-000000000004[0m
+          [36m</code>[39m
+        [36m</p>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"button button--secondary "[39m
+        [36m>[39m
+          [0mReload linked run[0m
+        [36m</button>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-dialog-layer[39m=[32m"true"[39m
+    [33mstyle[39m=[32m"position: relative; z-index: 100;"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"Close details"[39m
+      [33mclass[39m=[32m"overlay"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m/>[39m
+    [36m<aside[39m
+      [33maria-label[39m=[32m"Run pid_40000004-0000-4000-8000-000000000004"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"drawer drawer--wide"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__header"[39m
+      [36m>[39m
+        [36m<h2>[39m
+          [0mRun pid_40000004-0000-4000-8000-000000000004[0m
+        [36m</h2>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Close"[39m
+          [33mclass[39m=[32m"icon-button"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-x"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M18 6 6 18"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m6 6 12 12"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__body"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"detail-content"[39m
+        [36m>[39m
+          [36m<p>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"badge badge--info"[39m
+            [36m>[39m
+              [0mneeds_human[0m
+            [36m</span>[39m
+            [0m Version [0m
+            [0m4[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mDefinition [0m
+            [0mpid_40000001-0000-4000-8000-000000000001[0m
+            [0m, revision [0m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mTrigger[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mfinding[0m
+            [0m · [0m
+            [0mpid_40000007-0000-4000-8000-000000000007[0m
+            [0m · version [0m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mEvidence[0m
+          [36m</h3>[39m
+          [36m<ul>[39m
+            [36m<li>[39m
+              [0mpid_40000007-0000-4000-8000-000000000007[0m
+            [36m</li>[39m
+          [36m</ul>[39m
+          [36m<section[39m
+            [33maria-label[39m=[32m"AI rationale"[39m
+            [33mclass[39m=[32m"security-agent-rationale"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mAI rationale[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"security-agent-rationale__disclaimer"[39m
+            [36m>[39m
+              [0mAI-generated explanation. This does not authorize any action.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mNo AI rationale is available for this run.[0m
+            [36m</p>[39m
+          [36m</section>[39m
+          [36m<h3>[39m
+            [0mPlan[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mNo plan has been persisted.[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mAuthorization and execution[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mnot_planned[0m
+            [0m · verification [0m
+            [0minconclusive[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mNo action has executed.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</aside>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33minert[39m=[32m""[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mSecurity agents[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mTenant-scoped response definitions, redacted plans, supervised approvals, autonomous actions, outcomes, and verification.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mLinked Security Agent run[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [36m<code>[39m
+            [0mpid_40000004-0000-4000-8000-000000000004[0m
+          [36m</code>[39m
+        [36m</p>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"button button--secondary "[39m
+        [36m>[39m
+          [0mReload linked run[0m
+        [36m</button>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-dialog-layer[39m=[32m"true"[39m
+    [33mstyle[39m=[32m"position: relative; z-index: 100;"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"Close details"[39m
+      [33mclass[39m=[32m"overlay"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m/>[39m
+    [36m<aside[39m
+      [33maria-label[39m=[32m"Run pid_40000004-0000-4000-8000-000000000004"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"drawer drawer--wide"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__header"[39m
+      [36m>[39m
+        [36m<h2>[39m
+          [0mRun pid_40000004-0000-4000-8000-000000000004[0m
+        [36m</h2>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Close"[39m
+          [33mclass[39m=[32m"icon-button"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-x"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M18 6 6 18"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m6 6 12 12"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__body"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"detail-content"[39m
+        [36m>[39m
+          [36m<p>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"badge badge--info"[39m
+            [36m>[39m
+              [0mneeds_human[0m
+            [36m</span>[39m
+            [0m Version [0m
+            [0m4[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mDefinition [0m
+            [0mpid_40000001-0000-4000-8000-000000000001[0m
+            [0m, revision [0m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mTrigger[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mfinding[0m
+            [0m · [0m
+            [0mpid_40000007-0000-4000-8000-000000000007[0m
+            [0m · version [0m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mEvidence[0m
+          [36m</h3>[39m
+          [36m<ul>[39m
+            [36m<li>[39m
+              [0mpid_40000007-0000-4000-8000-000000000007[0m
+            [36m</li>[39m
+          [36m</ul>[39m
+          [36m<section[39m
+            [33maria-label[39m=[32m"AI rationale"[39m
+            [33mclass[39m=[32m"security-agent-rationale"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mAI rationale[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"security-agent-rationale__disclaimer"[39m
+            [36m>[39m
+              [0mAI-generated explanation. This does not authorize any action.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mNo AI rationale is available for this run.[0m
+            [36m</p>[39m
+          [36m</section>[39m
+          [36m<h3>[39m
+            [0mPlan[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mNo plan has been persisted.[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mAuthorization and execution[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mnot_planned[0m
+            [0m · verification [0m
+            [0minconclusive[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mNo action has executed.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</aside>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ app/features/securityagents/SecurityAgentsView.test.tsx:303:23
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  apps/web/api/decoders.attack-lab.test.ts > Attack Lab public boundary > accepts a closed preflight stop only on an unplanned Needs human run
+Error: schema mismatch
+ ❯ fail apps/web/api/decoders.ts:1168:32
+
+ ❯ exactRecord apps/web/api/decoders.ts:1151:405
+ ❯ decodeSecurityAgentRunContext apps/web/api/decoders.ts:744:19
+ ❯ decodeSecurityAgentRunDetail apps/web/api/decoders.ts:610:45
+ ❯ apps/web/api/decoders.attack-lab.test.ts:19:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 87 skipped (89)
+   Start at  05:28:12
+   Duration  3.22s (transform 456ms, setup 824ms, import 585ms, tests 1.04s, environment 2.38s)
+
+
+Exit: 1 Signal: null

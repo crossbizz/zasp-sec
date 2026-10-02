@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -15,6 +16,79 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
+
+func TestAuditExportPostgresBootstrapGroupPermission(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	f := auditExportPGFixture(t, ctx)
+	f.register(t, ctx)
+	f.groupScope(t, ctx)
+	// The sandbox fixture's placeholder references are not valid bootstrap
+	// provider references. Set only this fresh fixture's membership row.
+	if _, err := f.admin.Exec(ctx, `UPDATE zasp_identity_memberships SET organization_reference='organization-live',member_reference='member-live' WHERE organization_id=$1 AND principal_id=$2`, f.identity.Scope.OrganizationID().String(), f.identity.PrincipalID.String()); err != nil {
+		t.Fatal(err)
+	}
+	database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: f.api})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, err := NewPostgresRepository(database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config, _ := auditExportProductionConfigFixture(t)
+	// The factory fixture uses the same registered scope/policy shape; only SDK
+	// network I/O is unused by bootstrap. SQL authentication is the real API role.
+	exports, err := NewAuditExportProductionHandler(ctx, database, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dependencies := auditExportCompositionDependencies()
+	dependencies.Session = &sessionHTTPHandler{repository: repository}
+	invoke := func(installed bool) []string {
+		t.Helper()
+		var router http.Handler
+		var err error
+		if installed {
+			router, err = NewCompositionWithAuditExports(dependencies, exports)
+		} else {
+			router, err = NewComposition(dependencies)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		secured, err := NewProductMiddleware(ProductSecurity{PublicOrigin: "https://audit-export.invalid", MaximumBodyBytes: 1024, Authenticate: repository.Authenticate, GenerateCorrelationID: func() string { return testCorrelationID }}, router)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request := httptest.NewRequest(http.MethodGet, "https://audit-export.invalid/api/v1/session/bootstrap", nil).WithContext(ctx)
+		request.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "owned-audit-export-browser-fixture"})
+		response := httptest.NewRecorder()
+		secured.ServeHTTP(response, request)
+		var bootstrap struct {
+			Capabilities []string `json:"capabilities"`
+			Principal    struct {
+				Role string `json:"role"`
+			} `json:"principal"`
+		}
+		if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &bootstrap) != nil || bootstrap.Principal.Role != "read_only_viewer" {
+			t.Fatalf("real group bootstrap %d %s", response.Code, response.Body.String())
+		}
+		return bootstrap.Capabilities
+	}
+	if caps := invoke(true); !slices.Contains(caps, "audit.exports") || !slices.Contains(caps, "audit.read") {
+		t.Fatalf("group-derived effective permission lost: %v", caps)
+	}
+	if slices.Contains(invoke(false), "audit.exports") {
+		t.Fatal("disabled router advertised export")
+	}
+	if _, err := f.admin.Exec(ctx, `UPDATE zasp_group_mappings SET role='read_only_viewer' WHERE organization_id=$1 AND group_reference='scim-group-test-audit-export'`, f.identity.Scope.OrganizationID().String()); err != nil {
+		t.Fatal(err)
+	}
+	if caps := invoke(true); slices.Contains(caps, "audit.exports") || slices.Contains(caps, "audit.read") {
+		t.Fatalf("revoked group permission retained: %v", caps)
+	}
+}
 
 func TestPostgresProductionSliceSurvivesRepositoryRestartAndIsolatesTenants(t *testing.T) {
 	database := newPersistentJSONDatabase(t)

@@ -1,0 +1,17 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npm","test","--","apps/web/api/decoders.attack-lab.test.ts","app/features/security-agents/SecurityAgentsView.test.tsx","-t","preflight"]
+
+> zasp-agent-security-console@0.1.0 test
+> vitest run apps/web/api/decoders.attack-lab.test.ts app/features/security-agents/SecurityAgentsView.test.tsx -t preflight
+
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed | 12 skipped (13)
+   Start at  05:35:15
+   Duration  1.20s (transform 64ms, setup 187ms, import 58ms, tests 2ms, environment 855ms)
+
+
+Exit: 0 Signal: null

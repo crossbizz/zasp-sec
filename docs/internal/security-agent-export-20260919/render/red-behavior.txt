@@ -1,0 +1,182 @@
+cwd: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform
+command: GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-budget-go-cache /opt/homebrew/bin/go test ./agentsec-worker -run '^TestSecurityAgentExportRender' -count=1 -v
+exit: 1
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/run
+    security_agent_export_render_test.go:62: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/step
+    security_agent_export_render_test.go:62: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/empty
+    security_agent_export_render_test.go:62: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/kind
+    security_agent_export_render_test.go:62: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/id
+    security_agent_export_render_test.go:62: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/version
+    security_agent_export_render_test.go:62: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/digest
+    security_agent_export_render_test.go:62: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/organization_id
+    security_agent_export_render_test.go:66: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/workspace_id
+    security_agent_export_render_test.go:66: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/environment_id
+    security_agent_export_render_test.go:66: rejection leaked artifact: size=0 err=<nil>
+=== NAME  TestSecurityAgentExportRenderBindsScopeAndSelection
+    security_agent_export_render_test.go:71: rejection leaked artifact: size=0 err=<nil>
+--- FAIL: TestSecurityAgentExportRenderBindsScopeAndSelection (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderBindsScopeAndSelection/run (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderBindsScopeAndSelection/step (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderBindsScopeAndSelection/empty (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderBindsScopeAndSelection/kind (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderBindsScopeAndSelection/id (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderBindsScopeAndSelection/version (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderBindsScopeAndSelection/digest (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderBindsScopeAndSelection/organization_id (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderBindsScopeAndSelection/workspace_id (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderBindsScopeAndSelection/environment_id (0.00s)
+=== RUN   TestSecurityAgentExportRenderFrozenFormats
+    security_agent_export_render_test.go:82: invalid envelope
+--- FAIL: TestSecurityAgentExportRenderFrozenFormats (0.00s)
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/unknown_outer
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/null_records
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/invalid_time
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/non_UTC
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/wrong_version
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/unknown_record
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/empty_records
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/non_canonical_time
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/null_record
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/zero_hash
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/uppercase_hash
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_hash
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/wrong_kind
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/wrong_ID
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/revision
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/null_content
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_record
+    security_agent_export_render_test.go:117: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/trailing
+    security_agent_export_render_test.go:118: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/invalid_UTF8
+    security_agent_export_render_test.go:118: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_outer
+    security_agent_export_render_test.go:118: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_record_key
+    security_agent_export_render_test.go:118: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/case_alias
+    security_agent_export_render_test.go:118: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/empty
+    security_agent_export_render_test.go:118: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/malformed
+    security_agent_export_render_test.go:118: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_0
+    security_agent_export_render_test.go:119: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_4
+    security_agent_export_render_test.go:119: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_2
+    security_agent_export_render_test.go:119: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_6
+    security_agent_export_render_test.go:119: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_13
+    security_agent_export_render_test.go:119: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_23
+    security_agent_export_render_test.go:119: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_5
+    security_agent_export_render_test.go:119: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_9
+    security_agent_export_render_test.go:119: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_71
+    security_agent_export_render_test.go:119: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_mapping_revision
+    security_agent_export_render_test.go:120: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_snapshot_at
+    security_agent_export_render_test.go:120: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_organization_id
+    security_agent_export_render_test.go:120: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_workspace_id
+    security_agent_export_render_test.go:120: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_environment_id
+    security_agent_export_render_test.go:120: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_run_id
+    security_agent_export_render_test.go:120: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_step_id
+    security_agent_export_render_test.go:120: rejection leaked artifact: size=0 err=<nil>
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_records
+    security_agent_export_render_test.go:120: rejection leaked artifact: size=0 err=<nil>
+=== NAME  TestSecurityAgentExportRenderRejectsInvalidWire
+    security_agent_export_render_test.go:121: rejection leaked artifact: size=0 err=<nil>
+--- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/unknown_outer (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/null_records (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/invalid_time (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/non_UTC (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/wrong_version (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/unknown_record (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/empty_records (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/non_canonical_time (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/null_record (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/zero_hash (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/uppercase_hash (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/missing_hash (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/wrong_kind (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/wrong_ID (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/revision (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/null_content (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_record (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/trailing (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/invalid_UTF8 (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_outer (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_record_key (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/case_alias (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/empty (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/malformed (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/content_0 (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/content_4 (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/content_2 (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/content_6 (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/content_13 (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/content_23 (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/content_5 (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/content_9 (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/content_71 (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/missing_mapping_revision (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/missing_snapshot_at (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/missing_organization_id (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/missing_workspace_id (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/missing_environment_id (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/missing_run_id (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/missing_step_id (0.00s)
+    --- FAIL: TestSecurityAgentExportRenderRejectsInvalidWire/missing_records (0.00s)
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidSelection
+    security_agent_export_render_test.go:128: rejection leaked artifact: size=0 err=<nil>
+--- FAIL: TestSecurityAgentExportRenderRejectsInvalidSelection (0.00s)
+=== RUN   TestSecurityAgentExportRenderAllKindsAndStates
+    security_agent_export_render_test.go:138: sources omitted
+--- FAIL: TestSecurityAgentExportRenderAllKindsAndStates (0.00s)
+=== RUN   TestSecurityAgentExportRenderCSVFormulaEscaping
+    security_agent_export_render_test.go:145: unsafe CSV cell "=payload" -> "=payload"
+--- FAIL: TestSecurityAgentExportRenderCSVFormulaEscaping (0.00s)
+=== RUN   TestSecurityAgentExportRenderBoundaries
+    security_agent_export_render_test.go:152: rejection leaked artifact: size=0 err=<nil>
+--- FAIL: TestSecurityAgentExportRenderBoundaries (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.163s
+FAIL

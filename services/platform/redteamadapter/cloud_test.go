@@ -23,7 +23,7 @@ func (stub *identityAPIStub) GetCallerIdentity(context.Context, *sts.GetCallerId
 
 func TestCloudAuthorityReadinessBindsExactRoleIdentityAndSecretAccess(t *testing.T) {
 	identity := &identityAPIStub{output: &sts.GetCallerIdentityOutput{Account: aws.String("123456789012"), Arn: aws.String("arn:aws:sts::123456789012:assumed-role/zasp-red-team-adapter/zasp-red-team-adapter")}}
-	secrets := &secretsAPIStub{output: &secretsmanager.GetSecretValueOutput{SecretBinary: []byte(strings.Repeat("r", 64))}}
+	secrets := &secretsAPIStub{output: &secretsmanager.GetSecretValueOutput{SecretBinary: []byte(strings.Repeat("r", 64)), VersionId: ptrVersion("11111111-1111-4111-8111-111111111111")}}
 	resolver, err := NewSecretsCredentialResolver(secrets, "zasp/red-team/targets", time.Second)
 	if err != nil {
 		t.Fatal(err)

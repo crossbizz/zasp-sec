@@ -1,0 +1,16 @@
+TAP version 13
+# Subtest: bridge accepts SIGPIPE only after its own peer-close path
+not ok 1 - bridge accepts SIGPIPE only after its own peer-close path
+  ---
+  duration_ms: 8.427166
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/isolated-postgres-bridge.test.mjs:9:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'emit')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/isolated-postgres-bridge.test.mjs:25:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...

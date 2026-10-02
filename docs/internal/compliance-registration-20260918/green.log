@@ -1,0 +1,62 @@
+=== RUN   TestComplianceRegistrationTransaction
+=== RUN   TestComplianceRegistrationTransaction/healthy
+=== RUN   TestComplianceRegistrationTransaction/lower-release
+=== RUN   TestComplianceRegistrationTransaction/future-release
+=== RUN   TestComplianceRegistrationTransaction/wrong-checksum
+=== RUN   TestComplianceRegistrationTransaction/initial-drift
+=== RUN   TestComplianceRegistrationTransaction/registration-false
+=== RUN   TestComplianceRegistrationTransaction/registration-error
+=== RUN   TestComplianceRegistrationTransaction/final-drift
+=== RUN   TestComplianceRegistrationTransaction/final-error
+=== RUN   TestComplianceRegistrationTransaction/commit-error
+=== RUN   TestComplianceRegistrationTransaction/rollback-error
+=== RUN   TestComplianceRegistrationTransaction/cancel-registration
+=== RUN   TestComplianceRegistrationTransaction/cancel-final
+--- PASS: TestComplianceRegistrationTransaction (1.43s)
+    --- PASS: TestComplianceRegistrationTransaction/healthy (0.13s)
+    --- PASS: TestComplianceRegistrationTransaction/lower-release (0.08s)
+    --- PASS: TestComplianceRegistrationTransaction/future-release (0.08s)
+    --- PASS: TestComplianceRegistrationTransaction/wrong-checksum (0.08s)
+    --- PASS: TestComplianceRegistrationTransaction/initial-drift (0.10s)
+    --- PASS: TestComplianceRegistrationTransaction/registration-false (0.12s)
+    --- PASS: TestComplianceRegistrationTransaction/registration-error (0.12s)
+    --- PASS: TestComplianceRegistrationTransaction/final-drift (0.12s)
+    --- PASS: TestComplianceRegistrationTransaction/final-error (0.13s)
+    --- PASS: TestComplianceRegistrationTransaction/commit-error (0.12s)
+    --- PASS: TestComplianceRegistrationTransaction/rollback-error (0.13s)
+    --- PASS: TestComplianceRegistrationTransaction/cancel-registration (0.11s)
+    --- PASS: TestComplianceRegistrationTransaction/cancel-final (0.12s)
+=== RUN   TestComplianceRegistrationInvalidRunnerAndContext
+--- PASS: TestComplianceRegistrationInvalidRunnerAndContext (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/migrations	1.904s
+=== RUN   TestComplianceRegistrationBinaryPreflight
+=== RUN   TestComplianceRegistrationBinaryPreflight/missing-both
+=== RUN   TestComplianceRegistrationBinaryPreflight/missing-worker
+=== RUN   TestComplianceRegistrationBinaryPreflight/missing-cleanup
+=== RUN   TestComplianceRegistrationBinaryPreflight/duplicate
+=== RUN   TestComplianceRegistrationBinaryPreflight/reserved-worker
+=== RUN   TestComplianceRegistrationBinaryPreflight/reserved-cleanup
+=== RUN   TestComplianceRegistrationBinaryPreflight/uppercase
+=== RUN   TestComplianceRegistrationBinaryPreflight/whitespace
+=== RUN   TestComplianceRegistrationBinaryPreflight/injection
+=== RUN   TestComplianceRegistrationBinaryPreflight/short-worker
+=== RUN   TestComplianceRegistrationBinaryPreflight/long-cleanup
+=== RUN   TestComplianceRegistrationBinaryPreflight/extra-argument
+=== RUN   TestComplianceRegistrationBinaryPreflight/valid-boundaries
+--- PASS: TestComplianceRegistrationBinaryPreflight (1.29s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/missing-both (0.64s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/missing-worker (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/missing-cleanup (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/duplicate (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/reserved-worker (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/reserved-cleanup (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/uppercase (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/whitespace (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/injection (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/short-worker (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/long-cleanup (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/extra-argument (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/valid-boundaries (0.01s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate	1.839s

@@ -1,0 +1,54 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","node_modules/vitest/vitest.mjs","run","apps/web/api/decoders.attack-lab.test.ts"]
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ❯ apps/web/api/decoders.attack-lab.test.ts (12 tests | 4 failed) 8ms
+     × accepts only bounded redacted approval authority 4ms
+     × keeps verified Needs human 1ms
+     × keeps not_reproduced Needs human 0ms
+     × retains pending cleanup after parent cancellation 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/web/api/decoders.attack-lab.test.ts > Attack Lab public boundary > accepts only bounded redacted approval authority
+Error: schema mismatch
+ ❯ fail apps/web/api/decoders.ts:1111:32
+
+ ❯ exactRecord apps/web/api/decoders.ts:1094:405
+ ❯ decodeSecurityAgentApproval apps/web/api/decoders.ts:519:18
+ ❯ apps/web/api/decoders.attack-lab.test.ts:18:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  apps/web/api/decoders.attack-lab.test.ts > Attack Lab public boundary > keeps verified Needs human
+ FAIL  apps/web/api/decoders.attack-lab.test.ts > Attack Lab public boundary > keeps not_reproduced Needs human
+Error: schema mismatch
+ ❯ fail apps/web/api/decoders.ts:1111:32
+
+ ❯ exactRecord apps/web/api/decoders.ts:1094:405
+ ❯ decodeSecurityAgentApproval apps/web/api/decoders.ts:519:18
+ ❯ decodeSecurityAgentRunDetail apps/web/api/decoders.ts:564:52
+ ❯ apps/web/api/decoders.attack-lab.test.ts:25:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  apps/web/api/decoders.attack-lab.test.ts > Attack Lab public boundary > retains pending cleanup after parent cancellation
+Error: schema mismatch
+ ❯ fail apps/web/api/decoders.ts:1111:32
+
+ ❯ exactRecord apps/web/api/decoders.ts:1094:405
+ ❯ decodeSecurityAgentApproval apps/web/api/decoders.ts:519:18
+ ❯ decodeSecurityAgentRunDetail apps/web/api/decoders.ts:564:52
+ ❯ apps/web/api/decoders.attack-lab.test.ts:30:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 8 passed (12)
+   Start at  03:13:46
+   Duration  1.30s (transform 74ms, setup 265ms, import 68ms, tests 8ms, environment 850ms)
+
+
+Exit: 1 Signal: null

@@ -8,19 +8,45 @@ export function spawnOwnedCommand(executable, args, options = {}) {
   if (![graceMs, killMs].every((value) => Number.isSafeInteger(value) && value >= 1 && value <= 5000)) {
     throw new TypeError("invalid owned command shutdown bounds");
   }
+  const boundedCapture = Object.hasOwn(options, "maxOutputBytes");
+  const maxOutputBytes = options.maxOutputBytes;
+  if (boundedCapture && (!Number.isSafeInteger(maxOutputBytes) || maxOutputBytes < 1 || maxOutputBytes > 16 * 1024 * 1024)) {
+    throw new TypeError("invalid owned command capture limit");
+  }
   const grouped = process.platform !== "win32";
   const child = spawn(executable, args, {
     cwd: options.cwd, env: options.env, detached: grouped, stdio: ["pipe", "pipe", "pipe"],
   });
   let stdout = "", stderr = "", closed = false, failure;
-  child.stdout.on("data", (value) => { stdout += value; });
-  child.stderr.on("data", (value) => { stderr += value; });
+  let capturedOutputBytes = 0, outputLimitExceeded = false;
+  const stdoutChunks = [], stderrChunks = [];
+  const capture = (value, chunks, isStdout) => {
+    if (!boundedCapture) {
+      if (isStdout) stdout += value; else stderr += value;
+      return;
+    }
+    const retained = Math.min(value.length, maxOutputBytes - capturedOutputBytes);
+    if (retained > 0) {
+      // Copy only the permitted slice, not a view retaining a larger backing
+      // buffer. After overflow both streams remain drained but are discarded.
+      chunks.push(Buffer.from(value.subarray(0, retained)));
+      capturedOutputBytes += retained;
+    }
+    if (retained < value.length && !outputLimitExceeded) {
+      outputLimitExceeded = true;
+      void stop().catch(error => { failure ??= error; });
+    }
+  };
+  child.stdout.on("data", value => capture(value, stdoutChunks, true));
+  child.stderr.on("data", value => capture(value, stderrChunks, false));
   child.stdin.on("error", (error) => { failure ??= error; });
   const completed = new Promise((resolve, reject) => {
     child.once("error", (error) => { failure = error; });
     child.once("close", (status, signal) => {
       closed = true;
-      if (failure) reject(failure); else resolve({ status, signal, stdout, stderr });
+      if (failure) reject(failure);
+      else if (boundedCapture) resolve({ status, signal, stdout: Buffer.concat(stdoutChunks).toString("utf8"), stderr: Buffer.concat(stderrChunks).toString("utf8"), capturedOutputBytes, outputLimitExceeded });
+      else resolve({ status, signal, stdout, stderr });
     });
   });
   // The owner awaits completion later, including during signal cleanup.

@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -177,14 +178,42 @@ func seedSessionProjectionCompletionVersion(t *testing.T, ctx context.Context, c
 	t.Helper()
 	precise := len(preciseOptions) == 1 && preciseOptions[0]
 	scope := fixtureRequestIdentity(t).Scope
+	return seedScopedSessionProjectionCompletion(t, ctx, connection, scope, invocationTarget, sandbox, precise)
+}
+
+func seedScopedSessionProjectionCompletion(t *testing.T, ctx context.Context, connection *pgx.Conn, scope domain.Scope, agent string, sandbox, precise bool) ([]any, runtimeprojection.ProjectedBatch) {
+	return seedNamedScopedSessionProjectionCompletion(t, ctx, connection, scope, agent, sandbox, precise, 0)
+}
+
+func seedNamedScopedSessionProjectionCompletion(t *testing.T, ctx context.Context, connection *pgx.Conn, scope domain.Scope, agent string, sandbox, precise bool, identityBase int) ([]any, runtimeprojection.ProjectedBatch) {
+	t.Helper()
 	org, workspace, environment := scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()
 	batchID := mustProductID(t, "pid_96000001-0000-4000-8000-000000000001")
 	sensorID, tokenID := "pid_96000002-0000-4000-8000-000000000002", "pid_96000003-0000-4000-8000-000000000003"
+	tokenHash := bytes.Repeat([]byte{0x96}, 32)
+	eventPrefix := ""
+	archiveReference, artifactKey := "s3://zasp-evidence/runtime/sessions.json", "runtime/session-projection-fixture.json"
+	correlationReference, projectedReference, completionReference := "s3://zasp-evidence/correlation.json", "s3://zasp-evidence/projected.json", "s3://zasp-evidence/completed.json"
+	if identityBase != 0 {
+		batchID = mustProductID(t, automaticSourceID(identityBase))
+		sensorID, tokenID = automaticSourceID(identityBase+1), automaticSourceID(identityBase+2)
+		uniqueToken := sha256.Sum256([]byte(tokenID))
+		tokenHash = uniqueToken[:]
+		eventPrefix = fmt.Sprintf("projection-%d-", identityBase)
+		artifactKey = fmt.Sprintf("runtime/projection-%d/sessions.json", identityBase)
+		archiveReference = "s3://zasp-evidence/" + artifactKey
+		correlationReference = fmt.Sprintf("s3://zasp-evidence/runtime/projection-%d/correlation.json", identityBase)
+		projectedReference = fmt.Sprintf("s3://zasp-evidence/runtime/projection-%d/projected.json", identityBase)
+		completionReference = fmt.Sprintf("s3://zasp-evidence/runtime/projection-%d/completed.json", identityBase)
+	}
 	body := []byte(`{"source":"tetragon","events":[` + strings.Join([]string{
 		`{"event_id":"late","class":"process","action":"exec","workload_id":"runtime-a","event_time":"2026-09-09T10:00:03.000Z","evidence_id":"pid_96000004-0000-4000-8000-000000000004","content":{}}`,
 		`{"event_id":"early","class":"process","action":"exec","workload_id":"runtime-a","event_time":"2026-09-09T10:00:01.000Z","evidence_id":"pid_96000005-0000-4000-8000-000000000005","content":{}}`,
 		`{"event_id":"unknown","class":"process","action":"exec","workload_id":"runtime-a","event_time":"2026-09-09T10:00:02.000Z","evidence_id":"pid_96000006-0000-4000-8000-000000000006","content":{}}`,
 	}, ",") + `]}`)
+	if eventPrefix != "" {
+		body = bytes.ReplaceAll(body, []byte(`"event_id":"`), []byte(`"event_id":"`+eventPrefix))
+	}
 	decoded, err := runtimeevent.DecodeArchivedBatch(scope, body)
 	if err != nil {
 		t.Fatal(err)
@@ -216,11 +245,11 @@ func seedSessionProjectionCompletionVersion(t *testing.T, ctx context.Context, c
 	correlations := make([]runtimecorrelation.Result, len(decoded.Records))
 	for index, record := range decoded.Records {
 		confidence := domain.EvidenceConfidenceExact
-		if record.SourceEventID == "early" || precise {
+		if record.SourceEventID == eventPrefix+"early" || precise {
 			confidence = domain.EvidenceConfidenceStrong
 		}
-		correlations[index] = runtimecorrelation.Result{EventID: record.ID, SessionID: mustProductID(t, "pid_96000007-0000-4000-8000-000000000007"), AgentID: mustProductID(t, invocationTarget), Confidence: confidence}
-		if record.SourceEventID == "unknown" {
+		correlations[index] = runtimecorrelation.Result{EventID: record.ID, SessionID: mustProductID(t, "pid_96000007-0000-4000-8000-000000000007"), AgentID: mustProductID(t, agent), Confidence: confidence}
+		if record.SourceEventID == eventPrefix+"unknown" {
 			correlations[index] = runtimecorrelation.Result{EventID: record.ID, Confidence: domain.EvidenceConfidenceUnattributed}
 		} else if sandbox {
 			correlations[index].SandboxID = "session-sandbox"
@@ -236,11 +265,11 @@ func seedSessionProjectionCompletionVersion(t *testing.T, ctx context.Context, c
 	if precise {
 		projector, projectionVersion, completionVersion, encode = runtimeprojection.ProjectPrecise, "runtime-projection-v3", "runtime-complete-v3", runtimeprojection.EncodePreciseReceipt
 	}
-	projected, err := projector(runtimeprojection.Batch{Scope: scope, BatchID: batchID, Generation: 1, ArchiveReference: "s3://zasp-evidence/runtime/sessions.json", ArchiveVersionID: "archive-v1", ArchiveDigest: archiveDigest, Body: body, Correlations: correlations})
+	projected, err := projector(runtimeprojection.Batch{Scope: scope, BatchID: batchID, Generation: 1, ArchiveReference: archiveReference, ArchiveVersionID: "archive-v1", ArchiveDigest: archiveDigest, Body: body, Correlations: correlations})
 	if err != nil {
 		t.Fatal(err)
 	}
-	receiptBytes, receiptDigest, _, err := encode(runtimeprojection.Receipt{ImplementationVersion: projectionVersion, Scope: scope, BatchID: batchID, Generation: 1, InputReference: "s3://zasp-evidence/correlation.json", InputVersionID: "correlation-v1", InputDigest: archiveDigest, ArchiveReference: "s3://zasp-evidence/runtime/sessions.json", ArchiveVersionID: "archive-v1", ArchiveDigest: archiveDigest, EffectDigest: projected.ContentDigest, Items: projected.Items})
+	receiptBytes, receiptDigest, _, err := encode(runtimeprojection.Receipt{ImplementationVersion: projectionVersion, Scope: scope, BatchID: batchID, Generation: 1, InputReference: correlationReference, InputVersionID: "correlation-v1", InputDigest: archiveDigest, ArchiveReference: archiveReference, ArchiveVersionID: "archive-v1", ArchiveDigest: archiveDigest, EffectDigest: projected.ContentDigest, Items: projected.Items})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,10 +278,10 @@ func seedSessionProjectionCompletionVersion(t *testing.T, ctx context.Context, c
 		args []any
 	}{
 		{`INSERT INTO zasp_sensors(organization_id,workspace_id,environment_id,id,name,kind) VALUES($1,$2,$3,$4,'Session proof sensor','tetragon')`, []any{org, workspace, environment, sensorID}},
-		{`INSERT INTO zasp_sensor_tokens(organization_id,workspace_id,environment_id,id,sensor_id,salt,token_hash,expires_at) VALUES($1,$2,$3,$4,$5,decode(repeat('aa',16),'hex'),decode(repeat('96',32),'hex'),transaction_timestamp()+interval '1 day')`, []any{org, workspace, environment, tokenID, sensorID}},
-		{`INSERT INTO zasp_runtime_batches(organization_id,workspace_id,environment_id,id,sensor_id,idempotency_key,payload_digest,event_count,payload_reference,payload_size_bytes,payload_media_type,payload_schema_version,state) VALUES($1,$2,$3,$4,$5,'session-projection-fixture',$6,3,'s3://zasp-evidence/runtime/sessions.json',100,'application/json','runtime-v1','processing')`, []any{org, workspace, environment, batchID.String(), sensorID, archiveDigest[:]}},
-		{`INSERT INTO zasp_runtime_batch_authorities(organization_id,workspace_id,environment_id,batch_id,sensor_id,sensor_token_id,token_generation,batch_generation,idempotency_key,request_digest,content_digest,source_kind,payload_media_type,payload_schema_version,payload_size_bytes,event_count,raw_artifact_key,raw_artifact_reference,raw_artifact_version_id,raw_artifact_checksum,raw_artifact_size_bytes,raw_artifact_kms_key,finalized_at,state) VALUES($1,$2,$3,$4,$5,$6,1,1,'session-projection-fixture',$7,$7,'tetragon','application/json','runtime-v1',100,3,'runtime/session-projection-fixture.json','s3://zasp-evidence/runtime/sessions.json','archive-v1',$7,100,'fixture-kms-reference',transaction_timestamp(),'processing')`, []any{org, workspace, environment, batchID.String(), sensorID, tokenID, archiveDigest[:]}},
-		{`INSERT INTO zasp_runtime_stage_work(organization_id,workspace_id,environment_id,batch_id,batch_generation,stage,stage_order,implementation_version,input_digest,state,attempt,effect_digest,result_reference,result_version_id,result_digest,completed_at) VALUES($1,$2,$3,$4,1,'project',4,$8,$5,'succeeded',1,$6,'s3://zasp-evidence/projected.json','projected-v1',$7,transaction_timestamp())`, []any{org, workspace, environment, batchID.String(), archiveDigest[:], projected.ContentDigest[:], receiptDigest[:], projectionVersion}},
+		{`INSERT INTO zasp_sensor_tokens(organization_id,workspace_id,environment_id,id,sensor_id,salt,token_hash,expires_at) VALUES($1,$2,$3,$4,$5,decode(repeat('aa',16),'hex'),$6,transaction_timestamp()+interval '1 day')`, []any{org, workspace, environment, tokenID, sensorID, tokenHash}},
+		{`INSERT INTO zasp_runtime_batches(organization_id,workspace_id,environment_id,id,sensor_id,idempotency_key,payload_digest,event_count,payload_reference,payload_size_bytes,payload_media_type,payload_schema_version,state) VALUES($1,$2,$3,$4,$5,'session-projection-fixture',$6,3,$7,100,'application/json','runtime-v1','processing')`, []any{org, workspace, environment, batchID.String(), sensorID, archiveDigest[:], archiveReference}},
+		{`INSERT INTO zasp_runtime_batch_authorities(organization_id,workspace_id,environment_id,batch_id,sensor_id,sensor_token_id,token_generation,batch_generation,idempotency_key,request_digest,content_digest,source_kind,payload_media_type,payload_schema_version,payload_size_bytes,event_count,raw_artifact_key,raw_artifact_reference,raw_artifact_version_id,raw_artifact_checksum,raw_artifact_size_bytes,raw_artifact_kms_key,finalized_at,state) VALUES($1,$2,$3,$4,$5,$6,1,1,'session-projection-fixture',$7,$7,'tetragon','application/json','runtime-v1',100,3,$8,$9,'archive-v1',$7,100,'fixture-kms-reference',transaction_timestamp(),'processing')`, []any{org, workspace, environment, batchID.String(), sensorID, tokenID, archiveDigest[:], artifactKey, archiveReference}},
+		{`INSERT INTO zasp_runtime_stage_work(organization_id,workspace_id,environment_id,batch_id,batch_generation,stage,stage_order,implementation_version,input_digest,state,attempt,effect_digest,result_reference,result_version_id,result_digest,completed_at) VALUES($1,$2,$3,$4,1,'project',4,$8,$5,'succeeded',1,$6,$9,'projected-v1',$7,transaction_timestamp())`, []any{org, workspace, environment, batchID.String(), archiveDigest[:], projected.ContentDigest[:], receiptDigest[:], projectionVersion, projectedReference}},
 		{`INSERT INTO zasp_runtime_stage_work(organization_id,workspace_id,environment_id,batch_id,batch_generation,stage,stage_order,implementation_version,predecessor_digest,input_digest,state,attempt,lease_owner,lease_token,lease_expires_at) VALUES($1,$2,$3,$4,1,'complete',5,$6,$5,$5,'leased',1,'session-worker','session-lease-token-0001',transaction_timestamp()+interval '1 hour')`, []any{org, workspace, environment, batchID.String(), projected.ContentDigest[:], completionVersion}},
 	} {
 		if _, err := connection.Exec(ctx, query.sql, query.args...); err != nil {
@@ -260,7 +289,7 @@ func seedSessionProjectionCompletionVersion(t *testing.T, ctx context.Context, c
 		}
 	}
 	resultDigest := sha256.Sum256([]byte("completion"))
-	return []any{org, workspace, environment, batchID.String(), int64(1), "session-worker", "session-lease-token-0001", 1, projected.ContentDigest[:], completionVersion, "succeeded", projected.ContentDigest[:], "s3://zasp-evidence/completed.json", "completed-v1", resultDigest[:], nil, 0, receiptBytes}, projected
+	return []any{org, workspace, environment, batchID.String(), int64(1), "session-worker", "session-lease-token-0001", 1, projected.ContentDigest[:], completionVersion, "succeeded", projected.ContentDigest[:], completionReference, "completed-v1", resultDigest[:], nil, 0, receiptBytes}, projected
 }
 
 func TestRuntimeSessionsMigrationPinsAuthorityAndRestoresPreviousRelease(t *testing.T) {

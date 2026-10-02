@@ -1,0 +1,16 @@
+{
+  "format": "ordered-current-wire-vectors-v1",
+  "accepted": [
+    {"name":"literal backslash-u is text","input":"\"\\\\ud800\"","wire":"\"\\\\ud800\""},
+    {"name":"zero coefficient exponent","input":"[0e1,-0e-2]","wire":"[0e1,-0e-2]"},
+    {"name":"UTF8 key order","input":"{\"𐀀\":1,\"\":2}","wire":"{\"\":2,\"𐀀\":1}"},
+    {"name":"numeric-looking key order","input":"{\"2\":2,\"10\":10}","wire":"{\"10\":10,\"2\":2}"},
+    {"name":"separators and HTML","input":"{\"text\":\"<>&\u2028\u2029\"}","wire":"{\"text\":\"<>&\\u2028\\u2029\"}"},
+    {"name":"numeric lexemes remain evidence","input":"{\"z\":-0,\"a\":1e-7,\"b\":1.0,\"c\":1e+2}","wire":"{\"a\":1e-7,\"b\":1.0,\"c\":1e+2,\"z\":-0}"},
+    {"name":"safe integer endpoints","input":"[-9007199254740991,9007199254740991]","wire":"[-9007199254740991,9007199254740991]"},
+    {"name":"fraction remains numeric not integer","input":"9007199254740991.1","wire":"9007199254740991.1"}
+  ],
+  "integerAccepted": ["-9007199254740991","9007199254740991","1.0","1e2","-0"],
+  "integerRejected": ["9007199254740991.1","9007199254740992","-9007199254740992","1e-7"],
+  "rejected": ["1e999","1e-999","{\"x\":1,\"x\":2}","\"\\ud800\""]
+}

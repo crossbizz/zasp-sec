@@ -239,6 +239,13 @@ func (index *SessionIndex) Search(ctx context.Context, scope domain.Scope, filte
 	if err != nil {
 		return SessionSearchPage{}, runtimeindex.ErrRejected
 	}
+	var allowed map[string]bool
+	if filters.AuthorizationRestricted {
+		allowed = make(map[string]bool, len(filters.AllowedInvestigationIDs))
+		for _, id := range filters.AllowedInvestigationIDs {
+			allowed[id] = true
+		}
+	}
 	if err := index.Ready(ctx); err != nil {
 		return SessionSearchPage{}, err
 	}
@@ -268,7 +275,7 @@ func (index *SessionIndex) Search(ctx context.Context, scope domain.Scope, filte
 	previous := after
 	for _, bucket := range sessions.Buckets {
 		id := bucket.Key.InvestigationID
-		if !validSessionInvestigationID(id) || id <= previous || bucket.Count < 1 {
+		if !validSessionInvestigationID(id) || id <= previous || bucket.Count < 1 || filters.AuthorizationRestricted && !allowed[id] {
 			return SessionSearchPage{}, runtimeindex.ErrDrift
 		}
 		previous = id
@@ -283,6 +290,9 @@ func (index *SessionIndex) Search(ctx context.Context, scope domain.Scope, filte
 	// The provider's after_key is authoritative for composite pagination and is
 	// not guaranteed to equal the final bucket key. It must still move forward.
 	if len(sessions.After) != 1 || !validSessionInvestigationID(sessions.After["investigation_id"]) || sessions.After["investigation_id"] < previous {
+		return SessionSearchPage{}, runtimeindex.ErrDrift
+	}
+	if filters.AuthorizationRestricted && !allowed[sessions.After["investigation_id"]] {
 		return SessionSearchPage{}, runtimeindex.ErrDrift
 	}
 	page.After = sessions.After["investigation_id"]

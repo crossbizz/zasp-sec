@@ -1,0 +1,12 @@
+// Generated command/output evidence; the invoked program owns any test state.
+import fs from 'node:fs';
+import { spawn } from 'node:child_process';
+const [label, command, ...args] = process.argv.slice(2);
+if (!/^[a-z0-9-]+$/.test(label) || !command) throw new Error('label and command required');
+const file = new URL(`./${label}.log`, import.meta.url);
+const out = fs.createWriteStream(file, { flags: 'wx' });
+out.write(`Workdir: ${process.cwd()}\nCommand: ${JSON.stringify([command,...args])}\n`);
+const child = spawn(command,args,{stdio:['ignore','pipe','pipe']});
+for (const stream of [child.stdout,child.stderr]) stream.on('data',data=>{out.write(data);process.stdout.write(data)});
+child.on('error',error=>{out.end(String(error));process.exitCode=1});
+child.on('close',(code,signal)=>{out.end(`\nExit: ${code} Signal: ${signal}\n`);process.exitCode=code??1});

@@ -1,0 +1,8 @@
+terraform fmt: exit 0 (CHECKPOINT_DISABLE=1); formatted deploy/staging/main.tf
+terraform fmt -check: exit 0
+git diff --check -- deploy/staging/main.tf: exit 0
+git diff --no-index --check /dev/null deploy/staging/queue-contract.test.mjs: exit 1; empty output, file differs from /dev/null, no whitespace diagnostics
+snapshot integrity: PASS
+four production lines only: PASS
+existing test bytes preserved outside added block: PASS
+initial evidence hashes and package.json unchanged: PASS

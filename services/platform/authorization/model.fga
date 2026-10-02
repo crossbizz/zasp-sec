@@ -1,0 +1,88 @@
+model
+  schema 1.1
+
+type user
+
+type agent
+
+type service
+
+type organization
+  relations
+    define member: [user, agent, service]
+    define organization_admin: [user]
+    define security_admin: [user]
+    define manage_identity: (organization_admin or security_admin) and member
+
+type workspace
+  relations
+    define organization: [organization]
+    define member: member from organization
+
+type environment
+  relations
+    define workspace: [workspace]
+    define member: member from workspace
+    define organization_admin: [user]
+    define security_admin: [user]
+    define security_engineer: [user]
+    define developer_owner: [user]
+    define compliance_viewer: [user]
+    define read_only_viewer: [user]
+    define investigate_sessions: (organization_admin or security_admin or security_engineer or developer_owner) and member
+    define manage_api_tokens: (organization_admin or security_admin) and member
+    define manage_data_controls: (organization_admin or security_admin) and member
+    define manage_findings: (organization_admin or security_admin or security_engineer) and member
+    define manage_identity: (organization_admin or security_admin) and member
+    define manage_workflows: (organization_admin or security_admin or security_engineer) and member
+    define revoke_sessions: (organization_admin or security_admin) and member
+    define run_tests: (organization_admin or security_admin or security_engineer or developer_owner) and member
+    define view: (organization_admin or security_admin or security_engineer or developer_owner or compliance_viewer or read_only_viewer) and member
+    define view_audit: (organization_admin or security_admin or compliance_viewer) and member
+    define view_compliance: (organization_admin or security_admin or compliance_viewer) and member
+
+type resource
+  relations
+    define environment: [environment]
+    define member: member from environment
+    define direct_investigate_sessions: [user]
+    define delegated_investigate_sessions: [delegation#assignee]
+    define investigate_sessions: (investigate_sessions from environment or direct_investigate_sessions or delegated_investigate_sessions) and member
+    define direct_manage_api_tokens: [user]
+    define delegated_manage_api_tokens: [delegation#assignee]
+    define manage_api_tokens: (manage_api_tokens from environment or direct_manage_api_tokens or delegated_manage_api_tokens) and member
+    define direct_manage_data_controls: [user]
+    define delegated_manage_data_controls: [delegation#assignee]
+    define manage_data_controls: (manage_data_controls from environment or direct_manage_data_controls or delegated_manage_data_controls) and member
+    define direct_manage_findings: [user]
+    define delegated_manage_findings: [delegation#assignee]
+    define manage_findings: (manage_findings from environment or direct_manage_findings or delegated_manage_findings) and member
+    define direct_manage_identity: [user]
+    define delegated_manage_identity: [delegation#assignee]
+    define manage_identity: (manage_identity from environment or direct_manage_identity or delegated_manage_identity) and member
+    define direct_manage_workflows: [user]
+    define delegated_manage_workflows: [delegation#assignee]
+    define manage_workflows: (manage_workflows from environment or direct_manage_workflows or delegated_manage_workflows) and member
+    define direct_revoke_sessions: [user]
+    define delegated_revoke_sessions: [delegation#assignee]
+    define revoke_sessions: (revoke_sessions from environment or direct_revoke_sessions or delegated_revoke_sessions) and member
+    define direct_run_tests: [user]
+    define delegated_run_tests: [delegation#assignee]
+    define run_tests: (run_tests from environment or direct_run_tests or delegated_run_tests) and member
+    define direct_view: [user]
+    define delegated_view: [delegation#assignee]
+    define view: (view from environment or direct_view or delegated_view) and member
+    define direct_view_audit: [user]
+    define delegated_view_audit: [delegation#assignee]
+    define view_audit: (view_audit from environment or direct_view_audit or delegated_view_audit) and member
+    define direct_view_compliance: [user]
+    define delegated_view_compliance: [delegation#assignee]
+    define view_compliance: (view_compliance from environment or direct_view_compliance or delegated_view_compliance) and member
+
+type delegation
+  relations
+    define assignee: [agent with task_bound, service with task_bound]
+
+condition task_bound(bound_task: string, task: string) {
+  bound_task == task
+}

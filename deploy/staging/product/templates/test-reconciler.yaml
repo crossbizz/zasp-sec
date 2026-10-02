@@ -1,0 +1,215 @@
+{{- $c := .Values.testReconciler | default dict -}}
+{{- $monitoring := .Values.monitoring | default dict -}}
+{{- if and (hasKey $c "enabled") (not (kindIs "bool" $c.enabled)) -}}{{ fail "testReconciler.enabled must be boolean" }}{{- end -}}
+{{- if $c.enabled -}}
+{{- if or (ne .Values.profile "control_plane") (not (has (toString .Values.schema.expectedVersion) (list "55" "56" "57" "58"))) -}}{{ fail "test reconciler requires control-plane schema55 or56" }}{{- end -}}
+{{- if le (int .Values.global.terminationGracePeriodSeconds) 20 -}}{{ fail "test reconciler termination grace must exceed shutdown20s" }}{{- end -}}
+{{- $region := required "test reconciler region required" $c.awsRegion -}}
+{{- $owner := required "test reconciler evidence owner required" $c.evidenceOwner -}}
+{{- if or (not (regexMatch "^[a-z]{2}(-gov)?-[a-z]+-[0-9]$" $region)) (not (regexMatch "^[0-9]{12}$" $owner)) -}}{{ fail "test reconciler region/account invalid" }}{{- end -}}
+{{- $role := required "test reconciler role required" $c.roleArn -}}
+{{- if not (regexMatch (printf "^arn:aws:iam::%s:role/[A-Za-z0-9+=,.@_/-]{1,128}$" $owner) $role) -}}{{ fail "test reconciler role/account mismatch" }}{{- end -}}
+{{- $secret := required "test reconciler database secret required" $c.databaseSecretArn -}}
+{{- if not (regexMatch (printf "^arn:aws:secretsmanager:%s:%s:secret:[A-Za-z0-9/_+=.@-]{1,512}$" $region $owner) $secret) -}}{{ fail "test reconciler database secret account/region mismatch" }}{{- end -}}
+{{- $bucket := required "test reconciler evidence bucket required" $c.evidenceBucket -}}
+{{- if not (regexMatch "^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$" $bucket) -}}{{ fail "test reconciler evidence bucket invalid" }}{{- end -}}
+{{- $key := required "test reconciler evidence KMS key required" $c.evidenceKMSKeyArn -}}
+{{- if not (regexMatch (printf "^arn:aws:kms:%s:%s:key/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" $region $owner) $key) -}}{{ fail "test reconciler evidence KMS key mismatch" }}{{- end -}}
+{{- $image := required "test reconciler worker image required" .Values.global.productImages.agentsecWorker -}}
+{{- if not (regexMatch "^[a-z0-9][a-z0-9./_-]*(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$" $image) -}}{{ fail "test reconciler image must be digest pinned" }}{{- end -}}
+{{- range $field := list "databaseCIDRs" "stsCIDRs" "s3CIDRs" "kmsCIDRs" -}}
+{{- $cidrs := index $c $field -}}
+{{- if or (not (kindIs "slice" $cidrs)) (lt (len $cidrs) 1) (gt (len $cidrs) 64) -}}{{ fail "test reconciler endpoint snapshots required" }}{{- end -}}
+{{- $ranges := list -}}
+{{- range $cidr := $cidrs -}}
+{{- if not (kindIs "string" $cidr) -}}{{ fail "test reconciler CIDR must be string" }}{{- end -}}
+{{- if not (regexMatch "^([0-9]{1,3}\\.){3}[0-9]{1,3}/(1[6-9]|2[0-9]|3[0-2])$" $cidr) -}}{{ fail "test reconciler CIDR must be bounded IPv4" }}{{- end -}}
+{{- $parts := splitList "/" $cidr -}}
+{{- $octets := splitList "." (index $parts 0) -}}
+{{- $start := int64 0 -}}
+{{- range $octet := $octets -}}
+{{- if or (gt (int $octet) 255) (ne (toString (int $octet)) $octet) -}}{{ fail "test reconciler CIDR must be canonical" }}{{- end -}}
+{{- $start = add (mul $start 256) (int $octet) -}}
+{{- end -}}
+{{- $first := int (index $octets 0) -}}
+{{- if or (eq $first 0) (eq $first 127) (ge $first 224) (and (eq $first 169) (eq (index $octets 1) "254")) -}}{{ fail "test reconciler CIDR cannot be local/metadata/multicast" }}{{- end -}}
+{{- $size := int64 1 -}}
+{{- range until (int (sub 32 (int (index $parts 1)))) -}}{{- $size = mul $size 2 -}}{{- end -}}
+{{- if ne (mod $start $size) 0 -}}{{ fail "test reconciler CIDR has host bits" }}{{- end -}}
+{{- $end := sub (add $start $size) 1 -}}
+{{- range $prior := $ranges -}}{{- if and (le $start $prior.end) (ge $end $prior.start) -}}{{ fail "test reconciler endpoint ranges overlap" }}{{- end -}}{{- end -}}
+{{- $ranges = append $ranges (dict "start" $start "end" $end) -}}
+{{- end -}}
+{{- end }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: zasp-test-reconciler
+  annotations: { eks.amazonaws.com/role-arn: {{ $role | quote }} }
+automountServiceAccountToken: false
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata: { name: zasp-test-reconciler-secrets }
+spec:
+  provider: aws
+  parameters:
+    region: {{ $region | quote }}
+    objects: |
+      - objectName: {{ $secret | quote }}
+        objectType: secretsmanager
+        objectAlias: postgres-dsn
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zasp-test-reconciler
+  labels: { app.kubernetes.io/name: zasp-test-reconciler, app.kubernetes.io/part-of: zasp }
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: zasp-test-reconciler } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: zasp-test-reconciler, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: zasp-test-reconciler
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.global.terminationGracePeriodSeconds }}
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: zasp-test-reconciler } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: zasp-test-reconciler } } }
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: worker
+          image: {{ $image | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-test-reconciler/postgres-dsn)"; exec /app/agentsec-worker']
+          ports: [{ name: internal, containerPort: 8081 }]
+          env:
+            - { name: ZASP_WORKER_MODE, value: security-agent-test-reconciler }
+            - { name: ZASP_DATABASE_AUTHORITY, value: zasp_security_agent_worker }
+            - name: ZASP_WORKER_ID
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - { name: ZASP_POLL_INTERVAL, value: "1s" }
+            - { name: ZASP_LEASE_DURATION, value: "60s" }
+            - { name: ZASP_BATCH_SIZE, value: "1" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "20s" }
+            - { name: ZASP_AWS_REGION, value: {{ $region | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET, value: {{ $bucket | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET_OWNER, value: {{ $owner | quote }} }
+            - { name: ZASP_EVIDENCE_KMS_KEY_ARN, value: {{ $key | quote }} }
+            - { name: ZASP_TEST_RECONCILER_ROLE_ARN, value: {{ $role | quote }} }
+            - { name: ZASP_TEST_RECONCILER_WEB_IDENTITY_TOKEN_FILE, value: /var/run/secrets/eks.amazonaws.com/serviceaccount/token }
+          volumeMounts:
+            - { name: database, mountPath: /var/run/secrets/zasp-test-reconciler, readOnly: true }
+            - { name: identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+          startupProbe: { httpGet: { path: /healthz, port: internal }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: internal }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: internal }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: "1", memory: 1Gi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true }
+      volumes:
+        - name: database
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: zasp-test-reconciler-secrets } }
+        - name: identity
+          projected:
+            sources:
+              - serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 3600, path: token }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: zasp-test-reconciler }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app.kubernetes.io/name: zasp-test-reconciler } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: zasp-test-reconciler }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: zasp-test-reconciler }
+  minReplicas: 2
+  maxReplicas: 6
+  metrics: [{ type: Resource, resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } } }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zasp-test-reconciler-dependencies
+  annotations: { zasp.io/network-policy-boundary: native-cidr-snapshot }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: zasp-test-reconciler } }
+  policyTypes: [Ingress, Egress]
+  {{- if $monitoring.enabled }}
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ required "monitoring namespace required" $monitoring.namespace | quote }} } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+  {{- else }}
+  ingress: []
+  {{- end }}
+  egress:
+    - to:
+      {{- range $cidr := $c.databaseCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to:
+      {{- range $cidr := uniq (concat $c.stsCIDRs $c.s3CIDRs $c.kmsCIDRs) }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+{{- if $monitoring.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zasp-test-reconciler
+  labels: { app.kubernetes.io/name: zasp-test-reconciler, app.kubernetes.io/part-of: zasp }
+spec:
+  type: ClusterIP
+  publishNotReadyAddresses: true
+  selector: { app.kubernetes.io/name: zasp-test-reconciler }
+  ports: [{ name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: zasp-test-reconciler
+  labels: { app.kubernetes.io/name: zasp-test-reconciler, app.kubernetes.io/part-of: zasp }
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: zasp-test-reconciler, app.kubernetes.io/part-of: zasp } }
+  namespaceSelector: { matchNames: [{{ .Release.Namespace | quote }}] }
+  endpoints: [{ port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }]
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: zasp-test-reconciler-availability
+  labels: { app.kubernetes.io/part-of: zasp }
+spec:
+  groups:
+    - name: zasp.test-reconciler.availability
+      rules:
+        - alert: ZaspTestReconcilerUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="zasp-test-reconciler"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="zasp-test-reconciler"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "Test reconciler workload is unavailable or absent" }
+        - alert: ZaspTestReconcilerNotReady
+          expr: agentsec_ready{namespace="{{ .Release.Namespace }}",service="zasp-test-reconciler"} == 0 or up{namespace="{{ .Release.Namespace }}",service="zasp-test-reconciler"} == 0 or (up{namespace="{{ .Release.Namespace }}",service="zasp-test-reconciler"} == 1 unless on (namespace,service,instance) agentsec_ready{namespace="{{ .Release.Namespace }}",service="zasp-test-reconciler"}) or absent(up{namespace="{{ .Release.Namespace }}",service="zasp-test-reconciler"})
+          for: 10m
+          labels: { severity: ticket }
+          annotations: { summary: "Test reconciler readiness is unavailable" }
+{{- end }}
+{{- end }}

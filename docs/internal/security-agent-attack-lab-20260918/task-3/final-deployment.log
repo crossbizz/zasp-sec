@@ -1,0 +1,135 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","--test","deploy/production/attack-lab-workflow-readiness.test.mjs","deploy/production/attack-lab-reconciler-runtime.test.mjs","scripts/isolated-postgres-bridge.test.mjs","scripts/owned-browser-postgres.test.mjs"]
+TAP version 13
+# Subtest: actual Go57 worker and registration loaders accept only rendered dedicated authority
+ok 1 - actual Go57 worker and registration loaders accept only rendered dedicated authority
+  ---
+  duration_ms: 32796.07825
+  type: 'test'
+  ...
+# === RUN   TestAttackLabDeploymentRenderedWorkerConfig\\n    security_agent_attack_lab_deployment_test.go:109: real worker loader consumed rendered pod after locally modeled IRSA admission; metadata.name and synthetic DSN substituted; ambient injection still rejected\\n--- PASS: TestAttackLabDeploymentRenderedWorkerConfig (0.05s)\\nPASS\\nok  \\tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-worker\\t3.211s\\n=== RUN   TestAttackLabDeploymentRenderedMigrationConfig\\n    attack_lab_deployment_config_test.go:67: real registration loaders consumed actual coexistence57 env\\n--- PASS: TestAttackLabDeploymentRenderedMigrationConfig (0.05s)\\nPASS\\nok  \\tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate\\t1.536s\\n=== RUN   TestAttackLabDeploymentRenderedAPIConfig\\n=== RUN   TestAttackLabDeploymentRenderedAPIConfig/enabled\\n=== RUN   TestAttackLabDeploymentRenderedAPIConfig/disabled\\n--- PASS: TestAttackLabDeploymentRenderedAPIConfig (0.05s)\\n    --- PASS: TestAttackLabDeploymentRenderedAPIConfig/enabled (0.00s)\\n    --- PASS: TestAttackLabDeploymentRenderedAPIConfig/disabled (0.00s)\\nPASS\\nok  \\tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-api\\t2.175s\\n
+# Subtest: schema57 catalog readiness has fixed private network access and closed deployment authority
+ok 2 - schema57 catalog readiness has fixed private network access and closed deployment authority
+  ---
+  duration_ms: 1661.85225
+  type: 'test'
+  ...
+# Subtest: bridge forwards raw bytes only through its owned container and joins on stop
+ok 3 - bridge forwards raw bytes only through its owned container and joins on stop
+  ---
+  duration_ms: 8.241125
+  type: 'test'
+  ...
+# Subtest: bridge rejects foreign container identity and invalid bounds before listening
+ok 4 - bridge rejects foreign container identity and invalid bounds before listening
+  ---
+  duration_ms: 0.231291
+  type: 'test'
+  ...
+# Subtest: bridge kills and joins an owned relay CLI that ignores EOF and SIGTERM
+ok 5 - bridge kills and joins an owned relay CLI that ignores EOF and SIGTERM
+  ---
+  duration_ms: 1296.678541
+  type: 'test'
+  ...
+# Subtest: starts only pinned loopback ephemeral PostgreSQL and joins its exact container
+ok 6 - starts only pinned loopback ephemeral PostgreSQL and joins its exact container
+  ---
+  duration_ms: 1.74475
+  type: 'test'
+  ...
+# Subtest: rejects invalid ports before dispatch
+ok 7 - rejects invalid ports before dispatch
+  ---
+  duration_ms: 0.199875
+  type: 'test'
+  ...
+# Subtest: isolated browser PostgreSQL has no published port and joins its raw-wire bridge
+ok 8 - isolated browser PostgreSQL has no published port and joins its raw-wire bridge
+  ---
+  duration_ms: 1.14025
+  type: 'test'
+  ...
+# Subtest: initializes the same C UTF8 database as the pinned migration reference fixture
+ok 9 - initializes the same C UTF8 database as the pinned migration reference fixture
+  ---
+  duration_ms: 0.183292
+  type: 'test'
+  ...
+# Subtest: default startup leaves function instrumentation off
+ok 10 - default startup leaves function instrumentation off
+  ---
+  duration_ms: 0.193833
+  type: 'test'
+  ...
+# Subtest: readiness failure still removes the created container
+ok 11 - readiness failure still removes the created container
+  ---
+  duration_ms: 41.187833
+  type: 'test'
+  ...
+# Subtest: early server exit fails readiness even if the CLI already exited successfully
+ok 12 - early server exit fails readiness even if the CLI already exited successfully
+  ---
+  duration_ms: 0.3395
+  type: 'test'
+  ...
+# Subtest: failed start removes the exact created resource
+ok 13 - failed start removes the exact created resource
+  ---
+  duration_ms: 0.243959
+  type: 'test'
+  ...
+# Subtest: lost create response recovers only the invocation name and matching ownership label
+ok 14 - lost create response recovers only the invocation name and matching ownership label
+  ---
+  duration_ms: 0.372625
+  type: 'test'
+  ...
+# Subtest: ambiguous create cannot remove a container without matching ownership
+ok 15 - ambiguous create cannot remove a container without matching ownership
+  ---
+  duration_ms: 0.440833
+  type: 'test'
+  ...
+# Subtest: concurrent and repeated stop perform one exact cleanup
+ok 16 - concurrent and repeated stop perform one exact cleanup
+  ---
+  duration_ms: 0.261834
+  type: 'test'
+  ...
+# Subtest: cancellation joins an in-flight create then recovers and removes its resource
+ok 17 - cancellation joins an in-flight create then recovers and removes its resource
+  ---
+  duration_ms: 0.200542
+  type: 'test'
+  ...
+# Subtest: hung commands are bounded and joined before cleanup
+ok 18 - hung commands are bounded and joined before cleanup
+  ---
+  duration_ms: 31.302417
+  type: 'test'
+  ...
+# Subtest: cleanup failure stays rejected even when repeated and absence checks still run
+ok 19 - cleanup failure stays rejected even when repeated and absence checks still run
+  ---
+  duration_ms: 0.3935
+  type: 'test'
+  ...
+# Subtest: successful CLI removal without observed container absence fails the join
+ok 20 - successful CLI removal without observed container absence fails the join
+  ---
+  duration_ms: 0.482
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 32945.86675
+
+Exit: 0 Signal: null

@@ -1,5 +1,23 @@
 # Agent Security Platform Implementation Status
 
+## Latest verified state, October 1, 2026
+October 1 existing-work reconciliation candidate: current main changes and the
+root checkpoint are preserved together, with conflicting historical root
+versions archived byte-exact. Fresh UI2535/246-file suite, typecheck/build,
+API/worker race packages, staging30 and grouped contract checks passed. Pinned
+release checks remain284pass/1failure at the documented Nexus release-license
+gate; source/capture discrepancies and deployed acceptance remain open.
+The initial push was refused by credential scanning's large-line guard. Its
+user-authorized repair now has independent approval and159passing scanner/hook
+tests; exact audited synthetic-fixture cleanup preserves runtime test inputs.
+Fresh isolated UI2535, typecheck/build, lint, dependency and affected race checks
+passed. Final reviewed-tree integration preserves local history and requires a
+non-bypassed complete scan plus remote-SHA verification; cloud receipt remains
+unverified. No production or native evidence is promoted. See
+[integration status](existing-work-integration-status-2026-10-01.md) and
+[cloud continuation](cloud-main-continuation-2026-10-01.md). Original728 scope,
+current523/144/61 classifications and production refusal guards are unchanged.
+
 2026-10-01 independent API-token reveal correction: isolated main-based batch
 fixes equivalent PostgreSQL/Go expiry timestamp parsing while preserving UTC
 AES-GCM and exact tenant/principal/grant/token/operation bindings. Fresh affected
@@ -25,26 +43,11059 @@ packaging repair, not the separate Temporal/OpenFGA architecture completion,
 deployed acceptance or hosted-CI evidence. Existing main availability counts
 remain unchanged and do not establish revised Temporal/OpenFGA readiness.
 
-Current availability: 534 production-available, 133 component-only, 61
-blocked/external, all728 original tasks retained. The six-row
+Historical main checkpoint availability: 534 production-available, 133
+component-only, 61 blocked/external, all728 original tasks retained. The six-row
 [evidence reconciliation](2026-09-17-availability-reconciliation.md) corrects
 unsupported claims and records two already-shipped fixture-defined criteria.
 Production-available means the documented shipped composition category, not
 live deployment or completed end-to-end production readiness. Older counts
 below are historical checkpoints.
 
-2026-09-17 cache-preparation increment: runtime harnesses reuse cached pinned
-images instead of contacting registries on every preparation. See
-[bounded shipping evidence](2026-09-17-cached-runtime-shipping-evidence.md).
-This changes no product capability or availability row and does not establish
-end-to-end production readiness. The full 728-task goal remains open.
+Current merged TSV validation: 523 production-available, 144 component-only,
+61 blocked/external, all 728 original tasks retained with zero missing rows.
+These are implementation-evidence categories, not deployed acceptance.
+
+Launch status: **NOT production-ready**. The 728-task availability TSV below
+remains the authoritative task mapping; its historical classifications do not
+prove acceptance of the current deployed release.
+
+Latest registration build checkpoint (supersedes the historical pending-repair
+notes below): independent bounded re-review approved both selected-pgcrypto1.4
+and actual-source-sort-key collation repairs. Root copied the reviewed source
+to an owned read-only bundle, freshly enumerated5759inputs/74modules, verified
+exact rebased equality to the reviewed source candidate, and compiled separate
+apiserver/emitter test binaries with cleared environment, pinned Go1.25.13,
+CGO0 and offline readonly modules. Complete prepared toolchain/module-cache
+root digests, actual binary identities and the strict owner-only build envelope
+are recorded in `task-4-registration-actual-build-report.md` in the SDD
+directory below. Independent build/envelope admission is now approved in
+`task-4-registration-actual-build-review.md`; runtime acceptance is still open.
+The first original-source fixture failed PostgreSQL startup without LC_ALL;
+the second added only LC_ALL=C and reached capture, but refused a catalog query.
+Its owned PostgreSQL stop and Wait both exited zero, with no surviving server
+or published reference output. Bounded query diagnostics are being implemented
+before another run. No PostgreSQL reference, current target/native or deployed
+flow was accepted. The 728 mapping/classifications and every production
+readiness guard stay unchanged.
+
+October 1 grouped source checkpoint: the historical-private57 adapter and its
+closed 27-file original-source bundle have independent bounded approval. The
+review matched all 32 owned files, the complete original archive/import graph,
+unchanged strict intake/checker and retained 49-pass/zero-failure/zero-skip
+evidence. Current source/A/B inventories and full builder/native execution are
+still pending; historical evidence is not current production acceptance.
+Evidence: `task-4-private-historical-implementation-review.md` in
+`.superpowers/sdd/2026-09-29-ordered-current-native379-parity/`.
+
+The higher active-builder integration review found four refusal gaps: cross-kind
+identity collisions, unauthorized predecessor facts, forged proof provenance,
+and repeated application. Independent re-review now approves the exact repaired
+source and retained grouped RED/GREEN (9/9, no skips), without repeating the
+suite. Root's first combined read-only builder import subsequently failed at
+the precision SQL inspection boundary: a legitimate `WITH ORDINALITY` in the
+routine `input_types` descriptor is mistaken for a second query. A minimal
+baseline-versus-added-descriptor probe reproduces the difference. The bounded
+lexical repair is assigned; generated outputs and source pins stay unchanged.
+Evidence: `task-4-higher-builder-integration-re-review.md` and
+`task-4-combined-builder-import.log` in the same SDD directory.
+Registration's test-only
+source-reference harness reports 14 unit/compile controls passing and three
+explicit opt-in skips under Go1.25.13/CGO0, including ordinary unset-GOMODCACHE
+and cold/warm CLI compilation. Its finished source-input enumeration reports
+5,759 unique paths/74 modules, retaining multiple consumed roles for a file.
+Neither registration PostgreSQL capture nor a deployed flow has passed. Root's
+actual frozen input/binary bundle and source/safety review remain required.
+No task classifications, installation flags or runtime routing are promoted.
+
+Later grouped checkpoint: the exact ordinality repair is independently approved
+(33/33 retained affected passes, no skips). The real combined importer then
+exposed a second validation call still selecting private7. Root's regression
+reproduced that refusal; after correcting the private8 witness kind, the exact
+fact-count guard also required the source-declared resolver addition. Approved
+source arithmetic is 10052 original non-build facts minus two equalExisting
+aliases plus one resolver = 10051, plus one build record = 10052. The final
+real-builder regression passed (one test, zero skips, 6.587s), checking all379
+rules, private8, historical13/4, separate four higher proofs, registration refusal
+and unchanged non-installable/non-native/non-executable flags. Independent
+review of this combined fix is pending. No active artifacts or Go pins changed.
+Evidence: `task-4-precision-resolver-ordinality-review.md` and
+`task-4-combined-private-kind-report.md` in the same SDD directory.
+
+Registration implementation review requires two grouped pre-execution repairs:
+bind the original fixture's actual pgcrypto1.4 control/base/upgrade/library chain,
+and witness the source ORDER BY v collation rather than the final digest text.
+The original owner is repairing both; no reference PG capture has run. Root
+prepared an isolated read-only Go1.25.13 toolchain/module cache and verified its
+offline module content successfully. Missing older-version MVS metadata in the
+first preparation was resolved from existing local files, not fetched. Actual
+application source/binary snapshot and pre-execution review remain pending.
+Evidence: `task-4-worker-registration-reference-implementation-review.md` and
+`task-4-registration-build-snapshot-preparation.md`. Current source/A/B inventory,
+generated-reference synchronization, full native379 and deployed gates remain
+open; no original task availability class is promoted.
+
+Current batch checkpoint: root-owned native22 against PostgreSQL 18.3 and
+Go 1.25.13 reports `expected=10088 live=10050 missing=38 extra=0 changed=14`
+(52 discrepancies). Both remaining worker definition discrepancies closed,
+with clean PostgreSQL shutdown. The run did not publish `result-22.json`.
+Native verification, installation and executable replacement remain unproven.
+Evidence: `.superpowers/sdd/2026-09-29-ordered-current-native379-parity/task-4-native22-evidence.md`
+and `native-run/full-22.log` in that directory.
+
+The next connected migration batch addresses precision routine identity and
+saved predecessor definitions. It is under independent review: the interrupted
+Node migration suite had 417 tests, 369 passed, six failed and 42 conditional
+skips. Those failures concern generated references; they are unresolved until
+current source review and regression evidence establish closure. Five
+constraints, three triggers and one registration discrepancy also remain.
+
+The October 1 independent source/security review rejected the precision
+candidate before another native run: duplicate predecessor INSERTs would break
+installation, and alias validation accepted changed/missing argument fields,
+wrong row shapes and a suffix-only multiword type match. These load-bearing
+findings are being repaired as one grouped batch; source-only tests do not
+prove installation semantics. Detailed review is retained at
+`.superpowers/sdd/2026-09-29-ordered-current-native379-parity/task-4-native22-precision-strong-review.md`.
+Scoped re-review accepted the SQL restoration (43 initial predecessor entries,
+nine guard captures, zero overlap). At that checkpoint alias mode/shape defects
+and a valid-label regression remained open; a standard-model implementer took
+the bounded repair, with artifact generation and native execution frozen.
+The later checkpoints below supersede that parser and NULL-investigation state.
+
+Later October 1 checkpoint: the bounded alias repair is independently approved
+at source SHA256 `1587e1c0b50deb8e11697e79f5706e3d9ab90ce9c3d61f30e3a41407622c66e3`.
+Grouped RED reproduced 33 failures; affected GREEN had 87 passes, zero failures
+and five existing opt-in skips, including the unchanged valid-alias consumer.
+Independent review ran 32 targeted probes. These close the parser findings,
+not installation or native parity. Source audit then found a frame-preservation
+defect: the pinned saved guard keys are unqualified and the original resolver
+helper uses `pg_catalog,public`, while the copied collector expression runs
+under `pg_catalog` only. Before implementing a fixed-frame adapter, the focused
+owned diagnostic subsequently passed (Go1.25.13,
+PG18.3, package49.170s): all seven actual unqualified keys returned NULL under
+pg_catalog and the exact pinned definition hashes under pg_catalog,public.
+Read-only rollback, frame restoration and normal server shutdown passed.
+Evidence: `.superpowers/sdd/2026-09-29-ordered-current-native379-parity/task-4-precision-frame-native-evidence.md`.
+This confirms the resolution-frame defect, not full native parity. A bounded
+compiler-owned successor resolver design is independently approved and its
+grouped source/test implementation assigned. Historical compiler/private7/direct22
+outputs must remain byte-identical. Go/packet successor synchronization and
+artifact publication remain pending, including both A/B builders and immutable
+manifests. No task-status promotion is made.
+
+The parallel remaining-projection audit found two temporal72 trigger expectations
+duplicated under qualified and unqualified keys. Reconciliation still requires
+exact source-bound equality of their selected fields; no aliases were deleted.
+The five constraint and one trigger pretty-deparse differences remain refused:
+non-pretty catalog text cannot prove their exact pretty-true output. An owned
+original/pristine-frame diagnostic is being prepared. The worker-registration
+audit also confirmed an older registration checksum inside the newer pinned
+catalog; its fingerprint still needs complete source-framed aggregate replay,
+not substitution of the native value. Audit evidence is retained in the same
+SDD directory at `task-4-native22-remaining-projection-audit.md` and
+`task-4-native22-worker-registration-audit.md`. Final artifact publication remains
+frozen while these source/reference boundaries are closed. Native22 is still
+the last full equality observation, with 52 discrepancies; no later full-pass
+claim is made.
+
+The unshipped successor source candidate passed 25 affected local tests, but
+independent review withheld approval for two admission/containment bypasses
+(gate shadowing and SQL-container escape). They are being repaired as one
+grouped fix; publication and resolver native acceptance remain pending.
+Detailed evidence: `task-4-precision-resolver-strong-review.md` in the same SDD
+directory. The separate observation-only probe then passed (package48.078s):
+all six exact pretty texts matched the source captures under the source frame;
+both temporal five-field rows matched source and qualified references under
+their corresponding frames. Rollback and normal PG shutdown passed. Evidence:
+`task-4-remaining-projection-frame-native-evidence.md`. This resolves the pretty
+witness gap for these exact objects, not emitted-key reconciliation, collector
+repair, full native parity or production readiness.
+
+Resolver fix round1 reported 46 affected passes; scoped re-review closed the
+original gate-shadow/container examples but withheld approval for two lexical
+agreement gaps (CR-ended comments and dollar-bearing identifiers). Both are
+assigned as one bounded successor-only repair with grouped coverage. Source
+approval, owned resolver RED/GREEN, final generation and native parity remain
+open; no task classification changes. Independent remaining-reference design
+and 34-branch registration replay preparation continue without shared edits.
+
+Resolver round2 is now independently approved at source SHA
+`f9e62dfa2dd1eef9f6d5c22112aa0d02ff38d1287cd4f4fafb93073bef7e5de4`.
+Owned PG legacy RED failed at the intended NULL guard. Successor attempt1 reached
+all seven pinned definitions and private8 admission, but failed on an incorrect
+malformed-input fixture assumption: both independent source and successor
+returned NULL/no error for `(`. This run is not acceptance; downstream controls
+remain unrun. Focused test correction/investigation is assigned without changing
+collector semantics. Both owned servers shut down normally. Exact evidence:
+`task-4-precision-resolver-native-evidence.md` in the SDD directory. Remaining
+eight-row source-reference implementation proceeds independently under its
+approved design; no final output refresh or full-native result yet.
+
+The corrected focused resolver run is now independently accepted: PG18.3,
+Go1.25.13, exit0/package48.376s, all seven pinned definitions/private8 admission,
+21000/42601/0A000 and both first-error orderings, lazy no-demand, 36 drift/frame
+controls and final rollback completed. Owned shutdown was normal and no matching
+process remained. Evidence/log hashes and failed prior attempt are retained in
+`task-4-precision-resolver-native-evidence.md`; the strong-review report accepts
+this focused gate only. Full native22/52 discrepancies remains the last complete
+equality observation. Publication, production private8 Go admission/pins, full
+parity, portability, installed-worker and deployed flows remain open; no task
+availability classification is promoted. Remaining-reference source candidate
+is frozen for review, and higher worker replay design is being corrected:
+all 82 originals are available; a JavaScript replacement-string artifact—not
+PostgreSQL—caused the four-dollar discrepancy. Registration still requires
+complete 34-branch source replay.
+
+Remaining-reference source implementation and its fixed eight-record witness
+are independently approved. Reported affected93 has87 passes/zero failures/six
+existing skips; this is not full-builder execution. Six qualifications and two
+complete temporal proofs retain all source positions; generic reconciliation
+requires exactly two equalExisting pairs and no new aliases. Full builder import
+still refuses frozen private-helper pins. Evidence:
+`task-4-remaining-reference-implementation-review.md` in the SDD directory.
+The corrected higher-replay design is independently approved, and one grouped
+implementation now owns all82 higher/52 base graph records and four final typed
+definitions. No outputs, production pins or task statuses are promoted.
+
+The higher source-only implementation now has independent spec/quality approval:
+its retained affected group reports26 passes/zero failures/zero skips. Review
+verified complete new-file diff/frozen inputs,82 original frames, full graph
+evidence and all four typed final definitions. This accepts the component source
+lane, not native execution or registration. A bounded design clarification
+admits87 uniquely checked saved originals for dependency provenance only,
+retaining all2282 application callables and never accepting those87 as copied
+originals or registration authority. The registration aggregate design has
+separate spec/quality approval after correcting Boolean output, effective
+discovery-role/RLS execution and collation-ordering contracts. Its33 source bags,
+runtime registration and fingerprint still need implementation and verification.
+Independent review selected a separately pinned ORIGINAL source-reference fixture
+for full33-bag proof over a handwritten DDL interpreter. The callback excludes
+the dormant evaluator/target inputs and must freeze a complete reference packet
+before a separate fresh target comparison. A grouped implementation now owns
+that harness and transitive worker/runtime/upstream input closure; PostgreSQL
+execution still requires separate root authorization after source/safety review.
+Evidence: `task-4-worker-higher-replay-design-review.md` and
+`task-4-worker-higher-implementation-review.md`,
+`task-4-worker-registration-aggregate-design-review.md` and
+`task-4-worker-registration-reference-path-review.md` in the SDD directory.
+Native22 remains the last full comparison; refresh, production pins and deployed
+acceptance are still open. The reviewed launch runner remains unchanged: the
+proposed two-endpoint hash optimization is rejected for a mutable worktree.
+No original task classification or production-readiness promotion is made.
+
+Registration build/dispatch review now accepts deterministic frozen-source
+assembly plus original installer/adapter forwarding and callback corroboration;
+historical SQL tracing is not required. The candidate input audit records1,672
+local Go/embed files and74 module identities, not the finished build closure.
+The new test-only emitter and full33-bag harness are being implemented with
+grouped failing coverage. The implementer reports an affected emitter test pass;
+independent implementation/build review and actual reference capture are pending.
+Finished harness/emitter/CLI inputs, verified module content, toolchain and build
+options must be bound before capture. Separate emitter and fixture binaries must
+come from one frozen bundle; later CLI builds remain confined to that bundle.
+No PostgreSQL run, artifact refresh, source-pin promotion, commit or push occurs
+at this checkpoint. Evidence: `task-4-worker-registration-reference-input-closure.md`
+and `task-4-worker-registration-build-dispatch-review.md` in the SDD directory.
+
+Independent shipping checkpoint: main now contains the reviewed runner/template
+batch and the isolated API-token reveal correction at
+`8484fba94176071026f711a11fe908a22a02913f`, confirmed by normal push and remote
+SHA. That fix passed fresh affected race checks, four existing PostgreSQL
+regressions, eight UI checks and final release typecheck/build, with separate
+security/evidence review. It does not close native379 or deployed acceptance.
+The next connected discovery extraction audit found an actual shared dependency:
+main lacks the new Temporal/FGA composition and current worker runtime_ready
+still intentionally returns false. Root keeps the approved shared architecture
+and closes its dependency chain rather than bypassing the guard. Four reviewed
+higher-definition builder replacements have a disjoint implementation owner;
+registration capture remains in its final grouped implementation stage.
+A read-only helper continuity derivation preserved all historical direct22
+assembly/DDL/query hashes while identifying exactly two changed helper-byte pins;
+independent authority review is pending before any pin/artifact publication.
+Evidence: `task-4-next-temporal-product-batch-review.md` and
+`task-4-private-helper-continuity-observation.md` in the SDD directory. No task
+classification or production-readiness promotion occurs at this checkpoint.
+
+The current UI typecheck and production build passed on October 1, along with
+174 connected UI regression tests, UI/API coverage and the production import
+graph. Go 1.25.13 authorization and orchestration package tests also passed.
+Release packaging exposed a stale sensor-agent module graph relative to its
+local platform replacement. The selected dependency versions and lock entries
+were aligned; dependency validation, independent graph review and sensor-agent
+package tests passed with Go 1.25.13 (118.528s). The compliance loader test also
+passed with the pinned executable. SBOM enumeration now advances to a license
+gate for `github.com/nexus-rpc/nexus-proto-annotations@v0.1.0`: its module archive
+and upstream tag commit `e558d6edaf84e280dddfc87b5b8ce1662f66ac8b` omit license
+terms. Current upstream MIT metadata is insufficient evidence for that pinned
+release. Required prerequisite: license attestation covering the exact release,
+or a reviewed pinned successor with distributed license terms. The release
+allowlist remains enforced; the complete release regression is not yet green.
+These are local component and build gates. Required launch gates remain full native truth/drift/NULL/
+forged-entry/frame parity, varied-login/OID and production PostgreSQL acceptance,
+connected installed-worker acceptance, full100 capacity, and deployed Stytch,
+OpenFGA, Temporal and provider flows. No task classification is promoted by this
+checkpoint. Deployed acceptance requires an approved HTTPS origin, Stytch tenant
+and provider credentials, Temporal and OpenFGA endpoints with published store/
+model, six discovery LOGIN/service connections, protected DSN/TLS/key references
+and validated acceptance configuration. The launch audit found none of those
+runtime connection keys in the checked environment files or process environment;
+it made no credentialed external requests. The 728-ID Temporal amendment
+crosswalk exists at `2026-09-22-temporal-openfga-crosswalk.tsv` and is traceability,
+while the availability TSV remains the task status authority.
+The September 29 evidence below is retained as historical context.
+
+Launch verification tooling checkpoint: `scripts/launch-batch.mjs` is integrated
+locally with 12 passing runner tests and independent cache-boundary review.
+It groups artifact checks, retains per-attempt logs, revalidates the full batch
+snapshot and can reuse unchanged deterministic local results. Release
+typecheck/build always execute. Unsupported Node preloads and symlink-directory
+inputs are refused; failed reruns invalidate old success receipts. No generated
+artifact refresh, push, deployed proof or task-status promotion is implied.
+The three comparable-flow measurements and integration commands are recorded
+in `launch-speed-handoff-2026-10-01.md`; launch acceleration remains unmeasured.
+
+## Historical verified state, September 29, 2026
+
+Launch status: **NOT production-ready**. All728 original task mappings remain;
+their historical classifications are not proof of the current deployed flow.
+
+- Ordered-current source/evaluator consolidation Task4 is a local component
+  checkpoint. Its self-validating dormant manifest binds all 379 collector
+  rules (366 direct, 13 transform), 10,231 facts and 565 declared role-sites:
+  34 worker-catalog, 172 worker-closure, 246 current-closure, 105 supplementary
+  and eight retained auth80 comparisons. Zero are unclassified. Roles can
+  share source bytes; this count does not claim disjoint spans or completed
+  executable operators. Original demand, frame, aggregate, NULL, error and
+  live-value obligations remain in the source packets and dormant manifest.
+  Task1's typed settlement closed all seven precision-definition conflicts,
+  with exact old/new hashes; the 51 equal and 1,781 newly supplied rows stay
+  separate. There are no unresolved capture conflicts. Only 35 private
+  nonroutine continuity facts are imported, with zero observed private
+  routines; seven current routines come from the in-memory compiler closure.
+  Both worker and current-source contracts are consumed from fixed tracked
+  authority. The current packet still has 82 bounded observation sites and
+  the worker packet has 37. Neither is executable capture authorization.
+  Development manifest SHA256 is
+  `628417a7ea647f13f6c34058d0905b5805818662b54cd8623cd7856706dbb4d2`;
+  module SHA256 is
+  `385b4768667da78539501fd25f245f3c438a1731286543f4e52e9a3d9555e4bb`.
+  Collector and admission SQL are unchanged. The manifest remains
+  `installable:false`, the checkpoint remains `nativeVerified:false`, and
+  the Go source loader still refuses installation. Local verification passed
+  133 Node tests with zero skips, offline `TestOrderedCurrent`, and the ledger
+  validator. All eight generated hashes matched across write/check/write/check,
+  including an isolated tree with the generated outputs initially absent.
+  All 728 mapping rows and
+  their production classifications are unchanged. This is component-only
+  evidence, not deployed Stytch, OpenFGA, Temporal, provider, production
+  availability, commit or push proof.
+  Next gates, in order: full 379-rule native truth/drift/NULL/forged-entry/frame
+  parity; varied-login/OID and exact production PostgreSQL; connected
+  installed-worker acceptance; full100 capacity under unchanged limits;
+  deployment/provider acceptance. Production routing stays last.
+- Latest local-native catalog closure: the composed direct-frame,
+  missing-reference and private-successor PostgreSQL run passed against one
+  accepted recovery80 source-A installation. Direct parity covered1,220 direct
+  and380 transform rows plus18 poison,6 adapter,22 semantic and19 successor
+  controls. Missing-reference captured12 rules/204 rows/18 controls. Private
+  successor captured57 rows with22 routine-parity and35 fresh nonroutine rows.
+  PostgreSQL shut down normally. P7
+  `ordered-current-capture-composition-native-final-report.md` binds the command,
+  hashes, independent review, and retained log SHA256
+  `2a875ddd77d36971fa5f66921d45b69ae3f8f9165be95c070fc159327948100a`.
+  This promotes the three catalog consumers from native-unverified to verified
+  local component evidence only. The captures remain noninstallable and the
+  private result remains `CAPTURED-UNBOUND`; no deployed Stytch, OpenFGA,
+  Temporal, provider, full100, production-readiness, commit or push proof is
+  implied.
+- Native execution exposed and grouped-TDD closed four packet defects: one
+  missing ACL aggregate parenthesis, cross-schema routine-config duplication,
+  a vacuous missing-regrole error probe, and immutable-trigger interference in
+  the zero-row probes. The final missing packet SHA256 is
+  `23930c86b7cd4a623a3317be48d30654f62cccf19c1f2c6115fc80902a932287`.
+  Standalone missing-reference native capture passed54.85s and package55.807s;
+  its log SHA256 is
+  `6022d33f1afffe99748ee17de747666aeb7a6e684c11a0e188e5b22acfbe5548`.
+  Independent review reproduced packet/contract hashes and passed5 packet,
+  6 contract and12 focused Go tests with no persistent authority weakening.
+  Testing used no paid API calls.
+
+- Accepted component batch: Pending SQL alias repair, regression and scoped
+  review. Actual shipped function reproduced SQLSTATE `42702` before repair
+  (2.101s). Renaming only the commands relation alias removed the collision.
+  Final PostgreSQL group passed 2.100s, including accepted-row exclusion,
+  ordering, validation refusal, row cap and actual cumulative/first-item byte
+  cutoff. Root's initial focused rerun passed 1.951s; source assembly/metadata
+  group passed 65.383s. Six integrated files match frozen candidate
+  `/private/tmp/zasp-recovery-pending-query.snoL8z`. P7
+  `ordered-current-single-recovery-pending-query-review.md` records final
+  SPEC/QUALITY PASS, SHA256
+  `7f3aa57cc88dd35f84944faea4199e094484c727d9c1a0703ac9ef1e8d5ecfbf`.
+- Latest connected acceptance: native session65842 PASS513.573s, candidate-root
+  log `native-recovery-relay-json-root-20260928.log`, SHA256
+  `12cffeae1ee904b1ad007ed9f299f40198cb3b42022b5745f73c732088df31dd`.
+  Install117.22s, originals128.87s, API admission47.91s and readback4.99s passed.
+  The actual Temporal child passed without skips. Root inspected the assertions
+  for one accepted delivery/completion, exact receipt and invocation identity,
+  concurrent replay safety, no new provider send and forged-evidence refusal.
+  Owned PostgreSQL pid10030 and all resources joined; no native run is live.
+  P7 `ordered-current-single-recovery-connected-acceptance.md` records scope.
+  This closes controlled local recovery, not deployed Stytch/OpenFGA/provider
+  acceptance, full100 capacity or production readiness.
+- Accepted follow-up component batch: actual shipped Attempt/Ack/Observe SQL
+  bodies through the production JSON adapter reproduced the boolean return-shape
+  failure (behavioral RED 2.287s). Three consumer `to_jsonb` wrappers repaired
+  the boundary without changing SQL functions, authorization or error mapping.
+  Grouped GREEN passed 2.196s; root's expanded recovery group passed 2.263s.
+  Ten source/evidence files are integrated from
+  `/private/tmp/zasp-recovery-relay-json-fix.1BUEUh`; P7
+  `ordered-current-single-recovery-relay-json-review.md` records SPEC/QUALITY
+  PASS, SHA256 `2f64f1f2d0a03683f4ef3f3b3f6f4a443d861f30f155f9647b161e41fb0d67d3`.
+  Closure comparison found only two production Go files and the new regression
+  among 2718 platform Go/SQL files. Migration/capture identities are unchanged.
+  Connected native recovery subsequently passed as recorded above.
+  Reviewed recovery source SHA256 is
+  `8e2797c82d880f07406eddda730ce3f88aa11fc6e3804a343e278c9ca89fe712`;
+  checksum `cf6a8227d5639d7d240267fbfb05c743be0e4f678c26f1ea9f66defd3310a264`.
+  These source identities bind the accepted local run, not a deployed release.
+- Source successor prepared in the frozen candidate: capture manifest wrapper
+  SHA256 `51858183e06c1518f90858e73560f5f39f7905bc9e954ea0ef16e706062f2f2a`,
+  context wrapper `e9179c5ce4472c38c8aed86fa4b4418c2c22c29c3409dc160801b8400393763b`.
+  Historical artifacts and A/B packet identities remain unchanged; the wrappers
+  distinguish those records from the repaired source under test. The exact
+  seven-literal disposable overlay check passed 1.005s. Shared approval
+  constants remain empty. Successor review passed, SHA256
+  `48f9b02c6a0c354b191bb7ba38124c8a1033934a151b858f9ec2d8a5d145207c`;
+  the two wrappers and review are preserved under the P7 pending-query prefix.
+  Native session24767 failed at Attempt before the JSON repair; session65842
+  subsequently passed. Historical
+  capture reuse did not imply acceptance of the repaired product flow.
+- The approved contract requires lost-ACK redelivery and eventual durable ACK.
+  No retry exemption or timeout increase has been applied. Final workflow,
+  one settlement, no-new-send and readback proof remain
+  mandatory.
+- Remaining launch gates include full100-target completion, installed-worker
+  transition/current-profile acceptance, and deployed Stytch/provider flows.
+  External gates recorded below remain open. No paid provider calls or push.
+- Next substantial batch: resume the approved current-integrity and supported
+  installed-worker acceptance path from its latest accepted artifacts. Do not
+  restart Task1 or recapture accepted catalogs from historical pending notes.
+  Full100 remains gated by credible timing under its unchanged600s policy TTL;
+  this recovery pass does not establish capacity or authorize runtime activation.
+- Task2 resumption evidence: the development generator still consumes predecessor
+  contract3 and old supplementary references. The accepted frame-v2 A/B packets
+  bind recovery80's different source. Root compared both contracts: worker and
+  edge lowering outputs plus four public recipes are identical; the temporal
+  lowerer refuses the successor source. All13 changed graph-node source and
+  definition strings differ only by exact compiler-checksum replacements, with
+  occurrence counts recorded in P7
+  `ordered-current-reference-source-reconciliation.md`. This is source evidence,
+  not equality of selected facts. Ruling: add fixed source-bound typed intake
+  before expected-fact projection; do not perform a pin-only generator rebind or
+  treat historical supplementary captures as successor truth. Offline intake
+  is now accepted after grouped verification and one scoped review fix. It
+  requires fixed source/contract/coverage/capture/packet identities and returns
+  original lossless observations separately from comparison normalization.
+  Final group:22 passed,0 failed,0 skipped,11.631s; GREEN SHA256
+  `62ef626aa330700e21af5c52c443e8bb0348f997dbf02ee75adbef6712ead399`.
+  Root verified all six implementation hashes. P7
+  `ordered-current-reference-intake-review.md` records SPEC PASS / QUALITY
+  APPROVED and distinguishes missing-export setup evidence from behavioral
+  proof. Intake remains noninstallable and emits no expected/release facts.
+  No native rerun, paid call, push or classification promotion occurred.
+  Next: reconcile successor-source consumers and project expected facts from
+  admitted observations; generator integration and native trust gates remain open.
+- Current-integrity successor batch: the temporal source lowerer now admits two
+  closed 24-family profiles, retaining all 137 source sites, nine transform
+  recipes and the two unresolved predecessor77 obligations. Root verified the
+  implementation/test hashes against the captured report and the affected
+  GREEN log (30 passed,0 failed,0 skipped; SHA256
+  `c5dfef6c43d89eb3246963ce7a5d522a5ea6df4babf0c1d5acda01333975072c`).
+  Independent review is now SPEC/QUALITY PASS. Its initial P2 evidence gap was
+  corrected by testing the caller-override guard against an already accepted
+  historical profile: exact old source fails with `Missing expected exception`,
+  current source passes1/0/0. Root ran both changed historical controls,2/0/0,
+  125.884ms. P7 `ordered-current-successor-lowering-review.md` records closure;
+  production was unchanged during the test-only correction.
+  No generator pins, generated release facts or runtime routing were changed.
+  Root's successor-consumer preflight also accepted8 retained auth80 sites,
+  34 worker rules/sites and the existing reference/consolidation source needs;
+  P7 `ordered-current-successor-consumer-preflight.md` records source-only scope.
+- Direct worker/edge projection is independently accepted as source-bound,
+  noninstallable component work:11 worker and39 edge rules,1220 unique rows,
+  exact unnormalized selected A/B fact equality and A-only canonical key joins.
+  Fixed-input group passed7/0/0 in29.589s; GREEN SHA256
+  `a866e3c8210d687fc0ab44c7bd4388c35d1a1e392bfe0d55af1621d56cc9c739`.
+  P7 `ordered-current-direct-reference-review.md` records SPEC/QUALITY PASS,
+  the source-proven FK relationship, the setup-only initial RED limitation and
+  separate postimplementation key-oracle mutation assurance. P7
+  `ordered-current-direct-reference-key-decision.md` records why capture roster
+  keys cannot simply become descriptor keys, and why original-frame fact
+  strings cannot be treated as canonical `pg_catalog` identities. The consumer
+  must retain source-framed values and remain noninstallable. The separate
+  thirteen-routine projection now has SPEC/QUALITY PASS after a test-only
+  review repair: independent expected definitions for all380 rows and explicit
+  private-artifact opt-in. Changed tests passed6/0/0; ordinary execution passed
+  1/0/5 intentional gated skips. P7
+  `ordered-current-transform-reference-v2-review.md` records evidence and limits.
+  Next connected work is the fixed source-frame collector path under P7
+  `ordered-current-direct-frame-implementation-brief.md`, preserving canonical
+  keys/selectors and independently admitted original-frame fact evaluation.
+  Offline direct projection is not live collector parity. Task2, generator
+  composition and native trust gates remain open. No production classification
+  changed and no push occurred.
+- The fixed direct-frame collector candidate also has scoped SPEC/QUALITY PASS:
+  50 rules,18 adapters and76 source-frame-sensitive leaves retain canonical
+  keys/selectors. The existing affected group passed65/0/0 after repairing an
+  unbalanced admission aggregate and NULL grouping. P7
+  `ordered-current-direct-frame-v1-review.md` records the reviewed hashes and
+  pending native gates. Review corrected a report-only claim about rule order;
+  by-ID set validation permits reordering. No runtime activation or installation
+  acceptance is implied. The next batch is a complete63-rule/1600-row native
+  parity and trust fixture. Initial packet review found a stale frame-module
+  hash, absent1220 direct expected rows despite literal row counts, and case
+  labels without an executable native contract. P7
+  `ordered-current-direct-frame-acceptance-packet-review.md` records SPEC/QUALITY
+  FAIL and all three Important findings. One consolidated repair round is in
+  progress; native execution must wait for a repaired, reviewed packet and
+  harness. Source installation must bind the accepted2ca capture
+  baseline, not silently substitute the later8e279 recovery source.
+- Native acceptance repair checkpoint: packet projection now includes the direct
+  rows, but independent combined review remains FAIL. The first Go consumer
+  executed only direct1220, omitted transform380 and mutation cases, used inert
+  GUC changes as mutation labels, left expected/case payload authority unbound,
+  fell through into approval processing, and lacked bounded checked rollback
+  and lossless integer comparison. The claimed1600-row result was withdrawn.
+  P7 `ordered-current-direct-frame-acceptance-combined-review.md` records the
+  complete consolidated repair; no native run of this candidate is approved.
+  Root independently ran the real compiler in the retainedA source snapshot:
+  session47742 passed4.020s and exported exact artifact2ca/sourcee04af/checksum
+  f537 (856912-byte artifact, mode0600). P7
+  `ordered-current-direct-frame-source-baseline.md` records the command and
+  identities. This proves source selection, not installed SQL or native parity.
+- Parallel private closure integration now emits four evaluator routines plus
+  eighteen adapters without duplicate schema creation. Local affected group
+  reported17 pass,0 fail,1 explicit artifact skip; root verified source/test/diff
+  hashes. Independent review found later ALTER/CREATE OR REPLACE statements
+  could change effective routines while the compiler emitted original facts.
+  The scoped repair is now independently SPEC/QUALITY PASS. An intermediate
+  routine-command filter still admitted DO/EXECUTE and schema-wide GRANT; an
+  actual failing control exposed both. Final admission compares the complete
+  program with the assembly rebuilt from the checked template and fixed adapter
+  inputs. Root verified the exact fix diff/source/test hashes and read the
+  retained GREEN:19 tests,18 pass,0 fail,1 fixed-source coverage opt-in skip,
+  88.939709ms. P7 `ordered-current-direct-private-closure-round1-review.md`
+  records scoped acceptance (SHA256
+  `79737d76277d75d20a9d1ef0183e070fe897b0808386a53b924ff8ff5132c172`).
+  New assembled SQL/routine facts are unchanged by the repair; old4/7 outputs
+  remain byte-identical. This accepts source assembly only. Fresh nonroutine
+  capture, generator/self-pin, installation and runtime trust remain open.
+- The missing-reference audit identified12 rules/204 rows needing new
+  source-bound capture: two role-profile rules, six temporal72 rules and four
+  inventory-field rules. Existing catalog rosters bound11 groups but omit the
+  runtime_profile singleton; lower-level v2 observations do not prove the final
+  original normalized fields. P7
+  `ordered-current-missing-reference-closure-audit.md` records exact selectors,
+  fields and dynamic/error obligations. Historical facts were not relabeled.
+  The separate fixed-source twelve-rule capture contract is implemented and
+  independently reviewed with changes required:12 rules/204 bounds,21 source sites,7 witnesses
+  and7 explicitly unresolved native gates. Root verified the two source hashes
+  and scoped diff against P7 `ordered-current-missing-reference-contract-report.md`;
+  the reported affected group is11 pass,0 fail,0 skip. It remains noninstallable,
+  NOT-CAPTURED and emits no expected facts. The historical role-profile lowerer
+  refused the successor; the new contract binds its exact successor whole-source,
+  definition/frame and eleven annotated spans rather than overriding old pins.
+  P7 `ordered-current-missing-reference-contract-review.md` found two blocking
+  gaps: emitted field expressions are not machine-bound to their source spans,
+  and count-only controls do not reject duplicate or substituted identities.
+  Closed semantic schema validation and helper-source provenance also need
+  repair. Prior passing construction tests do not close these findings.
+  The disjoint contract repair is assigned to successor_temporal_lowering;
+  reference_intake_review owns only the new direct-frame case/program module.
+  P7 `ordered-current-direct-frame-native-launch-plan.md` prepares a small
+  test-only Go overlay on the independently compiled2ca baseline. Native launch
+  remains held for repaired packet/consumer authority, complete mutation and
+  restoration behavior, and independent acceptance; source tests and launch
+  commands are not database evidence. Free disk was17GiB at this checkpoint;
+  no broad snapshot/cache copy or cleanup was performed.
+  Full Task2, generator/self-pin, native trust/capacity and deployment gates
+  remain open. No task classification change, paid API call or push.
+- Native acceptance round1 review remains FAIL / CHANGES REQUIRED, SHA256
+  `098b0eea7633aa6c4b3532e488cbe25e92195ee9767ac31245ad1f4d8c20a43c`.
+  Accepted repairs are strict whole-packet decoding, lossless JSON comparison,
+  pristine collector execution paths and the callback early return. Open work
+  includes actual collector execution under each mutation, separate adapter
+  and property controls, source-bound transform SQL, canonical query frames,
+  exact pre/post restoration and the consuming callback seam test. Transform
+  JSON and manifest digests are distinct; the current mismatch must not be
+  repaired by treating either as the other. The packet is not materialized.
+  Exact frozen repair delta SHA256 is
+  `5be8ee89f581b3abe56d29bc474c0b8982826f888c84393a7a1d60be53b97116`.
+  Ruling: complete one connected repair wave with separate file ownership for
+  the fixed case/source program and Go driver/packet consumer. This follows the
+  requested parallel batch workflow; interface mismatch would cost an offline
+  integration repair, not justify a database retry. Recovery80 owns integration.
+  No native run starts before reviewed immutable inputs and offline wire
+  acceptance. The latest filesystem check reports16GiB free. Testing uses no
+  paid model calls here; future paid API checks must use the cheapest compatible
+  model after price verification, bounded tokens/retries and no costly fallback.
+- Connected acceptance repair checkpoint: the fixed case program was frozen
+  at SHA256 `35c93c1eb32392fe1f4fe4139638fe324503e8a9bec3cfd124ba9fe7f04cf7ee`;
+  its affected construction group passed27 with one existing opt-in skip.
+  Independent P7 `ordered-current-direct-frame-cases-review.md` returned
+  SPEC FAIL / QUALITY CHANGES REQUIRED: per-adapter collector reachability and
+  the transform cases' explicit error/restoration sequence need stronger
+  contracts. The author is repairing those findings; this is not native proof.
+  Root rejected the partial Go integration's circular treatment of native
+  execution as a pre-launch prerequisite. Native execution is an outcome the
+  harness must prove; independent facts, source installation and exact original
+  universe queries remain real input gates. The accepted capture compiler and
+  pinned coverage provide a concrete query-derivation path for investigation.
+- Missing-reference contract round1 is frozen for independent review, not yet
+  accepted. Module SHA256
+  `455176c2a79fcac2fab009504ce3700e45597a86ee21b66e66ec2d7297aae2e4`;
+  repair diff SHA256
+  `a19acb23caa0780a03625f17bcee2e9d29a82523f8098fe9410c74ccaa2f6b01`.
+  Root verified the source/test hashes and read the repair report. Grouped RED
+  reproduced acceptance of a recomputed-digest semantic mutation; affected
+  GREEN passed13/13 with no skips. Ordinary no-opt-in execution passed the pure
+  refusal test and skipped five private-artifact tests. P7
+  `ordered-current-missing-reference-contract-round1-report.md` records exact
+  commands, logs and remaining native gates. This remains NOT-CAPTURED and
+  noninstallable; no classification promotion, native run or push follows.
+- Old-universe input investigation is complete at source level, P7
+  `ordered-current-direct-frame-old-universe-resolution.md`, SHA256
+  `b050bf6476ec61950c180246886a3c1f75f13361d40e89da1fdf03139bf356b6`.
+  Root read the full result: this63-rule acceptance needs direct50
+  demand/key/original queries with exact handle linkage and transform13
+  original/roster queries with exact OID linkage, in their distinct original
+  and canonical frames. Compare the complete same-installation key/fact
+  multisets before adapter DDL, after installation and after restoration;
+  independent expected facts remain separate authority. The draft50
+  original-only query section is insufficient and is being replaced.
+  Ruling: use the existing pinned capture compiler for those exact selected
+  universes; do not infer a new whole-namespace equality requirement or treat
+  this partial acceptance as complete Task2 compatibility. A wrong query
+  derivation costs source repair before native launch. Root also rejected
+  `count(*)`-wrapped collector execution because it can prune the fact
+  expressions under test; the driver must read actual collector results.
+- Missing-reference round1 independent review returned SPEC FAIL / QUALITY
+  CHANGES REQUIRED, P7
+  `ordered-current-missing-reference-contract-round1-review.md`, SHA256
+  `3d634b3e392fc878c4d9f0453077acec66ca8ca70aea6a331d4d30caf63686b5`.
+  Exact source binding, semantic validation after digest recomputation, and
+  direct derivation-helper authority are addressed. Membership remains open:
+  its combined SQL cannot execute the original projection in
+  `pg_catalog, public` and the canonical roster in `pg_catalog` separately.
+  The unqualified inventory `zasp_core_payloads` regclass reference makes this
+  an executable frame defect, not a reporting issue. Root read and confirmed
+  the finding. Round2 must capture typed key arrays in their respective frames
+  within one fixed snapshot, then compare those arrays without rerunning the
+  source projection in the canonical frame. No original task status changes.
+- Direct-frame case-program round1 is now accepted at the offline contract
+  boundary. Module SHA256
+  `0401efb94b2afb2157598a17d6ceba99443eb413a602f5013c17a7f1af0678bf`;
+  independent SPEC PASS / QUALITY PASS review SHA256
+  `685df2a146639ac697bf510be390eb2a4dd4f3d22e54529be8aed356e19cb0f3`,
+  P7 `ordered-current-direct-frame-cases-round1-review.md`. Root verified the
+  module/test/fix-diff hashes and read the full report, review and GREEN result.
+  Grouped verification passed27 with one existing opt-in coverage skip.
+  All18 poison controls now bind source-selected reachable canonical keys and
+  a positive raised-error control; all19 transform cases have explicit bounded
+  success/error/restoration stages. The retained RED log discloses that full
+  assertion stacks were not retained. Native parity, installed-source proof,
+  actual restoration and the Go consumer remain unverified. No original-task
+  promotion or push.
+- Missing-reference round2 is accepted at the offline contract boundary.
+  Separate typed identity-array captures retain the original and canonical
+  search paths in one declared snapshot; the final comparison consumes only
+  bound arrays and checks cardinality, NULLs, duplicates and both set directions.
+  Root verified module SHA256
+  `6fd2bb33df4aaa5d1dc6ba288758931a0b65f6890ae9f8cda67f7812dc3ad175`,
+  sibling test and exact repair-diff identities, and read the independent
+  SPEC PASS / QUALITY APPROVED review in P7
+  `ordered-current-missing-reference-contract-round2-review.md`, SHA256
+  `81855a9ca5fffd08a04f129f4ef8207300afb89916e7851fa7d5f99289eb0d5d`.
+  The focused group passed6, failed0, skipped0 (2315.222583ms); its retained
+  GREEN SHA256 is
+  `bebd4ecb5b933e477fd3379a56ed954484b70a4d65238b582ea5771cb1e2b699`.
+  The12 rules/204-row bound/21 source sites/seven witnesses/seven native gates
+  remain unchanged. This closes the contract's frame defect, not fresh capture:
+  `NOT-CAPTURED` and `installable:false` remain authoritative. No native test,
+  paid call, production classification change or push occurred at this checkpoint.
+- Direct-frame driver repair is frozen for combined review, not accepted.
+  Root verified driver SHA256
+  `ecc289a8e3551610609190e390473b286ff2315d603cbbc77f9b8349c225d500`
+  and the four producer/consumer file hashes in the harness inventory. The
+  current full-source review package is P7
+  `ordered-current-direct-frame-acceptance-root-frozen-review.diff`, SHA256
+  `5bd4f07601b9f69b3fbd82c133584210193e7065f2a580d5ff83a3b6f36b9978`.
+  The old round1 delta is not evidence of these latest file bytes. Reported
+  Go1.020s and packet6/6 results have no retained final raw logs; the report
+  discloses this limitation. Root found the existing callback downstream
+  assertion still vacuous; real consuming nil/default/overlap/false/success
+  coverage remains required. Packet materialization, final digest binding,
+  actual Go wire decode, minimal source-A overlay and native proof are open.
+  The separately owned missing12 native-capture consumer is in implementation
+  under P7 `ordered-current-missing-reference-native-brief.md`; its accepted
+  contract remains unchanged. No native or paid process was launched.
+- Combined direct-frame round2 review returned SPEC FAIL / QUALITY CHANGES
+  REQUIRED, P7 `ordered-current-direct-frame-acceptance-round2-review.md`,
+  SHA256 `6684dc2d71b7d9f94ddb4a88e8837a5400bbdd7d5205a6a2c3781bcb79f282e7`.
+  Root confirmed the exact-arity stage rejection, multi-column transform scan
+  mismatch, wrong poison/property query frame, skipped all-rule transform
+  cases, discarded witness/roster outcomes, missing per-rule/snapshot bounds,
+  incomplete expected/candidate correspondence and vacuous callback coverage.
+  Ruling: finish these as one connected consumer/producer repair and make
+  the actual generated packet pass the Go decoder offline before any native
+  launch. Count-only packet tests do not establish executable compatibility.
+  A wrong ruling costs a local tooling repair; it grants no production access.
+  The implementer may create an exclusive owner-only candidate packet in a
+  new temporary directory for offline wire verification. Root still owns the
+  final fixed-path packet, immutable source-A overlay and native execution.
+- Private successor capture boundary is resolved at source level:57 rows,
+  comprising22 source-derived routine parity witnesses and35 fresh nonroutine
+  observations, across11 rules. P7
+  `ordered-current-private-successor-capture-boundary.md`, SHA256
+  `309e38124d18ab281d289f4f54d691fb7023444b5560a0c50aa467723ea3b214`,
+  excludes the predecessor reference and stale full development generator.
+  Root independently reproduced assembly `73f5422d...`, DDL `d1b6ff1f...`
+  and query `6fc2919e...` using the accepted narrow builders. A separately
+  owned packet/intake/native-consumer batch is now implementing this boundary;
+  final captured-file authority remains unavailable until fresh native proof.
+  No native rows, accepted reference, generator integration or task promotion
+  are claimed by this source-only checkpoint.
+- Missing12 native-consumer batch is frozen for independent review. Root read
+  the final verbose Go log and verified its SHA256
+  `f56d4b70577709336c3f712039a4cb7acb4febb49faec04dca4430224a278452`:
+  five offline tests PASS, including the exact full-packet decode without a
+  skip; only database-native capture skipped, package1.145s. Root verified all
+  four code hashes against P7 `ordered-current-missing-reference-native-report.md`
+  and packet SHA256
+  `ad1ee55d6cc937a67fe32a0fd85f52a757a61aa83a6a53e943db911ff182dec9`,
+  324934 bytes/mode0600. The earlier misleadingly named `native-go-green.log`
+  is retained as the failed1.130s fixture attempt and is not passing evidence.
+  Native snapshot/frame/witness execution, exact restoration, immutable
+  source-A installation and fresh observation authority remain unverified.
+- Missing12 consumer review returned SPEC FAIL / QUALITY CHANGES REQUIRED,
+  P7 `ordered-current-missing-reference-native-review.md`, SHA256
+  `a452f86d2eab3c2833c86be742fc1a4c5d2cc751a855e7abe96542e3334de4d6`.
+  Repair must bound cumulative/final output and cancellation-aware publication,
+  classify expected SQLSTATE from both query and row-stream errors, preserve
+  cleanup failures alongside probe errors, assert actual shadow resolution,
+  and refuse invalid nonempty native opt-in. Root read and checked these gaps;
+  native execution remains gated despite passing offline decoder tests.
+- Direct-driver connected repair has returned with retained packet6/6 and Go
+  decoder/seam PASS1.030s logs. Root verified all five frozen file hashes and
+  candidate packet SHA256
+  `4da89e5d240f112d120ca2a5e63b2e30a2d8013a733d5bf9f5e60e6f8f8cf40e`.
+  Current re-review uses P7
+  `ordered-current-direct-frame-acceptance-round2-fixed-source.diff`, SHA256
+  `cc3934070c0bce2c42a031c5b51d60e6d22ab7dc66f9b8bf5a193720cd668c3f`,
+  plus its separately recorded policy-versus-A diff. Review is pending; the
+  old round1 delta is not this repair. No native acceptance or push occurred.
+- Direct-frame round2 fix review remains SPEC FAIL / QUALITY CHANGES REQUIRED,
+  P7 `ordered-current-direct-frame-acceptance-round2-fix-review.md`, SHA256
+  `f053281d1965341dba42218a8cf2384dfd7fbac07af50004293e64766a971aa9`.
+  The review confirms exact-arity decoding, source/canonical frame switching,
+  empty-rule all13 expansion and repeatable-read snapshots, but finds six
+  remaining executable gaps: lossy JSONB `Rows.Values`, global mutation caps,
+  incomplete config witnesses, incomplete13-rule/helper correspondence, an
+  artificial rather than real consuming seam, and unconsumed stage actions and
+  limits. One grouped repair now owns all six; native launch remains refused.
+- Direct-frame round3 closes those six offline consumer/producer findings. The
+  generated packet tests pass7/7; final focused Go verification passes in
+  1.869s, log SHA256
+  `39dc607481f4dc15f2ab94e8c55cefc57151af55d13fd08eba528c764cbd79ec`.
+  Root materialized the reviewed4,017,359-byte packet at the fixed owner-only
+  path and bound its SHA256
+  `85fa8ebd56b3404aa5450325c0e441032111166fbb89ec5d30937f007ebdde55`
+  in the native loader. This repairs the independent review's packet-authority
+  mismatch. Actual PostgreSQL execution remains required, so the batch is
+  component-only and `NATIVE-UNVERIFIED`, not production-available.
+- Missing12 round1 repair is independently approved for its offline contract.
+  After unrelated package collisions were removed, the required clean grouped
+  run passed all eleven offline tests in1.113s and skipped only the explicit
+  native database capture; log SHA256
+  `2590fe5a909d74332a040f3d1072f6ac0a0c8f93dd00f3584734b9972d7635f2`.
+  Cumulative/final byte caps, cancellation-safe exclusive mode0600 publication,
+  query/stream SQLSTATE handling, joined cleanup failures, closed shadow proof
+  and strict native opt-in are present. Fresh native observations and installed
+  application acceptance remain open; no expected facts were promoted.
+- Private57 packet/intake review found two P1 integrity defects before native
+  launch: JavaScript and Go bound different packet byte representations, and
+  generic Go float decoding could accept or rewrite unsafe JSON integers. Exact
+  11-rule/57-row source scope remains unchanged. A grouped lossless-number and
+  object-digest repair is in progress; captured-file admission stays unavailable.
+  These findings prevent a false native launch and do not change any of the728
+  task classifications.
+
+## Recovery checkpoint history, September 28, 2026
+
+Current launch checkpoint: NOT production-ready. The latest completed recovery
+diagnostic repair is integrated and independently byte-verified against its
+reviewed frozen candidate. P7 `ordered-current-single-recovery-diagnostic-source-filter-inventory.json`
+binds two test-only files, the expected RED and grouped GREEN (0.895s).
+Review SHA256 `07b30d607201ca873bdd6ae53bb77a652065d9954a02d1471e2cd3b3a486d0d6`.
+Root compared 2714 platform Go/SQL files against the previous candidate: exactly
+the two intended test-file differences; production migration inputs and carrier
+bytes are unchanged. This correction excludes only valid bounded diagnostic
+records from primary failure-location selection, preserving actual failures,
+malformed records and the existing redacted summaries.
+Native session38157 started from `/private/tmp/zasp-recovery-diagnostic-source-filter.pCCeL5`,
+with log `native-recovery-source-filter-root-20260928.log`, SHA256
+`eb5a7e0e80b38695dde5525908fb3701ca5aeeef55911dffbebda6253fdb72fd`.
+It finished FAIL161.331s, before recovery: install-replay-drift failed at actual
+distinct manual admission after66.46s. Owned PostgreSQL pid79973 and all fixture
+resources joined. The closed failure message does not establish the underlying
+repository/probe/SQL cause. Available disk fell from5.6GiB to3.1GiB; this is an
+environment risk, not proof of causation. Root is tracing admission failures
+before any repeat; no unchanged native retry is justified. No paid provider
+calls, production classification changes or push are implied. The checkpoint
+now has a bounded next action: P7
+`ordered-current-single-recovery-admission-observation-brief.md` authorizes
+test-only observation of the actual admission query/probe/return path. Ruling:
+preserve exact delegation and all acceptance checks, expose only fixed stages,
+booleans and closed error classes; do not repeat native acceptance until grouped
+controls and independent review pass. This avoids another opaque failure without
+assuming a product defect or weakening readiness. Implementation is isolated;
+the separate source investigation remains read-only. The observer is now
+reviewed and integrated: seven source/evidence files match frozen candidate
+`/private/tmp/zasp-recovery-manual-admission-observation.cTcMCV`. Expected RED
+failed1.370s; focused GREEN passed1.311s. Review SHA256
+`1881630b0206f35862c8cc67fe67062ab4151069c8dbf9656ba1ebc0a6f18b0e`.
+Root compared2715 platform Go/SQL files: only the two intended test files differ.
+The disposable carrier normalizes exactly to source after seven approved literal
+substitutions; its consuming overlay check passed1.015s. All product acceptance
+conditions remain unchanged. P7 admission-observation inventory, diff and review
+bind the scope; native recovery remains unverified. Root started native
+session68752 from that frozen candidate with log
+`native-recovery-manual-admission-root-20260928.log`, SHA256
+`90061223c818b87b8eae2aada9c176fa960d5065bad7a8d20371120b1770825c`.
+It finished FAIL436.032s. Install/manual admission passed116.45s, distinct
+originals129.45s and API admission48.08s. The corrected parser now identifies
+the actual worker failure: live-test line262, relay stage, unavailable error,
+parent context live. Pending contention was ready/ok/complete; settlement was
+ready/ok/outer-deadline, followed by the guarded durable handoff. The relay
+failed before final workflow/receipt acceptance. Owned PostgreSQL pid90729 and
+all resources joined. The earlier manual-admission failure did not recur and
+its cause remains unproven. Next action: trace the actual relay Pending/Attempt/
+Start/Ack boundaries, including their SQL and context limits, before selecting
+a fix or another native run. No deadline or production safeguard was changed.
+P7 `ordered-current-single-recovery-relay-observation-brief.md` now binds the
+next isolated batch. Ruling: observe all four real relay boundaries and the
+parent consuming diagnostic together; preserve exact calls, time limits and
+acceptance assertions. Executor and compensation use separate pools, so a
+poisoned single compensation connection is not an established explanation.
+Implementation and independent read-only investigation are in progress; no
+new native run is authorized until the changed-scope controls and review pass.
+The candidate is `/private/tmp/zasp-recovery-relay-observation.dEvxuu`.
+Source investigation found a possible Ack/Activity advisory-lock race, not a
+proven cause. Separately, production `runWorkerPollingLoop` repeats failed relay
+passes, whereas this connected test requires first-pass success. A read-only
+acceptance-contract check confirmed the design requires lost-ACK redelivery and
+eventual durable acknowledgment, not guaranteed first-pass success. Root read
+the full P7 recovery design (SHA256626a45dd611cd96a38842cc4809f4cdb6c8518b2ca8ff4e18042df772369992e)
+and plan (SHA256e1d7cef36108a01b68de1ea1174c2effc03e72e25ee8e0afe767432d5a34f35e).
+This does not classify the current failure as post-start or transient. The
+candidate retains the existing fatal behavior and all final assertions. Any
+later lost-ACK case must prove Start acceptance, the unacknowledged durable row,
+an ordinary subsequent production poll, exact-history duplicate acceptance,
+one acknowledgment/workflow/completion, zero new sends and successful readback.
+The relay observer is now reviewed and integrated: four test files and nine
+evidence files match the frozen dEvxuu candidate. Grouped behavioral RED covers
+worker and parent parser. Root's wider affected check caught six stale line266
+fixture literals; these were corrected to267, then the combined affected group
+passed worker1.327s/API0.933s. The scoped re-review supersedes the initial PASS;
+final review SHA2569af2a4e7914bb2858a98c27351ea6408ee1b8bdfc30ade690c24ec7c748ab323.
+P7 relay-observation inventory/diff/review bind all bytes and intermediate
+failures honestly. Root verified all13 integrated files and the unchanged
+seven-literal carrier with corrected physical overlay paths. The observer keeps
+the real relay's one-pass failure, exact delegates and existing time limits.
+No native result or product completion follows from these component checks.
+Root started native session99054 from dEvxuu, log
+`native-recovery-relay-observation-root-20260928.log`. It finished FAIL440.479s;
+the latest verified section above records its exact Pending-query failure and
+joined cleanup. No paid provider calls or push.
+The prior completed
+native run is session35842, which passed install, originals and API admission,
+then failed in the worker with a misleading primary-location summary (details below).
+Prior session52393 isolated the settlement deadline. Its reviewed candidate adds only
+bounded test diagnostics to distinguish waiter timeout from caller timeout.
+The eight-file diagnostic batch passed grouped controls (API1.100s/worker4.991s)
+and independent spec/quality review; all16 source/evidence files are integrated
+with exact baseline and final-byte checks. P7
+`ordered-current-single-recovery-contention-boundary-report.md`, inventory and
+review bind the scope. Review SHA256:
+`b0ac2ae27d545a096e653456a8d1cf14dc1b83707f48406d00626db0e0dd38c5`.
+Root verified the unchanged391-input worker-tree pin and seven-literal carrier,
+corrected the disposable overlay's physical paths, and started native session52393
+from `/private/tmp/zasp-recovery-contention-boundary.9UgFDG`. It finished FAIL
+(472.602s package), with log `native-recovery-contention-boundary-root-20260928.log`
+SHA256 `9b456549972ab20aac00c0c830821b97a901e055541706e7630461d9d2b7fb8c`.
+Install/replay/drift passed122.76s, originals140.33s and API admission53.69s.
+The new boundary records settle wait=ready, release=ok, join=outer-deadline,
+elapsed=ge45s. This rules out the five-second barrier observation as the cause.
+Cleanup reached source-state count8/state-completed3 before its state statement
+timed out; Step reached source-state count7/state-completed3 before source timeout.
+Direct finish returned pending. Owned PostgreSQL pid72525 and all fixture
+resources joined and closed. Root is evaluating cumulative settlement cost and
+the actual durable-retry contract before choosing a product or harness change;
+no unchanged native retry is justified. The coarse source classifier says
+contention-pending, but the explicit phase-boundary record identifies settlement.
+Ruling after source and independent design review:45s is the contention harness
+observation bound, not the production recovery SLA. Keep that bound and strict
+unknown-evidence contention unchanged. A settle-only observation may proceed to
+the existing real Temporal workflow only when its parent context is live,
+wait=ready, release=ok, join=outer-deadline, elapsed=ge45s, the outer error is
+DeadlineExceeded, and all callers returned nil/pending/unavailable/deadline.
+Cancellation, wait/release failure, unjoined callers and permanent errors remain
+fatal. This is incomplete work handed to durable recovery, not timeout success.
+The existing final workflow result, exact receipts, no-new-send assertions,
+idempotency, security negatives and test lifetime remain mandatory. Cost if this
+guard is wrong is hidden harness failure, so grouped refusal controls and an
+independent implementation review are required before native use. No production
+state-read removal or timeout increase is authorized by this ruling.
+The guarded continuation is now reviewed and integrated: five test files plus
+six evidence artifacts match the frozen candidate bytes. Grouped RED established
+the missing handoff; GREEN passed API1.068s/worker4.960s. Independent spec/quality
+review SHA256 `00dbfc63b15f6dd4addea5c3c4d707d5fbf96b0ffbf151e7de6147e987a30c0f`.
+P7 `ordered-current-single-recovery-settle-continuation-report.md`, diff and
+inventory bind the change. Root compared2714 platform source files against the
+baseline: exactly five test-only differences;391 migration inputs retain the
+accepted worker-tree pin. Native session35842 ran from frozen
+`/private/tmp/zasp-recovery-settle-continuation.GVRtBN`, log
+`native-recovery-settle-continuation-root-20260928.log`, SHA256
+`9aad3e2eba059d9195309acad8d51d8af49376913f68b0f2a11e5bd7655fb938`.
+It finished FAIL495.047s; install136.56s, originals148.52s and API53.31s passed.
+Pending contention returned pending; settle again reported ready/ok/outer-deadline/
+ge45s, with cleanup deadline, Step unavailable and direct finish pending.
+Owned PostgreSQL pid76081 and all fixture resources joined. The primary failure
+location is NOT established: parent parsing selects the first live-test location,
+including the earlier successful boundary log at191. Root verified this parser
+defect in source. A bounded consuming parser regression/correction must separate
+valid diagnostic records from actual failure lines before another native run.
+Do not infer a new product failure location from the misleading pending label.
+No production code or deadline changed. Final product acceptance conditions
+remain mandatory; no runtime activation, task promotion or push follows from
+these component checks.
+
+Use the later accepted evidence within each workstream, not isolated historical
+pending statements below. Ordered integrity Task1 already cleared Task2, and
+the current-integrity consolidation and paired local catalogs have subsequent
+evidence. Do not restart Task1 or recapture those catalogs from the older pending
+paragraphs. Full100-target completion, supported installed-worker transition,
+current-profile acceptance and real deployed Stytch/provider flows remain open.
+
+Current recovery checkpoint: the test-only authorization diagnostic is reviewed
+and integrated with exact baseline/output-hash checks. It delegates the existing
+authorization calls unchanged and emits only bounded stage/class/count/boolean
+observations. P7 `ordered-current-single-recovery-authorization-diagnostic-inventory.json`
+binds the two source files and RED, grouped GREEN and compile/list evidence;
+the adjacent report and review record their limits. The initial nil-receiver
+review finding was withdrawn after checking the existing explicit nil guard.
+Root native session58928 finished FAIL (141.056s package) from the frozen
+`/private/tmp/zasp-single-recovery-authorization-diagnostic.rrgVRr` snapshot.
+Worker test compilation failed during Start, before install or authorization;
+owned PostgreSQL and all fixture resources joined. Log:
+`native-recovery-authorization-diagnostic-root-20260928.log` in that snapshot,
+SHA256 `1a31c831157de418428c91a1727c32192a236470b78052acc468101679b74f79`.
+The driver suppresses compiler details. A compile-only reproduction with the
+same isolated child environment and empty owned cache produced the worker binary
+without compiler diagnostics, but took 873.37s, beyond the driver's 120s bound.
+This supports cold-cache budget exhaustion; the original suppressed error does
+not independently prove its exact category. Evidence root:
+`/private/tmp/zasp-recovery-worker-compile.Kjyi21`, log SHA256
+`a58584a5fb0162be516851553da3f29eafd946633f9362ee0b9ef1af66e9f86b`;
+binary SHA256 `b867f21f4e8448a37d786e96501e637021d7fd0fbc6b8b548478f7165b632e4e`.
+Diagnostic caveat: the attempted Perl alarm did not bound the Go process, and
+the shell wrapper failed afterward on zsh's reserved `status` variable. No
+reproduction timeout-success claim is made. The process is terminal.
+The scoped repair reuses only that controlled secret-free compile cache while
+preserving fresh output compilation, current source/tool pins, runtime isolation
+and all existing runtime/compile bounds. The repair is now reviewed and integrated:
+source-current grouped checks pass (0.871s); the controlled warm worker compile
+completed in 23.27s under a real 120s process timeout. P7
+`ordered-current-single-recovery-worker-cache-inventory.json` and adjacent report/
+review bind both source files, RED/GREEN and compile evidence. Review SHA256:
+`290f01ca937a71865725e5525dc8ce4df21af023b05bfa4e60373bc72e3255ee`.
+The attempted native rerun then exited127 before starting Go: the pinned toolchain,
+module cache and controlled compile cache were absent on fresh inspection.
+No fixture process started. This is an environment prerequisite failure, not a
+new authorization result. Root restored exact Go1.25.13 and the go.mod/go.sum
+dependencies through the Go checksum-verified download mechanism; dependency
+manifest hashes remain unchanged. Cold cache preparation session20564 completed
+with exit0 in 104.83s using the isolated compiler environment, output under
+`/private/tmp/zasp-recovery-cache-restore.03q1xh`, and log
+`/private/tmp/zasp-recovery-worker-cache-fix.Zw9olt/cache-restore-compile-root-20260928.log`.
+This preparation has its own 15-minute process bound; the native compile's
+two-minute bound and all product/runtime bounds are unchanged. The preparation
+log SHA256 is `c6b8e054f6b176da06550421f50583e302e4e346b1a990400842618365011be6`.
+The preparation binary does not substitute for the native driver's fresh
+compilation. Root native session60289 finished FAIL (279.294s package) on the
+frozen reviewed candidate. Log `native-recovery-cache-restored-root-20260928.log`
+there has SHA256 `e9d39f44928af2af705c0cdc268a0a5dce370f09fd98071edc3a32fb718abe03`.
+Install/replay/drift passes (117.65s), as do both actual originals (126.10s).
+API admission fails (10.60s) with `stage=targets class=denied`, one resolver
+call, zero returned targets, and no revision-reader or OpenFGA Check calls.
+All owned resources joined. This narrows the defect to exact-object target
+visibility/resolution, before the recovery handler. Source tracing confirms a
+production role-routing defect: the resolver uses the discovery login, while
+the effective Temporal74/78 restrictive run policy checks the real session_user
+for the registered security-agent API/executor/compensation role. Both the
+fixture and `agentsec-api/production_runtime.go` construct the resolver from the
+main discovery database. The originals and browser session use the same scope.
+The repair in `/private/tmp/zasp-recovery-resolver-routing.mUHPJx` now routes
+security-agent targets through the existing security-agent API database and
+merges mixed/parent targets from both authorities. Conflicting duplicates,
+secondary-query failures and merged limits fail closed. Identity/revision
+routing and every RLS policy are unchanged. Five reviewed source files are
+integrated after exact baseline and output-byte comparison. Grouped RED log
+SHA256 is `498396c4aacab7c010328c38e217d27169c6f394f44c70ca6b673134f727c168`.
+Grouped GREEN covers apiserver (4.579s) and agentsec-api (0.764s), log SHA256
+`f4e63d185d696d7d24081ee8f256f01e6df413a38f68eb95a932522fcb43d3ab`.
+Incidental PostgreSQL readiness cases were skipped and are not acceptance.
+P7 `ordered-current-single-recovery-resolver-routing-review.md` binds the five
+source hashes and approves spec and quality, with no findings; review SHA256
+`caa9379359d0f8263f5fc2298cde3a424d064760913e85d5114a61a11244c676`.
+Root native session21988 finished FAIL (309.665s package) on the frozen candidate
+with the unchanged approved carrier and corrected overlay source path. Log
+`native-recovery-resolver-routing-root-20260928.log` in that snapshot has SHA256
+`c5503b32ec265eacbc03478b8b48a0112f25005af1580a8aa1ccf66baa32a1ca`.
+Install/replay/drift passed (116.97s), actual distinct originals passed (129.23s),
+and API admission failed (26.09s) at the later `forward-race stop admission 400`.
+The prior target-resolution denial is passed: scoped recovery GETs and the
+forward-run authorization complete before this new failure. Stop admission,
+worker recovery and final readback remain unverified. All owned fixture
+resources joined, including PostgreSQL pid14284. Root traced the request into
+the recovery handler/repository; HTTP400 alone does not yet distinguish handler
+validation, mutation wire validation or a classified SQL argument failure.
+Next action is a bounded stage diagnostic or focused reproduction at that
+boundary, not another unchanged full native run or weakened admission checks.
+The two-file test-only stage diagnostic is frozen in
+`/private/tmp/zasp-recovery-http400-diagnostic.DObeR4`, independently reviewed
+and integrated with exact baseline/output source-hash checks.
+Behavioral RED failed as intended (1.066s); focused GREEN passed (0.974s).
+The adjacent P7 `ordered-current-single-recovery-http400-diagnostic-report.md`
+and inventory bind the exact diff, source and logs. Report SHA256:
+`48d4b43b2c2433653b66ed7d4330dd9d7b9d5472f8fd1e6a40bcb4ef142b2982`.
+It delegates the existing handler authority, observer and transaction calls,
+reporting fixed stages/classes and allowlisted SQLSTATE only. No product fix or
+new native result is claimed. Adjacent review approves spec and quality with
+no blockers. The retained copy normalizes the final blank line; its SHA256 is
+`0f489917b828724501568ce328574cfd7d6f213b1ac7309333c44aa697b67ff1`.
+Root native session19315 finished FAIL (303.441s package) with the corrected
+candidate overlay path and unchanged approved carrier. Log
+`native-recovery-http400-diagnostic-root-20260928.log` in that snapshot has SHA256
+`115419bce934300e1e1fc5f478826e817cb74bd522410f41e6b1f4e29536ac05`.
+Install/replay/drift passed (111.40s), originals passed (126.99s), API admission
+failed (25.35s): `stage=admit class=operation wire=true observation=true
+deadline=false canceled=false sqlstate=22023`. All owned resources joined,
+including PostgreSQL pid17978. The failure is inside admission SQL, after
+valid wire, successful preflight and valid observer result.
+Root source tracing found a concrete predicate contradiction: admission line62
+requires `zasp_sa_multistep_prior.closed(ob, ...)`, whose 0061 definition rejects
+every JSON-null field, while that same admission predicate requires null
+`run_id` for a valid absent-workflow observation. The native fixture supplies
+that absent/null observation. A focused PostgreSQL reproduction and repair of
+only the recovery observation shape check are next; the shared global helper,
+other field checks and external activation gates must remain unchanged.
+Any changed migration source requires the existing reviewed pin/capture process;
+no acceptance evidence has been regenerated or reclassified yet.
+The isolated repair candidate is
+`/private/tmp/zasp-recovery-observation-null-fix.PGiqIX`. PostgreSQL18.3
+reproduced absent/null rejection against the original predicate, then passed
+10 valid/invalid observation cases after one recovery-only predicate change.
+The fix explicitly requires `run_id`, applies the unchanged closed-object
+helper to the other three fields, and retains the status-specific run-ID checks.
+Grouped migration metadata/assembly/portability/observation tests passed
+(83.622s). Logs are P7 `observation-predicate-red.log`,
+`observation-predicate-green.log` and `observation-go-green.log` in the candidate.
+Independent source and regression-test review approved spec and quality with
+no blockers. The SQL and migration test are integrated after exact baseline
+and reviewed output-hash checks. P7 review
+`ordered-current-single-recovery-observation-null-fix-review.md` SHA256 is
+`e0d1c804bbae766d67c3fbbe65a2898e233045bbcc52a4b230bee7f62590d6a0`
+after the appended successor-pin review. The PostgreSQL predicate harness,
+repair report and inventory are retained beside the review. Root independently
+recomputed migration-tree391 hash
+`37e5f0fadd01d7dc906c894abf66a9691162a97547ed166447e170bbcdedc163`.
+The reviewed compiled recovery source is
+`aea28d58f8c03bd5d02a04686b4b5653bc61af611e99bee70e5da3c0d3430b5f`.
+The changed paths intersect neither the97 capture source pins nor107 snapshot
+members; prior captures and their historical manifests are unchanged. Exactly
+two native carrier pins were updated; carrier SHA256 is
+`14af80004fa0d3b8bb110cb62e1e7b1c65dd5b7efae9c37b65a1ef4e60d54f88`.
+Root native session61556 finished FAIL (325.958s package), with log
+`native-recovery-observation-null-root-20260928.log` in the frozen candidate.
+Log SHA256: `9009345a53dc2ac67628f2fd10c63c0e0b311c46871a3640358ebcb3b1bd7bac`.
+Install/replay/drift passed (115.68s), originals passed (127.32s), API admission
+failed (27.37s). The former shape rejection is gone; the stop POST now returns
+409 with `stage=admit class=conflict wire=true observation=true deadline=false
+canceled=false sqlstate=40001`. Owned resources joined, including PostgreSQL
+pid25275. Recovery execution and readback remain unverified. Next is a bounded
+test-only exact-static-message-to-reason diagnostic for the admission conflict;
+no raw PostgreSQL error or request data will be logged. No conflict check is
+weakened and another unchanged native retry is not scheduled.
+Connected source audit found a second nullable-shape contradiction to include
+in the next production repair batch: `checked()` in recovery delivery calls
+the null-rejecting `closed()` helper on all four stop-binding fields, while
+its retained stop/parent/planning branch explicitly requires JSON-null receipt
+and audit IDs, matching admission's constructed binding. This is distinct from
+the forward-run409 and is not yet repaired or accepted. Preserve the cancellation
+branch's non-null receipt/audit checks and exact digest/owner validation.
+The test-only exact-reason diagnostic is reviewed and integrated from
+`/private/tmp/zasp-recovery-conflict-diagnostic.hSoXR6`. It maps only exact
+known SQLSTATE/static-message pairs to fixed labels and suppresses arbitrary
+errors. Four new RED cases failed as intended; grouped GREEN passed (0.968s).
+Source SHA256 `7c48a0a471f55ca9bdbd63b9874ba5ae70118f84d4d314f73d2b6be0dcdcd1fe`;
+P7 review `ordered-current-single-recovery-conflict-diagnostic-review.md`
+SHA256 `895b95f6c1f56101af34c18055960e17cb88c90b716e3d257922113bfbe39bc0`.
+Root native session42460 finished FAIL (316.453s package) with unchanged reviewed
+production pins; log `native-recovery-conflict-diagnostic-root-20260928.log`
+SHA256 `0f1fab5cc8aefe74721d79ef1a002d0bd6c2a60156bee93be7ea6bd92408b734`.
+Install/replay/drift passed (117.44s), originals passed (132.04s), API admission
+failed (27.36s): `stage=admit class=conflict reason=authorization_revision
+wire=true observation=true sqlstate=40001`. Resources joined, including
+PostgreSQL pid32518. Source tracing links cancellation's run-state update to
+authorization capture/touch, while the final recovery human fence still
+compares against the pre-mutation revision. The exact effective trigger delta
+is being investigated for a bounded own-mutation fence, preserving organization
+locking, identity, target, applied revision, generation, store and model checks.
+The separate retained-binding repair candidate
+`/private/tmp/zasp-recovery-observation-null-fix2.8XM9nW` initially had producer-reported
+focused migration results (13.325s) and 10 PostgreSQL predicate cases. Independent
+review approved the source but found no retained-binding-specific execution logs
+or implementation report. Those unsaved results were not accepted verification.
+The initial `ordered-current-single-recovery-stop-binding-review.md` in that candidate's
+P7 directory had SHA256
+`2c2365e959f90b4eb3e7dcf5ee837d1fb71b56e4a3d8a9014506265159f11c7a`.
+The evidence gap is now closed by fresh retained logs: pre-fix PostgreSQL RED
+exit3, source-derived PostgreSQL shape GREEN (10 cases), and grouped migration
+regression GREEN (3 checks,13.102s). Root read the logs and independently checked
+their hashes against P7 `ordered-current-single-recovery-stop-binding-implementation-report.md`
+(SHA256 `600097260da780ca8ca9d26b389e9a30f5d5079f66bbb3513e40c1ba1ea6aa1b`).
+Scoped review now approves component/migration coverage; final review SHA256 is
+`efb7669dbf7855ad6ec1a0dfe18f5fe7dc318de064d7c96af6c777ab8d603279`.
+Root integrated the delivery SQL, Go regression and three P7 evidence artifacts
+after exact shared-baseline checks; all five outputs match the reviewed candidate.
+Delivery SQL SHA256 `771314e1752c9c167419dcd81a78bf787f4eb4d1877124e30185e96f404c03ea`;
+Go regression SHA256 `4e9a5399433b717a52c65e91bab970288b373e23becded83f447f6b7b44f49ad`.
+This does not prove full checked()/owner/digest integration. The connected
+authorization-revision repair is still isolated, with PostgreSQL behavioral
+coverage required in addition to its source-contract test before combined review.
+It was not part of the diagnostic run. Both connected repairs will be reviewed
+and combined before regenerating source pins and running acceptance again.
+No original task classification or deployment gate changes. No paid provider
+call or push. Paid model-backed tests must use the cheapest compatible model,
+verified pricing, bounded tokens and no automatic expensive fallback;
+production model settings remain unchanged.
+
+The connected revision repair now has component spec/quality approval and is
+integrated from `/private/tmp/zasp-recovery-revision-delta-fix.7Lnora` after
+exact baseline/output checks on all four paths. Admission locks and validates
+existing run/test/ordered capture rows before cancellation, permits only its
+exact own-mutation desired-revision delta (0..4), and preserves applied,
+generation, store/model, identity, target and context fences. Replay and
+non-cancellation retain zero delta. The assembler still checks an exact
+inventory, now23 functions including the private zero-delta wrapper.
+P7 `ordered-current-single-recovery-revision-fix-report.md` binds the source
+and PostgreSQL fence evidence (controlled dependencies), including unrelated
+revision refusal. The previously failing inventory check is retained as RED.
+Combined with the retained-binding repair, root session93709 passed five
+grouped checks in102.462s; log SHA256
+`ae908e02534002e85b5bc7e16ed8cdb4679037921bb7971ffd31ae6822fa6f0b`.
+P7 `ordered-current-single-recovery-combined-repair-report.md` records the
+new391-input migration tree, assembler source/checksum, unchanged capture
+bindings and proposed two-literal driver update. Native acceptance is pending
+the bounded source-pin review and connected run. No task promotion or push.
+The bounded source-pin review is now approved; shared P7
+`ordered-current-single-recovery-revision-fix-review.md` SHA256 is
+`aab618e286f647f9cfe562756292b4de4c9f0f940fc2ee2f84358a432efa3d93`.
+Root launched native session31476 against the composed candidate, logging to
+`native-recovery-combined-root-20260928.log`. It finished FAIL (405.645s package):
+install/replay/drift PASS123.50s, actual originals PASS137.57s and API admission
+PASS52.38s. This verifies that the prior admission409 is resolved in the
+connected local flow. The worker phase failed before API readback; its cause
+is not yet known because the parent returns only `connected worker failed`
+and discards the captured child output. Log SHA256:
+`ea17c1b8e4a898b42d48dbd406931fb8b93b027220ffb359f34d70cb135bd1cd`.
+Owned PostgreSQL pid39114 and all fixture resources joined and closed.
+No full recovery/settlement or deployed proof is claimed. The next bounded
+test-only change will retain safe child failure locations/categories, without
+raw error/output/DSN disclosure, before another native run. No blind retry or
+production change is authorized by this unexplained worker failure.
+The safe worker diagnostic is now reviewed and integrated from
+`/private/tmp/zasp-recovery-worker-diagnostic.BmoMFS`: one test-only parent
+call-site change, a fixed allowlist summary helper and its grouped controls.
+The child, product code, deadlines and PASS/no-SKIP checks are unchanged.
+Three focused controls passed in1.037s; GREEN log SHA256
+`ca0dff3482ea3a094dee4670c2180a0bef638409adcd91238e046cbb26d2dca7`.
+P7 `ordered-current-single-recovery-worker-diagnostic-review.md` approves the
+bounded diagnostic and synchronized overlay; SHA256
+`833fe2a0a540744247243fffd0d7e8dcb61df4eec5edd1d38c4b188052d4f89d`.
+Root verified all ten inventory members, the unchanged391-input migration tree,
+and exact output identity of all six shared source/evidence files. Native
+session33031 is running against that candidate, with fresh log
+`native-recovery-worker-diagnostic-root-20260928.log`. It finished FAIL
+(389.626s package): install/replay/drift PASS118.59s, original flows PASS134.54s,
+API admission PASS48.58s. Worker diagnostic is now concrete: context=live,
+test=fail, live_test.go:204, stage=late-record. Log SHA256
+`e767d7bee5f825a7ed96a4693e5947886eeeccc8602e4339bc52f0631cb838bf`.
+PostgreSQL pid42950 and all owned fixture resources joined and closed.
+The child reached late-observation recording after its pending-debt/contention
+checks; it did not complete the cleanup workflow or API readback. Source audit
+found the late-observation fixture decoding the whole stored target-resolution
+wrapper as TargetBinding, although the native journal stores that object under
+the nested binding key. A targeted Go reproduction is checking this boundary
+before a fixture correction. Product validators and permission checks remain
+unchanged; no production/provider or deployed acceptance is claimed.
+
+The late-observation fixture repair is reviewed and integrated from
+`/private/tmp/zasp-recovery-late-binding-fix.YV19Jb`: the query now selects the
+nested binding, with product validation and SQL unchanged. The regression uses
+the real journal validator to prove whole-wrapper rejection before database
+access and nested-binding acceptance up to database access. Its RED is the
+source-selector assertion; it is not a successful completion receipt. The
+affected worker/API group passed in1.034s/0.942s, including diagnostic line
+bindings. P7 `ordered-current-single-recovery-late-binding-repair-report.md`,
+`ordered-current-single-recovery-late-binding-repair-inventory.json` and
+`ordered-current-single-recovery-late-binding-repair-review.md` bind the scoped
+evidence. Root checked all12 inventory members and all5 integrated file hashes.
+Native session16868 finished FAIL (458.583s package): install/replay/drift
+PASS122.73s, original flows PASS139.25s, API admission PASS49.17s. The child
+passed late recording and duplicate completion, then failed at line217,
+stage=contention-settle, context=live, with no classified reason or SQLSTATE.
+Log `native-recovery-late-binding-root-20260928.log` SHA256:
+`add113239c4483ba794f1d7d6c1b06aa4815d5be07bdbfeacae8119c5cb0515b`.
+Owned PostgreSQL pid46653 and all fixture resources joined and closed.
+First-settlement contention remains under diagnosis; actual cleanup workflow
+and API readback have not passed. No task promotion, commit, push, paid
+provider call or production-readiness claim follows from this local evidence.
+
+The contention diagnostic is now reviewed and integrated from
+`/private/tmp/zasp-recovery-contention-diagnostic.ACk6YH`. It classifies existing
+child fatal messages into fixed assertion/caller/detail labels, without changing
+the child, product, deadlines or acceptance checks. Unknown output remains
+opaque. Root recorded13 expected RED failures and a four-group GREEN in1.050s;
+P7 `ordered-current-single-recovery-contention-diagnostic-report.md` binds both
+logs and source hashes. Independent scoped review is
+`ordered-current-single-recovery-contention-diagnostic-review.md`, SHA256
+`e7a2f7532e845f15916e8dee5316ab886396c5c829483d0c047f3f35ea6089f5`.
+All four integrated files match the reviewed candidate. Root started native
+session24911 with log `native-recovery-contention-diagnostic-root-20260928.log`.
+It finished FAIL (397.681s package), with install/replay/drift PASS122.75s,
+originals PASS134.01s and API admission PASS49.70s. The child failed earlier
+than the preceding run: line170, contention-pending, assertion=pending-result,
+caller=cleanup, detail=unknown. The barrier observed the three lock waiters;
+the original cleanup caller did not return the required pending error. The
+available report does not distinguish a nil result from an unclassified error,
+so neither successful premature settlement nor a timeout is proved. This
+variable failure point requires tracing the cleanup return paths before more
+changes. Log SHA256:
+`6eff78a006ac33522745e50d0802174b6134c80a327288f18b96f39316bcaae7`.
+Owned PostgreSQL pid52786 and all resources joined and closed. No full recovery
+acceptance, classification promotion or push.
+
+The follow-up compensation query trace is reviewed and integrated from
+`/private/tmp/zasp-recovery-contention-query-trace.r6cNqD`. It records first
+query failure (otherwise last query) and final result per fixed phase/caller,
+using closed operation/error/SQLSTATE/duration labels. Product behavior,
+deadlines and native acceptance conditions remain unchanged. Both parent and
+child behavioral REDs are recorded; the final nine-group run passed, API.977s
+and worker1.013s, log SHA256
+`a02986a3c7f779045a8e1a86eea9528db5c737fff8f270036d09adcd29a51bda`.
+P7 `ordered-current-single-recovery-query-trace-report.md` and
+`ordered-current-single-recovery-contention-query-trace-review.md` bind source
+and evidence; review SHA256
+`b632f13cf114881f5285a6694e60187426b1875151960cba326a5d3509b678f5`.
+Root verified all nine integrated files. Native session78134 finished FAIL
+(355.294s package), log `native-recovery-query-trace-root-20260928.log` in that
+candidate, SHA256
+`d43ebd5999880faf70086b4db47be7239c0471852c8c3c789cf0f6d5927f71fd`.
+Install/replay/drift (108.28s), distinct originals (121.19s), and API admission
+(44.62s) passed. Pending contention failed at worker line188: cleanup's
+recovery-status source read returned PostgreSQL deadlock `40P01`, mapped to
+authorization conflict; step and finish returned pending. Owned PostgreSQL
+pid57225 and all fixture resources joined and closed. Root rechecked the
+terminal log and hash. Source tracing identifies opposite lock order:
+`test74_lifecycle_source` takes the organization budget advisory lock before
+the parent row, but the generated state proof calls `test74_effect_source`,
+whose native facts lock the parent FOR SHARE before the native state body
+takes that advisory lock. A behavioral PostgreSQL regression and scoped
+effect-source ordering repair are in progress in an isolated candidate.
+Acceptance and deadlines remain unchanged. This is local integration failure
+evidence, not production proof; no task promotion or push.
+
+Lock-order candidate `/private/tmp/zasp-recovery-lock-order-fix.FYRJpc` now
+has behavioral PostgreSQL RED/GREEN for state, effect-read and linked-read.
+The actual effect-source body returned while the organization advisory was
+held and retained the parent share lock in RED (2.140s); with schema then
+organization advisory acquisition before native facts, all three pass
+(2.144s). Both runs joined their owned PostgreSQL. Candidate P7
+`ordered-current-single-recovery-effect-lock-order-{red,green}.log` records
+these local controlled-dependency checks. Root inspected both logs and
+independently compiled the unchanged recovery-source digest
+`fa0c57292d10b78baf4f8277f61463ee9cd663a14ee7fedad8956e12af78384f`.
+Candidate worker-tree digest is
+`2b2efacd5ec6caa3f32d966d503e6798edf6779e5926e97d226724f0db3c980e`
+(391 production inputs). Review found and closed unexpected-parent-error
+acceptance and failure-path query cleanup gaps. Final test hash is
+`0cbce6f7dc2b573018061a4ac09e69dfacf8f7a21d4b7f7704a9985b0a6454e6`;
+final grouped PostgreSQL GREEN is 2.593s, log SHA256
+`ee3d2eca3352e9da03096e939e434cdf630a5e517c525423773acd8d4ba4943e`.
+P7 `ordered-current-single-recovery-effect-lock-order-review.md` records
+SPEC PASS and QUALITY PASS, SHA256
+`b774554e2b4e1349baa660e1912802b2c4413715e226e5e5abf7485aaa204d89`.
+Root integrated nine source/evidence files after baseline checks and verified
+exact output bytes. The candidate-local overlay changes only seven approved
+pin/path literals; its worker-tree pin is updated, recovery/capture/context/
+runner pins unchanged. Native session67961 finished FAIL (8.129s package),
+before worker-profile installation: owned PostgreSQL became ready, then the
+base migration returned `migration database failed`. Log
+`native-recovery-lock-order-root-20260928.log` in the frozen candidate has SHA256
+`dc6f01094473858541f854c6cb1f6ec249880d029a7bfe7a6973030d33faab8a`.
+Fixture cleanup reported PostgreSQL stop/join exit1 and retained
+`/private/tmp/zasp-http-fixture-526519285`. Root's subsequent `pg_ctl status`
+confirms no server running; `pg_controldata` reports `shutting down`, which
+does not prove a clean join or identify the original failure. Disk free space
+was about2.3GiB, but disk exhaustion is not established. The repair's native
+acceptance remains unverified; a bounded fixture-lifetime diagnostic and
+base-migration failure-source audit are in progress. No task promotion or push.
+Fixture-lifetime diagnostic session69016 passed its ordinary-default case with
+normal PostgreSQL stop/join, then entered owner-before-child-failure. Root
+terminated its owned Go launcher when free disk fell to about353MiB; terminal
+exit143 is not a passing full diagnostic. Log
+`postgres-lifetime-diagnostic-root-20260928.log` in the candidate has SHA256
+`5fa58e51d57a41f65a34aa8909bffe91f5939934adcbc26e4fd729948d3d3edb`.
+Subsequent process/open-file checks found no remaining diagnostic test or
+PostgreSQL process. Root removed only its abandoned generated Go build
+directory `/private/tmp/go-build80191683`; source and evidence were preserved.
+Free disk recovered to about1.6GiB. Neither the interrupted diagnostic nor
+the disk reading establishes the original migration failure's cause.
+Follow-up resource check found only about175MiB free with no matching owned
+native/fixture test or PostgreSQL process running. Root requested permission
+to clear the regenerable `/Users/manishmaheshwari/Library/Caches/go-build`
+cache (about6.2GiB), preserving source, credentials, evidence and the separate
+controlled recovery compile cache. No cache clearing has been authorized or
+performed. Heavy verification is deferred until disk space is sufficient;
+read-only source diagnosis continues. The prerequisite fixture invokes the
+typed-inventory migration chain and releases15..33 before reaching the worker
+profile, so this failure does not exercise the changed effect-source SQL.
+Disk space subsequently recovered externally to5.8GiB, then8.7GiB; root did
+not clear the global cache. With prior processes terminal, root started one
+retry of the same frozen reviewed candidate, session92874, log
+`native-recovery-lock-order-space-restored-root-20260928.log`. Session92874
+finished FAIL (458.707s package); log SHA256
+`3602633a85d683b285f537a22c5d3b8e24a1cbffae91077f921f673ae5ed29c2`.
+Install/replay/drift (124.24s), distinct originals (135.33s), and API admission
+(50.07s) passed. All three pending-contention callers returned pending; the
+previous `40P01` did not recur. Late observation and duplicate recording
+advanced to first settlement, which failed at worker line235 with contention
+wait/join deadline. Settle traces show cleanup source-state deadline, step
+source-state deadline/unavailable, and finish pending. These traces do not
+yet distinguish the five-second waiter observation from later caller timing.
+Owned PostgreSQL pid67118 and all resources joined and closed. Root is tracing
+the barrier and actual caller entry paths before changing code; deadlines and
+acceptance conditions remain unchanged. The earlier startup failure's cause
+is still unproved. Full recovery/settlement and production acceptance remain
+open; no classification promotion or push.
+
+Parallel deployment source recheck, September28: the older September25
+missing-packaging report is superseded by the current named profile/resource
+validators and renderer coverage. No duplicate packaging work is required on
+that evidence. Runtime activation remains intentionally closed in
+`0080_authorization_worker_profile.sql`; deployed acceptance still requires
+approved HTTPS origin/Stytch tenant/provider authority, real Temporal/FGA
+services and model/store, six distinct discovery LOGIN/service connections,
+protected DSN/TLS/token/key references and a validated acceptance config.
+These are prerequisites, not verified deployments. The existing connected
+discovery runner is present but has not passed those real-environment gates.
+Root rechecked the ledger validator: all728 original rows remain mapped, with
+no classification changes. Its historical class counts are not new live proof.
+
+P7 follow-on source audit: two suspected missing implementations were withdrawn
+after tracing effective assembly and consumer semantics. Runtime-event ancestry
+is installed by `0080_authorization_worker_runtime_sources.sql` replacing the
+template refusal and adding session/agent/device checks. Discovery scheduled
+admission captures provenance; `prepare_page` and per-send `guard_page` are the
+forward authorization boundaries. A direct scheduled-admission call alone is
+not evidence of an authorization bypass. Neither path needs duplicate plumbing
+on this evidence. The real Temporal schedule/outbox/start acceptance and the
+remaining Ordered68/policy full-consumer acceptance remain open. The explicit
+`runtime_ready()` false gate stays closed until the required flows are verified.
+Next acceptance planning must use the later checkpoints below, not the older
+P7 report's broad pending list. Scoped policy convergence, actual dispatch,
+settled Test recovery, and fresh-profile retirement already have local accepted
+evidence. Remaining ordered work includes complete100-target delivery/effect/
+accounting (boundary/signing alone leaves98 targets planned), installed-worker
+old/new catalog transition/rollback/deployment compatibility, and acceptance
+of the combined current profile through actual Temporal and deployed flows.
+Do not rerun unchanged accepted consumer scopes solely because the older report
+lists them as pending. These local acceptances do not enable the runtime gate.
+
+Recovery implementation integrated: all 53 reviewed backend/UI paths are now in
+the shared worktree, after exact baseline and output-hash checks. Unrelated edits
+are preserved. The source-identical secret-free snapshot passes typecheck and
+production build (sessions14186/91123) plus the recorded API/worker race group.
+Fix2 source review is approved. No commit, push, production-readiness claim or
+task promotion. The worker catalog export passed (session81342, test62.52s) with joined
+PostgreSQL cleanup and independently verified output/checksum/helper identities.
+This accepts only the fresh worker catalog.
+
+Recovery80 source reconciliation now passes the unchanged extractor and fixed
+contract checks. Root inspected the emitter diff and exact-delta derivation and
+verified all 19 frozen inventory members. The 13 changed reachable bodies contain
+only 36 worker-checksum substitutions; the added helper matches compiled source
+and lifecycle changes by one approved call. Sixteen internal FK trigger-name
+differences remain recorded, not normalized away. Contract identity:
+`02b13c54ff1a543a4ca3a8f43fd2aa71e0334b04efea90afcf61cccf6a74e5cb`.
+P7 `single-test-recovery80-effective-reconciliation-report.md` records the inputs,
+five refusal controls and evidence limits. Context/lineage rebinding, complete
+capture, recovery-native and deployed acceptance remain open. No task promotion.
+
+Ruling: implement the isolated native recovery driver using owned PostgreSQL and
+Temporal processes, actual product transitions and real Temporal Describe, with
+small test-only dependency seams. This avoids constructing settlement evidence
+directly. Controlled identity/planner/provider seams remain labeled; if the seams
+alter product behavior, the native result is invalid and needs rework. Native
+execution stays gated on separately accepted source/capture bindings. Grouped
+offline driver controls and the capture-budget repair proceed independently.
+The recovery native driver and isolation repair are reviewed and integrated:
+all ten test-only paths match their accepted frozen output hashes, with exact
+shared-baseline checks before application and no unrelated changes. The scoped
+tracked whitespace check passes. Five original offline control groups pass
+(API 1.111s, worker 1.120s), and the three affected repair groups pass (1.109s). P7
+`single-test-recovery-native-driver-report.md` records the actual composition and
+controlled seams. Native driver/consumers compiled but were not selected. Empty
+source/capture approval pins still refuse before service launch; no native or
+deployed acceptance is claimed. No commit or push followed this integration.
+The missing local Temporal CLI prerequisite is now prepared in an isolated
+temporary directory. Official archive digest verification and clean version/help
+checks pass; no server was launched or global installation changed. P7
+`single-test-recovery-native-prerequisites.md` records exact identities and limits.
+Independent driver review's P2 is now addressed: owned HOME/XDG directories,
+explicit DSN pass/service/certificate isolation before first parse, isolated
+owned-process environments and pinned Node22/Temporal runtimes. Controlled real
+parser regressions cover parent, child and derived role connections. P7
+`single-test-recovery-native-driver-fix1-review.md` approves the scoped repair
+with no new findings. Root read both reviews and verified all integration hashes.
+The disclosed pgx OS-home certificate metadata probes remain; no credential
+content access or production/native proof is claimed by these controls.
+
+Capture fix3 now has scoped spec and quality approval. The missing canonical
+identity-copy reservation is repaired before emission/encoding and released on
+every exit. Both nil-extension v1 and v2 near-ceiling regressions fail on fix2
+and pass on fix3; the affected group passes in 1.115s. Root inspected the repair
+diff and read the independent review. The reviewer verified 95 packet members,
+85 source pins, all changed source hashes and retained evidence hashes.
+P7 `ordered-current-frame-v2-fix3-review.md` binds the accepted component packet
+(manifest `b53b4b471d3d52d1d2dbef46d7065aa72baf7f66e8127d987f5e84f1b18e5b0f`).
+Native admission remains empty. This packet still uses the predecessor source
+context, so its approval does not replace recovery80 rebinding or native proof.
+The next bounded rebind batch is authorized in P7
+`recovery80-rebind-decision.md`: regenerate full closure/SQL and deterministic
+lineage/context evidence from successor inputs, classify every delta, preserve
+historical captures only as historical provenance, and independently review
+before pinning a new packet. The registration checksum predicate is a real
+selected-value change, not merely an artifact-hash update.
+The first successor v1 derivation now passes four grouped checks, including stale
+contract/catalog and old-registration-checksum refusal. It derives 900 raw rules,
+1,862 contract rules and five phase SQL files; emitter write/check identities
+match (manifest `70150f32037ac85cc9a30ad8cd43a440413e1f0bfe174079fa4ce7a95e05b388`).
+Root read the retained passing logs. This is an intermediate isolated result,
+not full rebind acceptance. The subsequent lineage/context batch is now frozen
+at `/private/tmp/zasp-recovery80-frame-v2.s5RZic`; root verified all 43 inventory
+members with zero mismatches (inventory SHA
+`7f0095fa55175a54c01f9e79e43157587c2377cf73893252ec272b2373127989`).
+Its handoff records 14 passing grouped tests and a deterministic delta of 87
+source-only records plus one selected-checksum SQL change, with zero unclassified
+records. Independent combined review conditionally accepts the frozen v1 rebind
+but identifies two P1 v2 authority/identity gaps and a P2 finite semantic-class
+validation gap. Root inspected the report and implicated code. All three are
+assigned to one isolated grouped repair; none is waived. P7
+`recovery80-frame-v2-proof-review.md` records the exact findings. Final v2
+emission, complete native capture and recovery execution remain gated on repair
+and review. The first isolated repair at
+`/private/tmp/zasp-recovery80-repair.QP1aCE` passed 17 grouped tests but independent
+review rejected its semantic acceptance: it compares successor catalog classes
+with themselves, permits missing/substituted known relation bindings, and does
+not validate the global helper inventory. Root verified the implicated code;
+the repair is not accepted. A successor must account for the actual old/new
+semantic delta and enforce exact dependency bindings before re-review. This is
+not semantic or native acceptance of the v2 package.
+Fix2 at `/private/tmp/zasp-recovery80-repair-fix2.nZFkHR` passes 20 grouped checks
+(root verified logs, zero skipped), and independent review confirms the actual
+old/new comparison and exact dependency arrays are corrected. It remains rejected:
+the emitted extra wire key conflicts with strict consumers, added-helper body
+binding does not reach the compiled/source evidence, and recorded source-frame
+fields are incompletely validated. P7 `recovery80-frame-v2-repair-fix2-review.md`
+records the findings. These repairs now share one combined compatibility batch;
+no final packet, native approval or task promotion follows the passing tests.
+Native sizing preparation found a missing integration: `sizeConsolidatedReferenceV2`
+has only control-test callers; the existing native sizing entrypoint loads v1.
+The native v2 capture entrypoint publishes and cannot substitute for sizing.
+A five-path test-only adapter is frozen at
+`/private/tmp/zasp-recovery80-v2-sizing.josy7Z`. Its grouped controls pass (1.370s)
+and exact native sizing entrypoint compiles. Root verified all five before/after
+file identities and seven evidence hashes. Independent adapter review found no
+P0-P3 defect; P7 `ordered-current-frame-v2-native-sizing-adapter-review.md`
+records approval and the remaining composition limits.
+The adapter includes recovery80 artifact/preflight/loader/admission bindings;
+the earlier native consumers still referenced historical compiler identities.
+Historical v1 consumers are preserved. The frozen source review package stays
+unchanged; no native sizing result is claimed. Final composition must bind both
+the reviewed Go adapter and the repaired evidence tools, including filesystem
+reads that a Go-only overlay cannot redirect.
+The prepared combined tree is
+`/private/tmp/zasp-recovery80-native-combined.DF4ADM`. Root verified all ten
+integrated driver files and five approved adapter files against their reviewed
+hashes. A clean offline compile/list against this new combination passed for
+API (1.093s) and worker (1.120s), session60800 exit0; both native entrypoints are
+present. `-run '^$'` selected no tests and no services were launched. Rejected
+proof-repair bytes are excluded. This does not close the evidence-repair,
+packet-emission or native-acceptance gates.
+The driver isolation successor passes its affected offline controls and scoped
+review; native pins remain empty and no services have been launched.
+
+Current recovery80 packet checkpoint: the combined successor at
+`/private/tmp/zasp-recovery80-native-combined-fix2.z6e2th` has independent
+emission approval in P7 `native-combined-fix2-review.md`. Root verified the
+54 composed runtime/test file hashes, three grouped RED/GREEN logs and all
+64 inherited v1 source pins; the grouped run recorded 24 passed, zero skipped.
+Immutable emission and deterministic `--check` passed (session88734). Manifest:
+`12aab0b7b546fbafcc519868aeb3573df5bf2d93e1d8111c11745a011f045277`;
+contract: `a5bfc0d17cd8e5f27cf80ad582d3322fc99f070b4d6e7c37ac64b9978f2649d7`.
+The actual Go loader accepted that emitted packet, 1,862 rules and five phases
+(session85447, package 1.287s, no skip). Its missing-pin control refused at the
+expected boundary. Logs and reviewed diagnostic overlay are under
+`/private/tmp/zasp-v2-loader-admission.7gA7HX`. No database or service was
+started by those loader checks. The separately reviewed native carrier then
+passed PostgreSQL sizing (session75101, 60.88s test / 61.991s package, no skip):
+all eight batches and 1,862 rules completed, with 39,090 physical / 52,764 expanded
+rows, 27,711,124 streamed bytes and 23,800,914 candidate canonical bytes.
+Rollback, frame restoration, disposal and joined PostgreSQL cleanup passed.
+Log `native-sizing-clean.log` in the same diagnostic directory has SHA256
+`05713fd0122701eb1177ef975e350091c5ffffb433e2aa0c577fad5fefc9f974`.
+Two earlier attempts exposed command-environment errors, not product failures:
+empty PGSERVICE prevented libpq connection attempts; /dev/null TLS certificate
+settings failed pgx parsing. Both attempts joined PostgreSQL cleanup. The passing
+run cleared those variables, retained password/service-file isolation and used
+an owned HOME; default OS certificate paths were verified absent by metadata only.
+This is diagnostic sizing, not a published reference or durable product flow.
+The measured next capture batch sets global limits to 65,536 rows / 33,554,432
+bytes while retaining every per-rule source/refusal limit and SQL/frame boundary.
+The measured-limit successor at `/private/tmp/zasp-frame-v2-global-limits.fDI9g1`
+now has scoped review approval with no findings (P7
+`ordered-current-complete-capture-global-limits-review.md`). Root verified all
+nine changed-file before/after hashes, 64 inherited v1 source pins and six
+evidence hashes. The final affected Node group passes 13/13 (37.495s); Go passes
+in 1.800s, including actual 23,800,914-byte publication and over-limit refusal.
+Inventory SHA256: `c13060201e7f4f96569e5e8f3fc41d02a7678c95dfbfc5b767db86f5dbba5f96`.
+Immutable emission and deterministic check pass (session54238); manifest
+`87c197bb01b0e816035a7d976760348e6c86424175e43cb9b4d985a24b551a62`, contract
+`dc98ace441d12eccfe5a3ddc77747ec89e31835be65261015d81e9caf13cd716`.
+Actual Go-loader admission passes (session92627, 1.574s, no skip); its log is
+`/private/tmp/zasp-v2-loader-admission.7gA7HX/measured-limits-admission.log`.
+This accepts the source packet only. Before native A capture, compose/review
+the v2 provenance observer: its pre/post observations must use the same live
+connection and cannot be attached after destroying the fixture. The existing
+approved observer is being adapted, not replaced. A separate fixed v2 B
+emitter/loader batch now derives from the accepted A seed; legacy v1 B remains
+historical and must not be used for this successor. A/B captures, private typed
+identity comparison, semantic equivalence and recovery approval pins remain
+open. The existing Temporal single-test recovery driver already wires profile
+installation, API admission, worker and readback; no new production reference
+consumer is needed. Native capture, recovery and deployed acceptance remain
+open; no task promotion, commit or push.
+
+The v2 provenance adaptation at
+`/private/tmp/zasp-recovery80-provenance-v2.Bq5c7N` has matching report,
+inventory and RED/GREEN log hashes, but is not accepted for composition.
+Root found that `bindOrderedProvenanceV2` rewrites the measured caps back to
+10,000 rows / 16 MiB before validation. The accepted `fDI9g1` validator requires
+65,536 rows / 32 MiB, so the old-base passing tests do not establish compatibility
+with the current capture source. Root also traced the v2 observer wrapper to
+legacy environment keys and the legacy test name: the real v2 mode takes its
+fallback branch without observing identities. Both mismatches are assigned to
+one grouped repair against `fDI9g1`, including the real v2 activation boundary.
+Independent review rejects this candidate (P7
+`recovery80-provenance-v2-adaptation-review.md`). Root verified a third mismatch:
+the producer emits `counts.ruleRows` as a per-rule object, but the adapter reads
+an integer. The repair must test the actual producer envelope. The reviewer
+withdrew the fourth finding after checking the approved scope: the companion
+binds bytes, while the existing strict v2 checker remains a separate required
+acceptance gate. Updated review SHA256:
+`5741f622e60321a1251a5263e0c3629e3f31d29e9d0e7fc16eabffd8ee1f2868`.
+Native capture remains gated. The fixed B
+emitter continues from `fDI9g1`.
+No production or task-status claim follows this component checkpoint.
+
+The fixed frame-v2 B emitter is frozen at `/private/tmp/zasp-frame-v2-b.IOrKSt`
+and under independent review. Grouped Node tests pass 4/4 (74.492s); the real Go
+loader accepts the controlled B packet and rejects mismatched principal pairs
+(1.335s). Root verified both added source files, both unchanged legacy B files,
+all 107 accepted A members, and seven handoff/test hashes with zero mismatches.
+Handoff inventory SHA256:
+`811c22f353e1ab89beb65da16ab2d755f9291ac079f3ba8686de7be035a5c005`.
+The source review now approves packet emission with no actionable findings (P7
+`ordered-current-complete-capture-frame-v2-b-emitter-review.md`, SHA256
+`858a6c46887932dc3e3d88a8e3d7f7cb3d50d76a745986b419912102dce948a5`).
+Root ran fixed emission (session72932) and deterministic check (session56474);
+both passed. The final packet has 110 members and 100 source pins, manifest
+`0f72335919caca1c9d1a05aa639a666bff71d2f02cc253ecb7d799856fd35617`, contract
+`4ed2d9c7795ac16c4f485d1e891b34cf7364f9cdb4f90647d2b58dafbeb894db`.
+This is source-packet evidence only; native pins remain empty.
+The provenance fix3 at `/private/tmp/zasp-recovery80-provenance-v2-fix3.pVBgXN`
+has scoped approval with no P0-P3 findings. Root read P7
+`recovery80-provenance-v2-fix3-review.md` (SHA256
+`361a867705ea47606dcfd188674abd6fef292676deed49532f5233a1e433c15f`).
+Root verified three targeted RED logs, grouped GREEN (1.747s,
+native entries skipped), three changed source hashes and three unchanged helper
+hashes. Corrected handoff inventory SHA256:
+`4e0edb44c941dd4b66534822b51005993a4a88bb1e650f616498d158d251af29`.
+Isolated A/B runtime composition is in progress; its counted callback/startup
+changes and separate literal carriers still require review before activation.
+No native composition or recovery acceptance is claimed.
+The first combined runtime proposal at
+`/private/tmp/zasp-recovery80-native-composition-carrier.L06LsF` passes the
+affected control groups in both A (session76934, 1.966s) and B (session96138,
+2.630s). Root verified all 217 packet members and 15 observer-file hashes,
+private output-directory modes and absent outputs. B's immutable packet is now
+separate from its callback-modified runtime. Activation remains gated: the
+binding function must move out of the observer-hashed file into a dedicated
+externally bound carrier to avoid a self-referential observer hash. A narrowly
+scoped successor is preparing that extraction and the post-capture comparator
+entrypoint. The proposal was subsequently revised in the same runtime
+directories; its prior hashes are historical. Accepted packets remain unchanged.
+
+The source-identity cycle is now repaired. Observer identity is
+`2b4e057c705ee773ad2f8f0ffea020679d53cc7480e2ce48eb715fc9cd6f60c2`;
+outer inventory is
+`42f2673113dcbf9ec173a0d91691d2c32232a0d55c4a16fe682d1e35ed8f69d2`.
+Root's actual activation-overlay compile exposed and repaired one missing type
+declaration; both overlays compile (sessions16060/10870). Final review approves
+explicit native capture (P7 `recovery80-native-composition-final-review.md`,
+SHA256 `4a2aaf81dd23ae8abce43b07c6f075d96067374934274c42c091da00c83000cb`).
+The review's virtual-file concern was withdrawn after the actual Go tool listed
+the comparator test (session93441); no substitute test was used.
+
+Both native captures now pass, without skips, using those reviewed overlays:
+A session2047, test55.86s/package56.815s; B session96651,
+test53.74s/package54.798s. Each recorded before/after private provenance and
+joined its owned PostgreSQL process with normal exit. The existing strict v2
+checker accepts both complete outputs: 1,862 rules, 39,090 physical rows and
+52,764 expanded rows each. Capture identities are A
+`87b56d3510860ea97fc0fd3459a8f4d2e736e114026ddc397648721a0010fd73`
+and B `070c505dc48c14b9f98e2d54265bcca99e2e4d041153495ee532d0e431c9829e`.
+Files and logs are under
+`/private/tmp/zasp-recovery80-native-composition-carrier.L06LsF`.
+Native log hashes: A
+`2d3f7729598530eb0e89f792edf022033fb479ad43ae828f9e08d6b3ce58be1d`,
+B `2f13a6bff17e6b19d56fea929aad20ebe288abcd54ef74e74efaa470c0711438`.
+The actual post-capture comparator passes (session73797, test0.93s/package1.978s):
+all four named object slots are stable within each installation and different
+across A/B. Raw private identities and sidecar hashes are not reported.
+This closes capture/selected-identity evidence only. The finite typed-fact
+comparison and source/application-equivalence gate remain open before the
+existing Temporal recovery driver can receive accepted capture bindings.
+No durable product-flow, deployed-provider, task promotion or production push
+is claimed by these local native captures.
+
+Recovery-driver binding checkpoint: the actual A/B delta inventory identifies
+38 rule-specific principal-field mappings, 57 changed fact-derived bag keys,
+11 internal-FK identity groups with equal typed fact multisets, and one derived
+registration fingerprint. This is observation, not permission to ignore those
+differences. Inventory SHA256:
+`c4a71228da4703732baee860b1fc169b8e264dda8bcdbe3fdc55123b034b35b0`.
+The grouped comparator implementation and independent source-semantics check
+are in progress. Driver source binding is prepared at
+`/private/tmp/zasp-recovery80-native-driver-binding-proposal.YD8Ztt`;
+capture-manifest/context-proof approval remains pending. The existing driver
+needs exact reviewed file hashes, not another validation framework. Its native
+PostgreSQL/Temporal execution has not run. No task classification changes.
+The first comparator candidate at `/private/tmp/zasp-ab-fact-comparator.7oSDWu`
+passes its six grouped controls (11.078s) but is not accepted. Independent review
+found B-only envelope fields ignored, generic SQL-token substitution, and lossy
+UTF-8 trigger-argument decoding. Root also found unchecked frame-principal
+replacement. One grouped repair covers all four boundaries. Review SHA256:
+`11adc699f4e28b50ce1f634b95fdff040b0d499acd63945a4a6119d4687cb58d`.
+The source-based justification for the finite allowances is accepted; these are
+implementation defects, not a requirement for new captures or broader proofs.
+Fix1 at `/private/tmp/zasp-ab-fact-comparator-fix1.e9qogG` repairs all four
+boundaries. Grouped RED retains six passes and exposes three failing new groups;
+GREEN passes 9/9, zero skips, 12.327s. Root verified source/test/diff/log hashes
+and read the scoped review, which approves the component with no open findings:
+`2b38a98e07325cc79d49229a3f4572f57d67c066a592916d2b62ab07036ffa7d`.
+The fixed A/B captures now satisfy the reviewed typed-fact comparison. Root also
+verified all 42 references supporting the six source-context prerequisites.
+Accepted local driver artifacts in the binding directory are
+`capture-manifest-accepted-v2.json` SHA256
+`d16ddfe753ecd4426155ac2b1704b7c89f0665cfbec437834fadde35d9a6b4ff`
+and `context-proof-accepted-v2.json` SHA256
+`b01af61378f34cf736b25dd0182e0f9b4b56401b15521684a737f5317c966472`.
+An external Go overlay changes only the seven approval constants/paths and their
+comment; the frozen runtime remains unchanged. The first local recovery-driver
+attempt (session64173) refused a source binding before starting services
+(4.330s package). Root's current WorkerTree digest is
+`e3a90692eed091e09630df77f06cba97a6907267faeb7830f6c88f1372052e59`,
+not the earlier diagnostic's recorded digest. All 390 included files match the
+accepted measured-limit source and comparator successor. The cause is confirmed:
+the diagnostic used localeCompare ordering instead of Go WalkDir byte order.
+Root reproduced both digests from the same unchanged files. The v2 artifacts
+above correct only this evidence binding. The second driver attempt
+(session95896) passes preflight, starts owned PostgreSQL/Temporal and compiles the
+worker, then fails real profile installation/replay (43.05s phase, 159.056s
+package). The fixture confirms all resources closed, including the joined
+PostgreSQL process; direct process checks find neither test nor services alive.
+A test-only diagnostic adapter identified the failing predicate in session54725:
+the authorization Temporal and worker installers pass, but the recovery install's
+final `zasp_temporal_single_recovery.ready($1)` returns false. The run ends FAIL
+(163.320s package), with all owned resources joined. Its log SHA256 is
+`2c2658f289d0b0df4c54dc98e0ffa1a4ed820725e70b078779d72d3056546885`.
+Source review identifies a stale expected body for
+`zasp_temporal74.planning_terminal_valid`: recovery derives the pre-worker body,
+while worker installation applies the three receipt-portability substitutions.
+A bounded before-rollback diagnostic also ends FAIL (170.759s package), with
+joined cleanup. It inspected zero routine bodies: its test-only parser expected
+`ready(text)` instead of the emitted `ready(c text)`. Log SHA256:
+`a6f2ccb052d0dcb5882f6f3a444c761f10da5455d25c07b12fb7fdf381cbb39e`.
+This run adds no routine-digest evidence. Ruling: do not repeat the diagnostic;
+use the independently inspected source mismatch, a targeted failing regression
+and the corrected connected run to test the repair. The isolated grouped-TDD
+repair is in progress. The diagnostic overlay now includes instrumentation;
+the earlier seven-constant-only description applies to the initial overlay.
+The repair is now reviewed and integrated into the shared worktree after exact
+baseline checks. Both output hashes match the frozen successor at
+`/private/tmp/zasp-recovery-portability-fix.DqLuuT`; unrelated work is preserved.
+Its new regression fails against the old expected body and the grouped assembly
+checks pass (2/2, 49.481s). Root verified all ten inventory members and retained
+logs. P7 `ordered-current-single-recovery-portability-repair-review.md` accepts
+the component with no open finding (SHA256
+`e3017a5f0e246613b04eb13112b43a8c35ce25b7213f337d258614a4a241e2f9`).
+The worker SQL and accepted capture inputs are unchanged. Recovery source SHA256
+is now `66c50ffd3e3c8cdd83f9f007369f4fc289cef4b6a401f95a79913b6a661872f1`;
+its checksum is `a611dc979faf5008c45c3e72755d898cad0260c6c8a916b71e8267d30fe55062`.
+The corrected native carrier uses these successor bindings. Session96571 now
+passes recovery first installation, replay, both drift-refusal cases and their
+rollback/replay checks. It then fails the controlled browser-session INSERT,
+before original preparation/API admission/worker recovery/readback. Root checked
+the terminal log against the sequential driver source: the fatal is
+`controlled current browser identity`, not migration readiness. The earlier
+namespace-absent false diagnostic is expected during first installation.
+Log: `/private/tmp/zasp-recovery80-native-driver-successor.oxCeHu/native-recovery-successor-corrected-20260928.log`,
+SHA256 `280d34cf52ce5f803a86d14c063d9d5d5f0a5edfa7f74c61e8813185d259ee50`.
+The test ends FAIL (226.740s package), with all owned resources joined. The
+fixture's `controlled-single-recovery-session` violates the existing migration
+0007 `session-` prefix constraint. The grouped test-only fixture repair is now
+reviewed and integrated from `/private/tmp/zasp-single-recovery-session-fix.qegFxA`.
+It uses a valid stored session ID without changing the browser credential. A
+pre-run review also found a 67-byte worker connection label that could not match
+PostgreSQL's server-visible application name; both callers now share a 60-byte
+label retaining the complete run ID. Product constraints are unchanged.
+Grouped RED exposes both invalid fixture values; GREEN passes eight top-level
+controls across API/worker packages (0.946s/1.827s), with one intentional nested
+skip that tests skip refusal. Root verified all 13 inventory members and exact
+shared baseline/output hashes for the four changed test paths. P7
+`ordered-current-single-recovery-session-fixture-repair-review.md` accepts the
+batch (SHA256 `a060f37784639a4b56ca5bff60fd2a04d665c8807face9054218e4defe2a8f3a`).
+The source-bound connected run finishes FAIL (352.689s package), with joined
+cleanup. It passes installation/replay/drift (110.21s) and both actual original
+preparations (124.34s), then fails API admission setup (0.01s) at the registered
+API-principal lookup. No admission request or worker recovery/readback ran.
+Log: `/private/tmp/zasp-recovery80-native-driver-session-fix.gY7CFt/native-recovery-session-fix-20260928.log`,
+SHA256 `ab73033d066d77078df4b1daf63170de6b9b7a252e91fed74511b90d26b88b90`.
+Root and independent review confirmed the failing fixture queries the
+discovery-principal registry for `zasp_security_agent_api`, which migration 0018
+registers in `zasp_security_agent_principal_bindings`. The correction must retain
+the security-agent authority and change only its registry lookup; substituting
+the discovery authority would violate the recovery API's grants. The outbox and
+Temporal executor/compensation mappings are correct. That test-only correction
+is now reviewed and integrated after exact baseline/output checks. The one-line
+test-only repair at `/private/tmp/zasp-single-recovery-registry-fix.L14IKR` passes
+compile/list (1.094s); root verified all six inventory members. P7
+`ordered-current-single-recovery-registry-fixture-repair-review.md` accepts its
+source quality (SHA256
+`8a9acdfe0226ea5870929ecb71f5c6bbc1d271664098e685bdc6584dae7c3605`).
+The next full connected run (root session49090) passes installation/replay/drift
+(108.09s), distinct-original setup (124.36s) and the corrected API login lookup,
+then fails `SingleTestRecoveryAvailable` at the API capability prerequisite
+(15.72s API phase). No recovery admission request, worker or readback runs.
+Package result is FAIL (370.832s), with all owned resources joined.
+Log: `/private/tmp/zasp-recovery80-native-driver-registry-fix.l2WCYv/native-recovery-registry-pinned-20260928.log`,
+SHA256 `c79c82671ddf944c0cff9d17a9b6174ab99b9978e2869800be5377563ea5d821`.
+An earlier launch used the wrong Go binary and was refused before services;
+session49090 used the pinned Go 1.25.13 binary. The capability method starts a
+10-second context before two large compiled-source computations. Offline timing
+and source review are investigating deadline exhaustion versus a database
+readiness error; neither cause is yet claimed. Offline pinned-Go measurements
+are 3.403s for the ready-body digest, 3.410s for source/checksum, and 6.548s for
+the exact duplicate sequence. Independent source review finds the same duplicate
+pattern in worker capability and CLI probes. Ruling: reuse one immutable,
+source-derived metadata descriptor across these consumers, outside their database
+child deadline, while retaining parent cancellation and all live catalog checks.
+Do not cache database readiness, alter the original mutation-testable assembler,
+increase the timeout, or infer production acceptance from this optimization.
+The grouped application repair and bounded query-stage diagnostics are reviewed
+and integrated. Root verified the exact baseline and successor hashes of all 11
+changed paths. P7 `ordered-current-single-recovery-immutable-metadata-inventory.json`
+binds the source and retained RED/GREEN evidence; the review SHA256 is
+`d0267d12660e9711dcead96a0dada92a0b816ce4859e947cb74e7358cc9f05e0`.
+The focused GREEN log reports eight top-level cases passing across migrations,
+API, worker and CLI. The original assembler and all 312 migration SQL files are
+unchanged. Database readiness is never cached. Native verification under
+root-owned session16450 with pinned Go 1.25.13 has ended FAIL (354.034s package),
+using the exact frozen candidate and approved metadata overlay. Log:
+`/private/tmp/zasp-recovery80-native-driver-metadata-fix.rumZaA/native-recovery-metadata-root-20260928.log`.
+Log SHA256: `432f4ed88873a781f12a63d1956efd9dd907d5de722f5866158c353764567d89`.
+Installation/replay/drift passes (109.95s), as do both actual originals (126.65s).
+API admission fails before the readiness query at current-authorization setup.
+Root traced this to the new test diagnostic wrapper hiding the underlying
+`AuthorizationTransactionDriver.Begin` interface. Production activation correctly
+refuses; this run cannot confirm or refute the original readiness-timeout
+hypothesis. All owned resources joined. A cheap grouped wrapper-capability and
+transaction-delegation regression/repair is assigned in an isolated successor
+before another native attempt. No paid model calls, commit, push or task-status
+promotion occurred. The initial review missed this integration boundary.
+The two-file test-wrapper repair is now integrated from
+`/private/tmp/zasp-single-recovery-diagnostic-driver-fix.XOkQgm` after exact
+baseline/output checks. It conditionally preserves the original transaction
+interface and delegates Begin without changing context, transaction or error;
+nontransactional drivers remain rejected. The behavioral regression fails at
+the original authorization-activation boundary before the fix (1.109s), passes
+after it (1.137s), and the affected four-group authorization/diagnostic run
+passes (0.898s). Native entrypoint compile/list also passes (0.868s).
+Root inspected the code and logs; independent source review reports no finding.
+P7 `ordered-current-single-recovery-diagnostic-transaction-repair-inventory.json`
+binds the two files and retained logs. The report, diff, inventory and review are
+retained alongside it. Review SHA256:
+`b6b022d5b13f5926fefd6df8084fb755d032457f98f44649b42e154c2203ef2d`.
+Diagnostic helper SHA256: `9eb17daef2ed8dda2d496097053cb33c312a27e5872256a26dafb717d5d926c8`;
+native API consumer SHA256: `742dd00dee6a7085c1e9137428ff5cb9c1b3ff0a335d161b88ac7e20e9e3e66f`.
+Root-owned native session73947 finished FAIL (364.923s package) from that frozen
+successor with unchanged approved driver overlay and capture/source bindings. Log:
+`/private/tmp/zasp-single-recovery-diagnostic-driver-fix.XOkQgm/native-recovery-diagnostic-root-20260928.log`.
+SHA256: `a676d5344a27485834a3013a93f091b4a593e130e4623505e3e30dafba31aec8`.
+Installation/replay/drift passes (110.78s), and both originals pass (124.51s).
+API admission now passes current-authorization activation and the single-recovery
+readiness probe. It fails later at `NewPostgresRepository` (9.83s API phase).
+All owned resources joined; no recovery request, worker or readback acceptance.
+Constructor schema/readiness requirements and its five-second context around
+source computations are under independent source/timing investigation. Timeout
+is not yet established as the cause; no unchanged native rerun is scheduled.
+Source tracing identifies a concrete fixture authority mismatch: production
+opens separate main/discovery and security-agent API connections. Its core
+repository/authentication/authorization resolver use the main connection, while
+single-recovery uses the security-agent connection. The native fixture passes
+the security-agent database to both. `authorizationMetadataQuery` requires the
+discovery principal for the core readiness statement, and the existing P7
+constructor integration test explicitly rejects that statement on the agent
+connection. Ruling: repair the fixture to match production's two connections,
+with grouped role-routing coverage. Do not widen grants, change SQL/readiness
+predicates, or treat this source diagnosis as a passing native result.
+That two-file fixture repair is reviewed and integrated from
+`/private/tmp/zasp-single-recovery-authority-routing-fix.EPidUR`. Both connections
+retain current authorization. Core repository, browser authentication and resolver
+use the discovery principal; recovery readiness, handler and lock PID use the
+security-agent principal. Root verified both source hashes after integration.
+The focused regression fails at the conflated constructor (1.250s package), then
+passes; eight affected control groups pass together (4.359s package), and the
+native entry compiles/lists (0.836s). Review SHA256:
+`7e965e72218b2dfd93304ed18a5fd308e1d6ca4d7a77931c8fc656606ad8b6a5`.
+Timing caveat: the initial 0.27s metadata measurement was warm; the cold fake-DB
+constructor takes about 3.33s. No timing guarantee, timeout increase or metadata
+optimization follows that measurement. Root-owned native session38324 ended
+FAIL (369.505s package) with unchanged production/capture bindings. Log:
+`/private/tmp/zasp-single-recovery-authority-routing-fix.EPidUR/native-recovery-authority-routing-root-20260928.log`.
+SHA256: `6374265e95bb1f75ecddeb515944e5be657ad0048e2c46536e28c8fb2607cc48`.
+Installation/replay/drift (110.66s), both originals (129.87s), core repository
+construction and browser authentication now pass. API admission fails next at
+current revision loading (10.16s phase). The fixture still constructs its
+projection reader with the setup-owner pool. `zasp_authorization79.revision`
+requires a registered reader principal and rejects that owner; production uses
+the main API pool. Root and review missed this remaining role mismatch in the
+preceding batch. All owned resources joined. The follow-up repair must audit
+all remaining API/parent-driver/worker runtime connection selections together,
+use the registered main API pool for revisions, and leave owner access limited
+to fixture setup/introspection. No grant/readiness changes are authorized.
+The follow-up two-file fixture repair is reviewed and integrated from
+`/private/tmp/zasp-single-recovery-projection-routing-fix.r2kAIa`. Its copied
+registered discovery-pool configuration now supplies generic repository,
+authentication, resolver and revision reads. The owner remains setup/control/
+inspection only; recovery, outbox and worker authorities are unchanged. The
+full remaining connection audit found no additional role mismatch. Root verified
+both integrated source hashes. The regression fails when selecting the owner
+pool (1.088s package), passes after repair (4.515s), and the affected eight-group
+run passes (4.413s), with native compile/list passing (0.873s). Review SHA256:
+`67e9794b39dcd05d452e2851aea4121f85a278768a5fe2d3eafa97a4afdb57b6`.
+Root-owned native session87487 finished FAIL (381.432s package) on the frozen
+successor with unchanged driver/production/capture inputs. Log:
+`/private/tmp/zasp-single-recovery-projection-routing-fix.r2kAIa/native-recovery-projection-routing-root-20260928.log`.
+SHA256: `a8cc5cb545defe5d686e304a614ea4cd81db7a5e77ec535adef88400195bf1a7`.
+Installation/replay/drift (111.51s) and both originals (125.75s) pass. API setup
+now passes repository construction, browser authentication, revision loading and
+the projection reconciliation callback. The first scoped authorization fails
+before the recovery GET handler (10.95s API phase). The fixture reports only
+`current scoped authorization`, not the failing resolver/check/revision or
+attestation stage. All owned resources joined. Source diagnosis now traces those
+boundaries; if inconclusive, collect bounded stage/sentinel diagnostics before
+any production edit. No authorization safeguard is waived and no unchanged
+native rerun is scheduled.
+These are component checks until the connected run supplies stronger evidence.
+No native-success claim, original-task promotion, paid API call or push follows
+these component checks.
+A suspected missing
+adapter-role finding was withdrawn after tracing the inherited setup helper;
+no unnecessary role-registration change was made.
+No timeout or predicate is waived.
+The worker contention-label fix has only grouped local
+coverage so far because this native run did not reach the worker phase.
+Connected recovery remains unverified;
+exact readiness predicates are not waived.
+Controlled identity/provider seams remain distinct from live proof. No commit,
+push or original-task promotion follows this batch.
+
+Testing cost preference: use the cheapest compatible model for model-backed
+acceptance, rechecking pricing before paid execution. The existing opt-in
+`TestSecurityAgentPlannerLiveBoundedProvider` is separate from production model
+configuration, caps output at 512 tokens and has no retry/model fallback. Its
+historical low-cost model selection is not a current pricing claim. No paid
+provider call follows this checkpoint. Provider funding, deployed public origin,
+Stytch production secret references and deployed real-provider acceptance remain
+external gates; a local `.env` key alone does not satisfy them.
+
+### Historical preparation checkpoints
+
+The entries below preserve prior evidence and do not override the latest state.
+
+Combined recovery checkpoint: the isolated backend/UI candidate now includes
+the test-only first-settlement contention repair. Its affected API/worker group
+passes with the race detector (session87115), including public-route composition.
+Both native consumers explicitly skip; real lock/Temporal behavior is unverified.
+Fix2 independent review and the worker catalog successor review are running.
+P7 `single-test-recovery-combined-integration-checkpoint.md` binds the 53-path
+candidate and component evidence. Nothing has been applied to shared source or
+pushed; these checks do not promote task classifications.
+
+Latest integration checkpoint: UI fix3 and the 12-path UI integration package
+have independent component approval. Backend fix1 contains 39 paths; its
+six-package offline group passes, while native tests compile but remain skipped.
+The backend review is running. The combined 51-path candidate has no overlapping
+paths, all baseline/source hashes match, and a joint read-only patch check passes.
+Nothing from this candidate has been applied to shared production source.
+P7 `single-test-recovery-combined-integration-checkpoint.md` binds the candidate
+and normalized patches. Final combined build, native recovery acceptance and
+deployed verification remain open. The historical review-pending notes below
+describe earlier checkpoints, not the current UI review state.
+The isolated fix3 production build now passes (exec session 29220); this does not
+replace final combined verification. Backend review still requires a genuine
+pre-completion cleanup race case: the current concurrent case starts after
+completion and proves only settled replay.
+
+Frame-aware capture v2 is implemented in its isolated snapshot and is under
+independent review. Its grouped Node and Go component checks pass; native pins
+remain empty and no database capture has run. Recovery's private80 successor
+needs fresh source/context bindings before connected native execution. These
+results do not promote any of the 728 tasks or close production gates.
+Independent final3 capture review now requires four fixes before component
+acceptance: sizing frame-error propagation, exact v2 byte accounting, active-batch
+rule enforcement and entry-authority timeout coverage. Native preparation stopped
+without execution. P7 `ordered-current-frame-v2-root-checkpoint.md` records the
+review and grouped successor repair; the recovery race-test repair runs separately.
+
+Recovery-flow batch checkpoint: the isolated connected run-drawer UI now uses
+the real cleanup-recovery API contract and retained mutation controller. Its
+grouped component checks pass 162/162, TypeScript checking passes, and the
+Vinext production build passes. A failing drawer test exposed navigation still
+enabled during an unresolved recovery; trigger/activity/action/export navigation
+now shares the recovery lock. Replay coverage preserves the original request
+version and idempotency key after parent-version advancement, hides stale reads,
+and removes replay on permission loss. P7 `single-test-recovery-ui-work.md`
+records the frozen source/log inventory. These are isolated component results,
+not independent review acceptance, deployed API evidence or task promotions.
+
+The same batch's backend review remains open: late completion can invalidate
+an earlier stop proof, and recovery lock acquisition may invert the existing
+parent/organization order. The implementation owner is addressing the connected
+paths before acceptance. The affected API composition check also exposes three
+pre-existing documented export routes absent from the mounted route set; its
+assertion remains intact and the affected scope is not claimed fully green.
+Follow-up inspection located the existing full export composition in
+`agentsec-api/production_runtime.go`: it already mounts those three routes when
+the export surface is installed. The failing test selected the older compliance-
+only fixture. Its correction will test the full composition and all three exact
+route/security mappings; this is not evidence of missing production route code.
+No push or production-readiness claim follows from this checkpoint.
+UI independent review then found definite POST permission/version rejection
+left old readback usable. The isolated repair now requires a fresh scoped GET
+while retaining same-intent replay for ambiguous failures; the affected grouped
+tests, typecheck and rebuilt production bundle pass. Repair review remains open.
+The local browser smoke rendered `Session unavailable` without an API backend,
+including after Retry, with no console errors. This proves only static boot and
+the unavailable-state boundary, not authenticated or deployed recovery.
+Fix1 UI review is approved for component use. A subsequent built-browser flow
+with controlled HTTP responses exercised the real production route, client and
+retained registry: automatic and manual retries kept the same request, competing
+drawer actions stayed locked, and completion displayed its receipt and distinct
+recorded outcome. That flow exposed a misleading not-requested label during an
+unknown response; the isolated fix now says the outcome is unknown. Rebuilt
+browser checks, affected tests, typecheck and build pass; fix2 review is pending.
+P7 `single-test-recovery-controlled-browser.md` records fixtures and evidence
+limits. No real Stytch, OpenFGA, database or provider acceptance is implied.
+The follow-up review separated unknown request outcome from permission to retry:
+after manage permission loss, the UI now keeps the truthful unknown label while
+hiding replay. Affected checks/typecheck pass; fix3 review and final combined
+build remain open. The prior controlled browser/build evidence covers fix2 only.
+
+The next complete-reference source batch is authorized under P7
+`ordered-current-complete-capture-implementation-brief.md` and plan
+`ordered-current-consolidated-capture-next-batch.md` (SHA256
+`f14ed1b628669396a1843f3d480f1cb1c4cae93667397c6be69d745554d03e12`).
+It covers the missing mixed, conditional, delegate and wrapper inputs along
+with direct/transform inputs; the former50+13 proposal is not treated as complete.
+Separate owners implement migration-tool coverage/SQL/intake and the three new
+Go producer files plus a fixed-pin companion, with an agreed wire contract before
+integration. Root resolved the producer/manifest hash cycle by excluding only
+that trust-anchor companion from the packet manifest; a separate review inventory
+must bind its bytes. The manifest still binds all three exact producer files.
+A and B require separate frozen contracts with exact session owners, not a mutable
+owner overlay. Cross-language canonical-byte controls remain required before
+accepting JavaScript/Go envelope hashes. These are source decisions, not capture
+acceptance or task promotions.
+Root read and accepted the revised wire contract for implementation, SHA256
+`fcff8f12a6ddb65b1e9d84cfec2205026c2b1dde562a0ceb1b9b24f548d0830c`,
+with shared wire vectors
+`c2bad042b5cec2e2c88ab2de22ce8b91095545fffb9165eaae65ca716b574f9b`.
+It binds original producer bytes without JavaScript reserialization, exact
+integer validation before rounding, and newline-inclusive file limits.
+The producer's lifecycle RED reaches its unimplemented capture boundary.
+A separate read-only owner maps the higher-wrapper and audit-helper static
+inputs alongside producer and closure implementation; no native capture ran.
+Source inspection then found a required interface correction: migration0060's
+schedule selector and worker saved-signature casts need original-frame resolution
+before canonical-key capture. The prior wire hash above is an intermediate
+checkpoint, not the final packet contract. Root authorized an initial original-
+frame demand phase, typed collector-owned handle parameters, full demand/roster/
+original equality, and canonical identity assignment by transient handle.
+Qualified fixture strings and old-frame resolution cannot substitute for that
+proof. The five-phase interface is now fixed at wire SHA256
+`563fe703c7dbd43edc4b87595d168e4aaaf1a13cf096779c448e0795c38509d0`.
+Root verified the recursive delegate index against contract3: 36 routine source
+hashes and 139 UTF8 branch slices match exactly. P7
+`ordered-current-complete-capture-delegate-mapping.md` and its source-map JSON
+identify the remaining fields; the parallel wrapper mapping supplies higher
+regions and audit-helper inputs. The global-control helper's actual catalog
+name ends in `global_fingerprin()`, and its negative ownership/grant universes
+remain required. Source mapping is not field-closure acceptance. SQL generation,
+full packet review and native capture remain pending; no task status changed.
+Independent producer review of the frozen follow-up found two loader gaps:
+non-nullable JSON fields could decode null into Go zero values, and source row
+maxima lacked the JSON safe-integer upper bound. Both are assigned to the
+producer owner for one grouped repair. The reviewer withdrew byte-budget and
+surrogate findings after checking the actual contract and escape-handling code.
+The two repairs now pass independent snapshot3 review: raw declared JSON types
+and safe-integer bounds are enforced. The affected grouped run passes seven
+tests and fifteen cleanup/failure subtests (1.029s). The frozen producer hashes
+are boundary `c106a29c154bd7f225bb44b2036865d45c6490b1add3d726e138be25d3e49bf7`,
+controls `d1e96dcc641f3205aa8e43b2f4bfe117ae91bc8fd1591d3e94969210bf884b85`,
+and postgres adapter `a06ab7aa84d8005ca2990117d85203fb4949d47627cec56672f932f037dd8f28`.
+This accepts the producer boundary only; both variant pins remain empty. P7
+`ordered-current-complete-capture-producer-independent-review.md` records the
+bounded verdict; final source-packet and native acceptance remain separate.
+Root's integration check found that the new SQL token audit accepted quoted
+application calls and quoted `pg_sleep`. Two offline direct checks reproduced
+the gap without executing SQL. The source owner must repair this in the grouped
+compiler coverage before packet review; this is not a runtime exploit claim.
+Ruling: resolution text retains the original source frame, while canonical
+identity is proved separately through demand/keys/original handles. Inventory
+rule/restore metadata and managed-marker normalization remain witness-only;
+there is no accepted fixed release-row proof for them. The implementation brief
+records these boundaries and the wrapper owner's separate file ownership.
+Mistaking either for portable expected truth would require source rework and
+invalidate capture acceptance. No task has been promoted by these decisions.
+The special-catalog owner has handed off the 26-branch global-control/compliance
+slice, with 162 field entries and five passing owned tests. Root read the report
+and verified implementation SHA256
+`0e33e8614eef2e3d950ae8e63b963c591542e2809155c53edf1d6c0d907f91ad`
+and test SHA256
+`2e9ee5a8c3955c3fa0c7ed4cdf243d2831fb45382ff9f2fbe5ad704edc7eeb1a`.
+This is a component handoff pending closure composition and combined review.
+The release-policy row maximum is an upper bound only: an empty universe keeps
+its absence, and no minimum-cardinality claim was added. Config dimensions and
+full semantic-tuple multiplicity remain present. Native capture stays closed.
+The wrapper-input handoff is also frozen: 24 rules, 103 field entries and nine
+runtime-algebra records. Root read its report and matched implementation hash
+`e8415ecbfb4f7d83b73025a3e9e963af315a2832a6e10486390f9de6dc4e0957`
+and test hash
+`14dd6e7700beabbe83700ab46361d510447ba64ba80f01ae0e71dadbb6176a71`.
+The owner reports ten passing wrapper/compiler tests. The connected closure run
+still failed on 15 global obligations; those remain assigned, not waived.
+Whole-body wrapper pins establish only the declared field correspondences,
+not descendant completeness. Combined review remains required.
+The subsequent all-kind source audit found that the earlier diagnostic count
+omitted twelve temporal conditional wrappers. Root verified the exact lowerer
+list and assigned those original requirements to the recursive owner. Root also
+enumerated all ten lowerers' obligation kinds, including public/runtime
+conditional wrappers, product relation resolution and scalar metadata, graph
+predecessors, and transform demand/frame obligations. Source composition must
+account for every kind or refuse. The earlier 15-obligation count is not a
+complete remaining-work count, and no complete-capture claim follows from it.
+Root completed a separate ready68/ready78 predicate audit in P7
+`ordered-current-complete-capture-ready-predicate-mapping.md`. Ready68's 28
+physical relation references map to 25 SELECT predicates; ready78's non-copied
+predicates are mapped separately from its catalog branches. This exposed a
+missing original-frame worker function definition, full registration-cardinality
+inputs, and a temporal72 saved-to-current LEFT JOIN comparison whose missing rows
+must survive. Exact spans and predicate hashes are handed to the implementation
+owners. Current filtered registration evidence does not prove full row counts.
+The remaining copied legacy multistep selectors differ from the current public
+selectors and are queued as a bounded separate input module. None of these
+findings is waived or treated as reference/evaluator/production acceptance.
+The freed owner slot now covers recursive higher/readiness-guard inputs in a
+separate module, while the source owner retains graph composition and SQL.
+Ruling after reading the schedule helper: capture its full saved input bag and
+guard structural inputs, but retain the inner saved-signature cast under its
+original runtime guard. The two outer fixed literals still require original-
+frame resolution. Inner cast demand, scalar cardinality and error equivalence
+remain later runtime gates, not observed reference truth or another opaque
+exception. Treating raw-input coverage as that proof would invalidate acceptance.
+The recursive and prior-chain input components now have frozen owner handoffs.
+Root read both reports and rechecked their code hashes. Recursive mapping has
+28 raw rules, 153 field entries and eight passing grouped tests; its module hash
+is `93272b097a1cc361ee845b8474e39ccdbf6945c7522c53db1989589addff77c5`.
+Prior-chain mapping has 48 raw rules, 336 entries and five passing grouped tests;
+its module hash is
+`2c72dccafab029076f750003d494c0c5ddc644d3365f895808f2b42fda45302a`.
+P7's recursive/prior-inputs reports contain commands, source pins and boundaries.
+These are component results pending complete closure and combined review, not
+native capture or deployed proof. The legacy materialized selector module and
+remaining source-local branch links are still being implemented.
+Integration subsequently found omissions in that prior-chain handoff: original
+namespace/routine-name projections and nineteen caller-demand resolution inputs
+inside the budget helper were absent. Its earlier component pass is superseded
+for this repair; it never established complete closure. Root assigned grouped
+regression coverage and repair to the prior owner before emitter completion.
+The same repair also covers three compliance/existing/run-context readiness
+casts that previously used unconditional VALUES: original empty-selector and
+CASE demand must survive, without relying on WHERE evaluation order. These
+source-demand defects are grouped with the budget correction, not waived as
+later evaluator work.
+The accepted Go producer and wrapper files remain frozen. Packet emission and
+combined acceptance stay closed until this gap and the full source check pass.
+The materialized legacy component is now handed off: 247 raw rules, 1,293 field
+entries and 50 algebra records, with five passing grouped tests. Root read its
+report and matched module SHA256
+`358adebd278f468a5a8767d56e6bf5c71dd3b42f81d36e256e042a07596c2fea`
+and test SHA256
+`8e31d50d1bd7d8d80d64a72964ca2eed302cdd2a9ecb8d8096a98ebf02f4c239`.
+The source owner reports all 48 copied branch occurrences now mapped by exact
+anchors. The 180 helper-literal, 48 scope-cast and four function-arm guard rules
+retain distinct source-demand paths; these are rule counts, not observed rows.
+P7 `ordered-current-complete-capture-materialized-inputs-report.md` records the
+evidence. Connected checks and the separate prior-budget repair remain open;
+the component's empty unresolved list does not authorize packet publication.
+The bounded prior repair is now frozen at module SHA256
+`3a457695c67e65d0d4c3af3e390e32c78d1e3b7929546b469535ca310ca402ae`
+and test SHA256
+`b3b01f459fa2c05b406544ccd724a90e2c2858768b81f5677c719713ef5beb8f`.
+Root read the revised report and matched both hashes; its five grouped tests
+pass. Final connected closure/compiler/intake verification then passed 28/28,
+exit 0 in 18.626s, including the executable demand gates. The source-after
+manifest records 897 raw rules, 5,150 field entries, 448 indexed obligations,
+118 indexed source nodes and 524 materialized SELECT branches, with no unresolved
+entries and only the existing projected74 opaque boundary. Root matched frozen
+closure SHA256 `1e3fcad5ed73dec3f42153f51b928e8c05fa583dd2b545b96c930f502a4235bc`,
+SQL SHA256 `30909caf252a6dfad8a48b0673f782a1a6f07253613f0b847c142ef1aefce3d2`,
+and intake SHA256 `78f28838f980092902a62fe9b06bff9c41a4058ce55bf16f62dcbd4a8e6a4851`.
+Root released deterministic packet preparation only. Combined independent review,
+native A/B capture, evaluator equivalence and production acceptance remain open;
+these source-test results do not promote any original task to production-ready.
+Variant A packet preparation now passes the emitter's three grouped tests.
+Two writes and --check agree on contract SHA256
+`ae9783dc54c93cc35d2ca91c308e7177cf4cb895ae76a90c403c7316c1ed9e9b`
+and immutable snapshot manifest SHA256
+`06aa8bde171c2bd6e323e209952fb11c790b8a71bee29aed2337ec74a5064b27`.
+Root verified all 68 snapshot members with zero mismatches. Its seven generated
+artifacts contain 1,859 phase rules; these counts are not observed database rows.
+The scoped 28-file review diff has SHA256
+`cb3c44e0b62d9372dd7d4dd6becdcdc85c2e86a269f598e328c5f5b80619cc3f`.
+Independent combined review is dispatched against this frozen packet. Both Go
+variant trust pins remain empty, native capture has not run, and no original
+task status changes follow from deterministic emission.
+Independent combined review rejected this first packet for four concrete source
+defects: normalization-observation section/phase mismatch in the Go consumer,
+missing audit-mode none namespace/trigger accounting, discarded source maxima
+23/1/2/2, and silent null-member conversion in text[] rows. The review report is
+P7 `ordered-current-complete-capture-combined-review.md`, SHA256
+`f327ee79c01149e755eaa07b83510f4d29cd5eb90d2cc891fb1bc157e4280e24`.
+Root checked the cited code and assigned one grouped repair under
+`ordered-current-complete-capture-fix1-brief.md`. The first immutable snapshot
+stays intact; corrected output requires a successor snapshot and scoped
+re-review. Native execution remains closed. Passing earlier component tests
+does not override these findings or prove full source coverage.
+Repair round 1 now has passing affected verification: closure/wrapper 19/19,
+emitter 5/5, and 11 top-level Go tests including actual emitted-contract loading
+with test-local pins. Native literal pins still refuse. An intermediate 23/24 JS
+run exposed an ambiguous test selector; that assertion was corrected without
+dropping its original checks, and both earlier snapshots remain unchanged.
+Final successor manifest SHA256 is
+`9d8749d7ecaf54da5f68267abe191e0cf31b1b7d2a2735242e384d6f60691dd2`,
+contract SHA256 `d7544d94530a590a33a363a32990e246ec911b440f0078e616cfc1aeef0eff59`.
+Root independently verified all 68 members of each of the three snapshots and
+all 68 final working members. The exact delta is 12 changed paths, 56 unchanged;
+full fix diff SHA256
+`93a356cdb1cd83239a9d1af0a12360f8ec0a1ab364cec97f8e93fe825a0d9f95`.
+P7 `ordered-current-complete-capture-fix1-report.md` has SHA256
+`dc2faf3f67f4121cbe1013fc4eb42092ee57918c4d0a6b241ea7827e9d4833e9`.
+Scoped re-review is dispatched. These results are not accepted native capture,
+trusted admission, evaluator equivalence or production proof.
+Scoped re-review now closes all four original findings with no actionable new
+breakage in the 12-path repair delta. Report SHA256
+`adf7ff76544492750666ba111e0cc4ee7d4128eea5b1bb769b1ffa3729913cad`.
+Root read that verdict and accepted the final source packet for native-test
+preparation only. A compile-only Variant A overlay is assigned under P7
+`ordered-current-complete-capture-native-A-brief.md`: one counted callback change,
+three frozen producer copies and an owned pins companion with fixed A hashes.
+Shared pins and all three immutable packets remain unchanged. Actual database
+capture, B portability and all later product/production gates are still open.
+The exact 27-file Variant A overlay compiled, and root independently verified
+its manifest `2a0d87a2bab34750a058353ea2e3d67423040ef895b5be42df29e17f204c7396`,
+2,807 baseline files, 23 adapter files and 68 packet members. Native A did not
+pass. The first attempt omitted the previously required LC_ALL=C and failed
+before PostgreSQL startup; the corrected attempt reached the capture boundary
+but returned an opaque refusal after54.79s. Its owned PostgreSQL cleanup joined
+normally, and no output was published. P7
+`ordered-current-complete-capture-native-A-result.md` records both attempts,
+exact log hashes and the offline diagnostic assignment. No blind rerun is
+authorized. A separate B preparation owner is checking its fixed owner/loader
+wiring without changing A inputs. No task availability status is promoted.
+The diagnostic-only overlay adds bounded failure reporting; its six focused
+controls and compile/list pass, but independent review found two gaps: required
+constant-token labels and publication-error classification. P7
+`ordered-current-complete-capture-native-A2-diagnostic-review.md` records both
+(SHA256 `721e31d292e8c25378336da8433963fff72a6235f478245930b706b68bf45871`).
+One grouped repair is assigned; no further native run is accepted yet.
+In parallel, the fixed-B emitter and its tests were added without publishing
+a final B packet. Four grouped behavioral tests pass in owned temporary
+copies; report `ordered-current-complete-capture-B-emitter-report.md` has SHA256
+`8c4f37fb708097e4a868bbb39ec0e811715dbf2a866a3c23fbbefd581cfaef52`.
+Its independent source review now accepts the bounded emitter/test slice,
+SHA256 `8c5d7e93b1f6099efd34f413607e9b912ddd3b92d8efa2038853ae8aa79c9432`.
+Final B emission remains gated on the A source decision, and none of these
+results proves live product behavior.
+The diagnostic repair now passes scoped review
+(`75be7054fe835b4b118f126b007225a54fec8d5db70209bf371e895d413cbd9e`).
+Root's diagnostic-only A3 run identifies `collect-demand / row-bounds`, fails
+in52.76s, publishes no output and joins PostgreSQL cleanup normally. The result
+report above records its log SHA and exact limits. This narrows the defect to
+the demand row-bound check; total, per-rule and source maxima still require
+distinguishing. The source owner is tracing that contract/query mapping offline.
+Limits and capture acceptance remain unchanged.
+Offline inspection finds 481 demand rules with multiplicity1 and per-rule
+refusal ceilings equal to the global10000 ceiling; 34 have finite source
+maxima. That makes global overflow a hypothesis, not an accepted diagnosis.
+Ruling: permit one first-failure numeric diagnostic tuple for this disposable
+fixture: the three exceeded flags, row counters and configured maxima, plus a
+trusted sorted contract-rule ordinal. This narrowly replaces the earlier
+no-counts logging constraint to distinguish the failing bound without another
+opaque retry. It must not expose rule names, facts, handles, OIDs, identities,
+SQL or raw errors; output sanitization and exact refusal behavior stay required.
+The cost if wrong is discarding this diagnostic evidence and correcting its
+instrumentation, never accepting a partial capture or increasing a limit.
+The read-only source diagnosis is recorded in P7
+`ordered-current-complete-capture-demand-bounds-diagnosis.md`, SHA256
+`f3e1431c58343a88fab6d151ead5e7059dcefeb88839986e0248dce777bc5d20`.
+The independent exact-query-sharing feasibility check, SHA256
+`590aaf92a132312f2e11b40f6a3ac4e642e5c19b6295b3b2f41ed92ba7dc4325`,
+finds only two duplicate demand/key pairs and one original pair, saving at
+most five physical rows. If the pending diagnostic confirms demand reaches
+10001, complete demand/key/original equality implies at least29998 rows after
+that sharing. This is a conditional design constraint, not a measured total
+or permission to raise a quota. No semantic deduplication or cap change is made.
+The reviewed A4 counter diagnostic now confirms global exhaustion at10001
+expanded demand rows, max10000. Per-rule count11 is below10000 and the source
+maximum is null; neither other bound is exceeded. Test52.95s, terminal exit1,
+normal joined PostgreSQL cleanup, no output. Log SHA256
+`f04842e27b720f3e7b4311caabda441d084d5e9afcaf2a9e7f0b9a65c0920ded`.
+The complete-format lower bound29998 now applies. Ruling: classify the
+self-imposed10000 aggregate capture budget as a test-harness design defect,
+not a missing product requirement or permission to reduce source coverage.
+Use a bounded sizing-only design to measure complete row/byte needs before
+choosing a reviewed successor budget; keep current acceptance closed. A wrong
+sizing model costs a rejected successor and remeasurement, never partial
+acceptance. No product authorization, source maximum or resource limit changed.
+Root accepted the revised sizing-only design, SHA256
+`eefed0c8a2d7b16dca5054094f11f69ee6f060cf1dc4c2f6a7dbde95bbe57986`,
+and assigned one grouped implementation under P7
+`ordered-current-complete-capture-sizing-implementation-plan.md`. It reuses
+the existing validator with a deep private non-admissible sizing copy, meters
+canonical rows then drains facts, and retains exact validation indexes. Only
+the separate diagnostic may continue beyond the old operational capture quota.
+Fixed measurement ceilings are100000 physical/expanded rows,128MiB wire and
+computed canonical totals,8MiB per raw row,32MiB metadata storage inputs,
+16MiB bound handle JSON and1MiB sanitized summary. Original observation and
+cleanup timeouts remain. These are not heap/RSS guarantees or new capture
+budgets. Every hard stop is censored evidence; the original capture/packet,
+source maxima and all product safeguards remain unchanged. No sizing run or
+accepted complete reference exists yet.
+Ruling: the sizing-only harness uses two counted call-site substitutions in
+its private policy-test overlay: the capture callback and its enclosing run
+wrapper. The original predecessor run method still requires its nonempty0600
+capture file; the sizing branch instead requires the nominal destination absent
+and completes bookkeeping only after successful sizing and cleanup. This avoids
+a dummy capture artifact without weakening ordinary capture evidence. A wrong
+wrapper design costs rejection and repair before native sizing. The grouped
+implementation must cover ordinary delegation, file-witness refusal, sizing
+completion without a file and conflicting controls. No native sizing has run.
+
+The independent provider-cost preflight in P7
+`real-provider-test-cost-preflight.md` distinguishes direct OpenAI access from
+the actual OpenRouter-only planner adapter. The existing live test is one-shot
+with512 output tokens; its spend assertion is post-response, not a hard billing
+cap. The retained planner call returned402. Current funding, a pre-send spend
+limit and cheapest compatible route remain unverified. Public pricing and
+capability research is proceeding without credentials or inference calls.
+Ruling: select the cheapest compatible fixed test model only after that check,
+leave production model pins and zero-cost fixture labels unchanged, and never
+fall back automatically to a pricier model. A wrong compatibility choice costs
+a rejected test, not permission to weaken the planner's response or privacy
+contract. No paid call, deployment proof or task promotion follows from this
+preflight. Fresh official public catalog/endpoint research now supports keeping
+`mistralai/mistral-nemo` as the test candidate: advertised schema-capable Nemo
+routes start at$0.018/M input and$0.030/M output tokens. The updated preflight
+SHA256 is`1f8f0a36a8e0512f06909786c496d2d33188633b019b21ad1316fad9ea8d47a9`.
+Those listings do not prove which route passes `data_collection:deny`, and
+current requests lack explicit upstream fallback/price controls. A separate
+test-cost-controls design is assigned; it must preserve prepared-body identity
+and production behavior. No paid retry is authorized by public price evidence.
+The dependency-advisory publication gate also remains unresolved.
+Ruling: accept the bounded test-cost-controls design in P7
+`real-provider-test-cost-controls-design.md`, SHA256
+`c6a3e5175c9b7b65932377152e16cca130422e9f3171de85cbbeec432f31a4ac`.
+Use request-local typed constraints before serialization/digest; ordinary
+`Prepare` supplies nil and must retain exact pre-change bytes. Only the opt-in
+test selects Nemo's fixed endpoint, no upstream fallback and unit-price caps.
+Do not rewrite prepared requests in transport or add production routing state.
+The three-file worker batch is independent of the apiserver sizing overlay.
+Grouped offline TDD and independent review are required. If the candidate route
+cannot honor the privacy/schema/price contract, the test refuses; it does not
+relax those controls. A wrong helper design costs source rework before a live
+attempt. Unit-rate caps do not resolve total-spend or funding prerequisites.
+Both batches are now frozen for separate independent reviews. Sizing overlay
+`/private/tmp/zasp-complete-capture-sizing.Xjdrt5` has manifest SHA256
+`924308e64f7865ac58d88ffdc0fb26362fec270d919153133ef6f2af52014948`;
+root verified all30 mappings, before/after hashes, diff and four evidence logs.
+Its26 focused runs pass, compile-only passes and the exact native entry lists.
+No native body ran. The implementer's concern about ambiguous per-rule zeros
+in censored summaries is included in review; it is not silently accepted.
+The worker cost-control batch is frozen at
+`/private/tmp/zasp-planner-cost-controls.AoJ05T`, scoped diff SHA256
+`2d501468a638cf3bee663e51af9da3536866c66f1445988d23e8387f2ee14c07`.
+Root verified the three current files, before/after copies and logs against
+inventory`c18b1403d6654a6b1326b9faae5842ca3c79f00574080a8e1f359029618350fa`.
+Connected offline evidence is22 top-level passes and two explicit skips
+(live provider and owned PostgreSQL), package1.298s. The pre-change request
+golden remains a required review check. These are review handoffs, not task
+promotions, production proof or permission for a paid request.
+The test-cost-controls independent review now passes both spec and quality,
+with no findings: P7`real-provider-test-cost-controls-review.md`, SHA256
+`b7358f5062dbb9beade5be9cb36cb47cbe033640a84084d875b3fe7bcafa64eb`.
+Root read the complete review. This accepts only the bounded offline component;
+route/privacy acceptance, total-spend authority and funding stay external gates.
+No original task or production classification changes.
+Sizing review fails with four required findings, recorded in P7
+`ordered-current-complete-capture-sizing-review.md`, SHA256
+`82f7bb752bf392019dbdfe3c8bbf3993538d214ff612d7c1514a834451666324`:
+censored native summaries are discarded, reservations occur after retention or
+omit live inputs, per-phase/per-rule metrics and unobserved linkage are missing,
+and the canonical-file ceiling is checked only after all phases. Root verified
+these against the frozen code and assigned one grouped fix1/5 to the original
+implementer in a new overlay. The original snapshot remains unchanged. Focused
+regressions and scoped re-review must close all four before native sizing.
+Ruling: avoid a self-referential diagnostic hash. The fix1 summary carries a
+fixed diagnostic identifier and explicitly named design/plan/review/predecessor
+lineage pins. It must not claim that the predecessor hash binds current bytes.
+After source freeze, root's separate run record binds the exact current fix1
+source and overlay manifest hashes. No extra trust-anchor file, caller-provided
+authority or runtime file discovery is added. The cost if this split proves
+insufficient is reworking provenance before native execution; current-byte
+verification is not waived.
+Sizing fix1/5 is frozen at
+`/private/tmp/zasp-complete-capture-sizing-fix1.NKYPFx`, manifest SHA256
+`8461ab57c81a150b57ad14893bc3de589fe0e1fd1bea4ff1beb95f7c47d3dfef`.
+Root verified all30 mappings, predecessor/current bytes and five evidence logs;
+only the three sizing files change. Focused GREEN passes1.031s, compile-only
+passes1.655s, exact native entry lists0.957s. The first behavioral RED panicked
+on a missing metric, so it does not prove every later regression failed before
+implementation; the report preserves that limitation and final assertions use
+typed failures. Fix-only diff SHA256
+`ecc9bd75973a1c22148e0b14a22096588498bf14dcc3dad4988b74c114102159`
+is assigned to the original reviewer for the four findings and new-delta
+breakage only. Native execution remains closed pending that verdict.
+Fix1 scoped review closes findings1,3,4 but leaves finding2 open: the keys
+handle reservation only raises a recorded peak; it is not held while keys
+collection grows retained indexes. Review SHA256
+`68a0b3347590959c9f3ad8f0150819e701ab44c3ff53f3e019b7b924c428266f`.
+Root read the review and checked the live accounting code. Fix2/5 is assigned
+to the original implementer for that remaining lifetime/overlap defect and its
+focused near-threshold regression only, preserving all accepted findings.
+Sizing fix2/5 closes the remaining finding with independent spec/quality PASS,
+review SHA256`f9293849a07152ecf7e2225c79cab64bbb465de1f0488b941dc7394507b91f40`.
+Root verified all30 mappings of manifest
+`439cbc09c38d1bed553639cb627145d21b965d48db5b1c4ffd71621b4704997e`.
+The nonpanic overlap RED reproduces the defect; focused GREEN1.044s and
+compile/list checks pass. All four original sizing findings are closed.
+Root then executed one native sizing run under frozen run record SHA256
+`e23811d29c83badc64c086ed5f5b4ffa61fece234f36a46917cede075bcf5435`.
+Session52036 exits1, test62.77s/package63.914s. Demand completes with12509
+physical/expanded rows, largest rule570, raw1680844 bytes, encoded handles
+1042886 bytes and metadata-input peak5611536 bytes. Keys stops before any
+delivered row with SQLSTATE54000; the precise cause remains unproved. Later
+phases are unobserved and complete candidate bytes are unavailable. Rollback,
+frame restoration, disposal and fixture stop/join succeed; PostgreSQL57497 is
+absent afterward. Log SHA256
+`0f0a8e76ca8286dc98eeaeacb3e605f57d5a9e6a1a75b4c1236439a50b9baf10`.
+P7`ordered-current-complete-capture-sizing-native1-result.md` records the
+censored measurement. A read-only keys-query diagnosis is assigned; no blind
+retry, new limit, accepted reference or production promotion follows.
+Static diagnosis finds481 repeated `jsonb_to_recordset($1::jsonb)` expansions
+in keys over one1042886-byte parameter. The adapter passes one parameter;
+parameter-count overflow is not established. Repeated planning/execution data
+is a hypothesis, not the exact SQLSTATE54000 cause. Ruling: authorize one
+bounded diagnostic-only successor that retains query-vs-rows failure origin
+and sanitized PostgreSQL source file/routine/line with SQLSTATE. Never retain
+raw message/detail/hint/context, SQL, schema/table/column names, IDs or hashes
+of those values. Invalid source-location fields are omitted. Preserve the
+first source error and all query/capture/cleanup semantics. The cost if wrong
+is discarded diagnostic evidence and instrumentation rework; it grants no
+quota increase or accepted capture. Grouped controls and review precede any
+new native attempt. No repeat of the unchanged failing run is authorized.
+The error-location successor is frozen at
+`/private/tmp/zasp-complete-capture-keys-error-diagnostic.Oko6iA`, manifest
+SHA256`3a6bae7c2d07b322806fcf2299853b6f20e27f7e09cefc94760a8345e27c3894`.
+Root checked all30 mapped current/predecessor hashes, all recorded log hashes
+and the2807-file native baseline with zero mismatches. Grouped sizing controls
+pass1.215s; compile-only and exact native-entry listing pass. RED establishes
+the missing wrapper API, not a prior behavioral failure. The three-file diff
+adds query/rows/unknown origin and bounded PostgreSQL source location only;
+no SQL, parameters, ceilings or frame changes. Independent spec/quality review
+is now running against the frozen diff. No new native attempt, accepted capture
+or production promotion has occurred at this checkpoint.
+Independent diagnostic review passes with no findings, SHA256
+`9334423c2c91e02711361fe107dc3311b1d7f206b10eafc807b720dbd127792f`.
+Root then ran the single instrumented native attempt under frozen run record
+`d9c774a849244a5a07c803b6b7ac5cdd21508caba71459eac0f4b71b90293557`.
+Session97869 exits1 in64.709s: keys SQLSTATE54000 now identifies `rows` origin,
+`stringinfo.c:364`, `enlargeStringInfo`. Demand12509 and handle JSON1042886 bytes
+match the earlier measurement; keys returns no rows and later phases remain
+unobserved. Cleanup succeeds and owned PostgreSQL60275 joins normally and is
+absent afterward. Log SHA256
+`460c955adeb159c05204e184f8417debe2cc1d2ba062781e17ad635c9aaf2332`.
+P7`ordered-current-complete-capture-keys-error-native1-result.md` records this
+evidence. Exact server-source/caller analysis is in progress before selecting
+a query repair; no repeated run, new capture quota or task promotion follows.
+Repair decision: implement one materialized demand-handle CTE in consolidated
+keys SQL, retaining every481 branch, predicate, cast, rule ID and output. The
+source analyst reports PostgreSQL18.3 `stringinfo.c:364` checks a single-buffer
+allocation against MaxAllocSize1073741823; repeated bound-constant serialization
+is a caller hypothesis, not a captured stack trace. This repair removes that
+repetition without reducing coverage or changing the complete parameter.
+Keep standalone rule-compiler output unchanged. Use exact-template factoring
+with refusal on unexpected shapes; other phase SQL and rules must stay equal.
+The producer owns a new temporary snapshot and grouped failing-then-passing
+emitter coverage. Independent review precedes a separately pinned native
+hypothesis test. Existing packet snapshots, shared emitter, caps and trusted
+loaders remain unchanged for now. If the hypothesis fails, retain the evidence
+and reassess; no automatic retries or quota increases. No task promotion.
+Root read the source diagnosis and independently fetched the official
+PostgreSQL REL_18_3 `stringinfo.c`, `memutils.h` and `subselect.c`: the observed
+error location checks attempted buffer growth against1073741823 bytes, and
+explicit MATERIALIZED prevents CTE inlining. This supports the selected
+application-query repair; it does not prove the inferred parallel-plan caller.
+The source diagnosis is P7`ordered-current-complete-capture-keys-error-source-diagnosis.md`.
+The producer is preparing isolated grouped coverage; no repaired native result
+exists yet. Original scope and all728 task classifications remain unchanged.
+The shared-handles repair and69-member successor packet are frozen under
+`/private/tmp/zasp-complete-capture-shared-handles.3XY6qV`. Root verified both
+implementation files, five evidence files and all70 successor inventory entries
+(including manifest), zero mismatches. Inventory SHA256
+`f5cb530080d13c20af9b052c7e56413fd8a183f1a21f5e98dea6bcfcabb966ae`;
+successor manifest`1aef673443687aadc3949edc6481dc94de741b76f7e782fe0f9d3b32cdfd1704`,
+contract`90daa8504212e09db9943c5710980bb46d877cabd41d98c7b433bdfdcc8b733e`.
+Root read the grouped GREEN log:3passing controls in5.82s. The reported RED
+was observed by the implementer but not retained; no stronger RED claim is made.
+Packet delta is three changed members (emitter, keys SQL, contract) plus one
+focused test; all1862 rules, otherfour SQL phases, coverage and caps are unchanged.
+Combined source/packet review is active. Native verification has not run.
+Combined review now passes, SHA256
+`bc0f246ab353182a7c8fbfeee703fe3542482c605d96f608cb01fcfbf839ffb2`.
+Root's actual trusted-loader check rejects the new packet under predecessor pins
+then passes1.397s after only the two private A literals change. Prepared31-file
+overlay inventory`f401d682032f76be7ef921f95ab934b583897b8fb1cfd611441840daa078c1ea`
+binds the unchanged diagnostic sources, new private pins and fixed-path smoke.
+One native run then completes all12509 demand and12509 keys rows, clearing the
+observed buffer failure without changing limits. It stops in original with a
+row-shape refusal at2263physical/2262expanded rows; safe rule ordinal1800 has
+one physical/zero expanded row,331bytes. Resolution/witness remain unobserved.
+Session47397 exits1,55.27s test/56.341s package. All cleanup succeeds and owned
+PostgreSQL63400 joins normally, absent afterward. Log SHA256
+`7f253b8a573db4e7a39f61957bea85e0c00dec202be64b0b8f56a620737c0d7b`.
+P7`ordered-current-complete-capture-shared-handles-native1-result.md` records
+partial evidence. Exact source-rule diagnosis is assigned, not another retry.
+No complete sizing, accepted capture, task promotion or production claim.
+Source diagnosis maps ordinal1800 to `worker:projected_temporal_profile:policy`.
+Root inspected `ordered-current-worker-projections.mjs` staticRule: policy
+field labels are appended command then permissive by presence, while that
+source's projection order is permissive then command. The compiler pairs by
+position, emitting a string for the boolean permissive field. Strict row
+validation correctly refuses it. No new native discriminator is needed.
+Authorize a bounded grouped repair in a new isolated snapshot: preserve exact
+source projection order in field mapping, test all related policy families and
+unchanged absent fields, retain strict types and all rules/caps. A parallel
+read-only check scopes other mappings with the same ordering defect so the
+repair can cover the related group before native verification. Reviewed shared
+handles changes remain included; prior snapshots/shared sources stay untouched.
+Root read the independent related-rule report
+P7`ordered-current-original-shape-related-rules.md`, SHA256
+`877c6c2023ebe28f03189723fa1fd9cee57b309873184cb5d89a944c5f77a01e`.
+Its45 policy rules and overlapping adjacent checks cover233 unique source rules,
+not all540 original rules or live catalog behavior. No additional same-class
+ordering defect was found. Keep the repair worker-only; preserve already-correct
+Temporal owner-policy permissive/command ordering and policy role encodings.
+Both legitimate field orders and optional-member omission belong in the grouped
+regression. No public/Temporal code expansion is supported by this evidence.
+Policy-order repair is frozen at `/private/tmp/zasp-complete-capture-policy-order.6JX8uO`.
+Root read the report and GREEN log (15passing,1.531s), and verified78 evidence/
+successor inventory entries without mismatch. Retained behavioral RED reports
+13pass/2fail; independent review is checking it with the source/packet delta.
+Inventory`03503d73e45f994b82dab0e04253ac142c91a214c4cc5cb88bfc71214d5e6b49`;
+packet manifest`730717ccb7f80e858225a317dafe9b3e5578e0d7aefdec00758c005971bc7c80`,
+contract`655213d6e89c86f112d9216515f280622b148892e52be7718e40ed87e1578969`.
+Exactly five packet members change; otherfour phase SQL files and all limits
+remain unchanged. One also-corrected lowerer owner-policy branch is shadowed by
+closure composition and does not create another final rule change.
+Root's actual fixed-pin offline loader passes1.333s. Prepared overlay
+`/private/tmp/zasp-policy-order-native.MP5l2o`, inventory
+`9bf675eda4e8ae6fc735275ca46812c61452f9828f9d407c24ee7cf817f16dc0`,
+changes only two A pin literals and the smoke test's fixed packet path from its
+predecessor. Combined review is active; no new native run or task promotion yet.
+Policy-order review passes without findings, SHA256
+`fe857374a0933102496c83b10390eae676381c4fbf995fc8fb28c606507c8cf1`.
+One root-authorized native run clears the previous policy defect and reaches
+10866 accepted original rows before a different row-shape failure: safe rule
+ordinal43, onephysical/zeroexpanded row,862bytes. Demand/keys complete12509 each.
+Session44280 exits1,test57.11s/package58.184s; cleanup succeeds,PG65951 joins
+normally and is absent afterward. Log SHA256
+`5b2df17fc8922be509aa9d27957a7032a7c04184397c23aa7c066b75ae2bcaf2`.
+P7`ordered-current-complete-capture-policy-order-native1-result.md` retains the
+censored counts. Next diagnosis scopes the new rule and its related schema
+family; no unchanged retry or weakened validator. Full sizing remains open.
+Shape2 diagnosis identifies `authorization80:hierarchy-trigger.columns`: its
+contract requires text but the projection emits raw `t.tgattr` (int2vector).
+Root checked the exact PostgreSQL REL_18_3 catalog and JSON categorization
+source: int2vector has an element type and serializes as an array. The original
+concat_ws fingerprint consumed its text representation; the correct capture
+projection is `t.tgattr::text`, as already used by sibling trigger captures.
+P7`ordered-current-complete-capture-original-shape2-diagnosis.md` SHA256
+`48975e22cee96516df9d87e82745caa733545338b6bb04e2827f69f56728ec21`.
+Authorize the isolated targeted projection repair with grouped hierarchy/trigger
+coverage and unchanged strict decoder/tgqual refusal. An independent related
+array-to-text projection check is active to group any other proven matches
+before native verification. No new discriminator or native rerun yet.
+Root read the related array/text review, P7`ordered-current-original-array-text-related-rules.md`,
+SHA256`37d6ab48957425c887ca551c68cfb012cd459278f30d198be988ca88219bb0b2`.
+It checks419 selected text projections across269 ORIGINAL rules (43 distinct
+prepared expressions), excluding the already diagnosed hierarchy family.
+No additional decisive mismatch was found: direct array/vector values are text
+cast, scalar helpers produce text, and deliberately JSON fields remain JSON.
+Keep the repair scoped; no blanket cast, schema relaxation or field removal.
+This does not prove all original rules or later catalog-dependent phases pass.
+Trigger-columns repair is frozen under `/private/tmp/zasp-complete-capture-trigger-columns.aWFNYC`.
+Root verified81 evidence/successor inventory entries, zero mismatches, and read
+the16/16 GREEN log (21.714s) and15/16 RED summary. Full scoped review is active.
+Inventory`d4747b3ffe5c1681ffe0ddd815099dcc2c687aa6cfe714e595235761689ea267`;
+packet manifest`ed7507700716ec89b981b9bd1e8761c0548ed8b3db55d2e52ac27c5b6d4ce81d`,
+contract`c8c7320882de9251803ec879f2fcedd1c85c065c4d2b7c3886cdd7568b5ba71e`.
+The exact delta is five members; all1862 rules and otherfour phase SQL files
+remain unchanged. Actual trusted Go loader passes1.149s with only new A pins
+and fixed smoke path in `/private/tmp/zasp-trigger-columns-native.h1cWwX`.
+Its31-file inventory is`a1674a9df3eeeca3d86ea47149b79f6cd0d9131ad9217b3dd9d8d4106e566e86`;
+loader log`1fed22bae5c08084095ecc5703d7d5a5fc6625c5ecf9b87d5761f9cb79078969`.
+No native run, complete sizing or task promotion at this checkpoint.
+Subsequent scoped review passed (source/component only), report SHA256
+`dc3b3352db7df1af05c493329904568ed4b2f11352e676bed18c581f9c8d5e6c`.
+Root revalidated31 overlay mappings and2807 baseline files, then ran the exact
+native sizing entry once. Session57491 ended exit1,58.90s test/60.038s package.
+P7`ordered-current-complete-capture-trigger-columns-native1-result.md` binds
+the log SHA256`ec66245dbffa4ae24930390451206f32cc1fd14914318f565eca416a71341e64`.
+Demand, keys, original and resolution now complete:52514 expanded rows total,
+27570516 observed raw bytes. Witness refuses with SQLSTATE42501 at
+`aclchk.c:2795/aclcheck_error`, before returning rows. Final canonical size
+remains unavailable;23551081 is only a lower bound. All cleanup gates passed,
+PG69439 joined normally and was absent on exact-PID check. Source-based witness
+permission diagnosis is active; no retry, quota change or permission weakening.
+This is local diagnostic progress, not accepted capture or original-task promotion.
+Architectural reassessment: root inspected the collector's single discovery-role
+setup and phase-frame check against0014 inventory ownership/forced-RLS policies.
+The witness UNION directly reads inventory rules/restore tables whose original
+fingerprint function uses inventory-authority SECURITY DEFINER execution. A
+successful earlier catalog phase does not prove those data reads have the right
+authority. Two bounded source tasks now check later ACL changes and map all
+witness frames plus the contract/producer/intake change surface. No broad grant,
+superuser capture substitution or retry is approved. Preserve original function
+context semantics and exact role restoration in the eventual reviewed successor.
+Root read the completed diagnosis P7
+`ordered-current-complete-capture-witness-permission-diagnosis.md`, SHA256
+`4ff1e1141fe1535932235e1801caf70403408d88c879b5342b725808d4029616`.
+Its35 witness rules include25 discovery-definer, seven discovery-owned invoker
+and three inventory-definer sources. Owner is not effective caller for invoker
+functions. The replacement design must bind original caller lineage, effective
+role/settings and complete group coverage, with a shared snapshot/admission
+lifetime and fail-closed restoration. Earlier completed phases also require
+source-frame sensitivity analysis; successful execution alone is not equivalence.
+Exact first denied object remains unknown and is not needed to justify this
+source-proven frame-model correction. No code acceptance or native rerun yet.
+Root accepted the complete frame change map (SHA256
+`f03dc87520cfb3b4f1d0ce641abdd3d1f47edb82c32a15793c2717de554b80cf`)
+for conditional isolated v2 implementation under
+P7`ordered-current-frame-v2-design-decision.md`. One owner implements the connected
+source/emitter/Go/JS/sizing batch with grouped TDD; a separate read-only owner
+derives caller lineage. Coverage is900 raw rules, including741 invoker rules;
+unresolved source frames must refuse emission, not inherit owner-based defaults.
+All v1 artifacts and current capture budgets stay unchanged. Native role-entry
+equivalence and full source lineage remain gates, not assumed facts. No new
+capture, product availability or production milestone is accepted by this decision.
+Parallel product work: root checked the actual SingleTest missing-history gate
+and existing cleanup adapter against approved P3/P4. A separate cleanup-only
+operator recovery design is assigned from P7`next-independent-product-flow-triage.md`.
+It must bind durable scoped authority and outstanding debt, prevent fresh sends,
+fence live-original ownership, and settle only from verified evidence. Design
+and implementation can proceed independently; enabling new SQL/runtime wiring
+still requires its own authorization and connected acceptance. No promotion.
+Root reviewed and accepted recovery design
+P7`single-test-operator-cleanup-recovery-design.md`, SHA256
+`626a45dd611cd96a38842cc4809f4cdb6c8518b2ca8ff4e18042df772369992e`,
+for implementation planning. One audited scoped command combines existing
+SQL stop semantics with cleanup-only delivery; positive original-running
+observation blocks admission, but SQL state/version is the actual forward fence.
+Late already-sent receipts and safe old cleanup can converge on verified
+settlement; unknown debt/capacity cannot be released by an RPC or workflow ACK.
+The plan must preserve native cancellation receipt/decision_owner predicates,
+current authorization on admission/readback and zero new provider sends.
+Use named private80 extension lineage without consuming reserved81; installation,
+readiness/capture integration and real deployed acceptance remain separate gates.
+Grouped implementation planning is active; no recovery code is accepted yet.
+Recovery plan is now accepted, P7`single-test-operator-cleanup-recovery-plan.md`
+SHA256`53eedc58bb60ef2e74f9abbe82a062df585187711baebeebcc1414d2519d2271`.
+Root read the full plan and checked the final bytea-length constraint correction.
+Reserve private profile `production_temporal_single_test_cleanup_recovery`,
+schema `zasp_temporal_single_recovery`, SQL prefix `0080_temporal_single_recovery`;
+no canonical migration number is consumed and81 remains reserved. A single owner
+is authorized for the connected isolated API/SQL/outbox/workflow/receipt batch,
+with grouped TDD and shared integration patch only. Native/readiness/capture
+enablement gates remain required; no code or production acceptance is claimed.
+Operator UI integration check: current generated `SecurityAgentRunDetail` exposes
+the run definition version but not original `StartRequest.input_digest`, which
+the new recovery POST requires. The displayed existing-test attempt digest is a
+different identity and must not be substituted. Recovery owner is checking for
+an existing current-authority read path; otherwise an explicit bounded readback
+addition is required before browser acceptance. Backend component tests alone
+will not close this operator flow.
+The owner confirmed no existing authorized original-digest endpoint. Root approved
+and appended a bounded readback amendment to the recovery plan, now SHA256
+`e1d7cef36108a01b68de1ea1174c2effc03e72e25ee8e0afe767432d5a34f35e`.
+Every view gains verified `request_identity:{definition_version,input_digest}`;
+pre-command GET adds read-only `not_requested` with current parent version and
+null command/completion. Current view authority and original native ownership/
+identity proof precede disclosure. POST authority/version/idempotency checks stay
+unchanged. The same implementation owner is extending SQL, Go, OpenAPI and
+grouped negatives together; browser integration remains open.
+Ruling: accept P7`ordered-current-complete-capture-B-provenance-design.md`,
+SHA256`7cdda30646ba9ee795166b0661188f73e9f37f83b1b4422fc82244ad4dbe2130`,
+for isolated grouped implementation alongside the sizing repair. Reuse the
+frozen B reader and add a fixed-A reader; four installed object identities
+must be stable across each capture and differ between the two constructions.
+Numeric IDs stay in bounded private0600 sidecars, never portable capture facts
+or diagnostics. Source/capture identities and terminal fixture cleanup remain
+separate required bindings. A future A capture must collect its witness while
+that fixture is alive; old destroyed fixtures cannot be retrofitted. The cost
+if this design is wrong is observer rework before either native acceptance,
+not weakening the A/B gate. No B packet emission, cap change or native run is
+authorized by this preparation; missing successor authority must stay explicit.
+The A/B provenance component is frozen at
+`/private/tmp/zasp-complete-capture-provenance.jYzV2C`, manifest SHA256
+`3055d5a4aa100e24d09fba04d3fcf48c30ae1c90e7255f18faa02ad23f779f32`.
+Root verified all33 mapped files, applicable source hashes and inventories,
+with zero mismatches, and read the implementation report. Final offline log
+binds eight passing groups and53 subcases, package1.177s. Full scoped diff
+`155a27bc738a6ab143ddf72d98e12f1008eb24b10bf6d44f6691064d70ad0159`
+is assigned for independent spec/quality review. Native bindings are empty
+and fail closed; a reviewed successor A/B packet, literal path/pin carrier,
+native observations and terminal cleanup evidence remain required. No original
+task promotion or actual OID-difference proof follows from these components.
+The independent provenance review now passes spec and quality for that
+component-only scope, with no findings: P7
+`ordered-current-complete-capture-B-provenance-review.md`, SHA256
+`391a7fe02b9d183c61dca814d28aa89ddf53b76e3cd131e661a48f56a410a49c`.
+Root read the complete report and separately reverified all2807 native-baseline
+files against snapshot`273deba18f7dbc153f8aeb93ced703d1992a95a4505c88f5882ed8c7e3d16f9f`,
+zero mismatches. Current16MiB reader compatibility, allowed A/B source-pin
+differences, literal carrier, B startup/policy wiring, successful captures and
+terminal cleanup remain mandatory composition/native gates. None is replaced
+by the component's common-input hash or offline tests.
+Ruling: replace published authorization catalog OIDs with semantic identity
+inputs and defer numeric reconstruction to runtime algebra. For the fixed
+trigger-expression NULL domain, refuse any non-NULL observation rather than
+filtering it or using a lossy deparser. The implementation brief records source
+evidence and the still-required A/B observation/refusal controls. A wrong domain
+assumption requires adapter work; it cannot justify promotion or clipped rows.
+Ruling: retain the old blocked proposal and development refusal unchanged, so
+capture-only readiness cannot overwrite historical or installation evidence;
+the cost if wrong is source composition rework. Ruling: reuse unchanged migration
+admission verification unless its source or dependencies change; affected new
+collector/producer checks remain required. A mistaken dependency assessment must
+be corrected before acceptance. No native capture or production status is granted
+by this source authorization.
+
+The isolated corrected discovery release candidate now passes its missing
+exact-source release gate. Commit `478be240f0e7b4a121f793624a6adefb3f0200c8`
+in `/private/tmp/zasp-release-ephemeral-history-w1VmBx` has 2,310 source files
+and 91 main-relative paths. Source gate75352 passed in31.024s, including the
+canonical test's two actual full-history secret scans, SBOM/license checks and
+rendered configuration checks. No scanner exceptions or advisory calls were
+added. The three previous findings were hardcoded fixture keys; the reviewed
+two-file correction generates per-run test keys with valid consumer encodings.
+Native42761 bound the corrected startup inputs to the real local
+fixture48 UI/API flow, passing in28.392s with all source/build hashes unchanged
+and owned processes joined. This is not real Stytch/provider or deployed proof.
+Root also applied the patch to the shared worktree; two affected controls pass,
+while unrelated diagnostic differences remain preserved. P7
+`discovery-main-smoke-ephemeral-keys-result.md` binds source identities, review,
+RED/GREEN, native and source-gate evidence. The outer release entry's approved
+fresh exact-lock advisory prerequisite still prevents publication. No push ran.
+
+The connected current-integrity source consolidation passed independent combined
+review `a326dcd4926503412c87c3e4020f897cb7034f433c2ffa9e5f972f679f41cffe`.
+All thirteen accepted framed recipes now connect to the development collector
+and seven-routine independent admission. The retained affected evidence is
+49/49 Node controls, deterministic emission and the Go boundary group; the
+unchanged native recipe acceptance was not repeated. Exactly 8,445 prior facts
+remain unchanged; all 204 old-frame temporal identities are explicitly deferred
+until independent original-frame evidence replaces them. The 39 six-family
+descriptors are accounted for, not promoted to expected facts. Task2 remains
+in progress, with capture, installation and runtime activation refused.
+P7 `ordered-current-consolidation-evaluator-report.md` and
+`ordered-current-consolidation-combined-independent-review.md` bind this scope.
+The next connected batch must settle original-frame inputs, configuration
+dimensions, independent routine resolution and full-query overflow refusal
+together. Source-unbounded selectors need reviewed operational ceilings, not
+guessed mathematical maxima or repeated partial captures.
+
+Release packaging's reviewed ledger successor is
+`/private/tmp/zasp-discovery-ledger-reconciled.US5Ywg`, 2,310 source files and
+91 main-relative paths. It retains the prior ten reviewed repairs and adds five
+ledger/validator paths. Independent review
+`49b8e833502d07931081f578e5414f9d1f54ad1d26e6969236be5c4781d472eb`
+accepts all 51 changed rows: eleven downgrades, forty evidence-only changes and
+no promotions. Eight owner corrections exactly match the authoritative TSV;
+the other 720 owners are unchanged. Root authorized those corrections to avoid
+shipping inconsistent TSV and owner-map identities. No authority or product
+behavior changes; a mistaken mapping would require documentation correction.
+The retained 51/51 controls include compensated-promotion refusals for all eleven
+downgraded IDs. Counts remain 728 / 523 historical production-available / 144
+component-only / 61 external / zero missing. Historical availability is not
+current Temporal/OpenFGA completion or deployed proof.
+
+Root prepared a separate full-history local candidate at
+`/private/tmp/zasp-release-history-qrp1Gp`, commit
+`a9f5a8d152c68152c5df5b6b416033dbb3256426`, tree
+`1bc5d4c0c01ed3e9acc2577cc1692f7c7b16901c`, for the missing exact-candidate
+source-release gate. All 2,310 source hashes match the reviewed successor;
+the original dirty worktree and branch are untouched. This local acceptance
+commit is not publication. The first gate attempt stopped at npm SBOM because
+the launcher symlinked the dependency root; a physical copy of the already
+installed exact-lock tree corrects that setup without installation or download.
+On the corrected setup, gate55095 reached the actual full-history secret scan
+and failed after20.992s with three findings; all source hashes stayed unchanged.
+A bounded new-commit diagnostic locates all three at the smoke fixture's static
+dummy-key row, matching existing API runtime test fixtures. These are not known
+live credentials; that original candidate did not clear the source gate. The
+two-file correction and successful successor above replace those key-shaped
+literals with fresh runtime-only test keys and consuming format/independence
+checks. No scanner exclusion or weakened gate was used. The rejected local
+commit is preserved; the corrected candidate starts from the reviewed main base
+and does not retain the rejected fixture commit as an ancestor.
+P7 `discovery-main-release-history-source-gate2.log` and
+`discovery-main-release-new-commit-secrets-redacted.json` bind this failure.
+Advisory authority and deployed identity/provider/operational acceptance remain
+open. No changes were pushed.
+
+Root closed the previously missing local release checks without repeating accepted
+scopes: remainder53487 passed90 render/rollout/synthetic controls in20.712s;
+image group10145 passed pinned Nango controlled TLS and Collector hostile-value
+redaction checks in21.750s. All2,310 source hashes and the preexisting Docker
+container inventory stayed unchanged. Nango's shutdown-source check is not a
+real shutdown/recovery trial. These are local packaging/configuration proofs,
+not deployed Stytch/provider or operational acceptance. Health's module inventory
+passed offline. Platform's full module inventory initially lacked106 cached
+metadata entries; exact public metadata retrieval via the official Go proxy and
+checksum service completed83058, yielding195 module lines and unchanged source.
+Pinned public image retrieval also completed; no advisory scan or paid model call
+ran. P7 `discovery-main-candidate9-release-contract-remainder.log`,
+`discovery-main-candidate9-image-proofs.log` and
+`discovery-main-platform-module-list-online.log` preserve the evidence.
+
+Release candidate9's previously missing local contract group19274 passed:
+OpenAPI tests/lint/generated-client check, UI/API coverage controls, raw-fetch
+controls, import controls and staging-gate controls. All2,310 source hashes were
+unchanged. Separate filesystem group90503 passed compiled-import validation
+(seven client/eight server chunks) and historical snapshot-ledger consistency,
+but dependency validation failed its manifest/lock cardinality check. Exact
+diagnosis found three omitted direct modules and four stale versions; one fixed
+validator version pin also needs alignment with the already-reviewed source.
+The isolated three-file lock/metadata correction passed83 consuming controls
+and the actual validator CLI. Independent review found no blocking defect and
+one file-URL portability issue in its new test. The isolated path correction
+reproduced the actual failure in a space-bearing checkout, then passed both
+affected consuming tests and lint; independent review
+`83412055a4a6efbb6b5a0ecc10f61b2005084ec32b5c6a3a73b5557f0852ad83`
+closed the P3. No full83-test repeat was needed.
+This is not a dependency upgrade or advisory clearance. P7
+`discovery-main-dependency-lock-correction-report.md` and
+`discovery-main-dependency-lock-independent-review.md` bind this scope.
+P7 `discovery-main-candidate9-contract-gates.log`,
+`discovery-main-candidate9-filesystem-gates.log` and
+`discovery-main-release-closure-plan.md` bind this checkpoint. Required missing
+platform/health race scopes passed77649, including tenancy stores, API/worker
+boundaries and health. Remaining batch2200 passed race scopes for event ingestion,
+runtime gateway and CLI, plus28 Neo4j Node controls. Both Go proof modules refused
+before compilation because read-only module metadata needs updating; neither is
+a passing test or external-service proof. All2,310 source hashes stayed unchanged.
+P7 `discovery-main-candidate9-race-gates2-report.md` records the exact prerequisite.
+The isolated three-file proof-module metadata correction now passes both
+read-only dependency lists and the two affected race scopes (12439); it aligns
+existing selected platform requirements without downloads or product changes.
+`discovery-main-proof-module-closure-report.md` binds the correction. Independent
+review caught an affected Neon UI contract still requiring the old minimum;
+the isolated one-line correction passed actual RED/GREEN3/3 and scoped re-review.
+The proof correction is now included in the joined source candidate above.
+At that earlier checkpoint, advisory authority, exact-candidate Git history
+scan and current-ledger reconciliation blocked publication. The latter two
+are now resolved above; the approved advisory prerequisite remains open.
+
+The remaining Vitest group3504 ran against the lock-corrected frozen successor:
+1,183 tests passed and four failed across192 files in73.15s; all2,310 source
+hashes stayed unchanged. The five previously accepted shell files were excluded.
+Three failures assert obsolete Go versions. The fourth, a nested private-Nango
+release contract, passed unchanged after the clean runner PATH included the
+installed Helm directory (db3bd6,1/1). No product/CI change was needed for that
+launcher prerequisite. The three exact-version test corrections passed the
+four-file affected group38/38 plus changed-file lint; independent source review
+`9b20529689b313b467c1ab46f7d6cc1b675e8d794be24aeb9a965285127abf74`
+accepted the exact three-file correction. P7 `discovery-main-release-contract-tests-report.md` and
+`discovery-main-dependency-candidate-vitest-missing.log` records the actual
+failures. This is not a full-suite pass, and no production status is promoted.
+
+The frozen release candidate's local fixture48 UI/API flow now passes end to end.
+Native1016 exited0 after19.079s: real migration48/API/UI, unauthenticated401,
+fixture identity callback creating one real session, fresh exact-scope bootstrap,
+empty Agents and workflow-receipt reads, foreign-scope409, actual reload, and
+owned-child/PostgreSQL joins. All2,310 source and2,679 build hashes stayed
+unchanged. P7 `discovery-main-ui-api-smoke-native8.log`, candidate9 manifest
+`96b9c108ef82b18a59a838ef1c6c3b2da1727ad54c97df67a05d57c640847a50`,
+and review `d77fb2a1bfc4a3c03bdd60ed0804654745d987a0fc17101b0c50e52ec0dd5be4`
+bind this acceptance. This is local fixture identity plumbing, not live Stytch,
+provider discovery, current full schema, deployed readiness or all728 completion.
+
+Root adopted the four exact smoke files into this worktree after verifying their
+shared helper hashes. Integrated Node controls e49db8 found28/29 passing: the
+worktree's newer OpenAPI has two additional static routes absent from the frozen
+candidate's diagnostic-only dictionary. Both safe labels are now integrated,
+with five affected controls passing (649473) and changed-file lint clean. Review
+`c1b1bc74e329ab26022d0a2392864f6ae80663d08f56ad6b99f0d7790f4d2ee1`
+verified the exact two-route source delta and unchanged proxy denial. P7
+`discovery-main-ui-api-smoke-label-integration-report.md` binds those checks;
+no unchanged full suite or native scope was repeated. Native acceptance above
+remains bound to frozen candidate9, not the different whole worktree.
+
+The fixed-frame deparser's two native-witness findings are addressed in reviewed
+successor `/private/tmp/zasp-transform-frame-fix.gbCORo`: successful caller-frame
+restoration is observed before rollback, including non-NULL output, and an exact
+adapter-only language drift exercises the actual generated-SQL non-invocation
+gate. Independent re-review
+`4375a00d387120c37c1ea58f9608775d06109a673242b64eb50dcff8f434889f`
+approved the three-file correction. Root verified2,807 baseline,23 adapter and17
+packet hashes and ran native99293 with the original nineteen cases and budgets.
+It failed after60.085s package time at pristine `public:sa_attack_lab:function`,
+`field=identity_arguments`, `stage=value`, after reaching the main cases beyond
+the eleven admission drifts and four core checks. Owned PostgreSQL joined with
+both exits0; all input hashes stayed unchanged and no result was published.
+P7 `ordered-current-transform-acceptance-native4.log` records this new failure.
+The complete thirteen-recipe frame diagnosis and root probe87991 now cover all
+three consumed leaves: definition, identity arguments and projected fact identity.
+The four synthetic cases matched exact predicted qualification differences,
+NULL/missing behavior matched, and rollback/no-residue and owned shutdown passed.
+P7 `ordered-current-transform-frame-surface-probe-result.md` records this scope.
+The connected three-leaf implementation passed affected offline Node13/13 and
+Go loader/admission checks, but independent review
+`b22c5cdedb243f187a3473f812ad1f8b1689d7eb43f3df562224d4c862bba46b`
+found one P1 before native execution: bool_and can ignore one adapter's NULL
+metadata while the other two rows pass. Root's actual emitted-SQL probe15715
+confirmed all nine nullable faults incorrectly admit; pristine and restored
+states passed and rollback/no-residue/owned shutdown succeeded. This is semantic
+RED, not a nonzero process exit: psql ignored the supplied quit argument and
+exited0 while explicitly printing the failed oracle. P7
+`ordered-current-transform-null-admission-red2-result.log` preserves that detail.
+Both independent predicates require
+per-row NULL-to-false before aggregation. A scoped correction includes each
+adapter's NULL ACL/config/argument-name faults through the actual generated SQL
+non-invocation gate, retaining all prior drift/core and original nineteen cases.
+Actual PostgreSQL GREEN89715 now rejects all nine nullable faults, accepts
+pristine and all nine restored states, leaves no residue and joins both owned
+PostgreSQL processes with exit0. Independent scoped review
+`01b10b98009f27a6601228728d6e475bca2621d32cde326ac5883b6749e88d9b`
+closed the P1 without relaxed comparisons. Full native15547 now passed81.43s
+(82.583s package,92.406s wall), with42 drifts,12 core checks and all19 original
+cases and budgets. All2,807 baseline,23 adapter and17 packet hashes remained
+unchanged. The result records380 intermediate raw observations, restored:true
+and deparseAdapterRemoved:true; owned pg_ctl/server exits were both0. P7
+`ordered-current-transform-null-admission-review.md`,
+`ordered-current-transform-acceptance-native5.log` and
+`ordered-current-transform-acceptance-native5.json` bind this checkpoint. Result
+fileSHA256 is `02b23f15d03b661d66c1399dd2521810a96686d223f683341c50290217eafbfe`.
+This establishes the local thirteen-recipe transform contract, not independent
+release expected truth, installed current routing, durable capacity or deployed
+production readiness. No expected-fact promotion or runtime activation is claimed.
+
+Next connected implementation is assigned under
+`ordered-current-consolidation-brief.md`: one owner integrates accepted frame
+semantics into the real compiler/private/development path; a second owns only
+the six-family projection companion. Shared emitter files have one writer.
+The batch preserves admitted facts, excludes unavailable expectations and opaque
+projected74 fields, and prepares one bounded missing-reference contract. Root
+approved the immediate scope after reading
+`ordered-current-post-transform-next-batch.md`; installation remains refused.
+No new capture, routing activation or unchanged full-capacity retry is authorized
+by this source-consolidation checkpoint. Review and grouped acceptance remain
+required before crediting implementation completion.
+
+Ruling: the204 existing nine-temporal development expectations derived from old
+pg_catalog-framed strings cannot be reinterpreted under the newly accepted
+original-frame semantics. Preserve their exact old provenance/artifacts, list
+their identities and replacement requirements, and exclude them from the new
+development expected set until independently admitted original-frame evidence
+exists. All thirteen recipes remain required; this is not scope removal or a
+runtime fallback. Unchanged static, private nonroutine and worker52 facts must
+remain byte-identical. If the framing assessment is wrong, the cost is an extra
+reference-capture/review pass, not weaker admission or production activation.
+
+### Earlier checkpoints and retained failure evidence
+
+Proxy-diagnostic native85583 exited1 after17.526s and identified the concrete
+remaining refusal: GET `/api/v1/workflow-mutation-receipts` at route selection.
+The real UI uses this endpoint; the smoke's narrow proxy omitted it. Other final
+observations passed, cleanup completed, and2,310 source/2,679 build hashes stayed
+unchanged. P7 `discovery-main-ui-api-smoke-native6.log` preserves the failure.
+Independent diagnostic review was
+`84b04616249d291307affc3dcc652ef5eed486b3f9cc631bb8b3934492ba1ea5`.
+The exact GET correction and real scoped receipt200/no-store/empty-page oracle
+passed independent review
+`34e3eaa97605b7121d408170f15045340d2c303484b071499066ddc7156a8772`.
+Native18387 then passed initial receipt observation but failed during reload
+with a Runtime.evaluate TypeError (21.379s), cleanupComplete:true and unchanged
+source/build hashes. P7 `discovery-main-ui-api-smoke-native7.log` preserves it.
+The reload readiness predicate reads document.body before DOM readiness can be
+assumed from a new loader ID. A consuming null/loading-document control and
+grouped navigation-readiness correction are next; no unchanged rerun, blanket
+exception suppression, whole-smoke pass or production acceptance is claimed.
+
+Reviewed final-diagnostic smoke24995 exited1 after16.364s. P7
+`discovery-main-ui-api-smoke-native5.log` now isolates the remaining failed flag:
+fixtureFailure=true, firstFixtureFailureSource=proxy-refused. The snapshot has
+observedCookie=true, browserFailure=false, observationPassed=true, one identity
+start/callback, one active session, zero inventory, and no count-query errors.
+Cleanup completed and all source/build hashes remained unchanged. The whole
+smoke still fails; diagnose the exact proxy refusal before any allowance change.
+Scoped source review was
+`8cda39234108901aa0e46380919a9678e9cc8ff7fe0636eb19b2037086b3616f`.
+
+The forwarding correction passed scoped independent review
+`bf7d6a137bf593ff531e9f204c799e8a498db0a27911c9746cbe0967aa962b01`.
+Root ran successor `/private/tmp/zasp-discovery-smoke-forwarding.oajlK4` as35468
+against the same accepted build. It exited1 after16.209s at `final-evidence`,
+with cleanupComplete:true and unchanged source/build hashes. The earlier
+unauthenticated401/no-store, fixture login, authenticated scoped bootstrap and
+empty Agents, foreign-scope409, and real reload gates were reached/passed before
+that final block. The final cookie/count/browser/fixture/DB assertion is not yet
+identified, and the whole smoke remains failed. P7
+`discovery-main-ui-api-smoke-native4.log` preserves the result. Add bounded
+final-evidence diagnostics without relaxing any assertion or network allowlist.
+
+Changed smoke94525 exited1 after18.531s with observed unauthenticated bootstrap
+`status:400,noStore:true`, cleanupComplete:true and unchanged source/build
+hashes. Root traced a concrete harness defect: its TLS proxy emits forwarded
+proto/for but omits forwarded host/port, both required by
+`agentsec-api/operational.go`'s trusted-edge validator. The original middleware
+must remain strict. The next grouped fix repairs only trusted proxy construction
+and spoofed-forwarding handling, with source review before another native run.
+P7 `discovery-main-ui-api-smoke-native3.log` records the observation; the safe
+HTTP diagnostic review is `14a4cfa2fc0747d83769786d1a0ce63586a8d26e3062a01101b9b87550d4354a`.
+
+Changed smoke19736 exited1 at `browser-unauthenticated`: its exact expected
+401/no-store response assertion failed. The reviewed safe diagnostic confirms
+`cleanupComplete:true`; all2,310 source and2,679 build hashes stayed unchanged.
+P7 `discovery-main-ui-api-smoke-native2.log` records this result. Browser launch,
+CDP and the sign-in anchor were reached; authenticated acceptance remains open.
+Next diagnostics consume existing response status/cache booleans without bodies.
+
+Root synthetic probe94324 confirmed frame-dependent composite return-type
+qualification, with built-in control equality, rollback/no-residue and normal
+PG shutdown. P7 `ordered-current-transform-deparse-probe-result.md` records
+the bounded evidence. Root approved the concrete fixed core-deparser adapter
+proposal as a bounded implementation of the existing pure-deparser allowance;
+`ordered-current-transform-deparse-frame-decision.md` binds its constraints.
+No implementation or native repair acceptance is claimed yet.
+
+The local UI/API smoke's independent review
+`865c9541a8ad70241b684e6c2082b2d9e0ccddfa23266c34cac3229d25edf4b4`
+found two P2 lifetime defects: environment refusal after timer/listener setup
+escapes cleanup, and cancellation handlers end before owned cleanup joins.
+Both were corrected in one grouped change (16 consuming controls reported
+GREEN), then independently re-reviewed with both P2 findings addressed and no
+new blocker: review `c67e458bd1fa58b34233aff399f1edddbde8fc4566320b97f0d239a0a7b317e7`.
+The frozen successor is `/private/tmp/zasp-discovery-smoke-fix.dWvn7Q`.
+Root copied the accepted build and exact-lock dependencies (78458 exit0),
+verified2,310 source and2,679 build hashes, and launched owned local fixture48
+smoke94876. It exited1 after19.734s: actual migration48 and empty inventory
+checks passed, then the harness refused at the browser stage after API/UI
+readiness. All2,310 source and2,679 build hashes remain unchanged. P7
+`discovery-main-ui-api-smoke-native1.log` preserves that failed run. The exact
+browser step and cleanup outcome need safe diagnostic evidence; do not claim
+browser/session acceptance from the earlier stages. No unchanged rerun. Root
+verified all1,448 retained UI build-source entries and recorded2,679 output
+file hashes for reuse. P7 `discovery-main-ui-build-reuse.md` documents the exact
+scope; source-identical reuse avoids another unchanged build, not runtime
+verification. All task availability classifications remain unchanged.
+
+Native13 attempt16604 failed before application acceptance: PostgreSQL18.3
+reported `postmaster became multithreaded during startup` and requested a valid
+LC_ALL. The launcher's allowlisted environment omitted locale. The process
+terminated and no result was produced; the later cleanup error is not acceptance
+evidence. Attempt20688 changes only the launcher environment to `LC_ALL=C`, a
+locally available locale, with all2,807 baseline,21 adapter and15 packet hashes
+verified unchanged. Attempt20688 then reached application acceptance but failed
+the pristine case at `temporal:71.fingerprint:function`, phase
+`candidate-aggregate`, stage `aggregate` (62.127s package time). PostgreSQL joined
+normally with pg_ctl/server exits0; postflight source hashes remain unchanged.
+No result was published. Native acceptance is failed, not pending or passed;
+the aggregate mismatch is under diagnosis without unchanged reruns, timeout
+extensions or assertion relaxation. P7
+`ordered-current-transform-acceptance-native1.log` and `native2.log` (same prefix)
+preserve both attempts.
+
+The reviewed diagnostic-only successor then ran as30168. It still failed the
+pristine71 rule, now specifically `field=definition`, `stage=value`,
+`phase=comparison` (59.093s package time). P7
+`ordered-current-transform-acceptance-native3.log` records normal owned
+PostgreSQL shutdown/join and unchanged source/packet postflight; no acceptance
+result was published. Review
+`86ae3400be7c68eb31d3ffcc9ed4a272d6a942d43ccc686cc892bc14d9707962`
+verified that both comparisons remain mandatory and only diagnostic precedence
+changed. This establishes a definition-value mismatch, not its exact routine,
+token or semantic repair. Full acceptance remains failed pending diagnosis.
+
+The six-family worker-edge source companion passed independent SPEC/QUALITY
+review `fb1382282bb16462aa5b867032e6046760b863ee64ff35cdbd270ea8dd9ff774`.
+Its35 proposed rules still require independent reference admission and native
+parity;11 recipes,2 membership bags,6 delegated branches and frame/error/aggregate
+obligations remain open. This accepts source analysis only, not installation or
+production availability. The isolated UI/API fixture smoke's later source
+reviews and failed native runs are recorded above; it has not passed acceptance.
+
+The pinned local gitleaks8.30.1 scan of existing main history completed with zero
+unignored findings:1,407 commits through exact `e9fc3dd`,35.53MB,3.22s (12685
+exit0). It used the unchanged exact-fixture ignore policy and redacted output.
+P7 `discovery-main-history-secret-scan.md` records scope and hashes. This does
+not clear the uncommitted candidate or replace the pending advisory gate.
+
+Candidate3 now has actual successful pinned Linux/arm64 image builds for
+event-ingest, gateway-control, runtime-gateway and sensor-agent (87304 exit0).
+Offline final-image packaging checks (68796 exit0) passed as UID/GID65532 with
+read-only root, no network/capabilities and no-new-privileges. Entrypoint and
+healthcheck metadata, actual executable files and CA bundle were checked;
+application services and health endpoints were not started. All owned smoke
+containers were removed and all2,306 source hashes remain unchanged. P7
+`discovery-main-module-closure-images.md` and its two JSON artifacts contain
+image identities, commands, build times and binary hashes. Local images remain;
+no registry push, deployment, advisory scan or availability promotion occurred.
+
+The repaired release candidate also passed all four Linux/arm64 cross-builds
+(70980 joined cd33c3), using pinned Go1.25.13 offline, readonly modules and
+CGO disabled. All four output binaries have AArch64 ELF headers; postflight
+confirmed their hashes and all2,306 unchanged candidate source files.
+P7 `discovery-main-module-closure-linux-builds.md` and adjacent JSON record
+commands, durations and identities. This closes the Linux compilation check,
+not actual container/runtime or deployed acceptance. No availability promotion.
+
+Two bounded batches now passed independent SPEC/QUALITY review. Worker52 review
+`9bd922eb377875728f007df15c880ad2d6ff3a69b043bc8b44aef3dcde7630b6`
+independently checked all2,786 added projections,52 connected rules,8 opaque
+exclusions,13 missing universes,28 retained recipes,5,863 unchanged ordinary
+prior facts and all8,651 serialized SQL tuples. Module-closure review
+`57155decdf8d8e4550dd111b08c0226fca96598232c0fc9aa1f45c28ce8b4366`
+checked the complete eight-file repair and unchanged2,298 source paths.
+All four affected service tests and host executable builds passed; the reviews
+did not rerun unchanged scopes. These are accepted component/source batches,
+not installation, deployed integration or task-availability promotions.
+
+Native13 review identified two required evidence corrections before the database
+run: fixed rule/field identifiers for parity failures, and observed frame/build
+witnesses in the result. Both fixes passed scoped independent review
+`b04b2b9716250ed63aef635ecacd51002451c4836fab4581302db2d452c80cb1`;
+native acceptance remains pending as recorded above. The new local UI/API smoke will use fixture identity and actual
+empty scoped Agents responses, not invented discovered agents or sessions.
+Provider discovery, current61, real Stytch and production acceptance remain open.
+Read-only remote check0bb647 confirmed main still at
+`e9fc3dd42be3caf1b3efbeeff75272303f818104`; no push occurred.
+
+The dependent-module repair now exists in isolated successor
+`/private/tmp/zasp-discovery-module-closure.dlSArS`: exactly eight mod/sum files
+changed across event-ingest, gateway-control, runtime-gateway and sensor-agent.
+All2,306 source paths were checked, with2,298 unchanged. Generated declarations
+follow the candidate's existing platform dependency graph; no discretionary
+upgrade was selected. Missing public modules were acquired from the official Go
+proxy with checksum verification during diagnosis; subsequent listing was offline.
+Candidate3 manifest SHA256 is
+`13e2643e8b281ad81379914ad5bb572991760acba949bbc0e9be71d72914f1cf`.
+Root c3f28f consumed the unchanged release Go SBOM generator and validator:
+99 packages passed the existing license policy. Evidence
+`discovery-main-module-closure-go-sbom.json` SHA256 is
+`031a9bd743262aa91743070a219c71d9e3d48390a2236add0c880e5205d7a026`.
+Affected service tests and final executable checks are recorded by the batch
+report; independent review remains pending. This is not full release clearance.
+
+The thirteen-transform/nineteen-case harness is frozen for independent review
+(`ordered-current-transform-acceptance-review.md`, SHA256
+`9ff0181d8e09710a738e971876cfee6e9d11a1ef2c07d89c5293114e6a9fde83`).
+Its final offline candidate group passed; the native entry default-skipped and
+has not run. Separately, the52-rule integration has an8651-fact development
+artifact and is under independent review. Neither batch enables runtime routing
+or promotes original-task availability. The local UI/API smoke proposal now
+identifies a real API path using fixture identity, explicitly separate from real
+Stytch/provider/current61 acceptance; implementation and owned execution remain.
+
+The next exact-candidate Go SBOM check exposed a release-composition gap
+(553157), not a passed gate. Offline read-only dependency listing reaches
+event-ingest, whose main-derived go.mod needs synchronization with the candidate's
+platform module. A temporary `-modfile` diagnosis (5e0db1) resolves the listing
+with only Go1.25.0 to1.25.4, x/sync0.20.0 to0.21.0 and x/text0.37.0 to0.39.0;
+the candidate itself is unchanged. Gateway-control, runtime-gateway and
+sensor-agent also require uncached pinned modules before their inventories can
+complete (0e8ba7). Review the coherent dependent-module closure before another
+candidate freeze. No Go SBOM, full release clearance or push is claimed.
+
+Ruling: integrate only the52 independent worker projections outside the original
+opaque projected74 source. Its eight other available projections remain source
+evidence, not fixture expectations, because owner/ACL/live facets must retain
+their original framed obligation. This authorizes no projected74 call inside
+the collector and no additional primitive exception. The source-indexed Task2
+gap map covers337 nodes,1,322 edges and177 partition entries, but does not claim
+all remaining reference capture needs are bounded. Incorrect partitioning would
+require rework before routing/native acceptance; it cannot justify promotion.
+
+The isolated discovery release candidate now has an offline npm dependency
+inventory and license-policy check: 46 packages, SPDX2.3, identical package and
+relationship records to the original exact-lock install. Command0e8f90 joined
+94ea88 passed; the mode0600 evidence file in P7 is
+`discovery-main-release-candidate-npm-sbom.json`, SHA256
+`210ecd89a2e9fd554261d9c47ac06fdb5917b61e98dfbd9dd9f9a0f5cdbe1b37`.
+Replacing the candidate's owned dependency symlink with a physical copy resolved
+npm's inventory errors without a package install, network request or source edit.
+The first follow-up check used the wrong root-package exception name; it was
+corrected to the unchanged release policy, not waived. Advisory scanning,
+Git-aware release checks, runnable API/browser acceptance and deployment remain
+open. This is dependency inventory evidence, not vulnerability clearance.
+
+The native acceptance harness's disk-full link failure was infrastructure-only.
+The supported Go compiler-cache cleanup recovered space while preserving source,
+module downloads and reference packets. Its subsequent behavioral failures are
+being addressed in the grouped harness checks; native acceptance is not yet run.
+The nine worker projected-family companion passed independent source review
+`86e38d0c70c6e899ac9e8f63900907257400e91a20b0bfa381a2d8e2b165067a`.
+Its73 proposed rules,28 expression recipes and two delegate sites are not completed
+integration or production evidence. No task availability classification changes.
+
+Execution policy now follows the replacement launch goal: connected product
+batches, grouped TDD/review, independent work in parallel, and updates here at
+batch checkpoints or blockers. The 728-row availability table and architecture
+crosswalk remain the task mapping; scratch reports are evidence, not competing
+status ledgers. No original acceptance criterion or security gate is removed.
+
+The typed thirteen-recipe compiler checkpoint now passed grouped14/14 checks,
+deterministic generation and focused Go admission tests, followed by independent
+specification/quality review with no blocking finding. Root read the complete
+review `ba6053157de131d9a7da979419983a89b334bda2193a68b97417bde88d8d637e`
+and matched all three source hashes. The native packet can now use its frozen
+typed output. The273-rule collector remains unchanged;5,865 development facts
+and all241 excluded raw rows remain as before, except reserved provenance binds
+the new compiler. No public config dimensions were invented and no public
+expected facts were imported. Evidence:
+`p7-worker-enforcement/ordered-current-typed-transforms-independent-review.md`.
+
+An isolated main-based release successor is now prepared with2,306 source files
+and64 explicit deltas: the accepted52 discovery paths,11 narrow release/toolchain
+changes and one scoped advisory-gap explanation. Root verified all delta hashes
+and2,242 untouched main blobs; candidate manifest is `74da020d9016b189b9ec6053d1696c165525b6b3a42dc7692a87a903a8359549`.
+The5 affected gate/CI/container-definition checks passed, as did the44-file
+production source-import check and UI/API coverage check. Full lint then found
+seven errors in the existing discovery harness (five control-character regex
+warnings and two empty catches). The candidate-only comment fix now passes
+37 affected tests, targeted lint and full-candidate lint61023/d98f38. Independent
+review accepted the exact seven-comment delta; root matched its review hash
+`a40949f1511424774e858663373528b9a08eaebdf42b6e15db3d82c5d7114e8a`.
+Root rechecked all2,306 files, with exactly one changed source hash; successor
+manifest `c54b45b860991abf7c0a8e297c622d67b70b653141fcc1b5351d84a4c48dfa51`
+retains64 deltas. No new TypeScript source lies outside the earlier verified UI
+snapshot, so unchanged UI checks were not rerun. This is still not a passing
+release candidate. No scanner, actual image
+build, native service, commit or push occurred. Existing advisory disclosure,
+same-origin API/browser smoke and deployed production gates remain open.
+Evidence: `p7-worker-enforcement/discovery-main-release-candidate-report.md`.
+The12-path release increment passed independent specification/quality review;
+root read the report and matched review hash `5799df8eb41c09e03ca569d5e6ef304161db32f40a839943e4b60b6c55df7539`.
+That verdict excludes the separately reviewed lint correction and all publication
+gates. Successor evidence is in `p7-worker-enforcement/discovery-main-lint-fix-independent-review.md`.
+
+Mixed schedule/export representation passed grouped component checks and
+independent source review `5de553ff06ba601431ea59368c30efe697b61859a846aba5362a9203db5d4e20`.
+Root matched both source hashes and read the review. These two recipes remain
+centrally unsupported, with original live guards/frames preserved and no new
+primitive exception or normalized expected facts. Full lowering/native parity
+remain required. Evidence: `p7-worker-enforcement/ordered-current-mixed-transforms-independent-review.md`.
+
+September26 connected checkpoint: the remaining-reference integration now
+contains5,865 development facts across273 rules. Independent review verified
+all2,062 added static facts,204 transformed facts from nine recipes, and every
+generated SQL tuple against the manifest. The241 remaining raw rows are still
+excluded; installable/nativeVerified remain false. Root read the full review
+and matched its SHA256 `3e3f6f3bb566ca9f59f8fe04f8b7a532a245d2c669d89df46188afa39a95d721`.
+Four pure-public recipe/formatter components also passed specification and
+quality review; root matched both source files and review hash `de041f282bd4df50d81fdb4c7656403479ba3534f0557926c02d6cd104a91598`.
+Typed integration, actual config dimensions, original-frame equivalence and
+the mixed schedule/export branches remain required. Evidence:
+`p7-worker-enforcement/ordered-current-remaining-integration-independent-review.md`
+and `p7-worker-enforcement/ordered-current-public-function-transforms-independent-review.md`.
+
+Ruling: implement one grouped thirteen-recipe native acceptance harness using
+the reviewed plan `f8389b0d0766494324ac78c12ba93f4027aaa9e89021345c274e552ec2cafeb0`.
+Only five new files and a separately frozen one-callback overlay are authorized;
+the final packet waits for reviewed typed compilation. Original field controls
+must come from pinned source expressions independently of the candidate AST.
+Root retains the only native PostgreSQL execution slot. Fixed rollback-only
+catalog mutation and saved-table fault copies are allowed solely in that fresh
+owned disposable fixture, with exact identity checks, restoration and original
+admission after rollback. Artificial states are reported separately from real
+constraint refusals. No production guard is relaxed. Incorrect assumptions cost
+rework and a failed acceptance run, not permission to normalize discrepancies.
+Two77 remains reserved and unexecuted in this harness.
+
+Ruling: the mixed schedule branch's temporal72 fingerprint condition is not
+one of the eight approved authorization80 primitive exceptions. Preserve its
+exact fresh registration, cardinality, demand and original-frame semantics
+in the source representation; keep central compilation unsupported until a
+source-derived equivalent lowering is reviewed and verified. Do not add a
+historical-fingerprint call inside or outside the collector as a shortcut.
+Export saved-owner/ACL normalization likewise retains fresh registered-login
+binding and membership, with independent expected projection evidence. This
+costs further lowering and native comparison work; it does not waive either
+branch or freeze live authority into development constants.
+
+The separate two77 demand candidate passed bounded source review, not native
+equivalence. Root matched the module/test and review hashes; review
+`b50191cf78f7123854651fc0c596d1983231b116dd647daa32fd441fdec6eef9`
+found one minor consuming-test gap for exact emitted binding/replacement order.
+That case is assigned to the next relevant emitter group, without rerunning
+unchanged tests. Central demand-node refusal and non-installable status remain.
+Evidence: `p7-worker-enforcement/ordered-current-temporal77-candidate-independent-review.md`.
+
+The exact-main browser smoke is not accepted. The standalone build booted and
+rendered Session unavailable without an API/auth configuration; a subsequent
+browser attach timed out and the tab inventory was empty. Root stopped the
+verified owned localhost server/session13275 (terminal143). No authenticated
+flow or runnable-product claim follows. The shipping review independently
+verified the52-path candidate but still requires runnable smoke, release checks
+and approved scanner evidence. No commit, push, scan disclosure or paid model
+call occurred in this checkpoint. Test-model policy remains cheapest compatible
+live model, bounded tokens, no expensive fallback and no production-model change.
+
+Current-integrity batch checkpoint: nine product fingerprint families now have
+source-pinned selector translation (22 rules, 41 byte-covering sites). Grouped
+behavioral RED/GREEN and independent source review accepted this component;
+13 descriptor/reference/live integration blockers remain explicit. The next
+connected part translates seven current-profile and four native-role invariant
+sites, preserving cardinality, SQL NULL and membership exclusions. Its grouped
+tests passed after meaningful failures; independent review accepted the
+component with no findings. Neither
+component activates production routing or proves native equivalence. The fresh
+57-rule supplementary reference capture now passes on local PostgreSQL18.3:
+520 rows, rollback/frame restoration and owned-server shutdown/join succeeded;
+2807 baseline and10 overlay hashes remained unchanged. Strict ingestion review
+then closed and the reader accepted all520 actual captured facts against fixed
+file/query pins, retaining installable:false. Private evaluator reference,
+portability and full native equivalence remain open.
+Evidence: `p7-worker-enforcement/ordered-current-supplementary-native-result.md`.
+The connected development generator now includes those captured inputs:
+1992 facts/103 rules. Root froze23 files and independently reproduced all
+generated outputs from that snapshot with Node22.23.1. The private-schema
+reference packet was fixed for review/capture preparation; its corrected
+successor capture is recorded below. The evaluator checkpoint remains
+non-installable and native-unverified.
+Evidence: `p7-worker-enforcement/ordered-current-private-reference-snapshot.md`.
+Independent source review now accepts that frozen private packet; the adapter
+and native rollback/frame witnesses are still pending. The remaining13 public
+fingerprint families also passed grouped component tests and independent
+source review:59 proposed rules/95 source sites. Their63 unsupported entries
+remain explicit descriptor, reference, transformation and live-behavior work,
+not completed integration. Root verified source hashes and required correction
+of stale report/diff hashes in the review before accepting its final evidence.
+Evidence: `p7-worker-enforcement/ordered-current-private-reference-independent-review.md`
+and `p7-worker-enforcement/ordered-current-public-selectors-independent-review.md`.
+The separate24-function Temporal selector batch also passed grouped component
+tests and independent review. It accounts for92 proposed rules/137 source sites;
+17 transformed branches and their live/reference obligations remain unresolved,
+not replaced by raw-definition equality. Root verified the two module/test
+hashes against the review. Evidence:
+`p7-worker-enforcement/ordered-current-temporal-selectors-independent-review.md`.
+Nine of those transformed branches now have closed source-pinned expression
+recipes, with grouped RED/GREEN and independent component review accepted.
+Two dynamic saved-signature/helper branches remain explicitly unsupported;
+the other six and central SQL/native equivalence remain integration work.
+Root matched both reviewed source hashes. SQL name-resolution errors remain
+separate from lazy scalar row evaluation. Evidence:
+`p7-worker-enforcement/ordered-current-temporal-transforms-independent-review.md`.
+Private capture adapter review corrected full-packet version decoding,
+complete39-object validation and cancellation at publication commit. Targeted
+tests and independent rereview closed those findings. Root's first native run
+then failed in capture validation; no reference output was published. The
+owned PostgreSQL server joined normally, and all source/input hashes stayed
+unchanged. The reviewed diagnostic run located PostgreSQL42703 at the generated
+routine argument query's undefined `args.unnest` column alias, before any rows
+were returned. The alias-only successor passed independent review, pinned-Node
+reproduction and native capture76967:39 exact objects, matching four declared
+routine facts, rollback/frame restoration and normal owned-server shutdown.
+All2847 baseline/overlay/input file hashes stayed unchanged. Root independently
+verified the published0600 artifact, category counts, unique identities and
+payload/file hashes. This is local frozen103-rule reference evidence only;
+strict ingestion and current-evaluator native acceptance remain open. No
+expected values, counts or timeouts were relaxed.
+Evidence: `p7-worker-enforcement/ordered-current-private-reference-native-result.md`.
+The separate combined64 remaining-reference query packet passed independent
+source review and root's frozen-source reproduction. Its16 raw transformation
+inputs remain intermediate data, not direct comparison facts. Native capture
+now passes on the exact local build:2507 unique rows, including445 raw inputs,
+with original admission, read-only capture, rollback/restoration and normal
+owned-server shutdown. Root verified payload/file hashes and all2844 source
+and input hashes before/after the run. Both strict readers now pass grouped
+tests and independent source review: private intake validates all39 rows
+before importing only35 unchanged nonroutine facts; remaining intake separates
+2062 static facts from445 raw inputs. Root matched all four reader/test hashes.
+Current private routine bodies stay source-derived. Connected remaining-data
+integration and runtime semantics are still open. Evidence:
+`p7-worker-enforcement/ordered-current-remaining-reference-native-result.md` and
+`p7-worker-enforcement/ordered-current-supplementary3-independent-review.md`.
+Reader reviews: `p7-worker-enforcement/ordered-current-private-intake-independent-review.md`
+and `p7-worker-enforcement/ordered-current-remaining-intake-independent-review.md`.
+The connected development collector now has273 rules and3564 facts, including
+113 newly connected static rules with1572 reference facts. Independent review
+found JavaScript replacement-token expansion in generated SQL insertion and
+the offline transform evaluator. Callback replacements and consuming full-row
+SQL-to-manifest comparisons now pass grouped RED/GREEN and independent
+rereview. Root matched the corrected source/artifact hashes. This checkpoint
+is not accepted for installation. Missing reference
+inputs, helper-call frame/error semantics and native equivalence remain gates.
+Evidence: `p7-worker-enforcement/ordered-current-connected-ast-report.md`.
+Corrections: `p7-worker-enforcement/ordered-current-connected-ast-correction-report.md`
+and `p7-worker-enforcement/ordered-current-connected-ast-independent-review.md`.
+Ruling: helper-local identity binding must retain its original demand/frame
+boundary. A representation may describe that boundary, but the compiler must
+refuse it until equivalent SQL behavior is available. The cost of an incorrect
+lowering is changed refusal behavior, so source translation alone cannot
+discharge this gate.
+Ruling: prepare the two77 correlated, locally materialized runtime-cast
+candidate, retaining the actual catalog-row dependency and original CASE
+order. Approval is for implementation and grouped native investigation, not
+equivalence. Selected/unselected binding, first-error, planning and frame
+controls must pass before this replaces the unsupported execution gate.
+Ruling: captured JSON config arrays do not prove PostgreSQL array dimensions.
+The pure-public formatter requires explicit canonical-dimension provenance;
+the combined native projection group must witness dimensions and original
+text output, including nonstandard-bound drift. No extra capture or guessed
+dimension metadata is approved. Failure costs rework, not weaker comparison.
+Task counts,
+production availability and launch gates are unchanged. Evidence:
+`p7-worker-enforcement/ordered-current-product-selectors-independent-review.md`
+and `p7-worker-enforcement/ordered-current-role-profile-report.md`, with review
+in `p7-worker-enforcement/ordered-current-role-profile-independent-review.md`.
+
+Main-based discovery checkpoint: the accepted harness/observer and exact Go
+package closure are now frozen against main `e9fc3dd` in a1,143-file candidate,
+with51 overlays and only the narrow combined-entry insertion. Root verified
+all source hashes before and after grouped tests15565: observer0.624s,
+orchestration0.555s and runtimeservices0.448s passed with live opt-ins disabled.
+The earlier pinned-Node entry refusal checks also passed. Combined source
+review found no remaining source issue; root read the complete review and
+independently verified the candidate hashes. Current dirty UI dependencies differ from main's lock,
+so that installed tree cannot be reused as exact-main UI build proof. Root
+instead installed the exact lock into the isolated candidate with scripts,
+audit, credentials and inherited npm configuration disabled. Production build,
+typecheck and57 shell/route tests passed. The first typecheck exposed three
+omitted source imports;12 exact-main dependency files completed that source
+closure without changing existing files. All1448 source hashes remained
+unchanged after verification. Fresh scanner acceptance and deployed
+Stytch/provider/Temporal flows remain open; no push or availability promotion
+occurred. Evidence: `p7-worker-enforcement/discovery-main-candidate-preparation.md`
+and `p7-worker-enforcement/discovery-main-candidate-regression.md`, with UI
+results in `p7-worker-enforcement/discovery-main-ui-build-result.md`.
+Ruling: exact-lock official-registry dependency acquisition in an isolated
+candidate is a routine authorized build step; the unanswered acquisition
+question was not a user denial. Keep install hooks/audit disabled and preserve
+the separate scanner restriction. This removes an avoidable wait without
+waiving package-safety or release acceptance.
+
+Current-integrity contract review found a concrete live/static partition gap:
+`zasp_temporal77.base67_fingerprint()` contains inline principal-binding and
+role-membership predicates even though its emitted disposition is structural.
+Those exact spans and the corresponding inlined higher-region predicates were
+corrected together in contract3 (`5fed1f43`), with11 source-contract tests
+passing and independent review closing both findings. Root verified the four
+source/artifact hashes and all materialized predicate spans. The independently
+captured current catalog remains valid evidence; it does not authorize
+freezing live binding rows. Ruling: Task1 now clears Task2 direct evaluator
+implementation, with routing still gated; fixed-role membership exclusions
+remain fresh structural checks, while actual registered-login normalization
+remains live. The cost of a representation error is failed native equivalence
+and rework, not permission to weaken the checks. No capacity or production
+readiness follows from source tests. Evidence:
+`p7-worker-enforcement/ordered-current-task1-effective-contract-findings.md`.
+The exact-main UI cache audit found581 missing integrity artifacts in the
+inspected npm cache; the separate parent installed tree also lacks172 required
+compatible package paths. No install was attempted and no dirty dependency
+tree was substituted. Source preparation is possible, but an exact-lock
+dependency source is still needed for the main candidate's UI build. Evidence:
+`p7-worker-enforcement/discovery-main-ui-offline-feasibility.md`.
+The UI successor source is now prepared separately:1,436 files, with the
+original1,143 unchanged and293 additions from exact main. Root independently
+verified manifest `0caccad6` and every source hash; zero overlaps. This is
+source preparation only, not a build at that checkpoint. The later isolated
+installation and UI verification above supersede the acquisition wait.
+Evidence: `p7-worker-enforcement/discovery-main-ui-source-preparation.md`.
+Root then compiled every platform package on that successor with readonly
+modules and the proxy disabled: handle23944 exited0. All1,436 source hashes
+remained unchanged. This checks shared dependency compatibility across the
+existing API/worker/connectors/repositories; `-run '^$'` means no behavioral
+tests executed. UI build and deployed acceptance remain unverified. Evidence:
+`p7-worker-enforcement/discovery-main-candidate-regression.md`.
+
+Task2 implementation is active. Ruling: pinned current-catalog1 may support a
+non-installable development artifact while the direct collector and trust
+checks are built, but cannot by itself become approved release expectation.
+Independent fresh build facts and a second OID/login-varied installation must
+agree before release acceptance. Production routing and runtime-ready remain
+unchanged. This allows code development without trusting an installation
+target to define its own expected state; if portability fails, the artifact
+requires correction before installation, not automatic normalization or
+repinning. The sole native slot remains unused while collector review and
+the precise fixture variation are prepared.
+Task2 grouped RED now covers six intended missing-behavior groups. Ruling:
+bind build provenance as exactly one reserved `expected` row
+(`kind='build', identity='provenance'`) under a closed schema, included in the
+full canonical content hash and cardinality checks. Only that exact validated
+row is excluded from live catalog-fact comparison; additional metadata rows
+must refuse. Provenance binds immutable source/template inputs, while the
+final assembled file hash is recorded outside its own payload to avoid a hash
+cycle. The original single literal-span normalization and independent raw-pin
+checks remain required. This keeps the approved metadata table shape; a
+mistake here must fail grouped admission/native trust checks before install.
+Reference-fixture preparation identified a concrete portability constraint:
+the existing authorization80 fingerprint includes raw owner-dependent
+data-controls policy role/expressions and hierarchy trigger arguments, then
+compares against that installation's registration. Supported zasp_test and
+zasp_e2e owners can legitimately produce different raw fingerprints. The
+second-reference gate must distinguish the invariant release contract from
+these exact installation-dependent obligations; blanket login replacement,
+target-derived expected values and forced raw equality are not authorized.
+The alternate fixture is now implemented and frozen as a test-only overlay:
+one starter callback plus three helper/control files over the accepted capture
+closure. Nineteen boundary controls passed and the affected API compile/list
+passed; no PostgreSQL or capture ran. Root independently verified all2,807
+baseline files and2,815 logical files with zero mismatches (dfa8cf). Independent
+review approved spec compliance and code quality with no critical/important
+findings; root read the full report. A minor deferred test-strength suggestion
+is to assert the second snapshot count in every residue-refusal case, to be
+included with the next affected fixture group. Actual SQL execution, login/OID variation,
+installation and semantic parity remain unproved, and the witness reader is
+not yet connected to a collector. Evidence:
+`p7-worker-enforcement/ordered-current-reference-variant-preparation.md` and
+`p7-worker-enforcement/ordered-current-reference-variant-independent-review.md`.
+Ruling: preserve exactly eight original auth80 registration/fingerprint
+comparison expressions as fresh framed obligations outside the collector.
+Root independently enumerated all eight callers/spans and confirmed the
+6,371-byte primitive has no application callees. Its body/owner/ACL/config and
+original checksum/cardinality/NULL semantics remain bound; no recursive
+readiness fallback is permitted. The implementation plan now records this
+limited exception. It avoids forcing legitimately different login-dependent
+raw fields into portable constants; if the mapping is incomplete, native
+portability/drift acceptance must fail before routing or install. Task2 owns
+the grouped source amendment and evaluator checks, while remaining required
+owner-dependent selectors were checked independently. The resulting nine-row
+inventory maps audit saved/live ACL snapshots, export predecessors,72 helper
+identities,67 scope predicates and retained inventory/global checks to their
+original semantics. Root read it and verified all17 effective definition
+hashes. No additional blanket normalization is justified; the red-team
+`session_user` alternative, actual bindings and per-installation snapshots
+remain live. This supplies implementation requirements, not executed second-
+reference proof. Evidence:
+`p7-worker-enforcement/ordered-current-migration-login-portability-inventory.md`.
+
+Task2 now has a typed serializer, closed selector compiler, dormant SQL
+template and a Go artifact boundary that refuses installation. Its development
+artifact covers only part of the worker structural recipe; remaining recipes,
+private closure and native equivalence are explicitly incomplete. Root found
+that compound collected-fact keys and bare private-closure/normalization keys
+need reconciliation before integration. The implementer owns that correction
+and continued lowering; an independent agent owns only the new saved-release
+metadata descriptor files. No current route is activated, no milestone is
+promoted and no performance improvement is claimed. Evidence:
+`p7-worker-enforcement/ordered-current-task2-report.md`.
+Root verified the bounded contract4 amendment (`92fe22de`) against contract3:
+all337 function records,1,322 edges, original inputs and inline live spans are
+unchanged. All eight complete comparison spans and caller frames match their
+original source; base67 remains invoker. Removing only the184 comparison
+annotations, format bump and primitive disposition/obligation change gives
+exact deep equality (540f9a/168e6a). This accepts the source amendment for
+continued implementation, not the unfinished collector or runtime behavior.
+Read-only Go routing preparation is running alongside the two implementation
+owners so the later request-local revision/profile integration has a concrete
+operation map; it does not authorize early route activation.
+Ruling: preserve required raw runtime-registration singleton/checksum/fingerprint
+fields in the non-installable development representation. The original worker
+recipe selects them, so uncertainty about portability cannot justify omission.
+The same development treatment applies to the exact worker self-registration
+fingerprint and original one-row/equality obligation; it does not add checksum
+where that source site never selected it. Only these exact selectors are
+allowed here, using pinned independent catalog1; the second reference must establish stability or require an explicit
+original relational obligation. This does not approve release constants or
+extend the eight auth80 exceptions. A mismatch costs representation rework
+before native acceptance, not repinning the target.
+
+Routing preparation exposed two plan/source differences. Root checked the
+actual helpers and amended section3 of the implementation plan. Ruling:
+retain the existing bounded local key-load/sign operation inside its policy
+begin/store READ COMMITTED transaction, preserving locks, expiry rechecks and
+the raw-input MAC; FGA, Temporal/provider RPCs and artifact I/O remain outside.
+Moving that local callback out would change the accepted signing contract.
+If this exception is misapplied to remote signing, it must fail review before
+shipping. Ruling: the new explicitly selected current Ordered route still
+requires closing revision drift to take precedence over denial, but the
+shared worker helper currently returns denial early. Implement/test the new
+behavior only in the current route without changing unrelated families;
+preserve Check order and denial short-circuit. A mistake risks wrong retry
+classification and must fail grouped connected acceptance. Explicit addendum
+composition must not reuse namespace detection or the forward-authorization
+`spec.current` flag as a version selector. Valid compensation-only lifecycle
+composition must also be rejected at the boundary; an empty invalid client
+does not establish that case. These are implementation requirements, not
+completed fixes or runtime evidence.
+
+The fixed saved-release descriptor component passed independent spec/quality
+review with no findings. Nine offline source/shape tests passed; root verified
+both source hashes and report/diff pins (845435). The closed24-relation map
+preserves full original keys, raw definitions, UNION ALL cardinality and the
+two explicitly non-installable registration exceptions. Evaluator integration
+may now proceed. Missing/extra rows, SQL NULL behavior, registration equality
+and second-reference portability remain connected/native gates, not proven by
+these tests. Evidence: `p7-worker-enforcement/ordered-current-static-catalog-report.md`
+and `p7-worker-enforcement/ordered-current-static-catalog-independent-review.md`.
+The routing handoff is also complete as source preparation:34 unique fixed
+operations and27 source hashes independently verified by root. It includes
+direct preparation/convergence, signing, dispatch readback and adapter-journal
+readiness statements, not just the operation map. No routing code changed.
+Evidence: `p7-worker-enforcement/ordered-current-routing-preparation.md`.
+
+Worker source lowering now emits33 original fact branches, one outer worker
+registration rule and the existing native-membership rule (35 total). The
+development artifact remains non-installable; other recipes, live framed
+normalization, private closure and second-reference/native acceptance remain
+open. Root source inspection found a connected identity risk: regclass and
+regprocedure text can use search-path-visible names while reference/selectors
+use qualified public identities. The implementer must make key/filter identity
+consistent without changing original selected definition bytes before native
+review. Runtime family lowering proceeds separately with exact LIKE/view
+projection semantics, not approximate prefix matching.
+Ruling: only new private PL/pgSQL evaluator routines may use exact template
+source bytes plus their complete independently pinned catalog frame instead
+of invented pre-install pg_get_functiondef formatting. The implementation plan
+lists the required frame fields; original routine definition projections stay
+unchanged and independent entry/client admission remains mandatory. Incorrect
+body/frame binding must fail native drift controls before activation. This
+avoids a formatting guess without trusting target-provided expectations.
+Ruling: pin the new private collector to `search_path=pg_catalog`, matching
+the independently captured reference frame verified at exporter line178
+(54739f). That frame controls both qualified key rendering and deparse output.
+Its exact configuration must be independently checked before evaluator use,
+and direct captures must use it explicitly; no original function frame changes.
+If this assumption is wrong, native parity/altered-frame tests must refuse
+before activation. Reformatting original captured definitions is not allowed.
+
+The eleven-function runtime source translator passed independent spec/quality
+review. Its33 proposed rules and source-span accounting are a component
+checkpoint only:13 explicit descriptor/reference/conditional obligations still
+prevent complete family integration. The next connected group should add
+full rule-field/null-helper expectations noted as a minor review suggestion.
+Evidence: `p7-worker-enforcement/ordered-current-runtime-selectors-report.md`
+and `p7-worker-enforcement/ordered-current-runtime-selectors-independent-review.md`.
+Missing pretty/view/information-schema reference fields cannot be fabricated
+from catalog1. Root is preparing a separately reviewed, exact-fixture
+supplementary capture for required fields; this does not authorize native
+candidate acceptance, change existing evidence or clear portability gates.
+
+September26 prioritization: finish the current connected execution/recovery
+failure, then verify the customer journey through sign-in, provider connection,
+agent discovery, a security action and its result/audit evidence. Prepare live
+deployment/provider prerequisites in parallel. Temporal owns durable work and
+OpenFGA permission decisions; PostgreSQL retains business data and transactional
+fences. Retire old paths only after equivalent behavior passes. Report shipped
+commit/environment/customer-flow outcomes and exact remaining gates; the
+historical availability counts below are not current cutover launch progress.
+Preserve live acceptance processes across priority updates. Local fixtures do
+not prove deployment, and no tenfold speedup or launch date is established.
+
+Customer-journey prerequisite audit found no verified deployed target for this
+cutover: chart origin/host defaults are empty, release variables remain offline
+placeholders, and runtime-ready is explicitly false. The existing real UI/API
+path is sign-in/callback/session → integration authorization/sync → agents →
+Security Agent run/approval → result/audit. Live acceptance still needs an
+approved environment/public origin, authorized provider tenant and configured
+Stytch/secret references; the parent `.env` presence check does not establish
+those deployment settings. Root requested the target/provider choice without
+secret values while continuing connected execution work. Existing OpenRouter402
+evidence remains a billing gate, not a new test result. Exact route/config
+anchors and next actions are in
+`p7-worker-enforcement/customer-journey-launch-prerequisites.md`. This audit
+made no network calls or deployment changes.
+
+Fresh local UI checks passed on Node22.23.1: `npm run typecheck`, `npm run build`,
+`npm run ui-api:check`, `npm run production:imports:source` and
+`npm run production:imports:compiled`. The build produced the standalone server;
+the import checks covered74 source files and7 client/8 server chunks. API
+coverage reported160 public operations,147 available,13 API-available and2
+planned. The generated standalone server was then started on loopback only:
+GET `/` and `/login` each returned200 with HTML and the Zasp page title. The owned
+server was stopped afterward. These checks prove compilation, packaging and
+unauthenticated local HTTP rendering, not browser hydration, Stytch login,
+authenticated API flows or deployment readiness. The ledger validator passed
+with728 rows and unchanged523/144/61 classifications. No push occurred.
+
+Discovery API composition checkpoint (2026-09-26): the shipped tracing wrapper
+dropped `TemporalDiscoveryAvailable`, so the real discovery repository selected
+historical queries even when its underlying database reported installed72 or
+an installed-profile error. A two-file adapter repair now forwards the exact
+context, authority and result/error without caching. Consuming RED71680 proved
+wrong routing and error fallback; grouped GREEN22873 passed API0.988s and
+apiserver0.881s, including absent-profile compatibility, live drift and invalid
+input refusal. Root independently reviewed both complete files and their hashes
+with no blocker. This is component routing evidence only: startup, native
+current-profile scheduled discovery, mounted UI and real-provider acceptance
+remain open. The runtime gate is unchanged. Evidence:
+`p7-worker-enforcement/discovery-runtime-forwarding-review.md`.
+The one-pass wrapper audit found the same omission for four consumed74
+single-Test cancellation/approval capabilities. Two further files forward
+cancel, approval read/decision and approval paging without changing native
+authority or fallback contracts. Consuming RED46916 reproduced skipped74
+routing and dropped capability errors; grouped GREEN18168 passed API1.194s
+and apiserver1.108s, including20 real-repository routing cases, exact forwarding
+contracts and the discovery repair controls. Root reviewed both complete files
+and exact hashes with no blocker. No unauthorized write was demonstrated;
+this closes a Go composition defect, not native or deployed acceptance.
+Evidence: `p7-worker-enforcement/temporal74-lifecycle-forwarding-review.md`.
+
+Capacity decision after fresh raw69 retirement: the measured auth80 fingerprint
+leaf accounts for0.820008s across27.238s of the accepted prefix. Even removing
+all of it would save only3.01%; the proposed three-copy sharing would save less.
+Ruling: do not implement that optimization or launch another full100 retry on
+its basis. The17.121s first-target interval excludes initial Apply setup but
+includes first-use plans on newly bound pools; steady-state throughput is still
+unmeasured. Prepare one three-target prefix of the original100-target/600s plan,
+with unchanged operation limits, actual acknowledgments and ordinal-only SQL
+timings, stopping before fourth-target capture. The cost if this decision is
+wrong is one bounded diagnostic, not a weakened lifetime or permission fence.
+The two full readiness checks inside each source operation bracket possible row
+waits and cannot share a cached positive. No production code changed for this
+decision. Evidence: `p7-worker-enforcement/ordered-readiness-source-cost-action.md`.
+The three-target measurement is now implemented in exactly three test files.
+Consuming RED91119 exposed rejection of the new mode and cancellation before
+target2; final worker controls passed59176 (1.438s). Corrected physical-path
+overlay compile/discovery3455 passed0.971s and found the new parent entry.
+An earlier macOS path-alias overlay missed the changed source and is explicitly
+excluded from candidate evidence. Root verified all three source hashes;
+independent review and native measurement remain pending. No production,
+deadline, lifetime or retry behavior changed. Evidence:
+`p7-worker-enforcement/ordered68-three-target-prefix-review.md`.
+Independent source review then passed and root independently verified all2807
+files in frozen6frGMr, with exactly three test-only differences from7KoCcj.
+Native24459 passed181.285s with stable snapshot and normal owned PostgreSQL
+shutdown. Its actual oracle is100 targets=3 stored+97 planned,3 acknowledgments,
+9 policy scopes,6 signatures and zero application receipts/controls. Target
+walls were17.650s/17.236s/17.019s; direct Apply was62.524s. Root checked these
+values and terminal/cleanup output in the log. Warm targets remain near17s,
+so startup planning does not explain the capacity gap. This accepts the bounded
+measurement only, not full100 completion under600s. Next performance work must
+address measured sustained SQL cost without removing freshness fences or
+extending lifetimes. No blind full100 retry is justified. Evidence:
+`p7-worker-enforcement/ordered68-three-target-prefix-independent-review.md`
+and `p7-worker-enforcement/ordered68-three-target-prefix-native1.log`.
+The completed phase analysis attributes about98% of warm-target wall time to
+labelled SQL. Within-gate descriptor reuse cannot plausibly supply the required
+roughly65% reduction. Root re-read the approved Sep22 design: thin transactional
+Activities and fresh domain/revision/tenant safeguards are required; recursive
+historical fingerprint evaluation on every call is an inherited implementation
+choice. Ruling: select a direct, non-recursive current-runtime integrity contract
+for the next coherent Ordered source/signing/delivery/shared-revision batch.
+This is an explicit representation amendment, not a waiver of live body, owner,
+ACL, RLS, trigger, saved-definition or evaluator-integrity checks. Preserve every
+fresh authorization/source/revision and post-wait boundary, historical bytes and
+durable evidence. The expected release must be independently source-bound, never
+learned from a mutable live installation; no positive cache or automatic repin.
+Cost if the finite dependency closure is wrong is a missed drift refusal, so the
+concrete closure/design must be reviewed before implementation and grouped
+adversarial/equivalence/product acceptance must pass before use. No production
+change or speedup is claimed. Evidence:
+`p7-worker-enforcement/ordered68-capacity-architecture-decision.md`.
+Root reviewed the complete
+`2026-09-26-ordered-current-integrity-plan.md` and authorized its source-contract
+inventory/partition stage. A separate private schema preserves the old worker
+namespace/checksum instead of silently invalidating its existing catalog gate.
+Executable evaluator/routing changes still require the emitted exact closure
+and mixed-predicate partition review; source inventory is not performance or
+production acceptance.
+
+The source-contract checkpoint now binds the actual current compiler checksum
+e12fb150ebaf718d39883a8e6e3b63caac90fb05409895e0fc832e717ab46960.
+Its draft inventories156 direct declarations and89 installation transformation
+blocks, with the older177-node graph as a cross-check only. This is explicitly
+incomplete: final installed definitions and the full semantic predicate partition
+are still required before evaluator or routing implementation. The earlierff7
+predecessor artifact cannot substitute for this current release. Evidence:
+`p7-worker-enforcement/ordered-current-task1-source-checkpoint.md`.
+
+Installed-worker upgrade preparation now has a frozen four-file, test-only
+catalog-capture overlay against the independently compiled pre-retirement
+reference. It adds fixed historical saved-row/registration selectors and scoped
+structural catalog categories without exporting product or verifier/key rows.
+Grouped structural/artifact-binding REDs99794/34632 preceded GREEN93156
+(API1.005s). Independent review verified the exact overlay, source artifact and
+read-only/ownership/privacy limits with no blocking findings; root read the
+complete report. Native SQL capture, complete from/to comparison, data-preserving
+transition and deployed-client inventory remain unaccepted. This is a local
+reference, not an approved production predecessor or upgrade allowlist.
+Evidence: `p7-worker-enforcement/ordered69-predecessor-capture-preparation.md`
+and `p7-worker-enforcement/ordered69-predecessor-capture-review.md`.
+Exact-overlay compile31788 discovered the new entry (API1.140s). Native45042
+then failed218.383s on stable source with normal owned PostgreSQL shutdown.
+The actual Test child, settlement/no-send recovery and named settled operations
+passed, but the final static catalog serializer refused output; no catalog
+artifact was created. SQL collection and final readiness had completed according
+to the producer report. Root checked the terminal refusal and cleanup log.
+This is an exporter failure, not an accepted upgrade or a failed product effect.
+The fixed error did not preserve which category/type/size check rejected the
+record; diagnosis must add bounded nonsecret reason evidence without guessing
+or relaxing the output contract. No unchanged native rerun is authorized by this
+checkpoint. Evidence: `p7-worker-enforcement/ordered69-predecessor-capture1.log`.
+The two-file safe-refusal diagnostic passed consuming RED82575/GREEN5118 and
+independent scoped review with unchanged SQL, bounds and acceptance predicates.
+Root read that review and approved a standalone catalog-only fixture path with
+the same pre-install adapter registration/profile composition, avoiding another
+engine/recovery rerun for serializer diagnosis. That path is being implemented
+and remains subject to scoped review before a native run. The original cause is
+still unknown. Evidence:
+`p7-worker-enforcement/ordered69-predecessor-export-refusal-review.md`.
+The standalone hook's first independent review found two omitted overlapping
+timing/capture options. That boundary is being corrected before native use;
+the exact frozen source passed root's2802-file plus six-overlay integrity check.
+No catalog-only native acceptance or serializer diagnosis is claimed yet.
+Evidence: `p7-worker-enforcement/ordered69-predecessor-catalog-only-independent-review.md`.
+The overlap correction then passed grouped RED99670/GREEN51971 and independent
+re-review. Native81363 ran only the static capture and joined FAIL58.363s with
+stable source and normal owned PostgreSQL shutdown. It identified the refusal:
+dependencies20943 exceeds the generic20000-row export cap; document19736228
+bytes remains below64MiB. No artifact was written. Root checked the fixed-object
+dependency selector and authorized a dependencies-only32768 test-export bound,
+retaining all records, other20000-row limits and64MiB total. This changes no
+product permission, deadline or policy lifetime. Correction/review and current
+e12 effective capture remain pending. Evidence:
+`p7-worker-enforcement/ordered69-predecessor-catalog-only1-result.md`.
+The dependency-only correction passed RED77105/GREEN50212 and independent
+review with no SQL or product-control change. Native68543 then passed60.423s
+with stable source and normal PostgreSQL shutdown. Root independently verified
+the0600 artifact:19736229 bytes, fileSHA256
+6a6af2cc58ca57524ffe338aea55bc48f1b4d24ffb1b7501c6650b31317d7443,
+exactff7 compiled binding,2318 functions,569 saved functions and20943 dependency
+records. This closes local predecessor export, not a deployed upgrade or the
+currente12 manifest. The matching current capture is next; full data-preserving
+transition and live deployment gates remain open. Evidence:
+`p7-worker-enforcement/ordered69-predecessor-catalog-only2-result.md`.
+Matching current capture is now accepted locally: independent review verified
+exactly three disposable release-pin substitutions, actuale12 artifact binding
+passed and genuineff7 binding refused. Native1401 passed60.061s with stable2807
+baseline files/six overlays and normal PostgreSQL shutdown. Root verified the
+0600 current artifact,19741242 bytes, fileSHA256
+036c92946205f854600cd0ef0e7ebbd1f8bc672c1a5e23d070ef198959abebec,
+exacte12 checksum,2319 functions and570 saved definitions. Task1 can now reconcile
+the actual current effective definitions. Its complete semantic closure and
+specific metadata/global-role coverage gaps remain required before executable
+integrity/routing changes. This is no deployed or performance claim. Evidence:
+`p7-worker-enforcement/ordered-current-effective-catalog1-result.md`.
+The bounded source audit maps concrete uncaptured obligations: retired63/64
+metadata/privilege branches, inventory rule/restore/managed-role checks, and
+global role-selected ownership/grant/default-ACL queries. Root accepted retaining
+the original framed checks at their existing fresh boundaries where the new
+manifest does not represent those facts. This is no permission to cache or omit
+them; retained definitions and frames still require independent binding. It
+avoids a broader export and preserves the check scope. Task1 remains incomplete
+until the actual current closure and full semantic partition pass review.
+Evidence: `p7-worker-enforcement/ordered-current-static-metadata-gap-audit.md`.
+
+Discovery current-profile harness preparation remains component-only. Its
+exclusive preflight refuses before the legacy seeded mode, uses explicit
+read-only LOGIN connections and keeps the shipped runtime gate unchanged.
+Review found unbounded child-output retention during cleanup and a blocking
+FIFO configuration open. Grouped correction evidence is RED6a16ba then
+GREENe938f0 (18/18): bounded retention while a real child keeps emitting,
+nonblocking FIFO refusal and unchanged default child-ownership controls.
+Scoped independent re-review passed both findings; root verified the four final
+source hashes and read the review closure. This is not completed current-profile
+discovery: genuine Stytch sign-in, public integration setup, actual Temporal
+scheduled refresh, stable Agent updates, browser reload, failure retention and
+withdrawal remain required. No native database, browser or paid provider run
+was performed for this preparation. Evidence:
+`p7-worker-enforcement/discovery-current-composition-implementation.md`.
+
+Next connected discovery batch includes the public/browser flow and its actual
+Temporal schedule observations. Ruling: use the existing pinned Go SDK through
+a narrow read-only observer for exact scoped Schedule/Workflow identities and
+bounded start-history metadata; do not add a public observer endpoint, arbitrary
+callback or general Temporal client. Provider change/failure/restore requires
+an authorized external checkpoint followed by independently observed snapshots;
+human acknowledgment is not effect proof. Cost if this choice is wrong is
+harness rework or incomplete observation, never permission to fabricate success
+or activate the closed runtime. The independently releasable source boundary is
+being checked against main: current Temporal repository/profile modules are
+not present there, so standalone wrapper tests do not establish a connected
+release. The harness must refuse absent/closed profiles. No new release passed
+combined review, regression and UI publication gates at this checkpoint.
+
+The connected Kubernetes harness and bounded read-only Temporal observer now
+have a frozen seven-file review packet. The final local Node group passed30/30
+in3.087s and the Go observer group passed0.387s. The entry reports success only
+after the complete observed flow and cleanup; legacy combined-script bytes are
+preserved outside its scoped entry. Independent source review is in progress.
+These checks exercise local boundaries, not real Stytch, provider, browser or
+Temporal acceptance. Runtime remains false, other providers' OAuth acceptance
+is still required, and the observer's main-branch dependency closure remains
+unshipped. Evidence:
+`p7-worker-enforcement/discovery-current-composition-connected-implementation.md`.
+Independent connected review found a Kubernetes setup key/reference mismatch,
+late endpoint validation, missing safe owned-resource cleanup on failure, and
+looser product-ID validation. The source is not accepted for release; one grouped
+correction is underway against the actual API/config/database contracts. No live
+run was attempted. Evidence:
+`p7-worker-enforcement/discovery-current-composition-connected-independent-review.md`.
+The four-finding successor now passes grouped local Node36/36 and Go observer
+checks. It uses the actual Kubernetes reference contract and UUID-v4 grammar,
+shared Go config validation before browser work, and bounded public cleanup of
+receipt-proven owned resources. An unproven provider restoration retains the
+integration needed for recovery after schedule withdrawal; it does not claim
+restoration or delete unrelated resources. Independent rereview is pending.
+No live run, runtime activation or push occurred. Evidence:
+`p7-worker-enforcement/discovery-current-composition-connected-review-corrections.md`.
+Rereview closed the four original findings but found two cleanup-boundary issues:
+the exposed operation accepts a different valid scope/resource, and unscoped404
+can be mistaken for verified absence. Root checked both against the source;
+the grouped correction must bind the exact owned ID/configured scope and require
+fresh scoped read evidence before emitting deletion facts. Source-release review
+remains open. No live cleanup or new production acceptance is claimed.
+The narrow cleanup successor now passes13 affected controls after reproducing
+both failures. Its cleanup capability is private to a CDP isolated world and
+bound once by Node after the scoped creation receipt is verified. Fresh scoped
+session/read proof is required before recording absence; setup and request share
+the original10-second operation budget. Independent review is pending. Evidence:
+`p7-worker-enforcement/discovery-current-composition-cleanup-boundary-correction.md`.
+Independent narrow rereview now closes both cleanup findings with no remaining
+source blocker. Root read the closure and independently matched all eight final
+source/test/helper hashes to the accepted packets. The connected discovery
+harness is source-reviewed local preparation, not a deployed flow or complete
+milestone. Runtime remains false; live Stytch/provider/Temporal/browser evidence,
+main-based dependency integration and approved release scans are still required.
+No unchanged suite was rerun for this hash/review acceptance and no push occurred.
+
+Verified-publication blocker (current source inspection): both main and the
+candidate CI invoke `npm run production:release:gate`. Main still accepts zero
+counters from an offline npm audit; the candidate's reviewed fail-closed repair
+rejects missing fresh exact-lock advisory evidence. A green verified push that
+includes that repair requires an approved scanner-evidence path, not removal of
+the CI step or restoration of false offline clearance. Root requested an
+official-advisory disclosure choice or a private scanner reference while the
+execution, discovery and upgrade batches continue. No scan was run and no
+dependency metadata disclosed by this check. Image scanning remains required
+separately; dependency evidence alone cannot close M8-47. Next releasable batch
+is the current-profile discovery acceptance harness with bounded read-only
+Temporal observations; its exact main dependency closure and grouped review
+are in preparation. Remote main remains e9fc3dd42be3caf1b3efbeeff75272303f818104.
+An offline read-only dependency audit now identifies the exact observer group:
+23 new production files across orchestration, runtimeservices and the command,
+four unchanged domain files, pinned Go module changes and narrow Node wiring.
+The API forwarding fixes also need their current repository/native composition;
+shipping four adapters alone would not establish current-profile support.
+Source hashes in that audit are observations of ongoing work, not a replacement
+for the frozen review packets or a verified main candidate. No test/build/scan
+or network call was made by the audit. Evidence:
+`p7-worker-enforcement/discovery-connected-main-dependency-closure.md`.
+
+Live-provider testing preference: use the cheapest compatible fixed model for
+the tested provider, with bounded output and no automatic expensive fallback.
+The direct OpenAI access check selected gpt-5-nano. User identified OPENAI_API_KEY in the parent
+checkout's .env; presence and direct model access returned HTTP200 without
+printing or copying the credential. One bounded synthetic Responses request
+completed HTTP200 using gpt-5-nano-2025-08-07 (11 input/20 output tokens), but
+its exact-output assertion did not pass. This is credential/model-access evidence
+only, not an application or production-flow acceptance. The shipped planner
+still pins OpenRouter/openai/gpt-5-mini; direct OpenAI access does not satisfy
+that separate integration gate. Production settings and coding-agent models
+are unchanged. Pricing reference: https://developers.openai.com/api/docs/pricing.
+A later read-only check authenticated OPENROUTER_API_KEY through the provider's
+GET `/api/v1/key`, returning200 with key metadata. No model generation was
+requested, and the pinned planner application flow is still unverified. The
+exact deployed ZASP_STYTCH_* configuration and ZASP_PUBLIC_ORIGIN are absent
+from that file, but unprefixed STYTCH_PROJECT_ID, STYTCH_PUBLIC_TOKEN and
+STYTCH_SECRET are present. The project is a Stytch test project, not live.
+A bounded read-only POST `/v1/b2b/organizations/search` with limit1 returned200,
+zero organizations and no next cursor. No provider data was changed, no email
+or login was sent, and credentials were neither printed nor copied. This proves
+provider credential access only: organization setup, configured origin/callbacks,
+real application session/tenant flows and deployed/live acceptance remain open.
+The runtime environment contract still requires its explicit ZASP_* names; no
+automatic production alias fallback or production model change was introduced.
+OpenRouter read-only endpoint reference:
+https://openrouter.ai/docs/api/api-reference/api-keys/get-current-api-key.
+The actual application planner adapter now has an explicit opt-in live test
+(`TestSecurityAgentPlannerLiveBoundedProvider`), disabled in normal test runs.
+Public model/endpoint catalog inspection selected `mistralai/mistral-nemo` as
+the lowest-priced fixed model compatible with the existing model-name and
+structured-output contract. Free variant suffixes fail the existing model-name
+contract, and routing aliases do not preserve the exact returned-model identity;
+neither validation was weakened. The test uses512 output tokens, synthetic
+scope/evidence, the actual production TLS transport and privacy settings, and
+one request without model fallback. It does not change the production planner pin.
+Immutable bX8H1C (2699 stable files) confirmed default skip1.149s, then the explicit
+live attempt failed1.515s: one request returned HTTP402 and planner_unavailable,
+without usage or a model response. A read-only key check still returned200,
+is_free_tier=true and no per-key limit. This is an external OpenRouter
+credits/billing gate, not successful provider generation or a test bypass.
+No retry, credit purchase, production configuration change, secret/body logging,
+or availability promotion occurred. Evidence: `planner-live-opt-in-default.log`
+and `planner-live-cheapest-provider.log`, with their shared source manifest.
+Provider error reference: https://openrouter.ai/docs/api_reference/errors-and-debugging.
+Independent source review of the opt-in live planner test found no blocker;
+the external402 is retained as a failed generation attempt, not converted to a
+passing test or hidden by a fallback.
+
+Fresh Stytch test-project session acceptance then passed in2119ms using the
+existing disposable-session/JWT proof and exact SDK14.2.0, with an explicit
+5000ms SDK request timeout. The proof created its own password-only organization,
+migrated a generated synthetic member password, authenticated a real60-minute
+session, validated its JWT locally with a deliberately invalid remote secret,
+and validated the same JWT by forced remote authentication with the real test
+credential. Exact organization/member/session identities matched throughout.
+The proof deleted only its nonce-owned organization in finally cleanup; no email
+was sent and no existing users were modified. Source hashes were unchanged:
+session proof `856a3c14a7810780abc2768cccbbf71013c3ec6e5d78466ccf74c5158161a29f`,
+JWT proof `93ed34ff393c83e7e9d41ea7d552ed00ac98b52d4ec410e98fad14716d1e2c02`.
+This is real Stytch Test provider/session evidence, not a production project,
+deployed browser login, current tenant bootstrap, or protected product API proof.
+The missing explicit deployed configuration/origin and those end-to-end gates
+remain open. No ledger availability row was promoted.
+
+The actual Go Stytch session adapter now passes an opt-in real-provider check,
+not just the SDK proof. Immutable zBU5iS (2704 stable source files) compiled
+`TestStytchLiveSessionAdapter`; the default invocation skipped without network
+access. Explicit execution accepted a fresh Test-project session and preserved
+its exact organization/member/session scope and validity, rejected a changed
+signature (active group0.40s), then rejected the same JWT after revoking only
+that disposable session (revoked group0.15s). Refusal assertions require an
+actual provider4xx response, so timeouts or connectivity failures cannot pass.
+The lifecycle completed2472ms and deleted its nonce-owned organization. Secrets
+were read in memory from the parent .env and passed only in the child environment;
+no credentials, response bodies, JWTs or principal identifiers were logged.
+The test uses the production Go adapter and real TLS endpoint with5s requests,
+and its independent source review found no blocker. Evidence and source hashes:
+`p7-worker-enforcement/stytch-live-session-adapter.md` and adjacent snapshot JSON.
+This closes the post-exchange session boundary against Stytch Test. It does not
+prove the OAuth browser exchange, native tenant/session issuance, protected APIs,
+or deployed revocation propagation. Production code and availability rows are
+unchanged. Read-only caller tracing found the old in-memory BootstrapService and
+FreshAuthGuard constructors have no production callers; their unimplemented
+driver methods are not treated as evidence of a failure in the current native
+identity path, nor are they claimed complete.
+
+Current worker batch remains unshipped. Independent review of the proposed
+retained policy-writer changes found a schema/organization lock-order inversion:
+the new organization entry preceded an existing downstream shared migration
+fence. Both helpers now acquire that shared fence first, with grouped native
+contention checks still pending. Cohort selection was checked against the actual
+installed claim/cleanup bodies; no original action or cleanup predicate was
+removed. The valid runtime timing diagnostic58688 also isolated repeated
+same-call catalog validation: planning preparation exhausted the unchanged10s
+request budget after authorization5.478s and native preparation4.522s. Counted,
+owner-only inner readers now remove only checks enclosed by unchanged outer
+entry/exit fences; source locks, rereads, expiry and the final native proof remain.
+Root reviewed the exact substitutions. Retained/configured acceptance and drift
+refusals are still required; no performance success, production promotion or
+push is claimed. See `ordered68-root-source-review.md` and
+`runtime-ancestry-timing-fixed-native.log` in the P7 evidence directory.
+
+The Ordered policy signing consumer is now connected to the real worker
+operation/check-shape dispatcher. Grouped RED exposed all five missing routes
+and a generic three-check fallback that accepted weakened destination authority
+while rejecting complete compositions. Two narrow hooks use the existing fixed
+policy helpers; ordinary Execute still refuses signing before database access.
+Grouped signing/policy/effect tests passed0.851s. The full authorization package
+then exposed one obsolete planner-test staging expectation; it now rejects an
+unknown operation and explicitly asserts planning/signing separation. The final
+full package passed2.991s with independent source review. This is local Go
+consumer evidence only. Native SQL signing, actual private-key access barriers,
+delivery and complete Ordered execution remain pending. Evidence:
+`p7-worker-enforcement/ordered68-policy-dispatch.md`. No row promotion or push.
+
+September26 signing integration checkpoint: the named worker constructor now
+uses independent public verifier material and a lazy private-key callback after
+binding the actual worker authorization profile. Readiness does not read private
+keys; a changed public-file digest requires restart, and the callback refuses a
+private key outside the pinned public set. A configured verifier cannot silently
+fall back to the legacy profile. Grouped helper/config RED preceded implementation
+(initial missing-helper compilation is not behavior evidence). The final affected
+Go group passed1.060s, covering verifier file refusals, configuration, lazy signing,
+cancelled/invalid inputs and existing local Temporal product/runtime cases.
+Independent source review found no blocker. Actual native constructor/signing
+transactions and the connected Ordered policy consumer remain pending; this is
+component evidence, not deployed authorization proof. No availability promotion.
+
+The ancestry/pricing native group75129 terminated289.026s with stable source
+hashes and normal owned PostgreSQL shutdowns. Retained-source planning passed
+134.45s through settlement and accounting, but configured-runtime signed load
+remained unavailable after its earlier activation/source checks. Normal planner
+acceptance was not reached under fail-fast. The repeated full group is stopped;
+the next diagnostic isolates this configured path without weakening its10s
+deadline or catalog/authorization fences. Evidence: runtime-pricing-inner-native.log
+on immutable B3qtSH. This is not full performance or launch acceptance.
+
+Projection completion now has a genuine consuming concurrency RED,90156:
+151.137s package/149.96s case, normal owned PostgreSQL shutdown. All12 cases
+reached the actual organization wait after validating12 independent native seed
+sets and36 fresh projected event identities. Current precise, sandbox and v1,
+plus the still-granted historical public v1, acquired stage/event/summary locks
+before organization authority. Every expiry/revocation case also completed
+after its lease expired or coordinator binding was removed during that wait.
+Unchanged completion and exact replay otherwise succeeded. Earlier fixture
+failures are not counted as this RED. Root inspected the consuming failure log
+`p7-worker-enforcement/runtime-projection-writer-red.log`; a four-entry
+organization-first/post-wait authorization repair now passes its consuming
+native group70103:168.205s package, stable5369-file VSuDsr candidate and normal
+owned PostgreSQL shutdown. All four entrypoints preserve unchanged completion
+and exact retry, reject expiry/revocation after actual organization waits, and
+avoid taking stage/event/summary mutation locks before organization authority.
+Six private-entry denials and nine catalog mutations also passed, including the
+historical public writer and a forged public40 wrapper returning the same
+fingerprint. Root reviewed source and terminal log
+`p7-worker-enforcement/runtime-projection-writer-green.log`. This verifies the
+bounded retained component; the newest Ordered installer was deliberately
+excluded, so combined-current and deployed acceptance remain open.
+
+The Ordered Go consumer now routes12 fixed effect/application/cleanup/delivery
+operations through authorization without a raw-database fallback. Named-profile
+source/renew/store uses Authorize then the locked SignOrderedPolicy transaction;
+the existing repository still verifies delivery readback before acknowledgement.
+Actual legacy-key-read RED and grouped missing-route RED preceded implementation.
+Final affected Go group38036 passed1.519s after correcting an invalid test key ID;
+that fixture failure is not product evidence. Independent review found no blocker
+in the closed request/phase routing. This is not a positive native flow: scope
+capture/projection initialization, native non-signing fences, application.complete
+accounting and69 lifecycle authorization remain required. Completion refuses until
+its authority is reviewed, and the production worker profile remains disabled.
+
+The next connected Go change adds the missing forward scope-capture bridge:
+Apply prepares the native reserve identity before reserve/start, and forward
+source/store prepares its exact native policy operation before authorization.
+The bridge admits only those three fixed operations, refuses compensation and
+adapter/discovery modes before IO, and does not itself authorize an effect.
+Grouped RED5337 exposed missing capture dispatch; affected authorization/worker
+checks7267 passed0.828s/1.200s. Native initialization and projection catch-up remain
+unverified, and pre-delivery composition capture needs its separate native
+contract. The completion audit confirms forward authority is required because
+the operation creates an active control and advances a step, in addition to
+writing receipts. No raw fallback or authority downgrade is introduced.
+
+Workflow lifecycle integration exposed a connected dependency: the planning
+profile deliberately narrows68.status to planning data, while69.inspect still
+requires full internal status. The new native lifecycle must use an exact private
+retained-status copy behind its own proof, not expose full status through planning.
+The Go consumer now routes actual inspection, stop and committed-message calls
+through fixed captured-compensation operations with closed4096-byte requests and
+no raw fallback. Notifications validate already committed decisions; they grant
+no forward execution. RED32586 exposed all three missing mappings and an actual
+raw Notify database call. Final grouped80637 passed1.350s, including foreign
+scope, duplicate/invalid identity, extended payload and no-fallback checks;
+independent source review found no blocker. Native bootstrap/equivalence and
+revoked/terminal flows remain unverified. The planned new message entry uses a
+private exact clone with compensation role, without widening the historical
+executor-only public grant. Old current-profile lifecycle grants retire only
+after equivalent new-entry acceptance with live ACL checks. Production startup
+remains disabled and all728 availability classifications are unchanged.
+
+Configured-runtime diagnostic69083 confirmed the failure mechanism without
+changing the10s deadline: authorization succeeded in7.809s and the native load
+timed out after2.191s, with all14 permission checks allowed and no SQL refusal.
+The137.863s group had stable source and normal PostgreSQL shutdown. A counted
+owner-only context-reader repair now removes duplicated same-call catalog checks
+inside unchanged entry/exit fences; root reviewed its exact load-plan projection.
+Native verification is pending. Evidence: runtime-pricing-inner-diagnostic.log.
+
+The subsequent mapped runtime repair passed the full affected native group13271
+in435.939s on immutable eu9CVB, with stable source and three normal owned
+PostgreSQL shutdowns. Retained planning124.12s, configured runtime196.70s and
+ordinary planning114.17s all passed. The configured case exercised activation,
+occurrence-to-Test ownership, signed planning/admission/accounting and projection
+catch-up. Its signed load took7.267s and admission9.640s within the unchanged10s
+operation deadline; admission has little margin and combined-current acceptance
+remains required. Fixed owner-only inner grant readers retain native principal,
+grant/history/target and audit checks. Only the trusted runtime path uses them,
+inside existing catalog entry/exit checks; other trigger kinds keep their original
+grant readers. Private-entry and catalog-drift refusals passed. Root inspected
+the source and terminal log `p7-worker-enforcement/runtime-grant-inner-scoped-native.log`.
+This is local native application evidence with controlled planner responses,
+not HTTPS provider, Temporal workflow, deployed UI or production proof. The
+newest Ordered installer is outside this snapshot. No availability promotion.
+
+The connected Ordered Go batch now registers eleven ordinary application,
+cleanup and delivery operations with fixed forward/captured purposes. Current
+effect, signing and ordinary operations share a request-local revision interval
+while still checking every user and run-service permission, then rereading native
+source and revision before the locked execution proof. Full authorization88004
+passed3.356s after grouped RED; independent review found no scoped mapping or
+revision defect. Review did find the staged product completion refusal. It now
+routes closed empty-payload application.complete through current forward
+authorization, including replay; grouped route RED68032 preceded GREEN92610
+1.166s. The newly specified apply-delivery preparation captures actual native
+composition before authorization, never under captured compensation. Its missing
+dispatch RED34530 preceded grouped GREEN80457 0.766s; adapter checks11923 passed
+1.216s. Root inspected the caller changes. Native capture ordering and connected
+signing/delivery/completion/cleanup acceptance remain open, so startup stays
+disabled and no component result is promoted. Evidence:
+`p7-worker-enforcement/ordered68-domain-revision-checkpoint.md`.
+
+Downstream caller audit confirms Block delivery is not the end of this batch:
+actual Advance still calls native68.progress directly; the ordered Test runner
+still uses legacy status/linked/settlement/stop paths, and its adapter journal
+selects native68.invocation. Existing test74 authorization does not cover these
+distinct ordered68 operations. Their retained native contracts include successor
+approval, one send permit, artifact/journal settlement and ambiguous-outcome
+recovery. The next connected boundary is recorded in
+`p7-worker-enforcement/ordered68-downstream-execution-audit.md`; no operation is
+silently reclassified as compensation. The runtime profile remains disabled
+until the complete flow passes. Independent review of the current Go preparation
+and completion adapter found no source blocker; actual native capture ordering
+is still pending. No original task classification changes.
+
+Connected policy acceptance review now requires exact refusal classes: premature
+completion, acknowledgement before stored readback and early cleanup completion
+must return conflict; completion after requester revocation must return denied.
+Unavailable dependencies, cancellation and deadlines cannot satisfy those cases.
+Each refusal compares native effect, receipt, delivery, target, audit, step, run,
+control, bundle and deployment-work evidence before and after, and rejects any
+signing callback. Cleanup uses its retained cleanup-envelope verifier. Root
+reviewed the complete helper after these corrections; native execution is still
+pending. The combined migration now embeds effect targets, effects, policy,
+ordinary operations and lifecycle readers with exact independent trigger
+fingerprinting. Assembly is not installer acceptance. An installer-only fixture
+separates real readiness/catalog checks from the retained writer finish fixture,
+whose missing deployment acknowledgement must still be resolved through the
+actual deployment protocol. No runtime enablement, push or availability promotion
+is justified by this checkpoint. The downstream Test execution/settlement
+contract is being prepared independently while combined acceptance proceeds.
+
+Combined native installer acceptance now passed55.996s on immutable i2n6b1:
+all2730 source hashes remained unchanged and the owned PostgreSQL process shut
+down normally. The complete targets/effects/policy/ordinary/lifecycle modules
+installed with current readiness true and runtime enablement false. All seven
+writer catalog mutations and ten exact new-trigger disable controls refused
+drift. Root inspected the terminal log and independent trigger fingerprints.
+Evidence: `p7-worker-enforcement/ordered68-connected-catalog1.log` and its source
+manifest. This closes combined installation only; signed policy behavior and
+lifecycle equivalence still need their consuming native flows. The same snapshot
+is selected for policy acceptance without repeating the installer-only group.
+Lifecycle review also corrected foreign-scope assertions that accepted any error
+and a revocation setup that did not check affected rows. Updated assertions
+require the retained conflict class and exactly one active requester revoked;
+their new native acceptance is pending. No production availability promotion.
+
+The consuming policy attempt74255 failed105.590s on that stable snapshot before
+any signed effect: the actual allowed62 approval API returned503 at its existing
+deadline, with revision delta0. Human authorization took733ms and decide_resource
+used the remaining4180ms. Catalog/body/ACL and proof/credential expiry controls
+passed, but they do not prove application or cleanup behavior. Root inspected
+`p7-worker-enforcement/ordered68-connected-policy1.log`; unchanged retries and
+deadline increases are not the next action. An opt-in owned-database function
+timing diagnostic will measure the nested approval call graph without changing
+its catalog or authorization semantics. Lifecycle acceptance can proceed on its
+independent preplanning fixture while this approval prerequisite is diagnosed.
+
+The downstream implementation contract is now
+`p7-worker-enforcement/ordered68-test-execution-contract.md`. First Test settlement
+retains current-forward authority and original approval/containment checks;
+captured completion can finish an already-started category journal, replay an
+existing exact settlement, or preserve conservative unknown/stop and cleanup.
+It cannot convert a revoked first settlement to success. Root review identified
+a progress bootstrap issue before step1 delegated scope exists. Ruling: progress
+checks definition and parent-run manage_workflows for both grantor and task,
+using the existing admission/state projection, because it creates a successor
+approval and cannot send a Test. Human approval and the eight current Test/target
+checks remain required before dispatch. No new grant is seeded; pending projection
+refuses and retries. A dedicated closed progress shape preserves the stricter
+existing execution shape. Native transition, receipt requirements, blocked
+outcome and version/audit checks remain authoritative. The cost if this mapping
+is wrong is a blocked transition or an authorization defect, so the connected
+successor-approval and denied-send cases must verify it before enablement. The
+connected runner, adapter and settlement implementation is in progress, not
+accepted.
+
+Lifecycle connected1 finished200.379s with unchanged snapshot hashes, but the
+group failed: four queued-source lock-order assertions treated every parent
+relation lock as a row/mutation lock. The committed-cancel branch passed its
+eleven inspect/message/revocation/stop/replay/terminal/foreign cases within the
+existing10-second operation limits. Queued private-entry, proof, catalog,
+retained-admission and expiry controls also passed. These partial results do not
+close lifecycle acceptance: the queued failure prevented its later replay and
+terminal checks. A focused source-wait diagnostic now records exact lock types,
+modes and ownership without changing SQL or relaxing the assertion. Evidence:
+`p7-worker-enforcement/ordered69-lifecycle-connected1.log` and its source manifest.
+The earlier `ordered62-approval-diagnostic.log` is a different pre-combined run;
+it cannot be used to clear the current policy1 approval deadline failure.
+
+The focused lifecycle lock witness84550 then finished52.403s with stable source
+and normal PostgreSQL shutdown. All four cases showed exactly one granted
+relation AccessShareLock on the parent run, with no tuple/page or mutation-intent
+lock. Root inspected the exact witnesses in
+`p7-worker-enforcement/ordered69-lifecycle-lock-witness.log`. This establishes
+overreach in the test predicate, not a production lock-order repair. The fixture
+will permit only that read-only relation mode while still rejecting every other
+mode and tuple lock, including ungranted locks; a controlled parent row-lock
+case must prove the detector remains effective. Queued replay/terminal and the
+corrected wait controls still need acceptance. Production SQL is unchanged.
+
+Current approval timing diagnostic12842 reproduced the503 in109.434s on stable
+i6TXvN (accepted combined snapshot plus two test-only diagnostic files). The
+final mutation used657ms in human authorization and4263ms in decide_resource
+before its unchanged deadline, with no revision change. PostgreSQL function
+counters measured517 worker catalog checks and5651ms self time across the final
+HTTP pipeline, including its classification calls. Nested inclusive times are
+not additive and these counts do not describe only the final SQL statement.
+This establishes repeated readiness traversal as a measured optimization target;
+no production fix or acceptance is claimed. Root inspected
+`p7-worker-enforcement/ordered62-current-approval-stats2.log`, including stable
+hashes and normal owned PostgreSQL shutdown. The planned repair must use exact
+private nested calls under unchanged entry/exit, session, proof and row guards;
+no readiness cache, public skip switch or deadline extension is authorized.
+
+Queued lifecycle50110 now passed115.583s on the accepted combined source with a
+test-only overlay, stable hashes and normal PostgreSQL shutdown. Root inspected
+`p7-worker-enforcement/ordered69-lifecycle-queued3.log`: both real row-lock
+discriminators, all four source waits, proof expiry after wait, revocation,
+stop replay, terminal inspection and foreign-scope refusal passed. Operations
+kept10-second limits; stop took8.024s and other successful calls6.182–6.341s.
+The principal wait accepts only42501 or the exact40001 retained-owner refusal:
+native68 RLS hides the parent after NOINHERIT, before the final principal check.
+Timeouts/unavailability cannot satisfy it. Combined with the prior committed-
+cancel branch, this accepts preplanning lifecycle behavior locally. Planning-
+active/admitted/effect-bearing stop and approval-message equivalence remain open;
+legacy69 grants have not been retired and no production row is promoted.
+
+Source review accepted the bounded approval-inner draft: only decide_resource's
+recursive fixed-decide path uses owner-only copies with local62 checks; the
+public full readiness checks still bracket it. Public ready/direct decide and
+native transition guards stay unchanged. The draft requires installer and
+consuming approval/policy evidence before it is accepted as a repair.
+
+The consuming approval/policy run85257 then finished with a failure118.261s on
+immutable qbBnJp (2733 stable files, normal owned PostgreSQL shutdown). The
+allowed approval committed with a698ms human fence and3609ms decide_resource;
+exact replay committed with a629ms fence and1270ms decide_resource. The
+original5s request deadline stayed unchanged. Private helper access, wrong
+operation, body/ACL/pin drift and proof/credential expiry controls passed.
+The connected flow then failed at the first actual worker prepare for
+`ordered68.effect.reserve`, with an authorization revision conflict before
+reservation or send. This accepts the approval repair locally, not the whole
+policy flow. The next diagnostic must identify the native conflict boundary;
+an unchanged retry cannot close it. Evidence:
+`p7-worker-enforcement/ordered62-private-approval-green1.log` and its snapshot
+manifest. No task availability promotion or push occurred.
+
+Loaded-planning recovery then passed locally84.266s on immutable tG8OIE,
+accepted i2n6b1 plus two test-only overlays, with stable hashes and normal
+owned PostgreSQL shutdown. The fixture created its planning job through the
+actual signed load operation, revoked the requester, then used named69
+inspect/stop/replay/terminal inspection. All operations stayed within their
+original10s bounds (first stop8.974s). It verified needs_human termination,
+one terminal audit and stop receipt, no provider reservation/admission/effect,
+and unchanged run/job/audit/stop evidence on exact replay. No provider call was
+made. Evidence: `p7-worker-enforcement/ordered69-lifecycle-planning1.log` and
+its snapshot manifest. This extends local lifecycle evidence to loaded
+planning only; admitted execution, full downstream recovery, deployed
+acceptance and retirement of old grants remain open.
+
+The single-call reservation diagnostic14817 narrowed the next execution
+failure: `prepare_ordered68_effect` returned SQLSTATE40001 in1399ms with
+`ordered provider authority changed`. Run109.170s used stable d1qQWp, exactly
+two test-only overlays over the repaired approval candidate, and normal owned
+PostgreSQL shutdown. The label comes from retained current_plan's settled
+provider-reservation/digest check, not a timeout or an OpenFGA Check denial.
+The diagnostic logs only bounded static migration error labels and never
+request bodies or credentials. Approval/replay still committed. Evidence:
+`p7-worker-enforcement/ordered68-effect-prepare-trace1.log` and its snapshot
+manifest. The specific failed provider predicate is under investigation;
+the guard remains unchanged and the connected flow remains unaccepted.
+
+Read-only diagnostic60322 then proved the cause on the same admitted data:
+the provider row exists, is settled and has no outstanding reservation. Its
+full-row digest matches the plan in the original session timezone and differs
+under UTC. The new effect metadata reader forces UTC around the retained
+validator, changing timestamp serialization. Stable Nye6nO failed108.376s,
+with normal PostgreSQL shutdown and no data mutation; the diagnostic
+transaction rolled back. Evidence:
+`p7-worker-enforcement/ordered68-effect-provider-trace2.log` and its manifest.
+Repair must preserve full-row provider evidence and supported existing plans;
+neither disabling the guard nor rewriting accepted digests is authorized.
+
+The bounded timezone repair is implemented and source-reviewed: seven new
+authority wrappers now inherit their caller timezone; a private pure typed-row
+serializer retains UTC only for transient proof metadata. Native current_plan,
+admit, provider rows, accepted digests and captured JSON remain unchanged.
+Grouped assembly61918 passed6.203s after the missing-leaf/override RED.
+Native consumption and provider-tamper results follow below. This
+restores the inherited-session contract; it does not establish cross-timezone
+portability for historical plan digests that lack a recorded serialization zone.
+
+Consuming run17946 accepted the repaired provider boundary and actual Block
+reservation/start locally. Unchanged registered-principal preparation passed;
+ordinary-field and timestamp-instant corruption each reached the exact native
+provider40001 refusal, with full evidence restored by rollback. Typed-row
+serialization matched across LA/UTC without changing captured JSON strings.
+Actual signed reserve took4.559s authorization plus2.231s execution, and start
+4.636s plus2.245s, inside their original10s bounds. The next application.read
+failed during authorization after1.090s, before execution/signing, and needs
+its native error identified. Run126.369s on stable8TtVa2 ended with normal
+PostgreSQL shutdown; the new downstream Test module was excluded. Evidence:
+`p7-worker-enforcement/ordered68-provider-timezone-green1.log` and its manifest.
+This accepts the timezone repair through reserve/start, not full policy
+delivery, cleanup, combined installation or production readiness.
+
+Exact-query trace7057 reproduced the next boundary on stableVOW3pn:
+reserve and start passed, followed by application.read authorization failing
+with PostgreSQL42702 (ambiguous reference) after1.269s. Source inspection
+found the ordinary-source aggregate's SQL alias `t` colliding with its
+PL/pgSQL row variable `t`. No application execution or signing occurred.
+Run127.772s ended with normal owned PostgreSQL50040 shutdown; provider
+unchanged/tamper/canonicalization controls passed. Evidence:
+`p7-worker-enforcement/ordered68-ordinary-source-trace1.log` and its manifest.
+The alias-only repair is implemented and reviewed against the failing snapshot;
+authority predicates and evidence ordering remain unchanged. Its supplemental
+connected-source guard failed on the original collision, then grouped check88386
+passed6.395s. Isolated8RfdXU preflight4465 passed migration checks3.039s and
+API compilation1.006s, with stable files. Native consumption of that repair is
+recorded below; acceptance of application, delivery and cleanup remains open.
+
+Native consumer7771 passed application.read with the alias repair
+(5.771s authorization plus3.948s execution). The following application.source
+reached signing begin, then signing store hit the unchanged10s operation
+deadline:5.718s authorization plus4.283s execution. Query traces recorded
+prepare-policy1.854s, two policy-source reads1.673s/1.759s, begin2.289s and
+store cancellation after1.992s. No signed store commit is accepted.
+The run failed150.622s with stable8RfdXU and normal PostgreSQL52457 shutdown.
+Evidence: `p7-worker-enforcement/ordered68-ordinary-source-green1.log` and
+its manifest. The next investigation is repeated verification work within
+this signing transaction; no timeout increase or unchanged retry is approved
+as a substitute for meeting the existing bound. Delivery and cleanup remain
+unverified, as do maximum-target timing and direct-native signing negatives.
+
+Signing diagnostic14379 isolated one original application.source attempt on
+fresh registered sockets, restored role defaults before execution, and checked
+zero prior counters. It recorded568 worker catalog checks with5.750s self time,
+15 native68 readiness calls and three revision checks. Native readiness time
+includes nested calls and must not be added to the catalog time. The exact
+17 installed function definitions/owners/ACLs were captured. The original10s
+deadline still failed; run148.628s ended with stablebzBSZO and normal owned
+PostgreSQL shutdown. Evidence: `p7-worker-enforcement/ordered68-signing-counts2.log`
+and `ordered68-signing-counts2-installed.json`. This identifies repeated
+catalog traversal as a measured bottleneck, not acceptance performance.
+A bounded same-call optimization is next; cross-call trust caching, weaker
+revision checks and longer timeouts are not substitutes for verified behavior.
+
+The signing-only inner-call optimization is implemented and passed root and
+independent source review. Seven private clones share complete external
+source/begin/store readiness brackets; counted nested readiness calls become
+worker-catalog checks. Three owner-only native store copies use the private
+read-only effect clone. Proof authentication, current revision and source
+comparison, row locks, MAC/input checks and expiry checks remain intact.
+All helper bodies/owners/ACLs remain covered by the final worker fingerprint.
+This is source-review acceptance only: native private-call/drift/after-wait
+controls, signed store success and the connected flow are still required.
+
+Candidate60965 failed before reaching signing: application.read took6.522s
+authorization and was cancelled after3.479s execution at its original10s
+bound. All eight new private-helper checks and24 body/ACL/owner rollback
+drift controls passed, along with approval/replay and provider controls.
+Run144.660s used stableKMDvpV and normal owned PostgreSQL shutdown.
+Evidence: `p7-worker-enforcement/ordered68-signing-inner-green1.log` and its
+manifest. The signing optimization is not behaviorally accepted. Prior read
+acceptance had only281ms of margin; the expanded catalog and repeated shared
+verification require a connected-path reassessment, not another unchanged
+retry or a longer timeout. Catalog growth is a source-supported performance
+concern, not an independently isolated timing measurement in this run.
+
+Installer-only capture98212 passed52.885s on stable9EpAuo with normal owned
+PostgreSQL59656 shutdown. It retained2,265 installed application function
+definitions and static catalog pins, without verifier keys or product rows;
+artifact SHA256 is720683fb7646085a2ecc226746cb3a71d9dd24d296a6ab2103cbf0d36573bb7c.
+Evidence: `p7-worker-enforcement/ordered-readiness-closure1.log` and
+`ordered-readiness-closure1-installed.json`. The initial lexical readiness
+graph has112 nodes/143 edges, but an unresolved reference and dynamic bodies
+still need manual resolution. A fixed same-invocation evaluator with shared
+materialized catalog expressions is being investigated; equivalence and
+performance are unproven. No cross-request cache or fingerprint semantic
+change is accepted by this capture, and no product flow ran in it.
+
+Follow-up source review resolved the long identifier using PostgreSQL's
+63-byte identifier limit and found omitted unqualified public function calls.
+The corrected lexical graph has177 nodes/216 edges with no unresolved static
+names; optional SQL branches still require separate review and remain opaque.
+Evidence: `p7-worker-enforcement/ordered-readiness-closure1-graph-complete.json`,
+derived from the same captured artifact above. The selected candidate changes
+only the existing77.base67_fingerprint expression, sharing repeated live
+catalog checks within one invocation while retaining other-owner leaves and
+the original query for other effective roles. This is an implementation
+direction, not accepted equivalence or performance. Required checks include
+unchanged fingerprint bytes, expanded-leaf body/owner/ACL drift, effective-role
+isolation, parameter/empty-input semantics and connected forward execution at
+the original deadlines. No production classification changes follow from
+this dependency analysis.
+
+The shared computation is now embedded at the end of the worker profile,
+before its final registration fingerprint. Review of emitted SQL caught a
+generator replacement-string bug: JavaScript expanded the SQL regex's dollar
+suffix token and duplicated the DO-block tail. No native run used that draft.
+Callback replacement and exact tail/fallback checks repaired the generator;
+it and its input contract now live in `services/platform/migrations/tools`.
+Root's Node22 run60218 passed all seven generator checks in4.320s using the
+retained capture, including frame/parameter/overload refusals. The repaired
+SQL SHA256 is7fff3a927895223b3672f279eb07f3116a61599ff17cb67669b05c3ec8cb3b67.
+This verifies generation only. Native installation, fingerprint equivalence,
+drift refusal and connected execution timing remain open.
+
+Native candidate72993 failed during installation with SQLSTATE42601 near
+WITH at internal position96511. Run49.934s/test49.06s used stable syTbk3
+(2,745 files), and owned PostgreSQL65800 shut down normally. The emitted
+query concatenated its materialized CTE list directly with the original
+root's own WITH clause. The log confirms the missing scalar SELECT boundary;
+no equivalence control or product operation ran. Evidence:
+`p7-worker-enforcement/ordered-readiness-graph-green1.log` and its snapshot
+manifest. Correcting query composition is required before a new candidate;
+unchanged reruns or longer deadlines cannot address this failure.
+
+Corrected composition1fa5fa6c passed native installation in90367. Both clean
+effective-role fingerprint comparisons and same-result body/ACL/owner/config
+drift-fallback controls passed. The run then failed in the saved-row test
+setup: its UPDATE was correctly rejected by the immutable trigger (55000),
+before that comparison or forward execution. Run57.702s/test56.84s used stable
+4rEtSJ; PostgreSQL66981 shut down normally. The fixture now checks the exact
+trigger, disables it only for its rollback-only owner mutation and restores
+it before checking catalog refusal, so trigger drift cannot explain refusal.
+Compile16677 passed1.171s and independent review found no control-scope issue.
+Evidence: `p7-worker-enforcement/ordered-readiness-graph-green2.log` and its
+manifest. Saved-row/argument controls and connected timing still need a run.
+
+Native8643 accepted the complete local policy flow in206.966s/test205.69s
+on stable Nb6uLZ (2,745 files), with PostgreSQL67776 shutting down normally.
+All original/fused role, live/saved drift and parameter controls passed, as
+did expiry-after-wait and provider-evidence controls. Real approval,
+reserve/start, signed application source/delivery, verified readback/ack,
+application completion and exact replay passed. After requester revocation,
+forward completion was refused and captured cleanup source/delivery/completion
+and replay passed without fresh forward checks. Exact signing/cardinality
+assertions passed and runtime_ready remained false. Representative operations
+fit the unchanged10s bound: application read5.466s, source4.320s, delivery
+store4.469s and completion5.556s. Evidence:
+`p7-worker-enforcement/ordered-readiness-graph-green3.log` and its snapshot
+manifest. This accepts the shared readiness repair and connected Block flow
+locally; actual Test engine settlement/recovery, applied69 cleanup recovery,
+raw-grant retirement and deployed-provider/browser gates remain open.
+
+Committed-approval lifecycle acceptance99949 passed137.983s on stable2JhCFi,
+with normal owned PostgreSQL shutdown. After an actual checked HTTP approval
+and replay, named69 message handling preserved the committed command and
+receipt, including after requester revocation. Admitted stop, exact replay
+and terminal notification preserved their evidence; operations stayed within
+10s (first stop8.368s). No effect was created. This proves admitted/no-effect
+recovery locally, not Block/Test cleanup after an external effect. Evidence:
+`p7-worker-enforcement/ordered69-lifecycle-approval1.log` and its manifest.
+
+Block lifecycle run54040 passed338.619s on stableK09UpC with both owned
+PostgreSQL processes shut down normally. Separate real producer flows reached
+reserved and started Block effects before requester revocation, then checked
+inspect, stop, exact replay and terminal inspection. Native effects, legacy
+receipts and planned targets were preserved, with one stop transition and no
+fabricated application receipt, delivery or control. Every operation remained
+under its original10s deadline, but the started stop took9.948s, leaving only
+about52ms of margin. This is local recovery acceptance, not production load
+or performance readiness. Actual signed delivery, downstream Test execution
+and post-delivery cleanup still require acceptance. Evidence:
+`p7-worker-enforcement/ordered69-lifecycle-block1.log` and its manifest.
+
+The downstream Test Go batch now connects Advance and Test to the signed
+database adapter and composes the two fixed adapter journal families. Scoped
+review found no blocking Go issue. Grouped check72369 passed authorization,
+journal, worker and adapter-command cases, including tenant binding, exact
+routes, partial configuration refusal and preparation-before-execution.
+`p7-worker-enforcement/ordered68-test-downstream-go-checkpoint.md` records
+the exact command, terminal output and native-test skip limits. SQL assembly,
+actual runner/artifact settlement and post-dispatch recovery remain pending;
+this is component evidence only. Availability classifications stay unchanged.
+
+Independent downstream SQL review found one installation blocker: the new
+test_stop copy searched for a nested read call containing an explicit payload,
+while the retained function's call contains only operation/read. Installer62007
+confirmed the counted-substitution refusal (SQLSTATE55000) in50.903s on stable
+soy69t,2749 matching files, normal owned PostgreSQL shutdown. No native Test
+entry was accepted by this attempt. Evidence:
+`p7-worker-enforcement/ordered68-test-downstream-installer.log` and its manifest.
+The required correction is the exact stop-copy anchor, preserving its native
+empty-payload check and signed authorization. The independent review found no
+other blocking issue in the reviewed authority split and private-call closure;
+that source result is not native execution proof.
+
+The exact stop-copy correction then passed combined native installation29682
+in53.748s on stable0ZQu7x (2749 files), with normal owned PostgreSQL shutdown.
+All11 private helper owner/ACL checks,8 rollback catalog-drift refusals and
+unsigned entry checks using the correct registered principals passed. The
+restored catalog/current profile is ready; runtime readiness remains false.
+Evidence: `p7-worker-enforcement/ordered68-test-downstream-installer-anchor.log`
+and its manifest. This accepts installation/catalog protection only. Actual
+Test approval, dispatch, artifacts, settlement and recovery are still pending.
+
+Ordered engine preparation passed grouped check62694 in6.222s after the
+cleanup-only failure7903. The local immutable runner image executed actual
+Node22.23.1 and Promptfoo0.121.19 through an end-to-end TLS relay, made one
+request with checked host/token/run/effect/target/category/input bindings,
+and produced a native artifact. The HTTP response was controlled; this is
+not native journal, product settlement or deployed-provider proof. No model
+API was called. Root and independent review checked the relay and ownership
+cleanup; the exact lowercase Docker absence response is accepted only for
+the named disposable container, with other inspection errors still failing.
+Evidence: `TestOrderedNativeEnginePrerequisites`, `TestOrderedNativeEngineTLS`
+and the downstream Test checkpoint packet. Full product consumption remains
+open; production defaults and task classifications are unchanged.
+
+The connected Test fixture review caught invalid projection/input-table column
+references before native execution; they are corrected to the actual schema.
+The reviewed consumer now compares both persisted manifests/bodies through
+the artifact store and binds engine observations to the native journal.
+Review also found that parent cancellation could bypass descendant/container
+cleanup. The test-only parent now owns process-group termination and exact
+label-verified container cleanup, with separate build/preflight budgets.
+Grouped cleanup82852 passed2.406s, including actual owned-container removal
+and descendant cancellation/join. These are harness checks, not product
+execution or production readiness. Started-Test recovery preparation must
+use a real committed dispatch checkpoint: returning an engine error invokes
+the existing conservative stop, so it cannot stand in for a process crash.
+
+The connected Test recovery candidate now includes separate post-response
+revocation and actual customer-disconnect cases. The producer preserves real
+journal observations and stored artifacts; the recovery consumer checks
+captured stop/replay, unchanged Block cleanup debt and a second product Test
+call without a runner or a second send. Pre-engine crash checkpoints remain
+separate. The downstream checkpoint packet records grouped79081: API1.981s
+including cancellation coverage, worker1.334s and adapter2.236s compile-only.
+Independent producer review found no blocking SQL/API issue; the connected
+recovery review and native execution are still pending. These assertions are
+not product acceptance until exercised after the shared readiness repair.
+
+Follow-up review closed the second-child retry evidence gap: the parent now
+compares child/link/input/attempt/settlement, full Block cleanup evidence and
+artifact hashes across the actual retry. The applied-Block cleanup candidate
+also consumes real application completion, requester revocation, captured69
+stop and named signed cleanup delivery/read/ack/completion with exact replay.
+Independent review found no blocking source issue. Its preparation packet
+records grouped13684 (API1.219s with cancellation, worker2.111s and adapter2.669s
+compile-only). Native execution remains pending; old69 grants are unchanged.
+Evidence: `p7-worker-enforcement/ordered69-applied-cleanup-preparation.md`.
+
+Applied-Block cleanup97214 is now locally accepted:206.256s (test205.30s),
+immutable0XadPX stable, owned PostgreSQL79130 normal shutdown. The real applied
+Block was stopped after requester revocation, inspected with cleanup debt,
+then cleaned through signed source/delivery, signature-verified readback,
+acknowledgement and completion. Premature completion/ack refused; stop, ack
+and completion replays preserved evidence. Final assertions confirmed one
+cleaned effect/cleanup, two acknowledged deliveries, a disabled control, exact
+audit counts and no renewal or Test settlement. Post-cleanup inspection cleared
+debt without rewriting the original application receipt. Root reviewed terminal
+output and the final assertions. This closes the applied-Block cleanup gate,
+not Test recovery, raw69 grant retirement or deployed gateway enforcement.
+Evidence: `p7-worker-enforcement/ordered69-applied-cleanup1.log` (SHA256
+`28d00c51f091ae23be800433f400f28a95c9a4e07aa6ac4e8c73b88f79fbe2e8`)
+and `ordered69-applied-cleanup1-snapshot.json`.
+
+Actual Test candidate73190 passed the real Block apply/receipt/replay prefix,
+Test progress and waiting-approval replay (4.16s/4.19s), and actual Test HTTP
+approval. The worker child then failed before adapter readiness: adapter
+exit1 with192 diagnostic bytes withheld. No engine, invocation-journal or
+settlement proof resulted. Run198.258s retained stable eo9M0K and normal owned
+PostgreSQL69501 shutdown. Its36 scoped overlays were hash-verified and six
+packages compiled before the run. Startup diagnosis is required before retry.
+Evidence: `p7-worker-enforcement/ordered-test-connected-happy1.log` and
+`ordered-test-connected-next1-snapshot.json`.
+
+The isolated adapter-startup diagnostic34590 failed at principal selection,
+before any readiness check (51.394s, immutable6Yj15s stable, owned PostgreSQL71649
+normal shutdown). Source inspection found that the policy fixture had not run
+the existing registered25 adapter-principal provisioning used by Test fixtures.
+The correction calls that existing provisioning path before the composed
+profile install and asserts the exact resulting binding. It changes fixture
+setup, not production grants. A corrected native startup run and the connected
+Test flow are still required; no invocation or settlement acceptance follows
+from this diagnosis. Evidence: `p7-worker-enforcement/ordered-test-adapter-startup1.log`
+and its adjacent snapshot manifest.
+
+Corrected startup15068 passed57.169s (test56.02s), with immutable t539hq stable
+and owned PostgreSQL73147 normal shutdown. It first reproduced the missing
+binding, then used real principal registration: forward resolve readiness576ms,
+captured completion readiness633ms, native68 adapter readiness and registered
+adapter key all passed. The actual ordered journal Ready call passed. Direct
+calls to three private predicates still returned42501, as expected; no grants
+were added for diagnostics. Root checked the complete terminal log and exact
+single-file overlay hash. This closes the local startup prerequisite only:
+connected engine invocation, settlement, recovery and deployed startup remain
+separate gates. Evidence: `p7-worker-enforcement/ordered-test-adapter-startup2.log`
+and `ordered-test-adapter-startup2-snapshot.json`.
+
+Connected Test retry55274 progressed beyond that startup gate but failed at the
+actual product Test call: `repository provider unavailable` wrapping
+`authorization unavailable`. The child ran45.73s; the overall run241.415s kept
+immutable nQDzSO stable and shut down owned PostgreSQL74054 normally. Actual
+Block completion/replay, Test progress/replay and checked Test approval passed.
+The adapter's later cleanup assertion is not proof that startup failed again.
+The failing named operation still needs diagnosis; this is not yet evidence of
+an external provider outage, successful engine invocation or native settlement.
+Root inspected terminal output and candidate overlays. Evidence:
+`p7-worker-enforcement/ordered-test-connected-happy2.log`,
+`ordered-test-connected-next2-snapshot.json` and its compile log.
+
+Diagnostic91313 localized this failure to the first `linked.read` authorization:
+source read902ms, then15 successful revision queries443–532ms each, followed by
+the16th revision query timing out under the unchanged repository10s budget.
+There was no second source read or linked execution. Stored-state diagnostics
+confirmed one reserved Test effect and zero inputs, engine calls, artifact
+writes, invocation rows or settlements. The adapter's cleanup check therefore
+reported zero sends, not an independent startup defect. A later Test stop
+returned40001; recovery for that state remains unverified. The run213.029s kept
+LfnZ9J stable and shut down owned PostgreSQL78112 normally. It changed only
+test diagnostics and opted into the reviewed connected-consumer fixture mode;
+production code was byte-identical to happy2. Root reviewed both exact diffs and
+terminal trace. The next fix is a narrowly gated request-local revision bracket
+for the four forward Test phases, retaining all eight permission checks and
+the final source/revision/native execution fences. No timeout increase or
+production-readiness promotion is justified by this diagnosis.
+Evidence: `p7-worker-enforcement/ordered-test-flow-diagnostic1.log` and its
+adjacent snapshot/compile manifests.
+
+The four-phase Test revision fix is implemented in candidate k1Eb3k and passed
+independent source review against the exact three changed file hashes. It
+validates all eight scoped requests before checking them, closes the revision
+even after denial, and preserves drift-before-denial precedence, the outer
+source reads, final revision and native proof fences. Grouped helper/refusal
+coverage and the immutable candidate compile passed; these are component
+evidence only. Actual connected Test execution is the next gate, including
+nested readback plus dispatch within the original ten-second operation budget.
+No cached authorization, timeout increase, raw69 grant removal or availability
+promotion is part of this fix. Evidence: `p7-worker-enforcement/ordered-test-connected-candidate.md`,
+`ordered-test-revision-green1-snapshot.json` and its compile log. Native results
+must be recorded separately after the owning process terminates.
+
+Native36741 then joined FAIL233.982s on stable k1Eb3k; owned PostgreSQL81235
+stopped and joined normally. The fix was exercised by actual `linked.read`
+and `linked.input`: each completed with two source reads, three revision reads
+and native execution (2279ms and2295ms respectively). The next failure is the
+composite dispatch path: it repeats a full authorized linked read inside the
+same ten-second repository call, leaving only553ms before the first dispatch
+source read hit its deadline. One input and one artifact were persisted; the
+effect remained reserved, with zero native starts, engine calls, journal
+invocations or settlements. This proves progress beyond revision amplification,
+not successful dispatch or recovery. Same-call readback composition needs a
+separate fix and verification without dropping authorization, artifact readback
+or the original deadline. Evidence: `p7-worker-enforcement/ordered-test-revision-green1.log`.
+
+Ruling: implement a request-local dispatch readback using the same opaque
+dispatch decision for readback and final execution. Independent design review
+found no blocker with the following conditions: the new executor-only SQL
+boundary authenticates the original dispatch proof, runs the existing private
+read branch, materializes the response and checks proof expiry before returning;
+its transaction ends before object-store access. The repository retains full
+response/artifact validation and final before/after equality, excluding only
+the send-permit transition. Final execution recomputes source/revision/authority
+under locks after readback. The callback is synchronous, runs once, and its
+failure prevents execution. Historical and single-action paths remain unchanged.
+This avoids repeating authorization without caching it across requests; artifact
+bytes stay outside the existing32KiB proof bound. The cost if this design is
+wrong is rework of the seam, not permission to omit checks or increase the10s
+deadline. Implementation, refusal/catalog controls and native timing are still
+required before acceptance.
+
+Dispatch readback implementation is now source-reviewed: the nine-file packet
+`p7-worker-enforcement/ordered-test-dispatch-readback-review.md` pins exact
+before/after hashes against k1Eb3k; independent review verified all nine.
+Grouped component checks6281 passed (API7.391s, worker5.921s, authorization2.473s,
+migrations5.086s). The review confirmed the fixed executor-only SQL boundary,
+same copied decision, original outer deadline, complete pre/post artifact
+validation and unchanged historical paths. This is not native acceptance:
+held-readback revocation, actual proof expiry, input mutation, catalog controls
+and the connected Test execution/recovery gate remain open.
+
+Actual runner8545 on corrected candidate6AvUdv joined FAIL246.861s, stable
+snapshot and normal owned PostgreSQL96757 shutdown. Dispatch now completed
+within its original method budget: real readback2228ms and execution2622ms,
+with both source reads and all revision checks retained. The pinned local
+engine made one controlled HTTP call; two artifacts, one completed native
+journal entry and one settlement were persisted. Forward settlement itself
+passed. The remaining failure was the final captured status read: its two
+source reads passed, then execution hit a deadline after651ms. Source and
+trace identify the enclosing `RunTemporalTest` budget (runner timeout30s plus
+30s), not a new10s dispatch failure. End-to-end success/replay remains
+unaccepted. The next investigation is whether the already validated committed
+settlement receipt supplies the terminal result without that duplicate status
+read, retaining startup recovery checks and all artifact/journal validation.
+Evidence: `p7-worker-enforcement/ordered-test-dispatch-happy1.log` and
+`ordered-test-dispatch-green2-snapshot.json`. This is local controlled-provider
+evidence, not a deployed customer run. No push occurred.
+
+Ruling: remove only the duplicate status read after successful
+`TemporalTestSettle`. Independent source review confirmed that native settlement
+writes and verifies the terminal effect, link, receipt and audit evidence;
+the current wrapper checks final authority/expiry, execution commits, and the
+repository validates the complete receipt and artifact association before
+returning success. Initial resume/status and stop/recovery verification remain,
+as does the enclosing60s budget. The cost if this equivalence is wrong is an
+incorrect success result, so grouped invalid-receipt/error/replay coverage and
+actual native execution are required before acceptance. This is a reviewed
+design decision, not a passing native result.
+
+The settlement-result change now passed grouped component verification and
+independent spec/quality review. Behavioral RED70225 failed18.240s exactly at
+the extra post-settlement status read; its eight invalid-receipt/error controls
+and five captured recovery cases passed. After removing only that final read,
+GREEN21356 passed18.284s, including valid settlement, all refusals, captured
+recovery and canonical dispatched-artifact controls. Runner SHA256 is
+2a224519f2fa13776fdf091800371b4ba1f8c074190a1076b1e60a707f9a374c;
+new consuming test SHA256 is
+40b8bc81f19d95a13f0c8a24cbdad7abbeb70304de26244e1c5107f1c63e4fc0.
+These tests use the real runner, repository validators and artifact store with
+controlled SQL/process responses. Native happy execution and no-send replay
+remain required. Commands, exact source diff and results are retained in
+`p7-worker-enforcement/ordered-test-settlement-result-review.md` and
+`ordered-test-settlement-result-diff.md`. No production readiness promotion
+or push follows from these component results.
+
+Native corrected Test8919 then passed239.171s (test238.08s, actual child79.32s)
+on stablevLSKzw, with owned PostgreSQL3870 normal shutdown. The actual product
+Test called the pinned engine once through the TLS handler/journal, persisted
+both exact artifact versions, completed native settlement and audit evidence,
+and passed settled retry without another send or receipt change.
+Dispatch readback2007ms/execution2713ms and settlement execution2145ms stayed
+inside the original method budgets; the redundant final query is absent.
+Evidence: `p7-worker-enforcement/ordered-test-settlement-happy1.log` and
+`ordered-test-settlement-green1-snapshot.json`. This accepts that connected
+local controlled-provider flow only. Started/reserved/post-adapter recovery,
+full100 capacity, runtime activation and deployed Stytch/provider/browser
+acceptance remain open. No push or availability promotion occurred.
+Original-task mapping: this is additional local execution/idempotency evidence
+for M7A-52 and successful-result evidence for M7A-56, plus one settlement audit
+association relevant to M7A-60. It does not prove M7A-56's unknown-outcome
+no-resend case, M7A-60's complete event/secret-exclusion requirements, or
+automatic-trigger and deployed coverage. Those original criteria remain in
+the unchanged task mapping and require their own retained evidence.
+
+Combined started recovery92091 passed306.564s (test305.44s) on the same stable
+vLSKzw; owned PostgreSQL5002 shut down normally. The real dispatch checkpoint
+crashed before engine send, then passed installed-catalog controls, all ten
+readback/final-proof cases, and revoked captured69 stop/replay/inspection.
+Actual post-readback revocation and committed input mutation refused40001;
+expired proof refused42501, all with live contexts. Stop5.637s and
+replay3.246s retained their original budgets. This covers the started case
+without another standalone started-recovery run. Reserved and both
+post-adapter recovery cases remain pending; raw69 privileges are not retired.
+Evidence: `p7-worker-enforcement/ordered-test-started-boundaries1.log` with
+the same settlement-green1 source manifest. Local controlled evidence only.
+
+Within still-running group4888, the post-adapter parent passed545.49s:
+response-revoked258.00s and disconnected287.49s. The disconnected real call
+retained one started journal and actual artifacts without a successful
+settlement; captured69 recovery and a fresh product retry made no further
+send and preserved native/artifact evidence. The returned-response case also
+refused forward settlement after revocation with live-context42501, then
+passed recovery and no-send retry. Owned PostgreSQL6297/7085 both exited
+normally. This supplies local unknown-outcome no-resend evidence relevant to
+M7A-56, not deployed provider proof or all-family completion. Final reserved
+checkpoint recovery remains active in the same group. Evidence:
+`p7-worker-enforcement/ordered-test-recovery-remaining1.log` on stablevLSKzw;
+wait for the overall terminal result before accepting the complete group.
+
+Group4888 subsequently joined GREEN832.112s with all vLSKzw hashes stable.
+Reserved recovery passed285.47s, including inspect/stop/replay/inspect with
+no engine send or input write; stop6.060s/replay3.465s retained original budgets.
+Owned PostgreSQL6297/7085/8013 all exited normally. Together with happy8919
+and started92091, this accepts the actual local Test execution plus all four
+reserved/started/returned-response-revoked/disconnected recovery modes on one
+candidate. It does not enable runtime-ready, retire raw69 grants automatically,
+prove full100 Apply, or satisfy deployed Stytch/provider/browser acceptance.
+The next retirement step is an exact caller/privilege preflight against retained
+other-family and historical requirements. No push or task-classification change.
+The raw69 preflight identified exactly four current-profile EXECUTE edges
+across inspect, inspect_message and stop. Current production callers route
+through the named lifecycle binding; historical both-nil access stays retained.
+No grant has changed. Tests-first retirement work will add explicit stop/replay
+of an already settled Test, then paired actual raw-call denial, named success,
+drift and historical compatibility controls. Deployed old-binary inventory is
+still an external prerequisite before applying that transition live. Details:
+`p7-worker-enforcement/ordered69-retirement-preflight.md`; the67-entry retirement
+inventory is updated without closing its OPEN row.
+
+Full100 product-loop native59298 joined FAIL144.976s, stable MUhJps (2,780
+files) and normal owned PostgreSQL85813 shutdown. Root verified that its seven
+overlays are test-only and production matches k1Eb3k. Actual100-target reserve
+and start passed (5313ms/5242ms); application read passed. The first application
+source preparation reached a revision check that returned authorization pending,
+before any signer call, verified source, acknowledged delivery or application
+receipt. Product elapsed9436ms; no20m activity or10s operation deadline fired.
+This does not establish capacity success or a timeout defect. Diagnosis must
+compare projector convergence and idempotent preparation against the real
+workflow's five-attempt activity retry policy; this direct one-call fixture
+did not exercise those retries. Do not invent more retries, extend TTL or count
+the earlier100-target boundary test as completed100-target delivery. Evidence:
+`p7-worker-enforcement/ordered68-capacity1.log`, adjacent snapshot manifest and
+`ordered68-full-capacity-acceptance.md`.
+
+Source diagnosis confirmed that the capacity child runs the real background
+projector. Unchanged same-device preparation is idempotent, but first-time
+device/operation scope records and subsequent target/delivery changes can
+advance the desired authorization revision. A one-attempt pending result is
+therefore not evidence that the actual five-attempt activity fails. Ruling:
+verify the real `Activities.Apply` and product `Apply` through an isolated local
+Temporal activity workflow using the exact production retry/heartbeat options,
+real wall-clock backoff and existing projector. Keep the20m attempt,1h schedule,
+five-attempt limit,10s methods and policy TTL unchanged. Longer test observers
+only allow that existing schedule budget to finish. Source-parity coverage must
+pin the options; no invented test retries or virtual-clock convergence claim.
+This test will prove only scoped Apply integration, not the complete workflow
+or deployed gateway enforcement. If that distinction or options parity is
+wrong, the test must be corrected before any capacity claim.
+
+The scoped real-Temporal capacity retry fixture passed independent source
+review after fixing namespace cleanup for ambiguous workflow starts and failed
+activity drain. Candidate8rnsha contains2,782 verified files, with production
+unchanged from MUhJps. Its interrupted API compile/oracle check was rerun after
+local disk repair and passed66582 in1.250s; native retry acceptance is queued,
+not passed. Evidence: `p7-worker-enforcement/ordered68-capacity-retry-review.md`,
+`ordered68-capacity-retry1-snapshot.json` and
+`ordered68-capacity-retry-api-preflight1.log`. The disk repair preserved exact
+snapshot bytes using filesystem clones; ENOSPC was not a product failure.
+
+Actual retry fixture79547 joined FAIL117.670s with stable8rnsha snapshot.
+The SDK rejected our test worker's workflow-task concurrency of1 during
+construction, before any Apply activity or signer call. This is a fixture
+configuration failure, not evidence that the five-attempt product loop fails.
+Owned PostgreSQL99773 exited normally and the owned Temporal namespace was
+retired. A cheap constructor-only check reproduced the panic without the
+database producer; the correction sets workflow-task concurrency to2 while
+retaining activity concurrency1 and all production retry/timeout settings.
+Constructor/registration and production-option parity check63202 passed1.454s
+on stable4hetaR, whose only delta from8rnsha is that test helper. Independent
+review confirmed namespace cleanup, cancellation/join and draining unchanged.
+Corrected native85498 subsequently joined FAIL541.729s with stable snapshot;
+the owned database exited normally and the Temporal namespace was retired.
+All five actual SDK attempts returned authorization pending, at application
+source, delivery prepare or delivery store. No method timeout fired. The
+attempt observations reported converged projection before/after each attempt,
+but acknowledged deliveries progressed only0→2→2→6→6→6; application receipts
+remained0. Actual Apply elapsed421.692s and invoked the signer13 times.
+This establishes a failed100-target product loop under the real unchanged
+five-attempt contract, not capacity acceptance. Trace the pending source and
+revision interaction before changing code; do not add retries or extend TTL.
+The native slot is released for the independent corrected Test consumer.
+Evidence: `p7-worker-enforcement/ordered68-capacity-retry2.log`.
+Source tracing identifies a prepare-to-projection race: each new or changed
+device/operation scope fires the authorization capture trigger, increments
+desired revision and queues projection; source/delivery writes can invalidate
+those scopes again. The caller immediately authorizes without waiting for
+convergence. Each failed trace contains a successful source query and one
+revision query, then pending before any Check/native execution. Before/after
+convergence does not establish convergence at that intermediate query. Exact
+failed revision values were not logged, so the diagnosis retains that evidence
+limit. The next bounded repair proposal must wait only inside the existing
+operation context, then authorize freshly, preserving all final fences.
+No retry/TTL increase or projection bypass is authorized by this diagnosis.
+Ruling: add a private convergence wait only after the existing native capture
+for the three forward policy preparation operations. Require the caller's
+deadline before capture; wait only for valid pinned monotonic desired>applied,
+check cancellation after every read, and return no reusable authority. Fresh
+Authorize and all final source/revision/native checks remain mandatory. The
+independent design review passed with those conditions. If insufficient to
+complete100 targets within existing expiry, that remains a capacity failure;
+no deadline, activity retry or TTL increase follows. Grouped implementation and
+native mutation/timeout verification are required before acceptance. Proposal:
+`p7-worker-enforcement/ordered68-policy-convergence-plan.md`.
+The scoped implementation passed independent spec/quality review with no
+blockers. Public missing-deadline RED42896 failed before the change; grouped
+convergence57312 passed2.044s, full authorization16859 passed3.926s, and named
+policy/signer worker56690 passed1.405s. Production changes are confined to the
+existing preparation method, SHA256
+8db68748a7dc69efcaba4584a72ecdd84788d68f1a35c84bfe8fa99688c23833.
+Native hold/release, timeout and revocation/target-mutation subsequently passed
+on the coherent recovery/settlement baseline: process2035 joined GREEN136.288s,
+stable snapshot1qZqL1, owned PostgreSQL normal shutdown. Held projection released
+to actual signing in7.690s; persistent pending stopped at the unchanged10s
+deadline without signing. Genuine requester revocation returned42501 and
+target mutation returned40001 while each caller context was live, with no
+signing or native evidence changes. Exact combined source, four-case observations
+and log hashes: `p7-worker-enforcement/ordered68-convergence-combined1-review.md`.
+This accepts local convergence/security behavior only. Real100-target acceptance
+remains required and failed85498 is not superseded by this narrower result.
+Exact source and commands: `p7-worker-enforcement/ordered68-policy-convergence-review.md`
+and its adjacent review.diff. The separate recovery4888 uses frozenvLSKzw and
+does not contain this later change.
+Throughput check before rerunning100: retained85498 trace lines121–149 sum
+24,032ms of successful database work for its first completed target, including
+nine revision reads but excluding FGA transport and the new convergence wait.
+A straight100-target serial extrapolation is2,403.2s (40.1min), beyond the
+unchanged20m activity limit. This is measured risk, not proof that every target
+has identical latency or a completed capacity run. Ruling: verify native wait
+security controls now, but review repeated work and a bounded throughput design
+before another full100 attempt. Preserve100 targets, original TTL/retries and
+fresh authorization/final fences. If the estimate is pessimistic, this costs
+source-review time; it does not justify a reduced capacity acceptance target.
+The first-target breakdown includes2.865s capture,7.887s source queries,
+4.117s revision reads,2.892s signing begin/store, and6.271s delivery execution.
+Even removing all revision-read cost leaves a19.915s per-target extrapolation.
+Source review found repeated whole-effect/destination validation inside the
+per-device path; uncoordinated parallelism would also contend on organization
+locks and global desired-revision changes. The unchanged fixture definition
+sets temporary_policy_seconds=600, so its10min expiry is stricter than the
+20min activity limit. No complete100 expiry measurement exists yet. Review
+same-invocation duplicate work and an explicit bounded batch protocol if needed;
+do not substitute parallel retries, cached authority or a longer policy window.
+The reported verified-source count stays0 until final application completion
+by design; it must not be interpreted as zero stored source artifacts.
+The separate actual100-target prefix diagnostic69511 joined FAIL131.878s on
+stableUJmPWu, with normal owned database shutdown. Admission/reserve/start
+completed, but diagnostic socket prewarming failed before product Apply.
+It produced no throughput measurement or capacity acceptance. Diagnose that
+test-only setup before another profile attempt; production deadlines, TTL and
+permissions are unchanged. Evidence: `p7-worker-enforcement/ordered68-capacity-prefix-profile1.log`.
+Pinned-driver source identified the diagnostic-only cause: zero connection
+lifetime immediately expires sockets. The two-file correction uses positive
+lifetimes exceeding the diagnostic observer, retaining the two-socket guard and
+role restoration. Behavioral RED58504 and focused GREEN56219 (1.260s) plus
+independent source review passed; this still supplies no native timing result.
+
+Settled-Test retirement fixture54511 then joined FAIL261.565s on stableHiwmYm,
+owned PostgreSQL normal shutdown. Its actual Test producer exceeded the original
+10s linked.dispatch budget before engine execution: reserved/input1, started0,
+invocations0, settlements0, engine_calls0. The settled-stop callback and raw69
+ACL-denial controls were never reached. This is a product execution failure,
+not the intended retirement RED; raw grants stay unchanged and retirement stays
+open. Compare the failed dispatch timing with accepted8919 before another run.
+Evidence: `p7-worker-enforcement/ordered69-retirement-red1.log`.
+Comparison with accepted8919 found identical dispatch/SQL/runner/repository
+bytes and query counts. The sole production difference is policy preparation
+convergence, which dispatch does not call. Pre-execute SQL increased from
+6,161ms to7,142ms; the unchanged outer10s deadline includes other work too.
+The one artifact write was prepared input, not engine output. The trace proves
+thin timing headroom on the same path, not a specific host-load cause.
+
+Corrected prefix25221 joined GREEN178.760s on stableIhdhic with normal owned
+PostgreSQL shutdown. Actual100-target setup produced one stored source and one
+validated acknowledgment,99 planned sources, exactly three first-device scopes,
+no second capture, no application receipt/control and unchanged600s TTL.
+Intentional cancellation occurred only at the next target after committed,
+validated acknowledgment. This accepts diagnostic fidelity, not full capacity.
+First-target wall time was30.239s; whole direct Apply prefix was46.165s including
+initial inspect/reserve/start replay. Whole-prefix function self-times identify
+repeated readiness work: worker.catalog_ready1,670 calls/20.898s,
+temporal77.base67_fingerprint115 calls/5.766s, projected78565 calls/2.350s and
+projected74251 calls/2.273s. These are not target-only statistics; inclusive
+function times must not be summed. Next production batch targets equivalent
+same-invocation repeated work, preserving all external authority boundaries.
+Evidence: `p7-worker-enforcement/ordered68-capacity-prefix-profile2.log`.
+The bounded higher-readiness implementation now targets exactly three existing
+expression regions: the first static68 predecessor predicate,68.ready and
+78.ready. It retains dynamic predecessor code, external checks, cheap argument
+guards and separate source/revision/readback/write boundaries. Grouped consuming
+generator controls went from four failures to11/11 passing (6.415s); composed
+migration assembly75480 passed2.836s and deterministic generation matched.
+This is component evidence only. Independent emitted-SQL review and native
+installation/equivalence, security, dispatch and performance acceptance remain
+required. No throughput improvement, retirement or production readiness is
+claimed. Exact source hashes and review delta:
+`p7-worker-enforcement/ordered-readiness-higher-roots-review.md`.
+The first combined native candidate80850 joined FAIL71.200s on stabledwwCNm
+(2,797 independently verified files), with normal owned database shutdown.
+Migration installation returned a database error before equivalence or prefix
+execution. Source review and compile success do not supersede this failure.
+The test-only Scan diagnostic73824 then joined FAIL62.233s on stablejbBaC3,
+owned database normal shutdown, identifying42702 at worker-final-check and
+internal position74071. That position maps exactly to the bare `c` in expanded
+79.ready inside the PL/pgSQL predecessor's own `c` parameter scope. The bounded
+repair is explicit scalar-parameter qualification in generated SQL, not a
+database ambiguity setting or a relaxed check. Native equivalence and timing
+remain untested; no unchanged full-flow retry is justified.
+The three-file scalar repair passed14 grouped generator controls, assembly and
+independent review, but combined native61441 then joined FAIL69.095s on
+stableo5Y0EA with normal owned database shutdown. Final readiness still raised
+42702, now at95907: an unqualified ordinal `ORDER BY n` in a copied fingerprint
+expression collided with the predecessor's local `n`. No equivalence or timing
+checks ran. The next correction requires a complete ambient-name inventory of
+the expanded predicate, not successive unchecked single-reference retries.
+That inventory is now reviewed: six intentional root c/f references remain,
+and the only unintended value was the copied ordinal. The repair qualifies
+that exact reference as `x.n` and rejects unknown bare references to all five
+enclosing names. Captured originals, pins and predecessor tail are unchanged.
+Grouped generator coverage established six new failures before the repair,
+then passed20/20; assembly and deterministic generation passed. Independent
+review found no further ambient collisions. Native equivalence and timing
+were then accepted locally by combined92352 on stableP47FAp: PASS162.057s,
+normal owned PostgreSQL shutdown. Truth/digests, body/ACL/owner/config drift,
+saved-row and root changes, demanded poison, cheap guards and both orphan-tail
+controls passed. The actual100-target prefix retained1 stored/99 planned,
+1 acknowledgement/3 scopes and no application receipt or control. Whole Apply
+prefix time fell from46165ms to27238ms; first target fell from30239ms to17121ms.
+Catalog calls fell from1670 to414 (self time20898.283ms to5352.535ms). This is
+local equivalence and first-target evidence, not full100 delivery or deployed
+proof. The first target still exceeds the roughly6s throughput allowance under
+the unchanged600s lifetime, so full100 remains gated. Affected actual Test
+settlement/recovery and permission consumers remain to be accepted on this
+same candidate. No production classification changed.
+The affected-consumer group17089 is not accepted: policy convergence passed
+112.76s, but the dispatch fixture failed144.84s at its explicit projection
+reconcile callback with an authorization revision conflict, before dispatch
+boundary assertions. The selected settled-recovery case failed195.88s at the
+same callback before its consumer checkpoint. Group17089 joined FAIL454.631s
+on unchangedP47FAp; all three owned databases exited normally. Neither failed
+case proves dispatch or settlement acceptance. The fixture runs capture in a
+goroutine while reconciliation snapshots and acknowledges the revision; its
+callback currently treats every mapped revision conflict as fatal. The log
+does not distinguish a stale-revision CAS from mapped lock conflicts. A bounded fixture
+repair must restart only conflicting reconciliation from fresh state inside
+the original capture deadline, preserving strict non-conflict failures and
+all product permission checks. No unchanged retry is authorized by this result.
+The bounded test-only correction established consuming RED19737 and grouped
+GREEN45763 (1.393s). Root reviewed the retry/context changes and rejected an
+unrelated profiling hook from the snapshot. CorrectedSMAy4y contains2801
+verified files with eight test-only overlays; its snapshot compile passed
+1.424s. Native41668 then accepted dispatch boundaries241.09s and actual Test
+settled lifecycle recovery249.68s. Conflict recovery crossed the previous
+failure while preserving fresh projection and the original deadline. The real
+Test child completed engine/TLS journal/artifacts/native settlement/no-send
+retry54.91s, followed by named inspect/message/stop/replay. These two local
+consumer scopes are accepted, not raw69 grant retirement or deployed proof.
+The same group's final read-only attribution case failed147.53s before any
+metric: the extractor omitted two selector forms in the pinned reference.
+The group joined FAIL639.350s, snapshot unchanged, all three owned databases
+shut down normally. Repair the diagnostic against its actual captured input;
+do not repeat the unchanged accepted consumer cases. Evidence:
+`p7-worker-enforcement/ordered-retry-attribution1-review.md` and native log
+SHA25621a82b6e1d3ff9ea9c0570296d0bfc6d5af05166ab72b07da8cb8f9bc682182e.
+The selector repair then passed its pinned-reference controls. Combined native
+43638 on immutable rTaqBv joined expected RED63.366s (test62.30s), with
+snapshotStable=true and normal owned PostgreSQL shutdown. Attribution completed
+before both actual registered roles passed retained USAGE/ready/principal
+checks. Only the four remaining raw69 EXECUTE edges failed; checked=4. This
+establishes the retirement RED without repeating accepted settled producers.
+Evidence: `p7-worker-enforcement/ordered-retirement-attribution1-result.md`;
+native log SHA256768d6ad316595dba173e0381573a68a599bbde2b72cd577ac2c8f4c36e8c8d9b.
+Repeated descriptor deparse measured5/5/5ms versus4/4/5ms after deduplication;
+predecessor-static EXPLAIN measured195.258ms execution and61.136ms planning.
+Inclusive plan nodes overlap and cannot be summed. Ruling: do not implement
+speculative descriptor deduplication as the capacity fix, because the measured
+saving does not explain the remaining target-time gap; a missed larger benefit
+would require new attribution evidence, not relaxed deadlines. Proceed with
+the scoped four-edge retirement and its grouped named-path/drift controls.
+Fresh installation alone will not close retirement: exact installed-worker
+upgrade, historical compatibility and deployment/client inventory remain
+required. Observed registration hashes are not an approved deployed release.
+No task classification, runtime activation, production proof or push follows
+from this local diagnostic checkpoint.
+Installed-worker upgrade preparation now has an independently compiled local
+predecessor artifact: the frozen rTaqBv compiler produced checksum
+ff7b2990b6bb507d3fe60780ef54306e35e02fa1789c089eb414087bb254668c,
+matching the43638 observation. Its815706-byte assembled source hashes to
+50d1c3065ed09da35d810890421e22094ccce5cbd9e290b18e71bcc3d7101d1a;
+root independently verified the artifact source hash. Compiler export54178
+passed3.106s without a database. Evidence and full source/overlay provenance:
+`p7-worker-enforcement/ordered69-upgrade-predecessor-artifact.md`. The new
+test-only catalog exporter has format/privacy component coverage, but has not
+captured a native catalog or established a complete upgrade verifier. Exact
+paired old/new catalog acceptance, data-preserving transition, rollback and
+deployment inventory remain open. This artifact is not a deployed allowlist.
+The fresh-profile four-edge retirement implementation is now source-reviewed:
+exact original69 definition/ACL projection, independent live worker catalog
+binding and fail-closed existing-profile handling passed review. Grouped
+component checks passed; review corrections added explicit consuming both-nil
+historical routing/partial-binding refusal and bounded probe/cleanup contexts.
+Evidence: `p7-worker-enforcement/ordered69-retirement-core-review.md` and
+`ordered69-retirement-review-corrections.md`. Candidate L3mVZA contains exactly
+seven overlays over rTaqBv; root verified all2806 file hashes and the exact
+overlay closure. Manifest SHA256
+8b492897cc6e4f095f3a13fa1784cd0c88cb572f1ae7f15200f4d1443ebcdac7.
+Compile85972 passed migrations/API/worker with snapshotStable=true, without
+running native tests. Required native acceptance is the actual settled producer,
+four raw denials,17 restored catalog-drift cases, final named success and
+historical no-worker compatibility. The source-addressable diagnostic runs only
+after successful restored-state checks. Native acceptance is not yet established;
+raw69 retirement remains OPEN, as do installed-worker upgrade and deployment.
+Native33413 subsequently joined FAIL97.736s on that unchanged snapshot.
+Security stopped during worker installation at74.42s: SQLSTATE42601, syntax
+error at end of input, compiled statement position441211. No settled producer,
+raw denial, drift matrix or attribution was reached. The separately selected
+historical no-worker compatibility case passed22.28s. Both owned PostgreSQL
+instances joined normally and the attribution output was absent. Preserve that
+historical result; diagnose the exact compiled SQL before any changed Security
+retry, without rerunning the unchanged historical scope. Evidence:
+`p7-worker-enforcement/ordered69-retirement-security1-result.md`, native log
+SHA256b58136f14b0eb8d2fd6959231127ffb44f2626697e89636ac80bd853fb1fdcab.
+The exact compiler-extracted retirement body then reproduced42601 in an owned
+PostgreSQL parser test (65179 RED3.252s). Parenthesizing its CASE operand was
+the only production correction; parser and focused checks64086 passed8.047s.
+Independent scoped review passed. Native46496 on corrected immutable7KoCcj
+then passed237.022s (Security236.11s), snapshotStable=true and normal PostgreSQL
+shutdown. The real Test child passed55.48s with persisted artifacts, native
+settlement and no-send retry. Named settled recovery, all four raw denials,
+all17 committed/restored catalog mutations and final named/evidence checks
+passed. Historical22.28s acceptance was retained without an unchanged rerun.
+This accepts fresh-profile retirement locally. Installed-worker versioned
+upgrade, paired catalog/data-preservation proof and rollout inventory remain
+required, so the retirement mapping stays OPEN and runtime_ready stays false.
+Evidence: `p7-worker-enforcement/ordered69-retirement-security2-result.md`;
+2807-file snapshot manifest SHA256
+2b491d03636bd8dc1f17ac8887f639cf71d6770a4aa15dab2b8fd82b1c1ee51f;
+native log SHA256e3701a1d43bee83e8c79780b44b341523986023ac058593414a5fb8c47ac6060.
+The sanitized source-tree diagnostic also completed, file SHA256
+d33d62969736277e779383362b7b57975fb94c675a593a4a4068ed3cfef5bd48.
+Its predecessor-static155.699ms execution is instrumented/inclusive evidence
+for locating cost, not full100 throughput acceptance or a deployment claim.
+Repair evidence: `p7-worker-enforcement/ordered-readiness-ambient-repair.md`.
+Native evidence: `p7-worker-enforcement/ordered-readiness-higher3.log` and
+`ordered-readiness-higher3-snapshot.json` (2797 files, root hash verification
+matched every file; manifest SHA256
+9a1fafc476847d47f06dd19ddd608f44f0a10152ca55d40ae9e002f1281a3723).
+Evidence: `p7-worker-enforcement/ordered-readiness-higher1.log`.
+Earlier constructor failure evidence:
+`p7-worker-enforcement/ordered68-capacity-retry1.log`
+(SHA256 ff37e0d2fd799863623341721f19ed9eafd203ecb8c33da147ed2be10f9b354c).
+
+The adapter provisioning review confirms a production path, not only a fixture
+helper: `agentsec-migrate/registerReleasePrincipals` registers the configured
+adapter and checks red-team principal readiness; fresh runtime-profile installs
+invoke release registration before schema52. Existing61-or-later profiles skip
+that historical registration replay, so the configured adapter binding must
+already exist. PostgreSQL logins/credentials are externally provisioned (the
+deployment variable contract says so). The chart passes the configured adapter
+principal to migrations. This source review does not prove deployed identities,
+keys, FGA, TLS or provider credentials are ready. The production adapter still
+requires the intentionally closed all-family `runtime_ready()` gate.
+
+The maximum-target case in grouped native10186 completed locally in137.16s:
+100 actual targets, all204 exact grantor/task permission requests, late-target
+denial and stale/101-target refusal; reserve4570ms, start4358ms and read5855ms
+retained the original10s operation budget. The actual proof body was17560bytes.
+First/last source signing passed4409ms/4519ms. This case deliberately leaves
+98 sources planned and has no application-completion receipt: it verifies the
+full-set boundary, not100 completed deliveries or gateway enforcement.
+
+The enclosing10186 group then passed329.926s with immutable xQbAXS stable and
+both owned PostgreSQL75580/76382 shut down normally. Signing acceptance191.68s
+included the valid rollback control and native wrong-input, key, signature-byte,
+MAC, expiry-after-begin and revocation-after-begin refusals. Public signer checks
+also refused the wrong private key, changed policy and cancelled signer, without
+changing native evidence. Expiry-after-begin passed9.01s within the original10s
+operation budget. Root inspected the complete terminal result. These are local
+application/permission-model checks, not deployed provider or gateway proof.
+Evidence: `p7-worker-enforcement/ordered68-signing-max1.log` (SHA256
+`3f1cfbea0d19a2433c04c7a7b690ba23d48ffe083609dbdd6a013b6a96cd9ec8`)
+and its immutable snapshot manifest. No task availability is promoted.
+
+Current Test activation passed its grouped native acceptance78.783s on immutable
+6I9Qub with Go1.25.13, stable source hashes and normal owned PostgreSQL shutdown.
+The checked API and native wrapper preserve transition revision delta2,
+same-state renewal delta1 and exact receipt replay delta0. Scope, actor, target,
+version, purpose and freshness refusals passed, along with private-body/ACL/owner
+and public-wrapper drift refusal, proof expiry and revision changes across real
+organization-lock waits. The first native run failed only because its fixture
+expected SQLSTATE22023 for expired freshness; the wrapper deliberately normalizes
+that data exception to42501. Root reviewed the corrected assertion and joined
+output. Evidence: `p7-worker-enforcement/worker-runtime-activation-refusal-corrected.log`
+and its adjacent source manifest. This closes retained Test activation locally;
+configured77 runtime capability, source ancestry and deployed acceptance remain
+open. No task availability classifications change.
+
+Connected runtime/deployment checkpoint (local evidence, no availability promotion):
+the current profile now selects the database authority for event-ingest and all
+eight runtime SQL deployments. SQL-only workers do not receive Temporal/OpenFGA
+client credentials. Independent public policy verification uses a distinct
+ConfigMap, a nonroot init-container copy into a memory volume, and a read-only
+regular0400 application file. The approved key encoding remains canonical
+unpadded base64url; review caught a new parser's padded-base64 divergence before
+consumer wiring. The loader owner reports corrected grouped acceptance21 cases
+in1.247s on immutable Oi7gVE; the earlier padded-base64 result is superseded.
+Consumer wiring and the private-signing boundary remain unfinished.
+The grouped deployment command below, extended with
+`deploy/production/session-search-rollout.test.mjs`, passed22 checks in7.523s;
+one optional Docker materializer check was skipped. The actual local shell-copy
+check passed, including projected-source symlink to regular-file conversion,
+0400 mode, ownership and unchanged content. This does not prove container UID
+behavior or an applied deployment.
+
+Immutable mZyN05 native evidence separately passed the compiled worker startup
+boundary for six registered runtime roles, while refusing wrong login, role,
+mode and profile and retaining the full-worker gate. The native child took13.54s,
+API group71.675s and worker configuration/composition group5.766s; source hashes
+were stable and owned PostgreSQL exited normally. Outbox native startup was not
+covered, and these are not complete AWS worker launches. Earlier immutable
+zAnzEW passed typed stage completion/replay, derived session summary and signed
+gateway publication (API58.261s), using controlled archive/stage inputs rather
+than live intake. Evidence: `p7-worker-enforcement/runtime-current-sql-startup.log`
+and `runtime-current-projection-group.log`, with adjacent source manifests.
+These snapshots predate later source48/performance changes, so combined native
+acceptance remains required. Real HTTP intake/recovery still exceeds the
+unchanged10-second operation budget; repeated catalog validation is being
+removed only where the remaining dependency chain proves equivalent checks.
+
+Current human approval passed immutable vmdXWP native acceptance94.348s, including
+catalog/body/ACL refusal, checked API authorization, version/freshness refusal,
+revision delta2 for a decision and delta0 for immutable replay. Its prior503 did
+not reproduce with diagnostics; the cause remains unknown, not declared fixed.
+Evidence: `p7-worker-enforcement/ordered62-approval-diagnostic.log` and manifest.
+The expanded connected flow then exposed a real missing boundary: an unsigned
+native Ordered68 reserve succeeded inside a rollback-only test transaction.
+That failure blocks Block-effect acceptance until the current authorization
+fences, independent verifier and private-signing boundary are integrated and
+verified. Local approval success is not acceptance of the full Block flow.
+
+Gateway writer serialization passed a bounded native group. The registered
+native advance_replay writer completed while another transaction held its
+organization lock: immutable DStKZE reproduced this in36.019s with rollback-only
+mutation and normal PostgreSQL shutdown (`gateway-writer-order-red.log`). The
+new module serializes four gateway entry points before device locks, rechecks
+credential authority after waiting, and uses wall-clock enrollment expiry. Its
+grouped native coverage spans all four writers with unchanged, revoked and
+expired authority during actual lock waits. Combined installation first exposed
+a runtime-copy SQL ambiguity, then a retained base
+readiness mismatch. Worker/runtime/temporal catalogs independently passed the
+diagnostic, but base68 did not. Same-transaction before/after comparison of52
+retained fingerprints identified18's broad body category and the shared retained
+budget identity helper in addition to15/24/27. Exact nine-row predecessor
+projection closes those dependencies without changing historical pins or
+skipping categories. Immutable cDF8kQ passed installation and all12 writer/wait
+cases in42.934s (test41.84s), with stable2684 source files and normal PostgreSQL
+shutdown. Evidence: `gateway-writer-retained-closure.log` and adjacent manifest.
+All native writes roll back; unchanged authority succeeds, while revoked and
+expired authority return28000 after a real wait. The test also proves the device
+advisory remains available while the writer waits on the organization. This
+snapshot precedes a reviewed performance refinement that checks the worker
+catalog only for the three projected helper identities, not every unchanged
+function. Final composed ingestion/recovery acceptance must include that change.
+API enrollment mutation and summary-deletion writer coverage also remains open; gateway
+authorization resource publication stays disabled. Nothing in this checkpoint
+is a shipped release or deployed acceptance, and the 728 classifications remain
+unchanged.
+
+The two registered discovery API device writers now have bounded native
+organization-first coverage. Immutable eenrul reproduced create and transition
+finishing successfully while another transaction held the organization lock
+(`gateway-api-device-order-red.log`,37.081s). Exact saved-body entry injections
+now require READ COMMITTED, registered discovery API authority and worker
+catalog readiness, then lock the existing organization and recheck authority
+and catalog before the original advisory/UPDATE. Independent source review
+found no blocking issue. Immutable koxzHy passed both native cases in39.241s
+(test38.29s), with2689 stable source files and normal PostgreSQL shutdown
+(`gateway-api-device-order-coherent.log` and manifest). The test checks actual
+blocking PIDs, device advisory availability, transition row availability with
+NOWAIT, and rollback-preserved state/version or absent newly created row.
+An intermediate DgCxkK attempt failed compilation because parallel test helpers
+were temporarily absent; it supplied no native evidence. This is serialization
+coverage, not HTTP/OpenFGA authorization or deployed device-management proof.
+Source15 enrollment issue/revoke has since passed the combined writer group.
+Immutable DxoMPp first reproduced all three new cases completing before release
+of the organization lock (42.977s). Exact saved-body advisory substitutions now
+call the API organization helper first; issuance rechecks wall-clock expiry after
+both possible waits. The retained15 projection substitutes only those two extra
+function identities, with independent live worker fingerprint coverage. Immutable
+OJd4Uv passed all17 gateway/API cases in42.216s (test41.07s), with2689 stable
+source files and normal PostgreSQL shutdown. Evidence:
+`gateway-api-enrollment-order-red.log` and `gateway-api-enrollment-composed.log`,
+each with its source manifest. This includes rejecting an issuance whose expiry
+passes during an actual organization wait, and rollback-only token state checks.
+Independent review found no blocking issue in the issue/revoke delta, but found
+a separate gateway-login registration race: native enrollment checked its login
+before waiting, while the worker catalog did not bind the registration row.
+Immutable8NKob3 reproduced enrollment returning success after that row changed
+during an actual organization wait (40.069s). The gateway helper now explicitly
+rechecks the registered login after the wait. Independent source review confirmed
+the fix, and immutable kIX9e2 passed unchanged, token-revoked, expired and
+login-registration-revoked enrollment cases in39.383s (test38.43s), with2690
+stable files and normal owned PostgreSQL shutdown. Evidence:
+`gateway-enrollment-login-wait-red.log` and
+`gateway-enrollment-login-wait-green.log`, with their manifests.
+Secondary device-wait controls then exposed two additional admissions: direct
+replay accepted a credential that expired during the advisory wait, and enrollment
+accepted a gateway login whose registration was removed during that wait. Nine
+new cases ran against accepted snapshot kIX9e2 with only the gateway test overlaid;
+the native group ended FAIL50.433s with normal PostgreSQL shutdown and unchanged
+base hashes. Evidence: `gateway-secondary-device-predecessor-canonical-red.log`.
+Test SHA256 was `23d89355e96b98c9152b029a27b4e3ca220b84d9f2fec13a2542ed4d1558978b`
+before and after the run. An earlier overlay using a noncanonical temporary path
+selected no subtests and is not evidence. The candidate now repeats the existing
+scoped authority helper immediately after each of the four gateway advisory
+locks; the organization lock is already held. Independent source review found
+no issue. The full27-case gateway group then passed47.310s (test46.21s), using
+the same accepted base with only that test and gateway SQL overlaid. Base hashes
+remained unchanged and PostgreSQL shut down normally. Both overlaid source hashes
+were checked before and after: test hash above, SQL
+`632da5c7563ea2061d6064c1752310ca581e9bf52904f1721d223ae8131b97bd`.
+Evidence: `gateway-secondary-device-predecessor-green.log`. This closes the
+isolated writer regression; combined current-module acceptance remains pending.
+The same boundary was then exercised for the registered discovery API: device
+creation, enrollment issue/revoke wait on device advisory locks; device transition
+waits on the actual device row. All four returned success after their login
+registration was removed during that wait, while unchanged controls passed
+(eight-case RED39.960s). The API helpers now recheck immediately after advisory
+waits; transition rechecks before its sole return, preserving UPDATE/FOUND and
+fallback behavior while rolling back any unauthorized mutation. Issuance keeps
+its independent post-wait expiry check. The full35-case writer group passed49.029s
+(test48.13s) on accepted kIX9e2 with only the gateway SQL/test overlaid; PostgreSQL
+shut down normally and base hashes stayed equal. Before/after overlay hashes:
+SQL `5ce0934637fddd422c5c01f3d8e7e44737ac106cd013fc97649955e710228901`,
+test `259a2d7414da54293ac5e3e4cebf4c31e1b15b1d1d5fb16614a6d46656a52526`.
+Evidence: `gateway-api-secondary-predecessor-red.log` and
+`gateway-api-secondary-predecessor-green.log`. Source review accepted the
+post-wait placement; coherent current-profile and HTTP/OpenFGA product acceptance
+are still separate requirements. No production availability promotion follows.
+Coherent snapshot fNKvuO subsequently passed the same35-case gateway group in
+47.094s, with2698 unchanged captured files and normal owned PostgreSQL shutdown
+(`gateway-all-writers-coherent.log`, using `runtime-ancestry-projected76-snapshot.json`).
+This installs the current ancestry/worker profile and includes the runtime stage
+permission-fingerprint facts. It does not include the later pre-install stage
+baseline guard, and does not prove the full worker family or HTTP/OpenFGA flow.
+Resource publication remains disabled pending installed summary-mutation
+privilege coverage and the runtime source-reader lock-order review.
+No availability rows are promoted.
+
+Runtime intake's earlier deadline failure is resolved for the tested current
+paths described below; complete production runtime acceptance is still open.
+For the historical failure, immutable sJtqBg's composed
+native group ended FAIL236.731s: first semantic HTTP intake returned503 at10.003s,
+so accepted replay was not reached. Precise HTTP passed7.679s and interrupted
+upload completion passed8.485s; checksum/login/registration and catalog/security
+controls passed. Current projection, exact retry, signed publication and six
+SQL-only worker startups passed their92.12s group. Evidence:
+`runtime-identity-composed-native.log`. The new current-only identity preflights
+retain compiled checksum and registered login checks while native operations keep
+their full gates; this change alone does not meet the semantic request deadline.
+Source tracing found five full checks inside one five-row stage INSERT. The
+statement-level final gate candidate keeps row tuple checks and full native
+entry/exit checks. Immutable20ppIC then passed semantic intake7.272s, accepted
+replay5.410s, precise intake7.483s and interrupted-upload completion5.738s plus
+623ms recovery. The10-second product deadline is unchanged. Its18 gateway
+controls passed41.26s and current projection passed90.05s. However, the composed
+run ended FAIL226.945s: an accidental stage-table DML grant still admitted a
+zero-row INSERT. Disabled/body/helper-ACL drift and drift during an actual
+foreign-key wait were rejected. Evidence: `runtime-stage-statement-green.log`
+(the filename does not imply the composed result passed). The current candidate
+adds exact table owner/ACL/RLS, column ACL and policy facts, with additional
+grant controls. A physical copy of20ppIC with only the runtime SQL and stage test
+replaced passed the full runtime fence group in87.177s (test86.14s), with normal
+PostgreSQL shutdown. It rejected direct/public/column grants, RLS and policy
+drift, zero-row body drift, and catalog drift during an actual foreign-key wait.
+Semantic intake7.011s, accepted replay4.929s, precise intake7.449s and recovery
+finish6.222s stayed within their unchanged10-second limits. Evidence:
+`runtime-stage-acl-component-native.log`. This is predecessor-component proof.
+The combined ancestry installer now succeeds after an exact retained76 projection
+of three saved74 function bodies; the subsequent retained-worker group still
+fails one original-immutable-trigger catalog assertion, under investigation
+(`runtime-ancestry-projected76.log`,47.695s). Separately, pre-install native tests
+showed eight inherited stage permission/owner/RLS/policy mutations were accepted
+as the registration baseline, while the canonical baseline installed successfully
+(`runtime-stage-admission-red.log`,69.971s). An explicit closed-baseline admission
+guard is now being verified. No deployed or whole-runtime success is claimed.
+The subsequent coherent lGwEF5 run passed243.079s: runtime module81.40s,
+pre-install baseline admission70.57s and current projection90.20s, including
+actual FinishStage/retry/summary/signed publication and six registered SQL-only
+worker startups. All5365 captured hashes remained unchanged and all three owned
+PostgreSQL instances shut down normally. Semantic intake6.810s, accepted
+replay4.730s, precise intake7.212s and interrupted completion5.530s stayed within
+unchanged10-second request limits. Evidence: `runtime-current-coherent-native.log`.
+This accepts those current-profile application paths, including all eight
+pre-install permission refusals, but does not prove one batch's full
+archive-to-index-to-correlation chain or deployed provider flows. A separate
+retained-worker run passed its40 DML and13 catalog controls and real metadata
+lock waits, then failed signed planning load after14 FGA checks allowed; that
+failure is under diagnosis, and configured activation was not reached.
+
+Earlier deployment handoff explicitly selected
+`canonical61-temporal78-authorization79-80-runtime-v1` for event-ingest when the
+current authorization/Temporal profile is enabled. The codec selector remains
+independent; historical rendering does not emit the current database selector.
+Grouped render TDD first failed for missing selection and missing rejection,
+then passed8 checks with1 optional Docker key-materializer check skipped.
+The release validator rejects a missing, wrong or duplicate database selector.
+Independent source review found no issue in the three-file handoff change.
+Command: `node --test deploy/production/authorization-temporal-render.test.mjs
+deploy/production/authorization-temporal-profile.test.mjs
+deploy/production/runtime-services.test.mjs` (1.656s, exit0). These are rendered
+deployment contracts, not an applied release, runtime startup or provider proof.
+
+Current ownership: worker batch closes execution, completed-result recovery,
+artifacts and child/parent settlement together; independent launch preparation
+checks deployment and real-provider prerequisites. Discovery continuation
+acceptance passed on its isolated snapshot: parent package 966.273s, worker
+child 911.785s, 267 pages, cold restart and Continue-As-New at page 256, final
+checkpoint 266, cursor version 267 and generation 1. All original final
+assertions passed; the 24-hour product deadline was unchanged. The owned
+namespace was retired, PostgreSQL joined normally, and all captured source
+hashes remained equal. Evidence is in
+`.superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-migration-remaining/continuation-budget35-snapshot.log`
+and its adjacent source manifest. This closes that retained local discovery
+gate only, not current80 authorization or deployed provider acceptance. The
+test allowance was increased after measured progress; product guards and
+acceptance criteria were not removed. Later source changes need impact review.
+
+The bounded discovery diagnostic completed28.890s on an isolated snapshot:
+registered worker guards took151-189ms each (eight calls,1.339s total), readiness
+averaged172ms, and the private fingerprint alone took14-29ms. Prepare/unknown
+record and closed-effect refusal were exercised without fabricated successful
+provider evidence. These timings identify readiness as a meaningful per-call
+cost, not the complete cause of the long-run timeout. Catalog optimization is
+deferred while the existing guarded product flow gets a sufficient test budget;
+every guard remains required. This is not a product performance improvement.
+
+Launch preparation found no active deployment context, no installed AWS CLI,
+and no repository Actions secrets/environments. Those are external setup
+gates, not reasons to stop local implementation. The deployment batch now owns
+explicit worker-profile CLI/rendering, purpose-specific credentials and the
+one-pass authorization reconciler's image/CronJob packaging. It must keep
+canonical schema61 distinct from the logical78/79/80 profile and must not
+bypass unfinished full-runtime readiness. Existing combined browser acceptance
+still targets discovery60 and requires a current-profile integration batch.
+The composite installer candidate passed its local grouped native/unit run
+(190.525s): empty installation, retained exact61 upgrade and logical78/79 resume,
+with principal registration/replay and invalid-state refusal. Independent
+specification and quality review passed for the captured installer scope. Its evidence is under the execution scratch directory's
+`launch-installer-review/`; later worker-profile changes still require integrated
+installation verification. The new standalone historical61 bootstrap command
+was removed. Fresh deployment uses the owner-portable native67 cutover, while
+historical61 migration bytes and their strict checks remain intact. This does
+not establish full runtime startup or deployed readiness.
+
+The planner timezone gate now has a consuming native 68 regression: a real
+prepared intent recovers and replays in America/Los_Angeles, but a replacement
+UTC compensation session rejects the unchanged receipt with SQLSTATE 40001.
+The isolated Go 1.25.13 run failed 25.827s as intended; audit bytes, no-charge,
+one-receipt, no-new-send and catalog checks remained intact, with normal owned
+database shutdown and equal source hashes. The linked timezone report records
+the test and the additional late-usage/signed-facts seams. No fix is claimed.
+The additive repair now passes the retained68 prepared-receipt/current-profile
+upgrade and UTC replacement-session replay case (44.627s), with unchanged source
+snapshot hashes and normal database shutdown. Original audit bytes, uncharged
+released reservation, one receipt, no new send and catalog readiness are checked.
+Seven comparison mutation controls and full-row digest controls pass. Review
+then found SQL NULL could become JSON null in receipt body construction. Two
+native malformed-audit controls reproduced that acceptance (43.688s), and the
+repair now rejects invalid normalized rows before constructing the body.
+The corrected grouped prepared and sent/late-usage68 cases passed97.482s,
+including Los Angeles terminal evidence, UTC late usage and Kolkata replay,
+one-charge/no-new-send checks and unchanged original audit bytes. Both owned
+databases joined normally; source hashes remained equal. Independent
+specification and quality review passed for bounded68, including the joined result.
+The six-case74/78 signed worker timezone group joined with four passes and two
+failures (package855.226s). All three78 cases and74 prepared recovery passed;
+74 sent recovery stopped at an absent evidence row, and74 late usage lacked a
+provider response. The failed-only86.294s diagnostic found a real loaded intent
+terminalized as `planner_not_sent`, with no reservation/provider call and all
+deadlines still future. A failed-only traced run94.352s then identified the
+unchanged10-second planner call deadline expiring during preparation after
+repeated authorization catalog reads. Eight permission Checks currently cause
+17 revision reads on this path. The bounded repair applies the existing
+request-local revision bracket to the exact Test74 planning check set, retaining
+every grantor/task Check, both source reads, final revision equality and the
+native execution fence. It does not increase the deadline or cache authority
+across requests. Independent source review found no defect in the scoped repair.
+The frozen grouped permission tests passed1.272s; the two failed74 native cases
+then passed234.411s (sent revocation107.59s, sent late usage125.60s). Both actual
+product children completed their native assertions, both databases joined
+normally, and the2614-file source snapshot stayed unchanged. The original
+10-second call deadline remains. Evidence is `worker-planning-revision-native.log`
+and its manifest in the execution scratch directory. Together with the earlier
+four passing cases, this closes the bounded74/78 timezone consumer gate; it
+does not establish all-family runtime or deployed acceptance.
+All six databases stopped normally and
+the captured source remained unchanged. Passed cases will not be repeated
+unless an affected change requires it; only the failing74 path is being probed.
+This is local integration evidence, not full recovery or deployed acceptance.
+
+Deployment packaging also passed independent specification/quality review for
+its captured scope: 68 renderer/profile/release/queue tests, 19 strict manifest
+mutation controls, two offline Terraform checks, non-root key-copy checks and
+the bounded Node/Promptfoo runner-assets image stage. Evidence is under
+`deployment-packaging/` in the execution scratch directory. This does not prove
+a full worker image startup, cloud application or deployed product acceptance.
+
+The full ARM64 worker-image build exposed a real packaging failure: pinned
+Prowler dependency zstd1.5.7.2 compiles from source but the slim build stage had
+no gcc. Go binaries and Cartography passed. A build-stage-only gcc/libc6-dev
+repair passed the full build on the same2441-file source capture with only the
+Dockerfile changed; compiler tools are not copied into runtime. Independent
+source review accepted the bounded repair. The final ARM64 image passed offline
+non-root checks for both security runtimes, zstd roundtrip and Prowler import;
+all frozen input hashes remained equal. This closes packaging/ABI verification
+only, not service startup, deployed integrations or the later source changes.
+Evidence is `deployment-packaging/full-worker-image-progress.md` and its logs.
+
+The isolated compiler-only repair shipped to main as
+`e9fc3dd42be3caf1b3efbeeff75272303f818104`, verified by direct remote readback.
+That exact main candidate passed130 grouped regression checks, UI typecheck and
+production build, all728 ledger rows, and its own full ARM64 image/non-root
+smoke. Final ledger-only checks passed34/34. Its image is
+`sha256:366f11486189a9cbd494cad791887e69a9f814f5894a64a3f0a6eb8aa4d55ece`.
+Only the Dockerfile compiler stage and bounded main ledger checkpoint shipped;
+unfinished architecture work remains separate. Main's retained534/133/61 task
+classifications are not this architecture's readiness or live deployment proof.
+Hosted [Runnable UI run36184495073](https://github.com/crossbizz/zasp-sec/actions/runs/36184495073)
+now passes for that exact main SHA, completed September25 at20:53:53UTC. Root
+verified the run head and remote main. All stages passed, including UI/build,
+release sources, durable sessions, sensor/daemon replay and bounded Attack Lab
+enforcement. This closes only the shipped compiler-repair CI gate; the current
+architecture candidate and deployed Stytch/provider flows remain unverified.
+
+The bounded Test74 receipt-reuse native group joined after410.138s with stable
+source hashes and normal owned PostgreSQL shutdown. RecoveredLifecycle passed
+330.31s, including actual Node/TLS completed-receipt recovery after grantor
+revocation, artifact persistence and child/parent settlement. Its receipt HTTP
+returned200 within the unchanged10s limit. The group did not pass: queued
+corruption setup attempted an owner mutation that the retained native guard
+correctly refused42501, before its intended source assertion. A rollback-only
+fixture repair is under review; no production guard was relaxed. Evidence:
+`p7-worker-enforcement/worker-test74-lifecycle-receipt-reuse.log` in execution
+scratch. Six-category actual Node recovery now has a separate consuming test
+pending native execution, because one-category success cannot prove its runner
+deadline. None of these local results closes deployed acceptance or promotes
+the task classifications.
+
+Follow-up: the repaired queued lifecycle passed91.49s. Maximum-category native
+status checks passed, but actual six-category Node recovery then reproduced the
+unchanged30s runner deadline after four sequential successful receipt requests.
+This is a product-path failure, separate from an earlier parent-fixture timeout.
+A reviewed two-module candidate consolidates redundant request-local catalog
+checks while retaining entry/exit validation, tenant/identity/row-lock checks,
+native facts, proof fences and existing deadlines. Migration and adapter checks
+pass. The consuming six-category rerun subsequently passed365.527s with stable
+source hashes and normal PostgreSQL shutdown. Actual Node/TLS recovery completed
+all six receipt requests at3.30–3.40s each under the unchanged30s runner limit,
+then verified exact artifact/child/parent settlement and replay without fresh
+provider IO. These are controlled signed completed observations, not six live
+provider sends. Remaining lifecycle modes and helper drift controls are open.
+Evidence and exact scope:
+`p7-worker-enforcement/receipt-reuse-root-review.md`. No readiness promotion.
+
+The subsequent SDK lifecycle group on immutable6c7Zr7 failed445.309s:
+prepared103.86s and reserved136.03s passed, including completed-receipt private
+helper body/owner/ACL drift rejection. Pending reached the correct nonretryable
+CleanupPending result but failed its final fixture assertion. That assertion
+expected `unknown`; the fixture stops immediately after dispatch, before any
+runner observation, so native cleanup correctly preserves `started`. Root and
+worker source review confirmed the unchanged cleanup contract. The corrected
+test checks started/completion timestamps, exact stop proof, unknown-outcome
+parent reason, one audit, absent observations and retained unresolved debt.
+Pending-only verification passed201.101s on kAbft6, actual SDK child42.86s,
+stable2628 source hashes and normal PostgreSQL shutdown. Discovery schedule
+verification on ABPlb3 failed176.492s during its partial-page companion control,
+before either scheduled occurrence: the fixture passed a page receipt as a
+final receipt. Native settlement returns no final receipt without a committed
+snapshot. The corrected fixture follows the shipped workflow's
+ReconcileDiscoveryOutcome(activity_failed) path, checks incomplete/empty final
+receipt, then checks finish replay. No product changes follow from this fixture
+failure. Initial launches of both groups skipped because the child PATH omitted
+installed PostgreSQL binaries; those logs are not acceptance. No classifications
+change. Native logs: `worker-test74-lifecycle-pending-state-native.log` and
+`discovery72-scheduled-current-native.log` in execution scratch.
+The reviewed fixture-only correction on immutable8zzuVg joined FAIL687.551s,
+with stable2645 files and normal PostgreSQL shutdown. Partial recovery65.01s,
+source denial4.97s and the first actual scheduled collection/application80.70s
+passed. The second real due occurrence was admitted, but its following
+authorization projection returned unavailable. Mixed-capture invalidation and
+final per-send controls were not reached. Diagnose that boundary before another
+long run. Evidence: `discovery72-scheduled-settlement.log`; no scheduled-flow
+completion or production promotion is claimed.
+Follow-up diagnostics now run on source-only HDScf4, explicit Go1.25.13;
+compilation passed1.184s, without executing acceptance cases. Test-only SQL/HTTP error logging omits
+arguments, payloads and credentials and identifies the failing projection
+boundary. The local runtime services stopped at04:11UTC, hours after the
+22:49UTC failure, so that later outage is not accepted as its root cause.
+Restarting the same five containers preserved their volumes; the actual
+Temporal/authenticated-FGA smoke passed1.228s after restoration. The diagnostic
+schedule run joined FAIL757.314s on stable HDScf4 with normal PostgreSQL shutdown.
+Both real300-second occurrences were admitted; the first collected/applied,
+and the second passed mixed-capture disable delta1, re-enable/delete delta0,
+no revival and source denial. The earlier projection failure did not recur;
+its cause remains unresolved, not fixed by a claimed product change. The final
+per-send fixture expected unknown but observed revoked with zero HTTP sends.
+Source review found the typed FailureRevoked is produced before Next.RoundTrip
+and is durably recorded; this is not an uncertain dispatched effect. The test-only
+correction checks revoked/zero sends/no unresolved owner and exact no-IO replay.
+A separate lost-response case observes one real controlled HTTP send, loses its
+observation, then checks outcome_unknown/retained owner and no-IO replay after
+revocation/outage. Independent contract review agreed. This focused pair
+passed in219.795s on immutable KTHHGu without repeating schedule waits: native
+pre-send revocation54.92s and lost-response63.54s, actual checked API child151.32s.
+All2646 source hashes stayed stable and owned PostgreSQL shut down normally.
+Exact receipt replay after revocation/OpenFGA outage performed no new HTTP,
+credential resolution or authorization checks in both cases. The denied send
+released ownership; the observed-send/lost-response case retained unknown debt.
+No product logic or security boundary changed. Logs: `discovery72-scheduled-projection-diagnostic.log`
+and `discovery72-boundary-outcomes.log`. Full current composition and deployed
+provider acceptance remain open.
+
+Discovery72 candidate11 passed its connected local group204.969s on immutable
+o7Mhsg, with matching source hashes and normal PostgreSQL shutdown. Checked
+manual API capture, actual OpenFGA integration, typed collector/controlled
+provider HTTP, snapshot commit and captured recovery after revocation/outage
+passed, alongside human negative controls and the shipped startup binder.
+Evidence: `p7-worker-enforcement/discovery72-connected-candidate11.log` in
+execution scratch. This accepts the captured prior-base Discovery composition
+only. Final shared assembly, worker proof/credential expiry across lock waits,
+scheduled-flow coverage and deployed provider acceptance remain open.
+
+The subsequent current-source expiry group passed278.260s, including genuine
+worker proof expiry across organization-lock waits and credential expiry on the
+dispatcher path. A separate directly callable native entry then reproduced
+expired-credential acceptance under a still-live genuine proof. A three-line
+forward-only final clock check fixed that boundary; unchanged consuming tests
+passed187.520s on r1eyyQ with stable hashes and normal PostgreSQL shutdown.
+Captured recovery remains exempt from fresh forward credential authority. An
+earlier retry failed during local FGA service outage, before reaching the case;
+that result remains failed setup evidence. Source review and raw records are in
+`p7-worker-enforcement/discovery72-expiry-followup.md` and
+`discovery72-direct-expiry-green-retry.log`. Scheduled and deployed gates remain.
+
+Ordered68's connected planner group passed381.571s on immutable MlS68N,
+all2635 source hashes unchanged and all four PostgreSQL instances stopped
+normally. Current admission/accounting/replay, revocation before provider send,
+revocation after send and late usage accounting passed through the actual
+planner with controlled TLS provider responses. The Ordered-only request-local
+revision interval preserves all ten OpenFGA Checks, both source reads, final
+revision validation and native proof guards; it removes repeated revision
+reads without changing deadlines or caching authority between requests. Root
+review accepted this planner checkpoint only. Evidence:
+`p7-worker-enforcement/ordered68-planning-revision-green.log` and its snapshot
+manifest. Target-lineage completion, signing/effects,69 lifecycle, comparison,
+legacy permission retirement and deployed acceptance remain open; runtime
+readiness stays closed and original-task classifications do not change.
+
+Ordered target-lineage follow-up passed53.780s on oSc0I1, with stable source
+hashes and normal PostgreSQL shutdown. Admission now captures the native target
+resolution digest and provenance. Registered native consumers reject changed
+evidence, snapshot and observation (including removed observation), while
+captured recovery retains the original metadata; an unchanged control passes.
+This is a bounded lineage checkpoint, not completed signing/effects or approved
+end-to-end execution. Evidence: `p7-worker-enforcement/ordered68-batch2-evidence.md`.
+
+The next authorization implementation order is Test74 Observe/Cleanup and
+runtime-source ancestry, Ordered68 tests/Block, Discovery72 provider/commit
+guards, then actual constructor and API-to-Temporal acceptance. Discovery
+authorization now has a consuming native RED45.717s: actual API-procedure
+admission, current profile and member revocation still permit unsigned72
+collection input and effect preparation. Its transaction rolled back,24-hour
+deadline stayed intact, database joined normally and snapshot remained stable.
+This is a missing staged native fence, not a deployed exploit claim or HTTP API
+acceptance. Connected discovery implementation is released under ruling21.
+Root's connected SQL review identified retained terminal-run recovery backfill
+and credential identity/expiry as required follow-ups before native acceptance.
+Both source fixes now passed root review; consuming native evidence remains
+open. Discovery's captured queued/running bookkeeping also has a narrowly
+reviewed revision rule, with terminal and authority changes still invalidating.
+The actual queued Test74 Observe/Cleanup
+group also reproduced the missing signed lifecycle path102.133s, with a stable
+snapshot and normal database shutdown. Lifecycle implementation now includes a
+closed captured recovery-status read so Cleanup can recover completed evidence
+or preserve pending debt without swallowing authorization or transport errors.
+Its first full lifecycle group failed320.270s during shared installation, before
+behavior: retained inspect has two BEGIN blocks but the wrapper expected one.
+The repair uses an exact unique function-entry/schema-lock anchor; its cheap
+retained-source assertion passed. The failed snapshot stayed unchanged and all
+owned databases stopped normally. Subsequent expensive grouped runs use
+fail-fast on shared setup failure; no acceptance cases are removed.
+Independent lifecycle review then corrected two fixture modes that missed the
+actual cleanup child; positive child-executed assertions now guard those paths.
+Discovery's first connected candidate stopped at installation with42601, before
+behavior. A diagnostic located the unparenthesized CASE expression in its guard;
+the same parser failure was reproduced and the one-line repair passed a minimal
+PostgreSQL check. Both connected groups still require successful native results.
+The corrected lifecycle group reached actual HTTP execution and passed33 native
+artifact mutation controls, but failed274.431s at the product's signed recovery
+status read before cleanup acceptance. Snapshot hashes stayed equal and owned
+PostgreSQL stopped normally. The scoped diagnostic failed211.609s and identified
+the cause: two recovery source reads took3.184s and3.407s, then native execution
+exhausted the original10-second deadline after3.423s. Its actual HTTP child
+passed46.70s; the snapshot stayed equal and PostgreSQL stopped normally.
+The reviewed repair reuses facts validated under the same native locks and
+removes repeated per-category ancestry/catalog reads, retaining both outer
+source reads, entry/exit checks and the deadline. Six-category pending/complete
+and final-category mismatch acceptance is required. Neither the parent group
+nor the remaining lifecycle cases are counted as passed. Evidence is
+`p7-worker-enforcement/worker-test74-lifecycle-timing.log` under the execution scratch.
+Runtime-source Test74 now has a reviewed connected proposal preserving separate
+retained-session and configured-event admission, actual session/agent/device
+ancestry, current grantor/task checks and captured recovery. Its implementation
+and acceptance remain required; Ordered68 planning/test/Block follows separately.
+Discovery's checked HTTP candidate then exposed a real current-API gap: the Go
+statement contract omitted native72 mutations, and the native entry points
+still accepted actor-only authority. The connected repair now includes exact
+sync/schedule statement binding plus sealed human proof checks at the native
+entry and fresh provenance capture. Raw registered API calls must refuse without
+that proof. This is required implementation, not a test-fixture exception;
+discovery API-to-worker acceptance remains open.
+The consuming native proof-required regression failed48.780s as intended:
+an actual registered API session created a live delegation without current
+human proof. The test rolled back that write; source hashes stayed equal and
+PostgreSQL stopped normally. The preceding missing historical receipt control
+also refused installation. Exact Go statement selectors now pass their grouped
+checks1.262s; SQL guards and connected acceptance are still pending. The reviewed
+guard design binds a private transaction marker to the checked request and
+accounts for only its own locked revision changes, preserving fresh identity,
+expiry and permission checks. Evidence is
+`p7-worker-enforcement/discovery72-human-native-red.log` under the execution scratch.
+Ordered68 Batch1 now has the required native failing boundary: the registered
+unsigned executor obtained both actual planning state and load. The isolated
+run failed47.433s with normal PostgreSQL shutdown and equal hashes. Its earlier
+fixture prerequisite failure remains separate; only this corrected run is
+product-boundary evidence (`p7-worker-enforcement/ordered68-planning-boundary-red.log`).
+The connected planner implementation is underway. Independent source review of
+the lifecycle status-reuse repair found no new defect; grouped native acceptance
+under the unchanged deadline remains required. Its next native run failed203.322s
+with55000: the profile builder inserted the new lifecycle SQL after pin expansion,
+leaving literal version placeholders. HTTP child passed47.33s, snapshot remained
+equal and PostgreSQL stopped normally. A new cheap builder-output regression
+reproduced both unresolved pins in2.720s before the assembly correction; source
+review alone had missed this integration defect. Evidence is the lifecycle
+status-reuse root review and `worker-test74-lifecycle-bounded.log` in execution
+scratch. Discovery's replay-expiry and lock-order findings are now repaired in
+source; grouped native acceptance remains pending. No task availability row is
+promoted by these diagnostics, source reviews or implementation approvals.
+The corrected lifecycle assembly regression passes5.061s. Its isolated native
+group still fails282.578s: actual HTTP journal acceptance passes54.23s and the
+status calls now take1.33–1.43s each under the unchanged deadline, including
+the malformed/missing/completion-race controls. Actual revoked Cleanup then
+fails in the Node recovery command. The group stopped before later lifecycle
+cases; those are not accepted. Snapshot hashes stayed equal and PostgreSQL
+joined normally (`worker-test74-lifecycle-pins.log`). Diagnosis is active.
+Discovery candidate5 passes its human API proof, mismatch/forged-marker,
+transaction rollback, contended schedule and expired replay controls, then
+fails145.252s at a worker fixture query using the wrong principal column.
+That test-only query is corrected after checking the remaining fixture
+contracts; candidate6 is pending. This is partial evidence, not API-to-collector
+acceptance (`discovery72-connected-candidate5.log`). Ordered's first signed
+planning checkpoint passes66.133s with actual profile installation, unsigned
+state/load refusal, official OpenFGA projection and signed native load. Its
+runtime remains closed. Shared planner HTTPS/revocation coverage, subsequent
+effect/lifecycle batches and retirement of retained permission evaluators remain
+required (`ordered68-planning-first-green.log`). Both snapshots stayed stable
+and their owned PostgreSQL processes joined normally. These are local proofs;
+all728 availability classifications remain unchanged.
+Follow-up source review found a shared worker-proof expiry gap: guards sample
+time before potentially blocking locks and do not refresh it after source
+validation. Ordered's owner confirmed its installed clone retains this behavior.
+The same base is copied into Test74 and Discovery72; finding effects have a
+separate equivalent guard. Native lock-wait regression coverage and coordinated
+repairs are pending. Captured compensation also has an avoidable organization/
+parent lock-order inversion, a reliability issue distinct from an authority
+bypass. Exact scope and the lifecycle early-return integration constraint are
+recorded in `p7-worker-enforcement/ordered68-root-source-review.md`. This prevents
+batch acceptance; it does not change historical availability classifications.
+The consuming native regression now reproduces both findings: expired captured
+proof succeeded after an observed organization-lock wait, and compensation held
+the parent while waiting for that organization. Run72.661s failed as intended;
+both calls joined and rolled back, intent stayed unchanged, snapshot hashes
+matched and owned PostgreSQL stopped normally. Evidence is
+`ordered68-planning-fence-red.log`. Shared guard repair and grouped acceptance
+are next. A separate receipt diagnostic failed43.504s at local OpenFGA setup,
+not product recovery. The retained five runtime containers were restarted with
+existing data/configuration; the application Temporal/OpenFGA connection smoke
+passes0.687s. The identical receipt diagnostic is rerunning. Details are in
+`local-runtime-recovery.md`; none of this is deployed product proof.
+The restored receipt diagnostic now reaches the actual failure: source reads
+take2.588s and2.531s; native Execute reaches its deadline after another4.881s.
+The receipt HTTP endpoint returns503 at10.001s and Node reports transport_timeout
+while its caller context remains live. Run279.590s ends with stable source hashes
+and normal PostgreSQL shutdown. The receipt guard and return currently each
+invoke the complete reader in the same locked call. A reviewed narrow repair
+will reuse that freshly validated reader result inside Execute, retaining both
+external source reads, proof checks and the existing deadline. Actual recovered
+Cleanup acceptance is still required. Separately, source review accepted the
+shared organization-lock/final-clock repair and its lifecycle/Discovery clone
+integration for grouped native verification; no family is promoted by source
+review. Evidence: `worker-test74-receipt-diagnostic-restored.log` and
+`ordered68-root-source-review.md` in the execution scratch.
+The shared-fix Ordered group joins175.590s with stable hashes and normal owned
+database shutdowns. Its two consuming lock/time controls pass75.30s. The first
+actual planner mode then fails at its9.954s state call; remaining revoke/late
+usage modes do not run. Source inspection identifies repeated revision reads
+as a candidate cost, but measured boundary timing is required before changing
+authorization evaluation. Discovery candidate10 now passes the shipped-binder
+startup preflight4.01s and human controls, and reaches one credential read and
+one provider send. It records outcome_unknown instead of completing; the
+fixture's untyped snapshot candidate conflicts with the real request's nonzero
+observation time. Its210.752s failure is retained with stable hashes and normal
+PostgreSQL shutdown. A consuming cheap fixture-contract regression precedes
+that correction. No collector success or full planner acceptance is claimed.
+Ordered timing isolates its current failure: initial source550ms, revision
+reads1–19 take475–530ms each, and read20 hits the deadline. All ten permission
+checks complete; Authorize fails at10002ms and Execute is never reached.
+The78.823s diagnostic joins with stable hashes and normal PostgreSQL shutdown
+(`ordered68-planning-state-timing.log`). A scoped Ordered-only revision interval
+around the already validated five-target/ten-request check set is approved for
+implementation, preserving every permission decision, source reread, final
+revision read and native guard. No timeout increase, cross-request cache or
+other-family expansion is approved by this evidence. Acceptance remains pending.
+Exact unsupported paths are
+recorded in the execution scratch `p7-worker-enforcement/remaining-families-handoff.md`.
+The connected recovery candidate remains unaccepted. Review reproduced an
+ambiguous comparison category-count encoding; a framed-count correction and
+affected component tests now pass. The corrected native run291.930s passed its
+HTTP child and receipt probes but stopped before product recovery: the test
+constructed an invoker with a private CIDR prohibited by its existing policy.
+The corrected shared fixture smoke passed2.677s. Its next immutable native
+group then passed375.654s, including the actual HTTP child64.50s and recovered
+product child63.42s. The latter exercised real Node HTTPS receipt recovery,
+artifact storage, child and parent settlement/retries, unchanged journal and
+zero new target IO. Snapshot mismatch and private catalog controls passed;
+the owned database joined normally and all2610 captured files stayed unchanged.
+Evidence is `p7-worker-enforcement/recovered-product-composition-candidate.log`
+and its source manifest under the execution scratch directory. Root confirmed
+the terminal result. Independent source review found no unresolved defect in
+the connected boundary; root recomputed the log/manifest hashes and matched13
+selected current production files to the captured source. Closed parent-receipt
+controls passed1.404s without production changes. Remaining native artifact
+mutations and Observe/Cleanup belong to the next lifecycle batch; full
+specification acceptance stays open. This is local connected acceptance, not deployed DNS/service
+authentication, full Temporal workflow or production readiness.
+
+An earlier interrupted receipt group's process is no longer present.
+Its actual HTTP child passed61.00s, but the raw log has no group terminal result,
+teardown confirmation or after-source snapshot. This is partial evidence only;
+the connected worker batch still needs its grouped acceptance and review.
+
+Current working-tree UI checks passed on Node22.23.1: `npm run typecheck`,
+`npm run build`, and production source/compiled import checks (74 source files,
+7 client chunks and 8 server chunks). The build emitted plugin timing advice,
+not a build failure. These checks establish compilation and import boundaries,
+not current-profile browser acceptance or deployed API connectivity. The ledger
+validator still reports728 rows,523/144/61/0; those retained availability classes
+are not a Temporal/OpenFGA launch-readiness count.
+
+The full728-task goal is active and production readiness is not established.
+This snapshot supersedes older checkpoints below; those remain as evidence
+history, including retained failed runs. No main push is claimed for the current
+dirty candidate. Original task IDs and acceptance criteria are unchanged.
+
+### Retained verification history
+
+The dated checkpoints below preserve earlier passes, failures and intermediate
+states. They do not override the current batch status above or establish a
+deployed Temporal/OpenFGA launch.
+
+The completed-receipt reader and HTTP route are implemented as a candidate,
+with focused decoder/authorization checks passing (adapter1.155s,
+authorization1.443s). Native recovery acceptance is still pending. Static
+inspection found that the candidate passes a child-step input digest to
+`start_identity`, which requires the parent run owner's trigger digest. This
+must be corrected and verified without weakening the child journal identity
+checks. The initial review approval does not close this gate. Receipt-specific
+native refusal cases, runner integration and parent settlement remain open.
+The first native candidate run failed242.630s (test241.43s/child42.77s):
+fresh revoked recovery returned503 after one send, one credential read and16
+Checks. Source snapshots match and owned PostgreSQL stopped normally. This
+establishes recovery refusal, not its exact SQLSTATE; the digest mismatch is
+separately established by source inspection. No recovery success is claimed.
+The corrected reader now selects the exact scoped parent/step/child owner
+and passes that owner's definition version and trigger digest to native start
+validation. Independent static review accepts this correction and retracts
+the earlier unconditional approval. The request's child input digest remains
+bound to the child journal. Native re-verification is still required.
+
+The long discovery continuation test failed1247.596s from its immutable source
+snapshot. It reached page256 and cold-restarted the worker, then exhausted the
+child's20-minute test context at page259. Persisted state is partial, with
+checkpoint259, cursor version259 and generation1; the267-page final assertions
+did not pass. Snapshot hashes remained equal, the owned namespace was retired
+and PostgreSQL stopped normally. This is a test-context failure, not proof of
+a product deadline failure or a diagnosed deadlock. Per-page timing diagnosis
+is next; the retained CLI continuation gate stays open.
+
+[Planner receipt timezone gate](2026-09-25-planner-receipt-timezone-gate.md)
+remains open across retained68/74/78 planner proofs. The new UTC completion
+receipt does not establish portability of older full-row audit JSON. This is a
+read-only source/evidence audit, not a new fix or verification pass.
+
+Fresh-handler recovery has consuming RED237.710s (test236.33s/child42.98s).
+After the real single send, revocation and held completion, a newly constructed
+handler returns400 for the still-missing completed-receipt route. Counts remain
+one send, one credential read and16 forward Checks. Source manifests match and
+the owned database stopped normally. The closed read-only route/reader is next,
+with direct resolver-call and post-retry journal checks required. No recovery
+success is claimed.
+
+Actual signed HTTP/native journal now passes242.586s (test241.44s,
+child47.89s). Mid-Check1/8 revocations refuse before creating an invocation;
+normal reconciliation then permits one committed-start TLS send and one
+credential read. Revocation before response still allows captured completion
+and two held retries without extra sends/credentials/Checks. The original10s
+per-call limit is unchanged. Sources match and owned database teardown is normal.
+This is local controlled-provider evidence, not fresh-handler recovery, full
+worker/runtime or deployed production acceptance.
+
+[Adapter revision bracket review](2026-09-25-adapter-revision-bracket-review.md)
+passes SPEC/QUALITY without findings. Expanded mixed-scope and revision-mutation
+tests pass authorization1.878s/adapter1.263s with identical snapshots. Native
+HTTP and mid-Check mutation verification is running; no success is assumed.
+
+The HTTP diagnostic now establishes deadline exhaustion: Authorize succeeded
+in8.965s, then Execute was cancelled after1.034s at the unchanged10s total
+deadline. Seventeen revision reads took343-418ms each; FGA calls took4-19ms.
+Diagnostic34481 intentionally failed196.546s after reporting, with equal source
+snapshots and normal database teardown, without provider IO. Adapter-only
+request-local revision bracketing is approved for implementation and verification;
+all permission checks, source revalidation and native locked checks remain.
+No timeout increase or successful HTTP claim.
+
+Only the long discovery continuation case remains in the retained CLI batch.
+Discovery runtime/isolation passed181.753s (82.03s/99.08s) using local Temporal
+and controlled providers. Identical-name tenants retain distinct schedules,
+runs, HTTP receipts and artifact keys; persisted snapshots/projection counts
+match. Source manifests are equal, owned namespaces retired, and databases
+stopped normally. This is not current80 worker enforcement or live provider
+proof; earlier counts below are historical.
+
+Signed journal covering group failed543.590s with equal source snapshots and
+normal owned-database shutdowns. CapturedComplete passed326.62s, including the
+previously missing journal_digest tamper and unchanged positive control. HTTP
+failed215.45s: the real handler returned503 after8 forward Checks, with zero
+sends, credential reads or completions. This narrows the failure to signed
+resolve before Start; its cause is not yet proved. A bounded timing/error probe
+is next. No HTTP success or production readiness is claimed.
+
+Three retained CLI verification cases remain: discovery continuation, shipped
+runtime and tenant isolation. Outbox/executor/selector passed106.601s together
+(12.65s/33.22s/60.06s), including actual compiled selector CLI and deployment
+consumer replay plus invalid-configuration refusal. Source manifests match and
+all owned databases stopped normally. This is local retained application proof,
+not current80 authorization or live deployment acceptance. Older counts below
+are historical.
+
+Six retained CLI migration cases remain after the grouped domain/human run
+passed140.565s: shipped domain67.35s, persistence20.01s and human admission52.07s.
+All owned databases stopped normally and source manifests match. This verifies
+local install/replay and authority/catalog refusal, not current worker or live
+identity/provider flows. Earlier remaining-count notes below are historical.
+
+[Signed journal consumer review](2026-09-25-worker-journal-consumer-review.md)
+passes SPEC/QUALITY with no findings. Focused adapter1.127s/auth2.329s and
+identical source snapshots support the bounded consumer result. Native HTTP
+and fresh-handler recovery acceptance remain pending; full startup stays closed.
+
+Actual adapter HTTP integration has consuming RED198.964s: both machine key
+clients pass readiness, but the retained unsigned journal returns503 before
+target sends, credential reads, completions or forward Checks. Source snapshots
+match and the owned database stopped normally. Signed journal/strict receipt
+consumer wiring is next; no successful HTTP execution is claimed.
+
+Nine retained CLI migration cases remain after discovery coexistence passed
+41.690s (test40.96s): explicit delivery ownership, ambiguity/foreign refusal,
+registered retained authorities and invalid-profile refusal. Sources stayed
+identical and the database stopped normally. Earlier remaining-count entries
+below are historical; current worker and deployed acceptance remain separate.
+
+Captured adapter completion now passes305.851s locally: after signed start and
+membership revoke, compensation records a held observation, returns the exact
+16-field receipt, replays unchanged, and refuses altered response evidence.
+Sources stayed identical and the owned database stopped normally. This does
+not execute the HTTP/provider/runner path. Journal-digest tamper coverage and
+the actual handler/receipt-recovery integrations remain required; no full worker
+or production acceptance is claimed.
+
+[Independent captured-completion review](2026-09-25-worker-captured-completion-review.md)
+passes SPEC/QUALITY for that native boundary, with no Critical or Important
+findings. The minor missing journal-digest mutation is added to the next test
+candidate but is not yet verified. HTTP and full runtime exclusions remain.
+
+Four earlier mounted API fixture failures now pass after a test-only repair:
+the legacy fake database explicitly returnsfalse for the exact78 namespace
+probe. Reproduction failed0.886s/0.707s with503 before expected family/write
+operations; grouped repaired and retained API checks pass1.421s. Production
+query-error handling is unchanged. Independent review passes SPEC/QUALITY with
+no findings; unknown statements still error and newer-family tests remain. This is not
+current80 native authorization or deployed API proof.
+
+Captured adapter Complete has consuming RED211.113s: after a signed invocation
+start and membership revoke, the compensation client rejects the still-absent
+typed Complete operation. Native settlement/replay assertions were not reached.
+Implementation continues under the approved captured-authority contract.
+
+Latest adapter checkpoint: dedicated signed resolve/start passed220.060s with
+identical sources and normal owned-database teardown. It checks current grantor
+and task permissions and persists exactly one invocation; unsigned calls refuse.
+This is local native permit/journal evidence, not a provider send or captured
+completion. Adapter-specific adversarial tests, partial-profile startup refusal,
+Complete/receipt recovery and full deployed composition remain required.
+
+Partial-profile adapter composition now refuses unsigned fallback: RED2.894s
+then adapter10.514s/authorization1.826s pass with unchanged run snapshots.
+Source inspection confirms the gate precedes cloud/token loading and also
+checks composition/readiness. This is unit routing/key proof; owned routing
+was explicitly skipped, and actual cloud/deployed startup proof remains open.
+
+[UI contract repair](2026-09-25-ui-toolchain-contract-repair.md): full local
+suite2472/2472 across242 files now passes after five stale toolchain expectations
+were aligned with the approved module/CI pins. Focused270/270 and independent
+review pass; typecheck and production build also passed before this test-only
+repair. Hosted CI, live browser/provider and current worker composition gates
+remain open. No push is claimed.
+
+[Deployment gap check](2026-09-25-worker-deployment-gap-check.md): the existing
+runtime-services renderer test passes1/1, but only covers schema49 API/scheduler
+configuration. Direct assertions confirm61/78/79/80 rejection; worker profile
+and separate authorization key wiring remain required. No live deployment or
+current worker-readiness conclusion follows from that passing renderer test.
+
+Latest local worker checkpoint: native74 effect proof passed173.679s with
+identical source snapshots and normal owned-PostgreSQL teardown. It covers
+signed reserve/input/dispatch/retry, unsigned linked/state refusal, and forward
+revocation with narrowly scoped compensation receipts. It does not execute an
+adapter send or establish full workflow readiness. The preceding installation
+syntax failure is retained in evidence. Effect-specific adversarial checks are
+running; recovered receipt comparison and settlement are approved for bounded
+implementation, not verified complete. See the SDD worker ruling17 and raw
+worker-test74-effect-case-fixed evidence. The subsequent adversarial group
+failed175.301s before its revocation tail because projection was pending after
+compensation verifier registration. Normal fixture reconciliation needs repair;
+the pending-state refusal remains required. No classification or push changed.
+
+The corrected group passed181.020s with identical sources and normal database
+teardown. It now tests Pending->Reconcile and refuses membership revocation
+between Check and Execute. Root review found that manual proof-mutation cases
+still need an unchanged-envelope control to establish their individual rejection
+causes. That control is required in the next adapter group; the broader worker
+and deployed gates remain open.
+
+The next adapter group failed as expected214.688s: its actual registered adapter
+still reaches resolve/start without the new signed worker proof. Attempts were
+rolled back, with native child/input/effect/journal cardinalities checked. Both
+unchanged manual-envelope controls passed before their mutation tables in this
+run, closing the test-control gap above. Dedicated adapter authorization is now
+the next implementation step; this RED is not product acceptance.
+
+| Boundary | Current evidence and remaining limit |
+| --- | --- |
+| Native identity | Finite component accepted after [identity fix review](2026-09-25-identity-boundary-fix1-review.md). Live Stytch and deployed acceptance remain open. |
+| Post-login APIs and UI | [Fix review accepted](2026-09-25-post-login-boundary-fix1-review.md), both findings closed; backend61.506s, UI110/110, typecheck/build pass. Local controlled-provider and owned-FGA evidence, not live provider proof. |
+| Ordered startup readiness | [Review accepted](2026-09-25-ordered-readiness-review.md); native45.422s, final affected race10.028s/3.901s. Current shared-profile supplement93.912s passed without source changes. This is not full constructor or ordered-operation acceptance. |
+| Worker effect authorization | In progress, not accepted. Local finding proof covers actual effect/replay, grantor/service checks, task-specific revocation, target/definition changes, native proof/key refusals and an observed concurrent revocation lock wait. The actual finding Activity child passes148.360s; native planning lifecycle/accounting passes165.758s. Prepared/queued cleanup now passes119.38s in the covering370.718s group after the timestamp-context repair. Shared planner normal/recovery/late replay have controlled-provider evidence below; planner-specific proof checks pass155.119s. Other68/72/74 boundaries, discovery, signing, cross-session receipt portability and full workflow/production composition remain required. Details and failed runs follow below; no batch or production acceptance. |
+| Remaining CLI migration tests | Ten unfinished after start-delivery/public-readback passed80.759s, wrong-principal-before-DDL13.913s and pre-dispatch readback49.240s. The last checks failed/attempt0/no retry after cancellation, typed detail/history/freshness and foreign-environment refusal. Sources unchanged and owned database stopped normally. Earlier11/12/14-count notes are historical. The22-minute continuation case still needs a sufficient package budget. |
+| Monitor/Block product family | Migration81 remains reserved and required; absent Monitor semantics are not supplied by the worker authorization batch. |
+
+Required launch gates still include full API/worker composition, all live worker
+families, remaining tests and known package failures, runnable connected UI/E2E,
+obsolete-code retirement with equivalent behavior, deployment/profile/key
+provisioning, CI toolchain parity and real Stytch/provider tenant-isolation flows.
+The worker adversarial group first failed148.043s on a forged fingerprint
+helper. After repair, the covering group passes189.853s: native guard/refusal
+61.72s, actual machine/effect/cleanup/replay126.98s. It now rejects both the
+forged fingerprint and always-true catalog gate. This is bounded local proof,
+not resistance to an unrestricted database owner rewriting all trust data.
+The subsequent native key-binding group passes199.302s: real CLI provisioning
+for both machine purposes, non-migration role refusal, human-verifier
+preservation and native purpose/phase/principal/expiry/source proof refusals.
+These use owned local fixtures. Independent review and production composition
+remain open; native provisioning proof is not
+evidence of deployed provisioning. The key-loader FIFO-swap race was reproduced
+in a bounded subprocess (RED4.840s), then repaired with nonblocking/no-follow
+open and pre-read descriptor validation. Covering authorization1.866s and
+CLI5.042s tests pass, including key/decision diagnostic redaction. Independent
+review remains required.
+The actual Activity-product integration now passes locally after the recorded
+native42501 RED: parent package148.360s and retained worker tests1.892s. The
+real worker child uses six current Checks for fresh effect and zero forward
+Checks for receipt replay/captured cleanup after revocation. Missing/mismatched
+keys and unfinished generic-family fallback refuse. Root inspected the child
+assertions and stable run evidence. This is staged finding integration only;
+the full constructor still refuses this partial profile until every required
+worker family is implemented and verified.
+The next group fails225.593s on unproved native planning load/state. Its
+current-machine case passes153.00s, including an observed PostgreSQL lock wait
+followed by committed-revocation refusal with no effect, continuity after an
+owned session row expires, and captured termination/FK mutation controls.
+Session-row evidence is not live Stytch/browser proof. Planning authorization
+and settlement-only recovery subsequently pass the native source-phase group
+165.758s: complete authorized lifecycle, single send permit, and captured
+started-request accounting after revocation with reduced metadata output.
+This is native journal/accounting evidence, not actual provider HTTPS or shared
+planner integration. Prepared/queued cleanup compatibility, shared planner
+wiring and remaining worker families are still open. The cleanup compatibility
+group reproduced both failures (93.389s). After the first repair, native proof
+checks pass66.14s but the group fails176.943s: prepared cleanup returns once,
+then receipt-backed retry refuses because native stop evidence rejects the
+planner's terminal state. Queued success was not reached in that run. Sources
+were unchanged during both runs; diagnosis continues without weakening receipt
+validation. The diagnostic group102.191s confirms the new wrapper's UTC setting
+changes four timestamp renderings while the original caller context validates
+the same receipt. After removing that setting, the covering group passes370.718s:
+native guard66.43s, current-machine/actual finding product183.72s and prepared/queued
+cleanup119.38s. Exact receipt retries, missing/wrong queued capture refusal and
+private recovery helper ACL refusal pass with unchanged source snapshots.
+Cross-session timezone portability remains a required follow-on before production
+acceptance. This closes the observed local cleanup defect, not worker-batch or
+production acceptance. The actual product Plan integration test now fails74.793s
+(child1.23s) at the staged orchestration-unavailable gate. After adapter wiring,
+the actual product Plan group passes123.103s with unchanged source snapshots:
+one owned HTTPS request, two file artifacts, exact persisted request/reservation,
+settled30tokens/30000nanocredits, one admitted plan and unchanged retry cardinality.
+This is local controlled-provider integration, not live provider or full runtime
+proof. The shared-planner recovery group fails322.300s: revocation before/after
+start returns authorization denied; post-start authorization-service failure
+returns unavailable. The existing recovery reader still requires forward
+authority. After metadata-only recovery wiring, the covering group passes320.158s:
+pre-send revocation releases unsent debt with zero requests; post-start revocation
+and official SDK Check-transport outage settle one response without a plan or
+output artifact. Source snapshots match and all owned databases joined normally.
+This is local controlled-provider recovery evidence. The late+normal covering
+group now passes236.956s (118.86s/116.94s). Recovery and two repeats after native
+terminalization preserve the complete original terminal audit hash, one late
+ledger/charge, one provider send, no plan and only the input artifact. Source
+snapshots match. No full workflow/deployment acceptance is inferred. Final
+Activity error mapping also remains required. A separate late-response group
+fails99.084s after one provider response and signed native terminalization;
+the covering late-accounting pass above repairs that observed failure while
+retaining the original terminal audit and preventing a second charge. This tests our application
+integration, not Temporal/OpenFGA internals. The planner-specific proof group
+passes155.119s: native binding negatives, alternate context ACLs and unsupported
+isolation refuse, while canonical JSON formatting and the retained legitimate
+planning/recovery path pass. Wrong-proof attempts are rolled back and do not
+establish committed effects. Remaining worker families and final composition
+are still required.
+The next single-test worker group reproduces a missing proof fence in36.509s:
+after actual manual admission and registered executor takeover, native74 planning
+load and state accept unproved calls. Both probes roll back and leave no planning
+job or provider debt. Root checked matching source snapshots and normal owned
+database shutdown. The scoped74 repair is in progress; runtime readiness remains
+closed, and this failure is not task completion evidence.
+The covering native74 planning group now passes112.173s/test111.04 with identical
+source snapshots and normal owned database shutdown. It verifies unsigned
+load/state refusal, nine catalog mutation refusals, current grantor/task checks,
+signed load/state, prepare/start with exactly one send permit, result/settlement,
+artifacts and admission with30tokens/30000nanocredits and one canonical step.
+Committed-load projection pending is explicitly checked, then cleared through
+real reconciliation. The response is a local controlled fixture: shared planner
+HTTPS, credential revocation/expiry, captured recovery, adapter execution and
+full runtime/deployment remain unverified for this family. No full74 acceptance.
+The next captured-recovery group fails347.800s: credential revoke72.43s and
+credential expiry134.97s pass native refusal, Pending-to-Reconcile grant removal
+and captured unsent-debt release/replay. Inventory expiry139.19s refuses at
+native71 source validation with40001, but the fixture expected42501 and stops
+before its reconciliation/recovery assertions. Matching source snapshots and
+normal database shutdown were checked. Corrected refusal classification,
+explicit proof-lifetime evidence and historical definition-digest binding still
+need covering verification; these partial local results do not close the family.
+The changed-source covering group now passes422.889s: credential revoke76.50s,
+credential expiry135.76s, inventory expiry144.04s and definition binding65.39s.
+All three paths verify native refusal, normal Pending-to-Reconcile grant removal,
+captured unsent-debt release and exact replay. Expiry refusal occurs within the
+signed proof lifetime without unrelated revision writes. Historical definition
+digest is captured and signed; altered definition/source/target bindings, phase,
+principal and unsupported isolation refuse under the tested forward/compensation
+paths. Root inspected assertions and matching source snapshots; owned databases
+shut down normally. This closes the earlier local inventory-test tail and digest
+gap, not shared-planner HTTPS, adapter, full-runtime or production acceptance.
+The actual single-test Plan integration now has a consuming RED51.405s:
+the worker child returns orchestration unavailable before any provider request.
+The frozen fixture uses real product planning with owned HTTPS/file endpoints;
+same-owner wiring is in progress. No provider success or full runtime acceptance
+is inferred from the earlier native journal tests.
+The actual single-test shared-planner integration now passes116.172s/test115.18
+after wiring the closed74 planning adapter. Its real worker child uses key-file
+binding, official FGA, normal reconciliation, owned HTTPS and file artifacts;
+checks require persisted start/request/credential/reservation before one send,
+two artifacts, one admitted plan/step,30tokens/30000nanocredits and unchanged
+retry. Source snapshots match and the owned database joins normally. Focused
+adapter/finding tests pass1.979s; TestTemporalOwnedPlanner was skipped and is not
+coverage. Shared74 recovery/outage/late-response cases, retained78 native
+regression, test execution adapters and full runtime/deployment remain required.
+Shared recovery and retained78 regression now pass757.622s with identical source
+snapshots and six normal owned database joins. Finding normal/late pass132.62s/
+124.91s; single-test prepared revoke101.50s releases unsent debt with zero sends,
+sent revoke119.37s and Check outage129.69s settle one response without a plan,
+and late response148.34s preserves the original terminal audit with one ledger/
+charge/send after two exact recovery repeats. This is controlled-provider local
+proof, not deployed Temporal workflow or real-provider acceptance. Test-effect
+execution, adapter authorization and separately reviewed completed-receipt retry
+after revocation remain required.
+The next execution group reproduces unsigned native74 reserve and linked-read
+access after an admitted plan (RED116.724s). Both probes roll back and leave no
+child/outbox/effect residue; source snapshots match and the owned database exits
+normally. Effect authorization repair is in progress. A narrow completed-receipt
+route is approved for implementation after its own RED, but the new recovery
+artifact/parent-comparison contract still requires exact review and verification.
+The current shared-gate supplement covers profile/key/catalog checks through
+both API roles; synthetic older-audit rejection and the rotated-new-key positive
+are discovery-role-only. Do not broaden those claims.
+
+The728-row availability ledger currently retains523 historical production-available,
+144 component-only and61 blocked/external classifications. These totals are not a
+current Temporal/OpenFGA production-readiness percentage. Current evidence and
+unmet gates must be read with each task row and this checkpoint.
+
+## Chronological checkpoints, September 24-25, 2026
+
+Current80 end-to-end prerequisites: source inspection identifies session-start
+state persistence through generic Exec as denied before database I/O, producing
+503 before a Stytch redirect. A separate optional ordered HTTP constructor check
+uses unadmitted public62 readiness SQL; that flag defaults false, so this is not
+evidence that all startup configurations fail. The ordered actual-adapter/traced
+wrapper characterization now passes1.230s, proving refusal before driver I/O and
+one exact-query noncurrent control. This is diagnostic evidence, not a repair.
+Login-start characterization now passes1.236s with the actual adapter,
+repository, provider and mounted route: current80 returns503 before state INSERT,
+while the non-enforcing control returns302 after one exact INSERT. Constructor
+metadata is controlled; no provider call or native persistence proof is implied.
+Identity lifecycle and exact ordered capability repairs remain
+required; the accepted shared readiness component does not close these gates.
+Integration get/create/update has completed its scoped review, recorded below.
+Native Stytch identity admission is the next grouped implementation boundary.
+Its first complete native security RED now reproduces five unauthorized writes
+through the registered nonsuperuser API role: fabricated provider groups, forged
+session creation, unsigned deprovision, raw login-state insertion and membership
+mutation. The owned test rolled back each attempt and verified pristine state;
+the group failed9.862s as expected. This is confirmed missing isolation, not a
+fix. The released identity implementation is addressing these consuming paths.
+An owned transactional catalog probe passed10.220s: six private row guards and
+narrow state/session column grants left the inspected predecessor fingerprints
+unchanged. Its refusing stand-in was rolled back; this does not prove the final
+guard, legitimate identity flows or composed-profile compatibility.
+The first installed identity smoke now passes12.283s on an owned database:
+fresh base-profile install/replay, missing-key runtime refusal, fixture-only
+purpose registration, private key/attempt read isolation and single-use state
+consumption. Source manifests match across the run. Global write guards remain
+inactive at this development checkpoint; provider-backed issuance, retained
+admin/PAT writers and composed acceptance are still unfinished.
+The next local provider-to-session checkpoint passes13.721s for two tenant
+organizations through actual OAuth/session HTTP adapters, private signing,
+native resolution/issuance and repository credential authentication. Responses
+come from controlled HTTP fixtures; this is not mounted browser-cookie or real
+Stytch proof. The extended self-consumer group then fails13.355s on scope switch
+and logout, so those paths remain unfinished alongside admin/PAT protection.
+The corrected repository-level self-consumer group passes16.938s for same-scope
+switch, wrong-CSRF logout refusal, valid logout and revoked-token authentication
+refusal. Different-scope and mounted-browser checks remain required. Legacy
+deprovision receipt replay also requires native admission, even without writes;
+its narrowly measured helper compatibility change is being prepared.
+PAT maintenance RED reproduced a last-used timestamp update despite rejecting
+an inactive member. The checked transaction correction passes the extended
+local consumer group14.147s, preserving the PAT ceiling and leaving its timestamp
+unchanged on rejection. Global guards, admin/PAT issuance/reveal and full identity
+review remain open; this checkpoint does not close them.
+The signed-webhook consumer RED now reaches the actual handler but returns503
+for initial delivery and durable replay, with no deprovision receipt/audit.
+Its group fails14.130s while prior session/self/PAT cases pass. The webhook
+path remains an active implementation gap, not an external-only gate.
+Its corrected signed-handler consumer now passes14.613s locally, committing
+deprovision with one receipt/audit and returning durable replay through a new
+handler instance. This predates the legacy raw-replay wrapper and final global
+guards. Runtime composition, real webhook delivery and final review remain open.
+The legacy replay wrapper checkpoint now passes15.337s: verified fresh/durable
+replay succeeds and the direct unsigned legacy replay refuses42501. Measured
+predecessor comparisons and final canonical readiness pass; historical source19
+files are preserved. Runtime drift checks, global guards and remaining admin
+consumers are not yet accepted.
+Runtime readiness initially missed a changed source19 identity helper. Its
+corrected projection check passes the affected structural/provider group26.991s,
+including the concrete drift refusal and prior local identity consumers.
+This does not close the remaining admin/global-guard or deployed gates.
+The grouped administration RED fails12.526s after real checks against an owned
+OpenFGA store: investigated-session revocation, member-role update, PAT creation
+and group-mapping update still fail at repository admission. These are active
+implementation gaps, not external provider gates. The identity owner continues
+the same batch; final review and global writer isolation remain open.
+The corrected administration group now passes14.923s locally, including the
+four consumer paths, PAT rotation/replay/revocation and reveal-data destruction.
+This checkpoint precedes global guards and final runtime/composed verification;
+it does not promote a task to deployed production availability.
+Expanded token read/reveal checks first failed15.524s despite passing mutation
+checks. The correction passes16.461s, including token/grant listing and decrypting
+the checked reveal envelope to the expected token. Evidence is local, before
+final global-guard and runtime acceptance; production classifications stay unchanged.
+The ten-case global identity guard RED fails11.266s: unsigned deprovision refuses,
+but nine raw registered-API cases still admit calls, including fabricated session
+and group claims, zero-row writes and caller-set context. All test attempts roll
+back. Guard cutover and positive retained-consumer verification are in progress;
+passing earlier consumer tests does not establish this isolation boundary.
+Guard cutover now passes the grouped local test39.469s: all ten bypass attempts
+refuse42501 while verified-provider, webhook, self-service, PAT and checked
+administration/read/reveal consumers pass with guards installed. The test filter
+did not select structural/bootstrap checks, which remain required alongside
+key lifecycle, composed/runtime verification and independent review. No live
+Stytch or deployed product proof is claimed.
+The follow-on guard-contract group failed27.797s on foreign-environment mapping
+takeover and undetected reveal-grant index drift. Its correction passes28.255s:
+the foreign mapping stays unchanged, catalog drift refuses readiness, and base
+structural bootstrap is actually selected and passes fresh install/exact replay.
+Key rotation, maintenance, composed/runtime and mounted-flow proof remain open.
+Current repository readiness now passes within the provider group15.482s.
+The combined run still failed on migration CLI compilation; the corrected CLI
+dispatch-only test passes0.803s for both identity profile commands. This uses
+a scripted migration runner and does not prove installed command execution,
+full API startup, composed profiles or browser cookies. Those gates remain open.
+Mounted callback/protocol checks now pass19.691s: actual session handlers with
+controlled provider HTTP commit a session and issue a secure HttpOnly cookie;
+replay gets no cookie. Twelve malformed/substitution proofs refuse, output
+rejection rolls back, stale membership refuses issuance, and two concurrent API
+calls produce one winner. Unrelated routes use test handlers. This is not full
+production construction, browser UI execution or real Stytch/deployed proof.
+Actual migration-binary base/composed installation reaches fresh/exact replay
+and key-registration assertions, but its60.711s aggregate fails on a missing
+phase field in the cleanup fixture; cleanup remains unverified. Key/tenant
+tests fail22.943s because login Start accepts configured-key mismatch and
+dedicated local tenant mismatch resolves. These are active implementation
+gaps, with earlier protocol/mounted assertions passing in the failed group.
+The corrected combined group passes84.456s: actual local binary base/composed
+fresh/exact installation, atomic rollback, purpose registrations, partial-key/API
+refusal, bounded cleanup and key/dedicated-tenant checks. Production's traced
+handler repository still needs the exact native-database prepared-session handoff;
+that runtime gap is under implementation. No real provider provisioning occurred.
+The actual tracedJSONDatabase consumer now passes after a reproduced failure:
+raw-provider preparation can issue through the handler repository sharing the
+exact native database, while forged/changed/different-database grants refuse.
+The provider group passes28.030s and its real runtime child2.572s; existing
+audit-export composition passes0.904s with its expected503 refusal assertion.
+This is bounded runtime-adapter evidence, not full deployed startup or export proof.
+Token-authentication race RED29.358s reproduced acceptance during pending
+membership revocation and an unwanted last-used update. After a retained compile
+failure, corrected group34.978s passes wait/refusal/unchanged-timestamp checks.
+Intervening group/scope changes refuse issuance; controlled applied-only revision
+progress permits it. That fixture revision update is not actual FGA catch-up proof.
+Final grouped native identity candidate passes141.808s across all five selected
+tests, including base/composed CLI, guarded administration, bootstrap, forgery
+refusal and mounted/traced provider flows. Nine existing application regressions
+pass0.833s. Source manifests are stable within both runs. The affected-package
+run and independent review are not yet accepted; production gates remain open.
+Draft-report audit identifies still-unverified local release requirements:
+cross-purpose proofs, worker/private-state isolation, token/CSRF substitution,
+state expiry/concurrent consumption, unmasked parser refusals, allow-valued
+catalog tampering and actual post-login reconciliation/FGA product access.
+These remain in the identity batch, not deferred as external prerequisites.
+Affected-package verification exits1: authorization, identity and migrations
+pass; four mounted API fixtures fail. The migration CLI suite has command/fixture
+failures and reaches its global600s timeout. Causes and remaining unexecuted
+coverage require targeted follow-up; neither a clean package run nor pre-existing
+failure status is claimed. No whole-suite restart is planned.
+Follow-up release-negatives group exits1 in64.410s: fresh-attempt parser,
+token/CSRF binding, concurrent state consumption, registered worker/private-row
+isolation, allow-valued catalog replacement and six proof-purpose substitutions
+pass. An identity-issued browser credential is denied while projection is pending,
+then succeeds through actual owned local OpenFGA reconciliation/Check and a native
+product read. This is local integration evidence, not real Stytch or deployment.
+Two older replay/output assertions fail on stale shared fixture revisions; their
+test sequencing is being corrected. Root read both new test helpers and failure
+output; the1366-entry source manifest is unchanged during the run. Independent
+review remains pending. Four command-test contradictions predate this batch by
+exact baseline source comparison; the owner also reproduced the four API fixture
+and V34 CLI failures with a baseline overlay. These remain release failures,
+not passing gates; timeout continuation is still required.
+Corrected release-negatives2 passes78.318s across administration, forgery and
+provider groups, including the previously failing replay/output rollback checks.
+All1366 source entries are stable during that run. The correction obtains a
+current fixture grant after independent resolutions advance captured revisions;
+the native stale-snapshot refusal remains intact. Review and broad release gates
+are still open.
+Final targeted dependency, identity command dispatch and retained audit-export
+composition checks pass0.621s/0.494s/0.752s with1366 source entries unchanged.
+The audit-export fixture's expected503 is not a successful live export. Migration
+timeout inventory records160 listed top-level tests,126 started and34 never
+started; the capacity-collector test was active when the package deadline fired.
+Those discovery/domain/outbox/executor/selector cases need targeted continuation
+before broad release verification can be claimed.
+Identity boundary is now frozen for independent specification/quality review:
+43 changed paths,1525 verified dependency hashes and51 retained command logs.
+The effective-baseline review is in progress, not accepted. A separate read-only
+group will continue exactly the34 unstarted migration tests and the interrupted
+capacity-collector test without changing the frozen implementation.
+Independent identity review is complete with SPEC issues and QUALITY needs fixes:
+three Important findings, no Critical findings. NULL cleanup limits can remove
+the work bound; several native consumers lack expiry revalidation after lock
+waits; ten retained SQL bodies were newly duplicated. The complete review is in
+`docs/internal/2026-09-25-identity-boundary-review.md`. These are open component
+acceptance defects, not external prerequisites. Fix round1 is prepared for the
+same owner after the unchanged-code migration continuation joins.
+The35-test continuation has now joined with exit1 at1200.786s:21 top-level
+tests passed, StartDelivery was interrupted at the package deadline,13 never
+started. There was no behavioral failure before the deadline. Root confirmed
+terminal process handles, read timeout/terminal output and verified unchanged
+1366-source/1525-dependency manifests plus the raw log hash. A supplementary
+2316-source manifest is stable only from its later capture, not run start.
+The remaining14 cases stay open; the identity fix round can now proceed.
+Fix1 regression group exits1 in49.110s on unchanged2317-source inputs. Native
+NULL cleanup deletes all1003 expired fixture attempts, leaving the live attempt.
+Synchronized lock waits reproduce expired fresh external/attempt resolution,
+resolved-proof replay, PAT authentication, logout and scope-switch success;
+effects change in all except the replay case. The verifier-lock control refuses
+correctly. A filtered-run provider-count assertion also fails and is tracked as
+fixture accounting, not a separate product defect. Repairs and re-review remain
+pending; the RED evidence does not promote availability.
+Fix1 boundary-green1 now passes152.709s: actual base/composed installation and
+NULL/bounded cleanup, all10 synchronized expiry cases, existing provider flows
+and actual owned OpenFGA/purpose separation. Root confirmed2317-source stability
+and the recorded log hash. The shared-SQL correction is still underway; all
+three review findings await the complete fix packet and scoped re-review.
+The shared-source refactor now preserves all11 pre-refactor compiled hashes,
+including the full assembled installer. Its final retained-consumer group passes:
+apiserver86.627s and migrations1.399s, with actual current-FGA administration,
+token reads/reveal and both native CLI installation profiles. Root confirmed
+2318-source stability and normal joins for the three owned PostgreSQL processes.
+This closes the immediate verification run, not the independent review or any
+deployed acceptance gate.
+The final cleanup-retention check passes64.262s on both native installation
+profiles, with nonempty audit and webhook receipt rows preserved. Root verified
+the frozen fix packet's2336 dependencies,10 changed paths and9 evidence logs
+without mismatches. The original reviewer is now checking the three findings
+against that scoped diff. Findings remain open until its verdict; the14 unfinished
+migration cases and deployed acceptance gates remain required. No task promotion
+or main push is claimed.
+The [identity fix re-review](2026-09-25-identity-boundary-fix1-review.md) now
+passes SPEC and QUALITY: all three findings addressed, no new findings. This
+accepts the finite identity component only. Post-login API/UI admission, the14
+unfinished migration cases and all deployment/provider gates stay open.
+Post-login bootstrap/scopes/me and current FGA-derived UI capabilities remain
+required follow-on evidence; successful cookie issuance alone cannot close them.
+That follow-on batch is now in implementation under the approved P7/P8 design:
+credential-owned native reads, revision-fenced current OpenFGA capabilities,
+membership-based scope selection and separate organization/environment management
+capabilities. Its proposal is released, but no new passing flow is claimed yet.
+The first consuming post-login RED now fails14.426s: after an actual native
+callback cookie and owned OpenFGA reconciliation, mounted bootstrap, me and
+scope-list routes each return400 invalid_request. Foreign expected-scope409 and
+revoked-cookie401 controls pass. Root verified2681-source stability and the raw
+log hash; owned PostgreSQL joined normally. The earlier invalid-composition run
+was test setup failure only. The repair is in progress, not accepted.
+The first covering mounted group now passes14.353s: bootstrap, me and scopes
+succeed after native login and actual owned OpenFGA reconciliation, while the
+foreign-scope and revoked-cookie refusals still pass. Root verified2684-source
+stability and the log hash. This proves the initial read path and nonempty
+capability output only; exact policy/target distinctions, PAT, projection lag,
+concurrency, outage, UI coverage and independent review remain open.
+The focused UI RED has4 failing cases: pending authorization has no distinct
+heading, organization-only access renders environment group controls, and
+environment-only access cannot reach its identity subview. A fourth role-option
+assertion also depends on fixture role metadata. Root checked the tests and
+2685-source stability; fixture timer warnings must be corrected before final
+evidence. This batch remains in repair, not a production acceptance result.
+Those four focused UI cases now pass in1.76s with2685-source stability. The
+fixture timer-overflow warning remains recorded and awaits the next affected
+check; native negative/concurrency coverage, final build and review are still
+required. These are controlled HTTP UI tests, not a deployed browser flow.
+The expanded native group exits1 in49.921s: projection pending/recovery,
+controlled OpenFGA transport outage, revision-change refusal and forged binding
+checks pass, but resource-only findings access returns503 after bootstrap exposes
+the expected capability. This is an unresolved consuming failure, not an aggregate
+pass. Root verified2685-source stability and normal PostgreSQL cleanup; the same
+owner is diagnosing it without weakening the required API outcome.
+Source diagnosis found the test finding lacked mandatory evidence. Root confirmed
+the repository requires at least one evidence ID; the owner added owned fixture
+evidence only. The mounted200/resource assertion remains required in the next
+affected run. No product authorization defect or passing rerun is inferred yet.
+The next group fails49.935s: resource-only findings now passes, while post-switch
+bootstrap returns409 authorization_pending and a parent-owned fatal helper
+aborts later PAT/final-credential cases. The owner adds explicit pending and
+reconciliation checks after session mutations. Root's source read already saw
+that correction, so it cannot establish that the failed run reconciled first.
+The next run is active;2685-source stability and normal PostgreSQL cleanup are
+verified for the failed run. No aggregate pass is claimed.
+The complete mounted native group then passes51.12s, including resource-only
+findings, different-scope rebootstrap, PAT ceilings and expiry/revocation after
+authorization. Its aggregate still fails52.240s on a separate conjunction-test
+expectation. Focused UI runs have169/171 and13/15 passes, with two execution-
+control fixtures still failing; timer warnings are absent. Root verified2686-
+source stability and log hashes. Final correction, installation/build and review
+remain required.
+The corrected native aggregate now passes53.712s, including the mounted group
+and capability-contract checks. Root verified2686-source stability and normal
+PostgreSQL cleanup. Remaining controls UI failures trace to missing no-store
+headers in the fixtures; production cache checks stay intact. Retained identity
+installation coverage, final UI/build and independent review are still open.
+Retained identity administration and actual base/composed installation checks
+now pass80.285s with2686-source stability. Of11 printed profile pins, only the
+intended identity and assembled installer pins change. Final UI checks still
+have one selector failure and a test type error; product authorization checks
+are unchanged. Final build, frozen evidence and review remain open.
+The final affected UI selection now passes7/7 in1.81s without timer warnings;
+typecheck exits0. Root verified2686-source stability and both log hashes. Build
+verification and independent review remain open, with live-provider acceptance
+still separate.
+The build now passes all five stages. Root verified the frozen packet's2686
+source hashes,19 changed paths and19 evidence records without mismatches. Only
+test selectors changed after the build. Independent post-login SPEC/QUALITY
+review is running; no component acceptance, production promotion or push follows
+until its findings are resolved and the remaining release gates are satisfied.
+The [post-login review](2026-09-25-post-login-boundary-review.md) has two Important
+findings: resource-only Security Agent access still requests forbidden catalog
+metadata, and native response decoding is not strict before commit. Root verified
+both code paths and released one grouped fix round to the original owner. The
+batch is not accepted; no availability classification changes follow.
+Fix-round RED confirms malformed native responses can commit through the
+permissive decoder. It also reproduces the resource-only Security Agent page
+failure. These are controlled transaction/UI tests; no HTTP disclosure or live
+provider result is inferred. The fix baseline matches the reviewed2686 files,
+and the original owner is correcting both findings.
+Fix-round covering tests now pass: native output transaction checks1.087s,
+110 UI cases5.44s, and the mounted PostgreSQL/OpenFGA backend group61.506s.
+Typecheck and all five UI build stages exit0. Root verified all nine evidence
+log hashes and stable before/after source manifests; the five final passing
+runs match the current2687 sources exactly. The extra initial positive UI
+failure was a drawer/background-button selector issue, corrected before product
+edits; the second RED isolated the denied-catalog defect. Independent scoped
+re-review remains required. These results are local, with no task promotion,
+main push or deployed acceptance claim.
+The final six-path fix packet is frozen, with2687 current source hashes verified
+without mismatches. The original reviewer is checking both findings against
+that fix diff. The728-row ledger validator passes; classifications are unchanged.
+The [post-login fix review](2026-09-25-post-login-boundary-fix1-review.md) now
+passes SPEC and QUALITY: both findings addressed, no new findings. This accepts
+the finite local component, not deployed login or a full milestone. The next
+released repair is the ordered HTTP readiness probe, whose current adapter still
+rejects the exact deployment call before database I/O when that feature is enabled.
+Full ordered operations, worker authorization and production gates remain open.
+The readiness repair's grouped RED now reproduces refusal of the expected
+typed release through the actual adapter/traced wrapper and enabled handler
+builder. The noncurrent exact release and disabled-builder controls pass.
+Apiserver fails2.043s and agentsec-api1.657s; invalid-driver cases also contain
+cleanup failures, so they are not independent product-defect evidence. The native
+installed positive and repair GREEN remain unproved.
+The corrected controlled RED preserves the routing failure without cleanup
+errors. A method-only typed probe now passes the affected controlled group:
+apiserver4.152s and agentsec-api1.741s. Root verified2323-source stability and
+raw log hashes for both runs. Current-mode readiness uses the closed compiled
+query, preserving actual public62 checks plus independent80 readiness; generic
+product SQL is still denied. Installed PostgreSQL proof and review remain open.
+The owned installed group now passes45.422s (native test44.36s). The guarded
+composed schema accepts the direct public62 call with compiled pins through
+the registered nonsuperuser API role, then the typed adapter. All15 refusal
+cases pass, including absent/drifted registration, allow-valued API/readiness
+replacement, ACL/68/profile/audit drift and cancellation while schema-locked.
+Each catalog restoration recovers the positive. Product counters remain zero
+and owned PostgreSQL24968 joins normally. Independent review is still required;
+no SQL compatibility change, full startup or deployed acceptance is claimed.
+The final affected race-enabled group passes10.028s/3.901s. Root verified the
+four-path packet,2324 current source hashes,18 artifact hashes and five stable
+run logs without mismatches. Independent SPEC/QUALITY review is now running.
+There is no UI/SQL change, availability promotion, commit or push in this batch.
+The [ordered-readiness review](2026-09-25-ordered-readiness-review.md) passes
+SPEC/QUALITY with no blocking findings. One minor shared-helper diagnostic-noise
+item is deferred. Root found the earlier shared gate's core source unchanged,
+but its installer dependencies changed during identity work. One existing
+focused native compatibility group is now requested against the current
+candidate before accepting the cross-task profile/audit/key claim.
+That current compatibility group now passes93.912s, with2324 stable source
+hashes and the raw log verified. Both API roles cover profile, key and catalog
+refusals plus restored positives; synthetic older-audit rejection and the new
+rotated-key positive are discovery-role-only. All three owned PostgreSQL
+processes join normally. The finite ordered-readiness component is accepted
+within these limits, with no source changes after independent review. Full
+startup, ordered product operations, worker effects and deployed flows stay open.
+Two previously unfinished CLI migration cases now pass in a focused supplement:
+discovery start delivery32.72s and public readback47.03s, package80.759s. Their
+installed worker child checks pass; both owned databases shut down normally.
+All2329 captured platform files stayed unchanged. Twelve migration cases remain
+unfinished, superseding earlier14-count checkpoints. This is retained local
+application evidence, not new machine-authority or deployed provider proof.
+Worker enforcement is now released against the inventoried live68/72/74/78
+effect, planning, discovery and signing paths. The implementation must check
+both current grantor authority and the machine's task-bound delegation, then
+fence the native effect; captured cleanup has a separate role/key/purpose.
+The additive private80 profile remains subject to exact installed compatibility
+proof. Migration81 remains reserved for the required Monitor/Block product
+family, not claimed implemented by this worker batch. No new worker pass or
+production availability is asserted at this proposal checkpoint.
+The first worker native RED now fails61.567s: a registered executor's direct
+finding78 apply call succeeds without a machine proof under READ COMMITTED.
+Unsupported transaction isolation already refuses. The owned test rolls back
+every attempt and verifies unchanged state, so no committed production effect
+is claimed. Root verified2340 stable source hashes; PostgreSQL31179 joins
+normally. The machine profile/fence and positive current-authority consumer
+are now implementation work, not passing evidence.
+The first staged worker profile now passes its compatibility/refusal check
+in61.036s: explicit installation, expected42501/25001 refusals, unchanged
+post-rollback state and retained78/80 readiness. Root verified2342 stable source
+hashes; PostgreSQL32073 joins normally. This stage does not yet support signed
+machine decisions or production wiring. Authorized effect and captured cleanup
+are still required, so it is not worker acceptance or a completed repair.
+Its local guarded-composed checkpoint passed49.340s with registered API
+readiness, mounted create/get/update and durable-effect checks. Focused rollback,
+lost-response retry, expiry and concurrency checks also passed. Independent batch
+review is pending. Actual reference completion still requires its released
+checked replay/preparation/completion companion's final combined review; its local
+mounted AWS/Kubernetes and security checks now pass. The earlier registered-API55000
+failure is retained. Provider setup saves for all six supported kinds and native
+OAuth/reference completion followed by checked GET/update passed29.459s locally.
+Reference concurrency and post-provider verifier/source changes passed in a
+supplement whose aggregate failed on a fixture calling a private sync function.
+The corrected registered-API public native sync consumer passed16.511s with
+independent typed/connection versions. This does not close checked public sync
+or prove provider access in production.
+Webhook signing-version setup now passes its first focused local check17.497s:
+the mounted create accepts valid optional metadata, and native URL validation
+matches the tested public-parser cases. The approved typed projection is
+implemented, but complete workflow/intent/receipt preservation, source59 binding,
+metadata-only version changes and malformed-input coverage still need the final
+affected batch. Historical typed validation is retained. Final affected composed
+verification and independent review remain pending.
+The focused UI metadata RED exposed receipt rejection of valid version metadata.
+Its narrow decoder repair now passes84 affected tests under pinned Node22.23.1,
+including metadata preservation and malformed/sensitive-field refusals; source
+hashes are unchanged across the run. This is decoder proof, not browser or build
+acceptance. The original failure remains retained. Native group15
+finished FAIL161.858s: core mutation, connected-provider setup, metadata/replay,
+source59 compatibility and rollback checks passed. The composed flow reached
+reference completion and versioned webhook GET, then failed in its new test SQL
+assertion (ambiguous subtraction operator), before final readiness verification.
+The corrected supplement18 passed103.312s: composed verification61.13s,
+actual native callback/update race10.26s and expanded metadata checks30.87s.
+The original failed group is retained. The combined source/evidence snapshot is
+frozen, with164 hashes independently verified; combined SPEC/QUALITY review is
+returned NEEDS FIXES: native host validation, canonical reference connection-ID
+validation and exact source59 configuration/digest evidence. Fix round1 is
+released to the original implementation owner; the batch is not accepted.
+Fix1 RED reproduced acceptance of a noncanonical reference connection ID.
+The host review's `<`, `>` and quote examples were contradicted by the actual
+Go parser; existing valid behavior is preserved while genuine mismatches are
+tested. A registered local worker's original source59 planner call now proves
+an unmet prerequisite: guard=false and42501 at its first authority gate, before
+any digest production. This is an unfinished current-profile path, not an
+external credential failure or production success.
+Fix1's next aggregate remained failed149.794s, but native host parity23.27s,
+canonical connection validation14.46s and composed readiness62.73s passed on
+the changed checksum. The supported-source59 digest fixture failed on test SQL
+parameter typing before its planner call; only that consumer check was corrected
+and rerun. Its corrected consumer5 check now passes41.877s: the unchanged
+actual source59 planner persists the checked-output configuration digests for
+public versions1 and2 in its supported fixture. This is split-profile data
+compatibility, not current80 worker execution. The fix packet is frozen and
+scoped re-review is complete: all three findings addressed, SPEC PASS and
+QUALITY APPROVED, with no new breakage in the five-file fix. See
+`2026-09-25-openfga-integration-client-fix1-review.md`. This accepts the bounded
+client/reference/metadata component only. Current80 worker execution, global
+retained-writer guards, checked sync and deployed flows remain open. The earlier
+failed aggregate remains failed. Identity admission is the next implementation
+boundary; its installer and checksum dependencies must be settled before edits.
+Controller typecheck, all five production-build stages and compiled
+import guard also pass under pinnedNode22.23.1/npm10.9.8, with all15 frozen source
+hashes unchanged afterward (`2026-09-25-integration-client-ui-build.md`).
+These are local component/build results, not
+deployed provider, browser or full milestone acceptance.
+No original-task class changes follow from these checkpoints.
+The source-backed identity plan covers state creation/consumption, verified
+identity resolution, session issuance and logout. Typed application handling
+alone will not close legacy database-role writes to identity/session records;
+native caller isolation, real Stytch verification and deployed browser flows
+remain separate required gates. Ordered readiness likewise does not authorize
+actual ordered resource operations, which still need current P7 admission.
+
+September25 audit continuation: the initial grouped guarded-profile and retained
+compatibility run passed locally (CLI0.758s/API296.582s, no source drift).
+The current checksum-replay correction, guarded profile variants, controls,
+hierarchy/source19, sensors and integration rejection passed their affected
+groups. The aggregate run failed only at an old mode-none installer replay in a
+read-test fixture; its corrected isolated run passed65.943s with no source drift.
+Source52 export readiness stayed false before and after installation while its
+source ACL readiness stayed true. Full export composition remains required.
+Independent [audit review](2026-09-25-openfga-audit-isolation-review.md) now has
+SPEC PASS / QUALITY APPROVED with zero findings for this bounded component.
+Composed mounted-writer coverage, full exports, worker authority and deployed
+acceptance remain open. No task class is promoted by these local results.
+
+Release wiring is still required: the inspected deployment renderer supports
+legacy numbered schemas through60, has no guarded authorization-profile/verifier
+bootstrap path, and does not package or schedule the authorization reconciler.
+No retained evidence identifies a deployed authorization80 database; external
+copies remain unknown. A focused actual-adapter characterization now reproduces
+the API periodic source65 readiness routing defect: current authorization denies
+the background-context query before driver I/O, while its non-enforcing control
+reaches the driver and returns true (PASS1.097s). This diagnostic pass is not a
+repair or installed/deployed readiness evidence. The exact guarded-profile,
+current-checksum and two-API-principal startup/periodic correction is now
+implemented: adapter/callback checks passed, corrected composed native group
+passed51.274s and shared startup-helper cases passed1.253s. Independent
+[readiness review](2026-09-25-openfga-runtime-readiness-review.md) now has SPEC
+PASS / QUALITY APPROVED with zero findings. Failed import/key-reuse fixtures remain in the evidence;
+the base/none refusal checks passed in the earlier native run. Full production
+construction, aggregate configured deadlines and deployed readiness are not
+proved by those component checks. These are open
+implementation/deployment gates, not production proof or a reason to weaken
+authorization. Real Stytch/provider flows and full milestone acceptance remain
+unverified.
+
+The full goal is incomplete. Finding-response fix round1 now has independent
+SPEC PASS / QUALITY APPROVED: the Unicode-note mismatch and two minor display/
+documentation findings are addressed, with no new issues. See the
+[scoped review](2026-09-24-temporal-finding-response-fix1-review.md).
+
+September25 continuation: the explicit Temporal78/OpenFGA79-80 profile passes
+its corrected local group (CLI0.551s, installed API99.379s): fresh and exact79
+intermediate install/replay, injected rollback, registered discovery-API finding
+read,16 catalog-drift refusals and standalone-base compatibility. Earlier failed
+runs exposed invalid session, missing identity/evidence and wrong-role fixtures;
+no native permission guard was weakened. Independent review found one Important
+gap: an allow-valued replacement fingerprint can bypass the wrapper's internal
+catalog check. A45.166s owned-database regression now reproduces successful signed
+API and registered Temporal reads despite the failed catalog check. The corrected
+independent80/68 entry checks now pass129.328s with25 drift cases and actual API/
+Temporal admission probes. Independent scoped re-review now has SPEC PASS and
+QUALITY PASS: F1 resolved, zero new findings. See the
+[fix review](2026-09-25-temporal-authorization-profile-fix1-review.md). This
+uses controlled Check decisions, not live worker or deployed integration proof.
+Hierarchy native RED confirmed12 raw API writes across four relations. Integrated
+guards and mounted creation now pass23.598s locally with actual OpenFGA,11 native
+subtests and routing. Independent review approves only that frozen partial
+checkpoint, with no new findings; see [hierarchy review](2026-09-25-openfga-hierarchy-partial-review.md).
+Same-source hierarchy regression after the profile fix passes24.183s on the base
+61/79/80 fixture; mounted hierarchy on composed78 is not proved by that test.
+The passing selection probe does not implement the missing scope-switch
+or getEnvironment routes. Audit hardening
+must preserve predecessor checks and required integration-rejection behavior.
+The checked rejection path now passes its local52.139s group with39 installed
+leaf cases, including browser/PAT replay and safe rejection, expiry after native
+lock waits, rollback and unsupported-isolation refusal. Independent review has
+SPEC PASS for the bounded batch and QUALITY APPROVED, with zero findings; see
+[rejection review](2026-09-25-openfga-integration-rejection-review.md).
+Valid integration mutations and raw audit isolation remain open; seeded
+successful replay records do not prove a working integration mutation.
+The coherent audit-isolation implementation is now in progress. Its affected
+checks must also cover the changed-source composed Temporal profile.
+Its49.397s native regression confirms raw audit INSERT/UPDATE/DELETE remain
+available to the registered API role in both profiles; the guarded fix has not
+passed yet. Constant-fingerprint mutation also bypasses the current audit
+integrity boundary at actual API/native78 entries. These remain release gates.
+The guarded candidate's installed checks are running. Production startup must
+also require the exact guarded mode/current audit checksum; the retained generic80
+readiness check alone does not establish that deployment selected audit isolation.
+No original task classification changes at this checkpoint.
+
+Human-triggered native execution passes locally in123.345s, including distinct
+approval, exact replay, one effect and public readback. Its test-only extension
+has independent SPEC PASS / QUALITY APPROVED with no findings; controlled
+identity/provider inputs are not live production proof. See the
+[human-native review](2026-09-24-temporal-finding-human-native-review.md).
+The automatic77 diagnostic seam has independent SPEC PASS / QUALITY APPROVED
+with no findings. Its174.002s native run did not reproduce the earlier failure;
+Important2 remains unresolved and release-blocking. See the
+[diagnostic review](2026-09-24-temporal-automatic77-probe-review.md).
+The affected recovery/session/projection authorization group passes39.661s.
+Projection evidence covers unchanged SQL writer compatibility only, not the
+current Temporal worker profile or deployed authorization. The exact mounted
+session hidden/missing-resource404 check passes11.435s with controlled Check
+decisions; it remains subject to the combined P7 review.
+The restricted-home UI and finding-note UI now share a passing five-stage
+production build under Node22.23.1/npm10.9.8. This is local build evidence only.
+Finding fix1 installed verification passes464.716s across both supported
+statuses and autonomous/supervised modes. Scoped re-review passes; this is
+controlled SQL/API evidence, not another native or deployed run.
+P7 database hardening also requires authenticated decision issuance: a database
+seal over caller-supplied permission JSON is insufficient. The application will
+attest exact private decisions after official OpenFGA Check and current revision
+verification; SQL must verify that attestation before establishing a scoped
+transaction context. Non-API verifier-key registration and rotation are explicit
+deployment prerequisites, not completed production configuration.
+The first attestation/RLS group failed27.919s at authorized home reads despite
+refusing the three reproduced raw-API attacks. Its next affected group passes
+26.191s after replacing an obsolete whole-schema inventory guard with relevant
+source checks: restricted/empty/full home counts and status, stale proof refusal,
+the three raw attacks, wire validation and transaction boundary checks pass.
+This uses controlled Check decisions. Later checkpoints below cover actual-FGA
+integration, authorized native risk reads, projection SQL compatibility and
+source-guard drift; combined review and full runtime acceptance remain open.
+Subsequent native-risk/attestation checks pass20.454s with controlled Check:
+one authorized row across all seven risk tables, hidden/foreign exclusion,
+copied-context refusal, proof tampering/expiry refusal and source-security drift.
+Actual-FGA and projection compatibility were pending at that checkpoint.
+The subsequent affected API group fails113.806s only in the console/runtime
+session cases. Actual-FGA passes13.39s, recovery15.36s, sensors44.71s and session
+search23.81s. The session test mutates an already signed grant to model an empty
+result; it must now obtain a fresh empty decision and separately assert tamper
+refusal. Projection compatibility initially stopped at fixture migration
+preconditions; the subsequent39.661s group establishes SQL writer compatibility
+on the canonical61 profile, not full Temporal worker readiness.
+The corrected signed-session/home group subsequently passes45.848s: fresh empty
+decisions work, mutated grants deny, and a live transaction stops exposing rows
+at signed expiry. This closes those session fixture failures, not the broader
+projection, worker or deployment gates.
+The verifier-registration executable passes local first-registration, replay,
+rotation, wrong-session/API-principal refusal and no-secret-output checks
+(migrate3.256s, installed API package16.706s). Applied revision remains0 in that
+fixture; live grant invalidation/reconciliation and production provisioning are
+not established by it. The packet joins the combined P7 review.
+Data-controls mounted read/update and direct database isolation now pass a local
+15.954s group, including nonsuperuser registered-owner compatibility, raw API
+CRUD refusal, audit rollback and current credential/revision checks. Combined
+P7 review remains open. A concrete worker identity gap also remains:78 uses its
+own canonical service principal, while79's current projection does not map that
+principal. Explicit bounded run/effect/phase grants and signer authorization are
+required; the initiating Stytch identity cannot substitute for that service.
+Work uses user-approved end-to-end batches,
+grouped affected tests and one independent review per batch, with separate
+Temporal and OpenFGA ownership. No scope or verified-push gate is reduced.
+
+| Area | Current evidence and status |
+| --- | --- |
+| Temporal discovery and single-test paths | Bounded local acceptance for discovery P4B, run/rerun-test executor, selector and human admission. See their reports/reviews below. Not deployed acceptance. |
+| Automatic source first adapter | Local capture, matching, admission, 26-admission worker recovery and HTTP readback evidence. [Fix1 review](2026-09-24-temporal-automatic-source-fix1-review.md) accepts the rollout correction, but stage acceptance remains open because an earlier native retry failure is unexplained. |
+| Finding-response adapter | Independent fix1 review passes after the Unicode correction (four installed mode/status cases pass464.716s). Earlier automatic execution/readback (195.765s), native supervised approval/cancellation (288.204s), and approval authority checks (131.135s) remain local evidence. Native supervised human-origin execution passes123.345s with independent review approved; P7 worker authorization and deployed integrations remain unproved. |
+| Finding-response UI | Strict action/approval decoding and safe display implemented. Fix1 passes63 affected tests and248 schema cases, plus the integrated pinned five-stage build; scoped review approves the Unicode policy and neutral proposal heading. Earlier approval/UI evidence remains retained. Browser interaction and deployed API proof remain required. |
+| OpenFGA | P5/P6 accepted as local components after independent review. P7 remains incomplete:35 of160 registered operation names currently have statement contracts, not full endpoint acceptance. Post-attestation actual-FGA join passes13.39s; recovery/session/projection SQL group passes39.661s. Hierarchy/session404 group passes21.806s, exact native request binding34.163s and data-controls15.954s. Restricted-home UI/build evidence is local. Full operation/worker coverage, production startup, combined review and deployed acceptance remain open. |
+| Release and full scope | Remaining P4C/P4D families, P8 UI/end-to-end acceptance, P9 safe retirement and P10 real Stytch/provider/deployment gates remain open. No production readiness or new verified push is claimed. |
+
+The [September25 foundation review](2026-09-25-openfga-p7-foundation-review.md)
+requires changes for two Important source-derived application gaps:
+native SQL operation/permission/actor binding and compliance list auxiliary-read
+authorization. Grouped fix round1 is in progress; earlier passing local
+checks do not establish acceptance of these compositions. The Temporal policy
+preflight isolated two saved helper owner/ACL identities in migration72. The
+narrow unpublished-candidate correction now passes both supported owner profiles
+and eighteen tamper cases in48.078s. Both profiles install through78; the
+[independent correction review](2026-09-25-temporal-discovery-owner-compatibility-review.md)
+passes SPEC/QUALITY with zero scoped findings, including dependent72..78 pins.
+The combined authorization profile remains unverified; no persistent installation was
+rewritten. No guard bypass or unverified fingerprint replacement is accepted.
+The combined profile installs through78, then79 changes a Temporal-covered
+catalog and invalidates retained61/68/72/78 readiness. Enforcement80's own
+registration/catalog match, but its required61 readiness fails. Exact catalog
+compatibility remains to be implemented and verified; the API fence/read check
+has not run on this combined profile.
+
+The first authorization fix group ends FAIL121.042s despite passing its native
+denial cases, mounted compliance lists, receipt actor check and session metadata
+restriction. The lone inventory positive had incomplete fixture provenance.
+After adding the required discovery provenance, the affected installed group
+passes61.622s with product guards unchanged, including legitimate reads and
+compliance empty/nonempty/continuation flows. The [independent fix1 review](2026-09-25-openfga-p7-foundation-fix1-review.md)
+passes SPEC/QUALITY with zero remaining scoped findings. This closes F1/F2 and
+the omitted workflow-source supplement only, not full P7 or the combined profile.
+These are local controlled fixtures, not deployed acceptance.
+
+The native retry failure remains an unresolved release gate after three bounded
+non-reproductions. The latest single instrumented run passes174.002s and preserves
+raw SQLSTATE/command-boundary observations; its diagnostic seam passed scoped
+review, but it is not a repair. Independent implementation continues, without treating the
+failure as resolved. The 728-row classifications below retain historical evidence
+and are not proof that the amended architecture is deployed. September24 correction:
+M7A-25 is component-only because historical21 execution proved status change, not
+the full assignment/status-note contract. M7A-16 is also component-only: original
+Monitor/Block parameters are not fully supported by the current Block-only
+OpenAPI action arguments, action-details decoder and temporary policy compiler.
+The next policy adapter must carry both typed modes through approval, publication,
+verification and cleanup. M2-46b is component-only: its original verification sets
+production/staging/development, but the form/API only accept names and SQL creates
+development. T11-identity-admin owns the class-selection/persistence gap; historical
+Complete and name-form evidence remain intact. The bounded audit is in
+`.superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-environment-class-ledger/report.md`.
+The [independent ledger review](2026-09-25-environment-class-ledger-review.md)
+passes with zero findings. It verifies the correction, not the missing feature.
+Current row totals are523 historically
+production-available,144 component-only and61 blocked/external. Older524/143,525/142 and526/141
+checkpoint counts below are retained as history, not current totals. The TSV,
+crosswalk, summary/milestone tables and validator agree;40 status checks pass.
+
+Latest grouped local checkpoints: supervised finding approval HTTP readback and
+configured-to-omitted cooldown preservation pass together (132.521s, two owned
+PostgreSQL fixtures shut down normally). Expanded approval decision, replay and
+control checks subsequently passed as recorded below. Fourteen P7 repository constructors and API
+principal checks pass (15.275s); constructor success does not prove supported
+operations or production composition. Sensor mutation authorization and atomic
+queryable audit evidence pass the local affected group (44.297s); the five-file
+packet is handed back for P7 integration and review. Audit export mapping and full
+PAT enforcement remain parent verification dependencies. Deleted-sensor history requires
+explicit recorded environment ancestry and current audit permission, never an
+authorization fallback. Neither batch has passed its combined independent review.
+
+Finding approval decisions now pass locally too (117.796s): mounted list/run/detail
+context, stale source/grant/plan rejection, rollback, committed response/control
+digest and HTTP replay. Explicit denial/expiry/inactive-assignee controls and
+native supervised wake were outstanding at that checkpoint. The subsequent native
+approval/cancellation group passes288.204s: approval135.46s, cancellation151.69s,
+with actual Temporal wake/cancel history and approved effect versus cancelled
+no-effect. Both owned PostgreSQL fixtures shut down normally. Residual authority
+negatives and combined review remain required. Controlled identity/readiness and
+provider prerequisites still prevent deployed production claims.
+
+P7 now has one installed local real-OpenFGA join (12.501s): actual session
+authentication, SDK Check, mounted sensor read, stale-revision refusal, role
+revocation/regrant, sibling-scope denial, model-generation transition and revoked
+credential rejection. Identity data is seeded; this is not real Stytch, full
+runtime startup, worker enforcement or deployed end-to-end acceptance.
+
+P6 is accepted as a local component after independent review. Its retained final
+connected log records11 projection receipts, service-connection revocation,
+model-generation fencing, replay, and fresh-check retry after a database deadlock
+(3.78s case,4.759s package, owned PostgreSQL761 normal shutdown). Root inspected
+that log, the grouped application/command tests and scoped vet results. Its
+historical broad-vet failure was the attack-lab test's redundant outer append.
+A subsequent one-line repair preserves exact JSON/hash behavior (before0.925s,
+after0.798s); the repair owner reports apiserver vet exit0. Source hashes and
+retained logs were inspected; this separate repair awaits the next grouped
+review. The frozen `2026-09-24-openfga-p6-report.md` lacked executable CLI proof.
+Subsequent P7 supporting evidence now runs the built configure/reconcile/repair
+commands against disposable PostgreSQL/local FGA:3 durable receipts, grant then
+revocation, PASS5.653s (case4.80s), PG15617 normal. The pending-timestamp correction
+preserves known values and omits unavailable values; it awaits grouped P7 review.
+The retained Temporal readiness dependency is exercised, not removed. All P7 live
+API/worker enforcement remains open. No production availability is promoted.
+
+Current M7A-25 gap: historical21 only changed status to under_review. Local78
+assignment/status-note and forbidden-state evidence now exists, but independent
+review, current worker authorization and deployed full-contract proof remain open.
+The row, crosswalk and validator now classify it component-only while preserving
+the historical completion record.
+
+### Historical checkpoint detail
+
+The following entries preserve chronological failures, fixes and earlier next
+steps. The current-status table above takes precedence over those earlier plans.
+
+Current decision: the specialized Temporal run_test/rerun_test executor is
+accepted as a bounded local checkpoint. Independent fix1 review confirms both
+Important defects addressed, spec compliance passing and acceptable code quality,
+with no new breakage. The minor cleanup logging follow-up and performance/shutdown
+deployment gates remain open. Next is actual Temporal scheduled-test selection
+and service-authorized admission: that selector is now also accepted as a bounded
+local checkpoint after independent review, with no Critical/Important findings.
+Next is human-initiated resource-run coverage and explicit retained non-test
+coexistence proof. Wakeup churn, per-operation performance, in-flight shutdown,
+full P4C/P4D, OpenFGA enforcement and deployed integrations remain open;
+no728 availability classifications change.
+
+The next human-admission test confirms a manual-run ownership gap through the
+actual HTTP handler: accepted admission has a durable65 start, but the retained
+worker can claim it before74 takeover. Resource-path failures trace to obsolete
+admission readiness and ordered-to-legacy request handling. An additive76 human
+admission/ownership correction is authorized and in progress, not verified.
+Its current grouped manual/finding HTTP, replay/conflict, retained non-test and
+installed CLI checks now pass locally. Other supported resource forms, current
+authority negatives, connected human execution and independent review remain;
+these partial passes do not establish completion of the human-admission slice.
+The selector acceptance does not cover this gap.
+The first connected human run reached needs_human with a succeeded test step,
+but its fixture retained a service grant. Inspection found the adapter's copied
+context_parent still uses service authorization for resource65. The additive76
+fix must cover this fresh-IO path and prove independent human authority. The
+service-independent RED now confirms registered native target resolution rejects
+the run while its human is active and its service grant is revoked; no native
+invocation receipt is created. The additive correction now passes its connected
+local check: the active human executes with the service grant revoked, while
+revoking that human after target binding causes zero credential reads and zero
+HTTP sends. The final-pin migration CLI also passes. These controlled checks
+resolve that reproduced path defect, not deployed or whole-task acceptance.
+The first 12-form matrix failed on an invalid test claim limit. Its corrected
+run now passes all 12 forms in295.62 seconds with normal database shutdown.
+Self-review then found missing capability forwarding through the actual API
+tracing wrapper and a concrete database assertion in handler construction.
+The narrow correction passes mounted API/capability checks in1.168 seconds,
+using controlled database/session replies. Earlier mounted refusals also had
+fixture permission/key errors, preserved in the report. The19-file candidate
+passed independent review: spec PASS and quality Approved, with no Critical or
+Important findings. Human single-test admission is accepted as a bounded local
+checkpoint, not deployed proof or full P4C completion. Controlled identity and
+provider evidence, limited pre-run hashes and broader goal gates stay explicit.
+The focused retained non-test coexistence test now passes on75: registered
+selection, preparation and execution settle an update_finding_response parent
+as remediated and update the finding, without74/75 ownership. Setup is controlled;
+this is evidence for that local path, not every retained family or future76 code.
+
+### Automatic-trigger acceptance audit still open
+
+Independent fix1 review is complete: the rollout defect is addressed under the
+documented migration/worker ordering; no new defects were found in the fix.
+The native retry failure remains NOT ADDRESSED, with its first cause unknown.
+See `2026-09-24-temporal-automatic-source-fix1-review.md`. This is acceptance of
+the bounded correction, not acceptance of the automatic-source stage or release.
+Under the user's parallel-execution amendment, the finding-response adapter and
+OpenFGA model continue independently. Necessary Temporal integration files are
+released to that adapter owner; frozen review evidence remains immutable.
+
+The selector-only correction passed in198.509 seconds (case197.50,
+worker child148.087, PostgreSQL74877 normal shutdown). The ready77 fixture now
+reaches the original serialization assertion and verifies current revision2,
+Schedule-to75/73/74 execution, preservation of admitted work after selector
+disable, and revoked-grant refusal of prepared fresh IO and later admission.
+This closes the identified compatibility-fixture failure below. Fix1 is being
+frozen for scoped independent review; the unexplained native failure remains
+open despite both bounded diagnostic passes.
+
+The connected fix1 batch has joined with exit1 in435.211 seconds, caused by the
+selector fixture failure below. Human admission passed; the final native
+diagnostic also passed in245.79 seconds (replacement child152.552,
+PostgreSQL74035 normal shutdown). Both SingleTest activities succeeded on
+attempt1 with no captured first error; exact mounted HTTP/repository equality
+passed. Two bounded diagnostics have now failed to reproduce the earlier
+failure. Its cause remains unknown and the Important reliability finding is
+still open, not waived by these passes. The confirmed selector helper correction
+gets a selector-only rerun before fix1 review; no further native repetition is
+authorized without a new evidence-based diagnostic question.
+
+Connected fix1 batch has partial results: human admission passed in125.17 seconds
+with normal PostgreSQL73429 shutdown, including revoked-human zero-IO refusal
+and controlled native execution. Selector compatibility failed in63.26 seconds
+before execution: its manually constructed source omitted the now-required
+automatic capability flag, so readiness refused before the asserted advisory lock.
+The fixture-only correction and selector-only rerun follow the current batch's
+join. The last authorized native diagnostic is still running. No whole-batch
+pass or resolution of the earlier native reliability failure is claimed.
+
+Corrected fix1 extended rollout passed in122.699 seconds (case121.76,
+PostgreSQL72830 normal shutdown). Each absent/ready/invalid child confirmed
+session_user=rollout77_executor. Missing/invalid77 refused the worker constructor
+readiness hook and Schedule projection; ready77 preserved omitted-rule desired
+state and actual75 admission. Stored configured drafts also exercised pre77
+public62 activation refusal, plus ready transitions and invalid77 refusal through
+the standard activation repository. This closes
+the fixture evidence gap below, not independent fix1 acceptance. Affected selector
+and human-admission compatibility checks and the bounded native diagnosis remain.
+
+Fix1 extended rollout batch failed in112.986 seconds (case111.96,
+PostgreSQL70248 normal shutdown). The child received the original owner DSN
+because pgx Config.ConnString does not incorporate a later User assignment.
+Its absent77 refusal is not registered-executor proof; ready77 failed before
+omitted-rule admission. The fixture correction uses an explicit executor URL
+and verifies session_user before every child mode. A focused rerun is pending.
+The separate first-error native diagnostic passed in165.968 seconds with both
+SingleTest activities succeeding on attempt1. That is non-reproduction, not a
+fix for the earlier failure. Exactly one further focused diagnostic is planned;
+the Important finding stays unresolved unless evidence supports closure.
+
+Fix1 first gate batch passes locally: installed rollout67.80 seconds
+(API package69.561, PostgreSQL67241 normal), mounted API wrapper2.319 seconds,
+selector Activity1.141 seconds. Pre77 configured create/update and stored-draft
+activation are refused; omitted creation remains available, ready77 creation
+works and invalid77 creation is refused. Controlled mounted API checks confirm
+current74 routing instead of legacy55; selector Activity refuses absent/invalid77.
+These are bounded fixes, not review acceptance. Actual constructor prerequisite
+and alternate activation-route coverage still need confirmation; the separate
+native first-error investigation remains open. No SQL bytes or pins changed.
+
+Independent stage1 review is complete: spec issues found, quality needs fixes,
+zero Critical, two Important and one Minor finding. See
+`2026-09-24-temporal-automatic-source-review.md`. Fix round1 is assigned to the
+original implementer for pre77 rollout gating and first-error diagnosis of the
+native failure. UI test warnings are tracked as a minor item for final review.
+The pre77 correction covers current registered API/database and worker callers;
+it must preserve rule-omitted behavior and reject unsupported configured
+activation. Historical raw SQL remains its old protocol until77 is installed,
+so mixed-version deployment ordering and any caller bypass remain release gates.
+No stage acceptance, SQL-publication approval or728 classification change follows.
+
+Independent review has confirmed an Important staged-rollout gap: before77,
+API writes/activation check74 readiness and can preserve trigger_rules, while
+the enforcing definition/run guards exist only in77. The first-adapter batch
+is not accepted. The required correction must reject unsupported configured
+writes/activation and prevent rule-blind legacy triggering while preserving
+definitions that omit rules. Final review findings and the separate unexplained
+native execution failure will go to the same implementer together; no fix or
+passing pre77 rollout test is claimed yet.
+
+First-adapter acceptance batch1 completed PASS286.060 seconds. Native case173.80
+seconds and replacement child109.712 seconds prove the connected registered
+source writer, exact accepted-start recovery, configured periodic deduplication,
+two actual local test executions and mounted HTTP terminal response. Parent,
+needs_human state, linked test ID, definition/version, outcome, exact
+test_condition_persists reason and nonempty proof digest match repository
+evidence. PostgreSQL59670 shut down normally; no SQL diagnostic errors were
+emitted. This resolves the mistaken HTTP test expectation and verifies that
+readback locally. It does not resolve expanded2's unexplained SingleTest failure.
+The frozen first-adapter changes are being prepared for independent review;
+controlled provider/FGA fixtures remain distinct from deployed integrations.
+
+First-adapter acceptance batch1 has two local passes so far. Admission53.80
+seconds (PostgreSQL59274 normal) confirms an active75 run blocks a distinct77
+source through shared capacity, without consuming that source or rewriting
+legacy run/receipt/audit evidence. Authority57.49 seconds (PostgreSQL59453 normal)
+confirms activated manual rules stay disabled for automatic scheduling, raw75
+cannot bypass them, revoked service grants create neither occurrence nor run,
+and observed/verified paths admit and replay with bound snapshot/trigger evidence.
+Path state and grant revocation are seeded prerequisites; these cases prove
+registered admission decisions, not production writer provenance. The connected
+native/HTTP case is still running. No whole-batch or deployment pass is claimed.
+
+Native-only diagnostic3 failed in165.066 seconds solely at the HTTP test's
+hardcoded reason check. Both native executions completed (child116.244 seconds),
+and HTTP/repository test IDs, definition/version, needs_human outcome and nonempty
+proof digest matched exactly. Both returned test_condition_persists; the test
+expected test_baseline_unavailable. The public contract permits the returned
+reason; fixture semantics are being checked before correcting the expectation.
+Owned PostgreSQL57961 shut down normally. This run did not reproduce expanded2's
+SingleTest failure and does not explain or fix it. That intermittent application
+boundary remains unresolved, and the corrected HTTP check still needs a pass.
+
+Expanded2 whole batch subsequently failed in364.567 seconds. Its native
+execution case failed before HTTP readback: the SingleTest Activity returned
+ProductUnavailable (scheduled event23, started event24); child139.12 seconds,
+parent181.02 seconds, owned PostgreSQL55607 normal shutdown. The exact
+application cause is under investigation, not classified as a transient.
+The middle-page recovery pass below remains valid. HTTP field diagnostics did
+not execute in this run, so its earlier projection mismatch is still unresolved.
+
+Expanded2 middle-page case passes locally in182.56 seconds, with normal owned
+PostgreSQL54997 shutdown. After five committed admissions, exact source ACK and
+completed native Activity history, the parent killed and joined only owned
+worker55300 at the next-page barrier. Replacement55335 completed the remaining
+pages on the same Workflow/run; all26 definitions have distinct runs and one
+receipt each, including the26th. Completed-workflow Start replay is accepted.
+This proves isolated page-worker recovery with real local SQL and Temporal,
+not a full production-runtime or Temporal-server restart. The other native
+HTTP case is still running in the same batch; no whole-batch pass is claimed.
+
+Expanded native batch1 failed in241.677 seconds. The middle-page case failed
+before worker startup because its fixture passed the original owner DSN after
+changing pgx Config.User; ConnString retains the original parsed string. The
+fixture correction uses an explicit executor URL, asserts session_user and
+separates outbox ACK and Activity connections. The connected execution child
+passed again, but its parent failed the mounted HTTP linked-test/verification
+comparison. Exact field diagnostics are being added before deciding whether
+the assertion or product projection is wrong. Both checks remain open; fixture
+edits and a passing child do not make this batch pass. No task classification
+or production-availability promotion follows from this failed batch.
+
+Current adapter limit, checked against77 rules/admission SQL: configured
+automatic admission supports only single `run_test`/`rerun_test` definitions for
+findings and observed/verified paths. Runtime-decision and potential-path
+adapters, other responder actions and ordered automatic actions remain required
+work. Their capture/matcher tests do not establish executable product support.
+Unsupported configured combinations are blocked before activation; this is a
+temporary implementation boundary, not a reduction of the original scope.
+
+Shared matcher GREEN1 passes locally (30.589s, 25 cases), including final
+same-version finding/path snapshots, returned-payload digest recomputation,
+runtime distinct counts, window, risk/session exclusion and revoked authority.
+Earlier snapshot failures remain in the evidence record. This tests private
+source selection, not enabled-definition/grant authorization or admission.
+Bounded catch-up, admission and Temporal dispatch remain unfinished; no
+completed production flow is claimed.
+
+Bounded source catch-up GREEN2 passes locally (49.035s): findings, paths and
+runtime occurrences retain canonical identity/time across rollback, reconnect
+and cursor wrap. The revised runtime scan reads31 recent events and excludes40
+expired records, including same-timestamp paging. This is registered-executor
+database evidence, not worker-process restart or deployed discovery proof.
+Admission receipts, cooldowns and connected Temporal delivery remain open.
+
+First single-test admission adapter GREEN3 passes locally (49.982s): actual
+registered API configuration/activation and executor admission preserve draft
+catch-up eligibility, exact replay, active cooldown deadlines across edits and
+immutable source snapshots. A pre77 receipt survives a definition edit with
+byte-identical original run/receipt/audit. Suppressed replay stays consumed after
+fixture-controlled expiry. This does not verify a new later occurrence after
+expiry, all responder families, or connected Temporal delivery. Those gates
+remain open, alongside independent review and production verification.
+
+Definition-page SQL GREEN1 passes locally (154.083s):26 API-created/activated
+definitions traverse25/1 pages; a capacity-blocked first definition remains
+unconsumed while the26th admits. Reconnect and duplicate-page retries preserve
+25 admissions without duplicates. Per-page timing and the Temporal Activity
+timeout are not yet verified together; this is not connected delivery proof.
+
+Configured periodic catch-up passes its local SQL case (43.96s): draft visit
+does no work, nonmatches do not consume receipts, a later matching preactivation
+source retains its original timestamp, and event admission replays that same
+receipt. Measured calls were0.271s,9.384s and2.863s under a25s query deadline.
+The heavy-admission page hit the25s query deadline in the same batch, so the
+batch failed. A smaller per-page quantum is being tested with full traversal
+preserved. Connected Temporal Activity behavior remains unverified.
+
+The five-item candidate now passes the affected SQL batch
+(`sources-pages-quantum-green1.log`,205.535s, exit0). Catch-up passes45.68s;
+26-definition dispatch passes158.83s, with25 admissions and the capacity-blocked
+first occurrence still unconsumed. Reconnect and duplicate sweeps preserve those
+receipts. Heavy five-admission pages take11.51–11.99s; all measured calls remain
+under the unchanged25s query deadline. Both owned PostgreSQL instances exit
+normally. These are local component measurements, not production latency or
+connected Temporal proof. Durable acceptance, ambiguous-start recovery, restart
+and full responder-family verification remain open.
+
+Outbox SQL GREEN1 passes locally (`sources-outbox-green1.log`,37.401s, exit0,
+owned PostgreSQL normal shutdown). It covers atomic pending insertion/rollback,
+attempt rotation across reconnect without stranding a source, exact Workflow-ID
+ACK/replay, wrong-ID refusal, API denial and pause/resume preservation. In a
+populated second tenant, wrong-scope attempt/ACK leave pending/acceptance state
+byte-identical; the authorized global relay still enumerates that scope. This
+does not prove a Temporal RPC, worker restart, or full tenant-isolation matrix.
+The Go acceptance adapter and connected delivery remain in progress.
+
+Configured Schedule selection now passes its controlled transport group
+(`sources-schedule-green1.log`,0.757s): configured definitions select the new
+catch-up Workflow action under the same Schedule identity; omitted rules retain
+the existing selector action. Pause and existing invalid/stale/foreign refusals
+also pass. This does not yet prove catch-up Workflow execution, SQL desired-state
+routing or live Temporal reconciliation. All216 pre77 SQL files still match the
+saved baseline after the additive outbox edits.
+
+Workflow paging GREEN1 passes in the Temporal SDK test environment
+(`sources-workflow-green1.log`,0.822s). Event and configured catch-up workflows
+finish later pages before retrying a deferred sweep. The source workflow carries
+cursor/retry state through a100-page Continue-As-New and resumes it; invalid
+page results and forged root progress are rejected. Activities have a30s
+start-to-close bound. Activities are controlled in this group, so it proves our
+workflow logic, not SQL integration, a real worker restart or deployed delivery.
+
+Start acceptance GREEN1 passes18 controlled transport cases
+(`sources-start-green1.log`,0.751s). The real adapter accepts exact new,
+completed and continued execution identities; it refuses uncertain starts,
+generic conflicts, missing/wrong handles, cancellation and mismatched or missing
+history. Continuation binds current/root identity plus the predecessor's close
+event. This verifies our adapter decisions, not live Temporal acceptance or the
+outbox-to-start-to-ACK sequence. Connected delivery remains open.
+
+Relay GREEN1 now verifies the application sequence over controlled SQL/Temporal
+transports (`sources-relay-green1.log`,0.763s): commit attempt order before Start,
+ACK exact accepted new/completed identity only, refuse ambiguous/nil-handle or
+malformed pending results, and continue past a failed prefix. This connects the
+real relay, SQL-store adapter and starter in a component test. Installed SQL
+plus native Temporal, production worker registration and restart still need
+joined evidence; controlled transport success does not close those gates.
+
+Installed desired-state GREEN1 passes (`sources-desired-green1.log`,33.495s,
+PostgreSQL normal shutdown): registered executor readiness, unchanged omitted
+desired state, configured draft/activation routing and invalid-catalog refusal.
+Worker adapter GREEN1 passes1.222s with controlled database replies and a blocked
+activity: false/null/error readiness refuses, page requests retain the closed
+SQL contract and25s deadline, and Close retains clients until the activity drains.
+Source inspection confirms both automatic Workflows/Activities and the processor
+are now wired into production composition. Native connected execution, restart
+and real in-flight shutdown remain unverified.
+
+Signed runtime-envelope RED reproduced204 acceptance of explicit null and three
+duplicate evaluation-field variants. The affected GREEN passes0.795s
+(`risk-envelope-green1.log`): real signed HTTP handling rejects those inputs
+before the controlled persistence boundary, while omitted legacy and valid
+annotated inputs remain accepted. Unknown outer fields are rejected too. This
+closes the local envelope-validation gap, not deployed runtime integration.
+
+Follow-up case-variant RED found `Evaluation`/`EVALUATION` still accepted through
+Go's case-insensitive struct decoding. The affected fix rejects noncanonical
+spellings before decoding; GREEN passes all ten signed raw-envelope cases
+(`risk-envelope-case-green1.log`,0.867s). Earlier seven-case evidence was too
+narrow for this bypass. Persistence is controlled in this test, not deployed.
+
+Connected-test runtime prerequisite is verified read-only: the retained local
+Compose server is running the approved pinned Temporal1.32.0 image, with this
+worktree's project labels and loopback-only ports. Tests will own a fresh
+namespace and their worker processes, not the server or retained volumes.
+Earlier "owned Temporal" shorthand means namespace ownership; it is not
+evidence of test-owned server startup or persistent-server restart.
+
+First connected automatic-source run passes153.326s
+(`sources-native-red1.log`, despite the filename, exit0; PostgreSQL normal
+shutdown). A separate process leaves an actual Temporal-accepted source pending
+after a controlled uncertain result. Its replacement builds the production
+worker, acknowledges that identity, executes the finding response through73/74,
+and consumes the configured catch-up Schedule without duplicate execution.
+A registered writer then creates a later finding version after the real1s
+cooldown; a second run settles, with two parent receipts, two provider/native
+invocations and no retained leases. Signed runtime capture reaches a completed
+dispatcher but runtime response admission remains capability-gated. Typed
+repository readback passes. This uses local PostgreSQL/Temporal and controlled
+provider/storage/FGA boundaries, not live Stytch/provider production proof.
+Mounted HTTP readback and restart after a middle dispatch page remain open;
+the1.65ms idle Close is not in-flight shutdown evidence.
+
+Source-writer follow-up: the initial finding mutation failed with
+`audit exports authority unavailable` (SQLSTATE55000), caused by the old public
+release boundary. A private invoker-security77 route preserves explicit live
+audit checks and the original public guard. Installed source-capture GREEN1
+passes41.980s with actual discovery API/worker principals: finding commit,
+rollback/audit/receipt/replay and final same-version discovery finding/path
+capture. Production wrapper forwarding and route selection also pass their
+focused tests. Bounded catch-up and Temporal dispatch remain open; no complete
+deployed finding flow is claimed.
+
+The joined signed-runtime HTTP check now passes locally
+(sources-runtime-http-green1.log,31.766s), after exact current77 gateway readiness
+routing and fixture timestamp correction. The real handler/registered repository
+cover authority/policy routes, known-risk event capture, three-row rollback and
+replay, omitted legacy events, invalid catalog and credential/signature refusal.
+This is seeded local credential evidence, not a deployed provider/Stytch flow or
+production readiness-cache proof. Matcher/catch-up/admission/Temporal dispatch
+and independent review remain open.
+
+Latest controlled checkpoint: installed77 runtime-risk group PASS35.311s
+(risk-installed-green4.log in the automatic-source evidence packet). SQL/Go
+compiler and signed-consumer cases cover omitted risk and all four risk levels.
+Actual gateway-role persistence covers exact replay, annotation-bound digest,
+historical-event no-backfill, transactional rollback, API-role denial and revoked
+credential refusal. The added foreign-credential/original-device case rejects
+its combined digest with zero writes; changed catalog metadata also refuses
+writes and restored77/76 readiness passes. The separate joined HTTP evidence is
+described above; neither test establishes an exhaustive tenant matrix or live
+production readiness. Those checks and automatic-source dispatch remain open;
+the 728 task classifications are unchanged.
+
+M7A-35 through M7A-38d retain historical availability classifications, not
+verified acceptance of the current architecture or all original requirements.
+The current selector reads persisted findings, paths and gateway events. Its
+candidate query uses finding rule equality and a newest blocked-session event
+within five minutes; this alone does not prove configured severity, runtime
+action/risk/count/window rules, configured cooldown, or all three durable source
+emitters. The separate memory dispatcher/source pipeline is component evidence.
+Current definition/SQL contracts and actual source writers must be reconciled
+against each original deliverable before these requirements can be accepted.
+The next audit confirmed a concrete runtime mismatch: the shipped proxy records
+classification outcome `requested`, while persisting the evaluated decision in
+a separate field. The builder's runtime source is `block`, and the copied
+selector requires classification outcome to equal that source. Ordinary proxy
+events do not satisfy that combination. Historical callers with different
+classification values are separate; no event evidence will be rewritten to
+conceal this mismatch.
+
+The controller approved the September24
+[automatic-source design](2026-09-24-temporal-automatic-source-design.md) and
+[grouped execution addendum](2026-09-24-temporal-automatic-source-execution-plan.md).
+Implementation is in progress, with no new verification or availability claim.
+The design includes optional persisted trigger rules and policy-risk annotations
+carried through signed evaluation evidence. Unknown contributing-policy risk stays
+unknown. Canonical transactional source capture feeds Temporal dispatch and shares
+matching with periodic catch-up; permanent replay dedup and cooldown are separate.
+All responder families remain in scope. Bounded dispatch must continue across
+more than25 matches without losing delivery, and unchanged historical SQL/evidence
+must be preserved. Local review and deployed real-integration gates remain open.
+
+Initial grouped RED evidence confirms the missing contract: the production body
+parser rejects valid manual/finding rules (Go package1.045s); the actual client
+decoder rejects seven configured forms and the builder lacks Trigger mode
+(Vitest8 failed,11 passed,99 unselected). These are parser/client/UI checks with
+controlled transport, not mounted API, installed PostgreSQL or deployed proof.
+The implementation report records the evolving group; persistence and delivery
+remain unverified.
+
+The first implementation batch now passes12 body-parser cases (1.026s) and19
+selected decoder/builder cases (1.51s). Typechecking passes after correcting two
+new-test typing errors. Database verification is not passing: the first attempt
+failed fixture configuration; the corrected attempt reaches both selected handlers
+but returns503 (30.913s, owned database joined normally). Diagnosis then confirmed
+an unrelated historical Attack Lab readiness probe blocked single-test creation
+before its write. Requested-family capability selection now passes six focused
+tests, including unavailable requested/mixed-family refusal.
+
+The next installed run reaches both selected handlers: configured single-test
+creation and body/history digest assertions pass, then typed activation readback
+rejects the new field (40.643s, owned database joined normally). This corrects an
+earlier assumption: the effective74 single-test writer already preserves extra
+rules; it is not proof of strict SQL validation or support in every other family.
+Additive77 still needs strict database rules and supported-activation checks,
+alongside completed typed readback. Automatic delivery remains unverified and no
+availability labels change.
+
+The corrected installed readback group passes (39.933s): both selected handlers
+create configured single-test drafts, stored body/history agree with their digest,
+and typed activation read succeeds. The detail-editor test also passes (1.03s)
+using the real client with controlled transport; semantic comparison fixes false
+unsaved-change detection caused by JSON key ordering. Exact submitted-rule equality
+and update/version roundtrips now pass in both expanded handler cases, including
+manual-only version2 and preservation of version1 history. That expanded group
+still fails (48.619s): three direct API-role SQL calls incorrectly accept null
+rules, an unknown mode and zero cooldown. The subsequent installed77 guard batch
+passes (56.616s): the three malformed writes reject, both handler roundtrips still
+pass, and unsupported potential-path activation is refused. This is staged local
+evidence. Configured activation remains disabled until supported family dispatch
+is implemented; partial77 is not registered for publication. Policy-risk evidence,
+automatic delivery, remaining families and deployed verification stay open.
+
+Policy-risk work has meaningful failing tests: compilation drops all four
+supported annotations and accepts an unknown annotation (3.340s); six actual
+gateway evaluation cases lack contributor/risk evidence (0.627s). Legacy omitted
+policy digest behavior remains checked. An earlier gateway module-setup failure
+is separate from these results. Risk signing, ingestion and dispatch are still
+being implemented, not verified production functionality.
+
+The core risk checks now pass: compiled/signature behavior (0.596s), strict event
+contract (0.862s), and six gateway decision cases with actual local disk restart,
+exact replay and controlled transport delivery (1.365s). Request classification
+stays unchanged. These do not prove authenticated database ingestion, policy
+API/UI integration, automatic dispatch or deployed provider behavior.
+
+Focused policy API validation now passes seven cases (1.000s), including duplicate
+raw-key rejection before request canonicalization. The policy create/edit UI check
+passes (896ms) through the actual client with controlled transport. These checks
+do not establish installed policy storage, signed ingestion or deployed behavior;
+those boundaries remain open.
+
+Repository routing checks now pass (0.789s): annotated events retain evaluation
+in the new SQL call and do not fall back when that endpoint is absent. This uses
+a controlled database adapter. Atomic installed ingestion and cross-protocol
+replay protection still require verification.
+
+The actual deployment SQL compiler also needs an additive update: its closed
+policy fields and SHA256(Rego)-only output reject annotated policies. The approved
+change must preserve exact unannotated behavior and match the Go compiler's
+risk-bound output, with installed compatibility evidence. Passing Go signing
+tests alone does not establish that annotated policies can be deployed.
+
+### Selector evidence history
+
+Scheduled selector work has a verified pre-edit baseline and an initial installed
+RED test: versioned selector authority is absent. The additive implementation is
+in progress. Coverage must distinguish inactive-creator service admission from
+retained-selector exclusion with an active creator; neither is proved yet.
+The additive75 DDL now compiles independently; installation still rejects the
+stale compiled pin in the recorded attempt. Reconciliation tests fail at the
+unimplemented boundary. These are development checkpoints, not behavior passes.
+The next candidate passes reconciliation tests in0.801 seconds. Its installed
+admission test fails at an ambiguous-column proof query after reaching admission;
+the canonical invariant remains unverified until that query is corrected.
+With the query corrected, installed admission passes in35.886 seconds. The
+paired actual migration CLI test fails on release-command wiring, so the group
+is not green. CLI, connected runtime/configuration and independent review remain.
+Connected RED now proves the actual worker composition does not yet create the
+canonical selector Schedule (45.764 seconds, clean owned database shutdown).
+Registration/reconciliation wiring and executable deployment configuration are
+being implemented. A helper-only configuration test will not close this gap.
+The actual CLI now passes in34.609 seconds. Connected execution creates the
+Schedule and admits work, then fails a one-pass delivery assertion. Diagnostics
+show an untouched queued run and a busy organization lock, not a lost run.
+Bounded delivery-retry verification and a separate legacy-claim race check are
+next; complete execution/settlement and independent review remain open.
+The bounded connected retry still fails: the controlled planner guard cannot
+confirm its required Temporal request/reservation proof, and start delivery stays
+pending. The exact execution/ownership path is under diagnosis; longer waits are
+not accepted as a fix. No real provider was called by this controlled test.
+The focused retained-claim RED confirms an ownership race: with the creator
+active and Temporal takeover withheld, the actual legacy claim changes the new
+selector run to planning/version2/attempt1. The additive75 correction will mark
+ownership atomically at admission and exclude marked runs from retained claims.
+Historical/unmarked runs and existing tenant/accounting boundaries must remain
+unchanged. This correction and connected settlement are not verified yet.
+The corrected installed ownership/accounting/tenant group now passes in48.010
+seconds with normal owned database shutdown. It exercises actual manual API
+capacity, marked-run legacy claim exclusion before takeover, unmarked claim
+compatibility, unregistered/direct-worker denial, inactive-creator admission,
+same-name second-tenant separation and actual74 takeover. This supersedes the
+earlier unverified correction checkpoint, not the retained failed evidence.
+Connected Schedule-to-child/parent settlement and independent review remain.
+The frozen connected candidate now passes: API117.409 seconds, nested actual
+worker91.607 seconds, and executable shipped configuration CLI48.314 seconds.
+It covers serialized current desired configuration, actual Schedule-to73/74
+execution and child/parent settlement, admitted execution after selector disable,
+and grant revocation blocking prepared fresh IO and later admission. The owned
+database shuts down normally; this fixture's first worker Close takes2.812ms.
+Earlier executor performance/shutdown gates are not closed by that narrower
+result. External transports remain controlled. Source/evidence freeze and
+independent review are next; no production classification changes.
+Self-review then found the direct retained SQL entry lacks its own75 catalog
+check, relying on the Go caller's check. A narrow fail-closed wrapper is being
+added. The passing connected result above covers the prior candidate; final
+affected verification and independent review remain required.
+The corrected direct-entry installed group passes in54.135 seconds. Final
+connected verification also passes on that version: API138.418 seconds, nested
+worker107.059 seconds and executable CLI49.593 seconds, with normal owned
+database shutdown and first worker Close169.623ms in this fixture. Evidence
+packaging and independent review remain; these are still local controlled
+integration results, not deployed Stytch/provider or full OpenFGA proof.
+The selector source and evidence packet are now frozen and independently
+hash-checked, including214 unchanged historical SQL files. A single independent
+Superpowers task review is running. Acceptance awaits its verdict and any fixes.
+Independent selector review now passes spec compliance and approves code quality,
+with no Critical or Important findings. The narrow PUBLIC predicate and
+admission-time ownership fence were reviewed. Minor unauthorized Schedule
+wakeup churn and the explicit non-test periodic coexistence evidence gap remain
+recorded, alongside performance/shutdown and production gates. This bounded
+acceptance does not establish those remaining requirements.
+
+### Executor evidence history
+
+The approved [Temporal/OpenFGA execution plan](2026-09-22-temporal-openfga-execution-plan.md)
+is active without reducing the original728-task scope. P4B discovery and the
+P4C admission/accounting checkpoint have local review acceptance. The current
+P4C/P4D slice is lease-free run_test/rerun_test execution: configuration authority
+and the expanded ownership/planning group pass locally. Intermediate installed
+PostgreSQL groups also pass for adapter authorization and evidence-backed child
+and parent settlement. The focused transport group now passes through the native
+executor and separate parent settlement, with controlled HTTPS planner, artifact,
+usage and no-resend assertions (57.351 seconds). Child completion leaves the
+parent running until settlement; unavailable baseline remains needs_human.
+Local planner cleanup and installed-database delivery groups also pass, including
+unresolved started work, idempotent delivery receipts and scoped access denials.
+The local Temporal/PostgreSQL two-tenant runtime group passes in134.621 seconds:
+prepared work resumes after joined shutdown/restart, tenant A completes once,
+and tenant B's configuration revocation prevents fresh provider IO and releases
+its unsent reservation. The first shutdown attempt timed out before a successful
+drain/retry. External HTTPS/storage/FGA/queue dependencies remain controlled.
+The focused local Temporal cleanup continuation test passes in4.274 seconds,
+using controlled product activities. Revised cancellation and automatic database
+cases previously passed in73.58 and51.97 seconds. The revised full decision group
+now passes in282.509 seconds: cancellation83.50, automatic61.51 and approval136.46.
+It covers actual API cancellation, canonical service/adapter authority, approval
+decision/read paths and foreign-scope rejection. Approval/cancellation outbox
+relay units also pass; connected Temporal delivery and supervised rerun still
+need verification after their earlier failures. Final affected-source checks
+and independent review remain in progress. These intermediate passes do not
+verify later changes or establish product deployment.
+Subsequent regressions exposed stop-decision replay, a legacy receipt trigger
+rejecting cancelled approvals, and cleanup of a run cancelled before planning.
+The corrected cancellation/approval group passes in224.664 seconds, and installed
+release CLI checks pass in29.910 seconds. Final compatibility negatives and
+connected-runtime verification remain. Connected reruns must hold source fixed and
+check installed versus compiled fingerprints after a suspected mixed-build
+failure; that failure is not evidence of another product defect by itself.
+The subsequent frozen-source connected run reaches actual local supervised
+automatic rerun remediation with the creator inactive and original admission
+ownership preserved. The whole run still fails in a later manual-cancellation
+fixture that reused the inactive creator's definition. That setup needs a
+separate authorized API-created definition before whole-flow acceptance. Real
+Temporal cleanup continuation also passes in3.956 seconds with controlled
+product activities. Final affected-source verification and review remain open.
+The first affected aggregate hit test-harness deadlines; its completed transport,
+automatic and CLI cases passed. An unfinished-only continuation now passes all
+three remaining cases in501.409 seconds with production source unchanged and
+explicit fixture bounds. The failed aggregate remains recorded. The corrected
+connected run now passes in215.898 seconds, including automatic remediation and
+typed API cancellation through the committed control outbox and production relay
+to the same Temporal execution, with verified absent-child cleanup. External
+transports are still controlled. Source/evidence is frozen and independently
+hash-checked. Independent review found two important defects: exhausted transient
+cleanup retries can close the workflow with obligations outstanding, and approved
+receipt replay fails after terminal settlement or live approval/plan expiry.
+Fix round1 is assigned to the same implementer with grouped regression tests and
+a separate preserved-baseline review packet. This executor is not accepted yet.
+The grouped RED tests reproduce both defects: exhausted cleanup retries fail in
+original and continuation workflows, and typed historical approval replay returns
+a conflict after live deadlines. The corrected grouped run passes: orchestration
+0.847 seconds, approval/replay API cases228.687 seconds, and installed migration
+CLI30.682 seconds, with normal owned PostgreSQL shutdown. Connected verification
+also passes in238.708 seconds, including typed approved replay after actual local
+Temporal settlement without new audit/control records. Actual cleanup continuation
+passes in4.091 seconds. The eight-file fix packet is frozen and independently
+hash-checked; scoped re-review is running. These results are local, with controlled
+external dependencies. The minor pending-cleanup logging issue remains open to
+preserve the existing Activity payload contract.
+The inactive-creator fixture proves post-admission execution independence, not
+admission after creator deactivation. The adapter OwnedRouting case was skipped
+for a missing fixture; other passing routing checks do not cover that case.
+Slow repeated migration metadata/readiness work and first-attempt bounded
+shutdown remain deployment gates. No production-availability rows are promoted.
+None of these local checks is deployed Stytch/provider/SQS/OpenFGA proof.
+Neither this slice nor full P4C/P4D is accepted yet.
+
+OpenFGA production enforcement, remaining execution families, obsolete-code
+retirement, final UI/product verification and deployed real Stytch/provider
+flows are still required. No new production availability or verified push is
+claimed here. The728-row classifications remain526 production-available,
+141 component-only and61 blocked/external; these existing row classifications
+are not proof that the new architecture or the entire product is deployed.
+Detailed dated evidence below preserves failed attempts and local-only limits.
+
+## Earlier implementation checkpoints
+
+Earlier implementation: original M7A-24 signed response webhook, with the
+connected automatic-discovery restart proof progressing in parallel. Webhook
+Task1 and Task2 are reviewed. Additive release59 now passes11 registered
+PostgreSQL selectors with242 matching test/subtest run/pass events, zero
+failures/skips,22 focused Go selectors and the harness unit. Independent review
+found three Important gaps in the first freeze: the production migration wrapper,
+invalid pre-dispatch recovery and final deadline recheck. Fix round1 added direct
+RED/GREEN regressions; scoped re-review approved all three with no new Critical,
+Important or Minor finding. Root rechecked all20 source hashes,15 evidence hashes
+and clean owned-container teardown. This is reviewed component authority, not
+receiver/deployment proof. The selected handoff semantics remain step `succeeded`
+plus parent `needs_human` with reason `webhook_handoff_acknowledged`; delivery
+acknowledgement never means remote remediation or receiver verification.
+
+Publication checkpoint 2026-09-20: the exact working candidate passes the full
+grouped repository verification, including231 Vitest files/2250 tests,
+typecheck/lint, tenancy/RLS, production source and compiled import closure,
+staging30/30, production release285/285, the runnable five-stage UI build and
+the728-row ledger validator. The release60 restart/rebind parent PostgreSQL
+scenario also passes in96.470 seconds. Independent review accepted the live
+schema59 maintenance-drain/schema60 activation guard and the regression proving
+lease expiry after inner admission rolls back every provisional write. The
+separate production publication gate remains fail-closed because an approved
+source has not supplied fresh exact-lock dependency advisory evidence. No push,
+deployment, production proof or availability-row promotion is claimed. Ledger
+totals remain526 production-available,141 component-only and61 blocked/external.
+
+Automatic-discovery connected attempt11 crossed the actual300-second cadence,
+committed one scheduled sync, and joined its first scheduler cleanly. It then
+reproduced a restart defect: mutable claim version changed the scheduled
+occurrence identity, and an exact-occurrence replay under a new registered
+lease failed with SQLSTATE23505. The reviewed native correction now derives
+identity from schedule, integration and exact due time while retaining claim
+version validation. Independent review also found and closed a bridge cleanup
+error that could hide numeric child failures. Root reran14/14 bridge tests and
+the focused worker race selector; both pass. The database replay correction
+must use the next additive migration after release59. Its corrected release60
+design/plan passed independent GPT-6 Astra review. Release59's accepted handoff
+cleared its Task1 prerequisite. The release60 registered RED is now independently
+accepted with no Critical, Important or Minor finding: eight intended failing
+leaves,41 passing records, zero skips and four clean PostgreSQL joins. It changes
+no production behavior or availability row. Release60 migration Task2 is now
+implemented and independently accepted after closing two Important readiness/
+completion-replay findings. Final controlled evidence is312/312 migration/CLI
+and50/50 registered PostgreSQL run/pass records, zero failures/skips and ten
+normal database joins. Task3 is now also
+implemented and independently accepted with no findings: exact60 scheduler
+readiness, scheduled identity checks and readiness-before-claim pass51 apiserver,
+35 worker,289 migration,58 replay/predecessor and34 release-cycle run/pass
+records, zero failures/skips and eight clean database joins. Connected attempt12
+was retained failed at a harness-only public-shape error and attempt13 retained
+as withdrawal-incomplete. Corrected attempt14 is now independently accepted with
+no findings:300.268-second public cadence, generation1 replacement replay, one
+sync/job/outbox, durable completion, changed mounted inventory, last-good
+retention and unchanged count beyond the actual stored disabled due. All1882
+hashes matched; seven processes joined cleanly and cleanup was complete. This is
+controlled-provider evidence. Live-provider, deployment and publication proof
+remain open; no availability row changes here.
+See [discovery progress](automatic-discovery-sync-20260919/progress.md).
+This is controlled local evidence, not a live customer-cluster claim.
+
+The original M7A-23 run-scoped evidence export remains component-only. The
+[export checkpoint](security-agent-export-20260919/api-progress.md)
+records worker/storage, scoped retrieval, action-detail and supervised-approval
+component progress. Latest manual-provenance UI batch:212 tests,26 OpenAPI/generator tests, passing
+types/lint and runnable UI build. Independent action-detail review and database
+settlement lease-race follow-up are accepted at component scope. Registered
+approval/route SQL and Go planner routing reviews are accepted as components,
+including the accept/fail lost-reply routing correction (15 affected native
+race test groups). Registered planner admission/replay has bounded component
+acceptance after its candidate-order correction: three affected registered test
+groups pass and independent re-review has no new findings. Full read integration,
+public setup and controlled authenticated browser/download composition are now
+locally connected at the release58 checkpoint below. Eight post-commit process
+restart checkpoints and the registered grant/revocation/concurrency, corruption
+and read-lease deletion matrix now pass controlled local integration. The grouped
+cleanup packet now adds actual cleanup-worker process loss/retry, precise retained-byte
+accounting, post-cleanup protected downloads and a real second-organization stored
+artifact positive. External providers, hosted exact-source CI/advisory and deployment gates remain open. No publication
+or production reclassification. All728 original tasks and availability totals
+remain unchanged; historical production rows are not reverified by this batch.
+
+Manual provenance now has reviewed Go claim/read/mutation components and a
+reviewed browser contract/display batch. Go planner provenance propagation is
+locally verified and independently accepted as a component. The original
+M7A-70 no-reference manual-start producer remains incomplete. At the prior
+checkpoint SQL admission was missing; the Go request/receipt route passed27 controlled
+cases and an affected14-group native race batch, with independent component acceptance.
+OpenAPI/client/start-button changes now pass188 affected browser tests, types,
+lint, schema/generator checks and a runnable UI build; independent review has
+accepted this component. Subsequent registered manual admission progress is
+recorded below; composed public workflow proof is still open. The missing/outstanding planner-accounting gap
+now has registered all-family closure and independent component acceptance at
+release58 pin16d71c1f47360dc46b7fba40e0ab438d0f902a0a0683978c99cf8a88e4a42336.
+Historical unaccounted receipts are not repaired or reclassified by this fix.
+The original registered API RED failed at the missing manual-admission function,
+before any run or receipt was created. The connected checkpoint below now
+supersedes that missing-function state. See the export checkpoint for proof limits.
+
+Connected HTTP-to-Postgres admission now passes at the held manual SQL
+checkpoint6aa9774be0596166801b9a2efd33876884d9e5607c5ff57ad894af3c1c16a08c.
+`TestSecurityAgentManualHTTPPostgres` verifies original receipt replay, public
+run list/detail projections, changed-version409 and revoked-requester403 with
+no duplicate writes. Its reached denial-classification bug has a scoped Go fix,
+31 controlled start cases and six passing native race groups. Independent review
+accepted this bounded HTTP/Go correction. See [HTTP evidence](security-agent-export-20260919/manual-http-progress.md).
+That historical HTTP case fixture-seeded activation. It is superseded for public
+setup by the release58 checkpoint below. Browser authentication, native download,
+external storage/provider behavior and production proof remain open. No task
+classification changes.
+
+The manual SQL batch is frozen at fingerprint
+888a5f54afdd322a23ff22381d2abc33701c5274165270e0e4563e5a2e9694c6 for independent
+review. Registered evidence now connects actual API admission, worker claim,
+planner reservation/settlement/acceptance, approval, dispatch and shared export
+capture. The [SQL report](security-agent-export-20260919/database/manual-report.md)
+records11 passing feature groups at the preceding checkpoint and four affected
+groups rerun after the final retained-receipt guard correction. Final HTTP passes
+again at this pin. Root checked the frozen source/report/patch hashes and retained
+final output. Independent SQL review found one P2: an expected manual-authority
+refusal can abort the shared claim transaction and repeatedly block healthy
+runs/tenants. The correction now isolates expected per-run refusals before and
+after provisional writes. Eight registered isolation cases pass at fingerprint
+0d5ce2f2b6a6252ee8bc5e675b2776a5c23c03fb50754f7c46345f8fbae906f3;
+same-pin release restoration and existing manual admission/prerequisite results
+are retained. Root checked the frozen three-file patch and source/report hashes,
+and inspected the final eight-case output. See the
+[claim correction report](security-agent-export-20260919/database/manual-claim-report.md)
+for the disclosed fixture correction and evidence boundaries. Independent
+re-review accepted the correction with no new actionable findings after checking
+all frozen source, patch and log hashes. The reviewer did not rerun tests.
+This resolves the claim defect at component scope. Public activation, multi-step
+execution, full authenticated browser/runtime composition and external proof are
+still required. These checks do not reclassify any of the728 original tasks.
+
+Public export enablement now has an installed, pinned release58 admission surface
+at fingerprint8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f.
+Actor-aware definition reads, export-only mutation/replay/activation, exact
+eight-key controls, legacy-entrypoint fences and safe outage withdrawal pass
+registered PostgreSQL checks. Browser and bearer public CRUD semantics are both
+covered. The real HTTP/repository flow creates its own definition, controls and
+activation, starts two manual runs and reaches planner, approval, dispatch and
+capture without a seeded definition/run/plan. The catalog-backed UI exposes only
+the single export action, requires the admitted cost bound and passes147 focused
+tests plus typecheck, lint and a fresh build. Independent review's two P2 and one
+P3 findings were reproduced, corrected and accepted on scoped re-review with no
+new Critical/P2 issue. See the [SQL evidence](security-agent-export-20260919/database/public-activation-sql-report.md),
+[Go evidence](security-agent-export-20260919/go-public-activation-progress.md)
+and [UI evidence](security-agent-export-20260919/ui-public-activation-progress.md).
+The connected controlled browser acceptance now passes at that pin: callback-
+authenticated author, approver and foreign principals; actual public setup;
+planner, approval, dispatch, capture and settlement; exact original manual and
+run-audit source bodies; native JSON/CSV/readable downloads; API/worker restart
+continuity; foreign-tenant denial; and clean process joins. The retained manifest
+records completed true, while cleanup records no errors. See the
+[browser evidence](security-agent-export-20260919/browser-fixture-progress.md).
+The grouped [restart evidence](security-agent-export-20260919/restart/final-report.md)
+now carries one public-created run across eight committed API/worker process-loss
+checkpoints, including actual retry and settlement-lease deadlines, immutable
+prepared storage, stale-token refusal and consume-before-body recovery. The grouped
+[storage matrix](security-agent-export-20260919/storage-matrix/README.md) connects
+registered grants to the production HTTP reader and exact-version deletion boundary,
+covering concurrent token reuse, revocation at a blocked storage read, corruption,
+live read leases, denied/generic-404 deletion and typed `NoSuchVersion`. Independent
+review accepted both packets after two P2 corrections in each. The grouped
+[cleanup process packet](security-agent-export-20260919/cleanup-process/final-report.md)
+then passed seven registered groups and 17 native race tests with zero failures or
+skips. It covers three public-created artifacts across two Organizations, a live
+registered read lease, cleanup DELETE response loss and restart, denied/generic-404
+retry retention, typed `NoSuchVersion` confirmation, exact retained-byte decrement,
+and protected post-cleanup re-downloads. All 1,635 recorded source hashes match the
+current tree; independent re-review accepted the frozen evidence. These fixtures use
+controlled local identity/model/storage and test-owned rendering.
+Production composition still requires explicit opt-in, mounted retrieval, both
+installed gates and four fixed private worker health checks. Authenticated browser
+login and native download bytes are verified only against controlled local
+identity/model/storage transports. Live external identity, model and AWS provider
+invocation, live worker health/CNI and production deployment remain unverified. Multi-step remains a
+separate open packet. M7A-23 stays component-only; no task classification change.
+
+September 20 coordination reconciliation: the launch checklist's R1 manual
+admission and R2 public export activation items were stale relative to the
+accepted evidence above. A current-byte read-only audit matched the release58
+pin and the later candidate-local rollback correction; six manual native groups
+plus the public list/read/cancel handler group passed uncached in 1.584 seconds.
+R1 and R2 are now checked as locally reconciled in the launch execution plan.
+This does not add PostgreSQL, external-provider, deployment, or production proof
+and changes no original task classification.
+
+R3.1 now has an independently reviewed ordered multi-step design and execution
+plan. Review found four Important design gaps and no Critical issue. The corrected
+contract fixes the first pair to supervised temporary-policy application followed
+by an existing-test run, requires typed immutable predecessor receipts, creates
+downstream approvals only after dependency readiness, establishes an
+Organization-first shared lock order, and refuses release61 rollback whenever any
+release61 definition, run, dependency, receipt, or execution evidence remains.
+Implementation remains dormant and unpublished; M7A-49 remains component-only.
+See [design](2026-09-20-security-agent-ordered-multistep-design.md) and
+[implementation plan](2026-09-20-security-agent-ordered-multistep-plan.md).
+
+The first R3 implementation boundary is now locally committed through release61
+registration. Dormant closed Go contracts are at `a7b332a`; the candidate
+persistence schema is at `d20e90a` plus rollback/FK-drift correction `3389819`;
+the exact release52-through60 predecessor checkpoint is `041d02f`; and registered
+release61 ancestry is at `fd93128` plus saved-restoration lock correction
+`b586c59`. Independent task reviews are clean after fixes. Real PostgreSQL tests
+cover candidate and registered up/retry/down, exact release60 restoration,
+retained-evidence refusal, isolation and concurrent drift waits. The built-in
+template registry regression was also restored at `b883729`, with its full domain
+race package passing. Release61 has no planner admission, progression, worker,
+CLI, API, or UI activation yet, so this is component-only local evidence and does
+not reclassify M7A-49 or any original task.
+
+Registered release61 atomic admission is now locally committed at `a2e8e2d`
+with lock/replay/ID hardening at `bcf6064`. The real PostgreSQL batch proves
+exact and concurrent replay, tenant and authority refusal, settled provider-use
+binding, budget/deadline/lease checks after waits, deterministic plan/step/
+dependency/approval identities, one first-step approval, and no successor
+effect/reservation. Independent review's three Important findings were
+reproduced and corrected; scoped re-review is clean. Execution and progression
+remain intentionally unavailable, so this remains component-only evidence.
+
+Release61 dormant approval and receipt-gated progression authority is now locally
+committed at `1a382cd`, with legacy-route fencing, nonblocking gateway validation,
+and strict transition-response correction at `513c98b`. Real PostgreSQL tests
+cover receipt-gated successor readiness, conservative terminal blocking, replay,
+tenant/version refusal, migration and Organization-first lock schedules, legacy
+approval/expiry refusal, and concurrent gateway revocation and credential
+rotation. Full multistep, race progression/ordered/worker, migrations, rollback,
+fingerprint, and grouped affected legacy batches passed. Independent re-review
+confirmed all three Important findings addressed with no new Critical or Important
+finding. The application receipt and related controls remain owner-created test
+fixtures: release61 claims, adapters, receipt production, existing-test settlement,
+cleanup aggregation, worker orchestration, public activation, and live deployment
+are not implemented by this packet. This remains component-only evidence and does
+not reclassify M7A-49 or any original task.
+
+The release61 legacy temporary-policy action-lane compatibility fence is locally
+committed at `8644d72` and independently reviewed clean. Real PostgreSQL RED
+proved that old claim/recovery selected ordered effects, finish and cleanup could
+mutate ordered authority and terminal parent state, effect-first calls waited on
+held ordered rows, and generic execute wrappers inverted migration lock order.
+The release61 promotion now excludes ordered rows before all legacy selector
+locks, refuses ordered point mutations before replay or row locks, and fences all
+five externally reachable execute entries before budget/run locks. Eleven changed
+definitions restore exact definitions, owners, and ACL order on down; the private
+dispatch leaf remains unchanged, ungranted, and live-fingerprinted. Corrected
+focused, full multistep, migrations, affected legacy/action/deployment/approval/
+cancellation, and race groups passed. Independent review found no Critical or
+Important issue. Owner-seeded fixtures prove compatibility refusal only: ordered
+claim, adapter, lease, reservation, application receipt, settlement, cleanup, and
+public activation remain unavailable, so this is component-only evidence and
+does not reclassify M7A-49.
+
+Release61 temporary-policy application authority is locally committed through
+`8ba108b`, composition/target-bound correction `bcc6c92`, and wire-budget
+correction `a7bd9e5`; independent review is clean after two fix rounds. The
+dormant private path now claims only the approved first ordered step, owns a
+stable reservation and recoverable lease, stores a verified signed source,
+claims only the exact tenant/run/step/target deployment work, records a real
+deployment acknowledgement, and atomically writes the control plus immutable
+`temporary_policy_applied.v1` receipt. Task7 progression then creates exactly one
+successor approval. Current authority, cancellation, readiness, revocation,
+credential rotation, generation drift, source policy/TTL, complete persistent
+and temporary policy composition, minimum source expiry, stale lease, replay,
+and restart are rechecked. SQL refuses more than 100 targets before mutation;
+private SQL/Go wire limits and the existing 1 MiB gateway envelope contract are
+matched before leasing. Final full multistep, migrations, race, and affected
+legacy groups passed. This is controlled PostgreSQL and private-adapter proof,
+not physical-gateway or live-provider proof. Existing-test settlement, cleanup
+aggregation, generic worker/public activation, and live deployment remain open;
+M7A-49 remains component-only.
+
+Release61 existing-test invocation and settlement authority is locally committed
+at `d8369a3` and independently reviewed clean. After the reviewed application
+receipt and successor approval, the dormant private path claims only canonical
+step one, retains one stable reservation/lease, pins immutable input bytes and
+the exact test/version/target/categories/safety/credential/comparison/evaluation
+identity, commits journal start before controlled TLS I/O, and replays terminal
+observation without a second provider call. Settlement reads immutable input and
+output artifacts, matches native/check evidence to the completed journal, writes
+`existing_test_settled.v1`, and atomically derives `contained` for verified pass
+or `needs_human` for reproduced fail/mixed evidence. Unknown or incomplete
+evidence creates no receipt. Private expiry recovery handles both unresolved
+started journals and completed-but-unsettled crashes after both leases expire,
+without provider resend or fabricated evidence, while preserving reservations,
+the active temporary control, and cleanup ownership. Full multistep, migrations,
+race, affected legacy, artifactstore, and adapter groups passed; independent
+review found no Critical or Important issue. Controlled TLS and local immutable
+artifact fixtures are not live-provider, cloud-store, Promptfoo-container, or
+production proof. Cleanup aggregation, generic worker/public activation, and
+live deployment remain open; M7A-49 stays component-only.
+
+Release61 cleanup ownership and terminal aggregation is locally committed through
+`ee9ae41`, safety/refresh correction `88c7b4a`, and marker-deadline correction
+`48d2570`; independent review is clean after two fix rounds. The dormant private
+path owns one stable cleanup reservation/lease, removes only the ordered temporary
+source, preserves persistent and unrelated active temporary policies, verifies
+store/read/finish acknowledgement on every target, records immutable cleanup
+evidence, and moves verified non-reproduction from `contained` to `remediated`
+only after source/control removal and fresh signed replacement work. Reproduced,
+unknown, stopped, cancelled, partial, expired, drifted, or unverifiable cleanup
+remains `needs_human`. Recovery distinguishes no external call, unknown call,
+partial acknowledgement, and complete-but-unsettled evidence without fabricating
+receipts or leaking lease tokens. Heartbeat and first completion preserve original
+deadlines across waits; completed replay rechecks current safety and full signed
+bundle/read/work identity. Replacement bundle expiry and refresh scheduling are
+bounded before gateway expiry. Final full multistep, migrations, race, affected
+legacy, artifactstore, and adapter groups passed; independent review found no
+Critical or Important issue. These are controlled PostgreSQL/deployment fixtures,
+not physical-gateway or live-provider proof. Generic worker orchestration, public
+API/CLI/UI activation, and live deployment remain open; M7A-49 stays component-only.
+
+Release61 pricing and provider-account approval authority is locally committed at
+`7ee20bc`, with exact replay-threshold correction at `701c39e`; independent
+re-review is clean. The dormant private boundary stores immutable tenant-scoped
+account and pricing-policy revisions, binds exact provider/model/account profile/
+cost unit/request digest/token and cost ceilings, retains metadata-only credential
+references and digests, and permits only scoped administrators to create, version,
+or disable policy. Worker lookup requires the exact prepared request, current
+credential revision, active policy, release61 readiness, and closed SQL/Go wire
+contracts. RLS, ACL, concurrent replay, wait-time revocation, fingerprint drift,
+retained-history rollback refusal, empty restoration, revision exhaustion, and a
+reserved final disable tombstone have real PostgreSQL coverage. Corrected-source
+pricing, migrations, affected race and consumer/restoration gates passed; the
+unchanged-source full multistep and extended race baselines also passed. These
+policies approve ceilings only. Production catalog and credential configuration,
+live provider pricing, actual provider-reported usage/cost settlement, immutable
+provider intent/results, worker orchestration, public activation and deployment
+proof remain open. This is component-only local evidence and does not reclassify
+M7A-49, M7A-95, M7A-96, or any original task as production-available.
+
+Release61 private planning and immutable provider-result authority is locally
+committed through `bcb39d1`/`828150b`, with earliest budget/pricing deadline
+correction at `cc06540`/`994263f`; independent re-review is clean. A dormant
+private worker claims one tenant-scoped planning job, fixes stable reservation,
+request and artifact identities, writes send intent before controlled production-
+HTTP I/O, strictly accepts only the reviewed two-step result, verifies immutable
+input/output artifacts, settles provider-reported tokens and nano-credit cost, and
+calls reviewed ordered admission only while lease, budget, pricing, credential,
+context, artifact and readiness authority remain current. The earliest caller,
+lease, budget and pricing deadline bounds SQL, artifact, provider, settlement and
+admission work; send runway is checked before and after durable start acknowledgement.
+Restart and six-state expiry recovery never resend an unresolved non-idempotent
+call or fabricate output/usage. Release61 fences stale legacy settlement at READ
+COMMITTED and restores the exact release60 definition, owner and ACL on down.
+Corrected planning/process, downstream/readiness/restoration, migrations, artifacts,
+adapter, pricing, worker/race and legacy gates passed. Earlier hours-long broad
+commands remain failed evidence after host suspension; focused unchanged-source
+completion/tail runs covered their unfinished families and were not relabeled.
+Controlled database, HTTP-provider and artifact fixtures are not live provider,
+cloud storage, deployed worker, or production configuration proof. Worker-loop
+orchestration, public API/CLI/UI activation and live deployment remain open, so
+M7A-49, M7A-95 and M7A-96 remain component-only.
+
+Release61 private worker orchestration is locally committed through `e4c59006`,
+with clean-tree dependency/preflight corrections at `98c61e95` and `75957f63`;
+independent final re-review of documentation head `ba82cd25` found no Critical,
+Important, or Minor issue. The dormant bounded loop rereads authoritative scoped
+SQL before every transition and advances at most one durable boundary per tick
+across planning, ordered admission, temporary-policy application and deployment,
+approval pause, existing-test dispatch/settlement, uncertainty reconciliation,
+stop, partial cleanup, terminal cleanup, lease expiry, and restart. Local preflight
+now rejects incomplete planner, runner, artifact, signing, journal, worker/lease,
+and canonical pricing identity before any readiness query, state read, claim,
+artifact access, provider call, or process execution. The exact committed tree is
+self-contained: fresh `git archive` builds all platform packages, compiles all
+tests, and passes focused normal/race, worker, adapter, policy, pricing, migration,
+and real owned PostgreSQL orchestration/journal gates. The shared legacy red-team
+worker remains constructible without a release61 image declaration, while direct
+v2/release61 execution still requires an immutable digest-pinned image. Controlled
+TLS, local artifacts, fixture gateway acknowledgements, and owned PostgreSQL are
+component evidence only. No public/default worker, API, CLI, UI, provider catalog,
+credential, cloud storage, physical gateway, deployed canary, or live-provider path
+is activated or proven. M7A-49, M7A-95, and M7A-96 therefore remain component-only;
+Task 12 product activation and full release acceptance remain open.
+
+The [deployment batch](security-agent-export-20260919/deployment-progress.md) now
+has explicit CLI58 routing and pinned post-registration readiness, with seven
+affected native race groups passing. Renderer/Helm58 now passes all32 optional
+worker/phase combinations. Explicit export workflow opt-in and fixed private
+health policies pass the grouped deployment batch, including direct Helm
+rejections and an additive agent-ingress correction. The actual Go API loader
+accepts the enabled/disabled rendered modes under race checks. The actual
+registered CLI58 chain now passes upgrade/retry, coexistence registrations,
+drift/command refusals and guarded rollback/re-upgrade against PostgreSQL; its
+SQL/pin is unchanged. These rendered fixtures are not deployment proof. The
+grouped review's generated-label
+NetworkPolicy finding was reproduced and corrected: unknown/controller labels
+remain potentially satisfiable, only the validated worker-name identity can
+prove disjointness, and malformed selectors fail closed. Focused53/53,
+deployment230/230 and both actual Go loader race checks pass. Independent
+re-review accepted the correction with no new Critical/P2 finding, so the local
+deployment component is accepted. Live Kubernetes/CNI behavior, private-service
+health and production enablement remain unverified. No push or production
+classification change.
+
+Prior checkpoint: original M7A-22 Attack Lab action, following the
+[selected design](2026-09-18-security-agent-attack-lab-design.md) and
+[executable plan](2026-09-18-security-agent-attack-lab-plan.md). Task1 has local
+admission-component acceptance after independent review and receipt-routing
+fix re-review. Task2 settlement/deployment has local independent spec and quality
+acceptance, including its IRSA startup correction. Task3's public API/UI and
+composed browser flow now pass local controlled-provider acceptance. The action
+stays component-only. Its catalog entry requires exact57 and five bounded private
+runtime readiness checks; default49 and absent/corrupt/unready capability keep it
+unavailable. No live provider acceptance or publication is claimed.
+
+The [Task3 report](security-agent-attack-lab-20260918/task-3/report.md) records
+the actual mounted API/registered database/worker/reconciler browser12 result:
+both autonomy modes require distinct operator approval, both bounded verdicts
+remain Needs human, and one provider call/Job POST survives process restart and
+lost acknowledgements. Public cancellation retains cleanup through reload.
+Missing-source runs persist a safe reason without execution effects; capability,
+production/write perimeter, legitimate version drift and foreign-read negatives
+pass. Six exact registered PostgreSQL tests,2161 UI tests, types, lint, build,
+OpenAPI and affected race checks pass. Independent affected review has no open
+code findings. Current unpublished57 fingerprint is
+f44bc966ef77ab523a80ace71b59defbe709c1fdbefd69ccfc40cacaf16d7ba8.
+Provider scope/credentials, deployed sandbox canary, hosted exact-source
+CI/advisory and production acceptance remain open. M7A-23 and M7A-24 still
+follow; the original728-task scope and availability totals are unchanged.
+
+The [feature checkpoint](security-agent-attack-lab-20260918/progress.md) records
+14 passing controlled recovery/stop scenarios, passing registered receipt and
+revocation checks, actual CLI56/57 coexistence, native race and rendered Go
+loader evidence, and201 deployment-regression passes. The
+[bounded security review](security-agent-attack-lab-20260918/task-2/security-review-1.md)
+found a post-lock replay-authority gap and a pre-execution denial classification
+gap. Both have connected RED, focused GREEN and passing targeted re-review.
+The [frozen Task2 report](security-agent-attack-lab-20260918/task-2/report.md)
+records the final affected batch at release57 fingerprint
+9559c712af8fcbe177a7afc9501655f434bbddd53792af431da98dec37ace12d.
+The [startup correction](security-agent-attack-lab-20260918/task-2-fix1/report.md)
+passed158 affected checks and scoped independent re-review. Task2 is accepted
+locally; full runnable-UI and
+publication gates still apply before any push. Historical526 production-available
+rows were not reverified by these local checks; availability totals are unchanged.
+
+Current checkpoint: compliance56 deployment integration is accepted locally. The selected
+[design](2026-09-18-compliance-deployment-design.md) and
+[implementation plan](2026-09-18-compliance-deployment-plan.md) preserve dedicated
+storage, isolated reader/export/cleanup authority, predecessor coexistence and
+explicit worker registration. The [registration bridge report](compliance-registration-20260918/report.md)
+now records focused RED/GREEN, real CLI registration under deprivileged registered
+PostgreSQL authority and one affected race batch. Root verified all ten recorded
+source/fixture/binary hashes; [independent review](compliance-registration-20260918/independent-review.md)
+approved spec and quality with no findings. Dedicated [storage/IAM declarations](compliance-storage-20260918/report.md)
+now have10 source checks passing and Terraform formatting acceptance; root verified
+four source and two patch hashes. [Independent storage review](compliance-storage-20260918/independent-review.md)
+approved the local-source scope with no findings. Connected chart/runtime deployment wiring is now running,
+including actual audit/compliance CLI coexistence at56.
+The connected [render RED](compliance-deployment-20260918/render-red.log) reproduces
+release56 rejection while55 predecessors pass; [audit RED](compliance-deployment-20260918/audit-red.log)
+reproduces the missing operational56 state/readiness dispatch. Focused
+[render GREEN](compliance-deployment-20260918/render-green.log) now passes24 tests,
+including predecessor55 and refusal of57; [audit GREEN](compliance-deployment-20260918/audit-green.log)
+covers operational state/readiness checks through56. The
+[rendered configuration proof](compliance-deployment-20260918/runtime-config.log)
+feeds enabled/disabled API and both worker environments into their real Go loaders,
+with synthetic CSI values and worker metadata only. The
+[actual CLI chain](compliance-deployment-20260918/owned-postgres-green.log)
+passes in isolated PostgreSQL under registered non-superuser migration authority,
+including replay and corrupt-state/readiness refusal before and after registration.
+These are local integration results. The [frozen report](compliance-deployment-20260918/report.md)
+records42 focused checks,213 connected passes plus two alert checks passing on
+a focused configured-tool rerun, and affected Go/race evidence with the initially
+empty worker selection corrected separately. Root verified32 before/after source
+identities,24 evidence hashes and reverse patch applicability. [Independent review](compliance-deployment-20260918/independent-review.md)
+required fixes for the workstation-specific Go path and an unchecked startup
+shell in compliance-only API manifests. The [focused fix report](compliance-deployment-20260918/fix-1/report.md)
+records RED/GREEN for both, shared canonical startup validation, portable offline
+Go selection/version checking and106 affected checks passing, including real
+compliance-only API configuration. The incremental nine-file patch passed reverse
+applicability; [independent re-review](compliance-deployment-20260918/fix-1/independent-review.md)
+approved spec and quality with no remaining findings. Root verified nine current
+fix identities, their six-file before chain,26 untouched original sources and24
+original evidence artifacts. This closes the local deployment implementation
+batch, not hosted or production acceptance. Six
+Terraform mock runs are written but unexecuted because provider binaries are
+absent; no provider evaluation or cloud acceptance is claimed. The macOS-only
+PostgreSQL skip has separate actual Linux fixture evidence. No production
+promotion or push is claimed. Related microtasks share connected integration and review evidence;
+security boundaries retain focused tests. Totals remain526 production-available,
+141 component-only and61 blocked/external.
+
+Latest M1A-04 checkpoint: the original staging queue repair has13 focused checks
+passing after RED, including explicit canonical original-DLQ settings added
+following independent review. Scoped fix re-review passed for spec and quality,
+with no remaining findings. See
+[bounded requirements](2026-09-18-staging-original-queue-brief.md) and
+[fix report](staging-original-queue-20260918/fix-1-report.md) and
+[re-review](staging-original-queue-20260918/fix-1-review.md). Root verified two
+final source hashes and12 frozen artifact/package identities. No Terraform
+plan or cloud acceptance is claimed. Its connected checks found a separate
+[compliance56 deployment gap](2026-09-18-compliance-deployment-gap.md): current
+release rendering and Helm phase validation stop at55. This local launch blocker
+takes priority after queue review; changing only the expected version would hide
+missing deployment support. The next runtime integration gaps are now
+mapped to current source in
+[Security Agent action audit](2026-09-18-security-agent-action-runtime-gap.md):
+M7A-22 Attack Lab admission/lifecycle, M7A-23 run-scoped export and M7A-24 durable
+signed handoff. Their ledger rows retain component-only status. Verification
+is grouped at connected feature boundaries, with focused RED/GREEN during
+implementation and full runnable-UI checks before any push. Totals remain
+526 production-available, 141 component-only and 61 blocked/external.
+
+Latest M8-47 checkpoint: expired critical-vulnerability exceptions now fail the
+local evaluator. Five focused tests and eleven affected race tests pass after
+behavioral RED; independent spec/quality review passed. Root verified all three
+current source hashes. No scanner/report acceptance wiring was added and the
+evaluator still has only test callers, so M8-47 stays component-only. See
+[report](vulnerability-exception-20260918/report.md) and
+[review](vulnerability-exception-20260918/independent-review.md).
+
+Current M2-33 re-audit: mounted registered-role RED confirms valid version1
+group-mapping updates return409 without changing role/version, recording an
+audit event or revoking credentials. Initial create and stale/foreign controls
+pass. Split create/update plus corrected lock order now pass registered-writer
+contention, expanded revocation/permission/rollback effects and the prior full
+connector authorization/runtime suite. Root verified four frozen AFTER hashes;
+50 affected Go race tests and pinnedNode22UI2136tests/types/lint/build pass.
+Independent spec/quality review passed after one comment clarification, with
+no actionable findings. M2-33 remains component-only pending publication and
+production acceptance; original
+historical Complete is preserved. Authoritative counts are526production,
+141component-only and61external. See
+[diagnosis](group-mapping-update-20260918-gap.md) and
+[mounted RED](group-mapping-update-20260918/red-observed.log).
+Final [GREEN report](group-mapping-update-20260918/green/report.md) and
+[independent review](group-mapping-update-20260918/green/independent-review.md)
+retain the exact four-file source and evidence scope.
+
+Active connector security batch: M8-41 mounted RED reproduced ten missing-audit
+cases; core transaction fix now passes those cases and four auth controls.
+The joined green-combined.log now passes retries/conflicts, real audit reads,
+browser/token authority races, expiry after an observed target wait, group
+permission removal and registered-writer contention, rollback/fault cases and
+the actual pgxpool/traced/repository runtime path. Earlier fixture failures are
+retained, including reuse of revoked sessions and child DSN serialization.
+Grouped Go race checks (48 top-level tests) and pinned Node22 full UI (2136
+tests), types/lint/build passed. Root verified ten current source hashes and
+nine retained evidence texts. Independent spec/quality review passed with no
+actionable scoped findings; classification is unchanged. This is local integration evidence,
+not live-provider or production acceptance.
+The chosen transaction path adds no migration or database privilege. See
+[design](2026-09-18-connector-rejection-design.md),
+[plan](2026-09-18-connector-rejection-plan.md) and
+[RED evidence](connector-rejection-20260918/red-report.md).
+Final local [GREEN report](connector-rejection-green-20260918/task-1-report.md)
+and [evidence limits](connector-rejection-green-20260918/README.md) are retained.
+See the [independent review](connector-rejection-green-20260918/independent-review.md).
+
+Latest compatibility checkpoint: disabled/absent-service legacy reads now have
+fresh focused regression evidence and an actual disabled-to-enabled browser
+pass. Final UI224files/2136tests, types/lint/build and Node107pass/2existing opt-in
+skips passed. Root verified nine current AFTER identities, byte-equal4720entry
+source/build captures and36retained text artifacts. Independent scoped review
+approved local integration with no new findings; the legacy blocker is closed.
+See [review](compliance-legacy-compatibility-20260918/independent-review.md) and
+[compatibility report](compliance-legacy-compatibility-20260918/legacy-compatibility-report.md)
+and [evidence limits](compliance-legacy-compatibility-20260918/README.md).
+No classification promotion, commit or push. External gates remain open.
+
+Latest correction checkpoint: all three connected findings have fresh focused
+RED/GREEN and grouped SQL/Go evidence. Full UI224files/2112tests, types/lint/build
+and one extended browser run pass locally. The browser exercises populated HIPAA
+detail and actual long-cursor paging before the preserved export/restart/denial
+checks. Root verified15captured source identities,41retained text artifacts and
+byte-equal4720entry runtime captures. Scoped re-review closes the three findings
+but identifies a new Important disabled-service legacy-read regression; the next
+bounded compatibility task is active. Narrow detail overflow with a128character
+ID remains a pre-existing Minor follow-up. See
+[report](compliance-connected-fix-20260918/connected-fix-report.md) and
+[evidence limits](compliance-connected-fix-20260918/README.md) and
+[re-review](compliance-connected-fix-20260918/connected-fix-review.md).
+Local integration remains unapproved. No promotion/push.
+
+Current connected checkpoint: CI browser wiring is independently approved with
+no findings. The fresh local browser run exercised the final API/worker revision,
+native exact-byte downloads, restart, scope/grant denials and signed-in final
+controls. See [CI report](compliance-ci-20260918/compliance-ci-report.md) and
+[review](compliance-ci-20260918/compliance-ci-review.md). Root retained25 matching
+text artifacts, verified5changed source hashes, inspected the final screenshot
+and compared byte-equal4513entry runtime captures. Final connected feature
+review found three Important seams: discovery/claim tie ordering, missing HIPAA
+UI evidence, and valid cursors exceeding the public512bound. One grouped fix
+wave is required; see [review](compliance-connected-review.md).
+Hosted Ubuntu, live-provider, advisory and publication gates
+remain open; availability totals stay527/140/61.
+
+Latest compliance checkpoint: the API final-fix review accepted test telemetry
+capture but found a real-SDK checksum classification gap. Its three-file
+correction is independently approved for spec and quality, with no new blocking
+breakage. See [re-review](compliance-api-task4-20260918/task-4-final-fix-2-review.md). Retained
+[report](compliance-api-task4-20260918/task-4-final-fix-2-report.md) and
+[verification](compliance-api-task4-20260918/task-4-final-fix-2-verification.log.md)
+show focused RED/GREEN,52 enumerated race cases and five owned-Docker SQL tests
+with16 classification scenarios. Root verified the three current source hashes
+and seven retained evidence texts. No live-provider acceptance, fresh browser
+run on this final backend revision, production promotion or publication.
+The next batch is [CI browser wiring](compliance-ci-batch-brief.md); external
+advisory and deployment gates remain open. Totals remain527/140/61.
+Before CI edits, root also checked the connected Task1–5, UI fix1 and both final
+API fix manifests:92 unique paths, zero BEFORE/AFTER chain gaps, zero current
+source mismatches. This binds retained evidence to its source revisions; it is
+not additional runtime or live-production verification.
+
+Prior compliance checkpoint: Task5 fix1 independent re-review approves both
+Important findings with no new blocking breakage. Reviewed local UI acceptance
+now includes2096 tests, types/lint/build and final browser continuity through
+scope denials, subsequent authorized reads and visible controls/export action.
+See [fix report](compliance-ui-task5-20260918/task-5-fix-1-report.md) and
+[re-review](compliance-ui-task5-20260918/task-5-fix-1-review.md). Root verified
+the87-file Task1–5+fix1 identity chain with no gaps/current mismatches. Two API
+Minors are now with the original implementer for a final connected fix batch.
+No production promotion or publication; external gates remain open.
+
+Preserved pre-fix checkpoint: the frozen UI suite passed2086 tests;
+typecheck/lint/build and grouped SQL/nonSQL checks have retained passing logs.
+Local browser assertions cover native JSON/CSV/readable bytes, worker/API restart,
+source changes, scope denial and grant replay. Its final screenshot nevertheless
+shows unexpected sign-in; post-denial session continuity remains unproved and
+must be diagnosed/retested. No full UI or live-cloud acceptance follows from
+that run's exit0. See [Task5 report](compliance-ui-task5-20260918/task-5-report.md)
+and [retained evidence limits](compliance-ui-task5-20260918/README.md).
+All23 pre-fix file identities matched; the Task1–5 manifest chain has85 unique
+paths with no gaps. The [review](compliance-ui-task5-20260918/task-5-review.md)
+requires cancellation through list pagination and post-denial session continuity.
+Pre-fix checks are not proof of the active fix candidate. Two Task4 Minors and
+external release/advisory gates remain open.
+Availability totals remain527/140/61; no original task is promoted by this update.
+
+Earlier source audit, September18: M7-09/M7-10/M7-11 are component-only until
+the current five-family evidence authority is mounted. Existing production
+queries still read organization-only membership seeds from migration0007.
+Framework audit also corrects M7-08/M7-15a: mounted controls have only the SOC 2
+seed; the required both-framework mappings are not mounted yet.
+Totals are527 production-available,140 component-only,61 blocked/external,0 missing.
+Older checkpoint counts below are historical, not refreshed production proof.
+See [source audit](2026-09-17-compliance-export-prerequisite-audit.md).
+
+Task4 API/download is locally complete after independent fix1 re-review approved
+all three required corrections with no new breakage. Root checked all13 incremental
+source identities, matching reviewed before-blobs and reverse patch applicability.
+Saved Docker15041 output passes full-source freshness, audit-write cancellation
+rollback, source/grant/quota and worker replay checks. Saved web57/6files,
+contract44, selected race, typecheck and lint outputs pass. The additive field
+preserves disabled-service legacy reads without inventing current freshness.
+These results are component evidence; Task5 UI/composed acceptance remains pending.
+Retained [report](compliance-api-task4-20260918/task-4-report.md),
+[initial review](compliance-api-task4-20260918/task-4-review.md),
+[fix identities](compliance-api-task4-20260918/task-4-fix-1-blobs.json),
+[fix patch](compliance-api-task4-20260918/task-4-fix-1-scoped.patch), and
+[fix verification](compliance-api-task4-20260918/task-4-fix-1-verification.log.md).
+The [fix re-review](compliance-api-task4-20260918/task-4-fix-1-review.md) records
+each addressed finding; two deferred Minors remain for final connected review.
+The same directory retains initial candidate evidence and rejected diagnostic
+runs; no failed/prohibited run is relabeled as acceptance.
+Fix1 candidate56 checksum1aed1a8b4e637d6fa77a2e993eaee3b58c4025e071b483b76487bb9e7a6fa606,
+fingerprint30358a1ceacbb18f0283e42353a06c88834d78927814dd8c6a9552a3a1d77a6f.
+
+Prior review checkpoint: Task4 API/download review requires fixes, not complete.
+The original implementer is addressing one grouped correction round. Root
+checked all33 reviewed task-scoped source hashes,
+reverse patch applicability and the full owned-Docker SQL/API/worker43454 log
+(exit0, including durable denied-download audit and grant lifecycle). The
+implementer also retained passing non-SQL race15047,48 client tests,44 contract
+tests, typecheck and scoped lint. The known live-control freshness defect remains:
+HTTP derives its deadline from100 preview records and drops SQL's aggregate
+freshness, so a later fresh record can be missed. It must be corrected before
+Task4 completion; passing current tests do not waive it.
+The reviewer also found that the default client's1MiB cap rejects valid exports
+up to the specified4MiB. Fix1 must preserve normal JSON limits and deliberate
+caller caps while correcting downloads, and add explicit audit-write-failure
+denial coverage. Provider-outage audit classification and noisy test telemetry
+are deferred minor findings for final connected review. Both predecessor55
+SQL blobs were independently rechecked unchanged after review.
+
+The unreviewed Task4 candidate56 checksum is
+af7be48e8b1444219414b4880cc7cfa4b40c6798222423a59e771e6af5955e41,
+fingerprint794bd599bc37408e07b0c6238ad10052dbd40458ab24380481cc05caa0698cf9.
+One rejected broad local race run accidentally started host PostgreSQL fixtures,
+contrary to the Docker-only constraint. Owned servers shut down normally; root
+verified no postgres/initdb remained. That run is excluded from accepted proof
+and retained in the task's diagnostic log. No deployment, task promotion, commit
+or push follows from this candidate. Task5 UI/composed acceptance is pending;
+counts remain527/140/61. Historical candidate pins below describe earlier tasks.
+
+Latest: compliance Task2 durable SQL, typed adapters and persisted-byte replay
+are locally complete after independent spec/quality review approved fix1. All
+four required corrections and the five missing concurrent quota boundaries
+are covered. Root verified13 current source identities and the scoped patch;
+grouped PostgreSQL24574 and affected race86466 passed. Registered worker child
+processes prove replay without invoking a changed renderer and Finish after
+the original lease deadline. Controlled storage is not live S3 or deployed
+polling evidence. Seeded quota counters are not reference-load evidence.
+
+Retained receipts: [source identities](compliance-jobs-task2-20260918/task-2-blobs.json),
+[grouped SQL/process output](compliance-jobs-task2-20260918/task-2-fix-1-postgres-green.log),
+[race output](compliance-jobs-task2-20260918/task-2-fix-1-race-green.log),
+and [independent review](compliance-jobs-task2-20260918/task-2-fix-1-review.md).
+Reviewed Task2 candidate56 checksumcb01c3ac468a03b7f069b5f97ddc41c4fde9adf75171ba8b3c2dfd346857a50d,
+fingerprint4aeb4f9327a33d76ff828dae7bb9aa44fd33ecc864d9833df6775024ab81a5b4.
+Task3 production worker/formatter/S3 recovery and cleanup is locally complete
+and independently reviewed with no findings. Registered SQL/process56831 and
+scoped race9236 passed, including12 joined worker subprocesses for SIGTERM,
+identical replay after source changes, denied/exact cleanup, exhausted attempts,
+read-only reconciliation, revocation and stale-generation refusal. Controlled
+SDK HTTP is not live S3, installed retention or deployed binary proof. See
+[Task3 report](compliance-runtime-task3-20260918/task-3-report.md),
+[source identities](compliance-runtime-task3-20260918/task-3-blobs.json),
+[SQL/process output](compliance-runtime-task3-20260918/task-3-postgres-green.log),
+[race output](compliance-runtime-task3-20260918/task-3-race-green.log) and
+[review](compliance-runtime-task3-20260918/task-3-review.md).
+Task4 API/download is locally reviewed; Task5 UI/composed acceptance is pending. Availability
+counts are527/140/61 after the framework audit, with no promotion, commit or push. Earlier source/job
+receipts below are historical and do not certify the evolving candidate.
+
+Latest: September 18 compliance source Task 1 has a frozen12-file implementation
+and passing local grouped evidence. Owned PostgreSQL group65130 passed source
+authority7.11s, fingerprint3.73s, decoder and real repository checks; focused
+race80263 passed apiserver2.097s and migrate2.375s. Root checked the saved output,
+all12 current source identities and reverse applicability of the scoped patch.
+Independent spec/quality review approved the code with one minor error-labeling
+issue retained for API integration. The blocked-lock concurrent-revocation gap is
+closed: grouped source run93180 passed7.81s, including session0.07s/membership0.06s,
+and scoped re-review approved both tests with no new breakage. Task1 is complete
+as a local source-authority component. Task2 durable export jobs/snapshots is now
+in progress under a fresh GPT-6 Astra implementer in the same isolated worktree.
+Its first registered database test failed on the absent create authority as
+intended. The durable SQL fragment is now present but unverified; downgrade
+guards, calibration and behavioral acceptance remain in progress.
+Release56 checksum for the reviewed Task1 code is
+4e41759d8c90a4ea5c0ea1e7d4fd820a7765e7b9cf920b40c2b332a714db4cd2;
+semantic fingerprint is
+d2008245b2f03a223da99b9a0a22531fa21ce23b63fe91e8a0c32eba1fd22c35.
+This verifies local source authority, not live production, durable export jobs,
+API/UI integration or complete compliance delivery. Counts532/135/61 unchanged.
+No staging, commit or push. Earlier progress entries below are historical.
+
+Retained Task1 evidence: [source identities](compliance-source-task1-20260918/task-1-blobs.json),
+[registered PostgreSQL run](compliance-source-task1-20260918/task-1-postgres-green.log),
+[focused race run](compliance-source-task1-20260918/task-1-race-green.log), and
+[blocked-revocation run](compliance-source-task1-20260918/task-1-fix-1-postgres-green.log).
+The final manifest includes the reviewed test-only revocation addition; production
+source identities were unchanged by that addition. Task2 will evolve release56,
+so these receipts describe the completed Task1 snapshot, not future changed code.
+
+Latest: production compliance Task 1 is in progress under a single GPT-6 Astra
+implementer in the isolated shipping worktree. Scope is registered release56
+current evidence reads/detail; no export route is being published early. The
+first integration constraint is55's exact-count/transitive readiness chain:
+56-owned compatibility must preserve predecessor authority and tamper detection.
+See the plan-specific SDD ledger for rulings. No task promotion or push.
+
+Task 1 checkpoint: the implementer reports intended failing registration and
+CLI tests, followed by new release56 SQL/runner/CLI implementation. Source
+behavior, predecessor compatibility, tamper detection and rollback acceptance
+are still pending; registration is not evidence of their completion. Testing is
+batched by connected feature: focused checks during development, grouped
+acceptance and independent review at the feature boundary, then affected
+regression/UI/release gates before a push. Every original task still needs an
+explicit evidence mapping even when several share the same test run.
+
+Latest: September 18 production compliance design and grouped five-task plan are
+written. Independent review approved beginning scoped source/migration Task 1
+after corrections for invalid-source handling, historical test versions, retained
+quotas, coherent snapshots, immutable replay bytes and grant/export expiry.
+The plan corrects a further retry-path conflict by uploading persisted bytes
+directly. See [design](2026-09-18-compliance-production-design.md) and
+[execution plan](2026-09-18-compliance-production-plan.md). This is design progress,
+not installed behavior; counts532/135/61 and all external gates remain unchanged.
+
+Latest: September 18 compliance artifact integration correction accepts the
+immutable version returned by the real export store while retaining exact
+tenant/reference/byte validation. RED01157f reproduced the old rejection;
+three-package race95757 and independent review pass. Evidence source mapping
+also confirms missing generic audit/policy targets. See
+[storage and source checkpoint](2026-09-18-compliance-storage-source-checkpoint.md).
+M7-14 stays component-only; no live S3 proof, commit or push.
+
+Latest: compliance export formatter prerequisite implemented and independently
+reviewed. Record-level CSV/text, spreadsheet safety, nested bounds and canonical
+artifact binding pass the sessioncontrol race group. See
+[formatter checkpoint](2026-09-17-compliance-export-formats-checkpoint.md).
+M7-14 remains component-only; durable product export jobs/API/S3/retrieval/UI and
+live gates remain open. Counts remain 532/135/61; no commit or push.
+
+Latest: September 17 compliance source re-audit corrects M7-15b and M7-15
+to component-only: evidence target links/timestamps and the composed filter/export
+flow are not implemented. Current totals: 532 production-available, 135
+component-only, 61 blocked/external. Ledger validation and all 34 validator tests
+pass. Earlier checkpoint counts below are historical. No product implementation
+or new live proof is claimed; see
+[compliance prerequisite audit](2026-09-17-compliance-export-prerequisite-audit.md).
+
+Latest: reviewed request-bound planner preparation passed11registered53 owned
+database/crash cases (78638) and full current55 combined local runtime9898.
+Both cleaned up; exact sources/results in2026-09-17-planner-request-binding-checkpoint.md.
+This closes the local request-binding prerequisite, not approved production
+pricing, live-provider/deployment/scale or advisory/publication gates. All728
+classifications remain unchanged; no push or live-production claim.
+
+Latest: reviewed polling-helper correction passed real local RedTeam SIGTERM
+gate52460 (exit0,296.203s,1test,0failures/skips). Owned runtime cleaned up;
+see2026-09-17-temporary-policy-recovery-checkpoint.md for exact source/log evidence.
+Earlier signal failure is resolved by this tested harness correction. Full
+combined77602 evidence remains separate. No original task promotion or push:
+fresh approved advisory/release and live-production gates remain unresolved.
+
+Latest: focused natural policy-recovery run49004 passed all four registered55
+local database cases in140.46s; scoped independent Spec/Quality review approved
+both test corrections. See2026-09-17-temporary-policy-recovery-checkpoint.md.
+Root transferred the exact two reviewed proof files into the shipping candidate.
+Next: replace the broad helper's one-shot completion assumption with real
+polling and durable completion, then verify the outstanding shutdown gate.
+No production-availability promotion or push; pricing/live release gates remain.
+
+Latest: Red Team shutdown gate52114 failed before signal at temporary-policy
+action/deployment contention. Earlier full combined77602 pass is retained;
+shutdown safety remains unverified. Cleaned up, no unchanged retry. Focused
+diagnosis is active. Production pricing prerequisites are recorded separately
+in2026-09-17-production-pricing-critical-path.md. No promotion or push.
+
+Latest: full combined end-to-end runtime77602 passed and cleaned up, including
+the corrected API-token reveal plus later administration/restart/tenant-denial
+checks. This is local composition, not live production proof. Red Team shutdown
+and external release gates remain open. No task promotion or push.
+
+Latest: token timestamp fix independently approved and transferred. Fresh owned
+SQL create/rotate/restart acceptance and46 focused cases pass with zero skips.
+Full combined browser/signal and release gates remain open; no task promotion
+or push. See [token reveal checkpoint](2026-09-17-api-token-reveal-checkpoint.md).
+
+Current: API-token reveal failure independently reproduced in the existing
+owned PostgreSQL round-trip test. Timestamp spelling rejection is under focused
+TDD correction and review. No corrected-runtime acceptance or task promotion.
+See [token reveal checkpoint](2026-09-17-api-token-reveal-checkpoint.md).
+
+Current checkpoint: runtime62246 terminated with exit1 at the API-token reveal
+workflow. The browser reported an unavailable or expired reveal grant. Cause is
+not yet established; do not repeat the full run unchanged. Cleanup stages were
+logged. No full-suite acceptance, task promotion or push is claimed.
+
+Verification cadence, confirmed by the user: group implementation and independent
+review by coherent feature. Run focused regression tests during development,
+affected integration checks at the feature boundary, and UI/build/release checks
+before pushing. Reuse unchanged-input evidence with its exact source identity.
+Keep per-task evidence and security/tenant refusal coverage; batching does not
+reduce the original728-task scope or turn local fixtures into production proof.
+
+Latest: independently reviewed receipt-protocol correction is transferred.
+Full broad runtime62246 is live; prior failed21886 remains recorded below.
+No full lifecycle acceptance, original-task promotion or push is claimed.
+
+Latest: runtime21886 passed the inventory correction and reached automatic
+admission/approval readbacks, then failed in Home routing while setup-created
+operation receipts were unacknowledged. Cleanup completed; exact receipt-contract
+diagnosis is active. Full lifecycle is not accepted and nothing is promoted.
+
+Latest: independently approved initial inventory correction is transferred;
+full broad rerun21886 is live. All102 pagination records/evidence are preserved,
+with one verified trigger and101 observed paths. No runtime acceptance yet.
+
+Latest: repaired broad runtime10790 failed at the automatic trigger-inventory
+assertion after passing discovery, inventory and runtime browser flows. The
+fixture expected one eligible attack path but observed a much larger set.
+Cleanup completed; diagnosis is active. Full lifecycle remains unverified.
+See [current budget checkpoint](2026-09-17-candidate-budget-harness-checkpoint.md).
+
+Latest: budget lifecycle fixture batch is independently approved and transferred.
+Fresh UI build and compiled imports pass. Full repaired broad runtime10790 is
+running; no acceptance or production promotion is claimed yet. See
+[current budget checkpoint](2026-09-17-candidate-budget-harness-checkpoint.md).
+
+Broad lifecycle fixture repair is frozen for independent review: public scoped
+setup, declared budgets, compiled55 and unknown-usage outage assertions. Focused
+and grouped checks pass; broad runtime acceptance remains unrun on this repair.
+See [budget harness checkpoint](2026-09-17-candidate-budget-harness-checkpoint.md)
+for evidence limits and the unintended early owned-PG shutdown test. No promotion.
+
+Latest checkpoint: fresh-build mounted browser68481 completed all four outcomes,
+reload/history, cross-tenant read/control refusal and cancellation checks, with
+cleanup logged. This is local composition, not live production proof. Broad
+Red Team shutdown61002 still failed before its signal checkpoint. Its stale
+budget fixture setup is being repaired as one TDD/review batch without weakening
+production guards. No task promotion or push; earlier running entries below
+are historical. See [current checkpoint](2026-09-17-candidate-navigation-checkpoint.md).
+
+Real browser61002 verified the inventory navigation repair, including click and
+reload. The broader flow then failed at Security Agent activation because its
+cost budget was not configured; this is now under diagnosis without bypassing
+the guard. Red Team shutdown remains unverified. Fresh-build existing-test
+four-outcome browser acceptance is running68481. No task promotion or push.
+
+Inventory navigation repair is independently approved and transferred. Fresh
+candidate UI2043/typecheck/lint/build/import checks pass. Original composed Red
+Team browser/shutdown rerun61002 is running; browser acceptance is not yet claimed.
+See [navigation checkpoint](2026-09-17-candidate-navigation-checkpoint.md), including
+the retained nonblocking request-header assertion suggestion. No task promotion.
+
+Latest runtime check found a candidate navigation regression: ordinary inventory
+record links are rejected as invalid activity links. The composed Red Team
+shutdown test failed before its shutdown checkpoint; cleanup completed.
+Bounded TDD fix is active in /root/candidate_navigation_fix. Earlier source/UI
+passes and selective review do not close this failure. Counts remain unchanged;
+the candidate is unshipped and not release-ready.
+
+Broad assembled-candidate integration review found no actionable defect in its
+inspected paths, with material unread limits disclosed. Merge is NOT approved:
+fresh approved advisory evidence and live release gates remain open. Additional
+local release/race/image checks and261 core tests passed. See
+[whole candidate checkpoint](2026-09-17-candidate-whole-review-checkpoint.md) and
+[review coverage](2026-09-17-candidate-integration-review.md). The default and
+runtime-pipeline SIGTERM checks passed; composed Red Team SIGTERM remains running
+in71877. No original-task promotion or publication.
+
+The remaining candidate harness/staging repair is independently approved and
+transferred. Root candidate verification passed101 source-only tests (three
+SIGTERM tests explicitly excluded),12 README contracts and scoped lint. See
+[harness checkpoint](2026-09-17-candidate-harness-checkpoint.md). Whole-candidate
+review, remaining release gates and live proof are still open; counts unchanged.
+
+Latest candidate checkpoint: the independently reviewed three-file test/docs
+repair is transferred. Full candidate UI tests passed2001/2001 with no skips;
+full lint passed. Remaining harness/staging failures are recorded, including
+the missing mountedRuntimeProofs test-context binding. See
+[grouped UI verification](2026-09-17-candidate-grouped-ui-verification.md).
+Counts remain534 production-available/133 component-only/61 blocked-external.
+No push, rollout or original-task promotion is claimed.
+
+Isolated candidate assembly now includes the matching test sources and67 UI
+sources/eight exact generated wire fixtures. All14 selected Go test packages
+compile; the candidate's16 operator/lifecycle database tests,5 CLI tests and2
+transport tests passed with no skips in owned offline containers. See
+[candidate test checkpoint](2026-09-17-schema55-candidate-tests.md). All1339
+selected Go inputs and75 UI/fixture inputs match recorded recovery source blobs.
+UI dependencies/tests, deployment/runtime assets, full candidate review and
+release/publication gates remain open. No original task was promoted.
+
+Final local operator integration review now approves the four frozen feature
+increments with no Critical/Important findings. The stale design status was
+corrected. See [integration review](2026-09-17-global-operator-integration-review.md).
+An isolated, uncommitted schema55 shipping candidate now contains150 changed
+production inputs; all543 selected input blobs match recovery and all four Go
+executables build offline for Linux/arm64. Tests/UI/deployment assembly and the
+complete candidate review remain open. See [candidate assembly](2026-09-17-schema55-candidate-assembly.md).
+No push, rollout, advisory clearance or original-task promotion is claimed.
+
+Global-operator local acceptance now includes independently approved SQL, CLI
+and eight concurrency cases; a separately reviewed exact mounted-pin correction;
+fresh UI build/import and root+7 asset smoke; four current-pin fresh-build browser
+outcomes/tenant controls; current-pin lifecycle/definition regressions; and222
+release-source checks. See [concurrency/final local checkpoint](2026-09-17-global-operator-concurrency-checkpoint.md).
+All runs are local evidence, not a live rollout or advisory clearance. The
+dependency-complete shipping candidate, final integration review, external
+release evidence, main push and CI remain open. Original counts are unchanged.
+
+Operator CLI Task2 now has focused RED/GREEN and an actual owned-database command
+matrix passing (session83541,3 selected tests, zero skips). Independent review
+returned spec PASS and quality APPROVE, no findings, on the bounded six-file
+patch. Task3 concurrency work is assigned to `/root/global_operator_stop_races`.
+See [CLI checkpoint](2026-09-17-global-operator-cli-checkpoint.md).
+No new production availability, deployment or original-task promotion is claimed.
+
+Current operator checkpoint: grouped owned run5147 reported exit0 with all8
+selected top-level tests passing and zero skips. This includes a fresh registered
+`global_operator_migration` login with NOSUPERUSER/NOBYPASSRLS committing stop and
+replay, malformed-ID/binding refusal,16 catalog-drift cases, late-audit rollback,
+exact unused rollback, lock ordering and compiled release checks. Controller
+confirmed the owned container was removed and verified retained output/hash.
+Scoped independent review passed spec and approved quality with no Critical or
+Important findings. SQL Task1 is locally accepted; the real operator CLI Task2
+is now assigned to `/root/global_operator_cli`. No publication or live production
+acceptance follows from this local run. Stop races, final browser/build gates and
+release evidence remain later requirements.
+
+The ordinary-login fixture exposed an installation-
+dependent schema55 fingerprint. The implementer's exact catalog comparison
+(owned diagnostic60177) found one differing identity row: the redundant
+`zasp_valid_product_id(text)` EXECUTE grant recorded bootstrap grantor `zasp_e2e`
+in one setup and `zasp_test` in the other. Predecessor ancestry matched. The
+minimal correction removes that redundant explicit grant and its rollback
+revoke, preserving fingerprint coverage and inherited helper access. The final
+candidate fingerprint is `2c324e78917f97feee14f915b397efbb92a183d47afd7473139dd0691cf0bb04`.
+The earlier alternate DSN still selected its bootstrap login; the final fixture
+explicitly verifies the distinct migration session before installation and after
+demotion. Earlier diagnostics prove the grantor mismatch, not non-superuser use.
+
+Verification remains feature-batched: focused RED/GREEN for changed behavior,
+then grouped affected integration/browser/build checks and independent review,
+with individual task-to-evidence mappings. No scope or acceptance gate is removed.
+
+Post-mounted grouped release-source checks passed222/222 with0 skips in26.67s
+(session85565), including schema55 rendered rollout/reconciler authority checks.
+See [release-gate checkpoint](2026-09-17-existing-test-release-gate-checkpoint.md).
+This is not completed production release or fresh advisory clearance. Global
+operator SQL Task1 is now in TDD implementation; no operator acceptance yet.
+The corrected operator matrix reported9 top-level tests passing, including16
+catalog drift cases, late-audit rollback and existing lifecycle checks. Actual
+non-superuser caller acceptance and final review remain pending. Earlier failed
+lock/count hypotheses remain in the report. The prior mounted acceptance used
+pin5982d49a; changed55 candidates must repeat affected consumer/browser gates.
+An exact-lock offline OSV diagnostic exited127 because the npm advisory database
+is not cached. Empty results are not clearance; no online scan/download occurred.
+
+Mounted run15 completed the local four-case browser/runtime matrix and cleanup;
+the implementer observed session75168 exit0. Controller inspected the completed
+log, retained cancellation evidence and freshly ran28 helper tests, all passing.
+Both actions/autonomies, failing test, comparable fail-to-pass, no-baseline pass,
+uncertain engine error, pending/settled UI, reload/scoped history, foreign reads,
+uniform foreign/missing409 cancellation and successful owner cancellation passed.
+Final frozen-source spec/quality review approved the bounded local acceptance
+with no remaining Critical/Important findings. Candidate55 is still unpublished;
+synthetic image identity and local cloud/provider/customer fixtures are not live
+production proof. Counts remain534 production-available/133 component-only/61
+blocked-external. Operator-control Task1 is in progress and not yet accepted.
+
+Latest main8733b16f CI35288130652 completed successfully, freshly confirmed with
+`gh run view`. This validates that pushed ledger/cache baseline, not the unpushed
+candidate55 feature. Earlier checkpoints below are retained as history.
+
+CI35287064785 completed successfully for cache-preparation main1bb71d4e.
+CI35288130652 for ledger main8733b16f was still running at the latest check.
+Mounted run12 reached the real engine path but stopped before reconciliation on
+a fixture region/KMS mismatch; the validator correctly refused it. Run13 uses
+the owned KMS region without changing production validation. No mounted matrix
+case or task production promotion is accepted yet.
+
+Mounted browser current checkpoint: the three acceptance-source findings are
+corrected and independently re-reviewed with no Critical/Important issue in that
+delta. Root's focused helper suite passes14/14. Runs3/4 progressed beyond the
+prior disk failure but stopped before browser execution at migration13 setup;
+later diagnostics confirm release12 readiness/security/fingerprint. The exact
+release13 refusal remains under investigation. Disk was6.7GiB at resumed run3.
+See [mounted review checkpoint](2026-09-17-existing-test-mounted-review-checkpoint.md)
+and [batch report](2026-09-17-existing-test-mounted-batch-report.md).
+The [global operator plan](2026-09-17-global-execution-control-plan.md) is prepared,
+not implemented. No task promotion or end-to-end acceptance follows from these
+helper checks, source review or planning work.
+
+Availability reconciliation shipped to main as
+8733b16f8d939d38a8157dd2519e57fc6f630542; remote identity confirmed.
+The six reviewed category corrections preserve all 728 original tasks at
+534 production-available, 133 component-only and 61 externally blocked.
+Fresh ledger suite: 34 passing checks. UI build/import and standalone root plus
+seven-asset smoke passed. Independent review found no Critical or Important
+issues. This publishes evidence corrections, not new product acceptance.
+Mounted browser acceptance remains blocked by local compilation disk space
+(226 MiB available at the latest check); no end-to-end pass is claimed.
+
+Shipped independent harness increment to main:
+1bb71d4e026664ce574a4ba9e71e74950556a170, remote identity confirmed by705e24.
+Six cache-preparation files and two evidence notes only, isolated on fresh
+main fda8ae99; no inherited schema55/product changes. Fresh32 scoped tests,
+1244 web tests and94 release-contract tests pass, as do dependency lock,
+typecheck/lint, source release verification, UI build/import and actual
+root+seven-assets HTTP200 smoke. Independent review approves bounded scope.
+No production promotion; full goal and mounted acceptance remain open.
+Candidate report is committed at
+docs/internal/2026-09-17-cached-runtime-shipping-evidence.md on main.
+The original recovery worktree is intentionally not rebased while its
+mounted implementation is active.
+
+Current checkpoint: the public lifecycle prerequisite has bounded local
+acceptance. Targeted21 passes the actual delegated advisory-lock regression
+(18.22s) and compiled fingerprint (4.03s), including atomic refusal and a
+subsequent positive admission. Independent final v5 review closes all three
+Important findings. Earlier failed runs remain recorded as failures.
+See [review evidence](2026-09-17-existing-test-lifecycle-review-checkpoint.md).
+Mounted browser/worker acceptance, platform-global stop/re-enable and full
+release gates remain open. Counts stay 534 production-available, 133
+component-only and 61 externally blocked; M7A-21 is not promoted. No push.
+
+The entries below retain the earlier chronological investigation record.
+
+Targeted20 again passes the receipt/state regressions and fingerprint. Its
+delegated-wait fixture does not reach the intended lock: the legacy scheduler
+does not lock the chosen definition row. The implementer traced a reachable
+scoped automatic-trigger advisory lock and is correcting the proof without
+changing product code or widening timeouts. Bounded acceptance remains pending.
+
+Latest targeted19 verifies the full trigger matrix, request-receipt lock fix,
+execution-state lock fix and exact5982 fingerprint. Combined with18's disabled-
+head pass, the three original review regressions pass at unchanged product
+hashes. An additional delegated-scheduler wait test still fails in its public
+control setup before the intended wait; that fixture correction and final
+review confirmation remain pending. All five owned database processes joined
+cleanly. The full product and release remain incomplete.
+
+Current lifecycle code at55 pin5982d49adccd658e27f84af2098cef3bb90ce743bef6f3eaab411118d78e30da
+has cleared independent code re-review of all three findings. Final18 passes16
+of17 SQL suites, including the wider disabled-head starvation regression; two
+subcases of LateAuthority fail during setup before their intended waits.
+Corrected test-only verification and final review confirmation remain open.
+Main's restricted non-database Go race rerun passes. Detailed evidence and
+unchanged-product hashes are in the review checkpoint. No release or promotion.
+
+Review14 has now reproduced all three lifecycle findings in owned PostgreSQL:
+stale authority after request-receipt/state-row waits and invalid-head scheduler
+starvation. Fixes are in progress; earlier14-suite GREEN is not closure of these
+cases. See [review evidence](2026-09-17-existing-test-lifecycle-review-checkpoint.md).
+All three owned PostgreSQL processes joined cleanly; no release state changed.
+
+First-fix verification16 passes the manual receipt-wait regression and the
+concurrency-head scheduling case, but a new five-disabled-head case still
+reproduces starvation. The automatic late-authority case rejects stale work,
+then fails its positive-control setup and is not a full pass. See the same
+review checkpoint for exact results. The broad host Go race command also failed
+and violated the Docker-only fixture constraint; no newly owned process remains,
+and replacement verification now requires an explicit non-database allowlist.
+
+Independent lifecycle review has raised potential Important gaps for
+deterministic reproduction: a newer runtime event arriving during a final
+request-receipt lock wait, and an ineligible first scheduler candidate starving
+a later eligible test definition. It also found authority checks preceding a
+potentially blocking singleton execution-state update in automatic admission.
+Earlier green tests do not cover these cases.
+The implementer is adding targeted regressions before fixes. No completion or
+release claim is made from the14-test grouped result below.
+
+Mixed scheduler acceptance13 a560a6 passes6.50s: public existing-test and legacy
+definitions share the requested total limit, with foreign-evidence and disabled
+test refusals. Owned PostgreSQL joined cleanly, Docker0. The initial independent
+review reports three Important findings above, no Critical/Minor findings; these
+must be resolved and re-reviewed before lifecycle completion.
+
+Latest lifecycle candidate: final12 grouped SQL ee662c passes all14 selected
+top-level tests at55 fingerprint
+b8a5cfc03428d8b2e1dd6adf45670dbf9da9e9554c83d20799a100bb821d6bfd.
+This includes the repaired stale-runtime admission regression, activation,
+admission, safety/history, legacy fences, exact fingerprint, ACLs and rollback.
+All14 owned PostgreSQL processes joined cleanly and Docker exited0. Independent
+whole-lifecycle review is active; mixed legacy/new scheduler and additional
+automatic refusal acceptance are still being added. The lifecycle batch is not
+yet declared complete. Typecheck/OpenAPI/build/shell evidence remains as below;
+mounted browser/worker and live release gates remain open. Counts unchanged.
+
+Current gate update: typecheck and OpenAPI generated/lint/contracts92eda5 pass
+after strict control-array lengths2/3/4/6 were modeled. Runtime scheduling
+regression10 f85c6e now reproduces the intended defect: an older runtime event
+is admitted after the latest event when concurrency is freed through public
+cancellation. Fix and fresh55 calibration are next; this RED is not completion.
+
+Lifecycle safety08 owned acceptance e940b2 passes post-lock activation/control
+expiry and the current release/ACL/unused-rollback checks. Public trigger matrix
+and activation/admission remain locally verified at matrix07. This is partial
+component evidence: stale-runtime candidate coverage, independent lifecycle
+review and full mounted browser acceptance remain unfinished. The first grouped
+UI/static run stopped on new test-fixture TypeScript errors; repair is in
+progress and downstream build checks had not yet run. Follow-up typecheck and
+OpenAPI generated/lint checks now pass; one old fixed-four-control contract test
+failed and is being corrected to the exact supported2/3/4/6 shapes. UI build and
+compiled import guard23a857 pass, standalone shell plus7 assets31bed7 return200,
+and the owned server joined SIGTERM. Stale-runtime test09 stopped before its
+intended assertion; it is diagnostic evidence, not the intended RED or acceptance.
+Counts remain unchanged.
+
+Verification setup now reuses exact cached runtime images: grouped harness94 pass,
+zero failures/two opt-in skips, plus actual Docker three-image inspection-only
+smoke. Independent review is clear after a reproduced malformed-reference fix; see
+[cache preparation evidence](2026-09-17-cached-runtime-image-report.md).
+Lifecycle admission SQL calibration06 applies and observes intermediate55
+pin9b2dec0d9b43a63c65c83bc95eca5c0af9f3e6c8006c18b9f98c0a08be2d4cab;
+the intentional old-pin mismatch is not acceptance. Registered admission and
+the full mounted workflow remain in progress. No counts, production claims or
+release state changed. Owned matrix07 acceptance db016d now passes public
+activation5.07s, admission5.07s and manual/automatic trigger matrix12.27s, with
+all three PostgreSQL processes joined cleanly. Final security-negative coverage,
+grouped consumer gates, lifecycle review and mounted browser proof remain open.
+
+Public existing-test lifecycle integration is in progress. Catalog/control-shape RED checks and focused consumer fixes are implemented; owned SQL RED3152b0 reproduced the missing public control route. Control/activation SQL applies in owned calibration b80e27, which observed intermediate55 fingerprint462e786b193bc1fbf8c281db3a92167e896bc6a6b81fac15558fda63f15c34dd. Focused registered SQL activation5e54cb passes both actions through validated/supervised/autonomous and missing-control atomic refusal. This is not complete lifecycle or release evidence; earlier pins below are historical while the candidate changes. Trigger admission, grouped verification, independent review and mounted55 browser acceptance remain open. The current-release operator global-kill-switch mutation path also needs investigation, as recorded in the mounted-readiness audit. Availability counts and production disablement are unchanged.
+
+Mounted existing-test readiness audit found unfinished public lifecycle connections: single-test templates/catalog, activation/readback, execution controls and trigger admission. These must be completed together before original Batch D browser acceptance; prior dispatch/comparator fixtures do not cover them. The browser harness now uses owned cached Docker PostgreSQL by default: grouped66 pass/2 opt-in skips, actual SQL smoke and exact-container cleanup pass; independent review found no blocking issues. See [database prerequisite evidence](2026-09-17-owned-browser-postgres-report.md) and [current integration audit](2026-09-17-existing-test-mounted-readiness-audit.md). Schema selection is unchanged; schema55 mounted acceptance is still incomplete. Counts534/133/61 and M7A-21 component-only/disabled remain unchanged. No new production proof or push.
+
+Linked-test proof/UI/history batch complete at component acceptance, not production release: stored before/after evidence and permission-gated tenant-scoped history links are implemented. Grouped UI166/166, decoder72/72, typecheck, scoped lint, OpenAPI40/40+generation+lint, UI build/import guard and root+7 asset HTTP checks pass. Registered SQL/API reads cover normal, stopped, late-callback, actual composed comparator and cancellation paths. Combined independent review found no Critical/Important findings; one pending-read generation/API-instance coverage opportunity remains documented for whole-feature review. See [batch checkpoint](2026-09-17-existing-test-public-proof-checkpoint.md). Next is original Batch D mounted browser acceptance, then whole-feature/release/live gates. Counts534/133/61 unchanged, M7A-21 disabled/component-only; no commit or push.
+
+Stored linked-test public proof candidate: registered API/database acceptance passes all four run/rerun supervised/autonomous modes, including the actual Go consumer. Extended exact-artifact/history/worker-denial checks and stopped-parent proof pass ae04b7; late-callback historical proof passes7e00f7. Scoped SQL/Go review found no Critical/Important findings. Strict Go/web projection contracts and schema55 public proof are implemented; rendering/history-link/browser work remains open. Current55 pin is ac61643156258895d5e55a3ae4c8e6b47e0795a0a8bb0b4844b276bc4b56295f; prior checkpoint pins are historical. See [public proof evidence and fixture corrections](2026-09-17-existing-test-public-proof-checkpoint.md). Ledger validation confirms728 rows,534 production/133 component/61 external. M7A-21 component-only/disabled. No commit or push, no live-production claim.
+
+Existing-test browser contract repaired: valid run_test/rerun_test action details and supervised approvals were rejected by the web decoder (four-case RED6a7dab). Exact test arguments/version bounds, low-risk nonreversible zero-TTL approval semantics and action association now pass, with OpenAPI/generated types and safe version rendering updated together. Grouped UI/decoder7358e4 passes165 tests; final focused59/59, typecheck, OpenAPI40/40 and lint pass. Independent review found no Critical/Important findings; its extra mismatch cases were added. Standalone UI build/import guard and root plus seven asset HTTP checks pass. See [public contract checkpoint](2026-09-17-existing-test-public-contract-checkpoint.md). Composed adapter HTTPS at the current55 pin also passes40150c. Linked before/after proof projection and browser workflow remain incomplete; this is not live-production evidence. Counts unchanged, M7A-21 component-only/disabled; no commit or push.
+
+Execution connection implemented and partially verified: the real Go worker repository selects guarded schema55 dispatch with compiled pins; all four registered positive modes pass without private grants (58636b). Grouped acceptance now passes supervised legacy preparation/dispatch with fresh/expired budgets, final-write lease/approval rollback (acce23), recompiled linked replica/restart/settlement recovery (57d0fb), claim/invocation/journal regression (7f8be4), and actual migration CLI bootstrap/replay/drift/rollback (334984). See [execution checkpoint](2026-09-17-existing-test-execution-wiring-checkpoint.md) for exact evidence and fixture limits. Shared-wrapper final-readiness lease/approval expiry also passes with a discriminatory mutation control (f26c2b); its controlled timing limits are recorded separately. Whole-feature review, browser evidence and release/live gates remain open. Current55 pin673c22d356eae39367b2a57a1180ab40e4c294d33a717c02261fc3628271d068 was used by the recompiled clients. Verification/review cadence is now per coherent feature batch while preserving each task's acceptance requirements. M7A-21 remains component-only/disabled; no promotion or push.
+
+Execution integration gap confirmed (RED56465d): ExecuteSecurityAgentRun still selects v24 when schema55 is available; planner/preparation routing alone does not connect the private linked-test dispatch candidate to the worker. The new regression intentionally remains failing pending the guarded wrapper and repository change as one batch. See [execution wiring plan](2026-09-17-existing-test-execution-wiring-plan.md). No production code, SQL grant, public capability, fingerprint or availability count changed. Earlier recovery evidence is unaffected but is not proof of the full user execution path. No push.
+
+Overlapping reconciler replica acceptance passes in owned PostgreSQL (77d0b9): two composed child runtimes retain distinct same-tenant leases concurrently, release them without altering the other tenant's full link snapshot, and a third runtime progresses that tenant. Exact queued-run/outbox counts and zero invocations are asserted. Grouped restart/settlement regressions and worker race pass; independent review clears the final test delta. See [replica evidence and limits](2026-09-17-reconciler-restart-checkpoint.md). This is not simultaneous SQL contention, throughput/HPA or live cloud proof. M7A-21 remains component-only/disabled, unshipped; original728 counts are unchanged.
+
+Completed settlement restart acceptance now passes all four owned PostgreSQL modes (167e38): the first process exits after the registered settlement commits but before client acknowledgement; a replacement runtime preserves exact durable snapshots and one settlement audit. Full worker race passes42.216s (cba756); independent review found no Critical or Important findings. See [process evidence and limits](2026-09-17-reconciler-restart-checkpoint.md). This proves settled-work skipping, not persisted-request replay or live AWS/target execution. M7A-21 remains component-only/disabled, unshipped. Concurrent load, live gates and exact push-candidate clearance remain open; original728 counts are unchanged.
+
+Registered multi-tenant restart acceptance now passes in owned PostgreSQL: three queued links across two tenants, fail-stop after claim, a separate runtime process handling remaining links, then a replacement reclaiming controlled expiry with a new generation. Other links remain unchanged and no target invocation or duplicate enqueue occurs. Full worker/migration race and CI contract250/250 pass; independent review reports no actionable findings. See [process evidence and limits](2026-09-17-reconciler-restart-checkpoint.md). Completed-test settlement recovery across processes, load, live cloud/cluster gates and push clearance remain open. M7A-21 stays component-only/disabled by default; no promotion or push.
+
+Schema55 release integration is in progress. Registered upgrades and direct empty-database CLI bootstrap pass owned PostgreSQL acceptance, including replay/drift/rollback. Explicit reconciler opt-in now validates pod, credential, scaling, network and identity boundaries in both precision phases, including audit-export composition. Private metrics and readiness/availability alerts are implemented; actual Prometheus rule tests cover failures, absence and recovery. Grouped release regression passes222/222, alert suites3/3 and CI contract250/250. Independent review and follow-up found no remaining actionable issues in this monitoring delta. Registered multi-tenant restart/reclaim, settlement-progress telemetry, load and live release remain open. See [release checkpoint and evidence limits](2026-09-17-schema55-release-checkpoint.md). No availability promotion or push; M7A-21 remains component-only/disabled by default.
+
+Reconciler IAM candidate (2026-09-17): opt-in role/trust, scoped versioned evidence reader, exact registered-worker DSN access and non-secret deployment metadata implemented. Independent review identified retained-version encryption-context compatibility; the added test failed, the policy was corrected, and re-review cleared it. Final grouped Terraform mock plans pass13 cases. See [IAM evidence](2026-09-17-test-reconciler-iam-checkpoint.md). No cloud apply or live-permission proof; schema55 activation, operational monitoring, registered multi-tenant process acceptance and live rollout remain open. M7A-21 remains component-only/disabled, unshipped.
+
+Reconciler chart candidate (2026-09-17): disabled-by-default schema55 workload, isolated secret/token mounts, hardened pod settings and bounded dependency network rules implemented. Review exposed additive shared-DNS access; composed Helm acceptance reproduced and fixed it, with audit-export selector compatibility retained. Grouped release regression passes208 tests. See [deployment evidence and open gates](2026-09-17-test-reconciler-deployment-checkpoint.md). Terraform IAM, full schema55 activation, monitoring, registered multi-tenant restart/reclaim and live proof remain open. M7A-21 remains component-only/disabled, unshipped.
+
+Reconciler runtime wiring (2026-09-17): dedicated production dispatch, explicit web-identity evidence reader, closed configuration allowlist and cancel/join-aware dependency ownership implemented. Full worker/migration race checks pass; a review-reported mixed-config gap was reproduced, fixed and independently re-reviewed. See [runtime evidence](2026-09-17-existing-test-scheduling-checkpoint.md). Chart/IAM/network mounting, registered multi-tenant process restart/reclaim and live cloud evidence remain open. M7A-21 stays component-only/disabled, unshipped; no availability promotion.
+
+Automatic reconciliation scheduling checkpoint (2026-09-17): guarded database scope discovery and cancel/join-aware round-robin scheduler implemented; grouped owned PostgreSQL acceptance and full worker/migration race checks pass. Independent source review found no Critical/Important findings; its two minor component coverage gaps now have passing tests. See [scheduling evidence and remaining gates](2026-09-17-existing-test-scheduling-checkpoint.md). Dedicated runtime mode, multi-scope registered restart/reclaim, deployment and live evidence remain open. M7A-21 remains component-only/disabled, unshipped; original728 counts unchanged.
+
+Feature-batch shipping checkpoint (2026-09-17): merged current main into the recovered branch without losing dirty work, isolated the inactive audit foundation, and committed its retained SSO/SCIM action compatibility fix as ecc047ee. The exact candidate passed 1244 UI tests, 38 OpenAPI tests, Go race checks, generated types/typecheck, UI build and standalone HTTP/assets smoke. See [candidate boundary and evidence](2026-09-17-audit-foundation-shipping-checkpoint.md). Local commit only, no push or production promotion; fresh approved advisory evidence and remaining candidate release checks stay open. The unfinished export lifecycle and reconciliation changes were not included.
+
+Registered stopped-work settlement (2026-09-17): grouped owned session80184 passed all12 mode cases and registered worker checks; independent review found no actionable findings. See [composed-stop evidence](2026-09-17-existing-test-composed-stop-checkpoint.md). Production scheduling/restart and live gates remain open; M7A-21 remains component-only/disabled, unshipped.
+
+Generation-fenced ownership checkpoint (2026-09-17): the reproduced maximum-version stranding defect is fixed with DB-generated claim generations, bounded counter cycling and saturating release/settlement. Owned rollover/cancellation/fingerprint/rollback48778 and corrected SQL settlement/max-expired-replay/recovery50482 passed; worker/migration race and independent re-review passed. UI build88795a passed, not live UI proof. See [generation evidence](2026-09-17-existing-test-generation-plan.md), including failed mixed-harness runs and their correction. Runtime/restart, leased composition and live gates remain open. M7A-21 stays component-only/disabled; no promotion, commit or push.
+
+Cancellation retry/drift checkpoint (2026-09-17): owned20833 passed direct and stopped leased/retryable cancellation, four modes each (c47ebd/fd3d63), including rollback after an observed blocked-write release change. Worker/actual Node race5a370d passed9.859s. The test fixture timestamp correction and independent review are recorded in [cancellation evidence](2026-09-17-existing-test-stopped-cancellation-plan.md). Leased settlement composition, version exhaustion, runtime/restart and live gates remain open. M7A-21 stays component-only/disabled; no promotion or push.
+
+Stopped leased cancellation checkpoint (2026-09-17): owned22034 passed existing human/worker cancellation and stopped-parent cancellation, four modes each (10cfaa/10e97b). Known partial and unknown outcomes, terminal no-op preservation, late callbacks and observed blocked-write expiry rollback are covered. A test-only parent lease setup error was reproduced and corrected; independent re-review found no new findings. See [cancellation evidence](2026-09-17-existing-test-stopped-cancellation-plan.md). Retryable/drift, leased settlement composition, exhaustion, runtime and live gates remain open. M7A-21 stays component-only/disabled; no promotion or push.
+
+Stopped queued cancellation (2026-09-17): owned session75577 passed normal and stopped-queued reconciliation in four modes each (bb9020). See [cancellation evidence](2026-09-17-existing-test-stopped-cancellation-plan.md), including the earlier enclosing harness failure and correction. Leased cancellation, direct human/worker cancel compatibility, expiry/drift, runtime and live gates remain open. M7A-21 stays component-only/disabled; no promotion or push.
+
+Registered remediation composition checkpoint (2026-09-17): available before/after artifact bytes now pass through the real comparator, registered client and SQL settlement. Owned four-mode completion/pending530a5c/052846 and grouped worker race4b6ada pass; parent asserts remediated proof, saved baseline, verified effect and single audit. In-flight cancellation coverage also passes. See [settlement evidence](2026-09-17-existing-test-settlement-checkpoint.md). Controlled storage/Node producer is not live engine/cloud or deployed-worker proof. Runtime scheduling, restart/shutdown, SQL exhaustion/queued cancellation and live gates remain open; M7A-21 is component-only/disabled, unshipped.
+
+Registered artifact composition checkpoint (2026-09-17): actual input/Node-output bytes now pass through the real artifactstore reader, ReconcileOne, registered client and SQL settlement in owned tests. All four completed and pending modes pass (3dc186/a16655); current pass/fail, unknown and exact saved-baseline-unavailable outcomes are asserted. Review exposed a fixture identity error, corrected with unique per-run input references and recorded failing evidence. See [settlement checkpoint](2026-09-17-existing-test-settlement-checkpoint.md). Registered remediation with available baseline bytes, cancellation lifecycle, runtime mounting, SQL exhaustion/queued cancellation and live gates remain open. No production promotion or push.
+
+Approved additional scope (2026-09-17): [outbound Kubernetes inventory collector](2026-09-17-kubernetes-collector-scope-addition.md), tracked as KIC-001 through KIC-016, all planned/unshipped/not live-verified. Both direct API and outbound collector discovery modes are required choices; original728 IDs and counts are unchanged.
+
+Reconciliation flow candidate (2026-09-17): scoped claim/renew/read, unknown-first classification, real versioned artifact comparison and immutable settlement retry implemented. Grouped worker/actual Node race5937f4 passes7.640s; independent review found no Critical/Important findings in this bounded slice. See [settlement evidence](2026-09-17-existing-test-settlement-checkpoint.md). Cancellation-in-flight coverage, registered successful artifact composition, production mounting and earlier SQL/live gates remain open. M7A-21 stays component-only/disabled; no push.
+
+Registered settlement client checkpoint (2026-09-17): immutable exact-proof submission/replay and receipt validation implemented; grouped worker race and owned registered completion/pending checks pass across four modes. See [settlement checkpoint](2026-09-17-existing-test-settlement-checkpoint.md). This proves unavailable/unknown-evidence settlement, not successful artifact retrieval/remediation, restart persistence or live deployment. Worker-loop composition, exhaustion/cancellation gaps and A-D/live gates remain open; M7A-21 is component-only/disabled, unshipped.
+
+Settlement candidate checkpoint (2026-09-17): guarded atomic settlement and exact replay are implemented with grouped owned acceptance. See [settlement evidence](2026-09-17-existing-test-settlement-checkpoint.md). Version exhaustion, queued cancellation, missing outcome cases, client/worker composition and live gates remain open. M7A-21 stays component-only/disabled; no UI/full release gate, commit or push.
+
+Settlement in progress (2026-09-17): [settlement plan](2026-09-17-existing-test-settlement-plan.md) records exact-byte proof hashing, snapshot/lease fencing, lost-ack replay, stopped-parent preservation and expired-uncertain crash recovery. New owned actual Node acceptance RED58abb9 reaches missing settle function42883; no SQL settlement or passing acceptance yet. Review corrected step success versus needs_human parent semantics against the original design. M7A-21 remains component-only/disabled; no promotion, UI/full release gate, commit or push.
+
+Registered reconciliation client checkpoint (2026-09-17): exact guarded claim/read/heartbeat/release routing, compiled pins, local tokens and bounded receipt checks implemented. Actual Node/owned DB group passes complete and pending client decoding through eight registered-role child checks; grouped worker race and independent review pass. See [client evidence](2026-09-17-existing-test-client-checkpoint.md). Durable settlement, worker-loop/composed artifact acceptance and A-D/live gates remain open. M7A-21 stays component-only/disabled; no UI/full release gate, commit or push.
+
+Worker snapshot decoder checkpoint (2026-09-17): guarded envelope identity/expiry checks and complete-attempt conversion implemented. Persisted unknown outcome survives late journal completion; regression reproduced and fixed. Grouped worker/actual Node race passes and independent re-review found no remaining Important findings. See [decoder evidence](2026-09-17-existing-test-snapshot-decoder-checkpoint.md). Registered DB client/composed acceptance, settlement/reconciler and live gates remain open; M7A-21 stays component-only/disabled. No UI/full release gate, commit or push.
+
+Reconciliation lease checkpoint (2026-09-17): guarded registered-worker claim/read/heartbeat/release implemented, including final authority and expiry checks after waits. Grouped owned actual Node/DB completion, dispatch, baseline, reconciliation, fingerprint and rollback checks pass; independent review found no remaining Critical/Important issues. See [lease evidence](2026-09-17-existing-test-reconcile-lease-checkpoint.md). Go wiring, settlement/reconciler and A-D/live gates remain open. M7A-21 stays component-only/disabled; no UI/full release gate, commit or push.
+
+Database evidence checkpoint (2026-09-17): private scoped link-derived attempt/journal loader and immutable enqueue categories implemented. UTC snapshot defect reproduced and fixed. Grouped owned actual Node/DB completion, baseline, dispatch and rollback checks pass; independent review found no Critical/Important issues. See [database evidence](2026-09-17-existing-test-database-evidence-checkpoint.md). Registered guarded lease wrapper, Go wiring, settlement/reconciler and A-D/live gates remain open. M7A-21 stays component-only/disabled; no UI/full release gate, commit or push.
+
+Evidence verification checkpoint (2026-09-17): scoped immutable input/output retrieval, strict artifact/journal association and fail-to-pass comparison implemented; grouped worker/actual Node race35197f passes5.906s. Independent review found no Critical/Important issues. See [evidence checkpoint](2026-09-17-existing-test-evidence-checkpoint.md). DB attempt binding, claim/lease settlement, reconciler/UI and A-D/live acceptance remain open. M7A-21 stays component-only/disabled; no UI/full release gate, commit or push.
+
+Baseline candidate checkpoint (2026-09-17): enqueue-time immutable attempt/input/output receipt snapshot implemented and independently reviewed; transaction-start cutoff defect reproduced and fixed. Grouped owned database and race checks pass. See [baseline evidence](2026-09-17-existing-test-baseline-checkpoint.md). Full artifact retrieval/comparability, settlement/reconciler and A-D/live gates remain open. M7A-21 stays component-only/disabled; no UI/full release gate, commit or push.
+
+Target-comparison carriage checkpoint (2026-09-17): linked invocation now validates the stored comparison before target I/O, attaches its typed redacted tuple to fresh and replayed HTTP observations, checks replay equality and deep-copies category slices. Raw observation JSON excludes internal provenance. Node and Go artifact validators require exact comparison fields, matching tenant/test/version/target/ordered categories, valid binding identity/digests and consistent tuples across category records. SQL completion matches each artifact tuple to its own durable journal, refusing rehashed endpoint/configuration/safety/credential-binding digest substitutions. RED766f40 (HTTP),3a88fa (Node),ca5f4d (Go) and ownedNodeSQLd95206 preceded implementation. Owned calibration4ec93a pins55 ata9168c37253da88ef7a7299d52048b5459cdc0ce37fd037bf099e84570784142. Final grouped fdaed2/a0f13a/5245bf/ce4916/7d99d3/9039a7 passes actualNodeSQL completion37.67s, registered knownHTTPS17.02s, unknownHTTPS13.72s, journal client20.90s, fingerprint3.30s and release8.43s. HTTP comparison is asserted equal to stored DBJSONB on fresh/replay, with no resend. Actual pinned Promptfoo361bc6 passes v1/v2 pass/fail/engine_error/cancellation36.99s. Initial engine1df2e3 false-positive leak failure came from a repeated test digest matching the test lease; test-only digests now hash descriptive fixture strings, with leak assertions unchanged. Final Node2250bc passes16 tests including per-field duplicate/null/missing/alias cases; worker/actualNode race995de2 passes5.855s; adapter/migrationscf752b pass2.203s/4.898s; repository2a3c63 passes5.449s. Independent review found no Critical/Important findings. These are controlled engine/provider/database proofs, not live provider/S3/IAM/KMS acceptance. Full settlement-time input/output retrieval and native/evaluation identity verification, comparable baseline selection, settlement/reconciler and composed A-D/live gates remain open. M7A-21 stays component-only/disabled. No UI/full release gate, commit or push.
+
+Stored target-comparison receipt checkpoint (2026-09-17): started and completed registered journal receipts now return the immutable target_resolution.comparison tuple; the client requires exact15-field comparison shape, scoped tenant/target/kind, valid test/credential IDs and versions, ordered valid unique categories, nonzero digests and endpoint SHA256 matching the actual binding. Canonical JSON is retained on InvocationReceipt. Missing/null/changed/aliased/duplicate fields are refused. RED550997 and owned DB REDdba595 preceded SQL carriage. Review found an invalid assumption equating credential_binding_digest with SHA256(reference); registration0026 defines it as opaque. Distinct registered-style digest REDf53879 reproduced the rejection; the decoder now preserves that digest without inventing its derivation. Reviewer confirmed the Important issue resolved with no new findings. Owned calibration42b83d pins55 atda9775176ea58f8af3ddfef6ee719bb5c2963a62b9ef469e6ef43acb35c8e95a. Grouped646f7f/baf315/2bbfa0/23d2ca passes completion36.78s, real registered journal client20.59s, fingerprint3.22s and release8.24s. SQLJSONB equality asserts returned tuple equals the stored row; replay preserves canonical identity. Adapter race181326 passes2.030s; migrations0dc1c3 passes4.690s; worker/Node528b12 passes5.685s. This is the source-receipt part of the active comparison batch: HTTP observation, Node/native artifact carriage, DB completion comparison binding, baseline/settlement/reconciler and A-D/live gates remain unfinished. No activation, production promotion, UI/full release gate, commit or push; M7A-21 stays component-only/disabled.
+
+Concrete artifact readback checkpoint (2026-09-17): inspection confirmed production s3driver.Put already reads back the exact returned object version via HEAD/GET and validates scoped metadata, owner, KMS, content length and checksum; no redundant network read was added. Runner receipt validation now also requires application/json and exact returned body bytes for input and output. RED7c9651 reproduced acceptance of missing/changed body or wrong media type. The actual Node runner contract now uses the real artifactstore and S3 driver with controlled provider responses, requires both scoped/version/owner-pinned GETs and compares returned completion bytes with uploaded output. Worker/actual Node race2c4b37 passes5.542s; artifactstore and s3driver race3d8507 pass1.518s/1.423s. Independent review found no Critical/Important issues. These are controlled-provider retrieval proofs, not live S3/IAM/KMS acceptance or later settlement-time retrieval. Full target-comparison artifact identity, comparable baseline selection, settlement/reconciler and composed A-D/live acceptance remain open. SQL55 unchanged; M7A-21 remains component-only/disabled. No UI/full release gate, commit or push.
+
+Actual producer/SQL contract checkpoint (2026-09-17): the owned completion fixture can invoke Node via ZASP_LINKED_FINISH_NODE and ZASP_LINKED_FINISH_RUNNER, using database-read scoped run/definition/target identities. Actual product configuration, summary and native-artifact producers now feed full bundle bytes unchanged into registered SQL completion for pass, fail and adapter503/engine_error. Owned run06aa1b/27260c passes all four action/autonomy cases37.21s; repository race0f524f passes5.024s. A response-digest tampering test now targets the response_digest key exactly; its prior broad replacement modified the input-artifact checksum, so prior evidence did not independently prove that negative case. New run proves the corrected rejection. Initial attempt22b402 failed before Node execution because the PostgreSQL image lacked the pinned runtime's musl loader; file/ldd identified dependencies, then three libraries copied from the pinned Promptfoo image were mounted read-only. All task-created extraction containers were removed. Production source and SQL55 pin are unchanged. This closes actual Node-produced shape acceptance by SQL, not real engine execution, live storage receipt/retrieval, full native/target identity validation or baseline/settlement/reconciliation. M7A-21 remains component-only/disabled. No full release/UI gate, commit or push.
+
+Exact-artifact completion checkpoint (2026-09-17): runner and linked runtime now carry the exact uploaded evidence bytes into the registered 21-argument completion call. Go rejects absent, oversized, malformed or checksum/size-mismatched bytes before database access. SQL independently checks byte length/SHA256, rejects duplicate JSON keys/depth overflow, binds bundle summary/input/run to completion, and matches ordered category observations, credential-version and response digests, HTTP status and protected flags to its durable journal. Engine errors remain inconclusive. RED d454a8 and owned DB RED800545 preceded implementation. Owned calibration11f16a pins55 at56f48f130e76b6725b6ded05527b84f3ebfcb7b49f98e186f54e712516691157. Final grouped owned dd1e15/a8f42b/e50c71/9e4f3d passes cancellation27.75s, completion36.92s across four action/autonomy modes, fingerprint3.27s and release8.37s. Rehashed credential/response/category/protected substitutions, wrong byte size and duplicate keys are refused without persisted mutation. Repository raceec51ed passes4.854s; actual Node/worker race556833 passes5.543s and asserts returned bytes equal the upload body; migrations44c24c passes4.791s. Independent review reconfirmed zero Critical/Important findings. The DB fixture uses a controlled minimal native document: actual Node-produced bundle acceptance by SQL, full native/target-comparison identity, immutable storage retrieval, baseline/settlement/reconciler and A-D/live acceptance remain open. M7A-21 remains component-only/disabled; no fresh UI build/full release gate, commit or push.
+
+Credential artifact-carriage checkpoint (2026-09-17): authenticated linked adapter responses now include an explicit credential_version_digest from the completed journal observation; missing/nonzero-format failures are refused. Raw observation JSON still excludes internal provenance, target requests do not receive version identity, and no credential reference/secret bytes are exposed. Node's exact-key linked parser and Go native-artifact verifier require the digest and retain it with each category in v2 evidence; missing/null/zero/aliased/duplicate values are refused, legacy v1 is unchanged. Node REDecbcfb and GoRED0a47b2 preceded implementation. Nodee33063 passes14 tests; final worker race0c0f03 passes5.836s with actual Node producer/Go consumer across configured categories; adapter race8d1d82 passes1.883s. Actual pinned Promptfoo334bbb passes v1/v2 pass/fail/engine_error and cancellation38.39s against controlled TLS. Owned registered DB/HTTPS508a3c passes known17.80s and unknown14.15s with exact digest retained on durable replay and no resend. Independent review found no Critical/Important issues. This is evidence carriage, not proof that an arbitrary artifact's digest matches the database: completion/settlement cross-checks, full target-comparison tuple in artifacts, baseline selection, reconciler and A-D/live acceptance remain open. SQL55 pin7b26bd267f843e701cbcb6cfcdfceb5bbcaa387c84ab05077578f074aa4a7679 unchanged; previous DB release group remains separate evidence. M7A-21 stays component-only/disabled. No fresh UI build/full release gate, commit or push.
+
+Durable credential-journal checkpoint (2026-09-17): completed invocation rows now require a non-null32-byte nonzero credential-version digest; started/unknown rows requireNULL and never invent provenance. The unpublished55 guarded completion entrypoint accepts the digest, stores it atomically with the response and refuses a changed digest on replay. Completed receipts return it; Go validates exact13-field terminal shape, digest format and submitted/acknowledged identity, and sends14 completion arguments. Missing/null/zero/duplicate/aliased/substituted receipts fail closed; old unversioned terminal receipts cannot become comparable evidence. Invalid-client REDecd0cf and owned DBRED8c5281 preceded implementation. Controlled source signing digest now reaches real registered database completion/replay; direct persisted-value assertions and conflicting-version refusals pass. Owned calibration4fdda4 pins55 at7b26bd267f843e701cbcb6cfcdfceb5bbcaa387c84ab05077578f074aa4a7679. Grouped owned7659f8/db7ae9/eb5335/4722a4 passes claim47.83s, HTTP5.20s, known HTTPS17.12s, unknown HTTPS14.44s, legacy8.50s, terminal8.58s, journal client20.59s, fingerprint3.25s and release8.12s; affected cancellation7c5f9e28.93s and finish083e2636.85s pass. Adapter racea0613b passes2.007s, repository3a22b4 passes5.059s, migrationsb4720c passes4.651s. Independent review found no Critical/Important issues. Registered-role ACL/private-core restrictions, scoped lease/request/category association and late-known completion remain intact. These are controlled component/HTTPS/DB proofs, not deployed-provider proof. Artifact association, full comparable baseline/settlement, reconciliation and A-D/live acceptance remain open. Update55 and coordinated clients before rollout; M7A-21 stays component-only/disabled. No fresh UI build/full release gate, commit or push.
+
+Credential-source checkpoint (2026-09-17): Secrets Manager resolver now requires bounded printable32..64 returned VersionId and derives a domain-separated SHA256 over credential reference plus that exact version from the same response as signing bytes. Missing/malformed version metadata fails closed and clears provider bytes. Credential material copies signing bytes and version digest under the destruction lock; Destroy removes both. Authorization and successful HTTPS observation retain the digest internally with json exclusion; no target header or public response field exposes version identity. API RED54c036/7756bf preceded implementation. Controlled rotation fixtures assert independent digest literals and exact HMACs; local TLS verifies actual invocation attribution, header non-disclosure, JSON exclusion and post-destruction refusal. Full redteamadapter race68ceb6 passes1.927s. Independent review found no Critical/Important issues; its JSON/destruction Minor coverage was added. This is in-memory provenance only: the journal/artifact formats do not yet retain this digest, old replay is unversioned, and no baseline/remediation proof is claimed. Durable credential association, full comparison tuple, reconciliation and A-D/live acceptance remain open. SQL55 pin424eec2de02e3a0506f3b505663d623d38641511c07daa66bee997767d010810 unchanged; no database or UI release rerun claimed. M7A-21 stays component-only/disabled; no full release gate, commit or push.
+
+Adapter composition checkpoint (2026-09-17): production adapter now composes exact legacy /v1/evaluate and linked /v1/linked/evaluate paths. Linked resolution and invocation use the same pinned Postgres journal; no fallback or redirect on failure. Startup and recurring probes require legacy readiness plus exact55 readiness and registered adapter principal. Journal Ready API RED89091b and composition API REDd60cea preceded implementation; registered DB readiness REDd4c7a2 drove only a read-only client_ready grant to zasp_red_team_adapter, with grant-revocation drift coverage and no private-core grants. Owned calibration70fbc7 yields compiled55 pin424eec2de02e3a0506f3b505663d623d38641511c07daa66bee997767d010810. Grouped owned233eae/b2af64/43e792/626505/bf2e13 passes HTTP4.80s, known HTTPS16.21s, unknown HTTPS13.63s, legacy8.07s, journal client20.60s, fingerprint3.36s and release/rollback8.60s. Actual adapter composition child passes all four registered-login cases8428ec22.19s; strengthened owner-denial connection/context control8bd42b passes8.58s. Component racee45dd9 passes adapter1.774s/journal1.743s; final adapter race3d5b8d passes1.945s; migrations7693c6 passes4.476s. Loopback TLS sandbox refusalb4e51e was retried with scoped permission, not treated as a test pass. Independent review found no Critical/Important issues; invalid-path no-redirect/no-DB and owner-control Minor feedback was addressed. Release55 must precede the worker/adapter rollout with coordinated rollback. This proves controlled protocol composition and database/HTTPS boundaries, not deployed-cloud or complete end-to-end execution. Reconciliation, full artifact/actual secret-version association and A-D/live acceptance remain open. M7A-21 stays component-only/disabled. No fresh UI build/full release gate, commit or push.
+
+Worker routing checkpoint (2026-09-17): production execution composition now selects a dual-protocol repository using persisted scoped database classification for each operation; outbox composition is unchanged. Unknown protocol/query errors never fall back. Linked retry/legacy cancellation are refused; distinct linked cancellation remains explicit. Controlled constructor/RunOnce terminal-delivery and mutation-routing tests cover both protocols and commit-ack failures. Registered PostgreSQL child initially failed (526c4b); diagnostics a154e3 showed recovery readiness true, then identity assertion78ce3a proved the child connected as owner zasp_e2e because pgx ConnString retained the original DSN after ConnConfig.User changed. The fixture now connects directly as existing_test_red_worker and asserts session_user; no production readiness checks or grants were weakened. Final owned registered-worker group b4a2c0 passes all four supervised/autonomous run/rerun cases in10.91s, including real router construction, artifact readiness and linked/legacy reads. Worker race7c68d6 passes5.738s with Node enabled. Independent follow-up review found no Critical/Important findings. Release55 pin8f0fd342aa1ea24c593fbf070ddb84887957ef92b91c9fd1adcb8a6a7d704e00 is unchanged; migrate before worker rollout and coordinate rollback. This is component evidence, not full production execution: adapter production composition, reconciliation, full artifact/actual secret-version association and A-D/live acceptance remain open. M7A-21 remains component-only/disabled. No fresh UI build/full release gate, commit or push.
+
+Worker protocol-selection checkpoint (2026-09-17): SQL RED7a3800 and Go API RED112a15 drove a read-only scoped worker_protocol function and strict RunProtocol client. Classification uses the persisted scoped run/link, not queue input; only registered Red Team workers with exact55 pins can read linked/legacy. Unknown/foreign runs, null/malformed inputs, stale pins and unregistered roles fail; client duplicate/alias/null/extra/trailing/oversize values never select legacy. Classification grants no lease; actual legacy/linked mutation fences remain mandatory against races. Real Go-client fixtures prove both protocols and unchanged run state. Initial grouped7569a3/2ce519 failed because a fixture-only dispatch grant was still present; the test now asserts55000 for that drift and revokes it before client construction. No production permission was widened. Final owned grouped03e2b6/f8fc30/5f1ee3/1ca498/5a50fb/073028 passed cancellation28.20s, finish35.56s, claim/heartbeat47.03s, HTTP4.78s, known HTTPS16.02s, unknown HTTPS13.51s, legacy8.02s, journal client20.11s, fingerprint3.24s and release8.20s. Repository race14a48e passed4.937s; migration race327dff passed4.940s; worker race4a244b passed4.606s with Node enabled. Independent source and fixture-correction reviews found no Critical/Important issues. Owned calibration848cc0 pins55 at8f0fd342aa1ea24c593fbf070ddb84887957ef92b91c9fd1adcb8a6a7d704e00. Production still composes the legacy repository: dual-protocol routing/composition, reconciliation, full artifact/secret-version association and A-D/live acceptance remain open. These are controlled component fixtures, not production execution proof. M7A-21 stays component-only/disabled; unchanged UI inputs were not rebuilt this batch, and no full release gate, commit or push occurred.
+
+Linked worker cancellation checkpoint (2026-09-17): missing-client RED04de4e and processor RED7783d7 drove CancelLinkedRedTeamRun plus explicit cancellation finalization. The client validates exact bounded outer/nested JSON, run/outcome consistency, positive attempt and cancellation flag, exact scope/input/raw lease and release55 pins; malformed responses cannot convert uncertainty to confirmed cancellation. A distinct optional worker method prevents legacy fallback. Only a valid nonrenewed cancellation heartbeat under the last confirmed live lease stops execution and enables finalization after joined heartbeat work. Finalization retains root shutdown and min(last lease,5s); lease loss, generic failure, contradictory heartbeat, missing capability and failed acknowledgement stay unacknowledged. Matching durable cancelled or failed/outcome_unknown permits queue acknowledgement without claiming external rollback. Unit clientc935a6 passed2.683s; actual Go client/registered DB cancellationb8e92c passed25.30s. Final grouped repository raceafda41 passed4.631s and worker race526098 passed4.595s with Node enabled, including renewal-before-cancellation and no-legacy-capability coverage. Independent client/lifecycle/final-delta reviews found no Critical/Important findings. Linkerfc6601 hit disk exhaustion; only the owned generated Go cache was cleared, recovering about35GB, then tests rebuilt successfully. SQL55 pin94433fa087b9a7a23bc11a796aeadc18ac86282508b637a41b4088ab3c064a0c and UI inputs are unchanged; previous database release group and UI build remain separately recorded, not rerun claims. These are controlled boundaries/DB fixtures, not a composed production worker or live-provider proof. Production selection, linked retry/reconciliation, full artifact/secret-version association and A-D/live gates remain open. M7A-21 stays component-only/disabled; no full release gate, commit or push.
+
+Linked cancellation checkpoint (2026-09-17): shared private SQL cancellation preserves journal history and records before-execution, partial-execution or outcome_unknown classification. Human HTTP cancellation retains version/idempotency/audit semantics and works after parent lease expiry; exact-lease worker cancellation requires a requested cancellation. Unknown execution stays failed/outcome_unknown, never confirmed cancelled. Go/web validators now consume that bounded shape; consumer RED8dceac/35542e and DB RED084bf3/8ecd7b exposed rejection, nullable receipt and post-write expiry defects. Explicit outcome/time pairing and original-lease post-check now enforce rollback. Owned grouped20082b through ae81f9 passed cancellation26.45s, finish35.02s, claim/heartbeat45.02s, HTTP5.20s, known HTTPS13.60s, unknown HTTPS11.07s, legacy5.25s, journal client17.65s, fingerprint3.45s and release8.36s. Real HTTP->repository->registered DB, persisted reads, replay/no duplicate audit, late completion without erased uncertainty, private grants and rollback identity are covered. Repository race69767a passed3.974s; migrations967bc0 passed5.410s; web719a4a passed52 tests. UI builda8aca4 and compiled import985629 passed. Independent consumer and SQL reviews found no Critical/Important issues; explicit unlinked human cancellation positives remain a Minor coverage opportunity. Controlled calibration482670 pins55 at94433fa087b9a7a23bc11a796aeadc18ac86282508b637a41b4088ab3c064a0c. These are component fixtures, not live execution. Worker cancellation client/processor integration, reconciliation, immutable artifact/actual secret-version association, production composition and A-D/live acceptance remain open. M7A-21 stays component-only/disabled. Full release/advisory authorization remains open; no commit or push.
 
 **Source plan:** `docs/internal/agent_security_platform_Technical_Implementation_Plan_v1.5.md`
 **Source PRD:** `docs/internal/agent_security_platform_PRD_v1.5.md`
-**Last updated:** September 11, 2026
-**Execution branch:** `codex/runtime-sandbox-binding`; unpushed sandbox database/routing draft, rollout incomplete
-**Latest main:** `6f0a93cc`, PR 48; main CI 34636483553 passed
-**Last verified main:** `6f0a93cc`, PR 48; main CI 34636483553 passed
+**Last updated:** September 17, 2026
+**Execution branch:** `codex/budget-recovery-20260916`; recovered implementation work remains unpublished (see [worktree recovery](2026-09-16-worktree-recovery.md))
+**Latest verified main:** `fda8ae99921be468b3d95f2369f54112a725e046`, PR 49; main CI 34687750130 passed
+**Latest read-only remote tip check:** September 16, 2026, query6eae34 confirms the same main SHA; CI was not rerun
+**Production availability:** 527 production-available, 140 component-only, 61 external gates; 728 original tasks total. September18 source/framework audits correct M7-08/M7-09/M7-10/M7-11/M7-15a to component-only; earlier checkpoint counts are historical. See [prerequisite audit](2026-09-17-compliance-export-prerequisite-audit.md).
+
+Linked completion checkpoint (2026-09-17): SQL RED55edf2 and Go API RED1ce68f drove a pinned registered-worker finish wrapper and strict Go client. Completion holds parent-before-child/current lease and pinned target authority; every journal row must match attempt/input/lease/target/category. Pass/fail requires all configured categories completed with HTTP200 and exact ordered evidence, aggregate verdict and objective/behavior. Engine error remains inconclusive and preserves unresolved starts. Private predecessor persistence retains immutable input/output artifact receipts; post-write readiness plus original lease and parent deadline checks roll back expired writes. The Go client sends raw lease bytes/exact release pins, requires input receipt, and rejects duplicate/aliased/null/extra/mismatched response fields. Real Go-to-SQL completion tests cover pass, mixed three-category fail, engine-error uncertainty and observed INSERT waits crossing lease/budget with unchanged run/attempt/journal; snapshots are ordered. Final owned group53742f/1dc03b/ddc014 passes finish33.53s, claim/heartbeat45.08s, HTTP5.07s, known HTTPS13.26s, unknown HTTPS10.83s, legacy5.06s, journal client17.32s, fingerprint3.41s and release7.88s. Exact repository race092d0e passes4.440s, full migration race4.425s, worker racee65e93 passes3.362s with Node enabled. Independent review has no Critical/Important findings. Calibrationb1004b pins55 at98c44a65fe04073bda1e26c243128555ad0be7cb5e04c8d61e0ccf0c00959470. Initial SQL CASE parse failure4d21a2 was fixed; an over-broad local selector652165 attempted host initdb and failed shared-memory setup, which is not verification evidence and caused no host-service/shared-memory cleanup. Final database evidence comes from the owned offline container. Artifact references here are controlled receipts, not live uploads/content retrieval. Full artifact comparison/secret-version association, linked cancellation/reconciliation, production composition and A-D/live acceptance remain open. M7A-21 stays component-only/disabled; no UI release gate, commit or push.
+
+Linked processor checkpoint (2026-09-17): behavioral REDd9ac63 exposed dropped claim version and legacy retry handling. The processor now routes exact red-team-v2 claims to a separate linked lifecycle, propagates evidence version to Run, rejects unknown versions/expired leases, and leaves reconcile_required unacknowledged. A deadline monitor stays active during serialized heartbeat I/O; only valid live renewal plus queue visibility success replaces the prior local deadline. Visibility uses whole seconds rounded down to the DB expiry. Run errors, cancellation, missing input evidence and lease loss never call legacy retry/cancel or acknowledge; completion uses the live cancellation context and only acknowledged durable completion permits queue acknowledgement. Initial focused racef7d6c5 passes2.964s; final grouped worker race82e154 passes3.500s with explicit Node contract enabled. Seventeen controlled-boundary cases include renewal past initial expiry, deadline before first heartbeat, blocked heartbeat, malformed/contradictory expiry, visibility failure, missing input artifact, failed completion acknowledgement and deadline-blocked finish. Independent re-review has no Critical/Important findings. Authority/queue/runner lifecycle boundaries are controlled here, not actual database finish, external cancellation or live execution. Production still composes the legacy repository; linked database completion/cancellation/reconciliation, full artifact comparison and exact secret-version association, A-D acceptance and live gates remain open. M7A-21 stays component-only/disabled; no UI release gate, commit or push.
+
+Linked runner-input checkpoint (2026-09-17): API REDb1ddd2 and behavioral REDab81ae exposed missing version selection. Explicit red-team-v2 execution requests now persist v2 input with the configured immutable runner-image digest and invoke the same fixed adapter host at /v1/linked/evaluate. Empty version preserves v1; unsupported values fail before artifact persistence/execution. Actual Run feeds actual Node configuration/summary/native producers and the Go bundle verifier across six mixed-verdict categories, preserving the image and excluding authority secrets. Controlled command/storage and native responses are not live engine, provider, upload or image-attestation proof. Initial grouped882583 caught fixture output permissions; the fixture now uses the real producer's exclusive0600 files. Final grouped worker racec19c71 passes2.430s with ZASP_TEST_NODE explicitly enabled. Independent review has no Critical/Important findings. Production processor still does not propagate/select linked claims: deadline-aware execution, finish/cancel/reconciliation, exact secret version, comparison settlement and A-D/live gates remain open. M7A-21 stays component-only/disabled. No fresh UI release gate, commit or push.
+
+Linked heartbeat checkpoint (2026-09-17): missing Go API826a05/a6e59a and SQL RED3fa587 drove registered-worker renewal plus strict Go consumption. Renewal holds parent-before-child authority, exact worker/token and linked definition/current pinned target; expiry is capped by parent budget. It retains the original expiry and rechecks it after UPDATE waits and full release verification, so a fresh expiry cannot resurrect an expired lease. Cancellation returns renewed=false/cancel_requested=true without run cancellation or lease mutation. Invalid/expired leases do not renew. The client requires a bounded future expiry only on successful renewal, rejecting duplicate/case/null/extra/contradictory response fields; legacy heartbeat consumers retain nil expiry. Actual Go->SQL tests cover stopped budget/control/discovery, observed UPDATE waits crossing original lease and budget deadlines, cancellation without mutation, started-journal renewal and configuration drift refusal with unchanged run/journal. Grouped owned PostgreSQL83a127/7e76dd passes claim+heartbeat44.66s, HTTP4.81s, known HTTPS13.03s, unknown HTTPS10.37s, legacy4.98s, client16.83s, fingerprint3.28s and release7.35s. Repository race df1ede passes3.575s, worker compatibility8dcd4c passes2.314s, migration racecdd3a5 passes5.032s. Controlled calibration385544 yields pin2ca53c90989ce66033d5cbf0b701b3fb925187fa2d5ed1d0a5f10f674d64309d. Independent re-review has no Critical/Important findings. These are component tests, not live provider/cancellation proof. Production worker selection and deadline handling, linked completion/cancellation/reconciliation, exact secret-version association, comparison settlement and A-D/live gates remain open. M7A-21 remains component-only/disabled; no fresh UI release gate, commit or push.
+
+Linked Go claim client checkpoint (2026-09-17): missing-API test8ecf36 drove a dedicated Go claim repository with compiled55 readiness/role checks, per-call scope and release pins, raw lease bytes, no legacy fallback, bounded exact JSON decoding (including nested duplicate/case/null rejection), v2 evidence version, immutable input digest, exact run/definition association and bounded future lease. Non-claim dispositions carry no execution authority; provider errors are sanitized. Shared RedTeamRunClaim now carries EvidenceVersion; legacy callers leave it empty. Real registered-worker integration REDac90b7 exposed missing readiness permission and retained rate_limited on a fresh retry lease. Read-only client_ready permission and clearing error_code only after uncertainty checks fix those issues. The positive PostgreSQL fixture now uses the actual Go constructor/client for initial claim, expired-unstarted and rate-limited reclaim, reconciliation and terminal acknowledgement, followed by real adapter journal operations without target I/O. Grouped offline DBbb28d7/94436d passes claim24.10s, HTTP4.83s, known HTTPS13.12s, unknown HTTPS10.65s, legacy5.13s, client17.26s, fingerprint3.38s and release7.52s. Client/legacy repository racebd4cf7 passes2.399s; worker compatibility race087bc7 passes2.318s; full migration race79b389 passes4.446s (the earlier filtered migration command selected no tests and is not migration evidence). Controlled calibration1bbcc4 yields pinf78810f52a3383e678dde93bfda17c99509a8aabb8adb5be337b7d2c158e78d0. Independent re-review has no remaining Critical/Important findings. This does not select the new repository in production workers or prove uploaded artifacts/live invocation. Linked worker selection, heartbeat/completion/cancellation/reconciliation, exact secret-version association, comparison settlement and A-D/live gates remain open. M7A-21 remains component-only/disabled; no fresh UI release gate, commit or push.
+
+Linked worker claim checkpoint (2026-09-17): REDc78ae5 drove a release-pinned registered-worker claim entrypoint. It locks organization/parent/budget/step before child state, requires exact linked definition and current target provenance, caps the lease at the parent deadline, and rechecks wall-clock authority after UPDATE waits and release verification. Live duplicate leases return retry_later; expired work with any journal history, exhausted attempts or outcome_unknown returns reconcile_required without mutation; only unstarted work can receive another attempt. Review found terminal acknowledgement unnecessarily required live parent authority; REDf1cefd and a separate scoped read-only terminal path resolve that issue. All three terminal states acknowledge even with stopped budget, without granting execution. Registered-worker tests also cover wrong roles (including unregistered owner), scopes, null/malformed values, stale pins, parent/budget/control/definition/discovery stops, observed UPDATE-blocked deadline expiry, exact v2 claim identity/digest/capped lease, unstarted reclaim and started/known-terminal reconciliation. Real claim-to-adapter journal calls are covered without target I/O; separate HTTPS fixtures still use controlled discovery and owner-seeded leases. Grouped offline PostgreSQL047884/5930b8/cd03dc passes claim22.75s, HTTP4.88s, known HTTPS12.90s, unknown HTTPS10.39s, legacy4.98s, invocation start49.60s, terminal5.25s, client17.11s, fingerprint3.23s and release7.17s. Migration racece24bb passes4.999s. Final offline calibration12fd9f yields pin0bc4e09fbec8b4b99b78b2074dddddd69105cc3feebd8ae1d47ec522ad63fd02; drift tests cover claim ACL/search path and private worker grants. Independent re-review has no remaining Critical/Important findings. The Go repository/worker does not yet consume/select this claim response. Linked heartbeat/completion/cancellation/reconciliation, exact secret-version association, comparison settlement and A-D/live gates remain open. M7A-21 remains component-only/disabled; no fresh UI release gate, commit or push.
+
+Legacy completion checkpoint (2026-09-17): RED1d8512 reproduced linked complete/pass without linked journal evidence through the legacy18-argument completion function. Release55 now guards that callable overload; the17-argument overload retains unconditional rejection and privatev38 remains inaccessible to workers. Registered-worker tests use valid controlled receipts, assert unchanged linked run and attempt rows on refusal, and positively claim/complete an unlinked run with exact input-artifact retention. Grouped owned PostgreSQL a83e5d/9055bc passes HTTP5.14s, known HTTPS14.18s, unknown HTTPS11.68s, worker lifecycle6.18s, journal client17.77s, fingerprint3.89s and release7.01s. Migration raceb40f9a passes5.321s. Controlled calibration7cd0d8 yields pin af585ed5f4d96c5ada4b853916429c1919e6a9f952a94c30ac7a20e01b6248fd; rollback comparisons include overload identities/privatev38 and new drift cases pass. Independent source review found no Critical/Important findings. Unchanged lease-expiry tests were not rerun in this batch; their prior evidence remains separately recorded. Artifact references are fixture inputs, not uploaded-object or production execution proof. Linked worker claim/heartbeat/completion/cancellation, exact secret-version association, comparison settlement and A-D/live gates remain open. M7A-21 remains component-only/disabled; no fresh UI release gate, commit or push.
+
+Legacy worker lifecycle checkpoint (2026-09-17): grouped RED8ea3ff reproduced both linked heartbeat renewal and claimed cancellation through old registered-worker entrypoints. Release55 now fences both through the scoped link guard, saves private predecessors, and restores their exact body/owner/ACL on eligible rollback. Registered-worker tests assert refusal without linked run mutation and positive unlinked heartbeat/retry/reclaim/cancellation. Owned offline grouped PostgreSQL verification7e143e/fedc60/5b5b58/56ad42/b467c1 passes HTTP lifecycle5.20s, known HTTPS13.46s, unknown HTTPS10.96s, legacy fence5.17s, invocation start49.62s, terminal5.45s, client17.49s, fingerprint3.52s and release7.04s; migrations race9ee60c passes5.211s. Offline calibrationf47b9b yields compiled pin9faacbb4fbdb27ebaa6be1f0efec3db753a6350f0d351e9262188a56dbe0b4a9. Independent source review found no Critical/Important issues. This closes two legacy mutation bypasses, not linked worker execution: finish-overload fencing, linked claim/heartbeat/completion/cancellation, exact secret-version association, comparison settlement and A-D/live gates remain open. M7A-21 remains component-only/disabled. No fresh UI release gate, commit or push.
+
+Runner image declaration checkpoint (2026-09-17): RED runtime b90d84/rendered8b8472/Node5fd17b/Go27dd39 drove immutable-image declaration validation. Helm supplies ZASP_RED_TEAM_RUNNER_IMAGE from the same value as the red-team worker container image; runtime config and runner construction reject absent, mutable, malformed or zero digests. Production composition passes the validated image declaration. V2 input requires runner_image_digest, Node retains it in evaluation identity and Go rejects mismatches/invalid declarations; v1 wire format remains unchanged. Node16 plus focused rendered release65090f pass, final affected Go race2e88a6 passes2.423s with actual six-category Node contract enabled, pinned controlled enginece48c5 passes37.30s. Full release-rendering89db18 passes45 tests after its owned filesystem watcher failed in sandbox7423f0 and succeeded on scoped retry. Independent review has no Critical/Important findings. Compatibility: non-Helm red-team deployments must set ZASP_RED_TEAM_RUNNER_IMAGE to their immutable configured image before adopting this change. This proves configuration/wire declarations, not deployed-image attestation: production still selects v1, config-to-v2-input and DB/artifact association remain unwired, and the image proof uses an explicitly controlled declared digest. Actual secret version, linked claim/selection, cancellation/settlement and A-D/live gates remain open. M7A-21 stays component-only/disabled. No UI release gate, commit or push.
+
+Evaluation identity checkpoint (2026-09-17): RED Node814134 and Go162b96 captured missing linked evaluation identity. V2 native artifacts now retain engine/version, curated-pack version and ordered category/check IDs with SHA256 prompt/assertion identities. The assertion identity includes the exact JS grade, canary and versioned adapter criterion. Node validates the actual native testCase.assert before retaining it; Go independently derives and requires exact identity and per-record assertion. Missing/changed pack, check, prompt/assertion hash, substituted or extra assertion fields are refused. No-native engine-error artifacts carry attempted identity only. Node component30e63d passes16 tests; actual pinned Promptfoo2fd899 passes v1/v2 pass/fail/engine-error and cancellation39.08s against controlled TLS. Final Go race9342e4 passes2.464s with ZASP_TEST_NODE explicitly set: actual Node producers and Go consumer agree for all six categories, mixed verdicts and reordered-identity refusal. Independent review has no Critical/Important findings; its multi-category coverage note is resolved. This does not pin the built runner image, actual secret version, or associate database comparison with immutable input/output artifacts. Those gates, linked DB claim/selection, cancellation/settlement and A-D/live acceptance remain open. Compiled55 pin remains844aa23ab89501c6c5da3864be6c6368d0c58c66f3104029a6c39aae861e2261. M7A-21 stays component-only/disabled; no UI release gate, commit or push.
+
+Scoped test/safety comparison checkpoint (2026-09-17): RED ce8da6 reproduced completed receipt reuse after same-version safety-policy and category changes in all four handler/DB/TLS modes. The private invocation_target helper now takes exact test ID/version from held link/run authority, joins the matching enabled scoped definition/target under NOWAIT share locks, and adds organization/workspace/environment, test ID/version, target ID/kind, ordered categories and safety SHA256 to the durable comparison snapshot. Resolve/start reject drift without rewriting the journal or sending again. Direct stored-field assertions verify scope/test/safety identity. Independent review reports no Critical/Important findings. Grouped owned suite f65199/bea132/bffe91/bca5f5/e46f4b passes HTTP5.04s, known TLS13.16s, unknown TLS10.90s, legacy5.18s, start49.50s, terminal5.30s, client16.93s, fingerprint3.21s and release/rollback6.52s. Migration race db1756 passes4.901s. Compiled55 pin844aa23ab89501c6c5da3864be6c6368d0c58c66f3104029a6c39aae861e2261 was calibrated in owned fixture aee71d; ACL/drift tests use the new private seven-argument identity. Engine/image/pack/check identity, actual secret-version association, immutable artifact association, linked worker claim/selection, cancellation/settlement and A-D/live acceptance remain open. M7A-21 remains component-only/disabled. No UI release gate, commit or push.
+
+Target/credential comparison checkpoint (2026-09-17): RED fac0d2 reproduced completed receipt reuse after credential-version rotation in all four owned handler/DB/TLS modes. The private target resolver now pins a versioned comparison object in durable target_resolution: endpoint and winning-configuration SHA256 digests plus exact credential binding ID/version/reference digest. It joins the active unexpired exact scoped binding and retains NOWAIT row locks; existing resolve/start snapshot comparisons reject version, digest or configuration drift without another target request. Complete still records known late observations. Independent review has no Critical/Important findings; added its Minor stored-value/unchanged-journal assertions, final four-mode a0f670 passes13.08s. Grouped owned suite fbe792/0aa8a4/f8f65d/a873e8/6ffd6d passes HTTP lifecycle4.98s, known TLS12.71s, unknown TLS10.59s, legacy4.95s, start49.44s, terminal5.33s, journal client17.34s, fingerprint3.22s and release/rollback6.48s. Migration race f540f0 passes4.783s. New compiled55 pin is 371e8aa7e93e59c44105ee0a1230c488feb8dedd423b0a5cf1c4b9b87fb3f259, calibrated only in the owned fixture8f7d2c. This pins database authority, not the actual transported secret version. Safety/test/engine/image/pack/check comparison members, artifact association, DB-owned claim/runner selection, cancellation/settlement and A-D/live acceptance remain open. M7A-21 stays component-only/disabled. No UI release gate, commit or push.
+
+Handler/database/TLS checkpoint (2026-09-17): The owned integration now enters actual NewJournaledHandler.ServeHTTP with registered Postgres resolution/journaling, then actual HTTPSInvoker against controlled TLS. Wrong bearer, valid foreign organization/workspace/environment/run and wrong lease all refuse before any target request. Exact redacted HTTP observation fields, no-store, committed-start visibility and lost-completion-ack replay pass. An additional four-mode malformed target response case retains started/no completed_at and returns503 on both initial call and fresh connection/handler replay with exactly one request. Final grouped run b420fb/afab09 passes known11.03s and unknown10.37s; both owned PostgreSQL processes joined normally. Independent review found no Critical/Important issues; its Minor exact-response-shape suggestion was added before the final run. Direct ServeHTTP, seeded discovery/lease, controlled routing/credentials and fresh connection/handler are not worker composition, production transport, full process restart or live-provider proof. M7A-21 remains component-only/disabled; next production work is the immutable comparison tuple and DB-owned linked claim/runner selection, followed by cancellation/settlement and A-D acceptance. No UI release gate, commit, push or status promotion.
+
+Database-to-HTTPS checkpoint (2026-09-17): TestSecurityAgentExistingTestJournalHTTPSPostgres runs the owned redteamadapter test binary against the same isolated PostgreSQL fixture. Actual registered PostgresInvocationJournal resolution/start/complete compose with HTTPSInvoker and controlled TLS. A separate owner connection observes the exact committed started/request digest before the target responds. All four run/rerun and supervised/autonomous cases pass; rerun cases deliberately drop acknowledgement only after real completion commits. Fresh registered database-connection replay retains the actual unsafe response digest/protected=false and makes exactly one target request. Final owned run afd8fb passes9.58s; adapter race fd59bd passes1.610s after sandbox listener denial4a5123 was retried with scoped permission. Independent review reports no Critical/Important findings. This is seeded discovery/lease and controlled routing/credentials, not a full process restart, production transport, worker-to-handler or live-provider proof. No product transport bypass added. M7A-21 remains component-only/disabled; full comparison tuple, DB-owned v2 selection, claim/retry/cancellation/settlement, A-D acceptance and live gates remain open. No UI release gate, commit or push.
+
+Linked engine/evidence checkpoint (2026-09-17): Node v2 grades the exact linked observation envelope and retains its response digest without synthesizing target text. Pinned Promptfoo controlled-adapter image proof 9e31df passed v1/v2 pass/fail/engine-error and v2 cancellation, with exact per-category call counts and peak concurrency one for successful linked evaluations. This is controlled TLS evidence, not live provider or journal-backed execution. Fresh Node component group d28f1e passes 15 tests. Go v2 artifact verification binds schema/run/category/status/digest/protected to the summary; RED ca83b6 exposed conflicting duplicate protected values, now rejected with case aliases by exact recursive key validation. Review found the summary decoder also accepted ambiguous keys; RED eba987 reproduced it. The shared v2 decoder now checks summary and native bytes. Added protected-pass, adapter503 and missing-native engine-error positive cases. Final focused Go race 937470 passes (2.232s). Independent re-review reports no remaining Critical/Important component findings. Production launcher still selects v1, linked execution stays disabled/component-only. Full comparison tuple, DB-owned v2 selection, claim/retry/cancellation/settlement, A-D acceptance and live gates remain open. No UI release gate, commit, push or production promotion.
+
+Linked HTTP-handler checkpoint (2026-09-17): RED4ef5d2 reproduced missing
+linked routing and accidental acceptance of the legacy path. NewJournaledHandler
+now serves only /v1/linked/evaluate with existing token/scope/lease checks and an
+exact four-key bounded JSON body. After resolution it calls InvokeJournaled and
+returns red-team-linked-observation-v1 (run/category/redacted observation), never
+raw or fabricated provider output. NewHandler retains its legacy path/response;
+production composition still uses NewHandler, so the linked route is NOT enabled.
+
+Controlled journal/resolver with an actual owned TLS target verifies lost complete
+acknowledgement503 then unsafe replay200 with one target request, fresh safe
+success/replay equality, malformed target response remaining unknown with no
+resend, and malformed/auth/ambiguous request refusal before resolution/network.
+Legacy and linked handlers reject each other's paths. Adapter race9d331b passed
+1.999s. Owned runtime group0dd5ec/93efb7 passed configuration, DB concurrency0.49s,
+failed-commit acknowledgement0.41s and shutdown0.44s. Independent review found no
+Critical/Important issues; its fresh-success/legacy-path coverage suggestions
+were added. This is HTTP/HTTPS component evidence, not composed SQL-to-HTTP proof.
+
+M7A-21 remains component-only/disabled. Next integration must make the worker
+consume the versioned observation contract and wire the real journal/resolver,
+then count requests through real DB-to-HTTPS flow. Full comparison/credential
+version, claim/retry/cancellation/settlement, A-D acceptance and live production
+proof remain open. No UI gate, commit, push or production promotion.
+
+
+Versioned target-resolution checkpoint (2026-09-17): client REDe48cfa and
+registered DB RED9f0e34 identified missing resolution. PostgresInvocationJournal
+now implements TargetResolver through the pinned invocation_resolve wrapper.
+It returns only an exact five-key valid binding for the requested target/kind.
+SQL checks registered adapter, exact release, parent/current safety, locked live
+Red Team lease and scoped linked definition/category. Winning provenance stays
+under the existing NOWAIT locks; a prior journal resolution cannot be substituted.
+Final parent and held-lease deadlines are checked after the release scan. This
+read grants no execution permission; durable Start is still required before I/O.
+
+The registered client fixture resolves the binding before start/complete/replay.
+It refuses wrong organization/workspace/environment, target/kind, category, lease
+and release pins. Owned group792655/983057/768341 passed HTTP lifecycle4.95s,
+legacy fence5.04s, resolver/journal client16.89s, fingerprint3.30s and release6.51s.
+Adapter racebf7e37 passed1.925s; migration raceb95ed1 passed5.080s. Calibration
+a63b0c pins55 at `3ef421c5120ccc443d06411894152a564b646cd562157addcef536d4f724bebf`.
+Independent review found no Critical/Important issues. Delayed-readiness expiry
+instrumentation currently exercises Start, not ResolveTarget; resolver-specific
+post-readiness delay coverage remains an explicit test limitation.
+
+This is registered DB/client evidence using seeded discovery and lease authority,
+not live discovery or a provider request. M7A-21 stays component-only/disabled.
+Actual adapter/worker route composition, DB-to-HTTPS request counting, complete
+comparison/credential-version tuple, claim/retry/cancellation/settlement and A-D
+acceptance remain open. No UI release gate, commit, push or production promotion.
+
+
+Versioned journal-wrapper checkpoint (2026-09-17): RED0a36f8 reproduced missing versioned starts in all four action/autonomy cases. New start/complete wrappers check registered adapter identity and exact release readiness before/after private cores. Only zasp_red_team_adapter gets wrapper EXECUTE; private cores and dispatch remain inaccessible. The registered PostgresInvocationJournal now performs real DB start, unresolved refusal, completion and immutable unsafe replay without temporary core grants. Discovery and lease prerequisites remain owner-seeded, with no provider request.
+
+Independent review found post-core release scans could outlive admission expiry. Timing RED1d7076/3e4c5e reproduced a parent-deadline bypass. The start wrapper now rechecks parent/current safety and the already-locked Red Team lease after readiness. The owned readiness-delay hook is scoped to the current run and restored before the real positive flow. Its expiry checks are timing instrumentation, not release verification. Completion keeps late-observation semantics. Reviewer accepted the repair with no remaining blockers.
+
+Owned calibrationb7ceff pins55 at `722056f6e02de1c63db53f342017093a39f1d464811a3e85077e851f2793ae95`; initial wrapper pinae0ab731 from03ff17 is superseded. Migration race3ae85e passed5.279s; adapter racee9d227 passed1.970s. Initial group3939fc/a980dc passed but preceded the timing repair and does not clear final acceptance.
+
+M7A-21 remains component-only/disabled. Versioned target resolution, adapter/worker route composition and real DB-to-HTTPS request counting remain unverified; full comparison/credential-version tuple, claim/retry/cancellation/settlement and A-D acceptance are open. No UI gate, commit, push or production promotion.
+
+Final owned group7c46ac/f5cb2e/f0cc94/8775f8 passed: HTTP lifecycle4.95s,
+legacy fence4.97s, invocation start49.33s, terminal5.35s, registered journal
+client15.41s, fingerprint3.30s and release6.30s. This supersedes the pre-repair
+group; all four action/autonomy modes reject post-core parent/lease expiry and
+leave no started row before the restored real-readiness positive flow.
+
+
+PostgreSQL journal-client checkpoint (2026-09-17): initial compile8fd32d
+identified the missing client; behavioral RED7dcda3 refused a valid started receipt
+before implementation. New PostgresInvocationJournal constructs scoped, checksum/
+fingerprint-pinned calls to the planned versioned start/complete wrappers, never
+private cores. It validates canonical inputs/body digest before DB access and
+strictly decodes stored binding/provenance, category/digests, attempts and terminal
+run/verdict/time. Duplicate, aliased, extra and mismatched receipt fields fail;
+completion acknowledgements must match the submitted observation exactly.
+
+Adapter race9d7a90 passed1.972s. Owned no-network PostgreSQL groupba4fa9/1ef41e
+passed concurrency0.94s, deferred-commit acknowledgement0.39s, shutdown0.47s and
+runtime configuration checks. The deferred FK test produces a RETURNING row but
+rejects its failed commit with no receipt/no persisted row; a successful write is
+visible from another connection. This verifies the concrete driver's autocommit
+boundary, not full journal SQL integration. Independent review has no remaining
+blocking findings after exact-key membership and negative coverage improvements.
+
+The versioned invocation_start/complete SQL wrappers are not implemented yet;
+the client is not composed into a live route and cannot execute against release55
+as-is. No private-core grants or fallback were added. Wire the wrappers, receipt
+association and real database-to-HTTPS flow before enabling this path. M7A-21
+stays component-only/disabled; full comparison tuple, credential version,
+claim/retry/cancellation/settlement and A-D acceptance remain open. No UI release
+gate, commit, push, provider call or production promotion is claimed.
+
+
+Outbound binding checkpoint (2026-09-17): RED1fa70b reproduced seven
+accepted mismatches (endpoint, credential reference, target ID/kind, version,
+missing binding and completed replay). InvocationReceipt now carries the stored
+TargetBinding and InvokeJournaled requires exact equality with the invocation
+before sending or replaying. The journal contract forbids echoing the request
+or resolving a replacement on replay. The controlled fixture retains its original
+binding/digest; a changed endpoint after lost completion acknowledgement is refused.
+Adapter package race checks6465dc passed1.853s. Independent review found no
+Critical/Important findings. This is coordinator coverage over controlled journal
+and owned TLS, not concrete database-client or live provider proof. M7A-21 remains
+component-only and disabled; concrete journal client/route, credential version,
+full comparison tuple, claim/retry/cancellation/settlement and A-D acceptance remain
+open. No UI release gate, commit, push or production promotion.
+
+
+Durable target-resolution checkpoint (2026-09-17): RED7ce8e8 showed the
+missing endpoint binding in four started receipts. The private resolver now
+uses the winning source/snapshot/evidence joins with wall-clock target freshness.
+A started journal row stores its binding (target/kind/endpoint/credential
+reference/inventory version) and provenance (integration/snapshot/evidence/
+source/generation). Later categories and replay must retain that exact resolution.
+Terminal receipts expose the stored resolution, never a newly resolved substitute.
+
+Independent review found an observation/entity lock-order risk against typed
+discovery apply. Contention REDbb36d4 held the source row and timed out in all
+four cases. Provenance row acquisition now uses NOWAIT, removing that wait cycle;
+the test requires55P03 while busy, then proceeds after release. Review accepted
+the repair. This reproduces contention, not a full live discovery deadlock.
+The earlier green group202239/702d41 lacked this contention test and is superseded.
+
+Owned calibration8268f4 pins55 at
+`4283cbb381dd5c07b19027f28fd4fb6b002619603c6d02d0ccd4f2a767e405f8`.
+The prior6c080c pin from840c72 is superseded. Tests also refuse a non-last-good
+snapshot and a substituted endpoint on terminal replay without changing journal
+history. Concrete journal client must still compare the pin to the actual signed
+request. Credential binding version, engine/runner/pack/check identities and
+complete comparison evidence remain unfinished. Owner-seeded discovery is not
+live sync proof; no real provider request is claimed.
+
+
+Final grouped verification84a3fa/4e46e2/c7e346 passed: HTTP lifecycle4.99s,
+legacy fence5.05s, invocation start49.41s, terminal5.15s, fingerprint3.28s,
+and release6.07s. Migration race checksfe6e76 passed5.131s.
+M7A-21 remains component-only and disabled, with A-D acceptance open.
+No fresh UI release gate, commit, push or production promotion is claimed.
+
+Verification cadence: group related microtasks into feature batches. Keep focused
+regression tests during implementation, run affected integration checks and
+independent review once per stable batch, and run full release/UI gates before
+push. Retain per-task evidence and all security boundary coverage. The terminal
+suite's duplicate expiry waits were removed; dedicated admission tests retain them.
+
+
+Invocation authorization checkpoint (2026-09-17): RED49ada6 showed starts
+accepted after disabling the parent definition in all four action/autonomy
+cases. A private invocation authorization function now reuses the dispatch
+contract with exact-count checked substitutions only for the function name and
+expected post-dispatch states (running/executing). Original dispatch authority
+is unchanged. Parent admission checks current definition enabled/autonomy/action,
+exact stored plan hash and step tuple, and supervised approval identity/hash/
+expiry or autonomous absence of approvals, before and after journal work.
+
+Owned calibrationc4cd27 sets55 pin
+`0977197c90d4305810a55d8cbd96bdc8fdaed1590c060723075fe406c9eaa552`.
+Independent review found no Critical/Important issue; outdated pending-approval
+comment was corrected. Tests cover disabled definitions, substituted supervised
+approval plan hash, and observed journal INSERT blocking through plan expiry
+in all modes and approval expiry in supervised modes. Temporary fixture grants,
+owner mutations and seeded leases are controlled component evidence only.
+
+Grouped2fc143/5044b7/bf9e85/416ef6 passes HTTP5.05s, legacy fence5.10s,
+start49.32s, terminal5.11s, fingerprint3.26s and release/drift/rollback5.95s.
+Migration racefd5e55 passes4.610s with clean diff check. New private authorization
+ACL and search_path drift are rejected. The terminal suite still avoids duplicate
+start-expiry waits. Endpoint/config/provenance/comparison pinning, concrete SQL
+journal client, adapter/worker routing and end-to-end settlement remain open.
+M7A-21 stays component-only and disabled. No UI release gate, commit, push or
+production promotion.
+
+Current-target invocation checkpoint (2026-09-17): RED0b5028 demonstrated
+that a revoked credential still allowed a started receipt in the first joined
+case. Later RED cases hit setup refusal because the shared credential remained
+revoked; the test now restores shared authority before asserting the call result.
+The private parent guard reuses the locked scoped test-binding resolver and
+requires its exact definition/version/target/kind tuple to equal the link.
+This checks current enabled selected test, non-production environment, active
+target, matching active credential, safety class and wall-clock freshness.
+The binding check repeats after journal writes/replay locks, followed by final
+Red Team lease and parent deadline checks.
+
+Owned calibration83a9a4 sets55 pin
+`f0e7abd045473cff4fde73a0eeb60957395650822cd5d431b369d8fa05bc058e`.
+Independent review found no Critical/Important issue. Actual endpoint/config
+pinning, provenance/comparison tuple and final invocation approval authority are
+still unfinished. Temporary grants, owner-seeded leases/discovery and authority
+mutations remain controlled evidence, not live provider or discovery proof.
+
+Grouped3f4296/ac0862/add0c8/4e113e/1700ec passes HTTP4.98s, legacy
+fence4.99s, start37.31s, terminal37.40s, fingerprint3.25s and release6.03s.
+Migration racef489f2 passes5.252s. The start suite observes journal INSERT
+blocking through target fresh_until and credential valid_until expiry, in
+addition to lease/budget deadline waits, and rejects each transaction.
+
+Test-only batching then removed duplicate admission-negative/expiry waits from
+terminal mode. The dedicated start suite retains those cases; terminal mode
+retains ACL, commit, reconnect, uncertainty and terminal assertions. Independent
+review confirmed fixture independence and retained coverage. Recompiled terminal
+d5a44a/b018dc passes5.26s versus37.40s, about32s saved in this suite.
+Diff check2bcd66 passes. No UI gate, commit, push or production promotion.
+M7A-21 stays component-only; final SQL wrapper, concrete journal repository,
+adapter/worker wiring, comparison/settlement and composed acceptance remain open.
+
+Parent invocation admission checkpoint (2026-09-17): RED758c28 showed all
+four joined action/autonomy cases accepting a new start despite the parent
+budget's sticky stop. The private parent guard now takes organization admission
+before parent/run/budget/step locks, requires running parent, executing step,
+pending effect, exact existing reservation/input digest and three enabled
+kill-switch rows, and revalidates the discovered scoped link. Missing, stopped,
+null or expired budget authority fails. Start rechecks the parent deadline after
+blocking journal work and receipt replay locks. Terminal completion still
+records late observations without granting renewed authority.
+
+Owned calibrationfb50e4 sets55 pin
+`6bfb702b7615482658d51d1f162290843c144fa02d49075e076b755dc0d8c877`.
+Independent review found no Critical/Important issue in this prerequisite.
+Current target/safety, approval and comparison authority still belong in the
+unfinished final adapter wrapper. No private helper grants or route enablement
+were added. Controlled owner mutations and temporary adapter grants are not
+production execution or live provider evidence.
+
+Groupedc195d9/60e623/93858f/480ca1/beea7c passes HTTP5.24s, legacy
+worker fence5.22s, start21.44s, terminal21.49s, fingerprint3.47s and release/
+drift/rollback6.23s. Start cases stop/recover parent run, sticky budget, action
+kill switch and reservation digest. Actual journal INSERT blocking is observed
+through both Red Team lease expiry and parent budget deadline, with rejection.
+Migration race384ef1 passes5.511s; diff check9e7cff clean. M7A-21 remains
+component-only; full SQL admission, real journal repository, adapter/worker
+wiring, comparison/settlement and composed acceptance remain open. No UI gate,
+commit, push or promotion.
+
+Journaled HTTPS coordinator checkpoint (2026-09-17): RED63fd0f showed no
+request/terminal observation from the missing coordinator. InvokeJournaled now
+hashes the exact shared signed payload, requires a newly committed start or an
+exact terminal receipt, sends once, and returns structured evidence only after
+completion acknowledgement. Replay never invents raw output. The journal
+contract requires full scoped admission and rejects unresolved starts, including
+lost start acknowledgement; this interface is not yet a concrete SQL client.
+
+Adapter race e33c9c passes1.813s with actual local TLS requests and a controlled
+journal: commit-before-send, lost completion acknowledgement/replay with count1,
+unknown outcome refusal, exact received-body/signing digest, malformed receipt
+and cancellation zero-send, lost start acknowledgement zero-send, replay-copy
+isolation, unsafe false result, malformed response/transport-close no completion
+and no resend. Rebuilt command package d48d02/41e644 passes owned-container
+config, DB concurrency0.58s, deadline/shutdown0.42s and TLS checks. Independent
+review found no Critical/Important issue after contract/test strengthening.
+
+Controlled journal state is not database durability or tenant admission proof.
+Concrete SQL admission, journal repository, handler/worker wiring, comparison
+evidence and settlement remain open. Coordinator has no HTTP route registration.
+M7A-21 remains component-only and disabled; no UI gate, commit, push or promotion.
+
+Ambiguous-response repair (2026-09-17): RED2a5957 demonstrated duplicate
+output fields hiding an unsafe canary behind a later safe value. Struct decoding
+overwrote the first field. Both invocation methods now require exactly one
+case-sensitive output string and object/EOF closure. Duplicate/case-folded,
+null, array, empty, unknown, missing, truncated and trailing responses fail
+without output or a successful observation. Adapter race aec780 passes1.823s;
+rebuilt command package passes owned-container3d93a6/2bee3d (DB concurrency0.62s,
+deadline/shutdown0.41s, config/TLS checks). Independent review found no Critical/
+Important issue. This closes a false-protected-result prerequisite; durable
+admission/receipt wiring remains unfinished. No UI gate, push or promotion.
+
+HTTPS observation checkpoint (2026-09-17): RED0bba2a proved the missing
+observation boundary for all six curated categories, protected/unsafe cases.
+InvokeObserved now uses the existing credential signing, bounded HTTPS transport
+and strict response validation. It returns the raw response-body SHA256, HTTP200
+and exact selected canary not-contains result separately from output. Legacy
+Invoke delegates the same path. No raw output enters the observation object.
+
+Adapter race groupd76e3e passes1.743s, including all12 local TLS observation
+cases with one actual fixture request each and empty observations for rejected
+responses. Initial sandbox27b422 denied loopback binding; approved loopback run
+then captured the real RED. Overbroad grouped commande1b503 passed the adapter
+package but failed two host initdb setups. The command package was rebuilt for
+the owned no-network PostgreSQL container:49a7af/18efd2 passes configuration,
+database concurrency0.69s, request deadline/shutdown0.41s and TLS-file checks.
+No user PostgreSQL process or IPC was changed. Diff check595bae passes.
+
+Independent review found no Critical/Important issue. Non-200 or malformed
+responses currently yield no observation, so future durable integration must
+retain uncertainty without inventing a protected result or retrying execution.
+This is local TLS component evidence, not live customer, admission, durable
+receipt wiring, comparison tuple or remediation proof. M7A-21 stays component-
+only and disabled; no UI release gate, commit, push or production promotion.
+
+Private terminal-receipt checkpoint (2026-09-17): repairs RED87deec,
+which found no completion operation in four joined action/autonomy cases.
+The private journal now stores immutable response digests, HTTP status and a
+bounded protected observation. Completed receipts replay without another start;
+an unresolved category blocks a new category. Conflicting association or response
+fields fail without changing the receipt. Raw provider text is not stored.
+
+Completion can record a known response after a cancellation request and lease
+expiry, without changing the run or renewing execution authority. The fixture
+does not prove a terminal cancelled run. A non-200 response cannot claim a
+protected result. Independent review found no Critical/Important issue in this
+private persistence boundary; full adapter admission, actual provider requests,
+curated assertions, comparison evidence and runtime settlement remain open.
+
+Owned calibration56ffee pins55 at
+`c557cec07a3090b04327a099ea685103bd1ddd81d80e131da937f9079b5183ef`.
+
+Grouped456936/eacfb6/f243f0/7d6414/fe28d2 passes HTTP lifecycle5.50s,
+legacy-worker fence5.26s, durable start13.22s, terminal receipts13.43s,
+compiled fingerprint3.63s and release/drift/rollback6.45s. Migration race9e995f
+passes4.972s; diff checke9c68b is clean. Private completion/projection grants
+and search_path drift are rejected. These are controlled DB/HTTP component
+tests with temporary grants, seeded leases/discovery and fixture observations.
+No target request, live discovery proof, UI release gate, commit or push.
+M7A-21 remains component-only, execution disabled and A-D acceptance open.
+
+Historical started-only checkpoint (superseded by the terminal slice above):
+Private durable-start journal repairs RED35340a (missing invocation start core
+in four joined action/autonomy cases). New scoped journal has a full link FK,
+attempt/category identity, immutable input/request/lease digests, a started
+timestamp and forced RLS with no application table grants. The private adapter-
+principal persistence core locks the Red Team run, exact link and current test
+definition; it checks lease/cancellation/category, refuses any prior unresolved
+start across attempts/categories, inserts and rechecks wall-clock lease expiry.
+A committed started row means unknown outcome, never successful execution.
+
+Owned calibration43532f sets compiled55 pin
+`432fcb4ea69aaafe527e5c39af61069e6119a24c4f3d54208ad4103d2ea7ad70`.
+Fingerprint covers both tables and their columns/constraints/indexes/policies/
+triggers with table identity. Down locks/refuses retained journal and removes an
+unused journal before links. New release drift checks cover journal SELECT ACL,
+forced RLS, default and core execute/search_path changes.
+
+Grouped00e92a/e0f275/4a98da passes HTTP lifecycle5.04s, legacy-worker fence4.94s,
+durable start13.21s, fingerprint3.33s and release/drift/rollback5.56s.
+Migration race0672e1 passes4.784s; diff/gofmt checkdd01cb is clean.
+The start cases cover private ACL denial, wrong lease/category refusal, observed
+journal INSERT row-exclusive lock through lease expiry with zero retained rows,
+exact committed digests, connection close/reconnect after commit, duplicate start
+refusal and attempt2 refusal with exactly one original journal row. Independent
+review's initial journal-lock-helper concern was resolved by the current explicit
+invocation-table mapping and confirmed by the passing observed-lock tests.
+
+This is private persistence only. Temporary fixture EXECUTE grants and owner-
+seeded leases/discovery remain controlled evidence. Request digest is fixture-
+supplied here, not yet a proven pinned adapter comparison tuple. Future versioned
+admission must own organization, policy/budget and target authority. Started-only
+schema has no terminal receipt operation yet; adapter/worker wiring, terminal
+replay, cancellation, comparison evidence and settlement are still unfinished.
+No target request was sent, and these tests prove no live discovery/provider
+behavior. M7A-21 remains component-only; all A-D acceptance stays open and
+execution stays disabled. No UI release gate, commit, push or promotion.
+
+Legacy linked-worker gate repairs RED2d68e2: registered Red Team workers
+claimed all four linked run/rerun supervised/autonomous cases before the durable
+invocation protocol existed. Release55 now saves the genuine legacy claim/retry/
+resolve functions and inserts a private registered-principal, scoped run/link
+guard. Linked calls fail55000. Unlinked worker calls retain inherited behavior.
+Adapter resolution uses FOR UPDATE NOWAIT: review found that a new blocking
+wait would make inherited transaction-time lease/safety checks stale. Contention
+now fails55P03 before delegation; this does not fix all pre-existing transaction-
+age behavior or replace future wall-clock invocation admission.
+
+Owned calibrationf6cd9b pins55 at
+`81b9b5c99c833adc65eaa5fc9d232bba7d0ea34566d6672df7bdb4d5566b272c`.
+Final grouped7921cb/ce3c8c passes mounted HTTP lifecycle5.23s, linked legacy-worker
+fence5.07s (four action/autonomy paths), fingerprint3.20s and release/drift/
+rollback5.31s. Migration race2c1d64 passes4.667s. The fixture uses registered
+worker/adapter calls, real preparation/approval and private dispatch with temporary
+fixture grants. It verifies linked claim/retry/resolution refusals, unlinked
+claim/retry/resolution positive controls and immediate55P03 while an owner row
+lock is held, followed by successful resolution after release. Retained old-worker
+leases and winning discovery projection are owner-seeded, not actual discovery
+sync, human enqueue or provider execution. Rollback compares original bodies,
+owners and ACLs for all three inherited functions, including resolver volatility.
+Private helper and predecessor ACL drift are rejected. Independent review accepted
+the bounded gate after the NOWAIT correction; final grouped checks passed.
+
+This is a prerequisite guard, not durable invocation implementation. Per-category
+started/terminal receipts, claim/retry protocol, cancellation, comparative
+evidence and settlement remain unfinished. M7A-21 stays component-only, all A-D
+acceptance remains open, and execution stays disabled. No UI release gate,
+commit, push or production promotion in this batch.
+
+HTTP lifecycle retry batch repairs RED339039: a simulation retry one second
+later returned409 because the handler-generated expiry was part of the inherited
+receipt intent. Release55 reconstructs only that expiry from the durable receipt
+under the idempotency lock. Goal, evidence, definition and version still bind the
+digest; the saved plan and original receipt remain live and unchanged. The shared
+Go result validator accepts a replay's original live expiry only when it is no
+later than the new candidate. Fresh results still require exact expiry equality.
+
+Owned calibrationcf9b5b sets compiled55 pin
+`caf27869d2ce48f6702c3c6c0c34b38bb5f3ea4c0d61cb0d2d751b3c95375e4a`.
+New mounted-composition HTTP lifecycle test passes5.02s (39663a), including
+validation and simulation replay with new generated IDs/expiry, unchanged bodies,
+receipt headers and durable snapshots, changed goal/evidence/version refusals,
+read-only permission denial and stale fresh-auth denial. Owner-injected expired
+request receipt cannot be revived by the newer candidate deadline. That setup
+backdates both creation and expiry to respect the table constraint; first attempt
+17f344 failed23514 during setup and is not counted as a pass. This specifically
+tests request-receipt expiry, not elapsed expiry of the embedded plan deadline.
+
+Final grouped c7076e/39663a/97082f/bd1463 passes corrected lifecycle HTTP5.02s,
+existing draft HTTP5.92s, prepared dispatch14.78s and approval/read7.17s.
+Unchanged production inputs also passed legacy activation4.83s, simulation3.78s,
+replay4.19s, SQL lifecycle15.04s, fingerprint3.24s and release/drift/rollback5.01s
+in run13b656 (whose aggregate failed only for the corrected fixture setup).
+Focused API race da8ecd passes2.640s; migration race08d840 passes5.045s.
+Independent review accepted the bounded fix and final negative assertions.
+
+Identity/browser-security context is supplied at the router boundary. This is
+not session-authentication, rendered-browser, provider or deployment proof.
+M7A-21 remains component-only; execution is still disabled pending durable
+invocation/claim/retry/cancellation/settlement and remaining A-D acceptance.
+No UI release gate, commit, push or availability promotion in this batch.
+
+Pinned validation/simulation batch repairs missing-entrypoint RED96adac and
+repository-routing RED0b3808. Both repository operations probe release55 per call
+and supply compiled pins; drift errors do not fall back. Owned calibration772dca
+sets fingerprint `a49445c0fcd7a31ec00973f83743d0f52150dd266c0a8bdb53f9dab0263b9550`.
+Grouped owned PostgreSQL run18377c/56ab0c/a0cd53 passed: legacy activation4.45s,
+simulation3.59s, replay4.05s; positive lifecycle14.79s; prepared dispatch14.95s;
+approval/read7.19s; fingerprint3.18s; release/drift/rollback4.92s.
+Migration race27b154 passed4.938s; focused non-PostgreSQL routing race90478d
+passed2.738s. Independent review accepted this bounded slice.
+
+Actual repository validation and simulation now have component evidence for both
+test actions, including observed audit-lock waits through authorization expiry,
+immutable validation receipts, current-binding simulation replay, consistently
+rehashed plan-tamper refusal, inventory entity/evidence positives and no execution
+enqueue. Identity is supplied at the repository boundary, not authenticated HTTP.
+Inventory fixtures are raw seeded evidence, not completed discovery sync. Missing
+evidence IDs are not populated foreign-tenant proof. The reviewer retracted an
+inventory-permission concern after ownership inspection and actual API-role tests;
+no new grants were needed.
+
+One overly broad host test selector (4cdecf) included a PostgreSQL test without
+Postgres in its name and failed during initdb from shared-memory exhaustion. This
+is an environmental failure, not a pass. Read-only checke14bed found no remaining
+task-owned process; existing user PostgreSQL servers and IPC were untouched.
+The corrected anchored non-PostgreSQL selector passed; database checks used the
+owned, no-network Docker fixture.
+
+M7A-21 stays component-only. Supervised/autonomous execution is still disabled.
+Mounted HTTP/browser lifecycle proof, remaining cross-scope/concurrency coverage,
+durable invocation/claim/retry/cancellation/settlement and full A-D acceptance
+remain open. No new production proof, availability promotion, UI release gate,
+commit or push. Fresh advisory authorization is still an external release gate.
+
+Legacy lifecycle fence repairs RED90138a: original API-callable activation and
+simulation accepted both test actions without exact-reference authority. Release55
+now refuses new test intent after inherited definition locks, and refuses replay
+when current or immutable input-version history contains test intent. Saved private
+release54 bodies retain53 cost checks; published migrations are unchanged.
+Owned calibrationf566c6 pins55 at
+`0a21019e2c028fe9c38649b3d3419f88e4b029020d1cd679436fd75d16c8387c`.
+Groupb4c81f completed PASSdc28ad: six activation refusals4.14s, two simulation
+refusals3.63s, legacy-positive/historical-replay3cases4.10s, joined private
+dispatch15.14s, approval/read7.33s, fingerprint3.20s and release4.54s.
+Full migration race2d8b6b passes4.737s. Independent review found no blocking issue.
+Historical replay setup uses temporary fixture-only private-function grants and
+owner same-version current-body changes, not a normal user update. Positive legacy
+activation covers draft-to-validated only. Snapshots compare definition/history,
+request receipts, agent audit/runs and Red Team runs/outbox, not all durable tables.
+Private-function denial, ACL/search_path drift, removal of fixture grants and
+exact unused rollback body/owner/ACL restoration pass. No public test dispatch,
+capability enablement, production proof or push. Next: pinned55 lifecycle entrypoints,
+exact-reference validation/simulation and replay, post-lock/write clock checks,
+per-operation repository routing, then invocation/settlement and composed acceptance.
+
+Catalog reconciliation: REDf36f5f reproduced unsupported rollback claims for
+both existing-test actions. Built-in catalog, readiness metadata and product
+manifest now say non-reversible while preserving low risk, approval floor none,
+supervised approval and disabled production capabilities. Full securityagent
+race b346e9 passes1.495s; affected non-Postgres API/worker race a13bde passes
+2.553s/8.005s. Independent review found no issues in the four-file catalog slice.
+This is component evidence, not activation or target execution. No push.
+
+Private dispatch/link authorization now repairs joined RED821387 and the
+review-found other-step approval REDc938f4. Both callers bind current hashed
+plan/step/autonomy; supervised requires exact approved, unexpired authority,
+and autonomous rejects every approval in the scoped run. Rechecks follow
+enqueue, link insertion and audit writes before lease clearing.
+Groupedb4bbba/4bf07c passes14 joined cases14.91s, approval/read7.15s,
+fingerprint3.21s, release4.20s and candidate rollback3.17s/3.17s; prior private
+enqueue/link/dispatch regressions also pass in group442777. Migration race4d93dc
+passes4.989s. Independent review accepted the bounded authorization slice.
+Current unpublished55 pin:
+`6f2b71ca7ce85bf8a952b6010fe165ee160f6be335a519a897dd03b78927ed4c`.
+Dispatch remains ungranted. A queued test is not provider invocation or verified
+remediation. Activation/simulation, invocation/retry/cancellation/settlement,
+catalog reconciliation and composed/deployed acceptance remain open. No push.
+
+The55 Go decoder/repository slice now passes real registered API-connection
+reads and decisions. REDf24097 exposed six decoder failures; RED46a9a7 exposed
+legacy routing for all four operations; REDd997d7 caught duplicate argument keys.
+Final9b3b6a passes7.38s, including actual repository approval/replay and six
+detail/list/run reads. Affected non-Postgres racee47424 passes2.312s; independent
+review found no remaining blocking issue. Every operation probes55 per call
+and supplies compiled pins; invalid release never falls back. Existing-test
+arguments require exact test ID/integer version and reject duplicate fields.
+SQL/pin remain unchanged at8ec833e7f26847fcf74638a9b571430254cd380c97027f693ff8ac9ef202c89b.
+This is controlled-identity repository evidence, not mounted authentication or
+UI acceptance. Private dispatch/link authorization, catalog reversibility
+reconciliation and remaining A-D/live acceptance remain open. No push.
+
+The55 database read/context slice now supports prepared run_test/rerun_test
+approval detail, approval page and run context. Six missing-function RED3fcf65
+cases preceded implementation. Group91874d/c8bf2d passes approval/read6.68s,
+fingerprint3.31s and release4.48s; migration race72d91d passes5.015s.
+Independent review accepted this bounded SQL slice. Current unpublished55 pin:
+`8ec833e7f26847fcf74638a9b571430254cd380c97027f693ff8ac9ef202c89b`.
+Go decoding/routing, repository acceptance and private dispatch remain open.
+Final focused7c9a94 passes6.30s after tightening empty-page/cursor assertions;
+ledger369245 validates all728 rows with unchanged availability counts.
+No production promotion, full release gate, UI acceptance or push is claimed.
+
+The versioned55 approval-decision slice now passes its registered-role tests:
+two supervised actions, immutable enriched receipt replay after current approval
+changes, stale-pin/private-projection refusal and six malformed-version cases.
+Group51aa6a/17b788 passes approval4.78s, fingerprint3.42s and release4.37s;
+the same group still FAILS joined dispatch for all four action/autonomy pairs.
+Supervised now passes approval and claim before that known40001 failure.
+Independent review closed the fractional-version and skipped-final-gate issues.
+Migration race93ae86 passes4.678s. Current unpublished55 pin:
+`ec899395ab280a146de92eb9a8276b41e97107b5828e6f8cfd77a0bf349819dd`.
+Read/context wrappers, Go routing/validation and dispatch/link repair remain
+open. No feature acceptance, production promotion or push follows from this
+bounded database evidence.
+
+Previous joined M7A-21 regression was RED: supervised run/rerun approval failed
+in the legacy response projection (22023); autonomous preparation and claim
+reach private dispatch, which rejects the real authorization marker (40001).
+Freshcb3074 ran all four cases in4.99s and confirmed unchanged supervised
+authority and decision receipts on failure. The next repair batch includes55 approval/context
+projections, immutable decision receipts, Go routing/validation and coordinated
+private dispatcher/link authorization. Independent review identified the
+context-enabled read dependencies; no application dispatch grant was added.
+No task promotion, production fix, full release verification or push is claimed
+by this regression checkpoint. See the existing-test plan for exact scope.
+
+Latest M7A-21 failure-settlement slice repairs SQL RED6c321e and routing RED560c2d.
+Versioned55 failure authority retains the lease through receipt/audit waits,
+rechecks pinned context and persists budget stops without a failed transition.
+Finaled39fb passes14 direct cases18.78s; e25b6f passes4 actual repository/DB
+cases5.49s plus fingerprint/release checks3.32s/4.27s. Affected race92de6a
+passes2.085s; migration race8c642d passes4.581s. Current unpublished55 pin:
+`1425713045dbec3f5c20014d606007597bf72ca7f2f75c4e68d5f7dc305c7f9d`.
+Independent review found no blocking issue in this slice. Next is coordinated
+dispatch/link authorization and approval enforcement, kept private until the
+invocation protocol is complete. No whole-feature acceptance or push is claimed.
+Changed-release acceptance/preparation checks pass19.17s/4.75s; warm-consumer
+upgrade/drift/rollback8825be passes17.93s. All owned test servers exited normally.
+
+Latest M7A-21 preparation/acceptance slice repairs missing-function REDd3ebea.
+Registered55 functions persist exact test intent and supervised approval or
+autonomous authorization. The private core retains the lease through acceptance
+receipt writes; final revalidation and savepoint rollback prevent late authority.
+Final5125ff passes14 acceptance cases19.40s and5 preparation cases4.80s, including
+observed audit/receipt lock expiry, immutable/conflicting replay, newer-lease
+refusal and private-helper denial. Go per-call routing REDa3d61d is repaired;
+affected race57f83a passes2.016s. Full migration racef0e3fa passes4.643s. Current
+unpublished55 pin is `307db3d85183348a1821b6f0f2e12c479f6b6815c043635a0bd3e08abfccf729`.
+Independent review found no remaining blocker in this slice. Planner failure,
+private dispatch/approval compatibility and remaining A-D acceptance are still
+open. No task promotion, full UI/release pass, push or live proof is claimed.
+
+Latest M7A-21 reservation/wiring slice supersedes the planner-only checkpoint:
+registered55 reservation recomputes pinned test context, preserves accounting
+and replay stops, and rolls back a permit that expires during its INSERT wait.
+Final actual PostgreSQL testba89c4 passes20 cases15.29s, including real repository
+context/reservation round trips for both actions. Go repository routing/decoding
+REDbd7386 and worker reference-propagation/request REDf7c66e are repaired; final
+affected racecaa8c8/f9b807 passes1.793s/2.199s. Independent reviews found no blocking
+issue within these slices. Current unpublished55 pin is
+`c9910c1e6940608fadaf8468221c88c633564cd8fbb413b435ee41e8174c3de7`.
+Full migration race951bed passes4.298s. Context/fingerprint/release groupcc6a2e
+and unchanged HTTP/write/cutover/consumer checks27a38f passed; the latter group's
+owner-seeded claim-version failure was corrected before the affected final rerun.
+One overbroad host test filter was interruptedaae137, not counted as a pass;
+process check1af6bb found no matching owned test/server left alive. Corrected
+package groups passed. Next: versioned preparation/acceptance and failure paths,
+activation/simulation, durable invocation and settlement. Production model-price
+bounds and live provider proof remain unverified. No execution enablement, push,
+UI change or production promotion. All original728 tasks remain in the ledger.
+
+Latest M7A-21 planner slice: registered55 worker context now binds the configured
+test ID/version and rejects stale authority, evidence, leases and prior plans.
+Corrected RED65bc43 preceded implementation. Final context testfb637d passes20
+cases in11.49s, including observed lock-wait expiry, runtime/path evidence, legacy
+parity and exact context digest checks. Independent review found no remaining
+blocking issue in this slice. Group68a3d5 had one test-fixture parameter-type
+failure483a3d, repaired before the final context rerun; its unchanged HTTP6.16s,
+fingerprint3.33s, release4.23s, versioned definition5.94s, cutover4.28s and warm
+consumer18.12s tests passed. Full migrations race16c7f9 passes4.673s.
+Current unpublished55 pin is2ed2d497687e88d618f9c6c37d3759f1d73c1eec21210bd6bc827f0452fec245.
+Next: matching55 planner reservation/recomputation and strict Go/worker wiring,
+then preparation/acceptance. Existing33 reservation cannot consume the new test
+context. Dispatch stays private; invocation, settlement and composed acceptance
+remain open. No push, production promotion or UI change in this slice.
+
+Latest mounted API wiring evidence: race1a904a passes actual production
+composition/tracing/permission/CSRF/Origin/expected-scope/invalid55 refusal checks
+with controlled session/SQL boundaries. Negative cases make no mutation attempt.
+Independent review covered those limits and the counter repair. Separate actual
+PostgreSQL handler test16e029 passes6.38s using the production PATCH method.
+Neither test is live authenticated browser evidence. Next implementation work
+is existing-test planner context/preparation/acceptance, keeping dispatch private
+until invocation and settlement are complete. No counts or publication changed.
+
+Newest M7A-21 HTTP slice: real handler/repository/registered55 create/update/get,
+immutable replay, reference/activation refusals and current release-aware draft
+capability pass88e747 (6.57s). Shared warm/fresh consumers passaa033a20.21s.
+Review-found production tracing capability loss is fixed after RED0c1215; full
+API package race cdecd2 passes2.966s with authorized localhost fixtures. Focused
+handler/contracts/repository race23c805 passes2.145s. Draft persistence is now
+release-gated; execution remains unavailable. These separate component tests do
+not prove mounted authentication/browser or live execution. Earlier notes that
+the draft capability is absent/off are superseded by this checkpoint. No push
+or production promotion; current scope/counts unchanged.
+
+Newest M7A-21 acceptance slice: registered55 API-role create/update/read and
+immutable replay now pass with stored-body/history assertions and scoped refusal
+controls. Both rollback orderings and lock-held refusal pass. The HTTP
+pre-mutation repository replay now has its own pinned55 SQL authority after
+observed RED4eec9d/81c0cb. Focused workflow/full migration race406efb and grouped
+PostgreSQL3ebd72/a321d0/a0744f/e9ce4b pass their recorded scopes. Independent review
+covered SQL, routing and tests. HTTP handler/repository capability integration
+remains next; production actions stay disabled. The latest authority checkpoint
+supersedes earlier pending positive-write/replay and compiled-pin notes below.
+
+Newest M7A-21 write-boundary checkpoint: test-bearing repository writes now use
+a pinned55-only SQL entrypoint with rollback-conflicting transaction locks.
+Review-found case-alias routing regression24cb82 is repaired. Group33b826/97ebdf/
+4c9558 passes owned PostgreSQL release/stale-pin/consumer checks; migration and
+workflow race groups c0ec95/d858f1 pass. This is guard groundwork only: positive
+versioned writes, both rollback race orderings, replay and actual HTTP acceptance
+remain open. Draft capability stays off. The current unpublished55 compiled pin
+and evidence are in the linked authority document; prior pin evidence is historical.
+
+Latest M7A-21 checkpoint: registered55 local compatibility now passes grouped
+PostgreSQL checks21b9c6/b67893/6842ce: compiled identity, private dispatch,
+drift refusal, retained-definition rollback refusal, unused rollback and eight
+warm/fresh consumers across53->54->55->54->53. Audit operational55 routing passes
+full migration race suite37b7e9 after observed REDb7462d and independent review.
+These supersede earlier registration/initdb limitations below for these fixtures.
+Real HTTP draft persistence, planner/invocation/settlement and composed acceptance
+remain open. No production promotion or publication. Details and test boundaries:
+[current authority evidence](2026-09-16-security-agent-existing-test-authority.md#registered55-local-compatibility-checkpoint).
+
+Latest broad local verification: **1921 Vitest tests in217 files pass** (f2e8a0,
+83.48s) after restoring audit test CI assignment, following the refactored
+LocalStack child ownership chain, and updating stale API-map fixtures. Controlled
+loopback fixtures required permission; these are not live provider tests.
+Independent review found no Important issue in the focused repairs. Typecheck,
+lint and API coverage pass; details in
+[release verification](2026-09-16-release-verification-checkpoint.md).
+Host PostgreSQL shared-memory cleanup remains unresolved, but a network-isolated
+PostgreSQL18.3 container now runs the owned database fixture without that cleanup.
+Fresh advisory-scan authorization remains open. No push, release clearance or
+production count change.
+
+Latest M7A-21 definition checkpoint: real database RED408eb0/0c8a4e exposed
+operator-provenance and missing-reference gaps. The unregistered55 candidate now
+binds the new history version to the operator and resolves selected test authority
+transactionally. Groupd6d914 passes resolver and enqueue/dispatch/definition
+fixtures (7.28s+15.40s), including malformed/disabled references and legacy
+create/update/delete/replay. Superpowers independent review covered SQL and
+tests; a review-found fixture correlation collision was corrected and rerun.
+These are owned PostgreSQL tests, not registered55 or live production proof.
+See [definition evidence](2026-09-16-security-agent-existing-test-authority.md).
+
+Follow-up grouped707b6a passes single-coordinate org/workspace/environment
+reference denial with valid registered-API positive controls, plus unused
+candidate rollback to exact54 and atomic refusal for retained definition history.
+This is owner-run rollback groundwork, not registered55 rollback or authenticated
+browser acceptance. Independent review records the remaining RLS identity and
+invocation/cutover requirements in the linked evidence. Scope/counts unchanged.
+
+Latest M7A-21 checkpoint: private, unregistered guarded dispatch has initial
+local groupd346c3 evidence (10.448s), with owner-seeded preparation and temporary
+fixture worker grant only. Independent review found late-audit expiry and
+questioned credential-rotation parity. Regressionc6c7f3 reproduced late-audit dispatch
+after lease/budget/target expiry; post-write authority repair passes grouped
+ef0e2d in16.412s and independent source review. Runtime groupc70661 passes18.353s
+for current/revoked/expired/rotated-predecessor/digest and late-expiry cases.
+Review retracted the rotation defect after checking the one-live-v15-credential
+constraint and ingestion/rotation rules; this is owner-seeded persisted-state
+coverage, not rotation API or signed-ingestion proof. Full integration remains
+open. See the
+[dispatch evidence](2026-09-16-security-agent-existing-test-authority.md).
+No production promotion or push.
+
+Draft wire-contract groundwork: Go9973df and122 browser decoder/receipt tests
+499f94 pass; generated OpenAPI checks, typecheck/lint and UI build6f61a3 pass.
+Independent review confirmed raw duplicate/canonical-key repairs before replay.
+No production repository advertises draft persistence capability yet; database
+resolution is still pending. The existing PostgreSQL delete
+regression could not initialize because host SysV shared-memory IDs are exhausted
+(c6d1b9, read-only IPC5e00b9). It remains an unverified integration gate.
+
+Existing-test selector component checkpoint: group e52669 passes192 UI/API/receipt
+tests, typecheck7d4345, focused lint and10 coverage checks33ea13, standalone UI
+build40e667 pass. The picker uses the scoped paginated test API, requires explicit
+enabled ID/version selection, clears reload intent, aborts removed-permission
+lookups and retains exact unresolved mutation intent. Review regressiona2b797
+reproduced stale options after API replacement; identity-bound results repair it,
+and independent re-review found no blocker in that repair. Production catalogs
+still exclude run_test/rerun_test. This is unpublished component evidence, not
+durable definition persistence, execution, or live proof. Counts stay unchanged.
+
+Activation-reader checkpoint: RED1e3aa2 rejected valid stored run/rerun drafts.
+The reader now accepts an exact reference only with one test action, test_run,
+disabled state and draft/validated activation. Malformed, missing, mixed-action
+and enabled-execution cases remain rejected. Focused group0c0fc0 passes; independent
+review found no Critical/Important issue. This is payload-decoding evidence only.
+Fresh owned PostgreSQL retry647afb still fails during initdb (no assertions ran).
+Read-only IPC3f82e8 shows30 detached56-byte segments and2 attached live servers;
+permission for narrowly rechecked orphan cleanup was requested, not assumed.
+Neither live server nor any shared-memory segment was modified.
+
+Latest UI follow-up: REDe8af07 caught cached-result resurrection during A-to-B-to-A
+client switching and missing pinned-reference detail. Per-lookup result identity
+fixes the race; the drawer displays persisted ID/version, preserved on name edits.
+Independent review found no blocker. Group061b26 passes194 tests; lint62c103,
+typecheck116dc2, whitespacefb1b59 and standalone build309578 pass. This is still
+unpublished component evidence; DB integration and release gates remain open.
+
+Prepared registered-API-role draft create/replay/update/read acceptance in
+`security_agent_existing_test_definition_postgres_test.go`, including immutable
+history/receipt assertions and rejected-update atomicity. Compile6e1992 passes;
+run7d8da6 stops in initdb before assertions. It is neither passing database proof
+nor observed product RED. Source tracing identified predecessor history actor_id
+as session_user; guarded55 must preserve the actual operator principal instead.
+
+Next functional gap is M7A-21 existing-test action execution. Current source
+still disables run_test/rerun_test and limits planner context to four other
+actions. Registered boundary testc4a6cb passes: worker direct Red Team enqueue
+is denied42501, API missing-definition control reachesP0002, and definition,
+run and outbox counts remain unchanged. The adapter must retain this privilege separation.
+See [authority reconnaissance](2026-09-16-security-agent-existing-test-authority.md).
+No durable adapter or production availability is claimed by this baseline.
+The internal existing-test reference decoder is now implemented with24 closed
+contract cases, reviewed and passing alongside cost-input regression checks
+(b28a43,1.041s). It is not yet called by public mutation or worker admission.
+The selected reference contains only the existing definition ID and version;
+Private database scope/safety resolution now has local binding/release evidence
+(409c15,15.908s), including scoped locks, post-wait expiry, private helper grants,
+drift refusal and rollback. It is not wired into activation/planning/admission;
+actual test execution remains pending. Compiled54 pin is now
+`3e4569f4bc5aec90dfa17fe6c4124e45a0c2b281b475369695c7c2ada773dffb`.
+Independent review found no Important source blocker. Its exact-blocker test
+improvement passes dba5d2 in10.222s; no task availability was promoted.
+
+M7A-21 now has a selected [end-to-end design](2026-09-16-security-agent-existing-test-design.md)
+and [four feature-batch plan](2026-09-16-security-agent-existing-test-plan.md).
+Source review exposed two additional integration requirements: immutable
+per-check before/after evidence and linked-run handling that stops automatic
+redispatch after unknown external execution. Current Red Team retry/cancellation
+does not satisfy those agent guarantees unchanged. Both are explicit Batch C
+work, not implemented capabilities. The API, worker, durable association and
+composed-browser batches remain open; all availability counts are unchanged.
+
+Batch A shared enqueue extraction now passes owned testf5fffa in5.560s after
+missing-core RED98c31a and independent review. The candidate preserves human/API
+enqueue and exact replay, denies direct core calls, rejects unsafe new intent,
+retains the exact predecessor body and leaves test definitions/targets unchanged.
+It is unregistered55 SQL with no runtime caller; it is not a deployable54 or55
+release and does not yet authorize any worker action.
+
+Private durable link persistence now passes grouped47325a in9.885s. It binds
+the exact scoped agent step/effect to one test run, retains replay after API
+receipt expiry/removal and rolls enqueue records back with the link. Red/green
+regressions fixed preexisting API-receipt adoption and expiry after actor/core
+advisory lock waits; independent review confirmed the source fixes. Final9b31b4
+passes10.395s including observed two-connection contention with exact stored
+link replay and one outbox. Admission remains outside
+this private helper: no worker grants, runtime caller or production promotion.
+
+Latest full-path scale group62167/30d4ae passes24.191s. Real registered-login
+repository reads return all50 expected related runs over20/20/10 pages from
+10,000 owned stopped-run fixtures in two scopes, with complete coverage under
+custom/generic plans. Foreign off-page receipt loss leaves coverage complete;
+local loss reports partial without changing related IDs. Final page measurements
+102.9–171.0ms include readiness, scope checks, coverage and decoded envelopes.
+No retained action plans, concurrency, HTTP/live identity or deployment are
+proved by this fixture; broader scale and release gates remain open.
+
+Latest M7A-90 action-query batch66036/41d642 passes45.757s. A fingerprinted
+plan GIN index plus separate finding/session UNION branches eliminate4,950
+filtered plan rows in the fixture under custom and generic plans. Registered
+APIs, earlier audit/trigger query checks, pin/drift/rollback all pass. Review
+found no blocker. BitmapAnd still reads tenant index entries; shared-target
+fan-out, full-scope integrity checks and nested/live-load evidence remain open.
+Current compiled54 pin is0a88dadd8dde5c25adb0f48d6b36eff9cd58394cb3f4a773f890914078b2a73f.
+No availability promotion or publication.
+
+Prior M7A-90 scaling batch15952/41c292 passes34.771s. A fingerprinted reverse
+trigger index reduces receipt searches100 to1 across100 definitions in the
+owned fixture. Custom/generic first/next candidate plans, registered relation
+APIs, compiled pin, index drift refusal and rollback pass; independent review
+found no blocker. This closes selective trigger access only. Full-scope coverage
+scans, action-target lookup, high fan-out and nested/live-load proof remain open.
+That batch used compiled54 pin bf18a3d588b148efe127368a77de8d8abceeae7135f776dabc5766857d17f91f.
+No availability promotion or publication.
+
+M7A-90 activity links are in progress under the [scoped-link design](2026-09-16-security-agent-activity-links-design.md)
+and [implementation plan](2026-09-16-security-agent-activity-links-plan.md).
+Mounted failure173a73 exposed three missing production workflow dispatch cases:
+both activity APIs and exact audit detail. Actual-surface HTTP tests reproduced
+the404s54868e; the dispatch repair passesf07376 and broader HTTP/surface tests
+passd13ba4. Independent review found no blocker. Mounted batch3247 then passed
+377751 including finding roundtrip and prior approval/authorization cases.
+Audit roundtrip/history initially passed92490b, but review required a stronger
+reload response boundary. Updated batch11265 passes186c6c, including the new
+exact-response reload assertion and full-scope history checks; review is closed.
+The expanded mounted batch77632 passes9cd49b with all four entity roundtrips
+(finding/path/session/audit), exact scope, read-only requests and unchanged
+execution/runtime snapshots. Screenshots inspected; review found no blocker.
+Grouped boundary batch52467 passes70ae3f: exact20+1 reverse paging/Previous,
+wrong-environment URL refusal without entity reads, current-role403, refreshed
+mounted capability enforcement and restored200. Review closed a loading-state
+false-pass in the UI assertion. These are local fixture-backed reads, not
+provider/ingestion proof or idle-tab instantaneous revocation. Forward cursor
+browsing and nine-read expected-scope/inactive-membership matrix now pass in
+group32662/e5c5af, with audit snapshots unchanged and review findings closed.
+Independent foreign-session relation batch88918 passesd28a3a: foreign admin
+reverse reads expose no primary runs, primary forward/exact-audit reads refuse,
+audit-read positive control passes and mounted audit refusal contains no primary
+data. Review closed the audit-reverse404 contract correction. These are local
+owned identity fixtures. Scaling and fresh release/publication gates remain
+open. See the
+[verification checkpoint](2026-09-16-release-verification-checkpoint.md).
+Generic-plan audit cursor behavior is repaired: RED0a65ac showed a next page
+filtering 21 predecessor rows despite the new index. Mutually exclusive bounded
+first/next SELECT branches now retain the cursor range in both plan modes.
+Serial group a88079 passes28.884s including installed-query custom/generic plans,
+registered relation APIs, compiled fingerprint and rollback. Independent review
+found no blocker. This does not close nested-function/load or non-audit scaling
+gates; full browser and release acceptance still remain open.
+Audit forward pagination now has a fingerprinted full-scope/run/audit-ID index.
+Owned baseline b6b238 scanned 10,000 seeded rows, removed 9,950 and sorted;
+strengthened access-path test db3d70 returns 21 rows with zero filter removals
+and no sort for first/next pages. Serial group26dc84 passes registered relation
+APIs, compiled fingerprint and drop-drift/rollback. Review found no blocker.
+This is owner-issued local custom-plan evidence, not generic-plan or production
+capacity proof. Non-audit full-scope coverage scans remain an open scaling gate.
+All four forward run-detail panels are now locally wired, with destination
+capability checks on queries and trigger links, full-scope navigation and
+unresolved-cancellation locks. Both direct and list-open flows pass, including
+selective capability revocation. Final combined group f0a786 passes 166 tests;
+lint/typecheck63d52e and the five-stage standalone UI build7eb0f6 pass.
+Independent review found no blocker. All bidirectional consumers are implemented
+locally, but complete mounted-browser, database index/performance and release
+acceptance remain open. No availability promotion, commit or push.
+Runtime session timelines now expose reverse run relations after validated exact
+session/event reads, for both direct links and list-open drawers. Unattributed
+collections never infer session relations. Group afd59d passes 54 session/panel/
+shell tests plus typecheck, including run-to-session-to-related-run navigation;
+lint/diff checks f9cc88 pass. All four reverse consumers are locally wired; run
+forward consumers and full browser/index/performance/release proof remain open.
+Independent review found no blocker; its additional foreign-session event case
+passes in final 55-test group 5e2ef7 with scoped lint/diff checks.
+Finding and attack-path drawers now read reverse run relations after successful
+exact detail, with bootstrapped run capability and full scope. Both direct-link
+and list-open flows pass; finding mutations disable relation navigation. Review
+identified a list-open path detail identity gap, reproduced by RED495ee4 and
+fixed before publishing detail. Group afbfee passes 82 shell/risk/panel/audit/client
+tests; lint/typecheck/diff checks dd129c pass. Session reverse and run forward
+consumers, index/performance and full browser/release acceptance remain pending.
+The shared paginated relation panel is implemented and now mounted beneath
+authorized exact audit detail. Group ef0d46 passes 48 panel/client/audit tests,
+including pending-relation cancellation after failed audit reload; typecheck
+48ae28 and lint c5fb26 pass. Independent review found no blocking issue in this
+increment. Finding/path/session reverse panels and run forward panels still
+need wiring; browser acceptance, indexes/performance and release gates remain
+open. M7A-90 remains component-only, with no availability-count change or push.
+Typed clients now consume both relation directions with pinned request scope,
+cancellation, no-store and strict page validation. Groupd0ce8c passes64 client
+tests and typecheck; lint2f2285 and independent review pass. Relation UI wiring,
+indexes/performance and mounted end-to-end acceptance remain unfinished.
+Both relation HTTP directions are now registered locally with browser expected-
+scope security and typed OpenAPI contracts. Forward groupd765f1 passes14.918s
+through real registered SQL, response/cursor group3f5686 passes, contract/lint/
+coverage46281a and typecheck e39223 pass. Independent review found no blocker.
+Client/UI relation wiring, indexes/performance and mounted browser proof remain
+pending, so M7A-90 stays component-only.
+Forward repository reads now cover all four kinds with strict typed context,
+audit ordering/cursor validation and compiled release checks. Registered adapter
+group055e07 passes13.875s; grouped1bcefe passes0.893s. Independent review found no
+blocker. Forward HTTP registration and complete client/UI acceptance remain open.
+Forward typed target projection and browser-scoped SQL are implemented locally.
+Group292992 covers100 action targets plus a distinct trigger across two pages;
+database groups ea7dc3/1f186c pass pagination, permission, simulation, fingerprint
+and rollback checks. Independent review found no blocker. Forward repository/HTTP
+and complete UI/browser acceptance are still unfinished.
+The reverse relation HTTP route is now registered with browser expected-scope
+security and generated OpenAPI types. Group184235 passes13.034s including real
+handler-to-database pagination; followup88a6fc passes, OpenAPI5b5cd3 passes40 tests,
+lint/typecheck pass and UI/API coveragefd6a66 records the new API-only action.
+Identity-injected fixtures are not mounted browser authentication proof. Forward
+relations, client/UI, performance and complete end-to-end acceptance remain open.
+Principal/full-scope/request-bound signed relation cursors now pass group6edaee
+(1.021s), including forward/reverse positions and a reproduced/fixed signed-null
+timestamp review finding. HTTP routing has not yet been wired to these cursors.
+The typed reverse-relation repository now verifies trigger/action associations
+and independently checks exact audit-to-run identity before returning summaries.
+Grouped4a6d95 passes1.144s; owned registered adapter/repository group794f44 passes
+11.852s. Independent review found no blocking issue. These are local integration
+checks, not exposed HTTP or production browser evidence.
+Reverse-relation database candidate reads now pass grouped local authority,
+compiled fingerprint and rollback checks cb87d6 (18.925s), plus action-only and
+duplicate-suppression checks6c2762 (9.278s). Independent review's false-complete
+coverage finding was reproduced and repaired with persisted plan/run/step
+integrity checks. Public relation APIs, index/performance acceptance and full
+browser verification remain unfinished; M7A-90 stays component-only. See the
+[verification checkpoint](2026-09-16-release-verification-checkpoint.md) for
+evidence limits and the remaining test-isolation caveat.
+The shared URL contract is now wired into the production shell and finding,
+attack-path, runtime-session and run detail pages. These pages use exact API
+reads without list enumeration; persisted run triggers link to their typed
+records, and finding-to-path links retain IDs and scope. Local grouped UI/client
+testsbc5ecb pass125; typecheckaffc95, lint58cec8 and production UI build5525f6
+pass. Independent review's trigger-enum mismatch and competing-read findings
+were reproduced and fixed; follow-up review found no blocking issue. This is
+local component/client evidence with controlled responses, not a live backend
+or browser deployment proof. The exact Security Agent audit database lookup now
+passes owned-PostgreSQL authorization and migration checks (a43df2,15.840s),
+including tenant collisions, revoked/expired access, worker denial, simulated
+record exclusion, malformed record refusal, pinned ACL drift and rollback.
+The strict Go repository now passes through the real registered adapter and
+compiled-v54 verifier (e75f0c,7.090s), including missing-record/error mapping and
+release drift refusal. Duplicate-key RED91251b was fixed using the closed audit
+object parser. Independent SQL/repository reviews found no blocking defect;
+the database test matrix was expanded from their feedback. The browser-only audit
+HTTP operation, OpenAPI/generated types and strict scoped client now exist.
+Handler-to-registered-database groupb87201 passes7.309s; client/transport
+groupc47404 passes43 tests, OpenAPI66e8b1 passes39, and composition4bd9da passes.
+Independent HTTP/client review found no remaining blocker. Exact audit UI and
+its scoped link to the persisted run now use that API. Group08b4cd passes79 tests
+for audit/client/shell/URL behavior; lint/typecheck3c79a6, UI/API coverage08b4cd and
+five-stage UI build e11533 pass. Independent audit UI review found no blocking
+defect. Complete bidirectional relation APIs and full
+mounted-auth/browser acceptance remain unfinished. M7A-90 stays component-only;
+no publication or production proof is claimed.
+
+Latest grouped verification: page-local reuse of scoped run context reduces the
+100-approval/100-step local query+decode samples from1.475–1.518s to37.5–38.9ms
+(fc94e5). Mixed-run page/direct-detail equality, exact selected targets and API
+denial of private assembly also pass. Group30d04a passes projection, compiled54
+fingerprint and rollback in15.692s, with all three owned PostgreSQL processes
+joined. Current54 pin is17f6f97d3c291ae1b8f53af9583a027a504c9a9ea90313e52ccd46eb09e19fbf.
+This is local evidence, not reference-load API p95 or live production proof.
+Current-pin browser batch573a84 passes with all owned processes cleaned up;
+available/withheld/missing rationale and375px mobile screenshots were inspected.
+Committed decisions for all four actions now pass the12-case registered-repository
+approved/rejected/cancelled matrix, exact replay and one audit/receipt in
+group4cf793 (8.077s). Independent review found no Critical/Important issue.
+Owned browser cancellation now passes terminaldb5082, with one actual POST,
+version2, one audit/receipt, zero effects and read-only context refresh. Harness
+suite536453 passes55 with2 opt-in skips; independent review has no blocking issue.
+Expanded browser86c024 passes approve/reject on separate seeded temporary-policy
+runs as well; each commits version2 with one audit/receipt and no effects.
+Fresh-auth browser6c5c49 now proves hidden stale decision controls, direct403
+fresh_auth_required refusal with unchanged authority, one controlled identity
+callback, restored decision controls and committed approval. Independent review
+found no blocking issue. Browserdddb9d now verifies inactive-member and signed-out
+list/detail401, stale expected-scope409, restored positive reads, safe error
+envelopes and no approval IDs retained after sign-out. Review has no blocking
+issue. Independently authenticated foreign-tenant browserb0770f/af4fee now proves
+own-list200/empty, three primary-detail404 refusals and settled UI absence, with
+exact owned fixture cleanup. Identity setup remains synthetic. Four-action browser coverage,
+full multi-step lifecycle,
+distinct-run reference-load acceptance and publication remain open. Seeded
+database decisions and browser histories do not establish live provider execution.
+
+Current checkpoint: approval-context design/plan now trace stored requester and
+approval-plan binding for M7A-88/89. A prerequisite public list-response validation
+gap is reproduced (REDd4e64c) and repaired; grouped handler racea275f2 passes.
+The pure context validator now passes grouped racea3807b/d1357e with independent
+source review finding no Critical/Important issue. SQL detail/page projections
+now pass owned PostgreSQL check56f724 (5.856s), including exact action/target,
+cursor traversal, requester withholding and hash/authorization refusal. Compiled54
+fingerprint/rollback checks6bf0f1 pass with the new17b48f pin. Repository/HTTP
+integration now passes grouped Go race76ecf5 (2.053s), with independent source
+review and exact-header compatibility/unsafe-authority refusal checks.
+Real registered repository acceptance now passes groupedf1274f (7.392s), after
+fixing optional SQL argument normalization exposed by RED7566a3. Four actions,
+two tenants, unfiltered pagination and legacy routing are covered; independent
+follow-up review found no blocking issue. OpenAPI/generated types, strict client
+decoding and list/detail opt-in now pass groupedab7045 (136 client/UI tests and
+typecheck), with39/39 OpenAPI checks and scoped lint244487. Independent source
+review found no blocking issue. Approval list/detail rendering now passes grouped
+107 tests/scoped lintcd7f56, production build7436ef and compiled imports06a0fc.
+Separate persisted reason/catalog risk and text-only rationale preserve decision
+authority. Independent UI review found no blocking issue. Browser/layout,
+and page-performance acceptance remain unfinished. Post-decision context refresh
+is now a separate terminal-only read that preserves receipt authority; accessibility
+descriptions are wired. Grouped91 tests/lint/buildf9d99a and compiled importsa8d2fa
+pass. Independent review found no blocking issue; deferred close/switch response
+coverage remains a minor follow-up. Actual owned browser/API acceptance59194c
+joins successfully atbc9a0c: available/withheld requester fixtures, exact target,
+read-only authority snapshots and inspected desktop screenshots. Harness tests
+b07a46 pass55 with2 explicit opt-in skips. This is owner-seeded display proof,
+not an actual rejection or live provider execution. Remaining browser variants,
+mobile and page-performance acceptance stay open. No availability
+promotion was made. Follow-up browser47aa21 now verifies all three approval
+rationale states and375px rejected-drawer layout after fixing hash overflow
+RED473689. Build9c487c/imports370ec1 pass; four screenshots inspected. Mobile
+pending controls and page performance remain open. No availability
+promotion or push. See the release checkpoint for
+the bounded evidence and remaining grouped verification/review.
+
+Previous checkpoint: the missing M7A-89 Cancel approval control is implemented via
+the existing fresh-auth/retained-decision API path. Behavioral RED4b34ea precedes
+grouped UI/client GREENdb08c9 (156 tests), typecheck238cd7 and lintabbdf0.
+Independent review found no Critical/Important issue. Actual server cancellation
+acceptance, remaining approval context/reason/risk fields and publication are not
+proved by these UI checks. Production build5d8202 passes all five stages.
+
+M7A-87 now has a local persisted SQL/Go action-details
+projection, independently negotiated API, generated contract, strict client and
+mounted RunDetail display. Availability remains component-only, not production.
+The latest database refusal batch8140c3 passes eight additional real API-role
+cases for tampering, mismatched bindings, scope and ambiguous controls. No
+production implementation or migration changed in that acceptance-only batch.
+The September 16 release checkpoint records the new54 fingerprint, grouped
+verification, cleanup-state repairs and bounded browser evidence. This turn joined
+the pending harness session9677: terminal55dbe1 reports55 passed,0 failed and2
+opt-in skips. No push occurred. Same-organization cross-environment projection
+now passes5e2153 with distinct stored arguments/results/control expiry. Recorded
+failure/unknown-outcome/pending-cleanup browser282837 passes with plan/control
+preservation and protected-field omission. These remain seeded local display
+checks; full release/live execution evidence and external clearance stay open.
+
+Previous checkpoint: the complete M7A-86 source review found no Critical/Important
+issue. Its multi-step RunDetail coverage suggestion is now covered by the actual
+decoder/UI test:33/33 PASS b486a3, scoped lint cbe924 and earlier typecheck b3c30c.
+The optional duplicate-JSON-key hardening note remains open; the current private
+source is PostgreSQL jsonb, not raw provider JSON. This is distinct from the
+duplicate step-ID binding defect found during the M7A-87 source audit.
+That defect reproduced both ambiguous cases in c73724 and is repaired with
+unique plan/execution membership checks. Focused grouped Go race5d5ac0 passes
+(1.916s); independent grouped review found no Critical/Important issue.
+M7A-87's action-detail API, SQL projection and UI remain unfinished. No schema
+fingerprint changed in this checkpoint, no push occurred and counts are unchanged.
+Testing follows the user's feature-batched cadence: focused behavior checks during
+implementation, affected integration and independent review at batch boundaries,
+UI build/release gates before push. Unchanged broad suites are not repeated for
+each microtask.
+
+Latest component work: M7A-86 optional run-context contract, sanitizer, HTTP
+negotiation, strict browser decoder and distinct trigger/rationale UI have focused
+RED/GREEN evidence. Go raceabdc88 passes; browser/client group113/113ea664b,
+corrected UI fixture32/325c9b78, typecheck4463ef and OpenAPI39/399da4fa pass.
+Independent review caught malformed credential-URL suffix disclosure; four cases
+reproduced it (RED8e10a4), repair passes race6e9401 and scoped re-review approves
+the repair. Targeted lint90e441 passes. Registered54 database evidence appears
+below. Actual repository/HTTP reads now return sanitized context on verified54;
+remaining release integrations, mounted browser verification and publication
+remain open. M7A-86 stays component-only.
+Audit memory sensitivity now passesd1c88a (821.717s): both deliberate retention
+controls trip the unchanged growth gate. Normal three-pair session16365 is now
+terminal FAIL ceb32f: N1 passed; N2 full cleanup refused an already-closed listener;
+N3 did not run. Focused reproduction9120c7 precedes the cleanup repair. Sensitivity
+success does not replace normal acceptance. No availability count changes.
+Cleanup repair passes race count10 with bounded waits (29ecef,44.935s), and
+independent review found no blocking issue. Normal rerun session48084 is terminal
+PASS13df28 (1237.129s): all three numeric pairs pass with joined cleanup.
+N3 API growth0 and executor growth4554752 bytes remain inside unchanged gates.
+This covers pinned non-race child binaries and controlled fixtures, not deployment
+RAM or all current schema54 changes. UI production build2292d4 also passes.
+Additional migration regression82898 faileda99670, including initdb failures and
+two stale unsupported54 assertions. Those assertions now use unsupported55;
+focused raceaa6723 passes and independent review approves. PostgreSQL diagnostic
+596e7e proves host shared-memory ID exhaustion, not disk exhaustion. Orderly
+restart76263 failed659c7d at initdb before exercising restart behavior. No release
+or availability promotion follows these bounded results.
+Numeric restart rerun52669 subsequently passes9e1927 (399.162s), including exact
+ready replay with no extra writes, API replacement and membership refusal, repeat
+full traversal and joined PostgreSQL cleanup. The race-child lane remains open.
+Private run-context envelope race214d92 and real PostgreSQL candidate4dc553 pass;
+the latter installs an unregistered fragment over53, not a registered54 release.
+Tenant/run/plan binding and receipt ambiguity are covered; production Get routing,
+release consumers and browser acceptance remain open.
+Newer evidence supersedes that candidate-only limit for the database slice:
+registered54 runner/metadata/fingerprint/rollback and scoped reads pass grouped
+race e22c7c (18.287s), with independent review finding no blocking issue. Rollback
+restores53 readiness and preserves a seeded organization-admission row; complete
+reservation-graph retention is not yet covered. CLI/all-consumer rollout and
+actual public Get54 routing remain unfinished. M7A-86 is still component-only.
+
+Latest54 integration supersedes the routing gap above: real registered database,
+repository and HTTP tests pass race2b8370 (31.949s). API/ingest/planner/action
+fresh/warmed readiness crosses53->54->53 and refuses tamper/rebaseline. The distinct
+Security Agent API role's missing readiness grant was reproduced and corrected;
+current compiled54 fingerprint is1d65f1584a006c5c3706c1b9022dc583e25c2f2981eb6ebd038adf94c23ccf1c.
+Review caught the production tracing decorator hiding these capabilities; repair
+and controlled mounted-runtime test pass57cebe (2.052s), with re-review approval.
+Controlled SQL/session composition is not live database/login/browser evidence.
+Audit-config/registration and CLI54 rollout, actual browser acceptance and full
+worker execution on54 remain open. No task count changes.
+
+Latest CLI/audit configuration slice: explicit54 upgrade and down-to53 commands,
+compiled post-registration readiness, exact52/53/54 configuration/registration
+selection pass focused race438562 and actual executable54 PostgreSQL9eaf20
+(48.946s). Independent review found no blocking issue. Actual audit factory and
+stored-session queued HTTP compatibility on54 pass62f52e (10.405s). Completed
+export worker54 execution and application-pinned54 audit trust checks are still
+open, as are real browser acceptance and publication. Counts remain unchanged.
+
+Audit54 compiled-trust follow-up is in progress: RED562a65 reproduced warmed
+API/executor/outbox accepting failed application54 trust. Uncached checks pass
+focused race71133e and panic/cancellation coverage1a75a5. Affected worker group
+passesff8de6 after loopback permission (sandbox attempt9b3e1e failed at listen).
+Independent source review found no new blocking issue beyond pending54 grants
+for audit worker/outbox. Real database rebaseline/refusal and completed export54
+tests are added but not yet run; this slice is not release-ready or complete.
+Later actual registered54 groupdc2f20 passes46.399s, superseding the pending grant
+check above. Missing audit-worker/outbox readiness grants were reproducedb111ad;
+the narrow grant changes yield compiled fingerprint
+7df9718bea4f3866dcdb677b18ddfd30a1fe9e18c3ce23ac64a5af6010c058c7.
+Real audit principals reject coherent SQL/metadata rebaseline via application
+pins;53 rollback and other54 consumers/public Get pass. Completed-worker observer
+capability hiding was reproduced7f8db0 and repaired3f2009. The completed export
+52/53/54 HTTP matrix51214 is running, not yet acceptance. Counts unchanged.
+Matrix51214 is now terminal PASS555bc8 (race,102.109s): actual completed worker,
+authenticated paged HTTP, exact1006-event/two-chunk bytes and24 provider-fault
+subcases across52/53/54. Observer forwarding is exercised; fresh replay adds no
+writes and PostgreSQL cleanup joins. Independent bounded source review approves;
+migrations package131e1c passes. Controlled SDK storage/seeded wakeup is not live
+AWS, durable outbox54 or mounted-browser evidence. Deployment54/browser rollout
+and publication remain open; M7A-86 remains component-only.
+
+Schema54 deployment artifacts now support both explicit precision phases with
+audit exports on/off; default49 and intake selection stay unchanged. Render
+RED6a8a8a and source-matrix RED071802 precede changes. Focused84/84 pass8cf928;
+expanded local release-contract suite204/204 passesf030c0, including predecessor
+schema drift and missing registration refusal. Targeted lint55e753 passes.
+Runbooks distinguish explicit54/rollback53 from live authorization and explain
+missing fresh advisory clearance. Independent deployment review approves after
+the staging-gate correction below;
+rendered manifests and source checks do not prove deployed54 or browser acceptance.
+Independent review caught the staging gate's stale latest53/unsupported54
+expectations (REDf80cf2). Added54 positive phase/selector checks and future55
+negatives; full staging gate/preflight76425d passes7/7 and lint0d032a is clean.
+Scoped re-review approved and closed the finding; no live deployment or
+availability change. Race restart29163 is now terminal PASS720a53 (556.011s).
+Output24dc60 confirms both full traversals, exact terminal-ready replay with102
+PUTs/zero repeats, joined API A/B, publisher/executor/replay and PostgreSQL cleanup.
+The100002-event/101-chunk/98028101-byte race lane is functional restart evidence;
+its RSS is diagnostic, not the separate numeric memory gate or live AWS proof.
+
+Registered54 rollback retention now has expanded local coverage: grouped race
+e0d9cb passes12.553s. New owner-seeded history checks every column across populated
+organization admissions, runs, run budgets, provider reservations (unknown and
+known-zero usage), steps and step reservations through53->54->53, with explicit
+version checks and exact53 compiled readiness. Independent review found no
+Critical/Important issue; its suggested version assertion is included. This
+supersedes the single-admission-row limitation above for these six tables, not
+provider reserve/settle execution, concurrent cutover or all53 data families.
+Mounted-browser54 acceptance and publication remain open. Counts are unchanged.
+
+Mounted run-context54 display now passes84a553 using actual migration CLI,
+separate API principals, controlled login callback and isolated Chrome. Available
+redacted, withheld and absent rationale agree across HTTP and rendered DOM;
+trigger/evidence values, the single fixture step's authorization label, visual
+separation, zero browser console errors and unchanged execution snapshots pass.
+Original simulation is UI/API-created; a separate stopped display run, trigger
+and accepted receipt are owner-seeded. This is not live planner execution or
+multi-tenant browser acceptance. Review's missing DOM-value assertions and unique
+plan-hash findings were corrected; scoped re-review found no blocking source issue.
+Screenshots were retained and visually inspected after animation completion.
+They expose an open production-shell defect: navigation links run together because
+`ZaspProductionApp` renders an unstyled navigation group. M7A-86 and all availability
+counts remain unchanged pending feature/release review and publication.
+
+The desktop navigation defect above is now repaired locally. Real-browser
+REDac4601 caught collapsed click targets; existing navigation CSS now also applies
+to production links and their `aria-current` selection. Browser GREEN9dd131 checks
+nonoverlapping36px-or-taller rows and exact current-route styling, while all three
+run-context states still pass. Screenshot inspection confirms readable navigation.
+Affected UI41/41f977d8, production buildd8047f and compiled-import6eb571 pass.
+Independent bounded CSS review found no Critical/Important issue. Full run-context
+feature review is in progress; mobile/keyboard navigation and live readiness are
+not inferred from this desktop result. Nothing is published or promoted.
+
+Latest grouped audit verification: public-source protocols pass375bc1 (112.161s)
+and CI process/helper checks passca666c (59.149s). Independent scope review confirms
+schema52 actual producer protocols plus fixture setup, not browser53 or full-size
+memory proof. Process-composition b4dd00 now passes75.083s with joined cleanup.
+SQL authority session95709 passes5d3969 (1019.930s); full-size race session61293
+now passesdba72f (503.166s), including100002 events/101 chunks/98028101 bytes,
+repeat traversal and joined cleanup. Non-race memory acceptance remains separate.
+The
+release checkpoint separates completed, active and pending lanes. B01 M2-41/42
+test mappings now reference this evidence; both remain component-only/unshipped.
+
+Latest local durable-delivery acceptance: schema52 outbox publisher/worker restart
+with continuous LocalStack S3 passes ee2623 (37.322s), with saved-response crash,
+same-version recovery, duplicate-delivery refusal of extra writes and joined
+cleanup. SQS/STS adapters are controlled and leases manually aged, not live or
+elapsed-expiry evidence. Broker lifecycle5acc96 passes36 tests after loopback
+permission. The same lane's52/53 extension has independent source approval;
+verification9561f1 passes both schemas in65.858s with joined cleanup and exact
+container absence. No availability promotion or push.
+
+Latest completed-export acceptance: actual worker plus paged HTTP retrieval now
+runs on52 and53. Setup REDfcac49 preceded real53 migration; grouped race9655b7
+passes both schema cases and16 provider-fault subcases in68.799s. Independent
+review approved. Exact1006-event/two-chunk bytes and API reconstruction pass with
+controlled storage and seeded wakeup. Live storage, durable outbox execution,
+native save and full53 authority coverage remain separate gates. No promotion.
+
+Latest audit HTTP acceptance: the authenticated factory scenario now runs on52
+and53 using the actual53 migration. Setup RED21c69a and grouped race PASS5031ea
+(16.044s) are recorded in the release checkpoint. Independent review found no
+Critical/Important issue. This covers in-process authenticated queued create/read,
+replay and refusal with fixture sessions, not worker/cloud/browser-save proof.
+Original audit API/UI task availability is unchanged. SQL authority session95709
+later completed successfully5d3969; this is schema52 database evidence only.
+
+Latest release safety correction: the candidate now rejects unavailable advisory
+evidence instead of trusting offline npm zero counters. Regression4466e8 failed
+against the former gate;63a7af passes3 orchestration tests after containment.
+Independent review found no Critical/Important issue. No advisory request ran;
+an approved fresh exact-lock scan remains missing. This intentionally blocks
+release and does not complete M8-47 or promote any task. See the offline-audit
+gate-gap note for the remaining evidence requirements.
+Grouped rollout suitec10b13 passes200 tests; full lintb6823f and ledger/diff
+checkbc5e57 pass. The standalone release gate remains intentionally blocked.
+
+Latest daemon acceptance: actual non-root sensor replay now covers both stream
+profiles on historical48 and current53 through real migrations. REDbf0b39
+exposed missing53 setup; result-validator RED85aee0 exposed omitted-profile
+acceptance. Harness12 passes0bbe43; actual four-case matrix passes twice in
+f11453 with no skips and verified owned cleanup. Independent review approved.
+Sensor race package1587ac and runtime acceptance/ingestion8aa2e9 pass. Identity,
+producer, cluster readiness and artifact storage remain fixtures; no live rollout
+or availability promotion. See checkpoint for exact coverage and retained RED.
+
+Earlier action-worker repair: controlled actual-repository RED1f3d40 proves a
+committed budget stop could cancel its own in-flight heartbeat and become a
+worker error. Separate scheduling shutdown now joins the bounded heartbeat;
+parent cancellation and genuine error failures remain. Four composed cases
+passff7089; action-processor group2ce611 passes including five-second timeout
+and cancellation controls. Independent review approved this bounded repair.
+The full affected worker package passes46d095 (31.381s), including final cleanup.
+No claim that this proves the original broad failure's exact interleaving.
+
+Earlier tenant acceptance repair: all three planner cases reproduced3a8fec on
+the obsolete fixture. Actual registered53 admission, explicit test-only cost
+allowance and exact reservation/usage checks restore the real RunOnce tenant
+oracles without bypassing the budget guard. Independent review approved;
+combined planner/action race group3b72ea passes48.560s. Live pricing remains
+unproven. Intermittent expired-action failure is not resolved by these passes;
+joined Store/heartbeat diagnostics are added and all five repetitions in73262
+passf5253e (52.342s). The original failure remains unexplained. No sessions from
+this batch remain running; no production workaround or availability promotion.
+
+Earlier terminal verification: CLI/cutover group25010 exits0 (7f9aac/fbb948);
+eight runtime pipeline packages pass56ecfe/38a5c1. Security Agent1710 exits1
+(043a38): expired action and all three planner tenant-isolation cases remain
+release blockers. New composed RunOnce missing-cost coverage passes in the
+seven-mode provider batch580083, with real scheduling/claim and two polls,
+one durable stopped run, zero provider calls/artifacts and no duplicate budget.
+Independently reviewed local evidence only; no live pricing or daemon claim.
+All of these sessions are terminal. Counts and unpublished status are unchanged.
+
+Earlier cutover check: replaced the test's pre-arrival100ms cancellation with
+indexed PATCH arrival, cancellation and joined client outcomes. Exact ambiguous
+write, empty state, both winner orders and attempt counts remain checked.
+Independent review approved; ten race repetitions passfe4986. No product timeout
+changed. The shared observation-cache deadline remains unresolved; live1710
+and25010 are not passing claims. The latter started before this test edit.
+
+Latest release batch: standalone gate now runs the canonical rollout suite;
+RED e24e1c, independent review, grouped199/199 pass42b805 and lint5d2f1f.
+Migration group94188 finished with failures8783e0. Fixed the stale unsupported52
+test to reject54, preserving schema50 and rollback assertions; full affected
+CLI parent passes76d762. Two cutover failures pass unchanged together22c9bc,
+but their timing sensitivity remains unresolved. Security Agent1710 is still
+live, not passing. No audit disclosure, publication or availability promotion.
+
+Earlier broad verification: full npm verification stopped on one ESLint-tooling
+timeout after1665 browser tests passed. Moved the same actual scope checks into
+the lint gate's standalone Node test, preserving coverage; independent review
+found no bypass. Full browser rerun passes1665/1665 (a51b5b), typecheckd860a4 and
+lint4e8b31 pass. Resumed release checks pass source/import7, staging7 and release197,
+then all5 build stages. Separate CI group results are recorded above. See the release checkpoint
+for exact coverage and handles. No audit disclosure, push or task promotion.
+
+Latest native-save follow-up: small schema53 run77421 reached picker handoff,
+but CUA selected the separate personal Chrome instance and did not expose the
+owned test window. Graceful cancellation joined exit143 with owned cleanup;
+saved bytes remain unverified. A background missing-search-endpoint fixture
+exception was reproduced (RED019dd2) and fixed to return503 without fabricating
+readiness. Grouped harness570173 passes86 with2 skipped; expanded route tests
+fb71d5 pass. Independent review found no blocking issue. Long-lived mounted
+readiness and native-save acceptance remain open. No availability promotion.
+
+Latest mounted53 preparation: actual runner session1870 exited0 (53be2e),
+including real release CLI, mounted Chrome login/API, four mutation families
+with SQL audit checks, lost-create reload/replay preserving one job and both
+worker processes. Authenticated browser-context fetch returned7 events and4757
+manifest-declared bytes. It did not invoke the native-save writer or verify saved
+bytes. Controlled identity/storage providers remain local fixtures. Independent
+review agreed with this evidence boundary. Fresh build4eb74d and compiled
+imports368d35 pass. Native save, full fault matrix and live providers remain open;
+no push or availability promotion.
+
+Latest browser-harness setup: selected audit acceptance now uses exact53 and
+the real API-registration executable instead of a test-only setup child.
+RED4ed416 preceded the change; grouped harness checks8d40cd pass85 with2 skipped,
+and lint16ec58 passes. Independent review found no blocking issue; missing,
+renamed and future-release output controls prevent enrollment after schema drift.
+This verifies local setup sequencing only. Mounted authenticated browser/API,
+worker export delivery, native saved-file acceptance and live providers remain
+unproven for this53 composition. No push or task availability change.
+
+Latest grouped verification: health-contract6 and all configured health/API/
+worker/ingest/gateway race packages pass (session88589, final1cc973); seven SaaS
+tenancy packages pass964b8e. Graph adapter/proof packages,28 Node checks and the
+selected tenant-context/RLS/repository/proof-rendering packages pass210dd4.
+These default local commands do not establish opt-in parent-owned fixtures or
+live providers. No availability counts changed and no push occurred. The next
+integration gate is the mounted browser/auth/proxy flow on the selected schema;
+whole-change review and external release authorization remain open. See the
+[release checkpoint](2026-09-16-release-verification-checkpoint.md).
+
+Latest API-registration integration: enabled audit-export hooks now register the
+configured discovery API login through an explicit executable command before
+worker/policy setup. RegisterAuditExportAPI accepts exact compiled52/53 with
+pre/post readiness; SQL authority restrictions and existing role grants remain
+unchanged. RED71f858/76b50b/dc3ee5 preceded the executable/Runner/hook changes.
+Migration racefa6862 passes; full real52/53 CLI groupb5d02a passes77.942s with
+fresh binding, replay, invalid-target refusals and grant invariance. Release197
+and staging7 tests58efc4 pass; lint/typecheck/ledgerb7a61d pass. Independent
+review found no blocking issue. Live enrollment and authenticated export flow
+remain unproven. No push or availability promotion.
+
+Latest schema53 chart checkpoint: explicit precision-consumers/intake manifests
+now render with audit exports either enabled or disabled, exact migration53 and
+matching API/export-worker annotations. Default49 and future-version rejection
+remain. REDbb9bb4 preceded the change; staging7 tests89cd98 and production197
+tests193bf3 pass. Lint/typecheck/ledgerae94e3 pass. Independent review found no
+Critical/Important issue in this manifest batch. This closes
+the earlier render-contract mismatch only. The API-registration batch above
+supersedes that local gap; live rollout remains open. No push or promotion.
+
+Latest schema53 deployment prerequisite: real CLI RED3b6bee exposed audit-export
+worker registration refusing53. ConfigureAuditExports/RegisterAuditExportWorkers
+now accept only exact compiled52/53 chains and pin release readiness before and
+after mutation; migration up/down readers stay unchanged. Migration unit race
+1d7dc0 passes and full real binary52/53 group791779 passes64.934s, including fresh
+registration, configuration, rotation, replay and rollback. Review found no
+Critical/Important issue. The later API-registration and chart batches above
+supersede those local gaps; deployed acceptance remains open. No push or
+availability promotion.
+
+Latest broad verification: full UI1,665 tests and local dependency9 pass725687;
+lint fixes plus29 affected tests pass e083c7, export resume/controller23 and
+OpenAPI/UI mapping/raw-fetch checks pass7d7147. Fresh typecheck/build/compiled
+imports24f628 pass. Existing production release-contract192 tests passb144f4.
+At that earlier checkpoint, staging rejected schema53. The later chart batch
+above resolves that render-contract failure, not deployed acceptance. See the
+[release checkpoint](2026-09-16-release-verification-checkpoint.md) for exact
+scope, environment failures and the next deployment batch. No push or promotion.
+
+Latest compatibility batch: public run reads now require exactly one
+`X-Zasp-Budget-Details: v1` header to include a recorded budget stop reason.
+Old clients retain the seven-field response; new clients send the header and
+accept old-server omission. Unsupported/duplicate values retain legacy shape.
+RED4b2767/780a6a demonstrated the response/request breaks before implementation.
+Grouped Go race checks ca7bc0 pass2.732s; browser/API93 tests, typecheck and all
+five build stages3d2188 pass (build emitted plugin timing warnings). OpenAPI
+generation/check and39 tests bc69b6 pass. Real PostgreSQL/worker fresh and
+missing-cost cases b2b401 pass25.223s, including both projections, no-store,
+and foreign organization/workspace/environment denial. This remains injected
+identity and controlled provider transport, not mounted auth or production proof.
+Independent review found no Critical/Important issue. Its minor contract finding
+was addressed by allowing string header values in OpenAPI, matching the documented
+unsupported-version fallback. Final post-review generation/check,39 OpenAPI
+tests, typecheck, ledger and diff check617e2d pass. No push or availability promotion.
+
+Latest budget-stop visibility checkpoint: run detail now carries an optional
+allowlisted budget_stop_reason from the scoped durable budget. The Go/browser
+decoders reject unknown/null reasons and keep legacy omission readable; the
+drawer shows fixed guidance for all five reasons, including cleanup and the
+fact that definition edits do not reset an existing run. RED6b88b6/a8843c
+preceded the API/UI changes; real worker/registered API REDd4eec2 proved the
+missing public reason. Candidate fingerprint measured9a4ca4 is now
+`10ac4fb7b3212c5b89164911070c184e5aa3525cb29aacbb526bf5e183e20eb5`.
+Go read group9fde83 passes2.591s; UI group1cd3f2 passes117 tests, typecheck and
+all five build stages. OpenAPI39/check and migrations01a831 pass. Independent
+review found no Critical/Important issue. Full six-mode composed worker plus
+migration rollback/fences/consumer groupf2a2bd passes63.040s. Extended public
+handler reason/omission/no-store and separate foreign org/workspace/environment
+404 checks5ddb39 pass16.442s for fresh and missing-cost modes. These inject
+request identity, so they do not prove mounted authentication. Older strict
+client response compatibility is addressed by the opt-in checkpoint above;
+no live proof, push or availability promotion is claimed.
+
+Latest planner-request checkpoint: the production GPT-5-mini request no longer
+sends unsupported temperature:0 and now requires provider support for requested
+parameters. RED510f36 demonstrated both serialized request defects before the
+repair; affected planner/budget race group84a453 passes2.220s. Independent review
+found no Critical/Important issue. Public endpoint metadata b99383 confirms the
+OpenAI endpoint lists max_tokens/structured outputs but not temperature; this is
+unauthenticated metadata, not a paid completion or account-specific proof.
+Full worker race suite24f0b6 passes29.487s and the six-mode composed migrated
+worker groupdda2bf passes40.198s with controlled provider transport. Pricing maxima
+remain unknown and paid dispatch remains blocked; no availability promotion.
+
+Latest contention checkpoint: two registered API connections now exercise both
+activation-first and edit-first orderings against the same public definition
+version. The test observes the second backend blocked by the first uncommitted
+transaction before release. Exactly one version4 mutation commits; the loser
+conflicts and leaves no receipt/audit/extra revision. Repeating that losing call
+leaves all snapshotted authority tables unchanged. Grouped with admitted-budget
+reconfiguration, race run959862 passes20.417s. Independent read-only review found
+no Critical/Important issue and verified connection/transaction cleanup. This
+closes the bounded activation/edit concurrency check, not arbitrary interleavings
+or production release acceptance. No production source change or push this slice.
+Route audit confirms the alternate securityagent HTTP handler is memory-backed
+and component-only; production mounts the repaired apiserver handlers. Its cost
+contract remains an open consistency task, not another mounted production path.
+Verified model-specific pricing authority and broader release gates remain open.
+
+Latest active-definition checkpoint: real migrated PostgreSQL tests now pass
+budget increase/removal on an enabled definition, return it to disabled draft,
+reject stale direct SQL CAS, replay the original mutation after revalidation
+(both HTTP and direct repository), and delete using the current public version.
+Update/delete audit versions match the public definition; admitted-run budget
+snapshots remain byte-identical. Final expanded run910d1c passes10.147s.
+The first post-repair409 was traced to a test reusing an earlier update's
+correlation ID (audit uniqueness23505, daeab9), not a remaining CAS failure.
+The fixture now uses a distinct request ID. Unpublished53's definition wrapper
+locks workflow then definition, checks public CAS, and translates only the
+internal storage version while retaining public replay intent. Candidate pin:
+`24365b6e369af1611f8b4bfd757395ca0660a65c47d6336d934558eb9f5fd8a0`.
+The stale-client known cost refusal now shows fixed actionable UI guidance and
+blocks activation until a successful save. Fresh targeted UI/receipt runccd8e8
+passes89 tests, typecheck and all five build stages. Independent bounded review
+found no Critical/Important source issue; observed concurrent activation/update
+and full release gates remain open. These are local integration/component
+results, not live production proof. No push or availability count promotion.
+Grouped cost/activation, migration roundtrip/fences and unrelated-consumer
+checks0230cb pass73.868s against the current candidate fingerprint.
+
+Prior budget-editor checkpoint: the definition drawer now edits/removes an
+explicit nano-credit budget, saves as a disabled draft and requires revalidation.
+Missing saved authority blocks execution activation; differing unsaved cost also
+blocks activation. UI RED8ea507/0aa2f9 preceded the repairs. The known SQL refusal
+now maps to safe nonretryable400 `cost_budget_required` with a save-budget message,
+after RED513ea1. Real11-case SQL/write-read/public-error groupd92a59 passes53.753s;
+affected Go unit group81ed9d passes2.016s. Independent review found a leading-zero
+editor normalization bug, reproduced241899 and repaired by using the returned
+receipt's amount. Final UI/build verification is pending that last correction.
+Active-definition reconfiguration still needs real SQL evidence; the UI tests
+use API boundary fixtures. Alternate domain HTTP, stale-client refusal display,
+price policy and remaining release gates stay open. No push or count promotion.
+Final corrected UI group62d74d passes100 tests, typecheck and all five build
+stages. The leading-zero regression is closed; broader gates above remain open.
+
+Prior SQL cost checkpoint: real workflow-handler create/update, registered API
+repository readback and owner SQL confirm exact cost persistence on migrated53
+(bf0e41). RED7de03a then proved missing cost could activate supervised execution.
+The unpublished migration now guards execution activation under the existing
+definition row lock, before activation writes; legacy validation stays allowed.
+Measured candidate fingerprint is now
+`4ddc0bce4e1dee80258a994ce5347c52ab3dc69da59c00be3ec0c629657bc036`
+(b3969b). Group84570e passes65.330s for11 cost cases, write/read, migration
+roundtrip/fences and unrelated-consumer compatibility; migrations53d515 passes.
+Independent guard review found no blocking issue. Extended autonomous, replay
+and refusal-side-effect assertions are being verified separately. This is local
+SQL integration, not full mounted authentication, live billing or release proof.
+No push or availability promotion; explicit API error/UI gating remain open.
+Final expanded write/read and11-case activation run90fc35 passes55.265s, including
+supervised/autonomous refusal, exact mapped operation error, unchanged definitions/
+revisions/receipts/audits/controls, and successful mutation-free receipt replay.
+
+Prior browser cost-contract checkpoint: optional typed nano-credit allowance
+now survives definition and create/update receipt decoding, including exact
+intent/result comparison. The create form leaves it blank by default, sends
+only explicit valid integers and labels OpenRouter credits separately from
+dollars. Client regression REDafb956 preceded the decoder repair. The UI test
+initially failed to open the builder; corrected fixture plus removed-field
+mutation2f6141 established the valid counterexample before restoration.
+Grouped browser tests772995 pass96 tests; OpenAPI generation/check and39 tests
+passb19216; typecheck/schema lint passe528fd; five-stage UI build passes9fd806.
+This is local component/build evidence, not a live API/browser deployment.
+SQL write integration, activation refusal, editing existing cost authority,
+pricing and release gates remain open. No push or availability promotion.
+Independent bounded review found no blocking issue. Added blank-submit omission,
+minimum/exponent/whitespace and retained-cost retry checks; final96-test grouped
+run plus typecheck pass673e81. No production source changed after UI build9fd806.
+
+Prior cost-contract checkpoint: the production workflow body parser now accepts
+and retains explicit integer `max_ai_cost_nano_credits` in 1..10^12; missing
+draft values remain absent, with no assigned allowance. Activation-state reads
+accept valid cost-bearing definitions and legacy definitions, rejecting malformed
+cost. RED373ed4/053d8a reproduced both missing paths. Grouped API race run832b28
+passes2.997s, including workflow handlers and repository tests. The first grouped
+attempt45a89b failed local PostgreSQL initialization in the sandbox; the owned
+fixture rerun passed with required permissions. This is parser/readback evidence,
+not SQL write integration, activation refusal, UI configuration or live pricing.
+Batch3 and publication remain open; availability counts are unchanged.
+Independent bounded review found no blocking issue. Extra malformed-input and
+unknown-field cases bring the new coverage to28 request cases and10 read cases;
+final grouped API race runf1b7e6 passes3.114s. Existing duplicate-key/trailing-JSON
+request handling and replacement-update omission semantics remain follow-ups.
+
+Prior settled-recovery checkpoint: abrupt exit after real settlement but before
+candidate acceptance now has both remaining-budget and insufficient-budget
+restart coverage. Confirmed original usage stays unchanged. A permitted new
+attempt obtains a distinct reservation and adds its charge (320 total tokens /
+200 nano-credits across two calls), with one approval workflow and no effects.
+When the next request maximum exceeds the remaining allowance, restart makes no
+call and commits the stop. Original start/deadline/limits are unchanged in every
+crash case. Final grouped race run5b4f27 passes70.761s across four crash/restart
+cases and six existing composed worker modes. Independent review approved this
+interpretation of the original cumulative-budget/retry scope. This is controlled
+process-loss evidence, not live pricing or database power-loss proof. No push,
+production code change, or availability promotion.
+
+Prior process-loss checkpoint: two owned worker subprocesses exit abruptly
+after committed reservation, before provider dispatch or after response capture
+but before settlement. A fresh process reclaims with a different worker/lease
+and original valid cost authority; it issues zero provider calls or artifacts,
+preserves the exact unknown reservation and commits a sticky stop. Final grouped
+race run2cbe01 passes57.480s (both crash/restart cases and six existing composed
+worker modes). Crash markers use actual transport counters; parent readback
+checks all accounting fields, cleared leases and no effects. Independent review
+found no blocking issue. This proves worker-process loss with a surviving
+database, not host/database power-loss or post-settlement crash recovery.
+No production code change, push, live-provider call or availability promotion.
+
+Prior completion-race checkpoint: committed operation results now reconcile
+an in-flight lease-conflict heartbeat without hiding unconfirmed operations or
+unrelated outages. Actual worker/PostgreSQL RED63548b and focused RED9383d8
+preceded the fix. Grouped testing caught malformed alternate-authority results;
+the worker now validates normal Accept/Execute/Fail responses before treating
+nil error as success (including separate Fail regression845586). Final grouped
+race run3b2453/b733e5 passes worker3.120s/API39.205s:15 completion-race cases,
+existing stop/processor regressions and six composed PostgreSQL worker modes.
+The new composed barrier exercises actual committed approval followed by an
+actual heartbeat conflict, with exact accounting and approval readback.
+Independent source review found no blocking issue. Other lifecycle/crash races,
+production pricing and release verification remain open. No push or class change.
+
+Prior heartbeat-result checkpoint: Accept/Fail/Prepare/Execute normal and flat
+stop decoders now require a later bounded version, not exactly original+1;
+worker flat-stop checks match. Run/state/artifact/submission checks remain.
+Actual PostgreSQL/worker RED68cdf5 reproduced rejection after two registered
+heartbeats; the five-mode composed group a48cc1 now passes34.100s, including
+successful accounted approval using the unchanged original claim. Focused
+repository/worker regression group d3afcb passes1.839s/2.922s, including42
+result-version cases and expanded flat-stop races. Independent review found no
+blocking issue. This proves processing after prior heartbeats, not every
+concurrent successful completion/heartbeat interleaving. No push or class change.
+
+Prior worker checkpoint: actual planning now reserves before Plan and settles
+captured usage before artifacts/Accept/Fail. Settlement has a separate bounded
+five-second context after cancellation; it cannot restore execution authority.
+The missing-cost regression1ff0e1 now passes the child zero-call assertion and
+parent durable-stop oracle. Four composed modes pass f6f0dc (27.335s): expired,
+heartbeat stop, missing cost, and a controlled permitted response with exact
+160-token/100-nano-credit accounting before approval. The positive control uses
+an explicitly test-only cost policy and does not exercise concurrent heartbeat
+success. Production paid planning remains fail-closed until a verified same-model
+request-cost bound is implemented; this gate is not complete. Full worker race
+suite25fd39 passes25.346s; expanded eight-case order group59f575 passes2.111s.
+Independent source review found no blocking issue in this bounded integration.
+No push, live billing proof, or production-class promotion. Concurrent successful
+completion/heartbeat reconciliation, restart/crash accounting, supported cost
+configuration and release gates remain.
+
+Prior adapter checkpoint: Go reservation/settlement methods now require the
+compiled budget-release verifier, bind exact scope/attempt/request fields,
+reject duplicate/null/extra response fields, and preserve SQL conflict errors.
+Known zero and unknown usage stay distinct. Heartbeat-updated permit/stop
+versions are accepted within the original scoped attempt; PostgreSQL offset
+timestamps are normalized to UTC without changing their instant. Group4f8bcc
+passes15.165s with race detection, including three actual migrated PostgreSQL
+adapter scenarios. Independent review found no remaining blocking adapter issue.
+Owner readback confirms exact zero accounting and cleared leases/sticky unknown
+stop after unknown settlement. Ledger validation1d162c preserves all728 rows.
+This is component evidence, not live provider enforcement. The production
+processor was still unwired at that checkpoint; see the latest integration above.
+
+Prior settlement work: unpublished53 now records exact response-bound usage
+using saved issuer identity after lease loss; unknown usage retains allowance,
+overage persists, and conflicting replay is refused. Initial17-case/release
+group311066 passed86.623s, but review exposed a missing interleaving: old
+settlement replay stopped a newer in-flight reservation (RED14a159). The repair
+makes exact replay mutation-free; independent source review approved. Final
+combined accounting group396234 passes224.061s:20 reservation cases,27
+settlement cases, storage constraints, cutover fences and consumer readiness.
+Full migrations b932f5 passes1.831s. This is local component evidence; the
+production processor had no reservation/settlement integration at that checkpoint.
+
+Prior reservation checkpoint: the unpublished53 registered-worker SQL primitive
+now reserves declared token/cost caps atomically against immutable limits and
+prior usage, binds canonical input/attempt/issuer, and refuses another permit
+for an unknown or reused reservation. RED060d91 preceded implementation.
+Final20-case reservation group48ce1b passes90.949s; full migrations72d861
+passes1.745s. Independent source/test review found no blocking issue. This is
+not verified model pricing or the actual processor dispatch guard.
+
+Prior storage checkpoint: unpublished53 now contains private durable provider
+reservations, exact unknown-versus-zero usage constraints, request/issuer binding,
+scoped uniqueness and migration retention/fingerprint/fences. RED2de97d preceded
+implementation; grouped387b89 passes19.363s and full migrations d8febe passes1.435s.
+Independent storage review found no blocking issue. Processor permit integration
+was absent then; that storage-only checkpoint did not fix the RED below.
+Final direct-write denial refinement passes storage rund9903e (6.370s).
+
+Historical accounting RED1ff0e1 (14.151s): NULL immutable cost authority allowed
+one controlled provider call and three artifact IDs. Latest worker integration
+closes that negative regression with durable SQL evidence, but verified production
+pricing remains open. No live provider request occurred. The original scope and
+availability counts are unchanged; this is not an all-package/release green claim.
+
+Prior consolidated checkpoint: selected SecurityAgent race tests pass across
+apiserver/worker/migrations (b5fc59:432.502s/2.568s/2.895s), closing the earlier
+combined fixture-readiness RED35ca12 for this batch. This run began before the
+usage-parser edit; current-source worker SecurityAgent tests also pass741a4c
+(2.380s). These are local selected suites, not every package or production
+acceptance. Accounting reservation/settlement, full lifecycle and release gates
+remain open; nothing was pushed or promoted to production-available.
+
+Latest accounting checkpoint: the planner now captures exact reported tokens
+and nano-credit cost independently of candidate rejection, with nil meaning
+unknown. RED1bbc8e preceded implementation; expanded planner group3108f4 passes
+(2.285s), independently reviewed. This is not durable reservation, settlement
+or budget enforcement. Consolidated baseline50477 finished as recorded above;
+the parser delta has its own current-source worker verification.
+
+Prior action lifecycle checkpoint: all33 current/legacy action cases pass on
+registered v53 with fresh restricted repositories (eb32fa,179.899s), including
+lock-delayed expiry, source cleanup, partial devices and isolation replay.
+Version REDb1c7f9 preceded conversion; independent review found no weakened
+assertions. This is local post-migration behavior, not populated production
+backfill, full credential lifecycle or gateway delivery. Full combined-suite
+rerun and release gates remain open; no push or availability promotion.
+
+Prior composed-worker checkpoint: six provider/action cases now use real v53
+migrations and fresh restricted repositories, with compiled readiness checked
+inside the worker child. Version RED26fa39 preceded conversion; grouped race
+dbc63d passed53.002s with all owned processes joined. Existing zero-call/sticky
+stop, fresh controls and heartbeat assertions are unchanged and independently
+reviewed. This proves processor.process behavior, not live provider or gateway
+delivery. The33-case conversion is recorded in the newer checkpoint above.
+
+Prior migrated-budget checkpoint: all14 previously failing admission/deadline/
+prepare/dispatch cases now pass on actual Runner upgrades through53 with fresh
+registered repositories (b5beb0, 63.379s). No readiness assertions were relaxed;
+independent fixture review found no findings. The earlier combined run35ca12
+failed and has not been rerun in full after these changes. Current-source
+migration/runtime-event race suites pass372f0b; UI build passesb5aaeb. This is
+unpublished local evidence, not full production or end-to-end completion.
+
+Prior worker-readiness checkpoint: actual restricted planner/action workers,
+both warmed Ready and fresh constructors, reproduced SQL-pin/metadata drift
+acceptance (RED4ad6ce). Both repositories now invoke the application-compiled
+release check before historical readiness/fallback. Their roles receive only
+the read-only client-readiness grant. Group23ce11 passed (14.965s), including
+the expanded six-consumer drift matrix and migration roundtrip/fences/refusal.
+Independent source review found no Critical/Important issues. Compiled candidate
+fingerprint is now2e687065ef94bf66c0459230d0b0eff9068ff9ed96944a3512384ed67b052be8.
+This does not guard every operation, alternate adapter or unchanged old binary.
+
+Prior CLI checkpoint: explicit up-to-53/down-to-52 now reach the registered
+budget runner, with compiled v53 readiness after principal registration.
+Executable race group342486 passed (30.615s): preflight refusal, actual upgrade,
+retry, historical command refusal and exact empty rollback to52. Default up
+still stops49. Affected historical command group72cd4f passed (5.527s), after
+correcting stale future-version negatives to54. Independent bounded source
+review found no Critical/Important issues. These are local component results,
+not deployed production proof or full budget completion.
+
+Prior migration checkpoint: v53 metadata now binds the complete up template
+and down artifact. The registered transactional runner upgrades and restores
+the exact v52 predecessor, refuses retained budget authority, and takes NOWAIT
+fences. Local race group4a07be passed (12.415s): migration round trip, eight
+busy-table fence cases, retained-admission refusal including an RLS-restricted
+login, and updated-consumer drift checks. Migration race suite8b968e passed
+(1.673s). These are unpublished local component results. Complete lifecycle,
+mixed-binary and production gates remain open.
+
+Prior release-envelope checkpoint: updated API/ingest Ready callers now use
+application-compiled candidate pins, rejecting SQL-pin/metadata drift and
+coherent replacement of both SQL roots (group93781e, 16.133s). Runtime-event
+race suite passed85439e (5.280s). SQL-only RED85a498 is preserved in the evidence;
+unchanged old binaries and other operations are not covered by this repair.
+The new runner checkpoint supersedes the earlier unregistered-artifact state,
+not the remaining release gates. Do not publish this unfinished batch. See the
+budget evidence below.
+
+Latest passing component checkpoint: isolation cleanup/replay and existing cleanup controls
+passed a six-case restored-source race group (3dcd56, 17.662s), after removal of
+stored-source enumeration eligibility failed both new cases (f21281).
+Previously four actual session-isolation start cases passed within a 20-case
+restored-source group (383bed/841481, 78.980s), after mutation RED6b311f.
+The preceding 27-case action suite passed bebba1 before these additions. See the
+[budget evidence](2026-09-15-security-agent-budget-gap.md).
+This is unpublished component evidence, not gateway delivery or release proof;
+availability counts remain unchanged.
+
+## Execution policy, approved September 15
+
+Preserve all728 original task IDs and acceptance requirements. Group related
+changes into coherent feature batches; batching changes verification scheduling,
+not scope or the production-available/component-only/blocked-external standard.
+Keep focused failing/passing behavioral tests during development, run the
+affected suite and independent Superpowers review at each frozen batch, then
+run required integration, runnable-UI and build gates before each push to main.
+Reuse evidence only while the tested inputs and relevant dependencies remain
+unchanged. Record which original tasks each batch and its evidence cover.
+
+Routine in-scope fixes, verified stale assertions, metadata corrections and safe
+compatible dependency remediation do not require user approval handoffs. Stop
+for genuinely missing authority/access, destructive operations, spend or material
+product decisions. Preserve existing WIP and live commands; observation timeouts
+are not permission to restart them. One owner controls shared lockfiles and
+release integration. Permitted independent work needs disjoint ownership and
+stable interfaces. Publish smaller independently verified increments, without
+including unrelated unfinished changes or skipping cross-batch integration.
+
+Prioritize failed release gates and real end-to-end user paths. Record the exact
+external access needed, separate from local defects and dependency/test failures.
+Local fixtures do not establish deployed production readiness. Preserve any exact
+cyber-safeguard notice separately from tool permissions or test failures; do not
+bypass safeguards or presume entitlement. Report suspected false positives only
+through a supported reporting channel. No such notice was observed in the
+dependency checks recorded in the latest checkpoint.
+
+## Current work
+
+September16 action-apply repair: REDbf71d8 exposed source storage/enqueue after
+expiry. The staged v28 guard and bound repository stop decoder now pass grouped
+race run956d13 (123.577s), including expired/fresh and held effect/deployment
+locks. Independent follow-up review found no Critical/Important issues in this
+bounded checkpoint. Effect/reservation counts remain one; this is not proof of
+byte-for-byte preservation or gateway delivery. Action-worker consumption,
+legacy/other routes, partial cleanup and v53 release integration remain open.
+The full budget batch remains incomplete and unpublished, with no production
+availability promotion.
+
+September16 composed action-worker checkpoint: actual restricted PostgreSQL
+repository plus processor.process now passes expired/fresh cases (9b3263,
+17.612s). Removing stop consumption failed the expired case (34312c); exact
+restoration passed. Parent reads durable stopped/no-source state independently.
+Fresh source storage reaches finish preparation but fails without a deployment
+daemon, as expected. Independent review found no Critical/Important issues;
+heartbeat overlap, partial cleanup, other routes and release verification remain
+open. See the budget gap evidence for fixture and oracle limits.
+
+Follow-up d263ab passed all three composed cases (26.100s), adding the specific
+post-commit/pre-stop-delivery heartbeat with real SQL. Stopped generation stayed
+2→2, with no readback or Finish; fresh generation moved2→3 with forwarded Finish
+calls observed. Independent review accepted the stronger oracle. This closes
+that heartbeat interleaving, not partial cleanup, other action routes or release.
+
+Target-lock follow-up: six-case source/apply race run001dc2 passed21.880s after
+mutation3d0484 proved a stale transaction clock would authorize a source/enqueue
+after deadline. The test observes blocking before expiry and database time at
+release. Independent review found no issues; legacy routes, replay, cleanup and
+partial-target lifecycle remain open.
+
+Current failing lifecycle regression2064a3: after an actual committed budget
+stop, expiring the effect lease lets the action repository reclaim the run for
+apply. The source guard still denies its write. Reclaim and cleanup SQL need a
+coordinated repair; the expanded seven-case apply group is not passing.
+
+Reclaim repair checkpoint: expanded8case apply/reclaim plus3case composed worker
+group83796a passed47.586s. Expired stopped effects now route cleanup; a real
+stored-but-unverified source receives a cleanup claim and accepts signed empty
+cleanup source/enqueue without clearing the sticky stop. Independent review
+found no Critical/Important issues. This supersedes the earlier reclaim RED for
+these cases only; already-pending effects, partial multi-device work, actual
+deployment and release integration remain unfinished.
+
+Pending/retry follow-up eb0fce passed13 grouped cases in52.489s after RED1c3030.
+Stopped pending effects now route cleanup too, and same-target cleanup replay
+after another lease loss preserves the signed source, generation and sticky
+stop. Independent review found no Critical/Important issues. Multi-device and
+credential-change lifecycle, deployed compensation and release integration are
+still open; no production availability promotion.
+
+Two-device partial-source follow-up: actual first Store succeeds, second Store
+commits a budget stop, and cleanup selects only the first device. Untouched
+device remains planned with no cleanup target. Mutationf2137f detected missing
+stored-source cleanup eligibility; restored three-case group592a63 passed9.446s.
+Independent review found no Critical/Important issues. This is stored/enqueued
+source cleanup, not delivered-gateway compensation or release readiness.
+
+Legacy store checkpoint: both retained `_v27` leaves wrote a bundle after expiry
+in REDfddfeb. Staged guards now enforce budget before mutation; an additional
+review-found credential FK wait failed2f3f30 and is protected with NOWAIT key
+locking. Ten legacy cases passeda42dbd (37.808s), independently reviewed.
+Unique-index insertion waits remain unresolved. This is not full legacy-boundary
+or production readiness proof, and the batch remains unpublished.
+
+Unique-index follow-up: RED87653a reproduced late bundle persistence on both
+legacy leaves. The staged subtransaction repair rolls back tentative writes
+after a post-wait budget stop, then persists that stop. Reviewed14case legacy
+race group6f4aad passed58.471s, including expired/fresh unique waits. This closes
+the tested insertion-wait defect, not legacy cleanup/isolation payloads or v53
+rollout. M7A-49/M7A-95 remain component-only and unpublished.
+
+September16 durable step accounting: staged SQL now reserves each stable
+run/step's action and input before effect authorization in the same transaction.
+Exact replay does not consume a second slot; exhausted limits persist a stop.
+RED00dbb2 demonstrated the missing reservation first. Affected PostgreSQL race
+group c464ac passed23 cases (101.585s), with a separate tightened ACL check
+75bc7e. Independent source review approved the bounded implementation.
+An expanded eight-case group passed9e8d87 (22.290s), proving observed duplicate-
+delivery contention and finding mutation prevention on step exhaustion. This
+does not prove distinct-step contention, revocation/isolation exhaustion or full
+restart. Those, external apply guards, AI accounting and v53 release remain
+open. This remains component-only and unpublished.
+
+September16 worker budget-stop checkpoint: expanded Accept/Execute heartbeat
+matrix and affected worker/API race group passed (09f26b). Independent review
+confirmed all 17 flat-result cases and the per-artifact rejection controls,
+with no new findings. This verifies worker decisions using boundary doubles.
+A subsequent actual repository/processor/planner group passed all three cases
+(fb2edd): zero controlled-provider calls after expiry, a working fresh control,
+and one real heartbeat conflict after committed stop. A reconciliation mutation
+failed first (68472b); source was restored and the complete group rerun.
+Independent source review approved this bounded proof, not arbitrary timing,
+live billing or release readiness. The separate full 15-case PostgreSQL deadline-lock group passed under
+the race detector (98c74e, 76.223s), with all owned servers joined and no skips.
+It tests staged fragments with cached workers, not v53 release readiness.
+The original temporary worktree lost its Git marker and unchanged files;
+its surviving contents were recovered into a persistent worktree at the same
+commit and checksum-verified. Main and unrelated changes were not modified.
+No production classifications changed, and nothing was pushed.
+
+September15 budget-evidence correction: M7A-49 is component-only. A registered
+local worker reclaimed a previously started run after its configured wall-clock
+limit; the fresh-run control passed. Independent source review also found no
+durable token/cost accounting or organization-wide admission fence. A grouped
+race run now also reproduces two same-organization definitions entering planning
+with a concurrency limit of one; the independent-organization control passes.
+Both failures now pass against a staged SQL authority fragment, with persisted
+limits, shared organization admission and old claim-route guards. Fourteen grouped
+local race-test cases previously passed (072ef2), including cross-tenant lock progress and
+conservative legacy backfill with unknown usage/limits; independent slice reviews
+approved. The fragment is not imported by a production migration. Full v53
+readiness/upgrade acceptance/rollback, action guards and AI accounting
+remain open, so this is not release-ready or production proof. See the
+[budget gap and repair requirements](2026-09-15-security-agent-budget-gap.md).
+The subsequent combined start-guard draft is now RED: current v33 readiness
+rejects the changed live fingerprint (d60709), and review requires a check after
+blocking leaf prerequisites plus planner lock-order/stop-protocol repair.
+Its grouped run failed (f9c9d0); the earlier fourteen-case pass is not current
+combined-suite evidence. No budget batch has been pushed or activated.
+Current counts are534/133/61/0, with M7A at97production/16component. Historical
+Complete labels and dated counts below are retained, not production proof.
+
+September15 scanner-evidence correction: M8-47 is component-only under
+T15-deployment, preserving its historical Complete policy-fixture record. An
+independent source review found no actual scanner alternative closing the
+offline-audit gap. Original dependency/image scanning and release blocking are
+still required; a caller-supplied vulnerability list or offline zero counters
+do not earn production credit. At that checkpoint counts were535/132/61/0 across all728 IDs,
+with M8 at34production/55component/52external. No downstream task is demoted
+solely because its plan dependency names M8-47. See the
+[source evidence](2026-09-15-offline-audit-gate-gap.md). Older dated counts below
+are historical, not replacements for the current tables.
+
+Dependency-only release candidate is isolated at verified main fda8ae99 in
+`codex/dependency-security-release-20260915`, preserving audit-export WIP.
+Independent extraction review approved its13-path scope. Fresh selected-state
+installation, dependency controls, OpenAPI, UI coverage, typecheck, lint, build,
+installed SBOM/license/native checks and owned standalone HTTP smoke passed,
+including scoped reruns after recorded sandbox loopback/cache denials. The full
+UI run had1199passing/45permission failures; its one affected49-test file then
+passed with permission. No unchanged full-suite rerun is claimed. A fresh npm
+audit was blocked before execution by auto-review over dependency-metadata
+disclosure to npm; explicit user consent is requested, with no workaround.
+Independent local verification review approved SPEC/QUALITY and checked all13
+source hashes; root read the report and matched SHA256
+0806e7b9f96ae4aae23f7d08de229f37f0894952ba4b0f45d1beaa9d6d9f444b.
+Main CI's bare npm ci can make the same disclosure, so publication also waits
+for that decision without changing or skipping the existing workflow.
+Read-only inspection of pinned npm10 also found that the pre-existing offline
+audit gate skips advisory retrieval and can emit zero counters. The
+[gate-gap note](2026-09-15-offline-audit-gate-gap.md) records exact source evidence
+and the required fail-closed correction; no new audit ran and no correction is
+yet claimed. Offline zero counts must not be used as security clearance.
+Remote Linux CI, publication and deployment gates remain open. Native audit
+browser integration continues independently. No task counts change.
+
+Current execution checkpoint (September15): LocalStack recovery and the five
+recovery-cut batch have local independent approval; CI source selection is
+reviewed. Export contract/client strict-decoder correction has local independent
+approval. Full UI saving and browser/provider production acceptance remain open.
+Security Agent M7A-84 now renders matched evidence and ordered authorization/
+approval points. Its recorded 69-test affected group passes; root matched current
+source hashes to the report and inspected the logs. Typecheck/lint were reported
+exit 0. The current UI build and selected real browser/API acceptance now pass;
+[the evidence checkpoint](2026-09-15-security-agent-simulation-evidence.md)
+records exact stored-plan versus execution-state witnesses and failed setup
+attempts. Independent SPEC/QUALITY review approved the combined six-file change
+with no findings. The B01 export UI/save batch is now frozen with159 affected
+tests, typecheck, lint and build passing. Root verified its twelve source hashes
+and read the evidence. The fresh-auth lane, honest unavailability copy and
+successor-lane test fixes are now frozen: focused RED/GREEN, 30 affected tests,
+typecheck, five-file lint and a fresh build passed. Scoped SPEC/QUALITY re-review
+approved all three fixes with no findings.
+The [UI checkpoint](2026-09-15-audit-export-ui-evidence.md)
+distinguishes controlled HTTP/injected writers from native filesystem proof.
+Actual filesystem, four product mutation flows and large-save browser acceptance
+remain required. Original-queue/ledger repair has independent SPEC/QUALITY
+approval; its exact pinned disposable LocalStack run passed with three queues,
+three DLQs and cleanup/audit success. The [queue checkpoint](2026-09-15-original-queue-repair-evidence.md)
+records the command, terminal exit and remaining release gates.
+Live deployment/provider acceptance and publication remain open.
+No original-task promotion or new push is claimed.
+The private full-API export storage-factory boundary is frozen with focused
+RED/GREEN and one affected 20-test API race group passing. Independent SPEC/QUALITY
+review approved it with no findings. Normal startup, strict configuration, actual STS/S3 clients and full
+product composition remain the path; no public endpoint override was added.
+The independent mixed-source expected-byte checker now has SPEC/QUALITY approval
+with no findings; its retained affected race group covers ten top-level tests.
+Native browser and four-flow acceptance are not inferred from these tests.
+The later combined UI suite exited1 with two stale contract assertions (old SQS
+SDK pin and old README staging-status phrase). Their focused correction now has
+seven passing tests and independent SPEC/QUALITY approval with no findings;
+a repeated green full UI gate or publication is not claimed.
+The dependency security batch has frozen source and retained behavioral RED/GREEN
+evidence. Coordinated dependency updates and scoped parser/esbuild overrides
+have passed local compatibility checks; earlier resolver and assertion failures
+remain recorded in the dependency checkpoint. No full runtime compatibility or
+release clearance is claimed.
+The clean hoisted install reproduced the SBOM failure; read-only diagnosis
+confirmed shared optional descendants became extraneous. The nested-layout
+experiment then cleared the unchanged production-license block, with actual
+installed peer/native checks. The scoped worktree integration now has clean
+pinned npm10 installation and locally passing full UI208files/1625tests,
+typecheck, lint, five-stage build, dependency checks and zero npm audit findings.
+The previously failing release-source license test now passes. One test-only
+root-transitive OpenAPI import failed in the affected group; its consumer-chain
+correction passes8focused tests. Root read those retained outputs.
+An owned standalone server returned200 for the page and its JavaScript asset,
+then joined after termination. This is startup/HTTP evidence, not authenticated
+browser, native filesystem or live-provider acceptance. The earlier dependency
+batch has independent SPEC/QUALITY approval and both Minor evidence findings
+closed. Nested integration is now frozen and independently SPEC/QUALITY
+approved with no findings. Root read and hash-verified the complete review,
+f8b4852b25e8362e412ba37c0fd49b2d8942b4d61aee46d8df43dd1af2e211b5.
+Selected native-browser integration has a reviewed partial harness and local
+four-mutation/reload evidence. After retained fixture/startup failures, corrected
+preparation81115 passed100,008 events/146pages/151,954,163 chunk bytes and the
+required near-limit response boundary. Provider termination is checked and the
+regressions run in CI. This is owned local-provider page traversal, not native
+saving or live-production proof. Native saving remains unverified. See the current
+[audit UI checkpoint](2026-09-15-audit-export-ui-evidence.md) for exact test and
+failure accounting. All authorization/recovery and large-save gates remain
+intact. No release/push or original-task promotion is claimed. See the
+[dependency checkpoint](2026-09-14-dependency-audit-triage.md).
+The September15 [planner tenant-boundary checkpoint](2026-09-15-planner-tenant-boundary-evidence.md)
+adds real planner/processor/PostgreSQL rejection coverage for a seeded foreign
+asset and environment, unchanged tenant targets and an authorized positive
+control. It also fixes planner expansion of the repository's explicit target
+list. M7A-94 stays component-only and unpublished pending release verification
+and shipping; local controlled-provider proof is not live-production proof.
+The September15 [B04 source audit](2026-09-15-staging-batch-audit.md) also found
+the original `agentsec-tests` queue absent from current Terraform, no integrated
+pod dependency/OTLP smoke in the staging gate, and caller-boolean readiness
+acceptance. Historical August staging descriptions below do not prove those
+requirements exist today. Six B04 rows stay component-only and four stay
+blocked/external; approved-account access was not inspected or tested.
+Historical entries below are retained as history, not the current queue.
+
+September15 original-contract correction: M1-33 is demoted to component-only.
+The original tests queue/schema names are restored after the B04 source audit
+found that they had been replaced by separately wired Red Team names. Red Team
+runtime bindings are unchanged. Three stale proof-module dependencies and the
+proof adapter's missing actual SQS receive count are repaired. Genuine focused
+RED/GREEN, the affected proof race suite, original-definition and distinct Red
+Team checks, seven runner protocol tests and the 31-test status checker passed.
+Independent SPEC/QUALITY review approved the twelve-file repair with no findings;
+root matched its source hashes. The current validator agrees with 536/131/61/0.
+The disposable LocalStack provision/readback/cleanup run passed; whole-release
+verification and publication are still open, so M1-33 remains component-only.
+Historical 537/130 validation remains historical.
+
+## Approved grouped execution
+
+[Batch ledger](implementation_batches_v1.5.tsv) maps57 original task IDs across
+the next five workstreams, preserving their verbatim deliverables, acceptance
+criteria and dependencies. It is an execution index, not a replacement for the
+728-row availability ledger. Tasks outside these initial batches remain in
+scope. Per-ID test mappings marked pending are not execution-ready or complete.
+
+- B01: M2-41, M2-42, M7-36. This three-task exception keeps the shared export
+  security/concurrency/schema dependency together; its internal prerequisites
+  are not counted as additional original tasks.
+- Security Agent B02 has15 original IDs. Its read-only per-ID evidence audit is
+  recorded in [the batch audit](2026-09-14-security-agent-batch-audit.md).
+  M7A-23 retains its M7-40 dependency.
+- B03 groups16 data/compliance/governance tasks for dependency and evidence
+  reconciliation. Its [read-only audit](2026-09-15-data-compliance-batch-audit.md)
+  is complete, with per-ID named test coverage and external gates now mapped in
+  the batch ledger. It found missing durable export/retention paths, incomplete
+  service controls and an unmounted AI explanation path. All16 remain
+  component-only. No implementation authorization is implied by a ledger row.
+- Deployment B04:10 staging tasks, including explicit cloud gates. B05:13
+  discovery-worker/provider prerequisites. These will be sequenced by shared
+  prerequisites, not forced into one arbitrary concurrent change.
+
+Execution rule: focused failing tests before behavior changes, focused tests
+during editing, then one affected regression group and independent SPEC/QUALITY
+review per coherent batch. Every ID retains its own evidence/classification.
+Broader integration/UI/build checks precede each push. Reuse only unchanged valid
+evidence. One implementation agent owns a change at a time under the applicable
+Superpowers workflow; independent read-only audits/reviews may overlap. Ship
+safe verified increments with incomplete functionality disabled where valid.
+No new spending, destructive infrastructure operation or missing access is
+authorized by this method change. Batch shipped-commit fields remain unshipped.
+
+Shared external prerequisites to reconcile: approved AWS account/region and
+assumable least-privilege roles; an authorized staging deployment and target
+resources; provider test organizations/accounts (including Neon/Stytch/Nango);
+image registry/signing identity; and human usability/design-partner observation.
+These are gate families from the current ledger, not claims that access is
+missing or that credentials were checked. Before execution, identify exact
+required resource/access and request only what is absent. Do not expose secrets
+in the ledger or start billable infrastructure from these classifications.
+
+Historical export checkpoint: the prior
+queue-renewal/shutdown correction, full-size local HTTP/memory and orderly API
+restart slices have independent SPEC/QUALITY approval. Restart's numeric and
+parent/child race runs passed locally (258.732s and470.702s).
+
+The formerly failing dedicated SDK provider now supports validated receipt
+renewal. Its repair and the legacy PostgreSQL shutdown-result correction passed
+independent review; the final two-parent race run passed in83.858s with explicit
+normal PG exits. The restart's affected regression prerequisite is closed.
+No new main push or original-task availability credit is claimed. Local fixture
+acceptance is not deployed-provider, browser-download or production proof.
+
+Latest local checkpoint: registered-PG retry saturation reached103 actual SDK
+Send failures across two worker processes, then publication104 and executor
+completion. Scoped race tests and both lost-response regressions passed;
+Independent review closed the response-evidence correction: each normal failure
+now requires an actual SDK500/InternalError, and a real abort earns zero500
+credit. Scoped SPEC/QUALITY review passed. The executor retry/failure slice also
+passed independent SPEC/QUALITY review with no findings (review c300012a).
+All four named cases, affected regressions and full npm verification passed.
+Production SQL stayed unchanged. This adds local
+failure-recovery evidence, not original-task completion or a new main push.
+
+The full-size HTTP slice built on these prerequisites. Its bounded original-source verifier passed
+focused race/owned-PG tests and independent review with no findings. The local
+continuous-storage provider prerequisite also passed focused race tests and
+independent SPEC/QUALITY review, with one deferred minor assertion improvement.
+Actual API/outbox/executor small and controlled-zero process tests passed,
+but independent review found three cleanup/ownership defects. Re-review resolved
+startup and active-handler ownership. The aggregate PostgreSQL stop deadline
+fix now passes a real late-stop regression plus race-tested small/zero flows.
+Independent fix2 SPEC/QUALITY review passed with no new findings, closing this
+process prerequisite. The following full-size history precedes the later
+accepted six-pair verification recorded below. The first full-size
+control completed capture but then hit an executor failure before memory
+acceptance. A read-only diagnostic reproduced a test-oracle bug: a database
+fetch outlived its canceled request context. The correction passed four focused
+race tests and independent SPEC/QUALITY review. The resumed API-retention
+control completed all100002events/101chunks/98028101bytes and correctly failed
+the unchanged memory limit under deliberate accumulation. Worker accumulation
+also correctly failed the unchanged growth limit after complete byte checks.
+All three normal pairs passed both unchanged memory limits with zero deliberate
+retention, including diagnostics-on. The separate full race run failed after
+durable completion. Code inspection confirmed absent queue visibility renewal;
+the historical stale-ACK cause remains an inference because its refusal wasn't
+logged. A bounded receipt-renewal correction passed focused race tests and
+independent SPEC/QUALITY review, with one minor redelivery diagnostic defect
+recorded for correction. It covers all pending batch receipts,
+joined cancellation/ACK ownership, and retained clients/database on failed
+shutdown. Final-source functional-race small/full replay passed:100002 events,
+101 chunks and98028101 bytes verified twice, with normal process/PG cleanup.
+The fresh receipt was renewed six times and ACKed at250.652581042s, beyond its
+unchanged180s initial visibility. This is controlled-provider evidence, not
+deployed SQS proof. Both final-build accumulation controls and all three normal
+memory pairs passed unchanged limits. Final focused/ownership checks and full-size
+independent SPEC/QUALITY review passed, with one minor build-identity test-coverage
+gap recorded. These measurements are local macOS evidence. Orderly API restart,
+ready-worker replay, browser saving and live/provider gates remain open.
+A separate check of the actual CI selector found omitted verifier/provider and
+fixture-lifecycle acceptance families. Workflow selection and its coverage
+contract must be corrected before
+publication; local passes do not establish CI coverage. No availability counts
+or original milestone completion changed.
+
+Audit exports M2-41/42 remain component-only. Reviewed local work includes queued
+SQL/API authority, pinned storage-policy retrieval, frozen capture and restart
+traversal, retention of issued upload intents, immutable chunk receipt replay,
+and manifest completion. Actual publisher/executor process tests cover orderly
+completion and two lost-response cases with a controlled provider. Accepted-Put
+process death/restart against LocalStack and full-size HTTP/browser retrieval
+remain required. These local checks do not prove live provider readiness.
+The owned LocalStack broker and bounded process-supervisor corrections have
+independent local approval. Actual broker EOF/SIGTERM checks confirmed container
+absence. The test-only S3 forwarder now has independent scoped approval, with
+registered-PG intent and controlled HTTP/TLS checks. Actual LocalStack inventory
+and saved-Put restart remain unverified. Owner-controlled force-kill source has
+independent approval and host race evidence. After Docker recovered, its Linux
+race gate passed28 tests with zero skips, failures or race warnings; the exact
+owned container joined and was verified absent by name and ID. No daemon restart
+was performed. The joined registered LocalStack restart test is still
+required. None of these prerequisites changes original task availability counts.
+Shared administration/policy/test capture, bounded public-page SQL and the Go
+repository/handler now have independent scoped approval at graphcd508434.
+Actual registered PostgreSQL-to-handler tests pass for filters, continuation,
+byte limits and stored authorization changes. Selected runtime wiring, actual
+registered session-authenticator/middleware acceptance and five public filter
+parameters now have independent scoped approval. These are local checks, not
+all-services provider startup or deployment. The original
+M7-36 remains component-only. Single-page filter/client work, session isolation
+and its independent review are complete locally; actual browser acceptance and
+full export delivery are not complete. The browser acceptance trace found that the existing
+retention-settings visit only reads configuration. Acceptance must perform an
+actual save and bind its audit ID, plus real SSO/policy/test mutation IDs, to
+persisted rows and filtered browser results. Controlled SSO responses and test
+run/cancel requests do not prove a live IdP or successful external test execution.
+Independent review found a request-ownership gap across route remounts. The
+fix now preserves coordination for the stable API client and passed scoped
+re-review. Fresh full npm verification passed locally with1318 UI tests across
+200 files, typecheck, lint, build and compiled import checks. This is not
+deployment or actual mutation/browser evidence.
+The follow-on browser acceptance source is frozen for independent review.
+Full verification18826 exited0 on the final snapshot:1320 UI tests across200
+files, typecheck, lint,192 release tests, build and compiled import checks.
+The preceding13466 run failed on one existing test timeout and ten worker-start
+timeouts; an unchanged retry passed without test/config changes. Its cause
+is not established. Independent review then found a missing browser principal
+replacement scenario: delayed scope changes alone do not prove that boundary.
+The test-first correction now has independent SPEC/QUALITY approval. Fresh
+full verification90447 passed on the corrected source with1320 UI tests,
+typecheck, lint,192 release tests and production build. Actual Chrome/provider
+acceptance remains unrun. Full backend audit-export verification22791 passed
+all169 current top-level tests without skips in1475.306seconds. Publisher retry
+saturation is the next implementation slice; provider/process-death gates remain.
+Its owned PostgreSQL
+setup now passes registration/refusal/replay and unchanged-grant checks after
+correcting prerequisite registration order. Early harness checks validate
+exact mutation IDs, filter queries and bounded trace retention. These are not
+the actual Chrome/four-family run. A narrow row DOM-ID addition is also in this
+follow-on delta; the1318-test result above belongs to the prior frozen browse
+snapshot and does not verify these newer edits. Full follow-on review and
+verification were pending at that checkpoint. Docker has since recovered;
+the current force-kill Linux gate passed as recorded above.
+Disabled-by-default Helm worker, API and migration wiring and enabled full-chart
+validation have passed tests and independent review. Export-specific network
+manifests, metrics Services/monitors and disruption budgets are also reviewed
+locally, along with capped autoscalers, placement constraints and independently
+evaluated per-mode availability alerts. Actual network enforcement/provider connectivity, mounted end-to-end
+acceptance and final schema52 release verification remain unfinished. A passing main CI run is
+not a deployment claim. The chronological checkpoints below retain their original
+local/CI state; this header and the production-availability TSV are current.
 
 Current unpushed SQL50 work adds separate projection-v2/completion-v2 claims,
 v1-only legacy filtering and an in-flight mutation fence. Actual PostgreSQL
@@ -745,6 +11796,66 @@ old-lock failure and passed both mock IAM plans with the fixed lock, networking
 disabled and no cloud credentials. Local staging checks passed4/4. A new remote
 CI result is still pending. See the cutover evidence's Linux-lock checkpoint.
 Counts remain536/131/61; M3-46/M3-47 still await verified main publication.
+
+Subsequent main checkpoint (2026-09-12): PR49's complete CI34685956480 passed
+all steps in39m20s on a9341c08. The exact-head-guarded merge published
+fda8ae99921be468b3d95f2369f54112a725e046 to main; its tree matches the tested
+head. Main CI34687750130 is running, so M3-46/M3-47 remain component-only pending
+that verification. This is source publication, not a live deployment. Counts
+remain536/131/61. Full details are in the cutover evidence's main-merge checkpoint.
+
+Final main-CI checkpoint (2026-09-12): run34687750130 completed successfully in
+40m6s on fda8ae99921be468b3d95f2369f54112a725e046. The retained watch exited0;
+all UI, release, runtime/enrollment, replay and network-enforcement checks passed.
+The publication wait is closed. The M3-46/M3-47 row reconciliation is next;
+counts are not advanced by this checkpoint alone. This is not a live deployment.
+
+Publication reconciliation (2026-09-12): M3-46 and M3-47 now meet their original
+runtime precision criteria in the shipped main source. The qualified-lineage
+Strong-not-Exact and ambiguous-candidate Probable/Unattributed behavior was
+verified through the registered provider/browser and runtime recovery fixtures,
+reviewed against the original scope, and published in PR49. Main CI34687750130
+passed all steps on fda8ae99921be468b3d95f2369f54112a725e046. Only these two rows
+advance to production-available, with their existing T04 owner unchanged. Counts
+at that checkpoint were538 production-available,129 component-only and61 blocked/external.
+Earlier open-row checkpoints above are historical. This does not close live
+deployment gates or claim completion of the728-task product.
+
+Audit Log correction (2026-09-12): M7-36 is component-only, owned by
+T11-identity-admin. Its historical Complete status remains unchanged. The
+original task requires filters, an export action, and E2E evidence showing actual
+SSO/config/policy/test mutations. AdminOperationsView currently lists audit
+events without filters or an export action, and policy/test persistence is not
+joined into zasp_admin_audit. The partial audit-export API/provider work does
+not close those UI gates. Only M7-36 changes classification here: current counts
+are 537 production-available, 130 component-only and 61 blocked/external, with
+0 missing across all 728 original tasks. M7 is now 37 production-available and
+25 component-only. Earlier dated counts and local UI completion notes are history.
+
+Audit-export continuation (2026-09-12): M2-41/M2-42 remain component-only.
+The [approved implementation plan](2026-09-12-audit-export-plan.md) replaces
+in-memory ready/count behavior with registered Postgres job/snapshot authority,
+immutable scoped S3 chunks and verified retrieval through the original routes.
+The design preserves section6/M1-34 storage requirements and POST201 semantics.
+Independent design review required byte-bounded SQL pages and post-capture
+wall-clock lease/readiness checks; both are explicit in the plan. The exact52
+compatibility audit preserves published51 pins, warmed consumers and runtime
+evidence on52-to51 rollback. Pure codecs and typed export-prefix storage passed
+independent review and focused race verification on local codex/audit-export-api,
+isolated from PR49. Storage also passed full app verification. Codec review
+confirmed SQL must preserve numeric metadata's existing text projection; actual
+schema52 compatibility and API contract work are next. No export
+API, migration, worker or deployment acceptance is claimed; counts are unchanged.
+
+Later local export checkpoint: registered queued Create/Get, policy setup and
+worker registration CLI, exact rollback ACL preservation, pinned retrieval,
+and the worker executor now have scoped passing tests and independent reviews.
+The real PostgreSQL session authenticator, middleware and export factory passed
+queued HTTP creation/replay/read and revocation checks in7.128s. This isolated
+router isn't a production route mount. SQL capture/completion, queue wiring,
+restart recovery and full composed provider acceptance remain unfinished.
+See the [export evidence](2026-09-12-audit-export-evidence.md) for exact boundaries.
+M2-41/M2-42 remain component-only; no new task credit or push from this checkpoint.
 
 M7-07 now meets its independently reviewed original acceptance criterion after
 verified main. Current counts: 536 production-available, 131 component-only and
@@ -1994,8 +13105,8 @@ matrix below the audit basis is the readiness measure.
 
 | Production class | Count |
 | --- | ---: |
-| Production-available | 534 |
-| Component-only | 133 |
+| Production-available | 523 |
+| Component-only | 144 |
 | Blocked/external | 61 |
 | Missing | 0 |
 
@@ -2202,15 +13313,15 @@ gates. M7-07's actual worker-backed mixed-evidence acceptance and PR47 main CI
 | M0 | 27 | 7 | 17 | 3 | 0 |
 | M1 | 68 | 57 | 11 | 0 | 0 |
 | M1A | 10 | 0 | 6 | 4 | 0 |
-| M2 | 72 | 69 | 3 | 0 | 0 |
+| M2 | 72 | 67 | 5 | 0 | 0 |
 | M3 | 75 | 73 | 0 | 2 | 0 |
 | M4 | 82 | 82 | 0 | 0 | 0 |
 | M5 | 42 | 42 | 0 | 0 | 0 |
 | M6 | 36 | 36 | 0 | 0 | 0 |
-| M7 | 62 | 37 | 25 | 0 | 0 |
-| M7A | 113 | 97 | 16 | 0 | 0 |
+| M7 | 62 | 30 | 32 | 0 | 0 |
+| M7A | 113 | 95 | 18 | 0 | 0 |
 | M8 | 141 | 34 | 55 | 52 | 0 |
-| **Total** | **728** | **534** | **133** | **61** | **0** |
+| **Total** | **728** | **523** | **144** | **61** | **0** |
 
 ## Prerequisite work
 
@@ -2237,7 +13348,7 @@ but delegates the response without adding it to the returned session or stored
 session configuration. The historical Pending/In-progress/Complete/Blocked
 execution counts are `0/0/667/61`; PROV-01 is excluded. These are not
 production-readiness counts. The authoritative production classes are now
-536 production-available, 131 component-only and 61 blocked/external.
+526 production-available, 141 component-only and 61 blocked/external.
 The blocked M8 resilience executions require an authorized isolated AWS/reference deployment; deterministic validators remain locally testable.
 
 ## In progress
@@ -2422,9 +13533,9 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 | M7A-28 | August 18, 2026 | Connection-revoke verification classifies provider/backend uncertainty as Inconclusive rather than success. |
 | M7A-27 | August 18, 2026 | Supported connection revocation requires an explicit approval token, uses a stable run/step idempotency key, and fails closed on backend rejection. |
 | M7A-26 | August 18, 2026 | Connection-revoke metadata requires admin approval and is hidden when the injected connector capability reports unsupported. |
-| M7A-25 | August 18, 2026 | The finding-response action permits assignment, notes, and open/investigating state only; Resolved/Safe inputs fail before execution. |
+| M7A-25 | August 18, 2026; classification corrected September 24 | Component-only. Historical action validation and status-only21 execution retained; local78 assignment/status-note, safe-state rejection and native approval/cancel evidence are recorded in the finding-response report. Scoped fix1 and human-native reviews are approved; integrated P7 worker authority review and deployed full-contract verification remain open. |
 | M7A-24 | August 18, 2026 | The response-webhook action accepts only a configured destination, signs one fixed redacted run/evidence payload with its secret, and rejects arbitrary URLs. |
-| M7A-23 | August 18, 2026 | The evidence-export action requires every evidence ID to be scoped to the current run before invoking the bounded backend. |
+| M7A-23 | September 19, 2026 | Component-only: release58 controlled acceptance covers public setup through native downloads, eight post-commit API/worker restart checkpoints, registered grant/revocation/concurrency and corruption/read-lease exact-version deletion checks, plus foreign-tenant denial. [Restart evidence](security-agent-export-20260919/restart/final-report.md) and [storage matrix](security-agent-export-20260919/storage-matrix/README.md). Cleanup-worker process retry, a second-Organization storage case, multi-step execution, live providers, hosted exact-source CI and deployment acceptance remain open. |
 | M7A-22 | August 18, 2026 | Attack Lab execution accepts only existing test definitions, approved preflight, and non-production/test targets. |
 | M7A-21 | August 18, 2026 | `run_test` and `rerun_test` accept only an existing TestDefinition ID and reject arbitrary prompt/target content. |
 | M7A-20 | August 18, 2026 | Session isolation executes idempotently through the bounded backend and requires verified gateway-decision evidence before success. |
@@ -2925,7 +14036,7 @@ The blocked M8 resilience executions require an authorized isolated AWS/referenc
 | --- | --- | --- | --- |
 | M1A-10 | August 18, 2026 | The typed aggregate staging gate exists, but no authorized AWS staging execution has produced deployment, IRSA smoke, OTLP, and evidence results. | Provide the isolated staging account/cluster and authorize the exact gate run. |
 | M1A-09 | August 18, 2026 | The deterministic evidence builder exists, but no authorized live deployment and smoke run IDs exist. | Complete M1A-07 and M1A-08 in the isolated staging environment. |
-| M1A-08 | August 18, 2026 | The injected IRSA S3/SQS/OpenSearch smoke boundary exists, but no authorized staging cluster and role are available. | Provide the isolated staging cluster, scoped IRSA role, and private dependencies. |
+| M1A-08 | September 15, 2026 | Current source audit found no integrated pod S3/SQS/OpenSearch plus OTLP smoke collector in the staging gate. Approved cluster/role access is unverified, not proven unavailable. | Implement and review the bounded receipt collector, then obtain an approved private staging run with exact per-workload IRSA authority and telemetry evidence. |
 | M1A-07 | August 18, 2026 | The injected four-workload deployment boundary exists, but no authorized private AWS staging environment is available. | Provide the isolated AWS staging account/cluster and immutable release images. |
 | M3-52 | August 18, 2026 | The strict five-check local M3 gate is implemented, but its aggregate PASS requires the unavailable M1A-10 live staging evidence. | Complete M1A-10, then evaluate the exact M3 aggregate gate. |
 | M3-14 | August 18, 2026 | The assume-role adapter and local denial fixture are implemented, but the required real-AWS denial cannot run without the isolated staging fixture. | Provide the M1A-10 isolated AWS identities/role and authorize the exact denial proof. |
@@ -3163,3 +14274,1283 @@ provider capability gate.
   bounded delivery, exporter failure, nonblocking application progress, and
   exact cleanup. Combined M0-13/M0-22 evidence makes R-12 PASS; M0-23 is
   Complete with the retained fourteen-decision gate.
+
+## September 22, 2026 ordered security-agent HTTP checkpoint
+
+- Task 12E2B1/E2B1a is independently reviewed and approved at commit
+  `ea9e15b6594fb5166064411336695c8c12350452`. The dormant, package-private
+  compatibility router covers the seven ID-specific operations and preserves
+  legacy delegation only after positive tenant-scoped ownership classification.
+  Its exact-head grouped gate passed build, vet, migrations, focused race tests,
+  and 32 real-PostgreSQL groups with zero failures or skips; release-61 remained
+  byte-identical and release-62 matched its recorded fingerprint.
+- Classification remains **component-only**. No production-available microtask
+  or milestone count changes at this checkpoint: list isolation/merge,
+  exported/default composition, worker execution, OpenAPI/client/UI, browser
+  acceptance, deployment/canary, and external live proof remain open. Nothing
+  in this checkpoint is represented as deployed or live production evidence.
+
+### Task 12E2B2 list-isolation checkpoint
+
+- Task 12E2B2 is complete and independently approved at commit `5299f206`.
+  One closed, tenant-scoped descending candidate cursor now covers mixed legacy
+  and ordered run/approval pages; positive family classification selects the
+  existing legacy detail authority or the strict ordered projection, and the
+  whole page fails closed on any mismatch or family change before response.
+- The frozen exact-head archive passed build, vet, full migrations, focused
+  race tests, and 35 focused real-PostgreSQL groups in 923.073 seconds with
+  zero failures or skips. Release-61 remained unchanged; release-62 matched
+  fingerprint `0a4e5cfdf12fa92277a34ed70598240583500ae8aeec19d705f6a156d27a63d3`.
+- Status remains **component-only**, with authoritative counts unchanged at
+  526 production-available, 141 component-only, and 61 blocked/external.
+  Default composition/readiness, worker execution, OpenAPI/client/UI, browser
+  acceptance, deployment/canary, and live external evidence are still open.
+
+### Task 12E2C production-composition checkpoint
+
+- Task 12E2C is complete and independently approved at commit `268f1218`.
+  The API runtime has a strict default-off ordered-HTTP rollout flag. Disabled
+  composition performs no release-62 call; enabled composition requires the
+  exact registered checksum/fingerprint and predecessor readiness handshake or
+  refuses startup without a legacy downgrade.
+- The exact-head archive passed build, vet, focused race/config tests, full
+  migrations, 11 authentic PostgreSQL groups in 279.617 seconds, and the
+  runnable-UI contract. Release-61 remained unchanged; release-62 matched
+  fingerprint `07e774a28105095c73275ad959c765a3fddda9ee9aa81e81cd3828222e40aad3`.
+- Classification remains **component/integration-only** and counts remain
+  526 production-available, 141 component-only, and 61 blocked/external. The
+  rollout flag is not enabled in deployment; OpenAPI/client/UI adoption,
+  worker execution, browser acceptance, deployment/canary, and external live
+  proof remain open.
+
+### Task 12E2D1 public-contract checkpoint
+
+- Task 12E2D1 is complete and independently approved at commit `9e55b04b`.
+  OpenAPI and generated immutable client types publish the closed ordered
+  detail, cancellation, and trigger contracts. Strict browser-side decoders
+  enforce the reviewed dependency, approval, receipt, settlement, cleanup,
+  identity, timestamp, digest, size, and duplicate-key boundaries while
+  preserving legacy decoding behavior.
+- The exact-head gate passed 451 Vitest tests, 37 OpenAPI tests, 10 UI/API
+  coverage checks, 746 shared API tests, generation reproducibility, lint,
+  typecheck, Go API build, and secret scanning.
+- Status remains **component/integration-only** with counts unchanged at
+  526 production-available, 141 component-only, and 61 blocked/external.
+  UI adoption, browser acceptance, worker execution, deployment enablement,
+  canary observation, and external live evidence remain open.
+
+### Task 12E2D2 product-UI checkpoint
+
+- The product UI/client portion is complete and independently approved at
+  commits `ad098393` and `fc86c703`. It uses authoritative ordered trigger
+  metadata, strict cancellation and positively linked approval decoding, and
+  renders dependency, approval, receipt, settlement, and cleanup state without
+  inventing outcomes or destinations. A review-found stale approval refresh
+  race was reproduced, fixed with focused TDD, and independently re-reviewed.
+- The exact-head clean packet gate passed 528 tests across 21 files, OpenAPI
+  and UI/API contract checks, TypeScript, focused lint, production import
+  checks, and the production UI build. Five focused race regressions passed
+  RED-to-GREEN; the dirty overlay retained all 2,235 pre-existing paths.
+- Classification remains **component/integration-only** and counts remain
+  526 production-available, 141 component-only, and 61 blocked/external.
+  Authenticated browser acceptance is explicitly incomplete: real PostgreSQL
+  started and the real API binary built, but production startup refused because
+  required Stytch identity, signing, database-principal, connector-role, and KMS
+  configuration is absent. The browser showed `Session unavailable`; no
+  activation, trigger, detail, approval, cancellation, reload, or second-tenant
+  product journey ran. Deployment, canary, worker execution, and external live
+  proof remain open.
+
+### Task 12E2E1 global worker-dispatch checkpoint
+
+- Task 12E2E1 is complete and independently approved at commits `5467e946`
+  and `c41b01b7`. The separately registered worker63 extension server-selects
+  one tenant-bound queued ordered run and exact pricing/account pins, enters
+  the immutable release-61 planning claim atomically, supports stable replay
+  and heartbeat, and performs conservative abandon/reconcile and evidence-bound
+  finish without caller-supplied scope or run IDs. Only the worker principal
+  receives the closed top-level authority; predecessor SQL remains unchanged.
+- Independent review found two Important defects. Fix round 1 removed permanent
+  starvation behind fixed oldest-100 ineligible/recovery windows and completed
+  authentic live/expired action, test, cleanup, cancellation, and terminal
+  handoff coverage. The scoped re-review marked both findings and the prior
+  final-pin verification gap addressed, with no new finding.
+- The exact committed-source gate at worker63 fingerprint
+  `c81c4cb4cb799894ab9bf69b16815341ac53665e967fd0405b32009898510239`
+  passed 35 PostgreSQL race groups in 2878.222 seconds, full migrations,
+  repository race tests, build, vet, formatting, source/archive comparison,
+  reverse proof, and preservation of all 2,235 pre-existing dirty paths.
+- Classification remains **component-only** and authoritative counts remain
+  526 production-available, 141 component-only, and 61 blocked/external.
+  Eligibility classification cost grows with due backlog and conservative
+  recovery waits for immutable predecessor expiry. Default worker composition,
+  global post-approval action/test/cleanup scheduling, deployment enablement,
+  live provider, authenticated browser, canary, and external production proof
+  remain open; none is implied by this checkpoint.
+
+## 2026-09-22: Temporal/OpenFGA architecture checkpoint
+
+This checkpoint supersedes older "active implementation" and "next action"
+instructions for custom worker63/scheduler64 feature work. The approved
+[design](2026-09-22-temporal-openfga-design.md) and
+[execution plan](2026-09-22-temporal-openfga-execution-plan.md) now govern that work.
+Stytch stays. Product scope does not shrink.
+
+P0 records branch `codex/cached-runtime-ship-20260917` at
+`6e7d759007e0ad7cb2e5ef385d99f48bc3aa774a`, including the existing dirty overlay.
+The [728-row crosswalk](2026-09-22-temporal-openfga-crosswalk.tsv) preserves every
+original deliverable and verification clause, source evidence, owner and current
+production class. The [retirement inventory](2026-09-22-temporal-openfga-retirement.tsv)
+traces runtime families, Go/SQL callers, privileges, historical fingerprints,
+CLI routes and deployment configuration. The [P0 report](2026-09-22-temporal-openfga-p0-report.md)
+records checks and unresolved acceptance. These documents are an architecture
+amendment, not a second completion ledger.
+
+Custom scheduler Task 12E2E2A's lock-order fix is committed at `6e7d7590`;
+its scoped independent re-review was interrupted by this approved change.
+Do not call it approved. The historical finding, reproduction and fix evidence
+stay in the [ordered progress record](../../.superpowers/sdd/2026-09-20-security-agent-ordered-multistep-plan/progress.md).
+Any remaining custom worker63/scheduler64 feature work, including E2E2B
+composition, is superseded by P2-P4/P7-P9. Existing commits and migration bytes
+remain until equivalent product behavior passes and callers/privileges are
+retired through P9. No implementation is removed by P0.
+
+The AB/BA lock-order concern remains relevant wherever replacement Activities
+share retained SQL locks. Carry that product invariant into P3/P7 validation.
+Do not spend another feature cycle proving an obsolete scheduler engine.
+The baseline `TestSecurityAgentRelease61CompositionPostgres` failure (missing
+valid `Keys`) moves to P3 composition and P8 acceptance; it is not waived.
+Preserve signing-key validation, and prove the actual API -> worker -> receipt
+path. Browser/Stytch/provider/deployment gates remain open.
+
+M7A-49's original requirement is "Security Agent run budget"; ordered execution
+must retain its step/time/token/cost bounds and tenant concurrency. M7A-23 still
+requires actual evidence-export execution and delivery. Neither row becomes
+available because Temporal or OpenFGA starts.
+
+No production reclassification: 728 original IDs; 526 production-available,
+141 component-only, 61 blocked/external, 0 missing. Those are unchanged baseline
+classes, not evidence of the replacement architecture. P1-P10 acceptance is
+pending. All older evidence remains below its original status and meaning.
+
+P0 review checkpoint, 2026-09-22: independent SPEC and QUALITY review passed
+after adding the active policy-deployment processor's SQL/grant/readiness chain
+to the retirement inventory (37 families). The original 728-ID set and all
+availability classifications remain unchanged. See the
+[P0 review](2026-09-22-temporal-openfga-p0-review.md).
+P1 runtime dependencies and consuming API/worker configuration are now in
+implementation. No Temporal/OpenFGA runtime, deployment, or production
+availability is claimed by this documentation checkpoint.
+
+P1 local connection checkpoint, 2026-09-22: the disposable Compose stack has
+Temporal and OpenFGA running with separate PostgreSQL persistence, visibility,
+and authorization databases. Both official migration jobs and the Temporal
+namespace initializer exited successfully. The implementer reports PASS for
+`ZASP_LOCAL_RUNTIME_SMOKE=1 go test ./runtimeservices -run '^TestLocalServiceConnectionSmoke$' -count=1 -v`
+from `services/platform`; the controller inspected its actual SDK calls and
+the running containers. The test creates a local probe model, then checks the
+application client's configured Temporal namespace and authenticated FGA model.
+It does not verify application permissions, workflow execution, deployed
+services, Stytch, or provider integrations. Staging configuration and the P1
+independent review remain pending. All 728 classifications remain unchanged;
+no packet or production gate is closed by this local checkpoint.
+
+P1 review checkpoint: [independent review](2026-09-22-temporal-openfga-p1-review.md)
+requires a fix for staging OpenFGA TLS probes (P1-R1). Fix round one is active.
+A controller-run Go vulnerability scan also failed on the runtime-service,
+API and worker packages: GO-2026-6348 affects the selected gRPC 1.82.1 dependency,
+and Go 1.25.6 has reported standard-library issues. The P1 implementer is
+checking the compatible patched gRPC pin. Go 1.25.6 is also pinned in runnable-UI
+CI and the eight product Dockerfiles, so compiler remediation is a code/build
+release gate, not merely a missing external credential. The full advisory and
+image-clearance gates remain open; partial scanner output is not a complete
+inventory. No push or availability promotion has occurred.
+
+P1 local implementation review is now complete: the scoped re-review marked
+P1-R1 addressed and final SPEC/QUALITY approved. Both TLS probes validate the
+documented service DNS name; focused rendered and real DNS-SAN tests passed.
+gRPC 1.83.1 and x/text 0.39.0 remove the two reported reachable module advisories.
+The amended scoped scan still reports 26 reachable Go 1.25.6 standard-library
+findings, so security/publication clearance remains open. See the
+[P1 report](2026-09-22-temporal-openfga-p1-report.md) and
+[review history](2026-09-22-temporal-openfga-p1-review.md).
+P2 transactional SQL-to-Temporal delivery is in implementation. No workflow
+cutover, FGA product-policy activation, original-task reclassification, commit,
+push, or live production acceptance is implied by P1's local packet completion.
+
+Patched compiler preparation: the unchanged runtime-service package passes its
+tests and a zero-reachable-advisory scan under per-command Go 1.25.13. Actual
+CI/container compiler pins remain unchanged; API/worker, image and full-release
+clearance remain required. Candidate image digests and remaining gates are in
+[the compiler gate note](2026-09-22-go-toolchain-release-gate.md). This narrow
+check makes no production-availability claim.
+
+P2 upgrade-boundary decision: release61 promotion intentionally invalidates
+historical public60 readiness, so its legacy manual-run facade cannot simply
+run on the evolved schema. Migration65 will support either strictly verified
+legacy60 or registered61/public62 installations without forcing that promotion.
+Both admission paths still require real same-transaction outbox tests. This
+does not close the upgraded product's manual/ordered coexistence requirement:
+P3/P4 must implement and verify that transition before execution activation or
+P8 acceptance. Historical guards will not be weakened to make a test pass.
+The decision avoids expanding P2 into a new admission facade; its cost is an
+explicit downstream upgrade obligation. No original requirement is waived.
+
+P2 independent review found delivery starvation: the oldest failed commands
+could occupy every polling batch and block later healthy tenants. The original
+implementer is fixing bounded delivery fairness with focused relay/SQL tests;
+P2 is not approved yet. See [review findings](2026-09-22-temporal-openfga-p2-review.md)
+and [implementation evidence](2026-09-22-temporal-openfga-p2-report.md).
+The rollback evidence is manual admission and ordered approval, not ordered
+admission rollback. Execution ownership remains legacy until P3's fences and
+product execution path are verified. No original task classification changed.
+
+P2 fix1 passed independent review: delivery-starvation and rollback-evidence
+findings are addressed, with no new breakage found. Focused relay and real SQL
+fairness tests pass, including retained failed commands and a later healthy
+tenant. This completes the staged local delivery component, not production
+execution. P3 workflow/Activity implementation has started, carrying forward
+owner fencing, manual/ordered transition, approval, provider-effect and cleanup
+requirements. No commit, push, workflow activation or availability promotion
+is implied by this checkpoint.
+
+P3 execution is split by dependency: P3A supplies durable ownership fences and
+the supported manual/ordered admission facade; P3B replaces lease-bound domain
+effect and linked-test interfaces; P3C supplies the deterministic workflow,
+runtime composition, receipts and cleanup. Existing private61 effect SQL
+requires scheduler leases, so calling it unchanged from an Activity would not
+meet the approved architecture. P3A is in implementation. Parent P3 and
+production activation remain incomplete until all three packets pass their
+required checks. Every original requirement remains in scope.
+
+Release compiler repair: Go1.25.13 now replaces1.25.6 in CI, eight Go builder
+images and the shared test-launch guard. Guard tests, a filtered real compiler
+launch and the runtime-service package in the pinned linux/amd64 container
+pass. Independent review is pending. Runtime image scans, full candidate
+build/advisory checks and runnable UI/CI remain required before publication;
+this is not a claim that deployed binaries have been patched. Evidence is in
+[the compiler gate note](2026-09-22-go-toolchain-release-gate.md).
+
+The compiler-pin repair subsequently passed independent SPEC/QUALITY review
+with all11 before/after hashes verified and no blocking finding. This closes
+that local repair's review, not the full release gates or deployed patching.
+See [the review](2026-09-22-go-toolchain-review.md). No task classifications
+changed and no commit or push occurred.
+
+Fresh-install gate found during P3A: the existing60→61 command rejects a
+legitimate migration-owner name because its fingerprint binds two private
+functions to the `zasp_e2e` fixture owner. Controller comparison isolated the
+owner/ACL difference; no historical pins were changed. This is a fixable code
+defect, not an external prerequisite. Exact registered61→66 fixture tests do
+not close fresh installation. See [root-cause evidence and repair constraints](2026-09-22-release61-owner-portability.md).
+
+P3A ownership/admission passed independent SPEC/QUALITY review as a staged
+local component. The reviewer verified all13 changed-file hashes and146
+unchanged historical SQL files. [Review and evidence limits](2026-09-22-temporal-openfga-p3a-review.md).
+No original task classification changed. P3B lease-free domain/journal
+authority, fresh-install cutover, P3C worker composition and real deployed
+acceptance remain unfinished. Retiring63/64 alone is not approved for deployment.
+
+The OpenFGA role-policy baseline is now recorded in
+[the cutover decision](2026-09-22-openfga-role-policy-decision.md): preserve
+the production six-role permissions and exact scoped grants. The unused
+identity-package map does not expand those grants. This is an implementation
+decision only; model verification, synchronization and enforcement remain open.
+
+P3B-I portable installation is implemented and in independent review.
+The final grouped migration/product checks passed against disposable databases,
+including four predecessor states, rollback, privilege drift, retained commands
+and actual public approval/cancel calls. [Implementation and exact evidence](2026-09-22-temporal-openfga-p3bi-report.md).
+This is component evidence, not a production deployment. The fresh-install
+defect has a tested candidate fix; its gate remains open pending review and
+the remaining replacement-executor integration. No original task was promoted.
+
+P3B-I subsequently passed independent fix-only review. A durability defect
+found in review was reproduced and fixed: changing either new authority table
+to UNLOGGED now fails readiness and actual CLI replay. Final covering groups
+passed, and historical migrations stayed unchanged.
+[Review with the original finding and final verdict](2026-09-22-temporal-openfga-p3bi-review.md).
+The portable-install component is complete locally; lease-free execution and
+linked-test journaling are now in progress. Integrated and deployed acceptance,
+UI release checks and publication gates remain open. Task counts are unchanged.
+
+P3B-II's [continuation checkpoint](2026-09-22-temporal-openfga-p3bii-report.md)
+contains tested but dormant effect-protocol helpers and an intentional failing
+PostgreSQL admission test. It does not contain the68 executor, shared accounting,
+production journal or compensation authority. A fresh implementation context
+continues that same deliverable. Protocol tests do not establish authorization
+or provider execution, and no original task classification changed.
+
+Subsequent P3B-II work has reached a local grouped PostgreSQL pass (47.662s,
+implementer-reported): queued admission, mixed-owner capacity in both orders,
+and lease-free planning through usage settlement, artifacts, admission and
+replay. This supersedes the missing-admission implementation checkpoint above,
+but is not final packet acceptance. Public approval/cancellation evidence
+routing, actual effects, journaling, compensation and independent review remain
+in progress. Scheduled-test admission and per-definition limits remain required
+at P4's replacement boundary; the inactive old scheduler is not reactivated.
+No task classification, deployment gate or production-readiness claim changes.
+
+The superseding P3B-II report now records final-source PostgreSQL verification
+(68.234s), including installed-authority drift, shared capacity, planning,
+public approval and cancellation before effects. These local fixture checks
+do not establish provider execution. The continuation remains unfinished:
+actual effects, journal, compensation, runtime composition, unknown/over-budget
+terminal reconciliation and recovery after requester deactivation are required.
+A fresh implementation context continues those requirements from the recorded
+source map. No task is promoted and no production gate is closed.
+
+P3B-II Continuation2 now records a frozen-source grouped pass (262.006s):
+admission/accounting, failure recovery, stable effect intent, signed policy
+storage/delivery and applied/partial compensation with public status checks.
+This uses disposable PostgreSQL, generated keys and fixture gateway records.
+Controller delivery acknowledgement is not deployed gateway enforcement proof.
+The full executor remains unfinished: linked-test progress/journal/artifacts,
+adapter/runner integration, real Go planner provider/artifact I/O and late
+known-usage reconciliation are still required. The next implementation context
+continues those exact gaps. Independent full-packet review and all live gates
+remain open; original task classifications are unchanged.
+
+P3B-II Continuation3 has interim local evidence for linked-test progression,
+invocation journaling, retained adapter routes and child settlement. The
+PostgreSQL/controlled-HTTPS group passed132.251s, including lost-start and
+lost-completion acknowledgement cases without duplicate provider calls.
+The separate settlement check passed32.919s with fixture journal observations
+and ArtifactStore readback, replay and one lease-free completed child attempt.
+These are development checkpoints, not final frozen-source packet acceptance
+or real provider proof. Linked cleanup, runner composition, planner I/O and
+late known-usage reconciliation remain in progress. Independent review,
+Temporal worker activation, OpenFGA enforcement and deployed acceptance remain
+open. No original task classification changes, and no production gate closes.
+
+Later Continuation3 checks passed for linked cleanup/unknown stopping (76.115s),
+the actual linked artifact repository (44.277s), and reusable runner integration
+(43.786s). The runner case uses file ArtifactStore readback, a controlled
+command and TLS endpoint, real PostgreSQL journal/settlement, and terminal
+replay without another command or artifact rewrite. Its Promptfoo-shaped
+output is fixture data, not an installed Promptfoo or live provider result.
+Failure/revocation cases, planner I/O, late-usage reconciliation and the final
+frozen-source regression/review remain required. This supersedes the earlier
+missing runner path as an interim local checkpoint only. No rows are promoted.
+
+Continuation3 planner transport and recovery now have interim local passes:
+happy-path transport/artifact/admission (25.151s), actual Go late-usage recovery
+(41.944s), shared-capacity pre-send closure plus late-usage regression (74.989s),
+and planner transport with all ten fault cases (215.484s). The tests use
+disposable PostgreSQL, file artifacts and controlled HTTPS endpoints.
+Late evidence appends accounting without rewriting original unknown history;
+proven no-send closure releases shared capacity without fabricated usage.
+These checks do not prove live Stytch/provider integration. Adapter bounds,
+linked-runner failure checks, final full regression and independent review
+remain open. No original task classification or production gate changes.
+
+Continuation3 full executor regression now passes on frozen source (1,233.065s).
+The retained adapter startup/journal regression also passes (25.435s).
+The full report is `2026-09-22-temporal-openfga-p3bii-report.md`; retained
+test logs and the original-baseline cumulative diff are in the plan's
+`.superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/` evidence directory.
+The controller checked all 38 changed-source hashes against that cumulative
+manifest. Independent full P3B-II spec and code-quality review is running.
+This supersedes the interim missing-regression statements above, not their
+production limitations. Tests use disposable databases and controlled provider
+and runner fixtures. Temporal workflow/Activity registration, active OpenFGA
+enforcement, remaining migration/retirement work and deployed Stytch/provider
+flows remain required. The preexisting vet failure is disclosed in the report.
+No task classifications are promoted by this local verification checkpoint.
+
+Independent P3B-II review completed with SPEC issues and QUALITY needs fixes.
+`2026-09-22-temporal-openfga-p3bii-review.md` records one Important defect:
+cleanup cannot recover after its five-minute signed marker expires, including
+an acknowledged delivery followed by delayed completion. Fix round 1 is active
+with the original implementer. Recovery must preserve prior evidence and the
+same effect identity, work under narrow compensation after requester loss,
+and keep pending/unknown states until verified. Targeted regression and scoped
+independent re-review are required before acceptance. No classifications change.
+
+Fix round 1 affected regression passed locally in 653.622 seconds: nine
+top-level tests, no failures or skips, and all 16 owned PostgreSQL clusters
+joined normally. The controller inspected the terminal log, including six
+marker-expiry cases and replacement-read, replacement-ack, changed-policy and
+historical-source recovery cases. The historical source is a signed fixture,
+not live aged deployment evidence. Source/hash packaging and independent
+scoped re-review remain pending; P3B-II is not accepted yet. This checkpoint
+does not promote any of the 728 task classifications or authorize a release.
+
+Fix1 evidence packaging is complete. The controller independently verified
+six before/after source hashes, the report, frozen-source manifest, 121 logs
+and the scoped fix diff with zero mismatches. Independent scoped review is
+running; acceptance is still pending. All 150 historical SQL files are
+reported unchanged. No commit, push or production activation occurred.
+
+Scoped fix1 review found the original expiry defect addressed but a new
+Important restriction: renewal rejects a different currently trusted signing
+key because SQL requires the original key ID. The controller confirmed that
+the Go boundary verifies current configured keys before this SQL rejection.
+Fix round 2 is active with the same implementer, limited to trusted-key renewal
+and its affected tests. Original source/effect/history and unknown-key refusal
+must remain intact. P3B-II acceptance remains pending; no classifications change.
+
+Fix2's owned PostgreSQL regression reproduced the reviewed defect in 36.225
+seconds: a freshly verified renewal under the replacement key failed with
+SQLSTATE 40001, `executor cleanup renewal source changed`. The owned database
+joined normally. The implementer removed the old-key equality and is compiling
+the independent catalog pin before affected verification. No passing-fix or
+production claim is made. The status validator still confirms all 728 rows.
+
+Fix2 affected verification passed against frozen source: catalog, replacement-key
+recovery and source-signature checks passed in 52.282 seconds; existing applied
+and partial source-expiry recovery passed in 78.248 seconds. The controller
+inspected both terminal logs. Report/hash packaging and scoped independent
+re-review remain required before acceptance. These are local integration checks,
+not deployed signing-key rotation or provider proof.
+
+Fix2 evidence packaging is complete. The controller verified all three
+before/after source hashes, report, frozen-source manifest, 126 retained logs
+and fix diff with zero mismatches. Independent scoped fix2 review is running
+against the remaining trusted-key finding and any breakage in this correction.
+The historical 150 SQL files remain unchanged; no acceptance or push yet.
+
+Independent fix2 review passed SPEC and QUALITY with no new findings. The
+controller read the full review and accepts P3B-II as a locally verified
+reusable executor component, using the full review plus both scoped fixes.
+The earlier vet issue remains a release follow-up. This does not promote any
+original task's production classification. P3C now moves to actual Temporal
+workflow/Activity registration and API-to-worker-to-receipt integration;
+OpenFGA enforcement, retirement and deployed acceptance remain required.
+
+P3C baseline captured 1,919 platform/Node files. Runtime integration is in
+progress. Exact68 authority checks require separately registered executor and
+compensation login sessions; the controller verified this against SQL and the
+existing single-DSN worker configuration. The implementation will wire explicit
+separate connections while retaining legacy/outbox behavior. Local Temporal
+availability is reported, but no worker-consumption test has passed yet.
+
+P3C workflow, Activities, cleanup and SDK test files now exist. The controller
+inspected the initial missing-symbol RED and a subsequent diagnostic run that
+failed in 0.759 seconds on an invalid scoped-run fixture. Despite its `green`
+filename, that log is not passing evidence. The implementer is correcting the
+fixture and connecting real domain/signing/delivery adapters. No workflow or
+actual worker integration acceptance is claimed at this checkpoint.
+
+Corrected SDK workflow development tests passed in 0.814 seconds; the controller
+inspected the terminal output. Real integration exposed missing retained-start
+identity and cleanup-marker metadata, plus active SQL state blocking cleanup
+after raw Temporal cancellation. A minimal additive69 read/worker-stop surface
+is authorized within P3C, preserving68 and binding narrow compensation authority
+to the existing scoped run/start command. It must stop future effects atomically
+without inventing completion or usage. Implementation and real integration tests
+remain pending; this SDK pass is not worker-consumption or production proof.
+
+P3C lifecycle development group passed locally in 0.833 seconds after a
+missing-Close-method RED. The controller inspected passing active-compensation
+drain and provider-error-redaction cases alongside workflow tests. A focused
+race check is required for the new shared lifecycle code once settled. Actual69
+database integration, worker consumption and complete product receipt/readback
+remain unfinished; no task classification changes.
+
+P3C additive69 development checks passed in 29.539 seconds. The controller
+inspected both terminal logs and test assertions: fresh-source fingerprint,
+retained start read, wrong input digest refusal, API/executor authority refusal,
+compensation-only stop replay and one saved stop without planning admission.
+Both owned databases joined normally. This is the initial metadata/stop group,
+not proof of stop/send races, applied-effect cancellation cleanup or actual
+Temporal worker consumption. Those integration requirements remain open.
+
+The initial P3C product-adapter unit case now passes in 1.203 seconds:
+`TestTemporalProductRefusesUnboundStart`. The controller inspected the output;
+an earlier mock-database interface build error is retained separately. This
+single refusal case does not verify adapter execution, runtime registration
+or the full API-to-worker flow. The same implementer continues that integration.
+
+The P3C focused runtime development check passed in 1.149 seconds after
+correcting shutdown resource ownership to retain concrete close functions.
+The implementer reports real workflow/six-Activity registration and separate
+executor/compensation pools with drain-before-close behavior. The controller
+inspected the passing log, not yet a full registration/consumption result.
+Updated additive69 fingerprint compilation and owned HTTP-admission through
+the real local Temporal worker are next. Production proof remains absent.
+
+The first actual-worker integration attempt reached HTTP activation but failed
+with 401 `authentication_required` in 15.428 seconds. The controller inspected
+the failure and normal owned-database shutdown. The fixture must satisfy the
+existing authentication/session contract; no bypass is authorized. Worker
+consumption and receipt/readback remain unverified, and controlled test identity
+will not count as real Stytch production proof.
+
+The HTTP fixture's stale freshness timestamp and unsupported activation value
+were corrected without changing production validation. The next run returned
+an actual queued admission body but failed the fixture's typed-admission check
+in 15.974 seconds; the controller inspected that result and normal database
+shutdown. Worker consumption is still unproved. This is diagnostic progress,
+not an end-to-end pass or a task classification change.
+
+The revised integration reached Temporal 1.32.0 in an isolated local namespace
+but failed actual worker startup (19.624 seconds). Diagnosis found runtime code
+calling private68 `principal_ready` directly; the controller confirmed its ACL
+only grants the accounting role access. A boolean-only additive69 readiness
+wrapper will retain exact registered-principal checks and68 permissions. Worker
+consumption and product completion remain unverified; no classification changes.
+
+Actual local worker consumption is now observed: integration development4
+started a worker against Temporal 1.32.0, executed Observe/Plan/Observe for the
+HTTP-admitted scoped workflow, and reached approval. The whole run still failed
+in 30.964 seconds at HTTP approval (400); the implementer diagnosed the fixture's
+UTC freshness-location requirement and corrected it without production changes.
+The controller inspected the actual Activity log. This supersedes the missing
+consumption checkpoint, not the missing complete receipt/cleanup flow.
+
+A separate cancellation/late-usage PostgreSQL group passed in 24.977 seconds,
+including the nested real planner check: one late known charge after Activity
+cancellation, without new admission or resend. The controller inspected its
+terminal output and normal database shutdown. Both results use controlled local
+fixtures; deployed Stytch/provider acceptance and full P3C review remain open.
+
+Integration development5 progressed through Apply and Advance into Test on the
+real local worker. Test and subsequent Cleanup returned retryable product errors;
+the child process was killed at the fixture bound and the group failed in
+122.250 seconds, with the owned database joined normally. The controller inspected
+the terminal result and requested diagnosis of both underlying boundaries before
+rerun. Application progress is not a verified test receipt or completed cleanup.
+
+Development5 Test diagnosis: the fixture artifact driver lacked object-reference
+methods required before input/dispatch; the implementer reports owned-database
+inspection found the test effect still reserved with no provider send. The fixture
+dependency was corrected. Direct registered-compensation stop against an applied
+run then passed in 28.683 seconds (controller inspected log and normal database
+shutdown), so that probe did not reproduce the Cleanup failure. Its actual adapter
+boundary remains under diagnosis; no full integration success is claimed.
+
+A reserved-test stop probe reproduced the Cleanup failure in 29.991 seconds:
+the retained68 reserved gate does not recognize the authenticated69 worker-stop
+cause. The controller verified the exact SQL condition and authorized a private69
+gate extension bound to immutable scoped stop evidence in the same transaction,
+preserving68 and all unknown/unsent journal checks. Separately, the cleanup-consumer
+group failed its parent immutable-history assertion in 47.296 seconds despite
+the nested Go call passing; that assertion remains unresolved, not waived.
+
+The corrected cleanup-consumer group finished with two passes and one failure
+(111.652 seconds). Rotated-key and changed-replacement cases now pass both actual
+Go cleanup and retained-source/effect/signed-history assertions. Expired-replacement
+setup hit a repository rejection and remains unverified. The controller inspected
+the terminal group result; no whole-group success or completed P3C claim is made.
+
+P3C integration development6 passed in 123.821 seconds. The controller inspected
+the terminal output for actual HTTP admission, SQL outbox, local Temporal1.32.0
+worker consumption, planner/policy/linked-journal execution, signed cleanup and
+typed final HTTP read. The same group passed actual SDK cancellation through
+persisted product stop/cleanup and reserved-test stop/replay. These are controlled
+local provider/identity fixtures, not real Stytch/provider deployment proof.
+Expired-replacement consumer verification, remaining packet acceptance checks,
+frozen final regression and independent review are still required before P3C
+acceptance. Original task classifications remain unchanged.
+
+Expired-replacement cleanup consumer verification now passes in 103.755 seconds.
+The controller inspected the real Go consumer result, parent assertions retaining
+original sources/effects/signed history, and normal owned-database shutdown. The
+earlier fixture rejection is superseded for this affected local case. Final packet
+checks, frozen-source regression/race verification and independent review remain
+required; this is not a production or P3C acceptance claim.
+
+Pre-freeze checks found a revoked-approval-wait gap: the adapter returned
+`waiting_approval` instead of requesting compensation (focused RED, 1.058
+seconds, inspected by controller). The implementer is correcting that behavior.
+Remaining P3C checks include stop/send serialization, reserved-test cancellation,
+rollback/private grants, retained terminal decisions/history content, lifecycle
+race verification and operator configuration. Exact69 CLI installation is reported
+in actual-worker fixtures, pending final report/review. Final freeze has not begun.
+
+The stop/send and reserved-cancellation group passed in 96.909 seconds after
+correcting a nullable-value fixture assertion. The controller inspected terminal
+output; the implementer reports stop-first dispatch refusal and already-started
+unknown/no-charge/no-resend checks passed. Actual raw Temporal cancellation after
+test reservation reached persisted stop and signed cleanup with one planner call
+and zero runner calls, followed by normal worker/database shutdown. Remaining
+history/retained-terminal, rollback/private-ACL and focused race checks precede
+final frozen verification and independent review. Local fixtures remain explicit.
+
+P3C retention/rollback development group passed in 101.562 seconds. The controller
+inspected terminal output for the actual local worker, API-cancel coexistence and
+reserved-test stop cases, plus the history-payload and atomic rollback/private-ACL
+assertions in source. Preflight unit output also passes revoked-approval handling,
+permanent-error classification and concurrent runtime close. This is development
+evidence, not frozen final verification or independent acceptance. Production
+Stytch/provider gates and all later migration work remain open; no task rows are
+promoted and no push is claimed.
+
+P3C final verification now uses a frozen 1,936-file source manifest; the controller
+checked all listed hashes with zero mismatches. Focused race checks passed for
+active-compensation draining and concurrent runtime close (1.785s and 2.306s).
+The worker/configuration/CLI unit group passed. The final affected PostgreSQL
+group is still running under the implementer's session40465. Independent full
+P3C review waits for that terminal result and the completed evidence package.
+These checks do not change any original task's production classification.
+
+Before review, implementer self-review found the production constructor's cloud
+session name is rejected by the existing allowlist. The local worker fixture did
+not exercise that constructor. A focused fix will reuse the approved red-team
+session identity without weakening validation, with constructor RED/GREEN and
+affected runtime/race checks against a revised recorded source snapshot. Earlier
+checks are not evidence that this production constructor works. P3C remains open.
+
+The constructor configuration regression now passes (2.076s) after its recorded
+failure (1.032s), including invalid token-path refusal. Affected lifecycle race
+checks pass again. Controller comparison confirms only the runtime constructor
+and its test changed between source snapshots; all revised source hashes match.
+The final PostgreSQL group remains active, with all three cleanup recovery cases
+and both stop/send fencing cases passing so far. This is local configuration and
+integration evidence, not execution against production AWS or identity services.
+
+P3C final affected PostgreSQL verification passed in 547.935s across 12 top-level
+groups; all 16 owned databases were reported joined. Controller inspected terminal
+results and verified 23 source before/after hashes, 48 logs, report, both source
+snapshots and scoped diff with zero mismatches. A fresh independent reviewer now
+owns the complete P3C spec/quality review. Source remains frozen. Final local runs
+used Go 1.25.6, not the required final release toolchain/advisory clearance. No
+production classifications change, and no acceptance, activation or push is claimed.
+
+Independent P3C review returned spec issues and quality needs fixes. Its Important
+finding is a real top-level startup failure: legacy repository readiness rejects
+the upgraded schema before the Temporal constructor is reached. The passing local
+worker integration bypasses this entrypoint. Controller verified that call chain
+and resumed the original implementer for an installed69 entrypoint/coexistence
+fix, preserving historical readiness and tenant/owner authority. Acceptance waits
+for targeted regression and scoped independent re-review. The minor test-log
+noise item remains recorded for final review; deployed and full-release gates stay open.
+
+P3C fix1 tracing found more than a readiness selector mismatch: the old processor's
+budget and worker operations also use superseded public readiness paths. Controller
+confirmed the required acceptance is real manual/legacy execution alongside
+ordered Temporal work on the same upgraded installation, not API-only coexistence.
+The fix must preserve tenant/current-authority/budget/effect checks and ownership
+exclusion through an exact additive compatibility boundary. Historical migrations
+and accepted68 stay unchanged; obsolete control flow still requires P4/P9 retirement.
+No compatible execution or startup pass is claimed yet.
+
+P3C fix1 now has direct installed-schema RED evidence: the real worker repository
+constructor rejects installed69 (14.220s), with its owned PostgreSQL instance
+joined normally. The preceding attempt failed on a diagnostic output path before
+the constructor and is not functional RED evidence. The regression no longer
+depends on ignored artifacts. Execution/settlement authority mapping is ongoing;
+no passing compatibility implementation or task promotion is claimed.
+
+Controller approved a bounded additive70 compatibility layer after inspecting the
+full operation inventory: 22 fixed worker roots, 58 private source-verified
+function copies and five private guard adapters. It preserves full existing
+manual/export/test/Attack-Lab execution while refusing Temporal-owned work and
+leaving historical guards and accepted68 unchanged. Four copied schedule/claim
+functions are transitional and remain required P9 retirement targets. The fix
+must prove nonempty manual and ordered Temporal work through the shipped entrypoint
+on one upgraded database. This is an implementation ruling, not passing evidence
+or approval to retain custom orchestration in the completed product.
+
+Further fix1 tracing found export dispatch writes still hit an old readiness guard
+through an audit-export table trigger. The proposed private function copies do
+not resolve that indirect dependency. Export compatibility is explicitly incomplete;
+no claim that all mapped families work is justified. The implementer is checking
+the actual test-run child path for the representative manual/Temporal coexistence
+regression. Export trigger, worker and settlement authority remain required work.
+
+The manual test-run path also has old linked-adapter and reconciliation readiness
+checks. Controller authorized the smallest separate additive compatibility boundary
+needed for an actual child execution and parent terminal receipt, retaining child
+identity, journal/no-resend rules and all authority/evidence checks. Accepted68's
+Temporal ownership contract stays unchanged. These transitional adapters remain
+retirement targets; export/action-policy migration is not covered by this addition.
+Initial70 catalog compilation failed on a SQL regex and is being fixed. No new
+passing startup or terminal manual execution evidence is claimed.
+
+The independently pinned70 catalog test now passes (13.64s), but the grouped
+installed-worker check fails in the actual migration CLI before repository
+readiness; the group result is FAIL29.141s. Both owned databases joined. This
+is partial local compiler evidence only. Startup, downstream execution, terminal
+manual coexistence and scoped independent re-review are still open.
+
+The corrected installed-repository test passes in20.021s: actual compatibility
+migration CLI, worker repository construction and Ready on the upgraded database.
+Controller inspected test scope and terminal output; the owned database joined.
+This does not yet prove the full production worker entrypoint, task consumption,
+shutdown or terminal manual coexistence. Those checks and the downstream linked
+adapter remain in progress before fix1 independent re-review.
+
+The linked-test extension inventory is now checked: 15 fixed role-separated
+operations and 21 exact private function copies under additive71, with the
+approved existing principal, identity, journal and evidence checks retained.
+Controller confirmed every listed source signature exists. Implementation and
+real downstream/parent receipt verification remain pending; this inventory is not
+execution evidence. Export and standalone-test compatibility are not established.
+
+The real registered linked-worker constructor now has installed-schema RED
+evidence (FAIL16.579s, owned database joined). Exact catalog tracing found one
+required private overload omitted by truncated-name matching. The extension now
+requires22 private signatures, with the same15 public operations and no extra
+grant. Full schema/signature identity and source/ACL checks remain mandatory.
+No linked-worker or terminal manual flow pass is claimed yet.
+
+Additive71 now compiles to an independently calculated catalog fingerprint;
+its diagnostic run ends at the expected pin assertion (18.165s), not a passing
+integration. The new linked database-routing test is RED at missing adapter and
+readiness symbols. Fixed routing implementation is ongoing. Linked-worker startup
+and terminal manual execution remain unverified pending runtime tests and review.
+
+The linked installed-boundary group now passes37.366s: actual migration CLI,
+registered linked repository construction/Ready, and independent71 catalog check.
+Controller inspected terminal output and test scope; both owned databases joined.
+Fixed SQL-routing unit checks also pass0.897s. Full worker/reconciler composition,
+terminal manual receipt, shutdown and scoped review remain open. These results
+do not establish deployed provider availability or overall startup acceptance.
+
+The shared linked-adapter endpoint must preserve retained ordered handling while
+adding manual compatibility. Controller authorized one exact-adapter read-only
+classifier derived from persisted scoped identity, with no caller-selected
+authority and no fallback after refusal. The effect endpoint and existing checks
+remain unchanged. Both routes and refusal behavior require verification before
+acceptance; no completed worker flow is claimed from this design decision.
+
+Stub-backed journal-router checks now pass2.504s for both route selections and
+unknown/malformed/refused responses without fallback. Controller inspected their
+scope. Adding the scoped classifier changes71's independent catalog fingerprint;
+the prior installed71 pass predates that change. Actual tenant/owner classification
+and full manual/Temporal runtime evidence remain required before re-review.
+
+A composed-adapter regression caught installed linked handling bypassing the new
+classifier (FAIL1.126s); its corrected group passes5.832s. Controller inspected the
+HTTP handler test, which uses a database stub and verifies invalid71 readiness
+and construction refuse without fallback. This is local composition evidence,
+not installed SQL authority or provider execution. Full worker coexistence is
+still being wired with real repositories/processors and controlled external IO.
+
+The full coexistence fixture now runs. Initial failures were invalid fixture
+idempotency-key length and DSN syntax; production validation stayed unchanged.
+After correcting them, the test reaches real Temporal execution and the controlled
+TLS adapter, but fails its combined provider/runner count assertion (69.072s).
+The owned database joined normally. New manual admission/replay is reported reached
+on installed71; completed manual execution is still not proved. The whole group
+remains failed while the implementer checks the missing manual processing path.
+
+The next diagnostic identifies the manual stop: needs_human with
+budget_usage_unknown (terminal FAIL72.846s, owned PostgreSQL joined). Controller
+confirmed the legacy prepared planner unconditionally returns unknown maxima.
+Approved a narrow Go-only installed70 wrapper reusing the existing configured,
+request-bound pricing lookup, with current authority rechecked before dispatch.
+Unknown or revoked pricing still prohibits network IO; no SQL grants, default
+ceilings, or caller-supplied maxima are authorized. Grouped refusal tests and the
+actual shared-runtime manual terminal receipt are still required. This temporary
+wrapper must retire in P9. No task classification or production gate changed.
+
+The pricing adapter's first stub-backed test group passes (1.939s); controller
+requested stronger direct no-send assertions before final review. The next real
+shared-runtime integration advances to both runner calls but remains failed
+(83.376s): three planner calls instead of the expected two, with the manual
+parent in needs_human. The owned database joined. The implementer is tracing
+committed decisions and receipts; terminal parity is not accepted, and these
+controlled local integrations are not deployed provider proof.
+
+The corrected shared-runtime development group passes (73.798s, owned database
+joined). Controller inspected the unchanged two-planner/two-runner assertion and
+manual settlement checks: completed child, succeeded action, one completed
+invocation, after-artifacts, matching proof digest, reconciliation audit and typed
+receipt. Manual needs_human/test_baseline_unavailable is explicit and is not a
+remediation claim. The extra prior call was an unrelated automatic trigger on the
+cloned fixture definition. Expanded pricing refusal tests pass (2.270s), including
+direct dispatch attempts that must produce no network IO. Final affected evidence,
+source freeze and independent fix review remain pending. No production promotion
+or push is justified by these controlled local development results alone.
+
+The installed-authority negative development group passes (53.241s, three owned
+databases joined). Controller inspected wrong-role/classifier refusal, private
+grant checks, modified-ACL readiness rejection and predecessor alteration
+rollback assertions. A separate targeted routing test exposed selection of an
+unavailable standalone authority; its corrected verification and final race
+results still belong in the pending frozen review package. These checks do not
+close the broader production or later-milestone gates.
+
+P3C fix1 frozen verification is complete locally: final affected PostgreSQL group
+passes162.790s with five tests and five owned database joins. Unit and focused
+lifecycle/router/pricing races pass; two owned-environment unit helpers skipped
+and are not integration proof. Controller verified30 changed-file before/after
+hashes,39 log hashes, the fix-only diff and1,951 frozen source hashes with zero
+mismatches. Scoped independent re-review is now running against the original
+startup finding and fix-introduced changes. Acceptance, publication and all
+remaining downstream/deployed gates are still pending.
+
+P3C independent scoped re-review accepts the startup/coexistence correction:
+spec passes within its authorized scope, quality approved with minor follow-ups,
+no new Critical/Important breakage. The original diagnostic-noise Minor remains
+for final review. The report's incorrect vet attribution is corrected without
+source/test changes; pre-correction evidence remains retained and identified.
+This closes P3C locally, not production availability or all-family parity.
+
+P4 implementation is now active for automatic discovery/sync and the remaining
+workflow families, using the approved full-scope brief and recorded downstream
+gaps. No task-row availability promotion, deployment, commit or push occurred.
+OpenFGA enforcement, all-family acceptance, retirement and real deployed
+Stytch/provider verification remain required.
+
+P4 now has explicit implementation stages: A covers tenant-safe Schedule and
+discovery workflow contracts plus the full family/transport inventory; B requires
+actual discovery SQL authority, collectors and full-entrypoint Temporal sync;
+C covers common triggers and scheduled-test shared capacity; D closes remaining
+downstream settlement/recovery families. P4 remains incomplete until all its
+original requirements pass. This split changes review boundaries, not scope or
+availability. P3C's documentation Minor is independently confirmed corrected;
+the diagnostic-log-noise follow-up remains open for final review/P8.
+
+P4A's component handoff is in independent review. It adds Schedule reconciliation
+and discovery workflow contracts, including large-inventory continuation and
+checkpoint-bound page commands, plus the full remaining-family/transport
+inventory. Final orchestration unit/race and selected retained worker/API tests
+pass; controller verified all five changed-file hashes and16 log hashes against
+the frozen package. These tests use controlled SDK/Activity boundaries, not real
+discovery SQL/provider integration. P4B/C/D and all production gates remain open.
+
+P4A review found two Important issues: application work could start after the
+original discovery deadline, and the proposed ten-second Schedule catch-up
+policy could skip the outstanding overdue scan. Fix round 1 is assigned to the
+original implementer with grouped regression tests and a scoped re-review.
+The accepted policy preserves one overdue admission followed by advancement to
+the next future cadence; it does not approve a freshness regression. Deadline
+expiry must prevent fresh work while preserving uncertain/committed evidence.
+P4A is not accepted yet. No task availability is promoted by this checkpoint;
+real persisted admission, reconciliation and provider behavior remain P4B gates.
+
+P4A fix round 1 is now in independent scoped review. The frozen batch has passing
+orchestration unit/race tests and selected retained worker/API regressions.
+Controller verified five changed-file hashes, nine logs and unchanged captured
+SQL. The fixes add deadline-bounded fresh work, evidence-only settlement,
+overdue-occurrence coalescing and a single durable start-delivery contract.
+These remain component checks, with no availability promotion. P4B must prove
+actual SQL receipts, atomic start delivery, restart repair and full-entrypoint
+sync before those contracts can support a production claim.
+
+P4A's independent fix review is approved within component scope: both Important
+findings are addressed, with no new blocking issues. This accepts the local
+Schedule/workflow contracts only. P4B now owns the required real persistence,
+collector, durable-delivery and shipped-entrypoint sync proof; P4C/D and the
+original production/retirement gates remain open. No 728-task availability row
+changes merely because the component review passed.
+
+P4B extraction is underway. Its accepted route retains discovery SQS/outbox
+delivery and replaces the upgraded consumer's claim/heartbeat execution with a
+stable Temporal start. Additive authority must preserve tenant/current-connector
+checks, original deadlines and durable receipts. Internal authority and collector
+checkpoints do not complete P4B separately; actual shipped-worker sync and
+independent review remain required. No production availability is claimed here.
+
+P4B's first disposable-PostgreSQL installed-authority test now passes (24.367s).
+This is development evidence for the current migration/readiness boundary, not
+proof of admission, collector execution or full Temporal sync. The authority is
+still being implemented and needs final catalog verification and review. No
+task availability row is promoted by this result.
+
+P4B's grouped installed-authority and admission tests pass in disposable
+PostgreSQL (46.748s). The admission case verifies one Temporal-owned run and
+existing outbox entry, no legacy job row, due advancement, duplicate refusal,
+scope/revision denial and refusal by the old claimant. These are development
+checks, not frozen full integration evidence. Collector integration also exposed
+a retry-receipt contract gap: safe retries need a new persisted receipt version
+without cursor advancement, while replay of an old command must stay unchanged.
+That amendment is under implementation and must receive grouped tests and review.
+Full worker sync, real provider identity and deployment gates remain open.
+
+P4B's first internal checkpoint has passing development evidence for installed
+authority, failure-atomic migration, scheduled/manual admission, desired changes
+and focused outbox-conflict rollback/coalescing. The null-revision bypass was
+corrected and its admission test passes. A setup-only conflict-fixture failure
+remains in the historical log, followed by a focused passing rerun (19.532s).
+Workflow race checks pass (2.140s). This is not independent full-P4B acceptance:
+persisted page/apply receipts, actual collectors, transport/worker wiring and
+real local Temporal sync still need implementation and verification.
+
+P4B's grouped persisted page/partial-checkpoint tests now pass in disposable
+PostgreSQL (47.296s). They check exact receipt replay, safe-retry timing and
+preservation of provider cursor, manifest and generation across retries. Product
+credential tests also exposed outbound IO after revocation in GitHub, Okta and
+Kubernetes paths; the corrected focused group passes (1.910s) with controlled
+external IO. These are local development checks, not live provider or deployed
+sync proof. Evidence is in the plan packet's p4b-partial-checkpoint-green.log and
+p4b-product-credential-boundaries-red/green.log. No task availability changes:
+inventory application, complete runtime integration and independent review remain
+open.
+
+The next P4B apply/settlement development group passes (77.643s): committed,
+uncertain and no-application cases preserve their distinct outcomes after the
+original deadline. All three disposable PostgreSQL instances shut down normally.
+The first run failed on the existing failed-sync error-field constraint; the
+correction supplies a fixed redacted error without changing that constraint.
+Evidence: p4b-apply-evidence-green2.log in the plan packet. This uses an empty
+typed inventory candidate, so nonempty provider inventory and full worker sync
+remain unverified. No task availability row is promoted.
+
+P4B installed collector and identity-rule checks now pass in the local grouped
+run (p4b-inventory-rule-collector-green.log, 82.559s). The collector uses actual
+product SQL, credential/collection adapters and S3 driver with controlled external
+IO. It verifies receipt replay without repeated storage writes, typed application,
+evidence-based settlement and readiness after ordinary writes. The parent checks
+nonempty inventory, one snapshot input and three projection work rows. Identity-rule
+mutation is refused by readiness. This is not deployed provider proof or complete
+Temporal worker/schedule integration; those gates and independent review remain
+open. No task availability row changes.
+
+P4B typed API repository readback passes in a local PostgreSQL group
+(p4b-public-readback-green.log, 118.572s), covering sync status, retry and attempt
+projection, schedule readback and foreign-scope denial. Public mutations also
+pass (p4b-public-mutations-green.log, 34.902s): manual admission/replay,
+schedule enable/read and delete/replay. The retained API package log records
+PASS184.221s. These checks use actual repository/SQL paths, not authenticated
+HTTP, browser or deployed integrations. Worker coexistence routing currently
+has a behavioral RED for missing delivery_route; full runtime verification and
+independent review remain open. No availability rows are promoted.
+
+P4B's first shipped-constructor discovery sync passes against local Temporal
+1.32.0 and disposable PostgreSQL (p4b-shipped-runtime-green3.log, 40.239s).
+The test checks successful workflow completion, nonempty inventory, snapshot
+and projection records, queue acknowledgement and joined shutdown without
+creating legacy discovery jobs. Cloud/provider IO and OpenFGA readiness are
+controlled doubles. This is single-run local integration evidence, not deployed
+Stytch/provider or OpenFGA authorization proof. Periodic sync, remaining P4B
+cases and independent review are still open. No availability rows are promoted.
+
+API-root gate: P4B's discovery HTTP evidence must use the actual discovery
+handler, production surface/repository and identity/CSRF checks. It does not
+prove the full agentsec-api root starts on the upgraded database. The broad
+repository and Sensor/Recovery/Inventory/Security Agent readiness dependencies
+require explicit compatibility verification in P8 before release readiness.
+Their checks must not be bypassed. This remains required work, not an external
+gate or a scope reduction; P4B must hand off the exact constructor dependencies.
+
+P4B manual HTTP and actual nominal Temporal Schedule flow passes locally:
+TestTemporalDiscoveryShippedRuntimePostgres PASS80.79s in
+p4b-runtime-continuation-green.log. Persisted assertions cover three successful
+generations, three nonempty snapshots, nine projections, three published outbox
+rows and no legacy discovery jobs. Repeated scans report zero new discoveries.
+The enclosing group still failed its separate continuation case. Provider/cloud
+IO and identity/FGA readiness substitutes remain local test boundaries; broad API
+startup, long-history continuation, overlap, independent review and deployed
+Stytch/provider gates remain open. No original task availability is promoted.
+
+P4B continuation and overlap now have completed local integration evidence.
+The installed wait/readback/overlap group passes158.512s
+(p4b-wait-readback-overlap-green.log), including queued retryable attempt0,
+expired/revoked wait settlement, and overlapping manual HTTP/scheduled runs
+followed by an actual nominal Schedule occurrence. Persisted checks cover three
+successful runs, three nonempty snapshots, nine projections and no legacy jobs.
+
+The cold-worker continuation group passes663.984s
+(p4b-continuation-cache-cold-green.log). Controller inspection of the test confirms
+267 fresh page effects, a worker/cache restart at page256, actual Temporal
+Continue-As-New with scoped identity and original deadline preserved, and a
+single generation1 snapshot containing258 entities plus three projection records.
+Owned namespaces and PostgreSQL instances shut down normally. These supersede
+the earlier pending local overlap/continuation checks, not the unexplained
+historical checkpoint40 unknown result. Identical-name tenant isolation, final
+affected verification, independent review and full API-root compatibility remain
+open. Provider/cloud IO and identity/FGA substitutes are still local test
+boundaries, not deployed Stytch/provider evidence. No availability row changes.
+
+P4B identical-name two-tenant shipped integration now passes92.501s
+(p4b-tenant-isolation-green.log). Tests use matching connector/connection/schedule
+IDs across organizations, check distinct Temporal identities and artifact keys,
+deny cross-tenant HTTP sync reads, and verify a separate generation1 nonempty
+snapshot for the second tenant. Four total runs succeed with twelve projections
+and no legacy jobs. The earlier missing second Schedule came from a one-row
+test scheduler pass being restarted before visiting tenant two; the corrected
+test drives the next actual pass without relaxing identity checks. This remains
+local integration evidence with controlled external IO. Shutdown lifecycle
+corrections, final affected checks and independent review remain open. No task
+availability is promoted.
+
+P4B final installed regression group passes731.887s in
+p4b-final-installed.log, including coexistence53.90s and two-tenant shipped
+isolation111.76s after the shutdown and duplicate-start changes. Focused shutdown
+race tests pass2.534s; their mutation check detects premature client destruction
+and calls accepted during close. Continued-chain duplicate-start tests pass1.864s,
+with a separate real local Temporal check passing2.455s: exact duplicate accepted,
+changed digest refused after Continue-As-New. That short controlled workflow
+proves starter identity handling, not provider collection. Final review-packet
+hashes and independent review remain pending; these local results do not close
+full API-root, deployed Stytch/provider, OpenFGA authorization or release gates.
+
+P4B independent review is complete and requires fixes before local acceptance.
+See [the review](2026-09-22-temporal-openfga-p4b-review.md). P1: retained discovery
+can reserve a newer generation while a Temporal-owned run is collecting because
+the old reservation path cannot see72 ownership. P2: the replacement does not
+enforce the organization's existing max_active_jobs quota across Temporal and
+retained owners. The passing coexistence tests covered routing/readiness, not
+these concurrent acquisition cases. Neither requirement is deferred to P4C.
+The original implementer is correcting both with installed regression tests;
+P4B remains unaccepted. All68 frozen source hashes,174 evidence logs and204
+preexisting SQL files were independently verified; this does not erase the
+behavioral findings or establish production readiness. No availability row changes.
+
+P4B correction evidence is partial. Both findings were reproduced against installed
+PostgreSQL (p4b-fix1-acquisition-red2.log, FAIL48.544s). The initial ownership,
+shared-capacity and authority group now passes80.382s. A separate batch-size-one
+starvation regression first failed47.968s; its corrected bulk fairness,
+retained-dispatch preparation and authority group passes78.506s in
+p4b-fix1-bulk-handoff-green.log. Expanded mixed-owner/retry/release/replica cases
+and independent re-review remain required. These selected passes do not close
+either review finding or promote a task to production-available.
+
+P4B fix1 mixed-owner collection remains incomplete. The collector group in
+p4b-fix1-collector-io-green.log failed171.699s: both same-resource orderings
+passed, but both cross-integration quota cases failed. The follow-up
+p4b-fix1-quota-io-diagnostic.log identifies a real relationship-to-snapshot
+foreign-key failure when two connectors discover the same AWS account.
+Relationship IDs omit integration identity; the existing conflict update retains
+the first integration while assigning the second snapshot. The constraint and
+same-account scenario remain intact. An additive72 normalization correction is
+in progress, preserving existing scoped relationship IDs, shared entity IDs,
+raw artifact identities and exact persisted-candidate replay. It is not yet
+verified or accepted.
+
+Replica capacity verification passes28.118s in p4b-fix1-replicas-green2.log.
+The fixture now observes the existing recovery-scope lock asynchronously and
+joins its transactions; a separate committed reservation also blocks the second
+replica. This local pass does not close the failed collector group. Full affected
+verification, independent fix review and all deployed product gates remain open.
+No task availability classifications change.
+
+P4B identity-corrected collector group now passes184.642s in
+p4b-fix1-collector-identity-green.log. All four mixed-owner cases pass, including
+the unchanged same-account, different-integration quota cases in both orders
+(42.07s and45.83s). The group checks persisted completion, nonempty inventory,
+projections, zero blocked-owner credential/provider/storage calls and the original
+Temporal deadline. This supersedes the earlier collector failure for this tested
+source only. Compatibility/replay after later inventory changes, connector-local
+deletion, malformed JSON rejection and final affected-source verification remain
+open, followed by independent review. A separate numeric source_native_id
+validation regression failed25.614s and is being corrected. These are local
+integration results, not real deployed provider or Stytch evidence.
+
+The focused cutover/identity group now passes215.611s in
+p4b-fix1-cutover-identity-green.log. It covers pre72 unresolved-generation
+quarantine (26.72s), both connector-order compatibility cases (98.00s), safe
+resume (24.86s), relationship mapping and malformed-input rejection (24.82s),
+and installed authority (40.19s). Compatibility checks preserve historical edge
+identity and replay, share entity identities across connectors, and remove only
+the matching connector's edge on an empty snapshot. This closes those focused
+regressions locally. Final affected race verification and independent fix review
+remain pending; neither original review finding is marked closed yet.
+
+Final focused race checks pass API2.180s, worker2.856s and orchestration1.651s
+in p4b-fix1-final-race-focused.log. The earlier overbroad selection in
+p4b-fix1-final-race.log failed API241.022s. Its runtime-ingest HTTPS recovery
+test could not build the actual sensor-agent process because Go requested module
+updates; the package later reached its four-minute timeout while
+TestProductionSecurityAgentActionNaturalRecovery/create_temporary_policy/work
+was running. These are separate unresolved verification observations, not proof
+of a NaturalRecovery deadlock or external deployment blockers. Correcting the
+selector does not clear them. Diagnose and rerun with appropriate full-suite
+coverage before P8/release acceptance. The final installed-discovery group is
+still running; no final-source integration pass is claimed here.
+
+The [independent fix1 source review](2026-09-22-temporal-openfga-p4b-fix1-review.md)
+passes spec and quality for the frozen overlay: both original findings are
+addressed in source, with no new actionable defect identified. The reviewer
+verified11 changed files, five packet hashes and204 unchanged historical SQL
+files. Local P4B acceptance still requires session91184's final installed result,
+owned-process cleanup and unchanged frozen hashes. This is not a merge or
+production-readiness approval, and no task classifications change.
+
+Session91184 reached its45-minute package timeout during Continuation, after30
+of33 top-level cases passed. The log records the continuation case at9m42s when
+the timer fired; the implementer's read-only post-timeout check found178 persisted
+pages with the original deadline current. This is a failed command, not a final
+integration pass or proof of a continuation deadlock. Preserve its evidence and
+clean up only the positively identified test child, PostgreSQL instance and
+Temporal namespace. Continuation, ShippedRuntime and TenantIsolation must run
+in a separate unchanged-source group. Reconcile all33 cases across commands and
+verify frozen hashes before local acceptance; no completed coverage is waived.
+
+Unchanged-source follow-up session18716 now passes Continuation (938.14s),
+with child PASS910.44s/package911.485s. Controller inspected the log and parent
+assertions: actual Continue-As-New receipt256, cold worker restart,267 provider
+pages/534 artifact writes, succeeded persisted run, checkpoint267, generation1,
+258 entities, three projections and zero legacy jobs, preserving the original
+deadline. Its exact owned namespace was retired and PostgreSQL joined normally.
+ShippedRuntime and TenantIsolation remain pending in that same group. The
+original timeout remains a failed command; final evidence/source reconciliation
+and local P4B acceptance are still pending. This is controlled local integration,
+not live provider or deployment proof; no task classifications change.
+
+Follow-up group terminal PASS1121.725s inspected: ShippedRuntime83.73s and
+TenantIsolation99.14s also pass with owned namespaces retired and PostgreSQL
+joined. The two-tenant case persists four succeeded runs/four nonempty snapshots,
+twelve projections and zero legacy jobs. Controller independently enumerated
+all33 top-level installed discovery tests and matched33 distinct PASS records
+across the original and follow-up commands, with none missing. All11 current
+fix1 source hashes match the independently reviewed freeze. Final immutable
+evidence packaging and historical SQL reconciliation remain before acceptance.
+The original command still failed its package timeout; these combined case
+results do not change that fact or establish deployed production readiness.
+
+P4B is now accepted for its local discovery integration scope. Controller read
+the final report and independent review, verified12 final file hashes,46 log
+hashes, five packet references, reverse diff consistency and204 unchanged
+historical SQL files. Final manifest SHA256:
+`da94d9619f01d028ec44f858799c821e6d3e2dcb0a34d2fb063d5ed22ab89134`.
+Both original review findings are addressed; combined unchanged-source coverage
+accounts for all33 installed cases. P4C common trigger/scheduled-test admission
+is next. P4D recovery, P8 full-suite/API-root verification, P9 retirement and
+deployed Stytch/OpenFGA/provider gates remain required. No push, deployment or
+production-availability promotion is claimed.
+
+P4C caller inventory identified a required execution boundary: ordered68/69
+expects the ordered temporary-policy/test plan and cannot consume specialized
+single-action admissions unchanged. P4C implementation will preserve explicit
+retained execution ownership while Temporal controls atomic admission, one-time
+authorized release and verified terminal observation through durable commands.
+This is a temporary migration stage, not replacement of the specialized executor.
+Actual executor/parent settlement and cancel/revoke/deadline evidence are required
+before P4C acceptance; P4D/P9 must replace and retire that bridge without creating
+another logical run or effect. Webhook remains the signed action family, and
+approval continues an existing run. No tests or production status are claimed
+for this implementation-in-progress decision.
+
+P4C's first installed admission checkpoint passes locally in26.440s. The actual
+worker repository refuses a scheduled existing-test admission while a Temporal
+owner holds per-definition capacity, admits after terminal/no-unresolved release,
+records admission/start atomically and creates no duplicate on repeated wakeup.
+This is a controlled PostgreSQL fixture, not complete trigger execution. Expanded
+uncertain-effect/manual-replay checks, Temporal selector/command consumption and
+independent review remain pending; no task availability classification changes.
+
+P4C execution decision updated after tracing the temporary bridge: its durable
+revision coverage would span multiple downstream families without replacing their
+lease-based ordering. The next execution slice will instead extract lease-free
+run_test/rerun_test workflow execution, preserving current journals and product
+identities. This brings required P4D work forward; it does not remove any other
+family. Current admission/accounting must first pass checkpoint review. Unconsumed
+starts are not completed orchestration, and no deployment activation is claimed.
+
+The P4C admission/accounting checkpoint is now frozen for independent review.
+Final expanded local PostgreSQL test passes50.555s, including hidden Temporal
+owner accounting, unresolved provider occupancy, safe release, manual exact
+replay at capacity, identical IDs across two tenants, blocked-first candidate
+progress and two-connection rollback/retry. CLI installation/drift checks pass
+27.682s on unchanged production source. Controller verified nine changed files,
+15 evidence logs and205 unchanged historical SQL files. These checks do not
+consume Temporal starts or execute the new lease-free family. Review and the
+remaining P4C/P4D implementation are still required; classifications are unchanged.
+
+Independent P4C checkpoint review requires one focused verification correction:
+current refusals can occur before the new global INSERT guard. The guard's
+same-definition rejection of an old RLS-limited caller needs direct installed
+evidence, including atomic rollback and release/retry. No production-code defect
+was demonstrated. Fix round1 is assigned to the original implementer; checkpoint
+acceptance and the next executor slice wait for its scoped re-review.
+
+The first fix1 mutation run failed in test setup (SQL42501 and42703), before
+the required guard assertions. This is not behavioral RED evidence. Saved
+database functions and registration were restored, readiness passed and the
+owned PostgreSQL process joined normally. Focused fixture correction continues;
+no task classification or production readiness claim changes.
+
+Corrected fix1 evidence now includes behavioral mutation failure20.318s with
+internally valid readiness: retained70 over-admits at hidden capacity and the
+retained API fails to refuse organization-lock contention when rejection is
+removed. Saved database definitions and readiness were restored. The final
+focused guard and existing schedule group passes72.409s, with normal owned
+PostgreSQL shutdowns. Frozen-packet verification and independent scoped review
+remain required before accepting this local checkpoint.
+
+Independent fix1 re-review now closes the sole INSERT-guard finding, with no
+new breakage and passing checkpoint spec/quality verdicts. The admission and
+accounting checkpoint is accepted locally. Full P4C remains incomplete:73 starts
+are unconsumed, retained execution still exists, and the approved lease-free
+run_test/rerun_test executor is next. No original-task availability promotion,
+production activation, commit or push follows from this checkpoint alone.
+
+The next lease-free test-family slice is in progress. Its cutover must preserve
+immutable73 admission history while recording and enforcing successor ownership
+against retained claims. Existing public invocation lease fields will not be
+relabelled as Temporal identity. Explicit owner-specific invocation evidence
+must preserve canonical child/category/request identity and typed readback.
+
+Source inspection also found that the retained single-action activation route's
+workflow-management gate does not establish scoped test-execution delegation.
+The new activation/config path must create a version-bound service grant under
+current view/manage_workflows/run_tests authority. Historical backfill requires
+matching activation evidence and current grantor authority; unsupported rows
+stay retained until an authorized renewal. These are implementation decisions,
+not passing executor evidence or production availability promotions.
+
+The first scoped grant/API group now passes locally in24.496s. It uses the
+actual repository74 route, separately denies insufficient role and missing
+scoped run_tests permission, and proves canonical version-bound grant creation
+and exact replay. The release-command test fails21.893s because its dispatcher
+entry is not yet implemented. Normal activation, revocation, backfill, durable
+execution, settlement and independent review remain required. This narrow
+result does not change original-task classifications.
+
+Expanded local grant/backfill coverage passes29.160s using real registered55
+API activation writes followed by the upgrade in the same disposable database.
+It checks conservative historical proof, current service-grant authority after
+creator deactivation, disable/revoke denial and normal activation/replay.
+This is application integration evidence, not live Stytch/provider proof.
+The added typed activation readback test fails18.949s with provider unavailable
+after upgrade. That route, final same-source checks, executor consumption and
+settlement, and independent review remain open.
+
+Current authority/configuration group now passes locally: API36.355s and
+migration command29.707s. The typed readback uses UTC, and existing configuration
+replay/write routes select74 authority before retired readiness probes. The
+group covers historical real-writer upgrade, activation/readback, actual delete
+and repeat response, and atomic grant-revocation audit/receipt linkage. This
+closes those observed local route failures, not the executor slice: untouched
+ownership transfer, retained-worker fencing, workflow/provider execution,
+settlement, final same-source verification and independent review remain open.
+
+The first ownership-transfer group passes locally in37.719s, with normal owned
+PostgreSQL shutdown. Actual manual admission transfers to explicit74 ownership
+while preserving immutable66 history; repeated transfer retains the workflow
+identity. The retained70 worker cannot claim the transferred parent, and a
+privileged lease mutation is rejected. Adapter authorization, automatic-run
+transfer, concurrent boundary checks, actual workflow/effect execution and
+settlement are not yet proved by this group. The executor remains in progress;
+there is no production promotion, independent acceptance or push.
+
+Expanded ownership/planning coverage now passes51.522s (case50.53s), with normal
+owned PostgreSQL shutdown. The group uses an actual database lock-wait barrier,
+automatic73 admission with service-backed takeover, private74 durable planning,
+installed pricing, one send permit, controlled response parsing, usage settlement
+and a canonical single step. External provider/artifact IO is controlled input
+in this SQL group, not actual execution or production proof. Effect preparation,
+adapter invocation, verified child/parent settlement, workflow/transport wiring,
+final affected-source checks and independent review remain required.
+
+The local effect/invocation group now passes69.051s (case68.05s), including
+actual74 Go adapter resolution, old71 rejection at the hidden parent boundary,
+restricted helper access and catalog-drift denials, definition-disable and
+private/public mismatch checks before fresh invocation, uncertain-category
+no-resend and exact observation replay. The missing row-security helper privilege
+required a narrowly fingerprinted additive compatibility change; historical SQL
+is preserved. This uses controlled provider inputs. Temporal workflow execution,
+verified parent settlement, transport integration, final-source review and live
+production gates remain open. No original-task classification changes.
+
+Local child/parent settlement now passes72.771s (case71.78s), with a normal owned
+PostgreSQL shutdown. The group distinguishes child completion from parent
+settlement and checks actual typed GetSecurityAgentRun readback: no comparable
+baseline yields needs_human with test_baseline_unavailable, not remediation.
+Receipt, audit and link state are verified without fabricated leases. Controlled
+local artifacts are not live-provider proof. Temporal workflow/transport execution,
+remaining outcome and recovery coverage, final-source review and production
+gates remain required; all728 classifications stay unchanged.
+
+Local start/status and uncertain-capacity coverage passes89.865s (case88.87s).
+Exact start acceptance/replay preserves identity; unknown sent planner work
+retains cleanup/capacity despite terminal parent labels, while evidenced unsent
+release or reconciled late usage permits retained admission. The group checks
+rollback leaves no admission writes and predecessor73 remains ready. Actual
+Temporal workflow execution, broader concurrency/tenant proof, the newly added
+full74 activation-chain case and final independent review are still required.
+This is local control evidence, not a deployed flow or availability promotion.
+
+Activation-chain clarification: the new test failed33.823s because it expected
+supervised mode to stay disabled. Original migrations0018/0021 explicitly enable
+supervised mode and synchronize its stored autonomy. This was a test expectation
+error, not a demonstrated74 activation defect. Preserve supervised approval
+controls and its version-bound grant; draft/validated remain disabled with no
+grant. The corrected full-chain test is pending; no production change is justified
+by that failed expectation.

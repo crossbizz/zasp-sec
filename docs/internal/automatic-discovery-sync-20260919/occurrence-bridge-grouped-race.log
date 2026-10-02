@@ -1,0 +1,250 @@
+=== RUN   TestAutomaticDiscoverySchedulerProcess
+    automatic_discovery_process_test.go:111: selected browser process only
+--- SKIP: TestAutomaticDiscoverySchedulerProcess (0.00s)
+=== RUN   TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect
+--- PASS: TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect (0.10s)
+=== RUN   TestAutomaticDiscoveryDNSRefusesForeignNamesAndMalformedQuestions
+--- PASS: TestAutomaticDiscoveryDNSRefusesForeignNamesAndMalformedQuestions (0.00s)
+=== RUN   TestAutomaticDiscoveryDNSAnswersActualGoResolver
+--- PASS: TestAutomaticDiscoveryDNSAnswersActualGoResolver (0.00s)
+=== RUN   TestAutomaticDiscoveryCollectionProcess
+    automatic_discovery_process_test.go:371: selected browser process only
+--- SKIP: TestAutomaticDiscoveryCollectionProcess (0.00s)
+=== RUN   TestDiscoveryProviderAPIsUseOnlyDecodedExactMaterial
+=== RUN   TestDiscoveryProviderAPIsUseOnlyDecodedExactMaterial/github
+=== RUN   TestDiscoveryProviderAPIsUseOnlyDecodedExactMaterial/kubernetes
+=== RUN   TestDiscoveryProviderAPIsUseOnlyDecodedExactMaterial/okta
+--- PASS: TestDiscoveryProviderAPIsUseOnlyDecodedExactMaterial (0.00s)
+    --- PASS: TestDiscoveryProviderAPIsUseOnlyDecodedExactMaterial/github (0.00s)
+    --- PASS: TestDiscoveryProviderAPIsUseOnlyDecodedExactMaterial/kubernetes (0.00s)
+    --- PASS: TestDiscoveryProviderAPIsUseOnlyDecodedExactMaterial/okta (0.00s)
+=== RUN   TestDiscoveryProviderAPIsRejectForeignOrMalformedEnvelopeBeforeProvider
+--- PASS: TestDiscoveryProviderAPIsRejectForeignOrMalformedEnvelopeBeforeProvider (0.00s)
+=== RUN   TestDiscoveryProviderAPIsClassifyExpiredEphemeralTokenRetryable
+--- PASS: TestDiscoveryProviderAPIsClassifyExpiredEphemeralTokenRetryable (0.00s)
+=== RUN   TestDiscoveryAWSIdentityCallerUsesExplicitSessionAndAttestsSubject
+--- PASS: TestDiscoveryAWSIdentityCallerUsesExplicitSessionAndAttestsSubject (0.00s)
+=== RUN   TestDiscoveryProviderAPIsRedactPanicsAndErrors
+--- PASS: TestDiscoveryProviderAPIsRedactPanicsAndErrors (0.00s)
+=== RUN   TestDiscoverySecretsManagerReaderUsesExactAWSCURRENTName
+--- PASS: TestDiscoverySecretsManagerReaderUsesExactAWSCURRENTName (0.00s)
+=== RUN   TestDiscoveryWebIdentityProviderRejectsUntrustedTokenWithoutSTS
+--- PASS: TestDiscoveryWebIdentityProviderRejectsUntrustedTokenWithoutSTS (0.00s)
+=== RUN   TestDiscoveryCredentialFailureIsStableAndRedacted
+--- PASS: TestDiscoveryCredentialFailureIsStableAndRedacted (0.00s)
+=== RUN   TestDiscoveryProcessorAppliesCompleteSnapshotAndAcknowledgesLast
+--- PASS: TestDiscoveryProcessorAppliesCompleteSnapshotAndAcknowledgesLast (0.00s)
+=== RUN   TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory
+=== RUN   TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory/organization
+=== RUN   TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory/job
+=== RUN   TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory/subject
+--- PASS: TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory (0.00s)
+    --- PASS: TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory/organization (0.00s)
+    --- PASS: TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory/job (0.00s)
+    --- PASS: TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory/subject (0.00s)
+=== RUN   TestDiscoveryCollectionRequestUsesProjectionSafeSnapshotBounds
+--- PASS: TestDiscoveryCollectionRequestUsesProjectionSafeSnapshotBounds (0.00s)
+=== RUN   TestDiscoveryCollectionRequestCarriesDurableObservationTime
+--- PASS: TestDiscoveryCollectionRequestCarriesDurableObservationTime (0.00s)
+=== RUN   TestDiscoveryProcessorNeverAppliesOrAcknowledgesPartialResult
+--- PASS: TestDiscoveryProcessorNeverAppliesOrAcknowledgesPartialResult (0.00s)
+=== RUN   TestDiscoveryProcessorPreservesTypedProviderRateLimitThroughDurableFinish
+=== PAUSE TestDiscoveryProcessorPreservesTypedProviderRateLimitThroughDurableFinish
+=== RUN   TestDiscoveryProcessorLeavesDeliveryUnacknowledgedWhenSnapshotApplyFails
+--- PASS: TestDiscoveryProcessorLeavesDeliveryUnacknowledgedWhenSnapshotApplyFails (0.00s)
+=== RUN   TestDiscoveryProcessorRenewsDatabaseLeaseAndQueueVisibilityDuringSlowCollection
+--- PASS: TestDiscoveryProcessorRenewsDatabaseLeaseAndQueueVisibilityDuringSlowCollection (0.02s)
+=== RUN   TestDiscoveryProcessorStartsEveryConsumedDeliveryBeforeWaiting
+--- PASS: TestDiscoveryProcessorStartsEveryConsumedDeliveryBeforeWaiting (0.00s)
+=== RUN   TestDiscoveryCollectorLifecycleDestroysOnEveryExit
+=== RUN   TestDiscoveryCollectorLifecycleDestroysOnEveryExit/success
+=== RUN   TestDiscoveryCollectorLifecycleDestroysOnEveryExit/error
+=== RUN   TestDiscoveryCollectorLifecycleDestroysOnEveryExit/panic
+=== RUN   TestDiscoveryCollectorLifecycleDestroysOnEveryExit/cancel
+--- PASS: TestDiscoveryCollectorLifecycleDestroysOnEveryExit (0.00s)
+    --- PASS: TestDiscoveryCollectorLifecycleDestroysOnEveryExit/success (0.00s)
+    --- PASS: TestDiscoveryCollectorLifecycleDestroysOnEveryExit/error (0.00s)
+    --- PASS: TestDiscoveryCollectorLifecycleDestroysOnEveryExit/panic (0.00s)
+    --- PASS: TestDiscoveryCollectorLifecycleDestroysOnEveryExit/cancel (0.00s)
+=== RUN   TestDiscoveryCollectorFactoryFailureDestroysReturnedCollector
+--- PASS: TestDiscoveryCollectorFactoryFailureDestroysReturnedCollector (0.00s)
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority
+=== PAUSE TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority
+=== RUN   TestScheduledOccurrenceIdentitySurvivesExpiredLeaseReclaim
+--- PASS: TestScheduledOccurrenceIdentitySurvivesExpiredLeaseReclaim (0.00s)
+=== RUN   TestSchedulerProcessorRequestsDeterministicSyncBeforeAdvancing
+--- PASS: TestSchedulerProcessorRequestsDeterministicSyncBeforeAdvancing (0.00s)
+=== RUN   TestNextScheduledRunSkipsLargeBacklogArithmetically
+--- PASS: TestNextScheduledRunSkipsLargeBacklogArithmetically (0.00s)
+=== RUN   TestSchedulerProcessorStartsEveryClaimedLeaseBeforeWaiting
+--- PASS: TestSchedulerProcessorStartsEveryClaimedLeaseBeforeWaiting (0.00s)
+=== RUN   TestExistingTestSchedulerRotatesAfterFailureAndWraps
+--- PASS: TestExistingTestSchedulerRotatesAfterFailureAndWraps (0.18s)
+=== RUN   TestExistingTestSchedulerEmptyAndInvalidDependencies
+--- PASS: TestExistingTestSchedulerEmptyAndInvalidDependencies (0.02s)
+=== RUN   TestExistingTestSchedulerCancelsAndJoinsBeforeClose
+--- PASS: TestExistingTestSchedulerCancelsAndJoinsBeforeClose (0.06s)
+=== RUN   TestExistingTestSchedulerFreshInstanceRediscovers
+--- PASS: TestExistingTestSchedulerFreshInstanceRediscovers (0.09s)
+=== CONT  TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority
+=== CONT  TestDiscoveryProcessorPreservesTypedProviderRateLimitThroughDurableFinish
+--- PASS: TestDiscoveryProcessorPreservesTypedProviderRateLimitThroughDurableFinish (0.00s)
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/oauth_secret_namespace
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/queue_region_drift
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/kms_account_drift
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/foreign_github_reference
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/foreign_okta_reference
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/provider_timeout
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/oversized_discovery_batch
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/missing_role
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/ambient_token
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/queue_account_drift
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/unbounded_kubernetes
+=== RUN   TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/collector_drift
+--- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority (0.01s)
+    --- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/oauth_secret_namespace (0.00s)
+    --- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/queue_region_drift (0.00s)
+    --- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/kms_account_drift (0.00s)
+    --- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/foreign_github_reference (0.00s)
+    --- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/foreign_okta_reference (0.00s)
+    --- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/provider_timeout (0.00s)
+    --- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/oversized_discovery_batch (0.00s)
+    --- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/missing_role (0.00s)
+    --- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/ambient_token (0.00s)
+    --- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/queue_account_drift (0.00s)
+    --- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/unbounded_kubernetes (0.00s)
+    --- PASS: TestDiscoveryRuntimeRequiresExactProviderQueueAndCloudAuthority/collector_drift (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	2.940s
+=== RUN   TestKubernetesCollectionAPIPaginatesNamespacesThenWorkloadsCanonically
+=== PAUSE TestKubernetesCollectionAPIPaginatesNamespacesThenWorkloadsCanonically
+=== RUN   TestKubernetesCollectionAPITraversesEveryLaunchInventoryPhaseBeforeComplete
+=== PAUSE TestKubernetesCollectionAPITraversesEveryLaunchInventoryPhaseBeforeComplete
+=== RUN   TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload
+=== PAUSE TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload
+=== RUN   TestKubernetesCollectionAPIDerivesExactAgentPostureFactsFromWorkloadAuthority
+=== PAUSE TestKubernetesCollectionAPIDerivesExactAgentPostureFactsFromWorkloadAuthority
+=== RUN   TestKubernetesCollectionAPIDiscoversOnlyExplicitBoundedRedTeamTargetBindings
+=== PAUSE TestKubernetesCollectionAPIDiscoversOnlyExplicitBoundedRedTeamTargetBindings
+=== RUN   TestKubernetesCollectionAPIClassifiesOnlyExactlyLabeledAgentDeployments
+=== PAUSE TestKubernetesCollectionAPIClassifiesOnlyExactlyLabeledAgentDeployments
+=== RUN   TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets
+=== PAUSE TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets
+=== RUN   TestKubernetesCollectionAPIClassifiesRateLimitAndServerFailures
+=== PAUSE TestKubernetesCollectionAPIClassifiesRateLimitAndServerFailures
+=== RUN   TestKubernetesCollectionAPIRejectsMalformedServiceAccountBindingSubject
+=== PAUSE TestKubernetesCollectionAPIRejectsMalformedServiceAccountBindingSubject
+=== RUN   TestKubernetesCollectionAPICapturesCanonicalRoleRules
+=== PAUSE TestKubernetesCollectionAPICapturesCanonicalRoleRules
+=== RUN   TestKubernetesCollectionAPICoalescesRepeatedPrincipalsAndAcceptsEmptyBindings
+=== PAUSE TestKubernetesCollectionAPICoalescesRepeatedPrincipalsAndAcceptsEmptyBindings
+=== RUN   TestKubernetesCollectionAPIFencesNormalizedBindingExpansionAgainstExactBudgets
+=== PAUSE TestKubernetesCollectionAPIFencesNormalizedBindingExpansionAgainstExactBudgets
+=== RUN   TestKubernetesCollectionAPIReadinessUsesExactVersionEndpointWithoutCredential
+=== PAUSE TestKubernetesCollectionAPIReadinessUsesExactVersionEndpointWithoutCredential
+=== RUN   TestAutomaticDiscoveryFullCollectionMeetsTypedSnapshotGrammar
+    pinned_collection_api_test.go:100: collection pages=11 artifacts=12 outcome=collection.CompleteResult error=<nil>
+--- PASS: TestAutomaticDiscoveryFullCollectionMeetsTypedSnapshotGrammar (0.03s)
+=== RUN   TestKubernetesEntityCanonicalBoundaryPreservesAllValues
+--- PASS: TestKubernetesEntityCanonicalBoundaryPreservesAllValues (0.00s)
+=== RUN   TestAutomaticDiscoveryAgentPageMeetsSnapshotGrammar
+    pinned_collection_api_test.go:163: provider attributes canonical=true actual={"namespaced":true,"posture":{"cicd_write":false,"credential_active":true,"credential_fingerprint":"sha256:9d67d3d807042920715026fedf5eb5e6d37dbd250dcad73d23270c49c8ecd762","destructive_tool":false,"host_filesystem":false,"human_credential":false,"privileged":false,"production_agent":false,"production_credential":false,"production_secret_reach":false,"production_write":false,"runtime_control":false,"runtime_policy_supported":false,"sensitive_data_reach":false,"shell_execution":false,"unapproved_remote_tool":false,"unrestricted_egress":false,"untrusted_input":false}} canonical={"namespaced":true,"posture":{"cicd_write":false,"credential_active":true,"credential_fingerprint":"sha256:9d67d3d807042920715026fedf5eb5e6d37dbd250dcad73d23270c49c8ecd762","destructive_tool":false,"host_filesystem":false,"human_credential":false,"privileged":false,"production_agent":false,"production_credential":false,"production_secret_reach":false,"production_write":false,"runtime_control":false,"runtime_policy_supported":false,"sensitive_data_reach":false,"shell_execution":false,"unapproved_remote_tool":false,"unrestricted_egress":false,"untrusted_input":false}}
+--- PASS: TestAutomaticDiscoveryAgentPageMeetsSnapshotGrammar (0.00s)
+=== RUN   TestAutomaticDiscoveryAnnotatedAgentPageMeetsSnapshotGrammar
+    pinned_collection_api_test.go:167: provider attributes canonical=true actual={"namespaced":true,"posture":{"cicd_write":false,"credential_active":true,"credential_fingerprint":"sha256:9d67d3d807042920715026fedf5eb5e6d37dbd250dcad73d23270c49c8ecd762","destructive_tool":false,"host_filesystem":false,"human_credential":false,"privileged":false,"production_agent":false,"production_credential":false,"production_secret_reach":false,"production_write":false,"runtime_control":false,"runtime_policy_supported":false,"sensitive_data_reach":false,"shell_execution":false,"unapproved_remote_tool":false,"unrestricted_egress":false,"untrusted_input":false},"red_team":{"credential_reference":"ref:red-team/fixture_credential","enabled":true,"endpoint":"https://agent.example.test/v1/evaluate","target_kinds":["agent_endpoint"]}} canonical={"namespaced":true,"posture":{"cicd_write":false,"credential_active":true,"credential_fingerprint":"sha256:9d67d3d807042920715026fedf5eb5e6d37dbd250dcad73d23270c49c8ecd762","destructive_tool":false,"host_filesystem":false,"human_credential":false,"privileged":false,"production_agent":false,"production_credential":false,"production_secret_reach":false,"production_write":false,"runtime_control":false,"runtime_policy_supported":false,"sensitive_data_reach":false,"shell_execution":false,"unapproved_remote_tool":false,"unrestricted_egress":false,"untrusted_input":false},"red_team":{"credential_reference":"ref:red-team/fixture_credential","enabled":true,"endpoint":"https://agent.example.test/v1/evaluate","target_kinds":["agent_endpoint"]}}
+--- PASS: TestAutomaticDiscoveryAnnotatedAgentPageMeetsSnapshotGrammar (0.00s)
+=== CONT  TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload
+=== RUN   TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/serviceaccounts
+=== CONT  TestKubernetesCollectionAPIRejectsMalformedServiceAccountBindingSubject
+=== PAUSE TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/serviceaccounts
+=== CONT  TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets
+=== CONT  TestKubernetesCollectionAPICapturesCanonicalRoleRules
+=== CONT  TestKubernetesCollectionAPICoalescesRepeatedPrincipalsAndAcceptsEmptyBindings
+=== CONT  TestKubernetesCollectionAPIClassifiesOnlyExactlyLabeledAgentDeployments
+=== CONT  TestKubernetesCollectionAPIReadinessUsesExactVersionEndpointWithoutCredential
+=== CONT  TestKubernetesCollectionAPIDerivesExactAgentPostureFactsFromWorkloadAuthority
+--- PASS: TestKubernetesCollectionAPIReadinessUsesExactVersionEndpointWithoutCredential (0.00s)
+=== CONT  TestKubernetesCollectionAPIDiscoversOnlyExplicitBoundedRedTeamTargetBindings
+=== CONT  TestKubernetesCollectionAPIClassifiesRateLimitAndServerFailures
+=== CONT  TestKubernetesCollectionAPITraversesEveryLaunchInventoryPhaseBeforeComplete
+=== CONT  TestKubernetesCollectionAPIPaginatesNamespacesThenWorkloadsCanonically
+=== CONT  TestKubernetesCollectionAPIFencesNormalizedBindingExpansionAgainstExactBudgets
+=== RUN   TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/roles
+=== RUN   TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets/foreign_host
+=== RUN   TestKubernetesCollectionAPIClassifiesRateLimitAndServerFailures/server
+=== RUN   TestKubernetesCollectionAPIFencesNormalizedBindingExpansionAgainstExactBudgets/item_exhausted
+--- PASS: TestKubernetesCollectionAPIRejectsMalformedServiceAccountBindingSubject (0.00s)
+=== PAUSE TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/roles
+=== RUN   TestKubernetesCollectionAPIClassifiesRateLimitAndServerFailures/rate_limited
+=== RUN   TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/clusterroles
+=== RUN   TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets/foreign_provider
+--- PASS: TestKubernetesCollectionAPIClassifiesRateLimitAndServerFailures (0.00s)
+    --- PASS: TestKubernetesCollectionAPIClassifiesRateLimitAndServerFailures/server (0.00s)
+    --- PASS: TestKubernetesCollectionAPIClassifiesRateLimitAndServerFailures/rate_limited (0.00s)
+=== PAUSE TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/clusterroles
+=== RUN   TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets/bad_cursor
+=== RUN   TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/rolebindings
+=== PAUSE TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/rolebindings
+=== RUN   TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets/bad_page
+=== RUN   TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/clusterrolebindings
+=== PAUSE TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/clusterrolebindings
+=== RUN   TestKubernetesCollectionAPIFencesNormalizedBindingExpansionAgainstExactBudgets/zero_relationships
+=== RUN   TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/deployments
+=== RUN   TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets/credential_echo
+--- PASS: TestKubernetesCollectionAPICoalescesRepeatedPrincipalsAndAcceptsEmptyBindings (0.00s)
+=== PAUSE TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/deployments
+=== RUN   TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/statefulsets
+=== PAUSE TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/statefulsets
+=== RUN   TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/daemonsets
+=== PAUSE TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/daemonsets
+=== RUN   TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/jobs
+=== PAUSE TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/jobs
+=== RUN   TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/cronjobs
+=== PAUSE TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/cronjobs
+=== CONT  TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/rolebindings
+=== CONT  TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/clusterrolebindings
+=== CONT  TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/deployments
+=== CONT  TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/serviceaccounts
+=== CONT  TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/clusterroles
+=== CONT  TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/roles
+=== RUN   TestKubernetesCollectionAPIFencesNormalizedBindingExpansionAgainstExactBudgets/relation_exhausted
+--- PASS: TestKubernetesCollectionAPICapturesCanonicalRoleRules (0.01s)
+=== CONT  TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/jobs
+=== CONT  TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/cronjobs
+=== CONT  TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/daemonsets
+--- PASS: TestKubernetesCollectionAPITraversesEveryLaunchInventoryPhaseBeforeComplete (0.01s)
+=== CONT  TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/statefulsets
+=== RUN   TestKubernetesCollectionAPIFencesNormalizedBindingExpansionAgainstExactBudgets/exact
+--- PASS: TestKubernetesCollectionAPIDerivesExactAgentPostureFactsFromWorkloadAuthority (0.01s)
+=== RUN   TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets/secret_kind
+--- PASS: TestKubernetesCollectionAPIClassifiesOnlyExactlyLabeledAgentDeployments (0.01s)
+--- PASS: TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets (0.01s)
+    --- PASS: TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets/foreign_host (0.00s)
+    --- PASS: TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets/foreign_provider (0.00s)
+    --- PASS: TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets/bad_cursor (0.00s)
+    --- PASS: TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets/bad_page (0.00s)
+    --- PASS: TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets/credential_echo (0.01s)
+    --- PASS: TestKubernetesCollectionAPIBindsEndpointCursorAndRejectsSecrets/secret_kind (0.00s)
+--- PASS: TestKubernetesCollectionAPIFencesNormalizedBindingExpansionAgainstExactBudgets (0.01s)
+    --- PASS: TestKubernetesCollectionAPIFencesNormalizedBindingExpansionAgainstExactBudgets/item_exhausted (0.00s)
+    --- PASS: TestKubernetesCollectionAPIFencesNormalizedBindingExpansionAgainstExactBudgets/zero_relationships (0.00s)
+    --- PASS: TestKubernetesCollectionAPIFencesNormalizedBindingExpansionAgainstExactBudgets/relation_exhausted (0.00s)
+    --- PASS: TestKubernetesCollectionAPIFencesNormalizedBindingExpansionAgainstExactBudgets/exact (0.01s)
+--- PASS: TestKubernetesCollectionAPIPaginatesNamespacesThenWorkloadsCanonically (0.01s)
+--- PASS: TestKubernetesCollectionAPIDiscoversOnlyExplicitBoundedRedTeamTargetBindings (0.01s)
+--- PASS: TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload (0.00s)
+    --- PASS: TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/serviceaccounts (0.00s)
+    --- PASS: TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/roles (0.00s)
+    --- PASS: TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/clusterroles (0.01s)
+    --- PASS: TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/clusterrolebindings (0.01s)
+    --- PASS: TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/deployments (0.01s)
+    --- PASS: TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/cronjobs (0.00s)
+    --- PASS: TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/statefulsets (0.00s)
+    --- PASS: TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/jobs (0.01s)
+    --- PASS: TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/daemonsets (0.01s)
+    --- PASS: TestKubernetesCollectionAPINormalizesIdentityRBACAndEveryLaunchWorkload/rolebindings (0.01s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery	2.492s
+testing: warning: no tests to run
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/connectors/collection	1.315s [no tests to run]

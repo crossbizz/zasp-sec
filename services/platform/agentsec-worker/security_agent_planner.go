@@ -11,12 +11,14 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
 
@@ -41,24 +43,29 @@ type securityAgentPlannerEvidence struct {
 }
 
 type securityAgentPlannerContext struct {
-	OrganizationID string
-	WorkspaceID    string
-	EnvironmentID  string
-	RunID          string
-	DefinitionID   string
-	Purpose        string
-	OperatorGoal   string
-	CatalogVersion string
-	MaximumSteps   int
-	AllowedActions []string
-	AllowedTargets []string
-	Evidence       []securityAgentPlannerEvidence
+	ManualTrigger   *apiserver.SecurityAgentManualTrigger
+	OrganizationID  string
+	WorkspaceID     string
+	EnvironmentID   string
+	RunID           string
+	DefinitionID    string
+	Purpose         string
+	OperatorGoal    string
+	CatalogVersion  string
+	MaximumSteps    int
+	AllowedActions  []string
+	AllowedTargets  []string
+	Evidence        []securityAgentPlannerEvidence
+	ExistingTest    *apiserver.SecurityAgentExistingTestReference
+	AttackLabDigest string
+	ExportSelection []apiserver.SecurityAgentExportSelection
 }
 
 type securityAgentPlannerStep struct {
-	Index    int    `json:"index"`
-	Action   string `json:"action"`
-	TargetID string `json:"target_id"`
+	Index       int                                      `json:"index"`
+	Action      string                                   `json:"action"`
+	TargetID    string                                   `json:"target_id"`
+	EvidenceIDs []apiserver.SecurityAgentExportSelection `json:"evidence_ids,omitempty"`
 }
 
 type securityAgentPlannerCandidate struct {
@@ -68,6 +75,7 @@ type securityAgentPlannerCandidate struct {
 }
 
 type securityAgentPlannerResult struct {
+	Usage         *securityAgentBudgetUsage
 	Candidate     securityAgentPlannerCandidate
 	Failure       securityAgentPlannerFailure
 	OutputDigest  string
@@ -76,7 +84,7 @@ type securityAgentPlannerResult struct {
 }
 
 type securityAgentPlanner interface {
-	Plan(context.Context, securityAgentPlannerContext) securityAgentPlannerResult
+	Prepare(context.Context, securityAgentPlannerContext) (securityAgentPreparedPlan, error)
 	Close() error
 }
 
@@ -146,7 +154,117 @@ func newSecurityAgentPlanner(config securityAgentPlannerConfig) (*productionSecu
 	}, nil
 }
 
-func (planner *productionSecurityAgentPlanner) Plan(ctx context.Context, contextValue securityAgentPlannerContext) (result securityAgentPlannerResult) {
+// Plan is a direct-call convenience. Workers only accept the Prepare interface
+// and dispatch the retained object after their budget permit checks.
+func (planner *productionSecurityAgentPlanner) Plan(ctx context.Context, contextValue securityAgentPlannerContext) securityAgentPlannerResult {
+	prepared, err := planner.Prepare(ctx, contextValue)
+	if err != nil {
+		result := securityAgentPlannerResult{Failure: securityAgentPlannerUnavailable}
+		if planner != nil {
+			planner.mu.RLock()
+			result.Model, result.PolicyVersion = planner.model, planner.policyVersion
+			planner.mu.RUnlock()
+		}
+		return result
+	}
+	return prepared.Dispatch(ctx)
+}
+
+// Request-local unit-price restrictions. No runtime config selects these;
+// public Prepare keeps the original provider policy and exact request bytes.
+type securityAgentProviderConstraints struct {
+	Endpoint                     string
+	PromptMicroUSDPerMillion     int64
+	CompletionMicroUSDPerMillion int64
+}
+
+func (planner *productionSecurityAgentPlanner) Prepare(ctx context.Context, contextValue securityAgentPlannerContext) (securityAgentPreparedPlan, error) {
+	return planner.prepareWithProviderConstraints(ctx, contextValue, nil)
+}
+
+func (planner *productionSecurityAgentPlanner) prepareWithProviderConstraints(ctx context.Context, contextValue securityAgentPlannerContext, constraints *securityAgentProviderConstraints) (securityAgentPreparedPlan, error) {
+	if planner == nil || ctx == nil || ctx.Err() != nil {
+		return nil, errWorkerExecution
+	}
+	provider := securityAgentOpenRouterProvider{DataCollection: "deny", RequireParameters: true}
+	if constraints != nil {
+		owned := *constraints
+		// Positive integer micro-USD/M, capped at $1/M. Bounds are checked
+		// before arithmetic; NaN, infinity and fractional inputs cannot enter.
+		if !validSecurityAgentPlannerToken(owned.Endpoint, 128, true) || strings.Count(owned.Endpoint, "/") != 1 || strings.Contains(owned.Endpoint, "..") ||
+			owned.PromptMicroUSDPerMillion < 1 || owned.PromptMicroUSDPerMillion > 1000000 || owned.CompletionMicroUSDPerMillion < 1 || owned.CompletionMicroUSDPerMillion > 1000000 {
+			return nil, errWorkerExecution
+		}
+		for _, segment := range strings.Split(owned.Endpoint, "/") {
+			if segment == "." {
+				return nil, errWorkerExecution
+			}
+		}
+		price := func(micro int64) json.Number {
+			whole := strconv.FormatInt(micro/1000000, 10)
+			if fraction := micro % 1000000; fraction != 0 {
+				whole += "." + strings.TrimRight(strconv.FormatInt(1000000+fraction, 10)[1:], "0")
+			}
+			return json.Number(whole)
+		}
+		allowFallbacks := false
+		provider.Only = []string{owned.Endpoint}
+		provider.AllowFallbacks = &allowFallbacks
+		provider.MaxPrice = &securityAgentOpenRouterMaxPrice{Prompt: price(owned.PromptMicroUSDPerMillion), Completion: price(owned.CompletionMicroUSDPerMillion), Request: json.Number("0")}
+	}
+	planner.mu.RLock()
+	endpoint, model, maximumTokens, policyVersion, client, closed := planner.endpoint, planner.model, planner.maximumTokens, planner.policyVersion, planner.client, planner.closed
+	planner.mu.RUnlock()
+	contextValue = cloneSecurityAgentPlannerContext(contextValue)
+	if !validSecurityAgentPlannerContext(contextValue) || closed || client == nil {
+		return nil, errWorkerExecution
+	}
+
+	userContent, err := json.Marshal(struct {
+		ManualTrigger     *apiserver.SecurityAgentManualTrigger         `json:"manual_trigger,omitempty"`
+		Purpose           string                                        `json:"purpose"`
+		OperatorGoal      string                                        `json:"operator_goal"`
+		CatalogVersion    string                                        `json:"catalog_version"`
+		MaximumSteps      int                                           `json:"maximum_steps"`
+		AllowedActions    []string                                      `json:"allowed_actions"`
+		AllowedTargets    []string                                      `json:"allowed_targets"`
+		ExistingTest      *apiserver.SecurityAgentExistingTestReference `json:"existing_test,omitempty"`
+		AttackLabDigest   string                                        `json:"attack_lab_snapshot_digest,omitempty"`
+		ExportSelection   []apiserver.SecurityAgentExportSelection      `json:"export_selection,omitempty"`
+		Scope             map[string]string                             `json:"scope"`
+		UntrustedEvidence []securityAgentPlannerEvidence                `json:"untrusted_evidence"`
+	}{
+		ManualTrigger: contextValue.ManualTrigger,
+		Purpose:       contextValue.Purpose, OperatorGoal: contextValue.OperatorGoal, CatalogVersion: contextValue.CatalogVersion, MaximumSteps: contextValue.MaximumSteps,
+		AllowedActions: slices.Clone(contextValue.AllowedActions), AllowedTargets: securityAgentPlannerTargets(contextValue),
+		ExistingTest:      contextValue.ExistingTest,
+		AttackLabDigest:   contextValue.AttackLabDigest,
+		ExportSelection:   contextValue.ExportSelection,
+		Scope:             map[string]string{"organization_id": contextValue.OrganizationID, "workspace_id": contextValue.WorkspaceID, "environment_id": contextValue.EnvironmentID, "run_id": contextValue.RunID, "definition_id": contextValue.DefinitionID},
+		UntrustedEvidence: append([]securityAgentPlannerEvidence(nil), contextValue.Evidence...),
+	})
+	if err != nil || len(userContent) > 48*1024 {
+		return nil, errWorkerExecution
+	}
+	body, err := json.Marshal(securityAgentOpenRouterRequest{
+		Model: model, MaximumTokens: maximumTokens,
+		Messages:       []securityAgentOpenRouterMessage{{Role: "system", Content: securityAgentPlannerSystemPolicy}, {Role: "user", Content: string(userContent)}},
+		Provider:       provider,
+		ResponseFormat: securityAgentOpenRouterResponseFormat{Type: "json_schema", JSONSchema: securityAgentOpenRouterJSONSchema{Name: securityAgentPlannerPurpose, Strict: true, Schema: securityAgentPlannerSchemaForContext(contextValue)}},
+	})
+	if err != nil || len(body) > 64*1024 {
+		return nil, errWorkerExecution
+	}
+	digest := sha256.Sum256(body)
+	return &productionSecurityAgentPreparedPlan{
+		planner: planner, preparationContext: ctx, contextValue: contextValue, body: string(body), client: client,
+		identity: securityAgentPreparedRequestIdentity{BodyDigest: "sha256:" + hex.EncodeToString(digest[:]), Model: model, Endpoint: endpoint, PolicyVersion: policyVersion, MaximumTokens: maximumTokens},
+	}, nil
+}
+
+func (prepared *productionSecurityAgentPreparedPlan) send(ctx context.Context, token string) (result securityAgentPlannerResult) {
+	model, policyVersion := prepared.identity.Model, prepared.identity.PolicyVersion
+	result.Model, result.PolicyVersion = model, policyVersion
 	defer func() {
 		if recover() != nil {
 			result.Candidate = securityAgentPlannerCandidate{}
@@ -154,50 +272,7 @@ func (planner *productionSecurityAgentPlanner) Plan(ctx context.Context, context
 			result.OutputDigest = ""
 		}
 	}()
-	if planner == nil {
-		return securityAgentPlannerResult{Failure: securityAgentPlannerUnavailable}
-	}
-	planner.mu.RLock()
-	token := string(planner.token)
-	endpoint, model, maximumTokens, policyVersion, client, closed := planner.endpoint, planner.model, planner.maximumTokens, planner.policyVersion, planner.client, planner.closed
-	planner.mu.RUnlock()
-	result.Model = model
-	result.PolicyVersion = policyVersion
-	if ctx == nil || ctx.Err() != nil || !validSecurityAgentPlannerContext(contextValue) || closed || client == nil || token == "" {
-		result.Failure = securityAgentPlannerUnavailable
-		return result
-	}
-
-	userContent, err := json.Marshal(struct {
-		Purpose           string                         `json:"purpose"`
-		OperatorGoal      string                         `json:"operator_goal"`
-		CatalogVersion    string                         `json:"catalog_version"`
-		MaximumSteps      int                            `json:"maximum_steps"`
-		AllowedActions    []string                       `json:"allowed_actions"`
-		AllowedTargets    []string                       `json:"allowed_targets"`
-		Scope             map[string]string              `json:"scope"`
-		UntrustedEvidence []securityAgentPlannerEvidence `json:"untrusted_evidence"`
-	}{
-		Purpose: contextValue.Purpose, OperatorGoal: contextValue.OperatorGoal, CatalogVersion: contextValue.CatalogVersion, MaximumSteps: contextValue.MaximumSteps,
-		AllowedActions: slices.Clone(contextValue.AllowedActions), AllowedTargets: securityAgentPlannerTargets(contextValue),
-		Scope:             map[string]string{"organization_id": contextValue.OrganizationID, "workspace_id": contextValue.WorkspaceID, "environment_id": contextValue.EnvironmentID, "run_id": contextValue.RunID, "definition_id": contextValue.DefinitionID},
-		UntrustedEvidence: append([]securityAgentPlannerEvidence(nil), contextValue.Evidence...),
-	})
-	if err != nil || len(userContent) > 48*1024 {
-		result.Failure = securityAgentPlannerUnavailable
-		return result
-	}
-	body, err := json.Marshal(securityAgentOpenRouterRequest{
-		Model: model, MaximumTokens: maximumTokens, Temperature: 0,
-		Messages:       []securityAgentOpenRouterMessage{{Role: "system", Content: securityAgentPlannerSystemPolicy}, {Role: "user", Content: string(userContent)}},
-		Provider:       securityAgentOpenRouterProvider{DataCollection: "deny"},
-		ResponseFormat: securityAgentOpenRouterResponseFormat{Type: "json_schema", JSONSchema: securityAgentOpenRouterJSONSchema{Name: securityAgentPlannerPurpose, Strict: true, Schema: securityAgentPlannerCandidateSchema()}},
-	})
-	if err != nil || len(body) > 64*1024 {
-		result.Failure = securityAgentPlannerUnavailable
-		return result
-	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, prepared.identity.Endpoint, strings.NewReader(prepared.body))
 	if err != nil {
 		result.Failure = securityAgentPlannerUnavailable
 		return result
@@ -206,7 +281,7 @@ func (planner *productionSecurityAgentPlanner) Plan(ctx context.Context, context
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("X-Zasp-Data-Policy", policyVersion)
-	response, err := client.Do(request)
+	response, err := prepared.client.Do(request)
 	if err != nil || response == nil {
 		result.Failure = securityAgentPlannerUnavailable
 		return result
@@ -227,6 +302,9 @@ func (planner *productionSecurityAgentPlanner) Plan(ctx context.Context, context
 		result.Failure = securityAgentPlannerRejected
 		return result
 	}
+	// Candidate rejection does not undo provider consumption. Preserve valid
+	// accounting independently; durable reservation/settlement consumes it later.
+	result.Usage = securityAgentPlannerUsage(responseBody, model)
 	content, ok := validSecurityAgentOpenRouterResponse(responseBody, model)
 	if !ok || len(content) > 32*1024 {
 		result.Failure = securityAgentPlannerRejected
@@ -234,7 +312,7 @@ func (planner *productionSecurityAgentPlanner) Plan(ctx context.Context, context
 	}
 	decoder := json.NewDecoder(strings.NewReader(content))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&result.Candidate) != nil || !jsonDecoderAtEOF(decoder) || !validSecurityAgentPlannerCandidate(result.Candidate, contextValue) {
+	if !closedSecurityAgentPlannerCandidate([]byte(content)) || decoder.Decode(&result.Candidate) != nil || !jsonDecoderAtEOF(decoder) || !validSecurityAgentPlannerCandidate(result.Candidate, prepared.contextValue) {
 		result.Candidate = securityAgentPlannerCandidate{}
 		result.Failure = securityAgentPlannerRejected
 		return result
@@ -268,7 +346,17 @@ type securityAgentOpenRouterMessage struct {
 }
 
 type securityAgentOpenRouterProvider struct {
-	DataCollection string `json:"data_collection"`
+	DataCollection    string                           `json:"data_collection"`
+	RequireParameters bool                             `json:"require_parameters"`
+	Only              []string                         `json:"only,omitempty"`
+	AllowFallbacks    *bool                            `json:"allow_fallbacks,omitempty"`
+	MaxPrice          *securityAgentOpenRouterMaxPrice `json:"max_price,omitempty"`
+}
+
+type securityAgentOpenRouterMaxPrice struct {
+	Prompt     json.Number `json:"prompt"`
+	Completion json.Number `json:"completion"`
+	Request    json.Number `json:"request"`
 }
 
 type securityAgentOpenRouterJSONSchema struct {
@@ -286,7 +374,6 @@ type securityAgentOpenRouterRequest struct {
 	Model          string                                `json:"model"`
 	Messages       []securityAgentOpenRouterMessage      `json:"messages"`
 	MaximumTokens  int                                   `json:"max_tokens"`
-	Temperature    int                                   `json:"temperature"`
 	Provider       securityAgentOpenRouterProvider       `json:"provider"`
 	ResponseFormat securityAgentOpenRouterResponseFormat `json:"response_format"`
 }
@@ -315,7 +402,29 @@ func validSecurityAgentPlannerContext(value securityAgentPlannerContext) bool {
 			return false
 		}
 	}
-	if value.Purpose != securityAgentPlannerPurpose || !validSecurityAgentPlannerText(value.OperatorGoal, 1024) || !validSecurityAgentPlannerToken(value.CatalogVersion, 64, false) || value.MaximumSteps < 1 || value.MaximumSteps > 100 || len(value.AllowedActions) == 0 || len(value.AllowedActions) > 32 || len(value.Evidence) == 0 || len(value.Evidence) > 100 {
+	if value.Purpose != securityAgentPlannerPurpose || !validSecurityAgentPlannerText(value.OperatorGoal, 1024) || !validSecurityAgentPlannerToken(value.CatalogVersion, 64, false) || value.MaximumSteps < 1 || value.MaximumSteps > 100 || len(value.AllowedActions) == 0 || len(value.AllowedActions) > 32 || len(value.AllowedTargets) == 0 || len(value.Evidence) == 0 || len(value.Evidence) > 100 {
+		return false
+	}
+	attackLab := slices.Contains(value.AllowedActions, "start_attack_lab")
+	if !validSecurityAgentPlannerManualProvenance(value) {
+		return false
+	}
+	if slices.Contains(value.AllowedActions, "create_evidence_export") {
+		if len(value.AllowedActions) != 1 || len(value.AllowedTargets) != 1 || value.AllowedTargets[0] != value.RunID || !validSecurityAgentPlannerExportSelection(value.ExportSelection) {
+			return false
+		}
+	} else if value.ExportSelection != nil {
+		return false
+	}
+	if attackLab != (value.AttackLabDigest != "") || attackLab && !providerAckPattern.MatchString(value.AttackLabDigest) {
+		return false
+	}
+	if slices.Contains(value.AllowedActions, "run_test") || slices.Contains(value.AllowedActions, "rerun_test") || attackLab {
+		reference := value.ExistingTest
+		if len(value.AllowedActions) != 1 || len(value.AllowedTargets) != 1 || len(value.Evidence) != 1 || value.MaximumSteps != 1 || reference == nil || !validSecurityAgentPlannerProductID(reference.DefinitionID) || reference.DefinitionVersion < 1 || reference.DefinitionVersion > 1000000 || reference.DefinitionID != value.AllowedTargets[0] || !slices.Contains([]string{"finding", "attack_path", "runtime_decision", "manual"}, value.Evidence[0].Kind) {
+			return false
+		}
+	} else if value.ExistingTest != nil {
 		return false
 	}
 	actions := map[string]struct{}{}
@@ -337,7 +446,11 @@ func validSecurityAgentPlannerContext(value securityAgentPlannerContext) bool {
 	}
 	evidence := map[string]struct{}{}
 	for _, item := range value.Evidence {
-		if !validSecurityAgentPlannerProductID(item.ID) || !slices.Contains([]string{"finding", "attack_path", "runtime_decision", "session", "policy"}, item.Kind) || item.Version < 1 || item.Version > 9007199254740991 || !validSecurityAgentPlannerText(item.Summary, 4096) {
+		validID := validSecurityAgentPlannerProductID(item.ID)
+		if item.Kind == "manual" {
+			validID = securityAgentExportDigest(item.ID)
+		}
+		if !validID || !slices.Contains([]string{"finding", "attack_path", "runtime_decision", "session", "policy", "manual"}, item.Kind) || item.Version < 1 || item.Version > 9007199254740991 || !validSecurityAgentPlannerText(item.Summary, 4096) {
 			return false
 		}
 		if _, duplicate := evidence[item.ID]; duplicate {
@@ -358,16 +471,26 @@ func validSecurityAgentPlannerCandidate(candidate securityAgentPlannerCandidate,
 		if step.Index != index || !slices.Contains(contextValue.AllowedActions, step.Action) || !slices.Contains(targets, step.TargetID) {
 			return false
 		}
+		if step.Action == "create_evidence_export" {
+			if step.TargetID != contextValue.RunID || !validSecurityAgentPlannerExportSelection(step.EvidenceIDs) {
+				return false
+			}
+			for _, selection := range step.EvidenceIDs {
+				if !slices.Contains(contextValue.ExportSelection, selection) {
+					return false
+				}
+			}
+		} else if step.EvidenceIDs != nil {
+			return false
+		}
 	}
 	return true
 }
 
 func securityAgentPlannerTargets(value securityAgentPlannerContext) []string {
-	targets := []string{value.EnvironmentID}
-	targets = append(targets, value.AllowedTargets...)
-	for _, evidence := range value.Evidence {
-		targets = append(targets, evidence.ID)
-	}
+	// Evidence and scope describe the run, but only the repository's explicit
+	// target list authorizes candidate actions.
+	targets := slices.Clone(value.AllowedTargets)
 	slices.Sort(targets)
 	return slices.Compact(targets)
 }

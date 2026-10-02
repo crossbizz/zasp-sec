@@ -60,7 +60,7 @@ describe("M1A and M3 foundation batch", () => {
     expect(section).not.toMatch(/nango|cartography|prowler|adapter_key/i);
   });
 
-  it("records exactly the 20 completed tasks and preserves the provider gate", async () => {
+  it("records historical task accounting and current provider gates", async () => {
     const [tracker, readme] = await Promise.all([
       readFile(resolve(root, "docs/internal/implementation_status_v1.5.md"), "utf8"),
       readFile(resolve(root, "README.md"), "utf8"),
@@ -80,7 +80,9 @@ describe("M1A and M3 foundation batch", () => {
     }
     for (const task of ["M1A-07", "M1A-08", "M1A-09", "M1A-10"]) expect(tracker.match(new RegExp(`^\\| ${task} \\|`, "gm"))).toHaveLength(1);
     expect(tracker.match(/^\| M3-14 \|/gm)).toHaveLength(1);
-    expect(readme).toContain("M1A-07 through M1A-10 are Blocked");
+    const readmeProse = readme.replace(/\s+/g, " ");
+    expect(readmeProse).toContain("M1A-01 through M1A-06 remain component-only");
+    expect(readmeProse).toContain("M1A-07 through M1A-10 remain blocked/external");
     expect(readme).toContain("M3-15 through M3-36 are Complete");
   });
 });

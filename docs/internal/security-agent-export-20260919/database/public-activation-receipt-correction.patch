@@ -1,0 +1,166 @@
+--- a/services/platform/migrations/sql/fragments/security_agent_export_definition.sql
++++ b/services/platform/migrations/sql/fragments/security_agent_export_definition.sql
+@@ -105,7 +105,7 @@
+ DECLARE prior public.zasp_security_agent_definitions%ROWTYPE;result_value jsonb;
+ BEGIN
+  PERFORM public.zasp_sa_export_definition_authority(organization_value,workspace_value,environment_value,principal_value,'manage_workflows',expected_checksum,expected_fingerprint);
+- IF NOT COALESCE(public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND public.zasp_valid_product_id(receipt_value),false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='export definition receipt rejected';END IF;
++ IF NOT COALESCE(public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND (receipt_value='' OR public.zasp_valid_product_id(receipt_value)),false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='export definition receipt rejected';END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),organization_value,workspace_value,environment_value,principal_value,operation_value,idempotency_value),0));
+  PERFORM 1 FROM public.zasp_workflow_records WHERE (organization_id,workspace_id,environment_id,kind,id)=(organization_value,workspace_value,environment_value,'security_agent',definition_value) FOR UPDATE;
+  SELECT * INTO prior FROM public.zasp_security_agent_definitions WHERE (organization_id,workspace_id,environment_id,definition_id)=(organization_value,workspace_value,environment_value,definition_value) FOR UPDATE;
+--- a/services/platform/migrations/security_agent_exports_release.go
++++ b/services/platform/migrations/security_agent_exports_release.go
+@@ -35,7 +35,7 @@
+ var securityAgentExportDefinitionSQL string
+ 
+ func SecurityAgentExportsFingerprint() string {
+-	return "83416842dd0d4b0f70e9709045ae4534eb54efaabb5b77f1429edbfc1eb0cc7d"
++	return "67a4e601a5597f67a35f3be50f4a47a0a602b3097b3a9e4838e6fc09dcee6b72"
+ }
+ 
+ func ProductionSecurityAgentExports() Metadata {
+--- a/services/platform/apiserver/security_agent_export_definition_postgres_test.go
++++ b/services/platform/apiserver/security_agent_export_definition_postgres_test.go
+@@ -7,6 +7,7 @@
+ 	"fmt"
+ 	"github.com/jackc/pgx/v5"
+ 	"github.com/jackc/pgx/v5/pgconn"
++	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+ 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+ 	"testing"
+ 	"time"
+@@ -29,6 +30,133 @@
+ 			t.Fatal(err)
+ 		}
+ 		exercise(ctx, owner, api, o, w, e, actor)
++	})
++}
++
++// Empty bearer receipts must reach the predecessor's receiptless branch;
++// browser identities still require a canonical receipt at the repository.
++func TestSecurityAgentExportDefinitionReceiptPostgres(t *testing.T) {
++	runExportDefinitionFixture(t, func(ctx context.Context, owner, api *pgx.Conn, o, w, e, actor string) {
++		driver := &exportDefinitionHTTPDriver{integrationPostgresDriver: &integrationPostgresDriver{connection: api}}
++		native, err := NewPostgresJSONDatabase(driver)
++		if err != nil {
++			t.Fatal(err)
++		}
++		db := &exportDefinitionHTTPDatabase{PostgresJSONDatabase: native, workersReady: true, driver: driver}
++		repo, err := NewSecurityAgentPostgresRepository(db)
++		if err != nil {
++			t.Fatal(err)
++		}
++		parse := func(s string) domain.ProductID {
++			v, err := domain.ParseProductID(s)
++			if err != nil {
++				t.Fatal(err)
++			}
++			return v
++		}
++		browser := fixtureRequestIdentity(t)
++		browser.Scope, err = domain.NewScope(parse(o), parse(w), parse(e))
++		if err != nil {
++			t.Fatal(err)
++		}
++		browser.PrincipalID = parse(actor)
++		bearer := browser
++		bearer.CredentialKind = CredentialBearerToken
++		id := "pid_efba0001-0000-4000-8000-000000000001"
++		value := exportDefinitionTestBody(t, browser, id)
++		marshal := func(v any) json.RawMessage {
++			raw, err := json.Marshal(v)
++			if err != nil {
++				t.Fatal(err)
++			}
++			return raw
++		}
++		checksum, fp := migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()
++		t.Logf("release58 checksum=%s fingerprint=%s", checksum, fp)
++		for i, action := range []string{"create", "update", "delete"} {
++			body := marshal(value)
++			resource, intentBody := id, map[string]any{}
++			for k, v := range value {
++				intentBody[k] = v
++			}
++			if action == "create" {
++				resource = ""
++				delete(intentBody, "id")
++			}
++			if action == "delete" {
++				body = json.RawMessage(`{}`)
++				intentBody = map[string]any{}
++			}
++			mutation := WorkflowMutation{Action: action, Kind: "security_agent", ID: id, Operation: map[string]string{"create": "createSecurityAgent", "update": "updateSecurityAgent", "delete": "deleteSecurityAgent"}[action], IdempotencyKey: "export-bearer-" + action + "-0001", ExpectedVersion: int64(i), Body: body, Intent: marshal(map[string]any{"resource_id": resource, "expected_version": i, "body": intentBody}), AuditID: fmt.Sprintf("pid_efba0002-0000-4000-8000-%012d", i+1), CorrelationID: fmt.Sprintf("pid_efba0003-0000-4000-8000-%012d", i+1)}
++			for _, receipt := range []string{"", "not-a-product-id"} {
++				bad := mutation
++				bad.ReceiptID = receipt
++				if _, err := repo.MutateWorkflow(ctx, browser, bad); !errors.Is(err, ErrRepositoryOperation) {
++					t.Fatalf("browser %s receipt %q error=%v", action, receipt, err)
++				}
++			}
++			// SQL cannot infer the credential type, but must reject null or
++			// malformed nonempty receipts for every mutation before any write.
++			for _, receipt := range []any{nil, "not-a-product-id"} {
++				var raw []byte
++				err := api.QueryRow(ctx, postgresExportDefinitionMutateSQL, action, id, o, w, e, actor, mutation.Operation, mutation.IdempotencyKey, mutation.ExpectedVersion, mutation.Intent, mutation.Body, mutation.AuditID, mutation.CorrelationID, receipt, checksum, fp).Scan(&raw)
++				var pg *pgconn.PgError
++				if !errors.As(err, &pg) || pg.Code != "22023" {
++					t.Fatalf("%s malformed receipt=%v error=%v", action, receipt, err)
++				}
++			}
++			result, err := repo.MutateWorkflow(ctx, bearer, mutation)
++			if err != nil {
++				t.Fatalf("bearer %s failed: %v SQL=%v", action, err, driver.lastError)
++			}
++			if result.Version != int64(i+1) || result.ReceiptID != "" || result.Replayed || result.AuditID != mutation.AuditID {
++				t.Fatalf("bearer %s result=%+v", action, result)
++			}
++			var legacyRaw []byte
++			legacyErr := api.QueryRow(ctx, `SELECT zasp_security_agent_mutate_definition($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, action, id, o, w, e, actor, mutation.Operation, mutation.IdempotencyKey, mutation.ExpectedVersion, mutation.Intent, mutation.Body, mutation.AuditID, mutation.CorrelationID, "").Scan(&legacyRaw)
++			var legacyPG *pgconn.PgError
++			if !errors.As(legacyErr, &legacyPG) || legacyPG.Code != "55000" {
++				t.Fatalf("receiptless legacy %s bypass=%v", action, legacyErr)
++			}
++			replay, found, err := repo.ReplayWorkflow(ctx, bearer, mutation.Operation, mutation.IdempotencyKey, mutation.Intent)
++			if err != nil || !found || !replay.Replayed || replay.Version != result.Version || replay.AuditID != result.AuditID || replay.CorrelationID != result.CorrelationID || replay.ReceiptID != "" || string(replay.Body) != string(result.Body) {
++				t.Fatalf("bearer %s replay=%+v found=%v error=%v", action, replay, found, err)
++			}
++			if _, _, err = repo.ReplayWorkflow(ctx, browser, mutation.Operation, mutation.IdempotencyKey, mutation.Intent); !errors.Is(err, ErrRepositoryUnavailable) {
++				t.Fatalf("browser borrowed bearer receipt: %v", err)
++			}
++			changed := marshal(map[string]any{"resource_id": resource, "expected_version": 99, "body": intentBody})
++			if _, _, err = repo.ReplayWorkflow(ctx, bearer, mutation.Operation, mutation.IdempotencyKey, changed); !errors.Is(err, ErrRepositoryConflict) {
++				t.Fatalf("changed bearer replay=%v", err)
++			}
++			var marked bool
++			if err = owner.QueryRow(ctx, `SELECT receipt_semantics='receiptless_incompatible' AND NOT response ? 'receipt_id' AND NOT EXISTS(SELECT 1 FROM zasp_workflow_receipts WHERE idempotency_key=$2) FROM zasp_workflow_idempotency WHERE organization_id=$1 AND idempotency_key=$2`, o, mutation.IdempotencyKey).Scan(&marked); err != nil || !marked {
++				t.Fatalf("receiptless provenance=%v error=%v", marked, err)
++			}
++			if _, err = owner.Exec(ctx, `UPDATE zasp_identity_memberships SET active=false WHERE organization_id=$1 AND principal_id=$2`, o, actor); err != nil {
++				t.Fatal(err)
++			}
++			if _, _, err = repo.ReplayWorkflow(ctx, bearer, mutation.Operation, mutation.IdempotencyKey, mutation.Intent); !errors.Is(err, ErrRepositoryAuthorization) {
++				t.Fatalf("revoked bearer replay=%v", err)
++			}
++			if _, err = repo.MutateWorkflow(ctx, bearer, mutation); !errors.Is(err, ErrRepositoryAuthorization) {
++				t.Fatalf("revoked bearer mutation=%v", err)
++			}
++			if _, err = owner.Exec(ctx, `UPDATE zasp_identity_memberships SET active=true WHERE organization_id=$1 AND principal_id=$2`, o, actor); err != nil {
++				t.Fatal(err)
++			}
++			if action != "delete" {
++				stale := mutation
++				stale.Action = "update"
++				stale.Operation = "updateSecurityAgent"
++				stale.IdempotencyKey = "export-bearer-stale-" + action
++				stale.ExpectedVersion = 99
++				stale.Intent = marshal(map[string]any{"resource_id": id, "expected_version": 99, "body": value})
++				if _, err = repo.MutateWorkflow(ctx, bearer, stale); !errors.Is(err, ErrRepositoryConflict) {
++					t.Fatalf("bearer stale CAS=%v", err)
++				}
++			}
++		}
+ 	})
+ }
+ 

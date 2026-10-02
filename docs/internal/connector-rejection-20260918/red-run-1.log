@@ -1,0 +1,8 @@
+3a9e70675518b9b4d93b103b40d0dd9a67412fd3e0627c1488880f28b46c4b63  /private/tmp/zasp-connector-rejection-red.test
+02cbdfb750c98a7d89daa0f9d76963319a8ef4894e2c36cbcdba8b2f9f2dc6db  services/platform/apiserver/connector_rejection_postgres_test.go
+TestConnectorRejectedAuthorityOverridesPostgres
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres
+    connector_rejection_postgres_test.go:62: registered API authority: user=security_agent_v33_discovery_api_login super=false bypass=false audit-insert=true err=<nil>
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestConnectorRejectedAuthorityOverridesPostgres3337896089/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestConnectorRejectedAuthorityOverridesPostgres (4.79s)
+FAIL

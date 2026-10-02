@@ -1,0 +1,841 @@
+8733b16f8d939d38a8157dd2519e57fc6f630542
+ .github/workflows/runnable-ui.yml                  |   145 +-
+ README.md                                          |    33 +-
+ app/api/APIProvider.tsx                            |    54 +-
+ app/components/ZaspProductionApp.tsx               |    65 +-
+ .../administration/AdminOperationsView.test.tsx    |    32 +-
+ .../administration/AdminOperationsView.tsx         |    23 +-
+ .../redteam/ProductionRedTeamView.test.tsx         |    51 +
+ app/features/redteam/ProductionRedTeamView.tsx     |    37 +-
+ app/features/risk/ProductionRiskView.test.tsx      |    83 +-
+ app/features/risk/ProductionRiskView.tsx           |    70 +-
+ .../securityagents/SecurityAgentsView.test.tsx     |   660 +-
+ app/features/securityagents/SecurityAgentsView.tsx |   226 +-
+ app/features/sessions/RuntimeSessionTimeline.tsx   |     7 +-
+ app/features/sessions/RuntimeSessionsView.test.tsx |    14 +
+ app/features/sessions/RuntimeSessionsView.tsx      |    13 +-
+ .../sessions/SessionsComplianceView.test.tsx       |   213 +-
+ app/features/sessions/SessionsComplianceView.tsx   |    42 +-
+ app/features/workflows/api.test.ts                 |    55 +
+ app/globals.css                                    |    27 +-
+ app/quality/dependency-lock-contract.test.ts       |     2 +-
+ app/quality/localstack-sqs-proof-contract.test.ts  |     2 +-
+ .../localstack-storage-proof-contract.test.ts      |     2 +-
+ .../m1a-m3-foundation-batch-contract.test.ts       |     6 +-
+ app/quality/m2-closure-contract.test.ts            |     6 +-
+ ...2-identity-governance-ui-batch-contract.test.ts |    13 +-
+ .../m7-session-compliance-batch-contract.test.ts   |    13 +-
+ app/quality/m7a-api-builder-batch-contract.test.ts |     7 +-
+ app/quality/platform-api-command-contract.test.ts  |     3 +-
+ app/quality/runnable-ui-workflow.test.ts           |   315 +-
+ app/quality/s3-artifact-interface-contract.test.ts |     2 +-
+ app/quality/ui-api-coverage-ci-contract.test.ts    |     6 +-
+ app/quality/ui-api-map-contract.test.ts            |    22 +-
+ apps/web/api/administration-decoders.ts            |    11 +-
+ apps/web/api/client.ts                             |    34 +-
+ apps/web/api/decoders.receipts.test.ts             |    54 +-
+ apps/web/api/decoders.red-team.test.ts             |    10 +
+ apps/web/api/decoders.security-agent.test.ts       |    34 +
+ apps/web/api/decoders.ts                           |   208 +-
+ apps/web/api/generated.ts                          |  1282 +-
+ apps/web/api/pagination.test.ts                    |    20 +
+ apps/web/api/pagination.ts                         |     4 +-
+ build/dependencies.lock.yaml                       |     6 +-
+ deploy/production/compatibility-observation.mjs    |    22 +-
+ .../production/compatibility-observation.test.mjs  |    58 +-
+ deploy/production/release-contract.mjs             |    43 +-
+ deploy/production/release-contract.test.mjs        |    84 +-
+ deploy/production/release-gates.mjs                |     3 +
+ deploy/production/release-gates.test.mjs           |     6 +
+ deploy/production/session-search-rollout.mjs       |     2 +-
+ deploy/production/session-search-rollout.test.mjs  |    88 +
+ deploy/production/web.Dockerfile                   |     2 +-
+ deploy/staging/gate.test.mjs                       |    33 +-
+ deploy/staging/main.tf                             |     1 +
+ .../staging/product/templates/_session-search.tpl  |     2 +-
+ deploy/staging/product/templates/migration.yaml    |     7 +
+ deploy/staging/product/templates/red-team.yaml     |     1 +
+ deploy/staging/product/templates/resilience.yaml   |     5 +-
+ deploy/staging/product/templates/secrets.yaml      |     3 +
+ deploy/staging/product/templates/workloads.yaml    |     6 +
+ deploy/staging/product/values.yaml                 |    34 +
+ deploy/staging/tests/session_search_iam.tftest.hcl |   247 +-
+ .../2026-09-11-sandbox-query-cutover-evidence.md   |    21 +
+ ...ntation_production_availability_owners_v1.5.tsv |    14 +-
+ ...implementation_production_availability_v1.5.tsv |    72 +-
+ docs/internal/implementation_status_v1.5.md        |  3002 +-
+ docs/operations/backup-restore-rollback.md         |     7 +
+ docs/operations/observability-and-canaries.md      |    27 +-
+ docs/operations/production-deployment.md           |    31 +-
+ docs/product/security-agent-action-readiness.tsv   |     4 +-
+ docs/product/ui-api-map.yaml                       |    26 +-
+ eslint.config.mjs                                  |     1 +
+ openapi/identity-admin.test.mjs                    |   146 +-
+ openapi/openapi.test.mjs                           |    43 +-
+ openapi/openapi.yaml                               |   865 +-
+ package-lock.json                                  | 58019 ++++++++++++++++---
+ package.json                                       |    39 +-
+ proofs/localstack-sqs/go.mod                       |     6 +-
+ proofs/localstack-sqs/go.sum                       |    12 +-
+ proofs/localstack-sqs/job_queue.go                 |     4 +-
+ proofs/localstack-sqs/job_queue_proof_test.go      |     2 +-
+ proofs/localstack-sqs/job_queue_test.go            |    26 +-
+ proofs/localstack-sqs/job_sdk_test.go              |    72 +-
+ proofs/localstack-sqs/proof.go                     |     1 +
+ proofs/localstack-sqs/sdk.go                       |    19 +-
+ proofs/localstack-storage/go.mod                   |     8 +-
+ proofs/localstack-storage/go.sum                   |    16 +-
+ scripts/check-production-imports.mjs               |     2 +
+ scripts/check-production-imports.test.mjs          |     9 +
+ scripts/check-ui-api-coverage.test.mjs             |    26 +-
+ scripts/implementation-status-check.mjs            |     8 +-
+ scripts/implementation-status-check.test.mjs       |    24 +-
+ scripts/production-combined-e2e.mjs                |  1961 +-
+ scripts/production-combined-e2e.test.mjs           |   794 +-
+ scripts/production-release-gate.mjs                |    11 +-
+ scripts/red-team-runtime-proof.mjs                 |     5 +-
+ scripts/red-team-runtime-proof.test.mjs            |     8 +
+ scripts/sensor-daemon-replay.mjs                   |     8 +
+ scripts/sensor-daemon-replay.test.mjs              |    18 +-
+ scripts/validate-dependencies.mjs                  |     2 +-
+ scripts/validate-dependencies.test.mjs             |    29 +
+ services/platform/agentsec-api/connector_aws.go    |    33 +-
+ services/platform/agentsec-api/main.go             |     2 +-
+ services/platform/agentsec-api/operational.go      |     2 +-
+ services/platform/agentsec-api/operational_test.go |    12 +
+ .../platform/agentsec-api/production_runtime.go    |   145 +-
+ services/platform/agentsec-api/runtime.go          |     8 +
+ services/platform/agentsec-api/runtime_test.go     |     8 +-
+ services/platform/agentsec-migrate/main.go         |   221 +-
+ services/platform/agentsec-migrate/main_test.go    |     2 +-
+ .../runtime_sandbox_binary_postgres_test.go        |     6 +-
+ .../runtime_sandbox_command_test.go                |     2 +-
+ .../runtime_sandbox_prestage_test.go               |     2 +-
+ .../platform/agentsec-worker/discovery_cloud.go    |     2 +-
+ .../platform/agentsec-worker/outbox_production.go  |     4 +-
+ .../agentsec-worker/outbox_production_test.go      |    66 +
+ .../production_combined_e2e_test.go                |   232 +-
+ .../platform/agentsec-worker/production_runtime.go |    54 +-
+ .../agentsec-worker/production_runtime_test.go     |    31 +-
+ .../platform/agentsec-worker/red_team_artifact.go  |   195 +-
+ .../agentsec-worker/red_team_artifact_test.go      |     3 +
+ .../agentsec-worker/red_team_execution_runtime.go  |    22 +-
+ .../agentsec-worker/red_team_production.go         |     5 +-
+ .../platform/agentsec-worker/red_team_runner.go    |    45 +-
+ .../agentsec-worker/red_team_runner_test.go        |     2 +-
+ .../red_team_runtime_combined_e2e_test.go          |    98 +-
+ .../platform/agentsec-worker/runtime_config.go     |    42 +-
+ .../agentsec-worker/runtime_config_test.go         |    12 +-
+ .../security_agent_action_runtime.go               |    31 +-
+ .../agentsec-worker/security_agent_planner.go      |   117 +-
+ .../agentsec-worker/security_agent_planner_test.go |    49 +-
+ .../agentsec-worker/security_agent_runtime.go      |    49 +-
+ .../agentsec-worker/security_agent_runtime_test.go |    97 +-
+ services/platform/apiserver/api_token_reveal.go    |     7 +-
+ services/platform/apiserver/composition.go         |    49 +
+ services/platform/apiserver/composition_test.go    |    25 +-
+ .../platform/apiserver/discovery_repository.go     |     2 +-
+ services/platform/apiserver/postgres_database.go   |     6 +
+ .../apiserver/postgres_integration_test.go         |    41 +-
+ services/platform/apiserver/production.go          |    35 +-
+ services/platform/apiserver/production_test.go     |    74 +
+ .../apiserver/red_team_execution_repository.go     |    17 +-
+ .../apiserver/red_team_invocation_postgres_test.go |    10 +-
+ services/platform/apiserver/red_team_repository.go |     2 +-
+ .../platform/apiserver/red_team_repository_test.go |    31 +
+ services/platform/apiserver/repository.go          |    18 +-
+ services/platform/apiserver/router.go              |     3 +
+ .../runtime_correlation_routing_postgres_test.go   |     4 +-
+ .../runtime_sandbox_session_read_postgres_test.go  |     4 +-
+ .../apiserver/security_agent_action_repository.go  |    49 +
+ .../security_agent_attack_path_postgres_test.go    |    55 +-
+ .../platform/apiserver/security_agent_handler.go   |    91 +-
+ .../apiserver/security_agent_repository.go         |   333 +-
+ .../apiserver/security_agent_repository_test.go    |    75 +
+ .../platform/apiserver/security_agent_surface.go   |     2 +
+ .../apiserver/security_agent_worker_repository.go  |   173 +-
+ .../security_agent_worker_repository_test.go       |    31 +
+ .../apiserver/sensor_daemon_replay_linux_test.go   |    14 +-
+ .../sensor_daemon_replay_process_linux_test.go     |    21 +-
+ services/platform/apiserver/workflow_handler.go    |   142 +-
+ services/platform/apiserver/workflow_repository.go |    31 +-
+ services/platform/artifactstore/s3driver/driver.go |    96 +-
+ .../platform/artifactstore/s3driver/driver_test.go |   402 +-
+ services/platform/artifactstore/store.go           |    94 +-
+ services/platform/artifactstore/store_test.go      |   149 +
+ services/platform/bucketlayout/layout.go           |    15 +-
+ services/platform/bucketlayout/layout_test.go      |    24 +
+ .../internal/sandboxcutover/kubernetes_test.go     |    47 +-
+ .../internal/testprocess/command_darwin.go         |    16 +-
+ .../platform/internal/testprocess/command_linux.go |     6 +-
+ .../platform/internal/testprocess/command_test.go  |     5 +-
+ .../platform/internal/testprocess/command_unix.go  |   293 +-
+ services/platform/migrations/migrations.go         |    19 +-
+ services/platform/migrations/migrations_test.go    |     5 +-
+ services/platform/queuedefinition/definitions.go   |     6 +-
+ .../platform/queuedefinition/definitions_test.go   |    21 +-
+ services/platform/red-team-adapter/production.go   |     9 +-
+ .../red-team-adapter/production_database_test.go   |    39 +
+ services/platform/redteamadapter/adapter.go        |    79 +-
+ services/platform/redteamadapter/cloud_test.go     |     2 +-
+ services/platform/redteamadapter/http_invoker.go   |    91 +-
+ .../platform/redteamadapter/http_invoker_test.go   |    17 +-
+ .../platform/redteamadapter/secrets_resolver.go    |    21 +-
+ .../redteamadapter/secrets_resolver_test.go        |     5 +-
+ .../production_precise_ingest_repository.go        |     5 +
+ .../platform/securityagent/action_readiness.go     |     4 +-
+ services/platform/securityagent/automation_test.go |     2 +-
+ services/platform/securityagent/builtin_actions.go |     4 +-
+ services/platform/securityagent/templates.go       |     2 +
+ services/platform/sessioncontrol/sessioncontrol.go |   225 +-
+ workers/redteam-node/image-proof.mjs               |    38 +-
+ workers/redteam-node/image.integration.test.mjs    |     1 +
+ workers/redteam-node/package.json                  |     2 +-
+ workers/redteam-node/runner.mjs                    |    91 +-
+ 193 files changed, 65286 insertions(+), 9440 deletions(-)
+9589ecfded87f9eeccc324be803ca4dbb55592e39f716b8a62e8ac7c7301c8a9  services/platform/apiserver/administration_fix_round1_test.go
+17aa8891f01031f53c18255cbd5d737985f1876f1be46a68173e13598f3f3795  services/platform/apiserver/administration_fix_round2_postgres_test.go
+92a9e556e58f871c9fe4aaa2bacd62ea447e1258494d67c6c682c98fc4adbf4d  services/platform/apiserver/administration_fix_round2_test.go
+6ef8a822c29fac899c2439842d259762d55315a842fed1443716f151af683a16  services/platform/apiserver/administration_fix_round3_postgres_test.go
+ce503a1c350c4b359f67ade196076b0639bd4b67ec9b8924e9b16e6fd8562956  services/platform/apiserver/administration_fix_round3_test.go
+ecb1676f94aa41012ea0738c1f0a49925fc332572e348275f63fbc3adc82adcf  services/platform/apiserver/administration_fix_round4_postgres_test.go
+9f918ccf9d052510800718a47c629fca577feda6f0491cf6fd74c8b2929b10ca  services/platform/apiserver/administration_fix_round4_test.go
+7fde0beed3ebdb83d447156135776e8a3bec9ead4b51aaccb3a2923410bc2c94  services/platform/apiserver/administration_repository.go
+cde1d9bd8ff845ece87a5c6429b6afdedd65520322dbaa0823262da11b51d973  services/platform/apiserver/api_token_reveal.go
+08b477e7e4ece5b90c508e0f30416aeadd43aca115a40e1768cca11d949ae364  services/platform/apiserver/api_token_reveal_test.go
+37fcfa947fc8641f35b87592212b5649f10f396ef4675689b0cb51055c47648b  services/platform/apiserver/approval_notification.go
+6ab72c24ed3a6ea1f6b7e69e4384b14436608289c5cf264e8af371dcb169a21a  services/platform/apiserver/approval_notification_postgres_test.go
+04a25b34d093d9d43e85e7bd2488e347605f64f04423434e644990b2cf1b95ea  services/platform/apiserver/approval_notification_repository.go
+7872f477a1324b4450853a5f914b9c224def4271d6a3681dfac96f27e32be341  services/platform/apiserver/approval_notification_repository_test.go
+7c2309631f5d8480f887a19d83d3d2d05ce329b450e54721a30e05720b6e0a01  services/platform/apiserver/approval_notification_test.go
+8e7ba46b3b837cbccb5c3ceb3e59b6ebd53172d3b40bafb9d601b0891fa5fc09  services/platform/apiserver/attack_lab_execution_repository.go
+7858af6fe3f66d5e20581bf45a2871b0258d98a20c7f315235e733899b7e921f  services/platform/apiserver/attack_lab_execution_repository_test.go
+29859ce3ffd0cd0bf544197df713cfbe1d4977d00dea153877cb3578886b9022  services/platform/apiserver/attack_lab_repository.go
+83d838c927d39b1bf534662f8dfc5d3d6a2645367fdffb455e5c297852bcef33  services/platform/apiserver/attack_lab_repository_test.go
+298676b9784e623435df7ec774f0a8fcbf7cd6c268f7f70c16ee73d103410b25  services/platform/apiserver/audit_export_artifacts.go
+a71dcd9b97ced8ef518b040c5dba518f062bb3c19bd8a20d92f01f11da84d3c3  services/platform/apiserver/audit_export_artifacts_test.go
+0636f3c16348cd66b693b7a92393474707522b391681ef68497a28504dac860b  services/platform/apiserver/audit_export_browser_expected_postgres_test.go
+75772ac107b258a053c3cbc2c256c9135d714f751fa6d1ad2280e541711203e9  services/platform/apiserver/audit_export_browser_expected_test.go
+1f8fd438469dd783372d27c99523addc74250e4b68cae4ec7597cebe9424fa71  services/platform/apiserver/audit_export_browser_process_test.go
+d4d71cb29980a189134cac8ac7b2e86071a4a8a583ad9057de9a5455bf582a17  services/platform/apiserver/audit_export_browser_provider_test.go
+b4c35188e13dd0167a12291d8fbb8ffc3767c38fcf00c1d2d5d7815823fcc112  services/platform/apiserver/audit_export_composition.go
+e840ad52834c3588602c582bc3fe366aec8e68c2c3fa3164ce6142671be50f41  services/platform/apiserver/audit_export_composition_test.go
+f317fe0dddde1782e51b79af79f9145ecc7f8e1250c269859abf7a4411fce8c0  services/platform/apiserver/audit_export_contents.go
+ab700765364c2a8919cfaa9b631912bec7eea98083a31c5a02b480bf60090865  services/platform/apiserver/audit_export_contents_test.go
+909a95c5c46d32ea3978e2d0c7be50fc27c563fb870807a4b9c337601343ac0f  services/platform/apiserver/audit_export_cursor.go
+d2763899a918a0fcd87bd7f88b25f417fab8f349d68993ab8c9b4492a11da388  services/platform/apiserver/audit_export_cursor_test.go
+1a9bddb5031e8d35688768fc09b287ef59feb6c6e229258f6b21aba28d2c5dfd  services/platform/apiserver/audit_export_executor_retry_postgres_test.go
+dd661b45901201d36507125124e8331170e7bacc0dc1f80fe914f86983d487ca  services/platform/apiserver/audit_export_http.go
+58e9aaceb1c442209e22a24ffd3a69aab22292819bc35b8efc565e137f6103fb  services/platform/apiserver/audit_export_http_orderly_restart_test.go
+c876b4df62a81298669d4dbe0a3489514d2ad6cfdf13dcb604aa21fd7e71d5ea  services/platform/apiserver/audit_export_http_sdk_postgres_test.go
+0bfddeac4dbc41b73fa191e3bcbe61a61d22f0f9b36c046bf10cc0d2c58bfce0  services/platform/apiserver/audit_export_http_size_expected_test.go
+5a1158b3aa7fc62e0816e2059111157bbde5369083ff200764594dddabe9dfc6  services/platform/apiserver/audit_export_http_size_lifetime_test.go
+4027481ab08be8ad3c89d4519e916843fa9bdb5cfc3165a7b3b9900cdcad36e3  services/platform/apiserver/audit_export_http_size_memory_test.go
+bdacd0739fea001654f0cc3fdc8feb87fd9e0d6e77fe196f8b249880e1067547  services/platform/apiserver/audit_export_http_size_oracle_request_lifetime_test.go
+1e2ff346c6244dffa1e2f0d8005328143deb77825634b23d0adfc19eee90a494  services/platform/apiserver/audit_export_http_size_postgres_test.go
+b5308c0034489d738258cce0ff94c7c4554422132de8d75ef3d627d9f67cdc81  services/platform/apiserver/audit_export_http_size_process_test.go
+087242be6f214d2e4028d4eb84bbcf4c70eecd463569787650ec77b8dc686b4a  services/platform/apiserver/audit_export_http_size_provider_test.go
+20abb75dafa6fdecd233c73b897f700bfb9619896896208893d4617f5e066498  services/platform/apiserver/audit_export_http_test.go
+3dcb3087e86eaefc8c940734911c48298a37693bef5e6f6a8d1784adc1dd3d2e  services/platform/apiserver/audit_export_identity_actions_postgres_test.go
+10686a5eff347f6d8804953f32ece6e996637642aacf30334e14154894f5330e  services/platform/apiserver/audit_export_localstack_adapter_test.go
+432a8e5dcacf738725aba3c2e87cf58dcb403344561fba0577a003938065fe6b  services/platform/apiserver/audit_export_localstack_owner_test.go
+5e009e74472e8e047ca09cedeba32afc0869a5889506fe02de80fccbd7bdfc59  services/platform/apiserver/audit_export_localstack_postgres_test.go
+b45a6415090c0777da231366b4d9a5da614cc8ffa016898a3a48aef05cb5454e  services/platform/apiserver/audit_export_localstack_provider_test.go
+911fcd5abde88e5c5679efb50aae1a821b629ba5d12c46414d32afa28cdea541  services/platform/apiserver/audit_export_outbox_saturation_postgres_test.go
+fad711f2b6774fdf6c6e23836ad962bb8e3259589b14ef594ab6df8cc88fb106  services/platform/apiserver/audit_export_policy.go
+1db2cb0d0f4ff1eb25f6a27b032a5ce038e8c6b53a311d4b09985d74cff96bee  services/platform/apiserver/audit_export_policy_test.go
+13943a3c863e4cdd6450a3843abd3a87ead1ecbec0de5bc720f22196de3761be  services/platform/apiserver/audit_export_postgres_test.go
+d1df810fdcd3f8700e2538a62161428641d1ed8e96871974863f53267a79b85f  services/platform/apiserver/audit_export_process_postgres_test.go
+7e85347348a4dec1df24392ec6ec4cb9dfaa8e18e31086f9e79f31801d3098c2  services/platform/apiserver/audit_export_process_provider_test.go
+1a9f62f3afb3d6a29bfe26792bff72ca368c0db09cb8f005d1bb0850f00a3854  services/platform/apiserver/audit_export_production.go
+acc9943f3578ccc997303b2f61ad1ddff4b879b4958e7d4d5d05df8d110a3d94  services/platform/apiserver/audit_export_production_postgres_test.go
+24eb92c2723a65ee8e68c2c96a3f8511d7a0cef2fff7c0e7ee4e1cc67316ed43  services/platform/apiserver/audit_export_production_test.go
+d3800054889033cc676543c14fe6dbbaddf2132949dfd760282c63b97ce40d84  services/platform/apiserver/audit_export_public_source_postgres_test.go
+5846f244dcd11d2a3dc4cc27cb7d4e43cba25e4b687eaa566208eaed4d4557aa  services/platform/apiserver/audit_export_read.go
+02c5564b7858eb51340ad1be18bb97754e21f040212bf8ac10796907980348eb  services/platform/apiserver/audit_export_read_test.go
+74434c6bb785e04b5b6728195fb9ebbc0f018407edd364ba358c259c3c4919b8  services/platform/apiserver/audit_export_recovery_process_postgres_test.go
+eb417e871d1e685d79252587e4afd5ba51a35ee880b31826c15d09f9e040c570  services/platform/apiserver/audit_export_repository.go
+409b75d0aab06a22b9cd3a3c80d4ce9ed50b45aacdc7b6886c20eeb75ce294cc  services/platform/apiserver/audit_export_repository_test.go
+1002acaf13765eddc2b8d5fa593498d48014c83d7342294e05f9c0d8a56fc2b0  services/platform/apiserver/audit_export_run_context_postgres_test.go
+1cdb965cbafd8c570b07d69d99553cd0705bffef0f6e1231f11fa856f5d973d8  services/platform/apiserver/audit_export_run_context_test.go
+18748dcc3833273cf44d02db294de6d512f0a040456c5a7b0adb5883659d2959  services/platform/apiserver/audit_export_sdk_test.go
+4fd7379d2f6956582a0176a3b71ffa39d7db167cdfd879f5374c0d046a5f09b4  services/platform/apiserver/audit_export_wire_contract_test.go
+d67fd7cdc4bef69920d0889f604c766422b2bc1abe69b57890fb12661bfbec06  services/platform/apiserver/audit_export_worker_postgres_test.go
+8d336ee03036dd7e4f624018079e3f10d1bfcdd862dc3d5d1c7a35d7c03c704c  services/platform/apiserver/audit_exports_upgrade_compatibility_postgres_test.go
+d68138ee97ba41abe992392763d4ffa5e1260d7ed8bf2f83df0be45035f23376  services/platform/apiserver/audit_list_filters.go
+ffefe9cb2108f0731b7bd7f00e95f0d266cc67dd6e5595a01da615521d1fa2ff  services/platform/apiserver/audit_list_filters_test.go
+9b207d8b0a1c9fd2d8289a66529810f618606cb4d1a5ebc2162c26520708ee03  services/platform/apiserver/audit_list_handler_postgres_test.go
+653e5e390a95a8973390ebef5dbe571fc41037b55d51d1a6caaad6dabaa900a6  services/platform/apiserver/audit_list_http.go
+74711e3ca0be954f46b4eb53320d6ac1b47663a4ed281a83059b991bc747fd59  services/platform/apiserver/audit_list_http_test.go
+07e079cec774e904f18af5191e719e8b6a17886ae953b21b10305cfe455d6bf5  services/platform/apiserver/audit_list_repository.go
+b53bc52f0613bb3356b642012fba243c6c1613e9cadf562a791b40fd8e4c68d0  services/platform/apiserver/audit_list_repository_test.go
+f7c5662ecb5def3816a7250631569aec96e7ec92450b4f6af306eb7f80cb4bc3  services/platform/apiserver/audit_public_page_bounds_postgres_test.go
+6a44dc09087350099d2a4db93a6360f3a17ce179e4d2ab3d211eef3760559a20  services/platform/apiserver/audit_public_page_cost_postgres_test.go
+3282fe82a941e0a03368f1708f672d28413678544fc914ce8e75bd7d2a29c611  services/platform/apiserver/audit_public_page_http_postgres_test.go
+19e6dbbdab1eb950ebcf294642cf1206ff4d4450edab8257c65751523d0ce77f  services/platform/apiserver/audit_public_page_postgres_test.go
+a9a968e31d491d31fec3675a67f1449338723239950dbcc3d34c54cb60989f07  services/platform/apiserver/callback_provider.go
+6f34c1bf4df263cc539f9044f4192fd45611e6073cf08f2abaae5c4e69a50811  services/platform/apiserver/callback_provider_test.go
+1af45ca626ed0f6937ae8f9026e9c943e2732a93cb81e44b6e555ba80425171f  services/platform/apiserver/compliance_conflict_test.go
+b96b57bd63a855d7623bba060d8540efe938e74c940cdd5cddca82e5d5579238  services/platform/apiserver/compliance_connected_postgres_test.go
+aa3e320c6324e8ae67cf39d01ace3898299560d639efdb328a579630fa05a9cd  services/platform/apiserver/compliance_download.go
+ece34406a34b4cb325d717558008844706df0ce4fe8c15921a1e89cce61b2b5b  services/platform/apiserver/compliance_download_test.go
+b78aa0379155acd6da8e49865b622793a241ececbfa81a2ccb7cd12beff1bcaa  services/platform/apiserver/compliance_exports_binding_test.go
+36ec5bcbb6d49a09a41412d8abd543ad5d8a88ba95075b288280293804b1fbf4  services/platform/apiserver/compliance_exports_fix_postgres_test.go
+eb81e6ca53295d0c293519a57e229d3360b0b8cde1ab754e17ace34f3abf2dfa  services/platform/apiserver/compliance_exports_postgres_test.go
+7702e29b02bae211bf00f9399ef59529d55bab8f0fce1457cf1dd48c89af6792  services/platform/apiserver/compliance_exports_quotas_postgres_test.go
+6fc1890f9df51f6d7a49e4b5ad3490f438f06cb18b26dde45e4e01fad7a71942  services/platform/apiserver/compliance_exports_repository.go
+399061e7b143dfe21745cb6716f131666fcf62f2e3ad249347ed1377eb08bc4b  services/platform/apiserver/compliance_exports_repository_test.go
+2fa98b985fe94d727741e547032747b6db96d8f43625d6a4866041810b297da0  services/platform/apiserver/compliance_http.go
+74aa64a2833e6b9f45962abbfc402c184d8a09b8e2edca0202732fb327fb6f89  services/platform/apiserver/compliance_http_postgres_test.go
+9117e978d7e71315867e94ec9c851288a459a596e615b9266a528ec4ce23da35  services/platform/apiserver/compliance_http_test.go
+fdfde4ac8cef90a367f6941cdfdd0b994735d8c48e1d1f8645ac5750bcb4dd85  services/platform/apiserver/compliance_postgres_test.go
+ebaa02ac42a13136cb6c45d495e00842d769ee3a4797cc4c7adbca250b939b13  services/platform/apiserver/compliance_production.go
+1f85f2a47dc6e6199b6cfe879ffd9ae922e928491d26f3357220626e35fe2c2c  services/platform/apiserver/compliance_read_classification_postgres_test.go
+ef7b777bba3241f804fcf4a4cadd365606d892145e89ebc815967329d96e6f9c  services/platform/apiserver/compliance_read_classification_test.go
+f503b6f0b6660c9435496848440c3062325481b54d3c59ad1b70bfdecfaff16f  services/platform/apiserver/compliance_repository.go
+4f2790bd5e4148e8710091597a2ffdc8b24bacb2c391ef859ab1f1bbfa297fff  services/platform/apiserver/compliance_repository_test.go
+ecddce16c835f945e09fde222fb089d2820074237ae4b055a40eb33c9ed308c7  services/platform/apiserver/compliance_runtime_postgres_test.go
+373b7ddc43563c4ded96b9c4920cbc042c4b41123d91bc9006db9389b3004e89  services/platform/apiserver/composition.go
+f6e1d38fe61c9d738bbcd8b41e18c5747546bd9eb7da8e0cb146f18267c2185d  services/platform/apiserver/composition_test.go
+b55e132588ccd6fec463344030f2257562431d3853b161729ae48a535dbd6051  services/platform/apiserver/connector_authorization_postgres_test.go
+66a0f82bc5727c942a2a9612254b64b9844b72741864024311cec8c4e4c31b9d  services/platform/apiserver/connector_authorization_risk_postgres_test.go
+7130d2499b1eddee9eecd8cdf524f8fab90b8d04e586f1e5c24300bab5266d5f  services/platform/apiserver/connector_handler.go
+e62ba6a2e46a3c3b3b60a662d24b92f0ba4a1b409d3ed0c4f5d1d4ff0f23d80f  services/platform/apiserver/connector_handler_test.go
+87be8f694c899242236cdc104d9f6e6ff4f1742a5f07e9e760107272ff21a70f  services/platform/apiserver/connector_reconciler.go
+e8bcdefa818f3467c58f51a79085e48a3b2b2c89db40ce8a8fb6c2c0f3862309  services/platform/apiserver/connector_reconciler_test.go
+228ccfe7a5286b9db217ac17f176516e160eb8008b7d262e08b2a6737c3a4b0a  services/platform/apiserver/connector_registry.go
+20eb3c0f8314e165adeb272b667801fb09c91dac7bc27c23d767d96453c0daba  services/platform/apiserver/connector_registry_test.go
+3a60078282104d84a6d8d7c3f6583f3013c4f4344e98056968845f42b7c214a6  services/platform/apiserver/connector_rejection_postgres_test.go
+324a0368dc8f0c5ff8ac9e9c83511049a62e997744469e641eaa2e6995295fa6  services/platform/apiserver/connector_repository.go
+fd4c3847cb1580aed3600ae25b11295a26cf1c8d7e79424f1a9363912ee24031  services/platform/apiserver/connector_repository_test.go
+d9d0415971d38a640a68f1f3be5c1e0530f01884087ea38004e30162a8eef698  services/platform/apiserver/discovery_execution_postgres_test.go
+d02a37783fd78df23e8c0e68d4551d3b9ee248e2abebb04e9d4af5954398c163  services/platform/apiserver/discovery_execution_repository.go
+3695d05c8c3bde6aef4ad3d67b23c2f36c45d6d9a4e54820498002336c47681c  services/platform/apiserver/discovery_execution_repository_test.go
+ee53d09c61a8651063b950a99f3865ca9fdcbd7de8884e23dc03cc46b5017211  services/platform/apiserver/discovery_fix_round1_postgres_test.go
+8a5bf2db55e9667b318510793a7e63c76a45e97c73a3c1ebb2ed29f805c4f511  services/platform/apiserver/discovery_fix_round2_postgres_test.go
+923d4816734f8dd136b7597c114c27e7aba67371fe640fa1561c67bed9453b5e  services/platform/apiserver/discovery_postgres_test.go
+970d692f6b2484c386f82d4bfdae9a51da486d7abb0ccc0faab698e9b51b81d0  services/platform/apiserver/discovery_public_handler.go
+5090ba373d7e62e468603c8fbeef14bd37ba8e8dc872cb03d880dd173ab07f5a  services/platform/apiserver/discovery_public_handler_test.go
+7578ab4f3a399a4f4d3b053da26a31112bb41261a6b905593f5af9f6179b832f  services/platform/apiserver/discovery_public_repository.go
+2662d84d9cf02b414621e022d89d7a4f522df6833dc4f128a272c8dce347a62a  services/platform/apiserver/discovery_public_repository_test.go
+7cb711b1e7b0d5bf80c8ddc87861000705174659b0e1ff975056a753b1c6e0a6  services/platform/apiserver/discovery_repository.go
+9fc7adcdc86885d015f8b7e5251fbd4b8def8e2ec4051ea910f61edbf3b28502  services/platform/apiserver/discovery_repository_test.go
+0fac6318309f160b26c3eba873f43d6653d08dd55bafcd5c6e7a60530a0311b8  services/platform/apiserver/discovery_surface.go
+aa5ce1510c12256bc70891fb2f6a96ffe34b3f77170c505941eec05700ae2ed5  services/platform/apiserver/discovery_surface_test.go
+7118676d23360284010edf6f38e5b8d68120de82fa3aa21ecd442afc5d2aba1e  services/platform/apiserver/finding_ticket_postgres_test.go
+4a3e80201ad6565aa45bd4b30e59c782f389734013374079b0bd02c7e38a9d36  services/platform/apiserver/finding_ticket_service.go
+b89f6917f2debe32ca7865c88ad49badbdc90c9827dd8a0165b2dea82488be0f  services/platform/apiserver/finding_ticket_service_test.go
+3b5955830689021cf99e5aa6da537920ab5ac05b233a990fa907c290449e339e  services/platform/apiserver/finding_ticket_transport_test.go
+2b75052c5cb5d1f8fa7d352152dc302475dc0d2843b3c04d289f23195f9cfee3  services/platform/apiserver/finding_ticket_webhook.go
+a6be491a748d0660b5000e0a59a9f75d41ab255e18bccddfa8191ec7f1a9f9f7  services/platform/apiserver/finding_ticket_webhook_test.go
+acc2f074e667428199c38c98fb5fe52e372c53a8970198419341993e8c478465  services/platform/apiserver/global_search_postgres_test.go
+984b05b7e1d4d21278f946854d74b8efff786f4dba476009aaa22428786c76c5  services/platform/apiserver/home_attention_postgres_test.go
+b1a271f087de73871dce18511018fef25b9886baae9d7853b523ee625c0e76a8  services/platform/apiserver/identity_administration_handler.go
+61a622b2552f0917ba2c60dadd2e2f56efc77483651b3ab737a69b78b7dbb138  services/platform/apiserver/identity_administration_handler_test.go
+c12f20759b9fa88932702d8a972d323360eb717d8adc80e62a01e4ac18d75828  services/platform/apiserver/identity_administration_postgres_test.go
+f355faf750c49178bc2769f56a2b33db7bc31e104f81de795c7bbb1dc1854022  services/platform/apiserver/identity_administration_repository.go
+9dd18f7bd09f2ee8c5714e09a2045cf5cac2d0665314b04218a1e31385d4108a  services/platform/apiserver/integration_setup_postgres_test.go
+f1d7f170f79b0cc7c2e3c6a567f1929a6430eaf1c22bf87d68054b16f492e5d8  services/platform/apiserver/integration_webhook.go
+c8cc596e7f8f578e9046b0c3a163124c565b01fc9604c7648a6e50629410aa78  services/platform/apiserver/integration_webhook_postgres_test.go
+9ba43bc9739aca8d953faffdf5c3cc1f3434c3e3412e3fb9003b4a14db590a6a  services/platform/apiserver/integration_webhook_test.go
+d6c483494897220a3923becea99fb76f18fa7f67b6d69f7c7eb2adb4dd97f01e  services/platform/apiserver/inventory_cutover_postgres_test.go
+826311845dbbc3195a62a012a3efadf06f66c6f41568afd1aaa62d7eaf06531c  services/platform/apiserver/inventory_handler.go
+aa7d09ef7c6435e5ab96c96f47247b6905bc582ef63ce6226cb6d03073978b9c  services/platform/apiserver/inventory_handler_test.go
+9e44ab225d6b528b04a71927f0991cc3e0c34522488160221ceb56f27fa166e3  services/platform/apiserver/inventory_repository.go
+8bb13519e023aa503558f48ee529838d19430f7ef2ef6061c9a1a0624a58e97f  services/platform/apiserver/inventory_repository_test.go
+69f377b4995b851b86f96df6e4b8232dc29d264052ec7285a7f18cf44e6a0393  services/platform/apiserver/middleware.go
+a2a1a979e9364056f2efdaf7f4d849f73ab4c977244376e85319741e5b39a220  services/platform/apiserver/middleware_test.go
+018707f94490b078f5d31b39ebdfabe5e21c34221fdb7c5b2b9ecabbd1a5e352  services/platform/apiserver/oauth_secret_store.go
+b1f66c0c793fd8698e243b4512700b3745a205ef66dfa76b9a232ca0d505f763  services/platform/apiserver/oauth_secret_store_test.go
+dcea93838263559f0a132cb61dbbb402a25638933161e49d8b7420b769e80d78  services/platform/apiserver/policy_decision_repository.go
+f7bfd847b9590f21420155aab55c921167e9758c6757b3b2997852c00e5851ed  services/platform/apiserver/policy_decision_repository_test.go
+7253e978cb01c866d383293829348110d2a56a8b9723c358a05020ce51caafbf  services/platform/apiserver/policy_deployment_postgres_test.go
+119014acce48f3b123f87dbeeb09657af1170c63d4d8c2a7b595fc08da3e905e  services/platform/apiserver/policy_deployment_repository.go
+e49b2cf247b0dbf2556971001cb8bfebd0f0bc1fcf7af937c98d59285047f55a  services/platform/apiserver/policy_deployment_repository_test.go
+86da2907a3ba14f92e5f26dc0597136fec875ea311a5dd5108795869f46697f3  services/platform/apiserver/policy_public_handler.go
+05632e5582f920bf2017f918caf7a901d3434a5dd4b6a90f0729e15bad21eee2  services/platform/apiserver/policy_public_handler_test.go
+53c1e9013b1dfe43c86dbc9967fb75e1a29b86dace41e76a80f08efdd2aacb33  services/platform/apiserver/policy_surface.go
+7ca3f5f9b30b093083778cae34aec9f574f2c44e3ad336c2035fb6693d3173e1  services/platform/apiserver/postgres_cleanup_outcomes_test.go
+59c4a0c990aea3467879d99db4210709546cabd8349639c170467e22d18c1aa3  services/platform/apiserver/postgres_database.go
+cc9d8db8b06d671cfa3156dd17d1cded3e01655cdb52ced0248777d05600404f  services/platform/apiserver/postgres_database_test.go
+3e8de8840c82ca92acb9bc2084e1e52bfbeb66ef0c82cbff2af7e72b6d7e6ab6  services/platform/apiserver/postgres_integration_test.go
+63f983f722bf44c0e4f36b08e69137513e6a5d287ab424bb7fa851cf39a2d8bf  services/platform/apiserver/posture_postgres_test.go
+5af42fcf2df4bfb8fdda1b0ea9e286be079584bb9a640f531166fbf9aa662ade  services/platform/apiserver/production.go
+f55169272376febd1eb8e5ace740a880de91464cdf2cd5c23c19de2cd541ff82  services/platform/apiserver/production_test.go
+d6062477b40ad224d3442f6297bdbfb698331edcc8cece9080685e82f40cab43  services/platform/apiserver/reconciliation_lane_claims_postgres_test.go
+3d4454d41954395114c8a945c7a16cbfc1312211402f8ee010226d8532270002  services/platform/apiserver/reconciliation_lane_plan_postgres_test.go
+963ca2ce685c59bed5415be9dda99a904178c313489d5e21f70610f27e1d1f97  services/platform/apiserver/reconciliation_maintenance.go
+04a1dbec2b201b9b2c19dc17ab5db75248953d6d22419334c2108c36341e24a8  services/platform/apiserver/reconciliation_maintenance_postgres_test.go
+6fc42c3cd7ed24cbc8c3e304650f60570b0ead9f19a702cef4bab04b7c8f3595  services/platform/apiserver/reconciliation_maintenance_test.go
+be937ae013c60ac6dfdd162918c06bafd29fbd88511221f208d3f5237b1b1c1d  services/platform/apiserver/reconciliation_retirement_diagnostic_test.go
+c39411d7558dd884fdee5c35de5f5add82644c4164cca48d158ed135dcb25a4e  services/platform/apiserver/recovery_handler.go
+75c70718bdbe7f2417ebc8cbfe0dd92bffe24a3d8f9f934672d944ccad2a123c  services/platform/apiserver/recovery_handler_test.go
+88a7fedb4b46f9347e840b90696d02647e3582f895c2799dfc1ab793fd5eacca  services/platform/apiserver/recovery_postgres_test.go
+1dc7642b575543e8d510b0db9001f4c6e22c035f6418b7fd33004ba9e5c4974b  services/platform/apiserver/recovery_repository.go
+f970283f8a15596402ba28008a64200bacf1687d552470565a704bef5a5a47ec  services/platform/apiserver/recovery_repository_test.go
+c44fa5b578024aec7a0da572d2229dfa7b5f04c515edb44bbf6a545480068a56  services/platform/apiserver/recovery_surface.go
+a86dcaa795311832c90829132c043b1aaec4ab70a76d496c76e4821993a33a34  services/platform/apiserver/recovery_surface_test.go
+dcaa714e0a0cbac603ea271e62c39b9a00345070cd7ee93bb6d9c9d937de2c1b  services/platform/apiserver/red_team_artifact_reference_test.go
+e5db190f661be1d5c595a56ef9e169f5924186ab3803128c0f822b7bab6bda4e  services/platform/apiserver/red_team_artifacts_postgres_test.go
+f66bb33fa2f12d13364ff6d75297c67bb9c2870e07161230d646519e0ae31c74  services/platform/apiserver/red_team_execution_repository.go
+a5404d1727c8f105ba7dc9ffcdb9ba8c6f808dd388b1ce71de85f6431d0495b4  services/platform/apiserver/red_team_execution_repository_test.go
+479ecdb5c2769cebf6fc8ecf8a0359a7debe1a24b27ebf7113d911a1457812d9  services/platform/apiserver/red_team_handler.go
+f08ef1bcb42d151a270b31791a2b1125cc67c6f143ede468d7ca5d44011042bf  services/platform/apiserver/red_team_handler_acceptance_test.go
+ad4473c410977c08c52174f0224ec303a98e9d0a5e5989b6b079fbae8963b242  services/platform/apiserver/red_team_handler_test.go
+6d4d44afe8c439bceedcd5b4f990ab81dd4cf2bc6dcd2fa6296d96880d66be38  services/platform/apiserver/red_team_invocation_postgres_test.go
+779bc48ee569ebc4244154ebe4728b25f7901de8ea4dd129b5b053f17f0a99e7  services/platform/apiserver/red_team_linked_cancel_postgres_test.go
+d563959b5578baebb4fbb93145eea1de357f755862f60f2b9fd474f265f4a46a  services/platform/apiserver/red_team_linked_cancel_test.go
+b07571de19b7dec34130aa60026b2e6dfdc32dfa258e9490cd7122ef5f608ac3  services/platform/apiserver/red_team_linked_finish_postgres_test.go
+6ecf725bb3ef2dfd7112205dfe5ddcdd682548309844eef191f323da65a4c799  services/platform/apiserver/red_team_linked_finish_test.go
+d04a26aba82124408f8f10c4bc725a61f626a23ef26a879c07c1fd73302f6902  services/platform/apiserver/red_team_linked_heartbeat_postgres_test.go
+f9bb6ccdffa62ebbd9e2e67d1c8f56aca51f543edaa96ffc40edf57905f5ae86  services/platform/apiserver/red_team_linked_repository.go
+8bd1e376c2a91c404809fd49a09620b1a98ffc40c7b579c58b9628fb4b43af94  services/platform/apiserver/red_team_linked_repository_test.go
+6ce15a369c43a9c45216d7a578c94521efe0784e77cdd1cb2b2891f9156dd77e  services/platform/apiserver/red_team_protocol_postgres_test.go
+6689043de996bf3876f31f1625f6f419abe9f2fcbbbae55a95e0ff28c8eb94b5  services/platform/apiserver/red_team_protocol_test.go
+0e5e1843763667edf7e1067a984397f6aa54eeb65e73dc27f16e5dcaba1be2b6  services/platform/apiserver/red_team_repository.go
+f3a8ddcd6c033362110e4f1f3c1caeaa12b1e5642e028e5e2cd91b542cecb328  services/platform/apiserver/red_team_repository_test.go
+d93937a0679118181a8eb1b9ded67f507addcb06685cbe7e9d28fabb90292fe6  services/platform/apiserver/red_team_safety_postgres_test.go
+3d99e29d95d11a88ba13bede2261e322777d0276393714bbd118ccb690e64077  services/platform/apiserver/reference_authorization_handler.go
+0c88c9a963befb3337f47bce9fe59352311a134610f5d3abd221ce11c866a376  services/platform/apiserver/reference_authorization_handler_test.go
+3e063d77fbb85d40673cc683e5efb2acc55fdd884605913c462aa360c211109c  services/platform/apiserver/reference_authorization_postgres_test.go
+65e0e60e43787dd48fde98932dff8063a806ae7a181a2dd77e38e304c2a57815  services/platform/apiserver/reference_authorization_repository.go
+cdd683dc946bc57e78ee3040bcdfe5743c97feded97f3fd76992211ec2068f8b  services/platform/apiserver/reference_authorization_repository_test.go
+ec1855a0d4b01a24ea8892e4378c045b628eac090c7a20aedf6d5012b9ed22d1  services/platform/apiserver/reference_connector_registry.go
+99e0d7f8779d732056dbf7bcb193886231586e70e6169f500dbc0f12ac276bde  services/platform/apiserver/repository.go
+4c919f815e10d900238cb5be6befadd923b6a5de9fc6e5a766568f59bd4e1f80  services/platform/apiserver/risk_handler.go
+a84e24cd7983f2468423fcb0a782bbdf9cfea01a83a9841ed3da65b8546d3254  services/platform/apiserver/risk_handler_test.go
+7ef3a4630193c00dcae44d25ab441a8cbc57d630db4bdf462c8efb91b3223cfe  services/platform/apiserver/risk_postgres_integration_test.go
+85d23d1d51c904958ede19ae457b30362afe2eb976f9be2e3839b763317af407  services/platform/apiserver/risk_repository.go
+482c908a36e261840a9c770b253434be24e65b185667a98da58078ea1296eaea  services/platform/apiserver/risk_repository_test.go
+96fcb5bdca51bb19ca7f17a7c3115d0749b90b46fffa9123b3c46191cf7f752b  services/platform/apiserver/router.go
+dd219bb953f5001af70a9cdbe52784764a3323302b03e3ecc90109011cdb7c08  services/platform/apiserver/router_test.go
+3a7c19a912ecc558276a0fa2dbec0c9441319603c373b979fb791dd1e1350628  services/platform/apiserver/runtime_acceptance_incomplete_postgres_test.go
+de0bf3e2307316d02ebbc6483e0440ac3f2c2589a5626b64b5c87b19f02cf709  services/platform/apiserver/runtime_acceptance_postgres_test.go
+7dd2e86ef1f8b7237b1b5009913837f741598e67dc3279ae60e8b4341285e2d8  services/platform/apiserver/runtime_candidate_authority_postgres_test.go
+ee0d38f3f2efa1024795e71f32512d9fea7ef5cc027f31fc2f2b83a24fcd71ee  services/platform/apiserver/runtime_candidate_policy_supersession_postgres_test.go
+f87a23c7be65697b4bba04753e7e1a855b805d6a806123c281e6219deb41579e  services/platform/apiserver/runtime_candidate_readiness_postgres_test.go
+e5170e56f2a37c185be03b8ae7117aa597a1e21540dba941b4c31c55ddea452c  services/platform/apiserver/runtime_correlation_routing_postgres_test.go
+67be7e13317379c4f51c3a37db649d509141f02f496b7fe99826ce281007780d  services/platform/apiserver/runtime_data_plane_postgres_test.go
+3c5bc4b5446da6228aafd336a0f9dfe46c0d1e9d9d55fd0868b001a82efe65ea  services/platform/apiserver/runtime_enrollment_pairing_http_postgres_test.go
+0b8f1941119938c7140e400f88f6af5b13b3f0034bb798f3113db67f0cd69279  services/platform/apiserver/runtime_enrollment_pairing_postgres_test.go
+f42368f0c8e22fb5c5a082decbd25be77d4138073b1a029d6b4ea0154c2f69c1  services/platform/apiserver/runtime_enrollment_pairing_rollback_postgres_test.go
+41eef8507add8a83d8764ce921edb7911427ed0f21852322658c28cc7a5f8148  services/platform/apiserver/runtime_envelope_http_postgres_test.go
+8b3540466f26a75abfdb724db057912dd8780f9e1ac856f2fa96d2a6a0b26dd3  services/platform/apiserver/runtime_ingest_http_postgres_test.go
+7bf52494eeb3f5d2f2ed742bf406578427188497b777df4f6318084e7e965eab  services/platform/apiserver/runtime_ingest_reconciliation_postgres_test.go
+a75ab119b67d9c98f8a0cbb1bc011b4947e8beac3f56ee5671c549c335bdf486  services/platform/apiserver/runtime_outbox_repository.go
+a1010e291afafdd6d90d48225a1986e7c28a9d2f1ed969a3d100a47e024ba023  services/platform/apiserver/runtime_outbox_repository_test.go
+4a3b6bee855418b3fccdc1eac951b5424ca38815d699724da6e8b06f11296012  services/platform/apiserver/runtime_precise_outbox_repository_test.go
+5d61719fd4ba42d325b075bdaaab764b6fc32038491f0d27beb9ff13bd92d5cc  services/platform/apiserver/runtime_precision_completion_postgres_test.go
+52654ddaa76ca916c5e537cbabd105b8400dacf4692496f42491a326e67414cd  services/platform/apiserver/runtime_precision_contract_postgres_test.go
+194a3a4b49d1c11a86cefd53aa2aaddd8dcb409aa6f56a2dc8064aad39deaeef  services/platform/apiserver/runtime_precision_delivery_postgres_test.go
+c80d752c9f7360d1d3c9f0a9a7b8443f5f9ce80ae93774477c5ac5e979fb3c59  services/platform/apiserver/runtime_precision_freeze_postgres_test.go
+8f2136328ad3fb0ef3e340d909678f7c716423dac21de7ec6fa135ad905d0406  services/platform/apiserver/runtime_precision_history_postgres_test.go
+5a6893b2200ff3f7706be79f5937140b87518d186e6ff055518e07910186fbde  services/platform/apiserver/runtime_precision_http_postgres_test.go
+5395827fcc2ec70986af63c30a963588a951d405685eb8ebb1e6b8222e7ceb4b  services/platform/apiserver/runtime_precision_migration_postgres_test.go
+56da644016cc81bbe1ace1d7a6e784a5c0e28ee286f00f00ae38116821afc2dd  services/platform/apiserver/runtime_precision_reconciliation_postgres_test.go
+a294125b4d86b939d4a1b7ce89c998366159cf8248bdb276b5d71d565a436283  services/platform/apiserver/runtime_precision_repository_postgres_test.go
+7cd37974ef61ebe8194d67724f2e19b12adfe45ba2ddcc496ce79e333c296b0d  services/platform/apiserver/runtime_precision_routing_postgres_test.go
+8aec19bef851465b6303aaa6ff894e1829d5dd8513b08bf6cf0c1739a887d673  services/platform/apiserver/runtime_precision_search_claim_postgres_test.go
+1835a398b4fdbf69775cdb36080bcf87e96200bb6eaeae4f2b1968541fffc271  services/platform/apiserver/runtime_precision_semantic_routing_postgres_test.go
+f1ab6f2ffb40aaa411c1303330af7507cbb064f97019b10fd1b5048ce0a7288f  services/platform/apiserver/runtime_precision_upgrade_compatibility_postgres_test.go
+05d5653cab22ed27e60d38ceb03b53e97a22776431631cd33e80308da10f2625  services/platform/apiserver/runtime_queue_replay_postgres_test.go
+cb1f0862ce4b1df4fe1d198f3f2c2bd0ce44017b42c30bec01a369dc72d78e48  services/platform/apiserver/runtime_sandbox_candidate_postgres_test.go
+e28c5e55a1c7cdd9ae088ee597b23d97757b6041ae658ae5783fea1c32debf7c  services/platform/apiserver/runtime_sandbox_reader_postgres_test.go
+0e48f6f062eba4686c48363947258fc97468605e42081d5dcb491850e004089b  services/platform/apiserver/runtime_sandbox_rollback_postgres_test.go
+d9a8749819019602a2463fa79bbacd633fa4efe4aee7443c797dd8fca6c70038  services/platform/apiserver/runtime_sandbox_routing_postgres_test.go
+96041e786f60951e6463983129b7871896d6bcb96f557a704003b55e2fb0fcf2  services/platform/apiserver/runtime_sandbox_search_backfill_postgres_test.go
+464eb588f791c79ad64dbad3c7bff383d0e11d5f78d67e4bb8419ec17802c4ca  services/platform/apiserver/runtime_sandbox_search_lease_postgres_test.go
+b4ca3e7e6a01ea5a9cade4275b0e70636b934c3a2456d50b10e0ef8bf3cc96d0  services/platform/apiserver/runtime_sandbox_search_query_postgres_test.go
+392b97ec30025ef69738bd9a427e37c290da5239da64d875dda5129a4b6cade8  services/platform/apiserver/runtime_sandbox_search_repository_test.go
+eb0123920916c2eef9b4ff34b25205232ec34f0ee9571a5aa4c88fc684a5b18a  services/platform/apiserver/runtime_sandbox_search_worker_postgres_test.go
+d4ca83469698065fa0574ef59d1fdf431a0a779d2c408701f1eaa675a1a08104  services/platform/apiserver/runtime_sandbox_session_postgres_test.go
+ec59bed8daf6e312d450c9f2517428fc391cf7e232b3fe0200d0bd1c390e18d2  services/platform/apiserver/runtime_sandbox_session_read_postgres_test.go
+6ea07ebe5a74d2619e3ecbeb0a3395cc18ac4708d35d00f2afe2ff9a6ab3d6e7  services/platform/apiserver/runtime_sandbox_session_repository_test.go
+26d46884feedd51697d586b9c63e26580992c188883406378a415bd49e143797  services/platform/apiserver/runtime_sandbox_session_worker_postgres_test.go
+58ac1fb269cc8d8a4f97e2b4b2364403c327db787ca8507d2d6b13302f1f2da5  services/platform/apiserver/runtime_sandbox_stage_routing_postgres_test.go
+5dce5f982afae7c1329620ea694e9266f2260269f5b83aee08b302e52bcf305a  services/platform/apiserver/runtime_sandbox_worker_command_unix_test.go
+9569280553ea4f2e7ae0f8db9dc71cbc1b276ef9c5d4e8f864111ae678ab9224  services/platform/apiserver/runtime_session_evidence_postgres_test.go
+5f9381c368a09204a2a40c094d0520dea9555d7f7c70a0de3f142dea7133764e  services/platform/apiserver/runtime_session_query_postgres_test.go
+6a4f230e5afead2a36b3cd4b7bad4a3dcfbd754249144421d049cb3c45d40f24  services/platform/apiserver/runtime_session_read_http_postgres_test.go
+887e2417615cb197540938517735b8cadc2667572b0da5d968572c730ab517d5  services/platform/apiserver/runtime_session_read_postgres_test.go
+a9bf8492efb4e5058b990e89197bc0c70649006203885bd8abb2864ba79690db  services/platform/apiserver/runtime_session_read_test.go
+8ce277f4f508e04015d94f739038619d987e85506624f25d7c5a3da74554dc0f  services/platform/apiserver/runtime_session_repository.go
+2505904e4ef53539ef388b2b0d5957890b7f8b3e035af4e5c89b239e51e01404  services/platform/apiserver/runtime_session_search_handler_test.go
+f0bdfa0d2d0bba15c7c3c7c739b4c838a4f4d91a63cd5664ae5c4fd50c392731  services/platform/apiserver/runtime_session_search_outbox_postgres_test.go
+e5cd2d889cbd9908714a2d2848ed924f5eb082709364ad3f6c6a4c654ca51e31  services/platform/apiserver/runtime_session_search_repository.go
+cf76d25e77084152fb7bdaa30cac5eef4a235d74b3356add9843f25e7c6ec023  services/platform/apiserver/runtime_session_search_repository_test.go
+532e9f8fb41738c762e47b1590d7c3327dd2959718ca25f179ab59d620a99d7c  services/platform/apiserver/runtime_session_summary_concurrency_test.go
+07f6066bfec1aa0fd9b49bce51e594eb4ddd4b9335d5c1da8e1db3aeb90c7fea  services/platform/apiserver/runtime_sessions_postgres_test.go
+f0cde1e179b0d4ed8f4cbec5feac0ff87acec267e49488f182d689fa4682b197  services/platform/apiserver/security_agent_action_budget_worker_postgres_test.go
+de5a621a3f0bdf63c291700bfd5e56c14dd4dbbfce4e4ce0a9a143ffba1e95b7  services/platform/apiserver/security_agent_action_details.go
+085583b0cc8a204a25999044d15fac3ec0971697137c823d44d39058cd1c498a  services/platform/apiserver/security_agent_action_details_http_test.go
+797adf86f33747dabf1a5dc8a75ae5d73e0c1c10e6b49de808b77876f7c5211e  services/platform/apiserver/security_agent_action_details_postgres_test.go
+2c681b9d1910475c51a7117fb0e806f443381526abd1b3d46151b0c6b6699d7f  services/platform/apiserver/security_agent_action_details_test.go
+7a5c6b115db0806a6492bb0e5aed5e0f17eeeb53e4c1649bca49106e1f9dc668  services/platform/apiserver/security_agent_action_environment_postgres_test.go
+6523eddd9370bd8d662f1d586bb81a43cd1b5cd1522ad06a3085bae29bb65187  services/platform/apiserver/security_agent_action_projection.go
+3af2c1fd31abb5bf78b2ece4482dd63833ac256ad64141977a043857911727e2  services/platform/apiserver/security_agent_action_projection_test.go
+a823d77de7d540ba7b784f6ca80d78cdc9485a8a79139d754f85aeb4f82b5f41  services/platform/apiserver/security_agent_action_recovery_worker_postgres_test.go
+fe471ee280477054188acef9f3e30bfa19814072d07d17a04f9e563be84931c4  services/platform/apiserver/security_agent_action_refusals_postgres_test.go
+40240ac5bbe42e40d183a591c86a790e24c986309a150b578e5730c37099d3eb  services/platform/apiserver/security_agent_action_repository.go
+fe761838b0d35b859a95fbac7fc220d35c60d2cca5ff3e1cbb93d5fd6eae02a1  services/platform/apiserver/security_agent_action_repository_test.go
+a5c62a53b22fa94c82dab9090ad05593a2062d5865e17f19046473855195f6f0  services/platform/apiserver/security_agent_action_validation.go
+27d1f3871695e0835022427a4bda7ac7c6c9d3feaa1b0562bdc16239a18cb3c4  services/platform/apiserver/security_agent_activity_access_path_postgres_test.go
+b1322a02496187b50dfb3777047ff334077c7a213c3c7131bc2b0f0322537f07  services/platform/apiserver/security_agent_activity_audit_postgres_test.go
+e7706782d98abf5438223b96f8fd562d623340e4cb4641a9637213b5534e907c  services/platform/apiserver/security_agent_activity_cursor.go
+17ce7edb391408de8769f815f557ce67162c2b69aa322372de555fdaf0f62ab1  services/platform/apiserver/security_agent_activity_cursor_test.go
+9be8b31b7954fb5929fc2985c7e995a6517829c356d073e5cb11936c23939de2  services/platform/apiserver/security_agent_activity_http.go
+1cf1443a3ec0761662b971f065084b76ed78bd18046ca7caed2c19f25b3b2486  services/platform/apiserver/security_agent_activity_http_test.go
+f57d910dcbdfb84cafe13ee79f3976f93dc64652fe70ea0a18ffd27969857a1b  services/platform/apiserver/security_agent_activity_relations_postgres_test.go
+4f08830620b535303261d595cfa49fe82cca50a0bb54e1b3cb42e294677f95b7  services/platform/apiserver/security_agent_activity_repository.go
+5a736ad44a4f6a4b7c2243678b9144f59a9f2f363ce1508d121b8847f2dc94b6  services/platform/apiserver/security_agent_activity_repository_test.go
+c809ed645559cb5b88d9e0d64dcb357ffaac14992c017553368068ba6ea9b6dd  services/platform/apiserver/security_agent_activity_reverse_access_path_postgres_test.go
+8639abdf362f4b06c3e3e9cb9b9a07603f6cbb58381d07d6c195ee75da4295d7  services/platform/apiserver/security_agent_activity_targets.go
+d255f10b8ad51c8f5b95a5a265e0d272841407bdc9a2a00c1e624f08b07009ae  services/platform/apiserver/security_agent_activity_targets_http.go
+62f1e32dc7b631a6b413c2c46c2f035989bec0bc60ee8a613cb7b674c9b86185  services/platform/apiserver/security_agent_activity_targets_http_test.go
+81984a3598585417567301c6dcc22a229acad3504597ba7e8027c87f753f9e0d  services/platform/apiserver/security_agent_activity_targets_postgres_test.go
+6df092223709afb83f4e49228c88343070267bfd6a3b5dd9a178b92ac196563a  services/platform/apiserver/security_agent_activity_targets_repository.go
+4ce8122b009b43d7555a9f91486f0a5d17ba8e06377f0f2cd29ed2b02cfa3226  services/platform/apiserver/security_agent_activity_targets_repository_test.go
+a5047381d485912c7dad857b87d4b82952e98ba69a31fd350392a6533e264657  services/platform/apiserver/security_agent_activity_targets_test.go
+8af416d07724ca1bf789ef69f6657ffff886554b8fce05f2806495bbbb666773  services/platform/apiserver/security_agent_approval_context.go
+79be46cc5d9d3de26a240376c78eba6a2ef284d5ade41e94b0d6159754dc0589  services/platform/apiserver/security_agent_approval_context_decisions_postgres_test.go
+9e80fc42785cd5b211687b1bf3c54e105b225a9380c3641c77fad0aa8be6a8b8  services/platform/apiserver/security_agent_approval_context_http_test.go
+340adb2a7943f1244ddf86d8959bff52be7cd8536ecbc5ce8fd904196816cd72  services/platform/apiserver/security_agent_approval_context_page_postgres_test.go
+b8fe38478c7c25b8de8825715e9b85594051ddf0034a23d81a035d0434d92248  services/platform/apiserver/security_agent_approval_context_postgres_test.go
+aa7a56152a0482ce3cc515dbe2b9af69d0c0bc73d0442668438ee74184d46487  services/platform/apiserver/security_agent_approval_context_repository.go
+ae5cac92b446e2873a87e75d8391b6f234853ab0c883ed6e2cf5302d79d9b4d1  services/platform/apiserver/security_agent_approval_context_repository_test.go
+2a420dc896d0bf892ec21f5cd414e8c6b3602802e520f70d69147d6b1adc3f9c  services/platform/apiserver/security_agent_approval_context_test.go
+75c4f3b3fa15fbd4eb423151eb0dd4c99e7e8fd95de7b210bc8dc161e51e8f08  services/platform/apiserver/security_agent_approval_page_validation.go
+9a458bb4a9ad83681355f7ebf6e05ceb0b322b129a01b0501eb8c634c8b48111  services/platform/apiserver/security_agent_approval_page_validation_test.go
+c92a2ec95fbf91cf012c549b7aac130cb89c66308c9899691625c458fd20d439  services/platform/apiserver/security_agent_attack_path_postgres_test.go
+0af780a1360f21d4d1d9e7e0d7dc649aa67f07a205641ee7ed8416ffa79f13a0  services/platform/apiserver/security_agent_audit_http.go
+3eb222b9a130cbcae4a08963488615cb6f16feee397934fed6a59b5b996dd0ad  services/platform/apiserver/security_agent_audit_http_test.go
+2c8cb414554cc13fb90859fe7b0e16ebb15b62f8f7164148718930b92e48bb7c  services/platform/apiserver/security_agent_audit_repository.go
+e6dd8ad9178c6ef532254896c7d2ff28cf22234eafbe9679b1a5de45d4fb5463  services/platform/apiserver/security_agent_audit_repository_test.go
+3a4555cc1874e5da0399bd4de04e04ad6a82e2f62abf99faaaf3a0b36509d139  services/platform/apiserver/security_agent_autonomous_postgres_test.go
+110b9012682a823ad6d0d53eb9891955abb5bc984f2e5baef442e25206701433  services/platform/apiserver/security_agent_budget_action_stop_test.go
+c415a360fe8be333da912aaa6ca9377a42b655862a274b729678dc6c914af58d  services/platform/apiserver/security_agent_budget_apply_postgres_test.go
+07332d450d9082316b67d17bb93408ceadf7517856301a5f7d311b4f6dc39b43  services/platform/apiserver/security_agent_budget_crash_postgres_test.go
+04a603138688e0e3cd273953ae3b8d34209c64d4fe37a4ae334f2c062d99a51a  services/platform/apiserver/security_agent_budget_lock_postgres_test.go
+e9b07a6634bedeac22e19d2bf81e61fa1c12a3d2026d9d2f07d5517e9153e748  services/platform/apiserver/security_agent_budget_migration_postgres_test.go
+eaff9c0b95693bc2dc8a03b2913d3bd41fd4f1ee20e2564b7078fe21c97d35d7  services/platform/apiserver/security_agent_budget_postgres_test.go
+27bddc17c797c295a7dadf40aec5bbfb4b888f3fb3a6dda92cc35d1b509145a6  services/platform/apiserver/security_agent_budget_provider_postgres_test.go
+1933cd839d185fae5025969cfd7c56d6bf44450ecc240b9b45726b2eabc45ebf  services/platform/apiserver/security_agent_budget_release_database.go
+3c453021c2b69c273569e8dc66904e0d30beff1135aff4cf96aa6a796c481e2a  services/platform/apiserver/security_agent_budget_repository.go
+98b7d64f571e78d0a1dce0520fb4c2afa69a14aa11aaafead81a35c07f2c95e6  services/platform/apiserver/security_agent_budget_repository_postgres_test.go
+a3a028338f0cf96d133cb18c95d22da05c5906056b25d2fabcb79dd9dabf9594  services/platform/apiserver/security_agent_budget_repository_test.go
+7e6cc8619b80a49dfe9eae4023290f1f0dc319e94dc80dd70773157410c34450  services/platform/apiserver/security_agent_budget_reservations_postgres_test.go
+8dcc5147c0b0abef1c7e41b165fc051f010548b5573be60b817f6135cfe68650  services/platform/apiserver/security_agent_budget_reserve_postgres_test.go
+62bceedf9b0f0b04e2c421f434857845b508578c9a2aa72c27fc2ee22132cd4d  services/platform/apiserver/security_agent_budget_settle_postgres_test.go
+1e2a50913c6ac0693a2db8a3ec72d4174bb5c48d20d15a0108add3544877b2df  services/platform/apiserver/security_agent_budget_start_postgres_test.go
+30803780ca995e02bd9dc702467734cf8ca80866183e5ffe1ac86f905c583626  services/platform/apiserver/security_agent_budget_steps_postgres_test.go
+19deaf0ed86f284bef83c8da0cea28d6e89831a04e19b0d655830f11d0b24b49  services/platform/apiserver/security_agent_budget_stop_test.go
+0e893ece756b9b83027f788d3857b9ad0abacc16acfef361716082c6c4494b5b  services/platform/apiserver/security_agent_budget_upgrade_postgres_test.go
+2fda4618f9213352d18404ec50af90063d583d1493bf25f21fc3cf271eee9262  services/platform/apiserver/security_agent_budget_visibility_test.go
+edb7a7d4a0ed98effbd4d8fad3253393264460f79d5aec2102fea2c49f01e3f1  services/platform/apiserver/security_agent_budget_worker_binary_test.go
+e88655e11425b855f2b2020f56acaa08de1067b1667023843c4294167268634d  services/platform/apiserver/security_agent_connector_revocation_postgres_test.go
+4edb860b670291bf276a0b4812c0f90739497443a7090eb2a98a64c06d95cb74  services/platform/apiserver/security_agent_controls_postgres_test.go
+7eace21a3a367f3d02846626cbab1f887f6b3870fd71a8d54f705dc942e6bc4f  services/platform/apiserver/security_agent_cost_concurrency_postgres_test.go
+6c46337533ceb7fc825d1c63e07f02cad085f07df6733be086b2fe4b6e7de468  services/platform/apiserver/security_agent_cost_contract_test.go
+3fd853346f6309c60ee236c2e1d9e5824d5da4de7d78b47a4eac7db17ab8fd7e  services/platform/apiserver/security_agent_cost_error_test.go
+41cedffffb43acf5a7796f1154a42061d64899ccb713390c8389627f8b1c1d7e  services/platform/apiserver/security_agent_cost_postgres_test.go
+9ad5d16412f6ad93fbb96b4ea94e1576ebafd4471827eb89210f728547e7f68b  services/platform/apiserver/security_agent_cost_reconfigure_postgres_test.go
+289ba8a0b45716d3edf88cef6716889df26eecd754a6631b48bf5bfd288f7db2  services/platform/apiserver/security_agent_execution_postgres_test.go
+45a434a1ee0b4ff77c8973f2b5296bab3786d0cadfbb35e52b30200c2fb8f330  services/platform/apiserver/security_agent_existing_test_acceptance_postgres_test.go
+86ac43b1de99055a4b4128dd72c20bc87945535685874b2fa9f2b8f17a7dd0df  services/platform/apiserver/security_agent_existing_test_activation_postgres_test.go
+8c625e832f345787763c372a44da8b4a705766450dc21fd77dac0bdda1874680  services/platform/apiserver/security_agent_existing_test_approval_reads_postgres_test.go
+ca3071f33c6a011c3907c809573650a1c0f702c7fb108105a12e88138b6c3617  services/platform/apiserver/security_agent_existing_test_baseline_postgres_test.go
+658b2fa4a409997b000cfd27447c8f84df5a0cffe326494082edce7f7044dc27  services/platform/apiserver/security_agent_existing_test_binding_postgres_test.go
+fae745969244f039d53ac94d63337336fffde3365675f8a5ece0a58026c331eb  services/platform/apiserver/security_agent_existing_test_boundary_postgres_test.go
+d9e5d80e09671ce1b93131f1ed9cf18633e1738d953401a460eeb5e600c60626  services/platform/apiserver/security_agent_existing_test_claim_postgres_test.go
+cedf125131fe0910ef79d34f1b153bda13e166cd1e9d5919ce25bf67c20b5eb9  services/platform/apiserver/security_agent_existing_test_concurrent_postgres_test.go
+c755189f59e8f4d408610e86cd8c48ab1a5b5e26d281c1fb12171bc85a5a8f30  services/platform/apiserver/security_agent_existing_test_definition_postgres_test.go
+44ad75eb55c3cfcd34b09b3e677b42f6c5255a30a45799883f82781cfb885858  services/platform/apiserver/security_agent_existing_test_definition_test.go
+f99daa9add36227b1db2876f483e6bdf9a9ac2947c8706664b5743e4465ebb19  services/platform/apiserver/security_agent_existing_test_dispatch_postgres_test.go
+68de8f0e14724ec980997c077c07193a17d544983191b36b715b84fb3197aa3c  services/platform/apiserver/security_agent_existing_test_display_test.go
+822068c90f68721f32123c42a630719626089b3a5e4e74c08d96e1c5c4bdd044  services/platform/apiserver/security_agent_existing_test_enqueue_postgres_test.go
+7bb40ecf381176877276e78ed70626df80a46e1c55f3ae6759db73b506b8047e  services/platform/apiserver/security_agent_existing_test_evidence_snapshot_postgres_test.go
+1ac3cf73e027870f01bd90ec56ffd536ad10ea6c04d87edb6bca32f39bffe13f  services/platform/apiserver/security_agent_existing_test_execute_postgres_test.go
+840f90c77ed9c5cd0ba28167bf3b7454adf0ec527228ec3b6c15d0adc29c2f67  services/platform/apiserver/security_agent_existing_test_execute_routing_test.go
+8b90757b1adff80f7db56f42c5b9942b650faf725ba23d18c3a16bbbc4ab9f2b  services/platform/apiserver/security_agent_existing_test_failure_postgres_test.go
+52bb9f51e1ea8ca0ec9201100f102b10c46a1beef6977850cf3ad14a5ce9ef90  services/platform/apiserver/security_agent_existing_test_http_lifecycle_postgres_test.go
+b3ad124f4c10b9497ed5a57fe0bc7af64382a51150de7fb79c47f215f5dbaff2  services/platform/apiserver/security_agent_existing_test_http_postgres_test.go
+2503a1b4f96bdaec9e8df5e9b5cc2eb64b7dabef2ba1cc1f0e020c197d46481e  services/platform/apiserver/security_agent_existing_test_invocation_postgres_test.go
+7caed91664db835ddcdf022dc8b05c6e8ec544b795fc55461a59b6a5413fc17f  services/platform/apiserver/security_agent_existing_test_invocation_start_postgres_test.go
+7687b9a24f1a148286596645cb331375d95cd6e30c89563f4e3da79d98adcdfb  services/platform/apiserver/security_agent_existing_test_invocation_terminal_postgres_test.go
+1f2f410c7d04ef864c38cd8593ec57a59571eb16b2dddd1653e1d2b0ede2a48c  services/platform/apiserver/security_agent_existing_test_journal_client_postgres_test.go
+d517652e3478c1802d4448611e085dae787eae9036063db454d85bacba5a8841  services/platform/apiserver/security_agent_existing_test_lifecycle_batch_postgres_test.go
+dde13a285823ec46f94bc2625dc4d3fe23b720138db0bee61095a4cb511676a3  services/platform/apiserver/security_agent_existing_test_lifecycle_batch_test.go
+a9ceb0d98cebdf8d9fee63aea6e19dc4eff60a5ab9efaa30811f7e0364c4039b  services/platform/apiserver/security_agent_existing_test_lifecycle_postgres_test.go
+1f0fa3e0a5f00826f27241b2d7b1a33c3bc705eba9ec9ce5fae761b6bc9a686b  services/platform/apiserver/security_agent_existing_test_link_postgres_test.go
+987187022258937938def26cc48637628611657b39906aea6be82aba6ef3b4b9  services/platform/apiserver/security_agent_existing_test_planner_postgres_test.go
+3416cba8c605aecc72a1287d45cd44bc7c662eca5f0e28390b84801b4f24c507  services/platform/apiserver/security_agent_existing_test_preparation_postgres_test.go
+6e9deecdcca95bf1471c975d34cfc3016b7e0d2b6d2a04a6a0a6642eb6e02608  services/platform/apiserver/security_agent_existing_test_prepared_dispatch_postgres_test.go
+44e4bbbc03fd70e6a76a79725158c6c974b0e3be205f3798467809c6ce731deb  services/platform/apiserver/security_agent_existing_test_public_postgres_test.go
+302d7b4acc3fd6b322a46560bdbf036dfde90b86558326162b83492484ff41f2  services/platform/apiserver/security_agent_existing_test_public_projection.go
+4f9f8710a4a8c49f120c02f4f5730484364a7dae37ba3c8d24056136c0ce96b2  services/platform/apiserver/security_agent_existing_test_public_projection_test.go
+c4126306d11a6bda107e3c385e226a5ad9d4b0189cdc29b8f8d1ec28ec47e954  services/platform/apiserver/security_agent_existing_test_read_repository.go
+751af00d7a14461b86a611fc8d9025071ed1260fd834d3f4b1bca81a1907175a  services/platform/apiserver/security_agent_existing_test_read_route_test.go
+eb907b61fabbd91e7b854e5e2975f8de668fc08cffac67211b8c95c8b14346fe  services/platform/apiserver/security_agent_existing_test_readiness_expiry_postgres_test.go
+5dfb0984089b887da69e33d5cf4c7e80191c916df9370cdaf77aee51519ba3ab  services/platform/apiserver/security_agent_existing_test_reconcile_lease_postgres_test.go
+369742179abdcee9d99b49a2a6ad8346ae1d22e8d84df71fec5b7237018ee6cb  services/platform/apiserver/security_agent_existing_test_reference.go
+3fe536bc3c045b43ccb7bacaa1bceadb4efb55b81423cd36f284248b98734bd6  services/platform/apiserver/security_agent_existing_test_reference_test.go
+56fd75776184c42455980680730be51cedadc12c32275f7cb0f54df79f429057  services/platform/apiserver/security_agent_existing_test_release_postgres_test.go
+132ada98375b55adcc311573a1049519c0422b6164295735d267ed00c0883066  services/platform/apiserver/security_agent_existing_test_reservation_postgres_test.go
+7e2d9aaed88278533115416412a5c49433e5f0a6efa22de10022a8000226675d  services/platform/apiserver/security_agent_existing_test_restart_postgres_test.go
+531971d4eb22fb20f1d078586e0671c60be9d662e1d640dedff3676006d995d0  services/platform/apiserver/security_agent_existing_test_rollback_postgres_test.go
+b85a5ffd15b8423a94c8cb57a01394da58efe2d3a21f673b2b4b172facbb7459  services/platform/apiserver/security_agent_existing_test_runtime_postgres_test.go
+a119d23c3b7d90b176529d155e562b356042cb9fe79999a74e043384ca2aa28d  services/platform/apiserver/security_agent_existing_test_scope_discovery_postgres_test.go
+ae93d9a06593d752852003c0de283d30e509a6f88559fdfcbf828354c9d7779f  services/platform/apiserver/security_agent_existing_test_settlement_postgres_test.go
+e7bbf03a2bc6bdd19f3e041191da229835174b2c389c64102264be94c24652b4  services/platform/apiserver/security_agent_existing_test_settlement_restart_postgres_test.go
+0c9573bfcb7302a471da5d0551544b5ca19dd65b24d85b358bd4cfd1fffa97db  services/platform/apiserver/security_agent_existing_test_versioned_postgres_test.go
+0daa5fd32e01910d6d0eb42e8ecb3ffc8b88817db92399c089766c6b4c8bdf57  services/platform/apiserver/security_agent_existing_test_worker_repository.go
+ec5cadaf2411f2ef586f7b917a3268ac9a87bee264bf2c1b13c27e2fb66c9798  services/platform/apiserver/security_agent_existing_test_worker_repository_test.go
+414a75a88b8777a1f75a0bcde5a62ca27b4bacb639d255291016996f80db8808  services/platform/apiserver/security_agent_existing_test_write_route_test.go
+886cbc08024f55a37be174f6ecda7a6fbd25f57599b9671baf29c469c8f973ff  services/platform/apiserver/security_agent_global_control_concurrency_postgres_test.go
+d8dd2bb02f9af5da24f29bfd4561f43b8a8dd7ce1e2482d19f27481ed36a4518  services/platform/apiserver/security_agent_global_control_postgres_test.go
+e5a4ecb7db2790d18142b2960ae1e4186a01fdafccf689bf3c2a0dfdc4b17f6a  services/platform/apiserver/security_agent_global_control_rollback_concurrency_postgres_test.go
+0d2a32e4e8171136185ccb3d7052acc546e38ba83c7f313ce6a3b552edb67d93  services/platform/apiserver/security_agent_handler.go
+01dd22134c17df34592b200d21e6a918c85e0eaf3698226c1c8318a655bcf34f  services/platform/apiserver/security_agent_handler_test.go
+cf9d512073b8d0f885695a025f9ebd8dd2828b3ff9151b913a63787af18a9766  services/platform/apiserver/security_agent_planner_worker_postgres_test.go
+693e8842b699795077150d2f013ee0b2fa48a473a46cbb3b5f83a21431777d20  services/platform/apiserver/security_agent_rationale.go
+543a9ad4e4104d7196d14538f7a78cef374e50beac0b989cba0a2851cac64977  services/platform/apiserver/security_agent_rationale_test.go
+6214a8c80daa52db5888a881bdf6dbfbb86014d7b1be29852f0e11bfb0c663f6  services/platform/apiserver/security_agent_repository.go
+7d5cd05b1b2d33b1a1657daa3fa7e166c35297ef3dbfb759c45b03398a69ebdc  services/platform/apiserver/security_agent_repository_test.go
+6a644a22d51d47602d9951a9c897ab5971d9188f0d9622ccf0d424ba269b05c4  services/platform/apiserver/security_agent_result_version_test.go
+7d047bd02486c4d0e775a2832e43776b3bf1295b3c985b8f9f89c6e8ad668f53  services/platform/apiserver/security_agent_run_context.go
+96896189e300bae171cc3df6c6a47db10670c78453b8e845df73af81cb1c2a40  services/platform/apiserver/security_agent_run_context_consumers_postgres_test.go
+be7c818b6a09ea5b53e5fe4bb0f83e4f0d3ab52575a28de41eb69ec66fda7b14  services/platform/apiserver/security_agent_run_context_envelope.go
+7ff558f28d0bab4dbe753514d929be7ca992c98d845303492050e355c409bdcc  services/platform/apiserver/security_agent_run_context_envelope_test.go
+88ccb3146c8dcb83f3af88bbe15f89b9f38e5b7f91a2267f1ac10a487b87284d  services/platform/apiserver/security_agent_run_context_postgres_test.go
+d14aebde3cd036f749c908cdad41829f7f55d55d8dee205739648455771f491d  services/platform/apiserver/security_agent_run_context_release_postgres_test.go
+bf6944cdc3c879f3fdace97915743488871227e16093145e3bee69eee59c96b1  services/platform/apiserver/security_agent_run_context_retention_postgres_test.go
+c76733cb390c24325846d885588a4473cd03decbcc0b70ca3f4060e79734cb1e  services/platform/apiserver/security_agent_run_context_test.go
+9368f3f098ee9cc134939b612e78b3c52a2b1c22f4beefc2116c989e303a41b4  services/platform/apiserver/security_agent_session_isolation_postgres_test.go
+e9dc60558cc8be92ced0ebb97332cb4f0ec246fbcf4cdf683670c7d09291b1aa  services/platform/apiserver/security_agent_step_binding_test.go
+fc35ea3d7952614a639bbe2d302033ac5eb55e694d4b0511e65e33137d305958  services/platform/apiserver/security_agent_surface.go
+d8d3be3dbf012260c672be36d8951c46239bc8745681d6a0bb9e727d3eac5af4  services/platform/apiserver/security_agent_temporary_policy_postgres_test.go
+f530ac50e872f10053ed95fe6b4a58a2e265f28a00535cf6107877993d924fea  services/platform/apiserver/security_agent_worker_repository.go
+52b0399782555242ef587ae403b45e682da18dff2e8494d475b49302baaf335e  services/platform/apiserver/security_agent_worker_repository_test.go
+1623eb28dd887dfa0a7f60a1e3aba016bd8926da91710f444faeeac9aca15aaa  services/platform/apiserver/sensor_chunk_installation_postgres_test.go
+dcd2f772167cf00faa4854d634420fd35b6131786ad8c0a7ff6abaa132a4c4ed  services/platform/apiserver/sensor_daemon_replay_linux_test.go
+971d7df3ea7537352fb3a286780deb685dd8f9489fa5bd54e4378c712f9fb5ab  services/platform/apiserver/sensor_daemon_replay_ownership_linux_test.go
+8999de0bcfe906184d64f3227a60ae2276164502088769243cd8bf5f55e0e540  services/platform/apiserver/sensor_daemon_replay_process_linux_test.go
+01ad42f48c49849c67bff987dea58503a9732f6b59dc61aa991c1612389d30c8  services/platform/apiserver/sensor_daemon_replay_trace_fixture_test.go
+93eab6352325bc858ab999899dc3a125e16cb0def074ce3a70e21f640126de94  services/platform/apiserver/sensor_daemon_replay_trace_test.go
+15188f051c23bf4b4d7b396e06807723137c614e60248f4baddd67087dee550f  services/platform/apiserver/sensor_enrollment_binding_test.go
+9715f8a18b99ec48e099175edec8228f172011844be4d0fa6a95d3e2c25ed277  services/platform/apiserver/sensor_installation_http_postgres_test.go
+e96770d3cd9548c6fb5d7337dfcb19210eef9512ef61ce0da7b765782ea94dd1  services/platform/apiserver/sensor_pairing_contract_test.go
+29dbc9f2ae7103f627748ff94e0c44253022bd38d325cc596018a0334374f516  services/platform/apiserver/sensor_pairing_contracts.go
+601e152f52102864845709f463926865b2428dc8da8f0473e982d08231c1558d  services/platform/apiserver/sensor_public_handler.go
+fc6254f41b162988d48b8808c5e80a984772d3e8ac2b2324472dd3069079ded9  services/platform/apiserver/sensor_public_handler_test.go
+b30c7ee5cb7588c3e35b08a534f58b8694d20e5825ace78b06883e43947eb6a0  services/platform/apiserver/sensor_public_precision_test.go
+478c2219010a8d4312df9bc51f12e231b81ffa6c61a1db0b7d8144d42db59747  services/platform/apiserver/sensor_public_repository.go
+cd91e36e71450b0c167553e6ed154c0274072a4670593e9b8d751210ebcc8a30  services/platform/apiserver/sensor_public_repository_test.go
+8fc034f71109af8243de628ebe9c0038f3de8bd9ecdacc6b2dada5793d567d8f  services/platform/apiserver/sensor_surface.go
+07e6215f287337cdccc0e5b375da520aefef12744a6fb9ee761554e6198b1a50  services/platform/apiserver/stytch_authenticator.go
+af96a1c76ae1f02e74f7493b173057c8a8405c35a1948e0c446253b163e276ae  services/platform/apiserver/stytch_identity_admin_test.go
+ab23af5facb8c2c16ce4fbf8446fba9b6395fd7893ee85e9e1baf24b18ecaae8  services/platform/apiserver/stytch_webhook.go
+777ec6a2cd9e3d2469b6cc467e87e2ef49380f73a2754f73b68747f812481ca0  services/platform/apiserver/stytch_webhook_test.go
+60e41f9739312e54f8d6fd30b769a544564b2ba7c50f9477627f2578577fcbf4  services/platform/apiserver/workflow_handler.go
+13258dbe5a69e985e66f3e4b169b225668126771f4fa877e84c8506120b7364b  services/platform/apiserver/workflow_handler_test.go
+7a08cb2ed3ac09392fd8489529903f6190ec4a2ecb13e50af9edabc842cd866c  services/platform/apiserver/workflow_repository.go
+ad4907d34d1a5c31ecd30ad9250ba8edc54690e93f046b2bb585209f5b043588  services/platform/apiserver/workflow_repository_test.go
+4797e4e70467f4503309e04d1a1fa2f33ea18b2e48db162cbc1ec745181c8eff  services/platform/integration/http.go
+a765f26a7b734222b138a6c2c134574926c923d152fefd27190d9f1fac4bacf3  services/platform/integration/http_test.go
+cfbd635e45b1d1fe9c282eb2d550ad78530d53b3f70edbc153e8c040855dbf1c  services/platform/integration/integration_test.go
+ccde0eca8c60b15292808b2aeb4a332e8c4f7bb49687279686061226e39c8240  services/platform/integration/manifest.go
+df7a33283abe348cc02c004b4e889c1a630968b206baa0679c0b866556a4ba2f  services/platform/integration/service.go
+3bc686ed1cc44326051a4b655eb156c7b6af8ad7a3479b9ad430217642eadc05  services/platform/integration/store.go
+13eafb42e5e850f649df19cb02493ea017fa4432760cd5c97d3bea21fef7e400  services/platform/migrations/attack_lab_execution_test.go
+13e41e29484e82fe0a68321797ad942fff9a205605d59c784cc8246187b5341a  services/platform/migrations/compliance_release.go
+843452da6bccf6935ff03b5ca4407521bda67b21a6fa73a7f24ed7b070f29c20  services/platform/migrations/discovery_execution_test.go
+95f62e7a9a6f46a53c045996209f4bc3d308ca1757d491231ad645c30c13c30c  services/platform/migrations/identity_administration_test.go
+b5726cb3d9c1633a20c99e562af0e30e813a394bcc18ab308753a98c301da1eb  services/platform/migrations/migrations.go
+c42c6364a706b8abd916f190612065134ae6da241767a157e543431d789570ba  services/platform/migrations/migrations_test.go
+c3a3f989f3dec91cc75be966bdba5451bfdea874eac4e63185d87bdb47502ad8  services/platform/migrations/production_approval_notification_test.go
+690ab810c1fef765885ee8d0b21ac4388b38daa232e41e2b18553006bf899d56  services/platform/migrations/production_audit_exports.go
+8a63a34bf27ae2ab1bf974bcaa03ba69f736ba48b3a11e99000898f772f7380f  services/platform/migrations/production_audit_exports_test.go
+c8612d88328d602c0964a4022f0d1bd59d689c0a3769ecf4fa56d6124dcbf28f  services/platform/migrations/production_compliance.go
+d8a14e7948a377942dd19e5c618b501806e4bfbcf7ad1ee94500bf898dfc72d7  services/platform/migrations/production_home_attention_test.go
+e3666780961b0ee230fc5c84225d2e1c61351611da77749da01dbe96b7bca277  services/platform/migrations/production_integration_setup_test.go
+8c36df35bdf3bcc1b2e4e090a2a38fdedc6ddc65adb936aa5fe3526cf0788760  services/platform/migrations/production_integration_webhook.go
+ecce5171779e9aafd4b05d4a412876253aa8db0af85442be2e8e8880220cafb8  services/platform/migrations/production_policy_deployment_test.go
+27571bc0b077317b001168c0aa78b80defa09483c4dcd8058ed571afbdc0f2c6  services/platform/migrations/production_reconciliation_lane_plan.go
+a5424ad2df01b867e459b05fe2bb880b20a3071ec0c0f8d1f600926c285e44ca  services/platform/migrations/production_recovery_test.go
+6e667aa5b2453746e93053365d11d474fa5fc76045f2789a57c2a0fb3b229225  services/platform/migrations/production_red_team_artifacts.go
+fe8dea3eca1c43af5721c8f81927d765e80feed61892927dcc9e4f544c4dbcf3  services/platform/migrations/production_red_team_invocation.go
+b33d0b219c75d8778d85b13b429c95c38deb0e7f930885fbecc79c4eb50b8202  services/platform/migrations/production_red_team_safety.go
+1887bc6fd1d41abceedc74dbe812ae3da6d4e18cb7bf50eb7fc8ed922558ee95  services/platform/migrations/production_runtime_acceptance.go
+6fe2c38c94ef4a8089a137fc245e6884065466c1b761e7368b031cdeedb33617  services/platform/migrations/production_runtime_candidate_authority.go
+bb14f02ee21e25516320c75b228e31ca26a7954ef8b49dd454499f4c6b554915  services/platform/migrations/production_runtime_correlation_routing.go
+c171442d02b96a5caa17991a0d6e0804402875d47533eb5c2a9b718d02fcdbb0  services/platform/migrations/production_runtime_enrollment_pairing.go
+c7e8ba8306996ee4614d103c0e385251f781617d2dd8613a5d452df9e9aa570f  services/platform/migrations/production_runtime_precision.go
+a4ba7e19717d81e062396aeab32d37b99d7c774c0b345d7d165d979cdf30c908  services/platform/migrations/production_runtime_queue_replay.go
+2b7f8da64f3a0b960be453ddb7f46de8f3daef7fd127115a5d3d51382dc30fdf  services/platform/migrations/production_runtime_sandbox_binding.go
+ebcbecff5c1ebd39d8c37e2a05e342a3129653339d096cd9f640ac39befe96e2  services/platform/migrations/production_runtime_session_evidence.go
+a1fa7d60533f8ac9b44bbf035e219f154c64caf21e8398b9f9ae46c1b5bfc802  services/platform/migrations/production_runtime_session_query.go
+72b284df2fb852b3aed5e7d8d2ea91a7229c6d2d85aac3905cfc4852be79c36a  services/platform/migrations/production_runtime_session_reads.go
+2a46fe4a7853141522beea1e6986a7982e9cc74b5afa16b9f5dd2a5436cbc73c  services/platform/migrations/production_runtime_session_search.go
+104555db4c2e8006f15e57ffae03b8f52ea344d028430cfcfc9103618fd5cbfd  services/platform/migrations/production_runtime_sessions.go
+0a4b91ca51899cd94b4f42f99c9c4e9e8a392e12c75c508d3ff897ad6f558780  services/platform/migrations/production_security_agent_attack_path_test.go
+e76264bfa994691f47e06fce8aed00d14dbc4a9dad0e03c4b1ad055de048b771  services/platform/migrations/production_security_agent_budgets.go
+60cb96f816d21dbb866f4e0fc071f4e0980b392604cf6dd41e3f8dde6d5e2012  services/platform/migrations/production_security_agent_existing_tests.go
+dc88d8b8247e60f69bb3af04b494faa4259ac998efede68a877ea10c469347c4  services/platform/migrations/production_security_agent_planner_test.go
+de747298e48b2730f3eea82e87d1e4164185b00719c3298835705371f8dd6098  services/platform/migrations/production_security_agent_run_context.go
+36eab112cf9b47f68e194fa3e4d12888a4b03691455218e3680b0d5639f6cc87  services/platform/migrations/production_workflow_compatibility_test.go
+7ed1ee7942d44140af6c9ad0e8d64f2b384ad8fe8a2d3eeac5615388f1fb155d  services/platform/migrations/red_team_execution_test.go
+cb4e1e9e741fbd87f622307989c7f684574eb5419f62a078f84dacbd4e27335c  services/platform/migrations/runtime_data_plane_test.go
+b7cf4b963ad775fb2678a930114d8b69492fc12b239264841aa1ec65534c9c01  services/platform/migrations/runtime_gateway_reconciliation_test.go
+dba2fb065235011f68fc6a372fb38213764faab8fd60f95b7bdc1ac87d9753ae  services/platform/migrations/runtime_ingest_reconciliation_test.go
+a6d83cb16250cf1b713bd28b40d0c38d143ae2f37c4c6dadf0d72b3ed1304ed2  services/platform/migrations/security_agent_budget_candidate.go
+473c29d31f3337d6d11eefa8191c749662fb4bed9e67bb06d37798d29800a65d  services/platform/migrations/security_agent_connector_revocation_test.go
+1c9d26fa101db3b5d135db0f415cb234102e7a8a678b9b319f4c6ea5f141bac6  services/platform/migrations/security_agent_controls_test.go
+8e235b3da7db820d8f2a066d41e799b3369777b46fda3bf8dd71de435412b975  services/platform/migrations/security_agent_execution_test.go
+e42bf88d1aa70c0d1dd92249800f583b508b2d04fc993fa25396cf5f6a8f2e0b  services/platform/migrations/security_agent_existing_tests.go
+6933ea22f0b2a0b48207b6f89b75e1d201e1e4aad57919f54008933fa468431b  services/platform/migrations/security_agent_existing_tests_release.go
+b5dc9601a437018588c2a5d4941a9780f7d3b1cf079b6385b107e6e9be4f2a7f  services/platform/migrations/security_agent_global_control.go
+c9c81dd888bf8d1e6f9b96be525e1a930259e1515797004d1fbb9527dc247bea  services/platform/migrations/security_agent_global_control_test.go
+e8cac228a719e17caed89028c16fde9dd58cf8ac48aa54bcfce3c236c69233bb  services/platform/migrations/security_agent_run_context_candidate.go
+d06224b00e28f6ee61f3f2cd8a88204e61397d25d7a54d4154ef887b7fdb9f57  services/platform/migrations/security_agent_session_isolation_test.go
+49f362aba08360aad1af4abd5a125d90990506b065cdf47116b6e20305e79bcc  services/platform/migrations/security_agent_temporary_policy_test.go
+4a172599ab0caebc6d030e72322220fde1ba3f99f4152cc34f460678ad110886  services/platform/migrations/sql/0001_schema_versions.down.sql
+664a672bf609b7c4b5f143ab0ea9b9a3714341a5730f1d909e3903e29cfe7f19  services/platform/migrations/sql/0001_schema_versions.up.sql
+2209a4d4b481fea0bcebd06b086b3712493a2ee66f4a480f663dcaa3a85df4c6  services/platform/migrations/sql/0002_production_core.down.sql
+c92d5637219d0c5dd47800241f253cf724f7fedf53a780b653fcaba55ef7c7f6  services/platform/migrations/sql/0002_production_core.up.sql
+7bebbe039aea0bec8bfd5dd13916b7e50b9e283917f1d3279792d92978be561a  services/platform/migrations/sql/0003_production_workflows.down.sql
+d060d3d23e4799d581f149b608dd78282dc8a8282b8f3f374476956b4b7ad096  services/platform/migrations/sql/0003_production_workflows.up.sql
+f95284d9b1b3ee632e25ffa997a41c6254c6192dafce50b4dbadf2d1966c6366  services/platform/migrations/sql/0004_workflow_receipts.down.sql
+179e7fc90f9df5177cd22e44503a5efc4481ab0950df8c504d26e24def17434d  services/platform/migrations/sql/0004_workflow_receipts.up.sql
+f93a9c5b5eaca02f43ea98ea5186ef5084a8941c55a03f4889c02752d3236311  services/platform/migrations/sql/0005_workflow_receipt_safety.down.sql
+a65e21ce96fe9eda62371d84215438625dfa078acc25827319a8f64af1060f64  services/platform/migrations/sql/0005_workflow_receipt_safety.up.sql
+bba15e43138c35928732ab7f5ade333284ad593e6ac31de1dc4966d6f4566c9d  services/platform/migrations/sql/0006_workflow_receipt_provenance.down.sql
+a6db32b74ab5a3daf4b3d7e4aba8c1a28cf4bc0da0739f7777348c4884a11772  services/platform/migrations/sql/0006_workflow_receipt_provenance.up.sql
+0e2647c8b121982b787fc1d06475bb3b57c5b0c218b731d47af8ddc4cd026e6c  services/platform/migrations/sql/0007_production_administration.down.sql
+3230f3515e79d5ffd7a55faddf74a99b8e39f7d003cbed2e22cf78bb5d08ed9a  services/platform/migrations/sql/0007_production_administration.up.sql
+10b278f0aa7de35d4f9adf6be8664b75b1e5fc0a00879156d46515dfa4fe2181  services/platform/migrations/sql/0008_api_token_reveal_grants.down.sql
+cdbe4c3b45a41433b27c15c73819e10e66a87da7063f9612847e011320153982  services/platform/migrations/sql/0008_api_token_reveal_grants.up.sql
+96e973d753fb11497536ca8ddc556b3ccd36e144d1af857aa408c680e6762bd8  services/platform/migrations/sql/0009_production_risk_projection.down.sql
+46bd836a9f0fdaf560bb7a5c34e9b483b93a1288f3d1093f4fa0becf3aea25ad  services/platform/migrations/sql/0009_production_risk_projection.up.sql
+f73a028640ca1da5d19f5e4aeb73c9e59af92804cf2b08c7a6363f912b33e05a  services/platform/migrations/sql/0010_production_discovery.down.sql
+b7bc32c642cb57988e4e6a0a89feed0ffe1d4396daa3f213c76a2f59b1b1154e  services/platform/migrations/sql/0010_production_discovery.up.sql
+78a51f0537392d3007a555a2e3743c6e4ca20936140fa8191f06a6d984c6da84  services/platform/migrations/sql/0011_connector_authorization.down.sql
+533376136f6d155b5f7a940759806808c6fabeb511c1da111256bd96dec24dc1  services/platform/migrations/sql/0011_connector_authorization.up.sql
+906fbd94576f0ab0886fff01a510f4cc038bb4a2f2abdde8501e001f46a4e7d8  services/platform/migrations/sql/0011_v10_rollback_normalization.sql
+2de18127ffa071b22d5da8bb778c9fd7abe87d9e264931b1b1be26f899aa9992  services/platform/migrations/sql/0012_reference_authorization.down.sql
+56c5cea07179167f2c5dcbd5367ed2af8e0c2d01524f2bec0ca6ecd6dca52554  services/platform/migrations/sql/0012_reference_authorization.up.sql
+fae51f500cad9e72831d7acc11905eb2883f5054da8a5bfe9f65e9dd47e4c873  services/platform/migrations/sql/0013_production_discovery_execution.down.sql
+cd0eb897f3f22707973d51257b377ca5b87cf3d01325c9865b1f0a0acef6bb73  services/platform/migrations/sql/0013_production_discovery_execution.up.sql
+eb63c06b9e2fe1676f0775d5d10347601cada82b0ceab799baab9b6a14b24916  services/platform/migrations/sql/0014_typed_inventory_cutover.down.sql
+06ed7d1310bee92bfd80c92698b91c18e3932a573793dcb32344a3fea56831b8  services/platform/migrations/sql/0014_typed_inventory_cutover.up.sql
+843cadcaea2ac4a9bbd3e28b23783ad7a5d4d61616c5f2c99fcf2069a7056c31  services/platform/migrations/sql/0015_runtime_data_plane.down.sql
+11c0b05a0a264ba9654c9646b18633c45469f495fa819b28b89e207aefc5ce9a  services/platform/migrations/sql/0015_runtime_data_plane.up.sql
+91d2af6849e712366d31b09b82554e6387494476715216bc0d35970f555de1f3  services/platform/migrations/sql/0016_runtime_gateway_reconciliation.down.sql
+cfce79b4301adc776e5aeede9cbfeb1ad1e81b2311c6285700bb046085d271a4  services/platform/migrations/sql/0016_runtime_gateway_reconciliation.up.sql
+8b8ed1a05405424a7ca507fec546f965459892e701de0d2be87652197ac3f796  services/platform/migrations/sql/0017_runtime_ingest_reconciliation.down.sql
+94260a919e236b5af3c818cd9ebc44c462b46e6ebba523b1e839f899f87021bb  services/platform/migrations/sql/0017_runtime_ingest_reconciliation.up.sql
+e102d1091fab07e93cf223839626de71e3fd6dc780db6d0856a7494607673da2  services/platform/migrations/sql/0018_security_agent_execution.down.sql
+983acb6a74491eb472460263317e9b8f6c1e013636c88f84601e65bcc4ee7c39  services/platform/migrations/sql/0018_security_agent_execution.up.sql
+4963a663960f26e6b4235bac57056f4a4dcfbc24c70670efad4f6767089882da  services/platform/migrations/sql/0019_identity_administration.down.sql
+059918e3f292acbe941b2cb982626d5c1c79e6134c0bb5b3a1b2b646d681d81b  services/platform/migrations/sql/0019_identity_administration.up.sql
+aa379db99176a17c4adbb2df58d764d0c0932afc4e44c56281f75b9f9e75bfc4  services/platform/migrations/sql/0020_security_agent_controls.down.sql
+6040a5b9190836ba63d97124619666dd19dba16713cdf6b6f5dbd55f3617cb45  services/platform/migrations/sql/0020_security_agent_controls.up.sql
+d1d44b3e4afade285bc8e531be730024b0ee279d1d6b9d52a5b71be49e0d1632  services/platform/migrations/sql/0021_security_agent_autonomous_response.down.sql
+dc545cee888db6211d20d849d2653d6da2e6f0dd291954f6d1e81da4f9cb303c  services/platform/migrations/sql/0021_security_agent_autonomous_response.up.sql
+95c2347408350543bebcb0d85a71c4f8c18fad8cd583299f7429fba962eb7ad9  services/platform/migrations/sql/0022_security_agent_temporary_policy.down.sql
+900eedae776ebe9486c32f64237665d26e83b7978ee56bf788c58079a573b184  services/platform/migrations/sql/0022_security_agent_temporary_policy.up.sql
+a2234df10b61b9d95a9216e1dbbfd06f840e8df9311c3418dbda731216381d73  services/platform/migrations/sql/0023_security_agent_connector_revocation.down.sql
+804873a56468993a1c0954bb62db3ed4bdc49f0f391e79a79530a432add034c9  services/platform/migrations/sql/0023_security_agent_connector_revocation.up.sql
+e882048b6f75988ceca8d4fab477fa3d5560a28f407f1106cb0540914691d492  services/platform/migrations/sql/0024_security_agent_session_isolation.down.sql
+68ac0f5629bdd4d6fc366376e0939f7a2298ab612d416574a8b956ebf020f655  services/platform/migrations/sql/0024_security_agent_session_isolation.up.sql
+89d1deaeb827e1b80307de6fc4c95d2d5de1a0954877450a523286f4285663ad  services/platform/migrations/sql/0025_red_team_execution.down.sql
+37b478d998e7b8880dade35cbe29f50f26aaedfc659fbab209457183c0705491  services/platform/migrations/sql/0025_red_team_execution.up.sql
+202eee9e3786de4a0d93583b79b6f78cc5ac29e4810f7e397d27bbf3dccd1ceb  services/platform/migrations/sql/0026_attack_lab_execution.down.sql
+8308b42d4725b6002ad97612ebfb1459484d88d8d91ecaf81e9daa93721c0cfc  services/platform/migrations/sql/0026_attack_lab_execution.up.sql
+d499f296e03338778e93c4aa974c548ea6b12ffe9cc9ac49d4d267165053b66e  services/platform/migrations/sql/0027_production_recovery.down.sql
+0e4dcbaf987cc3b5f69cf4d415a028d643c2f95bf5160e827e1607e3f60dbc14  services/platform/migrations/sql/0027_production_recovery.up.sql
+6a5d00bf359d2b63bd68cef34a37a1cccad6968f8db18a6c0778ed6243f60451  services/platform/migrations/sql/0028_production_policy_deployment.down.sql
+93ff35bb1d977eba322d42183e088e1bccd6be83f68d5fca3f70e0d00deba981  services/platform/migrations/sql/0028_production_policy_deployment.up.sql
+ffe5663508c11c4d12566420335e26d800cf9d09dc1eadef0c06845695b920f3  services/platform/migrations/sql/0029_production_home_attention.down.sql
+c2c1248a5c2e11dfa5946b903261a6ad719969ca589fb857d90b044c6202b744  services/platform/migrations/sql/0029_production_home_attention.up.sql
+11b3409d37589d6bbbf207d8b94598fde0980f7ec2637768fb978ea4cac66e38  services/platform/migrations/sql/0030_production_approval_notification.down.sql
+188e89f3220d2fb186b1cdaf6f0443a5ec2baad88040dbc30e0db11bf7269d5a  services/platform/migrations/sql/0030_production_approval_notification.up.sql
+6b43bc4c32241da7a9a9b62ca0599a1c88f9dc26cd6ab0792b939823b7bf5274  services/platform/migrations/sql/0031_production_workflow_compatibility.down.sql
+3b2af877029786c4ec384dc51cf855663e252c5d8010c1fafc18b9ba90774184  services/platform/migrations/sql/0031_production_workflow_compatibility.up.sql
+aec2df284eaa6f989e5d5498cb8ce775d06c676c4a51d99922c79b87b3a5566c  services/platform/migrations/sql/0032_production_security_agent_planner.down.sql
+0d8a2c8c99ef7bab5f0d1ededb4e1b0746604f35662a28bded650cc8e1f73f23  services/platform/migrations/sql/0032_production_security_agent_planner.up.sql
+bee17545710535ff189d93c6473dd412a30ea2d5c068081e1423ad85492aa11b  services/platform/migrations/sql/0033_production_security_agent_attack_path.down.sql
+b1f24b820c32e0f26ad9f565d97378687e5805826f80043ab3f26d65dd41f004  services/platform/migrations/sql/0033_production_security_agent_attack_path.up.sql
+cf2fa361a057259283e1848799aae7bcc13e35b9a035af993694b6f42fc67c17  services/platform/migrations/sql/0034_production_integration_setup.down.sql
+6ed952da3e6062677d8b929ca6818f4ffac2bfbd4ae93d63f49d288a9f78497c  services/platform/migrations/sql/0034_production_integration_setup.up.sql
+f5284e3d334064485df44d3f7195699a9f45227432a6f17ed705a6c5d101b6d9  services/platform/migrations/sql/0035_production_integration_webhook.down.sql
+dae2fe5e3e3660afb706ca6cac4a5d3c38d2f243b2863dfd57d47727f70f7381  services/platform/migrations/sql/0035_production_integration_webhook.up.sql
+d72781fe8d08b87b594314cbe76bc21b42988714f690336c770a6ecf6d9e0c5b  services/platform/migrations/sql/0036_production_runtime_queue_replay.down.sql
+75e88cb4c50d940b960034358ea2227ecf20cc3aebbe7d48b630a2bc76acd90e  services/platform/migrations/sql/0036_production_runtime_queue_replay.up.sql
+507eea465b0833ad79039aa6442718c027144913de7cbaa58bb64ecb17df77d1  services/platform/migrations/sql/0037_production_red_team_safety.down.sql
+d22c60357ae0f9ad0ffe6727d7a668517601805e2f264648b8beb27beca18946  services/platform/migrations/sql/0037_production_red_team_safety.up.sql
+a74a483ae0767b5b9f4d5284aa072dcf1a1557475e20d68635cde869d3393e1b  services/platform/migrations/sql/0038_production_red_team_invocation.down.sql
+604fd38256346abcc3cd9290aed5fec647da0f6b1519a77fcd837e3392487cff  services/platform/migrations/sql/0038_production_red_team_invocation.up.sql
+78fff287d296c5ba15a17634ce9eea49e3dc2b81673ec02a088e5d3b8dcb7c5b  services/platform/migrations/sql/0039_production_red_team_artifacts.down.sql
+3c740a6a4047ef08d89ee51a2437ae70ce6f9871f9b7c0930fb4d1d639054c99  services/platform/migrations/sql/0039_production_red_team_artifacts.up.sql
+1efb658d60b1139a133b877982608127a1d223b0363189a94892e02be39f5f29  services/platform/migrations/sql/0040_production_runtime_sessions.down.sql
+68e796ec316c65ee48356ddf087bbe66ad8b30e12685cbd1eb887c2122311038  services/platform/migrations/sql/0040_production_runtime_sessions.up.sql
+d33b46bccc04b23a04488e7a8fd85b27411ac0d7c3b2728dda2528ace08ff644  services/platform/migrations/sql/0041_production_runtime_session_reads.down.sql
+928766aa21af5b73dbe2a6f28a5b04d86a37a86a7634ebced9a3ac38b86b1279  services/platform/migrations/sql/0041_production_runtime_session_reads.up.sql
+5f863a95ff22efa3de965830819e6f1c35d665d9d6180d7ffd63d3dec0bb1d5d  services/platform/migrations/sql/0042_production_runtime_session_search.down.sql
+4afdacf30012922c2db84b78f08f0fb9166d40c0b23bf9f8891986bb8010fd0a  services/platform/migrations/sql/0042_production_runtime_session_search.up.sql
+9b4c940d115a39a2180d3978ed6f3846046f7e8ff7054b18613351a287da369c  services/platform/migrations/sql/0043_production_runtime_session_query.down.sql
+e14dad62b8aeab47c99f93b20b514f9cc25441fa9dc590979626aedfe6e48658  services/platform/migrations/sql/0043_production_runtime_session_query.up.sql
+57573ca136f16eb37a25a3cf5a2d741f26efdc9f5866513eec0200fac378c0f5  services/platform/migrations/sql/0044_production_runtime_session_evidence.down.sql
+43cf00390bbe63007352d8e958e48d0ef03c1fb00145fe9948447945050fda90  services/platform/migrations/sql/0044_production_runtime_session_evidence.up.sql
+c3ff73884abac324ad56cd9aea97fad7162613622043af7267bca626392b76c1  services/platform/migrations/sql/0045_production_runtime_enrollment_pairing.down.sql
+432339c1027e086dc65a87cb967d2615f79128347e2ca2bdf3cb5cacaad289a2  services/platform/migrations/sql/0045_production_runtime_enrollment_pairing.up.sql
+67b930b4583a4e68da5c4c1131edef143376b47bf1c2801d37fc0353cce163cb  services/platform/migrations/sql/0046_production_reconciliation_lane_plan.down.sql
+799081a6ae1943481b6c16753f5361207c3ca9ce334bc9e5fa6b4973ac9cac26  services/platform/migrations/sql/0046_production_reconciliation_lane_plan.up.sql
+e91be133ec5c463eec373f3a2ec6e474b7fe5292d0cdd351c82f0ef49f8b975e  services/platform/migrations/sql/0047_production_runtime_candidate_authority.down.sql
+4473590a8501c077c5c1e532fe02928bb3a5ba88e2afb056992e8bd1ad57069e  services/platform/migrations/sql/0047_production_runtime_candidate_authority.up.sql
+cbc5fa66342823cafdfc1b0a2b0ad1f89ecac8605de0d88128636eeeaee719b3  services/platform/migrations/sql/0048_production_runtime_acceptance.down.sql
+f714b356d7b20c19289afae8c49ba1532862f1548802d4ea9c54505c52e6b29b  services/platform/migrations/sql/0048_production_runtime_acceptance.up.sql
+a3f0959c3bba54e138e52b7abb178ec2abe289aae469a076542a8654557903a1  services/platform/migrations/sql/0049_production_runtime_correlation_routing.down.sql
+6a77e8c12932156eca2e4047a694bcd701c8c3c3c18b55b8a9d2f4566139d260  services/platform/migrations/sql/0049_production_runtime_correlation_routing.up.sql
+388499058bd3d9a5010d4d4ec4afaff4d842ed99a461edae19a8b89e30da0bc2  services/platform/migrations/sql/0050_production_runtime_sandbox_binding.down.sql
+c3a78c94195429cd432a93283e78acace9b340a458b1fb5a6872ea351a70585b  services/platform/migrations/sql/0050_production_runtime_sandbox_binding.up.sql
+ca4e35529509e4045500a604e0bc95838330d86e3b6fc035a69001f8048ff96b  services/platform/migrations/sql/0051_production_runtime_precision.down.sql
+a76979f2b86546157a7390959e18bb9e45b92b94cbbca076a5cbf908a8672bec  services/platform/migrations/sql/0051_production_runtime_precision.up.sql
+d0536bb74c4414ceafa2cdf86c441fdb26988824e876a36d27e2b69ab6484225  services/platform/migrations/sql/0052_production_audit_exports.down.sql
+145ee671eec8de08214c016ce0cb6e8650a63bce67698ef88e25228ffa0df712  services/platform/migrations/sql/0052_production_audit_exports.up.sql
+59d4a6fa2c18f9ce0afd267faf3769d23284333a9f42416d9e8f7160c948bd49  services/platform/migrations/sql/0053_production_security_agent_budgets.down.sql
+f74b32ef69ebc2b2178d508b753e144e6bee24a96484693df6db209bba30537d  services/platform/migrations/sql/0053_production_security_agent_budgets.up.sql
+0c4aec03b26851a15a6ae16aba2b80a78e715def734c8126ac8d15e9a50cd6ae  services/platform/migrations/sql/0054_production_security_agent_run_context.down.sql
+44a5d18c00fafc2948456649e921a71ee46832cb4cd441e9de9cf1c960cd76c7  services/platform/migrations/sql/0054_production_security_agent_run_context.up.sql
+629e213841de57ca407f4974bbe0c121d9462b913b8fb37ba2f552634d08818e  services/platform/migrations/sql/0055_production_security_agent_existing_tests.down.sql
+c48cba7686171d02cd04eddadfbf6506dbf25983ba06c6c4a2da17c778b8710e  services/platform/migrations/sql/0055_production_security_agent_existing_tests.up.sql
+66118735e31679f442cb7f04d53041823d0457831fd9aaf4caf76afc1025446e  services/platform/migrations/sql/0056_production_compliance.down.sql
+3e464b2e30be26d9cfb4fae17c7874afe42f3c4659aa8803a6cb1517371a20d5  services/platform/migrations/sql/0056_production_compliance.up.sql
+b8d5367ff0c9175fe2a597bf0683b551c22752b49ed8ef1079b58bf8b8ac41e4  services/platform/migrations/sql/fragments/compliance_jobs.sql
+e5a0684c11f4a7c472d3d66bfda326204bff2f84a4e81985c4799fa80d39b80d  services/platform/migrations/sql/fragments/runtime_precision.sql
+1c134ab09286ac42abb6348a50482b8c2ec9cbd54bd22a10e69238a0bbd2714b  services/platform/migrations/sql/fragments/runtime_precision_candidates.sql
+74868008867b36e6d06e1fcd7cd95cbed8699490499b98cf2d5183d0beb77274  services/platform/migrations/sql/fragments/runtime_precision_completion.sql
+cf46d6bd5ba4d2e5505c27431acd2ee236e5d177b801895c6652acabe27cab93  services/platform/migrations/sql/fragments/security_agent_budget_admission.sql
+ae2bf13b0d71c40bba63caca3558aa183fcbcbee5ebb004cafd5b765593aa8ea  services/platform/migrations/sql/fragments/security_agent_budget_release.sql
+29ddfb4ea786fd9e46de72e6f8ee327ff5b82e9b6aa74aca9febc5b031eaacf7  services/platform/migrations/sql/fragments/security_agent_budget_starts.sql
+d50944ff4dba3f301142adc292333447a2d15262ace8e5539617f2bbd1648265  services/platform/migrations/sql/fragments/security_agent_existing_test_admission.sql
+9bb585b118b43ab97c928dea88f15dc0dadc02cd4cf6b9b4ea3d30fe9f70169e  services/platform/migrations/sql/fragments/security_agent_existing_test_approvals.sql
+0160c7a09554edf7674e353c888be9dd4cff6fef0e43bcaa1a23aed195ace392  services/platform/migrations/sql/fragments/security_agent_existing_test_candidate_down.sql
+aa6dfb889fe2235c0b3fdf2fbb067be1441cbe238675daf1721d5b9d713c5b74  services/platform/migrations/sql/fragments/security_agent_existing_test_controls.sql
+c103c651804fed8d2e771f41e9ce508baabf846fc202cac669a93d8c50dc7838  services/platform/migrations/sql/fragments/security_agent_existing_test_definition.sql
+95370f01e8ea7e19ed6403b47ca252505e529010a68701e70737eea550f0f46f  services/platform/migrations/sql/fragments/security_agent_existing_test_dispatch.sql
+b78a921f54582653dd63837d5d0e74a1b093109302f6200e7df6deb3f885ec06  services/platform/migrations/sql/fragments/security_agent_existing_test_enqueue.sql
+4b24b32bb5e431dc68fafb84176f78d936e4ddfe9b3dd1a284a30fa6dc3155c0  services/platform/migrations/sql/fragments/security_agent_existing_test_evidence.sql
+0ff8aa8009a5c0e1074a320f7550fe13f05bcc91325383f23e7518ad7aecd710  services/platform/migrations/sql/fragments/security_agent_existing_test_execution.sql
+ead7ee8795ce3d0bf344c79ee9c4742f1f0561f6bbf03a0b14175f6faf8bd3b2  services/platform/migrations/sql/fragments/security_agent_existing_test_global_control.sql
+114a6ea6e728f9b31eb4dca4514b92a4b1cc90bc89c55dc64c990da6bdbec084  services/platform/migrations/sql/fragments/security_agent_existing_test_invocation.sql
+a0d23588e6fbdb40a222a6f108a71238737e87623ab8e3a3b88c4a2e8b0599b7  services/platform/migrations/sql/fragments/security_agent_existing_test_invocation_journal.sql
+6df0b4a5b7598f15d182b267e16219eac83ebfb1f54a6dfa81491d6f9fbba362  services/platform/migrations/sql/fragments/security_agent_existing_test_lifecycle.sql
+1d3103c3f0c14c3755cbaf5a412e202f4a05594ac451c61b1421a7b49e31faf5  services/platform/migrations/sql/fragments/security_agent_existing_test_links.sql
+35385dc5207905ad67acc5e9888740cff12c04c9b863766d91ab0c2163c6ad83  services/platform/migrations/sql/fragments/security_agent_existing_test_planner.sql
+afa0b7cb7edcf9713963849902eb0980ad3d9db1cdcb63ff86bf054be6f7ebec  services/platform/migrations/sql/fragments/security_agent_existing_test_public.sql
+e7459df065ddb6df90ef18cdeb90c083e8a2a542acf0442eab561b63c63744a1  services/platform/migrations/sql/fragments/security_agent_existing_test_reads.sql
+c9fea4c074cb06d5bfc4fc7e8d7bc38d70b99c9145ffa982db19ca4df2b31cdb  services/platform/migrations/sql/fragments/security_agent_existing_test_reconcile.sql
+bb693c1ead7c5939876c13f3930de5a4f4dbaa23a370c23c3d888dfb7b9a3b43  services/platform/migrations/sql/fragments/security_agent_existing_test_settlement.sql
+2556ad6f9ce9378959392033db9eff79551100462786ad95f30136c880fb61cc  services/platform/migrations/sql/fragments/security_agent_run_context.sql
+781654299873c33603b28df6d8d682dacffffb68affae1025254ba1d1236fe68  services/platform/migrations/typed_inventory_cutover_test.go

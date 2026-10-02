@@ -41,6 +41,7 @@ type RequestIdentity struct {
 	CredentialKind     CredentialKind
 	FreshAuthenticated bool
 	FreshAuthExpiresAt time.Time
+	credentialBinding  CredentialBinding
 }
 
 type Authenticator func(context.Context, Credential) (RequestIdentity, error)

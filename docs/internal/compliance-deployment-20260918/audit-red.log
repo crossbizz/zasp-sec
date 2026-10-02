@@ -1,0 +1,34 @@
+--- FAIL: TestAuditExportConfigurationOnBudgetReleasePinsAuthority (2.79s)
+    --- FAIL: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#03 (0.04s)
+        production_audit_exports_test.go:145: mode=healthy err=invalid migration state events=begin
+            query:SELECT count(*) FROM "public"."zasp_schema_versions"
+            args:none
+            rollback
+    --- FAIL: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#03 (0.06s)
+        production_audit_exports_test.go:159: missing compiled pre/post budget authority: begin
+            query:SELECT count(*) FROM "public"."zasp_schema_versions"
+            args:none
+            rollback
+    --- FAIL: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#03 (0.04s)
+        production_audit_exports_test.go:145: mode=healthy err=invalid migration state events=begin
+            query:SELECT count(*) FROM "public"."zasp_schema_versions"
+            args:none
+            rollback
+    --- FAIL: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#03 (0.07s)
+        production_audit_exports_test.go:159: missing compiled pre/post budget authority: begin
+            query:SELECT count(*) FROM "public"."zasp_schema_versions"
+            args:none
+            rollback
+    --- FAIL: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#03 (0.05s)
+        production_audit_exports_test.go:145: mode=healthy err=invalid migration state events=begin
+            query:SELECT count(*) FROM "public"."zasp_schema_versions"
+            args:none
+            rollback
+    --- FAIL: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#03 (0.06s)
+        production_audit_exports_test.go:159: missing compiled pre/post budget authority: begin
+            query:SELECT count(*) FROM "public"."zasp_schema_versions"
+            args:none
+            rollback
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/migrations	3.410s
+FAIL

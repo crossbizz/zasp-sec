@@ -1,0 +1,14 @@
+=== RUN   TestSecurityAgentExportDefinitionHTTPPostgres
+=== RUN   TestSecurityAgentExportDefinitionHTTPPostgres/bearer_CRUD_and_original_request_retries
+    security_agent_export_definition_http_postgres_test.go:174: bearer HTTP status=400 want=201 receipt="" body={"code":"invalid_request","correlation_id":"pid_8be40000-0000-4000-8000-000000000001","message":"Request rejected","retryable":false}
+         SQL=SELECT public.zasp_sa_export_mutate_definition($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14,$15,$16) error=repository operation rejected provider=ERROR: export definition receipt rejected (SQLSTATE 22023)
+=== NAME  TestSecurityAgentExportDefinitionHTTPPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportDefinitionHTTPPostgres3996272871/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportDefinitionHTTPPostgres (5.63s)
+    --- FAIL: TestSecurityAgentExportDefinitionHTTPPostgres/bearer_CRUD_and_original_request_retries (0.84s)
+=== RUN   TestSecurityAgentExportDefinitionReceiptPostgres
+    security_agent_export_definition_postgres_test.go:75: release58 checksum=dba54cda63de25490d109447c05a7dc81e5fe32fade3f04673c5f1cf4cf43693 fingerprint=83416842dd0d4b0f70e9709045ae4534eb54efaabb5b77f1429edbfc1eb0cc7d
+    security_agent_export_definition_postgres_test.go:110: bearer create failed: repository operation rejected SQL=ERROR: export definition receipt rejected (SQLSTATE 22023)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=53 data=/tmp/TestSecurityAgentExportDefinitionReceiptPostgres594212481/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportDefinitionReceiptPostgres (4.81s)
+FAIL

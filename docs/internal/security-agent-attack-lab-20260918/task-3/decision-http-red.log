@@ -1,0 +1,9 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["go","test","-C","services/platform","-count=1","-run","^TestSecurityAgentAttackLabDecisionHTTPPreservesRedactedSnapshot$","./apiserver"]
+--- FAIL: TestSecurityAgentAttackLabDecisionHTTPPreservesRedactedSnapshot (0.00s)
+    security_agent_attack_lab_public_projection_test.go:40: decision lost committed approval context: {"evidence_summary":["pid_78000004-0000-4000-8000-000000000004"],"expected_effect":"Run a bounded Attack Lab reproduction; human interpretation required","expires_at":"2026-09-19T11:25:19.594322Z","id":"pid_78000001-0000-4000-8000-000000000001","reversible":false,"run_id":"pid_78000002-0000-4000-8000-000000000002","state":"approved","step_id":"pid_78000003-0000-4000-8000-000000000003","ttl_seconds":0,"version":2}
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	1.131s
+FAIL
+
+Exit: 1 Signal: null

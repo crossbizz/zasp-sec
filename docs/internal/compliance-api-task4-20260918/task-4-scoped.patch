@@ -1,0 +1,2670 @@
+diff --git a/services/platform/apiserver/compliance_repository.go b/services/platform/apiserver/compliance_repository.go
+index c5de5b8c..bd288fed 100644
+--- a/services/platform/apiserver/compliance_repository.go
++++ b/services/platform/apiserver/compliance_repository.go
+@@ -143,14 +143,12 @@ func (r *ComplianceRepository) read(ctx context.Context, identity RequestIdentit
+ 	return raw, nil
+ }
+ func complianceRepositoryError(err error) error {
+-	if errors.Is(err, ErrRepositoryConflict) {
++	if errors.Is(err, ErrComplianceSourceChanged) {
+ 		return ErrComplianceSourceChanged
+ 	}
+ 	var state interface{ SQLState() string }
+ 	if errors.As(err, &state) {
+ 		switch state.SQLState() {
+-		case "40001":
+-			return ErrComplianceSourceChanged
+ 		case "42501":
+ 			return ErrComplianceForbidden
+ 		}
+diff --git a/services/platform/apiserver/postgres_database.go b/services/platform/apiserver/postgres_database.go
+index 1f904be9..56addb2a 100644
+--- a/services/platform/apiserver/postgres_database.go
++++ b/services/platform/apiserver/postgres_database.go
+@@ -493,6 +493,9 @@ func classifyPostgresError(err error) error {
+ 	}
+ 	var provider *pgconn.PgError
+ 	if errors.As(err, &provider) {
++		if provider.Code == "40001" && provider.Message == "compliance source_changed" {
++			return ErrComplianceSourceChanged
++		}
+ 		if provider.Code == "22023" && provider.Message == "security agent cost budget configuration required" {
+ 			return ErrRepositoryCostBudgetRequired
+ 		}
+diff --git a/services/platform/apiserver/composition.go b/services/platform/apiserver/composition.go
+index 258419aa..241f3724 100644
+--- a/services/platform/apiserver/composition.go
++++ b/services/platform/apiserver/composition.go
+@@ -226,8 +226,18 @@ func NewComposition(dependencies Dependencies) (http.Handler, error) {
+ 	return newComposition(dependencies, nil)
+ }
+ 
+-func newComposition(dependencies Dependencies, exports http.Handler) (http.Handler, error) {
++func newComposition(dependencies Dependencies, exports http.Handler, compliance ...http.Handler) (http.Handler, error) {
++	var complianceHandler http.Handler
++	if len(compliance) > 1 {
++		return nil, ErrInvalidComposition
++	}
++	if len(compliance) == 1 {
++		complianceHandler = compliance[0]
++	}
+ 	handlers := []http.Handler{dependencies.Session, dependencies.Identity, dependencies.Inventory, dependencies.Risk, dependencies.Workflow, dependencies.Connector}
++	if complianceHandler != nil {
++		handlers = append(handlers, complianceHandler)
++	}
+ 	if exports != nil {
+ 		handlers = append(handlers, exports)
+ 	}
+@@ -254,6 +264,9 @@ func newComposition(dependencies Dependencies, exports http.Handler) (http.Handl
+ 	operations := make([]Operation, 0, len(coreOperations))
+ 	for _, definition := range coreOperations {
+ 		handler := dependencyHandler(dependencies, definition.dependency)
++		if complianceHandler != nil && stringIn(definition.OperationID, "listComplianceControls", "listComplianceEvidence") {
++			handler = complianceHandler
++		}
+ 		security := make([]CredentialKind, 0, len(definition.Security))
+ 		for _, scheme := range definition.Security {
+ 			switch scheme {
+@@ -275,6 +288,11 @@ func newComposition(dependencies Dependencies, exports http.Handler) (http.Handl
+ 		)
+ 	}
+ 	seenOperations := make(map[string]bool, len(operations))
++	if complianceHandler != nil {
++		for _, definition := range complianceOperations {
++			operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: "view_compliance", Security: []CredentialKind{CredentialBrowserSession}, RequireCSRF: definition.Method == http.MethodPost, RequireFreshAuth: definition.OperationID == "createComplianceExport", Handler: complianceHandler})
++		}
++	}
+ 	for _, operation := range operations {
+ 		if seenOperations[operation.OperationID] {
+ 			return nil, ErrInvalidComposition
+diff --git a/services/platform/agentsec-api/runtime.go b/services/platform/agentsec-api/runtime.go
+index f0d39f71..05a65998 100644
+--- a/services/platform/agentsec-api/runtime.go
++++ b/services/platform/agentsec-api/runtime.go
+@@ -25,6 +25,7 @@ var (
+ )
+ 
+ type RuntimeConfig struct {
++	ComplianceExports           *complianceAPIRuntimeConfig
+ 	AuditExports                *auditExportRuntimeConfig
+ 	Environment                 string
+ 	DeploymentMode              string
+@@ -130,6 +131,9 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
+ }
+ 
+ func validRuntimeConfig(config RuntimeConfig) bool {
++	if !validComplianceAPIConfiguration(config) {
++		return false
++	}
+ 	if !validAuditExportRuntimeConfig(config.AuditExports, config.ConnectorRoleARN) {
+ 		return false
+ 	}
+diff --git a/services/platform/agentsec-api/production_runtime.go b/services/platform/agentsec-api/production_runtime.go
+index 858acb99..e9f89ecd 100644
+--- a/services/platform/agentsec-api/production_runtime.go
++++ b/services/platform/agentsec-api/production_runtime.go
+@@ -220,6 +220,20 @@ func composeRuntimeDependenciesWithAuditExportStorage(ctx context.Context, confi
+ 		}
+ 	}()
+ 	var auditExports apiserver.AuditExportProductionHandler
++	var compliance apiserver.ComplianceProductionHandler
++	if config.ComplianceExports != nil {
++		resources, complianceErr := newComplianceStorageResources(config)
++		if resources.transport != nil {
++			connectorResources = append(connectorResources, transportCloser{resources.transport})
++		}
++		if complianceErr != nil {
++			return RuntimeDependencies{}, errRuntimeUnavailable
++		}
++		compliance, complianceErr = apiserver.NewComplianceProductionHandler(ctx, tracedDatabase, resources.config)
++		if complianceErr != nil {
++			return RuntimeDependencies{}, errRuntimeUnavailable
++		}
++	}
+ 	var auditPublicPages *apiserver.AuditPublicPageRepository
+ 	if config.AuditExports != nil {
+ 		entries, transport, exportErr := factory(config)
+@@ -362,7 +376,9 @@ func composeRuntimeDependenciesWithAuditExportStorage(ctx context.Context, confi
+ 		return RuntimeDependencies{}, errRuntimeUnavailable
+ 	}
+ 	var composition http.Handler
+-	if auditExports != nil {
++	if compliance != nil {
++		composition, err = apiserver.NewCompositionWithCompliance(handlers, auditExports, compliance)
++	} else if auditExports != nil {
+ 		composition, err = apiserver.NewCompositionWithAuditExports(handlers, auditExports)
+ 	} else {
+ 		composition, err = apiserver.NewComposition(handlers)
+@@ -396,11 +412,19 @@ func composeRuntimeDependenciesWithAuditExportStorage(ctx context.Context, confi
+ 		return RuntimeDependencies{}, errRuntimeUnavailable
+ 	}
+ 	stores := []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "postgres-security-agent", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}, {Name: "aws-secrets-manager-webhook", Durable: true}, {Name: "opensearch-runtime-policy-history", Durable: true}}
++	if compliance != nil {
++		stores = append(stores, StoreDependency{Name: "aws-s3-compliance-exports", Durable: true})
++	}
+ 	if auditExports != nil {
+ 		stores = append(stores, StoreDependency{Name: "aws-s3-audit-exports", Durable: true})
+ 	}
+ 	keepConnectorResources = true
+ 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
++		if compliance != nil {
++			if err := compliance.Ready(ctx); err != nil {
++				return errRuntimeUnavailable
++			}
++		}
+ 		if auditExports != nil {
+ 			if err := auditExports.Ready(ctx); err != nil {
+ 				return errRuntimeUnavailable
+diff --git a/services/platform/agentsec-api/audit_export_config.go b/services/platform/agentsec-api/audit_export_config.go
+index eb0cae4a..086fa62b 100644
+--- a/services/platform/agentsec-api/audit_export_config.go
++++ b/services/platform/agentsec-api/audit_export_config.go
+@@ -22,6 +22,10 @@ func loadRuntimeConfigFromEnvironment(lookup func(string) (string, bool)) (Runti
+ 	if err != nil {
+ 		return RuntimeConfig{}, errInvalidRuntimeConfig
+ 	}
++	config.ComplianceExports, err = loadComplianceAPIConfiguration(lookup)
++	if err != nil || !validRuntimeConfig(config) {
++		return RuntimeConfig{}, errInvalidRuntimeConfig
++	}
+ 	keys := []string{"ZASP_AUDIT_EXPORT_POLICIES_JSON", "ZASP_AUDIT_EXPORT_READER_ROLE_ARN", "ZASP_AUDIT_EXPORT_WEB_IDENTITY_TOKEN_FILE", "ZASP_AUDIT_EXPORT_CURSOR_SIGNING_KEY"}
+ 	values := make([]string, len(keys))
+ 	present := 0
+diff --git a/services/platform/agentsec-api/connector_aws.go b/services/platform/agentsec-api/connector_aws.go
+index 9553afba..1c9ec5fd 100644
+--- a/services/platform/agentsec-api/connector_aws.go
++++ b/services/platform/agentsec-api/connector_aws.go
+@@ -106,6 +106,8 @@ func (provider *connectorWebIdentityProvider) session() (string, bool) {
+ 		return "zasp-api-connectors", true
+ 	case "zasp-api-audit-read":
+ 		return "zasp-api-audit-read", true
++	case "zasp-api-compliance-read":
++		return "zasp-api-compliance-read", true
+ 	default:
+ 		return "", false
+ 	}
+diff --git a/openapi/openapi.yaml b/openapi/openapi.yaml
+index 80453eb5..fceda80e 100644
+--- a/openapi/openapi.yaml
++++ b/openapi/openapi.yaml
+@@ -2512,6 +2512,8 @@ paths:
+           BrowserExpectedScope: []
+       summary: List supported compliance controls
+       parameters:
++        - $ref: '#/components/parameters/ComplianceFramework'
++        - $ref: '#/components/parameters/ComplianceControlFilter'
+         - $ref: '#/components/parameters/PageCursor'
+         - $ref: '#/components/parameters/PageLimit'
+       responses:
+@@ -2526,12 +2528,91 @@ paths:
+           BrowserExpectedScope: []
+       summary: List freshness-aware compliance evidence
+       parameters:
++        - $ref: '#/components/parameters/ComplianceFramework'
++        - $ref: '#/components/parameters/ComplianceControlFilter'
+         - $ref: '#/components/parameters/PageCursor'
+         - $ref: '#/components/parameters/PageLimit'
+       responses:
+         '200': { description: Compliance evidence., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceEvidencePage' } } } }
+         '401': { $ref: '#/components/responses/ProductErrorResponse' }
+         default: { $ref: '#/components/responses/ProductErrorResponse' }
++  /api/v1/compliance/evidence/{sourceKind}/{id}:
++    parameters:
++      - { name: sourceKind, in: path, required: true, schema: { $ref: '#/components/schemas/ComplianceSourceKind' } }
++      - { name: id, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 128 } }
++    get:
++      operationId: getComplianceEvidence
++      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
++      summary: Read the exact current compliance source under selected scope
++      parameters:
++        - { name: source_version, in: query, schema: { type: integer, minimum: 1, maximum: 999999999999999 } }
++      responses:
++        '200': { description: Current safe source metadata; source_changed means the linked version changed., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceEvidenceDetail' } } } }
++        '401': { $ref: '#/components/responses/ProductErrorResponse' }
++        default: { $ref: '#/components/responses/ProductErrorResponse' }
++  /api/v1/compliance/exports:
++    post:
++      operationId: createComplianceExport
++      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
++      summary: Queue a durable scoped compliance export
++      description: Requires current view, view_audit and view_compliance permissions, fresh authentication, same origin and CSRF. IDs are generated by the server. Filters are canonicalized before idempotency hashing.
++      parameters:
++        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9_.:-]+$' } }
++        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string, minLength: 32, maxLength: 512 } }
++      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceExportInput' } } } }
++      responses:
++        '201': { description: Durable job or idempotent replay., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceExport' } } } }
++        '401': { $ref: '#/components/responses/ProductErrorResponse' }
++        default: { $ref: '#/components/responses/ProductErrorResponse' }
++  /api/v1/compliance/exports/{id}:
++    parameters:
++      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ComplianceExportID' } }
++    get:
++      operationId: getComplianceExport
++      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
++      summary: Read the current authorized compliance export status
++      responses:
++        '200': { description: Public job without provider coordinates., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceExport' } } } }
++        '401': { $ref: '#/components/responses/ProductErrorResponse' }
++        default: { $ref: '#/components/responses/ProductErrorResponse' }
++  /api/v1/compliance/exports/{id}/download-grants:
++    parameters:
++      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ComplianceExportID' } }
++    post:
++      operationId: createComplianceDownloadGrant
++      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
++      summary: Issue a short-lived single-use download grant
++      description: The grant binds principal, browser session, selected scope, job and format. Expiry never exceeds export retrieval expiry. Keep the token in memory and send it only in the download body, never in URLs or logs.
++      parameters:
++        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string, minLength: 32, maxLength: 512 } }
++      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false, required: [format], properties: { format: { $ref: '#/components/schemas/ComplianceDownloadFormat' } } } } } }
++      responses:
++        '201': { description: Authorized body-only grant., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceDownloadGrant' } } } }
++        '401': { $ref: '#/components/responses/ProductErrorResponse' }
++        default: { $ref: '#/components/responses/ProductErrorResponse' }
++  /api/v1/compliance/exports/{id}/download:
++    parameters:
++      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ComplianceExportID' } }
++    post:
++      operationId: downloadComplianceExport
++      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
++      summary: Download a verified frozen export with a single-use grant
++      description: Current source permissions and grant/export expiry are checked again after immutable storage verification and before bytes. A lost response requires a newly authorized grant. Human format maps to the internal readable format.
++      parameters:
++        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string, minLength: 32, maxLength: 512 } }
++      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false, required: [format, token], properties: { format: { $ref: '#/components/schemas/ComplianceDownloadFormat' }, token: { type: string, pattern: '^[a-f0-9]{64}$', minLength: 64, maxLength: 64 } } } } } }
++      responses:
++        '200':
++          description: Exact persisted format bytes, with a safe attachment filename. Not an attestation of certification or control effectiveness.
++          headers:
++            Cache-Control: { schema: { type: string, const: no-store } }
++            Content-Disposition: { schema: { type: string } }
++          content:
++            application/json: { schema: { type: string, format: binary } }
++            text/csv: { schema: { type: string, format: binary } }
++            text/plain: { schema: { type: string, format: binary } }
++        '401': { $ref: '#/components/responses/ProductErrorResponse' }
++        default: { $ref: '#/components/responses/ProductErrorResponse' }
+   /api/v1/settings/data-controls:
+     get:
+       operationId: getDataControls
+@@ -3017,6 +3098,8 @@ components:
+       description: Minimum whole seconds before retrying an accepted asynchronous mutation.
+       schema: { type: string, pattern: '^[1-9][0-9]{0,2}$' }
+   parameters:
++    ComplianceFramework: { name: framework, in: query, schema: { type: string, enum: [soc2_security, hipaa] } }
++    ComplianceControlFilter: { name: control_id, in: query, schema: { type: string, minLength: 1, maxLength: 128, pattern: '^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$' } }
+     CSRFToken:
+       name: X-CSRF-Token
+       in: header
+@@ -4066,7 +4149,7 @@ components:
+         confidence: { type: string, enum: [exact, strong, probable, unattributed] }
+         at: { type: string, format: date-time }
+         projected_at: { type: string, format: date-time }
+-    ComplianceExportID: { type: string, minLength: 8, maxLength: 128, pattern: '^export-[a-z0-9][a-z0-9-]*$' }
++    ComplianceExportID: { $ref: '#/components/schemas/ProductID' }
+     SessionEvent:
+       type: object
+       additionalProperties: false
+@@ -4154,17 +4237,67 @@ components:
+         asset_id: { type: string, minLength: 1, maxLength: 128 }
+         source: { type: string, minLength: 1, maxLength: 64 }
+         at: { type: string, format: date-time }
++        target: { $ref: '#/components/schemas/ComplianceEvidenceTarget' }
++        metadata: { $ref: '#/components/schemas/ComplianceEvidenceMetadata' }
++    ComplianceSourceKind: { type: string, enum: [administration, workflow_policy, red_team_mutation, finding, policy, red_team_test, attack_lab_test, configuration] }
++    ComplianceEvidenceTarget:
++      type: object
++      additionalProperties: false
++      required: [source_kind, source_id, source_version]
++      properties:
++        source_kind: { $ref: '#/components/schemas/ComplianceSourceKind' }
++        source_id: { type: string, minLength: 1, maxLength: 128 }
++        source_version: { type: integer, minimum: 1, maximum: 999999999999999 }
++    ComplianceEvidenceMetadata:
++      type: object
++      additionalProperties: false
++      description: Source-specific allowlist. Policy bodies, raw prompts and arbitrary metadata are excluded.
++      properties:
++        action: { type: string, minLength: 1, maxLength: 128 }
++        status: { type: string, enum: [succeeded, rejected, failed, open, under_review, resolved, accepted, pass, fail, engine_error, verified, not_reproduced, inconclusive] }
++        severity: { type: string, enum: [critical, high, medium, low] }
++        evidence_ids: { type: array, maxItems: 64, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
++        verification: { type: string, enum: [definition_only, unverified, configured] }
++        migration_seeded: { type: boolean }
++        definition_id: { $ref: '#/components/schemas/ProductID' }
++        definition_version: { type: integer, minimum: 1, maximum: 1000000 }
++        receipt_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
++        receipt_version: { type: string, minLength: 1, maxLength: 512 }
++        receipt_size: { type: integer, minimum: 1, maximum: 67108864 }
++    ComplianceEvidenceDetail:
++      type: object
++      additionalProperties: false
++      required: [record, freshness, organization_id, workspace_id, environment_id]
++      properties:
++        record: { $ref: '#/components/schemas/EvidenceRecord' }
++        freshness: { type: string, enum: [fresh, stale] }
++        organization_id: { $ref: '#/components/schemas/ProductID' }
++        workspace_id: { $ref: '#/components/schemas/ProductID' }
++        environment_id: { $ref: '#/components/schemas/ProductID' }
+     ComplianceControlPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceControl' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
+     ComplianceEvidencePage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceEvidence' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
+-    ComplianceExportInput: { type: object, additionalProperties: false, required: [id], properties: { id: { $ref: '#/components/schemas/ComplianceExportID' } } }
++    ComplianceExportInput: { type: object, additionalProperties: false, properties: { framework: { type: string, enum: [soc2_security, hipaa] }, control_id: { type: string, minLength: 1, maxLength: 128, pattern: '^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$' } } }
+     ComplianceExport:
+       type: object
+       additionalProperties: false
+-      required: [id, status, formats]
++      required: [id, status, formats, created_at, expires_at, failure_code, mapping_revision]
+       properties:
+         id: { $ref: '#/components/schemas/ComplianceExportID' }
+         status: { type: string, enum: [pending, completed, failed] }
+         formats: { type: array, minItems: 1, maxItems: 3, uniqueItems: true, items: { type: string, enum: [json, csv, human] } }
++        created_at: { type: string, format: date-time }
++        expires_at: { type: string, format: date-time }
++        failure_code: { type: [string, 'null'], enum: [collection_failed, storage_unresolved, authorization_revoked, retrieval_expired, null] }
++        mapping_revision: { type: string, const: product-evidence-v1 }
++    ComplianceDownloadFormat: { type: string, enum: [json, csv, human] }
++    ComplianceDownloadGrant:
++      type: object
++      additionalProperties: false
++      required: [token, format, expires_at]
++      properties:
++        token: { type: string, minLength: 64, maxLength: 64, pattern: '^[a-f0-9]{64}$' }
++        format: { $ref: '#/components/schemas/ComplianceDownloadFormat' }
++        expires_at: { type: string, format: date-time }
+     DataControls:
+       type: object
+       additionalProperties: false
+diff --git a/apps/web/api/generated.ts b/apps/web/api/generated.ts
+index c868250c..c17e92d5 100644
+--- a/apps/web/api/generated.ts
++++ b/apps/web/api/generated.ts
+@@ -645,6 +645,109 @@ export type paths = {
+         readonly patch?: never;
+         readonly trace?: never;
+     };
++    readonly "/api/v1/compliance/evidence/{sourceKind}/{id}": {
++        readonly parameters: {
++            readonly query?: never;
++            readonly header?: never;
++            readonly path: {
++                readonly id: string;
++                readonly sourceKind: components["schemas"]["ComplianceSourceKind"];
++            };
++            readonly cookie?: never;
++        };
++        /** Read the exact current compliance source under selected scope */
++        readonly get: operations["getComplianceEvidence"];
++        readonly put?: never;
++        readonly post?: never;
++        readonly delete?: never;
++        readonly options?: never;
++        readonly head?: never;
++        readonly patch?: never;
++        readonly trace?: never;
++    };
++    readonly "/api/v1/compliance/exports": {
++        readonly parameters: {
++            readonly query?: never;
++            readonly header?: never;
++            readonly path?: never;
++            readonly cookie?: never;
++        };
++        readonly get?: never;
++        readonly put?: never;
++        /**
++         * Queue a durable scoped compliance export
++         * @description Requires current view, view_audit and view_compliance permissions, fresh authentication, same origin and CSRF. IDs are generated by the server. Filters are canonicalized before idempotency hashing.
++         */
++        readonly post: operations["createComplianceExport"];
++        readonly delete?: never;
++        readonly options?: never;
++        readonly head?: never;
++        readonly patch?: never;
++        readonly trace?: never;
++    };
++    readonly "/api/v1/compliance/exports/{id}": {
++        readonly parameters: {
++            readonly query?: never;
++            readonly header?: never;
++            readonly path: {
++                readonly id: components["schemas"]["ComplianceExportID"];
++            };
++            readonly cookie?: never;
++        };
++        /** Read the current authorized compliance export status */
++        readonly get: operations["getComplianceExport"];
++        readonly put?: never;
++        readonly post?: never;
++        readonly delete?: never;
++        readonly options?: never;
++        readonly head?: never;
++        readonly patch?: never;
++        readonly trace?: never;
++    };
++    readonly "/api/v1/compliance/exports/{id}/download": {
++        readonly parameters: {
++            readonly query?: never;
++            readonly header?: never;
++            readonly path: {
++                readonly id: components["schemas"]["ComplianceExportID"];
++            };
++            readonly cookie?: never;
++        };
++        readonly get?: never;
++        readonly put?: never;
++        /**
++         * Download a verified frozen export with a single-use grant
++         * @description Current source permissions and grant/export expiry are checked again after immutable storage verification and before bytes. A lost response requires a newly authorized grant. Human format maps to the internal readable format.
++         */
++        readonly post: operations["downloadComplianceExport"];
++        readonly delete?: never;
++        readonly options?: never;
++        readonly head?: never;
++        readonly patch?: never;
++        readonly trace?: never;
++    };
++    readonly "/api/v1/compliance/exports/{id}/download-grants": {
++        readonly parameters: {
++            readonly query?: never;
++            readonly header?: never;
++            readonly path: {
++                readonly id: components["schemas"]["ComplianceExportID"];
++            };
++            readonly cookie?: never;
++        };
++        readonly get?: never;
++        readonly put?: never;
++        /**
++         * Issue a short-lived single-use download grant
++         * @description The grant binds principal, browser session, selected scope, job and format. Expiry never exceeds export retrieval expiry. Keep the token in memory and send it only in the download body, never in URLs or logs.
++         */
++        readonly post: operations["createComplianceDownloadGrant"];
++        readonly delete?: never;
++        readonly options?: never;
++        readonly head?: never;
++        readonly patch?: never;
++        readonly trace?: never;
++    };
+     readonly "/api/v1/environments": {
+         readonly parameters: {
+             readonly query?: never;
+@@ -2841,6 +2944,14 @@ export type components = {
+             readonly items: readonly components["schemas"]["ComplianceControl"][];
+             readonly page_info: components["schemas"]["PageInfo"];
+         };
++        /** @enum {string} */
++        readonly ComplianceDownloadFormat: "json" | "csv" | "human";
++        readonly ComplianceDownloadGrant: {
++            /** Format: date-time */
++            readonly expires_at: string;
++            readonly format: components["schemas"]["ComplianceDownloadFormat"];
++            readonly token: string;
++        };
+         readonly ComplianceEvidence: {
+             readonly control: components["schemas"]["ComplianceControl"];
+             /** @description One evidence record per keyset-paged item. */
+@@ -2848,20 +2959,62 @@ export type components = {
+             /** @enum {string} */
+             readonly freshness: "fresh" | "stale" | "missing";
+         };
++        readonly ComplianceEvidenceDetail: {
++            readonly environment_id: components["schemas"]["ProductID"];
++            /** @enum {string} */
++            readonly freshness: "fresh" | "stale";
++            readonly organization_id: components["schemas"]["ProductID"];
++            readonly record: components["schemas"]["EvidenceRecord"];
++            readonly workspace_id: components["schemas"]["ProductID"];
++        };
++        /** @description Source-specific allowlist. Policy bodies, raw prompts and arbitrary metadata are excluded. */
++        readonly ComplianceEvidenceMetadata: {
++            readonly action?: string;
++            readonly definition_id?: components["schemas"]["ProductID"];
++            readonly definition_version?: number;
++            readonly evidence_ids?: readonly components["schemas"]["ProductID"][];
++            readonly migration_seeded?: boolean;
++            readonly receipt_sha256?: string;
++            readonly receipt_size?: number;
++            readonly receipt_version?: string;
++            /** @enum {string} */
++            readonly severity?: "critical" | "high" | "medium" | "low";
++            /** @enum {string} */
++            readonly status?: "succeeded" | "rejected" | "failed" | "open" | "under_review" | "resolved" | "accepted" | "pass" | "fail" | "engine_error" | "verified" | "not_reproduced" | "inconclusive";
++            /** @enum {string} */
++            readonly verification?: "definition_only" | "unverified" | "configured";
++        };
+         readonly ComplianceEvidencePage: {
+             readonly items: readonly components["schemas"]["ComplianceEvidence"][];
+             readonly page_info: components["schemas"]["PageInfo"];
+         };
++        readonly ComplianceEvidenceTarget: {
++            readonly source_id: string;
++            readonly source_kind: components["schemas"]["ComplianceSourceKind"];
++            readonly source_version: number;
++        };
+         readonly ComplianceExport: {
++            /** Format: date-time */
++            readonly created_at: string;
++            /** Format: date-time */
++            readonly expires_at: string;
++            /** @enum {string|null} */
++            readonly failure_code: "collection_failed" | "storage_unresolved" | "authorization_revoked" | "retrieval_expired" | null;
+             readonly formats: readonly ("json" | "csv" | "human")[];
+             readonly id: components["schemas"]["ComplianceExportID"];
++            /** @constant */
++            readonly mapping_revision: "product-evidence-v1";
+             /** @enum {string} */
+             readonly status: "pending" | "completed" | "failed";
+         };
+-        readonly ComplianceExportID: string;
++        readonly ComplianceExportID: components["schemas"]["ProductID"];
+         readonly ComplianceExportInput: {
+-            readonly id: components["schemas"]["ComplianceExportID"];
++            readonly control_id?: string;
++            /** @enum {string} */
++            readonly framework?: "soc2_security" | "hipaa";
+         };
++        /** @enum {string} */
++        readonly ComplianceSourceKind: "administration" | "workflow_policy" | "red_team_mutation" | "finding" | "policy" | "red_team_test" | "attack_lab_test" | "configuration";
+         readonly ConnectionDeletion: {
+             readonly audit_correlation_id: components["schemas"]["ProductID"];
+             readonly id: string;
+@@ -2980,7 +3133,9 @@ export type components = {
+             /** Format: date-time */
+             readonly at: string;
+             readonly id: string;
++            readonly metadata?: components["schemas"]["ComplianceEvidenceMetadata"];
+             readonly source: string;
++            readonly target?: components["schemas"]["ComplianceEvidenceTarget"];
+         };
+         readonly ExternalFlow: {
+             readonly categories: readonly ("identity_metadata" | "product_usage" | "redacted_summary" | "remote_telemetry")[];
+@@ -4530,6 +4685,8 @@ export type components = {
+         readonly BrowserMutationCSRFToken: string;
+         /** @description Required for BrowserSession mutations and omitted for ProductAPIToken mutations. The server requires the exact configured same-origin HTTPS origin. */
+         readonly BrowserMutationOrigin: string;
++        readonly ComplianceControlFilter: string;
++        readonly ComplianceFramework: "soc2_security" | "hipaa";
+         /** @description Quoted current execution-control version, including quoted zero before the first tenant override. */
+         readonly ControlVersion: string;
+         /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+@@ -4615,11 +4772,17 @@ export type CapabilityState = components['schemas']['CapabilityState'];
+ export type CollectionFailureCode = components['schemas']['CollectionFailureCode'];
+ export type ComplianceControl = components['schemas']['ComplianceControl'];
+ export type ComplianceControlPage = components['schemas']['ComplianceControlPage'];
++export type ComplianceDownloadFormat = components['schemas']['ComplianceDownloadFormat'];
++export type ComplianceDownloadGrant = components['schemas']['ComplianceDownloadGrant'];
+ export type ComplianceEvidence = components['schemas']['ComplianceEvidence'];
++export type ComplianceEvidenceDetail = components['schemas']['ComplianceEvidenceDetail'];
++export type ComplianceEvidenceMetadata = components['schemas']['ComplianceEvidenceMetadata'];
+ export type ComplianceEvidencePage = components['schemas']['ComplianceEvidencePage'];
++export type ComplianceEvidenceTarget = components['schemas']['ComplianceEvidenceTarget'];
+ export type ComplianceExport = components['schemas']['ComplianceExport'];
+ export type ComplianceExportId = components['schemas']['ComplianceExportID'];
+ export type ComplianceExportInput = components['schemas']['ComplianceExportInput'];
++export type ComplianceSourceKind = components['schemas']['ComplianceSourceKind'];
+ export type ConnectionDeletion = components['schemas']['ConnectionDeletion'];
+ export type ConnectionStatus = components['schemas']['ConnectionStatus'];
+ export type ConnectionTest = components['schemas']['ConnectionTest'];
+@@ -4846,6 +5009,8 @@ export type WorkspacePage = components['schemas']['WorkspacePage'];
+ export type ResponseProductErrorResponse = components['responses']['ProductErrorResponse'];
+ export type ParameterBrowserMutationCsrfToken = components['parameters']['BrowserMutationCSRFToken'];
+ export type ParameterBrowserMutationOrigin = components['parameters']['BrowserMutationOrigin'];
++export type ParameterComplianceControlFilter = components['parameters']['ComplianceControlFilter'];
++export type ParameterComplianceFramework = components['parameters']['ComplianceFramework'];
+ export type ParameterControlVersion = components['parameters']['ControlVersion'];
+ export type ParameterCsrfToken = components['parameters']['CSRFToken'];
+ export type ParameterFreshAuth = components['parameters']['FreshAuth'];
+@@ -6036,8 +6201,10 @@ export interface operations {
+     readonly listComplianceControls: {
+         readonly parameters: {
+             readonly query?: {
++                readonly control_id?: components["parameters"]["ComplianceControlFilter"];
+                 /** @description Opaque cursor returned by the preceding page. */
+                 readonly cursor?: components["parameters"]["PageCursor"];
++                readonly framework?: components["parameters"]["ComplianceFramework"];
+                 /** @description Maximum number of records to return. */
+                 readonly limit?: components["parameters"]["PageLimit"];
+             };
+@@ -6063,8 +6230,10 @@ export interface operations {
+     readonly listComplianceEvidence: {
+         readonly parameters: {
+             readonly query?: {
++                readonly control_id?: components["parameters"]["ComplianceControlFilter"];
+                 /** @description Opaque cursor returned by the preceding page. */
+                 readonly cursor?: components["parameters"]["PageCursor"];
++                readonly framework?: components["parameters"]["ComplianceFramework"];
+                 /** @description Maximum number of records to return. */
+                 readonly limit?: components["parameters"]["PageLimit"];
+             };
+@@ -6087,6 +6256,156 @@ export interface operations {
+             readonly default: components["responses"]["ProductErrorResponse"];
+         };
+     };
++    readonly getComplianceEvidence: {
++        readonly parameters: {
++            readonly query?: {
++                readonly source_version?: number;
++            };
++            readonly header?: never;
++            readonly path: {
++                readonly id: string;
++                readonly sourceKind: components["schemas"]["ComplianceSourceKind"];
++            };
++            readonly cookie?: never;
++        };
++        readonly requestBody?: never;
++        readonly responses: {
++            /** @description Current safe source metadata; source_changed means the linked version changed. */
++            readonly 200: {
++                headers: {
++                    readonly [name: string]: unknown;
++                };
++                content: {
++                    readonly "application/json": components["schemas"]["ComplianceEvidenceDetail"];
++                };
++            };
++            readonly 401: components["responses"]["ProductErrorResponse"];
++            readonly default: components["responses"]["ProductErrorResponse"];
++        };
++    };
++    readonly createComplianceExport: {
++        readonly parameters: {
++            readonly query?: never;
++            readonly header: {
++                readonly "Idempotency-Key": string;
++                readonly "X-CSRF-Token": string;
++            };
++            readonly path?: never;
++            readonly cookie?: never;
++        };
++        readonly requestBody: {
++            readonly content: {
++                readonly "application/json": components["schemas"]["ComplianceExportInput"];
++            };
++        };
++        readonly responses: {
++            /** @description Durable job or idempotent replay. */
++            readonly 201: {
++                headers: {
++                    readonly [name: string]: unknown;
++                };
++                content: {
++                    readonly "application/json": components["schemas"]["ComplianceExport"];
++                };
++            };
++            readonly 401: components["responses"]["ProductErrorResponse"];
++            readonly default: components["responses"]["ProductErrorResponse"];
++        };
++    };
++    readonly getComplianceExport: {
++        readonly parameters: {
++            readonly query?: never;
++            readonly header?: never;
++            readonly path: {
++                readonly id: components["schemas"]["ComplianceExportID"];
++            };
++            readonly cookie?: never;
++        };
++        readonly requestBody?: never;
++        readonly responses: {
++            /** @description Public job without provider coordinates. */
++            readonly 200: {
++                headers: {
++                    readonly [name: string]: unknown;
++                };
++                content: {
++                    readonly "application/json": components["schemas"]["ComplianceExport"];
++                };
++            };
++            readonly 401: components["responses"]["ProductErrorResponse"];
++            readonly default: components["responses"]["ProductErrorResponse"];
++        };
++    };
++    readonly downloadComplianceExport: {
++        readonly parameters: {
++            readonly query?: never;
++            readonly header: {
++                readonly "X-CSRF-Token": string;
++            };
++            readonly path: {
++                readonly id: components["schemas"]["ComplianceExportID"];
++            };
++            readonly cookie?: never;
++        };
++        readonly requestBody: {
++            readonly content: {
++                readonly "application/json": {
++                    readonly format: components["schemas"]["ComplianceDownloadFormat"];
++                    readonly token: string;
++                };
++            };
++        };
++        readonly responses: {
++            /** @description Exact persisted format bytes, with a safe attachment filename. Not an attestation of certification or control effectiveness. */
++            readonly 200: {
++                headers: {
++                    readonly "Cache-Control"?: "no-store";
++                    readonly "Content-Disposition"?: string;
++                    readonly [name: string]: unknown;
++                };
++                content: {
++                    readonly "application/json": string;
++                    readonly "text/csv": string;
++                    readonly "text/plain": string;
++                };
++            };
++            readonly 401: components["responses"]["ProductErrorResponse"];
++            readonly default: components["responses"]["ProductErrorResponse"];
++        };
++    };
++    readonly createComplianceDownloadGrant: {
++        readonly parameters: {
++            readonly query?: never;
++            readonly header: {
++                readonly "X-CSRF-Token": string;
++            };
++            readonly path: {
++                readonly id: components["schemas"]["ComplianceExportID"];
++            };
++            readonly cookie?: never;
++        };
++        readonly requestBody: {
++            readonly content: {
++                readonly "application/json": {
++                    readonly format: components["schemas"]["ComplianceDownloadFormat"];
++                };
++            };
++        };
++        readonly responses: {
++            /** @description Authorized body-only grant. */
++            readonly 201: {
++                headers: {
++                    readonly "Cache-Control"?: "no-store";
++                    readonly [name: string]: unknown;
++                };
++                content: {
++                    readonly "application/json": components["schemas"]["ComplianceDownloadGrant"];
++                };
++            };
++            readonly 401: components["responses"]["ProductErrorResponse"];
++            readonly default: components["responses"]["ProductErrorResponse"];
++        };
++    };
+     readonly listEnvironments: {
+         readonly parameters: {
+             readonly query: {
+diff --git a/docs/product/ui-api-map.yaml b/docs/product/ui-api-map.yaml
+index 39578556..66efa101 100644
+--- a/docs/product/ui-api-map.yaml
++++ b/docs/product/ui-api-map.yaml
+@@ -497,10 +497,19 @@ screens:
+         availability: available
+       - id: create_compliance_export
+         operation_id: createComplianceExport
+-        availability: planned
++        availability: api_available
+       - id: view_compliance_export
+         operation_id: getComplianceExport
+-        availability: planned
++        availability: api_available
++      - id: view_compliance_source
++        operation_id: getComplianceEvidence
++        availability: api_available
++      - id: request_compliance_download
++        operation_id: createComplianceDownloadGrant
++        availability: api_available
++      - id: download_compliance_export
++        operation_id: downloadComplianceExport
++        availability: api_available
+   - id: data_controls
+     label: Data Controls
+     actions:
+diff --git a/services/platform/apiserver/router.go b/services/platform/apiserver/router.go
+index 22d0aee3..30bb1b4e 100644
+--- a/services/platform/apiserver/router.go
++++ b/services/platform/apiserver/router.go
+@@ -254,6 +254,9 @@ func matchSegments(pattern []routeSegment, path []string) (map[string]string, bo
+ }
+ 
+ func validRouteParameters(operationID string, parameters map[string]string) bool {
++	if operationID == "getComplianceEvidence" {
++		return len(parameters) == 2 && validComplianceTarget(ComplianceTarget{SourceKind: parameters["sourceKind"], SourceID: parameters["id"]}, false)
++	}
+ 	if operationID == "getSessionEvent" {
+ 		return len(parameters) == 2 && runtimeSessionTarget(parameters["id"]) && validAdministrationProductID(parameters["eventId"])
+ 	}
+diff --git a/services/platform/migrations/sql/fragments/compliance_jobs.sql b/services/platform/migrations/sql/fragments/compliance_jobs.sql
+index 56e3c9e4..a67e16ed 100644
+--- a/services/platform/migrations/sql/fragments/compliance_jobs.sql
++++ b/services/platform/migrations/sql/fragments/compliance_jobs.sql
+@@ -275,7 +275,7 @@ BEGIN
+  SELECT * INTO j FROM public.zasp_compliance_export_jobs WHERE (organization_id,workspace_id,environment_id,export_id,principal_id)=(org_value,workspace_value,environment_value,id_value,principal_value) FOR UPDATE;
+  stamp:=clock_timestamp();
+  IF NOT FOUND OR j.state<>'completed' OR j.storage_state<>'verified' OR j.retrieval_expires_at<=stamp THEN RAISE EXCEPTION USING ERRCODE='P0002',MESSAGE='compliance export unavailable';END IF;
+- IF NOT COALESCE(token_value~'^[a-f0-9]{64}$' AND format_value IN('json','csv','readable') AND operation_value IN('issue','read','consume'),false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='compliance grant rejected';END IF;
++ IF NOT COALESCE(token_value~'^[a-f0-9]{64}$' AND format_value IN('json','csv','readable') AND operation_value IN('issue','read','consume','integrity_failure'),false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='compliance grant rejected';END IF;
+  IF operation_value='issue' THEN
+   PERFORM public.zasp_compliance_export_identity(org_value,workspace_value,environment_value,principal_value,session_value);
+   stamp:=clock_timestamp();
+@@ -295,9 +295,15 @@ BEGIN
+   ELSE
+    IF g.read_expires_at IS NULL OR g.read_expires_at<=clock_timestamp() THEN RAISE EXCEPTION USING ERRCODE='28000',MESSAGE='compliance read lease expired';END IF;
+    UPDATE public.zasp_compliance_export_grants SET used_at=clock_timestamp(),read_expires_at=NULL WHERE grant_digest=g.grant_digest;
++   IF operation_value='integrity_failure' THEN
++    -- Commit safe bookkeeping; the HTTP caller denies disclosure separately.
++    -- Marking the grant used makes this audit exactly once under replay.
++    INSERT INTO public.zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata,occurred_at)
++    VALUES(org_value,workspace_value,environment_value,'pid_'||gen_random_uuid(),principal_value,'compliance.export.integrity_failed',id_value,'rejected',jsonb_build_object('export_id',id_value,'format',format_value,'reason','artifact_integrity'),clock_timestamp());
++   END IF;
+   END IF;
+  END IF;
+- RETURN CASE WHEN operation_value='read' THEN jsonb_build_object('reference',j.artifact_reference,'version',j.receipt_version,'size',j.artifact_size,'sha256',encode(j.artifact_digest,'hex'),'renderer_revision',j.renderer_revision,'read_expires_at',g.read_expires_at) ELSE jsonb_build_object('expires_at',g.expires_at,'consumed',operation_value='consume') END;
++ RETURN CASE WHEN operation_value='read' THEN jsonb_build_object('reference',j.artifact_reference,'version',j.receipt_version,'size',j.artifact_size,'sha256',encode(j.artifact_digest,'hex'),'renderer_revision',j.renderer_revision,'read_expires_at',g.read_expires_at) ELSE jsonb_build_object('expires_at',g.expires_at,'consumed',operation_value IN('consume','integrity_failure')) END;
+ END $grant$;
+ CREATE FUNCTION public.zasp_compliance_export_cleanup(org_value text,workspace_value text,environment_value text,id_value text,worker_value text,token_value text,generation_value bigint,parameters_value jsonb,expected_checksum text,expected_fingerprint text) RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path TO pg_catalog,public AS $cleanup$
+ DECLARE j public.zasp_compliance_export_jobs%ROWTYPE;audit_value text;
+diff --git a/services/platform/migrations/compliance_release.go b/services/platform/migrations/compliance_release.go
+index 49e8bcaa..e2acb634 100644
+--- a/services/platform/migrations/compliance_release.go
++++ b/services/platform/migrations/compliance_release.go
+@@ -17,7 +17,7 @@ var complianceDownSQL string
+ var complianceJobsSQL string
+ 
+ func ComplianceFingerprint() string {
+-	return "4aeb4f9327a33d76ff828dae7bb9aa44fd33ecc864d9833df6775024ab81a5b4"
++	return "794bd599bc37408e07b0c6238ad10052dbd40458ab24380481cc05caa0698cf9"
+ }
+ 
+ func ProductionCompliance() Metadata {
+diff --git a/apps/web/api/administration-decoders.ts b/apps/web/api/administration-decoders.ts
+index 866db184..e83c8a13 100644
+--- a/apps/web/api/administration-decoders.ts
++++ b/apps/web/api/administration-decoders.ts
+@@ -1,5 +1,6 @@
+ import type { ApiToken, ApiTokenPage, ApiTokenRevealedCredential, ApiTokenRevealGrant, ApiTokenRevealGrantPage, AuditEventPage, BuiltInRolePage, ComplianceControlPage, ComplianceEvidencePage, ConnectionDeletion, ConnectionTest, DataControls, EnvironmentMutation, EnvironmentPage, ExternalFlowPage, GroupMapping, GroupMappingPage, Organization, Principal, PrincipalPage, ScimConnection, ScimConnectionCredential, ScimConnectionPage, Session, ConsoleSessionEventPage as SessionEventPage, ConsoleSessionPage as SessionPage, SsoConnection, SsoConnectionMutation, SsoConnectionPage, SystemComponentPage, SystemStatus, SystemVersion, WorkspaceMutation, WorkspacePage } from "./generated";
+ 
++import { decodeComplianceRecord } from "./compliance-decoders";
+ const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+ const SESSION_ID = /^session-[a-z0-9][a-z0-9-]*$/;
+ const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+@@ -40,7 +41,7 @@ export const decodeSessionPage = (value: unknown) => page<SessionPage>(value, de
+ export const decodeSessionEventPage = (value: unknown) => page<SessionEventPage>(value, (event) => { sessionEvent(event); });
+ 
+ export const decodeComplianceControlPage = (value: unknown) => page<ComplianceControlPage>(value, (item) => { control(item); });
+-export const decodeComplianceEvidencePage = (value: unknown) => page<ComplianceEvidencePage>(value, (item) => { const entry = exact(item, ["control", "freshness", "evidence"]); control(entry.control); one(entry.freshness, ["fresh", "stale", "missing"]); const evidence = list(entry.evidence, 1); if (evidence.length !== 1) bad(); const evidenceRecord = exact(evidence[0], ["id", "asset_id", "source", "at"]); text(evidenceRecord.id, 128); text(evidenceRecord.asset_id, 128); text(evidenceRecord.source, 64); date(evidenceRecord.at); });
++export const decodeComplianceEvidencePage = (value: unknown) => page<ComplianceEvidencePage>(value, (item) => { const entry = exact(item, ["control", "freshness", "evidence"]); control(entry.control); one(entry.freshness, ["fresh", "stale", "missing"]); const evidence = list(entry.evidence, 1); if (evidence.length !== 1) bad(); decodeComplianceRecord(evidence[0]); });
+ export const decodeDataControls = (value: unknown) => decoded<DataControls>(value, ["environment_id", "environment_class", "collection_mode", "retention_days", "deletion_enabled", "version"], (record) => { id(record.environment_id); one(record.environment_class, ["development", "test", "staging", "production"]); one(record.collection_mode, ["metadata_only", "extended"]); integer(record.retention_days, 1, 3650); if (typeof record.deletion_enabled !== "boolean") bad(); version(record.version); }, ["audit_correlation_id"]);
+ export const decodeExternalFlowPage = (value: unknown) => decoded<ExternalFlowPage>(value, ["items"], (record) => { for (const item of list(record.items, 32)) { const entry = exact(item, ["id", "required", "categories", "enabled", "health"]); text(entry.id, 64); if (typeof entry.required !== "boolean" || typeof entry.enabled !== "boolean") bad(); strings(entry.categories, 16); one(entry.health, ["healthy", "degraded", "disabled"]); } });
+ export const decodeAuditEventPage = (value: unknown) => page<AuditEventPage>(value, (item) => decoded(item, ["id", "workspace_id", "environment_id", "actor_id", "action", "target_id", "outcome", "metadata", "occurred_at"], (record) => { id(record.id); id(record.workspace_id); id(record.environment_id); id(record.actor_id); text(record.action, 127); text(record.target_id, 128); one(record.outcome, ["succeeded", "failed", "denied"]); stringRecord(record.metadata, 32); date(record.occurred_at); }));
+diff --git a/apps/web/api/client.ts b/apps/web/api/client.ts
+index 13b81c34..4949add2 100644
+--- a/apps/web/api/client.ts
++++ b/apps/web/api/client.ts
+@@ -111,9 +111,11 @@ export function createAPIClient(options: APIClientOptions = {}) {
+       signal,
+     });
+     try {
++      const download = await complianceDownloadExpectation(securedRequest);
++      throwIfRequestStopped(request.signal, timeout.signal);
+       const response = await configuredFetch(securedRequest);
+ 	  throwIfRequestStopped(request.signal, timeout.signal);
+-	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal);
++	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal, download);
+ 	  throwIfRequestStopped(request.signal, timeout.signal);
+       return response;
+     } catch (error) {
+@@ -157,13 +159,32 @@ function isMutation(method: string): boolean {
+   return method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE";
+ }
+ 
+-async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void, onFreshAuthRequired: () => void, signal: AbortSignal): Promise<void> {
++type ComplianceDownloadExpectation = Readonly<{ id: string; media: string; extension: string }>;
++async function complianceDownloadExpectation(request: Request): Promise<ComplianceDownloadExpectation | undefined> {
++  const url = new URL(request.url);
++  const match = /^\/api\/v1\/compliance\/exports\/(pid_[0-9a-f-]+)\/download$/.exec(url.pathname);
++  if (!match) return;
++  if (request.method !== "POST" || url.search || !PRODUCT_ID.test(match[1])) throw new APITransportError("invalid_configuration", "Invalid compliance download request");
++  const body: unknown = await request.clone().json();
++  if (!body || typeof body !== "object" || Array.isArray(body)) throw new APITransportError("invalid_configuration", "Invalid compliance download request");
++  const v = body as Record<string, unknown>;
++  if (Object.keys(v).length !== 2 || typeof v.token !== "string" || !/^[a-f0-9]{64}$/.test(v.token) || !["json", "csv", "human"].includes(v.format as string)) throw new APITransportError("invalid_configuration", "Invalid compliance download request");
++  return { id: match[1], media: v.format === "human" ? "text/plain" : v.format === "csv" ? "text/csv" : "application/json", extension: v.format === "human" ? "txt" : v.format as string };
++}
++async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void, onFreshAuthRequired: () => void, signal: AbortSignal, download?: ComplianceDownloadExpectation): Promise<void> {
+   if (signal.aborted) throw signal.reason;
+   if (!(response instanceof Response) || response.redirected) {
+     throw new APITransportError("invalid_response", "API returned an invalid response");
+   }
+-  if (response.status === 204 || response.status === 205) return;
++  if (!download && (response.status === 204 || response.status === 205)) return;
+   const contentType = response.headers.get("Content-Type")?.split(";", 1)[0].trim().toLowerCase();
++  if (download && response.ok) {
++    if (response.status !== 200 || contentType !== download.media || response.headers.get("Cache-Control") !== "no-store" || response.headers.get("X-Content-Type-Options") !== "nosniff" || response.headers.get("Content-Disposition") !== `attachment; filename="compliance-${download.id}.${download.extension}"`) throw new APITransportError("invalid_response", "API returned an invalid compliance attachment");
++    const payload = await readBounded(response.clone(), Math.min(maximumBytes, 4 * 1024 * 1024));
++    if (!payload.length) throw new APITransportError("invalid_response", "API returned an empty compliance attachment");
++    if (signal.aborted) throw signal.reason;
++    return;
++  }
+   if (contentType !== "application/json") {
+     throw new APITransportError(response.ok ? "invalid_response" : "invalid_error", "API returned an invalid content type");
+   }
+diff --git a/services/platform/apiserver/compliance_exports_repository.go b/services/platform/apiserver/compliance_exports_repository.go
+index eca3a8dd..37ef671c 100644
+--- a/services/platform/apiserver/compliance_exports_repository.go
++++ b/services/platform/apiserver/compliance_exports_repository.go
+@@ -8,6 +8,7 @@ import (
+ 	"errors"
+ 	"regexp"
+ 	"slices"
++	"strings"
+ 	"time"
+ 
+ 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+@@ -49,6 +50,9 @@ func (r *ComplianceExportsRepository) Create(ctx context.Context, identity Reque
+ 	if !validRequestIdentity(identity, true) || !identity.FreshAuthenticated || !complianceIdempotencyKey.MatchString(key) || request.Framework != "" && !validComplianceFramework(request.Framework) || request.ControlID != "" && !validComplianceControl(request.ControlID, request.Framework) {
+ 		return ComplianceExportJob{}, ErrRepositoryOperation
+ 	}
++	if request.Framework == "" && request.ControlID != "" {
++		request.Framework = strings.Split(request.ControlID, "-")[0]
++	}
+ 	payload, e := json.Marshal(request)
+ 	if e != nil {
+ 		return ComplianceExportJob{}, ErrRepositoryOperation
+@@ -59,7 +63,11 @@ func (r *ComplianceExportsRepository) Get(ctx context.Context, identity RequestI
+ 	if v, e := domain.ParseProductID(id); e != nil || v.IsZero() {
+ 		return ComplianceExportJob{}, ErrRepositoryOperation
+ 	}
+-	return r.job(ctx, identity, digest, postgresComplianceExportGetSQL, id)
++	job, err := r.job(ctx, identity, digest, postgresComplianceExportGetSQL, id)
++	if err == nil && job.ExportID != id {
++		return ComplianceExportJob{}, ErrRepositoryUnavailable
++	}
++	return job, err
+ }
+ func (r *ComplianceExportsRepository) job(ctx context.Context, identity RequestIdentity, digest []byte, query string, values ...any) (ComplianceExportJob, error) {
+ 	if r == nil || r.source == nil || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession || len(digest) != sha256.Size || bytes.Equal(digest, make([]byte, sha256.Size)) {
+diff --git a/openapi/openapi.test.mjs b/openapi/openapi.test.mjs
+index 37f7646d..2f844de4 100644
+--- a/openapi/openapi.test.mjs
++++ b/openapi/openapi.test.mjs
+@@ -104,6 +104,8 @@ function verifyDocument(value, rawText) {
+   });
+ 
+   assert.deepEqual(value.components.parameters, {
++    ComplianceFramework: { name: "framework", in: "query", schema: { type: "string", enum: ["soc2_security", "hipaa"] } },
++    ComplianceControlFilter: { name: "control_id", in: "query", schema: { type: "string", minLength: 1, maxLength: 128, pattern: "^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$" } },
+     SensorEnrollmentSchema: {
+       name: "X-Zasp-Sensor-Enrollment-Schema",
+       in: "header",
+@@ -718,7 +720,7 @@ describe("production workflow concurrency contract", () => {
+         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
+       }
+     }
+-    assert.equal(operations.size, 152);
++    assert.equal(operations.size, 157);
+     for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "getIntegrationSetupStatus", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"]) {
+       assert.ok(operations.has(operationId), operationId);
+     }
+diff --git a/scripts/check-ui-api-coverage.test.mjs b/scripts/check-ui-api-coverage.test.mjs
+index 20d09b15..5aa64d85 100644
+--- a/scripts/check-ui-api-coverage.test.mjs
++++ b/scripts/check-ui-api-coverage.test.mjs
+@@ -51,10 +51,10 @@ function captureStream() {
+ test("current API and planned map passes honestly", async () => {
+   const { map, openapi } = await currentSources();
+   assert.deepEqual(validateCoverage(parseMapSource(map), parseOpenAPISource(openapi)), {
+-    planned: 4,
+-    apiAvailable: 10,
++    planned: 2,
++    apiAvailable: 15,
+     available: 142,
+-    public: 152,
++    public: 157,
+     internal: 0,
+   });
+ });
+@@ -66,9 +66,9 @@ test("all current public operations resolve and deliberate removal fails", async
+   const complete = parseOpenAPISource(futureOpenAPI(operationIDs));
+   assert.deepEqual(validateCoverage(document, complete), {
+     planned: 0,
+-    apiAvailable: 10,
+-    available: 146,
+-    public: 156,
++    apiAvailable: 15,
++    available: 144,
++    public: 159,
+     internal: 0,
+   });
+ 
+@@ -83,10 +83,10 @@ test("unmapped public operations fail while unmapped internal operations pass",
+     .map((action) => action.operation_id);
+   assert.throws(() => validateCoverage(planned, parseOpenAPISource(futureOpenAPI([...apiOperations, "unmappedPublic"]))));
+   assert.deepEqual(validateCoverage(planned, parseOpenAPISource(futureOpenAPI(apiOperations, { internal: ["ingestEvents"] }))), {
+-    planned: 4,
+-    apiAvailable: 10,
++    planned: 2,
++    apiAvailable: 15,
+     available: 142,
+-    public: 152,
++    public: 157,
+     internal: 1,
+   });
+ });
+@@ -113,7 +113,7 @@ test("API-available operations require OpenAPI but do not claim a wired UI", asy
+     .filter((action) => action.availability !== "planned")
+     .map((action) => action.operation_id);
+   const result = validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations)));
+-  assert.deepEqual(result, { planned: 4, apiAvailable: 10, available: 142, public: 152, internal: 0 });
++  assert.deepEqual(result, { planned: 2, apiAvailable: 15, available: 142, public: 157, internal: 0 });
+   assert.throws(() => validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations.slice(1)))));
+ });
+ 
+@@ -173,7 +173,7 @@ test("CLI emits only fixed success or rejection lines", async () => {
+   const successOut = captureStream();
+   const successErr = captureStream();
+   assert.equal(await runMain({ stdout: successOut.stream, stderr: successErr.stream }), 0);
+-  assert.equal(successOut.value(), "UI/API coverage passed: planned=4 api_available=10 available=142 public=152 internal=0.\n");
++  assert.equal(successOut.value(), "UI/API coverage passed: planned=2 api_available=15 available=142 public=157 internal=0.\n");
+   assert.equal(successErr.value(), "");
+ 
+   const failureOut = captureStream();
+diff --git a/services/platform/apiserver/composition_test.go b/services/platform/apiserver/composition_test.go
+index c368ed25..121e6eed 100644
+--- a/services/platform/apiserver/composition_test.go
++++ b/services/platform/apiserver/composition_test.go
+@@ -78,10 +78,10 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
+ 			public[key] = documented.OperationID
+ 		}
+ 	}
+-	if len(seen) != 150 || len(public) != 152 {
+-		t.Fatalf("base/public operation counts = %d/%d, want 150/152", len(seen), len(public))
++	if len(seen) != 150 || len(public) != 157 {
++		t.Fatalf("base/public operation counts = %d/%d, want 150/157", len(seen), len(public))
+ 	}
+-	extended, err := NewCompositionWithAuditExports(auditExportCompositionDependencies(), handlerResponse("export"))
++	extended, err := NewCompositionWithCompliance(auditExportCompositionDependencies(), handlerResponse("export"), handlerResponse("compliance"))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -90,7 +90,7 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
+ 		if public[key] != operation.operationID {
+ 			t.Fatalf("mounted extended route %s does not match published operation", key)
+ 		}
+-		if operation.operationID == "createAuditExport" || operation.operationID == "getAuditExport" {
++		if operation.operationID == "createAuditExport" || operation.operationID == "getAuditExport" || stringIn(operation.operationID, "getComplianceEvidence", "createComplianceExport", "getComplianceExport", "createComplianceDownloadGrant", "downloadComplianceExport") {
+ 			if _, present := seen[key]; present {
+ 				t.Fatal("default router unexpectedly mounted export")
+ 			}
+diff --git a/services/platform/apiserver/compliance_http.go b/services/platform/apiserver/compliance_http.go
+new file mode 100644
+index 00000000..ceab7e96
+--- /dev/null
++++ b/services/platform/apiserver/compliance_http.go
+@@ -0,0 +1,402 @@
++package apiserver
++
++import (
++	"bytes"
++	"context"
++	"crypto/rand"
++	"crypto/sha256"
++	"encoding/base64"
++	"encoding/hex"
++	"encoding/json"
++	"errors"
++	"io"
++	"mime"
++	"net/http"
++	"slices"
++	"strconv"
++	"strings"
++	"time"
++
++	"github.com/zasp-ai/zasp-sec/services/platform/sessioncontrol"
++)
++
++type complianceHTTPHandler struct {
++	source  *ComplianceRepository
++	exports *ComplianceExportsRepository
++	reader  complianceArtifactReader
++}
++
++func compliancePermissions(i RequestIdentity) bool {
++	for _, p := range []string{"view", "view_audit", "view_compliance"} {
++		if !slices.Contains(i.Permissions, p) {
++			return false
++		}
++	}
++	return true
++}
++func (h *complianceHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
++	w.Header().Set("Cache-Control", "no-store")
++	identity, ok := IdentityFromRequest(r)
++	route, routed := RoutedOperationFromRequest(r)
++	credential, browser, auth := requestCredential(r)
++	count := 0
++	for _, cookie := range r.Cookies() {
++		if cookie.Name == browserSessionCookie {
++			count++
++		}
++	}
++	if !ok || !routed || !auth || !browser || count != 1 || identity.CredentialKind != CredentialBrowserSession || !validRequestIdentity(identity, false) {
++		writeComplianceError(w, r, ErrRepositoryAuthentication)
++		return
++	}
++	if !compliancePermissions(identity) {
++		writeComplianceError(w, r, ErrComplianceForbidden)
++		return
++	}
++	digest := sha256.Sum256([]byte(credential.Value))
++	if r.Method == http.MethodGet {
++		h.get(w, r, identity, digest[:], route)
++		return
++	}
++	if r.Method != http.MethodPost || r.URL.RawQuery != "" || len(r.Header.Values("X-CSRF-Token")) != 1 || r.Header.Get("X-CSRF-Token") != identity.CSRFToken {
++		writeComplianceError(w, r, ErrRepositoryOperation)
++		return
++	}
++	body, err := complianceRequestBody(r)
++	if err != nil {
++		writeComplianceError(w, r, err)
++		return
++	}
++	switch route.OperationID {
++	case "createComplianceExport":
++		if !identity.FreshAuthenticated {
++			writeComplianceError(w, r, ErrComplianceForbidden)
++			return
++		}
++		object, valid := complianceClosedObject(body, []string{"framework", "control_id"})
++		var input ComplianceExportRequest
++		if !valid || decodeStrictDiscovery(body, &input) != nil || !complianceFilterFields(object) || len(r.Header.Values("Idempotency-Key")) != 1 {
++			writeComplianceError(w, r, ErrRepositoryOperation)
++			return
++		}
++		// Empty fields and omitted fields have one canonical request digest in SQL.
++		job, err := h.exports.Create(r.Context(), identity, digest[:], r.Header.Get("Idempotency-Key"), input)
++		if err != nil {
++			writeComplianceError(w, r, err)
++			return
++		}
++		writeJSONValue(w, r, http.StatusCreated, compliancePublicJob(job), nil)
++	case "createComplianceDownloadGrant", "downloadComplianceExport":
++		fields := []string{"format"}
++		if route.OperationID == "downloadComplianceExport" {
++			fields = append(fields, "token")
++		}
++		object, err := auditExportClosedObject(body, 1024, fields...)
++		var format, token string
++		if err != nil || json.Unmarshal(object["format"], &format) != nil || !stringIn(format, "json", "csv", "human") || !validProductID(route.PathParameters["id"]) {
++			writeComplianceError(w, r, ErrRepositoryOperation)
++			return
++		}
++		sqlFormat := format
++		if format == "human" {
++			sqlFormat = "readable"
++		}
++		id := route.PathParameters["id"]
++		if route.OperationID == "createComplianceDownloadGrant" {
++			random := make([]byte, 32)
++			if _, err := rand.Read(random); err != nil {
++				writeComplianceError(w, r, ErrRepositoryUnavailable)
++				return
++			}
++			token = hex.EncodeToString(random)
++			grant, err := h.exports.grantAction(r.Context(), identity, digest[:], id, token, sqlFormat, "issue")
++			if err != nil {
++				writeComplianceError(w, r, err)
++				return
++			}
++			writeJSONValue(w, r, http.StatusCreated, map[string]any{"token": token, "format": format, "expires_at": grant.ExpiresAt}, nil)
++			return
++		}
++		if json.Unmarshal(object["token"], &token) != nil || !validExistingTestPublicDigest(token) {
++			writeComplianceError(w, r, ErrRepositoryOperation)
++			return
++		}
++		pin, err := h.exports.readGrant(r.Context(), identity, digest[:], id, token, sqlFormat)
++		if err != nil {
++			writeComplianceError(w, r, err)
++			return
++		}
++		// The same deadline bounds storage and the final database authority check.
++		ctx, cancel := context.WithDeadline(r.Context(), pin.ReadExpiresAt)
++		defer cancel()
++		bytes, err := readComplianceDownload(ctx, h.reader, identity, id, format, pin)
++		if err != nil {
++			// Best effort under the existing request/deadline. A failure never grants
++			// disclosure or extends the durable read lease.
++			_, _ = h.exports.grantAction(ctx, identity, digest[:], id, token, sqlFormat, "integrity_failure")
++			writeComplianceError(w, r, ErrRepositoryUnavailable)
++			return
++		}
++		if _, err = h.exports.grantAction(ctx, identity, digest[:], id, token, sqlFormat, "consume"); err != nil {
++			writeComplianceError(w, r, err)
++			return
++		}
++		if ctx.Err() != nil {
++			writeComplianceError(w, r, ctx.Err())
++			return
++		}
++		media, extension := "application/json", "json"
++		if format == "csv" {
++			media, extension = "text/csv; charset=utf-8", "csv"
++		}
++		if format == "human" {
++			media, extension = "text/plain; charset=utf-8", "txt"
++		}
++		w.Header().Set("Content-Type", media)
++		w.Header().Set("Content-Disposition", `attachment; filename="compliance-`+id+`.`+extension+`"`)
++		w.Header().Set("X-Content-Type-Options", "nosniff")
++		w.WriteHeader(http.StatusOK)
++		_, _ = w.Write(bytes)
++	default:
++		writeComplianceError(w, r, ErrRepositoryNotFound)
++	}
++}
++func complianceFilterFields(o map[string]json.RawMessage) bool {
++	for _, raw := range o {
++		var v string
++		if string(raw) == "null" || json.Unmarshal(raw, &v) != nil {
++			return false
++		}
++	}
++	return true
++}
++func complianceClosedObject(raw []byte, optional []string, required ...string) (map[string]json.RawMessage, bool) {
++	d := json.NewDecoder(bytes.NewReader(raw))
++	start, err := d.Token()
++	if err != nil || start != json.Delim('{') {
++		return nil, false
++	}
++	fields := map[string]json.RawMessage{}
++	for d.More() {
++		token, err := d.Token()
++		key, ok := token.(string)
++		if err != nil || !ok || (!slices.Contains(optional, key) && !slices.Contains(required, key)) || fields[key] != nil {
++			return nil, false
++		}
++		var value json.RawMessage
++		if d.Decode(&value) != nil || bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
++			return nil, false
++		}
++		fields[key] = value
++	}
++	end, err := d.Token()
++	if err != nil || end != json.Delim('}') || d.Decode(&struct{}{}) != io.EOF {
++		return nil, false
++	}
++	for _, key := range required {
++		if fields[key] == nil {
++			return nil, false
++		}
++	}
++	return fields, true
++}
++func complianceRequestBody(r *http.Request) ([]byte, error) {
++	media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
++	if err != nil || media != "application/json" || len(r.Header.Values("Content-Type")) != 1 || r.Body == nil {
++		return nil, ErrRepositoryOperation
++	}
++	b, err := io.ReadAll(io.LimitReader(r.Body, 1025))
++	if err != nil || len(b) > 1024 {
++		return nil, ErrRepositoryOperation
++	}
++	return b, nil
++}
++func (h *complianceHTTPHandler) get(w http.ResponseWriter, r *http.Request, identity RequestIdentity, digest []byte, route RoutedOperation) {
++	if r.Body != nil {
++		body, err := io.ReadAll(io.LimitReader(r.Body, 1))
++		if err != nil || len(body) > 0 {
++			writeComplianceError(w, r, ErrRepositoryOperation)
++			return
++		}
++	}
++	switch route.OperationID {
++	case "getComplianceExport":
++		if r.URL.RawQuery != "" {
++			writeComplianceError(w, r, ErrRepositoryOperation)
++			return
++		}
++		job, err := h.exports.Get(r.Context(), identity, digest, route.PathParameters["id"])
++		if err != nil {
++			writeComplianceError(w, r, err)
++			return
++		}
++		writeJSONValue(w, r, 200, compliancePublicJob(job), nil)
++	case "getComplianceEvidence":
++		query, ok := exactWorkflowQuery(r.URL.RawQuery, map[string]int{"source_version": 15})
++		if !ok {
++			writeComplianceError(w, r, ErrRepositoryOperation)
++			return
++		}
++		target := ComplianceTarget{SourceKind: route.PathParameters["sourceKind"], SourceID: route.PathParameters["id"]}
++		if v := query.Get("source_version"); v != "" {
++			version, err := strconv.ParseInt(v, 10, 64)
++			if err != nil || version < 1 || strconv.FormatInt(version, 10) != v {
++				writeComplianceError(w, r, ErrRepositoryOperation)
++				return
++			}
++			target.SourceVersion = version
++		}
++		value, err := h.source.GetEvidence(r.Context(), identity, digest, target)
++		if err != nil {
++			writeComplianceError(w, r, err)
++			return
++		}
++		writeJSONValue(w, r, 200, map[string]any{"record": compliancePublicRecord(value), "freshness": value.Freshness, "organization_id": value.OrganizationID, "workspace_id": value.WorkspaceID, "environment_id": value.EnvironmentID}, nil)
++	case "listComplianceControls", "listComplianceEvidence":
++		options, err := complianceHTTPListOptions(r, identity, route.OperationID)
++		if err != nil {
++			writeComplianceError(w, r, err)
++			return
++		}
++		if route.OperationID == "listComplianceControls" {
++			page, err := h.source.ListControls(r.Context(), identity, digest, options)
++			if err != nil {
++				writeComplianceError(w, r, err)
++				return
++			}
++			values := make([]any, 0, len(page.Items))
++			for _, c := range page.Items {
++				evidence, err := h.source.ListEvidence(r.Context(), identity, digest, ComplianceListOptions{Framework: c.Framework, ControlID: c.ControlID, Limit: 100})
++				if err != nil {
++					writeComplianceError(w, r, err)
++					return
++				}
++				control := compliancePublicControl(c, evidence.Items)
++				values = append(values, control)
++			}
++			writeJSONValue(w, r, 200, compliancePublicPage(values, page.NextCursor), nil)
++			return
++		}
++		page, err := h.source.ListEvidence(r.Context(), identity, digest, options)
++		if err != nil {
++			writeComplianceError(w, r, err)
++			return
++		}
++		framework := options.Framework
++		if framework == "" && options.ControlID != "" {
++			framework = strings.Split(options.ControlID, "-")[0]
++		}
++		if framework == "" {
++			framework = "soc2_security"
++		}
++		controls, err := h.source.ListControls(r.Context(), identity, digest, ComplianceListOptions{Framework: framework, ControlID: options.ControlID, Limit: 100})
++		if err != nil {
++			writeComplianceError(w, r, err)
++			return
++		}
++		values := make([]any, 0, len(page.Items))
++		for _, v := range page.Items {
++			var matched *ComplianceControl
++			for i := range controls.Items {
++				c := &controls.Items[i]
++				if slices.Contains(c.RequiredSources, v.Source) {
++					matched = c
++					break
++				}
++			}
++			if matched == nil {
++				writeComplianceError(w, r, ErrRepositoryUnavailable)
++				return
++			}
++			values = append(values, map[string]any{"control": compliancePublicControl(*matched, []ComplianceEvidence{v}), "freshness": v.Freshness, "evidence": []any{compliancePublicRecord(v)}})
++		}
++		writeJSONValue(w, r, 200, compliancePublicPage(values, page.NextCursor), nil)
++	default:
++		writeComplianceError(w, r, ErrRepositoryNotFound)
++	}
++}
++func complianceHTTPListOptions(r *http.Request, identity RequestIdentity, operation string) (ComplianceListOptions, error) {
++	q, ok := exactWorkflowQuery(r.URL.RawQuery, map[string]int{"framework": 32, "control_id": 128, "cursor": 5500, "limit": 3})
++	if !ok {
++		return ComplianceListOptions{}, ErrRepositoryOperation
++	}
++	o := ComplianceListOptions{Framework: q.Get("framework"), ControlID: q.Get("control_id")}
++	if text := q.Get("limit"); text != "" {
++		n, err := strconv.Atoi(text)
++		if err != nil || n < 1 || strconv.Itoa(n) != text {
++			return o, ErrRepositoryOperation
++		}
++		o.Limit = n
++	}
++	if text := q.Get("cursor"); text != "" {
++		raw, err := base64.RawURLEncoding.DecodeString(text)
++		if err != nil || base64.RawURLEncoding.EncodeToString(raw) != text {
++			return o, ErrRepositoryOperation
++		}
++		o.Cursor = raw
++	}
++	internal := "listControls"
++	if operation == "listComplianceEvidence" {
++		internal = "listEvidence"
++	}
++	if !validComplianceList(identity, o, internal) {
++		return o, ErrRepositoryOperation
++	}
++	return o, nil
++}
++func compliancePublicControl(c ComplianceControl, records []ComplianceEvidence) sessioncontrol.ComplianceControl {
++	ids := []string{}
++	var until time.Time
++	for _, r := range records {
++		if !slices.Contains(ids, r.ID) {
++			ids = append(ids, r.ID)
++		}
++		stamp, _ := time.Parse(time.RFC3339Nano, r.Timestamp)
++		if r.Metadata.MigrationSeeded == nil || !*r.Metadata.MigrationSeeded {
++			candidate := stamp.Add(time.Duration(c.MaximumAgeSeconds) * time.Second)
++			if candidate.After(until) {
++				until = candidate
++			}
++		}
++	}
++	slices.Sort(ids)
++	if until.IsZero() {
++		until = time.Unix(0, 0).UTC()
++	}
++	return sessioncontrol.ComplianceControl{ID: c.ControlID, Framework: c.Framework, Name: c.Label, EvidenceIDs: ids, FreshUntil: until}
++}
++func compliancePublicRecord(v ComplianceEvidence) map[string]any {
++	raw, _ := json.Marshal(v.Metadata)
++	var metadata map[string]any
++	_ = json.Unmarshal(raw, &metadata)
++	if v.Source == "finding" {
++		ids := v.Metadata.EvidenceIDs
++		if ids == nil {
++			ids = []string{}
++		}
++		metadata["evidence_ids"] = ids
++	}
++	return map[string]any{"id": v.ID, "asset_id": v.Asset, "source": v.Source, "at": v.Timestamp, "target": v.Target, "metadata": metadata}
++}
++func compliancePublicPage(values []any, next json.RawMessage) map[string]any {
++	var cursor any
++	if len(next) > 0 {
++		cursor = base64.RawURLEncoding.EncodeToString(next)
++	}
++	return map[string]any{"items": values, "page_info": map[string]any{"next_cursor": cursor, "has_more": len(next) > 0}}
++}
++func compliancePublicJob(j ComplianceExportJob) map[string]any {
++	return map[string]any{"id": j.ExportID, "status": j.State, "formats": []string{"json", "csv", "human"}, "created_at": j.CreatedAt, "expires_at": j.RetrievalExpiresAt, "failure_code": j.FailureCode, "mapping_revision": j.MappingRevision}
++}
++func writeComplianceError(w http.ResponseWriter, r *http.Request, err error) {
++	switch {
++	case errors.Is(err, ErrComplianceForbidden):
++		writeProductionStatusError(w, r, 403, "forbidden", "Operation forbidden", false)
++	case errors.Is(err, ErrComplianceSourceChanged):
++		writeProductionStatusError(w, r, 409, "source_changed", "Evidence source changed", false)
++	case errors.Is(err, ErrComplianceCapacity):
++		writeProductionStatusError(w, r, 429, "capacity_exhausted", "Compliance export capacity exhausted", true)
++	default:
++		writeProductionError(w, r, err)
++	}
++}
+diff --git a/services/platform/apiserver/compliance_download.go b/services/platform/apiserver/compliance_download.go
+new file mode 100644
+index 00000000..ba78f0e2
+--- /dev/null
++++ b/services/platform/apiserver/compliance_download.go
+@@ -0,0 +1,186 @@
++package apiserver
++
++import (
++	"bytes"
++	"context"
++	"crypto/sha256"
++	"encoding/hex"
++	"encoding/json"
++	"strings"
++	"time"
++	"unicode/utf8"
++
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
++	"github.com/zasp-ai/zasp-sec/services/platform/domain"
++	"github.com/zasp-ai/zasp-sec/services/platform/sessioncontrol"
++)
++
++const postgresComplianceExportGrantSQL = `SELECT public.zasp_compliance_export_grant($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
++const compliancePackageMaximum = 8 << 20
++
++type complianceArtifactReader interface {
++	Get(context.Context, artifactstore.Locator) (artifactstore.Artifact, error)
++}
++type complianceGrantResult struct {
++	ExpiresAt time.Time `json:"expires_at"`
++	Consumed  bool      `json:"consumed"`
++}
++type complianceReadReceipt struct {
++	Reference        string    `json:"reference"`
++	Version          string    `json:"version"`
++	Size             int64     `json:"size"`
++	SHA256           string    `json:"sha256"`
++	RendererRevision string    `json:"renderer_revision"`
++	ReadExpiresAt    time.Time `json:"read_expires_at"`
++}
++
++func (r *ComplianceExportsRepository) grant(ctx context.Context, identity RequestIdentity, digest []byte, id, token, format, operation string) (json.RawMessage, error) {
++	if r == nil || r.source == nil || ctx == nil || !validRequestIdentity(identity, false) || identity.CredentialKind != CredentialBrowserSession || !compliancePermissions(identity) || len(digest) != sha256.Size || bytes.Equal(digest, make([]byte, sha256.Size)) || !validProductID(id) || !validExistingTestPublicDigest(token) || !stringIn(format, "json", "csv", "readable") || !stringIn(operation, "issue", "read", "consume", "integrity_failure") {
++		return nil, ErrRepositoryOperation
++	}
++	if err := ctx.Err(); err != nil {
++		return nil, err
++	}
++	raw, err := r.source.database.QueryJSON(ctx, postgresComplianceExportGrantSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), bytes.Clone(digest), id, token, format, operation, r.source.checksum, r.source.fingerprint)
++	if ctx.Err() != nil {
++		return nil, ctx.Err()
++	}
++	if err != nil {
++		return nil, complianceExportError(err)
++	}
++	return raw, nil
++}
++func (r *ComplianceExportsRepository) grantAction(ctx context.Context, identity RequestIdentity, digest []byte, id, token, format, operation string) (complianceGrantResult, error) {
++	raw, err := r.grant(ctx, identity, digest, id, token, format, operation)
++	if err != nil {
++		return complianceGrantResult{}, err
++	}
++	var result complianceGrantResult
++	if _, err := auditExportClosedObject(raw, 1024, "expires_at", "consumed"); err != nil || json.Unmarshal(raw, &result) != nil || result.ExpiresAt.IsZero() || result.Consumed != (operation == "consume" || operation == "integrity_failure") {
++		return result, ErrRepositoryUnavailable
++	}
++	return result, nil
++}
++func (r *ComplianceExportsRepository) readGrant(ctx context.Context, identity RequestIdentity, digest []byte, id, token, format string) (complianceReadReceipt, error) {
++	raw, err := r.grant(ctx, identity, digest, id, token, format, "read")
++	if err != nil {
++		return complianceReadReceipt{}, err
++	}
++	var result complianceReadReceipt
++	if _, err := auditExportClosedObject(raw, 4096, "reference", "version", "size", "sha256", "renderer_revision", "read_expires_at"); err != nil || json.Unmarshal(raw, &result) != nil || !validProductID(result.Reference) || !complianceVersion(result.Version) || result.Size < 1 || result.Size > compliancePackageMaximum || !validExistingTestPublicDigest(result.SHA256) || result.RendererRevision != "compliance-envelope-v1" || result.ReadExpiresAt.IsZero() {
++		return result, ErrRepositoryUnavailable
++	}
++	return result, nil
++}
++func complianceVersion(v string) bool {
++	return len(v) > 0 && len(v) <= 1024 && strings.IndexFunc(v, func(r rune) bool { return r < 0x21 || r > 0x7e }) < 0
++}
++
++// A persisted v1 package is decoded, never re-rendered. Old renderer bytes are
++// authoritative once their exact immutable receipt has been verified.
++func readComplianceDownload(ctx context.Context, reader complianceArtifactReader, identity RequestIdentity, id, format string, pin complianceReadReceipt) ([]byte, error) {
++	if ctx == nil || ctx.Err() != nil || nilInterface(reader) || !pin.ReadExpiresAt.After(time.Now()) {
++		return nil, ErrRepositoryUnavailable
++	}
++	ref, err := domain.ParseEvidenceRef(pin.Reference)
++	if err != nil {
++		return nil, ErrRepositoryUnavailable
++	}
++	locator := artifactstore.Locator{Scope: identity.Scope, Reference: ref, VersionID: pin.Version}
++	artifact, err := reader.Get(ctx, locator)
++	if err != nil || ctx.Err() != nil || artifact.Locator != locator || artifact.MediaType != "application/json" || artifact.Size != pin.Size || int64(len(artifact.Body)) != pin.Size || len(artifact.Body) > compliancePackageMaximum {
++		return nil, ErrRepositoryUnavailable
++	}
++	actual := sha256.Sum256(artifact.Body)
++	if actual != artifact.SHA256 || hex.EncodeToString(actual[:]) != pin.SHA256 {
++		return nil, ErrRepositoryUnavailable
++	}
++	envelope, err := auditExportClosedObject(artifact.Body, compliancePackageMaximum, "version", "id", "json", "csv", "human")
++	if err != nil {
++		return nil, ErrRepositoryUnavailable
++	}
++	var version int
++	var storedID, csv, human string
++	if json.Unmarshal(envelope["version"], &version) != nil || version != 1 || json.Unmarshal(envelope["id"], &storedID) != nil || storedID != id || json.Unmarshal(envelope["csv"], &csv) != nil || json.Unmarshal(envelope["human"], &human) != nil || csv == "" || human == "" || len(csv) > 4<<20 || len(human) > 4<<20 || !utf8.ValidString(csv) || !utf8.ValidString(human) || len(envelope["json"]) > 4<<20 || !validCompliancePersistedEvidence(envelope["json"], identity) {
++		return nil, ErrRepositoryUnavailable
++	}
++	switch format {
++	case "json":
++		return bytes.Clone(envelope["json"]), nil
++	case "csv":
++		return []byte(csv), nil
++	case "human":
++		return []byte(human), nil
++	}
++	return nil, ErrRepositoryOperation
++}
++
++func validCompliancePersistedEvidence(raw json.RawMessage, identity RequestIdentity) bool {
++	var entries []json.RawMessage
++	if json.Unmarshal(raw, &entries) != nil || entries == nil || len(entries) > 500 {
++		return false
++	}
++	for _, entry := range entries {
++		object, ok := complianceClosedObject(entry, []string{"snapshot_context"}, "control", "evidence", "freshness")
++		if !ok {
++			return false
++		}
++		if _, err := auditExportClosedObject(object["control"], 65536, "id", "framework", "name", "evidence_ids", "fresh_until"); err != nil {
++			return false
++		}
++		var value sessioncontrol.ComplianceEvidence
++		if decodeStrictDiscovery(entry, &value) != nil || !complianceSafeText(value.Control.ID, 128) || !complianceSafeText(value.Control.Framework, 64) || !complianceSafeText(value.Control.Name, 256) || value.Control.FreshUntil.IsZero() || len(value.Control.EvidenceIDs) > 100 || !stringIn(value.Freshness, "fresh", "stale", "missing") || len(value.Evidence) > 100 {
++			return false
++		}
++		if contextRaw, present := object["snapshot_context"]; present {
++			if _, err := auditExportClosedObject(contextRaw, 2048, "organization_id", "workspace_id", "environment_id", "mapping_revision", "snapshot_at"); err != nil {
++				return false
++			}
++			c := value.SnapshotContext
++			if c == nil || c.OrganizationID != identity.Scope.OrganizationID().String() || c.WorkspaceID != identity.Scope.WorkspaceID().String() || c.EnvironmentID != identity.Scope.EnvironmentID().String() || c.MappingRevision != "product-evidence-v1" || c.SnapshotAt.IsZero() {
++				return false
++			}
++		}
++		var records []json.RawMessage
++		if json.Unmarshal(object["evidence"], &records) != nil {
++			return false
++		}
++		for i, record := range records {
++			fields, ok := complianceClosedObject(record, []string{"target", "metadata"}, "id", "asset_id", "source", "at")
++			if !ok {
++				return false
++			}
++			v := value.Evidence[i]
++			if !complianceSafeText(v.ID, 128) || !complianceSafeText(v.AssetID, 128) || !complianceSafeText(v.Source, 64) || v.At.IsZero() {
++				return false
++			}
++			_, hasTarget := fields["target"]
++			_, hasMetadata := fields["metadata"]
++			if hasTarget != hasMetadata {
++				return false
++			}
++			if hasTarget {
++				if _, err := auditExportClosedObject(fields["target"], 1024, "source_kind", "source_id", "source_version"); err != nil || v.Target == nil || v.Metadata == nil {
++					return false
++				}
++				metadata := fields["metadata"]
++				if v.Target.SourceKind == "finding" {
++					m, ok := complianceClosedObject(metadata, []string{"evidence_ids"}, "status", "severity")
++					if !ok {
++						return false
++					}
++					if m["evidence_ids"] == nil {
++						m["evidence_ids"] = json.RawMessage(`[]`)
++					}
++					metadata, _ = json.Marshal(m)
++				}
++				internal := map[string]any{"id": v.ID, "asset": v.AssetID, "source": v.Source, "timestamp": v.At.UTC().Format(time.RFC3339Nano), "organization_id": identity.Scope.OrganizationID().String(), "workspace_id": identity.Scope.WorkspaceID().String(), "environment_id": identity.Scope.EnvironmentID().String(), "target": json.RawMessage(fields["target"]), "freshness": "stale", "metadata": json.RawMessage(metadata)}
++				encoded, _ := json.Marshal(internal)
++				if _, err := decodeComplianceEvidence(encoded, identity); err != nil {
++					return false
++				}
++			}
++		}
++	}
++	return true
++}
+diff --git a/services/platform/apiserver/compliance_production.go b/services/platform/apiserver/compliance_production.go
+new file mode 100644
+index 00000000..5a85945f
+--- /dev/null
++++ b/services/platform/apiserver/compliance_production.go
+@@ -0,0 +1,71 @@
++package apiserver
++
++import (
++	"context"
++	"github.com/aws/aws-sdk-go-v2/service/s3"
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore/s3driver"
++	"net/http"
++	"time"
++)
++
++var complianceOperations = []OperationDefinition{
++	{Method: "GET", Pattern: "/api/v1/compliance/evidence/{sourceKind}/{id}", OperationID: "getComplianceEvidence"},
++	{Method: "POST", Pattern: "/api/v1/compliance/exports", OperationID: "createComplianceExport"},
++	{Method: "GET", Pattern: "/api/v1/compliance/exports/{id}", OperationID: "getComplianceExport"},
++	{Method: "POST", Pattern: "/api/v1/compliance/exports/{id}/download-grants", OperationID: "createComplianceDownloadGrant"},
++	{Method: "POST", Pattern: "/api/v1/compliance/exports/{id}/download", OperationID: "downloadComplianceExport"},
++}
++
++func NewCompositionWithCompliance(dependencies Dependencies, auditExports, compliance http.Handler) (http.Handler, error) {
++	if _, valid := handlerIdentity(compliance); !valid {
++		return nil, ErrInvalidComposition
++	}
++	return newComposition(dependencies, auditExports, compliance)
++}
++
++type ComplianceHandlerConfiguration struct {
++	Bucket              string
++	ExpectedBucketOwner string
++	KMSKeyARN           string
++	Client              s3driver.ExportReadAPI
++	ProviderTimeout     time.Duration
++}
++type ComplianceProductionHandler interface {
++	http.Handler
++	Ready(context.Context) error
++}
++type complianceProductionSurface struct{ *complianceHTTPHandler }
++
++func (s *complianceProductionSurface) Ready(ctx context.Context) error {
++	if s == nil || s.complianceHTTPHandler == nil {
++		return ErrRepositoryUnavailable
++	}
++	return s.source.Ready(ctx)
++}
++
++// This adapter cannot upload or delete. Its credentials are the API's distinct
++// read identity, and every storage coordinate comes from trusted operator pins.
++type complianceReadOnlyAPI struct{ s3driver.ExportReadAPI }
++
++func (complianceReadOnlyAPI) PutObject(context.Context, *s3.PutObjectInput, ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
++	return nil, s3driver.ErrImmutable
++}
++func NewComplianceProductionHandler(ctx context.Context, db JSONDatabase, c ComplianceHandlerConfiguration) (ComplianceProductionHandler, error) {
++	if ctx == nil || ctx.Err() != nil || nilInterface(db) || nilInterface(c.Client) {
++		return nil, ErrRepositoryConfiguration
++	}
++	driver, err := s3driver.NewExport(complianceReadOnlyAPI{c.Client}, s3driver.Config{Bucket: c.Bucket, ExpectedBucketOwner: c.ExpectedBucketOwner, KMSKeyARN: c.KMSKeyARN, MaximumBytes: compliancePackageMaximum})
++	if err != nil {
++		return nil, ErrRepositoryConfiguration
++	}
++	store, err := artifactstore.NewExport(driver, artifactstore.Config{OperationTimeout: c.ProviderTimeout, MaximumBytes: compliancePackageMaximum})
++	if err != nil {
++		return nil, ErrRepositoryConfiguration
++	}
++	source, err := NewComplianceRepository(db)
++	if err != nil || ctx.Err() != nil {
++		return nil, ErrRepositoryConfiguration
++	}
++	return &complianceProductionSurface{&complianceHTTPHandler{source: source, exports: &ComplianceExportsRepository{source: source}, reader: store}}, nil
++}
+diff --git a/services/platform/apiserver/compliance_conflict_test.go b/services/platform/apiserver/compliance_conflict_test.go
+new file mode 100644
+index 00000000..923f717f
+--- /dev/null
++++ b/services/platform/apiserver/compliance_conflict_test.go
+@@ -0,0 +1,25 @@
++package apiserver
++
++import (
++	"errors"
++	"github.com/jackc/pgx/v5/pgconn"
++	"testing"
++)
++
++// Infrastructure contention cannot tell a caller its evidence version changed.
++func TestComplianceConflictClassification(t *testing.T) {
++	for _, tc := range []struct {
++		code, message string
++		changed       bool
++	}{
++		{"40001", "compliance source_changed", true},
++		{"40001", "serialization failure", false},
++		{"40P01", "deadlock detected", false},
++		{"23505", "duplicate key", false},
++	} {
++		err := complianceRepositoryError(classifyPostgresError(&pgconn.PgError{Code: tc.code, Message: tc.message}))
++		if errors.Is(err, ErrComplianceSourceChanged) != tc.changed {
++			t.Errorf("%s/%s: %v", tc.code, tc.message, err)
++		}
++	}
++}
+diff --git a/services/platform/apiserver/compliance_http_test.go b/services/platform/apiserver/compliance_http_test.go
+new file mode 100644
+index 00000000..426d8e02
+--- /dev/null
++++ b/services/platform/apiserver/compliance_http_test.go
+@@ -0,0 +1,254 @@
++package apiserver
++
++import (
++	"bytes"
++	"context"
++	"crypto/sha256"
++	"encoding/hex"
++	"encoding/json"
++	"errors"
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
++	"github.com/zasp-ai/zasp-sec/services/platform/domain"
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"testing"
++	"time"
++)
++
++const complianceHTTPJobID = "pid_10000004-0000-4000-8000-000000000004"
++const complianceHTTPToken = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
++
++type complianceHTTPDatabase struct {
++	t              *testing.T
++	identity       RequestIdentity
++	operations     []string
++	failure        error
++	consumeFailure error
++	grantFormat    string
++	artifact       artifactstore.Artifact
++	readDeadline   time.Time
++	createBody     string
++}
++
++func (d *complianceHTTPDatabase) SchemaVersion(context.Context) (string, error) {
++	return ProductionRecoverySchemaVersion, nil
++}
++func (d *complianceHTTPDatabase) Exec(context.Context, string, ...any) error {
++	return errors.New("unexpected exec")
++}
++func (d *complianceHTTPDatabase) QueryJSON(ctx context.Context, q string, a ...any) (json.RawMessage, error) {
++	if q == postgresComplianceReadySQL {
++		return json.RawMessage(`true`), nil
++	}
++	if len(a) < 5 || a[0] != d.identity.Scope.OrganizationID().String() || a[1] != d.identity.Scope.WorkspaceID().String() || a[2] != d.identity.Scope.EnvironmentID().String() || a[3] != d.identity.PrincipalID.String() {
++		d.t.Fatal("request authority lost")
++	}
++	sum := sha256.Sum256([]byte("compliance-cookie"))
++	if !bytes.Equal(a[4].([]byte), sum[:]) {
++		d.t.Fatal("credential digest lost")
++	}
++	if d.failure != nil {
++		return nil, d.failure
++	}
++	switch q {
++	case postgresComplianceExportCreateSQL, postgresComplianceExportGetSQL:
++		if q == postgresComplianceExportCreateSQL {
++			d.createBody = string(a[6].(json.RawMessage))
++		}
++		d.operations = append(d.operations, "job")
++		return json.Marshal(ComplianceExportJob{ExportID: complianceHTTPJobID, OrganizationID: d.identity.Scope.OrganizationID().String(), WorkspaceID: d.identity.Scope.WorkspaceID().String(), EnvironmentID: d.identity.Scope.EnvironmentID().String(), State: "completed", Phase: "terminal", CreatedAt: time.Now().Add(-time.Hour).UTC(), RetrievalExpiresAt: time.Now().Add(time.Hour).UTC(), MappingRevision: "product-evidence-v1"})
++	case postgresComplianceExportGrantSQL:
++		op := a[8].(string)
++		d.operations = append(d.operations, op)
++		d.grantFormat = a[7].(string)
++		if a[5] != complianceHTTPJobID || len(a[6].(string)) != 64 {
++			d.t.Fatal("grant binding lost")
++		}
++		if op == "consume" && d.consumeFailure != nil {
++			return nil, d.consumeFailure
++		}
++		if op == "read" {
++			return json.Marshal(map[string]any{"reference": d.artifact.Reference.String(), "version": d.artifact.VersionID, "size": d.artifact.Size, "sha256": hex.EncodeToString(d.artifact.SHA256[:]), "renderer_revision": "compliance-envelope-v1", "read_expires_at": d.readDeadline})
++		}
++		return json.Marshal(map[string]any{"expires_at": time.Now().Add(time.Minute).UTC(), "consumed": op == "consume"})
++	case postgresComplianceReadSQL:
++		op := a[5].(string)
++		d.operations = append(d.operations, op)
++		if op == "getEvidence" {
++			return json.RawMessage(compliancePolicyJSON), nil
++		}
++		if op == "listControls" {
++			return json.RawMessage(`{"mapping_revision":"product-evidence-v1","collected_at":"2026-09-18T00:00:00Z","items":[{"framework":"soc2_security","control_id":"soc2_security-policies","label":"Policy definitions","required_sources":["policy"],"maximum_age_seconds":86400,"freshness":"stale"}],"next_cursor":null}`), nil
++		}
++		return json.RawMessage(`{"mapping_revision":"product-evidence-v1","collected_at":"2026-09-18T00:00:00Z","items":[` + compliancePolicyJSON + `],"next_cursor":null}`), nil
++	}
++	return nil, errors.New("unexpected database operation")
++}
++
++type complianceHTTPReader struct {
++	db          *complianceHTTPDatabase
++	tamper      string
++	gotDeadline bool
++}
++
++func (r *complianceHTTPReader) Get(ctx context.Context, l artifactstore.Locator) (artifactstore.Artifact, error) {
++	r.db.operations = append(r.db.operations, "storage")
++	deadline, ok := ctx.Deadline()
++	r.gotDeadline = ok && !deadline.After(r.db.readDeadline)
++	if l != r.db.artifact.Locator {
++		return artifactstore.Artifact{}, errors.New("locator drift")
++	}
++	a := r.db.artifact
++	switch r.tamper {
++	case "bytes":
++		a.Body = []byte(`{}`)
++	case "version":
++		a.VersionID = "other"
++	case "scope":
++		a.Scope = domain.Scope{}
++	case "digest":
++		a.SHA256 = [32]byte{}
++	case "size":
++		a.Size++
++	case "error":
++		return a, errors.New("s3://private-bucket diagnostic")
++	}
++	return a, nil
++}
++func complianceHTTPFixture(t *testing.T) (http.Handler, *complianceHTTPDatabase, *complianceHTTPReader, *RequestIdentity) {
++	t.Helper()
++	identity := fixtureRequestIdentity(t)
++	identity.Permissions = []string{"view", "view_audit", "view_compliance"}
++	identity.FreshAuthenticated = true
++	body := []byte(`{"version":1,"id":"` + complianceHTTPJobID + `","json":[{"control":{"id":"old-control","framework":"SOC 2","name":"Old renderer","evidence_ids":[],"fresh_until":"2025-01-01T00:00:00Z"},"evidence":[],"freshness":"missing"}],"csv":"old,csv\n","human":"Persisted report from an older renderer."}`)
++	ref, _ := domain.ParseEvidenceRef(complianceHTTPJobID)
++	db := &complianceHTTPDatabase{t: t, identity: identity, artifact: artifactstore.Artifact{Locator: artifactstore.Locator{Scope: identity.Scope, Reference: ref, VersionID: "version-1"}, MediaType: "application/json", Body: body, Size: int64(len(body)), SHA256: sha256.Sum256(body)}, readDeadline: time.Now().Add(20 * time.Second).UTC()}
++	source, err := NewComplianceRepository(db)
++	if err != nil {
++		t.Fatal(err)
++	}
++	reader := &complianceHTTPReader{db: db}
++	h := &complianceHTTPHandler{source: source, exports: &ComplianceExportsRepository{source: source}, reader: reader}
++	router, err := NewCompositionWithCompliance(auditExportCompositionDependencies(), nil, h)
++	if err != nil {
++		t.Fatal(err)
++	}
++	mounted, err := NewProductMiddleware(ProductSecurity{PublicOrigin: "https://console.example.test", MaximumBodyBytes: 16384, GenerateCorrelationID: func() string { return testCorrelationID }, Authenticate: func(context.Context, Credential) (RequestIdentity, error) { return identity, nil }}, router)
++	if err != nil {
++		t.Fatal(err)
++	}
++	return mounted, db, reader, &identity
++}
++func complianceHTTPRequest(t *testing.T, h http.Handler, identity RequestIdentity, method, path, body string, change func(*http.Request)) *httptest.ResponseRecorder {
++	t.Helper()
++	r := httptest.NewRequest(method, path, strings.NewReader(body))
++	r.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "compliance-cookie"})
++	r.Header.Set(expectedScopeHeader, expectedScopeValue(identity.Scope))
++	r.Header.Set("Origin", "https://console.example.test")
++	r.Header.Set("X-CSRF-Token", identity.CSRFToken)
++	r.Header.Set("Content-Type", "application/json")
++	r.Header.Set("Idempotency-Key", "compliance-request")
++	if change != nil {
++		change(r)
++	}
++	w := httptest.NewRecorder()
++	h.ServeHTTP(w, r)
++	return w
++}
++func TestComplianceHTTPMountedPublicLifecycle(t *testing.T) {
++	for _, tc := range []struct {
++		method, path, body, want string
++		status                   int
++	}{
++		{"GET", "/api/v1/compliance/controls", "", `"id":"soc2_security-policies"`, 200},
++		{"GET", "/api/v1/compliance/evidence?framework=soc2_security", "", `"asset_id":"policy-001"`, 200},
++		{"GET", "/api/v1/compliance/evidence/policy/policy-001?source_version=7", "", `"source_version":7`, 200},
++		{"POST", "/api/v1/compliance/exports", `{"framework":"soc2_security"}`, `"status":"completed"`, 201},
++		{"GET", "/api/v1/compliance/exports/`ID`", "", `"status":"completed"`, 200},
++		{"POST", "/api/v1/compliance/exports/`ID`/download-grants", `{"format":"human"}`, `"token":`, 201},
++		{"POST", "/api/v1/compliance/exports/`ID`/download", `{"format":"human","token":"` + complianceHTTPToken + `"}`, "Persisted report from an older renderer.", 200},
++	} {
++		t.Run(tc.path, func(t *testing.T) {
++			h, db, reader, id := complianceHTTPFixture(t)
++			w := complianceHTTPRequest(t, h, *id, tc.method, strings.ReplaceAll(tc.path, "`ID`", complianceHTTPJobID), tc.body, nil)
++			if w.Code != tc.status || !strings.Contains(w.Body.String(), tc.want) || w.Header().Get("Cache-Control") != "no-store" {
++				t.Fatalf("status=%d body=%s", w.Code, w.Body)
++			}
++			if strings.Contains(tc.path, "/download") && db.grantFormat != "readable" {
++				t.Fatal("human SQL format drift")
++			}
++			if strings.HasSuffix(tc.path, "/download") && (!reader.gotDeadline || strings.Join(db.operations, ",") != "read,storage,consume" || !strings.Contains(w.Header().Get("Content-Disposition"), ".txt")) {
++				t.Fatalf("download lifecycle %v", db.operations)
++			}
++			if tc.path == "/api/v1/compliance/controls" && strings.Contains(w.Body.String(), `"control":`) {
++				t.Fatal("live controls became export wrapper")
++			}
++		})
++	}
++}
++func TestComplianceHTTPMountedDenials(t *testing.T) {
++	for _, tc := range []struct {
++		name     string
++		change   func(*http.Request)
++		identity func(*RequestIdentity)
++		status   int
++	}{
++		{"origin", func(r *http.Request) { r.Header.Set("Origin", "https://foreign.test") }, nil, 403},
++		{"csrf", func(r *http.Request) { r.Header.Set("X-CSRF-Token", "wrong") }, nil, 403},
++		{"scope", func(r *http.Request) { r.Header.Set(expectedScopeHeader, "foreign") }, nil, 409},
++		{"duplicate-cookie", func(r *http.Request) { r.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "other"}) }, nil, 401},
++		{"fresh", nil, func(i *RequestIdentity) { i.FreshAuthenticated = false; i.FreshAuthExpiresAt = time.Time{} }, 403},
++		{"audit-permission", nil, func(i *RequestIdentity) { i.Permissions = []string{"view", "view_compliance"} }, 403},
++		{"view-permission", nil, func(i *RequestIdentity) { i.Permissions = []string{"view_audit", "view_compliance"} }, 403},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			h, db, _, id := complianceHTTPFixture(t)
++			if tc.identity != nil {
++				tc.identity(id)
++			}
++			w := complianceHTTPRequest(t, h, *id, "POST", "/api/v1/compliance/exports", `{}`, tc.change)
++			if w.Code != tc.status || len(db.operations) != 0 {
++				t.Fatalf("status=%d ops=%v body=%s", w.Code, db.operations, w.Body)
++			}
++		})
++	}
++}
++func TestComplianceHTTPDownloadNoDisclosureBeforeConsume(t *testing.T) {
++	for _, mode := range []string{"bytes", "version", "scope", "digest", "size", "error", "revoked", "expired", "replay"} {
++		t.Run(mode, func(t *testing.T) {
++			h, db, reader, id := complianceHTTPFixture(t)
++			reader.tamper = mode
++			if mode == "revoked" {
++				db.consumeFailure = ErrComplianceForbidden
++			}
++			if mode == "expired" || mode == "replay" {
++				db.consumeFailure = ErrRepositoryAuthentication
++			}
++			w := complianceHTTPRequest(t, h, *id, "POST", "/api/v1/compliance/exports/"+complianceHTTPJobID+"/download", `{"format":"human","token":"`+complianceHTTPToken+`"}`, nil)
++			if w.Code == 200 || strings.Contains(w.Body.String(), "Persisted report") || strings.Contains(w.Body.String(), "private-bucket") || w.Header().Get("Content-Disposition") != "" {
++				t.Fatalf("disclosed %d %s", w.Code, w.Body)
++			}
++			if mode != "revoked" && mode != "expired" && mode != "replay" && strings.Contains(strings.Join(db.operations, ","), "consume") {
++				t.Fatal("invalid artifact consumed")
++			}
++		})
++	}
++}
++func TestComplianceHTTPStrictInputs(t *testing.T) {
++	for _, tc := range []struct{ method, path, body string }{
++		{"GET", "/api/v1/compliance/evidence/policy/policy-001?source_version=7&source_version=8", ""},
++		{"GET", "/api/v1/compliance/evidence/policy/policy-001?organization_id=foreign", ""},
++		{"GET", "/api/v1/compliance/controls?limit=01", ""},
++		{"POST", "/api/v1/compliance/exports", `{"framework":"hipaa","framework":"soc2_security"}`},
++		{"POST", "/api/v1/compliance/exports", `{"id":"` + complianceHTTPJobID + `"}`},
++		{"POST", "/api/v1/compliance/exports/`ID`/download-grants", `{"format":"readable"}`},
++		{"POST", "/api/v1/compliance/exports/`ID`/download?token=secret", `{"format":"json","token":"` + complianceHTTPToken + `"}`},
++	} {
++		h, db, _, id := complianceHTTPFixture(t)
++		w := complianceHTTPRequest(t, h, *id, tc.method, strings.ReplaceAll(tc.path, "`ID`", complianceHTTPJobID), tc.body, nil)
++		if w.Code < 400 || len(db.operations) != 0 {
++			t.Errorf("accepted %s %s: %d %v", tc.path, tc.body, w.Code, db.operations)
++		}
++	}
++}
+diff --git a/services/platform/apiserver/compliance_download_test.go b/services/platform/apiserver/compliance_download_test.go
+new file mode 100644
+index 00000000..71d75479
+--- /dev/null
++++ b/services/platform/apiserver/compliance_download_test.go
+@@ -0,0 +1,62 @@
++package apiserver
++
++import (
++	"context"
++	"crypto/sha256"
++	"encoding/hex"
++	"encoding/json"
++	"github.com/zasp-ai/zasp-sec/services/platform/sessioncontrol"
++	"strings"
++	"testing"
++)
++
++func TestCompliancePersistedAttributionAndHistoricalBytes(t *testing.T) {
++	_, db, reader, id := complianceHTTPFixture(t)
++	original := string(db.artifact.Body)
++	contextJSON := `{"organization_id":"` + id.Scope.OrganizationID().String() + `","workspace_id":"` + id.Scope.WorkspaceID().String() + `","environment_id":"` + id.Scope.EnvironmentID().String() + `","mapping_revision":"product-evidence-v1","snapshot_at":"2026-09-18T00:00:00Z"}`
++	for _, tc := range []struct {
++		name, body string
++		ok         bool
++	}{
++		{"old", original, true},
++		{"context", strings.Replace(original, `"freshness":"missing"`, `"freshness":"missing","snapshot_context":`+contextJSON, 1), true},
++		{"foreign-context", strings.Replace(original, `"freshness":"missing"`, `"freshness":"missing","snapshot_context":`+strings.Replace(contextJSON, id.Scope.EnvironmentID().String(), id.Scope.WorkspaceID().String(), 1), 1), false},
++		{"future-envelope", strings.Replace(original, `"version":1`, `"version":2`, 1), false},
++		{"duplicate", strings.Replace(original, `"version":1`, `"version":1,"version":1`, 1), false},
++		{"foreign-id", strings.Replace(original, complianceHTTPJobID, id.Scope.OrganizationID().String(), 1), false},
++		{"context-null", strings.Replace(original, `"freshness":"missing"`, `"freshness":"missing","snapshot_context":null`, 1), false},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			db.artifact.Body = []byte(tc.body)
++			db.artifact.Size = int64(len(tc.body))
++			db.artifact.SHA256 = sha256.Sum256(db.artifact.Body)
++			pin := complianceReadReceipt{Reference: db.artifact.Reference.String(), Version: db.artifact.VersionID, Size: db.artifact.Size, SHA256: hex.EncodeToString(db.artifact.SHA256[:]), ReadExpiresAt: db.readDeadline}
++			_, err := readComplianceDownload(context.Background(), reader, *id, complianceHTTPJobID, "human", pin)
++			if (err == nil) != tc.ok {
++				t.Fatalf("accepted=%v err=%v", tc.ok, err)
++			}
++		})
++	}
++}
++
++// The formatter omits empty allowlisted evidence_ids on findings. That older
++// persisted representation must remain readable without a renderer comparison.
++func TestCompliancePersistedEmptyFindingReferences(t *testing.T) {
++	identity := fixtureRequestIdentity(t)
++	v := sessioncontrol.ComplianceEvidence{}
++	raw := `{"control":{"id":"c","framework":"SOC 2","name":"Findings","evidence_ids":[],"fresh_until":"2026-09-18T00:00:00Z"},"evidence":[{"id":"` + complianceHTTPJobID + `","asset_id":"` + complianceHTTPJobID + `","source":"finding","at":"2026-09-18T00:00:00Z","target":{"source_kind":"finding","source_id":"` + complianceHTTPJobID + `","source_version":1},"metadata":{"status":"open","severity":"high"}}],"freshness":"fresh"}`
++	if json.Unmarshal([]byte(raw), &v) != nil {
++		t.Fatal("fixture")
++	}
++	if !validCompliancePersistedEvidence([]byte("["+raw+"]"), identity) {
++		t.Fatal("stored empty finding references rejected")
++	}
++	var value ComplianceEvidence
++	_ = json.Unmarshal([]byte(strings.Replace(compliancePolicyJSON, `"source":"policy"`, `"source":"finding"`, 1)), &value)
++	value.Source = "finding"
++	value.Metadata = ComplianceMetadata{Status: "open", Severity: "high", EvidenceIDs: []string{}}
++	encoded, _ := json.Marshal(compliancePublicRecord(value))
++	if !strings.Contains(string(encoded), `"evidence_ids":[]`) {
++		t.Fatal("public empty references lost")
++	}
++}
+diff --git a/services/platform/apiserver/compliance_exports_binding_test.go b/services/platform/apiserver/compliance_exports_binding_test.go
+new file mode 100644
+index 00000000..30cd1498
+--- /dev/null
++++ b/services/platform/apiserver/compliance_exports_binding_test.go
+@@ -0,0 +1,27 @@
++package apiserver
++
++import (
++	"context"
++	"crypto/sha256"
++	"encoding/json"
++	"errors"
++	"testing"
++)
++
++func TestComplianceExportBindsRequestedJobAndCanonicalFilters(t *testing.T) {
++	_, db, _, identity := complianceHTTPFixture(t)
++	r, _ := NewComplianceExportsRepository(db)
++	digest := sha256.Sum256([]byte("compliance-cookie"))
++	if _, err := r.Get(context.Background(), *identity, digest[:], identity.Scope.OrganizationID().String()); !errors.Is(err, ErrRepositoryUnavailable) {
++		t.Errorf("accepted wrong job response %v", err)
++	}
++	canonical := ComplianceExportRequest{ControlID: "hipaa-policies"}
++	if _, err := r.Create(context.Background(), *identity, digest[:], "one", canonical); err != nil {
++		t.Fatal(err)
++	}
++	if db.createBody != `{"framework":"hipaa","control_id":"hipaa-policies"}` {
++		t.Errorf("equivalent filter did not canonicalize: %s", db.createBody)
++	}
++	var value map[string]json.RawMessage
++	_ = json.Unmarshal([]byte(db.createBody), &value)
++}
+diff --git a/services/platform/apiserver/compliance_http_postgres_test.go b/services/platform/apiserver/compliance_http_postgres_test.go
+new file mode 100644
+index 00000000..234c94e0
+--- /dev/null
++++ b/services/platform/apiserver/compliance_http_postgres_test.go
+@@ -0,0 +1,137 @@
++package apiserver
++
++import (
++	"context"
++	"crypto/sha256"
++	"encoding/json"
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
++	"github.com/zasp-ai/zasp-sec/services/platform/domain"
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"testing"
++)
++
++type compliancePGReader struct {
++	artifact  artifactstore.Artifact
++	afterRead func()
++}
++
++func (r *compliancePGReader) Get(ctx context.Context, l artifactstore.Locator) (artifactstore.Artifact, error) {
++	if r.afterRead != nil {
++		r.afterRead()
++	}
++	return r.artifact, nil
++}
++
++// Uses mounted browser middleware, actual session authentication and registered
++// SQL grant authority. Only immutable object storage is replaced.
++func TestComplianceHTTPPostgresGrantLifecycle(t *testing.T) {
++	withComplianceFixFixture(t, func(f *complianceFixFixture) {
++		api := f.connect("security_agent_v33_discovery_api_login")
++		database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: api})
++		if err != nil {
++			t.Fatal(err)
++		}
++		sessions, err := NewPostgresRepository(database)
++		if err != nil {
++			t.Fatal(err)
++		}
++		source, err := NewComplianceRepository(database)
++		if err != nil {
++			t.Fatal(err)
++		}
++		identity, err := sessions.Authenticate(f.ctx, Credential{Kind: CredentialBrowserSession, Value: "compliance-fix-session"})
++		if err != nil {
++			t.Fatal(err)
++		}
++		reader := &compliancePGReader{}
++		handler := &complianceHTTPHandler{source: source, exports: &ComplianceExportsRepository{source: source}, reader: reader}
++		router, err := NewCompositionWithCompliance(auditExportCompositionDependencies(), nil, handler)
++		if err != nil {
++			t.Fatal(err)
++		}
++		mounted, err := NewProductMiddleware(ProductSecurity{PublicOrigin: "https://console.example.test", MaximumBodyBytes: 16384, Authenticate: sessions.Authenticate, GenerateCorrelationID: func() string { return testCorrelationID }}, router)
++		if err != nil {
++			t.Fatal(err)
++		}
++		invoke := func(path, body string) *httptest.ResponseRecorder {
++			return complianceHTTPRequest(t, mounted, identity, "POST", path, body, func(r *http.Request) { r.Header.Set("Cookie", browserSessionCookie+"=compliance-fix-session") })
++		}
++		created := invoke("/api/v1/compliance/exports", `{}`)
++		if created.Code != 201 {
++			t.Fatalf("create %d %s", created.Code, created.Body)
++		}
++		var job struct {
++			ID string `json:"id"`
++		}
++		if json.Unmarshal(created.Body.Bytes(), &job) != nil || job.ID == "" {
++			t.Fatal("missing job")
++		}
++		ref, _ := domain.ParseEvidenceRef(job.ID)
++		body := []byte(`{"version":1,"id":"` + job.ID + `","json":[],"csv":"header\n","human":"Frozen historical report"}`)
++		sum := sha256.Sum256(body)
++		reader.artifact = artifactstore.Artifact{Locator: artifactstore.Locator{Scope: identity.Scope, Reference: ref, VersionID: "frozen-v1"}, MediaType: "application/json", Body: body, Size: int64(len(body)), SHA256: sum}
++		f.exec(`UPDATE zasp_compliance_export_jobs SET state='completed',phase='terminal',storage_state='verified',receipt_version='frozen-v1',artifact_reference=$1,artifact_size=$2,artifact_digest=$3,renderer_revision='compliance-envelope-v1',package=$4,format_sizes='{"json":2,"csv":7,"readable":24}' WHERE export_id=$1`, job.ID, len(body), sum[:], body)
++		path := "/api/v1/compliance/exports/" + job.ID
++		grant := func() string {
++			t.Helper()
++			w := invoke(path+"/download-grants", `{"format":"human"}`)
++			var v struct {
++				Token string `json:"token"`
++			}
++			if w.Code != 201 || json.Unmarshal(w.Body.Bytes(), &v) != nil || len(v.Token) != 64 {
++				t.Fatalf("grant %d %s", w.Code, w.Body)
++			}
++			return v.Token
++		}
++		download := func(token string) *httptest.ResponseRecorder {
++			return invoke(path+"/download", `{"format":"human","token":"`+token+`"}`)
++		}
++		token := grant()
++		w := download(token)
++		if w.Code != 200 || w.Body.String() != "Frozen historical report" {
++			t.Fatalf("download %d %s", w.Code, w.Body)
++		}
++		if w = download(token); w.Code == 200 {
++			t.Fatal("grant replay disclosed")
++		}
++		token = grant()
++		reader.artifact.Body = []byte("tampered")
++		w = download(token)
++		if w.Code != 503 {
++			t.Fatalf("integrity response %d %s", w.Code, w.Body)
++		}
++		var count int
++		var metadata json.RawMessage
++		if err := f.owner.QueryRow(f.ctx, `SELECT count(*),min(metadata::text)::jsonb FROM zasp_admin_audit WHERE action='compliance.export.integrity_failed' AND target_id=$1`, job.ID).Scan(&count, &metadata); err != nil || count != 1 {
++			var raw json.RawMessage
++			diagnostic := api.QueryRow(f.ctx, postgresComplianceExportGrantSQL, complianceOrg, complianceWorkspace, complianceEnvironment, compliancePrincipal, f.digest[:], job.ID, token, "readable", "integrity_failure", source.checksum, source.fingerprint).Scan(&raw)
++			t.Fatalf("denied download audit did not persist count=%d error=%v direct=%v", count, err, diagnostic)
++		}
++		if strings.Contains(string(metadata), token) || strings.Contains(string(metadata), "frozen-v1") || strings.Contains(string(metadata), "reference") {
++			t.Fatal("private grant/storage coordinates in audit")
++		}
++		_ = download(token)
++		if err := f.owner.QueryRow(f.ctx, `SELECT count(*) FROM zasp_admin_audit WHERE action='compliance.export.integrity_failed' AND target_id=$1`, job.ID).Scan(&count); err != nil || count != 1 {
++			t.Fatal("replay duplicated integrity audit")
++		}
++		reader.artifact.Body = body
++		token = grant()
++		reader.afterRead = func() {
++			f.exec(`UPDATE zasp_compliance_export_jobs SET retrieval_expires_at=clock_timestamp()-interval '1 second' WHERE export_id=$1`, job.ID)
++		}
++		w = download(token)
++		if w.Code == 200 || strings.Contains(w.Body.String(), "Frozen") {
++			t.Fatal("grant extended export expiry")
++		}
++		reader.afterRead = nil
++		f.exec(`UPDATE zasp_compliance_export_jobs SET retrieval_expires_at=clock_timestamp()+interval '1 hour' WHERE export_id=$1`, job.ID)
++		token = grant()
++		reader.afterRead = func() { f.exec(`DELETE FROM zasp_authorized_scopes WHERE principal_id=$1`, compliancePrincipal) }
++		w = download(token)
++		if w.Code == 200 {
++			t.Fatal("revoked source authority disclosed")
++		}
++	})
++}
+diff --git a/services/platform/agentsec-api/compliance_config.go b/services/platform/agentsec-api/compliance_config.go
+new file mode 100644
+index 00000000..796f3760
+--- /dev/null
++++ b/services/platform/agentsec-api/compliance_config.go
+@@ -0,0 +1,83 @@
++package main
++
++import (
++	"crypto/tls"
++	"github.com/aws/aws-sdk-go-v2/aws"
++	"github.com/aws/aws-sdk-go-v2/service/sts"
++	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
++	"github.com/zasp-ai/zasp-sec/services/platform/awsclient"
++	platformconfig "github.com/zasp-ai/zasp-sec/services/platform/config"
++	"net"
++	"net/http"
++	"regexp"
++	"strings"
++	"time"
++)
++
++type complianceAPIRuntimeConfig struct{ Bucket, Owner, KMSKey, ReaderRoleARN, TokenFile string }
++
++func loadComplianceAPIConfiguration(lookup func(string) (string, bool)) (*complianceAPIRuntimeConfig, error) {
++	if _, present := lookup("ZASP_COMPLIANCE_EXPORT_ROLE_ARN"); present {
++		return nil, errInvalidRuntimeConfig
++	}
++	keys := []string{"ZASP_COMPLIANCE_EXPORT_BUCKET", "ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER", "ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN", "ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN", "ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE"}
++	values := make([]string, len(keys))
++	present := 0
++	for i, k := range keys {
++		v, ok := lookup(k)
++		if ok {
++			if v == "" {
++				return nil, errInvalidRuntimeConfig
++			}
++			present++
++		}
++		values[i] = v
++	}
++	if present == 0 {
++		return nil, nil
++	}
++	if present != len(keys) {
++		return nil, errInvalidRuntimeConfig
++	}
++	return &complianceAPIRuntimeConfig{values[0], values[1], values[2], values[3], values[4]}, nil
++}
++func validComplianceAPIConfiguration(c RuntimeConfig) bool {
++	p := c.ComplianceExports
++	if p == nil {
++		return true
++	}
++	if !regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`).MatchString(p.Bucket) || !regexp.MustCompile(`^[0-9]{12}$`).MatchString(p.Owner) || !regexp.MustCompile(`^arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`).MatchString(p.KMSKey) || !connectorRolePattern.MatchString(p.ReaderRoleARN) || p.ReaderRoleARN == c.ConnectorRoleARN || c.AuditExports != nil && p.ReaderRoleARN == c.AuditExports.ReaderRoleARN || p.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" {
++		return false
++	}
++	kms := strings.Split(p.KMSKey, ":")
++	role := strings.Split(p.ReaderRoleARN, ":")
++	_, err := platformconfig.ParseAWSRegion(kms[3])
++	return err == nil && kms[4] == p.Owner && len(role) == 6 && role[4] == p.Owner
++}
++
++type complianceStorageResources struct {
++	config      apiserver.ComplianceHandlerConfiguration
++	transport   *http.Transport
++	credentials *connectorWebIdentityProvider
++}
++
++func newComplianceStorageResources(c RuntimeConfig) (complianceStorageResources, error) {
++	if !validRuntimeConfig(c) || c.ComplianceExports == nil {
++		return complianceStorageResources{}, errRuntimeUnavailable
++	}
++	p := c.ComplianceExports
++	region, err := platformconfig.ParseAWSRegion(strings.Split(p.KMSKey, ":")[3])
++	if err != nil {
++		return complianceStorageResources{}, errRuntimeUnavailable
++	}
++	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: c.ProviderTimeout, MaxResponseHeaderBytes: 1 << 20}
++	client := &http.Client{Transport: transport, Timeout: c.ProviderTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
++	base := aws.Config{Region: region.String(), HTTPClient: client, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
++	provider := &connectorWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: p.ReaderRoleARN, tokenFile: p.TokenFile, timeout: c.ProviderTimeout, sessionName: "zasp-api-compliance-read"}
++	clients, err := awsclient.New(awsclient.Options{Mode: awsclient.ModeProduction, Region: region, Credentials: aws.NewCredentialsCache(provider), HTTPClient: client})
++	if err != nil {
++		transport.CloseIdleConnections()
++		return complianceStorageResources{}, errRuntimeUnavailable
++	}
++	return complianceStorageResources{config: apiserver.ComplianceHandlerConfiguration{Bucket: p.Bucket, ExpectedBucketOwner: p.Owner, KMSKeyARN: p.KMSKey, Client: clients.S3(), ProviderTimeout: c.ProviderTimeout}, transport: transport, credentials: provider}, nil
++}
+diff --git a/services/platform/agentsec-api/compliance_config_test.go b/services/platform/agentsec-api/compliance_config_test.go
+new file mode 100644
+index 00000000..63f60504
+--- /dev/null
++++ b/services/platform/agentsec-api/compliance_config_test.go
+@@ -0,0 +1,53 @@
++package main
++
++import (
++	"strings"
++	"testing"
++)
++
++func complianceAPIEnvironment() map[string]string {
++	v := fixtureAuditExportEnvironment()
++	v["ZASP_COMPLIANCE_EXPORT_BUCKET"] = "compliance-exports"
++	v["ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER"] = "123456789012"
++	v["ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN"] = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-4234-8234-123456789012"
++	v["ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN"] = "arn:aws:iam::123456789012:role/compliance-reader"
++	v["ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE"] = "/var/run/secrets/eks.amazonaws.com/serviceaccount/token"
++	return v
++}
++func TestComplianceAPIConfiguration(t *testing.T) {
++	v := complianceAPIEnvironment()
++	load := func() (RuntimeConfig, error) {
++		return loadRuntimeConfigFromEnvironment(func(k string) (string, bool) { s, ok := v[k]; return s, ok })
++	}
++	c, err := load()
++	if err != nil || c.ComplianceExports == nil {
++		t.Fatalf("missing complete read service: %v", err)
++	}
++	resources, err := newComplianceStorageResources(c)
++	if err != nil || resources.transport == nil || resources.config.Client == nil {
++		t.Fatalf("read client: %v", err)
++	}
++	resources.transport.CloseIdleConnections()
++	for _, key := range []string{"ZASP_COMPLIANCE_EXPORT_BUCKET", "ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER", "ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN", "ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN", "ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE"} {
++		old := v[key]
++		delete(v, key)
++		if _, err := load(); err == nil {
++			t.Errorf("partial %s", key)
++		}
++		v[key] = old
++	}
++	v["ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN"] = v["ZASP_AUDIT_EXPORT_READER_ROLE_ARN"]
++	if _, err := load(); err == nil {
++		t.Fatal("shared audit reader identity accepted")
++	}
++	v = complianceAPIEnvironment()
++	v["ZASP_COMPLIANCE_EXPORT_ROLE_ARN"] = "arn:aws:iam::123456789012:role/worker"
++	if _, err := load(); err == nil {
++		t.Fatal("worker authority reached API")
++	}
++	v = complianceAPIEnvironment()
++	v["ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN"] = strings.ReplaceAll(v["ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN"], "123456789012", "987654321098")
++	if _, err := load(); err == nil {
++		t.Fatal("foreign KMS owner accepted")
++	}
++}
+diff --git a/services/platform/agentsec-api/compliance_composition_test.go b/services/platform/agentsec-api/compliance_composition_test.go
+new file mode 100644
+index 00000000..00ec562e
+--- /dev/null
++++ b/services/platform/agentsec-api/compliance_composition_test.go
+@@ -0,0 +1,80 @@
++package main
++
++import (
++	"context"
++	"encoding/json"
++	"net/http/httptest"
++	"strings"
++	"testing"
++)
++
++type complianceRuntimeDatabase struct {
++	auditExportRuntimeDatabase
++	deny bool
++}
++
++func (d *complianceRuntimeDatabase) QueryJSON(ctx context.Context, q string, a ...any) (json.RawMessage, error) {
++	if q == `SELECT to_jsonb(public.zasp_compliance_api_ready($1,$2))` && d.deny {
++		return json.RawMessage(`false`), nil
++	}
++	if strings.HasPrefix(q, `SELECT public.zasp_compliance_read(`) {
++		return json.RawMessage(`{"id":"policy-live","asset":"policy-live","source":"policy","timestamp":"2026-09-18T00:00:00Z","organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","target":{"source_kind":"policy","source_id":"policy-live","source_version":1},"freshness":"fresh","metadata":{"verification":"definition_only"}}`), nil
++	}
++	return d.auditExportRuntimeDatabase.QueryJSON(ctx, q, a...)
++}
++func TestComplianceAPIProductionComposition(t *testing.T) {
++	t.Setenv("HOSTNAME", "compliance-runtime-test")
++	for _, mode := range []string{"installed", "disabled", "unregistered"} {
++		t.Run(mode, func(t *testing.T) {
++			v := complianceAPIEnvironment()
++			c, err := loadRuntimeConfigFromEnvironment(func(k string) (string, bool) { s, ok := v[k]; return s, ok })
++			if err != nil {
++				t.Fatal(err)
++			}
++			if mode == "disabled" {
++				c.ComplianceExports = nil
++			}
++			db := &complianceRuntimeDatabase{auditExportRuntimeDatabase: auditExportRuntimeDatabase{gate: json.RawMessage(`true`), permissions: []string{"view", "view_audit", "view_compliance"}}, deny: mode == "unregistered"}
++			deps, err := composeRuntimeDependenciesWithContext(context.Background(), c, db, db, auditFactoryProvider())
++			defer func() {
++				for _, closer := range deps.Closers {
++					_ = closer.Close()
++				}
++			}()
++			if mode == "unregistered" {
++				if err == nil || deps.ProductHandler != nil {
++					t.Fatal("unregistered compliance mounted")
++				}
++				return
++			}
++			if err != nil {
++				t.Fatal(err)
++			}
++			req := publicPageRuntimeRequest(c, "/api/v1/compliance/evidence/policy/policy-live?source_version=1")
++			w := httptest.NewRecorder()
++			deps.ProductHandler.ServeHTTP(w, req)
++			if mode == "disabled" {
++				if w.Code != 404 {
++					t.Fatalf("disabled route %d", w.Code)
++				}
++				return
++			}
++			if w.Code != 200 || !strings.Contains(w.Body.String(), `"source_id":"policy-live"`) {
++				t.Fatalf("production route %d %s", w.Code, w.Body)
++			}
++			found := false
++			for _, s := range deps.Stores {
++				if s.Name == "aws-s3-compliance-exports" && s.Durable {
++					found = true
++				}
++			}
++			if !found {
++				t.Fatal("missing read storage dependency")
++			}
++			db.deny = true
++			if deps.ReadinessCheck(context.Background()) == nil {
++				t.Fatal("readiness ignored revoked registration")
++			}
++		})
++	}
++}
+diff --git a/apps/web/api/compliance-decoders.ts b/apps/web/api/compliance-decoders.ts
+new file mode 100644
+index 00000000..cdb06ae2
+--- /dev/null
++++ b/apps/web/api/compliance-decoders.ts
+@@ -0,0 +1,57 @@
++import type { ComplianceEvidenceDetail, ComplianceExport, ComplianceDownloadGrant, EvidenceRecord } from "./generated";
++
++const productID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\s\S])/;
++function bad(): never { throw new Error("schema mismatch"); }
++function exact(value: unknown, required: string[], optional: string[] = []): Record<string, unknown> {
++  if (!value || typeof value !== "object" || Array.isArray(value)) bad();
++  const v = value as Record<string, unknown>;
++  if (required.some(k => !Object.hasOwn(v, k)) || Object.keys(v).some(k => !required.includes(k) && !optional.includes(k))) bad();
++  return v;
++}
++function text(value: unknown, max: number): asserts value is string { if (typeof value !== "string" || !value || new TextEncoder().encode(value).length > max || Array.from(value).some(c => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127)) bad(); }
++function id(v: unknown) { if (typeof v !== "string" || !productID.test(v)) bad(); }
++function one(v: unknown, values: readonly unknown[]) { if (!values.includes(v)) bad(); }
++function integer(v: unknown, max = 999999999999999) { if (!Number.isSafeInteger(v) || (v as number) < 1 || (v as number) > max) bad(); }
++function date(v: unknown) {
++  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(v) || !Number.isFinite(Date.parse(v)) || v.startsWith("0001-")) bad();
++  if (new Date(v).toISOString().slice(0, 19) !== v.slice(0, 19)) bad();
++}
++function target(value: unknown) {
++  const t = exact(value, ["source_kind", "source_id", "source_version"]); integer(t.source_version); text(t.source_id, 128);
++  switch (t.source_kind) {
++    case "policy": if (!/^policy-[a-z0-9][a-z0-9-]{0,120}$/.test(t.source_id)) bad(); break;
++    case "administration": case "workflow_policy": case "red_team_mutation": if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(t.source_id) || t.source_version !== 1) bad(); break;
++    case "red_team_test": case "attack_lab_test": integer(t.source_version, 5); id(t.source_id); break;
++    case "finding": case "configuration": id(t.source_id); break;
++    default: bad();
++  }
++  return t;
++}
++export function decodeComplianceRecord(value: unknown, requireTarget = false): EvidenceRecord {
++  const v = exact(value, ["id", "asset_id", "source", "at"], ["target", "metadata"]); text(v.id, 128); text(v.asset_id, 128); text(v.source, 64); date(v.at);
++  if (requireTarget || Object.hasOwn(v, "target") || Object.hasOwn(v, "metadata")) {
++    const t = target(v.target); if (t.source_id !== v.id || v.asset_id !== v.id) bad(); let family: string;
++    switch (t.source_kind) {
++      case "policy": { family = "policy"; const m = exact(v.metadata, ["verification"]); one(m.verification, ["definition_only"]); break; }
++      case "configuration": { family = "configuration"; const m = exact(v.metadata, ["verification", "migration_seeded"]); if (typeof m.migration_seeded !== "boolean" || m.verification !== (m.migration_seeded ? "unverified" : "configured")) bad(); break; }
++      case "finding": { family = "finding"; const m = exact(v.metadata, ["status", "severity", "evidence_ids"]); one(m.status, ["open", "under_review", "resolved", "accepted"]); one(m.severity, ["critical", "high", "medium", "low"]); if (!Array.isArray(m.evidence_ids) || m.evidence_ids.length > 64 || new Set(m.evidence_ids).size !== m.evidence_ids.length) bad(); m.evidence_ids.forEach(id); break; }
++      case "red_team_test": case "attack_lab_test": { family = "test"; const m = exact(v.metadata, ["status", "definition_id", "definition_version", "receipt_sha256", "receipt_version", "receipt_size"]); id(m.definition_id); integer(m.definition_version, 1000000); integer(m.receipt_size, 67108864); text(m.receipt_version, 512); if (typeof m.receipt_sha256 !== "string" || !/^[a-f0-9]{64}$/.test(m.receipt_sha256)) bad(); one(m.status, t.source_kind === "red_team_test" ? ["pass", "fail", "engine_error"] : ["verified", "not_reproduced", "inconclusive"]); break; }
++      default: { family = "audit"; const m = exact(v.metadata, ["action", "status"]); text(m.action, 128); one(m.status, ["succeeded", "rejected", "failed"]); }
++    }
++    if (v.source !== family) bad();
++  }
++  return value as EvidenceRecord;
++}
++export type ComplianceScope = Readonly<{ organization_id: string; workspace_id: string; environment_id: string }>;
++export function decodeComplianceEvidenceDetail(value: unknown, scope: ComplianceScope): ComplianceEvidenceDetail {
++  const v = exact(value, ["record", "freshness", "organization_id", "workspace_id", "environment_id"]);
++  for (const k of ["organization_id", "workspace_id", "environment_id"] as const) { id(v[k]); if (v[k] !== scope[k]) bad(); }
++  const record = decodeComplianceRecord(v.record, true); if (record.target?.source_kind === "configuration" && record.id !== scope.environment_id) bad(); one(v.freshness, ["fresh", "stale"]); return value as ComplianceEvidenceDetail;
++}
++export function decodeComplianceExport(value: unknown): ComplianceExport {
++  const v = exact(value, ["id", "status", "formats", "created_at", "expires_at", "failure_code", "mapping_revision"]); id(v.id); one(v.status, ["pending", "completed", "failed"]); date(v.created_at); date(v.expires_at);
++  if (Date.parse(v.expires_at as string) <= Date.parse(v.created_at as string) || !Array.isArray(v.formats) || v.formats.length !== 3 || new Set(v.formats).size !== 3) bad(); v.formats.forEach(f => one(f, ["json", "csv", "human"])); one(v.mapping_revision, ["product-evidence-v1"]); one(v.failure_code, [null, "collection_failed", "storage_unresolved", "authorization_revoked", "retrieval_expired"]); if (v.status !== "failed" && v.failure_code !== null) bad(); return value as ComplianceExport;
++}
++export function decodeComplianceDownloadGrant(value: unknown): ComplianceDownloadGrant {
++  const v = exact(value, ["token", "format", "expires_at"]); if (typeof v.token !== "string" || !/^[a-f0-9]{64}$/.test(v.token)) bad(); one(v.format, ["json", "csv", "human"]); date(v.expires_at); return value as ComplianceDownloadGrant;
++}
+diff --git a/apps/web/api/compliance-decoders.test.ts b/apps/web/api/compliance-decoders.test.ts
+new file mode 100644
+index 00000000..1dada655
+--- /dev/null
++++ b/apps/web/api/compliance-decoders.test.ts
+@@ -0,0 +1,26 @@
++import { describe, expect, it } from "vitest";
++import { decodeComplianceEvidencePage } from "./administration-decoders";
++import { decodeComplianceEvidenceDetail, decodeComplianceExport, decodeComplianceDownloadGrant } from "./compliance-decoders";
++const scope={organization_id:"pid_10000001-0000-4000-8000-000000000001",workspace_id:"pid_10000002-0000-4000-8000-000000000002",environment_id:"pid_10000003-0000-4000-8000-000000000003"};
++const record={id:"policy-001",asset_id:"policy-001",source:"policy",at:"2026-01-02T00:00:00.000000Z",target:{source_kind:"policy",source_id:"policy-001",source_version:7},metadata:{verification:"definition_only"}};
++const detail={...scope,record,freshness:"stale"};
++describe("compliance current contracts",()=>{
++ it("accepts typed policy sources, preserving old page records",()=>{
++  expect(decodeComplianceEvidenceDetail(detail,scope).record.target?.source_version).toBe(7);
++  const item={control:{id:"soc2_security-policies",framework:"soc2_security",name:"Policy definitions",evidence_ids:["policy-001"],fresh_until:"2026-01-03T00:00:00Z"},freshness:"stale",evidence:[record]};
++  expect(decodeComplianceEvidencePage({items:[item],page_info:{has_more:false,next_cursor:null}}).items[0].evidence[0].target?.source_id).toBe("policy-001");
++ });
++ it("rejects scope changes, untyped detail and source metadata outside its allowlist",()=>{
++  for(const value of [{...detail,environment_id:scope.workspace_id},{...detail,record:{...record,target:undefined}},{...detail,record:{...record,metadata:{verification:"definition_only",prompt:"private"}}},{...detail,record:{...record,target:{...record.target,source_kind:"unknown"}}},{...detail,record:{...record,target:{...record.target,source_id:"policy-other"}}}]) expect(()=>decodeComplianceEvidenceDetail(value,scope)).toThrow();
++ });
++ it("bounds public jobs and body-only download grants",()=>{
++  const job={id:scope.organization_id,status:"pending",formats:["json","csv","human"],created_at:"2026-09-18T00:00:00Z",expires_at:"2026-09-19T00:00:00Z",failure_code:null,mapping_revision:"product-evidence-v1"};
++  expect(decodeComplianceExport(job).status).toBe("pending");
++  for(const value of [{...job,reference:"s3://private"},{...job,id:"export-caller"},{...job,status:"uploading"},{...job,expires_at:job.created_at}])expect(()=>decodeComplianceExport(value)).toThrow();
++  const grant={token:"a".repeat(64),format:"human",expires_at:job.expires_at};expect(decodeComplianceDownloadGrant(grant).format).toBe("human");
++  for(const value of [{...grant,format:"readable"},{...grant,url:"https://private"},{...grant,token:"short"}])expect(()=>decodeComplianceDownloadGrant(value)).toThrow();
++ });
++ it("rejects calendar overflow instead of normalizing source timestamps",()=>{
++  expect(()=>decodeComplianceEvidenceDetail({...detail,record:{...record,at:"2026-02-31T00:00:00Z"}},scope)).toThrow();
++ });
++});
+diff --git a/apps/web/api/compliance-download.test.ts b/apps/web/api/compliance-download.test.ts
+new file mode 100644
+index 00000000..02fff420
+--- /dev/null
++++ b/apps/web/api/compliance-download.test.ts
+@@ -0,0 +1,23 @@
++import { describe, expect, it } from "vitest";
++import { createAPIClient } from "./client";
++const id="pid_10000004-0000-4000-8000-000000000004";
++const scope="pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
++describe("compliance download transport",()=>{
++ it("accepts bounded verified attachments with grants only in POST bodies",async()=>{
++  let observed:Request|undefined;
++  const client=createAPIClient({getCSRFToken:()=>"c".repeat(32),getExpectedScope:()=>scope,fetch:async request=>{observed=request;return new Response("frozen report",{headers:{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store","Content-Disposition":`attachment; filename="compliance-${id}.txt"`,"X-Content-Type-Options":"nosniff"}})}});
++  const response=await client.POST("/api/v1/compliance/exports/{id}/download",{params:{path:{id},header:{"X-CSRF-Token":"c".repeat(32)}},body:{format:"human",token:"a".repeat(64)},parseAs:"blob"});
++  expect(await (response.data as unknown as Blob).text()).toBe("frozen report");expect(observed?.url).not.toContain("a".repeat(64));expect(observed?.url).not.toContain("?");expect(await observed?.json()).toEqual({format:"human",token:"a".repeat(64)});
++ });
++ it("rejects empty successful download responses",async()=>{
++  const client=createAPIClient({getCSRFToken:()=>"c".repeat(32),getExpectedScope:()=>scope,fetch:async()=>new Response(null,{status:204})});
++  await expect(client.POST("/api/v1/compliance/exports/{id}/download",{params:{path:{id},header:{"X-CSRF-Token":"c".repeat(32)}},body:{format:"human",token:"a".repeat(64)},parseAs:"blob"})).rejects.toThrow();
++ });
++ it("rejects wrong filenames, cacheability and non-download text success",async()=>{
++  for(const headers of [{"Content-Type":"text/plain","Cache-Control":"public","Content-Disposition":`attachment; filename="compliance-${id}.txt"`},{"Content-Type":"text/plain","Cache-Control":"no-store","Content-Disposition":"attachment; filename=../../secret.txt"}]){
++   const client=createAPIClient({getCSRFToken:()=>"c".repeat(32),getExpectedScope:()=>scope,fetch:async()=>new Response("report",{headers})});
++   await expect(client.POST("/api/v1/compliance/exports/{id}/download",{params:{path:{id},header:{"X-CSRF-Token":"c".repeat(32)}},body:{format:"human",token:"a".repeat(64)},parseAs:"blob"})).rejects.toThrow();
++   await expect(client.GET("/api/v1/compliance/controls")).rejects.toThrow();
++  }
++ });
++});

@@ -22,7 +22,7 @@ docker build --pull -f deploy/production/web.Dockerfile -t "$WEB_IMAGE" .
 npm run production:release:gate
 ```
 
-The required CI gate scans all tracked Git history with the pinned Gitleaks version, produces and license-checks npm and shipped Go-package SPDX inventories, audits locked dependencies offline, and checks every Docker `FROM` by exact manifest digest. The release system must additionally create an SPDX SBOM for each built image, scan both built image digests, reject critical/high findings without an approved exception, sign the digests, and retain provenance. The repository gate does not claim that an unbuilt image was scanned.
+The required CI gate scans all tracked Git history with the pinned Gitleaks version, produces and license-checks npm and shipped Go-package SPDX inventories, and checks every Docker `FROM` by exact manifest digest. Offline dependency counters are not advisory clearance: publication currently fails closed until an approved source supplies fresh exact-lock audit evidence. The release system must also create an SPDX SBOM for each built image, scan the built image digests, reject critical/high findings without an approved exception, sign the digests, and retain provenance. The repository gate does not claim that an unbuilt image was scanned.
 
 ## Configure
 
@@ -37,6 +37,35 @@ The release renderer accepts these exact `schema.expectedVersion` and `runtime.s
 | 50 | `query` | Keep both index workers; API selects target v2 |
 | 51 | `precision-consumers` | Dual-schema outbox/coordinator, archive v2, correlation v4, projection/completion v3 and side index v2; intake stays v1 |
 | 51 | `precision-intake` | Same consumers, images and resources as `precision-consumers`; only intake changes to v2 |
+| 52 or 53 | `precision-consumers` or `precision-intake` | Preserve the selected precision phase; schema52 adds audit-export authority and schema53 adds durable Security Agent budgets. Export workloads remain explicitly opt-in. |
+| 54 | `precision-consumers` or `precision-intake` | Preserve the selected phase and audit-export opt-in; add scoped Security Agent trigger/rationale projection and application-pinned54 readiness. |
+
+Schemas52,53 and54 require explicit `up-to-52`, `up-to-53` or `up-to-54` migration targets.
+When audit exports are enabled, the hook runs the selected target, registers
+the configured discovery API login for export capability, registers the two
+export worker logins, then configures the selected policy with its
+expected predecessor. Every step must succeed. The rendered API and export
+worker schema annotations must match that target. The default remains49;
+Schemas53 and54 accept only the two precision phases and do not change intake
+selection implicitly.
+
+This manifest support is not live rollout authorization. Verify compatible
+worker/API images, registered identities, compiled readiness and retained-work
+rollback gates before applying53 or54. Audit-export API capability registration is
+a separate gate: worker registration and policy configuration do not grant API
+access. The explicit `register-audit-export-api` command reads
+`ZASP_DISCOVERY_API_DB_PRINCIPAL`; it must be an existing, separately registered
+discovery API login. The command creates no login and adds no role grants.
+The Runner binds exact compiled52/53/54 release readiness before and after SQL
+authorization. Missing or rejected registration stops the hook. Do not work
+around refusal with broader roles. Paid planner dispatch also requires verified cost
+authority; a schema upgrade does not supply pricing or a tenant budget.
+
+Schema54 exposes optional run context only for an exact `X-Zasp-Run-Context: v1`
+request. Older response shapes remain unchanged. Use matching reviewed API,
+worker and migration images; registered consumer and manifest tests do not prove
+that every historical binary is safe on54, or that a live rollout is complete.
+Run-context summaries are server-redacted explanations, not authorization.
 
 Complete and verify the schema-50 query cutover before entering either schema-51 phase. Installing schema 51 itself routes newly first-committed OTLP `runtime-event-v1` batches to archive/index/correlation/projection/completion versions `1/1/3/2/2`, even while intake stays v1. Previously accepted tuples stay unchanged. Old correlation/projection/completion readers leave that new semantic work queued until the superset readers are ready; the migration hook is not a zero-downtime guarantee.
 
@@ -53,6 +82,34 @@ helm lint deploy/staging/product -f deploy/staging/product/values-saas.yaml -f r
 helm template zasp deploy/staging/product --namespace agentsec -f deploy/staging/product/values-saas.yaml -f release-values.yaml > rendered-release.yaml
 helm upgrade --install zasp deploy/staging/product --namespace agentsec --create-namespace --atomic --timeout 15m -f deploy/staging/product/values-saas.yaml -f release-values.yaml
 ```
+
+The schema-60 automatic-discovery schedule/replay release is the exception to
+the direct `helm upgrade` command above. Do not apply schema 59 or 60 directly.
+Use the guarded transition below after separately reviewing both rendered
+manifests and recording the immutable scheduler image and namespace UID:
+
+```sh
+node deploy/production/discovery-schema60-transition.mjs \
+  --kubeconfig /absolute/path/to/kubeconfig \
+  --context production \
+  --namespace agentsec \
+  --namespace-uid recorded-namespace-uid \
+  --release zasp \
+  --chart "$PWD/deploy/staging/product" \
+  --values "$PWD/deploy/staging/product/values-saas.yaml" \
+  --values /absolute/path/to/release-values.yaml \
+  --scheduler-image registry.example/agentsec-worker@sha256:reviewed-digest
+```
+
+The command performs two atomic Helm applications. It first installs the
+schema-59 maintenance phase and then reads the live cluster. It refuses to
+continue unless the namespace identity is unchanged, the scheduler Deployment
+is observed at zero replicas on schema 59 with the reviewed digest, every
+scheduler pod (including terminating pods) is absent, and the scheduler HPA is
+absent. Only then does it apply schema 60. It finishes by requiring two ready
+schema-60 scheduler pods running that digest and the restored HPA. Any rejected
+observation stops the transition before the next phase. Do not bypass this
+guard after a failure; investigate the live state and rerun the entire command.
 
 ### Configure Generic Webhook
 

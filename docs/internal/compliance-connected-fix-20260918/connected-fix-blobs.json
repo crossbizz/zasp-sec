@@ -1,0 +1,77 @@
+[
+  {
+    "file": "services/platform/migrations/sql/fragments/compliance_jobs.sql",
+    "before": "a67e16edf00fa819fd8dbdfa78da85f125a202f7",
+    "after": "e96bd62ad561464a6293c0ad57d79510c5dc3ce8"
+  },
+  {
+    "file": "services/platform/migrations/compliance_release.go",
+    "before": "5210efaf4bd926194471c9765a08beb0437cfe11",
+    "after": "b8f6d44f9f6b5dd244012c0706442d4f1cb7f04a"
+  },
+  {
+    "file": "services/platform/migrations/sql/0056_production_compliance.up.sql",
+    "before": "5cef6f19e09e6c882c6dc1237b56bf48bb700261",
+    "after": "5cef6f19e09e6c882c6dc1237b56bf48bb700261"
+  },
+  {
+    "file": "services/platform/migrations/sql/0056_production_compliance.down.sql",
+    "before": "4f849ace1c181e4c57904486bdded410119dcc2a",
+    "after": "4f849ace1c181e4c57904486bdded410119dcc2a"
+  },
+  {
+    "file": "services/platform/apiserver/compliance_connected_postgres_test.go",
+    "before": null,
+    "after": "359f3d19edf330e9cc771e20a3d0177dd88c2be7"
+  },
+  {
+    "file": "services/platform/apiserver/compliance_http.go",
+    "before": "f90b747b577d331e5364ffa4cd32fab316a96496",
+    "after": "273331d3e3445207072dc46b0d72316cdb196b16"
+  },
+  {
+    "file": "app/features/sessions/SessionsComplianceView.tsx",
+    "before": "34283ba4c02674eb7a66b6d5777ad03090de91c3",
+    "after": "b6fcf29d373e055a4ec24f82bc3a1f2550843fdf"
+  },
+  {
+    "file": "app/features/sessions/SessionsComplianceView.test.tsx",
+    "before": "b545865a84fc254347f8402f150027782c03b11c",
+    "after": "0f13c934c12b9e5d08a16b152afc3ca8b3e265b0"
+  },
+  {
+    "file": "apps/web/api/administration-decoders.ts",
+    "before": "9b6ce1c2df22b79c0f93b3f894c6786910c5d632",
+    "after": "565734ab278055e0297ff496e40d8874bba03954"
+  },
+  {
+    "file": "apps/web/api/compliance-decoders.test.ts",
+    "before": "1a55ab0eb98531c00ca97bd36ec9926b18ca3cbe",
+    "after": "b4e2640290ff5b4e78f27e598eb2580201b2acd0"
+  },
+  {
+    "file": "openapi/openapi.yaml",
+    "before": "667965a82f9a3215925e838a2dd12d88b0f1552f",
+    "after": "97d7cfa96ffb43c475cda523f50e455236d88071"
+  },
+  {
+    "file": "apps/web/api/generated.ts",
+    "before": "27708f7d6a68571120472ee6480f11d36d42d88e",
+    "after": "7668a3f638f996b796a59de4efe0f0fc757d6ace"
+  },
+  {
+    "file": "scripts/production-combined-e2e.mjs",
+    "before": "190bcfeb832524582f122e28abf3c51a64fbb74e",
+    "after": "59fda9d9657bb31ed997760ad17581c5e30d18ae"
+  },
+  {
+    "file": "openapi/openapi.test.mjs",
+    "before": "2f844de41809a7ed637420ee4b94b1a526a71cf0",
+    "after": "6019b51fe17ab71906a78a899081b94426bfece1"
+  },
+  {
+    "file": "app/quality/runnable-ui-workflow.test.ts",
+    "before": "6a46a5eb73b89a56182508ef7db67d37a69f7c44",
+    "after": "f2612eadcb4b33be34c358f75e4ae953cd32d7d9"
+  }
+]

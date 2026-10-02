@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 const (
@@ -17,6 +18,8 @@ const (
 	postgresWorkflowReplaySQL             = `SELECT zasp_workflow_replay($1, $2, $3, $4, $5, $6, $7::jsonb)`
 	postgresWorkflowMutateSQL             = `SELECT zasp_workflow_mutate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14, $15)`
 	postgresConnectorWorkflowMutateSQL    = `SELECT zasp_connector_workflow_mutate($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb, $13, $14, $15)`
+	postgresCurrentIntegrationMutateSQL   = `SELECT zasp_authorization80.integration_mutate($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14,$15)`
+	postgresCurrentIntegrationValueSQL    = `SELECT zasp_authorization80.integration_value($1,$2,$3,$4)`
 	postgresWorkflowReceiptListSQL        = `SELECT zasp_workflow_receipt_list($1, $2, $3, $4, $5)`
 	postgresWorkflowReceiptAcknowledgeSQL = `SELECT zasp_workflow_receipt_acknowledge($1, $2, $3, $4, $5)`
 	postgresWorkflowReceiptCleanupSQL     = `SELECT zasp_workflow_receipt_cleanup($1)`
@@ -82,7 +85,7 @@ func (repository *PostgresRepository) ListWorkflows(ctx context.Context, scope d
 	if repository == nil || nilInterface(repository.database) || ctx == nil || scope.Validate() != nil || !validWorkflowKind(kind) || !validParentFilter(parentField, parentID) {
 		return nil, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowListSQL, kind, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), parentField, parentID)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresWorkflowListSQL, `SELECT zasp_authorization80.workflow_list($1,$2,$3,$4,NULLIF($5,''),NULLIF($6,''))`), kind, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), parentField, parentID)
 	return validWorkflowPage(payload, err)
 }
 
@@ -90,7 +93,7 @@ func (repository *PostgresRepository) ListWorkflowPage(ctx context.Context, scop
 	if repository == nil || nilInterface(repository.database) || ctx == nil || scope.Validate() != nil || !validWorkflowKind(kind) || limit < 1 || limit > 100 || afterID != "" && !validWorkflowID(kind, afterID) {
 		return WorkflowListPage{}, ErrRepositoryOperation
 	}
-	statement := postgresWorkflowPageSQL
+	statement := authorizationReadStatement(ctx, postgresWorkflowPageSQL, `SELECT zasp_authorization80.workflow_page($1,$2,$3,$4,NULLIF($5,''),$6)`)
 	arguments := []any{kind, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), afterID, limit}
 	if repository.securityAgentExecution {
 		if kind != "security_agent" {
@@ -103,6 +106,10 @@ func (repository *PostgresRepository) ListWorkflowPage(ctx context.Context, scop
 	if err != nil {
 		return WorkflowListPage{}, err
 	}
+	return decodeWorkflowListPage(payload, kind, limit)
+}
+
+func decodeWorkflowListPage(payload json.RawMessage, kind string, limit int) (WorkflowListPage, error) {
 	var raw map[string]json.RawMessage
 	var envelope struct {
 		Items  []json.RawMessage `json:"items"`
@@ -132,6 +139,18 @@ func (repository *PostgresRepository) GetWorkflow(ctx context.Context, scope dom
 	}
 	statement := postgresWorkflowGetSQL
 	arguments := []any{kind, id, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()}
+	if grant, checked := requestAuthorizationFromContext(ctx); checked && kind == "integration" && grant.OperationID == "updateIntegration" {
+		statement = `SELECT zasp_authorization80.integration_update_value($1,$2,$3,$4)`
+		arguments = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id}
+	}
+	if grant, checked := requestAuthorizationFromContext(ctx); checked && kind == "integration" && grant.OperationID == "getIntegration" {
+		statement = postgresCurrentIntegrationValueSQL
+		arguments = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id}
+	}
+	if grant, checked := requestAuthorizationFromContext(ctx); checked && kind == "integration" && grant.OperationID == "authorizeIntegrationReference" {
+		statement = postgresCurrentReferenceValueSQL
+		arguments = []any{scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id}
+	}
 	if repository.securityAgentExecution {
 		if kind != "security_agent" {
 			return WorkflowValue{}, ErrRepositoryOperation
@@ -141,8 +160,15 @@ func (repository *PostgresRepository) GetWorkflow(ctx context.Context, scope dom
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, arguments...)
 	if err != nil {
+		if statement == `SELECT zasp_authorization80.integration_update_value($1,$2,$3,$4)` || statement == postgresCurrentReferenceValueSQL {
+			err = currentIntegrationPreparationError(err)
+		}
 		return WorkflowValue{}, err
 	}
+	return decodeWorkflowValue(payload)
+}
+
+func decodeWorkflowValue(payload json.RawMessage) (WorkflowValue, error) {
 	var value WorkflowValue
 	if json.Unmarshal(payload, &value) != nil || value.Version < 1 || value.SecretGeneration < 0 || !validJSONObjectBody(value.Body) {
 		return WorkflowValue{}, ErrRepositoryUnavailable
@@ -154,7 +180,14 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !validWorkflowMutation(mutation) || !validMutationReceiptIdentity(identity, mutation.ReceiptID) {
 		return WorkflowMutationResult{}, ErrRepositoryOperation
 	}
+	if mutation.Kind == "security_agent" && mutation.Action != "delete" {
+		if err := requireAutomaticDefinitionBody(ctx, repository.database, mutation.Body); err != nil {
+			return WorkflowMutationResult{}, err
+		}
+	}
 	query := postgresWorkflowMutateSQL
+	var payload json.RawMessage
+	var handled bool
 	arguments := []any{
 		mutation.Action, mutation.Kind, mutation.ID,
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(),
@@ -167,13 +200,62 @@ func (repository *PostgresRepository) MutateWorkflow(ctx context.Context, identi
 		}
 		query = postgresSecurityAgentDefinitionMutateSQL
 		arguments = []any{mutation.Action, mutation.ID, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), mutation.Operation, mutation.IdempotencyKey, mutation.ExpectedVersion, mutation.Intent, mutation.Body, mutation.AuditID, mutation.CorrelationID, mutation.ReceiptID}
+		var findingErr error
+		payload, handled, findingErr = queryTemporalFindingResponse(ctx, repository.database, `SELECT zasp_temporal78.configuration_write($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14)`, arguments...)
+		if findingErr != nil {
+			return WorkflowMutationResult{}, findingErr
+		}
+		if current, ok := repository.database.(interface {
+			MutateTemporalTestDefinition(context.Context, ...any) (json.RawMessage, bool, error)
+		}); ok && !handled {
+			var err error
+			payload, handled, err = current.MutateTemporalTestDefinition(ctx, arguments...)
+			if err != nil {
+				return WorkflowMutationResult{}, err
+			}
+		}
+		if !handled {
+			versioned, err := securityAgentExistingTestBodyAuthority(mutation.Body)
+			if err != nil {
+				return WorkflowMutationResult{}, err
+			}
+			if versioned {
+				// Never retry a test-bearing write through legacy SQL if55 disappears
+				// between HTTP validation and execution. The versioned entrypoint owns
+				// the transactional cutover fence and the compiled release check.
+				query = postgresSecurityAgentExistingTestDefinitionMutateSQL
+				arguments = append(arguments, migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint())
+			}
+			export, exportErr := repository.exportDefinitionAuthority(ctx, identity, mutation.Body, mutation.ID, mutation.Action != "create")
+			if exportErr != nil {
+				return WorkflowMutationResult{}, exportErr
+			}
+			if export {
+				if mutation.Action != "delete" {
+					if err := repository.requireExportWorkflow(ctx); err != nil {
+						return WorkflowMutationResult{}, err
+					}
+				}
+				query = postgresExportDefinitionMutateSQL
+				arguments = exportDefinitionPins(arguments[:14])
+			}
+		}
 	}
 	if mutation.Kind == "integration" && repository.connectorWorkflows {
 		query = postgresConnectorWorkflowMutateSQL
 	}
-	payload, err := repository.database.QueryJSON(ctx, query, arguments...)
-	if err != nil {
-		return WorkflowMutationResult{}, err
+	if grant, checked := requestAuthorizationFromContext(ctx); checked && mutation.Kind == "integration" && (grant.OperationID == "createIntegration" || grant.OperationID == "updateIntegration") {
+		query = postgresCurrentIntegrationMutateSQL
+	}
+	if !handled {
+		var err error
+		payload, err = repository.database.QueryJSON(ctx, query, arguments...)
+		if err != nil {
+			if query == postgresCurrentIntegrationMutateSQL {
+				return WorkflowMutationResult{}, currentIntegrationPreparationError(err)
+			}
+			return WorkflowMutationResult{}, exportDefinitionError(query, err)
+		}
 	}
 	var result WorkflowMutationResult
 	if json.Unmarshal(payload, &result) != nil || result.Version < 1 || result.SecretGeneration < 0 || !validJSONObjectBody(result.Body) || !validMutationResultIDs(result, mutation) {
@@ -204,7 +286,7 @@ func (repository *PostgresRepository) ListWorkflowMutationReceipts(ctx context.C
 	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || limit < 1 || limit > 50 {
 		return nil, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresWorkflowReceiptListSQL,
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresWorkflowReceiptListSQL, `SELECT zasp_authorization80.receipt_page($1,$2,$3,$4,$5)`),
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), limit,
 	)
 	if err != nil {
@@ -275,7 +357,7 @@ func validWorkflowMutationReceipt(value WorkflowMutationReceipt) bool {
 		return false
 	}
 	operationKind, _, _, validOperation := workflowMutationTarget(value.Operation)
-	return validOperation && operationKind == value.ResourceKind && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && workflowKeyPattern.MatchString(value.IdempotencyKey) && validJSONObjectBody(value.Intent) && !containsSensitiveWorkflowField(value.Intent) && validJSONObjectBody(value.Result) && !containsSensitiveWorkflowField(value.Result) && validWorkflowID(value.ResourceKind, value.ResourceID) && value.ResourceVersion > 0 && !value.CreatedAt.IsZero() && value.ExpiresAt.After(value.CreatedAt) && !value.ExpiresAt.After(value.CreatedAt.Add(7*24*time.Hour)) && validIntegrationWorkflowReceipt(value)
+	return validOperation && operationKind == value.ResourceKind && len(value.IdempotencyKey) >= 16 && len(value.IdempotencyKey) <= 128 && workflowKeyPattern.MatchString(value.IdempotencyKey) && validJSONObjectBody(value.Intent) && !containsSensitiveIntegrationWorkflowValue(value.Intent, value.Operation, true) && validJSONObjectBody(value.Result) && !containsSensitiveIntegrationWorkflowValue(value.Result, value.Operation, false) && validWorkflowID(value.ResourceKind, value.ResourceID) && value.ResourceVersion > 0 && !value.CreatedAt.IsZero() && value.ExpiresAt.After(value.CreatedAt) && !value.ExpiresAt.After(value.CreatedAt.Add(7*24*time.Hour)) && validIntegrationWorkflowReceipt(value)
 }
 
 func validIntegrationWorkflowReceipt(value WorkflowMutationReceipt) bool {
@@ -441,18 +523,73 @@ func validDiscoveryWorkflowReceipt(value WorkflowMutationReceipt, identity Reque
 }
 
 func (repository *PostgresRepository) ReplayWorkflow(ctx context.Context, identity RequestIdentity, operation, idempotencyKey string, intent json.RawMessage) (WorkflowMutationResult, bool, error) {
-	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !workflowKeyPattern.MatchString(operation) || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) || !validJSONObjectBody(intent) || containsSensitiveWorkflowField(intent) {
+	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !workflowKeyPattern.MatchString(operation) || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 || !workflowKeyPattern.MatchString(idempotencyKey) || !validJSONObjectBody(intent) || containsSensitiveIntegrationWorkflowValue(intent, operation, true) {
 		return WorkflowMutationResult{}, false, ErrRepositoryOperation
 	}
 	statement := postgresWorkflowReplaySQL
-	if repository.securityAgentExecution {
-		statement = postgresSecurityAgentDefinitionReplaySQL
+	arguments := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), operation, idempotencyKey, intent}
+	if _, checked := requestAuthorizationFromContext(ctx); checked && stringIn(operation, "createIntegration", "updateIntegration") {
+		statement = `SELECT zasp_authorization80.integration_replay($1,$2,$3,$4,$5,$6,$7::jsonb)`
 	}
-	payload, err := repository.database.QueryJSON(ctx, statement,
-		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), operation, idempotencyKey, intent,
-	)
-	if err != nil {
-		return WorkflowMutationResult{}, false, err
+	var payload json.RawMessage
+	var handled bool
+	if repository.securityAgentExecution {
+		var findingErr error
+		payload, handled, findingErr = queryTemporalFindingResponse(ctx, repository.database, `SELECT zasp_temporal78.configuration_replay($1,$2,$3,$4,$5,$6,$7::jsonb)`, arguments...)
+		if findingErr != nil {
+			return WorkflowMutationResult{}, false, findingErr
+		}
+		if current, ok := repository.database.(interface {
+			ReplayTemporalTestDefinition(context.Context, ...any) (json.RawMessage, bool, error)
+		}); ok && !handled {
+			var err error
+			payload, handled, err = current.ReplayTemporalTestDefinition(ctx, arguments...)
+			if err != nil {
+				return WorkflowMutationResult{}, false, err
+			}
+		}
+	}
+	if repository.securityAgentExecution && !handled {
+		statement = postgresSecurityAgentDefinitionReplaySQL
+		fields, unambiguous := budgetJSONObject(intent)
+		if !unambiguous {
+			return WorkflowMutationResult{}, false, ErrRepositoryOperation
+		}
+		if body, present := fields["body"]; present {
+			versioned, err := securityAgentExistingTestBodyAuthority(body)
+			if err != nil {
+				return WorkflowMutationResult{}, false, err
+			}
+			if versioned {
+				statement = postgresSecurityAgentExistingTestDefinitionReplaySQL
+				arguments = append(arguments, migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint())
+			}
+		}
+		exports, err := repository.SecurityAgentExportDefinitionsAvailable(ctx)
+		if err != nil {
+			return WorkflowMutationResult{}, false, err
+		}
+		if exports {
+			statement, arguments = postgresExportDefinitionReplaySQL, exportDefinitionPins(arguments[:7])
+		} else if body, present := fields["body"]; present {
+			export, err := securityAgentExportBodyAuthority(body)
+			if err != nil {
+				return WorkflowMutationResult{}, false, err
+			}
+			if export {
+				return WorkflowMutationResult{}, false, ErrRepositoryUnavailable
+			}
+		}
+	}
+	if !handled {
+		var err error
+		payload, err = repository.database.QueryJSON(ctx, statement, arguments...)
+		if err != nil {
+			if statement == `SELECT zasp_authorization80.integration_replay($1,$2,$3,$4,$5,$6,$7::jsonb)` {
+				err = currentIntegrationPreparationError(err)
+			}
+			return WorkflowMutationResult{}, false, exportDefinitionError(statement, err)
+		}
 	}
 	var envelope workflowReplayEnvelope
 	if json.Unmarshal(payload, &envelope) != nil {
@@ -528,7 +665,11 @@ func validWorkflowPage(payload json.RawMessage, err error) (json.RawMessage, err
 }
 
 func validWorkflowMutation(value WorkflowMutation) bool {
-	if !validWorkflowID(value.Kind, value.ID) || !workflowKeyPattern.MatchString(value.Operation) || len(value.IdempotencyKey) < 16 || len(value.IdempotencyKey) > 128 || !workflowKeyPattern.MatchString(value.IdempotencyKey) || !validJSONObjectBody(value.Intent) || containsSensitiveWorkflowField(value.Intent) || !validJSONObjectBody(value.Body) || containsSensitiveWorkflowField(value.Body) {
+	filterOperation := value.Operation
+	if value.Kind != "integration" {
+		filterOperation = ""
+	}
+	if !validWorkflowID(value.Kind, value.ID) || !workflowKeyPattern.MatchString(value.Operation) || len(value.IdempotencyKey) < 16 || len(value.IdempotencyKey) > 128 || !workflowKeyPattern.MatchString(value.IdempotencyKey) || !validJSONObjectBody(value.Intent) || containsSensitiveIntegrationWorkflowValue(value.Intent, filterOperation, true) || !validJSONObjectBody(value.Body) || containsSensitiveIntegrationWorkflowValue(value.Body, filterOperation, false) {
 		return false
 	}
 	if _, err := domain.ParseProductID(value.AuditID); err != nil {
@@ -588,6 +729,51 @@ func validParentFilter(field, id string) bool {
 
 func validJSONObjectBody(value json.RawMessage) bool {
 	return len(value) >= 2 && len(value) <= 16*1024 && json.Valid(value) && value[0] == '{'
+}
+
+// Validate a disposable copy only. The original intent, public body and receipt
+// keep immutable webhook signing metadata; the generic secret filter is intact.
+func containsSensitiveIntegrationWorkflowValue(value json.RawMessage, operation string, intent bool) bool {
+	if !stringIn(operation, "createIntegration", "updateIntegration") {
+		return containsSensitiveWorkflowField(value)
+	}
+	var outer map[string]json.RawMessage
+	if json.Unmarshal(value, &outer) != nil || outer == nil {
+		return true
+	}
+	body := outer
+	if intent {
+		body = nil
+		if json.Unmarshal(outer["body"], &body) != nil || body == nil {
+			return true
+		}
+	}
+	var config map[string]json.RawMessage
+	if json.Unmarshal(body["configuration"], &config) != nil || config == nil {
+		return containsSensitiveWorkflowField(value)
+	}
+	raw, has := config["signing_secret_version"]
+	if !has {
+		return containsSensitiveWorkflowField(value)
+	}
+	var version, provider, destination, reference string
+	if len(config) != 3 || json.Unmarshal(raw, &version) != nil || !validResponseWebhookSigningVersion(version) || json.Unmarshal(config["destination_url"], &destination) != nil || json.Unmarshal(config["signing_secret_reference"], &reference) != nil {
+		return true
+	}
+	if rawProvider, exists := body["connector_key"]; exists {
+		if json.Unmarshal(rawProvider, &provider) != nil || provider != "generic-webhook" {
+			return true
+		}
+	} else if !intent || operation != "updateIntegration" {
+		return true
+	}
+	delete(config, "signing_secret_version")
+	body["configuration"], _ = json.Marshal(config)
+	if intent {
+		outer["body"], _ = json.Marshal(body)
+	}
+	copyValue, _ := json.Marshal(outer)
+	return containsSensitiveWorkflowField(copyValue)
 }
 
 func containsSensitiveWorkflowField(value json.RawMessage) bool {

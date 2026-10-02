@@ -1,12 +1,21 @@
 import { execFile } from "node:child_process";
 import { createHash, X509Certificate } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { isIP } from "node:net";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { loadAll, JSON_SCHEMA } from "js-yaml";
-import { validSessionSearchPhase, validateSessionSearchResources } from "./session-search-rollout.mjs";
+import { validDiscoveryScheduleReplayPhase, validSessionSearchPhase, validateDiscoveryScheduleReplayResources, validateSessionSearchResources } from "./session-search-rollout.mjs";
+import { auditExportMigrationCommand, normalizeAuditExports, validateAuditExportResources } from "./audit-export-rollout.mjs";
+import { normalizeAttackLabReconciler, validateAttackLabReconcilerResources, validateAttackLabReconcilerCollisions, attackLabReconcilerMigrationCommand } from "./attack-lab-reconciler-rollout.mjs";
+import { validateAttackLabWorkflowReadiness } from "./attack-lab-workflow-readiness.mjs";
+import { normalizeEvidenceExportWorkflow, validateExportWorkflowReadiness } from "./export-workflow-readiness.mjs";
+import { normalizeTestReconciler, validateTestReconcilerResources } from "./test-reconciler-rollout.mjs";
+import { normalizeComplianceExports, validateComplianceExportResources, validateComplianceExportCollisions, complianceExportMigrationCommand } from "./compliance-export-rollout.mjs";
+import { normalizeAuthorizationTemporalProfile, authorizationTemporalMigrationCommands } from "./authorization-temporal-profile.mjs";
+import { validateAuthorizationTemporalResources } from "./authorization-temporal-resources.mjs";
 
 const exec = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -68,13 +77,29 @@ export async function inspectContainerBuilds() {
 }
 
 export async function renderRelease(value, options = { schemaVersion: 49 }) {
-  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase"].includes(key)) || !validSessionSearchPhase(options.schemaVersion, options.sessionSearchPhase ?? "compatibility")) throw new Error("release rejected");
-  const schemaVersion = options.schemaVersion;
-  const sessionSearchPhase = options.sessionSearchPhase ?? "compatibility";
+  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow", "discoveryScheduleReplayPhase", "runtimeServices", "authorizationTemporal"].includes(key))) throw new Error("release rejected");
   const platformAccountID = value.discovery.roleArn.match(/^arn:aws:iam::([0-9]{12}):role\//)[1];
+  const authorizationTemporal = normalizeAuthorizationTemporalProfile(options.authorizationTemporal, options, platformAccountID);
+  const runtimeServices = options.runtimeServices ? structuredClone(options.runtimeServices) : undefined;
+  if (authorizationTemporal) {
+    const roles = Object.values(value).flatMap(section => section && typeof section === "object" ? Object.entries(section).filter(([key]) => /rolearn$/i.test(key)).map(([, role]) => role) : []);
+    if (roles.includes(authorizationTemporal.workerRoleArn) || roles.includes(authorizationTemporal.projectorRoleArn) || authorizationTemporal.adapterRoleArn !== value.redTeam.adapterRoleArn) throw new Error("release rejected");
+  }
+  if (authorizationTemporal ? options.sessionSearchPhase !== undefined || options.discoveryScheduleReplayPhase !== undefined || ["auditExports", "testReconciler", "complianceExports", "attackLabReconciler", "evidenceExportWorkflow"].some(k => options[k] !== undefined) : !validSessionSearchPhase(options.schemaVersion, options.sessionSearchPhase ?? "compatibility") || !validDiscoveryScheduleReplayPhase(options.schemaVersion, options.discoveryScheduleReplayPhase)) throw new Error("release rejected");
+  const schemaVersion = options.schemaVersion;
+  const sessionSearchPhase = authorizationTemporal ? "precision-intake" : options.sessionSearchPhase ?? "compatibility";
+  const discoveryScheduleReplayPhase = authorizationTemporal ? "active" : options.discoveryScheduleReplayPhase;
+  const auditExports = normalizeAuditExports(options.auditExports, platformAccountID, schemaVersion, sessionSearchPhase);
+  const testReconciler = normalizeTestReconciler(options.testReconciler, platformAccountID, schemaVersion, sessionSearchPhase);
+  const complianceExports = normalizeComplianceExports(options.complianceExports, platformAccountID, schemaVersion, sessionSearchPhase);
+  const evidenceExportWorkflow = normalizeEvidenceExportWorkflow(options.evidenceExportWorkflow, schemaVersion, complianceExports);
+  validateComplianceExportCollisions(value, complianceExports, auditExports, testReconciler);
+  const attackLabReconciler = normalizeAttackLabReconciler(options.attackLabReconciler, platformAccountID, schemaVersion, sessionSearchPhase);
+  validateAttackLabReconcilerCollisions(value, attackLabReconciler, auditExports, testReconciler, complianceExports);
   const set = [
     ["schema.expectedVersion", String(schemaVersion)],
     ["runtime.sessionSearchPhase", sessionSearchPhase],
+    ["rollout.discoveryScheduleReplayPhase", discoveryScheduleReplayPhase ?? "steady"],
     ["global.publicOrigin", `https://${value.host}`],
     ["global.trustedProxyCIDRs[0]", "10.20.0.0/16"],
     ...value.awsS3CIDRs.map((cidr, index) => [`network.s3CIDRs[${index}]`, cidr]),
@@ -332,15 +357,37 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
     ...value.telemetry.egressCIDRs.map((cidr, index) => [`telemetry.egressCIDRs[${index}]`, cidr]),
     ...imageNames.map((name) => [`global.productImages.${name}`, value.images[name]]),
   ];
+  if (authorizationTemporal) set.push(
+    ["serviceAccounts.securityAgent.roleArn", authorizationTemporal.workerRoleArn],
+    ["serviceAccounts.redTeamAdapter.roleArn", authorizationTemporal.adapterRoleArn],
+    ["redTeam.adapterRoleArn", authorizationTemporal.adapterRoleArn],
+    ["databasePrincipals.redTeamAdapter", authorizationTemporal.adapterPrincipal],
+    ["databasePrincipals.outboxWorker", authorizationTemporal.projectorPrincipal],
+  );
+  // The named profile consumes the exact Secrets Manager objects provisioned
+  // by the production Terraform cluster, including its flat secret names.
+  if (authorizationTemporal) for (const entry of set) {
+    if (entry[0].startsWith("secrets.") && entry[0].endsWith("ObjectName") && entry[1].startsWith("zasp/production/")) entry[1] = "zasp-production/" + entry[1].slice("zasp/production/".length).replaceAll("/", "-");
+  }
   const chart = path.join(root, "deploy/staging/product");
   const valueArgs = [];
   for (const [key, entry] of set) valueArgs.push("--set-string", `${key}=${entry.replaceAll("\\", "\\\\").replaceAll(",", "\\,")}`);
   let stdout;
+  let exportValuesDirectory;
   try {
+    if (auditExports || testReconciler || complianceExports || attackLabReconciler || options.runtimeServices) {
+      // A complete policy history can exceed the per-argument limit on Linux.
+      exportValuesDirectory = await mkdtemp(path.join(tmpdir(), "zasp-audit-export-values-"));
+      const exportValuesPath = path.join(exportValuesDirectory, "values.json");
+      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports, attackLabReconciler, ...(authorizationTemporal ? { authorizationTemporal } : {}), ...(runtimeServices ? { runtimeServices } : {}), ...(evidenceExportWorkflow ? { evidenceExportWorkflow: { enabled: true } } : {}) }), { mode: 0o600 });
+      valueArgs.push("--values", exportValuesPath);
+    }
     await exec("helm", ["lint", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
     ({ stdout } = await exec("helm", ["template", "zasp", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 }));
   } catch {
     throw new Error("release rejected");
+  } finally {
+    if (exportValuesDirectory) await rm(exportValuesDirectory, { recursive: true, force: true });
   }
   const resources = [];
   try {
@@ -349,7 +396,7 @@ export async function renderRelease(value, options = { schemaVersion: 49 }) {
     throw new Error("release rejected");
   }
   if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name)) throw new Error("release rejected");
-  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase);
+  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports, attackLabReconciler, evidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal);
   return Object.freeze(resources);
 }
 
@@ -519,9 +566,20 @@ function validRelease(value) {
   return value.telemetry.backend === "newrelic" && value.telemetry.endpoint === "https://otlp.nr-data.net";
 }
 
-export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility") {
+export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler, expectedComplianceExports, expectedAttackLabReconciler, expectedEvidenceExportWorkflow, discoveryScheduleReplayPhase, authorizationTemporal) {
   const accountPattern = /^[0-9]{12}$/;
-  if (!Array.isArray(resources) || !accountPattern.test(platformAccountID) || platformAccountID === "000000000000" || !validSessionSearchPhase(schemaVersion, sessionSearchPhase)) throw new Error("release rejected");
+  if (!Array.isArray(resources) || !accountPattern.test(platformAccountID) || platformAccountID === "000000000000" || (authorizationTemporal ? schemaVersion !== 61 || sessionSearchPhase !== "precision-intake" || discoveryScheduleReplayPhase !== "active" : !validSessionSearchPhase(schemaVersion, sessionSearchPhase) || !validDiscoveryScheduleReplayPhase(schemaVersion, discoveryScheduleReplayPhase))) throw new Error("release rejected");
+  const auditExports = normalizeAuditExports(expectedAuditExports, platformAccountID, schemaVersion, sessionSearchPhase);
+  const complianceExports = normalizeComplianceExports(expectedComplianceExports, platformAccountID, schemaVersion, sessionSearchPhase);
+  const evidenceExportWorkflow = normalizeEvidenceExportWorkflow(expectedEvidenceExportWorkflow, schemaVersion, complianceExports);
+  const attackLabReconciler = normalizeAttackLabReconciler(expectedAttackLabReconciler, platformAccountID, schemaVersion, sessionSearchPhase);
+  validateAttackLabWorkflowReadiness(resources, Boolean(attackLabReconciler));
+  validateExportWorkflowReadiness(resources, Boolean(evidenceExportWorkflow));
+  validateAttackLabReconcilerResources(resources, attackLabReconciler, schemaVersion);
+  validateComplianceExportResources(resources, complianceExports, schemaVersion, attackLabReconciler, Boolean(evidenceExportWorkflow));
+  validateAuditExportResources(resources, auditExports, schemaVersion, complianceExports, attackLabReconciler);
+  const testReconciler = normalizeTestReconciler(expectedTestReconciler, platformAccountID, schemaVersion, sessionSearchPhase);
+  validateTestReconcilerResources(resources, testReconciler, schemaVersion);
   const deployments = new Map(resources.filter(({ kind }) => kind === "Deployment").map((resource) => [resource.metadata?.name, resource]));
   const deploymentIdentities = new Map([
     ["web", "agentsec-web"],
@@ -558,8 +616,16 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
     ["otel-collector", "otel-collector"],
   ]);
   if (sessionSearchPhase !== "compatibility") deploymentIdentities.set("agentsec-runtime-session-index-v2", "zasp-runtime-index");
+  if (attackLabReconciler) deploymentIdentities.set("security-agent-attack-lab-reconciler", "security-agent-attack-lab-reconciler");
+  if (testReconciler) deploymentIdentities.set("zasp-test-reconciler", "zasp-test-reconciler");
+  if (complianceExports) for (const name of ["zasp-compliance-export-worker", "zasp-compliance-cleanup-worker"]) deploymentIdentities.set(name, name);
+  if (auditExports) {
+    deploymentIdentities.set("zasp-audit-export-worker", "zasp-audit-export-worker");
+    deploymentIdentities.set("zasp-audit-export-outbox", "zasp-audit-export-outbox");
+  }
   if (deployments.size !== deploymentIdentities.size || [...deploymentIdentities].some(([name, serviceAccount]) => deployments.get(name)?.spec?.template?.spec?.serviceAccountName !== serviceAccount)) throw new Error("release rejected");
   validateSessionSearchResources(resources, sessionSearchPhase);
+  validateDiscoveryScheduleReplayResources(resources, authorizationTemporal ? 60 : schemaVersion, discoveryScheduleReplayPhase);
   // Pre-stage the compatible reader before a later migration routes new v2 work.
   // A downgraded reader can claim those jobs and exhaust their retry budget.
   const correlation = deployments.get("agentsec-runtime-correlation").spec.template.spec.containers;
@@ -607,12 +673,29 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
     ["agentsec-canary", null],
     ["agentsec-canary-secret-sync", "canary-secret-sync"],
   ]);
+  if (auditExports) {
+    identityContracts.set("zasp-audit-export-worker", auditExports.writerRoleArn);
+    identityContracts.set("zasp-audit-export-outbox", auditExports.publisherRoleArn);
+  }
   const accounts = new Map(resources.filter(({ kind }) => kind === "ServiceAccount").map((resource) => [resource.metadata?.name, resource]));
+  if (authorizationTemporal) {
+    identityContracts.set("zasp-security-agent", authorizationTemporal.workerRoleArn);
+    identityContracts.set("zasp-red-team-adapter", authorizationTemporal.adapterRoleArn);
+    identityContracts.set("zasp-authorization-projector", authorizationTemporal.projectorRoleArn);
+  }
+  if (attackLabReconciler) identityContracts.set("security-agent-attack-lab-reconciler", attackLabReconciler.roleArn);
+  if (testReconciler) identityContracts.set("zasp-test-reconciler", testReconciler.roleArn);
+  if (complianceExports) {
+    identityContracts.set("zasp-compliance-export-worker", complianceExports.writerRoleArn);
+    identityContracts.set("zasp-compliance-cleanup-worker", complianceExports.cleanupRoleArn);
+  }
   if (accounts.size !== identityContracts.size) throw new Error("release rejected");
   for (const [name, role] of identityContracts) {
     const rendered = accounts.get(name);
     const roleArn = rendered?.metadata?.annotations?.["eks.amazonaws.com/role-arn"];
-    if (!rendered || (role === null ? roleArn !== undefined : roleArn !== `arn:aws:iam::${platformAccountID}:role/zasp-production-${role}`)) throw new Error("release rejected");
+    const explicitRole = (authorizationTemporal && ["zasp-security-agent", "zasp-red-team-adapter", "zasp-authorization-projector"].includes(name)) || (attackLabReconciler && name === "security-agent-attack-lab-reconciler") || (auditExports && ["zasp-audit-export-worker", "zasp-audit-export-outbox"].includes(name)) || (testReconciler && name === "zasp-test-reconciler") || (complianceExports && ["zasp-compliance-export-worker", "zasp-compliance-cleanup-worker"].includes(name));
+    const expectedRole = explicitRole ? role : `arn:aws:iam::${platformAccountID}:role/zasp-production-${role}`;
+    if (!rendered || (role === null ? roleArn !== undefined : roleArn !== expectedRole)) throw new Error("release rejected");
   }
   const jobIdentities = new Map([
     [`agentsec-schema-v${schemaVersion}`, "agentsec-migration"],
@@ -625,7 +708,9 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
   if (sessionSearchPhase !== "compatibility") jobIdentities.set("agentsec-projection-search-init-v2", "agentsec-projection-search-init");
   if (jobs.length !== jobIdentities.size || jobs.some((resource) => jobIdentities.get(resource.metadata?.name) !== resource.spec?.template?.spec?.serviceAccountName)) throw new Error("release rejected");
   const migration = jobs.find(({ metadata }) => metadata.name === `agentsec-schema-v${schemaVersion}`);
-  const command = `export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate up-to-${schemaVersion}`;
+  let command = complianceExports ? complianceExportMigrationCommand(schemaVersion, Boolean(auditExports)) : auditExports ? auditExportMigrationCommand(schemaVersion) : `export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate up-to-${schemaVersion}`;
+  if (attackLabReconciler) command = attackLabReconcilerMigrationCommand(command);
+  if (authorizationTemporal) command = authorizationTemporalMigrationShell(authorizationTemporal);
   const migrationContainers = migration?.spec?.template?.spec?.containers;
   if (!Array.isArray(migrationContainers) || migrationContainers.length !== 1 || JSON.stringify(migrationContainers[0].command) !== JSON.stringify(["/bin/sh", "-ec"]) || JSON.stringify(migrationContainers[0].args) !== JSON.stringify([command])) throw new Error("release rejected");
   for (const deployment of deployments.values()) {
@@ -636,9 +721,15 @@ export function validateRenderedRelease(resources, platformAccountID, schemaVers
   const expected = api?.spec?.template?.spec?.containers?.[0]?.env?.filter(({ name }) => name === "ZASP_EXPECTED_SCHEMA_VERSION");
   if (api?.spec?.template?.metadata?.annotations?.["zasp.io/schema-version"] !== String(schemaVersion) || expected?.length !== 1 || expected[0].value !== String(schemaVersion) || expected[0].valueFrom !== undefined) throw new Error("release rejected");
   const cronJobIdentities = new Map([["production-readonly-canary", "agentsec-canary"]]);
+  if (authorizationTemporal) cronJobIdentities.set("zasp-authorization-projector", "zasp-authorization-projector");
   const cronJobs = resources.filter(({ kind }) => kind === "CronJob");
   if (cronJobs.length !== cronJobIdentities.size || cronJobs.some((resource) => cronJobIdentities.get(resource.metadata?.name) !== resource.spec?.jobTemplate?.spec?.template?.spec?.serviceAccountName)) throw new Error("release rejected");
+  validateAuthorizationTemporalResources(resources, authorizationTemporal, platformAccountID);
   return Object.freeze({ deployments: deployments.size, identities: accounts.size, platformAccountID });
+}
+
+function authorizationTemporalMigrationShell(profile) {
+  return 'export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; export ZASP_WORKFLOW_SIGNING_KEY="$(cat /var/run/secrets/zasp-migration/workflow-signing-key)"; export ZASP_STYTCH_PROJECT_ID="$(cat /var/run/secrets/zasp-migration/stytch-project-id)"; export ZASP_STYTCH_ORGANIZATION_ID="$(cat /var/run/secrets/zasp-migration/stytch-organization-id)"; ' + authorizationTemporalMigrationCommands(profile).map(command => `/app/agentsec-migrate ${command}`).join('; ');
 }
 
 function validCABundle(value) {

@@ -5,18 +5,21 @@ import { describe, expect, it } from "vitest";
 const read = (file: string) => fs.readFileSync(path.join(process.cwd(), file), "utf8");
 
 describe("M7 sessions, compliance, and data-controls batch", () => {
-  it("publishes the exact eight mounted product operations", () => {
+  it("publishes the mounted session, compliance and data-control product operations", () => {
     const source = read("openapi/openapi.yaml");
     for (const id of ["listSessions", "getSession", "listSessionEvents", "revokeSession", "listComplianceControls", "listComplianceEvidence", "getDataControls", "updateDataControls"]) expect(source).toContain(`operationId: ${id}`);
-    for (const hidden of ["createComplianceExport", "getComplianceExport"]) expect(source).not.toContain(`operationId: ${hidden}`);
+    for (const mounted of ["getComplianceEvidence", "createComplianceExport", "getComplianceExport", "createComplianceDownloadGrant", "downloadComplianceExport"]) expect(source).toContain(`operationId: ${mounted}`);
   });
-  it("implements durable session, evidence, and data controls while hiding exports", () => {
+  it("implements durable session, evidence, and data controls with scoped evidence exports", () => {
     const repository = read("services/platform/apiserver/administration_repository.go");
     const view = read("app/features/sessions/SessionsComplianceView.tsx");
     for (const symbol of ["postgresListSessionsSQL", "postgresRevokeInvestigatedSessionSQL", "postgresListComplianceEvidenceSQL", "postgresUpdateDataControlsSQL"]) expect(repository).toContain(symbol);
-    expect(view).toContain("Evidence exports unavailable");
+    const compliance = read("app/features/sessions/ComplianceEvidenceView.tsx");
+    const adapter = read("app/features/sessions/compliance-api.ts");
+    for (const text of ["Create evidence export", "Refresh export status", "Download JSON", "Download CSV", "Download readable", "control.freshness", "boundary.isCurrent()"]) expect(compliance).toContain(text);
+    for (const route of ["/api/v1/compliance/evidence/{sourceKind}/{id}", "/api/v1/compliance/exports", "/api/v1/compliance/exports/{id}/download-grants", "/api/v1/compliance/exports/{id}/download"]) expect(adapter).toContain(route);
     expect(view).toContain("Data deletion unavailable");
-    expect(view).not.toMatch(/createComplianceExport|getComplianceExport/);
+    expect(view).toContain("ComplianceEvidenceView");
   });
   it("records the session and compliance slice complete", () => {
     const tracker = read("docs/internal/implementation_status_v1.5.md");

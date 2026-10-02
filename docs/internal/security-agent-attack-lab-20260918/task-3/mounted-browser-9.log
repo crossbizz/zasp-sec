@@ -1,0 +1,55 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","scripts/production-combined-e2e.mjs"]
+combined E2E: disposable PostgreSQL ready
+combined E2E: schema 14 typed_inventory_cutover verified
+combined E2E: schema 15 runtime_data_plane verified
+combined E2E: schema 17 runtime_ingest_reconciliation verified
+combined E2E: schema 18 security_agent_execution verified
+combined E2E: schema 19 identity_administration verified
+combined E2E: schema 20 security_agent_controls verified
+combined E2E: schema 21 security_agent_autonomous_response verified
+combined E2E: schema 24 security_agent_session_isolation verified
+combined E2E: schema 27 production_recovery verified
+combined E2E: schema 28 production_policy_deployment verified
+combined E2E: schema 29 production_home_attention verified
+combined E2E: schema 30 production_approval_notification verified
+combined E2E: schema 31 production_workflow_compatibility verified
+combined E2E: schema 32 production_security_agent_planner verified
+combined E2E: schema 33 production_security_agent_attack_path verified
+combined E2E: schema 34 production_integration_setup verified
+combined E2E: schema 35 production_integration_webhook verified
+combined E2E: schema 37 production_red_team_safety verified
+combined E2E: schema 39 production_red_team_artifacts verified
+combined E2E: schema 40 production_runtime_sessions verified
+combined E2E: schema 41 production_runtime_session_reads verified
+combined E2E: schema 42 production_runtime_session_search verified
+combined E2E: schema 43 production_runtime_session_query verified
+combined E2E: schema 44 production_runtime_session_evidence verified
+combined E2E: schema 45 production_runtime_enrollment_pairing verified
+combined E2E: schema 46 production_reconciliation_lane_plan verified
+combined E2E: schema 47 production_runtime_candidate_authority verified
+combined E2E: schema 48 production_runtime_acceptance verified
+combined E2E: migrations and durable seed ready
+mounted Attack Lab browser evidence directory: /var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/zasp-attack-lab-browser-evidence-tmjAdb
+combined E2E: browser document transition /api/v1/session/start
+combined E2E: browser document transition /protect/security-agents
+combined E2E: browser document transition /protect/security-agents
+combined E2E: browser document transition /protect/approvals
+combined E2E: browser document transition /protect/security-agents
+combined E2E: browser document transition /protect/security-agents
+combined E2E: browser document transition /protect/approvals
+combined E2E: browser document transition /protect/security-agents
+combined E2E: browser document transition /protect/security-agents
+LOCAL mounted Attack Lab browser passed: [{"runID":"pid_c5dd0734-6e28-4b2a-a388-6f7d794a3e69","executionID":"pid_27fa136e-b890-4cff-8a44-81fb121845bb","outcome":"needs_human","verdict":"verified"},{"runID":"pid_a9d691fa-2bc9-4a63-a4da-230622b6e67b","executionID":"pid_66f9dcca-2a27-42c3-8eb3-a2bcc2ff3d07","outcome":"needs_human","verdict":"not_reproduced"}]
+combined E2E: cleanup browser
+combined E2E: cleanup Task4 workers
+combined E2E: cleanup api
+combined E2E: cleanup proxy
+combined E2E: cleanup identity
+combined E2E: cleanup policy history
+combined E2E: cleanup web
+combined E2E: cleanup postgres
+combined E2E: cleanup remaining processes
+combined E2E: cleanup files
+
+Exit: 0 Signal: null

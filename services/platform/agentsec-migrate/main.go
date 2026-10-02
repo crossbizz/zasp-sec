@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
@@ -163,6 +165,24 @@ type releaseMigrationRunner interface {
 	UpProductionRuntimeSandboxBinding(context.Context) error
 	DownProductionRuntimeSandboxBinding(context.Context) error
 	UpProductionRuntimePrecision(context.Context) error
+	UpProductionAuditExports(context.Context) error
+	DownProductionAuditExports(context.Context) error
+	UpProductionSecurityAgentBudgets(context.Context) error
+	DownProductionSecurityAgentBudgets(context.Context) error
+	UpProductionSecurityAgentRunContext(context.Context) error
+	DownProductionSecurityAgentRunContext(context.Context) error
+	UpProductionSecurityAgentExistingTests(context.Context) error
+	DownProductionSecurityAgentExistingTests(context.Context) error
+	UpProductionCompliance(context.Context) error
+	DownProductionCompliance(context.Context) error
+	UpProductionSecurityAgentAttackLab(context.Context) error
+	DownProductionSecurityAgentAttackLab(context.Context) error
+	UpProductionSecurityAgentExports(context.Context) error
+	DownProductionSecurityAgentExports(context.Context) error
+	UpProductionSecurityAgentWebhooks(context.Context) error
+	DownProductionSecurityAgentWebhooks(context.Context) error
+	UpProductionDiscoveryScheduleReplay(context.Context) error
+	DownProductionDiscoveryScheduleReplay(context.Context) error
 	DownWorkflowReceiptSafety(context.Context) error
 	DownWorkflowReceipts(context.Context) error
 	DownWorkflows(context.Context) error
@@ -180,9 +200,109 @@ func main() {
 	ctx, cancel := context.WithTimeout(signalCtx, timeout)
 	defer cancel()
 	arguments := os.Args[1:]
+	var verifierKey *authorization.AttestationKey
+	var verifierPrincipal string
+	var identityRegistration *identityVerifierRegistration
+	var workerRegistration *workerVerifierRegistration
+	var temporalRegistration *temporalPrincipalRegistration
+	if len(arguments) > 0 && arguments[0] == "register-temporal-executor-principals" {
+		temporalRegistration, err = loadTemporalPrincipalRegistration(arguments, os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	if len(arguments) > 0 && (arguments[0] == "register-worker-authorization-verifier" || arguments[0] == "register-compensation-authorization-verifier") {
+		workerRegistration, err = loadWorkerVerifierRegistration(arguments, os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	if len(arguments) > 0 && (arguments[0] == "register-identity-session-verifier" || arguments[0] == "register-identity-webhook-verifier") {
+		identityRegistration, err = loadIdentityVerifierRegistration(arguments, os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	if len(arguments) > 0 && arguments[0] == "register-authorization-verifier" {
+		verifierPrincipal = os.Getenv(migrationPrincipalEnvironment)
+		if len(arguments) != 1 || !databasePrincipalPattern.MatchString(verifierPrincipal) {
+			log.Fatal("release migration configuration rejected")
+		}
+		verifierKey, err = authorization.NewAttestationKey([]byte(os.Getenv("ZASP_WORKFLOW_SIGNING_KEY")))
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	var globalCommand string
+	var globalRequest *migrations.GlobalExecutionControlRequest
+	if len(arguments) > 0 && (arguments[0] == "security-agent-global-read" || arguments[0] == "security-agent-global-set") {
+		globalCommand = arguments[0]
+		globalRequest, err = parseGlobalExecutionControlCommand(arguments, os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	var exportConfiguration *migrations.AuditExportConfiguration
+	if len(arguments) > 0 && arguments[0] == "configure-audit-exports" {
+		if len(arguments) != 1 {
+			log.Fatal("release migration configuration rejected")
+		}
+		configuration, err := loadAuditExportConfiguration(os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+		exportConfiguration = &configuration
+	}
 	var registration discoveryPrincipalRegistration
+	var exportAPI string
+	if len(arguments) > 0 && arguments[0] == "register-audit-export-api" {
+		if len(arguments) != 1 {
+			log.Fatal("release migration configuration rejected")
+		}
+		exportAPI = os.Getenv(discoveryAPIPrincipalEnvironment)
+		if !databasePrincipalPattern.MatchString(exportAPI) {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	var exportExecutor, exportOutbox string
+	if len(arguments) > 0 && arguments[0] == "register-audit-export-workers" {
+		if len(arguments) != 1 {
+			log.Fatal("release migration configuration rejected")
+		}
+		exportExecutor, exportOutbox, err = loadAuditExportWorkerRegistration(os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	var complianceExecutor, complianceCleanup string
+	var attackLabReconciler string
+	if len(arguments) > 0 && arguments[0] == "register-security-agent-attack-lab-reconciler" {
+		if len(arguments) != 1 {
+			log.Fatal("release migration configuration rejected")
+		}
+		attackLabReconciler, err = loadAttackLabReconcilerRegistration(os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
+	if len(arguments) > 0 && arguments[0] == "register-compliance-workers" {
+		if len(arguments) != 1 {
+			log.Fatal("release migration configuration rejected")
+		}
+		complianceExecutor, complianceCleanup, err = loadComplianceWorkerRegistration(os.Getenv)
+		if err != nil {
+			log.Fatal("release migration configuration rejected")
+		}
+	}
 	if isForwardMigration(arguments) {
-		registration, err = loadDiscoveryPrincipalRegistration(os.Getenv)
+		if authorizationProfileCommand(arguments[0]) {
+			registration.migration = os.Getenv(migrationPrincipalEnvironment)
+			if !databasePrincipalPattern.MatchString(registration.migration) {
+				err = errInvalidMigrationCommand
+			}
+		} else {
+			registration, err = loadDiscoveryPrincipalRegistration(os.Getenv)
+		}
 		if err != nil {
 			log.Fatal("release migration configuration rejected")
 		}
@@ -197,20 +317,288 @@ func main() {
 	}
 	defer func() { _ = connection.Close(context.Background()) }()
 	runner, err := migrations.NewRunner(&migrationDatabase{connection: connection})
-	if err != nil || runReleaseMigration(ctx, runner, arguments) != nil {
+	if err != nil {
+		log.Fatal("release migration failed")
+	}
+	if globalCommand != "" {
+		var result migrations.GlobalExecutionControlResult
+		if globalCommand == "security-agent-global-read" {
+			result, err = runner.ReadGlobalExecutionControl(ctx)
+		} else {
+			result, err = runner.SetGlobalExecutionControl(ctx, *globalRequest)
+		}
+		if err != nil {
+			log.Fatal("release migration failed")
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
+			log.Fatal("release migration output failed")
+		}
+		return
+	}
+	if temporalRegistration != nil {
+		err = registerTemporalPrincipals(ctx, connection, temporalRegistration)
+	} else if workerRegistration != nil {
+		err = registerWorkerVerifier(ctx, connection, workerRegistration)
+	} else if identityRegistration != nil {
+		err = registerIdentityVerifier(ctx, connection, identityRegistration)
+	} else if verifierKey != nil {
+		err = registerAuthorizationVerifier(ctx, connection, verifierPrincipal, verifierKey)
+	} else if len(arguments) == 1 && arguments[0] == "configure-temporal-test-selector" {
+		err = configureTemporalTestSelector(ctx, connection, os.Getenv("ZASP_TEST_SELECTOR_CONFIGURATION"))
+	} else if exportConfiguration != nil {
+		err = runner.ConfigureAuditExports(ctx, *exportConfiguration)
+	} else if exportAPI != "" {
+		err = runner.RegisterAuditExportAPI(ctx, exportAPI)
+	} else if exportExecutor != "" {
+		err = runner.RegisterAuditExportWorkers(ctx, exportExecutor, exportOutbox)
+	} else if complianceExecutor != "" {
+		err = runner.RegisterComplianceWorkers(ctx, complianceExecutor, complianceCleanup)
+	} else if attackLabReconciler != "" {
+		err = runner.RegisterSecurityAgentAttackLabReconciler(ctx, attackLabReconciler)
+	} else {
+		err = runReleaseMigration(ctx, &registeredReleaseMigrationRunner{releaseMigrationRunner: runner, queryer: connection, registration: registration}, arguments)
+	}
+	if err != nil {
 		log.Fatal("release migration failed")
 	}
 	if isForwardMigration(arguments) {
-		if err := registerReleasePrincipals(ctx, connection, registration); err != nil {
+		if err := registerForwardRelease(ctx, connection, registration, arguments); err != nil {
 			log.Fatal("release principal registration or readiness failed")
 		}
-		if arguments[0] == "up-to-51" {
-			var ready bool
-			if err := connection.QueryRow(ctx, `SELECT zasp_production_runtime_precision_readiness($1,$2)`, migrations.ProductionRuntimePrecision().Checksum(), migrations.ProductionRuntimePrecisionSemanticFingerprint()).Scan(&ready); err != nil || !ready {
-				log.Fatal("release precision readiness failed")
-			}
-		}
 	}
+}
+
+func registerAuthorizationVerifier(ctx context.Context, queryer principalQueryer, principal string, key *authorization.AttestationKey) error {
+	var accepted bool
+	if err := queryer.QueryRow(ctx, `SELECT session_user=$1`, principal).Scan(&accepted); err != nil || !accepted {
+		return errReleasePrincipalRegistration
+	}
+	// SQL also requires the registered migration authority. A caller-controlled
+	// principal name cannot grant registration to an API login.
+	if err := queryer.QueryRow(ctx, `SELECT zasp_authorization80.register_verifier($1,$2)`, key.Version(), key.Verifier()).Scan(&accepted); err != nil || !accepted {
+		return errReleasePrincipalRegistration
+	}
+	return nil
+}
+
+func registerForwardRelease(ctx context.Context, queryer principalQueryer, registration discoveryPrincipalRegistration, arguments []string) error {
+	if !isForwardMigration(arguments) {
+		return errInvalidMigrationCommand
+	}
+	if arguments[0] == "up-authorization-identity-profile" || arguments[0] == "up-authorization-temporal-identity-profile" {
+		var ready bool
+		mode := "canonical61-authorization79-80-v1"
+		if arguments[0] == "up-authorization-temporal-identity-profile" {
+			mode = migrations.AuthorizationTemporalProfileName
+		}
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND EXISTS(SELECT 1 FROM zasp_authorization80.runtime_profile WHERE name=$2) AND zasp_authorization80_identity.structural_ready($3)`, registration.migration, mode, migrations.AuthorizationIdentityProfileChecksum()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-authorization-audit-profile" || arguments[0] == "up-authorization-temporal-audit-profile" {
+		var ready bool
+		mode := "canonical61-authorization79-80-v1"
+		if arguments[0] == "up-authorization-temporal-audit-profile" {
+			mode = migrations.AuthorizationTemporalProfileName
+		}
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND EXISTS(SELECT 1 FROM zasp_authorization80.runtime_profile WHERE name=$2 AND audit_mode=$3) AND zasp_authorization80.ready($4) AND zasp_authorization80_audit.catalog_ready()`, registration.migration, mode, migrations.AuthorizationAuditProfileName, migrations.ProductionAuthorizationEnforcement().Checksum()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-authorization-runtime-profile" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_authorization80_worker.catalog_ready() AND zasp_authorization80_temporal.ready() AND zasp_authorization80_identity.structural_ready($2)`, registration.migration, migrations.AuthorizationIdentityProfileChecksum()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-automatic-sources" || arguments[0] == "up-temporal-finding-response" {
+		statement := `SELECT session_user=$1 AND zasp_temporal77.ready($2,$3)`
+		checksum, fingerprint := migrations.TemporalAutomaticSourcesChecksum(), migrations.TemporalAutomaticSourcesFingerprint()
+		if arguments[0] == "up-temporal-finding-response" {
+			statement = `SELECT session_user=$1 AND zasp_temporal78.ready($2,$3)`
+			checksum, fingerprint = migrations.TemporalFindingResponseChecksum(), migrations.TemporalFindingResponseFingerprint()
+		}
+		var ready bool
+		if err := queryer.QueryRow(ctx, statement, registration.migration, checksum, fingerprint).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-single-recovery" {
+		if ctx == nil || ctx.Err() != nil {
+			return errReleasePrincipalRegistration
+		}
+		metadata := migrations.ProductionTemporalSingleRecoveryMetadata()
+		if ctx.Err() != nil {
+			return errReleasePrincipalRegistration
+		}
+		var ready bool
+		if err := queryer.QueryRow(ctx, migrations.TemporalSingleRecoveryReadySourceSQL, metadata.ReadyBodyDigest).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal_single_recovery.ready($2)`, registration.migration, metadata.Checksum).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-authorization-worker-profile" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_authorization80_worker.catalog_ready() AND zasp_authorization80_temporal.ready()`, registration.migration).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-authorization-temporal-profile" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_authorization80_temporal.ready()`, registration.migration).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-authorization-enforcement" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_authorization80.ready($2)`, registration.migration, migrations.ProductionAuthorizationEnforcement().Checksum()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-authorization-projection" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_authorization79.ready($2)`, registration.migration, migrations.ProductionAuthorizationProjection().Checksum()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-human-admission" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal76.ready($2,$3)`, registration.migration, migrations.ProductionTemporalHumanAdmission().Checksum(), migrations.TemporalHumanAdmissionFingerprint()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-test-selector" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal75.ready($2,$3)`, registration.migration, migrations.ProductionTemporalTestSelector().Checksum(), migrations.TemporalTestSelectorFingerprint()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-test-executor" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal74.ready($2,$3)`, registration.migration, migrations.ProductionTemporalTestExecutor().Checksum(), migrations.TemporalTestExecutorFingerprint()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-admission" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal73.ready($2,$3)`, registration.migration, migrations.ProductionTemporalAdmission().Checksum(), migrations.TemporalAdmissionFingerprint()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-discovery" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal72.ready($2,$3)`, registration.migration, migrations.ProductionTemporalDiscovery().Checksum(), migrations.TemporalDiscoveryFingerprint()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-legacy-tests" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal71.ready($2,$3)`, registration.migration, migrations.ProductionTemporalLegacyTests().Checksum(), migrations.TemporalLegacyTestsFingerprint()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-compatibility" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal70.ready($2,$3)`, registration.migration, migrations.ProductionTemporalCompatibility().Checksum(), migrations.TemporalCompatibilityFingerprint()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-workflow" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal69.ready($2,$3)`, registration.migration, migrations.ProductionTemporalWorkflow().Checksum(), migrations.TemporalWorkflowFingerprint()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-executor" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal68.ready($2,$3)`, registration.migration, migrations.ProductionTemporalExecutor().Checksum(), migrations.TemporalExecutorFingerprint()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-domain" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal67.ready($2,$3)`, registration.migration, migrations.ProductionTemporalDomain().Checksum(), migrations.TemporalDomainFingerprint()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-ownership" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal66.ready($2,$3)`, registration.migration, migrations.ProductionTemporalOwnership().Checksum(), migrations.TemporalOwnershipFingerprint()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if arguments[0] == "up-temporal-outbox" {
+		var ready bool
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal65.ready($2,$3)`, registration.migration, migrations.ProductionTemporalOutbox().Checksum(), migrations.TemporalOutboxFingerprint()).Scan(&ready); err != nil || !ready {
+			return errReleasePrincipalRegistration
+		}
+		return nil
+	}
+	if err := registerReleasePrincipals(ctx, queryer, registration); err != nil {
+		return err
+	}
+	var statement, checksum, fingerprint string
+	switch arguments[0] {
+	case "up-to-51":
+		statement = `SELECT zasp_production_runtime_precision_readiness($1,$2)`
+		checksum, fingerprint = migrations.ProductionRuntimePrecision().Checksum(), migrations.ProductionRuntimePrecisionSemanticFingerprint()
+	case "up-to-52":
+		statement = `SELECT zasp_production_audit_exports_readiness($1,$2)`
+		checksum, fingerprint = migrations.ProductionAuditExports().Checksum(), migrations.ProductionAuditExportsSemanticFingerprint()
+	case "up-to-53":
+		statement = `SELECT zasp_production_security_agent_budgets_readiness($1,$2)`
+		checksum, fingerprint = migrations.ProductionSecurityAgentBudgets().Checksum(), migrations.SecurityAgentBudgetCandidateFingerprint()
+	case "up-to-54":
+		statement = `SELECT zasp_production_security_agent_run_context_readiness($1,$2)`
+		checksum, fingerprint = migrations.ProductionSecurityAgentRunContext().Checksum(), migrations.SecurityAgentRunContextFingerprint()
+	case "up-to-55":
+		statement = `SELECT zasp_production_security_agent_existing_tests_readiness($1,$2)`
+		checksum, fingerprint = migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()
+	case "up-to-56":
+		statement = `SELECT zasp_compliance_readiness($1,$2)`
+		checksum, fingerprint = migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()
+	case "up-to-57":
+		statement = `SELECT zasp_sa_attack_lab_readiness($1,$2)`
+		checksum, fingerprint = migrations.ProductionSecurityAgentAttackLab().Checksum(), migrations.SecurityAgentAttackLabFingerprint()
+	case "up-to-58":
+		statement = `SELECT zasp_sa_export_readiness($1,$2)`
+		checksum, fingerprint = migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()
+	case "up-to-59":
+		statement = `SELECT zasp_sa_webhook_readiness($1,$2)`
+		checksum, fingerprint = migrations.ProductionSecurityAgentWebhooks().Checksum(), migrations.SecurityAgentWebhooksFingerprint()
+	case "up-to-60":
+		statement = `SELECT zasp_discovery_schedule_replay_readiness($1,$2)`
+		checksum, fingerprint = migrations.ProductionDiscoveryScheduleReplay().Checksum(), migrations.DiscoveryScheduleReplayFingerprint()
+	default:
+		return nil
+	}
+	var ready bool
+	if err := queryer.QueryRow(ctx, statement, checksum, fingerprint).Scan(&ready); err != nil || !ready {
+		return errReleasePrincipalRegistration
+	}
+	return nil
 }
 
 func registerReleasePrincipals(ctx context.Context, queryer principalQueryer, registration discoveryPrincipalRegistration) error {
@@ -293,8 +681,52 @@ func loadMigrationTimeout(getenv func(string) string) (time.Duration, error) {
 	return timeout, nil
 }
 
+func (r *registeredReleaseMigrationRunner) UpProductionTemporalSingleRecovery(ctx context.Context) error {
+	if err := r.auditProfilePrincipal(ctx); err != nil {
+		return err
+	}
+	extension, ok := r.releaseMigrationRunner.(interface{ UpProductionTemporalSingleRecovery(context.Context) error })
+	if !ok {
+		return migrations.ErrInvalidState
+	}
+	return extension.UpProductionTemporalSingleRecovery(ctx)
+}
+
 func isForwardMigration(arguments []string) bool {
-	return len(arguments) == 1 && (arguments[0] == "up" || arguments[0] == "up-to-48" || arguments[0] == "up-to-49" || arguments[0] == "up-to-50" || arguments[0] == "up-to-51")
+	if len(arguments) == 1 && arguments[0] == "up-temporal-single-recovery" {
+		return true
+	}
+	if len(arguments) == 1 && (arguments[0] == "up-authorization-runtime-profile" || arguments[0] == "up-temporal-automatic-sources" || arguments[0] == "up-temporal-finding-response") {
+		return true
+	}
+	if len(arguments) == 1 && authorizationProfileCommand(arguments[0]) {
+		return true
+	}
+	if len(arguments) == 1 && arguments[0] == "up-authorization-enforcement" {
+		return true
+	}
+	if len(arguments) == 1 && arguments[0] == "up-authorization-projection" {
+		return true
+	}
+	if len(arguments) == 1 && arguments[0] == "up-temporal-human-admission" {
+		return true
+	}
+	if len(arguments) == 1 && arguments[0] == "up-temporal-test-selector" {
+		return true
+	}
+	if len(arguments) == 1 && arguments[0] == "up-temporal-test-executor" {
+		return true
+	}
+	if len(arguments) == 1 && arguments[0] == "up-temporal-admission" {
+		return true
+	}
+	if len(arguments) == 1 && arguments[0] == "up-temporal-discovery" {
+		return true
+	}
+	if len(arguments) == 1 && (arguments[0] == "up-temporal-outbox" || arguments[0] == "up-temporal-ownership" || arguments[0] == "up-temporal-domain" || arguments[0] == "up-temporal-executor" || arguments[0] == "up-temporal-workflow" || arguments[0] == "up-temporal-compatibility" || arguments[0] == "up-temporal-legacy-tests") {
+		return true
+	}
+	return len(arguments) == 1 && (arguments[0] == "up" || arguments[0] == "up-to-48" || arguments[0] == "up-to-49" || arguments[0] == "up-to-50" || arguments[0] == "up-to-51" || arguments[0] == "up-to-52" || arguments[0] == "up-to-53" || arguments[0] == "up-to-54" || arguments[0] == "up-to-55" || arguments[0] == "up-to-56" || arguments[0] == "up-to-57" || arguments[0] == "up-to-58" || arguments[0] == "up-to-59" || arguments[0] == "up-to-60")
 }
 
 func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arguments []string) error {
@@ -309,7 +741,220 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 		return err
 	}
 	switch arguments[0] {
-	case "up", "up-to-48", "up-to-49", "up-to-50", "up-to-51":
+	case "up-temporal-single-recovery":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalSingleRecovery(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalSingleRecovery(ctx)
+	case "up-authorization-runtime-profile":
+		extension, ok := runner.(interface{ UpAuthorizationRuntimeProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpAuthorizationRuntimeProfile(ctx)
+	case "up-temporal-automatic-sources":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalAutomaticSources(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalAutomaticSources(ctx)
+	case "up-temporal-finding-response":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalFindingResponse(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalFindingResponse(ctx)
+	case "up-authorization-worker-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionAuthorizationWorkerProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionAuthorizationWorkerProfile(ctx)
+	case "up-authorization-identity-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionAuthorizationIdentityProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionAuthorizationIdentityProfile(ctx)
+	case "up-authorization-temporal-identity-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionAuthorizationTemporalIdentityProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionAuthorizationTemporalIdentityProfile(ctx)
+	case "up-authorization-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionAuthorizationAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionAuthorizationAuditProfile(ctx)
+	case "up-authorization-temporal-audit-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionAuthorizationTemporalAuditProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionAuthorizationTemporalAuditProfile(ctx)
+	case "up-authorization-temporal-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionAuthorizationTemporalProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionAuthorizationTemporalProfile(ctx)
+	case "up-authorization-enforcement":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionAuthorizationEnforcement(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionAuthorizationEnforcement(ctx)
+	case "up-authorization-projection":
+		if version < 25 || version > 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionAuthorizationProjection(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionAuthorizationProjection(ctx)
+	case "up-temporal-human-admission":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalHumanAdmission(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalHumanAdmission(ctx)
+	case "up-temporal-test-selector":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalTestSelector(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalTestSelector(ctx)
+	case "up-temporal-test-executor":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalTestExecutor(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalTestExecutor(ctx)
+	case "up-temporal-admission":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalAdmission(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalAdmission(ctx)
+	case "up-temporal-discovery":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalDiscovery(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalDiscovery(ctx)
+	case "up-temporal-legacy-tests":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalLegacyTests(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalLegacyTests(ctx)
+	case "up-temporal-compatibility":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalCompatibility(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalCompatibility(ctx)
+	case "up-temporal-workflow":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalWorkflow(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalWorkflow(ctx)
+	case "up-temporal-executor":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalExecutor(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalExecutor(ctx)
+	case "up-temporal-domain":
+		if version != 60 && version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalDomain(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalDomain(ctx)
+	case "up-temporal-outbox":
+		if version != 60 && version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalOutbox(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalOutbox(ctx)
+	case "up-temporal-ownership":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionTemporalOwnership(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionTemporalOwnership(ctx)
+	case "up", "up-to-48", "up-to-49", "up-to-50", "up-to-51", "up-to-52", "up-to-53", "up-to-54", "up-to-55", "up-to-56", "up-to-57", "up-to-58", "up-to-59", "up-to-60":
 		if version == 0 {
 			if err := runner.Up(ctx); err != nil {
 				return err
@@ -605,6 +1250,24 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			target = 50
 		} else if arguments[0] == "up-to-51" {
 			target = 51
+		} else if arguments[0] == "up-to-52" {
+			target = 52
+		} else if arguments[0] == "up-to-53" {
+			target = 53
+		} else if arguments[0] == "up-to-54" {
+			target = 54
+		} else if arguments[0] == "up-to-55" {
+			target = 55
+		} else if arguments[0] == "up-to-56" {
+			target = 56
+		} else if arguments[0] == "up-to-57" {
+			target = 57
+		} else if arguments[0] == "up-to-58" {
+			target = 58
+		} else if arguments[0] == "up-to-59" {
+			target = 59
+		} else if arguments[0] == "up-to-60" {
+			target = 60
 		}
 		if version == 48 && target >= 49 {
 			if err := runner.UpProductionRuntimeCorrelationRouting(ctx); err != nil {
@@ -618,13 +1281,145 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			}
 			version = 50
 		}
-		if version == 50 && target == 51 {
+		if version == 50 && target >= 51 {
 			if err := runner.UpProductionRuntimePrecision(ctx); err != nil {
 				return err
 			}
 			version = 51
 		}
+		if version == 51 && target >= 52 {
+			if err := runner.UpProductionAuditExports(ctx); err != nil {
+				return err
+			}
+			version = 52
+		}
+		if version == 52 && target >= 53 {
+			if err := runner.UpProductionSecurityAgentBudgets(ctx); err != nil {
+				return err
+			}
+			version = 53
+		}
+		if version == 53 && target >= 54 {
+			if err := runner.UpProductionSecurityAgentRunContext(ctx); err != nil {
+				return err
+			}
+			version = 54
+		}
+		if version == 54 && target >= 55 {
+			if err := runner.UpProductionSecurityAgentExistingTests(ctx); err != nil {
+				return err
+			}
+			version = 55
+		}
+		if version == 55 && target >= 56 {
+			if err := runner.UpProductionCompliance(ctx); err != nil {
+				return err
+			}
+			version = 56
+		}
+		if version == 56 && target >= 57 {
+			if err := runner.UpProductionSecurityAgentAttackLab(ctx); err != nil {
+				return err
+			}
+			version = 57
+		}
+		if version == 57 && target >= 58 {
+			if err := runner.UpProductionSecurityAgentExports(ctx); err != nil {
+				return err
+			}
+			version = 58
+		}
+		if version == 58 && target >= 59 {
+			webhooks, ok := runner.(interface{ UpProductionSecurityAgentWebhooks(context.Context) error })
+			if !ok {
+				return migrations.ErrInvalidState
+			}
+			if err := webhooks.UpProductionSecurityAgentWebhooks(ctx); err != nil {
+				return err
+			}
+			version = 59
+		}
+		if version == 59 && target == 60 {
+			if err := runner.UpProductionDiscoveryScheduleReplay(ctx); err != nil {
+				return err
+			}
+			version = 60
+		}
 		if version != target {
+			return migrations.ErrInvalidState
+		}
+	case "down-from-60":
+		if version != 60 {
+			return migrations.ErrInvalidState
+		}
+		return runner.DownProductionDiscoveryScheduleReplay(ctx)
+	case "down-from-59":
+		if version != 59 {
+			return migrations.ErrInvalidState
+		}
+		webhooks, ok := runner.(interface{ DownProductionSecurityAgentWebhooks(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return webhooks.DownProductionSecurityAgentWebhooks(ctx)
+	case "down-from-58":
+		if version != 58 {
+			return migrations.ErrInvalidState
+		}
+		return runner.DownProductionSecurityAgentExports(ctx)
+	case "down-from-57":
+		if version != 57 {
+			return migrations.ErrInvalidState
+		}
+		return runner.DownProductionSecurityAgentAttackLab(ctx)
+	case "down-to-55":
+		if version == 56 {
+			if err := runner.DownProductionCompliance(ctx); err != nil {
+				return err
+			}
+			version = 55
+		}
+		if version != 55 {
+			return migrations.ErrInvalidState
+		}
+	case "down-to-54":
+		if version == 55 {
+			if err := runner.DownProductionSecurityAgentExistingTests(ctx); err != nil {
+				return err
+			}
+			version = 54
+		}
+		if version != 54 {
+			return migrations.ErrInvalidState
+		}
+	case "down-to-53":
+		if version == 54 {
+			if err := runner.DownProductionSecurityAgentRunContext(ctx); err != nil {
+				return err
+			}
+			version = 53
+		}
+		if version != 53 {
+			return migrations.ErrInvalidState
+		}
+	case "down-to-52":
+		if version == 53 {
+			if err := runner.DownProductionSecurityAgentBudgets(ctx); err != nil {
+				return err
+			}
+			version = 52
+		}
+		if version != 52 {
+			return migrations.ErrInvalidState
+		}
+	case "down-to-51":
+		if version == 52 {
+			if err := runner.DownProductionAuditExports(ctx); err != nil {
+				return err
+			}
+			version = 51
+		}
+		if version != 51 {
 			return migrations.ErrInvalidState
 		}
 	case "down-to-49":

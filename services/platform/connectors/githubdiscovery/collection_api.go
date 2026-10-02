@@ -75,7 +75,7 @@ func newInstallationCollectionAPI(roundTripper http.RoundTripper, timeout time.D
 	if roundTripper == nil || timeout < 100*time.Millisecond || timeout > 30*time.Second {
 		return nil, ErrInvalid
 	}
-	return &InstallationCollectionAPI{client: &http.Client{Transport: roundTripper, Timeout: timeout, CheckRedirect: rejectInstallationRedirect}, timeout: timeout}, nil
+	return &InstallationCollectionAPI{client: &http.Client{Transport: collection.EffectTransport{Next: roundTripper}, Timeout: timeout, CheckRedirect: rejectInstallationRedirect}, timeout: timeout}, nil
 }
 
 func (api *InstallationCollectionAPI) FetchCollectionPage(ctx context.Context, credential []byte, request CollectionPageRequest) (CollectionPage, error) {

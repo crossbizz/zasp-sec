@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
 
@@ -18,7 +19,7 @@ func composeProductionIngestDependencies(ctx context.Context, config productionI
 	if ctx == nil || ctx.Err() != nil || !validProductionIngestConfig(config) || invalidRuntimeValue(database) || invalidRuntimeValue(artifacts) || cloudReady == nil || clock == nil || closeResources == nil {
 		return productionIngestDependencies{}, errRuntimeUnavailable
 	}
-	repository, err := newConfiguredProductionIngestRepository(database, config.RuntimeSchema)
+	repository, err := newProfiledProductionIngestRepository(database, config)
 	if err != nil {
 		return productionIngestDependencies{}, errRuntimeUnavailable
 	}
@@ -38,7 +39,7 @@ func composeProductionIngestDependencies(ctx context.Context, config productionI
 		return productionIngestDependencies{}, errRuntimeUnavailable
 	}
 	constructor := runtimeevent.NewProductionIngestReconciler
-	if config.RuntimeSchema == "runtime-event-v2" {
+	if config.RuntimeSchema == "runtime-event-v2" || config.DatabaseProfile == migrations.AuthorizationRuntimeProfileName {
 		constructor = runtimeevent.NewPreciseProductionIngestReconciler
 	}
 	reconciler, err := constructor(runtimeevent.ProductionIngestReconcilerConfig{Repository: cachedProductionIngestReconciliationRepository{ProductionIngestReconciliationRepository: repository, ready: readiness.Ready}, Artifacts: artifacts, WorkerID: config.ReconcilerID, LeaseSeconds: 60, ClaimLimit: 10, OperationTimeout: config.OperationTimeout, NewLeaseToken: newProductionReconciliationLeaseToken})

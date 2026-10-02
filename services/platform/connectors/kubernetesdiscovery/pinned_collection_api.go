@@ -30,6 +30,21 @@ type pinnedCollectionDialer interface {
 	DialContext(context.Context, string, string) (net.Conn, error)
 }
 
+// CollectionNetwork supplies external DNS and TCP IO. Endpoint, CIDR, TLS and
+// hostname checks stay in the pinned API and cannot be replaced through it.
+type CollectionNetwork struct {
+	Resolver interface {
+		LookupIPAddr(context.Context, string) ([]net.IPAddr, error)
+	}
+	Dialer interface {
+		DialContext(context.Context, string, string) (net.Conn, error)
+	}
+}
+
+func NewPinnedKubernetesCollectionAPIWithNetwork(config PinnedCollectionAPIConfig, network CollectionNetwork) (*KubernetesCollectionAPI, error) {
+	return newPinnedKubernetesCollectionAPI(config, network.Resolver, network.Dialer)
+}
+
 func NewPinnedKubernetesCollectionAPI(config PinnedCollectionAPIConfig) (*KubernetesCollectionAPI, error) {
 	dialer := &net.Dialer{Timeout: config.Timeout, KeepAlive: -1}
 	return newPinnedKubernetesCollectionAPI(config, net.DefaultResolver, dialer)
@@ -130,6 +145,7 @@ func pinnedCollectionCertPool(value []byte) (*x509.CertPool, bool) {
 	}
 	pool := x509.NewCertPool()
 	rest := bytes.Clone(value)
+	defer clear(rest)
 	certificates := 0
 	for len(rest) > 0 {
 		block, remaining := pem.Decode(rest)
@@ -137,9 +153,13 @@ func pinnedCollectionCertPool(value []byte) (*x509.CertPool, bool) {
 			clear(rest)
 			return nil, false
 		}
-		certificate, err := x509.ParseCertificate(block.Bytes)
+		// x509 retains slices into its DER input. Give the certificate its own
+		// lifetime before clearing the temporary PEM-decoder buffer.
+		certificateDER := bytes.Clone(block.Bytes)
+		certificate, err := x509.ParseCertificate(certificateDER)
 		clear(block.Bytes)
 		if err != nil {
+			clear(certificateDER)
 			clear(rest)
 			return nil, false
 		}

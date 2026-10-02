@@ -1,0 +1,6 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform
+Command: ["env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go","run","/private/tmp/zasp-task2-releasepins.go"]
+release57 checksum=c3ad942230e9cf7b924005ba2f6cd71c5cb8b9ce12d7b12ea1e71291ccad59ce fingerprint=9559c712af8fcbe177a7afc9501655f434bbddd53792af431da98dec37ace12d
+release56 checksum=f5871c564709034eaf89f325fcb732a3f3314ecc0ff95f7a0ec99f6d674ddfc1 fingerprint=8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced
+
+Exit: 0 Signal: null

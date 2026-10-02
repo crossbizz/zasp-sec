@@ -7,6 +7,10 @@ import { compareRuntimeSessionEventOrder, decodeRuntimeSession, decodeRuntimeSes
 import { Button, Card, LoadingState, Modal } from "../../components/ui";
 import { RuntimeSessionEventRow } from "./RuntimeSessionEventRow";
 import { RuntimeSessionEvidence, type RuntimeSessionEvidenceAPI } from "./RuntimeSessionEvidence";
+import type { ActivityScope } from "../../domain/activity-links";
+import { SecurityAgentActivityPanel } from "../securityagents/SecurityAgentActivityPanel";
+
+export type RuntimeSessionActivity = { scope: ActivityScope; canReadRuns: boolean; onNavigate(path: string): void };
 
 export interface RuntimeSessionTimelineAPI {
   get(id: string, signal: AbortSignal): Promise<RuntimeSession>;
@@ -39,7 +43,7 @@ export function createRuntimeSessionTimelineAPI(client: APIClient): RuntimeSessi
 type Query = { id: string; api: RuntimeSessionTimelineAPI; cursor: string | null; page: number; after?: RuntimeSessionEvent };
 type Load = { query: Query; summary?: RuntimeSession; events?: RuntimeSessionEventPage; error?: boolean };
 
-export function RuntimeSessionTimeline({ id, api, evidenceAPI }: { id: string; api: RuntimeSessionTimelineAPI; evidenceAPI?: RuntimeSessionEvidenceAPI }) {
+export function RuntimeSessionTimeline({ id, api, evidenceAPI, activity }: { id: string; api: RuntimeSessionTimelineAPI; evidenceAPI?: RuntimeSessionEvidenceAPI; activity?: RuntimeSessionActivity }) {
   const initial = useMemo<Query>(() => ({ id, api, cursor: null, page: 1 }), [id, api]);
   const [requested, setRequested] = useState(initial);
   const query = requested.id === id && requested.api === api ? requested : initial;
@@ -79,6 +83,7 @@ export function RuntimeSessionTimeline({ id, api, evidenceAPI }: { id: string; a
       <span>Page {query.page}</span>
       <Button disabled={!events.page_info.has_more} onClick={() => setRequested({ ...query, cursor: events.page_info.next_cursor, page: query.page + 1, after: events.items.at(-1) })}>Next event page</Button>
     </nav>
+    {id !== "unattributed" && activity && <SecurityAgentActivityPanel direction="runs" kind="session" entityID={summary.id} scope={activity.scope} permitted={activity.canReadRuns} onNavigate={activity.onNavigate} />}
     <Modal open={!!evidence && evidence.query === query && evidence.api === evidenceAPI} title="Evidence metadata" onClose={() => setEvidence(null)}>
       {evidence && evidence.query === query && evidence.api === evidenceAPI && evidenceAPI && <RuntimeSessionEvidence target={{ investigationID: id, eventID: evidence.event.id, evidenceID: evidence.event.evidence_id }} api={evidenceAPI} />}
     </Modal>

@@ -1,0 +1,13 @@
+=== RUN   TestSecurityAgentExportWorkerProcessPostgres
+    security_agent_export_worker_process_postgres_test.go:62: joined agent export interrupt process: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined interrupt polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.69s)
+        PASS
+    security_agent_export_worker_process_postgres_test.go:90: joined agent export resume process: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined resume polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.56s)
+        PASS
+    security_agent_export_worker_process_postgres_test.go:122: LOCAL component: registered agent dispatch, actual worker process SIGTERM, immutable prepared replay in second process; controlled AWS SDK transport, not live provider or public planner proof
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportWorkerProcessPostgres440637481/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportWorkerProcessPostgres (7.33s)
+PASS

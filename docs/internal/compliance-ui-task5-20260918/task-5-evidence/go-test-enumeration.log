@@ -1,0 +1,4 @@
+TestComplianceStorageFactoryBoundary
+TestComplianceAPIProductionComposition
+TestComplianceAPIConfiguration
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-api	0.810s

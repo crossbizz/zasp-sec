@@ -1,0 +1,10 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/usr/bin/env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go","test","-C","services/platform","./agentsec-worker","-run","^TestCombinedBudgetFixtureAccountsEveryAutomaticAction$/^start_attack_lab$","-count=1"]
+--- FAIL: TestCombinedBudgetFixtureAccountsEveryAutomaticAction (0.01s)
+    --- FAIL: TestCombinedBudgetFixtureAccountsEveryAutomaticAction/start_attack_lab (0.01s)
+        production_combined_budget_fixture_test.go:39: result={Usage:0x140008510e0 Candidate:{Version:0 Summary: Steps:[]} Failure:planner_rejected OutputDigest:sha256:1a9edc7264decbf7547432b26c684e10f568e88756680a048d521fd1ca5ac770 Model:openai/gpt-5-mini PolicyVersion:security-agent-planner-v1} calls=1
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.082s
+FAIL
+
+Exit: 1 Signal: null

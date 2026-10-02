@@ -1,0 +1,253 @@
+diff --git a/app/features/sessions/SessionsComplianceView.tsx b/app/features/sessions/SessionsComplianceView.tsx
+index 2e1d00f8..34283ba4 100644
+--- a/app/features/sessions/SessionsComplianceView.tsx
++++ b/app/features/sessions/SessionsComplianceView.tsx
+@@ -16,8 +16,8 @@ export type HydratedSession = SessionItem & { eventsUnavailable?: boolean };
+ export interface SessionsComplianceAPI {
+   listSessions(): Promise<readonly HydratedSession[]>;
+   revokeSession(id: string, version: number): Promise<void>;
+-  listControls(): Promise<ComplianceControlPage["items"]>;
+-  listEvidence(): Promise<ComplianceEvidencePage["items"]>;
++  listControls(signal?: AbortSignal): Promise<ComplianceControlPage["items"]>;
++  listEvidence(signal?: AbortSignal): Promise<ComplianceEvidencePage["items"]>;
+   getDataControls(): Promise<DataControls>;
+   updateDataControls(value: DataControls): Promise<DataControls>;
+ }
+@@ -32,18 +32,18 @@ export function createSessionsComplianceAPI(client: APIClient): SessionsComplian
+       }, 6);
+     },
+     async revokeSession(id, version) { const result = await client.DELETE("/api/v1/sessions/{id}", { params: { path: { id }, header: { "X-CSRF-Token": "", "If-Match": `"${version}"` } } }); if (result.error) requireAPIData<never>(result); if (result.response.status !== 204) throw new APITransportError("invalid_response", "Session revocation returned an invalid status"); },
+-    async listControls() {
++    async listControls(signal) {
+       const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<ComplianceControlPage>(
+-        await client.GET("/api/v1/compliance/controls", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }),
++        await client.GET("/api/v1/compliance/controls", { signal, params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }),
+         decodeComplianceControlPage,
+-      ), { maximumItems: 2_000, maximumPages: 20 });
++      ), { maximumItems: 2_000, maximumPages: 20, signal });
+       return loaded.items;
+     },
+-    async listEvidence() {
++    async listEvidence(signal) {
+       const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<ComplianceEvidencePage>(
+-        await client.GET("/api/v1/compliance/evidence", { params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }),
++        await client.GET("/api/v1/compliance/evidence", { signal, params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }),
+         decodeComplianceEvidencePage,
+-      ), { maximumItems: 2_000, maximumPages: 20 });
++      ), { maximumItems: 2_000, maximumPages: 20, signal });
+       return loaded.items;
+     },
+     async getDataControls() { return requireAPIData<DataControls>(await client.GET("/api/v1/settings/data-controls"), decodeDataControls); },
+diff --git a/app/features/sessions/SessionsComplianceView.test.tsx b/app/features/sessions/SessionsComplianceView.test.tsx
+index 3e549a05..b545865a 100644
+--- a/app/features/sessions/SessionsComplianceView.test.tsx
++++ b/app/features/sessions/SessionsComplianceView.test.tsx
+@@ -66,6 +66,53 @@ function complianceClient(handle?: (request: Request) => Promise<Response | unde
+ }
+ function response(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }); }
+ describe("current compliance UI", () => {
++  it.each([["scope", 1], ["principal", 1], ["scope", 2], ["principal", 2]] as const)("cancels obsolete %s list page %s before a continuation starts", async (replacement, pendingPage) => {
++    const oldRequests: Request[] = [];
++    const releases: Array<(response: Response) => void> = [];
++    let replaced = false;
++    let obsoleteContinuations = 0;
++    const client = complianceClient(async request => {
++      if (new URL(request.url).searchParams.get("cursor") === "obsolete-page-two") obsoleteContinuations++;
++      if (replaced) return undefined;
++      if (pendingPage === 2 && !new URL(request.url).searchParams.has("cursor")) return response({ items: [], page_info: { has_more: true, next_cursor: "first-continuation" } });
++      oldRequests.push(request);
++      return new Promise(resolve => releases.push(resolve));
++    });
++    const view = render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
++    await waitFor(() => expect(releases).toHaveLength(2));
++    replaced = true;
++    const next = { ...boundary, generation: 2, ...(replacement === "scope" ? { workspaceID: principal } : { principalID: environment }) };
++    view.rerender(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={next} />);
++    await screen.findByRole("link", { name: /Open policy/ });
++    await act(async () => {
++      releases.forEach((release, i) => release(response({ items: new URL(oldRequests[i].url).pathname.endsWith("/controls") ? [control] : [{ control, freshness: "fresh", evidence: [record] }], page_info: { has_more: true, next_cursor: "obsolete-page-two" } })));
++    });
++    expect(oldRequests.every(request => request.signal.aborted)).toBe(true);
++    expect(oldRequests).toHaveLength(2);
++    expect(obsoleteContinuations).toBe(0);
++  });
++  it.each([
++    ["scope", 401, "authentication_required", "Authentication required", false],
++    ["principal", 401, "authentication_required", "Authentication required", false],
++    ["scope", 409, "scope_stale", "Session scope changed; rebootstrap required", true],
++    ["principal", 409, "scope_stale", "Session scope changed; rebootstrap required", true],
++  ] as const)("refuses obsolete %s %s errors before they can invalidate replacement authority", async (replacement, status, code, message, retryable) => {
++    let replaced = false, invalidations = 0;
++    const releases: Array<(response: Response) => void> = [];
++    const client = createAPIClient({
++      onSessionExpired: () => { invalidations++; },
++      onScopeStale: () => { invalidations++; },
++      fetch: async () => replaced ? response({ items: [], page_info: { has_more: false, next_cursor: null } }) : new Promise(resolve => releases.push(resolve)),
++    });
++    const view = render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
++    await waitFor(() => expect(releases).toHaveLength(2));
++    replaced = true;
++    view.rerender(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={{ ...boundary, generation: 2, ...(replacement === "scope" ? { workspaceID: principal } : { principalID: environment }) }} />);
++    await screen.findByText("Evidence exports unavailable");
++    await act(async () => { releases.forEach(release => release(response({ code, message, correlation_id: principal, retryable }, status))); });
++    expect(invalidations).toBe(0);
++    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
++  });
+   it("uses aggregate freshness, exposes typed source/time links, and filters frameworks and controls", async () => {
+     render(<SessionsComplianceView surface="compliance" client={complianceClient()} complianceBoundary={boundary} />);
+     const link = await screen.findByRole("link", { name: "Open policy policy-production version 2" });
+diff --git a/app/features/sessions/ComplianceEvidenceView.tsx b/app/features/sessions/ComplianceEvidenceView.tsx
+index e6d1a3f6..4a80295b 100644
+--- a/app/features/sessions/ComplianceEvidenceView.tsx
++++ b/app/features/sessions/ComplianceEvidenceView.tsx
+@@ -75,7 +75,7 @@ function ComplianceEvidenceContent({ api, client, complianceBoundary: boundary,
+           if (valid()) setDetail(value);
+         } else {
+           if (!api) throw new Error();
+-          const [nextControls, nextEvidence] = await Promise.all([api.listControls(), api.listEvidence()]);
++          const [nextControls, nextEvidence] = await Promise.all([api.listControls(controller.signal), api.listEvidence(controller.signal)]);
+           if (valid()) { setControls(nextControls); setEvidence(nextEvidence); }
+         }
+       } catch (e) { if (valid()) setError(message(e)); }
+diff --git a/scripts/production-combined-e2e.mjs b/scripts/production-combined-e2e.mjs
+index 1b69b218..909efa29 100644
+--- a/scripts/production-combined-e2e.mjs
++++ b/scripts/production-combined-e2e.mjs
+@@ -27,6 +27,7 @@ const securityAgentSimulationMode = validateSecurityAgentSimulationMode(process.
+ const securityAgentRunContextMode = validateSecurityAgentRunContextMode(process.env);
+ const existingTestMountedMode = process.env.ZASP_COMBINED_E2E_EXISTING_TEST === "true";
+ const complianceBrowserMode = process.env.ZASP_COMBINED_E2E_COMPLIANCE === "true";
++const complianceResponseTrace = [];
+ assert.ok(!complianceBrowserMode || !existingTestMountedMode && !securityAgentSimulationMode && !securityAgentRunContextMode, "compliance browser mode is isolated");
+ assert.ok(!existingTestMountedMode || !securityAgentSimulationMode && !securityAgentRunContextMode, "mounted existing-test mode is isolated");
+ const auditBrowserMode = validateAuditBrowserMode(process.env);
+@@ -2151,6 +2152,28 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
+   proxy=await startProxy(proxyPort,apiPort,webPort,key,certificate,dsn);
+   browser=await startBrowser(path.join(temporaryRoot,"compliance-profile"),chromePort,`${publicOrigin}/api/v1/session/start?return_to=%2Fcompliance%2Fevidence`);
+   const cdp=browser.cdp;
++  const continuityCheckpoints=[];
++  let previousTraceCount=0;
++  const continuity = async (label, scope, mounted = false) => {
++    const evaluated = await cdp.send("Runtime.evaluate", {
++      expression: `(async()=>{const r=await fetch('/api/v1/session/bootstrap',{cache:'no-store'});const b=await r.json();return {status:r.status,code:typeof b.code==='string'?b.code:null,principal:b.principal?.id??null,scope:b.organization_id?[b.organization_id,b.workspace_id,b.environment_id].join('/'):null,finalURL:location.origin+location.pathname,signIn:document.body.innerText.includes('Sign in to Zasp'),controls:!!document.querySelector('select[aria-label="Framework"]'),exportAction:[...document.querySelectorAll('button')].some(e=>e.textContent==='Create evidence export')};})()`,
++      awaitPromise:true,returnByValue:true,
++    });
++    const state=evaluated.result.value;
++    const checkpoint={label,...state,consoleKinds:browserConsoleErrors.map(value=>value.kind)};
++    continuityCheckpoints.push(checkpoint);
++    await writeFile(path.join(storage,"continuity.json"),JSON.stringify({checkpoints:continuityCheckpoints,responses:complianceResponseTrace},null,2));
++    console.log("compliance continuity: "+JSON.stringify({...checkpoint,responses:complianceResponseTrace.slice(previousTraceCount)}));
++    previousTraceCount=complianceResponseTrace.length;
++    assert.equal(state.status,200,label+" bootstrap");
++    assert.equal(state.principal,actor,label+" principal");
++    assert.equal(state.scope,scope,label+" scope");
++    assert.equal(state.signIn,false,label+" unexpectedly signed out");
++    if (mounted) {
++      assert.equal(state.controls,true,label+" controls not mounted");
++      assert.equal(state.exportAction,true,label+" export action not mounted");
++    }
++  };
+   await waitForBrowserText(cdp,/Create evidence export/);
+   await selectBrowserOption(cdp,"Authorized scope","Staging");
+   await waitForBrowserScope(cdp,selectedScope);
+@@ -2216,10 +2239,27 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
+   await selectBrowserOption(cdp,"Authorized scope","Production");
+   const siblingScope=`${org}/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003`;
+   await waitForBrowserScope(cdp,siblingScope);
+-  for(const route of [`/api/v1/compliance/exports/${jobID}`,"/api/v1/compliance/evidence/policy/policy-compliance-browser?source_version=8"]){const result=await browserFetchJSON(cdp,route,{"X-Zasp-Expected-Scope":siblingScope});assert.equal(result.status,404);}
++  await continuity("sibling selected",siblingScope);
++  for(const route of [`/api/v1/compliance/exports/${jobID}`,"/api/v1/compliance/evidence/policy/policy-compliance-browser?source_version=8"]){const result=await browserFetchJSON(cdp,route,{"X-Zasp-Expected-Scope":siblingScope});assert.equal(result.status,404);await continuity("after sibling denial "+route.split("?")[0],siblingScope);}
+   // Independent authenticated foreign-tenant session, created only in this owned fixture.
+   await sql(`INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at,authenticated_at) VALUES(digest('compliance-foreign-browser','sha256'),repeat('c',32),'session-compliance-foreign-browser','pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','["view","view_audit","view_compliance"]',clock_timestamp()+interval '1 hour',clock_timestamp());UPDATE zasp_authorized_scopes SET permissions=permissions||'["view_audit","view_compliance"]'::jsonb WHERE principal_id='pid_90000004-0000-4000-8000-000000000004';`);
+   const denied=await requestHTTPSJSON(`${publicOrigin}/api/v1/compliance/exports/${jobID}`,{method:"GET",headers:{cookie:"__Host-zasp_session=compliance-foreign-browser","X-Zasp-Expected-Scope":"pid_90000001-0000-4000-8000-000000000001/pid_90000002-0000-4000-8000-000000000002/pid_90000003-0000-4000-8000-000000000003"}});assert.equal(denied.status,404);
++  await continuity("after foreign denial",siblingScope);
++  const authorized=await browserFetchJSON(cdp,"/api/v1/compliance/evidence?limit=1",{"X-Zasp-Expected-Scope":siblingScope});
++  assert.equal(authorized.status,200,"authorized sibling evidence after denials");
++  await waitForBrowserText(cdp,/Create evidence export/);
++  await continuity("authorized sibling evidence readable",siblingScope,true);
++  await selectBrowserOption(cdp,"Authorized scope","Staging");
++  await waitForBrowserScope(cdp,selectedScope);
++  await waitForBrowserText(cdp,/Create evidence export/);
++  const currentEvidence=await browserFetchJSON(cdp,"/api/v1/compliance/evidence/policy/policy-compliance-browser?source_version=8",{"X-Zasp-Expected-Scope":selectedScope});
++  assert.equal(currentEvidence.status,200,"authorized primary evidence after denials");
++  await selectBrowserOption(cdp,"Framework","SOC 2 Security");
++  await selectBrowserOption(cdp,"Control","Policy definitions");
++  await cdp.send("Emulation.setDeviceMetricsOverride",{width:1200,height:900,deviceScaleFactor:1,mobile:false});
++  await continuity("final mounted primary",selectedScope,true);
++  const visibleExport=await cdp.send("Runtime.evaluate",{expression:"(()=>{const button=[...document.querySelectorAll('button')].find(e=>e.textContent==='Create evidence export');const box=button?.getBoundingClientRect();return !!box&&box.top>=0&&box.bottom<=innerHeight;})()",returnByValue:true});
++  assert.equal(visibleExport.result.value,true,"final screenshot must include the export action");
+   assert.doesNotMatch(await browserStorageAndHistoryText(cdp),/compliance-process-v1|NEVER_EXPORT_BROWSER|"token"|arn:aws/);
+   const capture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-final.png"),Buffer.from(capture.data,"base64"));
+   await writeFile(path.join(storage,"summary.json"),JSON.stringify({jobID,packageSHA256:pinned,nativeJSONBytes:saved.length,restartReadableBytes:Buffer.byteLength(readable),grantReplayRefused:true,siblingDenied:true,foreignDenied:true,sourceChanged:true,provider:"controlled local SDK transport, NOT AWS"},null,2));
+@@ -5515,6 +5555,17 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
+     };
+     delete upstreamHeaders["x-zasp-e2e-tab"];
+ 		const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
++      if (complianceBrowserMode && target.pathname.startsWith("/api/v1/")) {
++        const expectedScope=String(request.headers["x-zasp-expected-scope"]??"");
++        const entry={method:request.method,path:target.pathname,status:upstreamResponse.statusCode,cursor:target.searchParams.has("cursor"),scope:/^pid_[a-f0-9-]+\/pid_[a-f0-9-]+\/pid_[a-f0-9-]+$/.test(expectedScope)?expectedScope:null,code:null};
++        complianceResponseTrace.push(entry);
++        // Only product error codes leave memory; never retain bodies, headers or tokens.
++        if (entry.status >= 400) {
++          let errorJSON="";
++          upstreamResponse.on("data",chunk=>{if(errorJSON.length<8192)errorJSON+=chunk.toString();});
++          upstreamResponse.once("end",()=>{try{const code=JSON.parse(errorJSON).code;if(typeof code==="string"&&/^[a-z_]+$/.test(code))entry.code=code;}catch{ /* Non-product errors retain status only, never raw content. */ }});
++        }
++      }
+       if(auditExportCreate){auditExportCreate.status=upstreamResponse.statusCode;assert.ok(auditExportCreateRequests.length<4);auditExportCreateRequests.push(auditExportCreate);if(loseAuditExportCreateResponse&&upstreamResponse.statusCode===201){loseAuditExportCreateResponse=false;truncateAuditExportCreateResponse(upstreamResponse,response);return;}}
+       if(auditExportBrowserMode&&request.method==="GET"&&/^\/api\/v1\/audit-exports\/pid_[0-9a-f-]+$/.test(target.pathname)){
+         let bytes=0;upstreamResponse.on("data",chunk=>{bytes+=chunk.length;});upstreamResponse.once("end",()=>{auditExportReadTotals.responses++;auditExportReadTotals.cursorResponses+=Number(target.searchParams.has("cursor"));auditExportReadTotals.bytes+=bytes;auditExportReadTotals.maximumEnvelopeBytes=Math.max(auditExportReadTotals.maximumEnvelopeBytes,bytes);});upstreamResponse.once("aborted",()=>auditExportReadTotals.incomplete++);
+diff --git a/apps/web/api/pagination.ts b/apps/web/api/pagination.ts
+index f8e5ae13..48d61194 100644
+--- a/apps/web/api/pagination.ts
++++ b/apps/web/api/pagination.ts
+@@ -13,7 +13,7 @@ export type LoadedCursorPages<T> = {
+ 
+ export async function loadAllCursorPages<T>(
+   read: (cursor?: string) => Promise<CursorPage<T>>,
+-  bounds: { readonly maximumItems: number; readonly maximumPages: number },
++  bounds: { readonly maximumItems: number; readonly maximumPages: number; readonly signal?: AbortSignal },
+ ): Promise<LoadedCursorPages<T>> {
+   if (!Number.isSafeInteger(bounds.maximumItems) || bounds.maximumItems < 1 || !Number.isSafeInteger(bounds.maximumPages) || bounds.maximumPages < 1) {
+     throw new Error("invalid pagination bounds");
+@@ -23,7 +23,9 @@ export async function loadAllCursorPages<T>(
+   const seen = new Set<string>();
+   let cursor: string | undefined;
+   for (let pageNumber = 0; pageNumber < bounds.maximumPages; pageNumber += 1) {
++    bounds.signal?.throwIfAborted();
+     const page = await read(cursor);
++    bounds.signal?.throwIfAborted();
+     pages.push(page);
+     items.push(...page.items);
+     if (items.length > bounds.maximumItems) throw new Error("pagination item cap exceeded");
+diff --git a/apps/web/api/pagination.test.ts b/apps/web/api/pagination.test.ts
+index 66367a58..f7b7b69f 100644
+--- a/apps/web/api/pagination.test.ts
++++ b/apps/web/api/pagination.test.ts
+@@ -3,6 +3,26 @@ import { describe, expect, it, vi } from "vitest";
+ import { loadAllCursorPages } from "./pagination";
+ 
+ describe("bounded cursor pagination", () => {
++  it("does not call a page reader after its authority is aborted", async () => {
++    const controller = new AbortController();
++    controller.abort(new DOMException("authority changed", "AbortError"));
++    let pages = 0;
++    await expect(loadAllCursorPages(async () => {
++      pages++;
++      return { items: [], page_info: { has_more: false, next_cursor: null } };
++    }, { maximumItems: 10, maximumPages: 3, signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
++    expect(pages).toBe(0);
++  });
++  it("does not follow a successful obsolete continuation after authority changes during a page", async () => {
++    const controller = new AbortController();
++    let pages = 0;
++    await expect(loadAllCursorPages(async () => {
++      pages++;
++      controller.abort(new DOMException("authority changed", "AbortError"));
++      return { items: ["old"], page_info: { has_more: true, next_cursor: "next" } };
++    }, { maximumItems: 10, maximumPages: 3, signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
++    expect(pages).toBe(1);
++  });
+   it("preserves each page boundary and follows only the returned continuation", async () => {
+     const read = vi.fn(async (cursor?: string) => cursor === undefined
+       ? { items: ["a", "b"], page_info: { has_more: true as const, next_cursor: "cursor-1" } }

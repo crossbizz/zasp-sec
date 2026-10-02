@@ -56,19 +56,22 @@ type RedTeamOutboxEvent struct {
 }
 
 type RedTeamRunClaim struct {
-	Disposition    string
-	Run            RedTeamRun
-	Definition     RedTeamDefinition
-	InputDigest    [sha256.Size]byte
-	LeaseExpiresAt time.Time
+	EvidenceVersion string
+	Disposition     string
+	Run             RedTeamRun
+	Definition      RedTeamDefinition
+	InputDigest     [sha256.Size]byte
+	LeaseExpiresAt  time.Time
 }
 
 type RedTeamRunHeartbeat struct {
-	Renewed         bool `json:"renewed"`
-	CancelRequested bool `json:"cancel_requested"`
+	Renewed         bool       `json:"renewed"`
+	CancelRequested bool       `json:"cancel_requested"`
+	LeaseExpiresAt  *time.Time `json:"lease_expires_at,omitempty"`
 }
 
 type RedTeamRunCompletion struct {
+	EvidenceArtifact                                  []byte
 	InputArtifact                                     *RedTeamArtifactReference
 	RunID, Worker, LeaseToken                         string
 	InputDigest                                       [sha256.Size]byte

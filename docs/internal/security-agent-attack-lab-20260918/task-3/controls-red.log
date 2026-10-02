@@ -1,0 +1,640 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npx","--no-install","vitest","run","app/features/securityagents/SecurityAgentsView.test.tsx","-t","seven registered57|lifecycle batch enables start_attack_lab"]
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ❯ app/features/securityagents/SecurityAgentsView.test.tsx (73 tests | 2 failed | 71 skipped) 1098ms
+   × lifecycle batch enables start_attack_lab through the real client and renders returned control 1096ms
+   × strictly decodes the seven registered57 controls without accepting arbitrary or duplicate actions 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/features/securityagents/SecurityAgentsView.test.tsx > lifecycle batch enables start_attack_lab through the real client and renders returned control
+TestingLibraryElementError: Unable to find an element with the text: start_attack_lab enabled. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mSecurity agents[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mTenant-scoped response definitions, redacted plans, supervised approvals, autonomous actions, outcomes, and verification.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"page-actions"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"button button--primary "[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mCreate Security Agent[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mExecution controls[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"form-stack"[39m
+        [36m>[39m
+          [36m<p>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"badge badge--success"[39m
+            [36m>[39m
+              [0mPlatform execution enabled[0m
+            [36m</span>[39m
+            [0m Platform authority is read-only to tenant administrators.[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mEnvironment automation enabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mcreate_temporary_policy disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0misolate_session disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mrerun_test disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mrevoke_integration_connection disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mrun_test disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mstart_attack_lab disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mupdate_finding_response disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"button-row"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mDisable environment automation[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mEnable create_temporary_policy[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mEnable isolate_session[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mEnable rerun_test[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mEnable revoke_integration_connection[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mEnable run_test[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mRetry retained start_attack_lab control[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mEnable update_finding_response[0m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mrole[39m=[32m"alert"[39m
+          [36m>[39m
+            [0mExecution controls changed or the response was lost. Retry the retained change or reload current authority.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mSecurity Agent definitions[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"empty-state"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-inbox"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<polyline[39m
+              [33mpoints[39m=[32m"22 12 16 12 14 15 10 15 8 12 2 12"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<strong>[39m
+            [0mNo Security Agent definitions[0m
+          [36m</strong>[39m
+          [36m<p>[39m
+            [0mCreate one from a locally supported template.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mSecurity Agent runs[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"empty-state"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-inbox"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<polyline[39m
+              [33mpoints[39m=[32m"22 12 16 12 14 15 10 15 8 12 2 12"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<strong>[39m
+            [0mNo Security Agent runs[0m
+          [36m</strong>[39m
+          [36m<p>[39m
+            [0mAutomatic and manual runs appear here after durable acceptance.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mPending approvals[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"empty-state"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-inbox"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<polyline[39m
+              [33mpoints[39m=[32m"22 12 16 12 14 15 10 15 8 12 2 12"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<strong>[39m
+            [0mNo pending approvals[0m
+          [36m</strong>[39m
+          [36m<p>[39m
+            [0mSupervised action requests appear here before any provider effect.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mSecurity agents[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mTenant-scoped response definitions, redacted plans, supervised approvals, autonomous actions, outcomes, and verification.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"page-actions"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"button button--primary "[39m
+            [33mdisabled[39m=[32m""[39m
+          [36m>[39m
+            [0mCreate Security Agent[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mExecution controls[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"form-stack"[39m
+        [36m>[39m
+          [36m<p>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"badge badge--success"[39m
+            [36m>[39m
+              [0mPlatform execution enabled[0m
+            [36m</span>[39m
+            [0m Platform authority is read-only to tenant administrators.[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mEnvironment automation enabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mcreate_temporary_policy disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0misolate_session disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mrerun_test disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mrevoke_integration_connection disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mrun_test disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mstart_attack_lab disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [36m<strong>[39m
+              [0mupdate_finding_response disabled[0m
+            [36m</strong>[39m
+            [0m · version [0m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"button-row"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mDisable environment automation[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mEnable create_temporary_policy[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mEnable isolate_session[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mEnable rerun_test[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mEnable revoke_integration_connection[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mEnable run_test[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mRetry retained start_attack_lab control[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mEnable update_finding_response[0m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mrole[39m=[32m"alert"[39m
+          [36m>[39m
+            [0mExecution controls changed or the response was lost. Retry the retained change or reload current authority.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mSecurity Agent definitions[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"empty-state"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-inbox"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<polyline[39m
+              [33mpoints[39m=[32m"22 12 16 12 14 15 10 15 8 12 2 12"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<strong>[39m
+            [0mNo Security Agent definitions[0m
+          [36m</strong>[39m
+          [36m<p>[39m
+            [0mCreate one from a locally supported template.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mSecurity Agent runs[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"empty-state"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-inbox"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<polyline[39m
+              [33mpoints[39m=[32m"22 12 16 12 14 15 10 15 8 12 2 12"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<strong>[39m
+            [0mNo Security Agent runs[0m
+          [36m</strong>[39m
+          [36m<p>[39m
+            [0mAutomatic and manual runs appear here after durable acceptance.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mPending approvals[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"empty-state"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-inbox"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<polyline[39m
+              [33mpoints[39m=[32m"22 12 16 12 14 15 10 15 8 12 2 12"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<strong>[39m
+            [0mNo pending approvals[0m
+          [36m</strong>[39m
+          [36m<p>[39m
+            [0mSupervised action requests appear here before any provider effect.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ app/features/securityagents/SecurityAgentsView.test.tsx:61:23
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  app/features/securityagents/SecurityAgentsView.test.tsx > strictly decodes the seven registered57 controls without accepting arbitrary or duplicate actions
+Error: schema mismatch
+ ❯ fail apps/web/api/decoders.ts:1167:32
+
+ ❯ array apps/web/api/decoders.ts:1151:124
+ ❯ decodeSecurityAgentExecutionControls apps/web/api/decoders.ts:503:19
+ ❯ app/features/securityagents/SecurityAgentsView.test.tsx:67:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 71 skipped (73)
+   Start at  04:07:48
+   Duration  2.57s (transform 268ms, setup 205ms, import 370ms, tests 1.10s, environment 789ms)
+
+
+Exit: 1 Signal: null

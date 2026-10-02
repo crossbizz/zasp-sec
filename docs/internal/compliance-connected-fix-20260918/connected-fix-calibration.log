@@ -1,0 +1,5 @@
+=== RUN   TestComplianceCompiledFingerprintPostgres
+    compliance_postgres_test.go:466: compiled compliance fingerprint differs: actual=8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestComplianceCompiledFingerprintPostgres389891457/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestComplianceCompiledFingerprintPostgres (3.97s)
+FAIL

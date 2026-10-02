@@ -1,0 +1,3 @@
+go: cannot find main module, but found .git/config in /Users/manishmaheshwari/Projects/zasp-sec
+	to create a module there, run:
+	cd ../.. && go mod init

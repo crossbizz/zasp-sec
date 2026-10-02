@@ -1,0 +1,172 @@
+TAP version 13
+# Subtest: macOS preserves the existing application default
+ok 1 - macOS preserves the existing application default
+  ---
+  duration_ms: 0.844417
+  type: 'test'
+  ...
+# Subtest: explicit Linux executable with spaces and shell metacharacters is passed literally
+ok 2 - explicit Linux executable with spaces and shell metacharacters is passed literally
+  ---
+  duration_ms: 182.907833
+  type: 'test'
+  ...
+# Subtest: explicit relative browser path fails without fallback
+ok 3 - explicit relative browser path fails without fallback
+  ---
+  duration_ms: 0.368416
+  type: 'test'
+  ...
+# Subtest: explicit newline browser path fails without fallback
+ok 4 - explicit newline browser path fails without fallback
+  ---
+  duration_ms: 0.122334
+  type: 'test'
+  ...
+# Subtest: explicit NUL browser path fails without fallback
+ok 5 - explicit NUL browser path fails without fallback
+  ---
+  duration_ms: 0.050708
+  type: 'test'
+  ...
+# Subtest: explicit tab browser path fails without fallback
+ok 6 - explicit tab browser path fails without fallback
+  ---
+  duration_ms: 0.102041
+  type: 'test'
+  ...
+# Subtest: explicit DEL browser path fails without fallback
+ok 7 - explicit DEL browser path fails without fallback
+  ---
+  duration_ms: 0.044583
+  type: 'test'
+  ...
+# Subtest: explicit C1 browser path fails without fallback
+ok 8 - explicit C1 browser path fails without fallback
+  ---
+  duration_ms: 0.191334
+  type: 'test'
+  ...
+# Subtest: explicit empty browser path fails without fallback
+ok 9 - explicit empty browser path fails without fallback
+  ---
+  duration_ms: 0.247209
+  type: 'test'
+  ...
+# Subtest: explicit nonexistent path fails despite a valid PATH fallback
+ok 10 - explicit nonexistent path fails despite a valid PATH fallback
+  ---
+  duration_ms: 3.232542
+  type: 'test'
+  ...
+# Subtest: explicit nonexecutable path fails despite a valid PATH fallback
+ok 11 - explicit nonexecutable path fails despite a valid PATH fallback
+  ---
+  duration_ms: 2.114833
+  type: 'test'
+  ...
+# Subtest: explicit directory path fails despite a valid PATH fallback
+ok 12 - explicit directory path fails despite a valid PATH fallback
+  ---
+  duration_ms: 1.782666
+  type: 'test'
+  ...
+# Subtest: Linux resolves installed Chrome from PATH and refuses missing defaults
+ok 13 - Linux resolves installed Chrome from PATH and refuses missing defaults
+  ---
+  duration_ms: 2.416125
+  type: 'test'
+  ...
+# Subtest: checked prerequisites reach setup once with resolved browser and PostgreSQL paths
+ok 14 - checked prerequisites reach setup once with resolved browser and PostgreSQL paths
+  ---
+  duration_ms: 208.839709
+  type: 'test'
+  ...
+# Subtest: missing chrome prevents setup and identifies the prerequisite
+ok 15 - missing chrome prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 8.523458
+  type: 'test'
+  ...
+# Subtest: missing go prevents setup and identifies the prerequisite
+ok 16 - missing go prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 9.942875
+  type: 'test'
+  ...
+# Subtest: missing docker prevents setup and identifies the prerequisite
+ok 17 - missing docker prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 7.992375
+  type: 'test'
+  ...
+# Subtest: missing openssl prevents setup and identifies the prerequisite
+ok 18 - missing openssl prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 6.345458
+  type: 'test'
+  ...
+# Subtest: missing pg_config prevents setup and identifies the prerequisite
+ok 19 - missing pg_config prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 7.644541
+  type: 'test'
+  ...
+# Subtest: missing pg/psql prevents setup and identifies the prerequisite
+ok 20 - missing pg/psql prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 225.2145
+  type: 'test'
+  ...
+# Subtest: missing node_modules/.bin/vinext prevents setup and identifies the prerequisite
+ok 21 - missing node_modules/.bin/vinext prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 217.12625
+  type: 'test'
+  ...
+# Subtest: missing dist/server/index.js prevents setup and identifies the prerequisite
+ok 22 - missing dist/server/index.js prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 217.15925
+  type: 'test'
+  ...
+# Subtest: the actual harness exits nonzero before setup for an invalid explicit browser
+ok 23 - the actual harness exits nonzero before setup for an invalid explicit browser
+  ---
+  duration_ms: 72.714041
+  type: 'test'
+  ...
+# Subtest: invalid relative pg_config output prevents setup
+ok 24 - invalid relative pg_config output prevents setup
+  ---
+  duration_ms: 221.377083
+  type: 'test'
+  ...
+# Subtest: invalid embedded control pg_config output prevents setup
+ok 25 - invalid embedded control pg_config output prevents setup
+  ---
+  duration_ms: 238.707125
+  type: 'test'
+  ...
+# Subtest: invalid empty pg_config output prevents setup
+ok 26 - invalid empty pg_config output prevents setup
+  ---
+  duration_ms: 165.674667
+  type: 'test'
+  ...
+# Subtest: failed pg_config command identifies the tool and prevents setup
+ok 27 - failed pg_config command identifies the tool and prevents setup
+  ---
+  duration_ms: 145.204208
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2011.798

@@ -1,0 +1,269 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","node_modules/vitest/vitest.mjs","run","app/features/securityagents/AttackLabEvidence.test.tsx","app/features/securityagents/SecurityAgentsView.test.tsx","-t","Attack Lab|Attack Lab draft"]
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ❯ app/features/securityagents/AttackLabEvidence.test.tsx (4 tests | 4 failed) 30ms
+     × renders verified as human interpretation, never remediation 21ms
+     × renders not_reproduced as human interpretation, never remediation 3ms
+     × keeps cleanup obligations visible without a terminal settlement 2ms
+     × shows exact bounded approval source and non-production authority 3ms
+ ❯ app/features/securityagents/SecurityAgentsView.test.tsx (71 tests | 1 failed | 70 skipped) 98ms
+   × requires the exact test version for a catalog-ready Attack Lab draft 97ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/features/securityagents/AttackLabEvidence.test.tsx > Attack Lab user evidence > renders verified as human interpretation, never remediation
+ FAIL  app/features/securityagents/AttackLabEvidence.test.tsx > Attack Lab user evidence > renders not_reproduced as human interpretation, never remediation
+TestingLibraryElementError: Unable to find an element with the text: Attack Lab outcome: Needs human. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Action details pid_78000001-0000-4000-8000-000000000001"[39m
+    [36m>[39m
+      [36m<h4>[39m
+        [0mPersisted action details[0m
+      [36m</h4>[39m
+      [36m<div>[39m
+        [36m<p>[39m
+          [0mTarget: [0m
+          [0mpid_78000001-0000-4000-8000-000000000001[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mExpected version: [0m
+          [0m7[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<div>[39m
+        [36m<p>[39m
+          [0mEffect state: [0m
+          [0msucceeded[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mRecorded outcome: [0m
+          [0mpid_78000001-0000-4000-8000-000000000001[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mResult digest: [0m
+          [0msha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<p>[39m
+        [0mTTL unavailable or not applicable.[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mControl expiry unavailable.[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mNo rollback support[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mRollback: [0m
+        [0munavailable[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mCleanup verification [0m
+        [0munavailable[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mApplication verification [0m
+        [0mpending[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mRecorded action result[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mRecorded evidence, not a new live provider check.[0m
+      [36m</p>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ app/features/securityagents/AttackLabEvidence.test.tsx:15:17
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  app/features/securityagents/AttackLabEvidence.test.tsx > Attack Lab user evidence > keeps cleanup obligations visible without a terminal settlement
+TestingLibraryElementError: Unable to find an element with the text: Sandbox cleanup pending. This obligation remains after the Security Agent stops.. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Action details pid_78000001-0000-4000-8000-000000000001"[39m
+    [36m>[39m
+      [36m<h4>[39m
+        [0mPersisted action details[0m
+      [36m</h4>[39m
+      [36m<div>[39m
+        [36m<p>[39m
+          [0mTarget: [0m
+          [0mpid_78000001-0000-4000-8000-000000000001[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mExpected version: [0m
+          [0m7[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<div>[39m
+        [36m<p>[39m
+          [0mEffect state: [0m
+          [0msucceeded[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mRecorded outcome: [0m
+          [0mpid_78000001-0000-4000-8000-000000000001[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mResult digest: [0m
+          [0msha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<p>[39m
+        [0mTTL unavailable or not applicable.[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mControl expiry unavailable.[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mNo rollback support[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mRollback: [0m
+        [0munavailable[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mCleanup verification [0m
+        [0munavailable[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mApplication verification [0m
+        [0mpending[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mRecorded action result[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mRecorded evidence, not a new live provider check.[0m
+      [36m</p>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ app/features/securityagents/AttackLabEvidence.test.tsx:24:17
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  app/features/securityagents/AttackLabEvidence.test.tsx > Attack Lab user evidence > shows exact bounded approval source and non-production authority
+TestingLibraryElementError: Unable to find an element with the text: Approved source: pid_78000002-0000-4000-8000-000000000002 · attempt 2. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Persisted approval context"[39m
+      [33mclass[39m=[32m"approval-context"[39m
+    [36m>[39m
+      [36m<h3>[39m
+        [0mApproval context[0m
+      [36m</h3>[39m
+      [36m<span[39m
+        [33mclass[39m=[32m"approval-context-fields"[39m
+      [36m>[39m
+        [36m<span>[39m
+          [0mAction: [0m
+          [0munavailable[0m
+        [36m</span>[39m
+        [36m<span>[39m
+          [0mAgent: [0m
+          [0munavailable[0m
+        [36m</span>[39m
+        [36m<span>[39m
+          [0mTarget: [0m
+          [0munavailable[0m
+        [36m</span>[39m
+        [36m<span>[39m
+          [0mRequester: [0m
+          [0munavailable[0m
+        [36m</span>[39m
+        [36m<span>[39m
+          [0mRun: [0m
+          [0mpid_78000001-0000-4000-8000-000000000001[0m
+        [36m</span>[39m
+        [36m<span>[39m
+          [0mExpires: [0m
+          [0m2030-01-01T00:00:00Z[0m
+        [36m</span>[39m
+      [36m</span>[39m
+      [36m<h3>[39m
+        [0mReason[0m
+      [36m</h3>[39m
+      [36m<p>[39m
+        [0mNo persisted approval reason is available.[0m
+      [36m</p>[39m
+      [36m<p>[39m
+        [0mRisk: unavailable[0m
+      [36m</p>[39m
+      [36m<section[39m
+        [33maria-label[39m=[32m"Approval AI rationale"[39m
+        [33mclass[39m=[32m"security-agent-rationale"[39m
+      [36m>[39m
+        [36m<h3>[39m
+          [0mAI rationale[0m
+        [36m</h3>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"security-agent-rationale__disclaimer"[39m
+        [36m>[39m
+          [0mAI-generated explanation. This does not authorize any action.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mNo AI rationale is available for this approval.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ app/features/securityagents/AttackLabEvidence.test.tsx:30:17
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  app/features/securityagents/SecurityAgentsView.test.tsx > requires the exact test version for a catalog-ready Attack Lab draft
+Error: expect(element).toBeDisabled()
+
+Received element is not disabled:
+  <button
+  class="button button--primary "
+/>
+ ❯ app/features/securityagents/SecurityAgentsView.test.tsx:38:82
+     36|   render(<SecurityAgentsView api={api} environmentID={environmentID} c…
+     37|   await user.click(await screen.findByRole("button", { name: "Create S…
+     38|   expect(screen.getByRole("button", { name: "Save Security Agent defin…
+       |                                                                                  ^
+     39|   await user.selectOptions(await screen.findByLabelText("Existing test…
+     40|   await user.click(screen.getByRole("button", { name: "Save Security A…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  5 failed | 70 skipped (75)
+   Start at  03:21:18
+   Duration  1.79s (transform 363ms, setup 420ms, import 452ms, tests 128ms, environment 1.78s)
+
+
+Exit: 1 Signal: null

@@ -1,0 +1,19 @@
+$ /usr/local/bin/docker run --rm --name zasp-export-planner-wait-red --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(PlannerAdmission|PlannerAuthorityWait)Postgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentExportPlannerAdmissionPostgres
+=== RUN   TestSecurityAgentExportPlannerAdmissionPostgres/autonomous
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportPlannerAdmissionPostgresautonomous2173315290/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportPlannerAdmissionPostgres/supervised
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestSecurityAgentExportPlannerAdmissionPostgressupervised1962414245/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportPlannerAdmissionPostgres/failure
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=86 data=/tmp/TestSecurityAgentExportPlannerAdmissionPostgresfailure810729794/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportPlannerAdmissionPostgres (18.08s)
+    --- PASS: TestSecurityAgentExportPlannerAdmissionPostgres/autonomous (6.24s)
+    --- PASS: TestSecurityAgentExportPlannerAdmissionPostgres/supervised (6.17s)
+    --- PASS: TestSecurityAgentExportPlannerAdmissionPostgres/failure (5.67s)
+=== RUN   TestSecurityAgentExportPlannerAuthorityWaitPostgres
+    security_agent_export_planner_postgres_test.go:348: context retained revoked source permission after source lock wait
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=116 data=/tmp/TestSecurityAgentExportPlannerAuthorityWaitPostgres1595938767/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportPlannerAuthorityWaitPostgres (5.07s)
+FAIL
+
+exit=1

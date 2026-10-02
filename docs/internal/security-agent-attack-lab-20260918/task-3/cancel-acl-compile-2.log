@@ -1,0 +1,4 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["go","test","-C","services/platform","./apiserver","-c","-o","/private/tmp/zasp-attack-lab-task3.test"]
+
+Exit: 0 Signal: null

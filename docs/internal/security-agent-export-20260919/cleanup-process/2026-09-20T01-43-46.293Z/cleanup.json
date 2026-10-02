@@ -1,0 +1,6 @@
+{
+  "container": "zasp-cleanup-process-9gp1oq",
+  "status": 0,
+  "output": "Error response from daemon: No such container: zasp-cleanup-process-9gp1oq\n",
+  "temporaryRemoved": true
+}

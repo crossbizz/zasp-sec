@@ -1,0 +1,119 @@
+combined E2E: cleanup browser
+combined E2E: cleanup Task4 workers
+combined E2E: cleanup api
+combined E2E: cleanup proxy
+combined E2E: cleanup identity
+combined E2E: cleanup policy history
+combined E2E: cleanup web
+combined E2E: cleanup postgres
+combined E2E: cleanup remaining processes
+combined E2E: cleanup files
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /2020-01-01T00:00:00Z[\s\S]*stale/. Input:
+
+'Zasp\n' +
+  'Agent Security\n' +
+  'Production\n' +
+  'Staging\n' +
+  'Search\n' +
+  'Sign out\n' +
+  'Overview\n' +
+  'Agents\n' +
+  'Tools & MCP\n' +
+  'Identities\n' +
+  'Runtimes\n' +
+  'Findings\n' +
+  'Attack Paths\n' +
+  'Red Team\n' +
+  'Attack Lab\n' +
+  'Policies\n' +
+  'Integrations\n' +
+  'Sensors\n' +
+  'Security agents\n' +
+  'Approvals\n' +
+  'Identity & Access\n' +
+  'API Access\n' +
+  'Sessions\n' +
+  'Audit Log\n' +
+  'Compliance\n' +
+  'Data & Retention\n' +
+  'Recovery\n' +
+  'External Data Flows\n' +
+  'System Health\n' +
+  'Compliance evidence\n' +
+  'i\n' +
+  '\n' +
+  'Product evidence for review. Freshness and exports do not establish certification or control effectiveness.\n' +
+  '\n' +
+  'Back to evidence\n' +
+  'Evidence source\n' +
+  '\n' +
+  'policy · policy-compliance-browser · version 7\n' +
+  '\n' +
+  '2020-01-01T00:00:00.000000Z\n' +
+  '\n' +
+  'stale\n' +
+  '\n' +
+  '{\n' +
+  '  "verification": "definition_only"\n' +
+  '}'
+
+    at exerciseComplianceBrowser (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:2158:10)
+    at async file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:295:5 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'Zasp\n' +
+    'Agent Security\n' +
+    'Production\n' +
+    'Staging\n' +
+    'Search\n' +
+    'Sign out\n' +
+    'Overview\n' +
+    'Agents\n' +
+    'Tools & MCP\n' +
+    'Identities\n' +
+    'Runtimes\n' +
+    'Findings\n' +
+    'Attack Paths\n' +
+    'Red Team\n' +
+    'Attack Lab\n' +
+    'Policies\n' +
+    'Integrations\n' +
+    'Sensors\n' +
+    'Security agents\n' +
+    'Approvals\n' +
+    'Identity & Access\n' +
+    'API Access\n' +
+    'Sessions\n' +
+    'Audit Log\n' +
+    'Compliance\n' +
+    'Data & Retention\n' +
+    'Recovery\n' +
+    'External Data Flows\n' +
+    'System Health\n' +
+    'Compliance evidence\n' +
+    'i\n' +
+    '\n' +
+    'Product evidence for review. Freshness and exports do not establish certification or control effectiveness.\n' +
+    '\n' +
+    'Back to evidence\n' +
+    'Evidence source\n' +
+    '\n' +
+    'policy · policy-compliance-browser · version 7\n' +
+    '\n' +
+    '2020-01-01T00:00:00.000000Z\n' +
+    '\n' +
+    'stale\n' +
+    '\n' +
+    '{\n' +
+    '  "verification": "definition_only"\n' +
+    '}',
+  expected: /2020-01-01T00:00:00Z[\s\S]*stale/,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v22.23.1

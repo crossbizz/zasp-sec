@@ -1,0 +1,31 @@
+# Review candidate
+
+HEAD: `8733b16f8d939d38a8157dd2519e57fc6f630542`.
+
+Final release58 live fingerprint: `df4ba6cf13e1ae0312a1c46dc05895e8f83bd8b2b381ddc1162482e694a77ff2`.
+
+Task-only patch SHA256: `4681b66ca882c046bc2f463ddf7d50cf450e804e3b7bd1067d7f1ca4bd852380`.
+
+Before bytes: production_audit_exports.go `8b84b0128aabadd338ed08c1712666f1b63b478e6a830f03de3a0fcd44b5f5e5`; production_compliance.go `734b442730dcb15a9472b4be64c48b0e1a4084fc14cdcec41a1f9c2787efdad0`. Their exact bytes are retained under before/. Other owned product paths were absent at entry. The task-only patch uses these preserved bytes as its baseline, not HEAD.
+
+```text
+3af10ba2f7389083d617d30075a60d70f67315df634eade9f0809633d1a031e8  services/platform/migrations/security_agent_exports_release.go
+47d7492e68eb3d9db13a0cb15fb24e6c447cab397c87b7b8f143fce0c7468a2f  services/platform/migrations/production_security_agent_exports.go
+87a38c5cf59e10f4cbd0d05d7a5e90f8237029f2865e24db8b98a21bf0038f0c  services/platform/migrations/sql/0058_production_security_agent_exports.up.sql
+20d2706de4f746ae978fa1f663eb9e9e53c585a437fce3324d23dfd910ad2c15  services/platform/migrations/sql/0058_production_security_agent_exports.down.sql
+0cfd0a60483eb0c9144bc879b4fcbff6ed6d6320b4c0b81b6218ea4bc6571acc  services/platform/migrations/sql/fragments/security_agent_export_sources.sql
+8c25bfe0d7729c16d4130c7070587446655130e855a8650b09bce4f34c7abf21  services/platform/migrations/sql/fragments/security_agent_export_jobs.sql
+0e37b4ace32342ca8c4ee17eb77812842600f155256373cbe397bbdfb4f8d7f0  services/platform/migrations/sql/fragments/security_agent_export_links.sql
+4f88d075acb767769a8b8e3035d58e67ff5feb0610d58755c9113513da4e3b58  services/platform/apiserver/security_agent_export_postgres_test.go
+e0cb3d18b28bc5c861a1595f0246ea80a950aa8d1533a41484dd664c9554583c  services/platform/apiserver/security_agent_export_release_postgres_test.go
+5e5ba19c9833ba91339bdc70c072792de126fa24bdebebd157d8721cb898bbbc  services/platform/migrations/production_audit_exports.go
+f937b291e4a5c06f03d0a13f3be2ba77ee2ec51ee9ce4e063b45ab2a8b4d78c8  services/platform/migrations/production_compliance.go
+4681b66ca882c046bc2f463ddf7d50cf450e804e3b7bd1067d7f1ca4bd852380  docs/internal/security-agent-export-20260919/database/task-only.patch
+0717f1520a8464e336dd5278914f0d6684613bd16c0c742db642a1c91ee1605a  docs/internal/security-agent-export-20260919/database/checkpoint-39248419.patch
+bb933859b4ba754f446e2cf4147371aea230eb3f1f244752446571d5caea1e04  services/platform/agentsec-worker/security_agent_export_render.go
+0b541bee4e3639d54e85308d797abb59bdf5309aa694258442256eb7876cf2cf  services/platform/agentsec-worker/security_agent_export_render_test.go
+```
+
+`git apply --reverse --check docs/internal/security-agent-export-20260919/database/task-only.patch` exited0. No files were changed by that check. Renderer hashes still match the accepted baseline, and its accepted patch remains `8aec587fa84f33247586d9124b99becc70ac65d8a1c53a0343c89875cc893ecf`.
+
+The complete16-group run was performed on39248419, preserved as checkpoint-39248419.patch and feature-batch-green.log. The final candidate adds only explicit manual/scheduled requester authorization, its refusal/positive regression, and the resulting compiled fingerprint. A focused Sources/Authority/Release run verifies that affected delta separately. No commit, staging, push, dependency install, image pull or host PostgreSQL use occurred.

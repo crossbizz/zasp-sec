@@ -3,6 +3,7 @@ import { before, describe, it } from "node:test";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { JSON_SCHEMA, load } from "js-yaml";
+import "./security-agent-ordered.test.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const documentPath = resolve(import.meta.dirname, "openapi.yaml");
@@ -104,6 +105,8 @@ function verifyDocument(value, rawText) {
   });
 
   assert.deepEqual(value.components.parameters, {
+    ComplianceFramework: { name: "framework", in: "query", schema: { type: "string", enum: ["soc2_security", "hipaa"] } },
+    ComplianceControlFilter: { name: "control_id", in: "query", schema: { type: "string", minLength: 1, maxLength: 128, pattern: "^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$" } },
     SensorEnrollmentSchema: {
       name: "X-Zasp-Sensor-Enrollment-Schema",
       in: "header",
@@ -145,6 +148,12 @@ function verifyDocument(value, rawText) {
       required: true,
       description: "Caller-generated key binding an exact workflow mutation and its durable response.",
       schema: { type: "string", minLength: 16, maxLength: 128, pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
+    },
+    CompliancePageCursor: {
+      name: "cursor",
+      in: "query",
+      required: false,
+      schema: { $ref: "#/components/schemas/ComplianceCursor" },
     },
     PageCursor: {
       name: "cursor",
@@ -299,7 +308,7 @@ describe("M1-23 strict OpenAPI root", () => {
       "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm run graph:neo4j:test && npm run db:tenant-rls:test && npm test && npm run typecheck && npm run lint && npm run production:imports:test && npm run production:imports:source && npm run staging:gate:test && npm run production:release:test && npm run build && npm run production:imports:compiled && npm run implementation:status:check",
     );
     assert.equal(packageJSON.devDependencies["@redocly/cli"], "2.43.1");
-    assert.equal(packageJSON.devDependencies["js-yaml"], "4.1.1");
+    assert.equal(packageJSON.devDependencies["js-yaml"], "4.3.2");
   });
 
   it("rejects duplicate YAML keys before semantic validation", () => {
@@ -685,6 +694,32 @@ describe("production workflow concurrency contract", () => {
     }
   });
 
+  it("publishes bounded browser-only typed activity relations with explicit coverage", () => {
+    const forward = document.paths["/api/v1/security-agent-runs/{id}/activity/{kind}"];
+    assert.equal(forward.get.operationId, "listSecurityAgentRunActivity");
+    assert.deepEqual(forward.get.security, [{ BrowserSession: [], BrowserExpectedScope: [] }]);
+    assert.deepEqual(forward.parameters.find(value => value.name === "kind").schema.enum, ["finding", "attack_path", "session", "audit"]);
+    assert.equal(forward.get.parameters.find(value => value.name === "cursor").schema.maxLength, 2048);
+    const targetPage = document.components.schemas.SecurityAgentActivityTargetPage;
+    assert.equal(targetPage.additionalProperties, false);
+    assert.deepEqual(targetPage.required, ["items", "coverage"]);
+    assert.equal(targetPage.properties.items.maxItems, 100);
+    assert.equal(targetPage.properties.items.items.$ref, "#/components/schemas/SecurityAgentActivityTarget");
+    assert.deepEqual(document.components.schemas.SecurityAgentActivityTarget.required, ["kind", "id"]);
+    const path = document.paths["/api/v1/security-agent-activity/{kind}/{id}/runs"];
+    assert.equal(path.get.operationId, "listSecurityAgentActivityRuns");
+    assert.deepEqual(path.get.security, [{ BrowserSession: [], BrowserExpectedScope: [] }]);
+    assert.deepEqual(path.parameters.find(value => value.name === "kind").schema.enum, ["finding", "attack_path", "session", "audit"]);
+    assert.equal(path.get.parameters.find(value => value.name === "cursor").schema.maxLength, 2048);
+    assert.equal(path.get.parameters.find(value => value.name === "limit").schema.maximum, 100);
+    const page = document.components.schemas.SecurityAgentActivityRunPage;
+    assert.equal(page.additionalProperties, false);
+    assert.deepEqual(page.required, ["items", "coverage"]);
+    assert.deepEqual(page.properties.coverage.enum, ["complete", "partial"]);
+    assert.equal(page.properties.items.maxItems, 100);
+    assert.equal(page.properties.next_cursor.maxLength, 2048);
+  });
+
   it("publishes the mounted Security Agent activation, simulation, manual run, and approval surface without read overclaims", () => {
     const operations = new Map();
     for (const [path, pathItem] of Object.entries(document.paths)) {
@@ -692,7 +727,13 @@ describe("production workflow concurrency contract", () => {
         if (operation?.operationId) operations.set(operation.operationId, { path, method, operation });
       }
     }
-    assert.equal(operations.size, 147);
+    assert.equal(operations.size, 162);
+    for (const operationId of ["getSingleTestCleanupRecovery", "requestSingleTestCleanupRecovery"]) {
+      assert.ok(operations.has(operationId), operationId);
+    }
+    for (const operationId of ["getSecurityAgentExport", "createSecurityAgentExportDownloadGrant", "downloadSecurityAgentExport"]) {
+      assert.ok(operations.has(operationId), operationId);
+    }
     for (const operationId of ["updateAgent", "listFindings", "getFinding", "updateFinding", "acceptFindingRisk", "createFindingTicket", "listAttackPaths", "getAttackPath", "getAttackPathBreakOptions", "globalSearch", "authorizeIntegration", "authorizeIntegrationReference", "remediateIntegrationAuthorization", "completeIntegrationOAuthCallback", "syncIntegration", "listIntegrationSyncs", "getIntegrationSync", "getIntegrationSchedule", "putIntegrationSchedule", "deleteIntegrationSchedule", "getIntegrationFreshness", "getIntegrationSetupStatus", "listSensors", "createSensorEnrollment", "getSensor", "updateSensor", "deleteSensor", "rotateSensorToken", "getSensorCoverage", "listSecurityActions", "getSecurityAgentExecutionControls", "setSecurityAgentExecutionControl", "getSecurityAgentActivation", "activateSecurityAgent", "simulateSecurityAgent", "runSecurityAgent", "listSecurityAgentRuns", "getSecurityAgentRun", "cancelSecurityAgentRun", "listSecurityAgentApprovals", "getSecurityAgentApproval", "decideSecurityAgentApproval"]) {
       assert.ok(operations.has(operationId), operationId);
     }
@@ -794,11 +835,10 @@ describe("production workflow concurrency contract", () => {
     assert.equal(document.components.schemas.SecurityAgentExecutionControlInput.properties.target.enum.includes("global"), false);
     assert.deepEqual(document.components.schemas.SecurityAgentExecutionControls.properties.actions, {
       type: "array",
-      minItems: 4,
-      maxItems: 4,
+      oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }, { minItems: 7, maxItems: 7 }, { minItems: 8, maxItems: 8 }],
       items: { $ref: "#/components/schemas/SecurityAgentExecutionControl" },
     });
-    assert.deepEqual(document.components.schemas.SecurityAgentExecutionControlInput.properties.action_key.enum, ["*", "create_temporary_policy", "isolate_session", "revoke_integration_connection", "update_finding_response"]);
+    assert.deepEqual(document.components.schemas.SecurityAgentExecutionControlInput.properties.action_key.enum, ["*", "create_evidence_export", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"]);
 
     const activationState = operations.get("getSecurityAgentActivation");
     assert.equal(activationState.path, "/api/v1/security-agents/{id}/activation");
@@ -834,7 +874,7 @@ describe("production workflow concurrency contract", () => {
     assert.equal(cancelRun.path, "/api/v1/security-agent-runs/{id}/cancel");
     assert.equal(cancelRun.method, "post");
     assert.equal(cancelRun.operation.requestBody, undefined);
-    assert.deepEqual(cancelRun.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentRun" });
+    assert.deepEqual(cancelRun.operation.responses["200"].content["application/json"].schema, { $ref: "#/components/schemas/SecurityAgentCancellation" });
 
     const approvalList = operations.get("listSecurityAgentApprovals");
     assert.equal(approvalList.path, "/api/v1/security-agent-approvals");

@@ -1,0 +1,37 @@
+$ /usr/local/bin/docker run --rm --name zasp-export-planner-draft --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(PlannerAdmission|PlannerRefusals|PlannerPredecessorReplay|PlannerAuthorityWait|Release)Postgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentExportPlannerAdmissionPostgres
+=== RUN   TestSecurityAgentExportPlannerAdmissionPostgres/autonomous
+    security_agent_export_planner_postgres_test.go:76: ERROR: export selected source permission rejected (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportPlannerAdmissionPostgresautonomous1642736712/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportPlannerAdmissionPostgres/supervised
+    security_agent_export_planner_postgres_test.go:76: ERROR: export selected source permission rejected (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestSecurityAgentExportPlannerAdmissionPostgressupervised1629507088/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportPlannerAdmissionPostgres/failure
+    security_agent_export_planner_postgres_test.go:76: ERROR: export selected source permission rejected (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=86 data=/tmp/TestSecurityAgentExportPlannerAdmissionPostgresfailure4141737533/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportPlannerAdmissionPostgres (15.52s)
+    --- FAIL: TestSecurityAgentExportPlannerAdmissionPostgres/autonomous (5.64s)
+    --- FAIL: TestSecurityAgentExportPlannerAdmissionPostgres/supervised (4.69s)
+    --- FAIL: TestSecurityAgentExportPlannerAdmissionPostgres/failure (5.20s)
+=== RUN   TestSecurityAgentExportPlannerRefusalsPostgres
+    security_agent_export_planner_postgres_test.go:180: ERROR: export selected source permission rejected (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=116 data=/tmp/TestSecurityAgentExportPlannerRefusalsPostgres7956133/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportPlannerRefusalsPostgres (5.16s)
+=== RUN   TestSecurityAgentExportPlannerPredecessorReplayPostgres
+=== RUN   TestSecurityAgentExportPlannerPredecessorReplayPostgres/accept
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=146 data=/tmp/TestSecurityAgentExportPlannerPredecessorReplayPostgresaccept3747390901/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportPlannerPredecessorReplayPostgres/fail
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=176 data=/tmp/TestSecurityAgentExportPlannerPredecessorReplayPostgresfail1667359123/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportPlannerPredecessorReplayPostgres (11.80s)
+    --- PASS: TestSecurityAgentExportPlannerPredecessorReplayPostgres/accept (6.28s)
+    --- PASS: TestSecurityAgentExportPlannerPredecessorReplayPostgres/fail (5.52s)
+=== RUN   TestSecurityAgentExportPlannerAuthorityWaitPostgres
+    security_agent_export_planner_postgres_test.go:306: ERROR: export selected source permission rejected (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=206 data=/tmp/TestSecurityAgentExportPlannerAuthorityWaitPostgres1664306696/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportPlannerAuthorityWaitPostgres (4.66s)
+=== RUN   TestSecurityAgentExportReleasePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=236 data=/tmp/TestSecurityAgentExportReleasePostgres455126247/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportReleasePostgres (6.32s)
+FAIL
+
+exit=1

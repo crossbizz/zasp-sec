@@ -1,0 +1,41 @@
+package migrations
+
+import (
+	"crypto/sha256"
+	_ "embed"
+	"encoding/hex"
+	"strings"
+)
+
+//go:embed sql/0058_production_security_agent_exports.up.sql
+var securityAgentExportsUpSQL string
+
+//go:embed sql/0058_production_security_agent_exports.down.sql
+var securityAgentExportsDownSQL string
+
+//go:embed sql/fragments/security_agent_export_sources.sql
+var securityAgentExportSourcesSQL string
+
+//go:embed sql/fragments/security_agent_export_jobs.sql
+var securityAgentExportJobsSQL string
+
+//go:embed sql/fragments/security_agent_export_links.sql
+var securityAgentExportLinksSQL string
+
+func SecurityAgentExportsFingerprint() string {
+	return "e60b91c5d4ecd09bd20617e12eca85bc139865c9532f71e6613e578a6a5bd676"
+}
+
+func ProductionSecurityAgentExports() Metadata {
+	sql := strings.NewReplacer(
+		"-- export sources fragment", securityAgentExportSourcesSQL,
+		"-- export jobs fragment", securityAgentExportJobsSQL,
+		"-- export links fragment", securityAgentExportLinksSQL,
+		"-- export predecessor checksum", ProductionSecurityAgentAttackLab().Checksum(),
+		"-- export predecessor fingerprint", SecurityAgentAttackLabFingerprint(),
+	).Replace(securityAgentExportsUpSQL)
+	digest := sha256.Sum256([]byte(sql + "\x00" + securityAgentExportsDownSQL))
+	checksum := hex.EncodeToString(digest[:])
+	sql = strings.NewReplacer("-- compiled export checksum", checksum, "-- compiled export fingerprint", SecurityAgentExportsFingerprint()).Replace(sql)
+	return Metadata{version: 58, name: "production_security_agent_exports", checksum: checksum, up: sql, down: securityAgentExportsDownSQL}
+}

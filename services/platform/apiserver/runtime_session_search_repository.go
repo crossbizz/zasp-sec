@@ -38,7 +38,10 @@ func (repository *PostgresRepository) readyRuntimeSessionSearch(ctx context.Cont
 		return nil
 	}
 	metadata := migrations.ProductionRuntimeSandboxBinding()
-	body, err := repository.database.QueryJSON(ctx, `SELECT to_jsonb(zasp_production_runtime_sandbox_binding_readiness($1,$2))`, metadata.Checksum(), migrations.ProductionRuntimeSandboxBindingSemanticFingerprint())
+	body, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, `SELECT to_jsonb(zasp_production_runtime_sandbox_binding_readiness($1,$2))`, `SELECT to_jsonb(zasp_authorization80.session_source_readiness(50,$1,$2))`), metadata.Checksum(), migrations.ProductionRuntimeSandboxBindingSemanticFingerprint())
+	if errors.Is(err, ErrRepositoryConflict) || errors.Is(err, ErrAuthorizationDenied) {
+		return err
+	}
 	if err != nil || ctx.Err() != nil || !bytes.Equal(bytes.TrimSpace(body), []byte("true")) {
 		return ErrRepositoryUnavailable
 	}
@@ -212,6 +215,32 @@ func (repository *PostgresRepository) searchRuntimeSessions(ctx context.Context,
 	if err != nil || !validAdministrationProductID(identity.PrincipalID.String()) {
 		return nil, ErrRepositoryOperation
 	}
+	exposeSearch := true
+	allowed := map[string]bool{}
+	if grant, ok := requestAuthorizationFromContext(ctx); ok {
+		if grant.OperationID != "listSessions" || !grant.Collection || grant.Identity.PrincipalID != identity.PrincipalID || grant.Identity.Scope != identity.Scope {
+			return nil, ErrAuthorizationDenied
+		}
+		filters.AuthorizationRestricted = true
+		exposeSearch = grant.EnvironmentView
+		filters.AllowedInvestigationIDs = make([]string, 0, len(grant.Allowed))
+		for _, target := range grant.Allowed {
+			if target.Kind != "session" || target.Scope != identity.Scope {
+				return nil, ErrAuthorizationDenied
+			}
+			id := target.SourceID
+			if id == "" {
+				id = target.ID
+			}
+			filters.AllowedInvestigationIDs = append(filters.AllowedInvestigationIDs, id)
+			allowed[id] = true
+		}
+		if _, err := sessionsearch.BuildQuery(identity.Scope, filters, parameters["after_id"], limit+1); err != nil {
+			return nil, ErrAuthorizationDenied
+		}
+	} else if repository.currentAuthorization {
+		return nil, ErrAuthorizationDenied
+	}
 	started := time.Now()
 	args := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String()}
 	query := func(statement string, args ...any) (json.RawMessage, error) {
@@ -219,24 +248,46 @@ func (repository *PostgresRepository) searchRuntimeSessions(ctx context.Context,
 		if errors.Is(err, ErrRepositoryNotFound) {
 			return nil, ErrRepositoryNotFound
 		}
+		if errors.Is(err, ErrRepositoryConflict) || errors.Is(err, ErrAuthorizationDenied) {
+			return nil, err
+		}
 		if err != nil || ctx.Err() != nil || len(body) == 0 || len(body) > 8<<20 || !utf8.Valid(body) {
 			return nil, ErrRepositoryUnavailable
 		}
 		return body, nil
 	}
 	statusSQL, hydrateSQL := postgresRuntimeSessionQueryStatusSQL, postgresRuntimeSessionQueryHydrateSQL
+	currentStatusSQL := `SELECT zasp_authorization80.runtime_session_query_status($1,$2,$3,$4)`
+	currentHydrateSQL := `SELECT zasp_authorization80.runtime_session_query_hydrate($1,$2,$3,$4,$5)`
 	if repository.sandboxSessionSearch {
 		if err := repository.readyRuntimeSessionSearch(ctx); err != nil {
-			return nil, ErrRepositoryUnavailable
+			return nil, err
 		}
 		statusSQL = `SELECT zasp_runtime_sandbox_query_status($1,$2,$3,$4)`
 		hydrateSQL = `SELECT zasp_runtime_sandbox_query_hydrate($1,$2,$3,$4,$5)`
+		currentStatusSQL = `SELECT zasp_authorization80.runtime_sandbox_query_status($1,$2,$3,$4)`
+		currentHydrateSQL = `SELECT zasp_authorization80.runtime_sandbox_query_hydrate($1,$2,$3,$4,$5)`
 	}
+	statusSQL = authorizationReadStatement(ctx, statusSQL, currentStatusSQL)
+	hydrateSQL = authorizationReadStatement(ctx, hydrateSQL, currentHydrateSQL)
 	statusBody, err := query(statusSQL, args...)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := decodeRuntimeSearchStatus(statusBody, started); err != nil {
+	validateStatus := func(body json.RawMessage) error {
+		if !exposeSearch {
+			var restricted struct {
+				Visibility string `json:"visibility"`
+			}
+			if !exactJSONFields(body, "visibility") || decodeStrictDiscovery(body, &restricted) != nil || restricted.Visibility != "resource_only" {
+				return ErrRepositoryUnavailable
+			}
+			return nil
+		}
+		_, err := decodeRuntimeSearchStatus(body, started)
+		return err
+	}
+	if err := validateStatus(statusBody); err != nil {
 		return nil, err
 	}
 	candidates, err := repository.runtimeSessionSearch.Search(ctx, identity.Scope, filters, parameters["after_id"], limit+1)
@@ -245,7 +296,7 @@ func (repository *PostgresRepository) searchRuntimeSessions(ctx context.Context,
 	}
 	previous := parameters["after_id"]
 	for _, id := range candidates.InvestigationIDs {
-		if !runtimeSessionTarget(id) || id <= previous {
+		if !runtimeSessionTarget(id) || id <= previous || filters.AuthorizationRestricted && !allowed[id] {
 			return nil, ErrRepositoryUnavailable
 		}
 		previous = id
@@ -254,7 +305,7 @@ func (repository *PostgresRepository) searchRuntimeSessions(ctx context.Context,
 		if candidates.After != "" {
 			return nil, ErrRepositoryUnavailable
 		}
-	} else if !runtimeSessionTarget(candidates.After) || candidates.After < previous {
+	} else if !runtimeSessionTarget(candidates.After) || candidates.After < previous || filters.AuthorizationRestricted && !allowed[candidates.After] {
 		return nil, ErrRepositoryUnavailable
 	}
 	payload, err = query(hydrateSQL, append(args, candidates.InvestigationIDs)...)
@@ -268,13 +319,21 @@ func (repository *PostgresRepository) searchRuntimeSessions(ctx context.Context,
 	if !exactJSONFields(payload, "items", "search") || decodeStrictDiscovery(payload, &page) != nil || page.Items == nil || len(page.Items) != len(candidates.InvestigationIDs) {
 		return nil, ErrRepositoryUnavailable
 	}
-	if _, err := decodeRuntimeSearchStatus(page.Search, started); err != nil {
+	if err := validateStatus(page.Search); err != nil {
 		return nil, err
 	}
 	for position, item := range page.Items {
 		if !validRuntimeQuerySummary(item, identity, candidates.InvestigationIDs[position]) {
 			return nil, ErrRepositoryUnavailable
 		}
+	}
+	if !exposeSearch {
+		// Backlog counts are selected-scope metadata, not properties of the
+		// allowed investigation rows. Only a separate current environment Check
+		// permits publishing them, including on an otherwise empty result.
+		return json.Marshal(struct {
+			Items []json.RawMessage `json:"items"`
+		}{Items: page.Items})
 	}
 	return payload, nil
 }

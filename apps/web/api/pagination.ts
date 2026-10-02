@@ -13,7 +13,7 @@ export type LoadedCursorPages<T> = {
 
 export async function loadAllCursorPages<T>(
   read: (cursor?: string) => Promise<CursorPage<T>>,
-  bounds: { readonly maximumItems: number; readonly maximumPages: number },
+  bounds: { readonly maximumItems: number; readonly maximumPages: number; readonly signal?: AbortSignal },
 ): Promise<LoadedCursorPages<T>> {
   if (!Number.isSafeInteger(bounds.maximumItems) || bounds.maximumItems < 1 || !Number.isSafeInteger(bounds.maximumPages) || bounds.maximumPages < 1) {
     throw new Error("invalid pagination bounds");
@@ -23,7 +23,9 @@ export async function loadAllCursorPages<T>(
   const seen = new Set<string>();
   let cursor: string | undefined;
   for (let pageNumber = 0; pageNumber < bounds.maximumPages; pageNumber += 1) {
+    bounds.signal?.throwIfAborted();
     const page = await read(cursor);
+    bounds.signal?.throwIfAborted();
     pages.push(page);
     items.push(...page.items);
     if (items.length > bounds.maximumItems) throw new Error("pagination item cap exceeded");

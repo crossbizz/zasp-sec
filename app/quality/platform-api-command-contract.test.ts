@@ -78,11 +78,12 @@ describe("M1-01d platform API command repository contract", () => {
       readFile(resolve(repositoryRoot, "services/platform/agentsec-api/main_test.go"), "utf8"),
     ]);
 
-    expect(goModule).toMatch(/^module github\.com\/zasp-ai\/zasp-sec\/services\/platform\n\ngo 1\.25\.0\n/);
+    expect(goModule).toMatch(/^module github\.com\/zasp-ai\/zasp-sec\/services\/platform\n\ngo 1\.25\.4\n/);
     expect(command).toContain('buildVersion           = "dev"');
     expect(command).toContain('io.WriteString(output, "agentsec-api build "+version+"\\n")');
     expect(command).toContain("len(version) > 64");
-		expect(command).toContain("loadRuntimeConfig(os.Getenv)");
+		expect(command).toContain("loadRuntimeConfigFromEnvironment(os.LookupEnv)");
+		expect(command).not.toContain("loadRuntimeConfig(os.Getenv)");
 		expect(command).toContain("buildRuntimeDependencies(ctx, config)");
 		expect(command).toContain("serveRuntime(ctx, os.Stdout, buildVersion, config, dependencies, net.Listen)");
     expect(command).not.toContain('"net/http"');

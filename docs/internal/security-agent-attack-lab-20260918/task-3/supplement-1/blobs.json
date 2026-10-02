@@ -1,0 +1,26 @@
+[
+  {
+    "path": "services/platform/apiserver/security_agent_attack_lab_settlement_postgres_test.go",
+    "before": "31a9e79af50349337cdf10aa31ceeb252967c975",
+    "after": "f53cd36c7e372ff9891a39a4a58afe6b3328ab19",
+    "sha256": "0966a0f0f3130f7479f9d73b045bf9b7fb059014b472a52e166c34546c160a76"
+  },
+  {
+    "path": "openapi/openapi.test.mjs",
+    "before": "6019b51fe17ab71906a78a899081b94426bfece1",
+    "after": "18b696938f98d74f745f459978e1806b522f785c",
+    "sha256": "d17f68dce83c212d9bed69a2e9910822771db3cc32ac465e2e89b342d9f907a5"
+  },
+  {
+    "path": "scripts/check-ui-api-coverage.test.mjs",
+    "before": "5aa64d8573674651307dce9817897a742b6b454d",
+    "after": "aef57d8e263c6bc6d79f9a3ebfeff0de0253e61e",
+    "sha256": "c0e39f1269205a0584833f5099e131a509c633da84c25becdcc74daa45848940"
+  },
+  {
+    "path": "scripts/attack-lab-mounted-browser.mjs",
+    "before": "f3cb7305944a3ab7f5145d37be878807f9c557dc",
+    "after": "97b9d6de176a4debf4c440db92e66d649172c0ae",
+    "sha256": "69e7cab336638682af61b0df03b6441f08bff7be33c1bb81e2594d5ce311bd66"
+  }
+]

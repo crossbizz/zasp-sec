@@ -1,0 +1,140 @@
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
+)
+
+// Map encoding cannot produce duplicate keys, so exercise literal wire bytes.
+func TestSecurityAgentExportWorkerLiteralClaimKeys(t *testing.T) {
+	l, fields := agentExportClaimWire(t)
+	raw, err := json.Marshal(fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, wire := range map[string]string{
+		"duplicate_selection_key": strings.Replace(string(raw), `"source_version":7`, `"source_version":6,"source_version":7`, 1),
+		"unknown_selection_key":   strings.Replace(string(raw), `"source_version":7`, `"source_version":7,"private_key":"forged"`, 1),
+		"malformed_step":          strings.Replace(string(raw), `"step_id":"pid_20000002-0000-4000-8000-000000000002"`, `"step_id":"malformed"`, 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if wire == string(raw) {
+				t.Fatal("wire mutation not applied")
+			}
+			db := &complianceDatabaseFixture{body: json.RawMessage(wire)}
+			got, err := newPostgresComplianceExportAuthority(db).Claim(context.Background(), l.Scope, l.ExportID, "worker-1", strings.Repeat("a", 64), "execute")
+			if err == nil || got != nil {
+				t.Fatalf("unsafe literal claim accepted: %s", name)
+			}
+		})
+	}
+}
+
+type agentExportHeartbeatDatabase struct {
+	base                      agentExportPipelineDatabase
+	entered, release, renewed chan struct{}
+	enterOnce, renewOnce      sync.Once
+	mu                        sync.Mutex
+}
+
+func (d *agentExportHeartbeatDatabase) QueryJSON(ctx context.Context, q string, args ...any) (json.RawMessage, error) {
+	if q == complianceCaptureSQL {
+		d.enterOnce.Do(func() { close(d.entered) })
+		select {
+		case <-d.release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	if q == complianceRetrySQL {
+		var p struct {
+			Outcome string `json:"outcome"`
+		}
+		if json.Unmarshal(args[7].(json.RawMessage), &p) == nil && p.Outcome == "heartbeat" {
+			response, err := json.Marshal(map[string]any{"renewed": true, "generation": args[6], "attempt": 1, "lease_expires_at": time.Now().Add(60 * time.Second)})
+			d.renewOnce.Do(func() { close(d.renewed) })
+			return response, err
+		}
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.base.QueryJSON(ctx, q, args...)
+}
+
+// Mutating caller memory after entry must not change the processor's authority,
+// including after a real heartbeat renewal while capture is in flight.
+func TestSecurityAgentExportWorkerIngressHeartbeatOwnership(t *testing.T) {
+	l := complianceRuntimeLease(t)
+	snapshot, binding := securityAgentExportSnapshotFixture(t, l)
+	l.JobOrigin = "agent_run"
+	l.AgentBinding = &binding
+	hash := sha256.Sum256(snapshot)
+	db := &agentExportHeartbeatDatabase{entered: make(chan struct{}), release: make(chan struct{}), renewed: make(chan struct{})}
+	db.base.snapshot = json.RawMessage(fmt.Sprintf(`{"snapshot":%s,"sha256":%q,"mapping_revision":"security-agent-run-evidence-v1"}`, snapshot, hex.EncodeToString(hash[:])))
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(db.release) }) }
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	store, err := artifactstore.NewExport(complianceReplayDriver{put: func(_ context.Context, obj artifactstore.DriverObject) (artifactstore.DriverObject, error) {
+		var envelope struct {
+			JSON struct {
+				RunID   string `json:"run_id"`
+				Records []struct {
+					Version int64 `json:"source_version"`
+				} `json:"records"`
+			} `json:"json"`
+		}
+		if json.Unmarshal(obj.Body, &envelope) != nil || envelope.JSON.RunID != "pid_20000001-0000-4000-8000-000000000001" || len(envelope.JSON.Records) != 1 || envelope.JSON.Records[0].Version != 7 {
+			return artifactstore.DriverObject{}, fmt.Errorf("caller changed rendered binding")
+		}
+		obj.VersionID = "immutable-heartbeat-v1"
+		return obj, nil
+	}}, artifactstore.Config{OperationTimeout: time.Second, MaximumBytes: 8 << 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	processor := &complianceExportProcessor{authority: newPostgresComplianceExportAuthority(db), store: store, timeout: time.Second, heartbeat: 10 * time.Millisecond}
+	done := make(chan error, 1)
+	go func() { done <- processor.process(ctx, &l) }()
+	// Always release and join before this test returns, including assertion failure.
+	joined := false
+	defer func() {
+		cancel()
+		release()
+		if !joined {
+			<-done
+		}
+	}()
+	select {
+	case <-db.entered:
+	case <-ctx.Done():
+		t.Fatal("capture never entered")
+	}
+	select {
+	case <-db.renewed:
+	case <-ctx.Done():
+		t.Fatal("heartbeat never renewed")
+	}
+	binding.RunID = l.ExportID
+	binding.Selection[0].Version = 99
+	release()
+	result := <-done
+	joined = true
+	if result != nil {
+		t.Fatalf("renewal lost owned binding: %v", result)
+	}
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	if db.base.captures != 1 || db.base.prepares != 1 || db.base.finishes != 1 || db.base.retry != "" {
+		t.Fatalf("incomplete renewed execution: captures=%d prepares=%d finishes=%d retry=%s", db.base.captures, db.base.prepares, db.base.finishes, db.base.retry)
+	}
+}

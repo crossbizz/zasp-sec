@@ -1,0 +1,48 @@
+=== RUN   TestAutomaticDiscoverySchedulerProcess
+    automatic_discovery_process_test.go:111: selected browser process only
+--- SKIP: TestAutomaticDiscoverySchedulerProcess (0.00s)
+=== RUN   TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect
+--- PASS: TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect (0.10s)
+=== RUN   TestAutomaticDiscoveryDNSRefusesForeignNamesAndMalformedQuestions
+--- PASS: TestAutomaticDiscoveryDNSRefusesForeignNamesAndMalformedQuestions (0.00s)
+=== RUN   TestAutomaticDiscoveryDNSAnswersActualGoResolver
+--- PASS: TestAutomaticDiscoveryDNSAnswersActualGoResolver (0.00s)
+=== RUN   TestAutomaticDiscoveryCollectionProcess
+    automatic_discovery_process_test.go:371: selected browser process only
+--- SKIP: TestAutomaticDiscoveryCollectionProcess (0.00s)
+=== RUN   TestDiscoveryProcessorAppliesCompleteSnapshotAndAcknowledgesLast
+--- PASS: TestDiscoveryProcessorAppliesCompleteSnapshotAndAcknowledgesLast (0.00s)
+=== RUN   TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory
+=== RUN   TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory/organization
+=== RUN   TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory/job
+=== RUN   TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory/subject
+--- PASS: TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory (0.00s)
+    --- PASS: TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory/organization (0.00s)
+    --- PASS: TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory/job (0.00s)
+    --- PASS: TestDiscoveryProcessorRejectsForeignHydratedInputBeforeCollectorFactory/subject (0.00s)
+=== RUN   TestDiscoveryProcessorNeverAppliesOrAcknowledgesPartialResult
+--- PASS: TestDiscoveryProcessorNeverAppliesOrAcknowledgesPartialResult (0.00s)
+=== RUN   TestDiscoveryProcessorPreservesTypedProviderRateLimitThroughDurableFinish
+=== PAUSE TestDiscoveryProcessorPreservesTypedProviderRateLimitThroughDurableFinish
+=== RUN   TestDiscoveryProcessorLeavesDeliveryUnacknowledgedWhenSnapshotApplyFails
+--- PASS: TestDiscoveryProcessorLeavesDeliveryUnacknowledgedWhenSnapshotApplyFails (0.00s)
+=== RUN   TestDiscoveryProcessorRenewsDatabaseLeaseAndQueueVisibilityDuringSlowCollection
+--- PASS: TestDiscoveryProcessorRenewsDatabaseLeaseAndQueueVisibilityDuringSlowCollection (0.02s)
+=== RUN   TestDiscoveryProcessorStartsEveryConsumedDeliveryBeforeWaiting
+--- PASS: TestDiscoveryProcessorStartsEveryConsumedDeliveryBeforeWaiting (0.00s)
+=== RUN   TestSchedulerProcessorRequestsDeterministicSyncBeforeAdvancing
+--- PASS: TestSchedulerProcessorRequestsDeterministicSyncBeforeAdvancing (0.00s)
+=== RUN   TestSchedulerProcessorStartsEveryClaimedLeaseBeforeWaiting
+--- PASS: TestSchedulerProcessorStartsEveryClaimedLeaseBeforeWaiting (0.00s)
+=== RUN   TestExistingTestSchedulerRotatesAfterFailureAndWraps
+--- PASS: TestExistingTestSchedulerRotatesAfterFailureAndWraps (0.18s)
+=== RUN   TestExistingTestSchedulerEmptyAndInvalidDependencies
+--- PASS: TestExistingTestSchedulerEmptyAndInvalidDependencies (0.02s)
+=== RUN   TestExistingTestSchedulerCancelsAndJoinsBeforeClose
+--- PASS: TestExistingTestSchedulerCancelsAndJoinsBeforeClose (0.06s)
+=== RUN   TestExistingTestSchedulerFreshInstanceRediscovers
+--- PASS: TestExistingTestSchedulerFreshInstanceRediscovers (0.08s)
+=== CONT  TestDiscoveryProcessorPreservesTypedProviderRateLimitThroughDurableFinish
+--- PASS: TestDiscoveryProcessorPreservesTypedProviderRateLimitThroughDurableFinish (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	2.694s

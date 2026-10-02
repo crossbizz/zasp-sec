@@ -1,0 +1,122 @@
+--- a/services/platform/migrations/sql/fragments/security_agent_export_planner.sql
++++ b/services/platform/migrations/sql/fragments/security_agent_export_planner.sql
+@@ -126,11 +126,9 @@
+ GRANT EXECUTE ON FUNCTION public.zasp_sa_export_planner_context(text,text,text,text,text,text) TO zasp_security_agent_worker;
+ 
+ CREATE FUNCTION public.zasp_sa_export_planner_subset(selection_value jsonb,available_value jsonb) RETURNS void LANGUAGE plpgsql IMMUTABLE SET search_path TO pg_catalog,public AS $subset$
+-DECLARE ordered jsonb;
+ BEGIN
+  PERFORM public.zasp_sa_export_selection(selection_value);
+- SELECT jsonb_agg(a.value ORDER BY a.ordinality) INTO ordered FROM jsonb_array_elements(available_value) WITH ORDINALITY a WHERE selection_value @> jsonb_build_array(a.value);
+- IF ordered IS DISTINCT FROM selection_value THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='export planner selection changed';END IF;
++ IF EXISTS(SELECT 1 FROM jsonb_array_elements(selection_value) selected WHERE NOT EXISTS(SELECT 1 FROM jsonb_array_elements(available_value) available WHERE available.value=selected.value)) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='export planner selection changed';END IF;
+ END $subset$;
+ 
+ CREATE FUNCTION public.zasp_sa_export_prepare_core(o text,w text,e text,r text,worker_value text,lease_value text,approval_value text,expires_value timestamptz,audit_value text,correlation_value text,selection_value jsonb) RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path TO pg_catalog,public AS $prepare$
+--- a/services/platform/migrations/security_agent_exports_release.go
++++ b/services/platform/migrations/security_agent_exports_release.go
+@@ -26,7 +26,7 @@
+ var securityAgentExportPlannerSQL string
+ 
+ func SecurityAgentExportsFingerprint() string {
+-	return "4f5dbcc24bcc51b39c3aff1fc019ffed8e15b3e4bd8278367e364c5fc9a1073c"
++	return "49c9b2e421d80372470136ede8e9cced66ba34fa19dae1b72e88f6ee0b0cfecb"
+ }
+ 
+ func ProductionSecurityAgentExports() Metadata {
+--- a/services/platform/apiserver/security_agent_export_planner_postgres_test.go
++++ b/services/platform/apiserver/security_agent_export_planner_postgres_test.go
+@@ -178,6 +178,84 @@
+ 			})
+ 		})
+ 	}
++}
++
++// Snapshot order is model input order, not a restriction on candidate order.
++// Reconstructing selection from snapshot order must fail this registered case.
++func TestSecurityAgentExportPlannerCandidateOrderPostgres(t *testing.T) {
++	runExportPlannerFixture(t, "autonomous", func(f *exportDBFixture) {
++		if _, err := f.owner.Exec(f.ctx, `INSERT INTO zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,actor_id,event_kind,event_digest,body) VALUES($1,$2,$3,'pid_8e150003-0000-4000-8000-000000000003','pid_8e150004-0000-4000-8000-000000000004',$4,$5,'second_audit',digest('second audit','sha256'),'{}')`, f.o, f.w, f.e, exportFixtureRun, f.actor); err != nil {
++			t.Fatal(err)
++		}
++		raw, err := exportPlannerContext(f)
++		if err != nil {
++			t.Fatal(err)
++		}
++		var envelope struct {
++			Context struct {
++				Selection []SecurityAgentExportSelection `json:"export_selection"`
++			} `json:"context"`
++			InputDigest string `json:"input_digest"`
++		}
++		if json.Unmarshal(raw, &envelope) != nil || len(envelope.Context.Selection) != 3 {
++			t.Fatalf("expected finding and two audits: %s", raw)
++		}
++		selected := []SecurityAgentExportSelection{envelope.Context.Selection[2], envelope.Context.Selection[0]}
++		input, _ := decodeSecurityAgentDigest(envelope.InputDigest)
++		output := []byte(strings.Repeat("x", 32))
++		var attempt int
++		if err = f.owner.QueryRow(f.ctx, `SELECT attempt FROM zasp_security_agent_runs WHERE run_id=$1`, exportFixtureRun).Scan(&attempt); err != nil {
++			t.Fatal(err)
++		}
++		if err = f.worker.QueryRow(f.ctx, postgresSecurityAgentExportReservePlannerSQL, f.o, f.w, f.e, exportFixtureRun, exportFixtureWorker, exportFixtureLease, attempt, "candidate-order-reservation", input, "fixture-model", "fixture-cost-policy", "openrouter_credit", 50, 100).Scan(&raw); err != nil {
++			t.Fatal(err)
++		}
++		if err = f.worker.QueryRow(f.ctx, `SELECT zasp_security_agent_budget_settle_planner($1,$2,$3,$4,$5,$6,$7,'candidate-order-reservation',$8,10,10,20,20)`, f.o, f.w, f.e, exportFixtureRun, exportFixtureWorker, exportFixtureLease, attempt, output).Scan(&raw); err != nil {
++			t.Fatal(err)
++		}
++		expires := time.Now().UTC().Add(5 * time.Minute)
++		invoke := func(refs []SecurityAgentExportSelection) error {
++			candidate, marshalErr := json.Marshal(map[string]any{"version": 1, "summary": "Candidate ordered subset", "steps": []any{map[string]any{"index": 0, "action": "create_evidence_export", "target_id": exportFixtureRun, "evidence_ids": refs}}})
++			if marshalErr != nil {
++				t.Fatal(marshalErr)
++			}
++			return f.worker.QueryRow(f.ctx, postgresSecurityAgentExportAcceptPlannerSQL, f.o, f.w, f.e, exportFixtureRun, exportFixtureWorker, exportFixtureLease, input, output, "fixture-model", "planner-v1", candidate, exportApprovalID, expires, "pid_8e150005-0000-4000-8000-000000000005", "pid_8e150006-0000-4000-8000-000000000006").Scan(&raw)
++		}
++		if err = invoke(selected); err != nil {
++			t.Fatalf("valid reordered subset refused: %v", err)
++		}
++		var receipt map[string]any
++		if json.Unmarshal(raw, &receipt) != nil || receipt["state"] != "queued" {
++			t.Fatalf("acceptance receipt: %s", raw)
++		}
++		var stored json.RawMessage
++		var leaseCleared bool
++		if err = f.owner.QueryRow(f.ctx, `SELECT p.plan->'steps'->0->'evidence_ids', r.lease_token IS NULL FROM zasp_security_agent_plans p JOIN zasp_security_agent_runs r USING(organization_id,workspace_id,environment_id,run_id) WHERE p.run_id=$1`, exportFixtureRun).Scan(&stored, &leaseCleared); err != nil {
++			t.Fatal(err)
++		}
++		var storedRefs []SecurityAgentExportSelection
++		if json.Unmarshal(stored, &storedRefs) != nil || !reflect.DeepEqual(storedRefs, selected) || !leaseCleared {
++			t.Fatalf("candidate order or cleared lease lost: %s %v", stored, leaseCleared)
++		}
++		if err = invoke(selected); err != nil {
++			t.Fatalf("lost reply refused: %v", err)
++		}
++		var replay map[string]any
++		receipt["replayed"] = true
++		if json.Unmarshal(raw, &replay) != nil || !reflect.DeepEqual(receipt, replay) {
++			t.Fatalf("receipt changed: %s", raw)
++		}
++		before := existingTestAcceptanceSnapshot(t, f.ctx, f.owner, f.o, f.w, f.e, exportFixtureRun)
++		if err = invoke([]SecurityAgentExportSelection{selected[1], selected[0]}); err == nil {
++			t.Fatal("changed candidate order replayed")
++		}
++		if err = invoke(selected[:1]); err == nil {
++			t.Fatal("changed candidate subset replayed")
++		}
++		if got := existingTestAcceptanceSnapshot(t, f.ctx, f.owner, f.o, f.w, f.e, exportFixtureRun); got != before {
++			t.Fatal("changed replay persisted authority")
++		}
++	})
+ }
+ 
+ func TestSecurityAgentExportPlannerRefusalsPostgres(t *testing.T) {
+@@ -235,7 +313,7 @@
+ 		}
+ 		candidates := []map[string]any{
+ 			{"index": 0, "action": "create_evidence_export", "target_id": exportFixtureFinding, "evidence_ids": refs[:1]},
+-			{"index": 0, "action": "create_evidence_export", "target_id": exportFixtureRun, "evidence_ids": []any{refs[1], refs[0]}},
++			{"index": 0, "action": "create_evidence_export", "target_id": exportFixtureRun, "evidence_ids": []any{refs[0], refs[0]}},
+ 			{"index": 0, "action": "create_evidence_export", "target_id": exportFixtureRun, "evidence_ids": []any{}},
+ 			{"index": 0, "action": "create_evidence_export", "target_id": exportFixtureRun, "evidence_ids": refs[:1], "path": "private/path"},
+ 		}

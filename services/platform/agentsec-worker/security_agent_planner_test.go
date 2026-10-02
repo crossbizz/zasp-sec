@@ -63,6 +63,7 @@ func TestSecurityAgentPlannerSendsOneSeparatedBoundedRequestAndAcceptsExactCandi
 		CatalogVersion: "security-agent-actions-v1",
 		MaximumSteps:   1,
 		AllowedActions: []string{"update_finding_response"},
+		AllowedTargets: []string{"pid_71000001-0000-4000-8000-000000000001"},
 		Evidence: []securityAgentPlannerEvidence{{
 			ID:      "pid_71000001-0000-4000-8000-000000000001",
 			Kind:    "finding",
@@ -84,7 +85,7 @@ func TestSecurityAgentPlannerSendsOneSeparatedBoundedRequestAndAcceptsExactCandi
 	var body struct {
 		Model          string                           `json:"model"`
 		MaximumTokens  int                              `json:"max_tokens"`
-		Temperature    int                              `json:"temperature"`
+		Temperature    json.RawMessage                  `json:"temperature"`
 		Messages       []struct{ Role, Content string } `json:"messages"`
 		ResponseFormat struct {
 			Type       string `json:"type"`
@@ -94,11 +95,19 @@ func TestSecurityAgentPlannerSendsOneSeparatedBoundedRequestAndAcceptsExactCandi
 			} `json:"json_schema"`
 		} `json:"response_format"`
 		Provider struct {
-			DataCollection string `json:"data_collection"`
+			DataCollection    string `json:"data_collection"`
+			RequireParameters bool   `json:"require_parameters"`
 		} `json:"provider"`
 	}
-	if json.Unmarshal(transport.requestBody, &body) != nil || body.Model != "openai/gpt-5-mini" || body.MaximumTokens != 512 || body.Temperature != 0 || len(body.Messages) != 2 || body.Messages[0].Role != "system" || body.Messages[1].Role != "user" || body.ResponseFormat.Type != "json_schema" || body.ResponseFormat.JSONSchema.Name != "security_response_plan" || !body.ResponseFormat.JSONSchema.Strict || body.Provider.DataCollection != "deny" {
+	if json.Unmarshal(transport.requestBody, &body) != nil || body.Model != "openai/gpt-5-mini" || body.MaximumTokens != 512 || len(body.Messages) != 2 || body.Messages[0].Role != "system" || body.Messages[1].Role != "user" || body.ResponseFormat.Type != "json_schema" || body.ResponseFormat.JSONSchema.Name != "security_response_plan" || !body.ResponseFormat.JSONSchema.Strict || body.Provider.DataCollection != "deny" {
 		t.Fatalf("request body=%s decoded=%+v", transport.requestBody, body)
+	}
+	// An explicit zero is unsupported too; absent must not decode as zero.
+	if body.Temperature != nil {
+		t.Errorf("GPT-5 mini request sends unsupported temperature=%s", body.Temperature)
+	}
+	if !body.Provider.RequireParameters {
+		t.Error("request allows routing to a provider that can ignore required parameters")
 	}
 	if strings.Contains(body.Messages[0].Content, "evil.invalid") || strings.Contains(body.Messages[0].Content, "ghp_seeded") || !strings.Contains(body.Messages[1].Content, "evil.invalid") || !strings.Contains(body.Messages[1].Content, `"untrusted_evidence"`) || !strings.Contains(body.Messages[1].Content, `"operator_goal"`) || !strings.Contains(body.Messages[1].Content, `"version":9`) {
 		t.Fatalf("messages=%+v", body.Messages)
@@ -116,6 +125,7 @@ func TestSecurityAgentPlannerFailsClosedWithoutRetryRedirectOrProviderLeakage(t 
 	}{
 		{name: "provider unavailable", status: http.StatusServiceUnavailable, body: []byte(`{"error":{"message":"secret provider detail"}}`), want: securityAgentPlannerUnavailable},
 		{name: "rate limited", status: http.StatusTooManyRequests, body: []byte(`{"error":"retry later"}`), want: securityAgentPlannerUnavailable},
+		{name: "no compatible provider", status: http.StatusNotFound, body: []byte(`{"error":{"message":"No endpoints support the supplied parameters"}}`), want: securityAgentPlannerUnavailable},
 		{name: "transport", transport: errors.New("credential shaped sk-or-v1-leak"), want: securityAgentPlannerUnavailable},
 		{name: "malformed outer", status: http.StatusOK, body: []byte(`{"choices":[]}`), want: securityAgentPlannerRejected},
 		{name: "foreign target", status: http.StatusOK, body: openRouterPlannerResponse(`{"version":1,"summary":"bad","steps":[{"index":0,"action":"update_finding_response","target_id":"pid_72000001-0000-4000-8000-000000000001"}]}`), want: securityAgentPlannerRejected},
@@ -181,7 +191,38 @@ func testSecurityAgentPlannerContext() securityAgentPlannerContext {
 	return securityAgentPlannerContext{
 		OrganizationID: "pid_70000001-0000-4000-8000-000000000001", WorkspaceID: "pid_70000002-0000-4000-8000-000000000002", EnvironmentID: "pid_70000003-0000-4000-8000-000000000003", RunID: "pid_70000004-0000-4000-8000-000000000004", DefinitionID: "pid_70000005-0000-4000-8000-000000000005",
 		Purpose: "security_response_plan", OperatorGoal: "Select the safest bounded response", CatalogVersion: "security-agent-actions-v1", MaximumSteps: 1, AllowedActions: []string{"update_finding_response"},
-		Evidence: []securityAgentPlannerEvidence{{ID: "pid_71000001-0000-4000-8000-000000000001", Kind: "finding", Version: 9, Summary: "Verified credential exposure"}},
+		AllowedTargets: []string{"pid_71000001-0000-4000-8000-000000000001"},
+		Evidence:       []securityAgentPlannerEvidence{{ID: "pid_71000001-0000-4000-8000-000000000001", Kind: "finding", Version: 9, Summary: "Verified credential exposure"}},
+	}
+}
+
+func TestSecurityAgentPlannerDoesNotExpandExplicitTargetAuthority(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		allowed []string
+		target  string
+		want    securityAgentPlannerFailure
+		calls   int
+	}{
+		{"evidence_is_not_authority", []string{"pid_70000003-0000-4000-8000-000000000003"}, "pid_71000001-0000-4000-8000-000000000001", securityAgentPlannerRejected, 1},
+		{"environment_is_not_authority", []string{"pid_71000001-0000-4000-8000-000000000001"}, "pid_70000003-0000-4000-8000-000000000003", securityAgentPlannerRejected, 1},
+		{"missing_authority", nil, "pid_71000001-0000-4000-8000-000000000001", securityAgentPlannerUnavailable, 0},
+		{"empty_authority", []string{}, "pid_71000001-0000-4000-8000-000000000001", securityAgentPlannerUnavailable, 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			contextValue := testSecurityAgentPlannerContext()
+			contextValue.AllowedTargets = test.allowed
+			transport := &securityAgentPlannerTransport{responseBody: openRouterPlannerResponse(`{"version":1,"summary":"Review finding","steps":[{"index":0,"action":"update_finding_response","target_id":"` + test.target + `"}]}`)}
+			planner, err := newSecurityAgentPlanner(securityAgentPlannerConfig{Endpoint: "https://openrouter.ai/api/v1/chat/completions", Model: "openai/gpt-5-mini", Token: []byte("sk-or-v1-test-token-1234567890"), Timeout: time.Second, MaximumTokens: 512, PolicyVersion: "security-agent-planner-v1", Transport: transport})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = planner.Close() })
+			result := planner.Plan(context.Background(), contextValue)
+			if result.Failure != test.want || result.Candidate.Version != 0 || len(result.Candidate.Steps) != 0 || transport.calls != test.calls {
+				t.Fatalf("expanded explicit target authority: result=%+v calls=%d", result, transport.calls)
+			}
+		})
 	}
 }
 

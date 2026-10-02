@@ -1,0 +1,15 @@
+=== RUN   TestSecurityAgentExportDefinitionHTTPPostgres
+    security_agent_export_definition_http_postgres_test.go:166: HTTP status=409 want=200 body={"code":"version_conflict","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","message":"Resource version conflict","retryable":false}
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportDefinitionHTTPPostgres2677895981/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportDefinitionHTTPPostgres (13.96s)
+=== RUN   TestSecurityAgentExportDefinitionPublicLifecyclePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=53 data=/tmp/TestSecurityAgentExportDefinitionPublicLifecyclePostgres3311354211/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportDefinitionPublicLifecyclePostgres (9.00s)
+=== RUN   TestSecurityAgentExportDefinitionAuthorityWaitPostgres
+    security_agent_export_definition_postgres_test.go:215: ERROR: new row for relation "zasp_group_mappings" violates check constraint "zasp_group_mappings_group_reference_check" (SQLSTATE 23514)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=84 data=/tmp/TestSecurityAgentExportDefinitionAuthorityWaitPostgres1803444025/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportDefinitionAuthorityWaitPostgres (4.96s)
+=== RUN   TestSecurityAgentExportReleasePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=113 data=/tmp/TestSecurityAgentExportReleasePostgres3287534277/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportReleasePostgres (7.17s)
+FAIL

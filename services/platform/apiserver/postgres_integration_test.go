@@ -3,6 +3,8 @@ package apiserver
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +16,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1287,10 +1290,80 @@ func startDisposablePostgres(t *testing.T) string {
 	return startDisposablePostgresAs(t, "zasp_test")
 }
 
-func startDisposablePostgresAs(t *testing.T, username string) string {
+// disposablePostgresCleanupObservation is test-only structured evidence from
+// the sole pg_ctl/Wait owner. Available remains false on every failed or
+// incomplete cleanup path, so callers cannot synthesize a successful join.
+type disposablePostgresCleanupObservation struct {
+	Available                 bool
+	PGCtlStopped              bool
+	CommandWaitJoined         bool
+	NormalExit                bool
+	EndpointChecked           bool
+	EndpointSHA256            string
+	SurvivingResourcesChecked bool
+	SurvivingResources        int
+	mu                        sync.Mutex
+}
+
+func (observation *disposablePostgresCleanupObservation) record(value disposablePostgresCleanupObservation) {
+	if observation == nil {
+		return
+	}
+	observation.mu.Lock()
+	defer observation.mu.Unlock()
+	observation.Available = value.Available
+	observation.PGCtlStopped = value.PGCtlStopped
+	observation.CommandWaitJoined = value.CommandWaitJoined
+	observation.NormalExit = value.NormalExit
+	observation.EndpointChecked = value.EndpointChecked
+	observation.EndpointSHA256 = value.EndpointSHA256
+	observation.SurvivingResourcesChecked = value.SurvivingResourcesChecked
+	observation.SurvivingResources = value.SurvivingResources
+}
+
+func (observation *disposablePostgresCleanupObservation) snapshot() disposablePostgresCleanupObservation {
+	if observation == nil {
+		return disposablePostgresCleanupObservation{}
+	}
+	observation.mu.Lock()
+	defer observation.mu.Unlock()
+	return disposablePostgresCleanupObservation{
+		Available: observation.Available, PGCtlStopped: observation.PGCtlStopped,
+		CommandWaitJoined: observation.CommandWaitJoined, NormalExit: observation.NormalExit,
+		EndpointChecked: observation.EndpointChecked, EndpointSHA256: observation.EndpointSHA256,
+		SurvivingResourcesChecked: observation.SurvivingResourcesChecked,
+		SurvivingResources:        observation.SurvivingResources,
+	}
+}
+
+var disposablePostgresCleanupObservers sync.Map // map[*testing.T]*disposablePostgresCleanupObservation
+
+func registerDisposablePostgresCleanupObservation(t *testing.T, observation *disposablePostgresCleanupObservation) {
+	t.Helper()
+	if observation == nil {
+		t.Fatal("nil disposable PostgreSQL cleanup observation")
+	}
+	if _, loaded := disposablePostgresCleanupObservers.LoadOrStore(t, observation); loaded {
+		t.Fatal("duplicate disposable PostgreSQL cleanup observation")
+	}
+	t.Cleanup(func() { disposablePostgresCleanupObservers.Delete(t) })
+}
+
+func startDisposablePostgresAs(t *testing.T, username string, contexts ...context.Context) string {
 	t.Helper()
 	if username != "zasp_test" && username != "zasp_e2e" {
 		t.Fatal("unsupported disposable PostgreSQL owner")
+	}
+	if len(contexts) > 1 {
+		t.Fatal("multiple fixture ownership contexts")
+	}
+	if len(contexts) == 1 {
+		if owner := auditHTTPFixtureOwnerFrom(contexts[0]); owner != nil {
+			if owner.startPostgres == nil {
+				t.Fatal("owned PostgreSQL starter absent")
+			}
+			return owner.startPostgres(t, contexts[0], username)
+		}
 	}
 	initdb, initErr := exec.LookPath("initdb")
 	postgres, postgresErr := exec.LookPath("postgres")
@@ -1301,8 +1374,8 @@ func startDisposablePostgresAs(t *testing.T, username string) string {
 	}
 	root := t.TempDir()
 	data := filepath.Join(root, "data")
-	if err := exec.Command(initdb, "--no-locale", "--encoding=UTF8", "--auth-local=trust", "--auth-host=trust", "--username="+username, "-D", data).Run(); err != nil {
-		t.Fatalf("initdb: %v", err)
+	if output, err := exec.Command(initdb, "--no-locale", "--encoding=UTF8", "--auth-local=trust", "--auth-host=trust", "--username="+username, "-D", data).CombinedOutput(); err != nil {
+		t.Fatalf("initdb: %v\n%s", err, output)
 	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1317,16 +1390,43 @@ func startDisposablePostgresAs(t *testing.T, username string) string {
 		t.Fatal(err)
 	}
 	stopped := false
+	var cleanupObservation *disposablePostgresCleanupObservation
+	if value, ok := disposablePostgresCleanupObservers.Load(t); ok {
+		cleanupObservation, _ = value.(*disposablePostgresCleanupObservation)
+	}
 	t.Cleanup(func() {
 		if stopped {
 			return
 		}
 		stop := exec.Command(pgCtl, "-D", data, "-m", "fast", "-w", "stop")
-		if err := stop.Run(); err != nil && command.Process != nil {
-			_ = command.Process.Kill()
-		}
-		_ = command.Wait()
+		observed, err := stopDisposablePostgresObserved(command, stop, fmt.Sprintf("127.0.0.1:%d", port))
+		cleanupObservation.record(observed)
 		stopped = true
+		if err != nil {
+			t.Errorf("owned PostgreSQL cleanup failed: pid=%d data=%s: %v", command.Process.Pid, data, err)
+			return
+		}
+		t.Logf("joined owned PostgreSQL pid=%d data=%s: pg_ctl exit=0 server Wait exit=0 normal-exit", command.Process.Pid, data)
+		if t.Name() == "TestTemporalAutomaticNativePostgres" || t.Name() == "TestTemporalFindingResponseNativePostgres" || t.Name() == "TestTemporalFindingResponseNativeApprovalPostgres" || t.Name() == "TestTemporalFindingResponseNativeCancelPostgres" {
+			// Inspect only joined output. Omit statements/parameters and private
+			// payloads; retain the first failing product function, not just retries.
+			for _, line := range strings.Split(stderr.String(), "\n") {
+				if _, message, ok := strings.Cut(line, "ERROR:"); ok {
+					switch strings.TrimSpace(message) {
+					case "canceling statement due to user request", "single-test current step rejected", "single-test target changed", "single-test effect reservation unavailable", "single-test effect identity changed", "single-test immutable input absent", "single-test catalog unavailable", "single-test catalog changed":
+						t.Log("automatic77 owned SQL diagnostic", strings.TrimSpace(message))
+					default:
+						t.Log("automatic77 owned SQL diagnostic: non-allowlisted error text omitted")
+					}
+				}
+				if contextLine := strings.TrimSpace(line); strings.HasPrefix(contextLine, "PL/pgSQL function ") {
+					name, _, _ := strings.Cut(strings.TrimPrefix(contextLine, "PL/pgSQL function "), "(")
+					if strings.HasPrefix(name, "zasp_") && !strings.ContainsAny(name, " \t\n'\"") {
+						t.Log("automatic77 owned SQL function", name)
+					}
+				}
+			}
+		}
 	})
 	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); {
 		if exec.Command(pgIsReady, "-h", "127.0.0.1", "-p", strconv.Itoa(port), "-U", username, "-d", "postgres").Run() == nil {
@@ -1336,6 +1436,58 @@ func startDisposablePostgresAs(t *testing.T, username string) string {
 	}
 	t.Fatalf("postgres did not become ready: %s", stderr.String())
 	return ""
+}
+
+// The caller owns the started server and this helper performs its only Wait.
+func stopDisposablePostgres(command, stop *exec.Cmd) error {
+	_, err := stopDisposablePostgresObserved(command, stop, "")
+	return err
+}
+
+func stopDisposablePostgresObserved(command, stop *exec.Cmd, endpoint string) (disposablePostgresCleanupObservation, error) {
+	var observation disposablePostgresCleanupObservation
+	stopErr := stop.Run()
+	observation.PGCtlStopped = stopErr == nil
+	var killErr error
+	if stopErr != nil && command.Process != nil {
+		killErr = command.Process.Kill()
+	}
+	waitErr := command.Wait()
+	observation.CommandWaitJoined = command.ProcessState != nil
+	observation.NormalExit = waitErr == nil && command.ProcessState != nil && command.ProcessState.Success()
+	if endpoint != "" {
+		host, port, endpointErr := net.SplitHostPort(endpoint)
+		if endpointErr != nil || host != "127.0.0.1" || port == "" {
+			return observation, errors.New("owned PostgreSQL endpoint identity refused")
+		}
+		observation.EndpointSHA256 = disposablePostgresEndpointSHA256(endpoint)
+		connection, dialErr := net.DialTimeout("tcp", endpoint, 100*time.Millisecond)
+		observation.EndpointChecked = true
+		observation.SurvivingResourcesChecked = true
+		if dialErr == nil {
+			observation.SurvivingResources++
+			_ = connection.Close()
+		}
+	}
+	if stopErr != nil || killErr != nil || waitErr != nil {
+		return observation, fmt.Errorf("pg_ctl=%v fallback_kill=%v wait=%v", stopErr, killErr, waitErr)
+	}
+	if endpoint == "" {
+		return observation, nil
+	}
+	if !observation.SurvivingResourcesChecked || observation.SurvivingResources != 0 {
+		return observation, fmt.Errorf("surviving_resources_checked=%v surviving_resources=%d", observation.SurvivingResourcesChecked, observation.SurvivingResources)
+	}
+	observation.Available = observation.PGCtlStopped && observation.CommandWaitJoined && observation.NormalExit && observation.EndpointChecked && observation.EndpointSHA256 != ""
+	if !observation.Available {
+		return observation, errors.New("normal PostgreSQL cleanup observation unavailable")
+	}
+	return observation, nil
+}
+
+func disposablePostgresEndpointSHA256(endpoint string) string {
+	digest := sha256.Sum256([]byte(endpoint))
+	return hex.EncodeToString(digest[:])
 }
 
 func integrationProductID(t *testing.T, value string) domain.ProductID {

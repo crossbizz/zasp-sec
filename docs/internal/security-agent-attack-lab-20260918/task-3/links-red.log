@@ -1,0 +1,31 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","node_modules/vitest/vitest.mjs","run","app/domain/activity-links.test.ts","-t","attack_lab_run"]
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ❯ app/domain/activity-links.test.ts (67 tests | 1 failed | 66 skipped) 3ms
+     × preserves the exact attack_lab_run target and its scope 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/domain/activity-links.test.ts > exact scoped activity links > preserves the exact attack_lab_run target and its scope
+TypeError: Invalid scoped activity target
+ ❯ activityLink app/domain/activity-links.ts:23:91
+     21| export function activityLink(target: ActivityTarget, scope: ActivitySc…
+     22|   const path = routes[target.kind];
+     23|   if (typeof path !== "string" || !productID.test(target.id) || !valid…
+       |                                                                                           ^
+     24|   return `${path}?${new URLSearchParams({ entity_id: target.id, organi…
+     25| }
+ ❯ app/domain/activity-links.test.ts:51:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 66 skipped (67)
+   Start at  03:23:25
+   Duration  1.06s (transform 43ms, setup 233ms, import 16ms, tests 3ms, environment 708ms)
+
+
+Exit: 1 Signal: null

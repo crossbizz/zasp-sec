@@ -113,6 +113,7 @@ type receivedMessage struct {
 	MessageID     string
 	ReceiptHandle string
 	BodyDigest    string
+	ReceiveCount  int
 }
 
 type batchDeleteResult struct {

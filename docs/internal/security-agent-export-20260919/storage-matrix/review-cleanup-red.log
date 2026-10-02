@@ -1,0 +1,17 @@
+COMMAND: GOPROXY=off GOSUMDB=off go test ./apiserver -run '^TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgres$/^exact_expiry$' -count=1 -v
+SOURCE SHA256:
+6966d26824989324aa8d96bf5c68cd4873fdf7e8e76c1ea2c51c1fa16b12ae30  apiserver/security_agent_export_storage_download_postgres_test.go
+EXIT CODE: 1
+
+STDOUT/STDERR (exact captured output):
+=== RUN   TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgres
+=== RUN   TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgres/exact_expiry
+    security_agent_export_storage_download_postgres_test.go:533: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+    security_agent_export_storage_download_postgres_test.go:661: typed exact-version absence refused: s3 artifact is immutable
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=97988 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgrese1081005392/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgres (10.43s)
+    --- FAIL: TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgres/exact_expiry (10.43s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	11.529s
+FAIL
+

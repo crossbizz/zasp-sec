@@ -1,0 +1,14 @@
+
+> zasp-agent-security-console@0.1.0 openapi:lint
+> REDOCLY_TELEMETRY=off REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly lint openapi/openapi.yaml openapi/internal-health.yaml --config redocly.yaml
+
+validating openapi/openapi.yaml...
+openapi/openapi.yaml: validated in 135ms
+
+validating openapi/internal-health.yaml...
+openapi/internal-health.yaml: validated in 21ms
+
+Woohoo! Your API descriptions are valid. 🎉
+
+
+EXIT_STATUS=0

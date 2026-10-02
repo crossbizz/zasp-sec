@@ -1,0 +1,9 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go","test","-C","services/platform","./apiserver","-run","^TestSecurityAgentAttackLabCatalogRequiresConnectedReadiness$","-count=1"]
+--- FAIL: TestSecurityAgentAttackLabCatalogRequiresConnectedReadiness (0.00s)
+    security_agent_attack_lab_catalog_test.go:24: runtime ready=true op=listSecurityActions response=200 {"items":[{"approval_floor":"operator","key":"create_temporary_policy","reversible":true,"risk_class":"containment","target_types":["environment"],"verification_kind":"policy_state"},{"approval_floor":"operator","key":"isolate_session","reversible":true,"risk_class":"containment","target_types":["session"],"verification_kind":"gateway_decision"},{"approval_floor":"admin","key":"revoke_integration_connection","reversible":false,"risk_class":"destructive","target_types":["integration_connection"],"verification_kind":"connection_state"},{"approval_floor":"none","key":"update_finding_response","reversible":true,"risk_class":"low","target_types":["finding"],"verification_kind":"finding_state"}]}
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.954s
+FAIL
+
+Exit: 1 Signal: null

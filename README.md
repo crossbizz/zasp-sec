@@ -19,8 +19,10 @@ source modules and compiled client/server chunks.
 
 ## Production support boundary
 
-The production API publishes and mounts exactly 110 operations. The UI/API map
-reports `planned=31 api_available=9 available=101 public=110 internal=0`.
+The current source/candidate OpenAPI defines 152 public operations. Its UI/API
+map reports `planned=4 api_available=10 available=142 public=152 internal=0`.
+These are source coverage counts, not deployed acceptance or task-completion
+evidence.
 Findings and attack paths are the Batch 4 production risk slice:
 
 | Surface | Production support |
@@ -34,9 +36,11 @@ Findings and attack paths are the Batch 4 production risk slice:
 | Red Team | Tenant-scoped definitions and Promptfoo runs against fresh discovered agent/MCP targets with curated categories and immutable normalized evidence |
 | Empty scopes | Honest empty state; no fixture or fake producer fallback |
 
-Attack Lab, reports, guardrail prototype controls, AI explanations, exports,
-and deletion jobs remain hidden
-until their provider, job, artifact, and recovery boundaries are complete.
+The current source mounts Attack Lab, displays persisted approval AI rationale
+without granting action authority, and capability-gates audit exports. These
+candidate surfaces do not establish live-provider or end-to-end acceptance.
+Reports, guardrail prototype controls, and deletion jobs retain their separate
+provider, job, artifact, and recovery readiness requirements.
 
 Production packaging now supplies eight immutable non-root images for the web,
 API, worker, Red Team worker/adapter, event-ingest, gateway-control, and customer-edge
@@ -320,15 +324,16 @@ those hidden provider boundaries or substitute for live-provider evidence.
 
 ## Staging foundation and integration APIs
 
-M1A-01 through M1A-06 are Complete. The `deploy/staging` Terraform root defines
-the shared non-production VPC, two private subnets, encrypted EKS cluster and
-node group, evidence bucket, KMS key, secret slots, the six queue/DLQ resources,
-private OpenSearch, and the product IRSA role. Terraform 1.15.8 validation and
-an offline 34-create plan pass without applying or contacting a staging account.
-M1A-07 through M1A-10 are Blocked. One typed staging boundary validates
-the private four-workload deploy, exact IRSA S3/SQS/OpenSearch smoke, redacted
-deterministic deployment evidence, and the aggregate gate decision. No real
-cloud resource was created; live staging execution remains required.
+M1A-01 through M1A-06 remain component-only; M1A-07 through M1A-10 remain
+blocked/external. The September 15 [source audit](docs/internal/2026-09-15-staging-batch-audit.md)
+found staging Terraform for private networking, encrypted storage/EKS/OpenSearch
+and split workload identities, but the original `agentsec-tests` queue is absent.
+The current staging gate has no integrated product-pod S3/SQS/OpenSearch plus
+OTLP smoke collector and accepts caller-supplied readiness booleans. Those
+source gaps must be fixed before an approved private staging run can prove the
+original requirements. Historical offline validation and mock-provider plan
+results aren't current real-account plans or deployed-provider proof. This
+audit ran no cloud operations and did not inspect account access.
 
 M3-01 through M3-13 are Complete. The product now exposes a provider-neutral
 connector catalog, a signed Generic Webhook entry, scoped integration CRUD and

@@ -1,0 +1,4 @@
+name: zasp-p7-scoped-and-organization-identity
+model_file: ./model.fga
+# Development import descriptor. Scoped and organization identity assertions
+# run through our checker on the real service in the Go integration tests.

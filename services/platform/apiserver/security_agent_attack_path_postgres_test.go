@@ -12,7 +12,22 @@ import (
 )
 
 func TestProductionSecurityAgentAttackPathPostgresSchedulesOnceAndBindsPlannerToVerifiedPath(t *testing.T) {
-	dsn := startDisposablePostgresAs(t, "zasp_e2e")
+	runSecurityAgentAttackPathFixture(t, nil)
+}
+
+// A composed worker acceptance reuses exactly the registered, migrated two-tenant
+// setup. The callback runs while this helper still owns both connections/server.
+func runSecurityAgentAttackPathFixture(t *testing.T, exercise func(context.Context, *pgx.Conn, string), starters ...func(*testing.T) string) {
+	t.Helper()
+	if len(starters) > 1 {
+		t.Fatal("multiple owned PostgreSQL starters")
+	}
+	var dsn string
+	if len(starters) == 1 {
+		dsn = starters[0](t)
+	} else {
+		dsn = startDisposablePostgresAs(t, "zasp_e2e")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	connection, err := pgx.Connect(ctx, dsn)
@@ -141,6 +156,10 @@ CREATE ROLE security_agent_v33_gateway_login LOGIN INHERIT NOSUPERUSER NOCREATED
 			t.Fatalf("seed %s: %v", statement.sql, err)
 		}
 	}
+	if exercise != nil {
+		exercise(ctx, connection, dsn)
+		return
+	}
 	if created, err := planner.ScheduleSecurityAgentTriggers(ctx, "security-agent-v33-worker", 10); err != nil || created != 0 {
 		t.Fatalf("potential path scheduled=%d err=%v", created, err)
 	}
@@ -163,6 +182,40 @@ CREATE ROLE security_agent_v33_gateway_login LOGIN INHERIT NOSUPERUSER NOCREATED
 		directErr := workerConnection.QueryRow(ctx, `SELECT zasp_security_agent_planner_context_v33($1,$2,$3,$4,$5,$6)`, organizationID, workspaceID, environmentID, claims[0].RunID, "security-agent-v33-worker", "attack-path-lease-token-0001").Scan(&raw)
 		t.Fatalf("context=%#v err=%v direct=%s directErr=%v", contextValue, err, raw, directErr)
 	}
+	// Catch removal of the scoped target check before prepare: a real foreign
+	// environment must not create a plan, approval, step, receipt, or effect.
+	// Snapshot both tenants, including their targets, before the rejected call.
+	snapshot := func() string {
+		t.Helper()
+		var value string
+		if err := connection.QueryRow(ctx, `SELECT jsonb_build_object(
+ 'runs',(SELECT coalesce(jsonb_agg(to_jsonb(row) ORDER BY organization_id,run_id),'[]'::jsonb) FROM zasp_security_agent_runs row),
+ 'plans',(SELECT coalesce(jsonb_agg(to_jsonb(row) ORDER BY organization_id,run_id),'[]'::jsonb) FROM zasp_security_agent_plans row),
+ 'steps',(SELECT coalesce(jsonb_agg(to_jsonb(row) ORDER BY organization_id,run_id,step_id),'[]'::jsonb) FROM zasp_security_agent_steps row),
+ 'approvals',(SELECT coalesce(jsonb_agg(to_jsonb(row) ORDER BY organization_id,approval_id),'[]'::jsonb) FROM zasp_security_agent_approvals row),
+ 'effects',(SELECT coalesce(jsonb_agg(to_jsonb(row) ORDER BY organization_id,run_id,step_id),'[]'::jsonb) FROM zasp_security_agent_effects row),
+ 'receipts',(SELECT coalesce(jsonb_agg(to_jsonb(row) ORDER BY organization_id,run_id,attempt),'[]'::jsonb) FROM zasp_security_agent_planner_receipts row),
+ 'controls',(SELECT coalesce(jsonb_agg(to_jsonb(row) ORDER BY organization_id,run_id),'[]'::jsonb) FROM zasp_security_agent_controls row),
+ 'audit',(SELECT coalesce(jsonb_agg(to_jsonb(row) ORDER BY organization_id,audit_id),'[]'::jsonb) FROM zasp_security_agent_audit row),
+ 'environments',(SELECT coalesce(jsonb_agg(to_jsonb(row) ORDER BY organization_id,id),'[]'::jsonb) FROM zasp_environments row),
+ 'paths',(SELECT coalesce(jsonb_agg(to_jsonb(row) ORDER BY organization_id,id),'[]'::jsonb) FROM zasp_risk_attack_paths row)
+)::text`).Scan(&value); err != nil {
+			t.Fatal(err)
+		}
+		return value
+	}
+	beforeRejection := snapshot()
+	rejected, err := planner.AcceptSecurityAgentPlannerCandidate(ctx, claims[0], "security-agent-v33-worker", "attack-path-lease-token-0001", SecurityAgentPlannerSubmission{
+		InputDigest: contextValue.InputDigest, OutputDigest: "sha256:" + strings.Repeat("c", 64), Model: "openai/gpt-5-mini", PolicyVersion: "security-agent-planner-v1", Summary: "Contain foreign environment", Action: "create_temporary_policy", TargetID: foreignEnvironmentID,
+	}, "pid_6a000010-0000-4000-8000-000000000010", time.Now().UTC().Add(15*time.Minute).Truncate(time.Microsecond), "pid_6a000011-0000-4000-8000-000000000011", "pid_6a000012-0000-4000-8000-000000000012")
+	if err == nil || rejected != (SecurityAgentPrepareResult{}) {
+		t.Fatalf("foreign target accepted: result=%#v err=%v", rejected, err)
+	}
+	if snapshot() != beforeRejection {
+		t.Fatal("foreign target rejection changed durable state")
+	}
+	// The same live lease must still accept its own tenant's target. An
+	// unavailable authority cannot satisfy the rejection test on its own.
 	prepared, err := planner.AcceptSecurityAgentPlannerCandidate(ctx, claims[0], "security-agent-v33-worker", "attack-path-lease-token-0001", SecurityAgentPlannerSubmission{
 		InputDigest: contextValue.InputDigest, OutputDigest: "sha256:" + strings.Repeat("b", 64), Model: "openai/gpt-5-mini", PolicyVersion: "security-agent-planner-v1", Summary: "Contain only the verified path scope", Action: "create_temporary_policy", TargetID: environmentID,
 	}, "pid_6a000010-0000-4000-8000-000000000010", time.Now().UTC().Add(15*time.Minute).Truncate(time.Microsecond), "pid_6a000011-0000-4000-8000-000000000011", "pid_6a000012-0000-4000-8000-000000000012")

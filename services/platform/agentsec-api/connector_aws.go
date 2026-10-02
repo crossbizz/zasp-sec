@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -89,14 +90,32 @@ type assumeRoleWithWebIdentityAPI interface {
 }
 
 type connectorWebIdentityProvider struct {
-	client    assumeRoleWithWebIdentityAPI
-	roleARN   string
-	tokenFile string
-	timeout   time.Duration
+	client      assumeRoleWithWebIdentityAPI
+	roleARN     string
+	tokenFile   string
+	timeout     time.Duration
+	sessionName string
+}
+
+func (provider *connectorWebIdentityProvider) session() (string, bool) {
+	if provider == nil {
+		return "", false
+	}
+	switch provider.sessionName {
+	case "", "zasp-api-connectors":
+		return "zasp-api-connectors", true
+	case "zasp-api-audit-read":
+		return "zasp-api-audit-read", true
+	case "zasp-api-compliance-read":
+		return "zasp-api-compliance-read", true
+	default:
+		return "", false
+	}
 }
 
 func (provider *connectorWebIdentityProvider) Retrieve(ctx context.Context) (aws.Credentials, error) {
-	if provider == nil || provider.client == nil || ctx == nil || ctx.Err() != nil || !connectorRolePattern.MatchString(provider.roleARN) || provider.tokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" {
+	session, validSession := provider.session()
+	if !validSession || provider.client == nil || ctx == nil || ctx.Err() != nil || !connectorRolePattern.MatchString(provider.roleARN) || len(provider.tokenFile) > 4096 || !filepath.IsAbs(provider.tokenFile) || filepath.Clean(provider.tokenFile) != provider.tokenFile || strings.ContainsAny(provider.tokenFile, "\x00\r\n") {
 		return aws.Credentials{}, errRuntimeUnavailable
 	}
 	file, err := os.Open(provider.tokenFile)
@@ -111,9 +130,9 @@ func (provider *connectorWebIdentityProvider) Retrieve(ctx context.Context) (aws
 	bounded, cancel := context.WithTimeout(ctx, provider.timeout)
 	defer cancel()
 	duration := int32(900)
-	result, err := provider.client.AssumeRoleWithWebIdentity(bounded, &sts.AssumeRoleWithWebIdentityInput{RoleArn: aws.String(provider.roleARN), RoleSessionName: aws.String("zasp-api-connectors"), WebIdentityToken: aws.String(string(token)), DurationSeconds: &duration})
+	result, err := provider.client.AssumeRoleWithWebIdentity(bounded, &sts.AssumeRoleWithWebIdentityInput{RoleArn: aws.String(provider.roleARN), RoleSessionName: aws.String(session), WebIdentityToken: aws.String(string(token)), DurationSeconds: &duration})
 	clear(token)
-	if err != nil || result == nil || result.Credentials == nil || result.Credentials.AccessKeyId == nil || result.Credentials.SecretAccessKey == nil || result.Credentials.SessionToken == nil || result.Credentials.Expiration == nil || !result.Credentials.Expiration.After(time.Now().Add(time.Minute)) {
+	if err != nil || bounded.Err() != nil || result == nil || result.Credentials == nil || aws.ToString(result.Credentials.AccessKeyId) == "" || aws.ToString(result.Credentials.SecretAccessKey) == "" || aws.ToString(result.Credentials.SessionToken) == "" || result.Credentials.Expiration == nil || !result.Credentials.Expiration.After(time.Now().Add(time.Minute)) {
 		return aws.Credentials{}, errRuntimeUnavailable
 	}
 	return aws.Credentials{AccessKeyID: *result.Credentials.AccessKeyId, SecretAccessKey: *result.Credentials.SecretAccessKey, SessionToken: *result.Credentials.SessionToken, CanExpire: true, Expires: result.Credentials.Expiration.UTC(), Source: "zasp-connector-web-identity"}, nil

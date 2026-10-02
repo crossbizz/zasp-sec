@@ -3,7 +3,7 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Principal, SessionBootstrap, SessionScope } from "../../apps/web/api/generated";
-import { requireAPIData } from "../../apps/web/api/client";
+import { APIProductError, requireAPIData } from "../../apps/web/api/client";
 import { decodeSessionBootstrap, decodeSessionScopePage } from "../../apps/web/api/decoders";
 import { useAPI } from "../api/APIProvider";
 
@@ -22,6 +22,7 @@ type AuthenticatedSession = {
 type SessionState = AuthenticatedSession | {
   status: "loading" | "unauthenticated" | "forbidden" | "error";
   error?: unknown;
+  authorizationStatus?: "pending" | "unavailable";
 };
 
 type ActiveScope = {
@@ -139,7 +140,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         suspendQueryCache();
 	        setStateSessionExpiry(expiryVersion);
 			setStateScopeStale(scopeStaleVersion);
-	        setState({ status: result.response.status === 401 ? "unauthenticated" : result.response.status === 403 ? "forbidden" : "error", error: result.error });
+	        setState({ status: result.response.status === 401 ? "unauthenticated" : result.response.status === 403 ? "forbidden" : "error", error: result.error, authorizationStatus: authorizationFailure(result.error) });
 			settleScopeAttempt({ status: "failed" }, result.error);
 			  return { status: "failed" };
       }
@@ -175,7 +176,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       suspendQueryCache();
 		  setStateSessionExpiry(expiryVersion);
 		  setStateScopeStale(scopeStaleVersion);
-	      setState({ status: "error", error });
+	      setState({ status: "error", error, authorizationStatus: authorizationFailure(error) });
 		  settleScopeAttempt({ status: "failed" }, error);
 		  return { status: "failed" };
 	} finally {
@@ -346,6 +347,12 @@ function authenticatedState(value: SessionBootstrap, scopes: readonly SessionSco
 	 scopes,
 	 freshAuthExpiresAt: value.fresh_auth_expires_at,
   };
+}
+
+function authorizationFailure(error: unknown): "pending" | "unavailable" | undefined {
+  const value = error instanceof APIProductError ? error.product : error;
+  if (typeof value !== "object" || value === null || !("code" in value)) return undefined;
+  return value.code === "authorization_pending" ? "pending" : value.code === "authorization_unavailable" ? "unavailable" : undefined;
 }
 
 function scopeFromBootstrap(value: SessionBootstrap): ActiveScope {

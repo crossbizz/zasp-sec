@@ -1,0 +1,28 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","--test","--test-name-pattern","^bridge kills and joins an owned relay CLI that ignores EOF and SIGTERM$","scripts/isolated-postgres-bridge.test.mjs"]
+TAP version 13
+# Subtest: bridge kills and joins an owned relay CLI that ignores EOF and SIGTERM
+not ok 1 - bridge kills and joins an owned relay CLI that ignores EOF and SIGTERM
+  ---
+  duration_ms: 3048.692542
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/isolated-postgres-bridge.test.mjs:39:1'
+  failureType: 'testCodeFailure'
+  error: 'owned PostgreSQL bridge did not join'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Timeout.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/isolated-postgres-bridge.mjs:50:152)
+    listOnTimeout (node:internal/timers:585:17)
+    process.processTimers (node:internal/timers:521:7)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3105.755458
+
+Exit: 1 Signal: null

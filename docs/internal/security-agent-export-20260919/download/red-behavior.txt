@@ -1,0 +1,67 @@
+=== RUN   TestSecurityAgentExportDownloadOriginalFormats
+    security_agent_export_download_test.go:60: json exact bytes: "" repository provider unavailable calls=0
+--- FAIL: TestSecurityAgentExportDownloadOriginalFormats (0.00s)
+=== RUN   TestSecurityAgentExportDownloadManifestBinding
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/run
+    security_agent_export_download_test.go:117: run did not fail integrity: "" repository provider unavailable
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/step
+    security_agent_export_download_test.go:117: step did not fail integrity: "" repository provider unavailable
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/source
+    security_agent_export_download_test.go:117: source did not fail integrity: "" repository provider unavailable
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/version
+    security_agent_export_download_test.go:117: version did not fail integrity: "" repository provider unavailable
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/association
+    security_agent_export_download_test.go:117: association did not fail integrity: "" repository provider unavailable
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/scope
+    security_agent_export_download_test.go:117: scope did not fail integrity: "" repository provider unavailable
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/duplicate
+    security_agent_export_download_test.go:117: duplicate did not fail integrity: "" repository provider unavailable
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/unknown
+    security_agent_export_download_test.go:117: unknown did not fail integrity: "" repository provider unavailable
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/mapping
+    security_agent_export_download_test.go:117: mapping did not fail integrity: "" repository provider unavailable
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/renderer
+    security_agent_export_download_test.go:117: renderer did not fail integrity: "" repository provider unavailable
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/time
+    security_agent_export_download_test.go:117: time did not fail integrity: "" repository provider unavailable
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/content_hash
+    security_agent_export_download_test.go:117: content_hash did not fail integrity: "" repository provider unavailable
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/content_object
+    security_agent_export_download_test.go:117: content_object did not fail integrity: "" repository provider unavailable
+--- FAIL: TestSecurityAgentExportDownloadManifestBinding (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/run (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/step (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/source (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/version (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/association (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/scope (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/duplicate (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/unknown (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/mapping (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/renderer (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/time (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/content_hash (0.00s)
+    --- FAIL: TestSecurityAgentExportDownloadManifestBinding/content_object (0.00s)
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/expired
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/missing_selection
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/bad_revision
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/bad_format
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/provider
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/bytes
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/media
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/version
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/cancelled
+--- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/expired (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/missing_selection (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/bad_revision (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/bad_format (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/provider (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/bytes (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/media (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/version (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/cancelled (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	1.164s
+FAIL

@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {compileOrderedCollector} from './ordered-current-catalog.mjs';
+const component=await import('./ordered-current-reference-needs.mjs').catch(()=>({}));
+const contract=JSON.parse(fs.readFileSync(new URL('./ordered-current-worker-source-closure-v1-artifacts/effective-contract3.json',import.meta.url))),catalog=JSON.parse(fs.readFileSync(new URL('./ordered-current-worker-source-closure-v1-artifacts/effective-catalog1.json',import.meta.url)));
+test('one finite reference batch covers pending static projections and source transformation inputs',()=>{
+  assert.equal(typeof component.buildOrderedReferenceNeeds,'function');
+  const packet=component.buildOrderedReferenceNeeds(contract,catalog);
+  assert.equal(packet.pending.length,38);
+  assert.equal(packet.resolvedRules.length,113);
+  assert.equal(packet.rules.filter(r=>r.id.startsWith('temporal72:')).length,6);
+  assert.equal(packet.rules.filter(r=>r.id.startsWith('inventory-fields:')).length,4);
+  assert.equal(packet.rules.filter(r=>r.id.startsWith('raw-transform:temporal:')).length,11);
+  assert.ok(packet.rules.some(r=>r.id==='raw-transform:public:discovery_schedule_replay'));
+  assert.ok(packet.maxRows<10000);
+  assert.ok(packet.rules.every(r=>Number.isSafeInteger(packet.ruleMaxRows[r.id])&&packet.ruleMaxRows[r.id]>0));
+  assert.doesNotThrow(()=>compileOrderedCollector(packet.rules));
+  assert.ok(packet.obligations.some(o=>o.type==='original-transformation'));
+  assert.ok(packet.rules.every(r=>!r.fields.includes('comment')&&!r.fields.includes('database_oid')));
+});

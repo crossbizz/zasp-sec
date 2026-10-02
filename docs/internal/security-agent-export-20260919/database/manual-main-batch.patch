@@ -1,0 +1,793 @@
+--- /dev/null
++++ b/services/platform/migrations/sql/fragments/security_agent_manual.sql
+@@ -0,0 +1,198 @@
++-- Manual intent is a separate invocation, never a rewrite of the scheduled
++-- trigger or a substitute ProductID for a missing action prerequisite.
++CREATE FUNCTION public.zasp_sa_manual_authority(o text,w text,e text,d text,v bigint,actor text) RETURNS jsonb LANGUAGE plpgsql VOLATILE SET search_path TO pg_catalog,public AS $authority$
++DECLARE current_row public.zasp_security_agent_definitions%ROWTYPE;original public.zasp_security_agent_definition_versions%ROWTYPE;action_value text;binding_value jsonb:='{}';
++BEGIN
++ SELECT * INTO current_row FROM public.zasp_security_agent_definitions WHERE (organization_id,workspace_id,environment_id,definition_id,version)=(o,w,e,d,v) AND deleted_at IS NULL FOR SHARE;
++ IF NOT FOUND OR current_row.activation NOT IN('supervised','autonomous') OR current_row.body->>'autonomy' IS DISTINCT FROM current_row.activation OR current_row.body->'enabled' IS DISTINCT FROM 'true'::jsonb OR NOT COALESCE(current_row.body->'environment_ids' ? e,false) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='manual definition unavailable';END IF;
++ SELECT * INTO original FROM public.zasp_security_agent_definition_versions WHERE (organization_id,workspace_id,environment_id,definition_id,version)=(o,w,e,d,v) FOR SHARE;
++ IF NOT FOUND OR (original.activation,original.definition) IS DISTINCT FROM (current_row.activation,current_row.body) OR original.definition_digest IS DISTINCT FROM digest(convert_to(original.definition::text,'UTF8'),'sha256') THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='manual original definition changed';END IF;
++ PERFORM public.zasp_sa_export_principal(o,w,e,original.actor_id);
++ PERFORM public.zasp_sa_export_principal(o,w,e,actor);
++ IF jsonb_typeof(current_row.body->'allowed_actions') IS DISTINCT FROM 'array' OR jsonb_array_length(current_row.body->'allowed_actions')=0 THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='manual actions unavailable';END IF;
++ FOR action_value IN SELECT jsonb_array_elements_text(current_row.body->'allowed_actions') LOOP
++  PERFORM public.zasp_production_security_agent_existing_tests_controls_guard(o,w,e,action_value);
++  CASE action_value
++  WHEN 'run_test','rerun_test' THEN binding_value:=binding_value||jsonb_build_object(action_value,public.zasp_production_security_agent_run_context_test_binding(o,w,e,d,v));
++  WHEN 'start_attack_lab' THEN binding_value:=binding_value||jsonb_build_object(action_value,public.zasp_sa_attack_lab_planner_binding(o,w,e,d,v));
++  WHEN 'create_evidence_export' THEN IF current_row.body->>'verification_kind' IS DISTINCT FROM 'export' THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='manual export verification unavailable';END IF;
++  ELSE RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='manual action source prerequisite unavailable';
++  END CASE;
++ END LOOP;
++ -- Re-read effective scope after all prerequisite waits, including group grants.
++ PERFORM public.zasp_sa_export_principal(o,w,e,original.actor_id);PERFORM public.zasp_sa_export_principal(o,w,e,actor);
++ RETURN jsonb_build_object('definition',current_row.body,'definition_digest',encode(original.definition_digest,'hex'),'bindings',binding_value);
++END $authority$;
++
++CREATE FUNCTION public.zasp_sa_manual_run(o text,w text,e text,d text,actor text,key_value text,v bigint,r text,audit_value text,correlation_value text,receipt_value text,expected_checksum text,expected_fingerprint text) RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path TO pg_catalog,public AS $run$
++DECLARE authority_value jsonb;intent_value jsonb;digest_value bytea;trigger_value text;result_value jsonb;prior public.zasp_security_agent_request_receipts%ROWTYPE;
++BEGIN
++ IF current_setting('transaction_isolation')<>'read committed' OR NOT public.zasp_sa_export_principal_ready('zasp_security_agent_api') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='manual admission principal unavailable';END IF;
++ IF NOT public.zasp_sa_export_readiness(expected_checksum,expected_fingerprint) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='manual admission release unavailable';END IF;
++ IF NOT COALESCE(public.zasp_valid_product_id(o) AND public.zasp_valid_product_id(w) AND public.zasp_valid_product_id(e) AND public.zasp_valid_product_id(d) AND public.zasp_valid_product_id(actor) AND public.zasp_valid_product_id(r) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND public.zasp_valid_product_id(receipt_value) AND v BETWEEN 1 AND 1000000 AND length(key_value) BETWEEN 16 AND 128 AND key_value ~ '^[A-Za-z0-9][A-Za-z0-9._:-]*$',false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='manual admission identity rejected';END IF;
++ PERFORM pg_advisory_xact_lock(hashtextextended('security-agent-budget-admission:'||o,0));
++ INSERT INTO public.zasp_security_agent_org_admissions(organization_id) VALUES(o) ON CONFLICT DO NOTHING;
++ PERFORM 1 FROM public.zasp_security_agent_org_admissions WHERE organization_id=o FOR UPDATE;
++ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),o,w,e,actor,'runSecurityAgent',key_value),0));
++ authority_value:=public.zasp_sa_manual_authority(o,w,e,d,v,actor);
++ intent_value:=jsonb_build_object('schema_version',1,'kind','manual','organization_id',o,'workspace_id',w,'environment_id',e,'requester_id',actor,'definition_id',d,'definition_version',v,'idempotency_key',key_value);
++ digest_value:=digest(convert_to(intent_value::text,'UTF8'),'sha256');trigger_value:=encode(digest_value,'hex');
++ SELECT * INTO prior FROM public.zasp_security_agent_request_receipts WHERE (organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key)=(o,w,e,actor,'runSecurityAgent',key_value);
++ IF FOUND THEN
++  IF (prior.resource_id,prior.expected_version,prior.intent,prior.intent_digest) IS DISTINCT FROM (d,v,intent_value,digest_value) OR prior.expires_at<=clock_timestamp() THEN RAISE EXCEPTION USING ERRCODE='23505',MESSAGE='manual admission replay conflict';END IF;
++  IF public.zasp_sa_manual_provenance(o,w,e,prior.response->>'id') IS DISTINCT FROM prior.response->'manual_trigger' THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='manual admission original receipt changed';END IF;
++  IF public.zasp_sa_manual_authority(o,w,e,d,v,actor) IS DISTINCT FROM authority_value THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='manual admission authority changed';END IF;
++  RETURN prior.response||jsonb_build_object('replayed',true);
++ END IF;
++ IF (SELECT count(*) FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,definition_id)=(o,w,e,d) AND state IN('queued','planning','waiting_approval','running','verifying','contained')) >= (authority_value->'definition'->>'concurrency_limit')::integer THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='manual concurrency unavailable';END IF;
++ IF public.zasp_sa_manual_authority(o,w,e,d,v,actor) IS DISTINCT FROM authority_value THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='manual admission authority changed';END IF;
++ INSERT INTO public.zasp_security_agent_trigger_receipts(organization_id,workspace_id,environment_id,definition_id,trigger_id,trigger_kind,trigger_version,trigger_digest,run_id) VALUES(o,w,e,d,trigger_value,'manual',1,digest_value,r);
++ INSERT INTO public.zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_id,requested_by,state) VALUES(o,w,e,r,d,v,trigger_value,actor,'queued');
++ result_value:=jsonb_build_object('id',r,'agent_id',d,'state','queued','evidence_ids','[]'::jsonb,'manual_trigger',jsonb_build_object('kind','manual','intent_digest','sha256:'||trigger_value,'version',1),'definition_version',v,'version',1,'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',false);
++ INSERT INTO public.zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,actor_id,event_kind,event_digest,body) VALUES(o,w,e,audit_value,correlation_value,r,actor,'run_queued',digest_value,jsonb_build_object('run_id',r,'definition_id',d,'definition_version',v,'trigger_kind','manual','trigger_id',trigger_value,'trigger_version',1,'automatic',false));
++ INSERT INTO public.zasp_security_agent_request_receipts(organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key,resource_id,expected_version,intent,intent_digest,response,audit_id,correlation_id,receipt_id) VALUES(o,w,e,actor,'runSecurityAgent',key_value,d,v,intent_value,digest_value,result_value,audit_value,correlation_value,receipt_value);
++ UPDATE public.zasp_security_agent_execution_state SET used_at=coalesce(used_at,clock_timestamp()) WHERE singleton;
++ IF public.zasp_sa_manual_authority(o,w,e,d,v,actor) IS DISTINCT FROM authority_value OR NOT public.zasp_sa_export_readiness(expected_checksum,expected_fingerprint) OR public.zasp_sa_manual_provenance(o,w,e,r) IS DISTINCT FROM result_value->'manual_trigger' THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='manual admission authority expired after write';END IF;
++ RETURN result_value;
++END $run$;
++GRANT EXECUTE ON FUNCTION public.zasp_sa_manual_run(text,text,text,text,text,text,bigint,text,text,text,text,text,text) TO zasp_security_agent_api;
++
++-- Historical public readers validate retained provenance without requiring a
++-- still-enabled definition or a still-live request receipt TTL.
++CREATE FUNCTION public.zasp_sa_manual_provenance(o text,w text,e text,r text) RETURNS jsonb LANGUAGE plpgsql STABLE SET search_path TO pg_catalog,public AS $provenance$
++DECLARE rr public.zasp_security_agent_runs%ROWTYPE;t public.zasp_security_agent_trigger_receipts%ROWTYPE;q public.zasp_security_agent_request_receipts%ROWTYPE;expected jsonb;metadata_value jsonb;
++BEGIN
++ SELECT * INTO STRICT rr FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r);
++ SELECT * INTO t FROM public.zasp_security_agent_trigger_receipts WHERE (organization_id,workspace_id,environment_id,run_id,definition_id,trigger_id)=(o,w,e,r,rr.definition_id,rr.trigger_id);
++ IF NOT FOUND THEN
++  -- Predecessor ProductID rows did not require a receipt merely to list or
++  -- claim them. The typed manual exception must not change that old contract.
++  IF public.zasp_valid_product_id(rr.trigger_id) THEN RETURN NULL;END IF;
++  RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='run original trigger unavailable';
++ END IF;
++ IF t.trigger_kind<>'manual' THEN
++  IF NOT public.zasp_valid_product_id(t.trigger_id) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='run original trigger malformed';END IF;
++  RETURN NULL;
++ END IF;
++ IF NOT public.zasp_valid_product_id(rr.requested_by) OR t.trigger_version<>1 OR t.trigger_id IS DISTINCT FROM encode(t.trigger_digest,'hex') OR NOT EXISTS(SELECT 1 FROM public.zasp_security_agent_definition_versions WHERE (organization_id,workspace_id,environment_id,definition_id,version)=(o,w,e,rr.definition_id,rr.definition_version) AND definition_digest=digest(convert_to(definition::text,'UTF8'),'sha256')) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='manual original trigger malformed';END IF;
++ SELECT * INTO STRICT q FROM public.zasp_security_agent_request_receipts WHERE (organization_id,workspace_id,environment_id,principal_id,operation,resource_id,expected_version,intent_digest)=(o,w,e,rr.requested_by,'runSecurityAgent',rr.definition_id,rr.definition_version,t.trigger_digest) AND response->>'id'=r;
++ expected:=jsonb_build_object('schema_version',1,'kind','manual','organization_id',o,'workspace_id',w,'environment_id',e,'requester_id',rr.requested_by,'definition_id',rr.definition_id,'definition_version',rr.definition_version,'idempotency_key',q.idempotency_key);
++ metadata_value:=jsonb_build_object('kind','manual','intent_digest','sha256:'||t.trigger_id,'version',t.trigger_version);
++ IF q.intent IS DISTINCT FROM expected OR q.intent_digest IS DISTINCT FROM digest(convert_to(expected::text,'UTF8'),'sha256') OR q.response->'manual_trigger' IS DISTINCT FROM metadata_value OR q.response->'evidence_ids' IS DISTINCT FROM '[]'::jsonb OR q.response->>'agent_id' IS DISTINCT FROM rr.definition_id OR (q.response->>'definition_version')::bigint IS DISTINCT FROM rr.definition_version THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='manual original intent changed';END IF;
++ RETURN metadata_value;
++END $provenance$;
++
++CREATE FUNCTION public.zasp_sa_manual_fields(o text,w text,e text,r text) RETURNS jsonb LANGUAGE plpgsql STABLE SET search_path TO pg_catalog,public AS $fields$
++DECLARE value jsonb;
++BEGIN
++ value:=public.zasp_sa_manual_provenance(o,w,e,r);
++ RETURN CASE WHEN value IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('manual_trigger',value) END;
++END $fields$;
++CREATE FUNCTION public.zasp_sa_manual_evidence(o text,w text,e text,r text,t text) RETURNS jsonb LANGUAGE sql STABLE SET search_path TO pg_catalog,public AS $evidence$
++ SELECT CASE WHEN public.zasp_sa_manual_provenance(o,w,e,r) IS NULL THEN jsonb_build_array(t) ELSE '[]'::jsonb END
++$evidence$;
++CREATE FUNCTION public.zasp_sa_manual_recheck(o text,w text,e text,r text) RETURNS void LANGUAGE plpgsql VOLATILE SET search_path TO pg_catalog,public AS $recheck$
++DECLARE rr public.zasp_security_agent_runs%ROWTYPE;
++BEGIN
++ IF public.zasp_sa_manual_provenance(o,w,e,r) IS NULL THEN RETURN;END IF;
++ SELECT * INTO STRICT rr FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r);
++ PERFORM public.zasp_sa_manual_authority(o,w,e,rr.definition_id,rr.definition_version,rr.requested_by);
++END $recheck$;
++
++-- Preserve complete predecessor definitions and ACLs. These amendments use
++-- original receipts only and leave every nonmanual branch unchanged.
++DO $manual_readers$
++DECLARE p record;d text;before_value text;anchor text;args text;rowname text;
++BEGIN
++ FOR p IN SELECT oid,proname FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname IN(
++ 'zasp_security_agent_claim_budgeted_runs','zasp_security_agent_run_page','zasp_security_agent_run_detail',
++ 'zasp_production_security_agent_existing_tests_approval_value','zasp_sa_attack_lab_approval_value','zasp_sa_export_approval_value') LOOP
++  d:=pg_get_functiondef(p.oid);before_value:=d;
++  IF p.proname='zasp_security_agent_claim_budgeted_runs' THEN
++   anchor:='result_value:=result_value||jsonb_build_array(jsonb_build_object(';
++   IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='manual claim predecessor changed';END IF;
++   d:=replace(d,anchor,'PERFORM public.zasp_sa_manual_recheck(run_row.organization_id,run_row.workspace_id,run_row.environment_id,run_row.run_id);'||chr(10)||anchor);
++   anchor:='(run_row.organization_id,run_row.workspace_id,run_row.environment_id,run_row.run_id))));';
++   IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='manual claim envelope changed';END IF;
++   d:=replace(d,anchor,'(run_row.organization_id,run_row.workspace_id,run_row.environment_id,run_row.run_id)))||public.zasp_sa_manual_fields(run_row.organization_id,run_row.workspace_id,run_row.environment_id,run_row.run_id));');
++  ELSIF p.proname='zasp_security_agent_run_page' THEN
++   d:=replace(d,'jsonb_build_array(trigger_id)','public.zasp_sa_manual_evidence(organization_value,workspace_value,environment_value,run_id,trigger_id)');
++   d:=replace(d,'''version'',version) ORDER BY','''version'',version)||public.zasp_sa_manual_fields(organization_value,workspace_value,environment_value,run_id) ORDER BY');
++  ELSIF p.proname='zasp_security_agent_run_detail' THEN
++   d:=replace(d,'jsonb_build_array(run.trigger_id)','public.zasp_sa_manual_evidence(organization_value,workspace_value,environment_value,run.run_id,run.trigger_id)');
++   d:=replace(d,'''version'',run.version),','''version'',run.version)||public.zasp_sa_manual_fields(organization_value,workspace_value,environment_value,run.run_id),');
++   d:=replace(d,'run.run_id,run.trigger_id)) ORDER BY','run.run_id,run.trigger_id))||public.zasp_sa_manual_fields(organization_value,workspace_value,environment_value,run.run_id) ORDER BY');
++  ELSE
++   rowname:=CASE p.proname WHEN 'zasp_sa_export_approval_value' THEN 'rr' WHEN 'zasp_sa_attack_lab_approval_value' THEN 'r' ELSE 'run_row' END;
++   d:=replace(d,'jsonb_build_array('||rowname||'.trigger_id)','public.zasp_sa_manual_evidence(o,w,e,'||rowname||'.run_id,'||rowname||'.trigger_id)');
++   -- Only the final direct value needs decoration. Delegated values decorate
++   -- themselves in their own family; neither stored decisions nor plans change.
++   anchor:=CASE p.proname WHEN 'zasp_sa_attack_lab_approval_value' THEN '''attack_lab'',p.plan->''steps''->0->''attack_lab'');' ELSE rowname||'.run_id,'||rowname||'.trigger_id));' END;
++   IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='manual approval predecessor changed';END IF;
++   d:=replace(d,anchor,left(anchor,length(anchor)-1)||'||public.zasp_sa_manual_fields(o,w,e,'||rowname||'.run_id);');
++  END IF;
++  IF d=before_value THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='manual reader predecessor changed';END IF;
++  IF NOT starts_with(p.proname,'zasp_sa_export_') AND NOT EXISTS(SELECT 1 FROM zasp_sa_export_prior.functions WHERE signature=p.oid::regprocedure::text OR signature='public.'||p.oid::regprocedure::text) THEN PERFORM public.zasp_sa_export_save(p.oid::regprocedure::text);END IF;
++  EXECUTE d;
++ END LOOP;
++END $manual_readers$;
++
++DO $manual_planning$
++DECLARE p record;d text;before_value text;anchor text;
++BEGIN
++ FOR p IN SELECT oid,proname FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname IN(
++ 'zasp_sa_export_planner_context_core','zasp_sa_export_prepare_core','zasp_sa_export_authorize',
++ 'zasp_production_security_agent_existing_tests_planner_context','zasp_production_security_agent_existing_tests_recheck_context',
++ 'zasp_sa_attack_lab_planner_context','zasp_sa_attack_lab_recheck_context',
++ 'zasp_production_security_agent_existing_tests_prepare_core','zasp_sa_attack_lab_prepare_core',
++ 'zasp_security_agent_test_dispatch','zasp_production_security_agent_existing_tests_authorize_step','zasp_sa_attack_lab_authorize') LOOP
++  d:=pg_get_functiondef(p.oid);before_value:=d;
++  IF p.proname='zasp_sa_export_planner_context_core' THEN
++   anchor:='IF t.trigger_kind IS DISTINCT FROM d.definition->>''trigger_kind'' OR t.trigger_kind NOT IN(''finding'',''attack_path'',''runtime_decision'') THEN';
++   IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='manual export context predecessor changed';END IF;
++   d:=replace(d,anchor,'IF t.trigger_kind=''manual'' THEN PERFORM public.zasp_sa_manual_recheck(o,w,e,r); ELSIF t.trigger_kind IS DISTINCT FROM d.definition->>''trigger_kind'' OR t.trigger_kind NOT IN(''finding'',''attack_path'',''runtime_decision'') THEN');
++   d:=replace(d,'''attempt'',rr.attempt),''maximum_steps''','''attempt'',rr.attempt)||public.zasp_sa_manual_fields(o,w,e,r),''maximum_steps''');
++   d:=replace(d,'PERFORM public.zasp_sa_export_planner_source_authority(o,w,e,r,selection_value);','PERFORM public.zasp_sa_manual_recheck(o,w,e,r); PERFORM public.zasp_sa_export_planner_source_authority(o,w,e,r,selection_value);');
++  ELSIF p.proname IN('zasp_sa_export_prepare_core','zasp_sa_export_authorize') THEN
++   d:=replace(d,'jsonb_build_array(rr.trigger_id)','public.zasp_sa_manual_evidence(o,w,e,r,rr.trigger_id)');
++  ELSIF p.proname IN('zasp_production_security_agent_existing_tests_prepare_core','zasp_sa_attack_lab_prepare_core') THEN
++   d:=replace(d,'jsonb_build_array(run_row.trigger_id)','public.zasp_sa_manual_evidence(o,w,e,r,run_row.trigger_id)');
++  ELSIF p.proname IN('zasp_production_security_agent_existing_tests_authorize_step','zasp_sa_attack_lab_authorize') THEN
++   IF p.proname='zasp_sa_attack_lab_authorize' THEN
++    d:=replace(d,'OR public.zasp_production_security_agent_existing_tests_trigger(o,w,e,t.trigger_kind,t.trigger_id,d.body->>''trigger_source'',t.trigger_version) IS DISTINCT FROM jsonb_build_object(''version'',t.trigger_version,''digest'',encode(t.trigger_digest,''hex''))','OR t.trigger_kind<>''manual'' AND public.zasp_production_security_agent_existing_tests_trigger(o,w,e,t.trigger_kind,t.trigger_id,d.body->>''trigger_source'',t.trigger_version) IS DISTINCT FROM jsonb_build_object(''version'',t.trigger_version,''digest'',encode(t.trigger_digest,''hex''))');
++   END IF;
++   -- Both private authorities are called again after writes by their dispatchers.
++   d:=replace(d,'BEGIN'||chr(10),'BEGIN'||chr(10)||' PERFORM public.zasp_sa_manual_recheck(o,w,e,r);'||chr(10));
++  ELSE
++   d:=replace(d,'trigger_row.trigger_kind IS DISTINCT FROM definition_row.body->>''trigger_kind''','trigger_row.trigger_kind<>''manual'' AND trigger_row.trigger_kind IS DISTINCT FROM definition_row.body->>''trigger_kind''');
++   anchor:='IF trigger_row.trigger_kind=''finding'' THEN';
++   IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='manual planner source predecessor changed';END IF;
++   d:=replace(d,anchor,'IF trigger_row.trigger_kind=''manual'' THEN PERFORM public.zasp_sa_manual_recheck(o,w,e,r); PERFORM 1; ELSIF trigger_row.trigger_kind=''finding'' THEN');
++   d:=replace(d,'''attempt'',run_row.attempt),','''attempt'',run_row.attempt)||public.zasp_sa_manual_fields(o,w,e,r),');
++   IF p.proname<>'zasp_security_agent_test_dispatch' THEN
++    d:=replace(d,'RETURN jsonb_build_object(''context'',context_value,','PERFORM public.zasp_sa_manual_recheck(o,w,e,r);'||chr(10)||' RETURN jsonb_build_object(''context'',context_value,');
++   END IF;
++  END IF;
++  IF d=before_value THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='manual preparation predecessor changed';END IF;
++  IF NOT starts_with(p.proname,'zasp_sa_export_') AND NOT EXISTS(SELECT 1 FROM zasp_sa_export_prior.functions WHERE signature=p.oid::regprocedure::text OR signature='public.'||p.oid::regprocedure::text) THEN PERFORM public.zasp_sa_export_save(p.oid::regprocedure::text);END IF;
++  EXECUTE d;
++ END LOOP;
++END $manual_planning$;
++
++DO $manual_cancellation$
++DECLARE p record;d text;scope_value text;rowname text;anchor text;
++BEGIN
++ FOR p IN SELECT oid,proname FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname IN('zasp_security_agent_cancel_run','zasp_sa_attack_lab_cancel_parent') LOOP
++  d:=pg_get_functiondef(p.oid);
++  scope_value:=CASE p.proname WHEN 'zasp_security_agent_cancel_run' THEN 'organization_value,workspace_value,environment_value,run_value' ELSE 'o,w,e,r' END;
++  rowname:=CASE p.proname WHEN 'zasp_security_agent_cancel_run' THEN 'run_row' ELSE 'rr' END;
++  anchor:='jsonb_build_array('||rowname||'.trigger_id)';
++  IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='manual cancellation predecessor changed';END IF;
++  d:=replace(d,anchor,'public.zasp_sa_manual_evidence('||scope_value||','||rowname||'.trigger_id)');
++  anchor:='''receipt_id'',receipt_value,''replayed'',false);';
++  IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='manual cancellation receipt predecessor changed';END IF;
++  d:=replace(d,anchor,'''receipt_id'',receipt_value,''replayed'',false)||public.zasp_sa_manual_fields('||scope_value||');');
++  IF NOT EXISTS(SELECT 1 FROM zasp_sa_export_prior.functions WHERE signature=p.oid::regprocedure::text OR signature='public.'||p.oid::regprocedure::text) THEN PERFORM public.zasp_sa_export_save(p.oid::regprocedure::text);END IF;
++  EXECUTE d;
++ END LOOP;
++END $manual_cancellation$;
+--- a/services/platform/migrations/security_agent_exports_release.go
++++ b/services/platform/migrations/security_agent_exports_release.go
+@@ -28,8 +28,11 @@
+ //go:embed sql/fragments/security_agent_export_accounting.sql
+ var securityAgentExportAccountingSQL string
+ 
++//go:embed sql/fragments/security_agent_manual.sql
++var securityAgentManualSQL string
++
+ func SecurityAgentExportsFingerprint() string {
+-	return "16d71c1f47360dc46b7fba40e0ab438d0f902a0a0683978c99cf8a88e4a42336"
++	return "2dfa9559c6a6a6e610d0e61ba22e970131f73baff76cb72cd8306752d39b999e"
+ }
+ 
+ func ProductionSecurityAgentExports() Metadata {
+@@ -39,6 +42,7 @@
+ 		"-- export links fragment", securityAgentExportLinksSQL,
+ 		"-- export planner fragment", securityAgentExportPlannerSQL,
+ 		"-- export accounting fragment", securityAgentExportAccountingSQL,
++		"-- manual provenance fragment", securityAgentManualSQL,
+ 		"-- export predecessor checksum", ProductionSecurityAgentAttackLab().Checksum(),
+ 		"-- export predecessor fingerprint", SecurityAgentAttackLabFingerprint(),
+ 	).Replace(securityAgentExportsUpSQL)
+--- a/services/platform/migrations/sql/0058_production_security_agent_exports.up.sql
++++ b/services/platform/migrations/sql/0058_production_security_agent_exports.up.sql
+@@ -68,6 +68,7 @@
+ -- export links fragment
+ -- export planner fragment
+ -- export accounting fragment
++-- manual provenance fragment
+ 
+ CREATE FUNCTION public.zasp_sa_export_function_identity(value oid) RETURNS text LANGUAGE sql STABLE SET search_path TO pg_catalog,public AS $identity$
+  SELECT replace(replace(pg_get_functiondef(value),'-- compiled export checksum','<compiled-checksum>'),'-- compiled export fingerprint','<compiled-fingerprint>')
+@@ -77,7 +78,7 @@
+  SELECT concat_ws('|','prior',public.zasp_sa_attack_lab_live_fingerprint())
+  UNION ALL SELECT concat_ws('|','saved',signature,definition,owner_name,acl::text) FROM zasp_sa_export_prior.functions
+  UNION ALL SELECT concat_ws('|','schema',nspname,nspowner::regrole::text,COALESCE(nspacl::text,'')) FROM pg_namespace WHERE nspname='zasp_sa_export_prior'
+- UNION ALL SELECT concat_ws('|','function',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid),p.proowner::regrole::text,p.prosecdef,p.provolatile,p.proparallel,p.proisstrict,p.proleakproof,COALESCE(p.proconfig::text,''),COALESCE(p.proacl::text,''),public.zasp_sa_export_function_identity(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND starts_with(p.proname,'zasp_sa_export_')
++ UNION ALL SELECT concat_ws('|','function',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid),p.proowner::regrole::text,p.prosecdef,p.provolatile,p.proparallel,p.proisstrict,p.proleakproof,COALESCE(p.proconfig::text,''),COALESCE(p.proacl::text,''),public.zasp_sa_export_function_identity(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND (starts_with(p.proname,'zasp_sa_export_') OR starts_with(p.proname,'zasp_sa_manual_'))
+  UNION ALL SELECT concat_ws('|','table',n.nspname,c.relname,c.relowner::regrole::text,c.relrowsecurity,c.relforcerowsecurity,COALESCE(c.relacl::text,'')) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE (n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND starts_with(c.relname,'zasp_sa_export_')) AND c.relkind='r'
+  UNION ALL SELECT concat_ws('|','column',n.nspname,c.relname,a.attnum,a.attname,format_type(a.atttypid,a.atttypmod),a.attnotnull,COALESCE(pg_get_expr(d.adbin,d.adrelid),''),COALESCE(a.attacl::text,'')) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_attribute a ON a.attrelid=c.oid LEFT JOIN pg_attrdef d ON (d.adrelid,d.adnum)=(a.attrelid,a.attnum) WHERE (n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND starts_with(c.relname,'zasp_sa_export_')) AND a.attnum>0 AND NOT a.attisdropped
+  UNION ALL SELECT concat_ws('|','constraint',c.relname,k.conname,pg_get_constraintdef(k.oid),k.convalidated) FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND starts_with(c.relname,'zasp_sa_export_')
+@@ -101,7 +102,7 @@
+ DO $owners$
+ DECLARE p regprocedure;
+ BEGIN
+- FOR p IN SELECT oid::regprocedure FROM pg_proc WHERE pronamespace='public'::regnamespace AND starts_with(proname,'zasp_sa_export_') LOOP
++ FOR p IN SELECT oid::regprocedure FROM pg_proc WHERE pronamespace='public'::regnamespace AND (starts_with(proname,'zasp_sa_export_') OR starts_with(proname,'zasp_sa_manual_')) LOOP
+   EXECUTE format('ALTER FUNCTION %s OWNER TO zasp_discovery_authority',p);
+   EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC',p);
+  END LOOP;
+--- a/services/platform/migrations/sql/0058_production_security_agent_exports.down.sql
++++ b/services/platform/migrations/sql/0058_production_security_agent_exports.down.sql
+@@ -3,7 +3,9 @@
+ BEGIN
+  LOCK TABLE public.zasp_security_agent_runs,public.zasp_security_agent_definitions,public.zasp_security_agent_definition_versions,public.zasp_security_agent_plans,public.zasp_security_agent_steps,public.zasp_security_agent_kill_switches,public.zasp_security_agent_request_receipts,public.zasp_security_agent_effects,public.zasp_compliance_export_jobs,public.zasp_sa_export_links IN ACCESS EXCLUSIVE MODE NOWAIT;
+  LOCK TABLE public.zasp_sa_export_planner_inputs IN ACCESS EXCLUSIVE MODE NOWAIT;
++ LOCK TABLE public.zasp_security_agent_trigger_receipts IN ACCESS EXCLUSIVE MODE NOWAIT;
+  IF EXISTS(SELECT 1 FROM public.zasp_sa_export_planner_inputs)
++ OR EXISTS(SELECT 1 FROM public.zasp_security_agent_trigger_receipts WHERE trigger_kind='manual')
+  OR EXISTS(SELECT 1 FROM public.zasp_sa_export_links)
+  OR EXISTS(SELECT 1 FROM public.zasp_compliance_export_jobs WHERE job_origin='agent_run')
+  OR EXISTS(SELECT 1 FROM public.zasp_security_agent_definitions WHERE body->'allowed_actions' ? 'create_evidence_export')
+@@ -31,7 +33,7 @@
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO %s%s',saved.signature,CASE WHEN grant_value->>'grantee'='PUBLIC' THEN 'PUBLIC' ELSE quote_ident(grant_value->>'grantee') END,CASE WHEN (grant_value->>'grantable')::boolean THEN ' WITH GRANT OPTION' ELSE '' END);
+   END LOOP;
+  END LOOP;
+- FOR p IN SELECT oid::regprocedure FROM pg_proc WHERE pronamespace='public'::regnamespace AND starts_with(proname,'zasp_sa_export_') LOOP EXECUTE format('DROP FUNCTION %s',p);END LOOP;
++ FOR p IN SELECT oid::regprocedure FROM pg_proc WHERE pronamespace='public'::regnamespace AND (starts_with(proname,'zasp_sa_export_') OR starts_with(proname,'zasp_sa_manual_')) LOOP EXECUTE format('DROP FUNCTION %s',p);END LOOP;
+ END $rollback$;
+ DROP SCHEMA zasp_sa_export_prior CASCADE;
+ DELETE FROM public.zasp_schema_metadata WHERE key IN('production_security_agent_exports_checksum','production_security_agent_exports_fingerprint');
+--- a/services/platform/apiserver/security_agent_manual_admission_postgres_test.go
++++ b/services/platform/apiserver/security_agent_manual_admission_postgres_test.go
+@@ -3,8 +3,10 @@
+ import (
+ 	"context"
+ 	"encoding/json"
++	"fmt"
+ 	"strings"
+ 	"testing"
++	"time"
+ 
+ 	"github.com/jackc/pgx/v5"
+ 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+@@ -13,8 +15,9 @@
+ // Catch source-free admission that fabricates provenance, duplicates a run on
+ // retry, or borrows a revoked requester's authority. Only definition/control
+ // prerequisites are owner-seeded; API authority must create every run/receipt.
+-func TestSecurityAgentManualAdmissionPostgres(t *testing.T) {
+-	runVersionedExistingTestFixture(t, func(ctx context.Context, owner, api *pgx.Conn, o, w, e, _ string, actor string) {
++func runManualAdmissionFixture(t *testing.T, action string, exercise func(context.Context, *pgx.Conn, *pgx.Conn, string, string, string, string, string, string, int64)) {
++	t.Helper()
++	runVersionedExistingTestFixture(t, func(ctx context.Context, owner, api *pgx.Conn, o, w, e, testID string, actor string) {
+ 		runner := precisionMigrationRunner(t, owner)
+ 		if err := runner.UpProductionCompliance(ctx); err != nil {
+ 			t.Fatal(err)
+@@ -38,6 +41,28 @@
+ 		if err := owner.QueryRow(ctx, `SELECT definition_id,version,body->>'trigger_kind' FROM zasp_security_agent_definitions WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, o, w, e).Scan(&definition, &version, &scheduledKind); err != nil {
+ 			t.Fatal(err)
+ 		}
++		if action != "create_evidence_export" {
++			verification := map[string]string{"run_test": "test_run", "rerun_test": "test_run", "start_attack_lab": "attack_lab_run", "update_finding_response": "finding_state", "create_temporary_policy": "policy_state", "isolate_session": "session_state", "revoke_integration_connection": "integration_state"}[action]
++			if verification == "" {
++				t.Fatalf("unknown manual fixture action %s", action)
++			}
++			if _, err := owner.Exec(ctx, `UPDATE zasp_red_team_definitions SET enabled=true WHERE definition_id=$4;
++ UPDATE zasp_security_agent_definitions SET body=body||jsonb_build_object('allowed_actions',jsonb_build_array($5::text),'verification_kind',$6::text)||CASE WHEN $5 IN('run_test','rerun_test','start_attack_lab') THEN jsonb_build_object('existing_test',jsonb_build_object('definition_id',$4::text,'definition_version',1)) ELSE '{}'::jsonb END WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3);
++ UPDATE zasp_security_agent_definition_versions v SET definition=d.body,definition_digest=digest(convert_to(d.body::text,'UTF8'),'sha256') FROM zasp_security_agent_definitions d WHERE (v.organization_id,v.workspace_id,v.environment_id,v.definition_id,v.version)=(d.organization_id,d.workspace_id,d.environment_id,d.definition_id,d.version) AND d.organization_id=$1;
++ INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by) VALUES($1,$2,$3,$5,true,$7) ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO UPDATE SET execution_enabled=true`, pgx.QueryExecModeSimpleProtocol, o, w, e, testID, action, verification, actor); err != nil {
++				t.Fatal(err)
++			}
++		}
++		exercise(ctx, owner, api, o, w, e, testID, actor, definition, version)
++	})
++}
++
++func TestSecurityAgentManualAdmissionPostgres(t *testing.T) {
++	runManualAdmissionFixture(t, "create_evidence_export", func(ctx context.Context, owner, api *pgx.Conn, o, w, e, _ string, actor, definition string, version int64) {
++		var scheduledKind string
++		if err := owner.QueryRow(ctx, `SELECT body->>'trigger_kind' FROM zasp_security_agent_definitions WHERE definition_id=$1`, definition).Scan(&scheduledKind); err != nil {
++			t.Fatal(err)
++		}
+ 		counts := func() [4]int {
+ 			t.Helper()
+ 			var count [4]int
+@@ -107,6 +132,435 @@
+ 		}
+ 		if got := counts(); got != [4]int{2, 2, 2, 2} {
+ 			t.Fatalf("replay/refusal duplicated admission: %v", got)
++		}
++		assertManualExportConnected(t, ctx, owner, api, o, w, e, run, value.ManualTrigger)
++	})
++}
++
++// Catch digest-as-ProductID projection, a claim missing its original receipt,
++// or preparation that loses the manual binding after real provider accounting.
++func assertManualExportConnected(t *testing.T, ctx context.Context, owner, api *pgx.Conn, o, w, e, run string, manual *SecurityAgentManualTrigger) {
++	t.Helper()
++	var raw json.RawMessage
++	if err := api.QueryRow(ctx, `SELECT zasp_security_agent_run_page($1,$2,$3,NULL,NULL,NULL,NULL,10)`, o, w, e).Scan(&raw); err != nil {
++		t.Fatal(err)
++	}
++	var page struct {
++		Items []SecurityAgentRunResult `json:"items"`
++	}
++	if json.Unmarshal(raw, &page) != nil || len(page.Items) != 2 {
++		t.Fatalf("manual page: %s", raw)
++	}
++	for _, item := range page.Items {
++		if item.ManualTrigger == nil || item.EvidenceIDs == nil || len(item.EvidenceIDs) != 0 {
++			t.Fatalf("manual page fabricated evidence: %s", raw)
++		}
++	}
++	cfg := owner.Config().Copy()
++	cfg.User = "security_agent_v33_worker_login"
++	worker, err := pgx.ConnectConfig(ctx, cfg)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer worker.Close(context.Background())
++	if err = worker.QueryRow(ctx, postgresSecurityAgentClaimRunsV24SQL, exportFixtureWorker, exportFixtureLease, 120, 2).Scan(&raw); err != nil {
++		t.Fatal(err)
++	}
++	var claims struct {
++		Items []struct {
++			RunID     string                      `json:"run_id"`
++			TriggerID string                      `json:"trigger_id"`
++			Manual    *SecurityAgentManualTrigger `json:"manual_trigger"`
++		} `json:"items"`
++	}
++	if json.Unmarshal(raw, &claims) != nil || len(claims.Items) != 2 {
++		t.Fatalf("manual claims=%s", raw)
++	}
++	for _, item := range claims.Items {
++		if item.Manual == nil || "sha256:"+item.TriggerID != item.Manual.IntentDigest {
++			t.Fatalf("claim lost manual provenance: %s", raw)
++		}
++	}
++	if err = worker.QueryRow(ctx, postgresSecurityAgentExportPlannerContextSQL, o, w, e, run, exportFixtureWorker, exportFixtureLease).Scan(&raw); err != nil {
++		t.Fatal(err)
++	}
++	var envelope struct {
++		Context struct {
++			Run struct {
++				Manual *SecurityAgentManualTrigger `json:"manual_trigger"`
++			} `json:"run"`
++			Selection []SecurityAgentExportSelection `json:"export_selection"`
++		} `json:"context"`
++		Input string `json:"input_digest"`
++	}
++	if json.Unmarshal(raw, &envelope) != nil || !sameSecurityAgentManualTrigger(envelope.Context.Run.Manual, manual) || len(envelope.Context.Selection) < 1 || envelope.Context.Selection[0].Kind != "manual" || envelope.Context.Selection[0].ID != strings.TrimPrefix(manual.IntentDigest, "sha256:") {
++		t.Fatalf("manual planner context=%s", raw)
++	}
++	input := strings.TrimPrefix(envelope.Input, "sha256:")
++	output := strings.Repeat("bf", 32)
++	if err = worker.QueryRow(ctx, `SELECT zasp_sa_export_reserve_planner($1,$2,$3,$4,$5,$6,1,'manual-planner-reservation',decode($7,'hex'),'fixture-model','fixture-cost-policy','openrouter_credit',50,100)`, o, w, e, run, exportFixtureWorker, exportFixtureLease, input).Scan(&raw); err != nil {
++		t.Fatal(err)
++	}
++	if err = worker.QueryRow(ctx, `SELECT zasp_security_agent_budget_settle_planner($1,$2,$3,$4,$5,$6,1,'manual-planner-reservation',decode($7,'hex'),0,0,0,0)`, o, w, e, run, exportFixtureWorker, exportFixtureLease, output).Scan(&raw); err != nil {
++		t.Fatal(err)
++	}
++	candidate, _ := json.Marshal(map[string]any{"version": 1, "summary": "Export original manual intent", "steps": []any{map[string]any{"index": 0, "action": "create_evidence_export", "target_id": run, "evidence_ids": envelope.Context.Selection[:1]}}})
++	if err = worker.QueryRow(ctx, `SELECT zasp_sa_export_accept_planner($1,$2,$3,$4,$5,$6,decode($7,'hex'),decode($8,'hex'),'fixture-model','planner-v1',$9,$10,$11,'pid_8e190011-0000-4000-8000-000000000011','pid_8e190012-0000-4000-8000-000000000012')`, o, w, e, run, exportFixtureWorker, exportFixtureLease, input, output, candidate, exportApprovalID, time.Now().UTC().Add(5*time.Minute)).Scan(&raw); err != nil {
++		t.Fatal(err)
++	}
++	if !strings.Contains(string(raw), `"waiting_approval"`) {
++		t.Fatalf("manual acceptance=%s", raw)
++	}
++	if err = api.QueryRow(ctx, `SELECT zasp_production_security_agent_existing_tests_run_context($1,$2,$3,$4,$5,$6)`, o, w, e, run, migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&raw); err != nil {
++		t.Fatal(err)
++	}
++	var envelopeDetail struct {
++		Detail struct {
++			Run       SecurityAgentRunResult `json:"run"`
++			Evidence  []string               `json:"evidence_ids"`
++			Approvals []struct {
++				Manual   *SecurityAgentManualTrigger `json:"manual_trigger"`
++				Evidence []string                    `json:"evidence_summary"`
++			} `json:"approvals"`
++		} `json:"detail"`
++	}
++	if json.Unmarshal(raw, &envelopeDetail) != nil {
++		t.Fatal(string(raw))
++	}
++	detail := envelopeDetail.Detail
++	if !sameSecurityAgentManualTrigger(detail.Run.ManualTrigger, manual) || detail.Evidence == nil || len(detail.Evidence) != 0 || len(detail.Approvals) != 1 || !sameSecurityAgentManualTrigger(detail.Approvals[0].Manual, manual) || detail.Approvals[0].Evidence == nil || len(detail.Approvals[0].Evidence) != 0 {
++		t.Fatalf("manual context/detail=%s", raw)
++	}
++	var planEvidence json.RawMessage
++	if err = owner.QueryRow(ctx, `SELECT plan->'evidence_ids' FROM zasp_security_agent_plans WHERE run_id=$1`, run).Scan(&planEvidence); err != nil || string(planEvidence) != "[]" {
++		t.Fatalf("manual plan evidence=%s %v", planEvidence, err)
++	}
++	f := &exportDBFixture{ctx: ctx, owner: owner, api: api, worker: worker, o: o, w: w, e: e}
++	if raw, err = readExportApproval(f); err != nil {
++		t.Fatal(err)
++	}
++	if _, err = decodeApprovalContextEnvelope(raw, exportApprovalID); err != nil {
++		t.Fatalf("manual independent approval: %s %v", raw, err)
++	}
++	if _, err = owner.Exec(ctx, `INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role,active) VALUES($4,$1,'manual-approver-org','manual-approver','security_engineer',true); INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions) VALUES($4,$1,$2,$3,'Manual approver','["view","manage_workflows"]')`, pgx.QueryExecModeSimpleProtocol, o, w, e, exportApproverID); err != nil {
++		t.Fatal(err)
++	}
++	if raw, err = decideExportApproval(f, exportApproverID, "manual-export-approval", time.Now().UTC()); err != nil {
++		t.Fatal(err)
++	}
++	var decided struct {
++		Manual   *SecurityAgentManualTrigger `json:"manual_trigger"`
++		Evidence []string                    `json:"evidence_summary"`
++	}
++	if json.Unmarshal(raw, &decided) != nil || !sameSecurityAgentManualTrigger(decided.Manual, manual) || decided.Evidence == nil || len(decided.Evidence) != 0 {
++		t.Fatalf("manual decision lost provenance=%s", raw)
++	}
++	if err = worker.QueryRow(ctx, postgresSecurityAgentClaimRunsV24SQL, exportFixtureWorker, exportFixtureLease, 120, 2).Scan(&raw); err != nil {
++		t.Fatal(err)
++	}
++	if raw, err = f.dispatch(o, w, e, run, exportFixtureLease); err != nil {
++		t.Fatal(err)
++	}
++	var dispatched struct {
++		ExportID string `json:"export_id"`
++	}
++	if json.Unmarshal(raw, &dispatched) != nil || dispatched.ExportID == "" {
++		t.Fatal(string(raw))
++	}
++	captured := f.capture(t, dispatched.ExportID)
++	if !strings.Contains(string(captured), `"manual"`) || !strings.Contains(string(captured), manual.IntentDigest) {
++		t.Fatalf("capture lost original manual receipt=%s", captured)
++	}
++}
++
++func TestSecurityAgentManualActionPrerequisitesPostgres(t *testing.T) {
++	for _, action := range []string{"run_test", "rerun_test", "start_attack_lab", "update_finding_response", "create_temporary_policy", "isolate_session", "revoke_integration_connection"} {
++		t.Run(action, func(t *testing.T) {
++			runManualAdmissionFixture(t, action, func(ctx context.Context, owner, api *pgx.Conn, o, w, e, testID, actor, definition string, version int64) {
++				const run = "pid_8e191001-0000-4000-8000-000000000001"
++				const audit = "pid_8e191002-0000-4000-8000-000000000002"
++				var raw json.RawMessage
++				invoke := func() error {
++					return api.QueryRow(ctx, postgresSecurityAgentManualRunSQL, o, w, e, definition, actor, "manual-action-bound-0001", version, run, audit, audit, audit, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&raw)
++				}
++				if action == "start_attack_lab" {
++					if err := invoke(); err == nil {
++						t.Fatal("manual attack lab admitted without retained failed proof")
++					}
++					if _, err := owner.Exec(ctx, `UPDATE zasp_red_team_definitions SET safety=jsonb_set(safety,'{credential_class}','"test_write"') WHERE organization_id=$1;
++ UPDATE zasp_attack_lab_credential_bindings SET credential_class='test_write' WHERE organization_id=$1;
++ INSERT INTO zasp_red_team_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,requested_by,state,attempt,input_digest,verdict,evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at) VALUES($1,$2,$3,'pid_8e191003-0000-4000-8000-000000000003',$4,1,$5,'complete',1,digest('manual-source','sha256'),'fail','s3://fixture-bucket/manual-source','manual-source','source-version',digest('evidence','sha256'),100,clock_timestamp());
++ INSERT INTO zasp_red_team_attempts(organization_id,workspace_id,environment_id,run_id,attempt,input_digest,verdict,objective,behavior,evidence,evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at) SELECT organization_id,workspace_id,environment_id,run_id,attempt,input_digest,verdict,'controlled objective','controlled failure','[]',evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at FROM zasp_red_team_runs WHERE run_id='pid_8e191003-0000-4000-8000-000000000003'`, pgx.QueryExecModeSimpleProtocol, o, w, e, testID, actor); err != nil {
++						t.Fatal(err)
++					}
++				}
++				err := invoke()
++				if action != "run_test" && action != "rerun_test" && action != "start_attack_lab" {
++					if err == nil {
++						t.Fatal("manual action fabricated missing source")
++					}
++					var count int
++					if err = owner.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_security_agent_runs)+(SELECT count(*) FROM zasp_security_agent_trigger_receipts)+(SELECT count(*) FROM zasp_security_agent_request_receipts)+(SELECT count(*) FROM zasp_security_agent_audit)`).Scan(&count); err != nil || count != 0 {
++						t.Fatalf("refused prerequisite left authority: %d %v", count, err)
++					}
++					return
++				}
++				if err != nil {
++					t.Fatalf("bound manual %s: %v", action, err)
++				}
++				cfg := owner.Config().Copy()
++				cfg.User = "security_agent_v33_worker_login"
++				worker, err := pgx.ConnectConfig(ctx, cfg)
++				if err != nil {
++					t.Fatal(err)
++				}
++				defer worker.Close(context.Background())
++				if err = worker.QueryRow(ctx, postgresSecurityAgentClaimRunsV24SQL, exportFixtureWorker, exportFixtureLease, 120, 1).Scan(&raw); err != nil {
++					t.Fatal(err)
++				}
++				prefix := "zasp_production_security_agent_existing_tests_"
++				if action == "start_attack_lab" {
++					prefix = "zasp_sa_attack_lab_"
++				}
++				if err = worker.QueryRow(ctx, fmt.Sprintf(`SELECT %splanner_context($1,$2,$3,$4,$5,$6)`, prefix), o, w, e, run, exportFixtureWorker, exportFixtureLease).Scan(&raw); err != nil {
++					t.Fatal(err)
++				}
++				var contextValue struct {
++					Context struct {
++						Run struct {
++							Manual *SecurityAgentManualTrigger `json:"manual_trigger"`
++						} `json:"run"`
++						Targets []string `json:"allowed_targets"`
++					} `json:"context"`
++				}
++				if json.Unmarshal(raw, &contextValue) != nil || contextValue.Context.Run.Manual == nil || len(contextValue.Context.Targets) != 1 || contextValue.Context.Targets[0] != testID {
++					t.Fatalf("bound target/manual context=%s", raw)
++				}
++				// Deterministic prepare remains provider-free. The parent and proof
++				// receipts are real, no plan/step/provider state has been seeded.
++				if err = worker.QueryRow(ctx, fmt.Sprintf(`SELECT %sprepare_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, prefix), o, w, e, run, exportFixtureWorker, exportFixtureLease, exportApprovalID, time.Now().UTC().Add(5*time.Minute), "pid_8e191004-0000-4000-8000-000000000004", "pid_8e191005-0000-4000-8000-000000000005").Scan(&raw); err != nil {
++					t.Fatal(err)
++				}
++				if !strings.Contains(string(raw), `"waiting_approval"`) {
++					t.Fatal(string(raw))
++				}
++				var evidence json.RawMessage
++				if err = owner.QueryRow(ctx, `SELECT plan->'evidence_ids' FROM zasp_security_agent_plans WHERE run_id=$1`, run).Scan(&evidence); err != nil || string(evidence) != "[]" {
++					t.Fatalf("manual plan=%s %v", evidence, err)
++				}
++				if err = api.QueryRow(ctx, `SELECT zasp_production_security_agent_existing_tests_run_context($1,$2,$3,$4,$5,$6)`, o, w, e, run, migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&raw); err != nil || !strings.Contains(string(raw), `"manual_trigger"`) {
++					t.Fatalf("manual bound public context=%s %v", raw, err)
++				}
++			})
++		})
++	}
++}
++
++func TestSecurityAgentManualIntegrityPostgres(t *testing.T) {
++	runManualAdmissionFixture(t, "run_test", func(ctx context.Context, owner, api *pgx.Conn, o, w, e, _ string, actor, definition string, version int64) {
++		const run = "pid_8e192001-0000-4000-8000-000000000001"
++		var raw json.RawMessage
++		if err := api.QueryRow(ctx, postgresSecurityAgentManualRunSQL, o, w, e, definition, actor, "manual-integrity-0001", version, run, run, run, run, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&raw); err != nil {
++			t.Fatal(err)
+ 		}
++		var admitted SecurityAgentRunResult
++		if json.Unmarshal(raw, &admitted) != nil {
++			t.Fatal(string(raw))
++		}
++		var intent, response json.RawMessage
++		if err := owner.QueryRow(ctx, `SELECT intent,response FROM zasp_security_agent_request_receipts WHERE receipt_id=$1`, run).Scan(&intent, &response); err != nil {
++			t.Fatal(err)
++		}
++		read := func() error {
++			return api.QueryRow(ctx, `SELECT zasp_production_security_agent_existing_tests_run_context($1,$2,$3,$4,$5,$6)`, o, w, e, run, migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&raw)
++		}
++		if err := read(); err != nil {
++			t.Fatal(err)
++		}
++		for _, probe := range []struct{ name, change, restore string }{
++			{"version", `UPDATE zasp_security_agent_trigger_receipts SET trigger_version=2 WHERE run_id=$1`, `UPDATE zasp_security_agent_trigger_receipts SET trigger_version=1 WHERE run_id=$1`},
++			{"digest", `UPDATE zasp_security_agent_trigger_receipts SET trigger_digest=decode(repeat('aa',32),'hex') WHERE run_id=$1`, `UPDATE zasp_security_agent_trigger_receipts SET trigger_digest=decode(trigger_id,'hex') WHERE run_id=$1`},
++			{"intent", `UPDATE zasp_security_agent_request_receipts SET intent=intent||'{"environment_id":"pid_8e192002-0000-4000-8000-000000000002"}' WHERE receipt_id=$1`, `UPDATE zasp_security_agent_request_receipts SET intent=$2 WHERE receipt_id=$1`},
++			{"response", `UPDATE zasp_security_agent_request_receipts SET response=response||'{"evidence_ids":["pid_8e192002-0000-4000-8000-000000000002"]}' WHERE receipt_id=$1`, `UPDATE zasp_security_agent_request_receipts SET response=$2 WHERE receipt_id=$1`},
++			{"original_definition", `UPDATE zasp_security_agent_definition_versions SET definition_digest=decode(repeat('aa',32),'hex') WHERE definition_id=(SELECT definition_id FROM zasp_security_agent_runs WHERE run_id=$1)`, `UPDATE zasp_security_agent_definition_versions SET definition_digest=digest(convert_to(definition::text,'UTF8'),'sha256') WHERE definition_id=(SELECT definition_id FROM zasp_security_agent_runs WHERE run_id=$1)`},
++		} {
++			t.Run(probe.name, func(t *testing.T) {
++				if _, err := owner.Exec(ctx, probe.change, run); err != nil {
++					t.Fatal(err)
++				}
++				if err := read(); err == nil {
++					t.Fatalf("%s provenance drift was projected", probe.name)
++				}
++				args := []any{run}
++				if probe.name == "intent" {
++					args = append(args, intent)
++				}
++				if probe.name == "response" {
++					args = append(args, response)
++				}
++				if _, err := owner.Exec(ctx, probe.restore, args...); err != nil {
++					t.Fatal(err)
++				}
++			})
++		}
++		if err := read(); err != nil {
++			t.Fatal(err)
++		}
++		// No export definition exists here: refusal is specifically retained
++		// manual authority, not the already-covered export-history downgrade gate.
++		if err := precisionMigrationRunner(t, owner).DownProductionSecurityAgentExports(ctx); err == nil {
++			t.Fatal("downgrade erased manual provenance support")
++		}
++		var present bool
++		if err := owner.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM zasp_security_agent_runs WHERE run_id=$1) AND to_regprocedure('public.zasp_sa_manual_run(text,text,text,text,text,text,bigint,text,text,text,text,text,text)') IS NOT NULL`, run).Scan(&present); err != nil || !present {
++			t.Fatalf("retained history damaged: %v %v", present, err)
++		}
++		for _, login := range []string{"security_agent_v33_api_login", "security_agent_v33_worker_login"} {
++			cfg := owner.Config().Copy()
++			cfg.User = login
++			conn, err := pgx.ConnectConfig(ctx, cfg)
++			if err != nil {
++				t.Fatal(err)
++			}
++			for _, name := range []string{"zasp_sa_manual_provenance", "zasp_sa_manual_fields", "zasp_sa_manual_recheck"} {
++				if _, err = conn.Exec(ctx, fmt.Sprintf(`SELECT %s($1,$2,$3,$4)`, name), o, w, e, run); err == nil {
++					t.Errorf("%s can call private %s", login, name)
++				}
++			}
++			if login == "security_agent_v33_worker_login" {
++				if err = conn.QueryRow(ctx, postgresSecurityAgentManualRunSQL, o, w, e, definition, actor, "manual-integrity-0002", version, run, run, run, run, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&raw); err == nil {
++					t.Error("worker admitted manual API intent")
++				}
++			}
++			conn.Close(context.Background())
++		}
+ 	})
+ }
++
++func TestSecurityAgentManualConcurrencyPostgres(t *testing.T) {
++	runManualAdmissionFixture(t, "create_evidence_export", func(ctx context.Context, owner, api *pgx.Conn, o, w, e, _ string, actor, definition string, version int64) {
++		cfg := api.Config().Copy()
++		second, err := pgx.ConnectConfig(ctx, cfg)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer second.Close(context.Background())
++		blocker, err := pgx.ConnectConfig(ctx, owner.Config().Copy())
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer blocker.Close(context.Background())
++		if _, err = blocker.Exec(ctx, `BEGIN; SELECT pg_advisory_xact_lock(hashtextextended('security-agent-budget-admission:'||$1,0))`, pgx.QueryExecModeSimpleProtocol, o); err != nil {
++			t.Fatal(err)
++		}
++		type result struct {
++			value SecurityAgentRunResult
++			err   error
++		}
++		done := make(chan result, 2)
++		for i, conn := range []*pgx.Conn{api, second} {
++			go func(i int, conn *pgx.Conn) {
++				id := fmt.Sprintf("pid_8e19300%d-0000-4000-8000-000000000001", i+1)
++				var raw json.RawMessage
++				err := conn.QueryRow(ctx, postgresSecurityAgentManualRunSQL, o, w, e, definition, actor, "manual-concurrent-0001", version, id, id, id, id, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&raw)
++				var value SecurityAgentRunResult
++				if err == nil {
++					err = json.Unmarshal(raw, &value)
++				}
++				done <- result{value, err}
++			}(i, conn)
++		}
++		waitManualLocks(t, ctx, owner, api.PgConn().PID(), second.PgConn().PID())
++		if _, err = blocker.Exec(ctx, `COMMIT`); err != nil {
++			t.Fatal(err)
++		}
++		first, next := <-done, <-done
++		if first.err != nil || next.err != nil || first.value.ID != next.value.ID || first.value.Replayed == next.value.Replayed || !sameSecurityAgentManualTrigger(first.value.ManualTrigger, next.value.ManualTrigger) {
++			t.Fatalf("concurrent intent split: %#v %#v", first, next)
++		}
++		var counts [4]int
++		if err = owner.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_security_agent_runs),(SELECT count(*) FROM zasp_security_agent_trigger_receipts),(SELECT count(*) FROM zasp_security_agent_request_receipts),(SELECT count(*) FROM zasp_security_agent_audit)`).Scan(&counts[0], &counts[1], &counts[2], &counts[3]); err != nil || counts != [4]int{1, 1, 1, 1} {
++			t.Fatalf("concurrent authority duplicated: %v %v", counts, err)
++		}
++	})
++}
++
++func waitManualLocks(t *testing.T, ctx context.Context, owner *pgx.Conn, pids ...uint32) {
++	t.Helper()
++	deadline := time.Now().Add(5 * time.Second)
++	for time.Now().Before(deadline) {
++		all := true
++		for _, pid := range pids {
++			var waiting bool
++			if err := owner.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid=$1 AND wait_event_type='Lock')`, pid).Scan(&waiting); err != nil {
++				t.Fatal(err)
++			}
++			all = all && waiting
++		}
++		if all {
++			return
++		}
++		time.Sleep(10 * time.Millisecond)
++	}
++	t.Fatal("manual requests did not reach controlled lock wait")
++}
++
++func TestSecurityAgentManualCancelPostgres(t *testing.T) {
++	runManualAdmissionFixture(t, "create_evidence_export", func(ctx context.Context, owner, api *pgx.Conn, o, w, e, _ string, actor, definition string, version int64) {
++		const run = "pid_8e194001-0000-4000-8000-000000000001"
++		const audit = "pid_8e194002-0000-4000-8000-000000000002"
++		var raw json.RawMessage
++		if err := api.QueryRow(ctx, postgresSecurityAgentManualRunSQL, o, w, e, definition, actor, "manual-cancel-admit-0001", version, run, run, run, run, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&raw); err != nil {
++			t.Fatal(err)
++		}
++		var original SecurityAgentRunResult
++		if json.Unmarshal(raw, &original) != nil {
++			t.Fatal(string(raw))
++		}
++		for i := 0; i < 2; i++ {
++			if err := api.QueryRow(ctx, postgresSecurityAgentCancelRunSQL, o, w, e, run, actor, "manual-cancel-bound-0001", 1, audit, audit, audit).Scan(&raw); err != nil {
++				t.Fatal(err)
++			}
++			var value SecurityAgentRunResult
++			if json.Unmarshal(raw, &value) != nil || value.State != "cancelled" || value.Replayed != (i == 1) || value.EvidenceIDs == nil || len(value.EvidenceIDs) != 0 || !sameSecurityAgentManualTrigger(value.ManualTrigger, original.ManualTrigger) {
++				t.Fatalf("manual cancellation/replay lost provenance=%s", raw)
++			}
++		}
++	})
++}
++
++func TestSecurityAgentManualPostWaitPostgres(t *testing.T) {
++	runManualAdmissionFixture(t, "create_evidence_export", func(ctx context.Context, owner, api *pgx.Conn, o, w, e, _ string, actor, definition string, version int64) {
++		blocker, err := pgx.ConnectConfig(ctx, owner.Config().Copy())
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer blocker.Close(context.Background())
++		if _, err = blocker.Exec(ctx, `BEGIN; LOCK TABLE zasp_security_agent_audit IN ACCESS EXCLUSIVE MODE`); err != nil {
++			t.Fatal(err)
++		}
++		done := make(chan error, 1)
++		go func() {
++			var raw json.RawMessage
++			done <- api.QueryRow(ctx, postgresSecurityAgentManualRunSQL, o, w, e, definition, actor, "manual-postwait-bound-0001", version, "pid_8e195001-0000-4000-8000-000000000001", "pid_8e195002-0000-4000-8000-000000000002", "pid_8e195003-0000-4000-8000-000000000003", "pid_8e195004-0000-4000-8000-000000000004", migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&raw)
++		}()
++		waitManualLocks(t, ctx, owner, api.PgConn().PID())
++		if _, err = owner.Exec(ctx, `DELETE FROM zasp_authorized_scopes WHERE (organization_id,workspace_id,environment_id,principal_id)=($1,$2,$3,$4)`, o, w, e, actor); err != nil {
++			t.Fatal(err)
++		}
++		var allowed bool
++		if err = owner.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM zasp_identity_admin_effective_scopes($4,$1) WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3) AND permissions ? 'manage_workflows')`, o, w, e, actor).Scan(&allowed); err != nil || allowed {
++			t.Fatalf("effective authority not revoked: %v %v", allowed, err)
++		}
++		if _, err = blocker.Exec(ctx, `ROLLBACK`); err != nil {
++			t.Fatal(err)
++		}
++		if err = <-done; err == nil {
++			t.Fatal("manual admission survived permission loss during final write")
++		}
++		var count int
++		if err = owner.QueryRow(ctx, `SELECT (SELECT count(*) FROM zasp_security_agent_runs)+(SELECT count(*) FROM zasp_security_agent_trigger_receipts)+(SELECT count(*) FROM zasp_security_agent_request_receipts)+(SELECT count(*) FROM zasp_security_agent_audit)`).Scan(&count); err != nil || count != 0 {
++			t.Fatalf("post-wait refusal left authority: %d %v", count, err)
++		}
++	})
++}
+--- a/services/platform/apiserver/security_agent_export_postgres_test.go
++++ b/services/platform/apiserver/security_agent_export_postgres_test.go
+@@ -603,8 +603,16 @@
+ 						t.Fatal(err)
+ 					}
+ 				case "manual":
+-					id = strings.Repeat("ab", 32)
+-					if _, err := f.owner.Exec(f.ctx, `UPDATE zasp_security_agent_trigger_receipts SET trigger_id=$2,trigger_kind='manual',trigger_digest=decode($2,'hex') WHERE run_id=$1; UPDATE zasp_security_agent_runs SET trigger_id=$2,requested_by=$3 WHERE run_id=$1`, pgx.QueryExecModeSimpleProtocol, exportFixtureRun, id, f.actor); err != nil {
++					// Component fixture only. Retain the same canonical receipt contract
++					// as the actual producer, whose end-to-end proof is in ManualAdmission.
++					if _, err := f.owner.Exec(f.ctx, `WITH original AS (SELECT r.*,jsonb_build_object('schema_version',1,'kind','manual','organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,'requester_id',$2::text,'definition_id',definition_id,'definition_version',definition_version,'idempotency_key','manual-collector-fixture') intent FROM zasp_security_agent_runs r WHERE run_id=$1), intent AS (SELECT *,digest(convert_to(intent::text,'UTF8'),'sha256') intent_hash FROM original)
++ INSERT INTO zasp_security_agent_request_receipts(organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key,resource_id,expected_version,intent,intent_digest,response,audit_id,correlation_id,receipt_id)
++ SELECT organization_id,workspace_id,environment_id,$2,'runSecurityAgent','manual-collector-fixture',definition_id,definition_version,intent,intent_hash,jsonb_build_object('id',run_id,'agent_id',definition_id,'definition_version',definition_version,'evidence_ids','[]'::jsonb,'manual_trigger',jsonb_build_object('kind','manual','intent_digest','sha256:'||encode(intent_hash,'hex'),'version',1)),'pid_8e196001-0000-4000-8000-000000000001','pid_8e196001-0000-4000-8000-000000000001','pid_8e196001-0000-4000-8000-000000000001' FROM intent;
++ UPDATE zasp_security_agent_trigger_receipts SET trigger_id=(SELECT encode(intent_digest,'hex') FROM zasp_security_agent_request_receipts WHERE idempotency_key='manual-collector-fixture'),trigger_kind='manual',trigger_digest=(SELECT intent_digest FROM zasp_security_agent_request_receipts WHERE idempotency_key='manual-collector-fixture') WHERE run_id=$1;
++ UPDATE zasp_security_agent_runs SET trigger_id=(SELECT trigger_id FROM zasp_security_agent_trigger_receipts WHERE run_id=$1),requested_by=$2 WHERE run_id=$1`, pgx.QueryExecModeSimpleProtocol, exportFixtureRun, f.actor); err != nil {
++						t.Fatal(err)
++					}
++					if err := f.owner.QueryRow(f.ctx, `SELECT trigger_id FROM zasp_security_agent_runs WHERE run_id=$1`, exportFixtureRun).Scan(&id); err != nil {
+ 						t.Fatal(err)
+ 					}
+ 				case "run_audit":
+@@ -614,7 +622,7 @@
+ 					}
+ 				}
+ 				if kind != "run_audit" {
+-					if _, err := f.owner.Exec(f.ctx, `UPDATE zasp_security_agent_plans SET trigger_digest=(SELECT trigger_digest FROM zasp_security_agent_trigger_receipts WHERE run_id=$1),plan=jsonb_set(plan,'{evidence_ids}',jsonb_build_array($2::text)) WHERE run_id=$1`, pgx.QueryExecModeSimpleProtocol, exportFixtureRun, id); err != nil {
++					if _, err := f.owner.Exec(f.ctx, `UPDATE zasp_security_agent_plans SET trigger_digest=(SELECT trigger_digest FROM zasp_security_agent_trigger_receipts WHERE run_id=$1),plan=jsonb_set(plan,'{evidence_ids}',CASE WHEN $3='manual' THEN '[]'::jsonb ELSE jsonb_build_array($2::text) END) WHERE run_id=$1`, pgx.QueryExecModeSimpleProtocol, exportFixtureRun, id, kind); err != nil {
+ 						t.Fatal(err)
+ 					}
+ 				}

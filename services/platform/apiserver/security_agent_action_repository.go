@@ -117,6 +117,11 @@ func (repository *SecurityAgentActionRepository) Ready(ctx context.Context) erro
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryUnavailable
 	}
+	if authority, ok := repository.database.(interface{ VerifySecurityAgentBudgetRelease(context.Context) error }); ok {
+		if err := authority.VerifySecurityAgentBudgetRelease(ctx); err != nil {
+			return ErrRepositoryUnavailable
+		}
+	}
 	if repository.readySQL == "" || repository.checksum == "" || repository.fingerprint == "" {
 		return ErrRepositoryUnavailable
 	}
@@ -208,6 +213,9 @@ func (repository *SecurityAgentActionRepository) StoreTemporaryPolicyTarget(ctx 
 	if err != nil {
 		return discoveryProviderError(err)
 	}
+	if validSecurityAgentActionBudgetStop(payload, claim, envelope.Target) {
+		return ErrSecurityAgentBudgetStopped
+	}
 	var result struct {
 		DeviceID      string `json:"device_id"`
 		Phase         string `json:"phase"`
@@ -219,6 +227,47 @@ func (repository *SecurityAgentActionRepository) StoreTemporaryPolicyTarget(ctx 
 		return ErrRepositoryUnavailable
 	}
 	return nil
+}
+
+func validSecurityAgentActionBudgetStop(payload json.RawMessage, claim TemporaryPolicyEffectClaim, target TemporaryPolicyTarget) bool {
+	if claim.Phase != "apply" || !exactJSONFields(payload, "budget_action_stop") {
+		return false
+	}
+	var envelope struct {
+		Stop json.RawMessage `json:"budget_action_stop"`
+	}
+	if decodeStrictDiscovery(payload, &envelope) != nil || !exactJSONFields(envelope.Stop, "organization_id", "workspace_id", "environment_id", "run_id", "step_id", "action_key", "input_digest", "phase", "device_id", "credential_id", "sequence", "policy_version", "state", "reason") {
+		return false
+	}
+	var stop struct {
+		OrganizationID string `json:"organization_id"`
+		WorkspaceID    string `json:"workspace_id"`
+		EnvironmentID  string `json:"environment_id"`
+		RunID          string `json:"run_id"`
+		StepID         string `json:"step_id"`
+		ActionKey      string `json:"action_key"`
+		InputDigest    string `json:"input_digest"`
+		Phase          string `json:"phase"`
+		DeviceID       string `json:"device_id"`
+		CredentialID   string `json:"credential_id"`
+		Sequence       int64  `json:"sequence"`
+		PolicyVersion  int64  `json:"policy_version"`
+		State          string `json:"state"`
+		Reason         string `json:"reason"`
+	}
+	action := claim.ActionKey
+	if action == "" {
+		action = "create_temporary_policy"
+	}
+	if decodeStrictDiscovery(envelope.Stop, &stop) != nil || stop.OrganizationID != claim.OrganizationID || stop.WorkspaceID != claim.WorkspaceID || stop.EnvironmentID != claim.EnvironmentID || stop.RunID != claim.RunID || stop.StepID != claim.StepID || stop.ActionKey != action || stop.InputDigest != claim.InputDigest || stop.Phase != claim.Phase || stop.DeviceID != target.DeviceID || stop.CredentialID != target.CredentialID || stop.Sequence != target.Sequence || stop.PolicyVersion != target.PolicyVersion || stop.State != "needs_human" {
+		return false
+	}
+	switch stop.Reason {
+	case "budget_deadline_exceeded", "budget_steps_exceeded", "budget_tokens_exceeded", "budget_cost_exceeded", "budget_usage_unknown":
+		return true
+	default:
+		return false
+	}
 }
 
 func (repository *SecurityAgentActionRepository) ReadTemporaryPolicyTarget(ctx context.Context, claim TemporaryPolicyEffectClaim, target TemporaryPolicyTarget) (TemporaryPolicyTargetEnvelope, error) {

@@ -1,0 +1,4 @@
+=== RUN   TestSecurityAgentExportDefinitionHTTPPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportDefinitionHTTPPostgres3714414984/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportDefinitionHTTPPostgres (21.49s)
+PASS

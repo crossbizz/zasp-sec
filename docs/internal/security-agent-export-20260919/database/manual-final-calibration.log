@@ -1,0 +1,6 @@
+$ /usr/local/bin/docker run --rm --name zasp-manual-final-calibration --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentManualCancelPostgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentManualCancelPostgres
+    security_agent_manual_admission_postgres_test.go:28: Runner58=invalid migration state observed fingerprint=2dfa9559c6a6a6e610d0e61ba22e970131f73baff76cb72cd8306752d39b999e diagnostic=<nil>
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentManualCancelPostgres880864460/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentManualCancelPostgres (4.73s)
+FAIL

@@ -1,0 +1,19 @@
+=== RUN   TestSecurityAgentExportCleanupProcessPostgres
+    security_agent_export_cleanup_process_postgres_test.go:113: cleanup compiled/installed58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f
+    security_agent_export_cleanup_process_postgres_test.go:145: joined  pid=40 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:152: joined  pid=46 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:158: joined  pid=51 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:159: joined  pid=56 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:160: joined  pid=62 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:166: joined B pid=68 exit=86 abrupt_post_commit=true
+    security_agent_export_cleanup_process_postgres_test.go:172: joined  pid=76 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:174: joined D pid=81 exit=86 abrupt_post_commit=true
+    security_agent_export_cleanup_process_postgres_test.go:178: joined publish pid=89 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:126: joined  pid=95 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:135: joined  pid=100 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:199: public artifact0 org=pid_6a000001-0000-4000-8000-000000000001 run=pid_dfee0c25-c0eb-4e98-b611-f81b9d6bfebe export=pid_14303c19-5803-4aaf-8dbf-900bacf30eb6 version=fixture-18b3bafc57fd05aa99dc71c540b48d79e9de2c95261648e8aaf9f8972828e786 bytes=4934
+    security_agent_export_cleanup_process_postgres_test.go:142: joined  pid=105 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:142: public response status=400 want=200 body={"code":"invalid_request","correlation_id":"pid_8ed00000-0000-4000-8000-000000000009","message":"Request rejected","retryable":false}
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportCleanupProcessPostgres195800070/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportCleanupProcessPostgres (16.51s)
+FAIL

@@ -1,0 +1,9 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go","test","-C","services/platform","./agentsec-api","-run","^TestAttackLabWorkflowConfigurationIsClosed$","-count=1"]
+--- FAIL: TestAttackLabWorkflowConfigurationIsClosed (0.00s)
+    attack_lab_workflow_readiness_test.go:8: ambiguous runtime gate "true" accepted
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-api	0.995s
+FAIL
+
+Exit: 1 Signal: null

@@ -1,3 +1,40 @@
+attackLabReconciler:
+  enabled: false
+
+testReconciler:
+  enabled: false
+  awsRegion: ""
+  roleArn: ""
+  databaseSecretArn: ""
+  evidenceBucket: ""
+  evidenceOwner: ""
+  evidenceKMSKeyArn: ""
+  # Explicit endpoint snapshots are required before enabling this schema55 worker.
+  databaseCIDRs: []
+  stsCIDRs: []
+  s3CIDRs: []
+  kmsCIDRs: []
+
+auditExports:
+  enabled: false
+  awsRegion: ""
+  queueURL: ""
+  writerRoleArn: ""
+  publisherRoleArn: ""
+  readerRoleArn: ""
+  cursorSecretArn: ""
+  currentPolicyID: ""
+  expectedCurrentPolicyID: ""
+  workerPrincipal: ""
+  outboxPrincipal: ""
+  workerDSNSecretArn: ""
+  outboxDSNSecretArn: ""
+  policies: []
+  # Refresh these endpoint address snapshots before activation. STS and S3 must
+  # cover every retained policy region; SQS must cover the configured queue region.
+  stsCIDRs: []
+  sqsCIDRs: []
+  s3CIDRs: []
 global:
   environment: production
   deploymentMode: saas
@@ -280,6 +317,8 @@ runtime:
   correlationRoleArn: ""
   projectionRoleArn: ""
   completeRoleArn: ""
+rollout:
+  discoveryScheduleReplayPhase: steady
 schema:
   expectedVersion: 49
   migrationTimeout: 10m
@@ -452,3 +491,13 @@ canary:
   enabled: true
   schedule: "*/5 * * * *"
 profile: control_plane
+
+# Dedicated compliance authority is opt-in.
+complianceExports:
+  enabled: false
+evidenceExportWorkflow:
+  enabled: false
+runtimeServices:
+  enabled: false
+authorizationTemporal:
+  profile: ""

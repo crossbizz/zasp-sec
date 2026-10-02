@@ -1,0 +1,78 @@
+# Official openfga chart 0.3.15; no bundled database or browser playground.
+replicaCount: 2
+image:
+  tag: v1.21.0@sha256:2113c664a486b5da8d7a2cdab479e0d4e30639c80fd2c000540f645c1dbc1e55
+datastore:
+  engine: postgres
+  existingSecret: openfga-datastore
+  secretKeys: { uriKey: uri }
+  maxOpenConns: 10
+  maxIdleConns: 5
+  connMaxIdleTime: 1m
+  connMaxLifetime: 30m
+  applyMigrations: true
+  waitForMigrations: false
+  migrations:
+    resources:
+      requests: { cpu: 100m, memory: 128Mi }
+      limits: { cpu: '1', memory: 512Mi }
+postgresql: { enabled: false }
+mysql: { enabled: false }
+authn:
+  method: preshared
+  preshared: { keysSecret: openfga-auth }
+http:
+  tls: { enabled: true, cert: /etc/openfga-tls/tls.crt, key: /etc/openfga-tls/tls.key }
+grpc:
+  tls: { enabled: true, cert: /etc/openfga-tls/tls.crt, key: /etc/openfga-tls/tls.key, ca: /etc/openfga-tls/ca.crt }
+# Connect inside the pod, but verify the DNS SAN used by the private service.
+customReadinessProbe:
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+  exec:
+    command:
+      - grpc_health_probe
+      - -addr=127.0.0.1:8081
+      - -tls
+      - -tls-server-name=openfga.zasp-runtime.svc.cluster.local
+      - -tls-ca-cert=/etc/openfga-tls/ca.crt
+      - -connect-timeout=1s
+      - -rpc-timeout=1s
+customLivenessProbe:
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+  exec:
+    command:
+      - grpc_health_probe
+      - -addr=127.0.0.1:8081
+      - -tls
+      - -tls-server-name=openfga.zasp-runtime.svc.cluster.local
+      - -tls-ca-cert=/etc/openfga-tls/ca.crt
+      - -connect-timeout=1s
+      - -rpc-timeout=1s
+extraVolumes:
+  - name: service-tls
+    secret: { secretName: openfga-tls }
+  - name: database-ca
+    secret: { secretName: runtime-database-ca }
+extraVolumeMounts:
+  - { name: service-tls, mountPath: /etc/openfga-tls, readOnly: true }
+  - { name: database-ca, mountPath: /etc/database-ca, readOnly: true }
+migrate:
+  extraVolumes:
+    - name: database-ca
+      secret: { secretName: runtime-database-ca }
+  extraVolumeMounts:
+    - { name: database-ca, mountPath: /etc/database-ca, readOnly: true }
+playground: { enabled: false }
+profiler: { enabled: false }
+telemetry:
+  metrics: { enabled: true }
+log: { level: warn, format: json }
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: '1', memory: 512Mi }

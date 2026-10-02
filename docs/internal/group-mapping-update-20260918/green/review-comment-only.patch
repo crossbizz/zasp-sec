@@ -1,0 +1,16 @@
+--- runtime-tested/connector_rejection_transaction.go
++++ reviewed/connector_rejection_transaction.go
+@@ -95,10 +95,9 @@
+ 	// Registered mapping updates change the mapping before revoking all active
+ 	// organization credentials. Lock mappings before the credential to avoid
+ 	// inversion with that writer; membership remains first for group writers.
+-	// A newly inserted mapping must revoke this existing credential atomically:
+-	// it either commits before our credential check (which denies), or waits
+-	// behind our credential lock. This relies on registered product writers,
+-	// not owner/bypass SQL that omits the credential revocation protocol.
++	// This order addresses contention with registered mapping writers; it does
++	// not assert that their statement snapshots include concurrently created
++	// credentials, or cover owner/bypass writes outside the product protocol.
+ 	if lock && identity.CredentialKind == CredentialBrowserSession {
+ 		var count int
+ 		if err = tx.QueryRow(ctx, `SELECT count(*) FROM (SELECT 1 FROM public.zasp_group_mappings WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3) ORDER BY group_reference FOR SHARE) locked`, args[:3]...).Scan(&count); err != nil {

@@ -392,7 +392,7 @@ func (fake *jobLifecycleFake) SendJobBatch(ctx context.Context, queueURL string,
 		receipt := "job-provider-receipt-" + string(rune('1'+index))
 		queue.messages = append(queue.messages, receivedMessage{
 			Body: entry.Body, Attributes: cloneMessageAttributes(entry.Attributes),
-			MessageID: messageID, ReceiptHandle: receipt, BodyDigest: md5Hex(entry.Body),
+			MessageID: messageID, ReceiptHandle: receipt, BodyDigest: md5Hex(entry.Body), ReceiveCount: 1,
 		})
 		result.Successful = append(result.Successful, jobBatchSendSuccess{
 			ID: entry.ID, MessageID: messageID, BodyDigest: md5Hex(entry.Body),

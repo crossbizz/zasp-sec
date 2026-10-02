@@ -1,0 +1,223 @@
+exit_code: 1
+TAP version 13
+# Subtest: dead_letter.receive_wait_time_seconds pins the canonical value only for the original queues
+not ok 1 - dead_letter.receive_wait_time_seconds pins the canonical value only for the original queues
+  ---
+  duration_ms: 1.396958
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:62:3'
+  failureType: 'testCodeFailure'
+  error: 'missing explicit receive_wait_time_seconds'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    scopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:40:10)
+    assertScopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:50:18)
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:63:5)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: dead_letter.receive_wait_time_seconds guard rejects missing, changed and over-scoped settings
+not ok 2 - dead_letter.receive_wait_time_seconds guard rejects missing, changed and over-scoped settings
+  ---
+  duration_ms: 0.161125
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:66:3'
+  failureType: 'testCodeFailure'
+  error: 'missing explicit receive_wait_time_seconds'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    scopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:40:10)
+    assertScopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:50:18)
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:67:5)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: dead_letter.max_message_size pins the canonical value only for the original queues
+not ok 3 - dead_letter.max_message_size pins the canonical value only for the original queues
+  ---
+  duration_ms: 0.08875
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:62:3'
+  failureType: 'testCodeFailure'
+  error: 'missing explicit max_message_size'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    scopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:40:10)
+    assertScopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:50:18)
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:63:5)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: dead_letter.max_message_size guard rejects missing, changed and over-scoped settings
+not ok 4 - dead_letter.max_message_size guard rejects missing, changed and over-scoped settings
+  ---
+  duration_ms: 0.075625
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:66:3'
+  failureType: 'testCodeFailure'
+  error: 'missing explicit max_message_size'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    scopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:40:10)
+    assertScopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:50:18)
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:67:5)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: dead_letter.delay_seconds pins the canonical value only for the original queues
+not ok 5 - dead_letter.delay_seconds pins the canonical value only for the original queues
+  ---
+  duration_ms: 0.138334
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:62:3'
+  failureType: 'testCodeFailure'
+  error: 'missing explicit delay_seconds'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    scopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:40:10)
+    assertScopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:50:18)
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:63:5)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: dead_letter.delay_seconds guard rejects missing, changed and over-scoped settings
+not ok 6 - dead_letter.delay_seconds guard rejects missing, changed and over-scoped settings
+  ---
+  duration_ms: 0.062875
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:66:3'
+  failureType: 'testCodeFailure'
+  error: 'missing explicit delay_seconds'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    scopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:40:10)
+    assertScopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:50:18)
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:67:5)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: work.delay_seconds pins the canonical value only for the original queues
+not ok 7 - work.delay_seconds pins the canonical value only for the original queues
+  ---
+  duration_ms: 0.116875
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:62:3'
+  failureType: 'testCodeFailure'
+  error: 'missing explicit delay_seconds'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    scopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:40:10)
+    assertScopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:50:18)
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:63:5)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: work.delay_seconds guard rejects missing, changed and over-scoped settings
+not ok 8 - work.delay_seconds guard rejects missing, changed and over-scoped settings
+  ---
+  duration_ms: 0.066375
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:66:3'
+  failureType: 'testCodeFailure'
+  error: 'missing explicit delay_seconds'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    scopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:40:10)
+    assertScopedAttribute (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:50:18)
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/staging/queue-contract.test.mjs:67:5)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: staging retains all three original queue contracts independently of Red Team
+ok 9 - staging retains all three original queue contracts independently of Red Team
+  ---
+  duration_ms: 0.674667
+  type: 'test'
+  ...
+# Subtest: shared staging resources bind each queue to its encrypted DLQ and output
+ok 10 - shared staging resources bind each queue to its encrypted DLQ and output
+  ---
+  duration_ms: 0.679125
+  type: 'test'
+  ...
+# Subtest: Red Team consumer authority stays on its separate queue
+ok 11 - Red Team consumer authority stays on its separate queue
+  ---
+  duration_ms: 0.195333
+  type: 'test'
+  ...
+# Subtest: original queue guard rejects missing tests and changed schema or delivery settings
+ok 12 - original queue guard rejects missing tests and changed schema or delivery settings
+  ---
+  duration_ms: 0.9775
+  type: 'test'
+  ...
+# Subtest: shared-resource guard rejects crossed DLQs, redrive widening and missing output membership
+ok 13 - shared-resource guard rejects crossed DLQs, redrive widening and missing output membership
+  ---
+  duration_ms: 0.685708
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 5
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 60.44425

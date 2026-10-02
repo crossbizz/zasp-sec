@@ -66,7 +66,32 @@ doesn't prove that heartbeat or event ingest reached the SaaS.
 
 Request, PostgreSQL repository and provider boundaries emit API-local correlation records as JSON event `correlation_span`; workers emit structured lifecycle and mutation audit outcomes for scheduler, outbox, discovery, and projection processing. These records reuse validated identifiers for log correlation, but they are not OpenTelemetry spans and do not provide end-to-end distributed tracing. The log pipeline must collect them without raw credentials, provider payloads, lease tokens, or tenant identifiers. Real end-to-end OpenTelemetry SDK/export and distributed tracing remains an external release gate.
 
-## Collector
+## Existing-test reconciler candidate
+
+The schema55 reconciler remains opt-in and component-only until its deployment
+gates pass. Its private metrics Service publishes unready endpoints so readiness
+failures remain scrapeable. Network policy admits TCP8081 only from the monitoring
+namespace. The ServiceMonitor scrapes `/metrics` every30s with a5s timeout. Do not
+expose this service through a public ingress or load balancer.
+
+`ZaspTestReconcilerUnavailable` pages after5m with zero available replicas or no
+deployment metric. `ZaspTestReconcilerNotReady` tickets after10m for readiness0,
+failed scraping, a missing readiness metric on a scraped replica, or no targets.
+Check deployment events, ServiceMonitor discovery, scrape targets and network
+policy first. For dependency readiness failures, inspect the configured worker
+database authority/schema55 registration and STS, evidence bucket and KMS access.
+Never put DSNs, tokens, customer artifacts or tenant IDs in incident attachments.
+
+Do not replay target execution to clear these alerts. Reconciliation must use
+the existing durable links, scoped leases and retained evidence. A healthy scrape
+proves neither settlement progress nor successful security testing. Recovery
+requires restored readiness plus tenant-scoped outcome evidence. Multi-tenant
+restart/reclaim acceptance, scheduling-progress telemetry and live notification
+delivery remain separate gates; chart and Prometheus fixture tests do not prove
+them. Turning chart monitoring off closes metrics ingress and removes its scrape
+resources, but the production release validator requires monitoring for opt-in.
+
+## Collector configuration
 
 The hosted chart always renders one private OpenTelemetry Collector. In `none` mode it accepts OTLP only from product pods, clears untrusted schema and scope metadata, drops link-bearing spans, allowlists metric names, blanks untrusted log bodies plus span/event names and status messages, removes unapproved attributes, applies the memory limiter and batch processor, then sends to `nop` with no remote credential or egress. Grafana and New Relic modes use one Secret-backed authorization header and an exact remote CIDR list. Each remote exporter has a 256-request in-memory queue, two consumers, nonblocking overflow, a five-second send timeout, and a 60-second retry ceiling. `ZaspOTelCollectorQueueLoss` pages as soon as an enqueue failure appears in the five-minute window. `ZaspOTelCollectorQueueMetricMissing` pages only after the exact remote queue-capacity metric has stayed absent for ten minutes. The Collector does not make API-local `correlation_span` records into OTLP spans; application SDK export remains a separate release gate.
 

@@ -1,0 +1,33 @@
+TAP version 13
+# Subtest: compliance56 coexists with both optional predecessors in both phases
+not ok 1 - compliance56 coexists with both optional predecessors in both phases
+  ---
+  duration_ms: 5.555459
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:9:1'
+  failureType: 'testCodeFailure'
+  error: 'release rejected'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    renderRelease (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/release-contract.mjs:74:271)
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:15:26)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: schema55 predecessors still render and57 stays closed
+ok 2 - schema55 predecessors still render and57 stays closed
+  ---
+  duration_ms: 745.583
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 831.810167

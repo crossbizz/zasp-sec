@@ -16,6 +16,35 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 )
 
+func TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers(t *testing.T) {
+	for _, mode := range []workerMode{workerModeAuditExport, workerModeAuditExportOutbox, workerModeScheduler} {
+		t.Run(string(mode), func(t *testing.T) {
+			joined := false
+			closes := 0
+			closeRuntime := closeWorkerRuntimeDatabase(mode, func() error {
+				if !joined {
+					return errRuntimeUnavailable
+				}
+				return nil
+			}, func() error { closes++; return nil })
+			if closeRuntime() != errRuntimeUnavailable {
+				t.Fatal("lost dependency failure")
+			}
+			want := 0
+			if mode == workerModeScheduler {
+				want = 1
+			}
+			if closes != want {
+				t.Fatal("database closed beneath unjoined audit borrower", closes)
+			}
+			joined = true
+			if closeRuntime() != nil || closes != want+1 {
+				t.Fatal("joined cleanup did not close database")
+			}
+		})
+	}
+}
+
 func TestComposeWorkerRuntimeMountsOnlyProductionReadyModes(t *testing.T) {
 	database := readyWorkerDatabase{}
 	scheduler := validSchedulerRuntimeConfig()
@@ -688,7 +717,7 @@ func validRedTeamRuntimeConfig() workerRuntimeConfig {
 		Mode: workerModeRedTeam, PostgresDSN: "postgres://red_team@postgres.internal/zasp?sslmode=verify-full", DatabaseAuthority: "zasp_red_team_worker", WorkerID: "red-team-worker-01",
 		PollInterval: 50 * time.Millisecond, LeaseDuration: 60 * time.Second, BatchSize: 10, ShutdownTimeout: 20 * time.Second,
 		RedTeamQueueURL: "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-red-team-tests", AWSRegion: "us-west-2", EvidenceBucket: "zasp-production-evidence", EvidenceOwner: "123456789012", EvidenceKMSKeyARN: "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
-		RedTeamRoleARN: "arn:aws:iam::123456789012:role/zasp-production-red-team", RedTeamTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RedTeamTargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", RedTeamTargetTokenFile: "/var/run/secrets/zasp-red-team/adapter-token", RedTeamTargetCAFile: "/var/run/secrets/zasp-red-team/adapter-ca.crt", RedTeamRunnerTimeout: 10 * time.Minute,
+		RedTeamRunnerImage: "registry.example/zasp/red-team-worker@sha256:" + strings.Repeat("d", 64), RedTeamRoleARN: "arn:aws:iam::123456789012:role/zasp-production-red-team", RedTeamTokenFile: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token", RedTeamTargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", RedTeamTargetTokenFile: "/var/run/secrets/zasp-red-team/adapter-token", RedTeamTargetCAFile: "/var/run/secrets/zasp-red-team/adapter-ca.crt", RedTeamRunnerTimeout: 10 * time.Minute,
 	}
 }
 
@@ -785,6 +814,53 @@ func validRuntimeCompleteConfig() workerRuntimeConfig {
 }
 
 type readyWorkerDatabase struct{}
+
+type scheduleReplayWorkerDatabase struct {
+	readyWorkerDatabase
+	ready          bool
+	checks, claims int
+}
+
+func (database *scheduleReplayWorkerDatabase) QueryJSON(ctx context.Context, statement string, args ...any) (json.RawMessage, error) {
+	if statement == `SELECT to_jsonb(zasp_discovery_schedule_replay_readiness($1,$2))` {
+		database.checks++
+		if len(args) != 2 || args[0] != "37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab" || args[1] != "1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36" {
+			return nil, errors.New("wrong release60 identity")
+		}
+		if !database.ready {
+			return json.RawMessage(`false`), nil
+		}
+		return json.RawMessage(`true`), nil
+	}
+	if strings.Contains(statement, "zasp_execution_claim_schedules") {
+		database.claims++
+		return json.RawMessage(`{"items":[]}`), nil
+	}
+	return database.readyWorkerDatabase.QueryJSON(ctx, statement, args...)
+}
+
+func TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60(t *testing.T) {
+	database := &scheduleReplayWorkerDatabase{}
+	config := validSchedulerRuntimeConfig()
+	if _, err := composeWorkerRuntime(context.Background(), config, database); err != errRuntimeUnavailable {
+		t.Fatalf("predecessor-only scheduler started: %v", err)
+	}
+	database.ready = true
+	runtime, err := composeWorkerRuntime(context.Background(), config, database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.Ready(context.Background()) != nil || runtime.Processor.RunOnce(context.Background()) != nil || database.claims != 1 || database.checks == 0 {
+		t.Fatalf("exact scheduler not usable: checks=%d claims=%d", database.checks, database.claims)
+	}
+	database.ready = false
+	if runtime.Ready(context.Background()) == nil {
+		t.Fatal("drifted scheduler readiness accepted")
+	}
+	if runtime.Processor.RunOnce(context.Background()) != errWorkerExecution || database.claims != 1 {
+		t.Fatalf("drifted scheduler claimed: claims=%d", database.claims)
+	}
+}
 
 func (readyWorkerDatabase) SchemaVersion(context.Context) (string, error) {
 	return apiserver.SecurityAgentAutonomousSchemaVersion, nil

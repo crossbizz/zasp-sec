@@ -1,0 +1,713 @@
+{
+  "version": "ordered-current-remaining-projection-witness-v1",
+  "inputSHA256": {
+    "catalogRaw": "b13f25c70ac824e0b3db36969cd5a6a71953e6dc15ba3f269de2520134aae077",
+    "contractRaw": "be343a262db904e6694cf79f582ba4ea57d777886bfa27d83165d3fcd18238c6",
+    "directRaw": "c936c721c58de952ccd1d55baa89d3381a841ec82a4e7f62b1aadb26d72af4ab",
+    "missingRaw": "76e42de4fc2f53938704942e632549797fa1b885461ca30109fb45b37b28fe39",
+    "remainingRaw": "cf98a5d2a8ddeaa84d08b67d35e5760fcc2a237906807c65a6fbabb26d43e797"
+  },
+  "installable": false,
+  "nativeVerified": false,
+  "executableReplacementVerified": false,
+  "framePair": {
+    "source": "pg_catalog, public",
+    "canonical": "pg_catalog"
+  },
+  "auditOnly": {
+    "logSHA256": "0004530d60041de5fb038f155030380c02455b3ffa9ebbbc42097ae7cf86e0d6",
+    "use": "Corroboration only; no native-log bytes read by derivation or proof"
+  },
+  "records": [
+    {
+      "collection": "direct",
+      "kind": "constraint",
+      "sourceIdentity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public\\\", \\\"public.zasp_recovery_audit\\\", null, \\\"zasp_recovery_audit_check\\\"]\"]",
+      "canonicalIdentity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public.zasp_recovery_audit\\\",\\\"zasp_recovery_audit_check\\\"]\"]",
+      "sourceFact": {
+        "relation_name": "zasp_recovery_audit",
+        "name": "zasp_recovery_audit_check",
+        "constraint_type": "c",
+        "validated": true,
+        "definition_pretty": "CHECK (zasp_valid_product_id(audit_id) AND zasp_valid_product_id(correlation_id) AND zasp_valid_product_id(receipt_id) AND zasp_valid_product_id(actor_id) AND zasp_valid_product_id(resource_id))"
+      },
+      "canonicalFact": {
+        "relation_name": "zasp_recovery_audit",
+        "name": "zasp_recovery_audit_check",
+        "constraint_type": "c",
+        "validated": true,
+        "definition_pretty": "CHECK (public.zasp_valid_product_id(audit_id) AND public.zasp_valid_product_id(correlation_id) AND public.zasp_valid_product_id(receipt_id) AND public.zasp_valid_product_id(actor_id) AND public.zasp_valid_product_id(resource_id))"
+      },
+      "sourceFactSHA256": "424ba164a150730ff5e4a2d7488b6b4e7b1684e84ef0bf6abdee5f8e043bf8a8",
+      "canonicalFactSHA256": "2c8d780e2da78b2e86cea4358b46fac40773093fd0ab8e05423580bad13d0b09",
+      "changedFields": [
+        "definition_pretty"
+      ],
+      "spans": [
+        {
+          "start": 7,
+          "targetIdentity": "public.zasp_valid_product_id(text)",
+          "anchor": "CHECK function call"
+        },
+        {
+          "start": 43,
+          "targetIdentity": "public.zasp_valid_product_id(text)",
+          "anchor": "CHECK function call"
+        },
+        {
+          "start": 85,
+          "targetIdentity": "public.zasp_valid_product_id(text)",
+          "anchor": "CHECK function call"
+        },
+        {
+          "start": 123,
+          "targetIdentity": "public.zasp_valid_product_id(text)",
+          "anchor": "CHECK function call"
+        },
+        {
+          "start": 159,
+          "targetIdentity": "public.zasp_valid_product_id(text)",
+          "anchor": "CHECK function call"
+        }
+      ],
+      "helper": {
+        "identity": "zasp_authorization80_worker.gateway_projected27()",
+        "sourceSHA256": "9cb5fa4453d0a725d6fde54e7744c884e031bc325d8c96463be67315344a3c4e",
+        "definitionSHA256": "fe8d3216de591bdb1264a9da97f982eb6cb2ac45115a3484c0fc544d2a76019c",
+        "frame": {
+          "owner": "zasp_discovery_authority",
+          "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+          "config": [
+            "search_path=pg_catalog, public"
+          ],
+          "language": "sql",
+          "security_definer": false,
+          "volatility": "s",
+          "parallel": "u",
+          "strict": false,
+          "leakproof": false,
+          "cost": 100,
+          "rows": 0,
+          "arguments": "",
+          "result": "text"
+        },
+        "site": {
+          "start": 1931,
+          "end": 2258,
+          "siteSHA256": "44cd6c19c5ad613a1f37c54615f42ec14809553986c54d607325632cda37cff9",
+          "text": "\n  UNION ALL SELECT concat_ws('|','constraint',class.relname,constraint_value.conname,constraint_value.contype,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value JOIN pg_class class ON class.oid=constraint_value.conrelid WHERE class.relname LIKE 'zasp_recovery_%'"
+        }
+      },
+      "sourceProvenance": {
+        "ruleId": "worker-edge:gateway_projected27:7",
+        "captureIdentity": "[\"public\", \"public.zasp_recovery_audit\", null, \"zasp_recovery_audit_check\"]",
+        "descriptorIdentity": "[\"public.zasp_recovery_audit\",\"zasp_recovery_audit_check\"]",
+        "sourceIdentity": "zasp_authorization80_worker.gateway_projected27()",
+        "sourceSHA256": "9cb5fa4453d0a725d6fde54e7744c884e031bc325d8c96463be67315344a3c4e",
+        "definitionSHA256": "fe8d3216de591bdb1264a9da97f982eb6cb2ac45115a3484c0fc544d2a76019c",
+        "siteSHA256": "44cd6c19c5ad613a1f37c54615f42ec14809553986c54d607325632cda37cff9",
+        "executionFrameId": "sourceDiscoveryPublic",
+        "keyFrame": "pg_catalog",
+        "captureFrame": "original-source-frame"
+      },
+      "keyProof": {
+        "expression": "jsonb_build_array(c.oid::regclass::text,k.conname)",
+        "frame": "pg_catalog",
+        "relationIdentity": "public.zasp_recovery_audit",
+        "objectName": "zasp_recovery_audit_check"
+      },
+      "disposition": "source-pretty-qualified",
+      "sourceIndex": 372
+    },
+    {
+      "collection": "direct",
+      "kind": "constraint",
+      "sourceIdentity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public\\\", \\\"public.zasp_recovery_backups\\\", null, \\\"zasp_recovery_backups_check\\\"]\"]",
+      "canonicalIdentity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public.zasp_recovery_backups\\\",\\\"zasp_recovery_backups_check\\\"]\"]",
+      "sourceFact": {
+        "relation_name": "zasp_recovery_backups",
+        "name": "zasp_recovery_backups_check",
+        "constraint_type": "c",
+        "validated": true,
+        "definition_pretty": "CHECK (zasp_valid_product_id(backup_id) AND zasp_valid_product_id(actor_id))"
+      },
+      "canonicalFact": {
+        "relation_name": "zasp_recovery_backups",
+        "name": "zasp_recovery_backups_check",
+        "constraint_type": "c",
+        "validated": true,
+        "definition_pretty": "CHECK (public.zasp_valid_product_id(backup_id) AND public.zasp_valid_product_id(actor_id))"
+      },
+      "sourceFactSHA256": "9b7ff9d616385adaaee22c8f3e4f7034b5046e8e1d4ba532feb6c2eb2e3a586d",
+      "canonicalFactSHA256": "9c6b3518ebdce82d92414927b9708fceb5010f7af4362bf2e0fe3494f38c0f2c",
+      "changedFields": [
+        "definition_pretty"
+      ],
+      "spans": [
+        {
+          "start": 7,
+          "targetIdentity": "public.zasp_valid_product_id(text)",
+          "anchor": "CHECK function call"
+        },
+        {
+          "start": 44,
+          "targetIdentity": "public.zasp_valid_product_id(text)",
+          "anchor": "CHECK function call"
+        }
+      ],
+      "helper": {
+        "identity": "zasp_authorization80_worker.gateway_projected27()",
+        "sourceSHA256": "9cb5fa4453d0a725d6fde54e7744c884e031bc325d8c96463be67315344a3c4e",
+        "definitionSHA256": "fe8d3216de591bdb1264a9da97f982eb6cb2ac45115a3484c0fc544d2a76019c",
+        "frame": {
+          "owner": "zasp_discovery_authority",
+          "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+          "config": [
+            "search_path=pg_catalog, public"
+          ],
+          "language": "sql",
+          "security_definer": false,
+          "volatility": "s",
+          "parallel": "u",
+          "strict": false,
+          "leakproof": false,
+          "cost": 100,
+          "rows": 0,
+          "arguments": "",
+          "result": "text"
+        },
+        "site": {
+          "start": 1931,
+          "end": 2258,
+          "siteSHA256": "44cd6c19c5ad613a1f37c54615f42ec14809553986c54d607325632cda37cff9",
+          "text": "\n  UNION ALL SELECT concat_ws('|','constraint',class.relname,constraint_value.conname,constraint_value.contype,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value JOIN pg_class class ON class.oid=constraint_value.conrelid WHERE class.relname LIKE 'zasp_recovery_%'"
+        }
+      },
+      "sourceProvenance": {
+        "ruleId": "worker-edge:gateway_projected27:7",
+        "captureIdentity": "[\"public\", \"public.zasp_recovery_backups\", null, \"zasp_recovery_backups_check\"]",
+        "descriptorIdentity": "[\"public.zasp_recovery_backups\",\"zasp_recovery_backups_check\"]",
+        "sourceIdentity": "zasp_authorization80_worker.gateway_projected27()",
+        "sourceSHA256": "9cb5fa4453d0a725d6fde54e7744c884e031bc325d8c96463be67315344a3c4e",
+        "definitionSHA256": "fe8d3216de591bdb1264a9da97f982eb6cb2ac45115a3484c0fc544d2a76019c",
+        "siteSHA256": "44cd6c19c5ad613a1f37c54615f42ec14809553986c54d607325632cda37cff9",
+        "executionFrameId": "sourceDiscoveryPublic",
+        "keyFrame": "pg_catalog",
+        "captureFrame": "original-source-frame"
+      },
+      "keyProof": {
+        "expression": "jsonb_build_array(c.oid::regclass::text,k.conname)",
+        "frame": "pg_catalog",
+        "relationIdentity": "public.zasp_recovery_backups",
+        "objectName": "zasp_recovery_backups_check"
+      },
+      "disposition": "source-pretty-qualified",
+      "sourceIndex": 394
+    },
+    {
+      "collection": "direct",
+      "kind": "constraint",
+      "sourceIdentity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public\\\", \\\"public.zasp_recovery_fairness\\\", null, \\\"zasp_recovery_fairness_last_organization_id_check\\\"]\"]",
+      "canonicalIdentity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public.zasp_recovery_fairness\\\",\\\"zasp_recovery_fairness_last_organization_id_check\\\"]\"]",
+      "sourceFact": {
+        "relation_name": "zasp_recovery_fairness",
+        "name": "zasp_recovery_fairness_last_organization_id_check",
+        "constraint_type": "c",
+        "validated": true,
+        "definition_pretty": "CHECK (last_organization_id IS NULL OR zasp_valid_product_id(last_organization_id))"
+      },
+      "canonicalFact": {
+        "relation_name": "zasp_recovery_fairness",
+        "name": "zasp_recovery_fairness_last_organization_id_check",
+        "constraint_type": "c",
+        "validated": true,
+        "definition_pretty": "CHECK (last_organization_id IS NULL OR public.zasp_valid_product_id(last_organization_id))"
+      },
+      "sourceFactSHA256": "8db04292417a8c8fdcdb4d2447468d69f3c30ce80f4f10bd646baa8f9ac45a97",
+      "canonicalFactSHA256": "b2600ca0348e5be788e1c7da75beb08d11c5b06ad4aa390338d36b955d4d91a0",
+      "changedFields": [
+        "definition_pretty"
+      ],
+      "spans": [
+        {
+          "start": 39,
+          "targetIdentity": "public.zasp_valid_product_id(text)",
+          "anchor": "CHECK function call"
+        }
+      ],
+      "helper": {
+        "identity": "zasp_authorization80_worker.gateway_projected27()",
+        "sourceSHA256": "9cb5fa4453d0a725d6fde54e7744c884e031bc325d8c96463be67315344a3c4e",
+        "definitionSHA256": "fe8d3216de591bdb1264a9da97f982eb6cb2ac45115a3484c0fc544d2a76019c",
+        "frame": {
+          "owner": "zasp_discovery_authority",
+          "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+          "config": [
+            "search_path=pg_catalog, public"
+          ],
+          "language": "sql",
+          "security_definer": false,
+          "volatility": "s",
+          "parallel": "u",
+          "strict": false,
+          "leakproof": false,
+          "cost": 100,
+          "rows": 0,
+          "arguments": "",
+          "result": "text"
+        },
+        "site": {
+          "start": 1931,
+          "end": 2258,
+          "siteSHA256": "44cd6c19c5ad613a1f37c54615f42ec14809553986c54d607325632cda37cff9",
+          "text": "\n  UNION ALL SELECT concat_ws('|','constraint',class.relname,constraint_value.conname,constraint_value.contype,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value JOIN pg_class class ON class.oid=constraint_value.conrelid WHERE class.relname LIKE 'zasp_recovery_%'"
+        }
+      },
+      "sourceProvenance": {
+        "ruleId": "worker-edge:gateway_projected27:7",
+        "captureIdentity": "[\"public\", \"public.zasp_recovery_fairness\", null, \"zasp_recovery_fairness_last_organization_id_check\"]",
+        "descriptorIdentity": "[\"public.zasp_recovery_fairness\",\"zasp_recovery_fairness_last_organization_id_check\"]",
+        "sourceIdentity": "zasp_authorization80_worker.gateway_projected27()",
+        "sourceSHA256": "9cb5fa4453d0a725d6fde54e7744c884e031bc325d8c96463be67315344a3c4e",
+        "definitionSHA256": "fe8d3216de591bdb1264a9da97f982eb6cb2ac45115a3484c0fc544d2a76019c",
+        "siteSHA256": "44cd6c19c5ad613a1f37c54615f42ec14809553986c54d607325632cda37cff9",
+        "executionFrameId": "sourceDiscoveryPublic",
+        "keyFrame": "pg_catalog",
+        "captureFrame": "original-source-frame"
+      },
+      "keyProof": {
+        "expression": "jsonb_build_array(c.oid::regclass::text,k.conname)",
+        "frame": "pg_catalog",
+        "relationIdentity": "public.zasp_recovery_fairness",
+        "objectName": "zasp_recovery_fairness_last_organization_id_check"
+      },
+      "disposition": "source-pretty-qualified",
+      "sourceIndex": 419
+    },
+    {
+      "collection": "direct",
+      "kind": "constraint",
+      "sourceIdentity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public\\\", \\\"public.zasp_recovery_request_receipts\\\", null, \\\"zasp_recovery_request_receipts_check\\\"]\"]",
+      "canonicalIdentity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public.zasp_recovery_request_receipts\\\",\\\"zasp_recovery_request_receipts_check\\\"]\"]",
+      "sourceFact": {
+        "relation_name": "zasp_recovery_request_receipts",
+        "name": "zasp_recovery_request_receipts_check",
+        "constraint_type": "c",
+        "validated": true,
+        "definition_pretty": "CHECK (zasp_valid_product_id(actor_id) AND zasp_valid_product_id(resource_id))"
+      },
+      "canonicalFact": {
+        "relation_name": "zasp_recovery_request_receipts",
+        "name": "zasp_recovery_request_receipts_check",
+        "constraint_type": "c",
+        "validated": true,
+        "definition_pretty": "CHECK (public.zasp_valid_product_id(actor_id) AND public.zasp_valid_product_id(resource_id))"
+      },
+      "sourceFactSHA256": "370a321588aae28a9b14782002f953277ba583d77895ee185e8653cf22cc97c9",
+      "canonicalFactSHA256": "1858391201afcef44f12e9d7f44126049aa56e4b222390aa1839ed5ec3cc5a4b",
+      "changedFields": [
+        "definition_pretty"
+      ],
+      "spans": [
+        {
+          "start": 7,
+          "targetIdentity": "public.zasp_valid_product_id(text)",
+          "anchor": "CHECK function call"
+        },
+        {
+          "start": 43,
+          "targetIdentity": "public.zasp_valid_product_id(text)",
+          "anchor": "CHECK function call"
+        }
+      ],
+      "helper": {
+        "identity": "zasp_authorization80_worker.gateway_projected27()",
+        "sourceSHA256": "9cb5fa4453d0a725d6fde54e7744c884e031bc325d8c96463be67315344a3c4e",
+        "definitionSHA256": "fe8d3216de591bdb1264a9da97f982eb6cb2ac45115a3484c0fc544d2a76019c",
+        "frame": {
+          "owner": "zasp_discovery_authority",
+          "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+          "config": [
+            "search_path=pg_catalog, public"
+          ],
+          "language": "sql",
+          "security_definer": false,
+          "volatility": "s",
+          "parallel": "u",
+          "strict": false,
+          "leakproof": false,
+          "cost": 100,
+          "rows": 0,
+          "arguments": "",
+          "result": "text"
+        },
+        "site": {
+          "start": 1931,
+          "end": 2258,
+          "siteSHA256": "44cd6c19c5ad613a1f37c54615f42ec14809553986c54d607325632cda37cff9",
+          "text": "\n  UNION ALL SELECT concat_ws('|','constraint',class.relname,constraint_value.conname,constraint_value.contype,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value JOIN pg_class class ON class.oid=constraint_value.conrelid WHERE class.relname LIKE 'zasp_recovery_%'"
+        }
+      },
+      "sourceProvenance": {
+        "ruleId": "worker-edge:gateway_projected27:7",
+        "captureIdentity": "[\"public\", \"public.zasp_recovery_request_receipts\", null, \"zasp_recovery_request_receipts_check\"]",
+        "descriptorIdentity": "[\"public.zasp_recovery_request_receipts\",\"zasp_recovery_request_receipts_check\"]",
+        "sourceIdentity": "zasp_authorization80_worker.gateway_projected27()",
+        "sourceSHA256": "9cb5fa4453d0a725d6fde54e7744c884e031bc325d8c96463be67315344a3c4e",
+        "definitionSHA256": "fe8d3216de591bdb1264a9da97f982eb6cb2ac45115a3484c0fc544d2a76019c",
+        "siteSHA256": "44cd6c19c5ad613a1f37c54615f42ec14809553986c54d607325632cda37cff9",
+        "executionFrameId": "sourceDiscoveryPublic",
+        "keyFrame": "pg_catalog",
+        "captureFrame": "original-source-frame"
+      },
+      "keyProof": {
+        "expression": "jsonb_build_array(c.oid::regclass::text,k.conname)",
+        "frame": "pg_catalog",
+        "relationIdentity": "public.zasp_recovery_request_receipts",
+        "objectName": "zasp_recovery_request_receipts_check"
+      },
+      "disposition": "source-pretty-qualified",
+      "sourceIndex": 474
+    },
+    {
+      "collection": "direct",
+      "kind": "constraint",
+      "sourceIdentity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public\\\", \\\"public.zasp_recovery_restores\\\", null, \\\"zasp_recovery_restores_check\\\"]\"]",
+      "canonicalIdentity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public.zasp_recovery_restores\\\",\\\"zasp_recovery_restores_check\\\"]\"]",
+      "sourceFact": {
+        "relation_name": "zasp_recovery_restores",
+        "name": "zasp_recovery_restores_check",
+        "constraint_type": "c",
+        "validated": true,
+        "definition_pretty": "CHECK (zasp_valid_product_id(restore_id) AND zasp_valid_product_id(actor_id))"
+      },
+      "canonicalFact": {
+        "relation_name": "zasp_recovery_restores",
+        "name": "zasp_recovery_restores_check",
+        "constraint_type": "c",
+        "validated": true,
+        "definition_pretty": "CHECK (public.zasp_valid_product_id(restore_id) AND public.zasp_valid_product_id(actor_id))"
+      },
+      "sourceFactSHA256": "c77695765f82ecda2b537de3f8e4db98bfe88da2f4bdf42618129ad4419a2fcc",
+      "canonicalFactSHA256": "fee5b1a0a63d260cd847d6edbfbb00b7c1f17a2ba51df3a628e9ab920852a791",
+      "changedFields": [
+        "definition_pretty"
+      ],
+      "spans": [
+        {
+          "start": 7,
+          "targetIdentity": "public.zasp_valid_product_id(text)",
+          "anchor": "CHECK function call"
+        },
+        {
+          "start": 45,
+          "targetIdentity": "public.zasp_valid_product_id(text)",
+          "anchor": "CHECK function call"
+        }
+      ],
+      "helper": {
+        "identity": "zasp_authorization80_worker.gateway_projected27()",
+        "sourceSHA256": "9cb5fa4453d0a725d6fde54e7744c884e031bc325d8c96463be67315344a3c4e",
+        "definitionSHA256": "fe8d3216de591bdb1264a9da97f982eb6cb2ac45115a3484c0fc544d2a76019c",
+        "frame": {
+          "owner": "zasp_discovery_authority",
+          "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+          "config": [
+            "search_path=pg_catalog, public"
+          ],
+          "language": "sql",
+          "security_definer": false,
+          "volatility": "s",
+          "parallel": "u",
+          "strict": false,
+          "leakproof": false,
+          "cost": 100,
+          "rows": 0,
+          "arguments": "",
+          "result": "text"
+        },
+        "site": {
+          "start": 1931,
+          "end": 2258,
+          "siteSHA256": "44cd6c19c5ad613a1f37c54615f42ec14809553986c54d607325632cda37cff9",
+          "text": "\n  UNION ALL SELECT concat_ws('|','constraint',class.relname,constraint_value.conname,constraint_value.contype,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value JOIN pg_class class ON class.oid=constraint_value.conrelid WHERE class.relname LIKE 'zasp_recovery_%'"
+        }
+      },
+      "sourceProvenance": {
+        "ruleId": "worker-edge:gateway_projected27:7",
+        "captureIdentity": "[\"public\", \"public.zasp_recovery_restores\", null, \"zasp_recovery_restores_check\"]",
+        "descriptorIdentity": "[\"public.zasp_recovery_restores\",\"zasp_recovery_restores_check\"]",
+        "sourceIdentity": "zasp_authorization80_worker.gateway_projected27()",
+        "sourceSHA256": "9cb5fa4453d0a725d6fde54e7744c884e031bc325d8c96463be67315344a3c4e",
+        "definitionSHA256": "fe8d3216de591bdb1264a9da97f982eb6cb2ac45115a3484c0fc544d2a76019c",
+        "siteSHA256": "44cd6c19c5ad613a1f37c54615f42ec14809553986c54d607325632cda37cff9",
+        "executionFrameId": "sourceDiscoveryPublic",
+        "keyFrame": "pg_catalog",
+        "captureFrame": "original-source-frame"
+      },
+      "keyProof": {
+        "expression": "jsonb_build_array(c.oid::regclass::text,k.conname)",
+        "frame": "pg_catalog",
+        "relationIdentity": "public.zasp_recovery_restores",
+        "objectName": "zasp_recovery_restores_check"
+      },
+      "disposition": "source-pretty-qualified",
+      "sourceIndex": 496
+    },
+    {
+      "collection": "direct",
+      "kind": "trigger",
+      "sourceIdentity": "[\"worker-edge:ordered_projected28:9\",\"[\\\"public.zasp_security_agent_temporary_policy_targets\\\", \\\"zasp_security_agent_targets_policy_sequence\\\"]\"]",
+      "canonicalIdentity": "[\"worker-edge:ordered_projected28:9\",\"[\\\"public.zasp_security_agent_temporary_policy_targets\\\",\\\"zasp_security_agent_targets_policy_sequence\\\"]\"]",
+      "sourceFact": {
+        "relation_name": "zasp_security_agent_temporary_policy_targets",
+        "name": "zasp_security_agent_targets_policy_sequence",
+        "definition_pretty": "CREATE TRIGGER zasp_security_agent_targets_policy_sequence BEFORE INSERT OR UPDATE OF credential_id ON zasp_security_agent_temporary_policy_targets FOR EACH ROW WHEN (new.state = 'planned'::text) EXECUTE FUNCTION zasp_policy_deployment_target_sequence_guard()"
+      },
+      "canonicalFact": {
+        "relation_name": "zasp_security_agent_temporary_policy_targets",
+        "name": "zasp_security_agent_targets_policy_sequence",
+        "definition_pretty": "CREATE TRIGGER zasp_security_agent_targets_policy_sequence BEFORE INSERT OR UPDATE OF credential_id ON public.zasp_security_agent_temporary_policy_targets FOR EACH ROW WHEN (new.state = 'planned'::text) EXECUTE FUNCTION public.zasp_policy_deployment_target_sequence_guard()"
+      },
+      "sourceFactSHA256": "2a245509d61efe30de4cd6e90298a016043143bba3c1793e6ab0ed17d823f179",
+      "canonicalFactSHA256": "320d5a17e4784f45f7b05482e7d9cd7cf47f9f832ff30e3ddc55321dad57e002",
+      "changedFields": [
+        "definition_pretty"
+      ],
+      "spans": [
+        {
+          "start": 103,
+          "targetIdentity": "public.zasp_security_agent_temporary_policy_targets",
+          "anchor": "ON relation"
+        },
+        {
+          "start": 213,
+          "targetIdentity": "public.zasp_policy_deployment_target_sequence_guard()",
+          "anchor": "EXECUTE FUNCTION"
+        }
+      ],
+      "helper": {
+        "identity": "zasp_authorization80_worker.ordered_projected28()",
+        "sourceSHA256": "9a0ec7f8b07dacc0e1d254ae127ad259652984824f6a5c621233b14a49c6fbba",
+        "definitionSHA256": "ac79cf296f7e2e7add00e130e18eb30940672680aaf7941ae6d6a05bf4a02876",
+        "frame": {
+          "owner": "zasp_discovery_authority",
+          "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+          "config": [
+            "search_path=pg_catalog, public"
+          ],
+          "language": "sql",
+          "security_definer": false,
+          "volatility": "s",
+          "parallel": "u",
+          "strict": false,
+          "leakproof": false,
+          "cost": 100,
+          "rows": 0,
+          "arguments": "",
+          "result": "text"
+        },
+        "site": {
+          "start": 2711,
+          "end": 3023,
+          "siteSHA256": "b48e38ee107d8084d71e348f2695df99dacf88104cf842ef416c1a2dd2b95aed",
+          "text": "\n  UNION ALL SELECT concat_ws('|','trigger',class.relname,trigger.tgname,pg_get_triggerdef(trigger.oid,true)) FROM pg_trigger trigger JOIN pg_class class ON class.oid=trigger.tgrelid WHERE trigger.tgname LIKE '%policy_deployment%' OR trigger.tgname LIKE '%policy_sequence' OR trigger.tgname LIKE '%policy_verify'"
+        }
+      },
+      "sourceProvenance": {
+        "ruleId": "worker-edge:ordered_projected28:9",
+        "captureIdentity": "[\"public.zasp_security_agent_temporary_policy_targets\", \"zasp_security_agent_targets_policy_sequence\"]",
+        "descriptorIdentity": "[\"public.zasp_security_agent_temporary_policy_targets\",\"zasp_security_agent_targets_policy_sequence\"]",
+        "sourceIdentity": "zasp_authorization80_worker.ordered_projected28()",
+        "sourceSHA256": "9a0ec7f8b07dacc0e1d254ae127ad259652984824f6a5c621233b14a49c6fbba",
+        "definitionSHA256": "ac79cf296f7e2e7add00e130e18eb30940672680aaf7941ae6d6a05bf4a02876",
+        "siteSHA256": "b48e38ee107d8084d71e348f2695df99dacf88104cf842ef416c1a2dd2b95aed",
+        "executionFrameId": "sourceDiscoveryPublic",
+        "keyFrame": "pg_catalog",
+        "captureFrame": "original-source-frame"
+      },
+      "keyProof": {
+        "expression": "jsonb_build_array(c.oid::regclass::text,t.tgname)",
+        "frame": "pg_catalog",
+        "relationIdentity": "public.zasp_security_agent_temporary_policy_targets",
+        "objectName": "zasp_security_agent_targets_policy_sequence"
+      },
+      "disposition": "source-pretty-qualified",
+      "sourceIndex": 637
+    },
+    {
+      "collection": "missing",
+      "kind": "trigger",
+      "sourceIdentity": "[\"temporal72:trigger\",\"[\\\"zasp_connector_credentials\\\", \\\"zasp_execution_bind_oauth_subject\\\"]\"]",
+      "canonicalIdentity": "[\"temporal72:trigger\",\"[\\\"public.zasp_connector_credentials\\\",\\\"zasp_execution_bind_oauth_subject\\\"]\"]",
+      "existingIdentity": "[\"temporal72:trigger\",\"[\\\"public.zasp_connector_credentials\\\",\\\"zasp_execution_bind_oauth_subject\\\"]\"]",
+      "sourceFact": {
+        "name": "zasp_execution_bind_oauth_subject",
+        "enabled": "O",
+        "function": "zasp_execution_bind_oauth_subject_trigger()",
+        "relation_name": "zasp_connector_credentials",
+        "execution_definition": "CREATE TRIGGER za p_execution_bind_oauth_ ubject AFTER INSERT OR UPDATE OF  tatu , metadata, credential_reference ON za p_connector_credential  FOR EACH ROW EXECUTE FUNCTION za p_execution_bind_oauth_ ubject_trigger()"
+      },
+      "canonicalFact": {
+        "name": "zasp_execution_bind_oauth_subject",
+        "enabled": "O",
+        "function": "public.zasp_execution_bind_oauth_subject_trigger()",
+        "relation_name": "zasp_connector_credentials",
+        "execution_definition": "CREATE TRIGGER za p_execution_bind_oauth_ ubject AFTER INSERT OR UPDATE OF  tatu , metadata, credential_reference ON public.za p_connector_credential  FOR EACH ROW EXECUTE FUNCTION public.za p_execution_bind_oauth_ ubject_trigger()"
+      },
+      "sourceFactSHA256": "a5d5ae78158dfc44f53f238873b3f250d4d6c89c81f782f6e1e66747a43a7135",
+      "canonicalFactSHA256": "bd6d00c57f7804119b14aceec40d236ed3e09dfb31427f44a42b2fccfcc5eb31",
+      "changedFields": [
+        "execution_definition",
+        "function"
+      ],
+      "spans": [
+        {
+          "start": 117,
+          "targetIdentity": "public.zasp_connector_credentials",
+          "anchor": "ON relation"
+        },
+        {
+          "start": 174,
+          "targetIdentity": "public.zasp_execution_bind_oauth_subject_trigger()",
+          "anchor": "EXECUTE FUNCTION"
+        }
+      ],
+      "helper": {
+        "identity": "zasp_temporal72.retained_execution_fingerprint()",
+        "sourceSHA256": "5717960835e5732473eac93e43866ad6eced608a63ac393aa8c6752fb9089e64",
+        "definitionSHA256": "2b9420f94abc111f2751e6fd4ff1dcb2501a1cc26657ba70d32f0e3e1908931b",
+        "frame": {
+          "owner": "zasp_discovery_authority",
+          "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+          "config": [
+            "search_path=pg_catalog, public"
+          ],
+          "language": "sql",
+          "security_definer": true,
+          "volatility": "s",
+          "parallel": "u",
+          "strict": false,
+          "leakproof": false,
+          "cost": 100,
+          "rows": 0,
+          "arguments": "",
+          "result": "text"
+        },
+        "site": {
+          "start": 6621,
+          "end": 7108,
+          "siteSHA256": "42d900289a55ff420514efd6a63035f9e260d931946aafc5678a7be21df992bd",
+          "text": "  UNION ALL SELECT 'trigger',c.relname||'.'||trigger_value.tgname,jsonb_build_object('definition',regexp_replace(pg_get_triggerdef(trigger_value.oid,true),E'\\s+',' ','g'),'enabled',trigger_value.tgenabled,'function',trigger_value.tgfoid::regprocedure::text) FROM pg_trigger trigger_value JOIN pg_class c ON c.oid=trigger_value.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND trigger_value.tgname LIKE 'zasp_execution_%' AND NOT trigger_value.tgisinternal"
+        }
+      },
+      "keyProof": {
+        "expression": "jsonb_build_array(c.oid::regclass::text,t.tgname)",
+        "join": "c.oid=t.tgrelid",
+        "frame": "pg_catalog",
+        "relationIdentity": "public.zasp_connector_credentials",
+        "objectName": "zasp_execution_bind_oauth_subject",
+        "internal": false,
+        "functionIdentity": "public.zasp_execution_bind_oauth_subject_trigger()",
+        "functionArguments": "",
+        "functionResult": "trigger"
+      },
+      "fieldProofs": {
+        "relation_name": "raw c.relname equals source/reference and catalog relation name",
+        "name": "raw t.tgname equals source/reference and unique user trigger",
+        "enabled": "raw t.tgenabled equals source/reference/catalog",
+        "function": "exact catalog regprocedure signature under source and pg_catalog frames",
+        "execution_definition": "exact original regexp projection; only two anchored qualifier insertions; inverse equals original bytes"
+      },
+      "disposition": "equalExisting",
+      "sourceIndex": 95
+    },
+    {
+      "collection": "missing",
+      "kind": "trigger",
+      "sourceIdentity": "[\"temporal72:trigger\",\"[\\\"zasp_discovery_syncs\\\", \\\"zasp_execution_sync_version\\\"]\"]",
+      "canonicalIdentity": "[\"temporal72:trigger\",\"[\\\"public.zasp_discovery_syncs\\\",\\\"zasp_execution_sync_version\\\"]\"]",
+      "existingIdentity": "[\"temporal72:trigger\",\"[\\\"public.zasp_discovery_syncs\\\",\\\"zasp_execution_sync_version\\\"]\"]",
+      "sourceFact": {
+        "name": "zasp_execution_sync_version",
+        "enabled": "O",
+        "function": "zasp_execution_sync_version_trigger()",
+        "relation_name": "zasp_discovery_syncs",
+        "execution_definition": "CREATE TRIGGER za p_execution_ ync_ver ion BEFORE UPDATE ON za p_di covery_ ync  FOR EACH ROW EXECUTE FUNCTION za p_execution_ ync_ver ion_trigger()"
+      },
+      "canonicalFact": {
+        "name": "zasp_execution_sync_version",
+        "enabled": "O",
+        "function": "public.zasp_execution_sync_version_trigger()",
+        "relation_name": "zasp_discovery_syncs",
+        "execution_definition": "CREATE TRIGGER za p_execution_ ync_ver ion BEFORE UPDATE ON public.za p_di covery_ ync  FOR EACH ROW EXECUTE FUNCTION public.za p_execution_ ync_ver ion_trigger()"
+      },
+      "sourceFactSHA256": "fdfe88dfe967f6245815ee7a9c443eccf6278b23adf2a322f7b119313a35b2d7",
+      "canonicalFactSHA256": "5e17f139588ed3c3f0fd1fa84e0c7bfec8479e4c9be8d91937935bb9ea53351e",
+      "changedFields": [
+        "execution_definition",
+        "function"
+      ],
+      "spans": [
+        {
+          "start": 60,
+          "targetIdentity": "public.zasp_discovery_syncs",
+          "anchor": "ON relation"
+        },
+        {
+          "start": 111,
+          "targetIdentity": "public.zasp_execution_sync_version_trigger()",
+          "anchor": "EXECUTE FUNCTION"
+        }
+      ],
+      "helper": {
+        "identity": "zasp_temporal72.retained_execution_fingerprint()",
+        "sourceSHA256": "5717960835e5732473eac93e43866ad6eced608a63ac393aa8c6752fb9089e64",
+        "definitionSHA256": "2b9420f94abc111f2751e6fd4ff1dcb2501a1cc26657ba70d32f0e3e1908931b",
+        "frame": {
+          "owner": "zasp_discovery_authority",
+          "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+          "config": [
+            "search_path=pg_catalog, public"
+          ],
+          "language": "sql",
+          "security_definer": true,
+          "volatility": "s",
+          "parallel": "u",
+          "strict": false,
+          "leakproof": false,
+          "cost": 100,
+          "rows": 0,
+          "arguments": "",
+          "result": "text"
+        },
+        "site": {
+          "start": 6621,
+          "end": 7108,
+          "siteSHA256": "42d900289a55ff420514efd6a63035f9e260d931946aafc5678a7be21df992bd",
+          "text": "  UNION ALL SELECT 'trigger',c.relname||'.'||trigger_value.tgname,jsonb_build_object('definition',regexp_replace(pg_get_triggerdef(trigger_value.oid,true),E'\\s+',' ','g'),'enabled',trigger_value.tgenabled,'function',trigger_value.tgfoid::regprocedure::text) FROM pg_trigger trigger_value JOIN pg_class c ON c.oid=trigger_value.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND trigger_value.tgname LIKE 'zasp_execution_%' AND NOT trigger_value.tgisinternal"
+        }
+      },
+      "keyProof": {
+        "expression": "jsonb_build_array(c.oid::regclass::text,t.tgname)",
+        "join": "c.oid=t.tgrelid",
+        "frame": "pg_catalog",
+        "relationIdentity": "public.zasp_discovery_syncs",
+        "objectName": "zasp_execution_sync_version",
+        "internal": false,
+        "functionIdentity": "public.zasp_execution_sync_version_trigger()",
+        "functionArguments": "",
+        "functionResult": "trigger"
+      },
+      "fieldProofs": {
+        "relation_name": "raw c.relname equals source/reference and catalog relation name",
+        "name": "raw t.tgname equals source/reference and unique user trigger",
+        "enabled": "raw t.tgenabled equals source/reference/catalog",
+        "function": "exact catalog regprocedure signature under source and pg_catalog frames",
+        "execution_definition": "exact original regexp projection; only two anchored qualifier insertions; inverse equals original bytes"
+      },
+      "disposition": "equalExisting",
+      "sourceIndex": 96
+    }
+  ]
+}

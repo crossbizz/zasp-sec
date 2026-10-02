@@ -1,0 +1,162 @@
+[
+  {
+    "file": "deploy/production/release-contract.mjs",
+    "before": "9d15bd75cb3331505244eabbb17ab07dc8ca84e8d3cadeca01e0658cbcb79958",
+    "after": "89b14303f20a7cca8564e79f6de84f239c9a363a1c45d5b5ea53279da45c787c"
+  },
+  {
+    "file": "deploy/production/session-search-rollout.mjs",
+    "before": "b66113e97dfaf67584bb2892402ae54349e845d3f52898eb40bd168ed305c54b",
+    "after": "0e7b676295da5307ea4c8188157c1bdbbd94f888543832b832fb37b72e54ad95"
+  },
+  {
+    "file": "deploy/production/audit-export-rollout.mjs",
+    "before": "b5a0368c05c72fce19ece64c020a9c71774b28c9d34f2b035e4d00759d5d1c0f",
+    "after": "e21bbdd639002faa5942b46f130350a9551afd6d673f73f41afe5c8961a0049b"
+  },
+  {
+    "file": "deploy/production/audit-export-network.mjs",
+    "before": "545d96b44bad6566752dc6d99c35461e3a6b80fb9bdd301949e6642fc4fb188d",
+    "after": "5ac60b6a881ba248a8dfe644e93d2e380e7287ae158577c29e9553e1478a40eb"
+  },
+  {
+    "file": "deploy/production/test-reconciler-rollout.mjs",
+    "before": "0dcd8aa6d2d308fe14e7ba401f969fc686a2eeef642cc4cd5759eba0db9d31d4",
+    "after": "7e8d1f0743d9cdbbc5dd37d79ce4e5f59d43c9996a5b443d8c5eae610ec2ddd6"
+  },
+  {
+    "file": "deploy/production/test-reconciler-rollout.test.mjs",
+    "before": "85460f352b0b03de0a7eadc56349ae08a713b5ff0ad980d43e4fa60f3a7f548a",
+    "after": "7fd0144199145a334b1361912fc4453567dcfd9d5707861e4951d2a9832a3895"
+  },
+  {
+    "file": "deploy/production/session-search-rollout.test.mjs",
+    "before": "b4f730891d4964f67af6753922ff17e3a718a5a1ffd749be14280021b0bf596b",
+    "after": "e109d4bc712e56187935cf99b9d3665b26f5fd98ea32b9a91bdd020f0a1e4c82"
+  },
+  {
+    "file": "deploy/production/security-agent-budget-rollout.test.mjs",
+    "before": "84a6207198bca959d2f5d31c2c815a85c17232d3fe1791bed9907bef09d1b165",
+    "after": "e10002fca72941e042bdb760a905e421a0f41527c1e52acbf0869587df95a8a3"
+  },
+  {
+    "file": "deploy/staging/product/values.yaml",
+    "before": "0fa0a90d7585d4f92cc778fe4cb3bc36c3dd31880e9ffd8b5aac6a128d9cdb95",
+    "after": "b87821c71aad9b8782306605bd08ed9e59333773e538bba2be2d139595ab3ed7"
+  },
+  {
+    "file": "deploy/staging/product/templates/_session-search.tpl",
+    "before": "68c5ad7f292d66f3b3ef8df4bde11720f20226e0509d7208c923c50513586f7b",
+    "after": "aff569f1f659ec6f854421a187d0956704e4e77748741c60b38beb34ba3f5e6c"
+  },
+  {
+    "file": "deploy/staging/product/templates/migration.yaml",
+    "before": "bac53a319739577d539fa6f62a724f2658d65f3856cd354b6dce00ff42bc0027",
+    "after": "ec6ae063373032f370a6fcbb0917bbf018b8f4bf7d1de2a1c7f8a61174c69d5f"
+  },
+  {
+    "file": "deploy/staging/product/templates/workloads.yaml",
+    "before": "0e7e233d470e4b09c9b9d799727a6f817c095fb10969975b869113cfa572eb7b",
+    "after": "47c23816f51cd56b46c474f72887bbf2997836d49f2fe923156e68ce6e1d030c"
+  },
+  {
+    "file": "deploy/staging/product/templates/test-reconciler.yaml",
+    "before": "94e3bacd59524bbf8a9c0671eb6e804172924c9fb3cc6f5094674232f566c8aa",
+    "after": "01b64ad19c7067ecfeba194b3fa084bd988be33d6f84e046904a50bdcde5df0b"
+  },
+  {
+    "file": "deploy/staging/product/templates/resilience.yaml",
+    "before": "1268c37bc4416e157a109216ca1f9c799abc4b26eacab75205528c0e78e5478d",
+    "after": "8e8fd08e8fde41d851b0e2a0148702e6737de15ef0ee65fa5b77abb1a7ab6ee2"
+  },
+  {
+    "file": "deploy/staging/product/templates/audit-exports.yaml",
+    "before": "d314bef2d793ca1fcb1eb9a04499cb7b50df651a9495da04b7fc82a3be3fffea",
+    "after": "862c8b6b8f5723df445ff2349ca525366d4850cc15258d6a2593e79a46d9b3dd"
+  },
+  {
+    "file": "deploy/staging/gate.test.mjs",
+    "before": "5b7f6deb3871e62820886a4c5f09c017c0c9a91c6f3682306321a3901a681702",
+    "after": "0ada02e720727a75553a2ba9d040944b3476b328f176036bb039afdf648d6036"
+  },
+  {
+    "file": "package.json",
+    "before": "f32f1880173537431d4e120f7dfdeecbec64d095634ab356a917677e828ee614",
+    "after": "a8609754ca52d6f7a39da3973a391d3549af1be30757ff005488b40994305603"
+  },
+  {
+    "file": "services/platform/migrations/production_audit_exports.go",
+    "before": "690ab810c1fef765885ee8d0b21ac4388b38daa232e41e2b18553006bf899d56",
+    "after": "d65bc1496778f9dc05d138ee9713f28e0f26460c9f0577bd355c2caab2423b73"
+  },
+  {
+    "file": "services/platform/migrations/production_audit_exports_test.go",
+    "before": "8a63a34bf27ae2ab1bf974bcaa03ba69f736ba48b3a11e99000898f772f7380f",
+    "after": "153214de3e74167e65bd8ca1832e2e47e8587c197b3616c2cb1d905daaaf89d4"
+  },
+  {
+    "file": "deploy/production/compliance-export-rollout.mjs",
+    "before": null,
+    "after": "f880c8e312698b713c17dedd40a04ed5e4dfc000d2e357da86002bf8d2967f57"
+  },
+  {
+    "file": "deploy/production/compliance-export-network.mjs",
+    "before": null,
+    "after": "7135508d32c1f3b33461da4ae59d62dfe73eed696ac11404d9361884e47fb28f"
+  },
+  {
+    "file": "deploy/production/compliance-export-release-fixture.mjs",
+    "before": null,
+    "after": "39514b39a2e744c4f15b330d5d8d7150142f6a10f1033330d2fce39e5c9a0623"
+  },
+  {
+    "file": "deploy/production/compliance-export-rollout.test.mjs",
+    "before": null,
+    "after": "326f4fb533e74ac3752720f7381f1a4e7cd4fcee6283df4254e5bb8d64ddef43"
+  },
+  {
+    "file": "deploy/production/compliance-export-runtime.test.mjs",
+    "before": null,
+    "after": "86d9320bea5deb028e3f2e4cb6416e0e6eff93136c72c9801f4be26d6e1b2650"
+  },
+  {
+    "file": "deploy/production/compliance-export-helm.test.mjs",
+    "before": null,
+    "after": "d49b0c3c89b19fb324f17c199e3c16d275d9ea72a46720d18304db7ccb3bd0bf"
+  },
+  {
+    "file": "deploy/staging/product/templates/_compliance-exports.tpl",
+    "before": null,
+    "after": "92dc3444ee012eef969725b4be1f06874d8648984a95691a809a7eabb29d5a79"
+  },
+  {
+    "file": "deploy/staging/product/templates/compliance-exports.yaml",
+    "before": null,
+    "after": "b7c421cefd0a2bd8cac5e9cfa0452273672738df21c6a147cf945ff1a3aa6548"
+  },
+  {
+    "file": "deploy/staging/product/templates/compliance-export-network.yaml",
+    "before": null,
+    "after": "e41eb9053022362729c5b6346a48f6c8bdc64d060eaee6bf669d2e9bca796a89"
+  },
+  {
+    "file": "deploy/staging/product/templates/compliance-export-operations.yaml",
+    "before": null,
+    "after": "4b85aa7287c8bb7b441c58ac57fc5a881f1745d85c43ff77efabde69b2b041f0"
+  },
+  {
+    "file": "services/platform/agentsec-api/compliance_deployment_config_test.go",
+    "before": null,
+    "after": "94279549c6cf5a9a5e04aa890fb8bd73c59f8164304afe671393c26ecf6a8398"
+  },
+  {
+    "file": "services/platform/agentsec-worker/compliance_deployment_config_test.go",
+    "before": null,
+    "after": "633916451142fe02d1cd49e1df186b46760360581e3879a422ce395e83989763"
+  },
+  {
+    "file": "services/platform/agentsec-migrate/compliance_deployment_postgres_test.go",
+    "before": null,
+    "after": "912285773e3b21d645e8d5e1ca55edc9f7e57832958214c6e76ad99a3acb88ca"
+  }
+]

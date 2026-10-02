@@ -1,0 +1,5 @@
+=== RUN   TestComplianceRegistrationBinaryOwnedPostgres
+    compliance_registration_postgres_test.go:84: actual CLI: bootstrap exact56 through published migration command
+    compliance_registration_postgres_test.go:92: fixture role demotion: &pgconn.PgError{Severity:"ERROR", SeverityUnlocalized:"ERROR", Code:"0A000", Message:"permission denied to alter role", Detail:"The bootstrap superuser must have the SUPERUSER attribute.", Hint:"", Position:0, InternalPosition:0, InternalQuery:"", Where:"", SchemaName:"", TableName:"", ColumnName:"", DataTypeName:"", ConstraintName:"", File:"user.c", Line:867, Routine:"AlterRole"}
+--- FAIL: TestComplianceRegistrationBinaryOwnedPostgres (4.58s)
+FAIL

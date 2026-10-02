@@ -12,7 +12,7 @@ const lockPath = "build/dependencies.lock.yaml";
 const packageLockPath = "package-lock.json";
 const lockByteLimit = 64 * 1024;
 const manifestByteLimit = 256 * 1024;
-const packageLockByteLimit = 2 * 1024 * 1024;
+const packageLockByteLimit = 4 * 1024 * 1024;
 const pythonRuntimeLockByteLimit = 512 * 1024;
 const productRoots = ["apps", "cmd", "services", "workers"];
 const manifestNames = new Set(["go.mod", "package.json", "pyproject.toml"]);
@@ -111,6 +111,7 @@ const exactDependencyMetadata = new Map([
   ["github.com/aws/aws-sdk-go-v2/service/sts", "v1.41.6"],
   ["github.com/aws/smithy-go", "v1.27.8"],
   ["github.com/open-policy-agent/opa", "v1.17.0"],
+  ["github.com/openfga/go-sdk", "v0.8.2"],
 ].map(([name, version]) => [
   `services/platform/go.mod:${name}`,
   {
@@ -140,7 +141,9 @@ for (const [manifest, name, version] of [
   });
 }
 for (const [manifest, name, version, license] of [
-  ["services/platform/go.mod", "golang.org/x/sys", "v0.44.0", "BSD-3-Clause"],
+  ["services/platform/go.mod", "golang.org/x/sys", "v0.45.0", "BSD-3-Clause"],
+  ["services/platform/go.mod", "go.temporal.io/sdk", "v1.48.0", "MIT"],
+  ["services/platform/go.mod", "go.temporal.io/api", "v1.63.4", "MIT"],
   ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2", "v1.43.7", "Apache-2.0"],
   ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2/service/kms", "v1.55.6", "Apache-2.0"],
   ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2/service/s3", "v1.107.2", "Apache-2.0"],

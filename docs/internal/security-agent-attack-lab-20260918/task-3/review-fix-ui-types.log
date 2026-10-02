@@ -1,0 +1,8 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npm","run","typecheck"]
+
+> zasp-agent-security-console@0.1.0 typecheck
+> tsc --noEmit
+
+
+Exit: 0 Signal: null

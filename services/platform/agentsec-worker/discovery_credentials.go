@@ -106,13 +106,25 @@ func (resolver *productionDiscoveryCredentialResolver) ResolveDiscoveryCredentia
 		return nil, discoveryCredentialFailure(ctx, collection.FailureMalformed)
 	}
 	now := resolver.config.Clock()
-	if now.IsZero() || now.Location() != time.UTC || !bound.Input.LeaseExpiresAt.After(now) {
+	expiry := bound.Input.LeaseExpiresAt
+	if bound.Product != nil {
+		expiry = bound.Product.Deadline
+	}
+	if now.IsZero() || now.Location() != time.UTC || !expiry.After(now) {
 		return nil, discoveryCredentialFailure(ctx, collection.FailureCancelled)
+	}
+	if bound.Product != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, bound.Product.Deadline)
+		defer cancel()
+	}
+	if err := bound.checkCurrent(ctx); err != nil {
+		return nil, err
 	}
 
 	var envelope discoveryCredentialEnvelope
 	var err error
-	switch bound.Input.Provider {
+	switch bound.Credential.Provider {
 	case collection.ProviderAWS:
 		envelope, err = resolver.resolveAWS(ctx, bound, now)
 	case collection.ProviderKubernetes:
@@ -149,22 +161,33 @@ func (resolver *productionDiscoveryCredentialResolver) resolveAWS(ctx context.Co
 		Region              string `json:"region"`
 		RoleARN             string `json:"role_arn"`
 	}
-	if !decodeCanonicalDiscoveryCredentialJSON(bound.Input.Configuration, &config, 4096) {
+	if !decodeCanonicalDiscoveryCredentialJSON(bound.configuration(), &config, 4096) {
 		return discoveryCredentialEnvelope{}, discoveryCredentialFailure(ctx, collection.FailureMalformed)
 	}
 	match := discoveryAWSRolePattern.FindStringSubmatch(config.RoleARN)
-	if len(match) != 2 || match[1] != bound.Input.SubjectID || !discoveryRegionPattern.MatchString(config.Region) || config.ExternalIDReference != bound.Credential.Reference || !validDiscoveryCredentialReference(config.ExternalIDReference, "ref:aws/external-id/") {
+	if len(match) != 2 || match[1] != bound.Credential.ExpectedSubject.ID || !discoveryRegionPattern.MatchString(config.Region) || config.ExternalIDReference != bound.Credential.Reference || !validDiscoveryCredentialReference(config.ExternalIDReference, "ref:aws/external-id/") {
 		return discoveryCredentialEnvelope{}, discoveryCredentialFailure(ctx, collection.FailureMalformed)
 	}
-	externalID, err := resolver.config.Secrets.ResolveDiscoverySecret(ctx, config.ExternalIDReference)
+	if err := bound.checkCurrent(ctx); err != nil {
+		return discoveryCredentialEnvelope{}, err
+	}
+	externalID, err := resolver.resolveCurrentSecret(ctx, bound, config.ExternalIDReference)
 	if err != nil || !validDiscoveryOpaqueSecret(externalID, 16, 256) {
 		clear(externalID)
 		return discoveryCredentialEnvelope{}, mapDiscoveryCredentialDependency(ctx, err)
 	}
 	duration := int32(900)
-	sessionDigest := sha256.Sum256([]byte(bound.Scope.OrganizationID().String() + "\x1f" + bound.Scope.WorkspaceID().String() + "\x1f" + bound.Scope.EnvironmentID().String() + "\x1f" + bound.Input.JobID + "\x1f" + strconv.Itoa(bound.Input.Attempt)))
+	identity := strconv.Itoa(bound.Credential.Attempt)
+	if bound.Product != nil {
+		identity = "product-effect:" + bound.Product.EffectID
+	}
+	sessionDigest := sha256.Sum256([]byte(bound.Scope.OrganizationID().String() + "\x1f" + bound.Scope.WorkspaceID().String() + "\x1f" + bound.Scope.EnvironmentID().String() + "\x1f" + bound.Credential.JobID.String() + "\x1f" + identity))
 	sessionName := "zasp-discovery-" + hex.EncodeToString(sessionDigest[:12])
 	externalIDText := string(externalID)
+	if err := bound.checkCurrent(ctx); err != nil {
+		clear(externalID)
+		return discoveryCredentialEnvelope{}, err
+	}
 	output, assumeErr := resolver.config.AssumeRole.AssumeRole(ctx, &sts.AssumeRoleInput{RoleArn: aws.String(config.RoleARN), RoleSessionName: aws.String(sessionName), ExternalId: aws.String(externalIDText), DurationSeconds: &duration}, func(options *sts.Options) { options.Retryer = aws.NopRetryer{} })
 	externalIDText = ""
 	clear(externalID)
@@ -193,10 +216,10 @@ func (resolver *productionDiscoveryCredentialResolver) resolveKubernetes(ctx con
 	var config struct {
 		ConnectionReference string `json:"connection_reference"`
 	}
-	if !decodeCanonicalDiscoveryCredentialJSON(bound.Input.Configuration, &config, 4096) || config.ConnectionReference != bound.Credential.Reference || !validDiscoveryCredentialReference(config.ConnectionReference, "ref:kubernetes/connection/") {
+	if !decodeCanonicalDiscoveryCredentialJSON(bound.configuration(), &config, 4096) || config.ConnectionReference != bound.Credential.Reference || !validDiscoveryCredentialReference(config.ConnectionReference, "ref:kubernetes/connection/") {
 		return discoveryCredentialEnvelope{}, discoveryCredentialFailure(ctx, collection.FailureMalformed)
 	}
-	descriptorBytes, err := resolver.config.Secrets.ResolveDiscoverySecret(ctx, config.ConnectionReference)
+	descriptorBytes, err := resolver.resolveCurrentSecret(ctx, bound, config.ConnectionReference)
 	if err != nil {
 		clear(descriptorBytes)
 		return discoveryCredentialEnvelope{}, mapDiscoveryCredentialDependency(ctx, err)
@@ -208,15 +231,15 @@ func (resolver *productionDiscoveryCredentialResolver) resolveKubernetes(ctx con
 		CAReference         string `json:"ca_reference"`
 		CredentialReference string `json:"credential_reference"`
 	}
-	if !decodeCanonicalDiscoveryCredentialJSON(descriptorBytes, &descriptor, 4096) || !validDiscoveryCredentialReference(descriptor.CAReference, "ref:kubernetes/ca/") || !validDiscoveryCredentialReference(descriptor.CredentialReference, "ref:kubernetes/credential/") || !validKubernetesDiscoveryBinding(descriptor.Endpoint, descriptor.Context, bound.Input.SubjectID) {
+	if !decodeCanonicalDiscoveryCredentialJSON(descriptorBytes, &descriptor, 4096) || !validDiscoveryCredentialReference(descriptor.CAReference, "ref:kubernetes/ca/") || !validDiscoveryCredentialReference(descriptor.CredentialReference, "ref:kubernetes/credential/") || !validKubernetesDiscoveryBinding(descriptor.Endpoint, descriptor.Context, bound.Credential.ExpectedSubject.ID) {
 		return discoveryCredentialEnvelope{}, discoveryCredentialFailure(ctx, collection.FailureMalformed)
 	}
-	caBundle, caErr := resolver.config.Secrets.ResolveDiscoverySecret(ctx, descriptor.CAReference)
+	caBundle, caErr := resolver.resolveCurrentSecret(ctx, bound, descriptor.CAReference)
 	if caErr != nil || !validDiscoveryCABundle(caBundle) {
 		clear(caBundle)
 		return discoveryCredentialEnvelope{}, mapDiscoveryCredentialDependency(ctx, caErr)
 	}
-	token, tokenErr := resolver.config.Secrets.ResolveDiscoverySecret(ctx, descriptor.CredentialReference)
+	token, tokenErr := resolver.resolveCurrentSecret(ctx, bound, descriptor.CredentialReference)
 	if tokenErr != nil || !validDiscoveryOpaqueSecret(token, 16, 16_384) {
 		clear(caBundle)
 		clear(token)
@@ -239,13 +262,17 @@ func (resolver *productionDiscoveryCredentialResolver) resolveGitHub(ctx context
 	}
 	const referencePrefix = "ref:github/installation/"
 	installationID, parseErr := strconv.ParseInt(strings.TrimPrefix(bound.Credential.Reference, referencePrefix), 10, 64)
-	if !decodeCanonicalDiscoveryCredentialJSON(bound.Input.Configuration, &config, 4096) || config.AuthorizationMode != "github_app" || !strings.HasPrefix(bound.Credential.Reference, referencePrefix) || parseErr != nil || installationID < 1 || strconv.FormatInt(installationID, 10) != bound.Input.SubjectID {
+	if !decodeCanonicalDiscoveryCredentialJSON(bound.configuration(), &config, 4096) || config.AuthorizationMode != "github_app" || !strings.HasPrefix(bound.Credential.Reference, referencePrefix) || parseErr != nil || installationID < 1 || strconv.FormatInt(installationID, 10) != bound.Credential.ExpectedSubject.ID {
 		return discoveryCredentialEnvelope{}, discoveryCredentialFailure(ctx, collection.FailureMalformed)
 	}
-	key, err := resolver.config.Secrets.ResolveDiscoverySecret(ctx, resolver.config.GitHubPrivateKeyReference)
+	key, err := resolver.resolveCurrentSecret(ctx, bound, resolver.config.GitHubPrivateKeyReference)
 	if err != nil || len(key) < 16 || len(key) > 16_384 {
 		clear(key)
 		return discoveryCredentialEnvelope{}, mapDiscoveryCredentialDependency(ctx, err)
+	}
+	if err := bound.checkCurrent(ctx); err != nil {
+		clear(key)
+		return discoveryCredentialEnvelope{}, err
 	}
 	result, mintErr := resolver.config.GitHub.MintDiscoveryInstallationToken(ctx, resolver.config.GitHubAppID, key, installationID)
 	clear(key)
@@ -267,23 +294,28 @@ func (resolver *productionDiscoveryCredentialResolver) resolveOkta(ctx context.C
 	var config struct {
 		Issuer string `json:"issuer"`
 	}
-	if !decodeCanonicalDiscoveryCredentialJSON(bound.Input.Configuration, &config, 4096) {
+	if !decodeCanonicalDiscoveryCredentialJSON(bound.configuration(), &config, 4096) {
 		return discoveryCredentialEnvelope{}, discoveryCredentialFailure(ctx, collection.FailureMalformed)
 	}
 	issuerMatch := discoveryOktaIssuerPattern.FindStringSubmatch(config.Issuer)
-	if len(issuerMatch) != 2 || issuerMatch[1] != bound.Input.SubjectID || !validDiscoveryCredentialReference(bound.Credential.Reference, "ref:okta/refresh/") {
+	if len(issuerMatch) != 2 || issuerMatch[1] != bound.Credential.ExpectedSubject.ID || !validDiscoveryCredentialReference(bound.Credential.Reference, "ref:okta/refresh/") {
 		return discoveryCredentialEnvelope{}, discoveryCredentialFailure(ctx, collection.FailureMalformed)
 	}
-	clientSecret, clientErr := resolver.config.Secrets.ResolveDiscoverySecret(ctx, resolver.config.OktaClientSecretReference)
+	clientSecret, clientErr := resolver.resolveCurrentSecret(ctx, bound, resolver.config.OktaClientSecretReference)
 	if clientErr != nil || !validDiscoveryOpaqueSecret(clientSecret, 8, 16_384) {
 		clear(clientSecret)
 		return discoveryCredentialEnvelope{}, mapDiscoveryCredentialDependency(ctx, clientErr)
 	}
-	refreshToken, refreshErr := resolver.config.Secrets.ResolveDiscoverySecret(ctx, bound.Credential.Reference)
+	refreshToken, refreshErr := resolver.resolveCurrentSecret(ctx, bound, bound.Credential.Reference)
 	if refreshErr != nil || !validDiscoveryOpaqueSecret(refreshToken, 16, 8192) {
 		clear(clientSecret)
 		clear(refreshToken)
 		return discoveryCredentialEnvelope{}, mapDiscoveryCredentialDependency(ctx, refreshErr)
+	}
+	if err := bound.checkCurrent(ctx); err != nil {
+		clear(clientSecret)
+		clear(refreshToken)
+		return discoveryCredentialEnvelope{}, err
 	}
 	result, exchangeErr := resolver.config.Okta.ExchangeDiscoveryRefreshToken(ctx, config.Issuer, resolver.config.OktaClientID, clientSecret, refreshToken)
 	clear(clientSecret)
@@ -294,7 +326,7 @@ func (resolver *productionDiscoveryCredentialResolver) resolveOkta(ctx context.C
 	}
 	expiresAt := providerDiscoveryCredentialExpiry(now, result.ExpiresAt)
 	wantScopes := []string{"okta.apps.read", "okta.groups.read", "okta.users.read"}
-	if result.Tenant != bound.Input.SubjectID || !equalDiscoveryStrings(result.Scopes, wantScopes) || !validDiscoveryOpaqueSecret(result.Token, 16, 8192) || !expiresAt.After(now) {
+	if result.Tenant != bound.Credential.ExpectedSubject.ID || !equalDiscoveryStrings(result.Scopes, wantScopes) || !validDiscoveryOpaqueSecret(result.Token, 16, 8192) || !expiresAt.After(now) {
 		result.Destroy()
 		return discoveryCredentialEnvelope{}, discoveryCredentialFailure(ctx, collection.FailureDenied)
 	}
@@ -321,7 +353,7 @@ type discoveryCredentialEnvelope struct {
 }
 
 func newDiscoveryCredentialEnvelope(bound discoveryCredentialMaterialRequest, expiresAt time.Time, populate func(*discoveryCredentialEnvelope)) discoveryCredentialEnvelope {
-	value := discoveryCredentialEnvelope{Version: discoveryCredentialEnvelopeVersion, Provider: bound.Input.Provider, SubjectKind: bound.Input.SubjectKind, SubjectID: bound.Input.SubjectID, ExpiresAt: expiresAt.UTC()}
+	value := discoveryCredentialEnvelope{Version: discoveryCredentialEnvelopeVersion, Provider: bound.Credential.Provider, SubjectKind: bound.Credential.ExpectedSubject.Kind, SubjectID: bound.Credential.ExpectedSubject.ID, ExpiresAt: expiresAt.UTC()}
 	populate(&value)
 	return value
 }
@@ -414,11 +446,45 @@ func cloneDiscoveryOktaAccessToken(value discoveryOktaAccessToken) discoveryOkta
 }
 
 func validDiscoveryCredentialBinding(bound discoveryCredentialMaterialRequest) bool {
+	if bound.Product != nil {
+		if !reflect.ValueOf(bound.Input).IsZero() || bound.WorkerID != "" || len(bound.LeaseToken) != 0 || bound.CheckCurrent == nil {
+			return false
+		}
+		request, err := bound.Product.CollectionRequest(bound.Scope)
+		return err == nil && bound.Credential == credentialRequestForJob(request)
+	}
 	if bound.Scope.Validate() != nil || !validDiscoveryExecutionInput(bound.Scope, bound.Input.JobID, bound.Input) || !workerIdentityPattern.MatchString(bound.WorkerID) || len(bound.LeaseToken) < 16 || len(bound.LeaseToken) > 128 {
 		return false
 	}
 	request, ok := collectionRequest(bound.Scope, bound.Input)
 	return ok && bound.Credential == credentialRequestForJob(request)
+}
+
+func (bound discoveryCredentialMaterialRequest) configuration() []byte {
+	if bound.Product != nil {
+		return bound.Product.Configuration
+	}
+	return bound.Input.Configuration
+}
+
+func (bound discoveryCredentialMaterialRequest) checkCurrent(ctx context.Context) error {
+	if bound.Product == nil {
+		return nil
+	}
+	if ctx.Err() != nil {
+		return discoveryCredentialFailure(ctx, collection.FailureCancelled)
+	}
+	if bound.CheckCurrent == nil || bound.CheckCurrent(ctx) != nil {
+		return discoveryCredentialFailure(ctx, collection.FailureRevoked)
+	}
+	return nil
+}
+
+func (resolver *productionDiscoveryCredentialResolver) resolveCurrentSecret(ctx context.Context, bound discoveryCredentialMaterialRequest, reference string) ([]byte, error) {
+	if err := bound.checkCurrent(ctx); err != nil {
+		return nil, err
+	}
+	return resolver.config.Secrets.ResolveDiscoverySecret(ctx, reference)
 }
 
 func validDiscoveryCredentialReference(value, prefix string) bool {

@@ -188,6 +188,81 @@ func TestSecurityAgentPostgresRepositoryReadsExactActivationState(t *testing.T) 
 	if database.statements[6] != postgresSecurityAgentDefinitionActivationSQL || !reflect.DeepEqual(database.arguments[6], want) {
 		t.Fatalf("statement=%q args=%#v", database.statements[6], database.arguments[6])
 	}
+	legacy := database.responses[postgresSecurityAgentDefinitionActivationSQL]
+	const testReference = `{"definition_id":"pid_89000012-0000-4000-8000-000000000002","definition_version":7}`
+	for _, tc := range []struct {
+		name, actions, verification, reference, activation string
+		enabled, valid                                     bool
+	}{
+		{"existing_run_draft", `["run_test"]`, "test_run", testReference, "draft", false, true},
+		{"existing_rerun_validated", `["rerun_test"]`, "test_run", testReference, "validated", false, true},
+		{"existing_missing", `["run_test"]`, "test_run", "", "draft", false, false},
+		{"existing_null", `["run_test"]`, "test_run", "null", "draft", false, false},
+		{"existing_zero_version", `["run_test"]`, "test_run", strings.Replace(testReference, ":7", ":0", 1), "draft", false, false},
+		{"existing_extra_prompt", `["run_test"]`, "test_run", strings.TrimSuffix(testReference, "}") + `,"prompt":"override"}`, "draft", false, false},
+		{"existing_duplicate", `["run_test"]`, "test_run", strings.TrimSuffix(testReference, "}") + `,"definition_version":7}`, "draft", false, false},
+		{"existing_wrong_action", `["update_finding_response"]`, "finding_state", testReference, "draft", false, false},
+		{"existing_mixed_actions", `["run_test","rerun_test"]`, "test_run", testReference, "draft", false, false},
+		{"existing_wrong_verification", `["run_test"]`, "finding_state", testReference, "draft", false, false},
+		{"existing_execution_unavailable", `["run_test"]`, "test_run", testReference, "supervised", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			payload := strings.Replace(string(legacy), `"allowed_actions":["update_finding_response"]`, `"allowed_actions":`+tc.actions, 1)
+			payload = strings.Replace(payload, `"verification_kind":"finding_state"`, `"verification_kind":"`+tc.verification+`"`, 1)
+			payload = strings.Replace(payload, `"activation":"validated"`, `"activation":"`+tc.activation+`"`, 1)
+			if tc.enabled {
+				payload = strings.Replace(payload, `"enabled":false`, `"enabled":true`, 1)
+			}
+			if tc.reference != "" {
+				payload = strings.Replace(payload, `"body":{`, `"body":{"existing_test":`+tc.reference+`,`, 1)
+			}
+			database.responses[postgresSecurityAgentDefinitionActivationSQL] = json.RawMessage(payload)
+			got, err := repository.GetSecurityAgentActivation(context.Background(), identity, definitionID)
+			if tc.valid {
+				if err != nil || got.ID != definitionID || got.Activation != tc.activation || got.Enabled || got.Version != 2 {
+					t.Fatalf("existing-test read=%#v err=%v", got, err)
+				}
+			} else if !errors.Is(err, ErrRepositoryUnavailable) {
+				t.Fatalf("invalid existing-test read=%#v err=%v", got, err)
+			}
+		})
+	}
+	for _, tc := range []struct {
+		name, cost string
+		valid      bool
+	}{
+		{"minimum", "1", true}, {"maximum", "1000000000000", true},
+		{"zero", "0", false}, {"negative", "-1", false},
+		{"excess", "1000000000001", false}, {"null", "null", false},
+		{"fraction", "1.5", false}, {"string", `"1"`, false},
+		{"overflow", "9223372036854775808", false},
+		{"extra_field", "1", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var envelope map[string]json.RawMessage
+			if err := json.Unmarshal(legacy, &envelope); err != nil {
+				t.Fatal(err)
+			}
+			var body map[string]json.RawMessage
+			if err := json.Unmarshal(envelope["body"], &body); err != nil {
+				t.Fatal(err)
+			}
+			body["max_ai_cost_nano_credits"] = json.RawMessage(tc.cost)
+			if tc.name == "extra_field" {
+				body["unexpected_authority"] = json.RawMessage("true")
+			}
+			envelope["body"], _ = json.Marshal(body)
+			database.responses[postgresSecurityAgentDefinitionActivationSQL], _ = json.Marshal(envelope)
+			got, err := repository.GetSecurityAgentActivation(context.Background(), identity, definitionID)
+			if tc.valid {
+				if err != nil || got != result {
+					t.Fatalf("activation=%#v err=%v", got, err)
+				}
+			} else if err == nil {
+				t.Fatalf("malformed cost accepted: %#v", got)
+			}
+		})
+	}
 }
 
 func TestSecurityAgentPostgresRepositoryActivatesWithExactScopeAndReceiptAuthority(t *testing.T) {
@@ -205,6 +280,7 @@ func TestSecurityAgentPostgresRepositoryActivatesWithExactScopeAndReceiptAuthori
 		postgresIdentityAdminSecurityAgentReadySQL:   json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentAuthorityReadySQL:       json.RawMessage(`{"release":true,"principal":true}`),
 		postgresSecurityAgentActivateSQL:             json.RawMessage(`{"id":"` + definitionID + `","activation":"validated","enabled":false,"version":2,"audit_id":"` + auditID + `","correlation_id":"` + correlationID + `","receipt_id":"` + receiptID + `","replayed":false}`),
+		postgresSecurityAgentDefinitionValueSQL:      json.RawMessage(`{"body":{"id":"` + definitionID + `"},"version":1,"secret_generation":0}`),
 	}}
 	repository, err := NewSecurityAgentPostgresRepository(database)
 	if err != nil {
@@ -216,8 +292,9 @@ func TestSecurityAgentPostgresRepositoryActivatesWithExactScopeAndReceiptAuthori
 		t.Fatalf("activation=%#v err=%v", result, err)
 	}
 	want := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), definitionID, identity.PrincipalID.String(), input.IdempotencyKey, int64(1), "validated", identity.FreshAuthExpiresAt, auditID, correlationID, receiptID}
-	if database.statements[6] != postgresSecurityAgentActivateSQL || !reflect.DeepEqual(database.arguments[6], want) {
-		t.Fatalf("statement=%q args=%#v", database.statements[6], database.arguments[6])
+	last := len(database.statements) - 1
+	if database.statements[last] != postgresSecurityAgentActivateSQL || !reflect.DeepEqual(database.arguments[last], want) {
+		t.Fatalf("statement=%q args=%#v", database.statements[last], database.arguments[last])
 	}
 }
 
@@ -416,6 +493,14 @@ func (*securityAgentRepositoryDatabase) SchemaVersion(context.Context) (string, 
 	return "", errors.New("security agent authority must not read schema metadata")
 }
 func (database *securityAgentRepositoryDatabase) QueryJSON(_ context.Context, statement string, arguments ...any) (json.RawMessage, error) {
+	// This legacy fixture models a database before78. Scoped query assertions
+	// below count its original domain calls; dedicated78 tests own probe cases.
+	if statement == `SELECT to_jsonb(to_regnamespace('zasp_temporal78') IS NOT NULL)` {
+		if value, exists := database.responses[statement]; exists {
+			return append(json.RawMessage(nil), value...), nil
+		}
+		return json.RawMessage(`false`), nil
+	}
 	database.statements = append(database.statements, statement)
 	database.arguments = append(database.arguments, append([]any(nil), arguments...))
 	value, ok := database.responses[statement]

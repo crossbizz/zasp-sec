@@ -1,0 +1,26 @@
+$ /usr/local/bin/docker run --rm --name zasp-export-db-projection-group-red --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(Projection|ProjectionSettled|ProjectionRefusals)Postgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentExportProjectionPostgres
+    security_agent_export_projection_postgres_test.go:77: registered export action projection: ERROR: security agent action detail authority unavailable (SQLSTATE 55000)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportProjectionPostgres1249886851/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportProjectionPostgres (5.56s)
+=== RUN   TestSecurityAgentExportProjectionSettledPostgres
+=== RUN   TestSecurityAgentExportProjectionSettledPostgres/succeeded
+    security_agent_export_projection_postgres_test.go:128: registered export action projection: ERROR: security agent action detail authority unavailable (SQLSTATE 55000)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestSecurityAgentExportProjectionSettledPostgressucceeded290760468/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportProjectionSettledPostgres/known_failure
+    security_agent_export_projection_postgres_test.go:128: registered export action projection: ERROR: security agent action detail authority unavailable (SQLSTATE 55000)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=86 data=/tmp/TestSecurityAgentExportProjectionSettledPostgresknown_failure1063434684/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportProjectionSettledPostgres/cleanup_pending
+    security_agent_export_projection_postgres_test.go:128: registered export action projection: ERROR: security agent action detail authority unavailable (SQLSTATE 55000)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=118 data=/tmp/TestSecurityAgentExportProjectionSettledPostgrescleanup_pending781815031/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportProjectionSettledPostgres (18.61s)
+    --- FAIL: TestSecurityAgentExportProjectionSettledPostgres/succeeded (6.27s)
+    --- FAIL: TestSecurityAgentExportProjectionSettledPostgres/known_failure (6.04s)
+    --- FAIL: TestSecurityAgentExportProjectionSettledPostgres/cleanup_pending (6.29s)
+=== RUN   TestSecurityAgentExportProjectionRefusalsPostgres
+    security_agent_export_projection_postgres_test.go:168: registered export action projection: ERROR: security agent action detail authority unavailable (SQLSTATE 55000)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=150 data=/tmp/TestSecurityAgentExportProjectionRefusalsPostgres675176516/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportProjectionRefusalsPostgres (5.46s)
+FAIL
+
+Container exit: 1

@@ -11,7 +11,7 @@ describe("M1A-07 through M1A-10 staging gate batch", () => {
     for (const contract of ['name: "web"', 'name: "agentsec-api"', 'serviceAccount: "agentsec-web"', 'serviceAccount: "agentsec-api"', "perWorkloadIAM"]) expect(source).toContain(contract);
     for (const retired of ["runStagingDependencySmoke", "throughIRSA", "otlpHealthEmitted"]) expect(source).not.toContain(retired);
     const pkg = JSON.parse(read("package.json"));
-    expect(pkg.scripts["staging:gate:test"]).toBe("node --test deploy/staging/gate.test.mjs deploy/staging/preflight.test.mjs");
+    expect(pkg.scripts["staging:gate:test"]).toBe("node --test deploy/staging/gate.test.mjs deploy/staging/preflight.test.mjs deploy/staging/queue-contract.test.mjs deploy/staging/compliance-exports-contract.test.mjs");
   });
 
   it("blocks the final four staging tasks on the missing authorized AWS run", () => {

@@ -1,0 +1,89 @@
+COMMAND: GOPROXY=off GOSUMDB=off go test ./apiserver -run '^TestSecurityAgentExport(StorageDownload(Refusals|GrantRaces|Corruption|ReadLeaseCleanup)|Lifecycle|Cancellation|Release)Postgres$' -count=1 -v
+SOURCE SHA256:
+e6ee690af2b9f7c717c2ee747a14c59597f13f80eaf45c71b36ac4bd3506901c  apiserver/security_agent_export_storage_download_postgres_test.go
+EXIT CODE: 0
+
+STDOUT/STDERR (exact captured output):
+=== RUN   TestSecurityAgentExportLifecyclePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=98447 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportLifecyclePostgres3337989092/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportLifecyclePostgres (10.96s)
+=== RUN   TestSecurityAgentExportCancellationPostgres
+=== RUN   TestSecurityAgentExportCancellationPostgres/prepared_false
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=98515 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportCancellationPostgresprepared_false3719585835/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportCancellationPostgres/prepared_true
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=98561 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportCancellationPostgresprepared_true1018663875/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportCancellationPostgres (15.24s)
+    --- PASS: TestSecurityAgentExportCancellationPostgres/prepared_false (7.41s)
+    --- PASS: TestSecurityAgentExportCancellationPostgres/prepared_true (7.83s)
+=== RUN   TestSecurityAgentExportReleasePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=98616 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportReleasePostgres1598614305/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportReleasePostgres (8.35s)
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres
+    security_agent_export_storage_download_postgres_test.go:308: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+    security_agent_export_storage_download_postgres_test.go:340: second persisted session issued and consumed its own grant for the same principal and scope
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres/wrong_format
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres/sibling_run
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres/foreign_scope
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres/wrong_session
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres/wrong_csrf
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres/expired
+=== NAME  TestSecurityAgentExportStorageDownloadRefusalsPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=98669 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadRefusalsPostgres2719306917/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres (12.66s)
+    --- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres/wrong_format (0.17s)
+    --- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres/sibling_run (0.16s)
+    --- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres/foreign_scope (0.10s)
+    --- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres/wrong_session (0.15s)
+    --- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres/wrong_csrf (0.00s)
+    --- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres/expired (0.15s)
+=== RUN   TestSecurityAgentExportStorageDownloadGrantRacesPostgres
+=== RUN   TestSecurityAgentExportStorageDownloadGrantRacesPostgres/same_grant
+    security_agent_export_storage_download_postgres_test.go:385: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=98732 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadGrantRacesPostgressame_gr2506236645/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportStorageDownloadGrantRacesPostgres/membership_revoked
+    security_agent_export_storage_download_postgres_test.go:385: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=98790 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadGrantRacesPostgresmembers1491326361/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportStorageDownloadGrantRacesPostgres/scope_revoked
+    security_agent_export_storage_download_postgres_test.go:385: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=98862 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadGrantRacesPostgresscope_r1421730894/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportStorageDownloadGrantRacesPostgres (31.99s)
+    --- PASS: TestSecurityAgentExportStorageDownloadGrantRacesPostgres/same_grant (10.49s)
+    --- PASS: TestSecurityAgentExportStorageDownloadGrantRacesPostgres/membership_revoked (11.08s)
+    --- PASS: TestSecurityAgentExportStorageDownloadGrantRacesPostgres/scope_revoked (10.42s)
+=== RUN   TestSecurityAgentExportStorageDownloadCorruptionPostgres
+=== RUN   TestSecurityAgentExportStorageDownloadCorruptionPostgres/corrupt_bytes
+    security_agent_export_storage_download_postgres_test.go:465: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=98913 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadCorruptionPostgrescorrupt985256048/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportStorageDownloadCorruptionPostgres/wrong_version
+    security_agent_export_storage_download_postgres_test.go:465: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=98957 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadCorruptionPostgreswrong_v3012237522/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportStorageDownloadCorruptionPostgres/swapped_selection
+    security_agent_export_storage_download_postgres_test.go:465: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=99018 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadCorruptionPostgresswapped3282712607/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportStorageDownloadCorruptionPostgres/malformed_package
+    security_agent_export_storage_download_postgres_test.go:465: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=99098 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadCorruptionPostgresmalform648499862/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportStorageDownloadCorruptionPostgres (44.41s)
+    --- PASS: TestSecurityAgentExportStorageDownloadCorruptionPostgres/corrupt_bytes (10.33s)
+    --- PASS: TestSecurityAgentExportStorageDownloadCorruptionPostgres/wrong_version (11.15s)
+    --- PASS: TestSecurityAgentExportStorageDownloadCorruptionPostgres/swapped_selection (11.31s)
+    --- PASS: TestSecurityAgentExportStorageDownloadCorruptionPostgres/malformed_package (11.62s)
+=== RUN   TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgres
+=== RUN   TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgres/exact_expiry
+    security_agent_export_storage_download_postgres_test.go:536: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+    security_agent_export_storage_download_postgres_test.go:662: cleanup denied: production DeleteExact rejected; exact job JSON and deletion audit unchanged; requests=[DELETE GET]
+    security_agent_export_storage_download_postgres_test.go:662: cleanup generic404: production DeleteExact rejected; exact job JSON and deletion audit unchanged; requests=[DELETE GET]
+    security_agent_export_storage_download_postgres_test.go:679: typed NoSuchVersion accepted by production DeleteExact; registered cleanup released retention and wrote one deletion audit
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=99149 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgrese144040245/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgres/consumed_release
+    security_agent_export_storage_download_postgres_test.go:536: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+    security_agent_export_storage_download_postgres_test.go:662: cleanup denied: production DeleteExact rejected; exact job JSON and deletion audit unchanged; requests=[DELETE GET]
+    security_agent_export_storage_download_postgres_test.go:662: cleanup generic404: production DeleteExact rejected; exact job JSON and deletion audit unchanged; requests=[DELETE GET]
+    security_agent_export_storage_download_postgres_test.go:679: typed NoSuchVersion accepted by production DeleteExact; registered cleanup released retention and wrote one deletion audit
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=99225 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgresc2973498937/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgres (22.50s)
+    --- PASS: TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgres/exact_expiry (11.47s)
+    --- PASS: TestSecurityAgentExportStorageDownloadReadLeaseCleanupPostgres/consumed_release (11.04s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	147.230s
+

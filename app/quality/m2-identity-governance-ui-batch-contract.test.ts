@@ -33,7 +33,7 @@ describe("M2 identity governance and UI batch", () => {
     expect(taskRows(tracker, "Blocked").map(([task]) => task)).toEqual(["M1A-10", "M1A-09", "M1A-08", "M1A-07", "M3-52", "M3-14", "M8-54", "M8-63", "M8-63e", "M8-63d", "M8-63c", "M8-63b", "M8-63a", "M8-62", "M8-62e", "M8-62d", "M8-62c", "M8-62b", "M8-62a", "M8-61", "M8-61a", "M8-60", "M8-60b", "M8-59", "M8-59b", "M8-58", "M8-58b", "M8-53", "M8-52", "M8-52d", "M8-52c", "M8-52b", "M8-52a", "M8-51", "M8-51e", "M8-51d", "M8-51c", "M8-51b", "M8-51a", "M8-46", "M8-45", "M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
   });
 
-  it("binds mounted governance operations and keeps exports planned", async () => {
+  it("binds mounted governance operations and keeps export UI availability separate", async () => {
     const [openapi, map, readme] = await Promise.all([
       readFile(resolve(repositoryRoot, "openapi/openapi.yaml"), "utf8"),
       readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8"),
@@ -44,10 +44,13 @@ describe("M2 identity governance and UI batch", () => {
       "acknowledgeAPITokenRevealGrant", "rotateAPIToken", "revokeAPIToken", "listAuditEvents",
     ]) expect(openapi).toContain(`operationId: ${operation}`);
     for (const mounted of ["listGroupMappings", "updateGroupMappings"]) expect(openapi).toContain(`operationId: ${mounted}`);
-    for (const hidden of ["createAuditExport", "getAuditExport"]) expect(openapi).not.toContain(`operationId: ${hidden}`);
-    expect(map.match(/availability: planned/g)).toHaveLength(6);
-    expect(map.match(/availability: available/g)).toHaveLength(141);
-    expect(map.match(/availability: api_available/g)).toHaveLength(6);
+    for (const mounted of ["createAuditExport", "getAuditExport"]) {
+      expect(openapi).toContain(`operationId: ${mounted}`);
+      expect(map).toContain(`operation_id: ${mounted}\n        availability: api_available`);
+    }
+    expect(map.match(/availability: planned/g)).toHaveLength(2);
+    expect(map.match(/availability: available/g)).toHaveLength(147);
+    expect(map.match(/availability: api_available/g)).toHaveLength(15);
     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
     expect(readme).toContain("M3-01 through M3-13 are Complete");
   });

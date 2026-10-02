@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"math"
-	"strconv"
 	"strings"
 	"time"
 
@@ -127,7 +126,8 @@ func scheduledRequest(scope domain.Scope, input apiserver.ExecutionScheduleInput
 	if scope.Validate() != nil || principalErr != nil || input.NextRunAt.IsZero() || input.NextRunAt.Location() != time.UTC || input.CadenceSeconds < 300 || input.CadenceSeconds > 2_678_400 || input.Version < 1 {
 		return apiserver.SyncRequest{}, apiserver.RequestIdentity{}, false
 	}
-	seed := strings.Join([]string{input.ScheduleID, input.IntegrationID, input.NextRunAt.Format(time.RFC3339Nano), strconv.FormatInt(input.Version, 10)}, "\x1f")
+	// A claim changes authority metadata, not the identity of the due occurrence.
+	seed := strings.Join([]string{input.ScheduleID, input.IntegrationID, input.NextRunAt.Format(time.RFC3339Nano)}, "\x1f")
 	syncID, syncErr := apiserver.CanonicalDiscoveryID(scope, "scheduled_sync", seed)
 	jobID, jobErr := apiserver.CanonicalDiscoveryID(scope, "scheduled_job", seed)
 	outboxID, outboxErr := apiserver.CanonicalDiscoveryID(scope, "scheduled_outbox", seed)

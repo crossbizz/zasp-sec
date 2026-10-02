@@ -1,0 +1,51 @@
+=== RUN   TestSecurityAgentExportsDeploymentBinaryOwnedPostgres
+    compliance_deployment_postgres_test.go:107: actual CLI: bootstrap exact56 through published migration command
+    compliance_deployment_postgres_test.go:121: registered migration session verified: LOGIN INHERIT, NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
+    compliance_deployment_postgres_test.go:194: actual CLI: invalid56 checksum/register-audit-export-api
+    compliance_deployment_postgres_test.go:194: actual CLI: invalid56 checksum/register-audit-export-workers
+    compliance_deployment_postgres_test.go:194: actual CLI: invalid56 checksum/configure-audit-exports
+    compliance_deployment_postgres_test.go:194: actual CLI: invalid56 checksum/register-compliance-workers
+    compliance_deployment_postgres_test.go:197: actual CLI chain: /compliance-migrate up-to-56 && /compliance-migrate register-audit-export-api && /compliance-migrate register-audit-export-workers && /compliance-migrate configure-audit-exports && exec /compliance-migrate register-compliance-workers success: false
+    compliance_deployment_postgres_test.go:194: actual CLI: unavailable56 readiness/register-audit-export-api
+    compliance_deployment_postgres_test.go:194: actual CLI: unavailable56 readiness/register-audit-export-workers
+    compliance_deployment_postgres_test.go:194: actual CLI: unavailable56 readiness/configure-audit-exports
+    compliance_deployment_postgres_test.go:194: actual CLI: unavailable56 readiness/register-compliance-workers
+    compliance_deployment_postgres_test.go:197: actual CLI chain: /compliance-migrate up-to-56 && /compliance-migrate register-audit-export-api && /compliance-migrate register-audit-export-workers && /compliance-migrate configure-audit-exports && exec /compliance-migrate register-compliance-workers success: false
+    compliance_deployment_postgres_test.go:168: actual CLI chain: /compliance-migrate up-to-56 && /compliance-migrate register-audit-export-api && /compliance-migrate register-audit-export-workers && /compliance-migrate configure-audit-exports && exec /compliance-migrate register-compliance-workers success: true
+    compliance_deployment_postgres_test.go:180: both systems have exact independent bindings; audit policy selected; compiled56 readiness true
+    compliance_deployment_postgres_test.go:182: actual CLI chain: /compliance-migrate up-to-56 && /compliance-migrate register-audit-export-api && /compliance-migrate register-audit-export-workers && /compliance-migrate configure-audit-exports && exec /compliance-migrate register-compliance-workers success: true
+    compliance_deployment_postgres_test.go:194: actual CLI: invalid56 checksum/register-audit-export-api
+    compliance_deployment_postgres_test.go:194: actual CLI: invalid56 checksum/register-audit-export-workers
+    compliance_deployment_postgres_test.go:194: actual CLI: invalid56 checksum/configure-audit-exports
+    compliance_deployment_postgres_test.go:194: actual CLI: invalid56 checksum/register-compliance-workers
+    compliance_deployment_postgres_test.go:197: actual CLI chain: /compliance-migrate up-to-56 && /compliance-migrate register-audit-export-api && /compliance-migrate register-audit-export-workers && /compliance-migrate configure-audit-exports && exec /compliance-migrate register-compliance-workers success: false
+    compliance_deployment_postgres_test.go:194: actual CLI: unavailable56 readiness/register-audit-export-api
+    compliance_deployment_postgres_test.go:194: actual CLI: unavailable56 readiness/register-audit-export-workers
+    compliance_deployment_postgres_test.go:194: actual CLI: unavailable56 readiness/configure-audit-exports
+    compliance_deployment_postgres_test.go:194: actual CLI: unavailable56 readiness/register-compliance-workers
+    compliance_deployment_postgres_test.go:197: actual CLI chain: /compliance-migrate up-to-56 && /compliance-migrate register-audit-export-api && /compliance-migrate register-audit-export-workers && /compliance-migrate configure-audit-exports && exec /compliance-migrate register-compliance-workers success: false
+    compliance_deployment_postgres_test.go:210: actual CLI: explicit57 bootstrap after exact56 assertions
+    compliance_deployment_postgres_test.go:217: actual CLI: 57 boundary up-to-57
+    compliance_deployment_postgres_test.go:217: actual CLI: 57 boundary register-audit-export-api
+    compliance_deployment_postgres_test.go:217: actual CLI: 57 boundary register-audit-export-workers
+    compliance_deployment_postgres_test.go:217: actual CLI: 57 boundary configure-audit-exports
+    compliance_deployment_postgres_test.go:217: actual CLI: 57 boundary register-compliance-workers
+    compliance_deployment_postgres_test.go:217: actual CLI: 57 boundary register-security-agent-attack-lab-reconciler
+    compliance_deployment_postgres_test.go:219: actual CLI chain: /compliance-migrate up-to-57 && /compliance-migrate register-audit-export-api && /compliance-migrate register-audit-export-workers && /compliance-migrate configure-audit-exports && /compliance-migrate register-compliance-workers && exec /compliance-migrate register-security-agent-attack-lab-reconciler success: true
+    compliance_deployment_postgres_test.go:245: existing-test registered worker scope authority remains usable at57 through actual CLI baseline binding
+    compliance_deployment_postgres_test.go:247: actual CLI chain: /compliance-migrate up-to-57 && /compliance-migrate register-audit-export-api && /compliance-migrate register-audit-export-workers && /compliance-migrate configure-audit-exports && /compliance-migrate register-compliance-workers && exec /compliance-migrate register-security-agent-attack-lab-reconciler success: true
+    compliance_deployment_postgres_test.go:250: actual CLI: 57 refuses unsupported or implicit downgrade up-to-59
+    compliance_deployment_postgres_test.go:250: actual CLI: 57 refuses unsupported or implicit downgrade up
+    compliance_deployment_postgres_test.go:250: actual CLI: 57 refuses unsupported or implicit downgrade up-to-56
+    compliance_deployment_postgres_test.go:257: actual CLI: 57 drift refuses register-audit-export-api
+    compliance_deployment_postgres_test.go:257: actual CLI: 57 drift refuses register-audit-export-workers
+    compliance_deployment_postgres_test.go:257: actual CLI: 57 drift refuses configure-audit-exports
+    compliance_deployment_postgres_test.go:257: actual CLI: 57 drift refuses register-compliance-workers
+    compliance_deployment_postgres_test.go:257: actual CLI: 57 drift refuses register-security-agent-attack-lab-reconciler
+    compliance_deployment_postgres_test.go:260: LOCAL actual57 CLI chain and existing56 checks complete; no provider or credential provisioning
+    compliance_deployment_postgres_test.go:266: actual CLI: 57 rejects wrong-source export rollback
+    compliance_deployment_postgres_test.go:274: rollback-only58 observed fingerprint=badab950fce661dcd9b610e097a45ac7469040a6c08df2961f36cd3bb5479050 expected=e2508a4ecbf0e684021477a827b54317d29e22641fd50974feaa48120e7a6a85
+    compliance_deployment_postgres_test.go:274: rollback-only58 SQL diagnostic=<nil>
+    compliance_deployment_postgres_test.go:274: explicit58 upgrade from registered57: CLI result=exit status 1 output="2026/09/19 23:45:53 release migration failed\n"
+--- FAIL: TestSecurityAgentExportsDeploymentBinaryOwnedPostgres (22.81s)
+FAIL

@@ -1,0 +1,7 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["go","-C","services/platform","run","../../docs/internal/security-agent-attack-lab-20260918/task-3/release-pins.go"]
+release57 checksum=e0f037ec8948a4d574ae33f37e9554d9ff6539785b7d601d7c96685a66c01776 fingerprint=f44bc966ef77ab523a80ace71b59defbe709c1fdbefd69ccfc40cacaf16d7ba8
+release56 checksum=f5871c564709034eaf89f325fcb732a3f3314ecc0ff95f7a0ec99f6d674ddfc1 fingerprint=8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced
+release55 checksum=01920b296d2ebbc4b84c6e714edaf50d6265d630e577bd26297755a15289fa00 fingerprint=2c324e78917f97feee14f915b397efbb92a183d47afd7473139dd0691cf0bb04
+
+Exit: 0 Signal: null

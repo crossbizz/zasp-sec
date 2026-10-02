@@ -1,0 +1,13 @@
+import {spawn} from "node:child_process";
+import {readFile,writeFile} from "node:fs/promises";
+import {createHash} from "node:crypto";
+import path from "node:path";
+import {fileURLToPath} from "node:url";
+const evidence=path.dirname(fileURLToPath(import.meta.url)),root=path.resolve(evidence,"../../../..");
+const args=["test","-race","./agentsec-worker","./artifactstore/s3driver","./internal/exportfixture","-run","^(TestSecurityAgentExportCleanupResponseTaxonomy|TestExport(Cleanup|ReadOnly).*|TestStore.*)$","-count=1","-v","-timeout=120s"];
+const hashes={};for(const name of ["services/platform/apiserver/security_agent_export_cleanup_process_postgres_test.go","services/platform/agentsec-worker/security_agent_export_cleanup_process_test.go"])hashes[name]=createHash("sha256").update(await readFile(path.join(root,name))).digest("hex");
+const child=spawn("/opt/homebrew/bin/go",args,{cwd:path.join(root,"services/platform"),env:{...process.env,GOTOOLCHAIN:"local",GOPROXY:"off",GOSUMDB:"off"},stdio:["ignore","pipe","pipe"]});let output="";
+child.stdout.on("data",b=>output+=b);child.stderr.on("data",b=>output+=b);const timer=setTimeout(()=>child.kill("SIGKILL"),180000);
+const status=await new Promise((resolve,reject)=>{child.once("error",reject);child.once("close",resolve)});clearTimeout(timer);
+await writeFile(path.join(evidence,"native-race.log"),output);await writeFile(path.join(evidence,"native-race.json"),JSON.stringify({command:"/opt/homebrew/bin/go",args,hashes,status},null,2));
+console.log(output);process.exitCode=status??1;

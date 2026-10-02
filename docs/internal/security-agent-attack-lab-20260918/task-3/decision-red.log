@@ -1,0 +1,9 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go","test","-C","services/platform","./apiserver","-run","^TestSecurityAgentAttackLabDecisionResultContract$","-count=1"]
+--- FAIL: TestSecurityAgentAttackLabDecisionResultContract (0.00s)
+    security_agent_attack_lab_public_projection_test.go:32: actual decision shape rejected: json: unknown field "attack_lab"
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	1.173s
+FAIL
+
+Exit: 1 Signal: null

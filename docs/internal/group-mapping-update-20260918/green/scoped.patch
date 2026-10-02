@@ -1,0 +1,320 @@
+--- a/services/platform/apiserver/administration_repository.go
++++ b/services/platform/apiserver/administration_repository.go
+@@ -37,7 +37,7 @@
+ 	postgresCreateEnvironmentSQL         = `WITH parent AS (SELECT workspace.id FROM zasp_workspaces AS workspace JOIN zasp_authorized_scopes AS scope ON scope.organization_id=workspace.organization_id AND scope.workspace_id=workspace.id WHERE workspace.organization_id=$2 AND workspace.id=$3 AND scope.principal_id=$6 AND scope.environment_id=$8 AND workspace.id=$7), created AS (INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) SELECT $1,$2,$3,$4,'development' FROM parent RETURNING *), granted AS (INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) SELECT $6,$2,$3,$1,$4,$9::jsonb,false FROM created), bootstrap AS (INSERT INTO zasp_core_payloads(organization_id,workspace_id,environment_id,operation,payload) SELECT $2,$3,$1,'session_bootstrap:'||$6,jsonb_build_object('correlation_id',$5::text) FROM created), controls AS (INSERT INTO zasp_data_controls(organization_id,workspace_id,environment_id,environment_class,collection_mode,retention_days,deletion_enabled) SELECT organization_id,workspace_id,id,environment_class,'metadata_only',30,true FROM created), audited AS (INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata) SELECT $2,$3,id,$5,$6,'environment.create',id,'succeeded','{}'::jsonb FROM created) SELECT jsonb_build_object('id',id,'organization_id',organization_id,'workspace_id',workspace_id,'name',name,'environment_class',environment_class,'version',version,'audit_correlation_id',$5::text) FROM created`
+ 	postgresUpdateEnvironmentSQL         = `WITH updated AS (UPDATE zasp_environments SET name=$5,version=version+1 WHERE organization_id=$1 AND workspace_id=$2 AND id=$3 AND id=$4 AND version=$6 RETURNING *), audited AS (INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata) SELECT $1,workspace_id,id,$7,$8,'environment.update',$3,'succeeded','{}'::jsonb FROM updated), result AS (SELECT jsonb_build_object('id',id,'organization_id',organization_id,'workspace_id',workspace_id,'name',name,'environment_class',environment_class,'version',version,'audit_correlation_id',$7::text) AS payload FROM updated) SELECT COALESCE((SELECT payload FROM result),jsonb_build_object('_mutation_state',CASE WHEN EXISTS(SELECT 1 FROM zasp_environments WHERE organization_id=$1 AND workspace_id=$2 AND id=$3 AND id=$4) THEN 'conflict' ELSE 'not_found' END))`
+ 	postgresUpdateMemberRoleSQL          = `WITH updated AS (UPDATE zasp_identity_memberships SET role=$3,version=version+1 WHERE organization_id=$1 AND principal_id=$2 AND version=$4 AND active RETURNING *), revoked AS (UPDATE zasp_product_sessions SET revoked_at=COALESCE(revoked_at,transaction_timestamp()),version=version+1 WHERE organization_id=$1 AND principal_id=$2 AND revoked_at IS NULL AND EXISTS(SELECT 1 FROM updated)), audited AS (INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata) SELECT $1,$5,$6,$7,$8,'member.role.update',$2,'succeeded',jsonb_build_object('role',$3::text) FROM updated), result AS (SELECT jsonb_build_object('id',principal_id,'organization_id',organization_id,'organization_reference',organization_reference,'member_reference',member_reference,'role',role,'active',active,'version',version,'audit_correlation_id',$7::text) AS payload FROM updated) SELECT COALESCE((SELECT payload FROM result),jsonb_build_object('_mutation_state',CASE WHEN EXISTS(SELECT 1 FROM zasp_identity_memberships WHERE organization_id=$1 AND principal_id=$2) THEN 'conflict' ELSE 'not_found' END))`
+-	postgresUpsertGroupMappingSQL        = `WITH changed AS (INSERT INTO zasp_group_mappings(organization_id,group_reference,role,workspace_id,environment_id,version) SELECT $1,$2,$3,$4,$5,1 WHERE $6=0 ON CONFLICT(organization_id,group_reference) DO UPDATE SET role=excluded.role,workspace_id=excluded.workspace_id,environment_id=excluded.environment_id,version=zasp_group_mappings.version+1,updated_at=transaction_timestamp() WHERE zasp_group_mappings.version=$6 RETURNING *), revoked_sessions AS (UPDATE zasp_product_sessions SET revoked_at=COALESCE(revoked_at,transaction_timestamp()),version=CASE WHEN revoked_at IS NULL THEN version+1 ELSE version END WHERE organization_id=$1 AND revoked_at IS NULL AND EXISTS(SELECT 1 FROM changed) RETURNING session_id), revoked_tokens AS (UPDATE zasp_product_api_tokens SET revoked_at=COALESCE(revoked_at,transaction_timestamp()),version=CASE WHEN revoked_at IS NULL THEN version+1 ELSE version END WHERE organization_id=$1 AND revoked_at IS NULL AND EXISTS(SELECT 1 FROM changed) RETURNING id), audited AS (INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata) SELECT $1,$4,$5,$7,$8,'group_mapping.update',$9,'succeeded',jsonb_build_object('group_reference',$2::text,'revoked_sessions',(SELECT count(*) FROM revoked_sessions),'revoked_tokens',(SELECT count(*) FROM revoked_tokens)) FROM changed), result AS (SELECT jsonb_build_object('group_reference',group_reference,'role',role,'workspace_id',workspace_id,'environment_id',environment_id,'version',version,'audit_correlation_id',$7::text) AS payload FROM changed) SELECT COALESCE((SELECT payload FROM result),jsonb_build_object('_mutation_state',CASE WHEN EXISTS(SELECT 1 FROM zasp_group_mappings WHERE organization_id=$1 AND group_reference=$2) THEN 'conflict' ELSE 'not_found' END))`
++	postgresUpsertGroupMappingSQL        = `WITH created AS (INSERT INTO zasp_group_mappings(organization_id,group_reference,role,workspace_id,environment_id,version) SELECT $1,$2,$3,$4,$5,1 WHERE $6=0 ON CONFLICT(organization_id,group_reference) DO NOTHING RETURNING *), updated AS (UPDATE zasp_group_mappings SET role=$3,workspace_id=$4,environment_id=$5,version=version+1,updated_at=transaction_timestamp() WHERE $6>0 AND organization_id=$1 AND group_reference=$2 AND version=$6 RETURNING *), changed AS (SELECT * FROM created UNION ALL SELECT * FROM updated), revoked_sessions AS (UPDATE zasp_product_sessions SET revoked_at=COALESCE(revoked_at,transaction_timestamp()),version=CASE WHEN revoked_at IS NULL THEN version+1 ELSE version END WHERE organization_id=$1 AND revoked_at IS NULL AND EXISTS(SELECT 1 FROM changed) RETURNING session_id), revoked_tokens AS (UPDATE zasp_product_api_tokens SET revoked_at=COALESCE(revoked_at,transaction_timestamp()),version=CASE WHEN revoked_at IS NULL THEN version+1 ELSE version END WHERE organization_id=$1 AND revoked_at IS NULL AND EXISTS(SELECT 1 FROM changed) RETURNING id), audited AS (INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata) SELECT $1,$4,$5,$7,$8,'group_mapping.update',$9,'succeeded',jsonb_build_object('group_reference',$2::text,'revoked_sessions',(SELECT count(*) FROM revoked_sessions),'revoked_tokens',(SELECT count(*) FROM revoked_tokens)) FROM changed), result AS (SELECT jsonb_build_object('group_reference',group_reference,'role',role,'workspace_id',workspace_id,'environment_id',environment_id,'version',version,'audit_correlation_id',$7::text) AS payload FROM changed) SELECT COALESCE((SELECT payload FROM result),jsonb_build_object('_mutation_state',CASE WHEN EXISTS(SELECT 1 FROM zasp_group_mappings WHERE organization_id=$1 AND group_reference=$2) THEN 'conflict' ELSE 'not_found' END))`
+ 	postgresCreateAPITokenSQL            = `WITH mutex AS MATERIALIZED (SELECT pg_advisory_xact_lock(hashtextextended($1||chr(31)||$2||chr(31)||'createAPIToken'||chr(31)||$3,0))), authorized AS MATERIALIZED (SELECT 1 FROM zasp_authorized_scopes scope JOIN zasp_workspaces workspace ON workspace.organization_id=scope.organization_id AND workspace.id=scope.workspace_id JOIN zasp_environments environment ON environment.organization_id=scope.organization_id AND environment.workspace_id=scope.workspace_id AND environment.id=scope.environment_id CROSS JOIN mutex WHERE scope.principal_id=$2 AND scope.organization_id=$1 AND scope.workspace_id=$7 AND scope.environment_id=$8), previous AS MATERIALIZED (SELECT response,request_digest FROM zasp_admin_idempotency JOIN authorized ON true WHERE organization_id=$1 AND principal_id=$2 AND operation='createAPIToken' AND idempotency_key=$3), created AS (INSERT INTO zasp_product_api_tokens(token_digest,id,name,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at,audit_correlation_id) SELECT $5,$6,$9,$2,$1,$7,$8,$10::jsonb,$11,$12 FROM authorized WHERE NOT EXISTS(SELECT 1 FROM previous) RETURNING *), granted AS (INSERT INTO zasp_api_token_reveal_grants(organization_id,workspace_id,environment_id,principal_id,token_id,grant_id,operation,ciphertext,nonce,authentication_tag,expires_at) SELECT $1,$7,$8,$2,$6,$13,'createAPIToken',$15,$16,$17,$14 FROM created RETURNING grant_id,expires_at), audited AS (INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata) SELECT $1,$7,$8,$12,$2,'api_token.create',$6,'succeeded','{}'::jsonb FROM granted), claimed AS (INSERT INTO zasp_admin_idempotency(organization_id,principal_id,operation,idempotency_key,request_digest,workspace_id,environment_id,grant_id,response) SELECT $1,$2,'createAPIToken',$3,$4,$7,$8,$13,jsonb_build_object('grant_id',$13::text,'expires_at',$14,'token',jsonb_build_object('id',created.id,'name',created.name,'principal_id',created.principal_id,'workspace_id',created.workspace_id,'environment_id',created.environment_id,'permissions',created.permissions,'created_at',created.created_at,'expires_at',created.expires_at,'last_used_at',created.last_used_at,'revoked_at',created.revoked_at,'version',created.version,'audit_correlation_id',created.audit_correlation_id)) FROM created RETURNING response) SELECT CASE WHEN EXISTS(SELECT 1 FROM previous WHERE request_digest<>$4) THEN jsonb_build_object('_mutation_state','conflict') ELSE COALESCE((SELECT response FROM previous),(SELECT response FROM claimed),jsonb_build_object('_mutation_state','not_found')) END`
+ 	postgresRotateAPITokenSQL            = `WITH mutex AS MATERIALIZED (SELECT pg_advisory_xact_lock(hashtextextended($1||chr(31)||$2||chr(31)||'rotateAPIToken'||chr(31)||$3,0))), scoped AS MATERIALIZED (SELECT 1 AS authorized FROM zasp_product_api_tokens token JOIN zasp_authorized_scopes scope ON scope.principal_id=$2 AND scope.organization_id=token.organization_id AND scope.workspace_id=token.workspace_id AND scope.environment_id=token.environment_id CROSS JOIN mutex WHERE token.organization_id=$1 AND token.workspace_id=$10 AND token.environment_id=$11 AND token.id=$5), previous AS MATERIALIZED (SELECT idempotency.response,idempotency.request_digest FROM zasp_admin_idempotency idempotency JOIN scoped ON true WHERE idempotency.organization_id=$1 AND idempotency.principal_id=$2 AND idempotency.operation='rotateAPIToken' AND idempotency.idempotency_key=$3), revoked AS (UPDATE zasp_product_api_tokens SET revoked_at=transaction_timestamp(),version=version+1 WHERE organization_id=$1 AND workspace_id=$10 AND environment_id=$11 AND id=$5 AND version=$6 AND revoked_at IS NULL AND NOT EXISTS(SELECT 1 FROM previous) RETURNING *), destroyed AS (UPDATE zasp_api_token_reveal_grants SET acknowledged_at=COALESCE(acknowledged_at,transaction_timestamp()),ciphertext=NULL,nonce=NULL,authentication_tag=NULL WHERE organization_id=$1 AND token_id=$5 AND acknowledged_at IS NULL AND EXISTS(SELECT 1 FROM revoked)), created AS (INSERT INTO zasp_product_api_tokens(token_digest,id,name,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at,audit_correlation_id) SELECT $7,$8,name,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at,$9 FROM revoked RETURNING *), granted AS (INSERT INTO zasp_api_token_reveal_grants(organization_id,workspace_id,environment_id,principal_id,token_id,grant_id,operation,ciphertext,nonce,authentication_tag,expires_at) SELECT $1,$10,$11,$2,$8,$12,'rotateAPIToken',$14,$15,$16,$13 FROM created RETURNING grant_id), audited AS (INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata) SELECT $1,$10,$11,$9,$2,'api_token.rotate',$5,'succeeded',jsonb_build_object('replacement_id',$8::text) FROM granted), claimed AS (INSERT INTO zasp_admin_idempotency(organization_id,principal_id,operation,idempotency_key,request_digest,workspace_id,environment_id,grant_id,response) SELECT $1,$2,'rotateAPIToken',$3,$4,$10,$11,$12,jsonb_build_object('grant_id',$12::text,'expires_at',$13,'token',jsonb_build_object('id',created.id,'name',created.name,'principal_id',created.principal_id,'workspace_id',created.workspace_id,'environment_id',created.environment_id,'permissions',created.permissions,'created_at',created.created_at,'expires_at',created.expires_at,'last_used_at',created.last_used_at,'revoked_at',created.revoked_at,'version',created.version,'audit_correlation_id',created.audit_correlation_id)) FROM created RETURNING response) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM scoped) THEN jsonb_build_object('_mutation_state','not_found') WHEN EXISTS(SELECT 1 FROM previous WHERE request_digest<>$4) THEN jsonb_build_object('_mutation_state','conflict') ELSE COALESCE((SELECT response FROM previous),(SELECT response FROM claimed),jsonb_build_object('_mutation_state','conflict')) END`
+ 	postgresRevokeAPITokenSQL            = `WITH scoped AS MATERIALIZED (SELECT token.* FROM zasp_product_api_tokens token JOIN zasp_authorized_scopes scope ON scope.principal_id=$7 AND scope.organization_id=token.organization_id AND scope.workspace_id=token.workspace_id AND scope.environment_id=token.environment_id WHERE token.organization_id=$1 AND token.workspace_id=$2 AND token.environment_id=$3 AND token.id=$4), revoked AS (UPDATE zasp_product_api_tokens SET revoked_at=COALESCE(revoked_at,transaction_timestamp()),version=CASE WHEN revoked_at IS NULL THEN version+1 ELSE version END WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND id=$4 AND version=$5 AND EXISTS(SELECT 1 FROM scoped) RETURNING *), destroyed AS (UPDATE zasp_api_token_reveal_grants SET acknowledged_at=COALESCE(acknowledged_at,transaction_timestamp()),ciphertext=NULL,nonce=NULL,authentication_tag=NULL WHERE organization_id=$1 AND workspace_id=$2 AND environment_id=$3 AND token_id=$4 AND acknowledged_at IS NULL AND EXISTS(SELECT 1 FROM revoked)), audited AS (INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata) SELECT $1,workspace_id,environment_id,$6,$7,'api_token.revoke',$4,'succeeded','{}'::jsonb FROM revoked), result AS (SELECT jsonb_build_object('id',id,'name',name,'principal_id',principal_id,'workspace_id',workspace_id,'environment_id',environment_id,'permissions',permissions,'created_at',created_at,'expires_at',expires_at,'last_used_at',last_used_at,'revoked_at',revoked_at,'version',version,'audit_correlation_id',$6::text) AS payload FROM revoked) SELECT COALESCE((SELECT payload FROM result),jsonb_build_object('_mutation_state',CASE WHEN EXISTS(SELECT 1 FROM scoped) THEN 'conflict' ELSE 'not_found' END))`
+--- a/services/platform/apiserver/connector_rejection_transaction.go
++++ b/services/platform/apiserver/connector_rejection_transaction.go
+@@ -92,6 +92,18 @@
+ 	if err != nil {
+ 		return ErrRepositoryUnavailable
+ 	}
++	// Registered mapping updates change the mapping before revoking all active
++	// organization credentials. Lock mappings before the credential to avoid
++	// inversion with that writer; membership remains first for group writers.
++	// This order addresses contention with registered mapping writers; it does
++	// not assert that their statement snapshots include concurrently created
++	// credentials, or cover owner/bypass writes outside the product protocol.
++	if lock && identity.CredentialKind == CredentialBrowserSession {
++		var count int
++		if err = tx.QueryRow(ctx, `SELECT count(*) FROM (SELECT 1 FROM public.zasp_group_mappings WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3) ORDER BY group_reference FOR SHARE) locked`, args[:3]...).Scan(&count); err != nil {
++			return ErrRepositoryUnavailable
++		}
++	}
+ 	table := "public.zasp_product_sessions"
+ 	if identity.CredentialKind == CredentialBearerToken {
+ 		table = "public.zasp_product_api_tokens"
+@@ -122,12 +134,6 @@
+ 		// take membership FOR UPDATE before changing groups, so our membership
+ 		// lock serializes those writes. Positive mapping witnesses are retained;
+ 		// new mapping rows can only add grants, not remove the existing witness.
+-		if lock {
+-			var count int
+-			if err = tx.QueryRow(ctx, `SELECT count(*) FROM (SELECT 1 FROM public.zasp_group_mappings WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3) ORDER BY group_reference FOR SHARE) locked`, args[:3]...).Scan(&count); err != nil {
+-				return ErrRepositoryUnavailable
+-			}
+-		}
+ 		var allowed bool
+ 		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM public.zasp_identity_admin_effective_scopes($4,$1) s WHERE (s.organization_id,s.workspace_id,s.environment_id)=($1,$2,$3) AND s.permissions ? 'manage_workflows')`, args...).Scan(&allowed); err != nil {
+ 			return ErrRepositoryUnavailable
+--- a/services/platform/apiserver/group_mapping_update_postgres_test.go
++++ b/services/platform/apiserver/group_mapping_update_postgres_test.go
+@@ -47,6 +47,8 @@
+ 			t.Fatal(err)
+ 		}
+ 		cfg.User = "security_agent_v33_discovery_api_login"
++		trace := &mappingDeadlockTrace{codes: make(chan string, 4)}
++		cfg.Tracer = trace
+ 		api, err := pgx.ConnectConfig(ctx, cfg)
+ 		if err != nil {
+ 			t.Fatal(err)
+@@ -158,5 +160,6 @@
+ 		if json.Unmarshal(updated.Body.Bytes(), &value) != nil || value.Version != 2 || updated.Header().Get("ETag") != `"2"` {
+ 			t.Fatalf("update version response=%s", updated.Body)
+ 		}
++		exerciseGroupMappingReplacement(t, ctx, owner, api, repository, scope, invoke, freshSession, countAudit, trace)
+ 	})
+ }
+--- a/services/platform/apiserver/group_mapping_contention_postgres_test.go
++++ b/services/platform/apiserver/group_mapping_contention_postgres_test.go
+@@ -0,0 +1,254 @@
++package apiserver
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++
++	"github.com/jackc/pgx/v5"
++	"github.com/jackc/pgx/v5/pgconn"
++	"github.com/zasp-ai/zasp-sec/services/platform/domain"
++)
++
++func exerciseGroupMappingReplacement(t *testing.T, ctx context.Context, owner, api *pgx.Conn, repo *PostgresRepository, scope domain.Scope, invoke func(string, string, int) *httptest.ResponseRecorder, freshAdmin func(), auditCount func() int, trace *mappingDeadlockTrace) {
++	const group = "scim-group-test-mapping-regression"
++	const member = "pid_6a000092-0000-4000-8000-000000000092"
++	org, workspace, environment := scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()
++	exec := func(sql string, args ...any) {
++		t.Helper()
++		if _, err := owner.Exec(ctx, sql, args...); err != nil {
++			t.Fatal(err)
++		}
++	}
++	exec(`INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role) VALUES($2,$1,'organization-mapping-regression','member-mapping-group-only','read_only_viewer')`, org, member)
++	newGroupSession := func(wantWrite bool) (string, RequestIdentity) {
++		t.Helper()
++		var raw json.RawMessage
++		if err := api.QueryRow(ctx, `SELECT zasp_identity_admin_resolve_session('organization-mapping-regression','member-mapping-group-only','["scim-group-test-mapping-regression"]')`).Scan(&raw); err != nil {
++			t.Fatal(err)
++		}
++		permissions := []string{"view"}
++		if wantWrite {
++			permissions = append(permissions, "manage_workflows")
++		}
++		cookie, err := repo.CreateSession(ctx, SessionGrant{PrincipalID: integrationProductID(t, member), Scope: scope, Permissions: permissions, ExpiresAt: time.Now().UTC().Add(time.Hour)})
++		if err != nil {
++			t.Fatal(err)
++		}
++		identity, err := repo.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: cookie})
++		if err != nil || stringIn("manage_workflows", identity.Permissions...) != wantWrite {
++			t.Fatalf("group-only effective permissions=%v wantWrite=%t err=%v", identity.Permissions, wantWrite, err)
++		}
++		return cookie, identity
++	}
++	oldGroupCookie, _ := newGroupSession(false)
++	exec(`INSERT INTO zasp_product_api_tokens(token_digest,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES(digest('mapping-pat-old','sha256'),$4,$1,$2,$3,'["view"]',clock_timestamp()+interval '1 hour')`, org, workspace, environment, member)
++	freshAdmin()
++	promoted := invoke(group, "security_engineer", 2)
++	if promoted.Code != 200 || promoted.Header().Get("ETag") != `"3"` || auditCount() != 3 {
++		t.Fatalf("successive update: %d %s", promoted.Code, promoted.Body)
++	}
++	var patRevoked bool
++	if err := owner.QueryRow(ctx, `SELECT revoked_at IS NOT NULL FROM zasp_product_api_tokens WHERE token_digest=digest('mapping-pat-old','sha256')`).Scan(&patRevoked); err != nil || !patRevoked {
++		t.Fatalf("mapping update PAT revocation=%t err=%v", patRevoked, err)
++	}
++	if _, err := repo.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: oldGroupCookie}); !errors.Is(err, ErrRepositoryAuthentication) {
++		t.Fatalf("mapping update must revoke group session: %v", err)
++	}
++	groupCookie, groupIdentity := newGroupSession(true)
++	t.Log("successive version2→3 update audited/revoked session+PAT; real resolve/CreateSession/Authenticate changes group-only effective manage_workflows from false to true")
++	freshAdmin()
++	for _, tc := range []struct {
++		name            string
++		version, status int
++	}{{group, 2, 409}, {group, 0, 409}, {"scim-group-test-missing", 1, 404}, {"scim-group-test-foreign", 1, 404}} {
++		w := invoke(tc.name, "read_only_viewer", tc.version)
++		if w.Code != tc.status || auditCount() != 3 {
++			t.Fatalf("denied update group=%s version=%d status=%d want%d body=%s", tc.name, tc.version, w.Code, tc.status, w.Body)
++		}
++	}
++	t.Run("audit_failure_rolls_back_mapping_and_credentials", func(t *testing.T) {
++		exec(`INSERT INTO zasp_product_api_tokens(token_digest,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES(digest('mapping-pat-rollback','sha256'),$4,$1,$2,$3,'["view"]',clock_timestamp()+interval '1 hour')`, org, workspace, environment, member)
++		w := connectorRejectionBlockedHTTP(t, ctx, owner, api, `LOCK TABLE zasp_admin_audit IN SHARE MODE`, nil, func(context.Context) *httptest.ResponseRecorder { return invoke(group, "read_only_viewer", 3) }, nil, true)
++		var role string
++		var version int
++		var revoked bool
++		if err := owner.QueryRow(ctx, `SELECT role,version FROM zasp_group_mappings WHERE organization_id=$1 AND group_reference=$2`, org, group).Scan(&role, &version); err != nil {
++			t.Fatal(err)
++		}
++		if err := owner.QueryRow(ctx, `SELECT revoked_at IS NOT NULL FROM zasp_product_api_tokens WHERE token_digest=digest('mapping-pat-rollback','sha256')`).Scan(&revoked); err != nil {
++			t.Fatal(err)
++		}
++		_, authErr := repo.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: groupCookie})
++		if w.Code != 503 || role != "security_engineer" || version != 3 || auditCount() != 3 || revoked || authErr != nil {
++			t.Fatalf("atomic rollback status=%d role=%s version=%d audit=%d PATrevoked=%t session=%v", w.Code, role, version, auditCount(), revoked, authErr)
++		}
++	})
++	t.Run("registered_mapper_and_rejection_lock_order", func(t *testing.T) {
++		call, cancel := context.WithTimeout(ctx, 12*time.Second)
++		defer cancel()
++		cfg := api.Config().Copy()
++		cfg.Tracer = trace
++		auditConn, err := pgx.ConnectConfig(call, cfg)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer auditConn.Close(context.Background())
++		locked, release := make(chan struct{}), make(chan struct{})
++		var once sync.Once
++		unblock := func() { once.Do(func() { close(release) }) }
++		defer unblock()
++		driver := &mappingPauseDriver{connectorRejectionPGDriver: connectorRejectionPGDriver{&integrationPostgresDriver{connection: auditConn}}, locked: locked, release: release}
++		db, err := NewPostgresJSONDatabase(driver)
++		if err != nil {
++			t.Fatal(err)
++		}
++		auditRepo, err := NewPostgresRepository(db)
++		if err != nil {
++			t.Fatal(err)
++		}
++		workflow, err := newWorkflowHTTPHandler(auditRepo, []byte(strings.Repeat("k", 32)), nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++		router, err := NewComposition(Dependencies{Session: handlerResponse("s"), Identity: handlerResponse("i"), Inventory: handlerResponse("v"), Risk: handlerResponse("r"), Workflow: workflow, Connector: handlerResponse("c")})
++		if err != nil {
++			t.Fatal(err)
++		}
++		mounted, err := NewProductMiddleware(ProductSecurity{PublicOrigin: "https://console.example.test", MaximumBodyBytes: 16384, Authenticate: auditRepo.Authenticate, GenerateCorrelationID: func() string { return "pid_8c000002-0000-4000-8000-000000000002" }}, router)
++		if err != nil {
++			t.Fatal(err)
++		}
++		auditDone, mapperDone := make(chan *httptest.ResponseRecorder, 1), make(chan *httptest.ResponseRecorder, 1)
++		auditJoined, mapperStarted, mapperJoined := false, false, false
++		defer func() {
++			unblock()
++			cancel()
++			if !auditJoined {
++				select {
++				case <-auditDone:
++				case <-time.After(5 * time.Second):
++					t.Error("audit goroutine failed join")
++				}
++			}
++			if mapperStarted && !mapperJoined {
++				select {
++				case <-mapperDone:
++				case <-time.After(5 * time.Second):
++					t.Error("mapper goroutine failed join")
++				}
++			}
++		}()
++		go func() {
++			r := httptest.NewRequest("POST", "/api/v1/integrations", strings.NewReader(`{"connector_key":"github","name":"rejected","configuration":{"provider_url":"https://invalid.test"}}`)).WithContext(call)
++			r.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: groupCookie})
++			r.Header.Set(expectedScopeHeader, org+"/"+workspace+"/"+environment)
++			r.Header.Set("Origin", "https://console.example.test")
++			r.Header.Set("X-CSRF-Token", groupIdentity.CSRFToken)
++			r.Header.Set("Content-Type", "application/json")
++			r.Header.Set("Idempotency-Key", "mapping-contention-rejection")
++			w := httptest.NewRecorder()
++			mounted.ServeHTTP(w, r)
++			auditDone <- w
++		}()
++		select {
++		case <-locked:
++		case <-call.Done():
++			t.Fatal("audit did not reach actual credential share lock")
++		}
++		mapperStarted = true
++		go func() { mapperDone <- invoke(group, "read_only_viewer", 3) }()
++		connectorRejectionAwaitBlocker(t, call, owner, api.PgConn().PID(), auditConn.PgConn().PID())
++		t.Log("observed actual registered mapper backend blocked by rejection transaction after real credential share lock")
++		unblock()
++		var a, m *httptest.ResponseRecorder
++		select {
++		case a = <-auditDone:
++			auditJoined = true
++		case <-call.Done():
++			t.Fatal("audit did not join")
++		}
++		select {
++		case m = <-mapperDone:
++			mapperJoined = true
++		case <-call.Done():
++			t.Fatal("mapper did not join")
++		}
++		deadlock := ""
++		select {
++		case deadlock = <-trace.codes:
++		default:
++		}
++		if a.Code != 400 || m.Code != 200 || deadlock != "" {
++			t.Fatalf("mapping/rejection lock order: rejectionHTTP=%d want400 mapperHTTP=%d want200 observed_SQLSTATE=%q (40P01 proves deadlock; other failure is not intended RED)", a.Code, m.Code, deadlock)
++		}
++	})
++}
++
++type mappingDeadlockTrace struct{ codes chan string }
++
++func (tr *mappingDeadlockTrace) TraceQueryStart(ctx context.Context, _ *pgx.Conn, _ pgx.TraceQueryStartData) context.Context {
++	return ctx
++}
++func (tr *mappingDeadlockTrace) TraceQueryEnd(_ context.Context, _ *pgx.Conn, data pgx.TraceQueryEndData) {
++	var e *pgconn.PgError
++	if errors.As(data.Err, &e) && e.Code == "40P01" {
++		select {
++		case tr.codes <- e.Code:
++		default:
++		}
++	}
++}
++
++type mappingPauseDriver struct {
++	connectorRejectionPGDriver
++	locked  chan struct{}
++	release <-chan struct{}
++}
++
++func (d *mappingPauseDriver) BeginReadCommitted(ctx context.Context) (pgx.Tx, error) {
++	tx, err := d.connectorRejectionPGDriver.BeginReadCommitted(ctx)
++	if err != nil {
++		return nil, err
++	}
++	return &mappingPauseTx{Tx: tx, ctx: ctx, locked: d.locked, release: d.release}, nil
++}
++
++type mappingPauseTx struct {
++	pgx.Tx
++	ctx     context.Context
++	locked  chan struct{}
++	release <-chan struct{}
++}
++
++func (tx *mappingPauseTx) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
++	row := tx.Tx.QueryRow(ctx, sql, args...)
++	if strings.Contains(sql, "FROM public.zasp_product_sessions") && strings.HasSuffix(sql, " FOR SHARE") {
++		return mappingPauseRow{Row: row, tx: tx}
++	}
++	return row
++}
++
++type mappingPauseRow struct {
++	pgx.Row
++	tx *mappingPauseTx
++}
++
++func (r mappingPauseRow) Scan(dest ...any) error {
++	if err := r.Row.Scan(dest...); err != nil {
++		return err
++	}
++	close(r.tx.locked)
++	select {
++	case <-r.tx.release:
++		return nil
++	case <-r.tx.ctx.Done():
++		return r.tx.ctx.Err()
++	}
++}

@@ -1,0 +1,214 @@
+diff --git a/services/platform/migrations/sql/fragments/security_agent_attack_lab_links.sql b/services/platform/migrations/sql/fragments/security_agent_attack_lab_links.sql
+index d9759271..864d176f 100644
+--- a/services/platform/migrations/sql/fragments/security_agent_attack_lab_links.sql
++++ b/services/platform/migrations/sql/fragments/security_agent_attack_lab_links.sql
+@@ -104,14 +104,23 @@ END $execute$;
+ GRANT EXECUTE ON FUNCTION public.zasp_sa_attack_lab_execute_run(text,text,text,text,text,text,text,text,text,text) TO zasp_security_agent_worker;
+ 
+ CREATE FUNCTION public.zasp_sa_attack_lab_run_kind(o text,w text,e text,r text,worker_value text,lease_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog,public AS $kind$
+-DECLARE b jsonb;
++DECLARE action_value text;
+ BEGIN
+  IF NOT public.zasp_sa_attack_lab_guard() OR NOT public.zasp_security_agent_principal_ready('zasp_security_agent_worker') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='attack lab route unavailable';END IF;
+- SELECT d.body INTO b FROM public.zasp_security_agent_runs run JOIN public.zasp_security_agent_definitions d USING(organization_id,workspace_id,environment_id,definition_id)
+- WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id)=(o,w,e,r) AND d.version=run.definition_version
+- AND ((run.lease_owner,run.lease_token)=(worker_value,lease_value) AND run.lease_expires_at>clock_timestamp() OR EXISTS(SELECT 1 FROM public.zasp_sa_attack_lab_links l WHERE (l.organization_id,l.workspace_id,l.environment_id,l.run_id,l.dispatch_worker,l.dispatch_lease_digest)=(o,w,e,r,worker_value,digest(convert_to(lease_value,'UTF8'),'sha256'))));
+- IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab route lease rejected';END IF;
+- RETURN jsonb_build_object('attack_lab',b->'allowed_actions'='["start_attack_lab"]'::jsonb);
++ IF NOT COALESCE(public.zasp_valid_product_id(o) AND public.zasp_valid_product_id(w) AND public.zasp_valid_product_id(e) AND public.zasp_valid_product_id(r) AND length(worker_value) BETWEEN 1 AND 128 AND length(lease_value) BETWEEN 16 AND 128,false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab route input rejected';END IF;
++ -- Routing discloses only the action family to the registered worker. It is
++ -- not fresh-work authorization: the chosen operation proves its live lease
++ -- or matches the complete immutable receipt before returning any payload.
++ -- Acceptance/failure may already have cleared the lease. Never classify that
++ -- receipt using a later definition version.
++ SELECT COALESCE(p.plan->'steps'->0->>'action',d.body->'allowed_actions'->>0,h.definition->'allowed_actions'->>0) INTO action_value
++ FROM public.zasp_security_agent_runs run
++ LEFT JOIN public.zasp_security_agent_plans p ON (p.organization_id,p.workspace_id,p.environment_id,p.run_id,p.definition_id,p.definition_version)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id,run.definition_id,run.definition_version)
++ LEFT JOIN public.zasp_security_agent_definitions d ON (d.organization_id,d.workspace_id,d.environment_id,d.definition_id,d.version)=(run.organization_id,run.workspace_id,run.environment_id,run.definition_id,run.definition_version)
++ LEFT JOIN public.zasp_security_agent_definition_versions h ON (h.organization_id,h.workspace_id,h.environment_id,h.definition_id,h.version)=(run.organization_id,run.workspace_id,run.environment_id,run.definition_id,run.definition_version)
++ WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id)=(o,w,e,r);
++ IF NOT FOUND OR action_value IS NULL THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab route run rejected';END IF;
++ RETURN jsonb_build_object('attack_lab',action_value='start_attack_lab');
+ END $kind$;
+ GRANT EXECUTE ON FUNCTION public.zasp_sa_attack_lab_run_kind(text,text,text,text,text,text) TO zasp_security_agent_worker;
+ 
+diff --git a/services/platform/migrations/security_agent_attack_lab_release.go b/services/platform/migrations/security_agent_attack_lab_release.go
+index fd18f88f..99b4710c 100644
+--- a/services/platform/migrations/security_agent_attack_lab_release.go
++++ b/services/platform/migrations/security_agent_attack_lab_release.go
+@@ -28,7 +28,7 @@ var securityAgentAttackLabPlannerSQL string
+ var securityAgentAttackLabLinksSQL string
+ 
+ func SecurityAgentAttackLabFingerprint() string {
+-	return "95b582775ad0e6908861d890f62a1f56832e16103bb8845cd31685903d9b75ad"
++	return "797b6bdf674dd33b0a2459e12f10660a262a0a365b213944db3bb4f2469849fd"
+ }
+ 
+ func ProductionSecurityAgentAttackLab() Metadata {
+diff --git a/services/platform/apiserver/security_agent_attack_lab_replay_postgres_test.go b/services/platform/apiserver/security_agent_attack_lab_replay_postgres_test.go
+new file mode 100644
+index 00000000..d9506485
+--- /dev/null
++++ b/services/platform/apiserver/security_agent_attack_lab_replay_postgres_test.go
+@@ -0,0 +1,161 @@
++package apiserver
++
++import (
++	"context"
++	"encoding/json"
++	"fmt"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/jackc/pgx/v5"
++)
++
++// Records the production database response without replacing its behavior.
++type attackLabReplayDatabase struct {
++	*PostgresJSONDatabase
++	last json.RawMessage
++}
++
++func (d *attackLabReplayDatabase) QueryJSON(ctx context.Context, q string, args ...any) (json.RawMessage, error) {
++	raw, err := d.PostgresJSONDatabase.QueryJSON(ctx, q, args...)
++	d.last = append(json.RawMessage(nil), raw...)
++	return raw, err
++}
++
++// The classifier must not require the lease that a committed receipt cleared.
++// Fresh operations and stale Prepare still need their operation's own authority.
++func TestSecurityAgentAttackLabRepositoryReceiptReplayPostgres(t *testing.T) {
++	runVersionedExistingTestFixture(t, func(ctx context.Context, owner, api *pgx.Conn, o, w, e, testID, actor string) {
++		runner := precisionMigrationRunner(t, owner)
++		if err := runner.UpProductionCompliance(ctx); err != nil {
++			t.Fatal(err)
++		}
++		if err := runner.UpProductionSecurityAgentAttackLab(ctx); err != nil {
++			t.Fatal(err)
++		}
++		const source = "pid_8a400001-0000-4000-8000-000000000001"
++		if _, err := owner.Exec(ctx, `INSERT INTO zasp_red_team_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,requested_by,state,attempt,input_digest,verdict,evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at)
++ VALUES($1,$2,$3,$4,$5,1,$6,'complete',1,digest('replay-source','sha256'),'fail','s3://fixture-bucket/replay-source','replay-source','source-version',digest('replay-evidence','sha256'),100,clock_timestamp());
++ INSERT INTO zasp_red_team_attempts(organization_id,workspace_id,environment_id,run_id,attempt,input_digest,verdict,objective,behavior,evidence,evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at)
++ SELECT organization_id,workspace_id,environment_id,run_id,attempt,input_digest,verdict,'controlled objective','controlled behavior','[]',evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at FROM zasp_red_team_runs WHERE run_id=$4`, pgx.QueryExecModeSimpleProtocol, o, w, e, source, testID, actor); err != nil {
++			t.Fatal(err)
++		}
++		config := owner.Config().Copy()
++		config.User = "security_agent_v33_worker_login"
++		worker, err := pgx.ConnectConfig(ctx, config)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer worker.Close(context.Background())
++		database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: worker})
++		if err != nil {
++			t.Fatal(err)
++		}
++		recording := &attackLabReplayDatabase{PostgresJSONDatabase: database}
++		repository, err := NewSecurityAgentWorkerRepository(recording)
++		if err != nil {
++			t.Fatal(err)
++		}
++		const workerID, lease = "attack-lab-replay-worker", "attack-lab-replay-original-lease"
++		index := 0
++		for _, action := range []string{"start_attack_lab", "run_test", "rerun_test"} {
++			for _, operation := range []string{"accept", "fail", "prepare"} {
++				index++
++				t.Run(action+"_"+operation, func(t *testing.T) {
++					run := fmt.Sprintf("pid_8a4100%02d-0000-4000-8000-000000000001", index)
++					finding := fmt.Sprintf("pid_8a4200%02d-0000-4000-8000-000000000001", index)
++					approval := fmt.Sprintf("pid_8a4300%02d-0000-4000-8000-000000000001", index)
++					audit := fmt.Sprintf("pid_8a4400%02d-0000-4000-8000-000000000001", index)
++					correlation := fmt.Sprintf("pid_8a4500%02d-0000-4000-8000-000000000001", index)
++					if _, err := owner.Exec(ctx, `UPDATE zasp_security_agent_definitions SET version=version+1,body=jsonb_set(body,'{definition_version}',to_jsonb(version+1)) WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, o, w, e); err != nil {
++						t.Fatal(err)
++					}
++					seedExistingTestPreparation(t, ctx, owner, o, w, e, testID, actor, run, finding, action, workerID, lease)
++					if _, err := owner.Exec(ctx, `UPDATE zasp_security_agent_definitions SET body=jsonb_set(body,'{verification_kind}',to_jsonb(CASE WHEN $4='start_attack_lab' THEN 'attack_lab_run' ELSE 'test_run' END)) WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3);
++ INSERT INTO zasp_security_agent_definition_versions(organization_id,workspace_id,environment_id,definition_id,version,activation,definition,definition_digest,actor_id) SELECT organization_id,workspace_id,environment_id,definition_id,version,activation,body,digest(convert_to(body::text,'UTF8'),'sha256'),$5 FROM zasp_security_agent_definitions WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, pgx.QueryExecModeSimpleProtocol, o, w, e, action, actor); err != nil {
++						t.Fatal(err)
++					}
++					claim := SecurityAgentRunClaim{OrganizationID: o, WorkspaceID: w, EnvironmentID: e, RunID: run, TriggerID: finding, State: "planning", Version: 2, Attempt: 1}
++					if err := owner.QueryRow(ctx, `SELECT definition_id,definition_version,lease_expires_at FROM zasp_security_agent_runs WHERE run_id=$1`, run).Scan(&claim.DefinitionID, &claim.DefinitionVersion, &claim.LeaseExpiresAt); err != nil {
++						t.Fatal(err)
++					}
++					claim.LeaseExpiresAt = claim.LeaseExpiresAt.UTC()
++					loaded, err := repository.LoadSecurityAgentPlannerContext(ctx, claim, workerID, lease)
++					if err != nil {
++						t.Fatal(err)
++					}
++					expires := time.Now().UTC().Add(4 * time.Minute)
++					invoke := func(c SecurityAgentRunClaim, token, model string) error {
++						switch operation {
++						case "accept":
++							_, err := repository.AcceptSecurityAgentPlannerCandidate(ctx, c, workerID, token, SecurityAgentPlannerSubmission{InputDigest: loaded.InputDigest, OutputDigest: "sha256:" + strings.Repeat("a", 64), Model: model, PolicyVersion: "fixture-policy", Summary: "Run configured action", Action: action, TargetID: testID}, approval, expires, audit, correlation)
++							return err
++						case "fail":
++							_, err := repository.FailSecurityAgentPlanner(ctx, c, workerID, token, SecurityAgentPlannerFailure{InputDigest: loaded.InputDigest, Model: model, PolicyVersion: "fixture-policy", ErrorCode: "planner_unavailable"}, audit, correlation)
++							return err
++						default:
++							_, err := repository.PrepareSecurityAgentRun(ctx, c, workerID, token, approval, expires, audit, correlation)
++							return err
++						}
++					}
++					snapshot := func() string { return existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run) }
++					before := snapshot()
++					if err := invoke(claim, "attack-lab-replay-wrong-lease", "fixture-model"); err == nil || snapshot() != before {
++						t.Fatalf("fresh work accepted wrong lease: %v", err)
++					}
++					for _, foreign := range []SecurityAgentRunClaim{func() SecurityAgentRunClaim {
++						c := claim
++						c.EnvironmentID = "pid_8affffff-0000-4000-8000-000000000001"
++						return c
++					}(), func() SecurityAgentRunClaim {
++						c := claim
++						c.RunID = "pid_8affffff-0000-4000-8000-000000000002"
++						return c
++					}()} {
++						if err := invoke(foreign, lease, "fixture-model"); err == nil || snapshot() != before {
++							t.Fatalf("foreign/missing run accepted: %v", err)
++						}
++					}
++					if err := invoke(claim, lease, "fixture-model"); err != nil {
++						t.Fatalf("first registered operation: %v", err)
++					}
++					first := append(json.RawMessage(nil), recording.last...)
++					before = snapshot()
++					if operation == "prepare" {
++						if err := invoke(claim, lease, "fixture-model"); err == nil || snapshot() != before {
++							t.Fatalf("stale Prepare authorized new work: %v", err)
++						}
++						return
++					}
++					if err := invoke(claim, lease, "fixture-model"); err != nil {
++						t.Errorf("lost-response receipt blocked by repository route: %v", err)
++					} else {
++						var expected, got map[string]any
++						json.Unmarshal(first, &expected)
++						json.Unmarshal(recording.last, &got)
++						expected["replayed"] = true
++						want, _ := json.Marshal(expected)
++						actual, _ := json.Marshal(got)
++						if !equalIntegrationJSON(want, actual) || snapshot() != before {
++							t.Errorf("retained response or authority changed: %s", recording.last)
++						}
++					}
++					if err := invoke(claim, lease, "altered-model"); err == nil || snapshot() != before {
++						t.Errorf("altered intent replayed: %v", err)
++					}
++					// A current definition edit must not reinterpret this exact-version receipt.
++					if _, err := owner.Exec(ctx, `UPDATE zasp_security_agent_definitions SET version=version+1,body=body||'{"allowed_actions":["update_finding_response"],"verification_kind":"finding_state"}'::jsonb WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, o, w, e); err != nil {
++						t.Fatal(err)
++					}
++					if err := invoke(claim, lease, "fixture-model"); err != nil || snapshot() != before {
++						t.Errorf("exact-version history replay refused: %v", err)
++					}
++					if _, err := owner.Exec(ctx, `UPDATE zasp_security_agent_definitions d SET version=h.version,body=h.definition FROM zasp_security_agent_definition_versions h WHERE (d.organization_id,d.workspace_id,d.environment_id,d.definition_id)=(h.organization_id,h.workspace_id,h.environment_id,h.definition_id) AND (h.organization_id,h.workspace_id,h.environment_id,h.version)=($1,$2,$3,$4)`, o, w, e, claim.DefinitionVersion); err != nil {
++						t.Fatal(err)
++					}
++				})
++			}
++		}
++	})
++}

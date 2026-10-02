@@ -1,0 +1,20 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","--test","deploy/production/attack-lab-workflow-readiness.test.mjs"]
+TAP version 13
+# Subtest: schema57 catalog readiness has fixed private network access and closed deployment authority
+ok 1 - schema57 catalog readiness has fixed private network access and closed deployment authority
+  ---
+  duration_ms: 1103.663167
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1181.699167
+
+Exit: 0 Signal: null

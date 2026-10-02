@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -269,18 +270,23 @@ func (s *sdkQueueClient) ReceiveJobMessages(ctx context.Context, queueURL string
 		return nil, errProvider
 	}
 	output, err := s.client.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
-		QueueUrl:              aws.String(queueURL),
-		MaxNumberOfMessages:   int32(maximum),
-		MessageAttributeNames: []string{"All"},
-		VisibilityTimeout:     5,
-		WaitTimeSeconds:       1,
+		QueueUrl:                    aws.String(queueURL),
+		MaxNumberOfMessages:         int32(maximum),
+		MessageAttributeNames:       []string{"All"},
+		MessageSystemAttributeNames: []types.MessageSystemAttributeName{types.MessageSystemAttributeNameApproximateReceiveCount},
+		VisibilityTimeout:           5,
+		WaitTimeSeconds:             1,
 	})
 	if err != nil || output == nil {
 		return nil, errProvider
 	}
 	result := make([]receivedMessage, 0, len(output.Messages))
 	for _, message := range output.Messages {
-		if message.Body == nil || message.MessageId == nil || message.ReceiptHandle == nil {
+		if message.Body == nil || message.MessageId == nil || message.ReceiptHandle == nil || len(message.Attributes) != 1 {
+			return nil, errProvider
+		}
+		receiveCount, err := strconv.Atoi(message.Attributes[string(types.MessageSystemAttributeNameApproximateReceiveCount)])
+		if err != nil || receiveCount < 1 || receiveCount > 1_000_000_000 {
 			return nil, errProvider
 		}
 		attributes, err := fromSDKMessageAttributes(message.MessageAttributes)
@@ -290,6 +296,7 @@ func (s *sdkQueueClient) ReceiveJobMessages(ctx context.Context, queueURL string
 		received := receivedMessage{
 			Body: *message.Body, MessageID: *message.MessageId,
 			ReceiptHandle: *message.ReceiptHandle, Attributes: attributes,
+			ReceiveCount: receiveCount,
 		}
 		if message.MD5OfBody != nil {
 			received.BodyDigest = *message.MD5OfBody

@@ -29,12 +29,14 @@ func TestRuntimeAcceptanceActualDaemonLostSuccessReplay(t *testing.T) {
 		t.Skip("requires owned isolated Linux daemon/PostgreSQL composition")
 	}
 	assertDaemonReplayContainer(t)
-	for _, profile := range []string{"tetragon-local-stream-v1", "tetragon-local-stream-v2"} {
-		t.Run(profile, func(t *testing.T) { exerciseRuntimeDaemonLostSuccessReplay(t, profile) })
+	for _, schema := range []int{48, 53} {
+		for _, profile := range []string{"tetragon-local-stream-v1", "tetragon-local-stream-v2"} {
+			t.Run(fmt.Sprintf("schema%d/%s", schema, profile), func(t *testing.T) { exerciseRuntimeDaemonLostSuccessReplay(t, profile, schema) })
+		}
 	}
 }
 
-func exerciseRuntimeDaemonLostSuccessReplay(t *testing.T, profile string) {
+func exerciseRuntimeDaemonLostSuccessReplay(t *testing.T, profile string, schema int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
 	defer cancel()
 	ownership := &daemonReplayOwnership{}
@@ -47,7 +49,11 @@ func exerciseRuntimeDaemonLostSuccessReplay(t *testing.T, profile string) {
 		t.Fatal(err)
 	}
 	defer admin.Close(context.Background())
-	migrateDaemonReplayDatabase(t, ctx, admin)
+	migrateDaemonReplayDatabase(t, ctx, admin, schema)
+	var migrated int
+	if err := admin.QueryRow(ctx, `SELECT max(version) FROM zasp_schema_versions`).Scan(&migrated); err != nil || migrated != schema {
+		t.Fatalf("daemon replay requires schema%d: actual=%d err=%v", schema, migrated, err)
+	}
 	identity := fixtureRequestIdentity(t)
 	identity.CredentialKind = CredentialBearerToken
 	scope := identity.Scope

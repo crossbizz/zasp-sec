@@ -1,0 +1,35 @@
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres/revoked_requester
+    security_agent_manual_claim_postgres_test.go:164: revoked_requester: earlier, later and foreign claims retained; invalid candidate stopped without new authority
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentManualClaimIsolationPostgresrevoked_requester2664623117/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres/disabled_control
+    security_agent_manual_claim_postgres_test.go:164: disabled_control: earlier, later and foreign claims retained; invalid candidate stopped without new authority
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestSecurityAgentManualClaimIsolationPostgresdisabled_control3023008127/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres/changed_definition
+    security_agent_manual_claim_postgres_test.go:164: changed_definition: earlier, later and foreign claims retained; invalid candidate stopped without new authority
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=84 data=/tmp/TestSecurityAgentManualClaimIsolationPostgreschanged_definition3499428490/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres/reclaimed_accounting
+    security_agent_manual_claim_postgres_test.go:164: reclaimed_accounting: earlier, later and foreign claims retained; invalid candidate stopped without new authority
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=114 data=/tmp/TestSecurityAgentManualClaimIsolationPostgresreclaimed_accounti3030004501/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres/post_write_permission_loss
+    security_agent_manual_claim_postgres_test.go:164: post_write_permission_loss: earlier, later and foreign claims retained; invalid candidate stopped without new authority
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=144 data=/tmp/TestSecurityAgentManualClaimIsolationPostgrespost_write_permiss1336618034/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres/expired_test_binding
+    security_agent_manual_claim_postgres_test.go:164: expired_test_binding: earlier, later and foreign claims retained; invalid candidate stopped without new authority
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=176 data=/tmp/TestSecurityAgentManualClaimIsolationPostgresexpired_test_bindi1896645791/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres/missing_attack_lab_proof
+    security_agent_manual_claim_postgres_test.go:164: missing_attack_lab_proof: earlier, later and foreign claims retained; invalid candidate stopped without new authority
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=206 data=/tmp/TestSecurityAgentManualClaimIsolationPostgresmissing_attack_lab3825941065/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres/missing_manual_receipt
+    security_agent_manual_claim_postgres_test.go:164: missing_manual_receipt: earlier, later and foreign claims retained; invalid candidate stopped without new authority
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=236 data=/tmp/TestSecurityAgentManualClaimIsolationPostgresmissing_manual_rec3466164529/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentManualClaimIsolationPostgres (40.89s)
+    --- PASS: TestSecurityAgentManualClaimIsolationPostgres/revoked_requester (5.18s)
+    --- PASS: TestSecurityAgentManualClaimIsolationPostgres/disabled_control (4.96s)
+    --- PASS: TestSecurityAgentManualClaimIsolationPostgres/changed_definition (4.98s)
+    --- PASS: TestSecurityAgentManualClaimIsolationPostgres/reclaimed_accounting (5.11s)
+    --- PASS: TestSecurityAgentManualClaimIsolationPostgres/post_write_permission_loss (5.44s)
+    --- PASS: TestSecurityAgentManualClaimIsolationPostgres/expired_test_binding (4.99s)
+    --- PASS: TestSecurityAgentManualClaimIsolationPostgres/missing_attack_lab_proof (5.17s)
+    --- PASS: TestSecurityAgentManualClaimIsolationPostgres/missing_manual_receipt (5.06s)
+PASS

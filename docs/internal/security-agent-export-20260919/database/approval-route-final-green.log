@@ -1,0 +1,32 @@
+$ /usr/local/bin/docker run --rm --name zasp-export-approval-route-final --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(NonExportRoute|Release)Postgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentExportNonExportRoutePostgres
+=== RUN   TestSecurityAgentExportNonExportRoutePostgres/existing_test
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportNonExportRoutePostgresexisting_test2302866642/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportNonExportRoutePostgres/attack_lab
+=== RUN   TestSecurityAgentExportNonExportRoutePostgres/attack_lab/production_truth
+=== RUN   TestSecurityAgentExportNonExportRoutePostgres/attack_lab/revoked_approver
+=== RUN   TestSecurityAgentExportNonExportRoutePostgres/attack_lab/wrong_scope_approver
+=== RUN   TestSecurityAgentExportNonExportRoutePostgres/attack_lab/stale_authentication
+=== RUN   TestSecurityAgentExportNonExportRoutePostgres/attack_lab/expired_lease
+=== RUN   TestSecurityAgentExportNonExportRoutePostgres/attack_lab/source_evidence_drift
+=== RUN   TestSecurityAgentExportNonExportRoutePostgres/attack_lab/definition_version_drift
+=== RUN   TestSecurityAgentExportNonExportRoutePostgres/attack_lab/production_write_declaration
+=== NAME  TestSecurityAgentExportNonExportRoutePostgres/attack_lab
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestSecurityAgentExportNonExportRoutePostgresattack_lab3410531838/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportNonExportRoutePostgres (16.39s)
+    --- PASS: TestSecurityAgentExportNonExportRoutePostgres/existing_test (7.09s)
+    --- PASS: TestSecurityAgentExportNonExportRoutePostgres/attack_lab (9.30s)
+        --- PASS: TestSecurityAgentExportNonExportRoutePostgres/attack_lab/production_truth (0.10s)
+        --- PASS: TestSecurityAgentExportNonExportRoutePostgres/attack_lab/revoked_approver (0.09s)
+        --- PASS: TestSecurityAgentExportNonExportRoutePostgres/attack_lab/wrong_scope_approver (0.09s)
+        --- PASS: TestSecurityAgentExportNonExportRoutePostgres/attack_lab/stale_authentication (0.09s)
+        --- PASS: TestSecurityAgentExportNonExportRoutePostgres/attack_lab/expired_lease (0.10s)
+        --- PASS: TestSecurityAgentExportNonExportRoutePostgres/attack_lab/source_evidence_drift (0.09s)
+        --- PASS: TestSecurityAgentExportNonExportRoutePostgres/attack_lab/definition_version_drift (0.08s)
+        --- PASS: TestSecurityAgentExportNonExportRoutePostgres/attack_lab/production_write_declaration (0.10s)
+=== RUN   TestSecurityAgentExportReleasePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=85 data=/tmp/TestSecurityAgentExportReleasePostgres3236930241/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportReleasePostgres (6.47s)
+PASS
+
+exit=0

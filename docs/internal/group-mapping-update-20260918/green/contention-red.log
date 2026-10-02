@@ -1,0 +1,17 @@
+4cc63218d2385797119eaf638c56dde42815c1fdc814293b18cfe35bdf458a81  /private/tmp/zasp-group-mapping-update-red.test
+TestGroupMappingExpectedVersionUpdateMountedPostgres
+=== RUN   TestGroupMappingExpectedVersionUpdateMountedPostgres
+    group_mapping_update_postgres_test.go:30: compiled56 checksum=f5871c564709034eaf89f325fcb732a3f3314ecc0ff95f7a0ec99f6d674ddfc1 fingerprint=8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced
+    group_mapping_update_postgres_test.go:131: positive create: registered=security_agent_v33_discovery_api_login security_admin/manage_identity HTTP200 role=security_engineer version1 audit1 session revoked
+    group_mapping_update_postgres_test.go:146: stale version0 conflict409 and foreign tenant target404 controls passed with no audit or foreign mapping change
+    group_mapping_contention_postgres_test.go:65: successive version2→3 update audited/revoked session+PAT; real resolve/CreateSession/Authenticate changes group-only effective manage_workflows from false to true
+=== RUN   TestGroupMappingExpectedVersionUpdateMountedPostgres/audit_failure_rolls_back_mapping_and_credentials
+=== RUN   TestGroupMappingExpectedVersionUpdateMountedPostgres/registered_mapper_and_rejection_lock_order
+    group_mapping_contention_postgres_test.go:168: observed actual registered mapper backend blocked by rejection transaction after real credential share lock
+    group_mapping_contention_postgres_test.go:189: mapping/rejection lock order: rejectionHTTP=400 want400 mapperHTTP=409 want200 observed_SQLSTATE="40P01" (40P01 proves deadlock; other failure is not intended RED)
+=== NAME  TestGroupMappingExpectedVersionUpdateMountedPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestGroupMappingExpectedVersionUpdateMountedPostgres3653149367/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestGroupMappingExpectedVersionUpdateMountedPostgres (5.98s)
+    --- PASS: TestGroupMappingExpectedVersionUpdateMountedPostgres/audit_failure_rolls_back_mapping_and_credentials (0.01s)
+    --- FAIL: TestGroupMappingExpectedVersionUpdateMountedPostgres/registered_mapper_and_rejection_lock_order (1.41s)
+FAIL

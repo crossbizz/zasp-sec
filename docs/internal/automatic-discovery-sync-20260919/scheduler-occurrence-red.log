@@ -1,0 +1,6 @@
+=== RUN   TestScheduledOccurrenceIdentitySurvivesExpiredLeaseReclaim
+    scheduler_runtime_test.go:28: reclaim changed occurrence identity: first=pid_f43e5316-3880-4005-8cc3-7b5de7fbd456/pid_9553331a-9421-4f9c-84b1-507d0f18f733/pid_20c1a1d2-8240-455b-8276-927ae0f521f7/2f4f87eba428a5ea3427acf449b4cfe505f5e062726c282261094786b7404ab9 reclaimed=pid_ffd9e9a4-1b98-409c-8b72-0d1089c3af71/pid_56df12a0-629e-4c83-8aff-c216c3065b59/pid_bea760d6-a8ba-44ff-865d-26ffa4d7bfa1/3a670b73cb9cc00c229dabd804b66137a5a60c1cfefbcdb21c95eeb44db201fc
+--- FAIL: TestScheduledOccurrenceIdentitySurvivesExpiredLeaseReclaim (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.018s
+FAIL

@@ -1,0 +1,11 @@
+{
+  "jobID": "pid_b348bcdc-9710-40ce-bcaa-77df9fcc6852",
+  "packageSHA256": "43ff3e89b9c67ad4d93bca33913ad157acfd651a361669521f4b9710e0efef6a",
+  "nativeJSONBytes": 760,
+  "restartReadableBytes": 770,
+  "grantReplayRefused": true,
+  "siblingDenied": true,
+  "foreignDenied": true,
+  "sourceChanged": true,
+  "provider": "controlled local SDK transport, NOT AWS"
+}

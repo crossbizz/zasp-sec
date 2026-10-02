@@ -1,0 +1,37 @@
+$ /usr/local/bin/docker run --rm --name zasp-export-db-review-p2-green --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(SettlementInterleave|SettlementTableGate|StoppedSettlement|Lifecycle|TwoScopes|Release)Postgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentExportLifecyclePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportLifecyclePostgres415461092/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportLifecyclePostgres (10.80s)
+=== RUN   TestSecurityAgentExportStoppedSettlementPostgres
+=== RUN   TestSecurityAgentExportStoppedSettlementPostgres/needs_human
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=57 data=/tmp/TestSecurityAgentExportStoppedSettlementPostgresneeds_human3672097234/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportStoppedSettlementPostgres/cancelled
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=87 data=/tmp/TestSecurityAgentExportStoppedSettlementPostgrescancelled2374683150/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportStoppedSettlementPostgres (11.19s)
+    --- PASS: TestSecurityAgentExportStoppedSettlementPostgres/needs_human (5.44s)
+    --- PASS: TestSecurityAgentExportStoppedSettlementPostgres/cancelled (5.75s)
+=== RUN   TestSecurityAgentExportTwoScopesPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=119 data=/tmp/TestSecurityAgentExportTwoScopesPostgres3568170263/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportTwoScopesPostgres (4.96s)
+=== RUN   TestSecurityAgentExportSettlementTableGatePostgres
+    security_agent_export_postgres_test.go:1540: registered claim after table gate=[]
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=149 data=/tmp/TestSecurityAgentExportSettlementTableGatePostgres4141993674/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportSettlementTableGatePostgres (4.96s)
+=== RUN   TestSecurityAgentExportSettlementInterleavePostgres
+=== RUN   TestSecurityAgentExportSettlementInterleavePostgres/winner_settled_false
+    security_agent_export_postgres_test.go:1645: stale candidate claim after winner commit=[]
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=181 data=/tmp/TestSecurityAgentExportSettlementInterleavePostgreswinner_settl2529451815/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportSettlementInterleavePostgres/winner_settled_true
+    security_agent_export_postgres_test.go:1631: real winner settled before stale row locking: {"state": "needs_human", "reason": "export_parent_stopped", "run_id": "pid_8e100001-0000-4000-8000-000000000001", "settled": true, "step_id": "pid_8e100005-0000-4000-8000-000000000005", "replayed": false, "export_id": "pid_a8b352f2-0ac3-4491-8ee8-bd86a64f7c19", "run_version": 4}
+    security_agent_export_postgres_test.go:1645: stale candidate claim after winner commit=[]
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=212 data=/tmp/TestSecurityAgentExportSettlementInterleavePostgreswinner_settl3387630175/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportSettlementInterleavePostgres (9.93s)
+    --- PASS: TestSecurityAgentExportSettlementInterleavePostgres/winner_settled_false (4.82s)
+    --- PASS: TestSecurityAgentExportSettlementInterleavePostgres/winner_settled_true (5.11s)
+=== RUN   TestSecurityAgentExportReleasePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=243 data=/tmp/TestSecurityAgentExportReleasePostgres2760181327/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportReleasePostgres (6.47s)
+PASS
+
+Container exit: 0
+

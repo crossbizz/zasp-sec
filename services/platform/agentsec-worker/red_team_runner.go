@@ -23,12 +23,22 @@ var redTeamTargetEndpointPattern = regexp.MustCompile(`^https://agentsec-red-tea
 var redTeamAdapterTokenPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+$`)
 var redTeamRunLeasePattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 var redTeamArtifactBucketPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`)
+var redTeamRunnerImagePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9./_-]*(?::[A-Za-z0-9._-]+)?@(sha256:[0-9a-f]{64})$`)
+
+func redTeamRunnerImageDigest(value string) string {
+	match := redTeamRunnerImagePattern.FindStringSubmatch(value)
+	if len(match) != 2 || match[1] == "sha256:"+strings.Repeat("0", 64) {
+		return ""
+	}
+	return match[1]
+}
 
 type redTeamCommand interface {
 	Run(context.Context, string, []string, []string, string) error
 }
 
 type productionRedTeamRunnerConfig struct {
+	RunnerImage     string
 	Artifacts       artifactstore.ObjectReferencingArtifactStore
 	Command         redTeamCommand
 	NodePath        string
@@ -45,6 +55,7 @@ type productionRedTeamRunnerConfig struct {
 type productionRedTeamRunner struct{ config productionRedTeamRunnerConfig }
 
 type redTeamRunnerInput struct {
+	RunnerImageDigest string   `json:"runner_image_digest,omitempty"`
 	SchemaVersion     string   `json:"schema_version"`
 	OrganizationID    string   `json:"organization_id"`
 	WorkspaceID       string   `json:"workspace_id"`
@@ -74,18 +85,21 @@ type redTeamRunnerOutput struct {
 type productionRedTeamCommand struct{}
 
 func newProductionRedTeamRunner(config productionRedTeamRunnerConfig) (*productionRedTeamRunner, error) {
+	if config.RunnerImage != "" && redTeamRunnerImageDigest(config.RunnerImage) == "" {
+		return nil, errRuntimeUnavailable
+	}
 	if nilWorkerDependency(config.Artifacts) || nilWorkerDependency(config.Command) || config.NodePath != "/usr/local/bin/node" || config.ScriptPath != "/app/redteam-runner.mjs" || config.PromptfooPath != "/app/dist/src/entrypoint.js" || !redTeamTargetEndpointPattern.MatchString(config.TargetEndpoint) || !filepath.IsAbs(config.TargetTokenFile) || !filepath.IsAbs(config.TargetCAFile) || !filepath.IsAbs(config.TempRoot) || config.Timeout < 30*time.Second || config.Timeout > 15*time.Minute || config.Clock == nil {
 		return nil, errRuntimeUnavailable
 	}
 	now := config.Clock()
-	if now.IsZero() || now.Location() != time.UTC || !validRedTeamTokenFile(config.TargetTokenFile) || !validRedTeamCAFile(config.TargetCAFile) {
+	if now.IsZero() || now.Location() != time.UTC {
 		return nil, errRuntimeUnavailable
 	}
 	return &productionRedTeamRunner{config: config}, nil
 }
 
 func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamExecutionRequest) (redTeamExecutionResult, error) {
-	if runner == nil || ctx == nil || ctx.Err() != nil || !validProductionRedTeamRequest(request) || !validRedTeamTokenFile(runner.config.TargetTokenFile) || !validRedTeamCAFile(runner.config.TargetCAFile) {
+	if runner == nil || ctx == nil || ctx.Err() != nil || !validProductionRedTeamRequest(request) || request.EvidenceVersion == "red-team-v2" && redTeamRunnerImageDigest(runner.config.RunnerImage) == "" || !validRedTeamTokenFile(runner.config.TargetTokenFile) || !validRedTeamCAFile(runner.config.TargetCAFile) {
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	workspace, err := os.MkdirTemp(runner.config.TempRoot, "zasp-red-team-")
@@ -97,6 +111,12 @@ func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamE
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "outcome_unknown", retryAfter: 30 * time.Second}
 	}
 	input := redTeamRunnerInput{SchemaVersion: "red-team-runner-input-v1", OrganizationID: request.Scope.OrganizationID().String(), WorkspaceID: request.Scope.WorkspaceID().String(), EnvironmentID: request.Scope.EnvironmentID().String(), RunID: request.Run.ID, DefinitionID: request.Definition.ID, DefinitionVersion: request.Definition.Version, TargetID: request.Definition.TargetID, TargetKind: request.Definition.TargetKind, Categories: append([]string(nil), request.Definition.Categories...), InputDigest: hex.EncodeToString(request.InputDigest[:])}
+	targetEndpoint := runner.config.TargetEndpoint
+	if request.EvidenceVersion == "red-team-v2" {
+		input.SchemaVersion = "red-team-runner-input-v2"
+		input.RunnerImageDigest = redTeamRunnerImageDigest(runner.config.RunnerImage)
+		targetEndpoint = strings.TrimSuffix(targetEndpoint, "/v1/evaluate") + "/v1/linked/evaluate"
+	}
 	inputBytes, err := json.Marshal(input)
 	if err != nil || len(inputBytes) > 65_536 {
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
@@ -124,7 +144,7 @@ func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamE
 	}
 	inputReceipt := &apiserver.RedTeamArtifactReference{Reference: inputObjectReference, VersionID: inputArtifact.VersionID, SHA256: hex.EncodeToString(inputArtifact.SHA256[:]), SizeBytes: inputArtifact.Size}
 	bounded, cancel := context.WithTimeout(ctx, runner.config.Timeout)
-	environment := []string{"HOME=" + workspace, "ZASP_PROMPTFOO_BIN=" + runner.config.PromptfooPath, "ZASP_RED_TEAM_TARGET_ENDPOINT=" + runner.config.TargetEndpoint, "ZASP_RED_TEAM_ADAPTER_TOKEN_FILE=" + runner.config.TargetTokenFile, "ZASP_RED_TEAM_TARGET_CA_FILE=" + runner.config.TargetCAFile}
+	environment := []string{"HOME=" + workspace, "ZASP_PROMPTFOO_BIN=" + runner.config.PromptfooPath, "ZASP_RED_TEAM_TARGET_ENDPOINT=" + targetEndpoint, "ZASP_RED_TEAM_ADAPTER_TOKEN_FILE=" + runner.config.TargetTokenFile, "ZASP_RED_TEAM_TARGET_CA_FILE=" + runner.config.TargetCAFile}
 	environment = append(environment, "ZASP_RED_TEAM_RUN_LEASE="+request.LeaseToken)
 	commandErr := runner.config.Command.Run(bounded, runner.config.NodePath, []string{runner.config.ScriptPath, "run", inputPath, outputPath}, environment, workspace)
 	boundedErr := bounded.Err()
@@ -137,7 +157,7 @@ func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamE
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	var output redTeamRunnerOutput
-	if decodeStrictWorkerJSON(outputBytes, &output) != nil || !validRedTeamRunnerOutput(input, output) {
+	if decodeRedTeamEvidenceJSON(input, outputBytes, &output) != nil || !validRedTeamRunnerOutput(input, output) {
 		return redTeamExecutionResult{}, &redTeamExecutionFailure{code: "malformed", retryAfter: 30 * time.Second}
 	}
 	nativeBytes, err := readRedTeamOutput(filepath.Join(workspace, "artifact.json"))
@@ -166,11 +186,11 @@ func (runner *productionRedTeamRunner) Run(ctx context.Context, request redTeamE
 	if output.ErrorCode != nil {
 		errorCode = *output.ErrorCode
 	}
-	return redTeamExecutionResult{InputArtifact: inputReceipt, Verdict: output.Verdict, Objective: output.Objective, Behavior: output.Behavior, ErrorCode: errorCode, Evidence: append([]string(nil), output.Evidence...), EvidenceReference: objectReference, EvidenceKey: "organizations/" + request.Scope.OrganizationID().String() + "/workspaces/" + request.Scope.WorkspaceID().String() + "/environments/" + request.Scope.EnvironmentID().String() + "/artifacts/" + request.Run.ID, EvidenceVersionID: artifact.VersionID, EvidenceChecksum: append([]byte(nil), artifact.SHA256[:]...), EvidenceSizeBytes: artifact.Size}, nil
+	return redTeamExecutionResult{EvidenceArtifact: bytes.Clone(artifactBytes), InputArtifact: inputReceipt, Verdict: output.Verdict, Objective: output.Objective, Behavior: output.Behavior, ErrorCode: errorCode, Evidence: append([]string(nil), output.Evidence...), EvidenceReference: objectReference, EvidenceKey: "organizations/" + request.Scope.OrganizationID().String() + "/workspaces/" + request.Scope.WorkspaceID().String() + "/environments/" + request.Scope.EnvironmentID().String() + "/artifacts/" + request.Run.ID, EvidenceVersionID: artifact.VersionID, EvidenceChecksum: append([]byte(nil), artifact.SHA256[:]...), EvidenceSizeBytes: artifact.Size}, nil
 }
 
 func validRedTeamPersistedArtifact(artifact artifactstore.Artifact, scope domain.Scope, reference domain.EvidenceRef, body []byte) bool {
-	if artifact.Scope != scope || artifact.Reference != reference || artifact.Size != int64(len(body)) || artifact.SHA256 != sha256.Sum256(body) || len(artifact.VersionID) < 1 || len(artifact.VersionID) > 512 {
+	if artifact.Scope != scope || artifact.Reference != reference || artifact.MediaType != "application/json" || !bytes.Equal(artifact.Body, body) || artifact.Size != int64(len(body)) || artifact.SHA256 != sha256.Sum256(body) || len(artifact.VersionID) < 1 || len(artifact.VersionID) > 512 {
 		return false
 	}
 	for _, character := range artifact.VersionID {
@@ -190,6 +210,9 @@ func validRedTeamArtifactObjectReference(value, key string) bool {
 }
 
 func validProductionRedTeamRequest(request redTeamExecutionRequest) bool {
+	if request.EvidenceVersion != "" && request.EvidenceVersion != "red-team-v2" {
+		return false
+	}
 	if !redTeamRunLeasePattern.MatchString(request.LeaseToken) {
 		return false
 	}
@@ -204,8 +227,20 @@ func validProductionRedTeamRequest(request redTeamExecutionRequest) bool {
 	return true
 }
 
+func redTeamEvidenceVersion(input redTeamRunnerInput) string {
+	switch input.SchemaVersion {
+	case "", "red-team-runner-input-v1":
+		return "v1"
+	case "red-team-runner-input-v2":
+		return "v2"
+	default:
+		return ""
+	}
+}
+
 func validRedTeamRunnerOutput(input redTeamRunnerInput, output redTeamRunnerOutput) bool {
-	if output.SchemaVersion != "red-team-evidence-v1" || output.Engine != "promptfoo" || output.EngineVersion != "0.121.19" || output.RunID != input.RunID || output.InputDigest != input.InputDigest || output.Objective != "Evaluate curated categories: "+strings.Join(input.Categories, ", ") || !stringInWorker(output.Verdict, "pass", "fail", "engine_error") || !validRedTeamBoundedWorkerText(output.Behavior, 2048) {
+	version := redTeamEvidenceVersion(input)
+	if version == "" || output.SchemaVersion != "red-team-evidence-"+version || output.Engine != "promptfoo" || output.EngineVersion != "0.121.19" || output.RunID != input.RunID || output.InputDigest != input.InputDigest || output.Objective != "Evaluate curated categories: "+strings.Join(input.Categories, ", ") || !stringInWorker(output.Verdict, "pass", "fail", "engine_error") || !validRedTeamBoundedWorkerText(output.Behavior, 2048) {
 		return false
 	}
 	if output.Verdict == "engine_error" {

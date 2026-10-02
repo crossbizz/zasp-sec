@@ -1,0 +1,107 @@
+diff --git a/services/platform/apiserver/security_agent_attack_lab_settlement_postgres_test.go b/services/platform/apiserver/security_agent_attack_lab_settlement_postgres_test.go
+index 31a9e79a..f53cd36c 100644
+--- a/services/platform/apiserver/security_agent_attack_lab_settlement_postgres_test.go
++++ b/services/platform/apiserver/security_agent_attack_lab_settlement_postgres_test.go
+@@ -77,6 +77,15 @@ func TestSecurityAgentAttackLabSettlementPostgres(t *testing.T) {
+ 			t.Fatalf("claim=%s %v", raw, err)
+ 		}
+ 		c := claims[0]
++		// Stop through registered public authority, without inheriting another
++		// test's rollback fault injection as an implicit stopped-parent fixture.
++		var parentVersion int64
++		if err := owner.QueryRow(ctx, `SELECT version FROM zasp_security_agent_runs WHERE run_id=$1`, c.Run).Scan(&parentVersion); err != nil {
++			t.Fatal(err)
++		}
++		if err := api.QueryRow(ctx, `SELECT zasp_sa_attack_lab_cancel_parent($1,$2,$3,$4,'pid_8a100005-0000-4000-8000-000000000005','settlement-parent-stop-0001',$5,'pid_8bc30000-0000-4000-8000-000000000001','pid_8bc30000-0000-4000-8000-000000000002','pid_8bc30000-0000-4000-8000-000000000003',$6,$7)`, o, w, e, c.Run, parentVersion, m.Checksum(), fingerprint).Scan(&raw); err != nil {
++			t.Fatalf("registered parent cancellation: %v", err)
++		}
+ 		var admissionReceipt json.RawMessage
+ 		if err := owner.QueryRow(ctx, `SELECT result FROM zasp_sa_attack_lab_links WHERE run_id=$1`, c.Run).Scan(&admissionReceipt); err != nil {
+ 			t.Fatal(err)
+diff --git a/openapi/openapi.test.mjs b/openapi/openapi.test.mjs
+index 6019b51f..18b69693 100644
+--- a/openapi/openapi.test.mjs
++++ b/openapi/openapi.test.mjs
+@@ -828,10 +828,10 @@ describe("production workflow concurrency contract", () => {
+     assert.equal(document.components.schemas.SecurityAgentExecutionControlInput.properties.target.enum.includes("global"), false);
+     assert.deepEqual(document.components.schemas.SecurityAgentExecutionControls.properties.actions, {
+       type: "array",
+-      oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }],
++      oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }, { minItems: 7, maxItems: 7 }],
+       items: { $ref: "#/components/schemas/SecurityAgentExecutionControl" },
+     });
+-    assert.deepEqual(document.components.schemas.SecurityAgentExecutionControlInput.properties.action_key.enum, ["*", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "update_finding_response"]);
++    assert.deepEqual(document.components.schemas.SecurityAgentExecutionControlInput.properties.action_key.enum, ["*", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"]);
+ 
+     const activationState = operations.get("getSecurityAgentActivation");
+     assert.equal(activationState.path, "/api/v1/security-agents/{id}/activation");
+diff --git a/scripts/check-ui-api-coverage.test.mjs b/scripts/check-ui-api-coverage.test.mjs
+index 5aa64d85..aef57d8e 100644
+--- a/scripts/check-ui-api-coverage.test.mjs
++++ b/scripts/check-ui-api-coverage.test.mjs
+@@ -52,8 +52,8 @@ test("current API and planned map passes honestly", async () => {
+   const { map, openapi } = await currentSources();
+   assert.deepEqual(validateCoverage(parseMapSource(map), parseOpenAPISource(openapi)), {
+     planned: 2,
+-    apiAvailable: 15,
+-    available: 142,
++    apiAvailable: 10,
++    available: 147,
+     public: 157,
+     internal: 0,
+   });
+@@ -66,8 +66,8 @@ test("all current public operations resolve and deliberate removal fails", async
+   const complete = parseOpenAPISource(futureOpenAPI(operationIDs));
+   assert.deepEqual(validateCoverage(document, complete), {
+     planned: 0,
+-    apiAvailable: 15,
+-    available: 144,
++    apiAvailable: 10,
++    available: 149,
+     public: 159,
+     internal: 0,
+   });
+@@ -84,8 +84,8 @@ test("unmapped public operations fail while unmapped internal operations pass",
+   assert.throws(() => validateCoverage(planned, parseOpenAPISource(futureOpenAPI([...apiOperations, "unmappedPublic"]))));
+   assert.deepEqual(validateCoverage(planned, parseOpenAPISource(futureOpenAPI(apiOperations, { internal: ["ingestEvents"] }))), {
+     planned: 2,
+-    apiAvailable: 15,
+-    available: 142,
++    apiAvailable: 10,
++    available: 147,
+     public: 157,
+     internal: 1,
+   });
+@@ -113,7 +113,7 @@ test("API-available operations require OpenAPI but do not claim a wired UI", asy
+     .filter((action) => action.availability !== "planned")
+     .map((action) => action.operation_id);
+   const result = validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations)));
+-  assert.deepEqual(result, { planned: 2, apiAvailable: 15, available: 142, public: 157, internal: 0 });
++  assert.deepEqual(result, { planned: 2, apiAvailable: 10, available: 147, public: 157, internal: 0 });
+   assert.throws(() => validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations.slice(1)))));
+ });
+ 
+@@ -173,7 +173,7 @@ test("CLI emits only fixed success or rejection lines", async () => {
+   const successOut = captureStream();
+   const successErr = captureStream();
+   assert.equal(await runMain({ stdout: successOut.stream, stderr: successErr.stream }), 0);
+-  assert.equal(successOut.value(), "UI/API coverage passed: planned=2 api_available=15 available=142 public=157 internal=0.\n");
++  assert.equal(successOut.value(), "UI/API coverage passed: planned=2 api_available=10 available=147 public=157 internal=0.\n");
+   assert.equal(successErr.value(), "");
+ 
+   const failureOut = captureStream();
+diff --git a/scripts/attack-lab-mounted-browser.mjs b/scripts/attack-lab-mounted-browser.mjs
+index f3cb7305..97b9d6de 100644
+--- a/scripts/attack-lab-mounted-browser.mjs
++++ b/scripts/attack-lab-mounted-browser.mjs
+@@ -114,6 +114,10 @@ export async function runAttackLabMountedBrowser({sql,cdp,publicOrigin,chromePor
+     const waitUntil=Number(await sql(`SELECT ceil(extract(epoch from lease_expires_at)*1000) FROM zasp_attack_lab_runs WHERE run_id='${executionID}'`));
+     assert.ok(waitUntil-Date.now()<32_000);await delay(Math.max(0,waitUntil-Date.now()+100));
+     const recovered=await step("execute");assert.equal(recovered.provider_calls,1);assert.equal(recovered.job_posts,1);assert.ok(recovered.job_deletes>=1);
++    if(item.stop) {
++      const nextCheck=Number(await sql(`SELECT ceil(extract(epoch from available_at)*1000) FROM zasp_sa_attack_lab_links WHERE run_id='${runID}'`));
++      assert.ok(nextCheck-Date.now()<32_000);await delay(Math.max(0,nextCheck-Date.now()+100));
++    }
+     const settled=await step("reconcile");assert.equal(settled.provider_calls,1);assert.equal(settled.lost_settlement_reply,true);assert.equal(settled.settlement_calls,2);
+     const detail=await read(`/api/v1/security-agent-runs/${runID}`),proof=detail.action_details[0].attack_lab;
+     if(!item.stop)assert.equal(proof.verdict,item.verdict);assert.equal(proof.cleanup_complete,true);assert.equal(proof.settlement.outcome,item.stop?"cancelled":"needs_human");if(item.stop)assert.equal(detail.run.state,"cancelled");

@@ -1,0 +1,74 @@
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > bounds event hydration and preserves sessions whose event request fails 5ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > renders ordered evidence and revokes the exact version 88ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > accepts only the declared 204 session revoke response 2ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > renders legacy evidence without claiming current freshness or exports 15ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > updates versioned metadata-only production controls 40ms
+ × app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels every obsolete list page on scope replacement 75ms
+   → expected false to be true // Object.is equality
+ × app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels every obsolete list page on principal replacement 65ms
+   → expected false to be true // Object.is equality
+ × app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 401 errors before they can invalidate replacement authority 60ms
+   → expected 2 to be +0 // Object.is equality
+ × app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 401 errors before they can invalidate replacement authority 60ms
+   → expected 2 to be +0 // Object.is equality
+ × app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 409 errors before they can invalidate replacement authority 59ms
+   → expected 2 to be +0 // Object.is equality
+ × app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 409 errors before they can invalidate replacement authority 61ms
+   → expected 2 to be +0 // Object.is equality
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > uses aggregate freshness, exposes typed source/time links, and filters frameworks and controls 50ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > reads exact source versions through the compliance detail endpoint 11ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 409 5ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 404 5ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 403 4ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > creates queued exports with the selected filters, recovers status on reload, and leaves evidence readable on download failure 62ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders failed export without hiding evidence 20ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders expired export without hiding evidence 20ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > drops late evidence responses on a changed principal and hides revoked authority immediately 55ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels every obsolete list page on scope replacement
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels every obsolete list page on principal replacement
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:87:66
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 401 errors before they can invalidate replacement authority
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 401 errors before they can invalidate replacement authority
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 409 errors before they can invalidate replacement authority
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 409 errors before they can invalidate replacement authority
+AssertionError: expected 2 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 2
+
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:109:27
+    107|     await screen.findByText("Evidence exports unavailable");
+    108|     await act(async () => { releases.forEach(release => release(respon…
+    109|     expect(invalidations).toBe(0);
+       |                           ^
+    110|     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    111|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 14 passed (20)
+   Start at  19:01:00
+   Duration  2.20s (transform 151ms, setup 215ms, import 251ms, tests 763ms, environment 862ms)

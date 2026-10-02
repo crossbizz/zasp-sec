@@ -1,0 +1,9 @@
+# Database batch baseline
+
+HEAD: 8733b16f8d939d38a8157dd2519e57fc6f630542
+
+The existing production_audit_exports.go is inherited untracked content. Its bytes are preserved in before/production_audit_exports.go.txt. SHA256: 8b84b0128aabadd338ed08c1712666f1b63b478e6a830f03de3a0fcd44b5f5e5.
+
+The approved registration extension also preserves production_compliance.go in before/production_compliance.go.txt, SHA256 734b442730dcb15a9472b4be64c48b0e1a4084fc14cdcec41a1f9c2787efdad0.
+
+The remaining owned product paths are absent at batch start. Accepted renderer files stay untouched: security_agent_export_render.go bb933859b4ba754f446e2cf4147371aea230eb3f1f244752446571d5caea1e04; security_agent_export_render_test.go 0b541bee4e3639d54e85308d797abb59bdf5309aa694258442256eb7876cf2cf.

@@ -68,6 +68,45 @@ func TestAdapterDatabaseSupportsConcurrentReadinessAndInvocation(t *testing.T) {
 	}
 }
 
+// Journal starts must not escape QueryJSON before the autocommit transaction
+// succeeds. A deferred FK fails after INSERT RETURNING has produced its row.
+func TestAdapterDatabaseDoesNotAcknowledgeFailedCommit(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	connection, err := connectAdapterDatabase(ctx, startAdapterPostgres(t, "zasp_e2e"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close()
+	_, err = connection.Exec(ctx, `CREATE TABLE journal_parent(id integer PRIMARY KEY);
+	CREATE TABLE journal_child(id integer PRIMARY KEY, parent_id integer REFERENCES journal_parent(id) DEFERRABLE INITIALLY DEFERRED);
+	INSERT INTO journal_parent VALUES(1)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	database := postgresJSONDatabase{connection: connection}
+	statement := `WITH inserted AS (INSERT INTO journal_child(id,parent_id) VALUES($1,$2) RETURNING id) SELECT jsonb_build_object('state','started') FROM inserted`
+	if body, err := database.QueryJSON(ctx, statement, 1, 999); err == nil || len(body) != 0 {
+		t.Fatalf("acknowledged failed commit: %s %v", body, err)
+	}
+	var count int
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM journal_child`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("failed start persisted: %d %v", count, err)
+	}
+	if body, err := database.QueryJSON(ctx, statement, 2, 1); err != nil || string(body) != `{"state": "started"}` {
+		t.Fatalf("valid start rejected: %s %v", body, err)
+	}
+	// Hold the first pool connection so the verification uses a second session.
+	other, err := connection.Acquire(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer other.Release()
+	if err := connection.QueryRow(ctx, `SELECT count(*) FROM journal_child WHERE id=2`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("acknowledgement not committed: %d %v", count, err)
+	}
+}
+
 func TestProductionAdapterHandlerBoundsDatabaseWorkAndShutdown(t *testing.T) {
 	connection, err := connectAdapterDatabase(context.Background(), startAdapterPostgres(t, "zasp_e2e"))
 	if err != nil {

@@ -1,0 +1,21 @@
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/agent
+    security_agent_export_worker_test.go:126: processor failed: err=worker execution unavailable puts=0 finishes=0 retry=source_failed
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/browser
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/wrong_binding
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/put_error
+    security_agent_export_worker_test.go:122: lost uncertain intent: err=worker execution unavailable puts=0 retry=source_failed
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/finish_lost
+    security_agent_export_worker_test.go:122: lost uncertain intent: err=worker execution unavailable puts=0 retry=source_failed
+--- FAIL: TestSecurityAgentExportWorkerProcessorPipeline (0.24s)
+    --- FAIL: TestSecurityAgentExportWorkerProcessorPipeline/agent (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/browser (0.09s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/wrong_binding (0.04s)
+    --- FAIL: TestSecurityAgentExportWorkerProcessorPipeline/put_error (0.04s)
+    --- FAIL: TestSecurityAgentExportWorkerProcessorPipeline/finish_lost (0.04s)
+=== RUN   TestSecurityAgentExportWorkerLeaseBindingOwnership
+    security_agent_export_worker_test.go:152: lease copy mutated owned authority
+--- FAIL: TestSecurityAgentExportWorkerLeaseBindingOwnership (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.341s
+FAIL

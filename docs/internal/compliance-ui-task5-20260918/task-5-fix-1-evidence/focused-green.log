@@ -1,0 +1,96 @@
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ✓ apps/web/api/pagination.test.ts > bounded cursor pagination > does not call a page reader after its authority is aborted 1ms
+ ✓ apps/web/api/pagination.test.ts > bounded cursor pagination > does not follow a successful obsolete continuation after authority changes during a page 0ms
+ ✓ apps/web/api/pagination.test.ts > bounded cursor pagination > preserves each page boundary and follows only the returned continuation 0ms
+ ✓ apps/web/api/pagination.test.ts > bounded cursor pagination > fails closed on repeated cursors and item/page caps 1ms
+ ✓ apps/web/api/pagination.test.ts > bounded cursor pagination > propagates cancellation without issuing a later page 0ms
+ ✓ apps/web/api/compliance-download.test.ts > compliance download transport > uses a four MiB attachment default while honoring explicit lower limits 16ms
+ ✓ apps/web/api/compliance-download.test.ts > compliance download transport > keeps ordinary JSON at its one MiB default 4ms
+ ✓ apps/web/api/compliance-download.test.ts > compliance download transport > accepts bounded verified attachments with grants only in POST bodies 2ms
+ ✓ apps/web/api/compliance-download.test.ts > compliance download transport > rejects empty successful download responses 1ms
+ ✓ apps/web/api/compliance-download.test.ts > compliance download transport > rejects wrong filenames, cacheability and non-download text success 1ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > accepts the actual large-export fixture without oversized metadata values 4ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > shares read ownership across recreated adapters for one client without blocking another client 2ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > joins the old physical read, releases aborted callers immediately, and keeps only the latest pending read 1ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > replaces waiting requests without a growing queue and never starts an invalidated waiting scope 1ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > preserves retained createSSOConnection and every filter on first and continuation GET 2ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > preserves retained deleteSSOConnection and every filter on first and continuation GET 1ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > preserves retained testSSOConnection and every filter on first and continuation GET 1ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > preserves retained createSCIMConnection and every filter on first and continuation GET 1ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > preserves retained deleteSCIMConnection and every filter on first and continuation GET 1ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > admits a legal large-key page exactly at one MiB with the existing decoder 4ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > rejects a response one UTF-8 byte over one MiB (declared=true) 1ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > rejects a response one UTF-8 byte over one MiB (declared=false) 1ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > rejects invalid page contracts 0 0ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > rejects invalid page contracts 1 0ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > rejects invalid page contracts 2 0ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > rejects invalid page contracts 3 0ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > rejects invalid page contracts 4 0ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > rejects invalid page contracts 5 0ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > rejects a decoded page exceeding the requested row limit 0ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > refuses invalid page limit 0 without a request 0ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > refuses invalid page limit 101 without a request 0ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > refuses invalid page limit 1.5 without a request 0ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > propagates caller abort through the generated transport and refuses late success 0ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > preserves the shared 401 invalidation callback 0ms
+ ✓ apps/web/api/audit-log.test.ts > generated audit page adapter > preserves the shared 409 invalidation callback 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > pads UTC fractions without losing a one-microsecond interval 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 0 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 1 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 2 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 3 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 4 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 5 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 6 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 7 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 8 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 9 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 10 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 11 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 12 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 13 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 14 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 15 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 16 0ms
+ ✓ apps/web/api/audit-log.test.ts > exact audit filter normalization > refuses invalid or lossy filters before any request 17 0ms
+ ✓ app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > accepts the real Go near-bound page privately while unrelated clients keep one MiB 44ms
+ ✓ app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > accepts exactly 1064960 UTF8 bytes, including trailing JSON whitespace 27ms
+ ✓ app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > refuses a declared body one byte over the export cap 3ms
+ ✓ app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > refuses a streamed body one byte over the export cap 3ms
+ ✓ app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > reuses supplied transport for both adapters without hidden fetch or changing its cap 2ms
+ ✓ app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > invalidates scope synchronously before a stale response can return 1ms
+ ✓ app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > invalidates principal synchronously before a stale response can return 1ms
+ ✓ app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > invalidates suspend synchronously before a stale response can return 1ms
+ ✓ app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > invalidates clear synchronously before a stale response can return 1ms
+ ✓ app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > shares 401 invalidation callbacks 3ms
+ ✓ app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > shares 409 invalidation callbacks 1ms
+ ✓ app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > shares 403 invalidation callbacks 2ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > bounds event hydration and preserves sessions whose event request fails 5ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > renders ordered evidence and revokes the exact version 79ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > accepts only the declared 204 session revoke response 1ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > renders legacy evidence without claiming current freshness or exports 14ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > updates versioned metadata-only production controls 35ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 1 before a continuation starts 72ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 1 before a continuation starts 65ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 2 before a continuation starts 64ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 2 before a continuation starts 64ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 401 errors before they can invalidate replacement authority 58ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 401 errors before they can invalidate replacement authority 58ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 409 errors before they can invalidate replacement authority 63ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 409 errors before they can invalidate replacement authority 64ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > uses aggregate freshness, exposes typed source/time links, and filters frameworks and controls 51ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > reads exact source versions through the compliance detail endpoint 11ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 409 5ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 404 5ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 403 4ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > creates queued exports with the selected filters, recovers status on reload, and leaves evidence readable on download failure 63ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders failed export without hiding evidence 19ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders expired export without hiding evidence 20ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > drops late evidence responses on a changed principal and hides revoked authority immediately 61ms
+
+ Test Files  5 passed (5)
+      Tests  88 passed (88)
+   Start at  19:04:11
+   Duration  2.24s (transform 405ms, setup 1.08s, import 465ms, tests 1.02s, environment 4.04s)

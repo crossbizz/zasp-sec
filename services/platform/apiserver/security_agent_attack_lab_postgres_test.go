@@ -1,0 +1,560 @@
+package apiserver
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+)
+
+// Missing release57 authority must not silently reuse55's test dispatcher.
+func TestSecurityAgentAttackLabAuthorityPostgres(t *testing.T) {
+	for _, mode := range []struct {
+		name              string
+		automatic, expiry bool
+	}{{"supervised_read_only", false, false}, {"automatic_autonomous_test_write", true, false}, {"preflight_expiry_after_wait", false, true}} {
+		t.Run(mode.name, func(t *testing.T) {
+			runVersionedExistingTestFixture(t, func(ctx context.Context, owner, api *pgx.Conn, o, w, e, definition, actor string) {
+				runner := precisionMigrationRunner(t, owner)
+				if err := runner.UpProductionCompliance(ctx); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := owner.Exec(ctx, migrations.ProductionSecurityAgentAttackLab().UpSQL()); err != nil {
+					var pg *pgconn.PgError
+					if errors.As(err, &pg) {
+						t.Fatalf("%v position=%d context=%s internal=%s", err, pg.Position, pg.Where, pg.InternalQuery)
+					}
+					t.Fatal(err)
+				}
+				var fingerprint string
+				if err := owner.QueryRow(ctx, `SELECT public.zasp_sa_attack_lab_live_fingerprint()`).Scan(&fingerprint); err != nil {
+					t.Fatal(err)
+				}
+				t.Logf("release57 observed fingerprint: %s", fingerprint)
+				if fingerprint != migrations.SecurityAgentAttackLabFingerprint() {
+					t.Fatal("release57 compiled fingerprint mismatch")
+				}
+				m := migrations.ProductionSecurityAgentAttackLab()
+				if _, err := owner.Exec(ctx, `INSERT INTO zasp_schema_metadata(key,value) VALUES('production_security_agent_attack_lab_checksum',$1),('production_security_agent_attack_lab_fingerprint',$2); INSERT INTO zasp_schema_versions(version,name,checksum) VALUES(57,'production_security_agent_attack_lab',$1)`, pgx.QueryExecModeSimpleProtocol, m.Checksum(), fingerprint); err != nil {
+					t.Fatal(err)
+				}
+				var ready bool
+				if err := api.QueryRow(ctx, `SELECT zasp_sa_attack_lab_readiness($1,$2)`, m.Checksum(), fingerprint).Scan(&ready); err != nil || !ready {
+					t.Fatalf("registered57 readiness=%v error=%v", ready, err)
+				}
+				var installed bool
+				if err := owner.QueryRow(ctx, `SELECT to_regprocedure('public.zasp_sa_attack_lab_execute_run(text,text,text,text,text,text,text,text,text,text)') IS NOT NULL`).Scan(&installed); err != nil || !installed {
+					t.Fatalf("durable Attack Lab dispatch authority absent: installed=%v error=%v", installed, err)
+				}
+				exerciseAttackLabRegisteredDispatch(t, ctx, owner, api, o, w, e, definition, actor, mode.automatic, mode.expiry)
+			})
+		})
+	}
+}
+
+func TestSecurityAgentAttackLabReleaseCyclePostgres(t *testing.T) {
+	runVersionedExistingTestFixture(t, func(ctx context.Context, owner, api *pgx.Conn, o, w, e, definition, actor string) {
+		runner := precisionMigrationRunner(t, owner)
+		if err := runner.UpProductionCompliance(ctx); err != nil {
+			t.Fatal(err)
+		}
+		var before string
+		if err := owner.QueryRow(ctx, `SELECT zasp_compliance_live_fingerprint()`).Scan(&before); err != nil {
+			t.Fatal(err)
+		}
+		if before != migrations.ComplianceFingerprint() {
+			t.Fatal("predecessor56 fingerprint changed")
+		}
+		var beforeACL json.RawMessage
+		const aclQuery = `SELECT jsonb_object_agg(oid::regprocedure::text,COALESCE(proacl::text,'')) FROM pg_proc WHERE pronamespace='public'::regnamespace`
+		if err := owner.QueryRow(ctx, aclQuery).Scan(&beforeACL); err != nil {
+			t.Fatal(err)
+		}
+		if err := runner.UpProductionSecurityAgentAttackLab(ctx); err != nil {
+			t.Fatalf("runner upgrade57: %v", err)
+		}
+		if version, err := runner.Version(ctx); err != nil || version != 57 {
+			t.Fatalf("registry57=%d %v", version, err)
+		}
+		if _, err := owner.Exec(ctx, `CREATE ROLE attack_lab_reconciler_fixture LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS; CREATE ROLE attack_lab_wrong_fixture LOGIN INHERIT; GRANT zasp_security_agent_worker TO attack_lab_wrong_fixture`); err != nil {
+			t.Fatal(err)
+		}
+		if err := runner.RegisterSecurityAgentAttackLabReconciler(ctx, "attack_lab_wrong_fixture"); err == nil {
+			t.Fatal("mixed worker authority registered")
+		}
+		if _, err := owner.Exec(ctx, `REVOKE zasp_security_agent_worker FROM attack_lab_wrong_fixture; DROP ROLE attack_lab_wrong_fixture`); err != nil {
+			t.Fatal(err)
+		}
+		if err := runner.RegisterSecurityAgentAttackLabReconciler(ctx, "attack_lab_reconciler_fixture"); err != nil {
+			t.Fatal(err)
+		}
+		if err := runner.RegisterSecurityAgentAttackLabReconciler(ctx, "attack_lab_reconciler_fixture"); err != nil {
+			t.Fatalf("registration replay: %v", err)
+		}
+		var exact bool
+		if err := owner.QueryRow(ctx, `SELECT count(*)=1 AND bool_and(NOT m.admin_option AND m.inherit_option AND NOT m.set_option) FROM pg_auth_members m JOIN pg_roles p ON p.oid=m.member JOIN pg_roles r ON r.oid=m.roleid WHERE p.rolname='attack_lab_reconciler_fixture' AND r.rolname='zasp_security_agent_attack_lab_reconciler'`).Scan(&exact); err != nil || !exact {
+			t.Fatalf("reconciler grant options: %v %v", exact, err)
+		}
+		if err := owner.QueryRow(ctx, `SELECT NOT has_function_privilege('attack_lab_reconciler_fixture','zasp_sa_attack_lab_create_run_core(text,text,text,text,text,text,text,bytea,text)','EXECUTE') AND NOT has_function_privilege('zasp_security_agent_worker','zasp_sa_attack_lab_create_run_core(text,text,text,text,text,text,text,bytea,text)','EXECUTE') AND NOT has_function_privilege('zasp_security_agent_api','zasp_sa_attack_lab_create_run_core(text,text,text,text,text,text,text,bytea,text)','EXECUTE') AND NOT has_table_privilege('attack_lab_reconciler_fixture','zasp_sa_attack_lab_links','SELECT')`).Scan(&exact); err != nil || !exact {
+			t.Fatalf("private authority exposed: %v %v", exact, err)
+		}
+		if _, err := owner.Exec(ctx, `INSERT INTO zasp_schema_versions(version,name,checksum) VALUES(58,'unsupported',repeat('a',64))`); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := runner.Version(ctx); err == nil {
+			t.Fatal("registry accepted58")
+		}
+		if _, err := owner.Exec(ctx, `DELETE FROM zasp_schema_versions WHERE version=58`); err != nil {
+			t.Fatal(err)
+		}
+		if err := runner.DownProductionSecurityAgentAttackLab(ctx); err != nil {
+			tx, debugErr := owner.Begin(ctx)
+			if debugErr == nil {
+				_, debugErr = tx.Exec(ctx, migrations.ProductionSecurityAgentAttackLab().DownSQL())
+				if debugErr == nil {
+					var afterACL json.RawMessage
+					_ = tx.QueryRow(ctx, aclQuery).Scan(&afterACL)
+					var b, a map[string]string
+					json.Unmarshal(beforeACL, &b)
+					json.Unmarshal(afterACL, &a)
+					for k, v := range b {
+						if a[k] != v {
+							t.Logf("ACL changed %s BEFORE=%s AFTER=%s", k, v, a[k])
+						}
+					}
+					var fp string
+					_ = tx.QueryRow(ctx, `SELECT zasp_compliance_live_fingerprint()`).Scan(&fp)
+					t.Logf("rollback observed56 fingerprint=%s", fp)
+				}
+				_ = tx.Rollback(ctx)
+			}
+			t.Logf("rollback SQL diagnostic: %v", debugErr)
+			t.Fatalf("unused rollback: %v", err)
+		}
+		var after string
+		if err := owner.QueryRow(ctx, `SELECT zasp_compliance_live_fingerprint()`).Scan(&after); err != nil || before != after {
+			t.Fatalf("exact predecessor definitions/ACLs not restored: %s %s %v", before, after, err)
+		}
+		if version, err := runner.Version(ctx); err != nil || version != 56 {
+			t.Fatalf("rollback registry=%d %v", version, err)
+		}
+		if err := runner.UpProductionSecurityAgentAttackLab(ctx); err != nil {
+			t.Fatal(err)
+		}
+		exerciseAttackLabDefinitionWithoutSource(t, ctx, owner, api, o, w, e, definition, actor)
+		if err := runner.DownProductionSecurityAgentAttackLab(ctx); err == nil {
+			t.Fatal("rollback erased release57 definition history")
+		}
+	})
+}
+
+func exerciseAttackLabDefinitionWithoutSource(t *testing.T, ctx context.Context, owner, api *pgx.Conn, o, w, e, testID, actor string) {
+	t.Helper()
+	const id = "pid_8a200001-0000-4000-8000-000000000001"
+	body := map[string]any{"name": "Reusable Attack Lab definition", "trigger_kind": "finding", "trigger_source": "credential", "environment_ids": []string{e}, "autonomy": "supervised", "max_steps": 1, "max_duration_seconds": 300, "temporary_policy_seconds": 600, "ai_token_budget": 1000, "max_ai_cost_nano_credits": 1000000, "concurrency_limit": 1, "allowed_actions": []string{"start_attack_lab"}, "verification_kind": "attack_lab_run", "definition_version": 1, "enabled": false, "existing_test": map[string]any{"definition_id": testID, "definition_version": 1}}
+	intent, _ := json.Marshal(map[string]any{"resource_id": "", "expected_version": 0, "body": body})
+	body["id"] = id
+	payload, _ := json.Marshal(body)
+	var raw json.RawMessage
+	if err := api.QueryRow(ctx, postgresSecurityAgentExistingTestDefinitionMutateSQL, "create", id, o, w, e, actor, "createSecurityAgent", "attack-lab-draft-create", int64(0), json.RawMessage(intent), json.RawMessage(payload), "pid_8a200002-0000-4000-8000-000000000002", "pid_8a200003-0000-4000-8000-000000000003", "pid_8a200004-0000-4000-8000-000000000004", migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&raw); err != nil {
+		t.Fatalf("registered draft without source: %v", err)
+	}
+	if err := api.QueryRow(ctx, existingTestActivateSQL, o, w, e, id, actor, "attack-lab-draft-validate", int64(1), "validated", time.Now().UTC().Add(time.Minute), "pid_8a200005-0000-4000-8000-000000000005", "pid_8a200006-0000-4000-8000-000000000006", "pid_8a200007-0000-4000-8000-000000000007", migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&raw); err != nil {
+		t.Fatalf("registered validation without source: %v", err)
+	}
+	var exact bool
+	if err := owner.QueryRow(ctx, `SELECT activation='validated' AND body->>'verification_kind'='attack_lab_run' FROM zasp_security_agent_definitions WHERE definition_id=$1`, id).Scan(&exact); err != nil || !exact {
+		t.Fatalf("draft validation lost exact pair: %v %v", exact, err)
+	}
+}
+
+func exerciseAttackLabRegisteredDispatch(t *testing.T, ctx context.Context, owner, api *pgx.Conn, o, w, e, testID, actor string, automatic, expiry bool, decide ...func(string, string)) {
+	t.Helper()
+	run := "pid_8a100001-0000-4000-8000-000000000001"
+	const finding = "pid_8a100002-0000-4000-8000-000000000002"
+	const source = "pid_8a100003-0000-4000-8000-000000000003"
+	const approval = "pid_8a100004-0000-4000-8000-000000000004"
+	const approver = "pid_8a100005-0000-4000-8000-000000000005"
+	const workerID, planningLease, dispatchLease = "attack-lab-worker", "attack-lab-planning-lease", "attack-lab-dispatch-lease"
+	if !automatic {
+		seedExistingTestPreparation(t, ctx, owner, o, w, e, testID, workerID, run, finding, "start_attack_lab", workerID, planningLease)
+	} else {
+		if _, err := owner.Exec(ctx, `UPDATE zasp_security_agent_definitions SET activation='autonomous',body=body||jsonb_build_object('enabled',true,'autonomy','autonomous','trigger_kind','finding','trigger_source','credential','allowed_actions',jsonb_build_array('start_attack_lab'),'verification_kind','attack_lab_run','max_ai_cost_nano_credits',1000000,'existing_test',jsonb_build_object('definition_id',$4::text,'definition_version',1)) WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3);
+ INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status) VALUES($1,$2,$3,$5,'posture','credential','Automatic Attack Lab trigger','high','open');
+ UPDATE zasp_red_team_definitions SET safety=jsonb_set(safety,'{credential_class}','"test_write"') WHERE (organization_id,workspace_id,environment_id,definition_id)=($1,$2,$3,$4);
+ UPDATE zasp_attack_lab_credential_bindings SET credential_class='test_write' WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, pgx.QueryExecModeSimpleProtocol, o, w, e, testID, finding); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := owner.Exec(ctx, `UPDATE zasp_security_agent_definitions SET body=jsonb_set(body,'{verification_kind}','"attack_lab_run"') WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3);
+ UPDATE zasp_security_agent_trigger_receipts SET trigger_digest=digest(convert_to(jsonb_build_object('kind','finding','id',$5::text,'version',1)::text,'UTF8'),'sha256') WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$4);
+ INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by) VALUES($1,$2,$3,'start_attack_lab',true,$8) ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO UPDATE SET execution_enabled=true;
+ INSERT INTO zasp_red_team_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,requested_by,state,attempt,input_digest,verdict,evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at)
+ VALUES($1,$2,$3,$6,$7,1,$8,'complete',1,digest('attack-lab-input','sha256'),'fail','s3://fixture-bucket/attack-lab-source','attack-lab-source','source-version',digest('source-evidence','sha256'),100,clock_timestamp());
+ INSERT INTO zasp_red_team_attempts(organization_id,workspace_id,environment_id,run_id,attempt,input_digest,verdict,objective,behavior,evidence,evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at)
+ SELECT organization_id,workspace_id,environment_id,run_id,attempt,input_digest,verdict,'controlled objective','controlled unsafe result','[]',evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at FROM zasp_red_team_runs WHERE (organization_id,workspace_id,environment_id,run_id)=($1,$2,$3,$6);
+ INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role,active) VALUES($9,$1,'attack-lab-org','attack-lab-approver','security_engineer',true);
+ INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES($9,$1,$2,$3,'Attack Lab approval','["view","run_tests","manage_workflows"]',false)`, pgx.QueryExecModeSimpleProtocol, o, w, e, run, finding, source, testID, actor, approver); err != nil {
+		t.Fatal(err)
+	}
+	config := owner.Config().Copy()
+	config.User = "security_agent_v33_worker_login"
+	worker, err := pgx.ConnectConfig(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer worker.Close(context.Background())
+	var raw json.RawMessage
+	if automatic {
+		if err := worker.QueryRow(ctx, `SELECT zasp_production_security_agent_existing_tests_schedule($1,1,$2,$3)`, workerID, migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&raw); err != nil {
+			t.Fatalf("actual automatic scheduler: %v", err)
+		}
+		if string(raw) != `{"created": 1}` {
+			t.Fatalf("automatic action not admitted: %s", raw)
+		}
+		if err := owner.QueryRow(ctx, `SELECT run_id FROM zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,trigger_id,requested_by)=($1,$2,$3,$4,$5)`, o, w, e, finding, workerID).Scan(&run); err != nil {
+			t.Fatal(err)
+		}
+		if err := worker.QueryRow(ctx, postgresSecurityAgentClaimRunsV24SQL, workerID, planningLease, 60, 25).Scan(&raw); err != nil {
+			t.Fatal(err)
+		}
+	}
+	prepare := func() error {
+		return worker.QueryRow(ctx, `SELECT zasp_sa_attack_lab_prepare_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, o, w, e, run, workerID, planningLease, approval, time.Now().UTC().Add(4*time.Minute), "pid_8a100006-0000-4000-8000-000000000006", "pid_8a100007-0000-4000-8000-000000000007").Scan(&raw)
+	}
+	if !automatic && !expiry {
+		before := existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run)
+		if _, err := owner.Exec(ctx, `UPDATE zasp_schema_metadata SET value=repeat('0',64) WHERE key='production_security_agent_attack_lab_fingerprint'`); err != nil {
+			t.Fatal(err)
+		}
+		for _, query := range []string{`SELECT zasp_sa_attack_lab_planner_context($1,$2,$3,$4,$5,$6)`, `SELECT zasp_sa_attack_lab_reserve_planner($1,$2,$3,$4,$5,$6,1,'attack-lab-reservation',digest('context','sha256'),'openai/gpt-5-mini','fixture-policy','openrouter_credit',10,100)`} {
+			var pg *pgconn.PgError
+			if err := worker.QueryRow(ctx, query, o, w, e, run, workerID, planningLease).Scan(&raw); !errors.As(err, &pg) || pg.Code != "55000" {
+				t.Fatalf("corrupt57 internal wrapper fell through: %v", err)
+			}
+		}
+		if _, err := owner.Exec(ctx, `UPDATE zasp_schema_metadata SET value=$1 WHERE key='production_security_agent_attack_lab_fingerprint'`, migrations.SecurityAgentAttackLabFingerprint()); err != nil {
+			t.Fatal(err)
+		}
+		if existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run) != before {
+			t.Fatal("corrupt57 mutated planning state")
+		}
+		var pg *pgconn.PgError
+		err := owner.QueryRow(ctx, `SELECT zasp_attack_lab_register_credential_binding($1,$2,$3,'pid_89000013-0000-4000-8000-000000000003','pid_89000011-0000-4000-8000-000000000001','ref:red-team/versioned_draft_0001','production_write',2,decode(repeat('ab',32),'hex'),clock_timestamp()+interval '1 hour')`, o, w, e).Scan(&raw)
+		if !errors.As(err, &pg) || pg.Code != "22023" {
+			t.Fatalf("actual production-write credential registration admitted: %v", err)
+		}
+		if existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run) != before {
+			t.Fatal("production-write refusal mutated agent state")
+		}
+	}
+	var preflightDeadline time.Time
+	if expiry {
+		if err := owner.QueryRow(ctx, `UPDATE zasp_attack_lab_credential_bindings SET valid_until=clock_timestamp()+interval '8 seconds' WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3) RETURNING valid_until`, o, w, e).Scan(&preflightDeadline); err != nil {
+			t.Fatal(err)
+		}
+	}
+	beforeMissing := existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run)
+	if _, err := owner.Exec(ctx, `UPDATE zasp_red_team_runs SET verdict='pass' WHERE run_id=$1`, source); err != nil {
+		t.Fatal(err)
+	}
+	if err := prepare(); err == nil || existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run) != beforeMissing {
+		t.Fatalf("missing failed source admitted or mutated parent: %v", err)
+	}
+	if _, err := owner.Exec(ctx, `UPDATE zasp_red_team_runs SET verdict='fail' WHERE run_id=$1`, source); err != nil {
+		t.Fatal(err)
+	}
+	// Equal completion times must choose the descending run ID, not insertion order.
+	cloneAttackLabSource(t, ctx, owner, source, "pid_8a000003-0000-4000-8000-000000000003", false)
+	if automatic {
+		db, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: worker})
+		if err != nil {
+			t.Fatal(err)
+		}
+		repository, err := NewSecurityAgentWorkerRepository(db)
+		if err != nil {
+			t.Fatal(err)
+		}
+		claim := SecurityAgentRunClaim{OrganizationID: o, WorkspaceID: w, EnvironmentID: e, RunID: run, TriggerID: finding, State: "planning", Attempt: 1}
+		if err := owner.QueryRow(ctx, `SELECT definition_id,definition_version,version,lease_expires_at FROM zasp_security_agent_runs WHERE run_id=$1`, run).Scan(&claim.DefinitionID, &claim.DefinitionVersion, &claim.Version, &claim.LeaseExpiresAt); err != nil {
+			t.Fatal(err)
+		}
+		claim.LeaseExpiresAt = claim.LeaseExpiresAt.UTC()
+		loaded, err := repository.LoadSecurityAgentPlannerContext(ctx, claim, workerID, planningLease)
+		if err != nil || loaded.ExistingTest == nil || loaded.ExistingTest.DefinitionID != testID || len(loaded.AttackLab) == 0 {
+			t.Fatalf("real repository source planner bridge: %+v %v", loaded, err)
+		}
+		const outputDigest = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		const model, policy = "fixture-model", "fixture-policy"
+		exportRelease, err := repository.SecurityAgentExportsAvailable(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if exportRelease {
+			// Release58 requires settled accounting for predecessor planner output,
+			// too. Exercise the registered path; no owner-seeded budget receipt.
+			reservation := SecurityAgentBudgetReservation{ReservationID: "attack-lab-route-reservation", InputDigest: loaded.InputDigest, Model: model, CostPolicyVersion: policy, CostUnit: "openrouter_credit", MaximumTokens: 100, MaximumCostNanoCredits: 1000}
+			permit, err := repository.ReserveSecurityAgentPlannerBudget(ctx, claim, workerID, planningLease, reservation)
+			if err != nil || permit.Reservation != reservation {
+				t.Fatalf("registered Attack Lab planner reservation: %+v %v", permit, err)
+			}
+			settlement, err := repository.SettleSecurityAgentPlannerBudget(ctx, claim, workerID, planningLease, SecurityAgentBudgetUsage{ReservationID: reservation.ReservationID, OutputDigest: outputDigest, Known: true, PromptTokens: 1, CompletionTokens: 1, TotalTokens: 2, CostNanoCredits: 10})
+			if err != nil || !settlement.Known || settlement.ReservationID != reservation.ReservationID || settlement.StopReason != "" {
+				t.Fatalf("registered Attack Lab planner settlement: %+v %v", settlement, err)
+			}
+		}
+		prepare = func() error {
+			result, err := repository.AcceptSecurityAgentPlannerCandidate(ctx, claim, workerID, planningLease, SecurityAgentPlannerSubmission{InputDigest: loaded.InputDigest, OutputDigest: outputDigest, Model: model, PolicyVersion: policy, Summary: "Reproduce the configured unsafe result", Action: "start_attack_lab", TargetID: testID}, approval, time.Now().UTC().Add(4*time.Minute), "pid_8a100006-0000-4000-8000-000000000006", "pid_8a100007-0000-4000-8000-000000000007")
+			if err == nil {
+				raw, _ = json.Marshal(result)
+			}
+			return err
+		}
+		before := existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run)
+		if _, err := owner.Exec(ctx, `UPDATE zasp_red_team_attempts SET evidence_checksum=digest('changed-planner-source','sha256') WHERE run_id=$1`, source); err != nil {
+			t.Fatal(err)
+		}
+		if err := prepare(); err == nil || existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run) != before {
+			t.Fatalf("changed planner source accepted: %v", err)
+		}
+		if _, err := owner.Exec(ctx, `UPDATE zasp_red_team_attempts SET evidence_checksum=digest('source-evidence','sha256') WHERE run_id=$1`, source); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := prepare(); err != nil {
+		t.Fatalf("registered preparation: %v", err)
+	}
+	var prepared SecurityAgentPrepareResult
+	if err := json.Unmarshal(raw, &prepared); err != nil || prepared.State != "waiting_approval" || prepared.ApprovalID != approval {
+		t.Fatalf("operator floor: %s %v", raw, err)
+	}
+	if err := api.QueryRow(ctx, postgresExistingTestApprovalSQL, o, w, e, approval, migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&raw); err != nil {
+		t.Fatalf("approval snapshot read: %v", err)
+	}
+	if displayed, err := decodeApprovalContextEnvelope(raw, approval); err != nil || len(displayed.AttackLab) == 0 {
+		t.Fatalf("closed approval snapshot: %s %v", raw, err)
+	}
+	if len(decide) != 0 {
+		decide[0](approval, approver)
+	} else if err := api.QueryRow(ctx, `SELECT zasp_sa_attack_lab_decide_approval($1,$2,$3,$4,$5,'attack-lab-approval-0001',1,'approved',clock_timestamp(),$6,$7,$8,$9,$10)`, o, w, e, approval, approver, "pid_8a100008-0000-4000-8000-000000000008", "pid_8a100009-0000-4000-8000-000000000009", "pid_8a10000a-0000-4000-8000-00000000000a", migrations.ProductionSecurityAgentAttackLab().Checksum(), migrations.SecurityAgentAttackLabFingerprint()).Scan(&raw); err != nil {
+		t.Fatalf("registered approval: %v", err)
+	}
+	// Later eligible sources cannot retarget an already approved exact source.
+	cloneAttackLabSource(t, ctx, owner, source, "pid_8a300003-0000-4000-8000-000000000003", true)
+	if err := worker.QueryRow(ctx, postgresSecurityAgentClaimRunsV24SQL, workerID, dispatchLease, 60, 25).Scan(&raw); err != nil {
+		t.Fatalf("registered claim: %v", err)
+	}
+	execute := func() error {
+		return worker.QueryRow(ctx, `SELECT zasp_sa_attack_lab_execute_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, o, w, e, run, workerID, dispatchLease, "pid_8a10000b-0000-4000-8000-00000000000b", "pid_8a10000c-0000-4000-8000-00000000000c", migrations.ProductionSecurityAgentAttackLab().Checksum(), migrations.SecurityAgentAttackLabFingerprint()).Scan(&raw)
+	}
+	snapshot := func() string {
+		t.Helper()
+		var value string
+		if err := owner.QueryRow(ctx, `SELECT jsonb_build_array((SELECT count(*) FROM zasp_security_agent_effects),(SELECT count(*) FROM zasp_sa_attack_lab_links),(SELECT count(*) FROM zasp_attack_lab_runs),(SELECT count(*) FROM zasp_attack_lab_outbox),(SELECT count(*) FROM zasp_attack_lab_request_receipts),(SELECT count(*) FROM zasp_attack_lab_audit),(SELECT count(*) FROM zasp_security_agent_audit))::text`).Scan(&value); err != nil {
+			t.Fatal(err)
+		}
+		return value
+	}
+	if expiry {
+		before := snapshot()
+		err := existingTestAcceptanceWait(t, ctx, owner, worker, run, "audit_preflight", execute, preflightDeadline)
+		if err == nil || snapshot() != before {
+			t.Fatalf("preflight expiry crossed final audit wait: %v", err)
+		}
+		return
+	}
+	for _, denial := range []struct{ name, change, restore string }{
+		{"production_truth", `UPDATE zasp_environments SET environment_class='production' WHERE id=$1`, `UPDATE zasp_environments SET environment_class='staging' WHERE id=$1`},
+		{"revoked_approver", `UPDATE zasp_identity_memberships SET active=false WHERE principal_id=$2`, `UPDATE zasp_identity_memberships SET active=true WHERE principal_id=$2`},
+		{"wrong_scope_approver", `UPDATE zasp_authorized_scopes SET environment_id='pid_8affffff-0000-4000-8000-000000000001' WHERE principal_id=$2`, `UPDATE zasp_authorized_scopes SET environment_id=$1 WHERE principal_id=$2`},
+		{"stale_authentication", `UPDATE zasp_security_agent_approvals SET fresh_auth_at=clock_timestamp()-interval '6 minutes' WHERE approval_id=$3`, `UPDATE zasp_security_agent_approvals SET fresh_auth_at=clock_timestamp() WHERE approval_id=$3`},
+		{"expired_lease", `UPDATE zasp_security_agent_runs SET lease_expires_at=clock_timestamp()-interval '1 second' WHERE run_id=$4`, `UPDATE zasp_security_agent_runs SET lease_expires_at=clock_timestamp()+interval '60 seconds' WHERE run_id=$4`},
+		{"source_evidence_drift", `UPDATE zasp_red_team_attempts SET evidence_checksum=digest('different','sha256') WHERE run_id=$5`, `UPDATE zasp_red_team_attempts SET evidence_checksum=digest('source-evidence','sha256') WHERE run_id=$5`},
+		{"definition_version_drift", `UPDATE zasp_red_team_definitions SET version=2 WHERE definition_id=$6`, `UPDATE zasp_red_team_definitions SET version=1 WHERE definition_id=$6`},
+		{"production_write_declaration", `UPDATE zasp_red_team_definitions SET safety=jsonb_set(safety,'{credential_class}','"production_write"') WHERE definition_id=$6`, `UPDATE zasp_red_team_definitions SET safety=jsonb_set(safety,'{credential_class}',to_jsonb((SELECT credential_class FROM zasp_attack_lab_credential_bindings LIMIT 1))) WHERE definition_id=$6`},
+	} {
+		t.Run(denial.name, func(t *testing.T) {
+			// Simple protocol permits unused fixture parameters without SQL type inference.
+			if _, err := owner.Exec(ctx, "SELECT $1::text,$2::text,$3::text,$4::text,$5::text,$6::text; "+denial.change, pgx.QueryExecModeSimpleProtocol, e, approver, approval, run, source, testID); err != nil {
+				t.Fatal(err)
+			}
+			before := snapshot()
+			err := execute()
+			if err == nil || snapshot() != before {
+				t.Fatalf("denial changed durable execution: %v", err)
+			}
+			if _, err := owner.Exec(ctx, "SELECT $1::text,$2::text,$3::text,$4::text,$5::text,$6::text; "+denial.restore, pgx.QueryExecModeSimpleProtocol, e, approver, approval, run, source, testID); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	if !automatic {
+		t.Run("permission_revocation_after_wait", func(t *testing.T) {
+			before := snapshot()
+			blocker, err := owner.Begin(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := blocker.Exec(ctx, `UPDATE zasp_identity_memberships SET active=false WHERE principal_id=$1`, approver); err != nil {
+				_ = blocker.Rollback(ctx)
+				t.Fatal(err)
+			}
+			done := make(chan error, 1)
+			go func() { done <- execute() }()
+			observed := false
+			for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); {
+				if err := blocker.QueryRow(ctx, `SELECT pg_backend_pid()=ANY(pg_blocking_pids($1))`, worker.PgConn().PID()).Scan(&observed); err != nil {
+					break
+				}
+				if observed {
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			commitErr := blocker.Commit(ctx)
+			err = <-done
+			if !observed || commitErr != nil || err == nil || snapshot() != before {
+				t.Fatalf("permission changed while waiting: observed=%v commit=%v execute=%v", observed, commitErr, err)
+			}
+			if _, err := owner.Exec(ctx, `UPDATE zasp_identity_memberships SET active=true WHERE principal_id=$1`, approver); err != nil {
+				t.Fatal(err)
+			}
+		})
+		for _, mode := range []string{"audit_approval", "audit_lease"} {
+			t.Run(mode, func(t *testing.T) {
+				before := snapshot()
+				err := existingTestAcceptanceWait(t, ctx, owner, worker, run, mode, execute)
+				if err == nil || snapshot() != before {
+					t.Fatalf("wait crossed authorization expiry: %v", err)
+				}
+				if _, err := owner.Exec(ctx, `UPDATE zasp_security_agent_approvals a SET expires_at=p.expires_at FROM zasp_security_agent_plans p WHERE (a.organization_id,a.workspace_id,a.environment_id,a.run_id)=(p.organization_id,p.workspace_id,p.environment_id,p.run_id) AND a.run_id=$1; UPDATE zasp_security_agent_runs SET lease_expires_at=clock_timestamp()+interval '60 seconds' WHERE run_id=$1`, pgx.QueryExecModeSimpleProtocol, run); err != nil {
+					t.Fatal(err)
+				}
+			})
+		}
+		t.Run("fresh_auth_expiry_after_wait", func(t *testing.T) {
+			var deadline time.Time
+			if err := owner.QueryRow(ctx, `UPDATE zasp_security_agent_approvals SET fresh_auth_at=clock_timestamp()-interval '5 minutes'+interval '2 seconds' WHERE approval_id=$1 RETURNING fresh_auth_at+interval '5 minutes'`, approval).Scan(&deadline); err != nil {
+				t.Fatal(err)
+			}
+			before := snapshot()
+			err := existingTestAcceptanceWait(t, ctx, owner, worker, run, "audit_fresh_auth", execute, deadline)
+			if err == nil || snapshot() != before {
+				t.Fatalf("fresh authentication expired during wait: %v", err)
+			}
+			if _, err := owner.Exec(ctx, `UPDATE zasp_security_agent_approvals SET fresh_auth_at=clock_timestamp() WHERE approval_id=$1`, approval); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	if automatic {
+		if err := execute(); err != nil {
+			t.Fatalf("registered dispatch: %v", err)
+		}
+	} else {
+		raw = concurrentAttackLabDispatch(t, ctx, owner, worker, o, w, e, run, workerID, dispatchLease)
+	}
+	first := string(raw)
+	if err := execute(); err != nil || string(raw) != first {
+		t.Fatalf("lost reply replay: %s %v", raw, err)
+	}
+	if _, err := owner.Exec(ctx, `UPDATE zasp_attack_lab_request_receipts SET expires_at=clock_timestamp()-interval '1 second' WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, o, w, e); err != nil {
+		t.Fatal(err)
+	}
+	if err := execute(); err != nil || string(raw) != first {
+		t.Fatalf("retained replay after public receipt expiry: %s %v", raw, err)
+	}
+	for _, mutation := range []struct{ change, restore string }{
+		{`UPDATE zasp_security_agent_approvals SET version=version+1 WHERE run_id=$1`, `UPDATE zasp_security_agent_approvals SET version=version-1 WHERE run_id=$1`},
+		{`UPDATE zasp_security_agent_steps SET input_digest=digest('changed-step','sha256') WHERE run_id=$1`, `UPDATE zasp_security_agent_steps s SET input_digest=l.input_digest FROM zasp_sa_attack_lab_links l WHERE (s.organization_id,s.workspace_id,s.environment_id,s.run_id,s.step_id)=(l.organization_id,l.workspace_id,l.environment_id,l.run_id,l.step_id) AND s.run_id=$1`},
+	} {
+		if _, err := owner.Exec(ctx, mutation.change, run); err != nil {
+			t.Fatal(err)
+		}
+		before := snapshot()
+		if err := execute(); err == nil || snapshot() != before {
+			t.Fatalf("changed immutable intent replayed: %v", err)
+		}
+		if _, err := owner.Exec(ctx, mutation.restore, run); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := precisionMigrationRunner(t, owner).DownProductionSecurityAgentAttackLab(ctx); err == nil {
+		t.Fatal("active linked execution allowed downgrade")
+	}
+	var priorParentState string
+	if err := owner.QueryRow(ctx, `SELECT state FROM zasp_security_agent_runs WHERE run_id=$1`, run).Scan(&priorParentState); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := owner.Exec(ctx, `UPDATE zasp_security_agent_runs SET state='needs_human' WHERE run_id=$1`, run); err != nil {
+		t.Fatal(err)
+	}
+	if err := precisionMigrationRunner(t, owner).DownProductionSecurityAgentAttackLab(ctx); err == nil {
+		t.Fatal("terminal linked execution allowed downgrade")
+	}
+	if _, err := owner.Exec(ctx, `UPDATE zasp_security_agent_runs SET state=$2 WHERE run_id=$1`, run, priorParentState); err != nil {
+		t.Fatal(err)
+	}
+	var exact bool
+	if err := owner.QueryRow(ctx, `SELECT count(*)=1 AND bool_and(l.source_run_id=$5 AND r.requested_by=$6 AND r.state='queued') FROM zasp_sa_attack_lab_links l JOIN zasp_attack_lab_runs r ON (r.organization_id,r.workspace_id,r.environment_id,r.run_id)=(l.organization_id,l.workspace_id,l.environment_id,l.execution_id) WHERE (l.organization_id,l.workspace_id,l.environment_id,l.run_id)=($1,$2,$3,$4)`, o, w, e, run, source, approver).Scan(&exact); err != nil || !exact {
+		t.Fatalf("durable linked execution: %v %v", exact, err)
+	}
+}
+
+func cloneAttackLabSource(t *testing.T, ctx context.Context, owner *pgx.Conn, source, target string, newer bool) {
+	t.Helper()
+	if _, err := owner.Exec(ctx, `INSERT INTO zasp_red_team_runs SELECT (jsonb_populate_record(NULL::zasp_red_team_runs,to_jsonb(r)||jsonb_build_object('run_id',$2::text,'completed_at',CASE WHEN $3 THEN clock_timestamp() ELSE r.completed_at END))).* FROM zasp_red_team_runs r WHERE run_id=$1;
+ INSERT INTO zasp_red_team_attempts SELECT (jsonb_populate_record(NULL::zasp_red_team_attempts,to_jsonb(a)||jsonb_build_object('run_id',$2::text,'completed_at',(SELECT completed_at FROM zasp_red_team_runs WHERE run_id=$2)))).* FROM zasp_red_team_attempts a WHERE run_id=$1`, pgx.QueryExecModeSimpleProtocol, source, target, newer); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func concurrentAttackLabDispatch(t *testing.T, ctx context.Context, owner, worker *pgx.Conn, o, w, e, run, workerID, lease string) json.RawMessage {
+	t.Helper()
+	second, err := pgx.ConnectConfig(ctx, worker.Config().Copy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close(context.Background())
+	blocker, err := owner.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blocker.Rollback(context.Background())
+	if _, err := blocker.Exec(ctx, `SELECT 1 FROM zasp_security_agent_org_admissions WHERE organization_id=$1 FOR UPDATE`, o); err != nil {
+		t.Fatal(err)
+	}
+	type reply struct {
+		raw json.RawMessage
+		err error
+	}
+	done := make(chan reply, 2)
+	for _, conn := range []*pgx.Conn{worker, second} {
+		go func(c *pgx.Conn) {
+			var r reply
+			r.err = c.QueryRow(ctx, `SELECT zasp_sa_attack_lab_execute_run($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, o, w, e, run, workerID, lease, "pid_8a10000b-0000-4000-8000-00000000000b", "pid_8a10000c-0000-4000-8000-00000000000c", migrations.ProductionSecurityAgentAttackLab().Checksum(), migrations.SecurityAgentAttackLabFingerprint()).Scan(&r.raw)
+			done <- r
+		}(conn)
+	}
+	observed := false
+	for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); {
+		if err := blocker.QueryRow(ctx, `SELECT cardinality(pg_blocking_pids($1))>0 AND cardinality(pg_blocking_pids($2))>0`, worker.PgConn().PID(), second.PgConn().PID()).Scan(&observed); err != nil {
+			break
+		}
+		if observed {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	_ = blocker.Rollback(ctx)
+	first, next := <-done, <-done
+	if !observed || first.err != nil || next.err != nil || !equalIntegrationJSON(first.raw, next.raw) {
+		t.Fatalf("concurrent same-step replay: observed=%v errors=%v %v", observed, first.err, next.err)
+	}
+	return first.raw
+}

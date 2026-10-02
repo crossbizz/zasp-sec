@@ -1,0 +1,338 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"regexp"
+	"slices"
+	"time"
+	"unicode/utf8"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+)
+
+type complianceExportLease struct {
+	Scope                           domain.Scope
+	ExportID, WorkerID, Token, Lane string
+	Generation                      int64
+	Attempt                         int
+	ExpiresAt                       time.Time
+	Captured, Prepared              bool
+	Reference, VersionID, SHA256    string
+	Size                            int64
+	JobOrigin                       string
+	AgentBinding                    *securityAgentExportBinding
+}
+type compliancePreparedArtifact struct {
+	Bytes                               []byte
+	RendererRevision, Reference, SHA256 string
+	Size                                int64
+	FormatSizes                         map[string]int64
+}
+type postgresComplianceExportAuthority struct{ database recoveryJSONDatabase }
+
+func newPostgresComplianceExportAuthority(db recoveryJSONDatabase) *postgresComplianceExportAuthority {
+	return &postgresComplianceExportAuthority{database: db}
+}
+
+var complianceToken = regexp.MustCompile(`^[a-f0-9]{64}$`)
+
+const complianceClaimSQL = `SELECT public.zasp_compliance_export_claim($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+const complianceCaptureSQL = `SELECT public.zasp_compliance_export_capture($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+const compliancePrepareSQL = `SELECT public.zasp_compliance_export_prepare_artifact($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+const complianceFinishSQL = `SELECT public.zasp_compliance_export_finish($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+const complianceRetrySQL = `SELECT public.zasp_compliance_export_retry($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+const complianceCleanupSQL = `SELECT public.zasp_compliance_export_cleanup($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+const complianceCandidatesSQL = `SELECT public.zasp_compliance_export_candidates($1,$2,$3,$4)`
+const complianceMaintenanceSQL = `SELECT public.zasp_compliance_export_maintenance($1,$2)`
+
+type complianceExportCandidate struct {
+	Scope    domain.Scope
+	ExportID string
+}
+
+// Candidate discovery checks release readiness and the registered session_user
+// binding inside the granted SECURITY DEFINER function. No table-owner read.
+func (a *postgresComplianceExportAuthority) Ready(ctx context.Context, lane string) error {
+	_, err := a.Candidates(ctx, lane, 1)
+	return err
+}
+func (a *postgresComplianceExportAuthority) Candidates(ctx context.Context, lane string, limit int) ([]complianceExportCandidate, error) {
+	if !slices.Contains([]string{"execute", "reconcile", "cleanup"}, lane) || limit < 1 || limit > 100 {
+		return nil, errWorkerExecution
+	}
+	raw, err := a.query(ctx, complianceCandidatesSQL, 65536, lane, limit)
+	if err != nil {
+		return nil, err
+	}
+	fields, err := auditExportWorkerObject(raw, 65536, "items")
+	if err != nil {
+		return nil, errWorkerExecution
+	}
+	var items []json.RawMessage
+	if json.Unmarshal(fields["items"], &items) != nil || items == nil || len(items) > limit {
+		return nil, errWorkerExecution
+	}
+	result := make([]complianceExportCandidate, 0, len(items))
+	seen := map[string]bool{}
+	for _, item := range items {
+		f, err := auditExportWorkerObject(item, 2048, "organization_id", "workspace_id", "environment_id", "export_id")
+		if err != nil {
+			return nil, errWorkerExecution
+		}
+		ids := make([]string, 4)
+		for i, k := range []string{"organization_id", "workspace_id", "environment_id", "export_id"} {
+			if json.Unmarshal(f[k], &ids[i]) != nil || !validRecoveryProductID(ids[i]) {
+				return nil, errWorkerExecution
+			}
+		}
+		org, _ := domain.ParseProductID(ids[0])
+		workspace, _ := domain.ParseProductID(ids[1])
+		environment, _ := domain.ParseProductID(ids[2])
+		scope, err := domain.NewScope(org, workspace, environment)
+		key := ids[0] + "/" + ids[1] + "/" + ids[2] + "/" + ids[3]
+		if err != nil || seen[key] {
+			return nil, errWorkerExecution
+		}
+		seen[key] = true
+		result = append(result, complianceExportCandidate{scope, ids[3]})
+	}
+	return result, nil
+}
+func (a *postgresComplianceExportAuthority) Maintenance(ctx context.Context) error {
+	raw, err := a.query(ctx, complianceMaintenanceSQL, 1024)
+	if err != nil {
+		return err
+	}
+	f, err := auditExportWorkerObject(raw, 1024, "pruned_grants")
+	var n int
+	if err != nil || json.Unmarshal(f["pruned_grants"], &n) != nil || n < 0 || n > 100 {
+		return errWorkerExecution
+	}
+	return nil
+}
+
+func (a *postgresComplianceExportAuthority) query(ctx context.Context, q string, max int, args ...any) (raw json.RawMessage, resultErr error) {
+	defer func() {
+		if recover() != nil {
+			raw = nil
+			resultErr = errWorkerExecution
+		}
+	}()
+	if a == nil || nilWorkerDependency(a.database) || ctx == nil || ctx.Err() != nil {
+		return nil, errWorkerExecution
+	}
+	args = append(args, migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint())
+	raw, err := a.database.QueryJSON(ctx, q, args...)
+	if err != nil || ctx.Err() != nil || len(raw) == 0 || len(raw) > max || !utf8.Valid(raw) || !json.Valid(raw) {
+		return nil, errWorkerExecution
+	}
+	return raw, nil
+}
+func (a *postgresComplianceExportAuthority) Claim(ctx context.Context, s domain.Scope, id, worker, token, lane string) (*complianceExportLease, error) {
+	if s.Validate() != nil || !validRecoveryProductID(id) || !workerIdentityPattern.MatchString(worker) || !complianceToken.MatchString(token) || !slices.Contains([]string{"execute", "reconcile", "cleanup"}, lane) {
+		return nil, errWorkerExecution
+	}
+	raw, err := a.query(ctx, complianceClaimSQL, 65536, s.OrganizationID().String(), s.WorkspaceID().String(), s.EnvironmentID().String(), id, worker, token, lane)
+	if err != nil {
+		return nil, err
+	}
+	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return nil, nil
+	}
+	origin, binding, err := decodeComplianceClaimOrigin(raw)
+	if err != nil {
+		return nil, errWorkerExecution
+	}
+	var v struct {
+		Organization string    `json:"organization_id"`
+		Workspace    string    `json:"workspace_id"`
+		Environment  string    `json:"environment_id"`
+		ID           string    `json:"export_id"`
+		Generation   int64     `json:"generation"`
+		Attempt      int       `json:"attempt"`
+		Expires      time.Time `json:"lease_expires_at"`
+		Lane         string    `json:"lane"`
+		Captured     bool      `json:"captured"`
+		Prepared     bool      `json:"prepared"`
+		Reference    string    `json:"reference"`
+		VersionID    string    `json:"version"`
+		Size         int64     `json:"size"`
+		SHA256       string    `json:"sha256"`
+	}
+	if json.Unmarshal(raw, &v) != nil || v.Organization != s.OrganizationID().String() || v.Workspace != s.WorkspaceID().String() || v.Environment != s.EnvironmentID().String() || v.ID != id || v.Lane != lane || v.Attempt < 0 || v.Attempt > 5 || v.Generation < 1 || !v.Expires.After(time.Now()) || v.Expires.After(time.Now().Add(65*time.Second)) {
+		return nil, errWorkerExecution
+	}
+	if v.Prepared && (v.Reference != id || v.Size < 1 || v.Size > 8<<20 || !complianceToken.MatchString(v.SHA256)) || !v.Prepared && (v.Reference != "" || v.Size != 0 || v.SHA256 != "") || len(v.VersionID) > 1024 {
+		return nil, errWorkerExecution
+	}
+	return &complianceExportLease{Scope: s, ExportID: id, WorkerID: worker, Token: token, Lane: lane, Generation: v.Generation, Attempt: v.Attempt, ExpiresAt: v.Expires, Captured: v.Captured, Prepared: v.Prepared, Reference: v.Reference, VersionID: v.VersionID, Size: v.Size, SHA256: v.SHA256, JobOrigin: origin, AgentBinding: binding}, nil
+}
+func (a *postgresComplianceExportAuthority) mutate(ctx context.Context, l complianceExportLease, q string, payload any, max int) (json.RawMessage, error) {
+	if l.Scope.Validate() != nil || !validRecoveryProductID(l.ExportID) || !workerIdentityPattern.MatchString(l.WorkerID) || !complianceToken.MatchString(l.Token) || l.Generation < 1 || !l.ExpiresAt.After(time.Now()) || !slices.Contains([]string{"execute", "reconcile", "cleanup"}, l.Lane) {
+		return nil, errWorkerExecution
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return nil, errWorkerExecution
+	}
+	return a.query(ctx, q, max, l.Scope.OrganizationID().String(), l.Scope.WorkspaceID().String(), l.Scope.EnvironmentID().String(), l.ExportID, l.WorkerID, l.Token, l.Generation, json.RawMessage(raw))
+}
+
+// Capture is one QueryJSON invocation. Its registered VOLATILE SQL function
+// owns locking, one-statement materialized source capture, fresh auth and atomic
+// rollback. Multiple QueryJSON calls must never be used as a transaction.
+func (a *postgresComplianceExportAuthority) Capture(ctx context.Context, l complianceExportLease) (json.RawMessage, error) {
+	rendererRevision, err := complianceLeaseRendererRevision(l)
+	if err != nil {
+		return nil, err
+	}
+	wantRevision := "product-evidence-v1"
+	if rendererRevision == securityAgentExportRendererRevision {
+		wantRevision = "security-agent-run-evidence-v1"
+	}
+	raw, err := a.mutate(ctx, l, complianceCaptureSQL, struct{}{}, (4<<20)+4096)
+	if err != nil {
+		return nil, err
+	}
+	fields, err := auditExportWorkerObject(raw, (4<<20)+4096, "snapshot", "sha256", "mapping_revision")
+	if err != nil {
+		return nil, errWorkerExecution
+	}
+	var revision, digest string
+	if json.Unmarshal(fields["mapping_revision"], &revision) != nil || revision != wantRevision || json.Unmarshal(fields["sha256"], &digest) != nil || !complianceToken.MatchString(digest) {
+		return nil, errWorkerExecution
+	}
+	keys := []string{"mapping_revision", "snapshot_at", "organization_id", "workspace_id", "environment_id", "controls"}
+	if l.JobOrigin == "agent_run" {
+		keys = []string{"mapping_revision", "snapshot_at", "organization_id", "workspace_id", "environment_id", "run_id", "step_id", "records"}
+		if validateAgentExportWorkerSnapshot(l, fields["snapshot"]) != nil {
+			return nil, errWorkerExecution
+		}
+	}
+	snapshot, err := auditExportWorkerObject(fields["snapshot"], 4<<20, keys...)
+	if err != nil {
+		return nil, errWorkerExecution
+	}
+	for key, want := range map[string]string{"organization_id": l.Scope.OrganizationID().String(), "workspace_id": l.Scope.WorkspaceID().String(), "environment_id": l.Scope.EnvironmentID().String(), "mapping_revision": wantRevision} {
+		var got string
+		if json.Unmarshal(snapshot[key], &got) != nil || got != want {
+			return nil, errWorkerExecution
+		}
+	}
+	// Digest is PostgreSQL jsonb text, not a Go re-serialization. Preserve this
+	// exact RawMessage for audit; rendering consumes its structured contents.
+	hash := sha256.Sum256(fields["snapshot"])
+	if hex.EncodeToString(hash[:]) != digest {
+		return nil, errWorkerExecution
+	}
+	return bytes.Clone(fields["snapshot"]), nil
+}
+func (a *postgresComplianceExportAuthority) LoadPrepared(ctx context.Context, l complianceExportLease) (compliancePreparedArtifact, error) {
+	return a.prepare(ctx, l, struct{}{})
+}
+func (a *postgresComplianceExportAuthority) Prepare(ctx context.Context, l complianceExportLease, p compliancePreparedArtifact) (compliancePreparedArtifact, error) {
+	revision, err := complianceLeaseRendererRevision(l)
+	if err != nil {
+		return compliancePreparedArtifact{}, err
+	}
+	hash := sha256.Sum256(p.Bytes)
+	if len(p.Bytes) == 0 || len(p.Bytes) > 8<<20 || p.Reference != l.ExportID || p.Size != int64(len(p.Bytes)) || p.SHA256 != hex.EncodeToString(hash[:]) || p.RendererRevision != revision || len(p.FormatSizes) != 3 {
+		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	for _, format := range []string{"json", "csv", "readable"} {
+		if p.FormatSizes[format] < 1 || p.FormatSizes[format] > 4<<20 {
+			return compliancePreparedArtifact{}, errWorkerExecution
+		}
+	}
+	return a.prepare(ctx, l, map[string]any{"bytes_hex": hex.EncodeToString(p.Bytes), "renderer_revision": p.RendererRevision, "reference": p.Reference, "size": p.Size, "sha256": p.SHA256, "format_sizes": p.FormatSizes})
+}
+func (a *postgresComplianceExportAuthority) prepare(ctx context.Context, l complianceExportLease, payload any) (compliancePreparedArtifact, error) {
+	revision, err := complianceLeaseRendererRevision(l)
+	if err != nil {
+		return compliancePreparedArtifact{}, err
+	}
+	raw, err := a.mutate(ctx, l, compliancePrepareSQL, payload, (16<<20)+4096)
+	if err != nil {
+		return compliancePreparedArtifact{}, err
+	}
+	if _, err := auditExportWorkerObject(raw, (16<<20)+4096, "bytes_hex", "renderer_revision", "reference", "size", "sha256", "format_sizes"); err != nil {
+		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	var v struct {
+		Hex       string           `json:"bytes_hex"`
+		Revision  string           `json:"renderer_revision"`
+		Reference string           `json:"reference"`
+		Size      int64            `json:"size"`
+		SHA256    string           `json:"sha256"`
+		Formats   map[string]int64 `json:"format_sizes"`
+	}
+	if json.Unmarshal(raw, &v) != nil || v.Revision != revision || v.Reference != l.ExportID || v.Size < 1 || v.Size > 8<<20 || len(v.Formats) != 3 {
+		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	body, err := hex.DecodeString(v.Hex)
+	hash := sha256.Sum256(body)
+	if err != nil || int64(len(body)) != v.Size || hex.EncodeToString(hash[:]) != v.SHA256 {
+		return compliancePreparedArtifact{}, errWorkerExecution
+	}
+	for _, format := range []string{"json", "csv", "readable"} {
+		if v.Formats[format] < 1 || v.Formats[format] > 4<<20 {
+			return compliancePreparedArtifact{}, errWorkerExecution
+		}
+	}
+	return compliancePreparedArtifact{Bytes: body, RendererRevision: v.Revision, Reference: v.Reference, Size: v.Size, SHA256: v.SHA256, FormatSizes: v.Formats}, nil
+}
+func (a *postgresComplianceExportAuthority) Finish(ctx context.Context, l complianceExportLease, p compliancePreparedArtifact, version string) error {
+	if version == "" || len(version) > 1024 {
+		return errWorkerExecution
+	}
+	_, err := a.mutate(ctx, l, complianceFinishSQL, map[string]any{"reference": p.Reference, "version": version, "size": p.Size, "sha256": p.SHA256}, 16384)
+	return err
+}
+func (a *postgresComplianceExportAuthority) Retry(ctx context.Context, l complianceExportLease, outcome string) error {
+	if !slices.Contains([]string{"unknown", "absent", "source_failed"}, outcome) {
+		return errWorkerExecution
+	}
+	_, err := a.mutate(ctx, l, complianceRetrySQL, map[string]string{"outcome": outcome}, 16384)
+	return err
+}
+
+// Heartbeat returns a replacement lease. Retry must not discard its new expiry.
+func (a *postgresComplianceExportAuthority) Heartbeat(ctx context.Context, l complianceExportLease) (complianceExportLease, error) {
+	raw, err := a.mutate(ctx, l, complianceRetrySQL, map[string]string{"outcome": "heartbeat"}, 16384)
+	if err != nil {
+		return complianceExportLease{}, err
+	}
+	if _, err = auditExportWorkerObject(raw, 16384, "renewed", "generation", "attempt", "lease_expires_at"); err != nil {
+		return complianceExportLease{}, errWorkerExecution
+	}
+	var v struct {
+		Renewed    bool      `json:"renewed"`
+		Generation int64     `json:"generation"`
+		Attempt    int       `json:"attempt"`
+		Expires    time.Time `json:"lease_expires_at"`
+	}
+	if json.Unmarshal(raw, &v) != nil || !v.Renewed || v.Generation != l.Generation || v.Attempt != l.Attempt || !v.Expires.After(time.Now()) || v.Expires.After(time.Now().Add(65*time.Second)) || v.Expires.Before(l.ExpiresAt) {
+		return complianceExportLease{}, errWorkerExecution
+	}
+	l.ExpiresAt = v.Expires
+	return l, nil
+}
+func (a *postgresComplianceExportAuthority) ConfirmDeleted(ctx context.Context, l complianceExportLease, reference, version string) error {
+	if l.Lane != "cleanup" {
+		return errWorkerExecution
+	}
+	var refValue, versionValue any
+	if reference != "" {
+		refValue = reference
+	}
+	if version != "" {
+		versionValue = version
+	}
+	_, err := a.mutate(ctx, l, complianceCleanupSQL, map[string]any{"outcome": "verified_absent", "reference": refValue, "version": versionValue}, 16384)
+	return err
+}

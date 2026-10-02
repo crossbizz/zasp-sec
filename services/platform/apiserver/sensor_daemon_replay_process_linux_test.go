@@ -151,8 +151,11 @@ func startDaemonReplayPostgres(t *testing.T, ctx context.Context, ownership *dae
 	return dsn
 }
 
-func migrateDaemonReplayDatabase(t *testing.T, ctx context.Context, admin *pgx.Conn) {
+func migrateDaemonReplayDatabase(t *testing.T, ctx context.Context, admin *pgx.Conn, schema int) {
 	t.Helper()
+	if schema != 48 && schema != 53 {
+		t.Fatal("unsupported daemon replay schema", schema)
+	}
 	runner := migrateToTypedInventoryCutover(t, ctx, admin)
 	for _, up := range []func(context.Context) error{
 		runner.UpProductionRuntimeDataPlane, runner.UpProductionRuntimeGatewayReconciliation, runner.UpProductionRuntimeIngestReconciliation,
@@ -182,6 +185,22 @@ func migrateDaemonReplayDatabase(t *testing.T, ctx context.Context, admin *pgx.C
 	var registered bool
 	if err := admin.QueryRow(ctx, `SELECT zasp_discovery_register_principals(session_user,$1,$2,$3,$4,$5,$6)`, names[0], names[1], names[2], names[3], names[4], names[5]).Scan(&registered); err != nil || !registered {
 		t.Fatal("register exact fixture principals", err)
+	}
+	if schema == 53 {
+		for _, up := range []func(context.Context) error{
+			runner.UpProductionRuntimeCorrelationRouting,
+			runner.UpProductionRuntimeSandboxBinding,
+			runner.UpProductionRuntimePrecision,
+			runner.UpProductionAuditExports,
+			runner.UpProductionSecurityAgentBudgets,
+		} {
+			if err := up(ctx); err != nil {
+				t.Fatal("current daemon release migration", err)
+			}
+		}
+		if version, err := runner.Version(ctx); err != nil || version != 53 {
+			t.Fatal("wrong current daemon release schema", version, err)
+		}
 	}
 }
 

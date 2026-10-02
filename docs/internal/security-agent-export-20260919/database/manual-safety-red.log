@@ -1,0 +1,30 @@
+$ /usr/local/bin/docker run --rm --name zasp-manual-safety --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgent(Manual(Integrity|Concurrency|Cancel|PostWait)|ExportRelease)Postgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentExportReleasePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportReleasePostgres1961958989/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportReleasePostgres (6.66s)
+=== RUN   TestSecurityAgentManualIntegrityPostgres
+=== RUN   TestSecurityAgentManualIntegrityPostgres/version
+=== RUN   TestSecurityAgentManualIntegrityPostgres/digest
+=== RUN   TestSecurityAgentManualIntegrityPostgres/intent
+=== RUN   TestSecurityAgentManualIntegrityPostgres/response
+=== RUN   TestSecurityAgentManualIntegrityPostgres/original_definition
+=== NAME  TestSecurityAgentManualIntegrityPostgres
+    security_agent_manual_admission_postgres_test.go:401: ERROR: permission denied for function zasp_security_agent_run_detail (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=53 data=/tmp/TestSecurityAgentManualIntegrityPostgres595136545/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentManualIntegrityPostgres (4.85s)
+    --- PASS: TestSecurityAgentManualIntegrityPostgres/version (0.00s)
+    --- PASS: TestSecurityAgentManualIntegrityPostgres/digest (0.00s)
+    --- PASS: TestSecurityAgentManualIntegrityPostgres/intent (0.00s)
+    --- PASS: TestSecurityAgentManualIntegrityPostgres/response (0.00s)
+    --- PASS: TestSecurityAgentManualIntegrityPostgres/original_definition (0.00s)
+=== RUN   TestSecurityAgentManualConcurrencyPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=82 data=/tmp/TestSecurityAgentManualConcurrencyPostgres3744131112/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentManualConcurrencyPostgres (4.76s)
+=== RUN   TestSecurityAgentManualCancelPostgres
+    security_agent_manual_admission_postgres_test.go:520: manual cancellation/replay lost provenance={"id": "pid_8e194001-0000-4000-8000-000000000001", "state": "cancelled", "version": 2, "agent_id": "pid_6a000004-0000-4000-8000-000000000004", "audit_id": "pid_8e194002-0000-4000-8000-000000000002", "replayed": false, "receipt_id": "pid_8e194002-0000-4000-8000-000000000002", "evidence_ids": ["c3840ae9c69d5f9b81ad4206f454f8e9c21c7b219bd0e5c259eacfb83f1b4cc8"], "correlation_id": "pid_8e194002-0000-4000-8000-000000000002", "definition_version": 1}
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=113 data=/tmp/TestSecurityAgentManualCancelPostgres3730732143/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentManualCancelPostgres (4.60s)
+=== RUN   TestSecurityAgentManualPostWaitPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=142 data=/tmp/TestSecurityAgentManualPostWaitPostgres3182095532/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentManualPostWaitPostgres (4.76s)
+FAIL

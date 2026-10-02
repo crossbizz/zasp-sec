@@ -17,6 +17,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
 	runtimeopensearch "github.com/zasp-ai/zasp-sec/services/platform/runtimeindex/opensearchdriver"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
 
 var (
@@ -25,6 +26,13 @@ var (
 )
 
 type RuntimeConfig struct {
+	RuntimeServices                 runtimeservices.Config
+	SecurityAgentOrderedHTTPEnabled bool
+
+	EvidenceExportWorkflow      string
+	AttackLabWorkflow           string
+	ComplianceExports           *complianceAPIRuntimeConfig
+	AuditExports                *auditExportRuntimeConfig
 	Environment                 string
 	DeploymentMode              string
 	OrganizationID              string
@@ -94,16 +102,33 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 	if getenv == nil {
 		return RuntimeConfig{}, errInvalidRuntimeConfig
 	}
+	services, servicesErr := runtimeservices.Load(getenv)
+	if servicesErr != nil {
+		return RuntimeConfig{}, errInvalidRuntimeConfig
+	}
 	providerTimeout, providerErr := time.ParseDuration(getenv("ZASP_PROVIDER_TIMEOUT"))
 	requestTimeout, requestErr := time.ParseDuration(getenv("ZASP_REQUEST_TIMEOUT"))
 	shutdownTimeout, shutdownErr := time.ParseDuration(getenv("ZASP_SHUTDOWN_TIMEOUT"))
 	readinessInterval, readinessErr := time.ParseDuration(getenv("ZASP_READINESS_INTERVAL"))
 	readinessMaxInterval, readinessMaxErr := time.ParseDuration(getenv("ZASP_READINESS_MAX_INTERVAL"))
 	cookieSecure, cookieErr := strconv.ParseBool(getenv("ZASP_COOKIE_SECURE"))
+	orderedHTTPEnabled := false
+	if value := getenv("ZASP_SECURITY_AGENT_ORDERED_HTTP_ENABLED"); value != "" {
+		var err error
+		orderedHTTPEnabled, err = strconv.ParseBool(value)
+		if err != nil {
+			return RuntimeConfig{}, errInvalidRuntimeConfig
+		}
+	}
 	requestRate, requestRateErr := strconv.Atoi(getenv("ZASP_REQUEST_RATE_PER_SECOND"))
 	requestBurst, requestBurstErr := strconv.Atoi(getenv("ZASP_REQUEST_BURST"))
 	config := RuntimeConfig{
-		Environment: getenv("ZASP_ENVIRONMENT"), DeploymentMode: getenv("ZASP_DEPLOYMENT_MODE"), OrganizationID: getenv("ZASP_ORGANIZATION_ID"), ProductListenAddress: getenv("ZASP_PRODUCT_LISTEN_ADDRESS"),
+		RuntimeServices:                 services,
+		SecurityAgentOrderedHTTPEnabled: orderedHTTPEnabled,
+
+		EvidenceExportWorkflow: getenv("ZASP_SECURITY_AGENT_EVIDENCE_EXPORT_WORKFLOW"),
+		AttackLabWorkflow:      getenv("ZASP_SECURITY_AGENT_ATTACK_LAB_WORKFLOW"),
+		Environment:            getenv("ZASP_ENVIRONMENT"), DeploymentMode: getenv("ZASP_DEPLOYMENT_MODE"), OrganizationID: getenv("ZASP_ORGANIZATION_ID"), ProductListenAddress: getenv("ZASP_PRODUCT_LISTEN_ADDRESS"),
 		InternalListenAddress: getenv("ZASP_INTERNAL_LISTEN_ADDRESS"), PublicOrigin: getenv("ZASP_PUBLIC_ORIGIN"),
 		TrustedProxyCIDRs: parseTrustedProxyCIDRs(getenv("ZASP_TRUSTED_PROXY_CIDRS")), RequestRatePerSecond: requestRate, RequestBurst: requestBurst,
 		CookieSecure: cookieSecure, ProviderTimeout: providerTimeout, RequestTimeout: requestTimeout, ShutdownTimeout: shutdownTimeout,
@@ -129,6 +154,21 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 }
 
 func validRuntimeConfig(config RuntimeConfig) bool {
+	if config.RuntimeServices.Validate() != nil {
+		return false
+	}
+	if config.EvidenceExportWorkflow != "" && config.EvidenceExportWorkflow != "enabled" {
+		return false
+	}
+	if config.AttackLabWorkflow != "" && config.AttackLabWorkflow != "enabled" {
+		return false
+	}
+	if !validComplianceAPIConfiguration(config) {
+		return false
+	}
+	if !validAuditExportRuntimeConfig(config.AuditExports, config.ConnectorRoleARN) {
+		return false
+	}
 	if !runtimeopensearch.ValidSessionIndexName(config.RuntimeSessionIndex) {
 		return false
 	}

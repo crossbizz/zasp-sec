@@ -1,0 +1,36 @@
+{
+  "head": "8733b16f8d939d38a8157dd2519e57fc6f630542",
+  "baseline": "task-5-blobs.json frozen Task5 plus unchanged shared pagination baseline",
+  "files": [
+    {
+      "path": "app/features/sessions/SessionsComplianceView.tsx",
+      "before": "2e1d00f8c6626aa7076ee3bf0fd3c509a36a71c4",
+      "after": "34283ba4c02674eb7a66b6d5777ad03090de91c3"
+    },
+    {
+      "path": "app/features/sessions/SessionsComplianceView.test.tsx",
+      "before": "3e549a05da9664144617a2a719e21f1b43379494",
+      "after": "b545865a84fc254347f8402f150027782c03b11c"
+    },
+    {
+      "path": "app/features/sessions/ComplianceEvidenceView.tsx",
+      "before": "e6d1a3f67efad28b070f14a4dab04b1b9672a1a7",
+      "after": "4a80295b84676d0a4b6b3c953a0b6bda93632d02"
+    },
+    {
+      "path": "scripts/production-combined-e2e.mjs",
+      "before": "1b69b218b8ee18b2cede90e7d68cd278378d198d",
+      "after": "909efa2957edefb3ce917b2bcbfd44ce87c72a13"
+    },
+    {
+      "path": "apps/web/api/pagination.ts",
+      "before": "f8e5ae13023034a9921d554233a54c728b0a9729",
+      "after": "48d6119476e02f735990988642c93354d9d48e72"
+    },
+    {
+      "path": "apps/web/api/pagination.test.ts",
+      "before": "66367a58939895d7d72f052c3caed61f3310c37f",
+      "after": "f7b7b69f2a9df5dce77ac7926d8bdad7830e0eb5"
+    }
+  ]
+}

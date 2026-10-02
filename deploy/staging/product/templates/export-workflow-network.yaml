@@ -1,0 +1,29 @@
+{{- $c := .Values.evidenceExportWorkflow -}}
+{{- if not (kindIs "map" $c) -}}{{ fail "evidenceExportWorkflow must be a map" }}{{- end -}}
+{{- if or (ne (len $c) 1) (not (hasKey $c "enabled")) (not (kindIs "bool" $c.enabled)) -}}{{ fail "evidenceExportWorkflow requires only boolean enabled" }}{{- end -}}
+{{- if $c.enabled -}}
+{{- if or (ne .Values.profile "control_plane") (ne (toString .Values.schema.expectedVersion) "58") (not .Values.complianceExports.enabled) -}}{{ fail "export workflow requires control-plane schema58 and compliance exports" }}{{- end -}}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: export-workflow-readiness-ingress }
+spec:
+  podSelector:
+    matchExpressions: [{ key: app.kubernetes.io/name, operator: In, values: [agentsec-security-agent, agentsec-security-agent-action, zasp-compliance-export-worker, zasp-compliance-cleanup-worker] }]
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: export-workflow-readiness-egress }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchExpressions: [{ key: app.kubernetes.io/name, operator: In, values: [agentsec-security-agent, agentsec-security-agent-action, zasp-compliance-export-worker, zasp-compliance-cleanup-worker] }]
+      ports: [{ protocol: TCP, port: 8081 }]
+{{- end }}

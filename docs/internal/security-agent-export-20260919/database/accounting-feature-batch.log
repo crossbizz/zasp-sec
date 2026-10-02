@@ -1,0 +1,130 @@
+$ /usr/local/bin/docker run --rm --name zasp-export-accounting-feature --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(AccountingAdmission|AccountingFailure|AccountingNoProvider|AccountingStops|AccountingPrivateACL|PlannerAdmission|PlannerCandidateOrder|PlannerRefusals|PlannerPredecessorReplay|PlannerEngineer|PlannerAccounting|PlannerLateAcceptance|Release)Postgres$' -test.v -test.timeout 600s
+=== RUN   TestSecurityAgentExportAccountingAdmissionPostgres
+=== RUN   TestSecurityAgentExportAccountingAdmissionPostgres/export
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportAccountingAdmissionPostgresexport17563595/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingAdmissionPostgres/existing_test
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestSecurityAgentExportAccountingAdmissionPostgresexisting_test2302204413/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingAdmissionPostgres/attack_lab
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=84 data=/tmp/TestSecurityAgentExportAccountingAdmissionPostgresattack_lab1097104546/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingAdmissionPostgres/legacy
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=114 data=/tmp/TestSecurityAgentExportAccountingAdmissionPostgreslegacy424295349/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingAdmissionPostgres/v33
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=144 data=/tmp/TestSecurityAgentExportAccountingAdmissionPostgresv331071392869/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportAccountingAdmissionPostgres (36.01s)
+    --- PASS: TestSecurityAgentExportAccountingAdmissionPostgres/export (8.92s)
+    --- PASS: TestSecurityAgentExportAccountingAdmissionPostgres/existing_test (7.83s)
+    --- PASS: TestSecurityAgentExportAccountingAdmissionPostgres/attack_lab (7.72s)
+    --- PASS: TestSecurityAgentExportAccountingAdmissionPostgres/legacy (5.74s)
+    --- PASS: TestSecurityAgentExportAccountingAdmissionPostgres/v33 (5.80s)
+=== RUN   TestSecurityAgentExportAccountingFailurePostgres
+=== RUN   TestSecurityAgentExportAccountingFailurePostgres/export
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=174 data=/tmp/TestSecurityAgentExportAccountingFailurePostgresexport1090124472/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingFailurePostgres/existing_test
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=204 data=/tmp/TestSecurityAgentExportAccountingFailurePostgresexisting_test2592300319/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingFailurePostgres/attack_lab
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=234 data=/tmp/TestSecurityAgentExportAccountingFailurePostgresattack_lab3020170286/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingFailurePostgres/legacy
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=264 data=/tmp/TestSecurityAgentExportAccountingFailurePostgreslegacy3527398254/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingFailurePostgres/v33
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=294 data=/tmp/TestSecurityAgentExportAccountingFailurePostgresv331160909024/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportAccountingFailurePostgres (28.17s)
+    --- PASS: TestSecurityAgentExportAccountingFailurePostgres/export (5.79s)
+    --- PASS: TestSecurityAgentExportAccountingFailurePostgres/existing_test (6.36s)
+    --- PASS: TestSecurityAgentExportAccountingFailurePostgres/attack_lab (6.43s)
+    --- PASS: TestSecurityAgentExportAccountingFailurePostgres/legacy (4.76s)
+    --- PASS: TestSecurityAgentExportAccountingFailurePostgres/v33 (4.82s)
+=== RUN   TestSecurityAgentExportAccountingNoProviderPostgres
+=== RUN   TestSecurityAgentExportAccountingNoProviderPostgres/export
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=324 data=/tmp/TestSecurityAgentExportAccountingNoProviderPostgresexport2947610267/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingNoProviderPostgres/existing_test
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=354 data=/tmp/TestSecurityAgentExportAccountingNoProviderPostgresexisting_tes301095521/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingNoProviderPostgres/attack_lab
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=384 data=/tmp/TestSecurityAgentExportAccountingNoProviderPostgresattack_lab2582327835/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingNoProviderPostgres/legacy
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=414 data=/tmp/TestSecurityAgentExportAccountingNoProviderPostgreslegacy3350106225/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingNoProviderPostgres/v33
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=444 data=/tmp/TestSecurityAgentExportAccountingNoProviderPostgresv332201831152/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportAccountingNoProviderPostgres (25.49s)
+    --- PASS: TestSecurityAgentExportAccountingNoProviderPostgres/export (5.47s)
+    --- PASS: TestSecurityAgentExportAccountingNoProviderPostgres/existing_test (5.41s)
+    --- PASS: TestSecurityAgentExportAccountingNoProviderPostgres/attack_lab (5.18s)
+    --- PASS: TestSecurityAgentExportAccountingNoProviderPostgres/legacy (4.73s)
+    --- PASS: TestSecurityAgentExportAccountingNoProviderPostgres/v33 (4.69s)
+=== RUN   TestSecurityAgentExportAccountingStopsPostgres
+=== RUN   TestSecurityAgentExportAccountingStopsPostgres/export
+    security_agent_export_accounting_postgres_test.go:340: stop admitted output: {"state": "needs_human", "run_id": "pid_8e100001-0000-4000-8000-000000000001", "step_id": "", "version": 4, "replayed": false, "plan_hash": "", "approval_id": "", "planner_outcome": "budget_stopped", "planner_summary": "Accounted candidate"}  plans=0 ERROR: permission denied for table zasp_security_agent_planner_receipts (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=474 data=/tmp/TestSecurityAgentExportAccountingStopsPostgresexport1511030497/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingStopsPostgres/existing_test
+    security_agent_export_accounting_postgres_test.go:340: stop admitted output: {"state": "needs_human", "run_id": "pid_8e100001-0000-4000-8000-000000000001", "step_id": "", "version": 4, "replayed": false, "plan_hash": "", "approval_id": "", "planner_outcome": "budget_stopped", "planner_summary": "Accounted candidate"}  plans=0 ERROR: permission denied for table zasp_security_agent_planner_receipts (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=504 data=/tmp/TestSecurityAgentExportAccountingStopsPostgresexisting_test1220662204/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingStopsPostgres/attack_lab
+    security_agent_export_accounting_postgres_test.go:340: stop admitted output: {"state": "needs_human", "run_id": "pid_8e100001-0000-4000-8000-000000000001", "step_id": "", "version": 4, "replayed": false, "plan_hash": "", "approval_id": "", "planner_outcome": "budget_stopped", "planner_summary": "Accounted candidate"}  plans=0 ERROR: permission denied for table zasp_security_agent_planner_receipts (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=536 data=/tmp/TestSecurityAgentExportAccountingStopsPostgresattack_lab2730269205/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingStopsPostgres/legacy
+    security_agent_export_accounting_postgres_test.go:340: stop admitted output: {"state": "needs_human", "run_id": "pid_8e100001-0000-4000-8000-000000000001", "step_id": "", "version": 4, "replayed": false, "plan_hash": "", "approval_id": "", "planner_outcome": "budget_stopped", "planner_summary": "Accounted candidate"}  plans=0 ERROR: permission denied for table zasp_security_agent_planner_receipts (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=566 data=/tmp/TestSecurityAgentExportAccountingStopsPostgreslegacy3545627366/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingStopsPostgres/v33
+    security_agent_export_accounting_postgres_test.go:340: stop admitted output: {"state": "needs_human", "run_id": "pid_8e100001-0000-4000-8000-000000000001", "step_id": "", "version": 4, "replayed": false, "plan_hash": "", "approval_id": "", "planner_outcome": "budget_stopped", "planner_summary": "Accounted candidate"}  plans=0 ERROR: permission denied for table zasp_security_agent_planner_receipts (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=598 data=/tmp/TestSecurityAgentExportAccountingStopsPostgresv33156849450/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportAccountingStopsPostgres (24.63s)
+    --- FAIL: TestSecurityAgentExportAccountingStopsPostgres/export (5.14s)
+    --- FAIL: TestSecurityAgentExportAccountingStopsPostgres/existing_test (4.83s)
+    --- FAIL: TestSecurityAgentExportAccountingStopsPostgres/attack_lab (5.27s)
+    --- FAIL: TestSecurityAgentExportAccountingStopsPostgres/legacy (4.74s)
+    --- FAIL: TestSecurityAgentExportAccountingStopsPostgres/v33 (4.64s)
+=== RUN   TestSecurityAgentExportAccountingPrivateACLPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=628 data=/tmp/TestSecurityAgentExportAccountingPrivateACLPostgres1742107221/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportAccountingPrivateACLPostgres (4.48s)
+=== RUN   TestSecurityAgentExportPlannerAdmissionPostgres
+=== RUN   TestSecurityAgentExportPlannerAdmissionPostgres/autonomous
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=658 data=/tmp/TestSecurityAgentExportPlannerAdmissionPostgresautonomous3294410213/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportPlannerAdmissionPostgres/supervised
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=690 data=/tmp/TestSecurityAgentExportPlannerAdmissionPostgressupervised1522580933/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportPlannerAdmissionPostgres/failure
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=720 data=/tmp/TestSecurityAgentExportPlannerAdmissionPostgresfailure3951225444/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportPlannerAdmissionPostgres (18.86s)
+    --- PASS: TestSecurityAgentExportPlannerAdmissionPostgres/autonomous (6.41s)
+    --- PASS: TestSecurityAgentExportPlannerAdmissionPostgres/supervised (6.62s)
+    --- PASS: TestSecurityAgentExportPlannerAdmissionPostgres/failure (5.84s)
+=== RUN   TestSecurityAgentExportPlannerCandidateOrderPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=750 data=/tmp/TestSecurityAgentExportPlannerCandidateOrderPostgres2566155286/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportPlannerCandidateOrderPostgres (6.10s)
+=== RUN   TestSecurityAgentExportPlannerRefusalsPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=780 data=/tmp/TestSecurityAgentExportPlannerRefusalsPostgres4293860981/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportPlannerRefusalsPostgres (6.43s)
+=== RUN   TestSecurityAgentExportPlannerPredecessorReplayPostgres
+=== RUN   TestSecurityAgentExportPlannerPredecessorReplayPostgres/accept
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=812 data=/tmp/TestSecurityAgentExportPlannerPredecessorReplayPostgresaccept2327874754/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportPlannerPredecessorReplayPostgres/fail
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=844 data=/tmp/TestSecurityAgentExportPlannerPredecessorReplayPostgresfail1371898281/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportPlannerPredecessorReplayPostgres (12.11s)
+    --- PASS: TestSecurityAgentExportPlannerPredecessorReplayPostgres/accept (6.08s)
+    --- PASS: TestSecurityAgentExportPlannerPredecessorReplayPostgres/fail (6.03s)
+=== RUN   TestSecurityAgentExportPlannerEngineerPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=876 data=/tmp/TestSecurityAgentExportPlannerEngineerPostgres2344712402/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportPlannerEngineerPostgres (5.47s)
+=== RUN   TestSecurityAgentExportPlannerAccountingPostgres
+=== RUN   TestSecurityAgentExportPlannerAccountingPostgres/missing
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=906 data=/tmp/TestSecurityAgentExportPlannerAccountingPostgresmissing3468969628/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportPlannerAccountingPostgres/outstanding
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=936 data=/tmp/TestSecurityAgentExportPlannerAccountingPostgresoutstanding371094489/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportPlannerAccountingPostgres/unknown
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=968 data=/tmp/TestSecurityAgentExportPlannerAccountingPostgresunknown2300685086/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportPlannerAccountingPostgres (15.42s)
+    --- PASS: TestSecurityAgentExportPlannerAccountingPostgres/missing (4.95s)
+    --- PASS: TestSecurityAgentExportPlannerAccountingPostgres/outstanding (5.22s)
+    --- PASS: TestSecurityAgentExportPlannerAccountingPostgres/unknown (5.25s)
+=== RUN   TestSecurityAgentExportPlannerLateAcceptancePostgres
+=== RUN   TestSecurityAgentExportPlannerLateAcceptancePostgres/audit_wait_lease
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=998 data=/tmp/TestSecurityAgentExportPlannerLateAcceptancePostgresaudit_wait_2186510383/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportPlannerLateAcceptancePostgres/receipt_wait_budget
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=1031 data=/tmp/TestSecurityAgentExportPlannerLateAcceptancePostgresreceipt_wai2539926093/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportPlannerLateAcceptancePostgres (14.53s)
+    --- PASS: TestSecurityAgentExportPlannerLateAcceptancePostgres/audit_wait_lease (7.26s)
+    --- PASS: TestSecurityAgentExportPlannerLateAcceptancePostgres/receipt_wait_budget (7.27s)
+=== RUN   TestSecurityAgentExportReleasePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=1062 data=/tmp/TestSecurityAgentExportReleasePostgres3939450854/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportReleasePostgres (6.85s)
+FAIL
+
+exit=1

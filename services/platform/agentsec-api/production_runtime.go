@@ -13,16 +13,38 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/githubdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
+	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
 
+type auditExportStorageFactory func(RuntimeConfig) ([]apiserver.AuditExportStorageConfiguration, *http.Transport, error)
+type complianceStorageFactory func(RuntimeConfig) (complianceStorageResources, error)
+
 func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (RuntimeDependencies, error) {
+	return buildRuntimeDependenciesWithAuditExportStorage(ctx, config, newAuditExportStorageClients)
+}
+
+func buildRuntimeDependenciesWithAuditExportStorage(ctx context.Context, config RuntimeConfig, factory auditExportStorageFactory) (RuntimeDependencies, error) {
+	return buildRuntimeDependenciesWithStorage(ctx, config, factory, newComplianceStorageResources)
+}
+
+func buildRuntimeDependenciesWithStorage(ctx context.Context, config RuntimeConfig, factory auditExportStorageFactory, complianceFactory complianceStorageFactory) (RuntimeDependencies, error) {
+	return buildRuntimeDependenciesWithReadinessTransport(ctx, config, factory, complianceFactory, nil)
+}
+
+func buildRuntimeDependenciesWithReadinessTransport(ctx context.Context, config RuntimeConfig, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, readinessTransport http.RoundTripper) (RuntimeDependencies, error) {
+	if ctx == nil || ctx.Err() != nil || factory == nil || complianceFactory == nil || !validRuntimeConfig(config) || !config.RuntimeServices.Enabled {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
 	connectCtx, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
 	defer cancel()
 	database, pool, err := openRuntimePostgres(connectCtx, config.PostgresDSN, config.ProviderTimeout)
@@ -34,6 +56,38 @@ func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (Runtim
 		_ = database.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
+	services, err := runtimeservices.Connect(ctx, config.RuntimeServices)
+	if err != nil || services == nil {
+		_ = securityAgentDatabase.Close()
+		_ = database.Close()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	keepServices := false
+	defer func() {
+		if !keepServices {
+			_ = services.Close()
+		}
+	}()
+	if database.RequireCurrentAuthorization() != nil || securityAgentDatabase.RequireCurrentAuthorization() != nil {
+		_ = securityAgentDatabase.Close()
+		_ = database.Close()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	checker, checkerErr := authorization.NewOpenFGA(services.FGA, config.RuntimeServices)
+	revisions, revisionErr := authorization.NewPostgresProjectionRepository(pool)
+	resolver, resolverErr := apiserver.NewPostgresAuthorizationResolverWithSecurityAgent(database, securityAgentDatabase)
+	attestationKey, attestationErr := authorization.NewAttestationKey([]byte(config.WorkflowSigningKey))
+	if checkerErr != nil || revisionErr != nil || resolverErr != nil || attestationErr != nil {
+		_ = securityAgentDatabase.Close()
+		_ = database.Close()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	if err := checkAuthorizationRuntimeReady(connectCtx, database, securityAgentDatabase, attestationKey.Version()); err != nil {
+		_ = securityAgentDatabase.Close()
+		_ = database.Close()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	authorizer := &apiserver.OpenFGAAuthorizer{Reader: revisions, Checker: checker, Resolver: resolver, StoreID: config.RuntimeServices.StoreID, ModelID: config.RuntimeServices.ModelID, AttestationKey: attestationKey}
 	authenticator, err := apiserver.NewStytchOAuthAuthenticator(config.StytchBaseURL, config.StytchProjectID, config.StytchSecret, config.ProviderTimeout, func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) })
 	if err != nil {
 		_ = securityAgentDatabase.Close()
@@ -47,18 +101,33 @@ func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (Runtim
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
 	provider, err := apiserver.NewRepositoryIdentityProviderWithStart(authenticator, repository, repository, config.StytchAuthorizeURL, config.StytchPublicToken, config.StytchOrganizationID, config.PublicOrigin+"/auth/callback")
+	if err == nil {
+		err = provider.RequireNativeIdentity([]byte(config.WorkflowSigningKey), runtimeIdentityDeployment(config))
+	}
 	if err != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	dependencies, err := composeRuntimeDependenciesWithSecurityAgent(config, database, securityAgentDatabase, provider)
+	observer, observerErr := orchestration.NewSingleTestOriginalObserver(services.Temporal, 5*time.Second)
+	if observerErr != nil {
+		_ = securityAgentDatabase.Close()
+		_ = database.Close()
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	dependencies, err := composeRuntimeDependenciesWithRecovery(ctx, config, database, securityAgentDatabase, provider, factory, complianceFactory, os.Stdout, readinessTransport, observer, authorizer)
 	if err != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
 		return RuntimeDependencies{}, err
 	}
 	dependencies.Closers = append(dependencies.Closers, securityAgentDatabase, database)
+	if services != nil {
+		previous := dependencies.ReadinessCheck
+		dependencies.ReadinessCheck = authorizationRuntimeReadiness(services.Ready, previous, database, securityAgentDatabase, attestationKey.Version(), config.RuntimeServices.Timeout)
+		dependencies.Closers = append(dependencies.Closers, services)
+	}
+	keepServices = true
 	dependencies.Metrics.poolStats = func() poolSaturation {
 		core := pool.Stat()
 		securityAgent := securityAgentPool.Stat()
@@ -96,13 +165,63 @@ func composeRuntimeDependencies(config RuntimeConfig, database apiserver.JSONDat
 }
 
 func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider) (RuntimeDependencies, error) {
+	return composeRuntimeDependenciesWithContext(context.Background(), config, database, securityAgentDatabase, provider)
+}
+
+func composeRuntimeDependenciesWithContext(ctx context.Context, config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider) (RuntimeDependencies, error) {
+	return composeRuntimeDependenciesWithAuditExportStorage(ctx, config, database, securityAgentDatabase, provider, newAuditExportStorageClients)
+}
+
+func composeRuntimeDependenciesWithAuditExportStorage(ctx context.Context, config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider, factory auditExportStorageFactory) (RuntimeDependencies, error) {
+	return composeRuntimeDependenciesWithStorage(ctx, config, database, securityAgentDatabase, provider, factory, newComplianceStorageResources)
+}
+
+func composeRuntimeDependenciesWithStorage(ctx context.Context, config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider, factory auditExportStorageFactory, complianceFactory complianceStorageFactory) (RuntimeDependencies, error) {
+	return composeRuntimeDependenciesWithTelemetry(ctx, config, database, securityAgentDatabase, provider, factory, complianceFactory, os.Stdout)
+}
+
+func composeRuntimeDependenciesWithTelemetry(ctx context.Context, config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, output io.Writer) (RuntimeDependencies, error) {
+	return composeRuntimeDependenciesWithReadinessTransport(ctx, config, database, securityAgentDatabase, provider, factory, complianceFactory, output, nil)
+}
+
+func composeRuntimeDependenciesWithReadinessTransport(ctx context.Context, config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, output io.Writer, readinessTransport http.RoundTripper, authorizers ...apiserver.RequestAuthorizer) (RuntimeDependencies, error) {
+	return composeRuntimeDependenciesWithRecovery(ctx, config, database, securityAgentDatabase, provider, factory, complianceFactory, output, readinessTransport, nil, authorizers...)
+}
+
+func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, output io.Writer, readinessTransport http.RoundTripper, observer orchestration.SingleTestOriginalObserver, authorizers ...apiserver.RequestAuthorizer) (RuntimeDependencies, error) {
+	if ctx == nil || ctx.Err() != nil || factory == nil || complianceFactory == nil || invalidRuntimeValue(output) || !validRuntimeConfig(config) {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	var authorizer apiserver.RequestAuthorizer
+	if len(authorizers) > 1 {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	if len(authorizers) == 1 {
+		authorizer = authorizers[0]
+	}
+	currentRequired := func(db apiserver.JSONDatabase) bool {
+		current, ok := db.(interface{ CurrentAuthorizationRequired() bool })
+		return ok && current.CurrentAuthorizationRequired()
+	}
+	if config.RuntimeServices.Enabled || currentRequired(database) || currentRequired(securityAgentDatabase) || !invalidRuntimeValue(authorizer) {
+		if !config.RuntimeServices.Enabled || invalidRuntimeValue(authorizer) || !currentRequired(database) || !currentRequired(securityAgentDatabase) {
+			return RuntimeDependencies{}, errRuntimeUnavailable
+		}
+	}
+	if config.EvidenceExportWorkflow == "enabled" && (config.ComplianceExports == nil || invalidRuntimeValue(securityAgentDatabase)) {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
 	metrics := newOperationalMetrics()
-	exporter := newStructuredSpanExporter(os.Stdout)
+	exporter := newStructuredSpanExporter(output)
 	tracedDatabase := &tracedJSONDatabase{next: database, metrics: metrics, exporter: exporter}
 	var securityAgentRepository *apiserver.PostgresRepository
 	var approvalNotificationRepository *apiserver.PostgresRepository
+	var tracedSecurityAgentDatabase *tracedJSONDatabase
 	if !invalidRuntimeValue(securityAgentDatabase) {
-		tracedSecurityAgentDatabase := &tracedJSONDatabase{next: securityAgentDatabase, metrics: metrics, exporter: exporter}
+		tracedSecurityAgentDatabase = &tracedJSONDatabase{next: securityAgentDatabase, metrics: metrics, exporter: exporter}
+		if config.AttackLabWorkflow == "enabled" {
+			tracedSecurityAgentDatabase.attackLabReady = newAttackLabWorkflowReadiness(readinessTransport)
+		}
 		var securityAgentErr error
 		securityAgentRepository, securityAgentErr = apiserver.NewSecurityAgentPostgresRepository(tracedSecurityAgentDatabase)
 		if securityAgentErr != nil {
@@ -199,6 +318,52 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 			}
 		}
 	}()
+	var auditExports apiserver.AuditExportProductionHandler
+	var compliance apiserver.ComplianceProductionHandler
+	var agentExports apiserver.SecurityAgentExportProductionHandler
+	if config.ComplianceExports != nil {
+		resources, complianceErr := complianceFactory(config)
+		if resources.transport != nil {
+			connectorResources = append(connectorResources, transportCloser{resources.transport})
+		}
+		if complianceErr != nil {
+			return RuntimeDependencies{}, errRuntimeUnavailable
+		}
+		resources.config.CursorSigningKey = []byte(config.WorkflowSigningKey)
+		compliance, complianceErr = apiserver.NewComplianceProductionHandler(ctx, tracedDatabase, resources.config)
+		if complianceErr != nil {
+			return RuntimeDependencies{}, errRuntimeUnavailable
+		}
+		if tracedSecurityAgentDatabase != nil {
+			agentExports, complianceErr = apiserver.NewSecurityAgentExportProductionHandler(ctx, tracedSecurityAgentDatabase, resources.config)
+			if complianceErr != nil {
+				return RuntimeDependencies{}, errRuntimeUnavailable
+			}
+			if config.EvidenceExportWorkflow == "enabled" && !invalidRuntimeValue(agentExports) {
+				tracedSecurityAgentDatabase.exportReady = newExportWorkflowReadiness(readinessTransport)
+			}
+		}
+	}
+	var auditPublicPages *apiserver.AuditPublicPageRepository
+	if config.AuditExports != nil {
+		entries, transport, exportErr := factory(config)
+		if transport != nil {
+			connectorResources = append(connectorResources, transportCloser{transport})
+		}
+		if exportErr != nil || transport == nil {
+			return RuntimeDependencies{}, errRuntimeUnavailable
+		}
+		exportContext, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+		auditExports, exportErr = apiserver.NewAuditExportProductionHandler(exportContext, tracedDatabase, apiserver.AuditExportHandlerConfiguration{Storage: entries, CursorSigningKey: config.AuditExports.CursorSigningKey, ProviderTimeout: config.ProviderTimeout})
+		cancel()
+		if exportErr != nil {
+			return RuntimeDependencies{}, errRuntimeUnavailable
+		}
+		auditPublicPages, exportErr = apiserver.NewAuditPublicPageRepository(ctx, tracedDatabase)
+		if exportErr != nil {
+			return RuntimeDependencies{}, errRuntimeUnavailable
+		}
+	}
 	providerSecrets := &connectorProviderSecrets{driver: secretsDriver, root: strings.TrimSuffix(config.ConnectorSecretPrefix, "/oauth"), kmsKey: config.ConnectorKMSKeyARN}
 	githubAdapter, err := githubdiscovery.NewAdapter(githubdiscovery.Config{ClientID: config.GitHubClientID, ClientSecretReference: config.GitHubSecretReference, CallbackURL: config.PublicOrigin + "/api/v1/integrations/oauth/callback"}, &githubExchangeClient{http: providerHTTP, secrets: providerSecrets, appID: config.GitHubAppID, privateKeyReference: config.GitHubPrivateKeyReference}, config.ProviderTimeout)
 	if err != nil {
@@ -295,6 +460,16 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 		lifecycleWorkers = append(lifecycleWorkers, approvalNotificationReconciler.Run)
 	}
 	cookie := apiserver.CookiePolicy{Secure: config.CookieSecure, WorkflowSigningKey: []byte(config.WorkflowSigningKey), TokenRevealKey: config.TokenRevealKey, Clock: func() time.Time { return time.Now().UTC().Truncate(time.Second) }, BuildVersion: buildVersion, DeploymentMode: config.DeploymentMode, OrganizationID: config.OrganizationID, DiscoveryParserVersion: config.DiscoveryParserVersion, DiscoveryToolVersion: config.DiscoveryToolVersion, ConnectorCapabilities: apiserver.CombinedConnectorCapabilities{OAuth: connectorRegistry, Reference: referenceRegistry}, FindingTickets: ticketService, IntegrationWebhookTests: webhookTestService}
+	cookie.SecurityAgentOrderedHTTPEnabled = config.SecurityAgentOrderedHTTPEnabled
+	cookie.AuditPublicPages = auditPublicPages
+	if verifier, ok := securityAgentDatabase.(interface {
+		SingleTestRecoveryAvailable(context.Context) (bool, error)
+	}); ok {
+		cookie.SingleTestRecoveryReady = verifier.SingleTestRecoveryAvailable
+		cookie.SingleTestOriginalObserver = observer
+	} else if currentRequired(securityAgentDatabase) {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
 	var handlers apiserver.Dependencies
 	var authenticate apiserver.Authenticator
 	if securityAgentRepository != nil {
@@ -319,7 +494,17 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	composition, err := apiserver.NewComposition(handlers)
+	var composition http.Handler
+	handlers.Authorizer = authorizer
+	if agentExports != nil {
+		composition, err = apiserver.NewCompositionWithSecurityAgentExports(handlers, auditExports, compliance, agentExports)
+	} else if compliance != nil {
+		composition, err = apiserver.NewCompositionWithCompliance(handlers, auditExports, compliance)
+	} else if auditExports != nil {
+		composition, err = apiserver.NewCompositionWithAuditExports(handlers, auditExports)
+	} else {
+		composition, err = apiserver.NewComposition(handlers)
+	}
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -329,7 +514,14 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	stytchWebhook, err := apiserver.NewProductionStytchWebhookHandler(repository, config.StytchProjectID, config.StytchWebhookSecret, func() time.Time { return time.Now().UTC().Truncate(time.Second) })
+	var stytchWebhook http.Handler
+	if currentRequired(database) {
+		stytchWebhook, err = apiserver.NewProductionNativeStytchWebhookHandler(repository, config.StytchWebhookSecret, func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) }, []byte(config.WorkflowSigningKey), runtimeIdentityDeployment(config))
+	} else {
+		// This explicit legacy composition is unavailable from the production
+		// builder, which requires current authorization on both databases.
+		stytchWebhook, err = apiserver.NewProductionStytchWebhookHandler(repository, config.StytchProjectID, config.StytchWebhookSecret, func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) })
+	}
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -337,7 +529,7 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
-	operational, err := newOperationalMiddleware(os.Stdout, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, exporter, publicSurface)
+	operational, err := newOperationalMiddleware(output, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, exporter, publicSurface)
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -345,8 +537,33 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 	if err != nil {
 		return RuntimeDependencies{}, errRuntimeUnavailable
 	}
+	if ctx.Err() != nil {
+		return RuntimeDependencies{}, errRuntimeUnavailable
+	}
+	stores := []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "postgres-security-agent", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}, {Name: "aws-secrets-manager-webhook", Durable: true}, {Name: "opensearch-runtime-policy-history", Durable: true}}
+	if compliance != nil {
+		stores = append(stores, StoreDependency{Name: "aws-s3-compliance-exports", Durable: true})
+	}
+	if auditExports != nil {
+		stores = append(stores, StoreDependency{Name: "aws-s3-audit-exports", Durable: true})
+	}
 	keepConnectorResources = true
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
+		if agentExports != nil {
+			if err := agentExports.Ready(ctx); err != nil {
+				return errRuntimeUnavailable
+			}
+		}
+		if compliance != nil {
+			if err := compliance.Ready(ctx); err != nil {
+				return errRuntimeUnavailable
+			}
+		}
+		if auditExports != nil {
+			if err := auditExports.Ready(ctx); err != nil {
+				return errRuntimeUnavailable
+			}
+		}
 		if err := repository.Ready(ctx); err != nil {
 			return errRuntimeUnavailable
 		}
@@ -376,7 +593,7 @@ func composeRuntimeDependenciesWithSecurityAgent(config RuntimeConfig, database,
 			return errRuntimeUnavailable
 		}
 		return nil
-	}, Stores: []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "postgres-security-agent", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}, {Name: "aws-secrets-manager-webhook", Durable: true}, {Name: "opensearch-runtime-policy-history", Durable: true}}, Closers: connectorResources}, nil
+	}, Stores: stores, Closers: connectorResources}, nil
 }
 
 func mountPublicSurface(product, stytchWebhook http.Handler) (http.Handler, error) {
@@ -413,9 +630,139 @@ func (closer transportCloser) Close() error {
 }
 
 type tracedJSONDatabase struct {
-	next     apiserver.JSONDatabase
-	metrics  *operationalMetrics
-	exporter operationalSpanExporter
+	exportReady    func(context.Context) bool
+	next           apiserver.JSONDatabase
+	metrics        *operationalMetrics
+	exporter       operationalSpanExporter
+	attackLabReady func(context.Context) bool
+}
+
+func (database *tracedJSONDatabase) NativeIdentityDatabase() *apiserver.PostgresJSONDatabase {
+	if database == nil {
+		return nil
+	}
+	native, ok := database.next.(*apiserver.PostgresJSONDatabase)
+	if !ok || !native.CurrentAuthorizationRequired() {
+		return nil
+	}
+	return native
+}
+
+func (database *tracedJSONDatabase) CurrentAuthorizationRequired() bool {
+	current, ok := database.next.(interface{ CurrentAuthorizationRequired() bool })
+	return ok && current.CurrentAuthorizationRequired()
+}
+
+func (database *tracedJSONDatabase) ActivateCurrentTemporalTestDefinition(ctx context.Context, args ...any) (json.RawMessage, error) {
+	if database == nil || invalidRuntimeValue(database.next) {
+		return nil, apiserver.ErrRepositoryUnavailable
+	}
+	current, ok := database.next.(interface {
+		ActivateCurrentTemporalTestDefinition(context.Context, ...any) (json.RawMessage, error)
+	})
+	if !ok {
+		return nil, apiserver.ErrRepositoryUnavailable
+	}
+	return current.ActivateCurrentTemporalTestDefinition(ctx, args...)
+}
+
+func (database *tracedJSONDatabase) CurrentAuthorizationSourceReady(ctx context.Context, version int, checksum, fingerprint string) (bool, error) {
+	current, ok := database.next.(interface {
+		CurrentAuthorizationSourceReady(context.Context, int, string, string) (bool, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	return current.CurrentAuthorizationSourceReady(ctx, version, checksum, fingerprint)
+}
+
+func (database *tracedJSONDatabase) SecurityAgentExportsAvailable(ctx context.Context) (bool, error) {
+	if database == nil || invalidRuntimeValue(database.next) || ctx == nil || ctx.Err() != nil {
+		return false, apiserver.ErrRepositoryUnavailable
+	}
+	capability, ok := database.next.(interface {
+		SecurityAgentExportsAvailable(context.Context) (bool, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	return capability.SecurityAgentExportsAvailable(ctx)
+}
+
+func (database *tracedJSONDatabase) SecurityAgentAttackLabAvailable(ctx context.Context) (bool, error) {
+	if database == nil || invalidRuntimeValue(database.next) || ctx == nil || ctx.Err() != nil {
+		return false, apiserver.ErrRepositoryUnavailable
+	}
+	capability, ok := database.next.(interface {
+		SecurityAgentAttackLabAvailable(context.Context) (bool, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	return capability.SecurityAgentAttackLabAvailable(ctx)
+}
+
+func (database *tracedJSONDatabase) TemporalAdmissionAvailable(ctx context.Context) (bool, error) {
+	if database == nil || invalidRuntimeValue(database.next) || ctx == nil || ctx.Err() != nil {
+		return false, apiserver.ErrRepositoryUnavailable
+	}
+	capability, ok := database.next.(interface {
+		TemporalAdmissionAvailable(context.Context) (bool, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	return capability.TemporalAdmissionAvailable(ctx)
+}
+
+func (database *tracedJSONDatabase) SecurityAgentAttackLabWorkflowAvailable(ctx context.Context) (bool, error) {
+	installed, err := database.SecurityAgentAttackLabAvailable(ctx)
+	if err != nil || !installed {
+		return false, err
+	}
+	if database.attackLabReady == nil {
+		return false, nil
+	}
+	return database.attackLabReady(ctx), nil
+}
+
+// Keep optional authority visible through the production decorator. Legacy
+// adapters without these capabilities retain their previous behavior.
+func (database *tracedJSONDatabase) SecurityAgentExistingTestDefinitionsAvailable(ctx context.Context) (bool, error) {
+	if database == nil || invalidRuntimeValue(database.next) || ctx == nil || ctx.Err() != nil {
+		return false, apiserver.ErrRepositoryUnavailable
+	}
+	capability, ok := database.next.(interface {
+		SecurityAgentExistingTestDefinitionsAvailable(context.Context) (bool, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	return capability.SecurityAgentExistingTestDefinitionsAvailable(ctx)
+}
+
+func (database *tracedJSONDatabase) SecurityAgentRunContextAvailable(ctx context.Context) (bool, error) {
+	if database == nil || invalidRuntimeValue(database.next) || ctx == nil || ctx.Err() != nil {
+		return false, apiserver.ErrRepositoryUnavailable
+	}
+	capability, ok := database.next.(interface {
+		SecurityAgentRunContextAvailable(context.Context) (bool, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	return capability.SecurityAgentRunContextAvailable(ctx)
+}
+
+func (database *tracedJSONDatabase) VerifySecurityAgentBudgetRelease(ctx context.Context) error {
+	if database == nil || invalidRuntimeValue(database.next) || ctx == nil || ctx.Err() != nil {
+		return apiserver.ErrRepositoryUnavailable
+	}
+	verifier, ok := database.next.(interface{ VerifySecurityAgentBudgetRelease(context.Context) error })
+	if !ok {
+		return nil
+	}
+	return verifier.VerifySecurityAgentBudgetRelease(ctx)
 }
 
 func (database *tracedJSONDatabase) SchemaVersion(ctx context.Context) (value string, err error) {
@@ -554,6 +901,13 @@ func generateCorrelationID() string {
 }
 
 type pgxProductionDriver struct{ pool *pgxpool.Pool }
+
+func (driver *pgxProductionDriver) Begin(ctx context.Context) (pgx.Tx, error) {
+	if driver == nil || driver.pool == nil {
+		return nil, errors.New("database unavailable")
+	}
+	return driver.pool.Begin(ctx)
+}
 
 func (driver *pgxProductionDriver) QueryRow(ctx context.Context, statement string, arguments ...any) apiserver.PostgresRow {
 	if driver == nil || driver.pool == nil {

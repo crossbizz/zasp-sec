@@ -1,0 +1,878 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npx","--no-install","vitest","run","app/features/securityagents/SecurityAgentsView.test.tsx","-t","fresh workflow operator"]
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ❯ app/features/securityagents/SecurityAgentsView.test.tsx (74 tests | 1 failed | 73 skipped) 1093ms
+   × allows a fresh workflow operator to approve an exact Attack Lab snapshot without identity administration 1092ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/features/securityagents/SecurityAgentsView.test.tsx > allows a fresh workflow operator to approve an exact Attack Lab snapshot without identity administration
+TestingLibraryElementError: Unable to find role="button" and name "Approve"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33minert[39m=[32m""[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mSecurity agents[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mTenant-scoped response definitions, redacted plans, supervised approvals, autonomous actions, outcomes, and verification.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"page-actions"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"button button--primary "[39m
+          [36m>[39m
+            [0mCreate Security Agent[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mSecurity Agent definitions[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"empty-state"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-inbox"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<polyline[39m
+              [33mpoints[39m=[32m"22 12 16 12 14 15 10 15 8 12 2 12"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<strong>[39m
+            [0mNo Security Agent definitions[0m
+          [36m</strong>[39m
+          [36m<p>[39m
+            [0mCreate one from a locally supported template.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mSecurity Agent runs[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"empty-state"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-inbox"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<polyline[39m
+              [33mpoints[39m=[32m"22 12 16 12 14 15 10 15 8 12 2 12"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<strong>[39m
+            [0mNo Security Agent runs[0m
+          [36m</strong>[39m
+          [36m<p>[39m
+            [0mAutomatic and manual runs appear here after durable acceptance.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mPending approvals[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"connection-list"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-describedby[39m=[32m"approval-context-pid_40000006-0000-4000-8000-000000000006"[39m
+            [33maria-label[39m=[32m"Open approval pid_40000006-0000-4000-8000-000000000006"[39m
+            [33mclass[39m=[32m"security-agent-approval-row"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<strong>[39m
+              [0mRun a bounded Attack Lab reproduction; human interpretation required[0m
+            [36m</strong>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"approval-context-fields"[39m
+              [33mid[39m=[32m"approval-context-pid_40000006-0000-4000-8000-000000000006"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mAction: [0m
+                [0mstart_attack_lab[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mAgent: [0m
+                [0mpid_40000001-0000-4000-8000-000000000001[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mTarget: [0m
+                [0mpid_40000007-0000-4000-8000-000000000007[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mRequester: [0m
+                [0mpid_40000001-0000-4000-8000-000000000001[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mRun: [0m
+                [0mpid_40000004-0000-4000-8000-000000000004[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mExpires: [0m
+                [0m2026-08-21T20:00:00Z[0m
+              [36m</span>[39m
+            [36m</span>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-dialog-layer[39m=[32m"true"[39m
+    [33mstyle[39m=[32m"position: relative; z-index: 100;"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"Close details"[39m
+      [33mclass[39m=[32m"overlay"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m/>[39m
+    [36m<aside[39m
+      [33maria-label[39m=[32m"Approval pid_40000006-0000-4000-8000-000000000006"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"drawer drawer--wide"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__header"[39m
+      [36m>[39m
+        [36m<h2>[39m
+          [0mApproval pid_40000006-0000-4000-8000-000000000006[0m
+        [36m</h2>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Close"[39m
+          [33mclass[39m=[32m"icon-button"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-x"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M18 6 6 18"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m6 6 12 12"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__body"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"detail-content"[39m
+        [36m>[39m
+          [36m<p>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"badge badge--info"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</span>[39m
+            [0m Version [0m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mRun [0m
+            [0mpid_40000004-0000-4000-8000-000000000004[0m
+            [0m · step [0m
+            [0mpid_40000005-0000-4000-8000-000000000005[0m
+          [36m</p>[39m
+          [36m<section[39m
+            [33maria-label[39m=[32m"Persisted approval context"[39m
+            [33mclass[39m=[32m"approval-context"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mApproval context[0m
+            [36m</h3>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"approval-context-fields"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mAction: [0m
+                [0mstart_attack_lab[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mAgent: [0m
+                [0mpid_40000001-0000-4000-8000-000000000001[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mTarget: [0m
+                [0mpid_40000007-0000-4000-8000-000000000007[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mRequester: [0m
+                [0mpid_40000001-0000-4000-8000-000000000001[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mRun: [0m
+                [0mpid_40000004-0000-4000-8000-000000000004[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mExpires: [0m
+                [0m2026-08-21T20:00:00Z[0m
+              [36m</span>[39m
+            [36m</span>[39m
+            [36m<section[39m
+              [33maria-label[39m=[32m"Approved Attack Lab boundary"[39m
+            [36m>[39m
+              [36m<h3>[39m
+                [0mExact Attack Lab approval[0m
+              [36m</h3>[39m
+              [36m<p>[39m
+                [0mTest definition: [0m
+                [0mpid_40000007-0000-4000-8000-000000000007[0m
+                [0m · version [0m
+                [0m1[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mApproved source: [0m
+                [0mpid_40000004-0000-4000-8000-000000000004[0m
+                [0m · attempt [0m
+                [0m1[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mSandbox target: [0m
+                [0mpid_40000001-0000-4000-8000-000000000001[0m
+                [0m · [0m
+                [0magent_endpoint[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mEnvironment: [0m
+                [0mstaging[0m
+                [0m · credential class: [0m
+                [0mread_only[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mApproved destination: [0m
+                [0mcanary.example.test[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mPreflight expires: [0m
+                [0m2026-08-21T20:00:00Z[0m
+              [36m</p>[39m
+              [36m<ul>[39m
+                [36m<li>[39m
+                  [0mBounded canary call[0m
+                [36m</li>[39m
+              [36m</ul>[39m
+              [36m<p>[39m
+                [0m500m[0m
+                [0m CPU · [0m
+                [0m1Gi[0m
+                [0m memory · [0m
+                [0m2Gi[0m
+                [0m ephemeral storage · [0m
+                [0m300[0m
+                [0m seconds[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mDistinct operator approval is required in both autonomy modes. Sandbox cleanup is mandatory; this action never marks a finding remediated.[0m
+              [36m</p>[39m
+            [36m</section>[39m
+            [36m<h3>[39m
+              [0mReason[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mThis persisted plan step requires operator approval.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mRisk: moderate (action catalog)[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mCatalog [0m
+              [0msecurity-agent-actions-v1[0m
+              [0m · plan [0m
+              [0msha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa[0m
+            [36m</p>[39m
+            [36m<section[39m
+              [33maria-label[39m=[32m"Approval AI rationale"[39m
+              [33mclass[39m=[32m"security-agent-rationale"[39m
+            [36m>[39m
+              [36m<h3>[39m
+                [0mAI rationale[0m
+              [36m</h3>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"security-agent-rationale__disclaimer"[39m
+              [36m>[39m
+                [0mAI-generated explanation. This does not authorize any action.[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mNo AI rationale is available for this approval.[0m
+              [36m</p>[39m
+            [36m</section>[39m
+          [36m</section>[39m
+          [36m<h3>[39m
+            [0mExpected effect[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mRun a bounded Attack Lab reproduction; human interpretation required[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mNot reversible[0m
+            [0m · TTL [0m
+            [0m0[0m
+            [0ms · expires [0m
+            [0m2026-08-21T20:00:00Z[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mEvidence[0m
+          [36m</h3>[39m
+          [36m<ul>[39m
+            [36m<li>[39m
+              [0mpid_40000007-0000-4000-8000-000000000007[0m
+            [36m</li>[39m
+          [36m</ul>[39m
+          [36m<p>[39m
+            [0mIdentity administrator approval required[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"button-row"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--danger "[39m
+            [36m>[39m
+              [0mReject[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mCancel approval[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</aside>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33minert[39m=[32m""[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mSecurity agents[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mTenant-scoped response definitions, redacted plans, supervised approvals, autonomous actions, outcomes, and verification.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"page-actions"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"button button--primary "[39m
+          [36m>[39m
+            [0mCreate Security Agent[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mSecurity Agent definitions[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"empty-state"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-inbox"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<polyline[39m
+              [33mpoints[39m=[32m"22 12 16 12 14 15 10 15 8 12 2 12"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<strong>[39m
+            [0mNo Security Agent definitions[0m
+          [36m</strong>[39m
+          [36m<p>[39m
+            [0mCreate one from a locally supported template.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mSecurity Agent runs[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"empty-state"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-inbox"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<polyline[39m
+              [33mpoints[39m=[32m"22 12 16 12 14 15 10 15 8 12 2 12"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<strong>[39m
+            [0mNo Security Agent runs[0m
+          [36m</strong>[39m
+          [36m<p>[39m
+            [0mAutomatic and manual runs appear here after durable acceptance.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mPending approvals[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"connection-list"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-describedby[39m=[32m"approval-context-pid_40000006-0000-4000-8000-000000000006"[39m
+            [33maria-label[39m=[32m"Open approval pid_40000006-0000-4000-8000-000000000006"[39m
+            [33mclass[39m=[32m"security-agent-approval-row"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<strong>[39m
+              [0mRun a bounded Attack Lab reproduction; human interpretation required[0m
+            [36m</strong>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"approval-context-fields"[39m
+              [33mid[39m=[32m"approval-context-pid_40000006-0000-4000-8000-000000000006"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mAction: [0m
+                [0mstart_attack_lab[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mAgent: [0m
+                [0mpid_40000001-0000-4000-8000-000000000001[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mTarget: [0m
+                [0mpid_40000007-0000-4000-8000-000000000007[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mRequester: [0m
+                [0mpid_40000001-0000-4000-8000-000000000001[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mRun: [0m
+                [0mpid_40000004-0000-4000-8000-000000000004[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mExpires: [0m
+                [0m2026-08-21T20:00:00Z[0m
+              [36m</span>[39m
+            [36m</span>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-dialog-layer[39m=[32m"true"[39m
+    [33mstyle[39m=[32m"position: relative; z-index: 100;"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"Close details"[39m
+      [33mclass[39m=[32m"overlay"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m/>[39m
+    [36m<aside[39m
+      [33maria-label[39m=[32m"Approval pid_40000006-0000-4000-8000-000000000006"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"drawer drawer--wide"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__header"[39m
+      [36m>[39m
+        [36m<h2>[39m
+          [0mApproval pid_40000006-0000-4000-8000-000000000006[0m
+        [36m</h2>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Close"[39m
+          [33mclass[39m=[32m"icon-button"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-x"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M18 6 6 18"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m6 6 12 12"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__body"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"detail-content"[39m
+        [36m>[39m
+          [36m<p>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"badge badge--info"[39m
+            [36m>[39m
+              [0mpending[0m
+            [36m</span>[39m
+            [0m Version [0m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mRun [0m
+            [0mpid_40000004-0000-4000-8000-000000000004[0m
+            [0m · step [0m
+            [0mpid_40000005-0000-4000-8000-000000000005[0m
+          [36m</p>[39m
+          [36m<section[39m
+            [33maria-label[39m=[32m"Persisted approval context"[39m
+            [33mclass[39m=[32m"approval-context"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mApproval context[0m
+            [36m</h3>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"approval-context-fields"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mAction: [0m
+                [0mstart_attack_lab[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mAgent: [0m
+                [0mpid_40000001-0000-4000-8000-000000000001[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mTarget: [0m
+                [0mpid_40000007-0000-4000-8000-000000000007[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mRequester: [0m
+                [0mpid_40000001-0000-4000-8000-000000000001[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mRun: [0m
+                [0mpid_40000004-0000-4000-8000-000000000004[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0mExpires: [0m
+                [0m2026-08-21T20:00:00Z[0m
+              [36m</span>[39m
+            [36m</span>[39m
+            [36m<section[39m
+              [33maria-label[39m=[32m"Approved Attack Lab boundary"[39m
+            [36m>[39m
+              [36m<h3>[39m
+                [0mExact Attack Lab approval[0m
+              [36m</h3>[39m
+              [36m<p>[39m
+                [0mTest definition: [0m
+                [0mpid_40000007-0000-4000-8000-000000000007[0m
+                [0m · version [0m
+                [0m1[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mApproved source: [0m
+                [0mpid_40000004-0000-4000-8000-000000000004[0m
+                [0m · attempt [0m
+                [0m1[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mSandbox target: [0m
+                [0mpid_40000001-0000-4000-8000-000000000001[0m
+                [0m · [0m
+                [0magent_endpoint[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mEnvironment: [0m
+                [0mstaging[0m
+                [0m · credential class: [0m
+                [0mread_only[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mApproved destination: [0m
+                [0mcanary.example.test[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mPreflight expires: [0m
+                [0m2026-08-21T20:00:00Z[0m
+              [36m</p>[39m
+              [36m<ul>[39m
+                [36m<li>[39m
+                  [0mBounded canary call[0m
+                [36m</li>[39m
+              [36m</ul>[39m
+              [36m<p>[39m
+                [0m500m[0m
+                [0m CPU · [0m
+                [0m1Gi[0m
+                [0m memory · [0m
+                [0m2Gi[0m
+                [0m ephemeral storage · [0m
+                [0m300[0m
+                [0m seconds[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mDistinct operator approval is required in both autonomy modes. Sandbox cleanup is mandatory; this action never marks a finding remediated.[0m
+              [36m</p>[39m
+            [36m</section>[39m
+            [36m<h3>[39m
+              [0mReason[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mThis persisted plan step requires operator approval.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mRisk: moderate (action catalog)[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mCatalog [0m
+              [0msecurity-agent-actions-v1[0m
+              [0m · plan [0m
+              [0msha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa[0m
+            [36m</p>[39m
+            [36m<section[39m
+              [33maria-label[39m=[32m"Approval AI rationale"[39m
+              [33mclass[39m=[32m"security-agent-rationale"[39m
+            [36m>[39m
+              [36m<h3>[39m
+                [0mAI rationale[0m
+              [36m</h3>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"security-agent-rationale__disclaimer"[39m
+              [36m>[39m
+                [0mAI-generated explanation. This does not authorize any action.[0m
+              [36m</p>[39m
+              [36m<p>[39m
+                [0mNo AI rationale is available for this approval.[0m
+              [36m</p>[39m
+            [36m</section>[39m
+          [36m</section>[39m
+          [36m<h3>[39m
+            [0mExpected effect[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mRun a bounded Attack Lab reproduction; human interpretation required[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mNot reversible[0m
+            [0m · TTL [0m
+            [0m0[0m
+            [0ms · expires [0m
+            [0m2026-08-21T20:00:00Z[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mEvidence[0m
+          [36m</h3>[39m
+          [36m<ul>[39m
+            [36m<li>[39m
+              [0mpid_40000007-0000-4000-8000-000000000007[0m
+            [36m</li>[39m
+          [36m</ul>[39m
+          [36m<p>[39m
+            [0mIdentity administrator approval required[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"button-row"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--danger "[39m
+            [36m>[39m
+              [0mReject[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"button button--secondary "[39m
+            [36m>[39m
+              [0mCancel approval[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</aside>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ app/features/securityagents/SecurityAgentsView.test.tsx:56:38
+     54|   render(<SecurityAgentsView api={api} environmentID={environmentID} a…
+     55|   await userEvent.click(screen.getByRole("button",{name:`Open approval…
+     56|   await userEvent.click(await screen.findByRole("button",{name:"Approv…
+       |                                      ^
+     57|   await waitFor(()=>expect(decision).toBe("approved"));
+     58|   expect(screen.queryByText("Identity administrator approval required"…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 73 skipped (74)
+   Start at  04:20:53
+   Duration  2.65s (transform 272ms, setup 219ms, import 378ms, tests 1.09s, environment 830ms)
+
+
+Exit: 1 Signal: null

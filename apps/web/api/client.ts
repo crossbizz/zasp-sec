@@ -3,9 +3,11 @@ import type { ClientOptions } from "openapi-fetch";
 
 import type { paths, ProductError, ProductId } from "./generated";
 import type { Decoder } from "./decoders";
+import { hasOrderedSecurityAgent, validateOrderedSecurityAgentJSON } from "./ordered-security-agent";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_MAXIMUM_RESPONSE_BYTES = 1024 * 1024;
+const MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const EXPECTED_SCOPE_HEADER = "X-Zasp-Expected-Scope";
 const SCOPE_STALE_MESSAGE = "Session scope changed; rebootstrap required";
@@ -78,6 +80,7 @@ export function createAPIClient(options: APIClientOptions = {}) {
 	onFreshAuthRequired = () => undefined,
     ...clientOptions
   } = options;
+  const attachmentMaximumBytes = Math.min(options.maximumResponseBytes ?? MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES, MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES);
   if (!validRelativeBaseURL(baseUrl) || typeof configuredFetch !== "function" || !validBound(timeoutMs) || !validBound(maximumResponseBytes)) {
     throw new APITransportError("invalid_configuration", "Invalid API client configuration");
   }
@@ -111,9 +114,14 @@ export function createAPIClient(options: APIClientOptions = {}) {
       signal,
     });
     try {
+      // Ordinary requests retain immediate dispatch; only downloads read a body first.
+      const pendingDownload = complianceDownloadExpectation(securedRequest);
+      const download = pendingDownload ? await pendingDownload : undefined;
+      throwIfRequestStopped(request.signal, timeout.signal);
       const response = await configuredFetch(securedRequest);
 	  throwIfRequestStopped(request.signal, timeout.signal);
-	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal);
+	  const orderedRunResponse = /\/api\/v1\/security-agent-runs\/[^/]+(?:\/cancel)?$/.test(new URL(request.url).pathname);
+	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal, download, attachmentMaximumBytes, orderedRunResponse);
 	  throwIfRequestStopped(request.signal, timeout.signal);
       return response;
     } catch (error) {
@@ -157,13 +165,43 @@ function isMutation(method: string): boolean {
   return method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE";
 }
 
-async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void, onFreshAuthRequired: () => void, signal: AbortSignal): Promise<void> {
+type ComplianceDownloadExpectation = Readonly<{ id: string; media: string; extension: string; agent?: boolean }>;
+function complianceDownloadExpectation(request: Request): Promise<ComplianceDownloadExpectation> | undefined {
+  const url = new URL(request.url);
+  const match = /^\/api\/v1\/compliance\/exports\/(pid_[0-9a-f-]+)\/download$/.exec(url.pathname);
+  const agent = /^\/api\/v1\/security-agent-runs\/(pid_[0-9a-f-]+)\/steps\/(pid_[0-9a-f-]+)\/export\/download$/.exec(url.pathname);
+  if (agent) {
+    if (request.method !== "POST" || url.search || !PRODUCT_ID.test(agent[1]) || !PRODUCT_ID.test(agent[2])) throw new APITransportError("invalid_configuration", "Invalid agent export download request");
+    return validateComplianceDownloadBody(request, agent[1]).then(value => ({ ...value, agent: true }));
+  }
+  if (!match) return;
+  if (request.method !== "POST" || url.search || !PRODUCT_ID.test(match[1])) throw new APITransportError("invalid_configuration", "Invalid compliance download request");
+  return validateComplianceDownloadBody(request, match[1]);
+}
+async function validateComplianceDownloadBody(request: Request, id: string): Promise<ComplianceDownloadExpectation> {
+  const body: unknown = await request.clone().json();
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new APITransportError("invalid_configuration", "Invalid compliance download request");
+  const v = body as Record<string, unknown>;
+  if (Object.keys(v).length !== 2 || typeof v.token !== "string" || !/^[a-f0-9]{64}$/.test(v.token) || !["json", "csv", "human"].includes(v.format as string)) throw new APITransportError("invalid_configuration", "Invalid compliance download request");
+  return { id, media: v.format === "human" ? "text/plain" : v.format === "csv" ? "text/csv" : "application/json", extension: v.format === "human" ? "txt" : v.format as string };
+}
+async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void, onFreshAuthRequired: () => void, signal: AbortSignal, download?: ComplianceDownloadExpectation, attachmentMaximumBytes = MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES, orderedRunResponse = false): Promise<void> {
   if (signal.aborted) throw signal.reason;
   if (!(response instanceof Response) || response.redirected) {
     throw new APITransportError("invalid_response", "API returned an invalid response");
   }
-  if (response.status === 204 || response.status === 205) return;
+  if (!download && (response.status === 204 || response.status === 205)) return;
   const contentType = response.headers.get("Content-Type")?.split(";", 1)[0].trim().toLowerCase();
+  if (download && response.ok) {
+    const disposition = response.headers.get("Content-Disposition");
+    const agentFilename = /^attachment; filename="agent-export-(pid_[0-9a-f-]+)\.(json|csv|txt)"$/.exec(disposition ?? "");
+    const validDisposition = download.agent ? agentFilename !== null && PRODUCT_ID.test(agentFilename[1]) && agentFilename[2] === download.extension : disposition === `attachment; filename="compliance-${download.id}.${download.extension}"`;
+    if (response.status !== 200 || contentType !== download.media || response.headers.get("Cache-Control") !== "no-store" || response.headers.get("X-Content-Type-Options") !== "nosniff" || !validDisposition) throw new APITransportError("invalid_response", "API returned an invalid export attachment");
+    const payload = await readBounded(response.clone(), attachmentMaximumBytes);
+    if (!payload.length) throw new APITransportError("invalid_response", "API returned an empty compliance attachment");
+    if (signal.aborted) throw signal.reason;
+    return;
+  }
   if (contentType !== "application/json") {
     throw new APITransportError(response.ok ? "invalid_response" : "invalid_error", "API returned an invalid content type");
   }
@@ -172,6 +210,7 @@ async function validateResponse(response: Response, maximumBytes: number, onSess
   let decoded: unknown;
   try {
     decoded = JSON.parse(new TextDecoder().decode(payload));
+    if (response.ok && orderedRunResponse && hasOrderedSecurityAgent(decoded)) validateOrderedSecurityAgentJSON(new TextDecoder("utf-8", { fatal: true }).decode(payload));
   } catch {
     throw new APITransportError(response.ok ? "invalid_response" : "invalid_error", "API returned malformed JSON");
   }

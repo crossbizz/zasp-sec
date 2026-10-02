@@ -162,11 +162,13 @@ func TestRedTeamReclaimedTerminalRunClearsLease(t *testing.T) {
 
 func redTeamInvocationFixture(t *testing.T, ctx context.Context) (*pgx.Conn, *migrations.Runner, *pgx.Conn, *pgx.Conn) {
 	t.Helper()
-	connection, err := pgx.Connect(ctx, startDisposablePostgresAs(t, "zasp_e2e"))
+	connection, err := pgx.Connect(ctx, startDisposablePostgresAs(t, "zasp_e2e", ctx))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { connection.Close(context.Background()) })
+	if !auditHTTPFixtureOwnConnection(ctx, "fixture admin", connection) {
+		t.Cleanup(func() { connection.Close(context.Background()) })
+	}
 	runner := migrateToTypedInventoryCutover(t, ctx, connection)
 	identity := fixtureRequestIdentity(t)
 	scope := identity.Scope
@@ -246,7 +248,9 @@ func redTeamInvocationFixture(t *testing.T, ctx context.Context) (*pgx.Conn, *mi
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() { value.Close(context.Background()) })
+		if !auditHTTPFixtureOwnConnection(ctx, "invocation "+name, value) {
+			t.Cleanup(func() { value.Close(context.Background()) })
+		}
 		return value
 	}
 	return connection, runner, connect("invocation_adapter"), connect("invocation_worker")

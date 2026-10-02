@@ -1,0 +1,50 @@
+-- Reuse the published lease, trigger, accounting, idempotency and savepoint
+-- protocol by private clones. The new source snapshot is trusted SQL input;
+-- the model candidate remains action/index/target_id only.
+CREATE FUNCTION public.zasp_sa_attack_lab_planner_binding(o text,w text,e text,a text,v bigint) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog,public AS $binding$
+DECLARE b jsonb;ref jsonb;
+BEGIN
+ SELECT body INTO b FROM public.zasp_security_agent_definitions WHERE (organization_id,workspace_id,environment_id,definition_id,version)=(o,w,e,a,v) AND deleted_at IS NULL FOR SHARE;
+ ref:=b->'existing_test';
+ IF NOT COALESCE(b->'allowed_actions'='["start_attack_lab"]'::jsonb AND b->>'verification_kind'='attack_lab_run' AND jsonb_typeof(ref)='object' AND ref ?& ARRAY['definition_id','definition_version'] AND ref-ARRAY['definition_id','definition_version']='{}'::jsonb AND public.zasp_valid_product_id(ref->>'definition_id') AND ref->>'definition_version' ~ '^([1-9][0-9]{0,5}|1000000)$',false) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab planner reference changed';END IF;
+ RETURN public.zasp_sa_attack_lab_source(o,w,e,ref->>'definition_id',(ref->>'definition_version')::bigint,NULL);
+END $binding$;
+DO $planner$
+DECLARE p record;d text;name_value text;callee text;signature_value text;anchor text;oldprefix text:='zasp_production_security_agent_existing_tests_';newprefix text:='zasp_sa_attack_lab_';
+ names text[]:=ARRAY['planner_context','reserve_core','reserve_planner','recheck_context','prepare_core','finish_prepare','prepare_run','accept_planner','fail_planner'];
+BEGIN
+ PERFORM set_config('check_function_bodies','off',true);
+ FOREACH name_value IN ARRAY names LOOP
+  SELECT oid,pg_get_function_identity_arguments(oid) args INTO STRICT p FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname=oldprefix||name_value;
+  d:=pg_get_functiondef(p.oid);
+  FOREACH callee IN ARRAY names LOOP d:=replace(d,oldprefix||callee||'(',newprefix||callee||'(');END LOOP;
+  d:=replace(d,'public.zasp_production_security_agent_run_context_test_binding(','public.zasp_sa_attack_lab_planner_binding(');
+  d:=replace(d,'public.'||oldprefix||'readiness(
+  (SELECT value FROM public.zasp_schema_metadata WHERE key=''production_security_agent_existing_tests_checksum''),
+  (SELECT value FROM public.zasp_schema_metadata WHERE key=''production_security_agent_existing_tests_fingerprint''))','public.zasp_sa_attack_lab_guard()');
+  d:=replace(d,'public.'||oldprefix||'readiness(expected_checksum,expected_fingerprint)','public.zasp_sa_attack_lab_readiness(expected_checksum,expected_fingerprint)');
+  IF name_value IN('planner_context','recheck_context') THEN
+   d:=replace(d,'action_value NOT IN(''run_test'',''rerun_test'')','action_value<>''start_attack_lab''');
+   d:=replace(d,'''existing_test'',jsonb_build_object(','''attack_lab'',binding_value,''existing_test'',jsonb_build_object(');
+  ELSIF name_value='prepare_core' THEN
+   d:=replace(d,'authorization_value:=CASE definition_row.activation WHEN ''autonomous'' THEN ''autonomous'' ELSE ''approval_required'' END;','authorization_value:=''approval_required'';');
+   d:=replace(d,'state_value:=CASE definition_row.activation WHEN ''autonomous'' THEN ''queued'' ELSE ''waiting_approval'' END;','state_value:=''waiting_approval'';');
+   d:=replace(d,'approval_result:=CASE definition_row.activation WHEN ''supervised'' THEN to_jsonb(approval_value) ELSE ''null''::jsonb END;','approval_result:=to_jsonb(approval_value);');
+   d:=replace(d,'CASE definition_row.activation WHEN ''autonomous'' THEN ''authorized'' ELSE ''waiting_approval'' END','''waiting_approval''');
+   d:=replace(d,'IF definition_row.activation=''supervised'' THEN','IF true THEN');
+   d:=replace(d,'CASE definition_row.activation WHEN ''supervised'' THEN approval_value ELSE NULL END','approval_value');
+   d:=replace(d,'CASE definition_row.activation WHEN ''autonomous'' THEN ''run_authorized'' ELSE ''approval_requested'' END','''approval_requested''');
+   d:=replace(d,'''authorization'',authorization_value)),','''authorization'',authorization_value,''attack_lab'',binding_value)),');
+   d:=replace(d,'''kind'',''test_run''','''kind'',''attack_lab_run''');
+   d:=replace(d,' action_value:=context_value->''context''->''allowed_actions''->>0;', ' expires_value:=LEAST(expires_value,(binding_value->''preflight''->>''decision_expires_at'')::timestamptz);'||chr(10)||' action_value:=context_value->''context''->''allowed_actions''->>0;');
+  END IF;
+  IF strpos(d,oldprefix||'readiness(')>0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab planner pin rewrite incomplete';END IF;
+  EXECUTE d;
+  EXECUTE format('ALTER FUNCTION public.%I(%s) OWNER TO zasp_discovery_authority',newprefix||name_value,p.args);
+  EXECUTE format('REVOKE ALL ON FUNCTION public.%I(%s) FROM PUBLIC',newprefix||name_value,p.args);
+  IF name_value IN('planner_context','reserve_planner','prepare_run','accept_planner','fail_planner') THEN
+   EXECUTE format('GRANT EXECUTE ON FUNCTION public.%I(%s) TO zasp_security_agent_worker',newprefix||name_value,p.args);
+  END IF;
+ END LOOP;
+ PERFORM set_config('check_function_bodies','on',true);
+END $planner$;

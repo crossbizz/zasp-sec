@@ -1,0 +1,180 @@
+package apiserver
+
+import (
+	"context"
+	"encoding/json"
+	"strings"
+	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+)
+
+func validSecurityAgentAttackLabPreflightStop(payload json.RawMessage, claim SecurityAgentRunClaim) bool {
+	var envelope struct {
+		Stop json.RawMessage `json:"attack_lab_preflight_stop"`
+	}
+	var stop struct {
+		OrganizationID string `json:"organization_id"`
+		WorkspaceID    string `json:"workspace_id"`
+		EnvironmentID  string `json:"environment_id"`
+		RunID          string `json:"run_id"`
+		Attempt        int    `json:"attempt"`
+		Version        int64  `json:"version"`
+		State          string `json:"state"`
+		Reason         string `json:"reason"`
+	}
+	return exactJSONFields(payload, "attack_lab_preflight_stop") && decodeStrictDiscovery(payload, &envelope) == nil && exactJSONFields(envelope.Stop, "organization_id", "workspace_id", "environment_id", "run_id", "attempt", "version", "state", "reason") && decodeStrictDiscovery(envelope.Stop, &stop) == nil && stop.OrganizationID == claim.OrganizationID && stop.WorkspaceID == claim.WorkspaceID && stop.EnvironmentID == claim.EnvironmentID && stop.RunID == claim.RunID && stop.Attempt == claim.Attempt && stop.Version > claim.Version && stop.Version <= 1000000 && stop.State == "needs_human" && stop.Reason == "attack_lab_preflight_unavailable"
+}
+
+// Admission is separate from catalog availability. The production decorator
+// joins installed57 authority with bounded checks of the deployed workers.
+func (repository *PostgresRepository) SecurityAgentAttackLabWorkflowAvailable(ctx context.Context) (bool, error) {
+	if repository == nil || ctx == nil || ctx.Err() != nil || nilInterface(repository.database) {
+		return false, ErrRepositoryUnavailable
+	}
+	if !repository.securityAgentExecution {
+		return false, nil
+	}
+	probe, ok := repository.database.(interface {
+		SecurityAgentAttackLabWorkflowAvailable(context.Context) (bool, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	return probe.SecurityAgentAttackLabWorkflowAvailable(ctx)
+}
+
+// This capability means durable admission is installed. It does not publish
+// the action catalog or assert that a settlement worker is running.
+func (repository *PostgresRepository) SecurityAgentAttackLabAvailable(ctx context.Context) (bool, error) {
+	if repository == nil || ctx == nil || ctx.Err() != nil || nilInterface(repository.database) {
+		return false, ErrRepositoryUnavailable
+	}
+	if !repository.securityAgentExecution {
+		return false, nil
+	}
+	capability, ok := repository.database.(interface {
+		SecurityAgentAttackLabAvailable(context.Context) (bool, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	return capability.SecurityAgentAttackLabAvailable(ctx)
+}
+
+func (database *PostgresJSONDatabase) SecurityAgentAttackLabAvailable(ctx context.Context) (bool, error) {
+	if database == nil || ctx == nil || ctx.Err() != nil {
+		return false, ErrRepositoryUnavailable
+	}
+	database.mu.RLock()
+	defer database.mu.RUnlock()
+	if database.closed || nilInterface(database.driver) {
+		return false, ErrRepositoryUnavailable
+	}
+	var installed, ready bool
+	if err := database.driver.QueryRow(ctx, `SELECT to_regprocedure('public.zasp_sa_attack_lab_readiness(text,text)') IS NOT NULL`).Scan(&installed); err != nil {
+		return false, ErrRepositoryUnavailable
+	}
+	if !installed {
+		return false, nil
+	}
+	if err := database.driver.QueryRow(ctx, `SELECT public.zasp_sa_attack_lab_readiness($1,$2)`, migrations.ProductionSecurityAgentAttackLab().Checksum(), migrations.SecurityAgentAttackLabFingerprint()).Scan(&ready); err != nil || !ready || ctx.Err() != nil {
+		return false, ErrRepositoryUnavailable
+	}
+	return true, nil
+}
+
+func (repository *SecurityAgentWorkerRepository) attackLabStatement(ctx context.Context, claim SecurityAgentRunClaim, worker, lease, statement string) (string, bool, error) {
+	capability, ok := repository.database.(interface {
+		SecurityAgentAttackLabAvailable(context.Context) (bool, error)
+	})
+	if !ok {
+		return statement, false, nil
+	}
+	available, err := capability.SecurityAgentAttackLabAvailable(ctx)
+	if err != nil {
+		return "", false, ErrRepositoryUnavailable
+	}
+	if !available {
+		return statement, false, nil
+	}
+	raw, err := repository.database.QueryJSON(ctx, `SELECT public.zasp_sa_attack_lab_run_kind($1,$2,$3,$4,$5,$6)`, claim.OrganizationID, claim.WorkspaceID, claim.EnvironmentID, claim.RunID, worker, lease)
+	var kind struct {
+		AttackLab bool `json:"attack_lab"`
+	}
+	if err != nil || !exactJSONFields(raw, "attack_lab") || decodeStrictDiscovery(raw, &kind) != nil {
+		return "", false, ErrRepositoryUnavailable
+	}
+	if !kind.AttackLab {
+		return statement, false, nil
+	}
+	return strings.Replace(statement, "zasp_production_security_agent_existing_tests_", "zasp_sa_attack_lab_", 1), true, nil
+}
+
+func validSecurityAgentAttackLabSnapshot(raw json.RawMessage, ref SecurityAgentExistingTestReference) bool {
+	fields, err := auditExportClosedObject(raw, 16*1024, "source_run_id", "source_attempt", "definition_id", "definition_version", "target_id", "target_kind", "source_input_digest", "source_completed_at", "source_evidence", "preflight")
+	if err != nil {
+		return false
+	}
+	var value struct {
+		SourceRunID       string          `json:"source_run_id"`
+		SourceAttempt     int             `json:"source_attempt"`
+		DefinitionID      string          `json:"definition_id"`
+		DefinitionVersion int64           `json:"definition_version"`
+		TargetID          string          `json:"target_id"`
+		TargetKind        string          `json:"target_kind"`
+		InputDigest       string          `json:"source_input_digest"`
+		CompletedAt       time.Time       `json:"source_completed_at"`
+		Evidence          json.RawMessage `json:"source_evidence"`
+		Preflight         json.RawMessage `json:"preflight"`
+	}
+	if decodeStrictDiscovery(raw, &value) != nil || !validProductID(value.SourceRunID) || value.SourceAttempt < 1 || value.DefinitionID != ref.DefinitionID || value.DefinitionVersion != ref.DefinitionVersion || !validProductID(value.TargetID) || value.CompletedAt.IsZero() || !securityAgentPlanHashPattern.MatchString("sha256:"+value.InputDigest) {
+		return false
+	}
+	if _, err := auditExportClosedObject(fields["source_evidence"], 4096, "key", "version", "sha256", "size", "reference"); err != nil {
+		return false
+	}
+	if _, err := auditExportClosedObject(fields["preflight"], 8192, "source_run_id", "definition_id", "definition_version", "target_id", "target_kind", "environment", "credential_class", "destination", "allowed_destinations", "success_criterion", "expected_side_effects", "decision_expires_at", "limits", "decision_digest"); err != nil {
+		return false
+	}
+	var decision struct {
+		SourceRunID         string    `json:"source_run_id"`
+		DefinitionID        string    `json:"definition_id"`
+		DefinitionVersion   int64     `json:"definition_version"`
+		TargetID            string    `json:"target_id"`
+		TargetKind          string    `json:"target_kind"`
+		Environment         string    `json:"environment"`
+		CredentialClass     string    `json:"credential_class"`
+		Destination         string    `json:"destination"`
+		AllowedDestinations []string  `json:"allowed_destinations"`
+		Criterion           string    `json:"success_criterion"`
+		SideEffects         []string  `json:"expected_side_effects"`
+		Expires             time.Time `json:"decision_expires_at"`
+		Limits              struct {
+			CPU     string `json:"cpu"`
+			Memory  string `json:"memory"`
+			Storage string `json:"ephemeral_storage"`
+			Seconds int    `json:"timeout_seconds"`
+		} `json:"limits"`
+		Digest string `json:"decision_digest"`
+	}
+	return decodeStrictDiscovery(value.Preflight, &decision) == nil && decision.SourceRunID == value.SourceRunID && decision.DefinitionID == ref.DefinitionID && decision.DefinitionVersion == ref.DefinitionVersion && decision.TargetID == value.TargetID && decision.TargetKind == value.TargetKind && stringIn(decision.Environment, "development", "test", "staging") && stringIn(decision.CredentialClass, "read_only", "test_write") && len(decision.AllowedDestinations) == 1 && decision.AllowedDestinations[0] == decision.Destination && decision.Destination != "" && len(decision.Destination) <= 253 && !decision.Expires.IsZero() && decision.Limits.CPU == "500m" && decision.Limits.Memory == "1Gi" && decision.Limits.Storage == "2Gi" && decision.Limits.Seconds == 300 && securityAgentPlanHashPattern.MatchString("sha256:"+decision.Digest)
+}
+
+func attackLabApprovalFields(raw json.RawMessage, fields ...string) bool {
+	object, ok := budgetJSONObject(raw)
+	if !ok {
+		return false
+	}
+	if _, present := object["attack_lab"]; present {
+		fields = append(fields, "attack_lab")
+	}
+	if manual, present := object["manual_trigger"]; present {
+		var value SecurityAgentManualTrigger
+		if json.Unmarshal(manual, &value) != nil {
+			return false
+		}
+		fields = append(fields, "manual_trigger")
+	}
+	return exactJSONFields(raw, fields...)
+}

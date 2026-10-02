@@ -57,6 +57,7 @@ test("actual pinned Promptfoo image distinguishes pass, security failure, and en
     const result = await command("docker",["start","--attach",name],200_000);
     assert.equal(result.code,0,result.output);
     for(const verdict of ["pass","fail","engine_error"]) assert.ok(result.output.includes(`actual pinned Promptfoo: ${verdict} verified`));
+    for(const verdict of ["pass","fail","engine_error"]) assert.ok(result.output.includes(`actual pinned Promptfoo: ${verdict} verified (v2)`));
     assert.ok(result.output.includes("actual pinned Promptfoo: cancellation reaped engine with no completed output"));
     process.stdout.write(result.output);
   } finally {

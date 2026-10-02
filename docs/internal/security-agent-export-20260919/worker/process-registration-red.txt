@@ -1,0 +1,5 @@
+=== RUN   TestSecurityAgentExportWorkerProcessPostgres
+    security_agent_export_worker_process_postgres_test.go:27: release58 worker registration: invalid migration state
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportWorkerProcessPostgres1008543831/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportWorkerProcessPostgres (5.67s)
+FAIL

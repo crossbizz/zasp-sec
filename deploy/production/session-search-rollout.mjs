@@ -2,7 +2,23 @@
 export function validSessionSearchPhase(schema, phase) {
   return (phase === "compatibility" && [48, 49].includes(schema)) ||
     (schema === 50 && ["backfill", "query"].includes(phase)) ||
-    (schema === 51 && ["precision-consumers", "precision-intake"].includes(phase));
+    ([51, 52, 53, 54, 55, 56, 57, 58, 59, 60].includes(schema) && ["precision-consumers", "precision-intake"].includes(phase));
+}
+
+export function validDiscoveryScheduleReplayPhase(schema, phase) {
+  if (schema <= 58) return phase === undefined;
+  return schema === 59 ? phase === "maintenance" : schema === 60 && phase === "active";
+}
+
+export function validateDiscoveryScheduleReplayResources(resources, schema, phase) {
+  if (!validDiscoveryScheduleReplayPhase(schema, phase)) throw new Error("release rejected");
+  if (schema <= 58) return;
+  const scheduler = resources.filter(resource => resource.kind === "Deployment" && resource.metadata?.name === "agentsec-discovery-scheduler");
+  if (scheduler.length !== 1 || scheduler[0].spec?.replicas !== (phase === "maintenance" ? 0 : 2)) throw new Error("release rejected");
+  const exact = kind => resources.filter(resource => resource.kind === kind && resource.metadata?.name === "agentsec-discovery-scheduler").length;
+  const schedulerUnavailable = resources.flatMap(resource => resource.spec?.groups ?? []).flatMap(group => group.rules ?? []).filter(rule => rule.alert === "ZaspDiscoverySchedulerUnavailable").length;
+  const expected = phase === "maintenance" ? 0 : 1;
+  if (exact("HorizontalPodAutoscaler") !== expected || exact("PodDisruptionBudget") !== expected || schedulerUnavailable !== expected) throw new Error("release rejected");
 }
 
 export function validateSessionSearchResources(resources, phase) {

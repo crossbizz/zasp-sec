@@ -69,7 +69,7 @@ describe("M1-12 S3 artifact interface contract", () => {
     const section = readme.match(/## S3 artifact interface[\s\S]*?## Neon pooled proof/)?.[0];
 
     expect(manifest.scripts?.["artifact:store:test"]).toBe(
-      "cd services/platform && go test -race -count=1 ./artifactstore && cd ../../proofs/localstack-storage && go test -race -count=1 ./... && node --test run.test.mjs artifact-run.test.mjs",
+      "cd services/platform && go test -race -count=1 ./artifactstore && cd ../../proofs/localstack-storage && go test -race -count=1 ./... && node --test run.test.mjs artifact-run.test.mjs audit-export-container.test.mjs",
     );
     expect(manifest.scripts?.["artifact:store:run"]).toBe(
       "node proofs/localstack-storage/run-artifact-store.mjs",

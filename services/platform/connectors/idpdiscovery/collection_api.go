@@ -74,7 +74,7 @@ func newOktaCollectionAPI(issuer string, roundTripper http.RoundTripper, timeout
 	if len(match) != 2 || roundTripper == nil || timeout < 100*time.Millisecond || timeout > 30*time.Second {
 		return nil, ErrInvalid
 	}
-	return &OktaCollectionAPI{issuer: issuer, tenant: match[1] + ".okta.com", client: &http.Client{Transport: roundTripper, Timeout: timeout, CheckRedirect: rejectOktaCollectionRedirect}, timeout: timeout}, nil
+	return &OktaCollectionAPI{issuer: issuer, tenant: match[1] + ".okta.com", client: &http.Client{Transport: collection.EffectTransport{Next: roundTripper}, Timeout: timeout, CheckRedirect: rejectOktaCollectionRedirect}, timeout: timeout}, nil
 }
 
 func (api *OktaCollectionAPI) FetchCollectionPage(ctx context.Context, credential []byte, request CollectionPageRequest) (CollectionPage, error) {

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/gatewaycontrol"
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
 
@@ -64,6 +65,7 @@ type gatewayDecisionEvent struct {
 	PolicyIDs      []string
 	Classification map[string]string
 	OccurredAt     time.Time
+	Evaluation     *gatewaycontrol.EvaluationEvidence
 }
 
 type gatewayControlPlane interface {
@@ -92,10 +94,11 @@ type gatewayEvaluationRequest struct {
 }
 
 type gatewayEvaluationResult struct {
-	Decision         string   `json:"decision"`
-	PolicyVersion    uint64   `json:"policy_version"`
-	CacheState       string   `json:"cache_state"`
-	MatchedPolicyIDs []string `json:"matched_policy_ids"`
+	Decision         string                             `json:"decision"`
+	PolicyVersion    uint64                             `json:"policy_version"`
+	CacheState       string                             `json:"cache_state"`
+	MatchedPolicyIDs []string                           `json:"matched_policy_ids"`
+	Evaluation       *gatewaycontrol.EvaluationEvidence `json:"evaluation,omitempty"`
 }
 
 type gatewayQuarantineAcknowledgment struct {
@@ -314,6 +317,7 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 
 	envelope, state, cacheErr := runtime.cache.Current()
 	result := gatewayEvaluationResult{Decision: "allow", MatchedPolicyIDs: []string{}}
+	var matched []policy.CompiledPolicy
 	switch {
 	case cacheErr != nil:
 		result.Decision = gatewayFailureDecision(runtime.bootstrapFailureMode)
@@ -342,6 +346,7 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 				continue
 			}
 			result.MatchedPolicyIDs = append(result.MatchedPolicyIDs, compiled.ID)
+			matched = append(matched, compiled)
 			if decision.Action == policy.ActionBlock {
 				result.Decision = "block"
 			} else if result.Decision == "allow" {
@@ -352,6 +357,7 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 	default:
 		return gatewayEvaluationResult{}, errGatewayRuntime
 	}
+	result.Evaluation = resolvedGatewayEvaluation(request, result.Decision, matched)
 	if request.Classification["capability_category"] != "" && result.Decision != "block" {
 		return gatewayEvaluationResult{}, errGatewayRuntime
 	}
@@ -396,6 +402,7 @@ func (runtime *gatewayRuntime) Evaluate(ctx context.Context, request gatewayEval
 		PolicyIDs:      cloneGatewayStringSlice(result.MatchedPolicyIDs),
 		Classification: cloneGatewayStrings(request.Classification),
 		OccurredAt:     now,
+		Evaluation:     cloneGatewayEvaluation(result.Evaluation),
 	}
 	pending := make([]gatewayDecisionEvent, len(runtime.pending), len(runtime.pending)+1)
 	for index, current := range runtime.pending {
@@ -962,6 +969,7 @@ func cloneGatewayStringSlice(values []string) []string {
 }
 
 func cloneGatewayEvaluationResult(value gatewayEvaluationResult) gatewayEvaluationResult {
+	value.Evaluation = cloneGatewayEvaluation(value.Evaluation)
 	if value.MatchedPolicyIDs != nil {
 		matched := make([]string, len(value.MatchedPolicyIDs))
 		copy(matched, value.MatchedPolicyIDs)
@@ -971,6 +979,7 @@ func cloneGatewayEvaluationResult(value gatewayEvaluationResult) gatewayEvaluati
 }
 
 func cloneGatewayDecisionEvent(value gatewayDecisionEvent) gatewayDecisionEvent {
+	value.Evaluation = cloneGatewayEvaluation(value.Evaluation)
 	value.PolicyIDs = cloneGatewayStringSlice(value.PolicyIDs)
 	value.Classification = cloneGatewayStrings(value.Classification)
 	return value

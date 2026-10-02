@@ -1,0 +1,17 @@
+=== RUN   TestSecurityAgentExportPublicRestartPostgres
+    security_agent_export_public_restart_postgres_test.go:228: public restart compiled/installed58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f
+    security_agent_export_public_restart_postgres_test.go:242: joined  pid=39 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:254: joined  pid=45 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:256: joined  pid=50 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:257: joined  pid=55 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:258: joined  pid=60 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:260: joined A pid=66 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:263: joined  pid=71 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:272: joined  pid=76 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:272: joined  pid=82 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:272: joined  pid=87 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:274: A original public response changed: PUT /api/v1/security-agent-execution-controls original={"target":"action","action_key":"create_evidence_export","enabled":true,"version":1,"audit_id":"pid_0c87d76a-224b-4753-b907-0439dfe25708","correlation_id":"pid_8ed00000-0000-4000-8000-000000000003","receipt_id":"pid_fdb6e102-e7c6-492c-aa7b-2c0906d0c43a","replayed":false}
+         replay={"target":"action","action_key":"create_evidence_export","enabled":true,"version":1,"audit_id":"pid_0c87d76a-224b-4753-b907-0439dfe25708","correlation_id":"pid_8ed00000-0000-4000-8000-000000000003","receipt_id":"pid_fdb6e102-e7c6-492c-aa7b-2c0906d0c43a","replayed":true}
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportPublicRestartPostgres3304602576/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportPublicRestartPostgres (13.09s)
+FAIL

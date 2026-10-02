@@ -1,5 +1,11 @@
 import type { AgentMutation, AgentSessionPage, AttackLabAttempt, AttackLabPreflight, AttackLabRun, AttackLabRunDetail, AttackLabRunPage, AttackPath, AttackPathPage, BreakOptionPage, CapabilityPage, ConnectorManifest, Finding, FindingPage, HomeSummary, Integration, IntegrationAuthorization, IntegrationFreshness, IntegrationSchedule, IntegrationSetupStatus, IntegrationSync, IntegrationSyncPage, InventoryDetail, InventoryPage, InventoryRecord, InventorySourceObservation, InventorySummary, Policy, PolicyRollout, PolicySimulation, Principal, RecoveryBackup, RecoveryCounts, RecoveryRestore, RelationshipPage, RuntimeDecision, SearchResultPage, SecurityAction, SecurityActionPage, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentApprovalPage, SecurityAgentDefinition, SecurityAgentExecutionControl, SecurityAgentExecutionControlResult, SecurityAgentExecutionControls, SecurityAgentPage, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentRunPage, SecurityAgentSimulation, SecurityAgentTemplate, Sensor, SensorCoverage, SensorEnrollment, SensorPage, SessionBootstrap, SessionCallbackResult, SessionScope, SessionScopePage, TestAttempt, TestDefinition, TestDefinitionPage, TestRun, TestRunDetail, TestRunPage, WorkflowMutationReceipt, WorkflowMutationReceiptPage } from "./generated";
 
+import { validateSecurityAgentExportSelections } from "./security-agent-export-decoders";
+
+import { decodeOrderedSecurityAgentRunDetail, hasOrderedSecurityAgent } from "./ordered-security-agent";
+export { decodeOrderedSecurityAgentApproval, decodeSecurityAgentCancellation, decodeSecurityAgentManualRunInput } from "./ordered-security-agent";
+import { decodeSecurityAgentTriggerRules } from "./security-agent-trigger-rules";
+
 const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const CURSOR = /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-][AQgw]|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048])?$/;
@@ -162,7 +168,8 @@ export function decodeHomeSummary(value: unknown): HomeSummary {
   const integers = ["agent_count", "high_risk_paths", "verified_changes", "blocked_changes", "pending_approvals", "oldest_approval_age_seconds", "needs_human_runs", "failed_runs", "inconclusive_runs", "recent_contained", "recent_remediated"];
   const record = exactRecord(value, [...integers, "healthy", "attention_required"]);
   for (const key of integers) if (!Number.isSafeInteger(record[key]) || (record[key] as number) < 0) fail();
-  if (typeof record.healthy !== "boolean" || typeof record.attention_required !== "boolean") fail();
+  const unavailable = record.healthy === null && record.attention_required === null;
+  if (!unavailable && (typeof record.healthy !== "boolean" || typeof record.attention_required !== "boolean" || record.healthy === record.attention_required)) fail();
   return value as HomeSummary;
 }
 
@@ -219,7 +226,8 @@ export function decodeBreakOptionPage(value: unknown, path: Pick<AttackPath, "id
 }
 
 export function decodePolicy(value: unknown): Policy {
-  const record = exactRecord(value, ["id", "name", "scope", "trigger", "conditions", "action", "rollout", "failure_mode"]);
+  const record = exactRecord(value, ["id", "name", "scope", "trigger", "conditions", "action", "rollout", "failure_mode"], ["risk"]);
+  if ("risk" in record) enumValue(record.risk, ["low", "medium", "high", "critical"]);
   if (typeof record.id !== "string" || !/^policy-[a-z0-9][a-z0-9-]{0,120}$/.test(record.id)) fail();
   boundedString(record.name, 1, 256); enumValue(record.scope, ["environment"]); boundedString(record.trigger, 1, 64);
   const conditions = array(record.conditions, 32); if (conditions.length < 1) fail();
@@ -241,7 +249,7 @@ export function decodeWorkflowMutationReceipt(value: unknown, expectedScopeKey?:
   productID(record.audit_id); productID(record.correlation_id);
   dateTime(record.created_at); dateTime(record.expires_at);
   const lifetime = Date.parse(record.expires_at) - Date.parse(record.created_at);
-  if (lifetime <= 0 || lifetime > SEVEN_DAYS_MS || containsReadableWorkflowSecret(record.intent) || containsReadableWorkflowSecret(record.result)) fail();
+  if (lifetime <= 0 || lifetime > SEVEN_DAYS_MS || containsReadableReceiptSecret(record.intent, record.operation, record.resource_kind, true) || containsReadableReceiptSecret(record.result, record.operation, record.resource_kind, false)) fail();
   decodeWorkflowReceiptPayload(record.operation, record.resource_kind, record.resource_id, record.resource_version as number, record.idempotency_key as string, record.intent, record.result, expectedScopeKey);
   return value as WorkflowMutationReceipt;
 }
@@ -485,45 +493,348 @@ function optionalRecoveryTime(value: unknown): string | undefined { if (value ==
 function recoveryTimeOrder(created: string, started?: string, completed?: string): void { if (started !== undefined && Date.parse(started) < Date.parse(created) || completed !== undefined && (Date.parse(completed) < Date.parse(created) || started !== undefined && Date.parse(completed) < Date.parse(started))) fail(); }
 function recoveryTarget(value: unknown, expectedScope: string): void { printableString(value, 1, 63); if (!/^[a-z][a-z0-9-]{0,62}$/.test(value) || value === "production" || value === expectedScope.split("/")[2]) fail(); }
 
-export function decodeSecurityAgentDefinition(value: unknown): SecurityAgentDefinition { const record = exactRecord(value, ["id", "name", "trigger_kind", "trigger_source", "environment_ids", "autonomy", "max_steps", "max_duration_seconds", "temporary_policy_seconds", "ai_token_budget", "concurrency_limit", "allowed_actions", "verification_kind", "definition_version", "enabled"]); productID(record.id); boundedString(record.name, 1, 256); enumValue(record.trigger_kind, ["finding", "attack_path", "runtime_decision"]); boundedString(record.trigger_source, 1, 64); productIDArray(record.environment_ids, 100); enumValue(record.autonomy, ["supervised", "autonomous"]); boundedInteger(record.max_steps, 1, 100); boundedInteger(record.max_duration_seconds, 1, 86400); boundedInteger(record.temporary_policy_seconds, 1, 86400); boundedInteger(record.ai_token_budget, 1, 12000); boundedInteger(record.concurrency_limit, 1, 10); positiveInteger(record.definition_version); stringArray(record.allowed_actions, 32, 128, 1); boundedString(record.verification_kind, 1, 64); if (typeof record.enabled !== "boolean") fail(); return value as SecurityAgentDefinition; }
+export function decodeSecurityAgentDefinition(value: unknown): SecurityAgentDefinition {
+  decodeSecurityAgentReceiptBody(value, true);
+  return value as SecurityAgentDefinition;
+}
 export function decodeSecurityAgentPage(value: unknown): SecurityAgentPage { const record = exactRecord(value, ["items", "page_info"]); for (const item of array(record.items, 100)) decodeSecurityAgentDefinition(item); decodePageInfo(record.page_info); return value as SecurityAgentPage; }
 export function decodeSecurityAgentTemplate(value: unknown): SecurityAgentTemplate { const record = exactRecord(value, ["id", "name", "version", "trigger_kind", "default_actions", "verification_condition"]); productID(record.id); boundedString(record.name, 1, 256); positiveInteger(record.version); enumValue(record.trigger_kind, ["finding", "attack_path", "runtime_decision"]); stringArray(record.default_actions, 32, 128, 1); boundedString(record.verification_condition, 1, 256); return value as SecurityAgentTemplate; }
 export function decodeSecurityAgentTemplatePage(value: unknown): { readonly items: readonly SecurityAgentTemplate[] } { const record = exactRecord(value, ["items"]); for (const item of array(record.items, 20)) decodeSecurityAgentTemplate(item); return value as { readonly items: readonly SecurityAgentTemplate[] }; }
 export function decodeSecurityAction(value: unknown): SecurityAction { const record = exactRecord(value, ["key", "risk_class", "target_types", "approval_floor", "reversible", "verification_kind"]); boundedString(record.key, 1, 128); enumValue(record.risk_class, ["low", "moderate", "containment", "destructive"]); stringArray(record.target_types, 32, 64, 1); enumValue(record.approval_floor, ["none", "operator", "admin"]); if (typeof record.reversible !== "boolean") fail(); boundedString(record.verification_kind, 1, 64); return value as SecurityAction; }
 export function decodeSecurityActionPage(value: unknown): SecurityActionPage { const record = exactRecord(value, ["items"]); const items = array(record.items, 100); let prior = ""; for (const item of items) { const decoded = decodeSecurityAction(item); if (decoded.key <= prior) fail(); prior = decoded.key; } return value as SecurityActionPage; }
 export function decodeSecurityAgentActivationState(value: unknown): SecurityAgentActivationState { const record = exactRecord(value, ["id", "activation", "enabled", "version"]); productID(record.id); enumValue(record.activation, ["draft", "validated", "supervised", "autonomous"]); if (typeof record.enabled !== "boolean" || record.enabled !== (record.activation === "supervised" || record.activation === "autonomous")) fail(); positiveInteger(record.version); return value as SecurityAgentActivationState; }
-function decodeSecurityAgentExecutionControl(value: unknown, target: "global" | "environment" | "action", actionKey: "*" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "update_finding_response", allowZero: boolean): SecurityAgentExecutionControl { const record = exactRecord(value, ["target", "action_key", "enabled", "version"]); if (record.target !== target || record.action_key !== actionKey || typeof record.enabled !== "boolean") fail(); boundedInteger(record.version, allowZero ? 0 : 1, 1000000); return value as SecurityAgentExecutionControl; }
-export function decodeSecurityAgentExecutionControls(value: unknown): SecurityAgentExecutionControls { const record = exactRecord(value, ["global", "environment", "actions"]); decodeSecurityAgentExecutionControl(record.global, "global", "*", false); decodeSecurityAgentExecutionControl(record.environment, "environment", "*", true); const actions = array(record.actions, 4); if (actions.length !== 4) fail(); decodeSecurityAgentExecutionControl(actions[0], "action", "create_temporary_policy", true); decodeSecurityAgentExecutionControl(actions[1], "action", "isolate_session", true); decodeSecurityAgentExecutionControl(actions[2], "action", "revoke_integration_connection", true); decodeSecurityAgentExecutionControl(actions[3], "action", "update_finding_response", true); return value as SecurityAgentExecutionControls; }
-export function decodeSecurityAgentExecutionControlResult(value: unknown): SecurityAgentExecutionControlResult { const record = exactRecord(value, ["target", "action_key", "enabled", "version", "audit_id", "correlation_id", "receipt_id", "replayed"]); if (record.target === "environment" && record.action_key !== "*" || record.target === "action" && record.action_key !== "create_temporary_policy" && record.action_key !== "isolate_session" && record.action_key !== "revoke_integration_connection" && record.action_key !== "update_finding_response" || record.target !== "environment" && record.target !== "action" || typeof record.enabled !== "boolean") fail(); boundedInteger(record.version, 1, 1000000); productID(record.audit_id); productID(record.correlation_id); productID(record.receipt_id); if (typeof record.replayed !== "boolean" || record.audit_id === record.correlation_id || record.audit_id === record.receipt_id || record.correlation_id === record.receipt_id) fail(); return value as SecurityAgentExecutionControlResult; }
+function decodeSecurityAgentExecutionControl(value: unknown, target: "global" | "environment" | "action", actionKey: string, allowZero: boolean): SecurityAgentExecutionControl { const record = exactRecord(value, ["target", "action_key", "enabled", "version"]); if (record.target !== target || record.action_key !== actionKey || typeof record.enabled !== "boolean") fail(); boundedInteger(record.version, allowZero ? 0 : 1, 1000000); return value as SecurityAgentExecutionControl; }
+export function decodeSecurityAgentExecutionControls(value: unknown): SecurityAgentExecutionControls {
+  const record = exactRecord(value, ["global", "environment", "actions"]);
+  decodeSecurityAgentExecutionControl(record.global, "global", "*", false);
+  decodeSecurityAgentExecutionControl(record.environment, "environment", "*", true);
+  const actions = array(record.actions, 8);
+  const shapes: Record<number, string[]> = {
+    2: ["create_temporary_policy", "update_finding_response"],
+    3: ["create_temporary_policy", "revoke_integration_connection", "update_finding_response"],
+    4: ["create_temporary_policy", "isolate_session", "revoke_integration_connection", "update_finding_response"],
+    6: ["create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "update_finding_response"],
+    7: ["create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"],
+    8: ["create_evidence_export", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"],
+  };
+  const keys = shapes[actions.length]; if (!keys) fail();
+  keys.forEach((key, index) => {
+    const control = decodeSecurityAgentExecutionControl(actions[index], "action", key, true);
+    if (key === "create_evidence_export" && control.enabled && control.version === 0) fail();
+  });
+  return value as SecurityAgentExecutionControls;
+}
+export function decodeSecurityAgentExecutionControlResult(value: unknown): SecurityAgentExecutionControlResult { const record = exactRecord(value, ["target", "action_key", "enabled", "version", "audit_id", "correlation_id", "receipt_id", "replayed"]); if (record.target === "environment" && record.action_key !== "*" || record.target === "action" && !["create_evidence_export", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"].includes(record.action_key as string) || record.target !== "environment" && record.target !== "action" || typeof record.enabled !== "boolean") fail(); boundedInteger(record.version, 1, 1000000); productID(record.audit_id); productID(record.correlation_id); productID(record.receipt_id); if (typeof record.replayed !== "boolean" || record.audit_id === record.correlation_id || record.audit_id === record.receipt_id || record.correlation_id === record.receipt_id) fail(); return value as SecurityAgentExecutionControlResult; }
 export function decodeSecurityAgentSimulation(value: unknown): SecurityAgentSimulation { const record = exactRecord(value, ["run_id", "definition_id", "definition_version", "plan_hash", "catalog_version", "expires_at", "matched_evidence_ids", "summary", "steps", "side_effects", "version"]); productID(record.run_id); productID(record.definition_id); positiveInteger(record.definition_version); checksum(record.plan_hash); if (record.catalog_version !== "security-agent-actions-v1") fail(); dateTime(record.expires_at); productIDArray(record.matched_evidence_ids, 100); boundedString(record.summary, 1, 500); const steps = array(record.steps, 100); if (steps.length < 1) fail(); steps.forEach((step, index) => { const entry = exactRecord(step, ["index", "action", "authorization", "approval_required"]); if (entry.index !== index) fail(); boundedString(entry.action, 1, 128); enumValue(entry.authorization, ["allow", "approval_required", "deny"]); if (typeof entry.approval_required !== "boolean" || entry.approval_required !== (entry.authorization === "approval_required")) fail(); }); if (record.side_effects !== 0 || record.version !== 1) fail(); return value as SecurityAgentSimulation; }
-export function decodeSecurityAgentRun(value: unknown): SecurityAgentRun { const record = exactRecord(value, ["id", "agent_id", "state", "evidence_ids", "definition_version", "version"]); productID(record.id); productID(record.agent_id); enumValue(record.state, ["queued", "planning", "waiting_approval", "running", "verifying", "contained", "remediated", "needs_human", "failed", "inconclusive", "cancelled"]); productIDArray(record.evidence_ids, 100); positiveInteger(record.definition_version); positiveInteger(record.version); return value as SecurityAgentRun; }
+export function decodeSecurityAgentRun(value: unknown): SecurityAgentRun { const record = exactRecord(value, ["id", "agent_id", "state", "evidence_ids", "definition_version", "version"], ["manual_trigger"]); productID(record.id); productID(record.agent_id); enumValue(record.state, ["queued", "planning", "waiting_approval", "running", "verifying", "contained", "remediated", "needs_human", "failed", "inconclusive", "cancelled"]); decodeSecurityAgentManualEvidence(record, record.evidence_ids, 100); positiveInteger(record.definition_version); positiveInteger(record.version); return value as SecurityAgentRun; }
+
+function decodeSecurityAgentManualEvidence(record: Record<string, unknown>, evidence: unknown, maximum: number): void {
+  if (!Object.hasOwn(record, "manual_trigger")) { productIDArray(evidence, maximum); return; }
+  const manual = exactRecord(record.manual_trigger, ["kind", "intent_digest", "version"]);
+  if (manual.kind !== "manual") fail();
+  checksum(manual.intent_digest); positiveInteger(manual.version);
+  if (array(evidence, 0).length !== 0) fail();
+}
 export function decodeSecurityAgentRunPage(value: unknown): SecurityAgentRunPage { const record = exactRecord(value, ["items"], ["next_cursor"]); for (const item of array(record.items, 100)) decodeSecurityAgentRun(item); optionalCursor(record.next_cursor); return value as SecurityAgentRunPage; }
+const ATTACK_LAB_EFFECT = "Run a bounded Attack Lab reproduction; human interpretation required";
+function decodeSecurityAgentAttackLabApproval(value: unknown): void {
+  const record = exactRecord(value, ["source_run_id", "source_attempt", "definition_id", "definition_version", "target_id", "target_kind", "environment", "credential_class", "destination", "decision_expires_at", "limits", "expected_side_effects"]);
+  for (const key of ["source_run_id", "definition_id", "target_id"]) productID(record[key]);
+  boundedInteger(record.source_attempt, 1, 5); boundedInteger(record.definition_version, 1, 1000000);
+  enumValue(record.target_kind, ["agent_endpoint", "mcp_server", "coding_agent"]); enumValue(record.environment, ["development", "test", "staging"]); enumValue(record.credential_class, ["read_only", "test_write"]);
+  dateTime(record.decision_expires_at);
+  attackLabDestination(record.destination);
+  const limits = exactRecord(record.limits, ["cpu", "memory", "ephemeral_storage", "timeout_seconds"]);
+  if (limits.cpu !== "500m" || limits.memory !== "1Gi" || limits.ephemeral_storage !== "2Gi" || limits.timeout_seconds !== 300) fail();
+  const effects = array(record.expected_side_effects, 16); if (effects.length < 1) fail();
+  for (const effect of effects) printableString(effect, 1, 500);
+}
+
+function decodeSecurityAgentAttackLabDetail(action: Record<string, unknown>): void {
+  if (action.action !== "start_attack_lab" || action.existing_test !== undefined || action.arguments === null || action.result === null) fail();
+  const value = exactRecord(action.attack_lab, ["definition_id", "definition_version", "source_run_id", "source_attempt", "execution_id", "attempt", "state", "verdict", "cleanup_state", "cleanup_complete", "cancel_requested", "evidence", "settlement"]);
+  const args = action.arguments as Record<string, unknown>, result = action.result as Record<string, unknown>;
+  for (const key of ["definition_id", "source_run_id", "execution_id"]) productID(value[key]);
+  productID(result.outcome_id);
+  boundedInteger(value.definition_version, 1, 1000000); boundedInteger(value.source_attempt, 1, 5); boundedInteger(value.attempt, 0, 5);
+  if (value.definition_id !== args.target_id || value.definition_version !== args.expected_version || value.source_run_id === value.execution_id) fail();
+  enumValue(value.state, ["queued", "leased", "running", "retryable", "cleanup", "complete", "failed", "cancelled"]);
+  enumValue(value.cleanup_state, ["pending", "in_progress", "complete", "failed"]);
+  if (value.verdict !== null) enumValue(value.verdict, ["verified", "not_reproduced", "inconclusive"]);
+  if (typeof value.cleanup_complete !== "boolean" || typeof value.cancel_requested !== "boolean") fail();
+  if (value.cleanup_complete && (value.cleanup_state !== "complete" || !["complete", "failed", "cancelled"].includes(value.state as string))) fail();
+  if (value.evidence !== null) {
+    const evidence = exactRecord(value.evidence, ["reference_digest", "version_id", "sha256", "size_bytes"]);
+    for (const key of ["reference_digest", "sha256"]) if (typeof evidence[key] !== "string" || !/^[0-9a-f]{64}$/.test(evidence[key] as string) || evidence[key] === "0".repeat(64)) fail();
+    printableString(evidence.version_id, 1, 512); if (/\s/u.test(evidence.version_id)) fail(); boundedInteger(evidence.size_bytes, 1, 16777216);
+  }
+  if (value.settlement === null) return;
+  const settlement = exactRecord(value.settlement, ["outcome", "reason", "proof_digest"]);
+  checksum(settlement.proof_digest);
+  if (!value.cleanup_complete || settlement.proof_digest !== result.result_digest) fail();
+  if (settlement.outcome === "needs_human") {
+    if (result.state !== "succeeded" || value.state !== "complete" || value.evidence === null || !(value.verdict === "verified" && settlement.reason === "attack_lab_unsafe_condition_reproduced" || value.verdict === "not_reproduced" && settlement.reason === "attack_lab_not_reproduced_in_bounded_run")) fail();
+  } else if (settlement.outcome === "inconclusive") {
+    if (result.state !== "unknown_outcome" || !["attack_lab_evidence_unavailable", "attack_lab_outcome_unknown"].includes(settlement.reason as string)) fail();
+  } else if (settlement.outcome === "failed") {
+    if (result.state !== "known_failure" || value.state !== "failed" || settlement.reason !== "attack_lab_pre_execution_denied") fail();
+  } else if (settlement.outcome === "cancelled") {
+    if (result.state !== "known_failure" || value.state !== "cancelled" || !value.cancel_requested || settlement.reason !== "attack_lab_cancelled") fail();
+  } else fail();
+}
+
+const FINDING_RESPONSE_EFFECT = "Assign investigator and update finding response";
+
+function decodeSecurityAgentFindingResponseArguments(value: unknown, requireEnriched = false): Record<string, unknown> {
+  const metadata = ["assignee_id", "response_status", "note"];
+  const args = exactRecord(value, ["target_id", "expected_version", "target_status"], metadata);
+  productID(args.target_id);
+  positiveInteger(args.expected_version);
+  if (requireEnriched || metadata.some(key => Object.hasOwn(args, key))) {
+    productID(args.assignee_id);
+    enumValue(args.response_status, ["open", "investigating"]);
+    if (args.target_status !== (args.response_status === "open" ? "open" : "under_review")) fail();
+    // Fixed White_Space union FEFF at either edge; never normalize approved text.
+    const edge = /^[\u0020\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]|[\u0020\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]$/u;
+    if (typeof args.note !== "string" || args.note.length === 0 || edge.test(args.note) || [...args.note].some(char => { const code = char.codePointAt(0)!; return code <= 0x1f || code >= 0x7f && code <= 0x9f; }) || new TextEncoder().encode(args.note).length > 512) fail();
+  } else if (args.target_status !== "under_review") fail();
+  return args;
+}
+
 export function decodeSecurityAgentApproval(value: unknown): SecurityAgentApproval {
-  const record = exactRecord(value, ["id", "run_id", "step_id", "state", "expires_at", "version", "expected_effect", "reversible", "ttl_seconds", "evidence_summary"]);
+  const record = exactRecord(value, ["id", "run_id", "step_id", "state", "expires_at", "version", "expected_effect", "reversible", "ttl_seconds", "evidence_summary"], ["approval_context", "attack_lab", "manual_trigger"]);
   productID(record.id); productID(record.run_id); productID(record.step_id); enumValue(record.state, ["pending", "approved", "rejected", "cancelled", "expired"]); dateTime(record.expires_at); positiveInteger(record.version);
-  printableString(record.expected_effect, 1, 128); const validEffect = record.expected_effect === "Move finding to under review" && record.ttl_seconds === 0 && record.reversible === true || record.expected_effect === "Apply temporary containment policy" && Number.isInteger(record.ttl_seconds) && (record.ttl_seconds as number) >= 60 && (record.ttl_seconds as number) <= 3600 && record.reversible === true || record.expected_effect === "Isolate runtime session" && Number.isInteger(record.ttl_seconds) && (record.ttl_seconds as number) >= 60 && (record.ttl_seconds as number) <= 3600 && record.reversible === true || record.expected_effect === "Revoke integration connection" && record.ttl_seconds === 0 && record.reversible === false; if (!validEffect) fail(); productIDArray(record.evidence_summary, 100);
+  printableString(record.expected_effect, 1, 128); const validEffect = (record.expected_effect === "Move finding to under review" || record.expected_effect === FINDING_RESPONSE_EFFECT || record.expected_effect === "Create run-scoped evidence export") && record.ttl_seconds === 0 && record.reversible === true || record.expected_effect === "Apply temporary containment policy" && Number.isInteger(record.ttl_seconds) && (record.ttl_seconds as number) >= 60 && (record.ttl_seconds as number) <= 3600 && record.reversible === true || record.expected_effect === "Isolate runtime session" && Number.isInteger(record.ttl_seconds) && (record.ttl_seconds as number) >= 60 && (record.ttl_seconds as number) <= 3600 && record.reversible === true || record.expected_effect === "Revoke integration connection" && record.ttl_seconds === 0 && record.reversible === false || (record.expected_effect === "Run existing test" || record.expected_effect === "Rerun existing test") && record.ttl_seconds === 0 && record.reversible === false; if (!validEffect && !(record.expected_effect === ATTACK_LAB_EFFECT && record.ttl_seconds === 0 && record.reversible === false && record.attack_lab !== undefined)) fail(); decodeSecurityAgentManualEvidence(record, record.evidence_summary, 100);
+  if (record.expected_effect === FINDING_RESPONSE_EFFECT && record.approval_context === undefined) fail();
+  if (record.approval_context !== undefined) decodeSecurityAgentApprovalContext(record.approval_context, record.expected_effect, record.run_id);
+  if (record.attack_lab !== undefined) {
+    if (record.expected_effect !== ATTACK_LAB_EFFECT) fail();
+    decodeSecurityAgentAttackLabApproval(record.attack_lab);
+    if (record.approval_context !== undefined && (record.approval_context as Record<string, unknown>).target_id !== (record.attack_lab as Record<string, unknown>).definition_id) fail();
+  }
   return value as SecurityAgentApproval;
+}
+function decodeSecurityAgentApprovalContext(value: unknown, effect: unknown, runID: unknown): void {
+  const context = exactRecord(value, ["agent_id", "action", "target_id", "plan_hash", "catalog_version", "requester", "reason", "risk", "rationale"], ["export_selection", "finding_response"]);
+  productID(context.agent_id); if (context.target_id !== null) productID(context.target_id); checksum(context.plan_hash);
+  if (context.catalog_version !== "security-agent-actions-v1") fail();
+  enumValue(context.action, ["update_finding_response", "create_temporary_policy", "isolate_session", "revoke_integration_connection", "run_test", "rerun_test", "start_attack_lab", "create_evidence_export"]);
+  if (context.action === "create_evidence_export") {
+    if (context.target_id !== runID) fail();
+    validateSecurityAgentExportSelections(context.export_selection);
+  } else if (Object.hasOwn(context, "export_selection")) fail();
+  const enrichedFinding = Object.hasOwn(context, "finding_response");
+  if (enrichedFinding) {
+    if (context.action !== "update_finding_response" || effect !== FINDING_RESPONSE_EFFECT) fail();
+    const response = decodeSecurityAgentFindingResponseArguments(context.finding_response, true);
+    if (response.target_id !== context.target_id) fail();
+  } else if (effect === FINDING_RESPONSE_EFFECT) fail();
+  const risk = exactRecord(context.risk, ["class", "source"]);
+  const expected: Record<string, readonly [string, string]> = {
+    update_finding_response: ["low", enrichedFinding ? FINDING_RESPONSE_EFFECT : "Move finding to under review"], create_temporary_policy: ["containment", "Apply temporary containment policy"],
+    isolate_session: ["containment", "Isolate runtime session"], revoke_integration_connection: ["destructive", "Revoke integration connection"],
+    run_test: ["low", "Run existing test"], rerun_test: ["low", "Rerun existing test"],
+    start_attack_lab: ["moderate", ATTACK_LAB_EFFECT],
+    create_evidence_export: ["low", "Create run-scoped evidence export"],
+  };
+  const pair = expected[context.action as string];
+  if (!pair || risk.source !== "action_catalog" || risk.class !== pair[0] || effect !== pair[1]) fail();
+  const requester = exactRecord(context.requester, ["state", "id"]);
+  enumValue(requester.state, ["available", "withheld"]);
+  if (requester.state === "available") productID(requester.id); else if (requester.id !== null) fail();
+  const reason = exactRecord(context.reason, ["code", "source"]);
+  if (reason.code !== "operator_approval_required" || reason.source !== "persisted_step") fail();
+  if (context.rationale !== null) {
+    const rationale = exactRecord(context.rationale, ["state", "summary"]);
+    enumValue(rationale.state, ["available", "withheld"]);
+    if (rationale.state === "withheld") { if (rationale.summary !== "") fail(); }
+    else {
+      printableString(rationale.summary, 1, 500);
+      if (/[\p{Cf}\p{Cs}]/u.test(rationale.summary) || new TextEncoder().encode(rationale.summary).length > 500) fail();
+    }
+  }
 }
 export function decodeSecurityAgentApprovalPage(value: unknown): SecurityAgentApprovalPage { const record = exactRecord(value, ["items"], ["next_cursor"]); for (const item of array(record.items, 100)) decodeSecurityAgentApproval(item); optionalCursor(record.next_cursor); return value as SecurityAgentApprovalPage; }
 export function decodeSecurityAgentRunDetail(value: unknown): SecurityAgentRunDetail {
-  const record = exactRecord(value, ["run", "evidence_ids", "plan", "authorization", "approvals", "execution", "verification"]);
-  const run = decodeSecurityAgentRun(record.run); productIDArray(record.evidence_ids, 100); if (!sameJSON(run.evidence_ids, record.evidence_ids)) fail();
+  if (hasOrderedSecurityAgent(value)) return decodeOrderedSecurityAgentRunDetail(value);
+  const record = exactRecord(value, ["run", "evidence_ids", "plan", "authorization", "approvals", "execution", "verification"], ["budget_stop_reason", "run_context", "action_details"]);
+  if (Object.hasOwn(record, "run_context")) {
+    decodeSecurityAgentRunContext(record.run_context, record.plan !== null);
+  }
+  if (Object.hasOwn(record, "budget_stop_reason")) enumValue(record.budget_stop_reason, ["budget_deadline_exceeded", "budget_steps_exceeded", "budget_tokens_exceeded", "budget_cost_exceeded", "budget_usage_unknown"]);
+  const run = decodeSecurityAgentRun(record.run); decodeSecurityAgentManualEvidence(run, record.evidence_ids, 100); if (!sameJSON(run.evidence_ids, record.evidence_ids)) fail();
+  if (Object.hasOwn(record, "run_context")) {
+    const trigger = (record.run_context as Record<string, unknown>).trigger as Record<string, unknown> | null;
+    if (run.manual_trigger) {
+      if (!trigger || trigger.kind !== "manual" || `sha256:${trigger.id}` !== run.manual_trigger.intent_digest || trigger.version !== run.manual_trigger.version) fail();
+    } else if (trigger?.kind === "manual") fail();
+  }
+  if (record.run_context && Object.hasOwn(record.run_context as object, "preflight_stop_reason") && (run.state !== "needs_human" || record.plan !== null || Object.hasOwn(record, "budget_stop_reason"))) fail();
   enumValue(record.authorization, ["not_planned", "authorized", "approval_required", "approved", "denied", "cancelled"]);
   enumValue(record.verification, ["not_started", "pending", "verified", "failed", "inconclusive"]);
   const expectedVerification = run.state === "contained" || run.state === "remediated" ? "verified" : run.state === "verifying" ? "pending" : run.state === "failed" ? "failed" : run.state === "inconclusive" || run.state === "needs_human" ? "inconclusive" : "not_started";
   if (record.verification !== expectedVerification) fail();
   const approvals = array(record.approvals, 100); const approvalIDs = new Set<string>();
-  for (const item of approvals) { const approval = decodeSecurityAgentApproval(item); if (approval.run_id !== run.id || approvalIDs.has(approval.id) || !sameJSON(approval.evidence_summary, record.evidence_ids)) fail(); approvalIDs.add(approval.id); }
-  if (record.plan === null) { if (record.authorization !== "not_planned" || approvals.length !== 0 || array(record.execution, 100).length !== 0) fail(); return value as SecurityAgentRunDetail; }
+  for (const item of approvals) { const approval = decodeSecurityAgentApproval(item); if (approval.run_id !== run.id || approvalIDs.has(approval.id) || !sameJSON(approval.manual_trigger, run.manual_trigger) || !sameJSON(approval.evidence_summary, record.evidence_ids)) fail(); approvalIDs.add(approval.id); }
+  if (record.plan === null) { if (record.authorization !== "not_planned" || approvals.length !== 0 || array(record.execution, 100).length !== 0 || Object.hasOwn(record, "action_details") && array(record.action_details, 100).length !== 0) fail(); return value as SecurityAgentRunDetail; }
   const plan = exactRecord(record.plan, ["plan_hash", "catalog_version", "expires_at", "steps"]); checksum(plan.plan_hash); if (plan.catalog_version !== "security-agent-actions-v1") fail(); dateTime(plan.expires_at);
   const steps = array(plan.steps, 100); if (steps.length < 1) fail(); const stepIDs = new Set<string>(); const stepValues = new Map<string, { action: string; authorization: string }>();
   for (let index = 0; index < steps.length; index++) { const step = exactRecord(steps[index], ["id", "index", "action", "authorization", "state", "version"]); productID(step.id); if (step.index !== index || stepIDs.has(step.id as string)) fail(); printableString(step.action, 1, 128); enumValue(step.authorization, ["allow", "approval_required", "autonomous", "deny"]); enumValue(step.state, ["queued", "authorized", "waiting_approval", "executing", "verifying", "succeeded", "failed", "inconclusive", "cancelled"]); positiveInteger(step.version); stepIDs.add(step.id as string); stepValues.set(step.id as string, { action: step.action as string, authorization: step.authorization as string }); }
-  for (const item of approvals) { const approval = item as SecurityAgentApproval; const step = stepValues.get(approval.step_id); const validEffect = step?.action === "update_finding_response" && approval.expected_effect === "Move finding to under review" && approval.ttl_seconds === 0 && approval.reversible || step?.action === "create_temporary_policy" && approval.expected_effect === "Apply temporary containment policy" && approval.ttl_seconds >= 60 && approval.ttl_seconds <= 3600 && approval.reversible || step?.action === "isolate_session" && approval.expected_effect === "Isolate runtime session" && approval.ttl_seconds >= 60 && approval.ttl_seconds <= 3600 && approval.reversible || step?.action === "revoke_integration_connection" && approval.expected_effect === "Revoke integration connection" && approval.ttl_seconds === 0 && !approval.reversible; if (!step || step.authorization !== "approval_required" || !validEffect) fail(); }
+  for (const item of approvals) {
+    const approval = item as SecurityAgentApproval;
+    const step = stepValues.get(approval.step_id);
+    if (step?.action === "create_evidence_export") {
+      if (step.authorization !== "approval_required" || approval.expected_effect !== "Create run-scoped evidence export" || approval.ttl_seconds !== 0 || !approval.reversible) fail();
+      continue;
+    }
+    const validEffect = step?.action === "update_finding_response" && (approval.expected_effect === "Move finding to under review" || approval.expected_effect === FINDING_RESPONSE_EFFECT) && approval.ttl_seconds === 0 && approval.reversible || step?.action === "create_temporary_policy" && approval.expected_effect === "Apply temporary containment policy" && approval.ttl_seconds >= 60 && approval.ttl_seconds <= 3600 && approval.reversible || step?.action === "isolate_session" && approval.expected_effect === "Isolate runtime session" && approval.ttl_seconds >= 60 && approval.ttl_seconds <= 3600 && approval.reversible || step?.action === "revoke_integration_connection" && approval.expected_effect === "Revoke integration connection" && approval.ttl_seconds === 0 && !approval.reversible || (step?.action === "run_test" && approval.expected_effect === "Run existing test" || step?.action === "rerun_test" && approval.expected_effect === "Rerun existing test") && approval.ttl_seconds === 0 && !approval.reversible;
+    if (!step || step.authorization !== "approval_required" || !validEffect && !(step.action === "start_attack_lab" && approval.expected_effect === ATTACK_LAB_EFFECT && approval.attack_lab && approval.ttl_seconds === 0 && !approval.reversible)) fail();
+  }
   const execution = array(record.execution, 100); if (execution.length !== steps.length) fail(); const executionIDs = new Set<string>();
   for (let index = 0; index < execution.length; index++) { const item = exactRecord(execution[index], ["step_id", "action", "state", "version"], ["outcome_id", "result_digest"]); productID(item.step_id); printableString(item.action, 1, 128); enumValue(item.state, ["queued", "authorized", "waiting_approval", "executing", "verifying", "succeeded", "failed", "inconclusive", "cancelled"]); positiveInteger(item.version); const step = stepValues.get(item.step_id as string); if (!step || executionIDs.has(item.step_id as string) || item.action !== step.action || item.step_id !== (steps[index] as Record<string, unknown>).id) fail(); executionIDs.add(item.step_id as string); const hasOutcome = item.outcome_id !== undefined; const hasDigest = item.result_digest !== undefined; if (hasOutcome !== hasDigest) fail(); if (hasOutcome) { productID(item.outcome_id); checksum(item.result_digest); } }
   const approvalStates = approvals.map((item) => (item as SecurityAgentApproval).state); const expectedAuthorization = approvalStates.includes("pending") ? "approval_required" : approvalStates.some((state) => state === "rejected" || state === "expired") ? "denied" : approvalStates.includes("cancelled") ? "cancelled" : approvalStates.includes("approved") ? "approved" : "authorized";
   if (record.authorization !== expectedAuthorization) fail();
+  if (Object.hasOwn(record, "action_details")) decodeSecurityAgentActionDetails(record.action_details, steps, execution, run.id);
   return value as SecurityAgentRunDetail;
+}
+
+function decodeSecurityAgentActionDetails(value: unknown, steps: readonly unknown[], execution: readonly unknown[], runID: string): void {
+  const details = array(value, 100);
+  if (details.length !== steps.length) fail();
+  for (let index = 0; index < details.length; index++) {
+    const item = exactRecord(details[index], ["step_id", "action", "arguments", "result", "ttl_seconds", "control_expires_at", "rollback", "verification"], ["existing_test", "attack_lab"]);
+    const step = steps[index] as Record<string, unknown>, executed = execution[index] as Record<string, unknown>;
+    if (item.step_id !== step.id || item.action !== step.action) fail();
+    enumValue(item.action, ["update_finding_response", "create_temporary_policy", "isolate_session", "revoke_integration_connection", "run_test", "rerun_test", "start_attack_lab", "create_evidence_export"]);
+    const exportAction = item.action === "create_evidence_export";
+    if (exportAction && item.arguments === null) fail();
+    const existingTest = item.action === "run_test" || item.action === "rerun_test";
+    const exactTest = existingTest || item.action === "start_attack_lab";
+    if (Object.hasOwn(item, "attack_lab")) decodeSecurityAgentAttackLabDetail(item);
+    else if (item.action === "start_attack_lab" && item.result !== null) fail();
+    if (Object.hasOwn(item, "existing_test")) {
+      if (!existingTest || item.arguments === null || item.result === null) fail();
+      decodeSecurityAgentTestProof(item.existing_test, item.arguments, item.result);
+    }
+    const policy = item.action === "create_temporary_policy" || item.action === "isolate_session";
+    let ttl: unknown = null;
+    if (item.arguments !== null) {
+      const fields = exportAction ? ["target_id", "evidence_ids"] : item.action === "update_finding_response" ? ["target_id", "expected_version", "target_status"]
+        : item.action === "create_temporary_policy" ? ["target_id", "mode", "scope", "ttl_seconds"]
+          : item.action === "isolate_session" ? ["target_id", "session_id", "device_id", "scope", "ttl_seconds"] : exactTest ? ["target_id", "expected_version"] : ["target_id", "integration_id"];
+      const args = exactRecord(item.arguments, fields, item.action === "update_finding_response" ? ["assignee_id", "response_status", "note"] : []);
+      productID(args.target_id);
+      if (exportAction) {
+        if (args.target_id !== runID) fail();
+        validateSecurityAgentExportSelections(args.evidence_ids);
+      } else if (item.action === "update_finding_response") {
+        decodeSecurityAgentFindingResponseArguments(args);
+      } else if (policy) {
+        productID(args.scope); boundedInteger(args.ttl_seconds, 60, 3600); ttl = args.ttl_seconds;
+        if (item.action === "create_temporary_policy") { if (args.mode !== "block" || args.scope !== args.target_id) fail(); }
+        else { productID(args.device_id); if (args.session_id !== args.target_id) fail(); }
+      } else if (exactTest) boundedInteger(args.expected_version, 1, 1000000);
+      else productID(args.integration_id);
+    }
+    if (item.ttl_seconds !== ttl) fail();
+    if (item.control_expires_at !== null) { if (!policy || item.result === null) fail(); dateTime(item.control_expires_at); }
+    const verification = exactRecord(item.verification, ["state", "source"]);
+    const rollback = exactRecord(item.rollback, ["support", "state", "verification"]);
+    const cleanup = exactRecord(rollback.verification, ["state", "source"]);
+    let state: unknown = null;
+    if (item.result !== null) {
+      const result = exactRecord(item.result, ["state"], ["outcome_id", "result_digest"]);
+      enumValue(result.state, ["pending", "leased", "succeeded", "known_failure", "unknown_outcome", "verified", "cleanup_pending", "cleaned", "cleanup_failed"]);
+      state = result.state;
+      if (item.action === "create_evidence_export") enumValue(state, ["pending", "succeeded", "known_failure", "cleanup_pending"]);
+      if (Object.hasOwn(result, "outcome_id") !== Object.hasOwn(result, "result_digest") || result.outcome_id !== executed.outcome_id || result.result_digest !== executed.result_digest) fail();
+      if (result.outcome_id !== undefined) { productID(result.outcome_id); checksum(result.result_digest); }
+      if (["verified", "cleaned"].includes(state as string) && result.outcome_id === undefined) fail();
+    } else if (executed.outcome_id !== undefined || executed.result_digest !== undefined) fail();
+    if (policy) {
+      enumValue(verification.state, ["unavailable", "pending", "verified"]); enumValue(cleanup.state, ["unavailable", "pending", "verified"]);
+      if (verification.source !== "policy_targets" || cleanup.source !== "policy_targets" || rollback.support !== "automatic") fail();
+      if (state === null && (verification.state !== "unavailable" || cleanup.state !== "unavailable")) fail();
+      const rollbackState = state === "cleaned" ? "completed" : state === "cleanup_failed" ? "failed" : state === "cleanup_pending" || state === "leased" && (verification.state === "verified" || cleanup.state !== "unavailable") ? "pending" : "not_started";
+      if (rollback.state !== rollbackState) fail();
+    } else {
+      if (rollback.support !== (item.action === "update_finding_response" ? "manual" : "not_supported") || rollback.state !== "unavailable" || cleanup.state !== "unavailable" || cleanup.source !== "none" || ["cleaned", "cleanup_failed"].includes(state as string) || state === "cleanup_pending" && item.action !== "create_evidence_export") fail();
+      const expected = state === null ? "unavailable" : state === "verified" ? "verified" : state === "known_failure" ? "failed" : state === "unknown_outcome" || state === "cleanup_pending" ? "inconclusive" : "pending";
+      if (verification.state !== expected || verification.source !== (state === null ? "none" : "effect_record")) fail();
+    }
+  }
+}
+
+function decodeSecurityAgentTestProof(value: unknown, argsValue: unknown, resultValue: unknown): void {
+  const item = exactRecord(value, ["definition_id", "definition_version", "test_run_id", "state", "cancellation_outcome", "verification"]);
+  const args = exactRecord(argsValue, ["target_id", "expected_version"]);
+  const result = exactRecord(resultValue, ["state", "outcome_id", "result_digest"]);
+  productID(result.outcome_id); checksum(result.result_digest);
+  productID(item.definition_id); boundedInteger(item.definition_version, 1, 1000000); productID(item.test_run_id);
+  if (item.definition_id !== args.target_id || item.definition_version !== args.expected_version) fail();
+  enumValue(item.state, ["pending", "settled"]);
+  if (item.cancellation_outcome !== null) enumValue(item.cancellation_outcome, ["cancelled_before_execution", "cancelled_after_partial_execution", "outcome_unknown"]);
+  if (item.state === "pending") { if (item.verification !== null) fail(); return; }
+  const proof = exactRecord(item.verification, ["outcome", "reason", "proof_digest", "before", "after", "checks"]);
+  const reasons: Record<string, readonly string[]> = {
+    remediated: ["test_condition_changed"], needs_human: ["test_baseline_unavailable", "test_condition_persists"],
+    inconclusive: ["test_outcome_unknown", "test_evidence_unavailable", "test_evaluation_inconclusive"],
+    failed: ["test_run_failed"], cancelled: ["test_run_cancelled"],
+  };
+  enumValue(proof.outcome, Object.keys(reasons)); enumValue(proof.reason, reasons[proof.outcome as string]);
+  checksum(proof.proof_digest); if (proof.proof_digest !== result.result_digest || /^sha256:0{64}$/.test(proof.proof_digest as string)) fail();
+  if (item.cancellation_outcome === "outcome_unknown" && (proof.outcome !== "inconclusive" || proof.reason !== "test_outcome_unknown")) fail();
+  const rawDigest = (value: unknown) => { if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value) || /^0{64}$/.test(value)) fail(); };
+  const attempt = (value: unknown): Record<string, unknown> | null => {
+    if (value === null) return null;
+    const entry = exactRecord(value, ["run_id", "attempt", "input_digest", "input_artifact", "output_artifact"]);
+    productID(entry.run_id); boundedInteger(entry.attempt, 1, 5); rawDigest(entry.input_digest);
+    for (const key of ["input_artifact", "output_artifact"]) {
+      const artifact = exactRecord(entry[key], ["reference_digest", "version_id", "sha256", "size_bytes"]);
+      rawDigest(artifact.reference_digest); rawDigest(artifact.sha256); printableString(artifact.version_id, 1, 512);
+      if (/\s/u.test(artifact.version_id as string)) fail();
+      boundedInteger(artifact.size_bytes, 1, key === "input_artifact" ? 65536 : 16777216);
+    }
+    return entry;
+  };
+  const before = attempt(proof.before), after = attempt(proof.after);
+  if (after !== null && after.run_id !== item.test_run_id || before !== null && before.run_id === item.test_run_id) fail();
+  const checks = array(proof.checks, 6);
+  if (proof.outcome !== "remediated") {
+    if (checks.length !== 0 || proof.outcome === "needs_human" && after === null) fail();
+    return;
+  }
+  if (before === null || after === null || checks.length === 0) fail();
+  const seen = new Set<string>(); let unsafe = false;
+  for (const value of checks) {
+    const check = exactRecord(value, ["category", "check_id", "prompt_digest", "assertion_digest", "before_protected", "after_protected", "before_http_status", "after_http_status"]);
+    enumValue(check.category, redTeamCategories); const category = check.category as string;
+    if (seen.has(category) || check.check_id !== `zasp.curated.${category}.v1` || typeof check.before_protected !== "boolean" || check.after_protected !== true || check.before_http_status !== 200 || check.after_http_status !== 200) fail();
+    seen.add(category); unsafe ||= !check.before_protected; rawDigest(check.prompt_digest); rawDigest(check.assertion_digest);
+  }
+  if (!unsafe) fail();
+}
+
+function decodeSecurityAgentRunContext(value: unknown, hasPlan: boolean): void {
+  const context = exactRecord(value, ["trigger", "rationale"], ["preflight_stop_reason"]);
+  if(Object.hasOwn(context,"preflight_stop_reason")) {enumValue(context.preflight_stop_reason,["attack_lab_preflight_unavailable"]);if(hasPlan || context.rationale!==null)fail();}
+  if (context.trigger !== null) {
+    const trigger = exactRecord(context.trigger, ["kind", "id", "version"]);
+    enumValue(trigger.kind, ["finding", "attack_path", "runtime_decision", "manual"]);
+    if (trigger.kind === "manual") { if (typeof trigger.id !== "string" || !/^[0-9a-f]{64}$/.test(trigger.id)) fail(); } else productID(trigger.id);
+    positiveInteger(trigger.version);
+  }
+  if (context.rationale !== null) {
+    if (!hasPlan || context.trigger === null) fail();
+    const rationale = exactRecord(context.rationale, ["state", "summary"]);
+    enumValue(rationale.state, ["available", "withheld"]);
+    if (rationale.state === "withheld") {
+      if (rationale.summary !== "") fail();
+    } else {
+      printableString(rationale.summary, 1, 500);
+      if (/[\p{Cf}\p{Cs}]/u.test(rationale.summary) || new TextEncoder().encode(rationale.summary).length > 500) fail();
+    }
+  }
 }
 
 const redTeamCategories = ["prompt_injection", "tool_abuse", "data_leakage", "authorization_bypass", "excessive_agency", "sensitive_information"] as const;
@@ -555,7 +866,7 @@ export function decodeTestRun(value: unknown): TestRun {
     : record.status === "leased" ? attempt >= 1 && hasStarted && !hasCompleted && !hasVerdict && !hasError && !hasEvidence
       : record.status === "retryable" ? attempt >= 1 && attempt < 5 && !record.cancel_requested && hasStarted && !hasCompleted && !hasVerdict && hasError && redTeamRetryErrors.includes(record.error_code as typeof redTeamRetryErrors[number]) && !hasEvidence
         : record.status === "complete" ? attempt >= 1 && !record.cancel_requested && hasStarted && hasCompleted && hasVerdict && hasEvidence && (record.verdict === "engine_error" ? hasError && ["denied", "malformed", "outcome_unknown", "exhausted"].includes(record.error_code as string) : !hasError)
-          : record.status === "failed" ? attempt === 5 && !record.cancel_requested && hasStarted && hasCompleted && !hasVerdict && record.error_code === "exhausted" && !hasEvidence
+          : record.status === "failed" ? hasStarted && hasCompleted && !hasVerdict && !hasEvidence && (attempt === 5 && !record.cancel_requested && record.error_code === "exhausted" || attempt >= 1 && record.cancel_requested && record.error_code === "outcome_unknown")
             : record.status === "cancelled" && record.cancel_requested && hasCompleted && !hasVerdict && record.error_code === "cancelled" && !hasEvidence && (attempt === 0 ? !hasStarted : hasStarted);
   if (!coherent) fail();
   return value as TestRun;
@@ -855,13 +1166,23 @@ function decodeSecurityAgentReceiptIntent(operation: string, body: unknown, resu
 
 function decodeSecurityAgentReceiptBody(value: unknown, includeID: boolean): Record<string, unknown> {
   const fields = ["name", "trigger_kind", "trigger_source", "environment_ids", "autonomy", "max_steps", "max_duration_seconds", "temporary_policy_seconds", "ai_token_budget", "concurrency_limit", "allowed_actions", "verification_kind", "definition_version", "enabled"];
-  const record = exactRecord(value, includeID ? ["id", ...fields] : fields);
+  const record = exactRecord(value, includeID ? ["id", ...fields] : fields, ["max_ai_cost_nano_credits", "existing_test", "trigger_rules"]);
+  if (Object.hasOwn(record, "trigger_rules")) decodeSecurityAgentTriggerRules(record.trigger_rules, record.trigger_kind as string, record.trigger_source as string);
+  if ("max_ai_cost_nano_credits" in record) boundedInteger(record.max_ai_cost_nano_credits, 1, 1000000000000);
   if (includeID) productID(record.id);
   boundedString(record.name, 1, 256); enumValue(record.trigger_kind, ["finding", "attack_path", "runtime_decision"]); boundedString(record.trigger_source, 1, 64);
   productIDArray(record.environment_ids, 100); enumValue(record.autonomy, ["supervised", "autonomous"]);
   boundedInteger(record.max_steps, 1, 100); boundedInteger(record.max_duration_seconds, 1, 86400); boundedInteger(record.temporary_policy_seconds, 1, 86400);
   boundedInteger(record.ai_token_budget, 1, 12000); boundedInteger(record.concurrency_limit, 1, 10); stringArray(record.allowed_actions, 32, 128, 1);
   boundedString(record.verification_kind, 1, 64); positiveInteger(record.definition_version); if (typeof record.enabled !== "boolean") fail();
+  // Legacy reads/receipts can omit intent. Any explicit reference is closed and
+  // bound to exactly one test action; it never conveys execution availability.
+  if (Object.hasOwn(record, "existing_test")) {
+    const reference = exactRecord(record.existing_test, ["definition_id", "definition_version"]);
+    productID(reference.definition_id); boundedInteger(reference.definition_version, 1, 1000000);
+    const actions = record.allowed_actions as string[];
+    if (actions.length !== 1 || !(["run_test", "rerun_test"].includes(actions[0]) && record.verification_kind === "test_run" || actions[0] === "start_attack_lab" && record.verification_kind === "attack_lab_run")) fail();
+  }
   return record;
 }
 
@@ -878,6 +1199,23 @@ function sameJSON(left: unknown, right: unknown): boolean {
   const leftRecord = left as Record<string, unknown>; const rightRecord = right as Record<string, unknown>;
   const leftKeys = Object.keys(leftRecord).sort(); const rightKeys = Object.keys(rightRecord).sort();
   return leftKeys.length === rightKeys.length && leftKeys.every((key, index) => key === rightKeys[index] && sameJSON(leftRecord[key], rightRecord[key]));
+}
+
+function containsReadableReceiptSecret(value: unknown, operation: unknown, kind: unknown, intent: boolean): boolean {
+  if (kind !== "integration" || operation !== "createIntegration" && operation !== "updateIntegration" || !value || typeof value !== "object" || Array.isArray(value)) return containsReadableWorkflowSecret(value);
+  const outer = value as Record<string, unknown>;
+  const candidate = intent ? outer.body : outer;
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return containsReadableWorkflowSecret(value);
+  const body = candidate as Record<string, unknown>;
+  if (body.connector_key !== "generic-webhook" && !(intent && operation === "updateIntegration" && body.connector_key === undefined)) return containsReadableWorkflowSecret(value);
+  const configuration = body.configuration;
+  if (!configuration || typeof configuration !== "object" || Array.isArray(configuration)) return containsReadableWorkflowSecret(value);
+  const fields = configuration as Record<string, unknown>;
+  if (Object.keys(fields).sort().join(",") !== "destination_url,signing_secret_reference,signing_secret_version" || typeof fields.destination_url !== "string" || typeof fields.signing_secret_reference !== "string" || typeof fields.signing_secret_version !== "string" || !/^[A-Za-z0-9-]{32,64}$/.test(fields.signing_secret_version)) return containsReadableWorkflowSecret(value);
+  // Only the validation copy omits this exact metadata field. The caller gets
+  // the original receipt, and the payload decoder still checks intent/result.
+  const copy = { ...body, configuration: { destination_url: fields.destination_url, signing_secret_reference: fields.signing_secret_reference } };
+  return containsReadableWorkflowSecret(intent ? { ...outer, body: copy } : copy);
 }
 
 function containsReadableWorkflowSecret(value: unknown): boolean {

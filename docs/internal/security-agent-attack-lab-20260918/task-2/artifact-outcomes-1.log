@@ -1,0 +1,60 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform
+Command: ["env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go","test","./agentsec-worker","-run","^TestAttackLabReconcilerEvidenceOutcomes$","-count=1","-v"]
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/cleanup
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/unknown
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/source
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/artifact_version
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/artifact_checksum
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/artifact_size
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/scope
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/source_run
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/attempt
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/input
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/criterion_missing
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/duplicate
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/cleanup
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/unknown
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/source
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/artifact_version
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/artifact_checksum
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/artifact_size
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/scope
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/source_run
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/attempt
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/input
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/criterion_missing
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/duplicate
+--- PASS: TestAttackLabReconcilerEvidenceOutcomes (0.00s)
+    --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/cleanup (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/unknown (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/source (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/artifact_version (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/artifact_checksum (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/artifact_size (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/scope (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/source_run (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/attempt (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/input (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/criterion_missing (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/duplicate (0.00s)
+    --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/cleanup (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/unknown (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/source (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/artifact_version (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/artifact_checksum (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/artifact_size (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/scope (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/source_run (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/attempt (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/input (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/criterion_missing (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/duplicate (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.087s
+
+Exit: 0 Signal: null

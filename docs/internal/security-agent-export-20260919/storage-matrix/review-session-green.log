@@ -1,0 +1,26 @@
+COMMAND: GOPROXY=off GOSUMDB=off go test ./apiserver -run '^TestSecurityAgentExportStorageDownloadRefusalsPostgres$' -count=1 -v
+SOURCE SHA256:
+fcc8f9932976947c19c50e462e796fa9328183443098af3583db9facd6696141  apiserver/security_agent_export_storage_download_postgres_test.go
+EXIT CODE: 0
+
+STDOUT/STDERR (exact captured output):
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres
+    security_agent_export_storage_download_postgres_test.go:251: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres/wrong_format
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres/sibling_run
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres/foreign_scope
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres/wrong_session
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres/wrong_csrf
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres/expired
+=== NAME  TestSecurityAgentExportStorageDownloadRefusalsPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=97699 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadRefusalsPostgres1176378168/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres (12.46s)
+    --- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres/wrong_format (0.16s)
+    --- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres/sibling_run (0.16s)
+    --- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres/foreign_scope (0.09s)
+    --- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres/wrong_session (0.16s)
+    --- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres/wrong_csrf (0.00s)
+    --- PASS: TestSecurityAgentExportStorageDownloadRefusalsPostgres/expired (0.16s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	13.520s
+

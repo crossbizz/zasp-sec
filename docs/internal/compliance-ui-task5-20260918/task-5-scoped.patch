@@ -1,0 +1,1180 @@
+diff --git a/app/features/sessions/SessionsComplianceView.tsx b/app/features/sessions/SessionsComplianceView.tsx
+index 7865fe5d..2e1d00f8 100644
+--- a/app/features/sessions/SessionsComplianceView.tsx
++++ b/app/features/sessions/SessionsComplianceView.tsx
+@@ -7,6 +7,7 @@ import { decodeComplianceControlPage, decodeComplianceEvidencePage, decodeDataCo
+ import { loadAllCursorPages } from "../../../apps/web/api/pagination";
+ import { useOptionalSession } from "../../auth/SessionProvider";
+ import { Badge, Button, Card, EmptyState, Field, LoadingState, PageHeader } from "../../components/ui";
++import { ComplianceEvidenceView, type ComplianceViewProps } from "./ComplianceEvidenceView";
+ 
+ type Surface = "sessions" | "compliance" | "data-controls";
+ type SessionItem = SessionPage["items"][number];
+@@ -75,13 +76,17 @@ export async function hydrateSessionEvents(
+   return hydrated;
+ }
+ 
+-export function SessionsComplianceView({ surface, api: suppliedAPI, client, canMutate = false }: { surface: Surface; api?: SessionsComplianceAPI; client?: APIClient; canMutate?: boolean }) {
++type ViewProps = { surface: Surface; api?: SessionsComplianceAPI; client?: APIClient; canMutate?: boolean } & Pick<ComplianceViewProps, "complianceBoundary" | "selectedSource" | "onNavigate">;
++export function SessionsComplianceView(props: ViewProps) {
++  const api = useMemo(() => props.api ?? (props.client ? createSessionsComplianceAPI(props.client) : null), [props.api, props.client]);
++  if (props.surface === "compliance") return <ComplianceEvidenceView api={api} client={props.client} complianceBoundary={props.complianceBoundary} selectedSource={props.selectedSource} onNavigate={props.onNavigate} />;
++  return <SessionsAdministrationView {...props} />;
++}
++function SessionsAdministrationView({ surface, api: suppliedAPI, client, canMutate = false }: ViewProps) {
+   const api = useMemo(() => suppliedAPI ?? (client ? createSessionsComplianceAPI(client) : null), [suppliedAPI, client]);
+   const sessionContext = useOptionalSession();
+   const fresh = sessionContext?.status === "authenticated" ? sessionContext.isFreshAuthenticated : true;
+   const [sessions, setSessions] = useState<readonly HydratedSession[]>([]);
+-  const [controls, setControls] = useState<ComplianceControlPage["items"]>([]);
+-  const [evidence, setEvidence] = useState<ComplianceEvidencePage["items"]>([]);
+   const [dataControls, setDataControls] = useState<DataControls | null>(null);
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState<string | null>(null);
+@@ -90,7 +95,6 @@ export function SessionsComplianceView({ surface, api: suppliedAPI, client, canM
+     try {
+       if (!api) throw new Error();
+       if (surface === "sessions") setSessions(await api.listSessions());
+-      else if (surface === "compliance") { const [nextControls, nextEvidence] = await Promise.all([api.listControls(), api.listEvidence()]); setControls(nextControls); setEvidence(nextEvidence); }
+       else setDataControls(await api.getDataControls());
+     } catch { setError("Authorized administration data could not be loaded"); }
+     finally { setLoading(false); }
+@@ -98,7 +102,6 @@ export function SessionsComplianceView({ surface, api: suppliedAPI, client, canM
+   useEffect(() => { let active = true; queueMicrotask(() => { if (active) void load(); }); return () => { active = false; }; }, [load]);
+   if (loading) return <div className="page"><LoadingState label="Loading administration data…" /></div>;
+   if (surface === "sessions") return <div className="page"><PageHeader title="Console login sessions" description="Console authentication sessions and exact-scope revocation. Agent runtime evidence is separate." />{error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{!fresh && canMutate && <p role="alert">Fresh authentication expired. <Button onClick={() => sessionContext?.reauthenticate()}>Reauthenticate</Button></p>}{sessions.length === 0 ? <EmptyState title="No sessions in this scope" /> : sessions.map((session) => <Card key={session.id} title={session.id}><p>{session.principal_id} · <Badge tone={session.state === "active" ? "success" : "neutral"}>{session.state}</Badge> · version {session.version}</p>{session.eventsUnavailable && <p role="alert">Events for this session could not be loaded. Other session results remain available.</p>}{session.events.map((event) => <p key={event.id}>{event.label} · <Badge tone={event.confidence === "exact" ? "success" : event.confidence === "strong" ? "info" : event.confidence === "probable" ? "warning" : "neutral"}>{event.confidence}</Badge> · {event.evidence_id}</p>)}{canMutate && session.state === "active" && <Button disabled={!fresh} variant="danger" aria-label={`Revoke session ${session.id}`} onClick={() => void (async () => { try { if (!api) throw new Error(); await api.revokeSession(session.id, session.version); setSessions((current) => current.map((item) => item.id === session.id ? { ...item, state: "revoked", version: item.version + 1 } : item)); setNotice("Session revoked"); } catch { setError("Session could not be revoked; reload before retrying"); } })()}>Revoke session</Button>}</Card>)}</div>;
+-  if (surface === "compliance") return <div className="page"><PageHeader title="Compliance evidence" description="Locally complete control evidence and source freshness without certification claims." />{error && <p role="alert">{error}</p>}<div className="dashboard-grid">{controls.map((control) => { const records = evidence.filter((item) => item.control.id === control.id); const freshness = records[0]?.freshness ?? "missing"; return <Card key={control.id} title={`${control.framework} · ${control.name}`}><Badge tone={freshness === "fresh" ? "success" : freshness === "stale" ? "warning" : "neutral"}>{freshness}</Badge>{records.flatMap((record) => record.evidence).map((item) => <p key={item.id}>{item.asset_id} · {item.source} · {item.id}</p>)}</Card>; })}</div><Card title="Evidence exports unavailable"><p>Exports remain disabled until a durable job, artifact, one-time grant, expiry, and recovery lifecycle is installed.</p></Card></div>;
+   if (!dataControls) return <div className="page"><PageHeader title="Data and retention" />{error && <p role="alert">{error}</p>}</div>;
+   return <div className="page"><PageHeader title="Data and retention" description="Environment-scoped durable collection and retention controls." />{error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{!fresh && canMutate && <p role="alert">Fresh authentication expired. <Button onClick={() => sessionContext?.reauthenticate()}>Reauthenticate</Button></p>}<Card title={`${dataControls.environment_class} controls`}><p><Badge tone="info">{dataControls.collection_mode.replaceAll("_", " ")}</Badge></p><Field label="Retention days" type="number" value={String(dataControls.retention_days)} disabled={!canMutate || !fresh} onChange={(event) => setDataControls({ ...dataControls, retention_days: Number(event.target.value) })} /><p>{dataControls.deletion_enabled ? "Deletion enabled" : "Deletion disabled"}</p>{canMutate && <Button disabled={!fresh} onClick={() => void (async () => { try { if (!api) throw new Error(); setDataControls(await api.updateDataControls(dataControls)); setNotice("Data controls updated"); } catch { setError("Data controls could not be updated; reload before retrying"); } })()}>Save data controls</Button>}</Card><Card title="Data deletion unavailable"><p>Deletion requests remain disabled until the durable job and artifact lifecycle is installed.</p></Card></div>;
+ }
+diff --git a/app/features/sessions/SessionsComplianceView.test.tsx b/app/features/sessions/SessionsComplianceView.test.tsx
+index 4ebef844..3e549a05 100644
+--- a/app/features/sessions/SessionsComplianceView.test.tsx
++++ b/app/features/sessions/SessionsComplianceView.test.tsx
+@@ -1,7 +1,7 @@
+-import { render, screen } from "@testing-library/react";
++import { act, render, screen, waitFor } from "@testing-library/react";
+ import userEvent from "@testing-library/user-event";
+ import { describe, expect, it, vi } from "vitest";
+-import type { APIClient } from "../../../apps/web/api/client";
++import { createAPIClient, type APIClient } from "../../../apps/web/api/client";
+ import { createSessionsComplianceAPI, hydrateSessionEvents, SessionsComplianceView, type SessionsComplianceAPI } from "./SessionsComplianceView";
+ 
+ const principal = "pid_10000004-0000-4000-8000-000000000004";
+@@ -40,8 +40,95 @@ describe("Sessions, compliance, and data controls", () => {
+     const client = { DELETE: vi.fn(async () => ({ response: new Response("{}", { status: 200, headers: { "content-type": "application/json" } }), data: {} })) } as unknown as APIClient;
+     await expect(createSessionsComplianceAPI(client).revokeSession("session-live", 1)).rejects.toMatchObject({ kind: "invalid_response" });
+   });
+-  it("renders local evidence and keeps exports unavailable", async () => { render(<SessionsComplianceView surface="compliance" api={api()} />); expect(await screen.findByText(/SOC 2/)).toBeVisible(); expect(screen.getByText(/asset-1/)).toBeVisible(); expect(screen.getByText("Evidence exports unavailable")).toBeVisible(); expect(screen.queryByRole("button", { name: /export/i })).not.toBeInTheDocument(); });
++  it("renders legacy evidence without claiming current freshness or exports", async () => { render(<SessionsComplianceView surface="compliance" api={api()} />); expect(await screen.findByText("SOC 2 · Security")).toBeVisible(); expect(screen.getByText(/asset-1/)).toBeVisible(); expect(screen.getByText("Evidence exports unavailable")).toBeVisible(); expect(screen.getByText("Legacy evidence (current freshness unavailable)")).toBeVisible(); expect(screen.queryByRole("button", { name: /export/i })).not.toBeInTheDocument(); });
+   it("updates versioned metadata-only production controls", async () => { const update = vi.fn(api().updateDataControls); render(<SessionsComplianceView surface="data-controls" api={api({ updateDataControls: update })} canMutate />); expect(await screen.findByDisplayValue("30")).toBeVisible(); await userEvent.clear(screen.getByLabelText("Retention days")); await userEvent.type(screen.getByLabelText("Retention days"), "60"); await userEvent.click(screen.getByRole("button", { name: "Save data controls" })); expect(update).toHaveBeenCalledWith(expect.objectContaining({ retention_days: 60, version: 1 })); });
+ });
+ 
+ function awaitableSession() { return { id: "session-live", agent_id: "product-console", principal_id: principal, workspace_id: workspace, environment_id: environment, state: "active" as const, authenticated_at: "2026-08-19T00:00:00Z", expires_at: "2026-08-20T00:00:00Z", version: 1, events: [] }; }
++
++const organization = "pid_10000001-0000-4000-8000-000000000001";
++const target = { source_kind: "policy" as const, source_id: "policy-production", source_version: 2 };
++const record = { id: "policy-production", asset_id: "policy-production", source: "policy", at: "2026-09-01T12:00:00Z", target, metadata: { verification: "definition_only" } };
++const control = { id: "soc2-policy", framework: "soc2_security", name: "Policy definition", evidence_ids: [record.id], fresh_until: "2026-10-01T12:00:00Z", freshness: "stale" };
++const boundary = { principalID: principal, organizationID: organization, workspaceID: workspace, environmentID: environment, generation: 1, permitted: true, fresh: true, isCurrent: () => true };
++const job = { id: principal, status: "pending", formats: ["json", "csv", "human"], created_at: "2026-09-01T00:00:00Z", expires_at: "2099-09-02T00:00:00Z", failure_code: null, mapping_revision: "product-evidence-v1" };
++function complianceClient(handle?: (request: Request) => Promise<Response | undefined>) {
++  return createAPIClient({ getCSRFToken: () => "c".repeat(32), getExpectedScope: () => `${organization}/${workspace}/${environment}`, fetch: async request => {
++    const custom = await handle?.(request); if (custom) return custom;
++    const path = new URL(request.url).pathname;
++    if (path.endsWith("/controls")) return response({ items: [control, { ...control, id: "hipaa-config", framework: "HIPAA", name: "Configuration", freshness: "missing", evidence_ids: [] }], page_info: { has_more: false, next_cursor: null } });
++    if (path.endsWith("/evidence")) return response({ items: [{ control, freshness: "fresh", evidence: [record] }], page_info: { has_more: false, next_cursor: null } });
++    if (path.endsWith("/policy/policy-production")) return response({ record, freshness: "stale", organization_id: organization, workspace_id: workspace, environment_id: environment });
++    if (path.endsWith("/exports")) return response(job, 201);
++    if (path.endsWith(`/exports/${principal}`)) return response({ ...job, status: "completed" });
++    throw new Error("Unexpected compliance request");
++  } });
++}
++function response(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }); }
++describe("current compliance UI", () => {
++  it("uses aggregate freshness, exposes typed source/time links, and filters frameworks and controls", async () => {
++    render(<SessionsComplianceView surface="compliance" client={complianceClient()} complianceBoundary={boundary} />);
++    const link = await screen.findByRole("link", { name: "Open policy policy-production version 2" });
++    expect(link.getAttribute("href")).toContain("source_kind=policy&source_id=policy-production&source_version=2");
++    expect(screen.getByText("2026-09-01T12:00:00Z")).toBeVisible();
++    expect(screen.getByText("stale")).toBeVisible(); expect(screen.getByText("missing")).toBeVisible();
++    await userEvent.selectOptions(screen.getByLabelText("Framework"), "hipaa");
++    expect(screen.queryByRole("link", { name: /Open policy/ })).not.toBeInTheDocument();
++    expect(screen.getByText("Missing required evidence")).toBeVisible();
++    await userEvent.selectOptions(screen.getByLabelText("Framework"), "soc2_security");
++    await userEvent.selectOptions(screen.getByLabelText("Control"), "soc2-policy");
++    expect(screen.queryByText("missing")).not.toBeInTheDocument();
++  });
++  it("reads exact source versions through the compliance detail endpoint", async () => {
++    const reads: string[] = [];
++    render(<SessionsComplianceView surface="compliance" client={complianceClient(async request => { reads.push(request.url); return undefined; })} complianceBoundary={boundary} selectedSource={target} />);
++    expect(await screen.findByRole("heading", { name: "Evidence source" })).toBeVisible();
++    expect(screen.getByText(/definition_only/)).toBeVisible();
++    expect(reads.some(url => url.endsWith("/compliance/evidence/policy/policy-production?source_version=2"))).toBe(true);
++    expect(reads.some(url => url.includes("security-agent"))).toBe(false);
++  });
++  it.each([[409, "source_changed", "Evidence source changed", /Source changed/], [404, "not_found", "not_found", /Source unavailable/], [403, "forbidden", "forbidden", /Access denied/]] as const)("keeps deterministic detail denial %s", async (status, code, message, expected) => {
++    render(<SessionsComplianceView surface="compliance" client={complianceClient(async request => new URL(request.url).pathname.endsWith("/policy/policy-production") ? response({ code, message, correlation_id: principal, retryable: false }, status) : undefined)} complianceBoundary={boundary} selectedSource={target} />);
++    expect(await screen.findByRole("alert")).toHaveTextContent(expected);
++  });
++  it("creates queued exports with the selected filters, recovers status on reload, and leaves evidence readable on download failure", async () => {
++    const requests: Request[] = [];
++    const client = complianceClient(async request => {
++      requests.push(request.clone() as Request);
++      if (new URL(request.url).pathname.endsWith("/download-grants")) return response({ code: "forbidden", message: "expired", correlation_id: principal, retryable: false }, 403);
++      return undefined;
++    });
++    const view = render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
++    await userEvent.selectOptions(await screen.findByLabelText("Framework"), "soc2_security");
++    await userEvent.selectOptions(screen.getByLabelText("Control"), "soc2-policy");
++    await userEvent.click(screen.getByRole("button", { name: "Create evidence export" }));
++    expect(await screen.findByText("Export queued")).toBeVisible();
++    const creation = requests.find(request => request.method === "POST" && new URL(request.url).pathname.endsWith("/exports"));
++    expect(await creation?.json()).toEqual({ framework: "soc2_security", control_id: "soc2-policy" });
++    view.unmount(); render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
++    expect(await screen.findByText("Export completed")).toBeVisible();
++    await userEvent.click(screen.getByRole("button", { name: "Download JSON" }));
++    expect(await screen.findByRole("alert")).toHaveTextContent(/Access denied/);
++    expect(screen.getByRole("link", { name: /Open policy/ })).toBeVisible();
++    expect(JSON.stringify(sessionStorage)).not.toContain("token");
++    sessionStorage.clear();
++  });
++  it.each(["failed", "expired"])("renders %s export without hiding evidence", async state => {
++    const client = complianceClient(async request => new URL(request.url).pathname.endsWith("/exports") ? response({ ...job, status: state === "failed" ? "failed" : "completed", failure_code: state === "failed" ? "collection_failed" : null, expires_at: state === "expired" ? "2026-09-02T00:00:00Z" : job.expires_at }, 201) : undefined);
++    render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
++    await userEvent.click(await screen.findByRole("button", { name: "Create evidence export" }));
++    expect(await screen.findByText(state === "failed" ? /Export failed: collection_failed/ : "Export expired")).toBeVisible();
++    expect(screen.queryByRole("button", { name: "Download JSON" })).not.toBeInTheDocument();
++    expect(screen.getByRole("link", { name: /Open policy/ })).toBeVisible(); sessionStorage.clear();
++  });
++  it("drops late evidence responses on a changed principal and hides revoked authority immediately", async () => {
++    let finish!: (value: Response) => void;
++    const client = complianceClient(async request => new URL(request.url).pathname.endsWith("/evidence") ? new Promise(resolve => { finish = resolve; }) : undefined);
++    const view = render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
++    await waitFor(() => expect(finish).toBeTypeOf("function"));
++    view.rerender(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={{ ...boundary, principalID: environment, permitted: false }} />);
++    await act(async () => finish(response({ items: [{ control, freshness: "fresh", evidence: [record] }], page_info: { has_more: false, next_cursor: null } })));
++    expect(screen.queryByText("policy-production")).not.toBeInTheDocument();
++    expect(screen.getByRole("alert")).toHaveTextContent(/Access denied/);
++  });
++});
+diff --git a/app/components/ZaspProductionApp.tsx b/app/components/ZaspProductionApp.tsx
+index e2de2e5d..cc38f7f7 100644
+--- a/app/components/ZaspProductionApp.tsx
++++ b/app/components/ZaspProductionApp.tsx
+@@ -26,6 +26,7 @@ import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from
+ import { Button, LoadingState } from "./ui";
+ import { ProductionGlobalSearch } from "./ProductionGlobalSearch";
+ import { parseActivityLink } from "../domain/activity-links";
++import { parseComplianceLink } from "../domain/compliance-links";
+ 
+ const productionRoutes = [
+   { path: "/", label: "Overview", capability: "inventory.read" },
+@@ -57,6 +58,18 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
+   const session = useSession();
+   const { client, auditExports, queryScopeKey, queryGeneration, getSessionInvalidationGeneration, getScopeStaleGeneration } = useAPI();
+   if (session.status !== "authenticated") return null;
++  if (path === "/compliance/evidence") {
++    const compliance = parseComplianceLink(location, session);
++    if (compliance.state === "scope_mismatch") return <div className="page" role="alert">This compliance link belongs to a different organization, workspace or environment. Select its authorized scope explicitly.</div>;
++    if (compliance.state === "invalid") return <div className="page" role="alert">This compliance link is invalid. Open evidence from the authorized list.</div>;
++    const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
++    return <SessionsComplianceView surface="compliance" client={client} selectedSource={compliance.state === "selected" ? compliance.target : undefined} onNavigate={navigate} complianceBoundary={{
++      principalID: session.principal.id, organizationID: session.organizationID, workspaceID: session.workspaceID, environmentID: session.environmentID, generation: queryGeneration,
++      permitted: queryScopeKey !== null && session.hasCapability("compliance.read") && ["view", "view_audit", "view_compliance"].every(permission => session.permissions.includes(permission)),
++      fresh: session.isFreshAuthenticated, reauthenticate: session.reauthenticate,
++      isCurrent: () => expiry === getSessionInvalidationGeneration() && stale === getScopeStaleGeneration(),
++    }} />;
++  }
+   const activity = parseActivityLink(location, session);
+   if (activity.state === "scope_mismatch") return <div className="page" role="alert">This activity link belongs to a different organization, workspace or environment. Select the authorized scope explicitly before opening it.</div>;
+   if (activity.state === "invalid") return <div className="page" role="alert">This activity link is invalid. Open the record from an authorized product page.</div>;
+@@ -74,7 +87,6 @@ function ProductionRouteSurface({ path, location, navigate }: { path: string; lo
+   if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}><IdentityAccessView /><ScopeOnboardingView client={client} /></IdentityAPIProvider>;
+   if (path === "/administration/api-access") return <APIAccessView client={client} />;
+   if (path === "/investigate/sessions") return <ProductionSessionsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} client={client} canRevokeConsole={session.hasCapability("sessions.revoke")} selectedID={selected?.id} onNavigate={navigate} activityScope={session} canReadRuns={session.hasCapability("security-agents.read")} />;
+-  if (path === "/compliance/evidence") return <SessionsComplianceView surface="compliance" client={client} />;
+   if (path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" client={client} canMutate={session.hasCapability("data-controls.manage")} />;
+   if (path === "/administration/recovery") return <RecoveryOperationsView client={client} expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("recovery.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
+   if (path === "/administration/system-health") return <AdminOperationsView surface="health" client={client} />;
+diff --git a/app/components/ZaspProductionApp.test.tsx b/app/components/ZaspProductionApp.test.tsx
+index 58a61ee1..410d9941 100644
+--- a/app/components/ZaspProductionApp.test.tsx
++++ b/app/components/ZaspProductionApp.test.tsx
+@@ -28,6 +28,23 @@ function page(action: string) {
+ }
+ 
+ describe("production scoped activity navigation", () => {
++  it("routes a generic audit compliance selector to typed compliance detail, including reload", async () => {
++    window.history.replaceState({}, "", `/compliance/evidence?source_kind=administration&source_id=audit:42&source_version=1&organization_id=${organization}&workspace_id=${workspace}&environment_id=${environment}`);
++    const reads: string[] = [];
++    vi.stubGlobal("fetch", async (request: Request) => {
++      const path = new URL(request.url).pathname; reads.push(path);
++      if (path === "/api/v1/session/bootstrap") return json({ ...bootstrap(principal), permissions: ["view", "view_audit", "view_compliance"], capabilities: ["compliance.read", "audit.read"] });
++      if (path === "/api/v1/workflow-mutation-receipts") return json({ items: [] });
++      if (decodeURIComponent(path) === "/api/v1/compliance/evidence/administration/audit:42") return json({ record: { id: "audit:42", asset_id: "audit:42", source: "audit", at: "2026-09-17T00:00:00Z", target: { source_kind: "administration", source_id: "audit:42", source_version: 1 }, metadata: { action: "membership.updated", status: "succeeded" } }, freshness: "fresh", organization_id: organization, workspace_id: workspace, environment_id: environment });
++      throw new Error("Unexpected compliance route request");
++    });
++    const view = render(<ZaspProductionApp />);
++    expect(await screen.findByRole("heading", { name: "Evidence source" })).toBeVisible();
++    expect(screen.getByText(/membership.updated/)).toBeVisible();
++    expect(reads.some(path => path.includes("security-agent") || path === "/api/v1/session/scope")).toBe(false);
++    view.unmount(); render(<ZaspProductionApp />);
++    expect(await screen.findByRole("heading", { name: "Evidence source" })).toBeVisible();
++  });
+   const inventoryRoutes = [
+     ["/discovery/assets", "agents", "agent", "Support agent"],
+     ["/inventory/tools", "tools", "tool", "Support tool"],
+diff --git a/scripts/production-combined-e2e.mjs b/scripts/production-combined-e2e.mjs
+index 364c4cd4..1b69b218 100644
+--- a/scripts/production-combined-e2e.mjs
++++ b/scripts/production-combined-e2e.mjs
+@@ -13,6 +13,7 @@ import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
+ import { spawnOwnedCommand } from "./owned-command.mjs";
+ import { createOwnedBrowserPostgres } from "./owned-browser-postgres.mjs";
+ import { reloadBrowserPage } from "./browser-e2e-helpers.mjs";
++import { storedComplianceJSON } from "./compliance-browser-bytes.mjs";
+ import { createRuntimePipelineDependencies } from "./runtime-pipeline-dependencies.mjs";
+ import { createGraphFixtureDependency } from "../proofs/neo4j-graphstore/run.mjs";
+ import { createRedTeamRuntimeProof } from "./red-team-runtime-proof.mjs";
+@@ -25,6 +26,8 @@ import { auditExportVolumeMetadata, assertAuditExportVolume, joinAuditExportProv
+ const securityAgentSimulationMode = validateSecurityAgentSimulationMode(process.env);
+ const securityAgentRunContextMode = validateSecurityAgentRunContextMode(process.env);
+ const existingTestMountedMode = process.env.ZASP_COMBINED_E2E_EXISTING_TEST === "true";
++const complianceBrowserMode = process.env.ZASP_COMBINED_E2E_COMPLIANCE === "true";
++assert.ok(!complianceBrowserMode || !existingTestMountedMode && !securityAgentSimulationMode && !securityAgentRunContextMode, "compliance browser mode is isolated");
+ assert.ok(!existingTestMountedMode || !securityAgentSimulationMode && !securityAgentRunContextMode, "mounted existing-test mode is isolated");
+ const auditBrowserMode = validateAuditBrowserMode(process.env);
+ const auditExportBrowserMode = validateAuditExportBrowserMode(process.env);
+@@ -175,12 +178,12 @@ try {
+ 	const gatewayE2EBinary = path.join(temporaryRoot, "runtime-gateway-e2e");
+ 	const agentsecctl = path.join(temporaryRoot, "agentsecctl");
+   await command("go", ["build", "-o", migrate, "./agentsec-migrate"], { cwd: platform });
+-  await command("go", [auditExportBrowserMode ? "test" : "build", ...(auditExportBrowserMode ? ["-c"] : []), "-o", apiBinary, "./agentsec-api"], { cwd: platform, timeout: 120_000 });
++  await command("go", [auditExportBrowserMode || complianceBrowserMode ? "test" : "build", ...(auditExportBrowserMode || complianceBrowserMode ? ["-c"] : []), "-o", apiBinary, "./agentsec-api"], { cwd: platform, timeout: 120_000 });
+   if (!auditExportBrowserMode) {
+-  if (!existingTestMountedMode) await command("go", ["build", "-o", workerBinary, "./agentsec-worker"], { cwd: platform });
++  if (!existingTestMountedMode && !complianceBrowserMode) await command("go", ["build", "-o", workerBinary, "./agentsec-worker"], { cwd: platform });
+   await command("go", ["test", "-c", "-o", workerE2EBinary, "./agentsec-worker"], { cwd: platform, timeout: 120_000 });
+-	if (!existingTestMountedMode) await command("go", ["test", "-c", "-o", gatewayE2EBinary, "."], { cwd: path.join(root, "services", "runtime-gateway"), timeout: 120_000 });
+-	if (!existingTestMountedMode) await command("go", ["build", "-o", agentsecctl, "."], { cwd: path.join(root, "cmd", "agentsecctl") });
++	if (!existingTestMountedMode && !complianceBrowserMode) await command("go", ["test", "-c", "-o", gatewayE2EBinary, "."], { cwd: path.join(root, "services", "runtime-gateway"), timeout: 120_000 });
++	if (!existingTestMountedMode && !complianceBrowserMode) await command("go", ["build", "-o", agentsecctl, "."], { cwd: path.join(root, "cmd", "agentsecctl") });
+   }
+   const migrationEnvironment = {
+     ...auditBrowserEnvironment(process.env),
+@@ -285,10 +288,13 @@ try {
+     const pin=await command(path.join(postgresBin,"psql"),[dsn,"-X","-At","-c","SELECT zasp_production_security_agent_existing_tests_live_fingerprint()"]);
+     assert.equal(pin.stdout.trim(),"2c324e78917f97feee14f915b397efbb92a183d47afd7473139dd0691cf0bb04","mounted protocol pin changed");
+   }
++  if (complianceBrowserMode) await command(migrate, ["up-to-56"], { env: migrationEnvironment });
+   await seedPostgres(dsn);
+   console.log("combined E2E: migrations and durable seed ready");
+ 
+-  if (existingTestMountedMode) {
++  if (complianceBrowserMode) {
++    await exerciseComplianceBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
++  } else if (existingTestMountedMode) {
+     await exerciseExistingTestMountedBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
+   } else if (securityAgentSimulationMode) {
+     await exerciseSecurityAgentSimulationBrowser({ dsn, apiDSN, apiBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
+@@ -1098,9 +1104,9 @@ try {
+   assert.match(auditLog, /Audit exports unavailable/);
+   assert.equal(await browserHasInteractiveText(browser.cdp, /^Export$/i), false);
+   await navigateBrowser(browser.cdp, `${publicOrigin}/compliance/evidence`);
+-  const compliance = await waitForBrowserText(browser.cdp, /evidence-membership/);
++  const compliance = await waitForBrowserText(browser.cdp, /Legacy evidence \(current freshness unavailable\)/);
+   assert.match(compliance, /SOC 2/);
+-  assert.match(compliance, /Evidence exports unavailable/);
++  console.log("combined E2E: release48 legacy disabled-service compatibility only; release56 acceptance runs in compliance mode");
+   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/data-retention`);
+   const dataControls = await waitForBrowserText(browser.cdp, /production controls/);
+   assert.match(dataControls, /metadata only/);
+@@ -1179,7 +1185,7 @@ try {
+   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/audit-log`);
+   assert.match(await waitForBrowserText(browser.cdp, /session\.revoke/), /api_token\.rotate/);
+   await navigateBrowser(browser.cdp, `${publicOrigin}/compliance/evidence`);
+-  assert.match(await waitForBrowserText(browser.cdp, /evidence-membership/), /Evidence exports unavailable/);
++  await waitForBrowserText(browser.cdp, /Legacy evidence \(current freshness unavailable\)/);
+   console.log("combined E2E: API restart, browser reload, and durable local workflows proven");
+ 
+   const denied = await browserFetchJSON(browser.cdp, "/api/v1/agents/pid_90000001-0000-4000-8000-000000000001", {
+@@ -2118,6 +2124,109 @@ COMMIT;`);
+   }
+ }
+ 
++async function exerciseComplianceBrowser(configuration) {
++  const {dsn,apiBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
++  const sql=async statement=>(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
++  const org="pid_10000001-0000-4000-8000-000000000001",workspace="pid_10000022-0000-4000-8000-000000000022",environment="pid_10000023-0000-4000-8000-000000000023",actor="pid_10000004-0000-4000-8000-000000000004";
++  const selectedScope=`${org}/${workspace}/${environment}`;
++  assert.equal(await sql("SELECT max(version) FROM zasp_schema_versions"),"56");
++  await sql(`CREATE ROLE compliance_executor LOGIN INHERIT; CREATE ROLE compliance_cleanup LOGIN INHERIT;
++SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanup',(SELECT checksum FROM zasp_schema_versions WHERE version=56),(SELECT value FROM zasp_schema_metadata WHERE key='production_compliance_fingerprint'));
++UPDATE zasp_authorized_scopes SET permissions=permissions || '["view_audit","view_compliance"]'::jsonb WHERE principal_id='${actor}';
++INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) VALUES('${org}','${workspace}','${environment}','policy','policy-compliance-browser',7,'{"raw_prompt":"NEVER_EXPORT_BROWSER"}','2020-01-01');`);
++  const storage=await mkdtemp("/tmp/zasp-compliance-browser-");
++  const object=path.join(storage,"object.json"),downloads=path.join(storage,"downloads");
++  // Retained local evidence: downloaded files and exact controlled-provider bytes.
++  console.log(`compliance browser evidence: ${storage}`);
++  const publicOrigin=`https://${productHostname}:${proxyPort}`;
++  identity=await startIdentityServer(identityPort,publicOrigin); policyHistory=await startPolicyHistoryServer(policyHistoryPort);
++  const apiEnvironment={...combinedAPIEnvironment({...configuration,publicOrigin}), ZASP_COMPLIANCE_BROWSER_API:"true", ZASP_COMPLIANCE_BROWSER_PG_PORT:String(postgresPort), ZASP_COMPLIANCE_BROWSER_OBJECT:object,ZASP_COMPLIANCE_BROWSER_DEADLINE:new Date(Date.now()+20*60_000).toISOString(),
++    ZASP_COMPLIANCE_EXPORT_BUCKET:"zasp-compliance-exports", ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER:"123456789012",ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN:"arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111",ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN:"arn:aws:iam::123456789012:role/compliance-api-reader",ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE:"/var/run/secrets/eks.amazonaws.com/serviceaccount/token"};
++  const startAPI=async()=>{api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:apiEnvironment});try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(e){throw new Error(`${e.message}; ${api.output()}`);}};
++  await startAPI();
++  web=startChild(path.join(root,"node_modules/.bin/vinext"),["start","--port",String(webPort),"--hostname","127.0.0.1"],{cwd:root});
++  await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`,200);
++  const key=path.join(temporaryRoot,"compliance-tls.key"),certificate=path.join(temporaryRoot,"compliance-tls.crt");
++  await command("openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","1","-subj",`/CN=${productHostname}`,"-addext",`subjectAltName=DNS:${productHostname}`,"-keyout",key,"-out",certificate]);
++  proxy=await startProxy(proxyPort,apiPort,webPort,key,certificate,dsn);
++  browser=await startBrowser(path.join(temporaryRoot,"compliance-profile"),chromePort,`${publicOrigin}/api/v1/session/start?return_to=%2Fcompliance%2Fevidence`);
++  const cdp=browser.cdp;
++  await waitForBrowserText(cdp,/Create evidence export/);
++  await selectBrowserOption(cdp,"Authorized scope","Staging");
++  await waitForBrowserScope(cdp,selectedScope);
++  const sourceLocation=`/compliance/evidence?source_kind=policy&source_id=policy-compliance-browser&source_version=7&organization_id=${org}&workspace_id=${workspace}&environment_id=${environment}`;
++  await clickBrowserAria(cdp,"Open policy policy-compliance-browser version 7");
++  assert.match(await waitForBrowserText(cdp,/Evidence source/),/2020-01-01T00:00:00(?:\.0+)?Z[\s\S]*stale/);
++  assert.equal(new URL(await browserCurrentURL(cdp)).pathname+new URL(await browserCurrentURL(cdp)).search,sourceLocation);
++  await navigateBrowser(cdp,`${publicOrigin}/compliance/evidence`);
++  await selectBrowserOption(cdp,"Framework","SOC 2 Security");
++  await selectBrowserOption(cdp,"Control","Policy definitions");
++  await clickBrowserText(cdp,"Create evidence export");
++  await waitForBrowserText(cdp,/Export queued/);
++  const jobID=await sql("SELECT export_id FROM zasp_compliance_export_jobs ORDER BY created_at DESC LIMIT 1");assert.match(jobID,/^pid_[a-f0-9-]{36}$/);
++  const worker=async phase=>{const result=await command(workerE2EBinary,["-test.run=^TestComplianceRuntimeProcess$","-test.v","-test.timeout=20s"],{timeout:25_000,env:{...auditBrowserEnvironment(process.env),ZASP_COMPLIANCE_RUNTIME_DSN:dsn,ZASP_COMPLIANCE_RUNTIME_PHASE:phase,ZASP_COMPLIANCE_RUNTIME_OBJECT:object}});console.log(result.stdout);};
++  await worker("interrupt");
++  assert.equal(await sql(`SELECT state||'|'||storage_state FROM zasp_compliance_export_jobs WHERE export_id='${jobID}'`),"pending|unknown");
++  const pinned=await sql(`SELECT encode(digest(package,'sha256'),'hex') FROM zasp_compliance_export_jobs WHERE export_id='${jobID}'`);
++  await sql(`UPDATE zasp_workflow_records SET version=8,updated_at=clock_timestamp() WHERE id='policy-compliance-browser'; UPDATE zasp_compliance_export_jobs SET next_attempt_at=clock_timestamp() WHERE export_id='${jobID}'`);
++  await worker("resume");
++  assert.equal(await sql(`SELECT state||'|'||storage_state||'|'||encode(digest(package,'sha256'),'hex') FROM zasp_compliance_export_jobs WHERE export_id='${jobID}'`),`completed|verified|${pinned}`);
++  await clickBrowserText(cdp,"Refresh export status"); await waitForBrowserText(cdp,/Export completed/);
++  // Navigation replaces the inspected target; configure the current download session.
++  await cdp.send("Browser.setDownloadBehavior",{behavior:"allow",downloadPath:downloads,eventsEnabled:true});
++  const downloadEvents=[];
++  cdp.on("Browser.downloadWillBegin",event=>downloadEvents.push({filename:event.suggestedFilename}));
++  cdp.on("Browser.downloadProgress",event=>downloadEvents.push({state:event.state,bytes:event.receivedBytes}));
++  await clickBrowserText(cdp,"Download JSON");
++  await waitForBrowserText(cdp,/Download handed to your browser/);
++  let saved;
++  for(let attempt=0;attempt<100;attempt++){try{saved=await readFile(path.join(downloads,`compliance-${jobID}.json`));break;}catch{await delay(100);}}
++  assert.ok(saved,`native browser download missing: ${JSON.stringify(downloadEvents)}`);
++  const stored=JSON.parse(await readFile(object,"utf8")),envelope=JSON.parse(Buffer.from(stored.Body,"base64").toString());
++  assert.deepEqual(saved,storedComplianceJSON(Buffer.from(stored.Body,"base64")),"download differs from exact persisted JSON bytes");
++  assert.equal(envelope.json.length,1);
++  assert.deepEqual(envelope.json[0].evidence.map(record=>record.target),[{source_kind:"policy",source_id:"policy-compliance-browser",source_version:7}]);
++  for(const text of [saved.toString(),envelope.csv,envelope.human]) assert.doesNotMatch(text,/certified|certification achieved|compliance (?:passed|certified)|HIPAA compliant|SOC 2 compliant/i);
++  assert.match(envelope.human,/does not attest compliance/);
++  assert.match(saved.toString(),/policy-compliance-browser/);assert.match(saved.toString(),/"source_version":7/);assert.doesNotMatch(saved.toString(),/NEVER_EXPORT_BROWSER/);
++  // Stay in the user's tab so sessionStorage reload recovery is genuinely exercised.
++  await cdp.send("Page.navigate",{url:`${publicOrigin}${sourceLocation}`}); await waitForBrowserText(cdp,/Source changed/);
++  // API restart and page reload resolve the durable job, without in-memory worker state.
++  await stopChild(api); await startAPI();
++  await cdp.send("Page.navigate",{url:`${publicOrigin}/compliance/evidence`});
++  await waitForBrowserText(cdp,/Export completed/);
++  const beforeReload=await cdp.send("Runtime.evaluate",{expression:"performance.timeOrigin",returnByValue:true});
++  await reloadBrowser(cdp);
++  await waitForBrowserAction(cdp,`performance.timeOrigin !== ${beforeReload.result.value} && document.readyState === 'complete'`);
++  await waitForBrowserText(cdp,/Export completed/);
++  await cdp.send("Browser.setDownloadBehavior",{behavior:"allow",downloadPath:downloads,eventsEnabled:true});
++  await clickBrowserText(cdp,"Download readable");await waitForBrowserText(cdp,/Download handed to your browser/);
++  let readable;
++  for(let attempt=0;attempt<100;attempt++){try{readable=await readFile(path.join(downloads,`compliance-${jobID}.txt`),"utf8");break;}catch{await delay(100);}}
++  assert.equal(readable,envelope.human,"restart changed persisted readable format");
++  await clickBrowserText(cdp,"Download CSV");await waitForBrowserText(cdp,/Download handed to your browser/);
++  let csv;
++  for(let attempt=0;attempt<100;attempt++){try{csv=await readFile(path.join(downloads,`compliance-${jobID}.csv`),"utf8");break;}catch{await delay(100);}}
++  assert.equal(csv,envelope.csv,"native CSV differs from persisted format");
++  const replay=await cdp.send("Runtime.evaluate",{expression:`(async()=>{const b=await fetch('/api/v1/session/bootstrap').then(r=>r.json());const headers={'Content-Type':'application/json','X-CSRF-Token':b.csrf_token,'X-Zasp-Expected-Scope':${JSON.stringify(selectedScope)}};const g=await fetch('/api/v1/compliance/exports/${jobID}/download-grants',{method:'POST',headers,body:JSON.stringify({format:'csv'})}).then(r=>r.json());const body=JSON.stringify({format:'csv',token:g.token});const first=await fetch('/api/v1/compliance/exports/${jobID}/download',{method:'POST',headers,body});const bytes=await first.text();const again=await fetch('/api/v1/compliance/exports/${jobID}/download',{method:'POST',headers,body});return {first:first.status,again:again.status,bytes};})()`,awaitPromise:true,returnByValue:true});
++  assert.equal(replay.result.value.first,200);assert.notEqual(replay.result.value.again,200);assert.equal(replay.result.value.bytes,envelope.csv);
++  const foreignLocation=sourceLocation.replace(workspace,"pid_10000002-0000-4000-8000-000000000002");
++  await navigateBrowser(cdp,`${publicOrigin}${foreignLocation}`);await waitForBrowserText(cdp,/different organization, workspace or environment/);await waitForBrowserScope(cdp,selectedScope);
++  await navigateBrowser(cdp,`${publicOrigin}/compliance/evidence`);
++  await selectBrowserOption(cdp,"Authorized scope","Production");
++  const siblingScope=`${org}/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003`;
++  await waitForBrowserScope(cdp,siblingScope);
++  for(const route of [`/api/v1/compliance/exports/${jobID}`,"/api/v1/compliance/evidence/policy/policy-compliance-browser?source_version=8"]){const result=await browserFetchJSON(cdp,route,{"X-Zasp-Expected-Scope":siblingScope});assert.equal(result.status,404);}
++  // Independent authenticated foreign-tenant session, created only in this owned fixture.
++  await sql(`INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at,authenticated_at) VALUES(digest('compliance-foreign-browser','sha256'),repeat('c',32),'session-compliance-foreign-browser','pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','["view","view_audit","view_compliance"]',clock_timestamp()+interval '1 hour',clock_timestamp());UPDATE zasp_authorized_scopes SET permissions=permissions||'["view_audit","view_compliance"]'::jsonb WHERE principal_id='pid_90000004-0000-4000-8000-000000000004';`);
++  const denied=await requestHTTPSJSON(`${publicOrigin}/api/v1/compliance/exports/${jobID}`,{method:"GET",headers:{cookie:"__Host-zasp_session=compliance-foreign-browser","X-Zasp-Expected-Scope":"pid_90000001-0000-4000-8000-000000000001/pid_90000002-0000-4000-8000-000000000002/pid_90000003-0000-4000-8000-000000000003"}});assert.equal(denied.status,404);
++  assert.doesNotMatch(await browserStorageAndHistoryText(cdp),/compliance-process-v1|NEVER_EXPORT_BROWSER|"token"|arn:aws/);
++  const capture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-final.png"),Buffer.from(capture.data,"base64"));
++  await writeFile(path.join(storage,"summary.json"),JSON.stringify({jobID,packageSHA256:pinned,nativeJSONBytes:saved.length,restartReadableBytes:Buffer.byteLength(readable),grantReplayRefused:true,siblingDenied:true,foreignDenied:true,sourceChanged:true,provider:"controlled local SDK transport, NOT AWS"},null,2));
++  assert.equal(proxyFailure,undefined);
++  console.log("compliance release56 browser acceptance: real session/API/worker/versioned artifact; source change, exact JSON/CSV/readable, worker/API restart, scope denial and grant replay passed; live AWS NOT RUN");
++}
++
+ async function exerciseExistingTestMountedBrowser(configuration) {
+   const {dsn,apiBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
+   const sql=async statement=>(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
+diff --git a/scripts/production-combined-e2e.test.mjs b/scripts/production-combined-e2e.test.mjs
+index dc178d47..85f51f1f 100644
+--- a/scripts/production-combined-e2e.test.mjs
++++ b/scripts/production-combined-e2e.test.mjs
+@@ -69,7 +69,7 @@ async function verifyAutomaticLifecycleOrchestration(source, mode = "broad", fai
+     assert.ok(index >= after, `orchestration boundary missing: ${text}`);
+     return index;
+   };
+-  const begin = marker("  if (existingTestMountedMode) {", marker("await seedPostgres(dsn)"));
++  const begin = marker("  if (complianceBrowserMode) {", marker("await seedPostgres(dsn)"));
+   const ready = marker('  console.log("combined E2E: Go product and internal listeners ready");', begin);
+   const throughReady = source.indexOf("\n", ready);
+   const planner = marker("\tawait exerciseSecurityAgentAutomaticLifecycle(browser.cdp,", throughReady);
+@@ -98,7 +98,7 @@ async function verifyAutomaticLifecycleOrchestration(source, mode = "broad", fai
+   const boundary = name => { events.push(name); if (failureAt === name) throw failure; };
+   const context = {
+     assert, path, Error, console: { log() {} }, process: { env: mode === "runtime-only" ? { ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY: "true" } : {} },
+-    existingTestMountedMode: mode === "existing-test", securityAgentSimulationMode: ["simulation", "run-context"].includes(mode), auditExportBrowserMode: mode === "audit-export", precisionBrowserMode: false,
++    complianceBrowserMode: false, existingTestMountedMode: mode === "existing-test", securityAgentSimulationMode: ["simulation", "run-context"].includes(mode), auditExportBrowserMode: mode === "audit-export", precisionBrowserMode: false,
+     dsn: "owned", apiDSN: "owned-api", apiBinary: "api", workerE2EBinary: "worker", gatewayE2EBinary: "gateway", migrate: "migrate", migrationEnvironment: { owner: "registered" },
+     postgresBin: "/pg", postgresPort: 1, identityPort: 2, policyHistoryPort: 3, apiPort: 4, healthPort: 5, webPort: 6, proxyPort: 7, chromePort: 8, productHostname: "owned.test", actionPrivateKey: "fixture", browser: { cdp: {} },
+     exerciseExistingTestMountedBrowser: async () => boundary("existing-test"),
+@@ -476,7 +476,7 @@ test("Security Agent simulation mode rejects invalid and conflicting flags befor
+ 
+ test("Security Agent simulation selection bypasses broad dependencies and propagates failure", async () => {
+   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+-  const start = source.indexOf("  if (existingTestMountedMode) {", source.indexOf("await seedPostgres(dsn)"));
++  const start = source.indexOf("  if (complianceBrowserMode) {", source.indexOf("await seedPostgres(dsn)"));
+   assert.ok(start > 0, "missing post-seed acceptance selection");
+   const end = source.indexOf('  console.log("combined E2E: owned runtime dependencies ready");', start);
+   assert.ok(end > start);
+@@ -484,6 +484,7 @@ test("Security Agent simulation selection bypasses broad dependencies and propag
+   const selected = `(async()=>{${source.slice(start,end)} }})()`;
+   const configuration = { dsn: "owned", apiDSN: "owned-api", apiBinary: "owned-bin", postgresPort: 1, identityPort: 2, policyHistoryPort: 3, apiPort: 4, healthPort: 5, webPort: 6, proxyPort: 7, chromePort: 8 };
+   for (const [mode, expected] of [
++    ["complianceBrowserMode", ["compliance"]],
+     ["existingTestMountedMode", ["mounted"]],
+     ["securityAgentSimulationMode", ["simulation"]],
+     ["auditExportBrowserMode", ["audit export"]],
+@@ -497,9 +498,10 @@ test("Security Agent simulation selection bypasses broad dependencies and propag
+         await call(name);
+       };
+       const context = {
+-        ...configuration, existingTestMountedMode: false, securityAgentSimulationMode: false, auditExportBrowserMode: false, [mode]: true,
++        ...configuration, complianceBrowserMode: false, existingTestMountedMode: false, securityAgentSimulationMode: false, auditExportBrowserMode: false, [mode]: true,
+         workerE2EBinary: "owned-worker", migrate: "owned-migrate", migrationEnvironment: { owner: "owned" },
+         exerciseExistingTestMountedBrowser: proof("mounted", { workerE2EBinary: "owned-worker" }),
++        exerciseComplianceBrowser: proof("compliance", { workerE2EBinary: "owned-worker" }),
+         exerciseSecurityAgentSimulationBrowser: proof("simulation"),
+         exerciseAuditExportNativeBrowser: proof("audit export", { migrate: "owned-migrate", migrationEnvironment: { owner: "owned" } }),
+         createGraphFixtureDependency: () => { calls.push("graph owner"); return { start: () => call("graph start") }; },
+@@ -619,7 +621,7 @@ test("selected audit setup runs compiled53 and real API registration before poli
+   const commands = [];
+   const migrationEnvironment = { ZASP_POSTGRES_DSN: "owned", ZASP_DISCOVERY_API_DB_PRINCIPAL: "zasp_e2e_api", ZASP_SECURITY_AGENT_API_DB_PRINCIPAL: "zasp_e2e_security_agent_api" };
+   const context = {
+-    auditBrowserMode: true, securityAgentRunContextMode: false, existingTestMountedMode: false, migrate: "/owned/migrate", temporaryRoot: "/owned", platform: "/owned/platform", postgresBin: "/owned/pg", postgresPort: 54321,
++    auditBrowserMode: true, complianceBrowserMode: false, securityAgentRunContextMode: false, existingTestMountedMode: false, migrate: "/owned/migrate", temporaryRoot: "/owned", platform: "/owned/platform", postgresBin: "/owned/pg", postgresPort: 54321,
+     dsn: "postgres://zasp_e2e@127.0.0.1:54321/postgres?sslmode=disable", migrationEnvironment, path, assert,
+     auditBrowserPolicyEnvironment,
+     console: { log() {} }, command: async (executable, args, options) => {
+@@ -1034,7 +1036,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
+     "Acknowledgement failed", "Rotate E2E API token", "old API token remained valid after rotation", "api_token.reveal.acknowledge", "restartReloadURL",
+     "Fresh authentication expired", "Reauthenticate", "configured provider remained falsely healthy", "CDP request timed out", "navigateBrowser", "reloadBrowser", "waitForBrowserScope", "Target.attachToTarget", "Target.closeTarget", "sessionId", "cdp.replaceTarget",
+     "session-investigation-e2e", "Shell requested by E2E", "Revoke session session-investigation-e2e",
+-    "/administration/audit-log", "Audit exports unavailable", "/compliance/evidence", "Evidence exports unavailable",
++    "/administration/audit-log", "Audit exports unavailable", "/compliance/evidence",
+     "/administration/data-retention", "Data deletion unavailable", "/administration/external-data-flows", "identity-provider",
+     "/administration/system-health", "production administration lifecycle and hidden provider/export mutations proven",
+     "/violations", "/exposure/attack-paths", "Production credential exposure 0001", "Ranked break option evidence",
+@@ -1117,7 +1119,14 @@ test("combined production E2E owns every local boundary and fixed assertion", as
+   assert.match(discoveryBrowserBoundary, /const \{ resources, \.\.\.persistentForensics \} = forensics/);
+   assert.match(discoveryBrowserBoundary, /resources\.every\(\(resource\) => new URL\(resource\)\.origin === publicOrigin\)/);
+   assert.doesNotMatch(source, /Shown only once/);
+-  assert.doesNotMatch(source, /"Page\.(?:navigate|reload)"/);
++  const complianceStart = source.indexOf("async function exerciseComplianceBrowser(");
++  const complianceEnd = source.indexOf("async function exerciseExistingTestMountedBrowser(");
++  const complianceFlow = source.slice(complianceStart, complianceEnd);
++  assert.doesNotMatch(source.slice(0, complianceStart) + source.slice(complianceEnd), /"Page\.(?:navigate|reload)"/);
++  assert.equal(complianceFlow.match(/"Page.navigate"/g)?.length, 2, "source inspection and restart recovery preserve the user's tab storage");
++  assert.match(complianceFlow, /await reloadBrowser\(cdp\)/);
++  assert.match(complianceFlow, /storedComplianceJSON/);
++  assert.match(complianceFlow, /Browser.setDownloadBehavior/);
+   assert.doesNotMatch(source, /zasp_execution_(?:finish_job|finish_projection|apply_complete_snapshot)\s*\(/i);
+   const seedBoundary = source.slice(source.indexOf("async function seedPostgres"), source.indexOf("async function exercisePublicDiscoveryLifecycle"));
+   assert.doesNotMatch(seedBoundary, /INSERT INTO zasp_inventory_/i);
+diff --git a/services/platform/agentsec-api/production_runtime.go b/services/platform/agentsec-api/production_runtime.go
+index e9f89ecd..034fe47d 100644
+--- a/services/platform/agentsec-api/production_runtime.go
++++ b/services/platform/agentsec-api/production_runtime.go
+@@ -23,13 +23,18 @@ import (
+ )
+ 
+ type auditExportStorageFactory func(RuntimeConfig) ([]apiserver.AuditExportStorageConfiguration, *http.Transport, error)
++type complianceStorageFactory func(RuntimeConfig) (complianceStorageResources, error)
+ 
+ func buildRuntimeDependencies(ctx context.Context, config RuntimeConfig) (RuntimeDependencies, error) {
+ 	return buildRuntimeDependenciesWithAuditExportStorage(ctx, config, newAuditExportStorageClients)
+ }
+ 
+ func buildRuntimeDependenciesWithAuditExportStorage(ctx context.Context, config RuntimeConfig, factory auditExportStorageFactory) (RuntimeDependencies, error) {
+-	if ctx == nil || ctx.Err() != nil || factory == nil || !validRuntimeConfig(config) {
++	return buildRuntimeDependenciesWithStorage(ctx, config, factory, newComplianceStorageResources)
++}
++
++func buildRuntimeDependenciesWithStorage(ctx context.Context, config RuntimeConfig, factory auditExportStorageFactory, complianceFactory complianceStorageFactory) (RuntimeDependencies, error) {
++	if ctx == nil || ctx.Err() != nil || factory == nil || complianceFactory == nil || !validRuntimeConfig(config) {
+ 		return RuntimeDependencies{}, errRuntimeUnavailable
+ 	}
+ 	connectCtx, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
+@@ -61,7 +66,7 @@ func buildRuntimeDependenciesWithAuditExportStorage(ctx context.Context, config
+ 		_ = database.Close()
+ 		return RuntimeDependencies{}, errRuntimeUnavailable
+ 	}
+-	dependencies, err := composeRuntimeDependenciesWithAuditExportStorage(ctx, config, database, securityAgentDatabase, provider, factory)
++	dependencies, err := composeRuntimeDependenciesWithStorage(ctx, config, database, securityAgentDatabase, provider, factory, complianceFactory)
+ 	if err != nil {
+ 		_ = securityAgentDatabase.Close()
+ 		_ = database.Close()
+@@ -113,7 +118,11 @@ func composeRuntimeDependenciesWithContext(ctx context.Context, config RuntimeCo
+ }
+ 
+ func composeRuntimeDependenciesWithAuditExportStorage(ctx context.Context, config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider, factory auditExportStorageFactory) (RuntimeDependencies, error) {
+-	if ctx == nil || ctx.Err() != nil || factory == nil || !validRuntimeConfig(config) {
++	return composeRuntimeDependenciesWithStorage(ctx, config, database, securityAgentDatabase, provider, factory, newComplianceStorageResources)
++}
++
++func composeRuntimeDependenciesWithStorage(ctx context.Context, config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider, factory auditExportStorageFactory, complianceFactory complianceStorageFactory) (RuntimeDependencies, error) {
++	if ctx == nil || ctx.Err() != nil || factory == nil || complianceFactory == nil || !validRuntimeConfig(config) {
+ 		return RuntimeDependencies{}, errRuntimeUnavailable
+ 	}
+ 	metrics := newOperationalMetrics()
+@@ -222,7 +231,7 @@ func composeRuntimeDependenciesWithAuditExportStorage(ctx context.Context, confi
+ 	var auditExports apiserver.AuditExportProductionHandler
+ 	var compliance apiserver.ComplianceProductionHandler
+ 	if config.ComplianceExports != nil {
+-		resources, complianceErr := newComplianceStorageResources(config)
++		resources, complianceErr := complianceFactory(config)
+ 		if resources.transport != nil {
+ 			connectorResources = append(connectorResources, transportCloser{resources.transport})
+ 		}
+diff --git a/package.json b/package.json
+index 2347ece9..052c2e82 100644
+--- a/package.json
++++ b/package.json
+@@ -29,7 +29,7 @@
+     "runtime-gateway:health:test": "go test -C services/runtime-gateway -race -count=1 ./...",
+     "local:product:test": "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs",
+     "local:product:run": "node deploy/local/run.mjs",
+-    "production:combined-e2e:test": "node --test scripts/browser-e2e-helpers.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/runtime-pipeline-dependencies.test.mjs && npm run build && node scripts/production-combined-e2e.mjs",
++    "production:combined-e2e:test": "node --test scripts/browser-e2e-helpers.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/runtime-pipeline-dependencies.test.mjs && npm run build && node scripts/production-combined-e2e.mjs && ZASP_COMBINED_E2E_COMPLIANCE=true node scripts/production-combined-e2e.mjs",
+     "production:release:test": "node --test scripts/production-release-gate.test.mjs deploy/production/release-contract.test.mjs deploy/production/release-gates.test.mjs deploy/production/session-search-rollout.test.mjs deploy/production/security-agent-budget-rollout.test.mjs deploy/production/compatibility-observation.test.mjs deploy/production/sandbox-query-observation.test.mjs deploy/production/audit-export-workloads.test.mjs deploy/production/audit-export-rollout.test.mjs deploy/production/audit-export-network.test.mjs deploy/production/audit-export-operations.test.mjs deploy/production/test-reconciler-workloads.test.mjs deploy/production/test-reconciler-rollout.test.mjs",
+     "production:nango-image:proof": "node --test deploy/production/nango-image-proof.test.mjs",
+     "production:otel-redaction:proof": "node --test deploy/production/otel-redaction-proof.test.mjs",
+diff --git a/apps/web/api/client.ts b/apps/web/api/client.ts
+index 084bb4cd..31c556f8 100644
+--- a/apps/web/api/client.ts
++++ b/apps/web/api/client.ts
+@@ -113,7 +113,9 @@ export function createAPIClient(options: APIClientOptions = {}) {
+       signal,
+     });
+     try {
+-      const download = await complianceDownloadExpectation(securedRequest);
++      // Ordinary requests retain immediate dispatch; only downloads read a body first.
++      const pendingDownload = complianceDownloadExpectation(securedRequest);
++      const download = pendingDownload ? await pendingDownload : undefined;
+       throwIfRequestStopped(request.signal, timeout.signal);
+       const response = await configuredFetch(securedRequest);
+ 	  throwIfRequestStopped(request.signal, timeout.signal);
+@@ -162,16 +164,19 @@ function isMutation(method: string): boolean {
+ }
+ 
+ type ComplianceDownloadExpectation = Readonly<{ id: string; media: string; extension: string }>;
+-async function complianceDownloadExpectation(request: Request): Promise<ComplianceDownloadExpectation | undefined> {
++function complianceDownloadExpectation(request: Request): Promise<ComplianceDownloadExpectation> | undefined {
+   const url = new URL(request.url);
+   const match = /^\/api\/v1\/compliance\/exports\/(pid_[0-9a-f-]+)\/download$/.exec(url.pathname);
+   if (!match) return;
+   if (request.method !== "POST" || url.search || !PRODUCT_ID.test(match[1])) throw new APITransportError("invalid_configuration", "Invalid compliance download request");
++  return validateComplianceDownloadBody(request, match[1]);
++}
++async function validateComplianceDownloadBody(request: Request, id: string): Promise<ComplianceDownloadExpectation> {
+   const body: unknown = await request.clone().json();
+   if (!body || typeof body !== "object" || Array.isArray(body)) throw new APITransportError("invalid_configuration", "Invalid compliance download request");
+   const v = body as Record<string, unknown>;
+   if (Object.keys(v).length !== 2 || typeof v.token !== "string" || !/^[a-f0-9]{64}$/.test(v.token) || !["json", "csv", "human"].includes(v.format as string)) throw new APITransportError("invalid_configuration", "Invalid compliance download request");
+-  return { id: match[1], media: v.format === "human" ? "text/plain" : v.format === "csv" ? "text/csv" : "application/json", extension: v.format === "human" ? "txt" : v.format as string };
++  return { id, media: v.format === "human" ? "text/plain" : v.format === "csv" ? "text/csv" : "application/json", extension: v.format === "human" ? "txt" : v.format as string };
+ }
+ async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void, onFreshAuthRequired: () => void, signal: AbortSignal, download?: ComplianceDownloadExpectation, attachmentMaximumBytes = MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES): Promise<void> {
+   if (signal.aborted) throw signal.reason;
+diff --git a/docs/product/ui-api-map.yaml b/docs/product/ui-api-map.yaml
+index 66efa101..1b5374cc 100644
+--- a/docs/product/ui-api-map.yaml
++++ b/docs/product/ui-api-map.yaml
+@@ -497,19 +497,19 @@ screens:
+         availability: available
+       - id: create_compliance_export
+         operation_id: createComplianceExport
+-        availability: api_available
++        availability: available
+       - id: view_compliance_export
+         operation_id: getComplianceExport
+-        availability: api_available
++        availability: available
+       - id: view_compliance_source
+         operation_id: getComplianceEvidence
+-        availability: api_available
++        availability: available
+       - id: request_compliance_download
+         operation_id: createComplianceDownloadGrant
+-        availability: api_available
++        availability: available
+       - id: download_compliance_export
+         operation_id: downloadComplianceExport
+-        availability: api_available
++        availability: available
+   - id: data_controls
+     label: Data Controls
+     actions:
+diff --git a/app/quality/m7-session-compliance-batch-contract.test.ts b/app/quality/m7-session-compliance-batch-contract.test.ts
+index ff42b666..d188a384 100644
+--- a/app/quality/m7-session-compliance-batch-contract.test.ts
++++ b/app/quality/m7-session-compliance-batch-contract.test.ts
+@@ -5,18 +5,21 @@ import { describe, expect, it } from "vitest";
+ const read = (file: string) => fs.readFileSync(path.join(process.cwd(), file), "utf8");
+ 
+ describe("M7 sessions, compliance, and data-controls batch", () => {
+-  it("publishes the exact eight mounted product operations", () => {
++  it("publishes the mounted session, compliance and data-control product operations", () => {
+     const source = read("openapi/openapi.yaml");
+     for (const id of ["listSessions", "getSession", "listSessionEvents", "revokeSession", "listComplianceControls", "listComplianceEvidence", "getDataControls", "updateDataControls"]) expect(source).toContain(`operationId: ${id}`);
+-    for (const hidden of ["createComplianceExport", "getComplianceExport"]) expect(source).not.toContain(`operationId: ${hidden}`);
++    for (const mounted of ["getComplianceEvidence", "createComplianceExport", "getComplianceExport", "createComplianceDownloadGrant", "downloadComplianceExport"]) expect(source).toContain(`operationId: ${mounted}`);
+   });
+-  it("implements durable session, evidence, and data controls while hiding exports", () => {
++  it("implements durable session, evidence, and data controls with scoped evidence exports", () => {
+     const repository = read("services/platform/apiserver/administration_repository.go");
+     const view = read("app/features/sessions/SessionsComplianceView.tsx");
+     for (const symbol of ["postgresListSessionsSQL", "postgresRevokeInvestigatedSessionSQL", "postgresListComplianceEvidenceSQL", "postgresUpdateDataControlsSQL"]) expect(repository).toContain(symbol);
+-    expect(view).toContain("Evidence exports unavailable");
++    const compliance = read("app/features/sessions/ComplianceEvidenceView.tsx");
++    const adapter = read("app/features/sessions/compliance-api.ts");
++    for (const text of ["Create evidence export", "Refresh export status", "Download JSON", "Download CSV", "Download readable", "control.freshness", "boundary.isCurrent()"]) expect(compliance).toContain(text);
++    for (const route of ["/api/v1/compliance/evidence/{sourceKind}/{id}", "/api/v1/compliance/exports", "/api/v1/compliance/exports/{id}/download-grants", "/api/v1/compliance/exports/{id}/download"]) expect(adapter).toContain(route);
+     expect(view).toContain("Data deletion unavailable");
+-    expect(view).not.toMatch(/createComplianceExport|getComplianceExport/);
++    expect(view).toContain("ComplianceEvidenceView");
+   });
+   it("records the session and compliance slice complete", () => {
+     const tracker = read("docs/internal/implementation_status_v1.5.md");
+diff --git a/app/quality/m2-closure-contract.test.ts b/app/quality/m2-closure-contract.test.ts
+index d4ee3b71..8cf6b8b3 100644
+--- a/app/quality/m2-closure-contract.test.ts
++++ b/app/quality/m2-closure-contract.test.ts
+@@ -46,8 +46,8 @@ describe("M2 identity and authorization milestone closure", () => {
+     expect(scopeView).toContain("client ? createScopeAdminAPI(client)");
+     expect(tokenView).not.toContain("createAPIClient()");
+     expect(scopeView).not.toContain("createAPIClient()");
+-    expect(map.match(/availability: planned/g)).toHaveLength(4);
+-    expect(map.match(/availability: available/g)).toHaveLength(142);
++    expect(map.match(/availability: planned/g)).toHaveLength(2);
++    expect(map.match(/availability: available/g)).toHaveLength(147);
+     expect(map.match(/availability: api_available/g)).toHaveLength(10);
+     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
+     expect(readme).toContain("M2 gate: PASS");
+diff --git a/app/quality/m2-identity-governance-ui-batch-contract.test.ts b/app/quality/m2-identity-governance-ui-batch-contract.test.ts
+index 84b588e3..de2ba28b 100644
+--- a/app/quality/m2-identity-governance-ui-batch-contract.test.ts
++++ b/app/quality/m2-identity-governance-ui-batch-contract.test.ts
+@@ -48,8 +48,8 @@ describe("M2 identity governance and UI batch", () => {
+       expect(openapi).toContain(`operationId: ${mounted}`);
+       expect(map).toContain(`operation_id: ${mounted}\n        availability: api_available`);
+     }
+-    expect(map.match(/availability: planned/g)).toHaveLength(4);
+-    expect(map.match(/availability: available/g)).toHaveLength(142);
++    expect(map.match(/availability: planned/g)).toHaveLength(2);
++    expect(map.match(/availability: available/g)).toHaveLength(147);
+     expect(map.match(/availability: api_available/g)).toHaveLength(10);
+     expect(readme).toContain("M2-01 through M2-50 and the M2-47 gate are Complete");
+     expect(readme).toContain("M3-01 through M3-13 are Complete");
+diff --git a/app/quality/ui-api-map-contract.test.ts b/app/quality/ui-api-map-contract.test.ts
+index 7f66690e..572583d6 100644
+--- a/app/quality/ui-api-map-contract.test.ts
++++ b/app/quality/ui-api-map-contract.test.ts
+@@ -249,8 +249,11 @@ const expectedMap: MapDocument = {
+       actions: [
+         { id: "view_compliance_controls", operation_id: "listComplianceControls", availability: "available" },
+         { id: "view_compliance_evidence", operation_id: "listComplianceEvidence", availability: "available" },
+-        { id: "create_compliance_export", operation_id: "createComplianceExport", availability: "planned" },
+-        { id: "view_compliance_export", operation_id: "getComplianceExport", availability: "planned" },
++        { id: "create_compliance_export", operation_id: "createComplianceExport", availability: "available" },
++        { id: "view_compliance_export", operation_id: "getComplianceExport", availability: "available" },
++        { id: "view_compliance_source", operation_id: "getComplianceEvidence", availability: "available" },
++        { id: "request_compliance_download", operation_id: "createComplianceDownloadGrant", availability: "available" },
++        { id: "download_compliance_export", operation_id: "downloadComplianceExport", availability: "available" },
+       ],
+     },
+     {
+@@ -397,7 +400,7 @@ describe("M1-25 UI API map seed", () => {
+     expect(blocked.map(([task]) => task)).toEqual(["M1A-10", "M1A-09", "M1A-08", "M1A-07", "M3-52", "M3-14", "M8-54", "M8-63", "M8-63e", "M8-63d", "M8-63c", "M8-63b", "M8-63a", "M8-62", "M8-62e", "M8-62d", "M8-62c", "M8-62b", "M8-62a", "M8-61", "M8-61a", "M8-60", "M8-60b", "M8-59", "M8-59b", "M8-58", "M8-58b", "M8-53", "M8-52", "M8-52d", "M8-52c", "M8-52b", "M8-52a", "M8-51", "M8-51e", "M8-51d", "M8-51c", "M8-51b", "M8-51a", "M8-46", "M8-45", "M8-39", "M8-38", "M8-38b", "M8-37", "M8-36", "M8-36b", "M8-35", "M8-34", "M8-33", "M8-32", "M8-31", "M8-30", "M8-29", "M8-28", "M8-27", "M8-26", "M8-25", "M0-09", "M0-18", "M0-19"]);
+   });
+ 
+-  it("accepts only the exact seventeen-screen, 156-action mixed-lifecycle map", async () => {
++  it("accepts only the exact seventeen-screen, 159-action mixed-lifecycle map", async () => {
+     const source = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8").catch(() => "");
+ 
+     expect(parseStrictMap(source)).toEqual(expectedMap);
+@@ -581,6 +584,9 @@ describe("M1-25 UI API map seed", () => {
+       "listComplianceEvidence",
+       "createComplianceExport",
+       "getComplianceExport",
++      "getComplianceEvidence",
++      "createComplianceDownloadGrant",
++      "downloadComplianceExport",
+       "getDataControls",
+       "updateDataControls",
+       "getExternalDataFlows",
+diff --git a/app/quality/ui-api-coverage-ci-contract.test.ts b/app/quality/ui-api-coverage-ci-contract.test.ts
+index 50cd599f..89e817f5 100644
+--- a/app/quality/ui-api-coverage-ci-contract.test.ts
++++ b/app/quality/ui-api-coverage-ci-contract.test.ts
+@@ -72,8 +72,8 @@ describe("M1-26 UI API coverage CI", () => {
+ 
+   it("records the deliberately hidden provider and job forward references", async () => {
+     const map = await readFile(resolve(repositoryRoot, "docs/product/ui-api-map.yaml"), "utf8");
+-    expect(map.match(/availability: planned/g) ?? []).toHaveLength(4);
+-    expect(map.match(/availability: available/g)).toHaveLength(142);
++    expect(map.match(/availability: planned/g) ?? []).toHaveLength(2);
++    expect(map.match(/availability: available/g)).toHaveLength(147);
+     expect(map.match(/availability: api_available/g)).toHaveLength(10);
+     expect(map).not.toMatch(/^\s*(?:route|path|method|server):/m);
+   });
+diff --git a/app/domain/compliance-links.ts b/app/domain/compliance-links.ts
+new file mode 100644
+index e69de29b..4ee7d447 100644
+--- /dev/null
++++ b/app/domain/compliance-links.ts
+@@ -0,0 +1,33 @@
++import type { ComplianceEvidenceTarget } from "../../apps/web/api/generated";
++import type { ActivityScope } from "./activity-links";
++export type ComplianceLinkResult = { state: "none" | "invalid" | "scope_mismatch" } | { state: "selected"; target: ComplianceEvidenceTarget };
++const productID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\s\S])/;
++const keys = ["source_kind", "source_id", "source_version", "organization_id", "workspace_id", "environment_id"];
++function validTarget(t: ComplianceEvidenceTarget): boolean {
++  if (!Number.isSafeInteger(t.source_version) || t.source_version < 1 || t.source_version > 999999999999999) return false;
++  switch (t.source_kind) {
++    case "policy": return /^policy-[a-z0-9][a-z0-9-]{0,120}$(?![\s\S])/.test(t.source_id);
++    case "administration": case "workflow_policy": case "red_team_mutation": return t.source_version === 1 && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$(?![\s\S])/.test(t.source_id);
++    case "red_team_test": case "attack_lab_test": return t.source_version <= 5 && productID.test(t.source_id);
++    case "finding": case "configuration": return productID.test(t.source_id);
++    default: return false;
++  }
++}
++function validScope(s: ActivityScope) { return [s.organizationID, s.workspaceID, s.environmentID].every(v => productID.test(v)); }
++export function complianceLink(target: ComplianceEvidenceTarget, scope: ActivityScope): string {
++  if (!validTarget(target) || !validScope(scope)) throw new TypeError("Invalid compliance source");
++  return `/compliance/evidence?source_kind=${target.source_kind}&source_id=${target.source_id}&source_version=${target.source_version}&organization_id=${scope.organizationID}&workspace_id=${scope.workspaceID}&environment_id=${scope.environmentID}`;
++}
++export function parseComplianceLink(location: string, scope: ActivityScope): ComplianceLinkResult {
++  if (location === "/compliance/evidence" && validScope(scope)) return { state: "none" };
++  const invalid: ComplianceLinkResult = { state: "invalid" };
++  if (!validScope(scope) || !location.startsWith("/compliance/evidence?") || /[%+#?\s]/.test(location.slice("/compliance/evidence?".length))) return invalid;
++  const parts = location.slice("/compliance/evidence?".length).split("&").map(p => p.split("="));
++  if (parts.length !== keys.length || parts.some(([k, v, extra]) => !keys.includes(k) || !v || extra !== undefined)) return invalid;
++  const fields = Object.fromEntries(parts);
++  if (Object.keys(fields).length !== keys.length || !/^[1-9][0-9]*$/.test(fields.source_version)) return invalid;
++  const target = { source_kind: fields.source_kind, source_id: fields.source_id, source_version: Number(fields.source_version) } as ComplianceEvidenceTarget;
++  if (!validTarget(target) || ![fields.organization_id, fields.workspace_id, fields.environment_id].every(v => productID.test(v))) return invalid;
++  if (fields.organization_id !== scope.organizationID || fields.workspace_id !== scope.workspaceID || fields.environment_id !== scope.environmentID) return { state: "scope_mismatch" };
++  return { state: "selected", target };
++}
+diff --git a/app/domain/compliance-links.test.ts b/app/domain/compliance-links.test.ts
+new file mode 100644
+index e69de29b..432dc3fb 100644
+--- /dev/null
++++ b/app/domain/compliance-links.test.ts
+@@ -0,0 +1,20 @@
++import { describe, expect, it } from "vitest";
++import { complianceLink, parseComplianceLink } from "./compliance-links";
++const scope = { organizationID: "pid_10000001-0000-4000-8000-000000000001", workspaceID: "pid_10000002-0000-4000-8000-000000000002", environmentID: "pid_10000003-0000-4000-8000-000000000003" };
++const suffix = `organization_id=${scope.organizationID}&workspace_id=${scope.workspaceID}&environment_id=${scope.environmentID}`;
++describe("typed compliance selectors", () => {
++  it.each(["policy", "administration", "finding", "configuration", "red_team_test", "attack_lab_test", "workflow_policy", "red_team_mutation"] as const)("retains the %s source and historical version", source_kind => {
++    const target = { source_kind, source_id: source_kind === "policy" ? "policy-production" : ["administration", "workflow_policy", "red_team_mutation"].includes(source_kind) ? "audit:42" : scope.environmentID, source_version: 1 };
++    const link = complianceLink(target, scope);
++    expect(link).toBe(`/compliance/evidence?source_kind=${source_kind}&source_id=${target.source_id}&source_version=1&${suffix}`);
++    expect(parseComplianceLink(link, scope)).toEqual({ state: "selected", target });
++  });
++  it.each(["&source_id=policy-other", "&entity_id=x", "&unknown=x", "#fragment", "&token=secret"])("rejects ambiguous selectors %s", extra => {
++    expect(parseComplianceLink(`/compliance/evidence?source_kind=policy&source_id=policy-production&source_version=2&${suffix}${extra}`, scope)).toEqual({ state: "invalid" });
++  });
++  it.each(["0", "01", "1e2", "-1", "9007199254740992", "1%32"])("rejects noncanonical versions %s", version => expect(parseComplianceLink(`/compliance/evidence?source_kind=policy&source_id=policy-production&source_version=${version}&${suffix}`, scope)).toEqual({ state: "invalid" }));
++  it("rejects encoded source IDs and foreign scope without changing scope", () => {
++    expect(parseComplianceLink(`/compliance/evidence?source_kind=policy&source_id=policy%2dproduction&source_version=2&${suffix}`, scope)).toEqual({ state: "invalid" });
++    expect(parseComplianceLink(`/compliance/evidence?source_kind=policy&source_id=policy-production&source_version=2&${suffix}`, { ...scope, workspaceID: scope.environmentID })).toEqual({ state: "scope_mismatch" });
++  });
++});
+diff --git a/app/features/sessions/ComplianceEvidenceView.tsx b/app/features/sessions/ComplianceEvidenceView.tsx
+new file mode 100644
+index e69de29b..e6d1a3f6 100644
+--- /dev/null
++++ b/app/features/sessions/ComplianceEvidenceView.tsx
+@@ -0,0 +1,141 @@
++"use client";
++import { useEffect, useMemo, useRef, useState } from "react";
++import { APIProductError, type APIClient } from "../../../apps/web/api/client";
++import type { ComplianceControl, ComplianceDownloadFormat, ComplianceEvidence, ComplianceEvidenceDetail, ComplianceEvidenceTarget, ComplianceExport, ComplianceExportInput } from "../../../apps/web/api/generated";
++import type { ActivityScope } from "../../domain/activity-links";
++import { complianceLink } from "../../domain/compliance-links";
++import { Badge, Button, Card, LoadingState, PageHeader } from "../../components/ui";
++import type { SessionsComplianceAPI } from "./SessionsComplianceView";
++import { createComplianceAPI } from "./compliance-api";
++
++export type ComplianceBoundary = ActivityScope & { principalID: string; generation: number; permitted: boolean; fresh: boolean; isCurrent(): boolean; reauthenticate?(): void };
++export type ComplianceViewProps = { api: SessionsComplianceAPI | null; client?: APIClient; complianceBoundary?: ComplianceBoundary; selectedSource?: ComplianceEvidenceTarget; onNavigate?(path: string): void };
++function message(error: unknown) {
++  if (error instanceof APIProductError) {
++    if (error.status === 401) return "Session expired. Sign in again.";
++    if (error.status === 403) return "Access denied. Recheck your scope and permissions.";
++    if (error.status === 404) return "Source unavailable in this scope.";
++    if (error.status === 409 && error.product.code === "source_changed") return "Source changed. Return to the evidence list for its current version.";
++    if (error.status === 409) return "Request conflicts with current state. Reload before retrying.";
++    if (error.status === 410) return "Export expired. Create a new export.";
++  }
++  return "Compliance request failed. Evidence inspection remains available; retry the request.";
++}
++function frameworkID(value: string): ComplianceExportInput["framework"] { return value === "hipaa" || value === "HIPAA" ? "hipaa" : value === "soc2_security" || value.startsWith("SOC 2") ? "soc2_security" : undefined; }
++function remember(key: string, id?: string) { try { if (id) sessionStorage.setItem(key, id); else sessionStorage.removeItem(key); } catch { /* Reload recovery is optional if storage is blocked. */ } }
++function recalled(key: string): string | undefined { try { const id = sessionStorage.getItem(key); return id && /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id) ? id : undefined; } catch { return undefined; } }
++
++export function ComplianceEvidenceView(props: ComplianceViewProps) {
++  const b = props.complianceBoundary;
++  const key = b ? `${b.principalID}/${b.organizationID}/${b.workspaceID}/${b.environmentID}/${b.generation}` : "legacy";
++  // A changed principal, selected scope or session generation owns fresh state.
++  const source = props.selectedSource;
++  return <ComplianceEvidenceContent key={`${key}/${source ? `${source.source_kind}/${source.source_id}/${source.source_version}` : "list"}`} {...props} />;
++}
++function ComplianceEvidenceContent({ api, client, complianceBoundary: boundary, selectedSource, onNavigate }: ComplianceViewProps) {
++  const remote = useMemo(() => client && boundary ? createComplianceAPI(client, boundary) : null, [client, boundary]);
++  const [controls, setControls] = useState<readonly ComplianceControl[]>([]);
++  const [evidence, setEvidence] = useState<readonly ComplianceEvidence[]>([]);
++  const [detail, setDetail] = useState<ComplianceEvidenceDetail | null>(null);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState<string | null>(null);
++  const [exportError, setExportError] = useState<string | null>(null);
++  const [framework, setFramework] = useState<"" | NonNullable<ComplianceExportInput["framework"]>>("");
++  const [controlID, setControlID] = useState("");
++  const [job, setJob] = useState<ComplianceExport | null>(null);
++  const [busy, setBusy] = useState(false);
++  const [notice, setNotice] = useState<string | null>(null);
++  const [revision, setRevision] = useState(0);
++  const [clock, setClock] = useState(Date.now);
++  const lifetime = useRef<AbortController | null>(null);
++  const retryIntent = useRef<{ input: ComplianceExportInput; key: string } | null>(null);
++  const storageKey = boundary ? `zasp.compliance.export/${boundary.principalID}/${boundary.organizationID}/${boundary.workspaceID}/${boundary.environmentID}` : "";
++  const permitted = !boundary || boundary.permitted && boundary.isCurrent();
++  const current = () => !lifetime.current?.signal.aborted && (!boundary || boundary.permitted && boundary.isCurrent());
++  useEffect(() => {
++    const controller = new AbortController(); lifetime.current = controller;
++    return () => { controller.abort(); };
++  }, []);
++  useEffect(() => {
++    const timer = setInterval(() => setClock(Date.now()), 1000);
++    return () => clearInterval(timer);
++  }, []);
++  const sourceKey = selectedSource ? `${selectedSource.source_kind}/${selectedSource.source_id}/${selectedSource.source_version}` : "";
++  useEffect(() => {
++    let active = true;
++    const controller = new AbortController();
++    const valid = () => active && (!boundary || boundary.permitted && boundary.isCurrent());
++    queueMicrotask(async () => {
++      if (!valid()) { if (active) { setLoading(false); if (storageKey) remember(storageKey); } return; }
++      setLoading(true); setError(null); setDetail(null);
++      try {
++        if (selectedSource) {
++          if (!remote) throw new Error();
++          const value = await remote.detail(selectedSource, controller.signal);
++          if (valid()) setDetail(value);
++        } else {
++          if (!api) throw new Error();
++          const [nextControls, nextEvidence] = await Promise.all([api.listControls(), api.listEvidence()]);
++          if (valid()) { setControls(nextControls); setEvidence(nextEvidence); }
++        }
++      } catch (e) { if (valid()) setError(message(e)); }
++      finally { if (valid()) setLoading(false); }
++    });
++    return () => { active = false; controller.abort(); };
++  }, [api, remote, boundary, sourceKey, selectedSource, revision, storageKey]);
++  useEffect(() => {
++    if (!remote || !boundary?.permitted) return;
++    let active = true; const controller = new AbortController();
++    const id = recalled(storageKey);
++    if (id) void remote.status(id, controller.signal).then(value => { if (active && boundary.isCurrent()) setJob(value); }).catch(e => { if (active && boundary.isCurrent()) { setExportError(message(e)); remember(storageKey); } });
++    return () => { active = false; controller.abort(); };
++  }, [remote, storageKey, boundary]);
++  const registered = controls.length > 0 && controls.every(control => control.freshness !== undefined);
++  async function refreshJob() {
++    if (!remote || !job || !current() || busy) return;
++    setBusy(true); setExportError(null);
++    try { const value = await remote.status(job.id, lifetime.current!.signal); if (current()) setJob(value); }
++    catch (e) { if (current()) setExportError(message(e)); }
++    finally { if (current()) setBusy(false); }
++  }
++  async function createJob() {
++    if (!remote || !registered || !boundary?.fresh || !current() || busy) return;
++    const input: ComplianceExportInput = { ...(framework ? { framework } : {}), ...(controlID ? { control_id: controlID } : {}) };
++    if (!retryIntent.current || JSON.stringify(retryIntent.current.input) !== JSON.stringify(input)) retryIntent.current = { input, key: `compliance-${crypto.randomUUID()}` };
++    setBusy(true); setExportError(null); setNotice(null);
++    try {
++      const value = await remote.create(input, retryIntent.current.key, lifetime.current!.signal);
++      if (current()) { setJob(value); remember(storageKey, value.id); retryIntent.current = null; }
++    } catch (e) { if (current()) setExportError(message(e)); }
++    finally { if (current()) setBusy(false); }
++  }
++  async function download(format: ComplianceDownloadFormat) {
++    if (!remote || !job || job.status !== "completed" || Date.parse(job.expires_at) <= Date.now() || !current() || busy) return;
++    setBusy(true); setExportError(null); setNotice(null);
++    try {
++      const blob = await remote.download(job.id, format, lifetime.current!.signal, current);
++      if (!current()) return;
++      const url = URL.createObjectURL(blob);
++      try {
++        const anchor = document.createElement("a"); anchor.href = url; anchor.download = `compliance-${job.id}.${format === "human" ? "txt" : format}`;
++        document.body.appendChild(anchor); anchor.click(); anchor.remove();
++        setNotice("Download handed to your browser. Check its downloads for the saved file.");
++      } finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
++    } catch (e) { if (current()) setExportError(message(e)); }
++    finally { if (current()) setBusy(false); }
++  }
++  if (!permitted) return <div className="page"><p role="alert">Access denied. Select an authorized scope and session.</p></div>;
++  const header = <PageHeader title="Compliance evidence" description="Product evidence for review. Freshness and exports do not establish certification or control effectiveness." />;
++  if (loading) return <div className="page">{header}<LoadingState label="Loading compliance evidence…" /></div>;
++if (selectedSource) return <div className="page">{header}<Button onClick={() => onNavigate ? onNavigate("/compliance/evidence") : window.location.assign("/compliance/evidence")}>Back to evidence</Button>{error && <p role="alert">{error}</p>}{detail && <section><h2>Evidence source</h2><p>{detail.record.target?.source_kind} · {detail.record.id} · version {detail.record.target?.source_version}</p><time dateTime={detail.record.at}>{detail.record.at}</time><p>{detail.freshness}</p><pre>{JSON.stringify(detail.record.metadata, null, 2)}</pre></section>}</div>;
++  const matches = controls.filter(c => !framework || frameworkID(c.framework) === framework);
++  return <div className="page">{header}{error && <p role="alert">{error} <Button onClick={() => setRevision(v => v + 1)}>Retry evidence</Button></p>}
++    <label>Framework <select aria-label="Framework" value={framework} onChange={e => { setFramework(e.target.value as typeof framework); setControlID(""); }}><option value="">All frameworks</option><option value="soc2_security">SOC 2 Security</option><option value="hipaa">HIPAA</option></select></label>
++    <label>Control <select aria-label="Control" value={controlID} onChange={e => setControlID(e.target.value)}><option value="">All controls</option>{matches.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
++    <div className="dashboard-grid">{matches.filter(c => !controlID || c.id === controlID).map(control => {
++      const rows = evidence.filter(e => e.control.id === control.id);
++      return <Card key={control.id} title={`${control.framework} · ${control.name}`}><Badge tone={control.freshness === "fresh" ? "success" : control.freshness === "stale" ? "warning" : "neutral"}>{control.freshness ?? "Legacy evidence (current freshness unavailable)"}</Badge>{control.freshness === "missing" && <p>Missing required evidence</p>}<p>Source freshness deadline: <time dateTime={control.fresh_until}>{control.fresh_until}</time></p>{rows.flatMap(row => row.evidence).map((item, index) => <p key={`${item.source}/${item.id}/${index}`}>{item.asset_id} · {item.source} · <time dateTime={item.at}>{item.at}</time>{item.target && boundary ? <> · <a href={complianceLink(item.target, boundary)} aria-label={`Open ${item.target.source_kind} ${item.target.source_id} version ${item.target.source_version}`} onClick={onNavigate ? e => { e.preventDefault(); onNavigate(complianceLink(item.target!, boundary)); } : undefined}>Open evidence (version {item.target.source_version})</a></> : <> · {item.id}</>}</p>)}</Card>;
++    })}</div>
++{!registered || !remote ? <Card title="Evidence exports unavailable"><p>Current source and export service are not available for this view. Legacy records are not current-source proof.</p></Card> : <Card title="Evidence exports"><p>Exports capture the selected framework and control. Retrieval expires at the displayed time.</p>{!boundary?.fresh && <p>Fresh authentication required. <Button onClick={() => boundary?.reauthenticate?.()}>Reauthenticate</Button></p>}<Button disabled={busy || !boundary?.fresh} onClick={() => void createJob()}>Create evidence export</Button>{exportError && <p role="alert">{exportError}</p>}{notice && <p role="status">{notice}</p>}{job && <section aria-label="Compliance export status"><p>{job.id}</p><p>{Date.parse(job.expires_at) <= clock ? "Export expired" : job.status === "pending" ? "Export queued" : job.status === "completed" ? "Export completed" : `Export failed: ${job.failure_code ?? "unavailable"}`}</p><p>Retrieval expires: {job.expires_at}</p><Button disabled={busy} onClick={() => void refreshJob()}>Refresh export status</Button>{job.status === "completed" && Date.parse(job.expires_at) > clock && <><Button disabled={busy} onClick={() => void download("json")}>Download JSON</Button><Button disabled={busy} onClick={() => void download("csv")}>Download CSV</Button><Button disabled={busy} onClick={() => void download("human")}>Download readable</Button></>}</section>}</Card>}
++  </div>;
++}
+diff --git a/app/features/sessions/compliance-api.ts b/app/features/sessions/compliance-api.ts
+new file mode 100644
+index e69de29b..a0731913 100644
+--- /dev/null
++++ b/app/features/sessions/compliance-api.ts
+@@ -0,0 +1,33 @@
++import { APITransportError, requireAPIData, type APIClient } from "../../../apps/web/api/client";
++import { decodeComplianceDownloadGrant, decodeComplianceEvidenceDetail, decodeComplianceExport } from "../../../apps/web/api/compliance-decoders";
++import type { ComplianceDownloadFormat, ComplianceEvidenceTarget, ComplianceExportInput } from "../../../apps/web/api/generated";
++import type { ActivityScope } from "../../domain/activity-links";
++
++export function createComplianceAPI(client: APIClient, scope: ActivityScope) {
++  return {
++    async detail(target: ComplianceEvidenceTarget, signal: AbortSignal) {
++      const detail = requireAPIData(await client.GET("/api/v1/compliance/evidence/{sourceKind}/{id}", { signal, params: { path: { sourceKind: target.source_kind, id: target.source_id }, query: { source_version: target.source_version } } }), value => decodeComplianceEvidenceDetail(value, { organization_id: scope.organizationID, workspace_id: scope.workspaceID, environment_id: scope.environmentID }));
++      const actual = detail.record.target;
++      if (!actual || actual.source_kind !== target.source_kind || actual.source_id !== target.source_id || actual.source_version !== target.source_version) throw new APITransportError("invalid_response", "Evidence identity mismatch");
++      return detail;
++    },
++    async create(input: ComplianceExportInput, key: string, signal: AbortSignal) {
++      return requireAPIData(await client.POST("/api/v1/compliance/exports", { signal, params: { header: { "X-CSRF-Token": "", "Idempotency-Key": key } }, body: input }), decodeComplianceExport);
++    },
++    async status(id: string, signal: AbortSignal) {
++      const job = requireAPIData(await client.GET("/api/v1/compliance/exports/{id}", { signal, params: { path: { id } } }), decodeComplianceExport);
++      if (job.id !== id) throw new APITransportError("invalid_response", "Export identity mismatch");
++      return job;
++    },
++    async download(id: string, format: ComplianceDownloadFormat, signal: AbortSignal, isCurrent: () => boolean) {
++      const grant = requireAPIData(await client.POST("/api/v1/compliance/exports/{id}/download-grants", { signal, params: { path: { id }, header: { "X-CSRF-Token": "" } }, body: { format } }), decodeComplianceDownloadGrant);
++      signal.throwIfAborted();
++      if (!isCurrent() || grant.format !== format || Date.parse(grant.expires_at) <= Date.now()) throw new APITransportError("invalid_response", "Download authorization expired");
++      const result = await client.POST("/api/v1/compliance/exports/{id}/download", { signal, params: { path: { id }, header: { "X-CSRF-Token": "" } }, body: { token: grant.token, format }, parseAs: "blob" });
++      const blob = requireAPIData<Blob>(result);
++      signal.throwIfAborted();
++      if (!isCurrent() || !blob || typeof blob.arrayBuffer !== "function" || !Number.isSafeInteger(blob.size) || blob.size < 1 || blob.size > 4 * 1024 * 1024) throw new APITransportError("invalid_response", "Download unavailable");
++      return blob;
++    },
++  };
++}
+diff --git a/app/features/sessions/compliance-api.test.ts b/app/features/sessions/compliance-api.test.ts
+new file mode 100644
+index e69de29b..4fc6cf13 100644
+--- /dev/null
++++ b/app/features/sessions/compliance-api.test.ts
+@@ -0,0 +1,28 @@
++import { describe, expect, it } from "vitest";
++import { createAPIClient } from "../../../apps/web/api/client";
++import { createComplianceAPI } from "./compliance-api";
++const id = "pid_10000004-0000-4000-8000-000000000004";
++const scope = { organizationID: "pid_10000001-0000-4000-8000-000000000001", workspaceID: "pid_10000002-0000-4000-8000-000000000002", environmentID: "pid_10000003-0000-4000-8000-000000000003" };
++describe("compliance action authority", () => {
++  it("downloads exact bounded bytes with the one-time grant only in its POST body", async () => {
++    const seen: Request[] = [];
++    const api = createComplianceAPI(createAPIClient({ getCSRFToken: () => "c".repeat(32), fetch: async request => {
++      seen.push(request.clone() as Request);
++      if (request.url.endsWith("download-grants")) return new Response(JSON.stringify({ token: "a".repeat(64), format: "json", expires_at: "2099-01-01T00:00:00Z" }), { status: 201, headers: { "Content-Type": "application/json" } });
++      return new Response('[{"source_id":"policy-production","source_version":2}]', { headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "Content-Disposition": `attachment; filename="compliance-${id}.json"`, "X-Content-Type-Options": "nosniff" } });
++    } }), scope);
++    const blob = await api.download(id, "json", new AbortController().signal, () => true);
++    expect(await blob.text()).toBe('[{"source_id":"policy-production","source_version":2}]');
++    expect(seen.map(r => r.url).join(" ")).not.toContain("a".repeat(64));
++    expect(await seen[1].json()).toEqual({ token: "a".repeat(64), format: "json" });
++  });
++  it("does not redeem a late grant after session authority changes", async () => {
++    let current = true, calls = 0;
++    const api = createComplianceAPI(createAPIClient({ fetch: async () => {
++      calls++; current = false;
++      return new Response(JSON.stringify({ token: "a".repeat(64), format: "json", expires_at: "2099-01-01T00:00:00Z" }), { status: 201, headers: { "Content-Type": "application/json" } });
++    } }), scope);
++    await expect(api.download(id, "json", new AbortController().signal, () => current)).rejects.toThrow();
++    expect(calls).toBe(1);
++  });
++});
+diff --git a/services/platform/agentsec-api/compliance_browser_process_test.go b/services/platform/agentsec-api/compliance_browser_process_test.go
+new file mode 100644
+index e69de29b..53e499d1 100644
+--- /dev/null
++++ b/services/platform/agentsec-api/compliance_browser_process_test.go
+@@ -0,0 +1,105 @@
++package main
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"errors"
++	"github.com/aws/aws-sdk-go-v2/aws"
++	"github.com/aws/aws-sdk-go-v2/service/s3"
++	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
++	"io"
++	"net"
++	"net/http"
++	"os"
++	"os/signal"
++	"strings"
++	"syscall"
++	"testing"
++	"time"
++)
++
++func TestComplianceStorageFactoryBoundary(t *testing.T) {
++	t.Setenv("HOSTNAME", "compliance-browser-test")
++	env := complianceAPIEnvironment()
++	config, err := loadRuntimeConfigFromEnvironment(func(k string) (string, bool) { v, ok := env[k]; return v, ok })
++	if err != nil {
++		t.Fatal(err)
++	}
++	db := &complianceRuntimeDatabase{}
++	called := false
++	_, err = composeRuntimeDependenciesWithStorage(context.Background(), config, db, db, auditFactoryProvider(), newAuditExportStorageClients, func(RuntimeConfig) (complianceStorageResources, error) {
++		called = true
++		return complianceStorageResources{}, errors.New("controlled boundary failure")
++	})
++	if !called || err == nil {
++		t.Fatal("configured storage factory was bypassed")
++	}
++}
++
++// Test-only read transport for the exact persisted object emitted by the real
++// worker SDK fixture. No request from this transport can reach a network.
++type complianceBrowserReadTransport struct{ path string }
++
++func (h complianceBrowserReadTransport) RoundTrip(r *http.Request) (*http.Response, error) {
++	if _, ok := r.Context().Deadline(); !ok {
++		return nil, errors.New("unbounded read")
++	}
++	if (r.Method != "GET" && r.Method != "HEAD") || r.URL.Host != "controlled.invalid" || r.Header.Get("X-Amz-Expected-Bucket-Owner") != "123456789012" || r.URL.Query().Get("versionId") != "compliance-process-v1" {
++		return nil, errors.New("read pins refused")
++	}
++	raw, err := os.ReadFile(h.path)
++	if err != nil {
++		return nil, err
++	}
++	var object struct {
++		Body    []byte
++		Headers http.Header
++		Key     string
++	}
++	if json.Unmarshal(raw, &object) != nil || object.Key != r.URL.Path {
++		return nil, errors.New("object identity refused")
++	}
++	body := object.Body
++	if r.Method == "HEAD" {
++		body = nil
++	}
++	return &http.Response{StatusCode: 200, Header: object.Headers.Clone(), Body: io.NopCloser(bytes.NewReader(body)), Request: r}, nil
++}
++
++func TestComplianceBrowserAPIProcess(t *testing.T) {
++	if os.Getenv("ZASP_COMPLIANCE_BROWSER_API") != "true" {
++		t.Skip("owned browser fixture not selected")
++	}
++	config, err := loadRuntimeConfigFromEnvironment(os.LookupEnv)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if auditBrowserProcessInputs(config, os.Getenv("ZASP_COMPLIANCE_BROWSER_PG_PORT")) != nil || config.ComplianceExports == nil {
++		t.Fatal("owned database/config refused")
++	}
++	path := os.Getenv("ZASP_COMPLIANCE_BROWSER_OBJECT")
++	if !strings.HasPrefix(path, "/tmp/zasp-compliance-browser-") || strings.Contains(path, "..") {
++		t.Fatal("owned storage path refused")
++	}
++	deadline, err := time.Parse(time.RFC3339Nano, os.Getenv("ZASP_COMPLIANCE_BROWSER_DEADLINE"))
++	if err != nil || time.Until(deadline) < time.Second || time.Until(deadline) > 30*time.Minute {
++		t.Fatal("bounded deadline required")
++	}
++	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
++	defer stop()
++	ctx, cancel := context.WithDeadline(ctx, deadline)
++	defer cancel()
++	factory := func(c RuntimeConfig) (complianceStorageResources, error) {
++		provider := s3.New(s3.Options{Region: "us-east-1", BaseEndpoint: aws.String("https://controlled.invalid"), UsePathStyle: true, Credentials: aws.AnonymousCredentials{}, HTTPClient: &http.Client{Transport: complianceBrowserReadTransport{path}}})
++		p := c.ComplianceExports
++		return complianceStorageResources{config: apiserver.ComplianceHandlerConfiguration{Bucket: p.Bucket, ExpectedBucketOwner: p.Owner, KMSKeyARN: p.KMSKey, Client: provider, ProviderTimeout: c.ProviderTimeout}, transport: &http.Transport{}}, nil
++	}
++	deps, err := buildRuntimeDependenciesWithStorage(ctx, config, newAuditExportStorageClients, factory)
++	if err != nil {
++		t.Fatal("compliance browser runtime refused", err)
++	}
++	if err := serveRuntime(ctx, io.Discard, "compliance-browser", config, deps, net.Listen); err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/scripts/compliance-browser-bytes.mjs b/scripts/compliance-browser-bytes.mjs
+new file mode 100644
+index e69de29b..cc09141a 100644
+--- /dev/null
++++ b/scripts/compliance-browser-bytes.mjs
+@@ -0,0 +1,21 @@
++// Extract the stored raw JSON member without a serializer or current renderer.
++export function storedComplianceJSON(bytes) {
++  const text = bytes.toString("utf8");
++  const prefix = '"json":';
++  const start = text.indexOf(prefix);
++  if (start < 0 || text.indexOf(prefix, start + prefix.length) !== -1) throw new Error("ambiguous stored JSON");
++  let offset = start + prefix.length;
++  while (/\s/.test(text[offset] ?? "")) offset++;
++  if (text[offset] !== "[") throw new Error("stored JSON is not an array");
++  const begin = offset;
++  let depth = 0, quoted = false, escaped = false;
++  for (; offset < text.length; offset++) {
++    const char = text[offset];
++    if (quoted) { if (escaped) escaped = false; else if (char === "\\") escaped = true; else if (char === '"') quoted = false; continue; }
++    if (char === '"') { quoted = true; continue; }
++    if (char === "[" || char === "{") depth++;
++    if (char === "]" || char === "}") depth--;
++    if (depth === 0) { const raw = text.slice(begin, offset + 1); JSON.parse(raw); return Buffer.from(raw); }
++  }
++  throw new Error("incomplete stored JSON");
++}
+diff --git a/scripts/compliance-browser-bytes.test.mjs b/scripts/compliance-browser-bytes.test.mjs
+new file mode 100644
+index e69de29b..9a14d818 100644
+--- /dev/null
++++ b/scripts/compliance-browser-bytes.test.mjs
+@@ -0,0 +1,8 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import { storedComplianceJSON } from "./compliance-browser-bytes.mjs";
++test("raw member comparison retains whitespace, escaped strings and record order",()=>{
++  const raw=String.raw`[ {"at":"old", "value":"quoted \" [ ]"},2 ]`;
++  assert.equal(storedComplianceJSON(Buffer.from(`{"version":1,"json":${raw},"csv":"x"}`)).toString(),raw);
++  assert.throws(()=>storedComplianceJSON(Buffer.from('{"json":[')));
++});

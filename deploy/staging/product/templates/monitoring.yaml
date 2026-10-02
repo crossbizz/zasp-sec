@@ -134,11 +134,13 @@ spec:
           for: 5m
           labels: { severity: page }
           annotations: { summary: "Discovery worker is unavailable or absent" }
+        {{- if ne .Values.rollout.discoveryScheduleReplayPhase "maintenance" }}
         - alert: ZaspDiscoverySchedulerUnavailable
           expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-discovery-scheduler"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-discovery-scheduler"})
           for: 5m
           labels: { severity: page }
           annotations: { summary: "Discovery scheduler is unavailable or absent" }
+        {{- end }}
         - alert: ZaspSecurityAgentUnavailable
           expr: kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-security-agent"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="agentsec-security-agent"})
           for: 5m

@@ -1,0 +1,19 @@
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres/revoked_requester
+    security_agent_manual_claim_postgres_test.go:70: invalid manual candidate aborted healthy claim batch: ERROR: export membership rejected (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentManualClaimIsolationPostgresrevoked_requester1201438555/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres/disabled_control
+    security_agent_manual_claim_postgres_test.go:70: invalid manual candidate aborted healthy claim batch: ERROR: existing test execution disabled (SQLSTATE 55000)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestSecurityAgentManualClaimIsolationPostgresdisabled_control3314783120/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres/changed_definition
+    security_agent_manual_claim_postgres_test.go:70: invalid manual candidate aborted healthy claim batch: ERROR: manual original trigger malformed (SQLSTATE 40001)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=84 data=/tmp/TestSecurityAgentManualClaimIsolationPostgreschanged_definition3269044711/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentManualClaimIsolationPostgres/reclaimed_accounting
+    security_agent_manual_claim_postgres_test.go:70: invalid manual candidate aborted healthy claim batch: ERROR: export membership rejected (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=116 data=/tmp/TestSecurityAgentManualClaimIsolationPostgresreclaimed_accounti821964224/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentManualClaimIsolationPostgres (20.83s)
+    --- FAIL: TestSecurityAgentManualClaimIsolationPostgres/revoked_requester (5.85s)
+    --- FAIL: TestSecurityAgentManualClaimIsolationPostgres/disabled_control (4.88s)
+    --- FAIL: TestSecurityAgentManualClaimIsolationPostgres/changed_definition (4.92s)
+    --- FAIL: TestSecurityAgentManualClaimIsolationPostgres/reclaimed_accounting (5.18s)
+FAIL

@@ -1,0 +1,12 @@
+Command (explicit worktree cwd, process2948, joined exit0):
+npm test -- app/quality/m3-connectors-sensors-batch-contract.test.ts app/integration/core-risk-workflow.test.tsx && npm run typecheck && npm run lint && npm run build
+
+Observed results summarized from joined tool output (not a verbatim stdout file):
+Node v26.8.2 (available host runtime; package engine asks22.23.1).
+Vitest4.1.11: Test Files2passed; Tests7passed; duration2.69s.
+Typecheck: tsc --noEmit, exit0.
+Lint: eslint-scope test1passed, then eslint completed exit0.
+Build: vinext/Vite8.0.16, all5stages complete, standalone output dist/standalone.
+Stage durations798ms,242ms,367ms,778ms,427ms.
+Nonfatal Node warnings: module.register deprecated; localStorage unavailable without --localstorage-file.
+No downloads, installation, provider calls, or production deployment.

@@ -1,0 +1,2056 @@
+diff --git a/services/platform/agentsec-worker/runtime_config.go b/services/platform/agentsec-worker/runtime_config.go
+index e4d5625a..dd2cf7cf 100644
+--- a/services/platform/agentsec-worker/runtime_config.go
++++ b/services/platform/agentsec-worker/runtime_config.go
+@@ -15,6 +15,8 @@ import (
+ type workerMode string
+ 
+ const (
++	workerModeComplianceExport     workerMode = "compliance-export"
++	workerModeComplianceCleanup    workerMode = "compliance-export-cleanup"
+ 	workerModeAuditExport          workerMode = "audit-export"
+ 	workerModeAuditExportOutbox    workerMode = "audit-export-outbox"
+ 	workerModeOutbox               workerMode = "outbox"
+@@ -50,6 +52,7 @@ var (
+ )
+ 
+ type workerRuntimeConfig struct {
++	ComplianceExports            *complianceExportConfiguration
+ 	AuditExports                 *auditExportWorkerConfiguration
+ 	Mode                         workerMode
+ 	ProjectionKind               string
+@@ -230,6 +233,10 @@ func loadWorkerRuntimeConfig(getenv func(string) string) (workerRuntimeConfig, e
+ 	}
+ 	config.ProjectionKind = projectionKind(config.Mode)
+ 	var auditExportErr error
++	config.ComplianceExports, auditExportErr = loadComplianceExportConfiguration(getenv, config.Mode)
++	if auditExportErr != nil {
++		return workerRuntimeConfig{}, errWorkerConfiguration
++	}
+ 	config.AuditExports, auditExportErr = loadAuditExportWorkerConfiguration(getenv, config.Mode)
+ 	if auditExportErr != nil || (config.Mode == workerModeAuditExport || config.Mode == workerModeAuditExportOutbox) && providerTimeoutErr != nil {
+ 		return workerRuntimeConfig{}, errWorkerConfiguration
+@@ -248,6 +255,9 @@ func parseWorkerCIDRs(value string) []string {
+ }
+ 
+ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
++	if !validComplianceExportConfiguration(config) {
++		return false
++	}
+ 	if config.Mode != workerModeTestReconciler && (config.TestReconcilerRoleARN != "" || config.TestReconcilerTokenFile != "") {
+ 		return false
+ 	}
+@@ -265,6 +275,7 @@ func validWorkerRuntimeConfig(config workerRuntimeConfig) bool {
+ 		return false
+ 	}
+ 	wantAuthority := map[workerMode]string{
++		workerModeComplianceExport: "zasp_compliance_worker", workerModeComplianceCleanup: "zasp_compliance_cleanup",
+ 		workerModeAuditExport: "zasp_audit_export_worker", workerModeAuditExportOutbox: "zasp_audit_export_outbox",
+ 		workerModeOutbox: "zasp_outbox_worker", workerModeRuntimeOutbox: "zasp_outbox_worker", workerModeRedTeamOutbox: "zasp_red_team_outbox_worker", workerModeAttackLabOutbox: "zasp_attack_lab_outbox_worker", workerModeAttackLabController: "zasp_attack_lab_controller", workerModeRedTeam: "zasp_red_team_worker", workerModeDiscovery: "zasp_discovery_worker", workerModeScheduler: "zasp_discovery_scheduler",
+ 		workerModeRuntimeCoordinator: "zasp_runtime_coordinator",
+@@ -302,6 +313,8 @@ var (
+ 
+ func validModeDependencies(config workerRuntimeConfig) bool {
+ 	switch config.Mode {
++	case workerModeComplianceExport, workerModeComplianceCleanup:
++		return validComplianceExportConfiguration(config)
+ 	case workerModeTestReconciler:
+ 		return validExistingTestRuntimeAuthority(config)
+ 	case workerModeAuditExport, workerModeAuditExportOutbox:
+diff --git a/services/platform/agentsec-worker/production_runtime.go b/services/platform/agentsec-worker/production_runtime.go
+index 52fad4fb..f8f61bf3 100644
+--- a/services/platform/agentsec-worker/production_runtime.go
++++ b/services/platform/agentsec-worker/production_runtime.go
+@@ -60,7 +60,7 @@ func buildWorkerRuntime(ctx context.Context, config workerRuntimeConfig) (worker
+ func closeWorkerRuntimeDatabase(mode workerMode, closeDependencies, closeDatabase func() error) func() error {
+ 	return func() error {
+ 		dependencyErr := closeDependencies()
+-		if dependencyErr != nil && (mode == workerModeAuditExport || mode == workerModeAuditExportOutbox || mode == workerModeTestReconciler) {
++		if dependencyErr != nil && (mode == workerModeAuditExport || mode == workerModeAuditExportOutbox || mode == workerModeTestReconciler || mode == workerModeComplianceExport || mode == workerModeComplianceCleanup) {
+ 			// The audit runtime retains clients while canceled borrowers join.
+ 			// Its database must survive that failed Close for the same reason.
+ 			return dependencyErr
+@@ -78,6 +78,17 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
+ 		return workerRuntimeDependencies{}, errRuntimeUnavailable
+ 	}
+ 	switch config.Mode {
++	case workerModeComplianceExport, workerModeComplianceCleanup:
++		clients, err := newComplianceExportProductionClients(config)
++		if err != nil {
++			return workerRuntimeDependencies{}, errRuntimeUnavailable
++		}
++		deps, err := composeComplianceExportWorkerRuntime(ctx, config, database, clients)
++		if err != nil {
++			clients.transport.CloseIdleConnections()
++			return workerRuntimeDependencies{}, errRuntimeUnavailable
++		}
++		return deps, nil
+ 	case workerModeTestReconciler:
+ 		reader, err := newExistingTestProductionDependencies(config)
+ 		if err != nil {
+@@ -703,11 +714,14 @@ func serveWorkerRuntime(ctx context.Context, output interface{ Write([]byte) (in
+ 		return errRuntimeUnavailable
+ 	}
+ 	loopDone := make(chan struct{})
++	loopContext, stopLoop := context.WithCancel(ctx)
++	defer stopLoop()
+ 	go func() {
+-		runWorkerPollingLoop(ctx, dependencies.Processor, config.PollInterval, &executingReady)
++		runWorkerPollingLoop(loopContext, dependencies.Processor, config.PollInterval, &executingReady)
+ 		close(loopDone)
+ 	}()
+ 	serveErr := server.Serve(ctx, listener)
++	stopLoop()
+ 	shutdownTimer := time.NewTimer(config.ShutdownTimeout)
+ 	select {
+ 	case <-loopDone:
+diff --git a/services/platform/agentsec-worker/compliance_export_database.go b/services/platform/agentsec-worker/compliance_export_database.go
+index 24bff128..80b27166 100644
+--- a/services/platform/agentsec-worker/compliance_export_database.go
++++ b/services/platform/agentsec-worker/compliance_export_database.go
+@@ -45,6 +45,74 @@ const compliancePrepareSQL = `SELECT public.zasp_compliance_export_prepare_artif
+ const complianceFinishSQL = `SELECT public.zasp_compliance_export_finish($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+ const complianceRetrySQL = `SELECT public.zasp_compliance_export_retry($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+ const complianceCleanupSQL = `SELECT public.zasp_compliance_export_cleanup($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
++const complianceCandidatesSQL = `SELECT public.zasp_compliance_export_candidates($1,$2,$3,$4)`
++const complianceMaintenanceSQL = `SELECT public.zasp_compliance_export_maintenance($1,$2)`
++
++type complianceExportCandidate struct {
++	Scope    domain.Scope
++	ExportID string
++}
++
++// Candidate discovery checks release readiness and the registered session_user
++// binding inside the granted SECURITY DEFINER function. No table-owner read.
++func (a *postgresComplianceExportAuthority) Ready(ctx context.Context, lane string) error {
++	_, err := a.Candidates(ctx, lane, 1)
++	return err
++}
++func (a *postgresComplianceExportAuthority) Candidates(ctx context.Context, lane string, limit int) ([]complianceExportCandidate, error) {
++	if !slices.Contains([]string{"execute", "reconcile", "cleanup"}, lane) || limit < 1 || limit > 100 {
++		return nil, errWorkerExecution
++	}
++	raw, err := a.query(ctx, complianceCandidatesSQL, 65536, lane, limit)
++	if err != nil {
++		return nil, err
++	}
++	fields, err := auditExportWorkerObject(raw, 65536, "items")
++	if err != nil {
++		return nil, errWorkerExecution
++	}
++	var items []json.RawMessage
++	if json.Unmarshal(fields["items"], &items) != nil || items == nil || len(items) > limit {
++		return nil, errWorkerExecution
++	}
++	result := make([]complianceExportCandidate, 0, len(items))
++	seen := map[string]bool{}
++	for _, item := range items {
++		f, err := auditExportWorkerObject(item, 2048, "organization_id", "workspace_id", "environment_id", "export_id")
++		if err != nil {
++			return nil, errWorkerExecution
++		}
++		ids := make([]string, 4)
++		for i, k := range []string{"organization_id", "workspace_id", "environment_id", "export_id"} {
++			if json.Unmarshal(f[k], &ids[i]) != nil || !validRecoveryProductID(ids[i]) {
++				return nil, errWorkerExecution
++			}
++		}
++		org, _ := domain.ParseProductID(ids[0])
++		workspace, _ := domain.ParseProductID(ids[1])
++		environment, _ := domain.ParseProductID(ids[2])
++		scope, err := domain.NewScope(org, workspace, environment)
++		key := ids[0] + "/" + ids[1] + "/" + ids[2] + "/" + ids[3]
++		if err != nil || seen[key] {
++			return nil, errWorkerExecution
++		}
++		seen[key] = true
++		result = append(result, complianceExportCandidate{scope, ids[3]})
++	}
++	return result, nil
++}
++func (a *postgresComplianceExportAuthority) Maintenance(ctx context.Context) error {
++	raw, err := a.query(ctx, complianceMaintenanceSQL, 1024)
++	if err != nil {
++		return err
++	}
++	f, err := auditExportWorkerObject(raw, 1024, "pruned_grants")
++	var n int
++	if err != nil || json.Unmarshal(f["pruned_grants"], &n) != nil || n < 0 || n > 100 {
++		return errWorkerExecution
++	}
++	return nil
++}
+ 
+ func (a *postgresComplianceExportAuthority) query(ctx context.Context, q string, max int, args ...any) (raw json.RawMessage, resultErr error) {
+ 	defer func() {
+diff --git a/services/platform/sessioncontrol/sessioncontrol.go b/services/platform/sessioncontrol/sessioncontrol.go
+index 70f6c038..046ace59 100644
+--- a/services/platform/sessioncontrol/sessioncontrol.go
++++ b/services/platform/sessioncontrol/sessioncontrol.go
+@@ -161,15 +161,47 @@ type ComplianceControl struct {
+ 	FreshUntil  time.Time `json:"fresh_until"`
+ }
+ type EvidenceRecord struct {
+-	ID      string    `json:"id"`
+-	AssetID string    `json:"asset_id"`
+-	Source  string    `json:"source"`
+-	At      time.Time `json:"at"`
++	ID       string                      `json:"id"`
++	AssetID  string                      `json:"asset_id"`
++	Source   string                      `json:"source"`
++	At       time.Time                   `json:"at"`
++	Target   *ComplianceEvidenceTarget   `json:"target,omitempty"`
++	Metadata *ComplianceEvidenceMetadata `json:"metadata,omitempty"`
++}
++
++type ComplianceEvidenceTarget struct {
++	SourceKind    string `json:"source_kind"`
++	SourceID      string `json:"source_id"`
++	SourceVersion int64  `json:"source_version"`
++}
++
++// Captured metadata is a typed allowlist, never provider/audit arbitrary JSON.
++type ComplianceEvidenceMetadata struct {
++	Action            string   `json:"action,omitempty"`
++	Status            string   `json:"status,omitempty"`
++	Severity          string   `json:"severity,omitempty"`
++	EvidenceIDs       []string `json:"evidence_ids,omitempty"`
++	Verification      string   `json:"verification,omitempty"`
++	MigrationSeeded   *bool    `json:"migration_seeded,omitempty"`
++	DefinitionID      string   `json:"definition_id,omitempty"`
++	DefinitionVersion int64    `json:"definition_version,omitempty"`
++	ReceiptSHA256     string   `json:"receipt_sha256,omitempty"`
++	ReceiptVersion    string   `json:"receipt_version,omitempty"`
++	ReceiptSize       int64    `json:"receipt_size,omitempty"`
+ }
+ type ComplianceEvidence struct {
+-	Control   ComplianceControl `json:"control"`
+-	Evidence  []EvidenceRecord  `json:"evidence"`
+-	Freshness string            `json:"freshness"`
++	Control         ComplianceControl          `json:"control"`
++	Evidence        []EvidenceRecord           `json:"evidence"`
++	Freshness       string                     `json:"freshness"`
++	SnapshotContext *ComplianceSnapshotContext `json:"snapshot_context,omitempty"`
++}
++
++type ComplianceSnapshotContext struct {
++	OrganizationID  string    `json:"organization_id"`
++	WorkspaceID     string    `json:"workspace_id"`
++	EnvironmentID   string    `json:"environment_id"`
++	MappingRevision string    `json:"mapping_revision"`
++	SnapshotAt      time.Time `json:"snapshot_at"`
+ }
+ 
+ func AssembleComplianceEvidence(controls []ComplianceControl, records []EvidenceRecord, now time.Time) ([]ComplianceEvidence, error) {
+@@ -229,8 +261,32 @@ func BuildComplianceExport(id string, values []ComplianceEvidence) (ComplianceEx
+ 	var human strings.Builder
+ 	human.WriteString("Evidence package for review. This export reports collected evidence and freshness; it does not attest compliance.\n")
+ 	writer := csv.NewWriter(&csvText)
+-	_ = writer.Write([]string{"control_id", "framework", "freshness", "evidence_count", "evidence_id", "asset_id", "source", "at"})
++	attributed := false
++	contextual := false
+ 	for _, value := range values {
++		if value.SnapshotContext != nil {
++			contextual = true
++		}
++	}
++	for _, value := range values {
++		for _, record := range value.Evidence {
++			if record.Target != nil || record.Metadata != nil {
++				attributed = true
++			}
++		}
++	}
++	header := []string{"control_id", "framework", "freshness", "evidence_count", "evidence_id", "asset_id", "source", "at"}
++	if attributed {
++		header = append(header, "source_kind", "source_id", "source_version", "metadata")
++	}
++	if contextual {
++		header = append(header, "organization_id", "workspace_id", "environment_id", "mapping_revision", "snapshot_at")
++	}
++	_ = writer.Write(header)
++	for _, value := range values {
++		if value.SnapshotContext != nil && !validComplianceSnapshotContext(*value.SnapshotContext) {
++			return ComplianceExport{}, ErrRejected
++		}
+ 		if !bounded(value.Control.ID, 128) || len(value.Control.Framework) == 0 || len(value.Control.Framework) > 64 ||
+ 			len(value.Control.Name) == 0 || len(value.Control.Name) > 256 || len(value.Control.EvidenceIDs) > 100 ||
+ 			len(value.Evidence) > 100 || !contains([]string{"fresh", "stale", "missing"}, value.Freshness) {
+@@ -242,6 +298,12 @@ func BuildComplianceExport(id string, values []ComplianceEvidence) (ComplianceEx
+ 			}
+ 		}
+ 		for _, record := range value.Evidence {
++			if record.Target != nil && (!bounded(record.Target.SourceKind, 64) || !bounded(record.Target.SourceID, 128) || record.Target.SourceID != record.ID || record.Target.SourceVersion < 1) {
++				return ComplianceExport{}, ErrRejected
++			}
++			if record.Metadata != nil && !validComplianceMetadata(*record.Metadata) {
++				return ComplianceExport{}, ErrRejected
++			}
+ 			if !bounded(record.ID, 128) || !bounded(record.AssetID, 128) ||
+ 				len(record.Source) == 0 || len(record.Source) > 64 || record.At.IsZero() {
+ 				return ComplianceExport{}, ErrRejected
+@@ -249,6 +311,10 @@ func BuildComplianceExport(id string, values []ComplianceEvidence) (ComplianceEx
+ 		}
+ 		prefix := []string{complianceCSVText(value.Control.ID), complianceCSVText(value.Control.Framework), value.Freshness, strconv.Itoa(len(value.Evidence))}
+ 		human.WriteString("\nControl " + strconv.Quote(value.Control.ID) + " | " + strconv.Quote(value.Control.Framework) + " | " + strconv.Quote(value.Control.Name) + "\n")
++		if value.SnapshotContext != nil {
++			c := value.SnapshotContext
++			human.WriteString("Captured scope: " + c.OrganizationID + " / " + c.WorkspaceID + " / " + c.EnvironmentID + " | mapping: " + c.MappingRevision + " | snapshot_at: " + c.SnapshotAt.UTC().Format(time.RFC3339Nano) + "\n")
++		}
+ 		human.WriteString("Freshness: " + value.Freshness + "; fresh until: " + value.Control.FreshUntil.UTC().Format(time.RFC3339Nano) + "\n")
+ 		human.WriteString("Expected evidence IDs:")
+ 		for _, evidenceID := range value.Control.EvidenceIDs {
+@@ -256,12 +322,42 @@ func BuildComplianceExport(id string, values []ComplianceEvidence) (ComplianceEx
+ 		}
+ 		human.WriteString("\n")
+ 		if len(value.Evidence) == 0 {
+-			_ = writer.Write(append(prefix, "", "", "", ""))
++			row := append(prefix, "", "", "", "")
++			if attributed {
++				row = append(row, "", "", "", "")
++			}
++			if contextual {
++				row = append(row, complianceContextCSV(value.SnapshotContext)...)
++			}
++			_ = writer.Write(row)
+ 			human.WriteString("No collected evidence.\n")
+ 		}
+ 		for _, record := range value.Evidence {
+ 			at := record.At.UTC().Format(time.RFC3339Nano)
+-			_ = writer.Write(append(prefix, complianceCSVText(record.ID), complianceCSVText(record.AssetID), complianceCSVText(record.Source), at))
++			row := append(prefix, complianceCSVText(record.ID), complianceCSVText(record.AssetID), complianceCSVText(record.Source), at)
++			if attributed {
++				kind, id, version, meta := "", "", "", ""
++				if record.Target != nil {
++					kind = record.Target.SourceKind
++					id = record.Target.SourceID
++					version = strconv.FormatInt(record.Target.SourceVersion, 10)
++				}
++				if record.Metadata != nil {
++					b, _ := json.Marshal(record.Metadata)
++					meta = string(b)
++				}
++				row = append(row, complianceCSVText(kind), complianceCSVText(id), version, complianceCSVText(meta))
++				if record.Target != nil {
++					human.WriteString("Target source_kind: " + strconv.Quote(kind) + " | source_id: " + strconv.Quote(id) + " | source_version: " + version + "\n")
++				}
++				if meta != "" {
++					human.WriteString("Captured metadata: " + meta + "\n")
++				}
++			}
++			if contextual {
++				row = append(row, complianceContextCSV(value.SnapshotContext)...)
++			}
++			_ = writer.Write(row)
+ 			human.WriteString("Evidence " + strconv.Quote(record.ID) + " | asset " + strconv.Quote(record.AssetID) + " | source " + strconv.Quote(record.Source) + " | at " + at + "\n")
+ 		}
+ 		writer.Flush()
+@@ -291,6 +387,46 @@ func complianceCSVText(value string) string {
+ 	return value
+ }
+ 
++func validComplianceMetadata(m ComplianceEvidenceMetadata) bool {
++	for _, v := range []string{m.Action, m.Status, m.Severity, m.Verification, m.DefinitionID, m.ReceiptSHA256, m.ReceiptVersion} {
++		if len(v) > 1024 || strings.IndexFunc(v, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 {
++			return false
++		}
++	}
++	if len(m.EvidenceIDs) > 100 || m.DefinitionVersion < 0 || m.ReceiptSize < 0 {
++		return false
++	}
++	for _, id := range m.EvidenceIDs {
++		if !bounded(id, 128) {
++			return false
++		}
++	}
++	return true
++}
++
++func validComplianceSnapshotContext(c ComplianceSnapshotContext) bool {
++	org, err := domain.ParseProductID(c.OrganizationID)
++	if err != nil {
++		return false
++	}
++	workspace, err := domain.ParseProductID(c.WorkspaceID)
++	if err != nil {
++		return false
++	}
++	environment, err := domain.ParseProductID(c.EnvironmentID)
++	if err != nil {
++		return false
++	}
++	_, err = domain.NewScope(org, workspace, environment)
++	return err == nil && c.MappingRevision == "product-evidence-v1" && !c.SnapshotAt.IsZero()
++}
++func complianceContextCSV(c *ComplianceSnapshotContext) []string {
++	if c == nil {
++		return []string{"", "", "", "", ""}
++	}
++	return []string{c.OrganizationID, c.WorkspaceID, c.EnvironmentID, c.MappingRevision, c.SnapshotAt.UTC().Format(time.RFC3339Nano)}
++}
++
+ type complianceExportPackage struct {
+ 	Version int             `json:"version"`
+ 	ID      string          `json:"id"`
+diff --git a/services/platform/agentsec-worker/compliance_export_runtime_test.go b/services/platform/agentsec-worker/compliance_export_runtime_test.go
+new file mode 100644
+index 00000000..3693ecf7
+--- /dev/null
++++ b/services/platform/agentsec-worker/compliance_export_runtime_test.go
+@@ -0,0 +1,108 @@
++package main
++
++import (
++	"context"
++	"encoding/json"
++	"github.com/zasp-ai/zasp-sec/services/platform/domain"
++	"strings"
++	"testing"
++	"time"
++)
++
++func complianceRuntimeEnvironment() map[string]string {
++	return map[string]string{
++		"ZASP_WORKER_MODE": "compliance-export", "ZASP_POSTGRES_DSN": "postgres://compliance_executor@postgres.internal/zasp?sslmode=verify-full", "ZASP_DATABASE_AUTHORITY": "zasp_compliance_worker", "ZASP_WORKER_ID": "compliance-worker-1", "ZASP_POLL_INTERVAL": "100ms", "ZASP_LEASE_DURATION": "60s", "ZASP_BATCH_SIZE": "2", "ZASP_SHUTDOWN_TIMEOUT": "10s", "ZASP_PROVIDER_TIMEOUT": "5s", "ZASP_AWS_REGION": "us-east-1",
++		"ZASP_COMPLIANCE_EXPORT_BUCKET": "zasp-compliance-exports", "ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER": "123456789012", "ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN": "arn:aws:kms:us-east-1:123456789012:key/00000000-0000-4000-8000-000000000001", "ZASP_COMPLIANCE_EXPORT_ROLE_ARN": "arn:aws:iam::123456789012:role/compliance-export-worker", "ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE": "/var/run/secrets/eks.amazonaws.com/serviceaccount/token",
++	}
++}
++
++func complianceRuntimeLease(t *testing.T) complianceExportLease {
++	t.Helper()
++	o, _ := domain.ParseProductID("pid_10000001-0000-4000-8000-000000000001")
++	w, _ := domain.ParseProductID("pid_10000002-0000-4000-8000-000000000002")
++	e, _ := domain.ParseProductID("pid_10000003-0000-4000-8000-000000000003")
++	s, _ := domain.NewScope(o, w, e)
++	return complianceExportLease{Scope: s, ExportID: "pid_10000004-0000-4000-8000-000000000004", WorkerID: "worker-1", Token: strings.Repeat("a", 64), Lane: "execute", Attempt: 1, Generation: 1, ExpiresAt: time.Now().Add(time.Minute)}
++}
++func complianceSnapshotFixture(t *testing.T, l complianceExportLease) json.RawMessage {
++	t.Helper()
++	raw, _ := json.Marshal(map[string]any{"mapping_revision": "product-evidence-v1", "snapshot_at": "2026-09-18T00:00:00Z", "organization_id": l.Scope.OrganizationID().String(), "workspace_id": l.Scope.WorkspaceID().String(), "environment_id": l.Scope.EnvironmentID().String(), "controls": []any{map[string]any{"framework": "soc2_security", "control_id": "soc2_security-policies", "label": "Policy definitions", "required_sources": []string{"policy"}, "maximum_age_seconds": 86400, "records": []any{map[string]any{"source_kind": "policy", "source_id": "policy-safe", "source_version": 7, "source_family": "policy", "source_time": "2026-09-17T01:00:00Z", "source_valid": true, "metadata": map[string]string{"verification": "definition_only"}}}}}})
++	return raw
++}
++func TestComplianceRuntimeRendersFrozenSnapshot(t *testing.T) {
++	l := complianceRuntimeLease(t)
++	raw := complianceSnapshotFixture(t, l)
++	p, err := renderComplianceExportPackage(context.Background(), l, raw)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var envelope struct {
++		Version int             `json:"version"`
++		ID      string          `json:"id"`
++		JSON    json.RawMessage `json:"json"`
++		CSV     string          `json:"csv"`
++		Human   string          `json:"human"`
++	}
++	if json.Unmarshal(p.Bytes, &envelope) != nil || envelope.Version != 1 || envelope.ID != l.ExportID || !strings.Contains(string(envelope.JSON), `"freshness":"fresh"`) || !strings.Contains(string(envelope.JSON), `"source_version":7`) || !strings.Contains(envelope.Human, "definition_only") {
++		t.Fatalf("bad frozen package %s", p.Bytes)
++	}
++	for _, bad := range []string{strings.Replace(string(raw), "definition_only", strings.Repeat("x", 1025), 1), strings.Replace(string(raw), `"verification":"definition_only"`, `"raw_prompt":"secret"`, 1), strings.Replace(string(raw), `"source_valid":true`, `"source_valid":false`, 1), strings.Replace(string(raw), `"source_version":7`, `"source_version":0`, 1)} {
++		if _, err = renderComplianceExportPackage(context.Background(), l, []byte(bad)); err == nil {
++			t.Fatal("invalid captured source accepted")
++		}
++	}
++	stale := strings.Replace(string(raw), "2026-09-17T01:00:00Z", "2026-09-16T00:00:00Z", 1)
++	p, err = renderComplianceExportPackage(context.Background(), l, []byte(stale))
++	if err != nil || !strings.Contains(string(p.Bytes), `"freshness":"stale"`) {
++		t.Fatalf("source age lost %s %v", p.Bytes, err)
++	}
++	missing := strings.Replace(string(raw), `"required_sources":["policy"]`, `"required_sources":["policy","test"]`, 1)
++	p, err = renderComplianceExportPackage(context.Background(), l, []byte(missing))
++	if err != nil || !strings.Contains(string(p.Bytes), `"freshness":"missing"`) {
++		t.Fatalf("missing category ignored %s %v", p.Bytes, err)
++	}
++}
++
++func TestComplianceRuntimeCandidatesRejectUnsafeWire(t *testing.T) {
++	db := &complianceDatabaseFixture{body: json.RawMessage(`{"items":[]}`)}
++	a := newPostgresComplianceExportAuthority(db)
++	if err := a.Ready(context.Background(), "execute"); err != nil {
++		t.Fatal(err)
++	}
++	l := complianceRuntimeLease(t)
++	raw, _ := json.Marshal(map[string]any{"items": []any{map[string]string{"organization_id": l.Scope.OrganizationID().String(), "workspace_id": l.Scope.WorkspaceID().String(), "environment_id": l.Scope.EnvironmentID().String(), "export_id": l.ExportID}}})
++	db.body = raw
++	items, err := a.Candidates(context.Background(), "execute", 1)
++	if err != nil || len(items) != 1 || items[0].Scope != l.Scope {
++		t.Fatalf("candidate %v %v", items, err)
++	}
++	for _, body := range []string{`{"items":[],"foreign":true}`, `{"items":[{"organization_id":"foreign"}]}`, `{"items":null}`} {
++		db.body = json.RawMessage(body)
++		if _, err = a.Candidates(context.Background(), "execute", 1); err == nil {
++			t.Fatal("unsafe candidates accepted")
++		}
++	}
++}
++
++// Removing mode installation or accepting mixed authority must fail this test.
++func TestComplianceRuntimeConfiguration(t *testing.T) {
++	for _, cleanup := range []bool{false, true} {
++		env := complianceRuntimeEnvironment()
++		if cleanup {
++			env["ZASP_WORKER_MODE"] = "compliance-export-cleanup"
++			env["ZASP_DATABASE_AUTHORITY"] = "zasp_compliance_cleanup"
++			env["ZASP_POSTGRES_DSN"] = "postgres://compliance_cleaner@postgres.internal/zasp?sslmode=verify-full"
++			env["ZASP_COMPLIANCE_EXPORT_ROLE_ARN"] = "arn:aws:iam::123456789012:role/compliance-export-cleanup"
++		}
++		if _, err := loadWorkerRuntimeConfig(mapLookup(env)); err != nil {
++			t.Fatalf("dedicated mode rejected: %v", err)
++		}
++		for key, value := range map[string]string{"ZASP_DATABASE_AUTHORITY": "zasp_audit_export_worker", "ZASP_LEASE_DURATION": "90s", "ZASP_PROVIDER_TIMEOUT": "0s", "ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER": "foreign", "ZASP_AUDIT_EXPORT_QUEUE_URL": "https://sqs.us-east-1.amazonaws.com/123456789012/audit", "ZASP_RUNTIME_ROLE_ARN": "arn:aws:iam::123456789012:role/runtime"} {
++			bad := cloneStringMap(env)
++			bad[key] = value
++			if _, err := loadWorkerRuntimeConfig(mapLookup(bad)); err == nil {
++				t.Fatalf("accepted mixed/invalid %s", key)
++			}
++		}
++	}
++}
+diff --git a/services/platform/agentsec-worker/compliance_export_config.go b/services/platform/agentsec-worker/compliance_export_config.go
+new file mode 100644
+index 00000000..9dcb394f
+--- /dev/null
++++ b/services/platform/agentsec-worker/compliance_export_config.go
+@@ -0,0 +1,46 @@
++package main
++
++import (
++	"net/url"
++	"regexp"
++	"strings"
++	"time"
++)
++
++type complianceExportConfiguration struct{ Bucket, Owner, KMSKey, RoleARN, TokenFile string }
++
++func loadComplianceExportConfiguration(getenv func(string) string, mode workerMode) (*complianceExportConfiguration, error) {
++	c := &complianceExportConfiguration{Bucket: getenv("ZASP_COMPLIANCE_EXPORT_BUCKET"), Owner: getenv("ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER"), KMSKey: getenv("ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN"), RoleARN: getenv("ZASP_COMPLIANCE_EXPORT_ROLE_ARN"), TokenFile: getenv("ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE")}
++	if mode != workerModeComplianceExport && mode != workerModeComplianceCleanup {
++		if *c != (complianceExportConfiguration{}) {
++			return nil, errWorkerConfiguration
++		}
++		return nil, nil
++	}
++	return c, nil
++}
++
++func validComplianceExportConfiguration(c workerRuntimeConfig) bool {
++	if c.Mode != workerModeComplianceExport && c.Mode != workerModeComplianceCleanup {
++		return c.ComplianceExports == nil
++	}
++	p := c.ComplianceExports
++	if p == nil || c.AuditExports != nil || c.LeaseDuration != 60*time.Second || c.ProviderTimeout < time.Second || c.ProviderTimeout > 30*time.Second || c.BatchSize > 10 || !workerRegionPattern.MatchString(c.AWSRegion) || !regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`).MatchString(p.Bucket) || !workerAccountPattern.MatchString(p.Owner) || !workerKMSPattern.MatchString(p.KMSKey) || !workerProjectionRolePattern.MatchString(p.RoleARN) || p.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" {
++		return false
++	}
++	kms := strings.Split(p.KMSKey, ":")
++	role := strings.Split(p.RoleARN, ":")
++	if len(kms) != 6 || len(role) != 6 || kms[3] != c.AWSRegion || kms[4] != p.Owner || role[4] != p.Owner {
++		return false
++	}
++	u, err := url.Parse(c.PostgresDSN)
++	if err != nil || u.User == nil || !regexp.MustCompile(`^[a-z][a-z0-9_]{2,62}$`).MatchString(u.User.Username()) || strings.HasPrefix(u.User.Username(), "zasp_") {
++		return false
++	}
++	for _, s := range []string{c.DiscoveryQueueURL, c.RuntimeQueueURL, c.RedTeamQueueURL, c.AttackLabQueueURL, c.RecoveryQueueURL, c.RecoveryRoleARN, c.RecoveryTokenFile, c.RuntimeRoleARN, c.RuntimeTokenFile, c.RuntimeStageRoleARN, c.RuntimeStageTokenFile, c.DiscoveryRoleARN, c.DiscoveryTokenFile, c.ProjectionRoleARN, c.ProjectionTokenFile, c.OutboxRoleARN, c.OutboxTokenFile, c.RedTeamRoleARN, c.RedTeamTokenFile, c.AttackLabRoleARN, c.AttackLabTokenFile, c.EvidenceBucket, c.EvidenceOwner, c.EvidenceKMSKeyARN, c.GatewaySigningPrivateFile, c.SecurityAgentPlannerToken, c.RecoveryKubernetesToken, c.AttackLabKubernetesToken, c.TestReconcilerRoleARN, c.TestReconcilerTokenFile} {
++		if s != "" {
++			return false
++		}
++	}
++	return true
++}
+diff --git a/services/platform/agentsec-worker/compliance_export_render.go b/services/platform/agentsec-worker/compliance_export_render.go
+new file mode 100644
+index 00000000..ad6c7b9f
+--- /dev/null
++++ b/services/platform/agentsec-worker/compliance_export_render.go
+@@ -0,0 +1,112 @@
++package main
++
++import (
++	"bytes"
++	"context"
++	"crypto/sha256"
++	"encoding/hex"
++	"encoding/json"
++	"io"
++	"slices"
++	"time"
++
++	"github.com/zasp-ai/zasp-sec/services/platform/sessioncontrol"
++)
++
++type complianceFrozenSnapshot struct {
++	Revision     string    `json:"mapping_revision"`
++	At           time.Time `json:"snapshot_at"`
++	Organization string    `json:"organization_id"`
++	Workspace    string    `json:"workspace_id"`
++	Environment  string    `json:"environment_id"`
++	Controls     []struct {
++		Framework string   `json:"framework"`
++		ID        string   `json:"control_id"`
++		Label     string   `json:"label"`
++		Required  []string `json:"required_sources"`
++		Age       int64    `json:"maximum_age_seconds"`
++		Records   []struct {
++			Kind     string                                    `json:"source_kind"`
++			ID       string                                    `json:"source_id"`
++			Version  int64                                     `json:"source_version"`
++			Family   string                                    `json:"source_family"`
++			At       time.Time                                 `json:"source_time"`
++			Valid    bool                                      `json:"source_valid"`
++			Metadata sessioncontrol.ComplianceEvidenceMetadata `json:"metadata"`
++		} `json:"records"`
++	} `json:"controls"`
++}
++
++func renderComplianceExportPackage(ctx context.Context, l complianceExportLease, raw json.RawMessage) (compliancePreparedArtifact, error) {
++	if ctx == nil || ctx.Err() != nil || len(raw) == 0 || len(raw) > 4<<20 || l.Scope.Validate() != nil {
++		return compliancePreparedArtifact{}, errWorkerExecution
++	}
++	var snapshot complianceFrozenSnapshot
++	d := json.NewDecoder(bytes.NewReader(raw))
++	d.DisallowUnknownFields()
++	if d.Decode(&snapshot) != nil || d.Decode(new(any)) != io.EOF || snapshot.Revision != "product-evidence-v1" || snapshot.At.IsZero() || snapshot.Organization != l.Scope.OrganizationID().String() || snapshot.Workspace != l.Scope.WorkspaceID().String() || snapshot.Environment != l.Scope.EnvironmentID().String() || len(snapshot.Controls) < 1 || len(snapshot.Controls) > 500 {
++		return compliancePreparedArtifact{}, errWorkerExecution
++	}
++	values := make([]sessioncontrol.ComplianceEvidence, 0, len(snapshot.Controls))
++	seen := map[string]bool{}
++	for _, c := range snapshot.Controls {
++		if c.Age < 1 || c.Age > 31536000 || len(c.Required) < 1 || len(c.Required) > 5 || len(c.Records) > 100 || !slices.Contains([]string{"soc2_security", "hipaa"}, c.Framework) || seen[c.ID] {
++			return compliancePreparedArtifact{}, errWorkerExecution
++		}
++		seen[c.ID] = true
++		item := sessioncontrol.ComplianceEvidence{Control: sessioncontrol.ComplianceControl{ID: c.ID, Framework: c.Framework, Name: c.Label, FreshUntil: snapshot.At}, Freshness: "fresh", Evidence: []sessioncontrol.EvidenceRecord{}, SnapshotContext: &sessioncontrol.ComplianceSnapshotContext{OrganizationID: snapshot.Organization, WorkspaceID: snapshot.Workspace, EnvironmentID: snapshot.Environment, MappingRevision: snapshot.Revision, SnapshotAt: snapshot.At.UTC()}}
++		familyTimes := map[string]time.Time{}
++		records := map[string]bool{}
++		for _, r := range c.Records {
++			family := map[string]string{"administration": "audit", "workflow_policy": "audit", "red_team_mutation": "audit", "finding": "finding", "policy": "policy", "red_team_test": "test", "attack_lab_test": "test", "configuration": "configuration"}[r.Kind]
++			key := r.Kind + "/" + r.ID
++			if !r.Valid || family == "" || family != r.Family || !slices.Contains(c.Required, r.Family) || r.Version < 1 || r.At.IsZero() || r.At.After(snapshot.At) || records[key] {
++				return compliancePreparedArtifact{}, errWorkerExecution
++			}
++			records[key] = true
++			item.Evidence = append(item.Evidence, sessioncontrol.EvidenceRecord{ID: r.ID, AssetID: r.ID, Source: r.Family, At: r.At.UTC(), Target: &sessioncontrol.ComplianceEvidenceTarget{SourceKind: r.Kind, SourceID: r.ID, SourceVersion: r.Version}, Metadata: &r.Metadata})
++			item.Control.EvidenceIDs = append(item.Control.EvidenceIDs, r.ID)
++			if (r.Metadata.MigrationSeeded == nil || !*r.Metadata.MigrationSeeded) && r.At.After(familyTimes[r.Family]) {
++				familyTimes[r.Family] = r.At
++			}
++		}
++		first := true
++		requiredSeen := map[string]bool{}
++		for _, family := range c.Required {
++			if !slices.Contains([]string{"audit", "finding", "policy", "test", "configuration"}, family) || requiredSeen[family] {
++				return compliancePreparedArtifact{}, errWorkerExecution
++			}
++			requiredSeen[family] = true
++			at := familyTimes[family]
++			if at.IsZero() {
++				item.Freshness = "missing"
++				continue
++			}
++			until := at.Add(time.Duration(c.Age) * time.Second)
++			if first || until.Before(item.Control.FreshUntil) {
++				item.Control.FreshUntil = until
++				first = false
++			}
++			if snapshot.At.After(until) && item.Freshness != "missing" {
++				item.Freshness = "stale"
++			}
++		}
++		values = append(values, item)
++	}
++	rendered, err := sessioncontrol.BuildComplianceExport(l.ExportID, values)
++	if err != nil || ctx.Err() != nil {
++		return compliancePreparedArtifact{}, errWorkerExecution
++	}
++	body, err := json.Marshal(struct {
++		Version int             `json:"version"`
++		ID      string          `json:"id"`
++		JSON    json.RawMessage `json:"json"`
++		CSV     string          `json:"csv"`
++		Human   string          `json:"human"`
++	}{1, l.ExportID, rendered.JSON, string(rendered.CSV), rendered.Human})
++	if err != nil || len(body) > 8<<20 {
++		return compliancePreparedArtifact{}, errWorkerExecution
++	}
++	hash := sha256.Sum256(body)
++	return compliancePreparedArtifact{Bytes: body, RendererRevision: "compliance-envelope-v1", Reference: l.ExportID, Size: int64(len(body)), SHA256: hex.EncodeToString(hash[:]), FormatSizes: map[string]int64{"json": int64(len(rendered.JSON)), "csv": int64(len(rendered.CSV)), "readable": int64(len(rendered.Human))}}, nil
++}
+diff --git a/services/platform/agentsec-worker/compliance_export_runtime.go b/services/platform/agentsec-worker/compliance_export_runtime.go
+new file mode 100644
+index 00000000..fc5c76c9
+--- /dev/null
++++ b/services/platform/agentsec-worker/compliance_export_runtime.go
+@@ -0,0 +1,260 @@
++package main
++
++import (
++	"context"
++	"crypto/sha256"
++	"sync"
++	"time"
++
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore/s3driver"
++	"github.com/zasp-ai/zasp-sec/services/platform/bucketlayout"
++	"github.com/zasp-ai/zasp-sec/services/platform/domain"
++)
++
++type complianceExportProcessor struct {
++	authority          *postgresComplianceExportAuthority
++	store              *artifactstore.Store
++	verifier           *s3driver.ExportVerifier
++	cleanup            *s3driver.ExportCleanup
++	worker             string
++	cleanupMode        bool
++	batch              int
++	timeout, heartbeat time.Duration
++}
++
++func (p *complianceExportProcessor) RunOnce(ctx context.Context) error {
++	if ctx == nil || ctx.Err() != nil {
++		return errWorkerExecution
++	}
++	lanes := []string{"execute"}
++	if p.cleanupMode {
++		bounded, cancel := context.WithTimeout(ctx, p.timeout)
++		err := p.authority.Maintenance(bounded)
++		cancel()
++		if err != nil {
++			return err
++		}
++		lanes = []string{"reconcile", "cleanup"}
++	}
++	var failed bool
++	for _, lane := range lanes {
++		bounded, cancel := context.WithTimeout(ctx, p.timeout)
++		items, err := p.authority.Candidates(bounded, lane, p.batch)
++		cancel()
++		if err != nil {
++			return err
++		}
++		for _, item := range items {
++			token, err := newAuditExportProductionToken()
++			if err != nil {
++				return err
++			}
++			bounded, cancel := context.WithTimeout(ctx, p.timeout)
++			lease, err := p.authority.Claim(bounded, item.Scope, item.ExportID, p.worker, token, lane)
++			cancel()
++			if err != nil {
++				failed = true
++				continue
++			}
++			if lease == nil {
++				continue
++			}
++			if err = p.process(ctx, lease); err != nil {
++				failed = true
++			}
++			if ctx.Err() != nil {
++				return errWorkerExecution
++			}
++		}
++	}
++	if failed {
++		return errWorkerExecution
++	}
++	return nil
++}
++
++func (p *complianceExportProcessor) process(parent context.Context, l *complianceExportLease) (resultErr error) {
++	// Rendering/SQL and provider work share a finite attempt deadline. Heartbeats
++	// have their own shorter deadline; losing renewal cancels all in-flight work.
++	ctx, cancel := context.WithTimeout(parent, 55*time.Second)
++	h := &complianceLeaseHandle{lease: *l}
++	stop := make(chan struct{})
++	joined := make(chan struct{})
++	lost := make(chan struct{}, 1)
++	go func() {
++		defer close(joined)
++		ticker := time.NewTicker(p.heartbeat)
++		defer ticker.Stop()
++		for {
++			select {
++			case <-stop:
++				return
++			case <-ctx.Done():
++				return
++			case <-ticker.C:
++				bounded, end := context.WithTimeout(ctx, minDuration(p.timeout, 5*time.Second))
++				err := h.heartbeat(bounded, p.authority)
++				end()
++				if err != nil {
++					if ctx.Err() == nil {
++						lost <- struct{}{}
++						cancel()
++					}
++					return
++				}
++			}
++		}
++	}()
++	outcome := complianceBeforePut
++	// Always stop and join the sole child before releasing this attempt. Retry
++	// records uncertainty even on caller cancellation; it has a bounded context
++	// and the same registered authority/current lease, never a quota-release path.
++	defer func() {
++		if recover() != nil {
++			resultErr = errWorkerExecution
++			if l.Prepared || l.Lane != "execute" {
++				outcome = complianceWriteUnknown
++			}
++		}
++		close(stop)
++		cancel()
++		<-joined
++		if resultErr != nil {
++			select {
++			case <-lost:
++				return
++			default:
++			}
++			retryOutcome := "source_failed"
++			if outcome == complianceWriteUnknown || l.Lane != "execute" {
++				retryOutcome = "unknown"
++			}
++			retryCtx, end := context.WithTimeout(context.Background(), minDuration(p.timeout, 5*time.Second))
++			defer end()
++			_ = p.authority.Retry(retryCtx, h.current(), retryOutcome)
++		}
++	}()
++	switch l.Lane {
++	case "execute":
++		outcome, resultErr = executeComplianceExportPackage(ctx, p.authority, p.store, h, renderComplianceExportPackage)
++		return resultErr
++	case "reconcile":
++		outcome = complianceWriteUnknown
++		prepared, err := p.authority.LoadPrepared(ctx, h.current())
++		if err != nil {
++			return err
++		}
++		ref, err := domain.ParseEvidenceRef(prepared.Reference)
++		if err != nil {
++			return errWorkerExecution
++		}
++		key, err := bucketlayout.ExportKey(l.Scope, ref.ArtifactID())
++		if err != nil {
++			return errWorkerExecution
++		}
++		bounded, end := context.WithTimeout(ctx, p.timeout)
++		receipt, err := p.verifier.Verify(bounded, artifactstore.DriverObject{DriverLocator: artifactstore.DriverLocator{Scope: l.Scope, Reference: ref, Key: key}, Body: prepared.Bytes, Size: prepared.Size, SHA256: sha256.Sum256(prepared.Bytes), MediaType: "application/json"})
++		end()
++		if err != nil {
++			return err
++		}
++		return p.authority.Finish(ctx, h.current(), prepared, receipt.VersionID)
++	case "cleanup":
++		outcome = complianceWriteUnknown
++		if l.Prepared {
++			ref, err := domain.ParseEvidenceRef(l.Reference)
++			if err != nil {
++				return errWorkerExecution
++			}
++			key, err := bucketlayout.ExportKey(l.Scope, ref.ArtifactID())
++			if err != nil {
++				return errWorkerExecution
++			}
++			bounded, end := context.WithTimeout(ctx, p.timeout)
++			err = p.cleanup.DeleteExact(bounded, artifactstore.DriverLocator{Scope: l.Scope, Reference: ref, Key: key, VersionID: l.VersionID})
++			end()
++			if err != nil {
++				return err
++			}
++		} else if l.Reference != "" || l.VersionID != "" {
++			return errWorkerExecution
++		}
++		return p.authority.ConfirmDeleted(ctx, h.current(), l.Reference, l.VersionID)
++	default:
++		return errWorkerExecution
++	}
++}
++
++type complianceExportRuntime struct {
++	mu             sync.Mutex
++	closed         bool
++	next           uint64
++	borrowers      map[uint64]context.CancelFunc
++	active         sync.WaitGroup
++	closeMu        sync.Mutex
++	closeDone      chan struct{}
++	processor      *complianceExportProcessor
++	ready          func(context.Context) error
++	closeTransport func()
++	shutdown       time.Duration
++}
++
++func (r *complianceExportRuntime) begin(ctx context.Context) (context.Context, func(), error) {
++	if ctx == nil || ctx.Err() != nil {
++		return nil, nil, errRuntimeUnavailable
++	}
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	if r.closed {
++		return nil, nil, errRuntimeUnavailable
++	}
++	child, cancel := context.WithCancel(ctx)
++	r.next++
++	id := r.next
++	r.borrowers[id] = cancel
++	r.active.Add(1)
++	return child, func() { cancel(); r.mu.Lock(); delete(r.borrowers, id); r.mu.Unlock(); r.active.Done() }, nil
++}
++func (r *complianceExportRuntime) Ready(ctx context.Context) error {
++	ctx, end, err := r.begin(ctx)
++	if err != nil {
++		return err
++	}
++	defer end()
++	return r.ready(ctx)
++}
++func (r *complianceExportRuntime) RunOnce(ctx context.Context) error {
++	ctx, end, err := r.begin(ctx)
++	if err != nil {
++		return err
++	}
++	defer end()
++	if r.ready(ctx) != nil {
++		return errRuntimeUnavailable
++	}
++	return r.processor.RunOnce(ctx)
++}
++func (r *complianceExportRuntime) Close() error {
++	r.closeMu.Lock()
++	defer r.closeMu.Unlock()
++	r.mu.Lock()
++	if !r.closed {
++		r.closed = true
++		for _, cancel := range r.borrowers {
++			cancel()
++		}
++		r.closeDone = make(chan struct{})
++		go func() { r.active.Wait(); close(r.closeDone) }()
++	}
++	r.mu.Unlock()
++	timer := time.NewTimer(r.shutdown)
++	defer timer.Stop()
++	select {
++	case <-r.closeDone:
++		r.closeTransport()
++		return nil
++	case <-timer.C:
++		return errRuntimeUnavailable
++	}
++}
+diff --git a/services/platform/agentsec-worker/compliance_export_production.go b/services/platform/agentsec-worker/compliance_export_production.go
+new file mode 100644
+index 00000000..17d1dcfc
+--- /dev/null
++++ b/services/platform/agentsec-worker/compliance_export_production.go
+@@ -0,0 +1,104 @@
++package main
++
++import (
++	"context"
++	"crypto/tls"
++	"net"
++	"net/http"
++	"strings"
++	"time"
++
++	"github.com/aws/aws-sdk-go-v2/aws"
++	"github.com/aws/aws-sdk-go-v2/service/s3"
++	"github.com/aws/aws-sdk-go-v2/service/sts"
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore/s3driver"
++)
++
++type complianceExportProductionClients struct {
++	credentials aws.CredentialsProvider
++	identity    runtimeIdentityAPI
++	writer      s3driver.API
++	reader      s3driver.ExportReadAPI
++	cleanup     s3driver.ExportCleanupAPI
++	transport   *http.Transport
++}
++
++func newComplianceExportProductionClients(config workerRuntimeConfig) (*complianceExportProductionClients, error) {
++	if !validWorkerRuntimeConfig(config) || config.ComplianceExports == nil {
++		return nil, errRuntimeUnavailable
++	}
++	p := config.ComplianceExports
++	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: config.ProviderTimeout, MaxResponseHeaderBytes: 1 << 20}
++	httpClient := &http.Client{Transport: transport, Timeout: config.ProviderTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
++	base := aws.Config{Region: config.AWSRegion, HTTPClient: httpClient, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
++	credentials := newAuditExportCredentialCache(&outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: p.RoleARN, tokenFile: p.TokenFile, timeout: config.ProviderTimeout, session: "zasp-" + string(config.Mode)})
++	base.Credentials = credentials
++	result := &complianceExportProductionClients{credentials: credentials, identity: sts.NewFromConfig(base), transport: transport}
++	provider := s3.NewFromConfig(base)
++	if config.Mode == workerModeComplianceExport {
++		result.writer = provider
++	} else {
++		result.reader = provider
++		result.cleanup = provider
++	}
++	return result, nil
++}
++
++func composeComplianceExportWorkerRuntime(ctx context.Context, config workerRuntimeConfig, database recoveryJSONDatabase, clients *complianceExportProductionClients) (workerRuntimeDependencies, error) {
++	if ctx == nil || ctx.Err() != nil || !validWorkerRuntimeConfig(config) || config.ComplianceExports == nil || nilWorkerDependency(database) || clients == nil || clients.transport == nil || nilWorkerDependency(clients.credentials) || nilWorkerDependency(clients.identity) {
++		return workerRuntimeDependencies{}, errRuntimeUnavailable
++	}
++	pins := *config.ComplianceExports
++	p := &complianceExportProcessor{authority: newPostgresComplianceExportAuthority(database), worker: config.WorkerID, batch: config.BatchSize, timeout: config.ProviderTimeout, heartbeat: 20 * time.Second, cleanupMode: config.Mode == workerModeComplianceCleanup}
++	storage := s3driver.Config{Bucket: pins.Bucket, ExpectedBucketOwner: pins.Owner, KMSKeyARN: pins.KMSKey, MaximumBytes: 8 << 20}
++	var err error
++	lane := "execute"
++	if p.cleanupMode {
++		if !nilWorkerDependency(clients.writer) || nilWorkerDependency(clients.reader) || nilWorkerDependency(clients.cleanup) {
++			return workerRuntimeDependencies{}, errRuntimeUnavailable
++		}
++		p.verifier, err = s3driver.NewExportVerifier(clients.reader, storage)
++		if err != nil {
++			return workerRuntimeDependencies{}, errRuntimeUnavailable
++		}
++		p.cleanup, err = s3driver.NewExportCleanup(clients.cleanup, storage)
++		lane = "cleanup"
++	} else {
++		if nilWorkerDependency(clients.writer) || !nilWorkerDependency(clients.reader) || !nilWorkerDependency(clients.cleanup) {
++			return workerRuntimeDependencies{}, errRuntimeUnavailable
++		}
++		var driver *s3driver.Driver
++		driver, err = s3driver.NewExport(clients.writer, storage)
++		if err != nil {
++			return workerRuntimeDependencies{}, errRuntimeUnavailable
++		}
++		p.store, err = artifactstore.NewExport(driver, artifactstore.Config{OperationTimeout: config.ProviderTimeout, MaximumBytes: 8 << 20})
++	}
++	if err != nil {
++		return workerRuntimeDependencies{}, errRuntimeUnavailable
++	}
++	credentials, identity := clients.credentials, clients.identity
++	ready, err := newBoundedCachedWorkerReadiness(func(parent context.Context) error {
++		bounded, end := context.WithTimeout(parent, config.ProviderTimeout)
++		defer end()
++		if p.authority.Ready(bounded, lane) != nil {
++			return errRuntimeUnavailable
++		}
++		creds, err := credentials.Retrieve(bounded)
++		if err != nil || creds.AccessKeyID == "" || creds.SecretAccessKey == "" || creds.SessionToken == "" || !creds.CanExpire || !creds.Expires.After(time.Now()) {
++			return errRuntimeUnavailable
++		}
++		caller, err := identity.GetCallerIdentity(bounded, &sts.GetCallerIdentityInput{}, func(o *sts.Options) { o.Retryer = aws.NopRetryer{} })
++		roleName := pins.RoleARN[strings.LastIndex(pins.RoleARN, "/")+1:]
++		if err != nil || caller == nil || bounded.Err() != nil || aws.ToString(caller.Account) != pins.Owner || aws.ToString(caller.Arn) != "arn:aws:sts::"+pins.Owner+":assumed-role/"+roleName+"/zasp-"+string(config.Mode) {
++			return errRuntimeUnavailable
++		}
++		return nil
++	}, minDuration(config.ProviderTimeout, 5*time.Second), 30*time.Second)
++	if err != nil || ready(ctx) != nil {
++		return workerRuntimeDependencies{}, errRuntimeUnavailable
++	}
++	runtime := &complianceExportRuntime{borrowers: map[uint64]context.CancelFunc{}, processor: p, ready: ready, closeTransport: clients.transport.CloseIdleConnections, shutdown: config.ShutdownTimeout}
++	return workerRuntimeDependencies{Processor: runtime, Ready: runtime.Ready, Close: runtime.Close}, nil
++}
+diff --git a/services/platform/agentsec-worker/compliance_export_composition_test.go b/services/platform/agentsec-worker/compliance_export_composition_test.go
+new file mode 100644
+index 00000000..9b72eee7
+--- /dev/null
++++ b/services/platform/agentsec-worker/compliance_export_composition_test.go
+@@ -0,0 +1,230 @@
++package main
++
++import (
++	"context"
++	"crypto/sha256"
++	"encoding/hex"
++	"encoding/json"
++	"errors"
++	"io"
++	"net"
++	"net/http"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++
++	"github.com/aws/aws-sdk-go-v2/aws"
++	"github.com/aws/aws-sdk-go-v2/service/s3"
++)
++
++type complianceCanceledProcessor struct{ entered, joined chan struct{} }
++
++func (p complianceCanceledProcessor) RunOnce(ctx context.Context) error {
++	close(p.entered)
++	<-ctx.Done()
++	close(p.joined)
++	return ctx.Err()
++}
++
++type complianceFailedListener struct{ entered chan struct{} }
++
++func (l complianceFailedListener) Accept() (net.Conn, error) {
++	<-l.entered
++	return nil, errors.New("owned listener failure")
++}
++func (complianceFailedListener) Close() error   { return nil }
++func (complianceFailedListener) Addr() net.Addr { return &net.TCPAddr{} }
++func TestComplianceRuntimeListenerFailureJoinsPolling(t *testing.T) {
++	config, _, _, _ := complianceRuntimeFixture(t)
++	config.ShutdownTimeout = time.Second
++	ctx, cancel := context.WithCancel(context.Background())
++	defer cancel()
++	p := complianceCanceledProcessor{make(chan struct{}), make(chan struct{})}
++	defer func() {
++		cancel()
++		select {
++		case <-p.joined:
++		case <-time.After(time.Second):
++			t.Error("test borrower did not join")
++		}
++	}()
++	err := serveWorkerRuntime(ctx, io.Discard, "test", config, workerRuntimeDependencies{Processor: p, Ready: func(context.Context) error { return nil }, Close: func() error { return nil }}, func(string, string) (net.Listener, error) { return complianceFailedListener{p.entered}, nil })
++	if err == nil {
++		t.Fatal("listener failure accepted")
++	}
++	select {
++	case <-p.joined:
++	default:
++		t.Fatal("listener failure left polling goroutine alive")
++	}
++}
++
++type complianceRuntimeDB struct {
++	mu                                    sync.Mutex
++	lease                                 complianceExportLease
++	snapshot, prepared                    json.RawMessage
++	finished                              bool
++	retry                                 string
++	heartbeat, claims, captures, prepares int
++	leaseLost, revoked                    bool
++}
++
++func (d *complianceRuntimeDB) QueryJSON(ctx context.Context, q string, args ...any) (json.RawMessage, error) {
++	d.mu.Lock()
++	defer d.mu.Unlock()
++	if ctx.Err() != nil {
++		return nil, ctx.Err()
++	}
++	l := d.lease
++	switch q {
++	case complianceCandidatesSQL:
++		if d.finished || d.retry != "" {
++			return json.RawMessage(`{"items":[]}`), nil
++		}
++		return json.Marshal(map[string]any{"items": []any{map[string]string{"organization_id": l.Scope.OrganizationID().String(), "workspace_id": l.Scope.WorkspaceID().String(), "environment_id": l.Scope.EnvironmentID().String(), "export_id": l.ExportID}}})
++	case complianceClaimSQL:
++		d.claims++
++		d.lease.WorkerID = args[4].(string)
++		d.lease.Token = args[5].(string)
++		return json.Marshal(map[string]any{"organization_id": l.Scope.OrganizationID().String(), "workspace_id": l.Scope.WorkspaceID().String(), "environment_id": l.Scope.EnvironmentID().String(), "export_id": l.ExportID, "generation": l.Generation, "attempt": l.Attempt, "lease_expires_at": l.ExpiresAt, "lane": "execute", "captured": false, "prepared": false, "reference": nil, "version": nil, "size": nil, "sha256": nil})
++	case complianceCaptureSQL:
++		d.captures++
++		h := sha256.Sum256(d.snapshot)
++		return json.Marshal(map[string]any{"snapshot": d.snapshot, "mapping_revision": "product-evidence-v1", "sha256": hex.EncodeToString(h[:])})
++	case compliancePrepareSQL:
++		d.prepares++
++		d.prepared = append([]byte(nil), args[7].(json.RawMessage)...)
++		return d.prepared, nil
++	case complianceFinishSQL:
++		if d.revoked || d.leaseLost {
++			return nil, errors.New("current source authority rejected")
++		}
++		d.finished = true
++		return json.RawMessage(`{}`), nil
++	case complianceRetrySQL:
++		var p struct {
++			Outcome string `json:"outcome"`
++		}
++		_ = json.Unmarshal(args[7].(json.RawMessage), &p)
++		if p.Outcome == "heartbeat" {
++			d.heartbeat++
++			if d.leaseLost {
++				return nil, errors.New("lease lost")
++			}
++			d.lease.ExpiresAt = time.Now().Add(time.Minute)
++			return json.Marshal(map[string]any{"renewed": true, "generation": l.Generation, "attempt": l.Attempt, "lease_expires_at": d.lease.ExpiresAt})
++		}
++		d.retry = p.Outcome
++		return json.RawMessage(`{}`), nil
++	}
++	return nil, errors.New("unexpected SQL")
++}
++
++type complianceRuntimeS3 struct {
++	discoveryS3APIStub
++	before func(context.Context)
++	puts   int
++}
++
++func (s *complianceRuntimeS3) PutObject(ctx context.Context, in *s3.PutObjectInput, opts ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
++	s.puts++
++	if s.before != nil {
++		s.before(ctx)
++	}
++	if ctx.Err() != nil {
++		return nil, ctx.Err()
++	}
++	body, err := io.ReadAll(in.Body)
++	if err != nil {
++		return nil, err
++	}
++	s.body = body
++	return s.discoveryS3APIStub.PutObject(ctx, in, opts...)
++}
++func complianceRuntimeFixture(t *testing.T) (workerRuntimeConfig, *complianceRuntimeDB, *complianceRuntimeS3, *complianceExportProductionClients) {
++	t.Helper()
++	env := complianceRuntimeEnvironment()
++	env["ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN"] = "arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111"
++	config, err := loadWorkerRuntimeConfig(mapLookup(env))
++	if err != nil {
++		t.Fatal(err)
++	}
++	l := complianceRuntimeLease(t)
++	db := &complianceRuntimeDB{lease: l, snapshot: complianceSnapshotFixture(t, l)}
++	api := &complianceRuntimeS3{}
++	clients := &complianceExportProductionClients{writer: api, transport: &http.Transport{}, identity: &runtimeIdentityStub{account: "123456789012", arn: "arn:aws:sts::123456789012:assumed-role/compliance-export-worker/zasp-compliance-export"}, credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
++		return aws.Credentials{AccessKeyID: "fixture", SecretAccessKey: "fixture", SessionToken: "fixture", CanExpire: true, Expires: time.Now().Add(time.Hour)}, nil
++	})}
++	return config, db, api, clients
++}
++
++func TestComplianceRuntimeComposedLifecycle(t *testing.T) {
++	for _, mode := range []string{"complete", "cancel", "lease_loss", "revoked", "close"} {
++		t.Run(mode, func(t *testing.T) {
++			config, db, api, clients := complianceRuntimeFixture(t)
++			deps, err := composeComplianceExportWorkerRuntime(context.Background(), config, db, clients)
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer deps.Close()
++			runtime := deps.Processor.(*complianceExportRuntime)
++			runtime.processor.heartbeat = 5 * time.Millisecond
++			ctx, cancel := context.WithCancel(context.Background())
++			defer cancel()
++			entered := make(chan struct{})
++			api.before = func(c context.Context) {
++				close(entered)
++				switch mode {
++				case "cancel", "close":
++					<-c.Done()
++				case "lease_loss":
++					db.mu.Lock()
++					db.leaseLost = true
++					db.mu.Unlock()
++					<-c.Done()
++				case "revoked":
++					db.mu.Lock()
++					db.revoked = true
++					db.mu.Unlock()
++				case "complete":
++					time.Sleep(15 * time.Millisecond)
++				}
++			}
++			done := make(chan error, 1)
++			go func() { done <- deps.Processor.RunOnce(ctx) }()
++			select {
++			case <-entered:
++			case <-time.After(time.Second):
++				t.Fatal("upload not reached")
++			}
++			if mode == "cancel" {
++				cancel()
++			}
++			if mode == "close" {
++				if err := deps.Close(); err != nil {
++					t.Fatal(err)
++				}
++			}
++			select {
++			case err = <-done:
++			case <-time.After(2 * time.Second):
++				t.Fatal("worker/heartbeat did not join")
++			}
++			db.mu.Lock()
++			defer db.mu.Unlock()
++			if (err == nil) != (mode == "complete") || db.finished != (mode == "complete") {
++				t.Fatalf("mode=%s finished=%v err=%v", mode, db.finished, err)
++			}
++			if db.captures != 1 || db.prepares != 1 || api.puts != 1 {
++				t.Fatalf("wrong render/upload lifecycle %+v puts=%d", db, api.puts)
++			}
++			if mode == "complete" && (db.heartbeat == 0 || !strings.Contains(string(api.body), "definition_only")) {
++				t.Fatal("missing heartbeat or real formatter")
++			}
++			if mode != "complete" && mode != "lease_loss" && db.retry != "unknown" {
++				t.Fatalf("uncertain upload released capacity: %s", db.retry)
++			}
++		})
++	}
++}
+diff --git a/services/platform/agentsec-worker/compliance_export_process_test.go b/services/platform/agentsec-worker/compliance_export_process_test.go
+new file mode 100644
+index 00000000..f22a5b55
+--- /dev/null
++++ b/services/platform/agentsec-worker/compliance_export_process_test.go
+@@ -0,0 +1,245 @@
++package main
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"errors"
++	"io"
++	"net"
++	"net/http"
++	"os"
++	"os/signal"
++	"strconv"
++	"strings"
++	"syscall"
++	"testing"
++	"time"
++
++	"github.com/aws/aws-sdk-go-v2/aws"
++	"github.com/aws/aws-sdk-go-v2/service/s3"
++	"github.com/jackc/pgx/v5/pgxpool"
++	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
++)
++
++// A persistent controlled HTTP service behind the real AWS SDK. The parent
++// gives two independent worker processes this same object file. No AWS calls.
++type complianceProcessObject struct {
++	Body    []byte
++	Headers http.Header
++	Key     string
++}
++type complianceProcessHTTP struct {
++	t           *testing.T
++	path, phase string
++	puts        int
++}
++
++func (h *complianceProcessHTTP) RoundTrip(r *http.Request) (*http.Response, error) {
++	if _, ok := r.Context().Deadline(); !ok {
++		return nil, errors.New("unbounded provider call")
++	}
++	if r.Header.Get("X-Amz-Expected-Bucket-Owner") != "123456789012" || !strings.Contains(r.URL.Path, "/exports/") {
++		return nil, errors.New("provider scope/pin absent")
++	}
++	saved, err := os.ReadFile(h.path)
++	var object complianceProcessObject
++	exists := err == nil && json.Unmarshal(saved, &object) == nil
++	if exists && object.Key != r.URL.Path {
++		return nil, errors.New("foreign key")
++	}
++	response := func(status int, headers http.Header, body []byte) *http.Response {
++		return &http.Response{StatusCode: status, Header: headers, Body: io.NopCloser(bytes.NewReader(body)), Request: r}
++	}
++	failure := func(code string) *http.Response {
++		return response(500, http.Header{}, []byte("<Error><Code>"+code+"</Code></Error>"))
++	}
++	switch r.Method {
++	case "PUT":
++		h.puts++
++		if r.Header.Get("If-None-Match") != "*" || r.Header.Get("X-Amz-Server-Side-Encryption-Aws-Kms-Key-Id") != "arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111" {
++			return nil, errors.New("conditional/KMS pins absent")
++		}
++		if !exists {
++			body, err := io.ReadAll(r.Body)
++			if err != nil {
++				return nil, err
++			}
++			headers := http.Header{"Content-Type": []string{"application/json"}, "Content-Length": []string{strconv.Itoa(len(body))}, "X-Amz-Version-Id": []string{"compliance-process-v1"}, "X-Amz-Checksum-Sha256": []string{r.Header.Get("X-Amz-Checksum-Sha256")}, "X-Amz-Server-Side-Encryption": []string{"aws:kms"}, "X-Amz-Server-Side-Encryption-Aws-Kms-Key-Id": []string{r.Header.Get("X-Amz-Server-Side-Encryption-Aws-Kms-Key-Id")}}
++			for key, values := range r.Header {
++				if strings.HasPrefix(strings.ToLower(key), "x-amz-meta-") {
++					headers[key] = values
++				}
++			}
++			object = complianceProcessObject{Body: body, Headers: headers, Key: r.URL.Path}
++			encoded, _ := json.Marshal(object)
++			if os.WriteFile(h.path, encoded, 0600) != nil {
++				return nil, errors.New("fixture storage failed")
++			}
++		}
++		if h.phase == "interrupt" {
++			if err := syscall.Kill(os.Getpid(), syscall.SIGTERM); err != nil {
++				return nil, err
++			}
++			<-r.Context().Done()
++			return nil, r.Context().Err()
++		}
++		if h.phase == "revoked" || h.phase == "lease_lost" {
++			if os.WriteFile(h.path+".entered", []byte("upload"), 0600) != nil {
++				return nil, errors.New("fixture signal failed")
++			}
++			ticker := time.NewTicker(5 * time.Millisecond)
++			defer ticker.Stop()
++			for {
++				if _, err := os.Stat(h.path + ".release"); err == nil {
++					break
++				}
++				select {
++				case <-r.Context().Done():
++					return nil, r.Context().Err()
++				case <-ticker.C:
++				}
++			}
++		}
++		if h.phase == "unknown" {
++			return failure("InternalError"), nil
++		}
++		if exists {
++			return response(412, http.Header{}, []byte(`<Error><Code>PreconditionFailed</Code></Error>`)), nil
++		}
++		return response(200, object.Headers.Clone(), nil), nil
++	case "HEAD":
++		if h.phase == "unknown" {
++			return failure("InternalError"), nil
++		}
++		if !exists {
++			return response(404, http.Header{}, nil), nil
++		}
++		if version := r.URL.Query().Get("versionId"); version != "" && version != "compliance-process-v1" {
++			return response(404, http.Header{}, nil), nil
++		}
++		return response(200, object.Headers.Clone(), nil), nil
++	case "GET":
++		if r.URL.Query().Get("versionId") != "compliance-process-v1" {
++			return nil, errors.New("version pin absent")
++		}
++		if !exists {
++			return response(404, http.Header{}, []byte(`<Error><Code>NoSuchVersion</Code></Error>`)), nil
++		}
++		return response(200, object.Headers.Clone(), object.Body), nil
++	case "DELETE":
++		if r.URL.Query().Get("versionId") != "compliance-process-v1" {
++			return nil, errors.New("versionless delete")
++		}
++		if h.phase == "cleanup_denied" {
++			return response(403, http.Header{}, []byte(`<Error><Code>AccessDenied</Code></Error>`)), nil
++		}
++		if exists {
++			if err := os.Remove(h.path); err != nil {
++				return nil, err
++			}
++		}
++		return response(204, http.Header{"X-Amz-Version-Id": []string{"compliance-process-v1"}}, nil), nil
++	}
++	return nil, errors.New("unexpected provider operation")
++}
++
++type complianceProcessDB struct {
++	database recoveryJSONDatabase
++	stop     context.CancelFunc
++	phase    string
++}
++
++func (d *complianceProcessDB) QueryJSON(ctx context.Context, q string, args ...any) (json.RawMessage, error) {
++	raw, err := d.database.QueryJSON(ctx, q, args...)
++	terminal := q == complianceFinishSQL || q == complianceCleanupSQL
++	if q == complianceRetrySQL {
++		var p struct {
++			Outcome string `json:"outcome"`
++		}
++		_ = json.Unmarshal(args[7].(json.RawMessage), &p)
++		terminal = p.Outcome != "heartbeat"
++	}
++	if terminal && (err == nil || d.phase == "lease_lost") {
++		d.stop()
++	}
++	return raw, err
++}
++
++func TestComplianceRuntimeProcess(t *testing.T) {
++	dsn := os.Getenv("ZASP_COMPLIANCE_RUNTIME_DSN")
++	if dsn == "" {
++		t.Skip("owned PostgreSQL parent launches child")
++	}
++	phase := os.Getenv("ZASP_COMPLIANCE_RUNTIME_PHASE")
++	path := os.Getenv("ZASP_COMPLIANCE_RUNTIME_OBJECT")
++	if path == "" || !strings.HasPrefix(path, "/tmp/") {
++		t.Fatal("owned fixture path missing")
++	}
++	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
++	defer cancel()
++	ctx, deadline := context.WithTimeout(ctx, 12*time.Second)
++	defer deadline()
++	env := complianceRuntimeEnvironment()
++	cleanup := phase == "reconcile" || strings.HasPrefix(phase, "cleanup")
++	user := "compliance_executor"
++	if cleanup {
++		user = "compliance_cleanup"
++		env["ZASP_WORKER_MODE"] = "compliance-export-cleanup"
++		env["ZASP_DATABASE_AUTHORITY"] = "zasp_compliance_cleanup"
++		env["ZASP_COMPLIANCE_EXPORT_ROLE_ARN"] = "arn:aws:iam::123456789012:role/compliance-export-cleanup"
++	}
++	cfg, err := pgxpool.ParseConfig(dsn)
++	if err != nil {
++		t.Fatal(err)
++	}
++	cfg.ConnConfig.User = user
++	cfg.MaxConns = 3
++	pool, err := pgxpool.NewWithConfig(ctx, cfg)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer pool.Close()
++	db, err := apiserver.NewPostgresJSONDatabase(&workerPostgresDriver{pool: pool})
++	if err != nil {
++		t.Fatal(err)
++	}
++	env["ZASP_POSTGRES_DSN"] = "postgres://" + user + "@postgres.internal/zasp?sslmode=verify-full"
++	env["ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN"] = "arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111"
++	config, err := loadWorkerRuntimeConfig(mapLookup(env))
++	if err != nil {
++		t.Fatal(err)
++	}
++	transport := &complianceProcessHTTP{t: t, path: path, phase: phase}
++	provider := s3.New(s3.Options{Region: "us-east-1", BaseEndpoint: aws.String("https://controlled.invalid"), UsePathStyle: true, Credentials: aws.AnonymousCredentials{}, HTTPClient: &http.Client{Transport: transport}})
++	role := "compliance-export-worker"
++	if cleanup {
++		role = "compliance-export-cleanup"
++	}
++	clients := &complianceExportProductionClients{transport: &http.Transport{}, identity: &runtimeIdentityStub{account: "123456789012", arn: "arn:aws:sts::123456789012:assumed-role/" + role + "/zasp-" + string(config.Mode)}, credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
++		return aws.Credentials{AccessKeyID: "fixture", SecretAccessKey: "fixture", SessionToken: "fixture", CanExpire: true, Expires: time.Now().Add(time.Hour)}, nil
++	})}
++	if cleanup {
++		clients.reader = provider
++		clients.cleanup = provider
++	} else {
++		clients.writer = provider
++	}
++	dependencies, err := composeComplianceExportWorkerRuntime(ctx, config, &complianceProcessDB{database: db, stop: cancel, phase: phase}, clients)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := serveWorkerRuntime(ctx, io.Discard, "test", config, dependencies, func(_, _ string) (net.Listener, error) { return net.Listen("tcp", "127.0.0.1:0") }); err != nil {
++		t.Fatal(err)
++	}
++	if ctx.Err() == context.DeadlineExceeded {
++		t.Fatal("process did not stop after terminal SQL")
++	}
++	if cleanup && transport.puts != 0 {
++		t.Fatal("maintenance/reconciler issued PUT")
++	}
++	if !cleanup && transport.puts != 1 {
++		t.Fatalf("SDK attempts=%d", transport.puts)
++	}
++	t.Logf("joined %s polling worker; provider PUT=%d; transport is controlled HTTP, not live AWS", phase, transport.puts)
++}
+diff --git a/services/platform/artifactstore/s3driver/export_lifecycle.go b/services/platform/artifactstore/s3driver/export_lifecycle.go
+new file mode 100644
+index 00000000..0a791801
+--- /dev/null
++++ b/services/platform/artifactstore/s3driver/export_lifecycle.go
+@@ -0,0 +1,94 @@
++package s3driver
++
++import (
++	"context"
++	"errors"
++
++	"github.com/aws/aws-sdk-go-v2/aws"
++	"github.com/aws/aws-sdk-go-v2/service/s3"
++	"github.com/aws/smithy-go"
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
++)
++
++// ExportReadAPI deliberately cannot write. Reconciliation is never a Put retry.
++type ExportReadAPI interface {
++	HeadObject(context.Context, *s3.HeadObjectInput, ...func(*s3.Options)) (*s3.HeadObjectOutput, error)
++	GetObject(context.Context, *s3.GetObjectInput, ...func(*s3.Options)) (*s3.GetObjectOutput, error)
++}
++type ExportCleanupAPI interface {
++	GetObject(context.Context, *s3.GetObjectInput, ...func(*s3.Options)) (*s3.GetObjectOutput, error)
++	DeleteObject(context.Context, *s3.DeleteObjectInput, ...func(*s3.Options)) (*s3.DeleteObjectOutput, error)
++}
++type exportReadAdapter struct{ ExportReadAPI }
++
++func (exportReadAdapter) PutObject(context.Context, *s3.PutObjectInput, ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
++	return nil, ErrImmutable
++}
++
++type ExportVerifier struct{ driver *Driver }
++
++func NewExportVerifier(client ExportReadAPI, config Config) (*ExportVerifier, error) {
++	if nilInterface(client) {
++		return nil, ErrConfiguration
++	}
++	d, err := NewExport(exportReadAdapter{client}, config)
++	if err != nil {
++		return nil, err
++	}
++	return &ExportVerifier{d}, nil
++}
++func (v *ExportVerifier) Verify(ctx context.Context, intent artifactstore.DriverObject) (result artifactstore.DriverObject, resultErr error) {
++	defer containPanic(&result, &resultErr, ErrGet)
++	if v == nil || !v.driver.ready(ctx) || !v.driver.validObject(intent) || intent.VersionID != "" {
++		return result, ErrArtifact
++	}
++	stored, err := v.driver.discover(ctx, intent.DriverLocator)
++	if err != nil || !sameContent(stored, intent) {
++		return result, ErrGet
++	}
++	return stored, nil
++}
++
++type ExportCleanup struct {
++	client ExportCleanupAPI
++	config Config
++}
++
++func NewExportCleanup(client ExportCleanupAPI, config Config) (*ExportCleanup, error) {
++	if nilInterface(client) || !bucketPattern.MatchString(config.Bucket) || !ownerPattern.MatchString(config.ExpectedBucketOwner) || !kmsKeyPattern.MatchString(config.KMSKeyARN) || config.MaximumBytes <= 0 || config.MaximumBytes > maximumArtifactBytes {
++		return nil, ErrConfiguration
++	}
++	return &ExportCleanup{client, config}, nil
++}
++
++// DeleteExact never deletes a current key or bypasses a retention/legal hold.
++// Only an explicit missing-version response after this pinned request can free
++// accounting. HTTP denial, generic 404, timeout and delete success alone cannot.
++func (c *ExportCleanup) DeleteExact(ctx context.Context, locator artifactstore.DriverLocator) (resultErr error) {
++	defer func() {
++		if recover() != nil {
++			resultErr = ErrImmutable
++		}
++	}()
++	if c == nil || nilInterface(c.client) || ctx == nil || ctx.Err() != nil || !validVersion(locator.VersionID) || !(&Driver{config: c.config, export: true}).validLocator(locator) {
++		return ErrArtifact
++	}
++	_, _ = c.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(c.config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(c.config.ExpectedBucketOwner)}, oneAttemptOption)
++	if ctx.Err() != nil {
++		return ErrImmutable
++	}
++	// HEAD cannot distinguish a missing version from generic HTTP404. GET has a
++	// typed NoSuchVersion error, and also recovers a lost DELETE response or an
++	// object already removed by lifecycle. The range bounds any successful body.
++	out, err := c.client.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(c.config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(c.config.ExpectedBucketOwner), Range: aws.String("bytes=0-0")}, oneAttemptOption)
++	if out != nil && out.Body != nil {
++		if out.Body.Close() != nil {
++			return ErrImmutable
++		}
++	}
++	var api smithy.APIError
++	if ctx.Err() == nil && errors.As(err, &api) && api.ErrorCode() == "NoSuchVersion" {
++		return nil
++	}
++	return ErrImmutable
++}
+diff --git a/services/platform/artifactstore/s3driver/export_lifecycle_test.go b/services/platform/artifactstore/s3driver/export_lifecycle_test.go
+new file mode 100644
+index 00000000..369ee648
+--- /dev/null
++++ b/services/platform/artifactstore/s3driver/export_lifecycle_test.go
+@@ -0,0 +1,231 @@
++package s3driver
++
++import (
++	"context"
++	"crypto/sha256"
++	"encoding/base64"
++	"errors"
++	"io"
++	"net/http"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/aws/aws-sdk-go-v2/aws"
++	"github.com/aws/aws-sdk-go-v2/service/s3"
++	"github.com/aws/smithy-go"
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
++)
++
++type cleanupHTTP struct {
++	mode    string
++	methods []string
++	t       *testing.T
++}
++
++func (h *cleanupHTTP) RoundTrip(r *http.Request) (*http.Response, error) {
++	h.methods = append(h.methods, r.Method)
++	if r.URL.Query().Get("versionId") != "version-1" || r.Header.Get("X-Amz-Expected-Bucket-Owner") != "123456789012" {
++		h.t.Fatal("cleanup escaped exact version/owner")
++	}
++	status := 404
++	body := ""
++	header := http.Header{}
++	if r.Method == "DELETE" {
++		if h.mode == "lost_delete" {
++			return nil, errors.New("response lost")
++		}
++		status = 204
++		header.Set("X-Amz-Version-Id", "version-1")
++	}
++	if r.Method == "GET" {
++		if r.Header.Get("Range") != "bytes=0-0" {
++			h.t.Fatal("absence read unbounded")
++		}
++		if h.mode == "deleted" || h.mode == "lost_delete" {
++			body = `<Error><Code>NoSuchVersion</Code><Message>Missing exact version</Message></Error>`
++		} else if h.mode == "denied" {
++			status = 403
++			body = `<Error><Code>AccessDenied</Code></Error>`
++		}
++	}
++	return &http.Response{StatusCode: status, Header: header, Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
++}
++func TestExportCleanupSDKExactVersionAbsence(t *testing.T) {
++	for _, mode := range []string{"deleted", "lost_delete", "ambiguous404", "denied"} {
++		t.Run(mode, func(t *testing.T) {
++			transport := &cleanupHTTP{mode: mode, t: t}
++			client := s3.New(s3.Options{Region: "us-east-1", BaseEndpoint: aws.String("https://cleanup.invalid"), UsePathStyle: true, Credentials: aws.AnonymousCredentials{}, HTTPClient: &http.Client{Transport: transport}})
++			c, err := NewExportCleanup(client, validConfig())
++			if err != nil {
++				t.Fatal(err)
++			}
++			object := fixtureObject(t)
++			object.Key = exportFixtureKey
++			object.VersionID = "version-1"
++			err = c.DeleteExact(context.Background(), object.DriverLocator)
++			if (err == nil) != (mode == "deleted" || mode == "lost_delete") {
++				t.Fatalf("mode=%s err=%v requests=%v", mode, err, transport.methods)
++			}
++			if len(transport.methods) != 2 || transport.methods[0] != "DELETE" || transport.methods[1] != "GET" {
++				t.Fatalf("absence did not use exact GET, or retried: %v", transport.methods)
++			}
++		})
++	}
++}
++
++func TestExportReadOnlyReconciliation(t *testing.T) {
++	transport := &exportSDKTransport{t: t, losePut: true}
++	client := s3.New(s3.Options{Region: "us-east-1", BaseEndpoint: aws.String("https://export.invalid"), UsePathStyle: true, Credentials: aws.AnonymousCredentials{}, HTTPClient: &http.Client{Transport: transport}})
++	d, _ := NewExport(client, validConfig())
++	store, _ := artifactstore.NewExport(d, artifactstore.Config{OperationTimeout: time.Second, MaximumBytes: 1024})
++	object := fixtureObject(t)
++	object.Key = exportFixtureKey
++	if _, err := store.Put(context.Background(), artifactstore.PutRequest{Locator: artifactstore.Locator{Scope: object.Scope, Reference: object.Reference}, MediaType: object.MediaType, Body: object.Body}); err != nil {
++		t.Fatal(err)
++	}
++	verifier, err := NewExportVerifier(client, validConfig())
++	if err != nil {
++		t.Fatal(err)
++	}
++	before := transport.puts
++	got, err := verifier.Verify(context.Background(), object)
++	if err != nil || got.VersionID != "version-1" || transport.puts != before {
++		t.Fatalf("read-only receipt failed: %+v %v puts=%d", got, err, transport.puts)
++	}
++	object.Body = []byte("different")
++	object.Size = int64(len(object.Body))
++	object.SHA256 = sha256.Sum256(object.Body)
++	if _, err = verifier.Verify(context.Background(), object); err == nil || transport.puts != before {
++		t.Fatal("changed intent accepted or verifier wrote")
++	}
++}
++
++type reconcileFaultHTTP struct {
++	base  *exportSDKTransport
++	fault string
++}
++
++func (h *reconcileFaultHTTP) RoundTrip(r *http.Request) (*http.Response, error) {
++	if h.fault == "timeout" {
++		<-r.Context().Done()
++		return nil, r.Context().Err()
++	}
++	if h.fault == "owner_denied" || h.fault == "missing" {
++		code := 403
++		if h.fault == "missing" {
++			code = 404
++		}
++		return &http.Response{StatusCode: code, Header: http.Header{}, Body: io.NopCloser(strings.NewReader("")), Request: r}, nil
++	}
++	response, err := h.base.RoundTrip(r)
++	if err != nil {
++		return response, err
++	}
++	if r.Method == "GET" {
++		switch h.fault {
++		case "wrong_version":
++			response.Header.Set("X-Amz-Version-Id", "foreign-version")
++		case "wrong_kms":
++			response.Header.Set("X-Amz-Server-Side-Encryption-Aws-Kms-Key-Id", "arn:aws:kms:us-east-1:123456789012:key/22222222-2222-4222-8222-222222222222")
++		case "wrong_checksum":
++			response.Header.Set("X-Amz-Checksum-Sha256", base64.StdEncoding.EncodeToString(make([]byte, 32)))
++		case "wrong_scope":
++			response.Header.Set("X-Amz-Meta-Organization_id", "pid_00000000-0000-4000-8000-000000000099")
++		}
++	}
++	return response, nil
++}
++func TestExportReadOnlyReconciliationSDKFaults(t *testing.T) {
++	for _, fault := range []string{"wrong_version", "wrong_kms", "wrong_checksum", "wrong_scope", "owner_denied", "missing", "timeout", "different_bytes"} {
++		t.Run(fault, func(t *testing.T) {
++			base := &exportSDKTransport{t: t}
++			httpBoundary := &reconcileFaultHTTP{base: base}
++			client := s3.New(s3.Options{Region: "us-east-1", BaseEndpoint: aws.String("https://export.invalid"), UsePathStyle: true, Credentials: aws.AnonymousCredentials{}, HTTPClient: &http.Client{Transport: httpBoundary}})
++			driver, _ := NewExport(client, validConfig())
++			store, _ := artifactstore.NewExport(driver, artifactstore.Config{OperationTimeout: time.Second, MaximumBytes: 1024})
++			object := fixtureObject(t)
++			object.Key = exportFixtureKey
++			if _, err := store.Put(context.Background(), artifactstore.PutRequest{Locator: artifactstore.Locator{Scope: object.Scope, Reference: object.Reference}, MediaType: object.MediaType, Body: object.Body}); err != nil {
++				t.Fatal(err)
++			}
++			verifier, _ := NewExportVerifier(client, validConfig())
++			httpBoundary.fault = fault
++			if fault == "different_bytes" {
++				object.Body = []byte("same intent key, different bytes")
++				object.Size = int64(len(object.Body))
++				object.SHA256 = sha256.Sum256(object.Body)
++			}
++			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
++			defer cancel()
++			if _, err := verifier.Verify(ctx, object); err == nil {
++				t.Fatal("unverified immutable receipt accepted")
++			}
++			if base.puts != 1 || base.writes != 1 {
++				t.Fatal("reconciler issued write")
++			}
++		})
++	}
++}
++
++type exactCleanupAPI struct {
++	calls                  int
++	denied, locked, absent bool
++	version, owner         string
++}
++
++func (f *exactCleanupAPI) DeleteObject(ctx context.Context, in *s3.DeleteObjectInput, options ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
++	f.calls++
++	f.version = aws.ToString(in.VersionId)
++	f.owner = aws.ToString(in.ExpectedBucketOwner)
++	var opts s3.Options
++	for _, o := range options {
++		o(&opts)
++	}
++	if opts.Retryer == nil || opts.Retryer.MaxAttempts() != 1 {
++		return nil, errors.New("unbounded retries")
++	}
++	if f.denied {
++		return nil, errors.New("denied")
++	}
++	if !f.locked {
++		f.absent = true
++	}
++	return &s3.DeleteObjectOutput{VersionId: in.VersionId}, nil
++}
++func (f *exactCleanupAPI) GetObject(ctx context.Context, in *s3.GetObjectInput, options ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
++	if aws.ToString(in.VersionId) != f.version || aws.ToString(in.ExpectedBucketOwner) != f.owner {
++		return nil, errors.New("wrong pin")
++	}
++	if f.absent {
++		return nil, &smithy.GenericAPIError{Code: "NoSuchVersion", Message: "gone"}
++	}
++	return &s3.GetObjectOutput{VersionId: in.VersionId}, nil
++}
++func TestExportCleanupRequiresVerifiedExactVersionAbsence(t *testing.T) {
++	for _, mode := range []string{"deleted", "denied", "locked", "missing_version"} {
++		t.Run(mode, func(t *testing.T) {
++			api := &exactCleanupAPI{denied: mode == "denied", locked: mode == "locked"}
++			c, err := NewExportCleanup(api, validConfig())
++			if err != nil {
++				t.Fatal(err)
++			}
++			object := fixtureObject(t)
++			object.Key = exportFixtureKey
++			object.VersionID = "version-1"
++			if mode == "missing_version" {
++				object.VersionID = ""
++			}
++			err = c.DeleteExact(context.Background(), object.DriverLocator)
++			if (err == nil) != (mode == "deleted") {
++				t.Fatalf("mode=%s error=%v", mode, err)
++			}
++			if mode == "missing_version" && api.calls != 0 {
++				t.Fatal("versionless delete reached provider")
++			}
++			if mode == "deleted" && (api.version != "version-1" || api.owner != "123456789012") {
++				t.Fatalf("wrong authority %v", api)
++			}
++		})
++	}
++}
+diff --git a/services/platform/sessioncontrol/compliance_attribution_test.go b/services/platform/sessioncontrol/compliance_attribution_test.go
+new file mode 100644
+index 00000000..85991eac
+--- /dev/null
++++ b/services/platform/sessioncontrol/compliance_attribution_test.go
+@@ -0,0 +1,45 @@
++package sessioncontrol
++
++import (
++	"bytes"
++	"encoding/json"
++	"testing"
++	"time"
++)
++
++func TestComplianceFormatterCapturedAttribution(t *testing.T) {
++	// Optional typed attribution must survive every format; unknown raw fields
++	// must never be accepted as source metadata.
++	var record EvidenceRecord
++	if err := json.Unmarshal([]byte(`{"id":"policy-safe","asset_id":"policy-safe","source":"policy","at":"2026-09-18T00:00:00Z","target":{"source_kind":"policy","source_id":"policy-safe","source_version":7},"metadata":{"verification":"definition_only"}}`), &record); err != nil {
++		t.Fatal(err)
++	}
++	value, err := BuildComplianceExport("export-attribution", []ComplianceEvidence{{Control: ComplianceControl{ID: "SOC2-CC6", Framework: "soc2_security", Name: "Access", FreshUntil: time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)}, Freshness: "fresh", Evidence: []EvidenceRecord{record}}})
++	if err != nil {
++		t.Fatal(err)
++	}
++	for name, body := range map[string][]byte{"json": value.JSON, "csv": value.CSV, "human": []byte(value.Human)} {
++		if !bytes.Contains(body, []byte("definition_only")) || !bytes.Contains(body, []byte("source_version")) {
++			t.Fatalf("%s lost captured attribution: %s", name, body)
++		}
++	}
++}
++
++func TestComplianceFormatterFrozenContext(t *testing.T) {
++	var value ComplianceEvidence
++	raw := `{"control":{"id":"soc2_security-policy","framework":"soc2_security","name":"Policy definitions","evidence_ids":[],"fresh_until":"2026-09-19T00:00:00Z"},"evidence":[],"freshness":"missing","snapshot_context":{"organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","mapping_revision":"product-evidence-v1","snapshot_at":"2026-09-18T00:00:00Z"}}`
++	if json.Unmarshal([]byte(raw), &value) != nil {
++		t.Fatal("invalid fixture")
++	}
++	result, err := BuildComplianceExport("frozen-context", []ComplianceEvidence{value})
++	if err != nil {
++		t.Fatal(err)
++	}
++	for name, body := range map[string][]byte{"json": result.JSON, "csv": result.CSV, "human": []byte(result.Human)} {
++		for _, want := range []string{"pid_10000003-0000-4000-8000-000000000003", "product-evidence-v1", "2026-09-18T00:00:00Z"} {
++			if !bytes.Contains(body, []byte(want)) {
++				t.Fatalf("%s lost frozen context %s", name, want)
++			}
++		}
++	}
++}
+diff --git a/services/platform/apiserver/compliance_runtime_postgres_test.go b/services/platform/apiserver/compliance_runtime_postgres_test.go
+new file mode 100644
+index 00000000..bde7d131
+--- /dev/null
++++ b/services/platform/apiserver/compliance_runtime_postgres_test.go
+@@ -0,0 +1,121 @@
++package apiserver
++
++import (
++	"context"
++	"encoding/hex"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++	"time"
++)
++
++func TestComplianceRuntimePollingPostgres(t *testing.T) {
++	withComplianceFixFixture(t, func(f *complianceFixFixture) {
++		api := f.connect("security_agent_v33_discovery_api_login")
++		f.exec(`INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body) VALUES($1,$2,$3,'policy','policy-production',7,'{"raw_prompt":"NEVER_EXPORT"}')`, complianceOrg, complianceWorkspace, complianceEnvironment)
++		dir, err := os.MkdirTemp("/tmp", "compliance-runtime-")
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer os.RemoveAll(dir)
++		object := filepath.Join(dir, "object.json")
++		child := func(phase string, whileUploading func()) {
++			t.Helper()
++			ctx, cancel := context.WithTimeout(f.ctx, 16*time.Second)
++			defer cancel()
++			cmd := exec.CommandContext(ctx, "/compliance-worker.test", "-test.run=^TestComplianceRuntimeProcess$", "-test.v", "-test.timeout=15s")
++			cmd.Env = append(os.Environ(), "ZASP_COMPLIANCE_RUNTIME_DSN="+f.dsn, "ZASP_COMPLIANCE_RUNTIME_PHASE="+phase, "ZASP_COMPLIANCE_RUNTIME_OBJECT="+object)
++			if whileUploading == nil {
++				out, err := cmd.CombinedOutput()
++				t.Logf("joined %s: %s", phase, out)
++				if err != nil {
++					t.Fatalf("child %s: %v", phase, err)
++				}
++				return
++			}
++			done := make(chan struct{})
++			var out []byte
++			var runErr error
++			go func() { out, runErr = cmd.CombinedOutput(); close(done) }()
++			defer func() { cancel(); <-done }()
++			for {
++				if _, err := os.Stat(object + ".entered"); err == nil {
++					break
++				}
++				select {
++				case <-done:
++					t.Fatalf("child exited before upload: %s %v", out, runErr)
++				case <-ctx.Done():
++					t.Fatal(ctx.Err())
++				case <-time.After(5 * time.Millisecond):
++				}
++			}
++			whileUploading()
++			if err := os.WriteFile(object+".release", []byte("continue"), 0600); err != nil {
++				t.Fatal(err)
++			}
++			<-done
++			t.Logf("joined %s: %s", phase, out)
++			if runErr != nil {
++				t.Fatal(runErr)
++			}
++		}
++		id := f.job(api, "runtime-restart")
++		child("interrupt", nil)
++		var before, after []byte
++		var state, storage string
++		var retained int64
++		if err := f.owner.QueryRow(f.ctx, `SELECT package,state,storage_state,retained_bytes FROM zasp_compliance_export_jobs WHERE export_id=$1`, id).Scan(&before, &state, &storage, &retained); err != nil || state != "pending" || storage != "unknown" || retained < 1 || strings.Contains(string(before), "NEVER_EXPORT") || !strings.Contains(string(before), `"source_version":7`) {
++			t.Fatalf("SIGTERM intent state=%s storage=%s bytes=%d %v", state, storage, retained, err)
++		}
++		f.exec(`UPDATE zasp_workflow_records SET version=8 WHERE id='policy-production';UPDATE zasp_compliance_export_jobs SET next_attempt_at=clock_timestamp() WHERE export_id=$1`, id)
++		child("resume", nil)
++		if err := f.owner.QueryRow(f.ctx, `SELECT package,state,storage_state FROM zasp_compliance_export_jobs WHERE export_id=$1`, id).Scan(&after, &state, &storage); err != nil || state != "completed" || storage != "verified" || hex.EncodeToString(before) != hex.EncodeToString(after) {
++			t.Fatalf("restart changed frozen bytes %s %s %v", state, storage, err)
++		}
++		f.exec(`UPDATE zasp_compliance_export_jobs SET retrieval_expires_at=clock_timestamp()-interval '1 second' WHERE export_id=$1`, id)
++		child("cleanup_denied", nil)
++		if err := f.owner.QueryRow(f.ctx, `SELECT storage_state,retained_bytes FROM zasp_compliance_export_jobs WHERE export_id=$1`, id).Scan(&storage, &retained); err != nil || storage != "delete_pending" || retained < 1 {
++			t.Fatalf("denied cleanup released quota %s %d %v", storage, retained, err)
++		}
++		f.exec(`UPDATE zasp_compliance_export_jobs SET next_attempt_at=clock_timestamp() WHERE export_id=$1`, id)
++		child("cleanup", nil)
++		if err := f.owner.QueryRow(f.ctx, `SELECT storage_state,retained_bytes FROM zasp_compliance_export_jobs WHERE export_id=$1`, id).Scan(&storage, &retained); err != nil || storage != "deleted" || retained != 0 {
++			t.Fatalf("verified cleanup retained quota %s %d %v", storage, retained, err)
++		}
++		id = f.job(api, "runtime-exhaustion")
++		for i := 0; i < 5; i++ {
++			child("unknown", nil)
++			f.exec(`UPDATE zasp_compliance_export_jobs SET next_attempt_at=clock_timestamp() WHERE export_id=$1`, id)
++		}
++		if err := f.owner.QueryRow(f.ctx, `SELECT state,storage_state,retained_bytes FROM zasp_compliance_export_jobs WHERE export_id=$1`, id).Scan(&state, &storage, &retained); err != nil || state != "failed" || storage != "reconcile_required" || retained < 1 {
++			t.Fatalf("exhaustion %s %s %d %v", state, storage, retained, err)
++		}
++		child("reconcile", nil)
++		if err := f.owner.QueryRow(f.ctx, `SELECT state,storage_state FROM zasp_compliance_export_jobs WHERE export_id=$1`, id).Scan(&state, &storage); err != nil || state != "failed" || storage != "verified" {
++			t.Fatalf("reconciler changed public failure %s %s %v", state, storage, err)
++		}
++		// Separate job/provider fixture, concurrent revocation after Put has begun.
++		object = filepath.Join(dir, "revoked.json")
++		id = f.job(api, "runtime-revocation")
++		child("revoked", func() {
++			f.exec(`UPDATE zasp_product_sessions SET revoked_at=clock_timestamp() WHERE token_digest=$1`, f.digest[:])
++		})
++		if err := f.owner.QueryRow(f.ctx, `SELECT state,storage_state,retained_bytes FROM zasp_compliance_export_jobs WHERE export_id=$1`, id).Scan(&state, &storage, &retained); err != nil || state != "pending" || storage != "unknown" || retained < 1 {
++			t.Fatalf("revocation published or released intent %s %s %d %v", state, storage, retained, err)
++		}
++		f.exec(`UPDATE zasp_product_sessions SET revoked_at=NULL WHERE token_digest=$1`, f.digest[:])
++		// Keep the previous uncertain job out of the next execution poll.
++		f.exec(`UPDATE zasp_compliance_export_jobs SET next_attempt_at=clock_timestamp()+interval '1 hour' WHERE export_id=$1`, id)
++		object = filepath.Join(dir, "stale.json")
++		id = f.job(api, "runtime-stale-lease")
++		child("lease_lost", func() {
++			f.exec(`UPDATE zasp_compliance_export_jobs SET generation=generation+1,lease_expires_at=clock_timestamp()-interval '1 second' WHERE export_id=$1`, id)
++		})
++		if err := f.owner.QueryRow(f.ctx, `SELECT state,storage_state,retained_bytes FROM zasp_compliance_export_jobs WHERE export_id=$1`, id).Scan(&state, &storage, &retained); err != nil || state != "pending" || storage != "intent" || retained < 1 {
++			t.Fatalf("stale worker finalized/released intent %s %s %d %v", state, storage, retained, err)
++		}
++	})
++}

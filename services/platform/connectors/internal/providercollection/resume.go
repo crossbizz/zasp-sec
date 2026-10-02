@@ -22,6 +22,10 @@ import (
 
 type ResumeSeed = collection.ResumeSeed
 
+type effectBatchArtifacts interface {
+	GetEffectBatch(context.Context, string, domain.Scope, []artifactstore.Locator) ([]artifactstore.Artifact, error)
+}
+
 var kubernetesResumeCursorPattern = regexp.MustCompile(`^kubernetes:(namespaces|serviceaccounts|roles|clusterroles|rolebindings|clusterrolebindings|deployments|statefulsets|daemonsets|jobs|cronjobs):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+|start):([0-9a-f]{16}):([0-9a-f]{16})$`)
 
 var oktaResumeCursorPattern = regexp.MustCompile(`^okta:(users|userroles|groups|groupmembers|grouproles|applications|appusers|appgroups|clientroles):([1-9][0-9]{0,5}):([A-Za-z0-9_-]+):([0-9a-f]{16})$`)
@@ -76,7 +80,7 @@ func (client *Client) WithResumeSeed(seed collection.ResumeSeed) (collection.Pro
 }
 
 func validResumeSeed(seed collection.ResumeSeed) bool {
-	return seed.CheckpointVersion >= 1 && seed.CheckpointVersion <= 10_000 && len(seed.CheckpointDigest) == sha256.Size && !bytes.Equal(seed.CheckpointDigest, make([]byte, sha256.Size)) &&
+	return (seed.EffectID == "" || collection.ValidExecutionIdentity(0, seed.EffectID)) && seed.CheckpointVersion >= 1 && seed.CheckpointVersion <= 10_000 && len(seed.CheckpointDigest) == sha256.Size && !bytes.Equal(seed.CheckpointDigest, make([]byte, sha256.Size)) &&
 		seed.Cursor.Provider != "" && seed.Cursor.Version != "" && seed.Cursor.Value != "" && len(seed.ManifestReference) > len(seed.ManifestKey)+1 && strings.HasSuffix(seed.ManifestReference, "/"+seed.ManifestKey) &&
 		len(seed.ManifestVersionID) >= 1 && len(seed.ManifestVersionID) <= 1024 && len(seed.ManifestChecksum) == sha256.Size && !bytes.Equal(seed.ManifestChecksum, make([]byte, sha256.Size)) &&
 		seed.ManifestSizeBytes >= 1 && seed.ManifestSizeBytes <= maximumArtifactBytes && seed.ManifestMediaType == "application/json" && seed.ManifestSchema == manifestSchemaVersion &&
@@ -111,7 +115,20 @@ func (client *Client) loadResumeSeed(ctx context.Context, request collection.Req
 		return resumeState{}, collection.ErrContract
 	}
 	locator := artifactstore.Locator{Scope: request.Scope, Reference: manifestReference, VersionID: seed.ManifestVersionID}
-	manifestArtifact, err := client.artifacts.Get(ctx, locator)
+	var manifestArtifact artifactstore.Artifact
+	batch, canBatch := client.artifacts.(effectBatchArtifacts)
+	canBatch = canBatch && request.EffectID != ""
+	if canBatch {
+		var values []artifactstore.Artifact
+		values, err = batch.GetEffectBatch(ctx, request.EffectID, request.Scope, []artifactstore.Locator{locator})
+		if err == nil && len(values) == 1 {
+			manifestArtifact = values[0]
+		} else {
+			return resumeState{}, collection.ErrContract
+		}
+	} else {
+		manifestArtifact, err = client.artifacts.Get(ctx, locator)
+	}
 	var expectedChecksum [sha256.Size]byte
 	copy(expectedChecksum[:], seed.ManifestChecksum)
 	if err != nil || !exactResumeArtifact(manifestArtifact, locator, seed.ManifestMediaType, seed.ManifestSizeBytes, expectedChecksum) {
@@ -136,12 +153,31 @@ func (client *Client) loadResumeSeed(ctx context.Context, request collection.Req
 	lastReference := ""
 	cursorMatches := 0
 	resumeCursors := make([]collection.Cursor, 0, len(document.Objects))
-	for _, descriptor := range document.Objects {
+	var cachedPages []artifactstore.Artifact
+	if canBatch {
+		locators := make([]artifactstore.Locator, 0, len(document.Objects))
+		for _, descriptor := range document.Objects {
+			reference, err := evidenceReferenceFromKey(descriptor.Key)
+			if err != nil {
+				return resumeState{}, collection.ErrContract
+			}
+			locators = append(locators, artifactstore.Locator{Scope: request.Scope, Reference: reference, VersionID: descriptor.VersionID})
+		}
+		cachedPages, err = batch.GetEffectBatch(ctx, request.EffectID, request.Scope, locators)
+		if err != nil || len(cachedPages) != len(document.Objects) {
+			return resumeState{}, collection.ErrContract
+		}
+	}
+	for index, descriptor := range document.Objects {
 		if descriptor.Reference <= lastReference {
 			return resumeState{}, collection.ErrContract
 		}
 		lastReference = descriptor.Reference
-		object, page, loadErr := client.loadResumePage(ctx, request, descriptor)
+		var cached *artifactstore.Artifact
+		if canBatch {
+			cached = &cachedPages[index]
+		}
+		object, page, loadErr := client.loadResumePage(ctx, request, descriptor, cached)
 		if loadErr != nil || page.Complete {
 			return resumeState{}, collection.ErrContract
 		}
@@ -538,14 +574,19 @@ func matchValue(matches []string, index int) string {
 	return matches[index]
 }
 
-func (client *Client) loadResumePage(ctx context.Context, request collection.Request, descriptor manifestDescriptor) (collection.RawObject, Page, error) {
+func (client *Client) loadResumePage(ctx context.Context, request collection.Request, descriptor manifestDescriptor, cached *artifactstore.Artifact) (collection.RawObject, Page, error) {
 	reference, err := evidenceReferenceFromKey(descriptor.Key)
 	checksumBytes, checksumErr := hex.DecodeString(descriptor.ChecksumHex)
 	if err != nil || checksumErr != nil || len(checksumBytes) != sha256.Size || descriptor.Reference != reference.String() || descriptor.SchemaVersion != rawSchemaVersion || descriptor.MediaType != "application/json" {
 		return collection.RawObject{}, Page{}, collection.ErrContract
 	}
 	locator := artifactstore.Locator{Scope: request.Scope, Reference: reference, VersionID: descriptor.VersionID}
-	artifact, err := client.artifacts.Get(ctx, locator)
+	var artifact artifactstore.Artifact
+	if cached != nil {
+		artifact = *cached
+	} else {
+		artifact, err = client.artifacts.Get(ctx, locator)
+	}
 	var checksum [sha256.Size]byte
 	copy(checksum[:], checksumBytes)
 	if err != nil || !exactResumeArtifact(artifact, locator, descriptor.MediaType, descriptor.SizeBytes, checksum) {
@@ -572,8 +613,15 @@ func validResumeManifest(document manifestDocument, request collection.Request, 
 	digest, err := hex.DecodeString(document.RequestDigest)
 	return err == nil && len(digest) == sha256.Size && !bytes.Equal(digest, make([]byte, sha256.Size)) && document.Version == manifestSchemaVersion && document.Provider == request.Provider &&
 		document.Subject == (manifestSubject{Kind: request.ExpectedSubject.Kind, ID: request.ExpectedSubject.ID}) && document.IntegrationID == request.IntegrationID.String() && document.ConnectionID == request.ConnectionID.String() && document.JobID == request.JobID.String() &&
-		document.Attempt >= 1 && document.Attempt <= request.Attempt && document.CollectorVersion == request.CollectorVersion && document.CursorProvider == seed.Cursor.Provider && document.CursorVersion == seed.Cursor.Version && document.CursorValue == seed.Cursor.Value &&
+		validResumeExecutionIdentity(document, request, seed) && document.CollectorVersion == request.CollectorVersion && document.CursorProvider == seed.Cursor.Provider && document.CursorVersion == seed.Cursor.Version && document.CursorValue == seed.Cursor.Value &&
 		document.ParserVersion == seed.ParserVersion && document.ToolVersion == seed.ToolVersion && len(document.Objects) >= 1 && len(document.Objects) <= request.Bounds.MaxPages
+}
+
+func validResumeExecutionIdentity(document manifestDocument, request collection.Request, seed collection.ResumeSeed) bool {
+	if request.EffectID == "" {
+		return seed.EffectID == "" && document.EffectID == "" && document.Attempt >= 1 && document.Attempt <= request.Attempt
+	}
+	return collection.ValidExecutionIdentity(request.Attempt, request.EffectID) && collection.ValidExecutionIdentity(document.Attempt, document.EffectID) && document.EffectID == seed.EffectID
 }
 
 func exactResumeArtifact(artifact artifactstore.Artifact, locator artifactstore.Locator, mediaType string, size int64, checksum [sha256.Size]byte) bool {

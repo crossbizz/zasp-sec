@@ -1,0 +1,22 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/usr/bin/env","PATH=/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin","npm","run","openapi:generate"]
+
+> zasp-agent-security-console@0.1.0 openapi:generate
+> openapi-typescript openapi/openapi.yaml --output apps/web/api/generated.ts --alphabetize --export-type --immutable --root-types --root-types-no-schema-prefix
+
+✨ openapi-typescript 7.13.0
+ ✘  Property `path or query.` is not expected here. at #/components/schemas/SecurityAgentAttackLabApproval/properties/destination/path or query.
+file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/node_modules/openapi-typescript/dist/lib/redoc.mjs:74
+      throw new Error(errorMessage);
+            ^
+
+Error: Property `path or query.` is not expected here. at #/components/schemas/SecurityAgentAttackLabApproval/properties/destination/path or query.
+    at _processProblems (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/node_modules/openapi-typescript/dist/lib/redoc.mjs:74:13)
+    at validateAndBundle (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/node_modules/openapi-typescript/dist/lib/redoc.mjs:108:3)
+    at async openapiTS (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/node_modules/openapi-typescript/dist/index.mjs:40:18)
+    at async generateSchema (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/node_modules/openapi-typescript/bin/cli.js:143:5)
+    at async main (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/node_modules/openapi-typescript/bin/cli.js:280:20)
+
+Node.js v22.23.1
+
+Exit: 1 Signal: null

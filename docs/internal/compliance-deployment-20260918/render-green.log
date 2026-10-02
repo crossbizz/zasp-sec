@@ -1,0 +1,155 @@
+TAP version 13
+# Subtest: migration uses the published registration environment names
+ok 1 - migration uses the published registration environment names
+  ---
+  duration_ms: 634.337667
+  type: 'test'
+  ...
+# Subtest: closed compliance input refuses authority confusion and snapshots before await
+ok 2 - closed compliance input refuses authority confusion and snapshots before await
+  ---
+  duration_ms: 391.338167
+  type: 'test'
+  ...
+# Subtest: rendered compliance rejects authority, sidecar, readiness and additive network mutations
+    # Subtest: writer swapped
+    ok 1 - writer swapped
+      ---
+      duration_ms: 2.652791
+      type: 'test'
+      ...
+    # Subtest: DSN swapped
+    ok 2 - DSN swapped
+      ---
+      duration_ms: 2.487
+      type: 'test'
+      ...
+    # Subtest: schema requirement removed
+    ok 3 - schema requirement removed
+      ---
+      duration_ms: 10.825375
+      type: 'test'
+      ...
+    # Subtest: worker authority on API
+    ok 4 - worker authority on API
+      ---
+      duration_ms: 3.028458
+      type: 'test'
+      ...
+    # Subtest: sidecar
+    ok 5 - sidecar
+      ---
+      duration_ms: 2.454917
+      type: 'test'
+      ...
+    # Subtest: envFrom
+    ok 6 - envFrom
+      ---
+      duration_ms: 2.484666
+      type: 'test'
+      ...
+    # Subtest: host network
+    ok 7 - host network
+      ---
+      duration_ms: 2.370583
+      type: 'test'
+      ...
+    # Subtest: cross-workload mount
+    ok 8 - cross-workload mount
+      ---
+      duration_ms: 5.818709
+      type: 'test'
+      ...
+    # Subtest: migration ordering
+    ok 9 - migration ordering
+      ---
+      duration_ms: 2.358792
+      type: 'test'
+      ...
+    # Subtest: readiness weakened
+    ok 10 - readiness weakened
+      ---
+      duration_ms: 2.1205
+      type: 'test'
+      ...
+    # Subtest: memory request removed
+    ok 11 - memory request removed
+      ---
+      duration_ms: 2.544625
+      type: 'test'
+      ...
+    # Subtest: unbounded HPA
+    ok 12 - unbounded HPA
+      ---
+      duration_ms: 1.974208
+      type: 'test'
+      ...
+    # Subtest: monitor absent
+    ok 13 - monitor absent
+      ---
+      duration_ms: 1.936625
+      type: 'test'
+      ...
+    # Subtest: broad expected selector
+    ok 14 - broad expected selector
+      ---
+      duration_ms: 1.898833
+      type: 'test'
+      ...
+    # Subtest: broad egress
+    ok 15 - broad egress
+      ---
+      duration_ms: 1.881917
+      type: 'test'
+      ...
+    # Subtest: unnamed broad policy
+    ok 16 - unnamed broad policy
+      ---
+      duration_ms: 2.719542
+      type: 'test'
+      ...
+    # Subtest: malformed unselected selector
+    ok 17 - malformed unselected selector
+      ---
+      duration_ms: 2.404875
+      type: 'test'
+      ...
+    # Subtest: group RBAC
+    ok 18 - group RBAC
+      ---
+      duration_ms: 2.0995
+      type: 'test'
+      ...
+    # Subtest: cross namespace RBAC
+    ok 19 - cross namespace RBAC
+      ---
+      duration_ms: 2.120459
+      type: 'test'
+      ...
+    1..19
+ok 3 - rendered compliance rejects authority, sidecar, readiness and additive network mutations
+  ---
+  duration_ms: 894.59725
+  type: 'test'
+  ...
+# Subtest: compliance56 coexists with both optional predecessors in both phases
+ok 4 - compliance56 coexists with both optional predecessors in both phases
+  ---
+  duration_ms: 6118.966084
+  type: 'test'
+  ...
+# Subtest: schema55 predecessors still render and57 stays closed
+ok 5 - schema55 predecessors still render and57 stays closed
+  ---
+  duration_ms: 387.457333
+  type: 'test'
+  ...
+1..5
+# tests 24
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8503.55225

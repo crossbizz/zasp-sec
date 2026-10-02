@@ -1,0 +1,8 @@
+$ /usr/local/bin/docker run --rm --name zasp-export-planner-mutation-red --pull=never --network none --read-only -e ZASP_TEST_EXPORT_PLANNER_OMIT_FRESH_CHECKS=1 --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(PlannerAuthorityWait)Postgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentExportPlannerAuthorityWaitPostgres
+    security_agent_export_planner_postgres_test.go:328: ERROR: new row for relation "zasp_group_mappings" violates check constraint "zasp_group_mappings_group_reference_check" (SQLSTATE 23514)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportPlannerAuthorityWaitPostgres3960745997/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportPlannerAuthorityWaitPostgres (4.80s)
+FAIL
+
+exit=1

@@ -72,6 +72,12 @@ func newRiskHTTPHandler(repository riskRepository, signingKey []byte, now func()
 }
 
 func (handler *riskHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	bound := *handler
+	bound.signingKey = authorizationCursorKey(request.Context(), handler.signingKey)
+	bound.serveAuthorizedHTTP(writer, request)
+}
+
+func (handler *riskHTTPHandler) serveAuthorizedHTTP(writer http.ResponseWriter, request *http.Request) {
 	identity, identityOK := IdentityFromRequest(request)
 	routed, routedOK := RoutedOperationFromRequest(request)
 	if !identityOK || !routedOK {

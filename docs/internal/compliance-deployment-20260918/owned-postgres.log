@@ -1,0 +1,15 @@
+=== RUN   TestComplianceDeploymentBinaryOwnedPostgres
+    compliance_deployment_postgres_test.go:82: actual CLI: bootstrap exact56 through published migration command
+    compliance_deployment_postgres_test.go:96: registered migration session verified: LOGIN INHERIT, NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
+    compliance_deployment_postgres_test.go:167: actual CLI: invalid56 checksum/register-audit-export-api
+    compliance_deployment_postgres_test.go:167: actual CLI: invalid56 checksum/register-audit-export-workers
+    compliance_deployment_postgres_test.go:167: actual CLI: invalid56 checksum/configure-audit-exports
+    compliance_deployment_postgres_test.go:167: actual CLI: invalid56 checksum/register-compliance-workers
+    compliance_deployment_postgres_test.go:170: actual CLI chain up-to-56 -> audit API -> audit workers -> audit policy -> compliance workers; success: false
+    compliance_deployment_postgres_test.go:167: actual CLI: unavailable56 readiness/register-audit-export-api
+    compliance_deployment_postgres_test.go:167: actual CLI: unavailable56 readiness/register-audit-export-workers
+    compliance_deployment_postgres_test.go:167: actual CLI: unavailable56 readiness/configure-audit-exports
+    compliance_deployment_postgres_test.go:167: actual CLI: unavailable56 readiness/register-compliance-workers
+    compliance_deployment_postgres_test.go:170: connected CLI chain: err=exit status 1 output="2026/09/19 06:30:32 release principal registration or readiness failed\n"
+--- FAIL: TestComplianceDeploymentBinaryOwnedPostgres (6.14s)
+FAIL

@@ -1,0 +1,12 @@
+=== RUN   TestComplianceRegisteredSourceAuthorityPostgres
+=== RUN   TestComplianceRegisteredSourceAuthorityPostgres/revoked_while_blocked_session
+    compliance_postgres_test.go:406: observed reader PID 38 blocked by session updater PID 39; committed revocation denied without evidence
+=== RUN   TestComplianceRegisteredSourceAuthorityPostgres/revoked_while_blocked_membership
+    compliance_postgres_test.go:406: observed reader PID 38 blocked by membership updater PID 40; committed revocation denied without evidence
+=== NAME  TestComplianceRegisteredSourceAuthorityPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestComplianceRegisteredSourceAuthorityPostgres1866973337/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceRegisteredSourceAuthorityPostgres (7.81s)
+    --- PASS: TestComplianceRegisteredSourceAuthorityPostgres/revoked_while_blocked_session (0.07s)
+    --- PASS: TestComplianceRegisteredSourceAuthorityPostgres/revoked_while_blocked_membership (0.06s)
+PASS
+exit_code=0

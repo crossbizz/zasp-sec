@@ -1,0 +1,35 @@
+import { describe, expect, it } from "vitest";
+import { decodeSecurityAgentApproval, decodeSecurityAgentRunDetail } from "./decoders";
+
+const id = "pid_78000001-0000-4000-8000-000000000001";
+const source = "pid_78000002-0000-4000-8000-000000000002";
+const execution = "pid_78000003-0000-4000-8000-000000000003";
+const digest = `sha256:${"a".repeat(64)}`;
+const effect = "Run a bounded Attack Lab reproduction; human interpretation required";
+const snapshot = () => ({ source_run_id: source, source_attempt: 1, definition_id: id, definition_version: 1, target_id: id, target_kind: "agent_endpoint", environment: "test", credential_class: "test_write", destination: "canary.example.test", decision_expires_at: "2030-01-01T00:00:00Z", limits: { cpu: "500m", memory: "1Gi", ephemeral_storage: "2Gi", timeout_seconds: 300 }, expected_side_effects: ["Isolated canary write"] });
+const approval = () => ({ id, run_id: id, step_id: id, state: "approved", expires_at: "2030-01-01T00:00:00Z", version: 1, expected_effect: effect, reversible: false, ttl_seconds: 0, evidence_summary: [id], attack_lab: snapshot() });
+const proof = () => ({ definition_id: id, definition_version: 1, source_run_id: source, source_attempt: 1, execution_id: execution, attempt: 1, state: "complete", verdict: "verified", cleanup_state: "complete", cleanup_complete: true, cancel_requested: false, evidence: { reference_digest: "b".repeat(64), version_id: "version-1", sha256: "c".repeat(64), size_bytes: 128 }, settlement: { outcome: "needs_human", reason: "attack_lab_unsafe_condition_reproduced", proof_digest: digest } });
+function detail(link: unknown = proof()) {
+ return { run: { id, agent_id: id, state: "needs_human", evidence_ids: [id], definition_version: 1, version: 1 }, evidence_ids: [id], plan: { plan_hash: digest, catalog_version: "security-agent-actions-v1", expires_at: "2030-01-01T00:00:00Z", steps: [{ id, index: 0, action: "start_attack_lab", authorization: "approval_required", state: "succeeded", version: 1 }] }, authorization: "approved", approvals: [approval()], execution: [{ step_id: id, action: "start_attack_lab", state: "succeeded", version: 1, outcome_id: id, result_digest: digest }], verification: "inconclusive", action_details: [{ step_id: id, action: "start_attack_lab", arguments: { target_id: id, expected_version: 1 }, result: { state: "succeeded", outcome_id: id, result_digest: digest }, ttl_seconds: null, control_expires_at: null, rollback: { support: "not_supported", state: "unavailable", verification: { state: "unavailable", source: "none" } }, verification: { state: "pending", source: "effect_record" }, attack_lab: link }] };
+}
+
+describe("Attack Lab public boundary", () => {
+ it("accepts only bounded redacted approval authority", () => {
+  expect(decodeSecurityAgentApproval(approval())).toEqual(approval());
+  for (const changed of [{ environment: "production" }, { credential_class: "production_write" }, { source_attempt: null }, { source_evidence: { key: "private" } }, { limits: { ...snapshot().limits, timeout_seconds: 301 } }]) {
+   expect(() => decodeSecurityAgentApproval({ ...approval(), attack_lab: { ...snapshot(), ...changed } })).toThrow("schema mismatch");
+  }
+ });
+ it.each(["verified", "not_reproduced"])("keeps %s Needs human", verdict => {
+  const value = detail({ ...proof(), verdict, settlement: { ...proof().settlement, reason: verdict === "verified" ? "attack_lab_unsafe_condition_reproduced" : "attack_lab_not_reproduced_in_bounded_run" } });
+  expect(decodeSecurityAgentRunDetail(value)).toEqual(value);
+ });
+ it("retains pending cleanup after parent cancellation", () => {
+  const value = detail({ ...proof(), state: "cleanup", cleanup_state: "pending", cleanup_complete: false, settlement: null });
+  value.run.state = "cancelled"; value.verification = "not_started";
+  expect(decodeSecurityAgentRunDetail(value)).toEqual(value);
+ });
+ it.each([{ definition_version: 2 }, { source_run_id: execution }, { cleanup_complete: false }, { evidence: null }, { settlement: { ...proof().settlement, outcome: "remediated" } }, { settlement: { ...proof().settlement, proof_digest: `sha256:${"b".repeat(64)}` } }, { key: "private" }, { attempt: null }])("rejects contradictory or private linked detail %j", changed => {
+  expect(() => decodeSecurityAgentRunDetail(detail({ ...proof(), ...changed }))).toThrow("schema mismatch");
+ });
+});

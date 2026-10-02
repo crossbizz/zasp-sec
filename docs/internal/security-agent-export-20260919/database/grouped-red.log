@@ -1,0 +1,42 @@
+=== RUN   TestSecurityAgentExportAuthorityPostgres/empty
+    security_agent_export_postgres_test.go:168: invalid empty selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/duplicate
+    security_agent_export_postgres_test.go:168: invalid duplicate selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/101
+    security_agent_export_postgres_test.go:168: invalid 101 selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/unrelated_same_tenant
+    security_agent_export_postgres_test.go:168: invalid unrelated_same_tenant selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/forged_run_prefix
+    security_agent_export_postgres_test.go:168: invalid forged_run_prefix selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/stale_version
+    security_agent_export_postgres_test.go:168: invalid stale_version selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/forged_association
+    security_agent_export_postgres_test.go:168: invalid forged_association selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/foreign_org
+    security_agent_export_postgres_test.go:188: invalid foreign_org dispatch admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/foreign_workspace
+    security_agent_export_postgres_test.go:188: invalid foreign_workspace dispatch admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/foreign_environment
+    security_agent_export_postgres_test.go:188: invalid foreign_environment dispatch admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/foreign_run
+    security_agent_export_postgres_test.go:188: invalid foreign_run dispatch admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/wrong_lease
+    security_agent_export_postgres_test.go:188: invalid wrong_lease dispatch admitted: {}
+=== NAME  TestSecurityAgentExportAuthorityPostgres
+    security_agent_export_postgres_test.go:204: first dispatch did not admit one bound export: {}
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportAuthorityPostgres1219208960/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportAuthorityPostgres (7.11s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/empty (0.17s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/duplicate (0.10s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/101 (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/unrelated_same_tenant (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/forged_run_prefix (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/stale_version (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/forged_association (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/foreign_org (0.10s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/foreign_workspace (0.08s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/foreign_environment (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/foreign_run (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/wrong_lease (0.08s)
+FAIL
+

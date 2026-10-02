@@ -1,0 +1,13 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","node_modules/vitest/vitest.mjs","run","app/features/securityagents/SecurityAgentsView.test.tsx","-t","^(allows stopping an exact pending Attack Lab link while retaining cleanup evidence|locks all related targets while run cancellation is unresolved)$"]
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed | 73 skipped (75)
+   Start at  04:51:40
+   Duration  1.94s (transform 265ms, setup 247ms, import 395ms, tests 233ms, environment 940ms)
+
+
+Exit: 0 Signal: null

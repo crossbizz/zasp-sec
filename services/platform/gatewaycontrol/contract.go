@@ -51,17 +51,18 @@ type Authority struct {
 }
 
 type DecisionEvent struct {
-	CredentialID   string            `json:"credential_id"`
-	DeviceID       string            `json:"device_id"`
-	EventID        string            `json:"event_id"`
-	ExpectedFloor  uint64            `json:"expected_floor"`
-	NextFloor      uint64            `json:"next_floor"`
-	PolicyVersion  uint64            `json:"policy_version"`
-	Decision       string            `json:"decision"`
-	ActionKind     string            `json:"action_kind"`
-	PolicyIDs      []string          `json:"policy_ids"`
-	Classification map[string]string `json:"classification"`
-	OccurredAt     time.Time         `json:"occurred_at"`
+	CredentialID   string              `json:"credential_id"`
+	DeviceID       string              `json:"device_id"`
+	EventID        string              `json:"event_id"`
+	ExpectedFloor  uint64              `json:"expected_floor"`
+	NextFloor      uint64              `json:"next_floor"`
+	PolicyVersion  uint64              `json:"policy_version"`
+	Decision       string              `json:"decision"`
+	ActionKind     string              `json:"action_kind"`
+	PolicyIDs      []string            `json:"policy_ids"`
+	Classification map[string]string   `json:"classification"`
+	OccurredAt     time.Time           `json:"occurred_at"`
+	Evaluation     *EvaluationEvidence `json:"evaluation,omitempty"`
 }
 
 type Repository interface {
@@ -80,6 +81,9 @@ func validAuthority(value Authority, credentialID string, now time.Time) bool {
 }
 
 func validDecisionEvent(value DecisionEvent) bool {
+	if !ValidEvaluationEvidence(value.Evaluation, value.Decision, value.PolicyIDs) || value.Evaluation != nil && value.Classification["session_id"] != value.Evaluation.SessionID {
+		return false
+	}
 	if !validProductID(value.CredentialID) || !validProductID(value.DeviceID) || !validProductID(value.EventID) ||
 		value.NextFloor != value.ExpectedFloor+1 || value.PolicyVersion == 0 ||
 		value.Decision != "allow" && value.Decision != "monitor" && value.Decision != "block" ||
@@ -164,7 +168,20 @@ func cloneAuthority(value Authority) Authority {
 }
 
 func cloneDecisionEvent(value DecisionEvent) DecisionEvent {
-	value.PolicyIDs = append([]string(nil), value.PolicyIDs...)
+	if value.PolicyIDs != nil {
+		ids := make([]string, len(value.PolicyIDs))
+		copy(ids, value.PolicyIDs)
+		value.PolicyIDs = ids
+	}
+	if value.Evaluation != nil {
+		evaluation := *value.Evaluation
+		if evaluation.ContributingPolicyIDs != nil {
+			ids := make([]string, len(evaluation.ContributingPolicyIDs))
+			copy(ids, evaluation.ContributingPolicyIDs)
+			evaluation.ContributingPolicyIDs = ids
+		}
+		value.Evaluation = &evaluation
+	}
 	value.Classification = cloneStrings(value.Classification)
 	return value
 }

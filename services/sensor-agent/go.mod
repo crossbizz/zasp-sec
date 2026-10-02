@@ -1,6 +1,6 @@
 module github.com/zasp-ai/zasp-sec/services/sensor-agent
 
-go 1.25.0
+go 1.25.4
 
 // The official API module references an unpublished root version used only by
 // upstream code-generation helpers. We import its generated v1/tetragon package,
@@ -11,9 +11,9 @@ require (
 	github.com/cilium/tetragon/api v1.6.0
 	github.com/zasp-ai/zasp-sec/services/health v0.0.0
 	github.com/zasp-ai/zasp-sec/services/platform v0.0.0
-	golang.org/x/sys v0.44.0
-	google.golang.org/grpc v1.76.0
-	google.golang.org/protobuf v1.36.10
+	golang.org/x/sys v0.45.0
+	google.golang.org/grpc v1.83.1
+	google.golang.org/protobuf v1.36.11
 	k8s.io/api v0.35.5
 	k8s.io/apimachinery v0.35.5
 	k8s.io/client-go v0.35.5
@@ -38,12 +38,12 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/term v0.37.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
-	golang.org/x/time v0.9.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
+	golang.org/x/term v0.43.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
+	golang.org/x/time v0.15.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -136,5 +137,114 @@ func TestSessionIndexDoesNotTreatUnavailableSearchAsEmpty(t *testing.T) {
 	}))
 	if page, err := driver.Search(context.Background(), testDriverBatch(t).Scope, sessionsearch.Filters{}, "", 25); err != nil || page.InvestigationIDs == nil || len(page.InvestigationIDs) != 0 || page.After != "" {
 		t.Fatalf("real empty search rejected: %#v %v", page, err)
+	}
+}
+
+func TestP7SessionIndexAuthorizationFiltersAndProviderBounds(t *testing.T) {
+	const allowed = "pid_10000007-0000-4000-8000-000000000007"
+	const other = "pid_10000008-0000-4000-8000-000000000008"
+	for _, test := range []struct {
+		name         string
+		restricted   bool
+		ids, buckets []string
+		after        string
+		wantError    bool
+	}{
+		{name: "allowed", restricted: true, ids: []string{allowed}, buckets: []string{allowed}, after: allowed},
+		{name: "explicit_unattributed", restricted: true, ids: []string{allowed, "unattributed"}, buckets: []string{allowed, "unattributed"}, after: "unattributed"},
+		{name: "empty", restricted: true},
+		{name: "foreign_bucket", restricted: true, ids: []string{allowed}, buckets: []string{allowed, other}, after: other, wantError: true},
+		{name: "implicit_unattributed", restricted: true, ids: []string{allowed}, buckets: []string{"unattributed"}, after: "unattributed", wantError: true},
+		{name: "foreign_after", restricted: true, ids: []string{allowed}, buckets: []string{allowed}, after: other, wantError: true},
+		{name: "implicit_unattributed_after", restricted: true, ids: []string{allowed}, buckets: []string{allowed}, after: "unattributed", wantError: true},
+		{name: "empty_set_foreign_bucket", restricted: true, buckets: []string{allowed}, after: allowed, wantError: true},
+		{name: "allowed_after_beyond_last_bucket", restricted: true, ids: []string{allowed, other}, buckets: []string{allowed}, after: other},
+		{name: "legacy", restricted: false, buckets: []string{allowed, "unattributed"}, after: "unattributed"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			calls := 0
+			index := sessionIndexFixture(t, httpDoerFunc(func(request *http.Request) (*http.Response, error) {
+				calls++
+				if request.Method != http.MethodPost || request.URL.Path != "/zasp-runtime-sessions-v1/_search" {
+					t.Fatalf("wrong search: %s %s", request.Method, request.URL)
+				}
+				body, err := io.ReadAll(request.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var query struct {
+					Query struct {
+						Bool struct {
+							Filter []map[string]json.RawMessage `json:"filter"`
+						} `json:"bool"`
+					} `json:"query"`
+				}
+				if err := json.Unmarshal(body, &query); err != nil {
+					t.Fatal(err)
+				}
+				restrictions := 0
+				for _, clause := range query.Query.Bool.Filter {
+					if raw, ok := clause["terms"]; ok {
+						var fields map[string][]string
+						if err := json.Unmarshal(raw, &fields); err != nil {
+							t.Fatal(err)
+						}
+						if len(fields) != 1 || !reflect.DeepEqual(fields["investigation_id"], test.ids) {
+							t.Fatalf("wrong allow keys: %s", raw)
+						}
+						restrictions++
+					}
+					if raw, ok := clause["match_none"]; ok {
+						if len(test.ids) != 0 || string(raw) != "{}" {
+							t.Fatalf("wrong empty restriction: %s", raw)
+						}
+						restrictions++
+					}
+				}
+				wantRestrictions := 0
+				if test.restricted {
+					wantRestrictions = 1
+				}
+				if restrictions != wantRestrictions {
+					t.Errorf("authorization missing before provider aggregation: %s", body)
+				}
+				response := sessionSearchResponse(test.buckets...)
+				if len(test.buckets) > 0 {
+					response = strings.Replace(response, `"after_key":{"investigation_id":"`+test.buckets[len(test.buckets)-1]+`"}`, `"after_key":{"investigation_id":"`+test.after+`"}`, 1)
+				}
+				return jsonResponse(http.StatusOK, response), nil
+			}))
+			page, err := index.Search(context.Background(), testDriverBatch(t).Scope, sessionsearch.Filters{AuthorizationRestricted: test.restricted, AllowedInvestigationIDs: test.ids}, "", 25)
+			if calls != 1 {
+				t.Fatalf("search calls=%d", calls)
+			}
+			if test.wantError {
+				if !errors.Is(err, runtimeindex.ErrDrift) || page.InvestigationIDs != nil || page.After != "" {
+					t.Fatalf("unauthorized provider output retained: %#v %v", page, err)
+				}
+				return
+			}
+			if err != nil || len(page.InvestigationIDs) != len(test.buckets) || page.After != test.after {
+				t.Fatalf("authorized page changed: %#v %v", page, err)
+			}
+			for i, id := range test.buckets {
+				if page.InvestigationIDs[i] != id {
+					t.Fatalf("wrong returned key: %#v", page)
+				}
+			}
+			if len(test.buckets) == 0 && page.InvestigationIDs == nil {
+				t.Fatal("empty authorized page must retain empty-list semantics")
+			}
+		})
+	}
+}
+
+func TestP7SessionIndexRejectsInvalidAuthorizationBeforeNetwork(t *testing.T) {
+	index := &SessionIndex{transport: testDriver(t, httpDoerFunc(func(*http.Request) (*http.Response, error) {
+		t.Error("invalid authorization set performed provider IO")
+		return nil, errors.New("unexpected request")
+	}))}
+	if page, err := index.Search(context.Background(), testDriverBatch(t).Scope, sessionsearch.Filters{AuthorizationRestricted: true, AllowedInvestigationIDs: []string{""}}, "", 25); !errors.Is(err, runtimeindex.ErrRejected) || page.InvestigationIDs != nil {
+		t.Fatalf("invalid authorization not rejected: %#v %v", page, err)
 	}
 }

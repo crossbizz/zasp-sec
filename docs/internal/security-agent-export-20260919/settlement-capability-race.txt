@@ -1,0 +1,98 @@
+=== RUN   TestSecurityAgentExportCapabilityReleaseChecks
+=== RUN   TestSecurityAgentExportCapabilityReleaseChecks/absent
+=== RUN   TestSecurityAgentExportCapabilityReleaseChecks/ready
+=== RUN   TestSecurityAgentExportCapabilityReleaseChecks/drift
+=== RUN   TestSecurityAgentExportCapabilityReleaseChecks/outage
+--- PASS: TestSecurityAgentExportCapabilityReleaseChecks (0.17s)
+    --- PASS: TestSecurityAgentExportCapabilityReleaseChecks/absent (0.00s)
+    --- PASS: TestSecurityAgentExportCapabilityReleaseChecks/ready (0.09s)
+    --- PASS: TestSecurityAgentExportCapabilityReleaseChecks/drift (0.08s)
+    --- PASS: TestSecurityAgentExportCapabilityReleaseChecks/outage (0.00s)
+=== RUN   TestSecurityAgentExportSettlementRejectsMalformedReceipts
+--- PASS: TestSecurityAgentExportSettlementRejectsMalformedReceipts (0.50s)
+=== RUN   TestSecurityAgentExportSettlementResultStates
+=== RUN   TestSecurityAgentExportSettlementResultStates/verifying/export_pending3_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/needs_human/export_available4_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/needs_human/export_failed4_true
+=== RUN   TestSecurityAgentExportSettlementResultStates/cancelled/export_cancelled3_true
+=== RUN   TestSecurityAgentExportSettlementResultStates/needs_human/export_parent_stopped3_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/failed/export_parent_stopped4_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/remediated/export_parent_stopped3_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/running/export_parent_stopped3_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/remediated/export_available4_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/verifying/export_pending3_true
+=== RUN   TestSecurityAgentExportSettlementResultStates/cancelled/export_cancelled2_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/needs_human/export_failed3_false
+--- PASS: TestSecurityAgentExportSettlementResultStates (0.50s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/verifying/export_pending3_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/needs_human/export_available4_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/needs_human/export_failed4_true (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/cancelled/export_cancelled3_true (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/needs_human/export_parent_stopped3_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/failed/export_parent_stopped4_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/remediated/export_parent_stopped3_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/running/export_parent_stopped3_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/remediated/export_available4_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/verifying/export_pending3_true (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/cancelled/export_cancelled2_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/needs_human/export_failed3_false (0.04s)
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/worker
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/token
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/duration
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/limit
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/cancelled
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/scope
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/audit
+--- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors (0.12s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/worker (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/token (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/duration (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/limit (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/cancelled (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/scope (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/audit (0.00s)
+=== RUN   TestSecurityAgentExportSettlementClient
+--- PASS: TestSecurityAgentExportSettlementClient (0.16s)
+=== RUN   TestSecurityAgentExportSettlementPostgresUTCTimestamp
+--- PASS: TestSecurityAgentExportSettlementPostgresUTCTimestamp (0.04s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	3.662s
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/known
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/reserve_stop
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/reserve_error
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/unknown
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/unavailable
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/settle_error
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/cancel_after_response
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/rejected
+--- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/known (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/reserve_stop (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/reserve_error (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/unknown (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/unavailable (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/settle_error (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/cancel_after_response (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/rejected (0.00s)
+=== RUN   TestSecurityAgentExportPollingPreservesRetryIdentity
+--- PASS: TestSecurityAgentExportPollingPreservesRetryIdentity (0.00s)
+=== RUN   TestSecurityAgentProcessorPlansForApprovalThenExecutesOnlyApprovedWork
+--- PASS: TestSecurityAgentProcessorPlansForApprovalThenExecutesOnlyApprovedWork (0.00s)
+=== RUN   TestSecurityAgentProcessorBudgetStopDoesNotCallPlanner
+--- PASS: TestSecurityAgentProcessorBudgetStopDoesNotCallPlanner (0.00s)
+=== RUN   TestSecurityAgentProcessorFailsClosedBeforeScheduleWhenApprovalExpiryReconciliationFails
+--- PASS: TestSecurityAgentProcessorFailsClosedBeforeScheduleWhenApprovalExpiryReconciliationFails (0.00s)
+=== RUN   TestSecurityAgentProcessorFailsClosedBeforeClaimWhenTriggerSchedulingFails
+--- PASS: TestSecurityAgentProcessorFailsClosedBeforeClaimWhenTriggerSchedulingFails (0.00s)
+=== RUN   TestSecurityAgentProcessorKeepsLeaseThroughVerifiedEffect
+--- PASS: TestSecurityAgentProcessorKeepsLeaseThroughVerifiedEffect (0.01s)
+=== RUN   TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting
+=== RUN   TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting/unavailable
+=== RUN   TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting/budget_stopped
+--- PASS: TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting (0.00s)
+    --- PASS: TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting/unavailable (0.00s)
+    --- PASS: TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting/budget_stopped (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	3.140s

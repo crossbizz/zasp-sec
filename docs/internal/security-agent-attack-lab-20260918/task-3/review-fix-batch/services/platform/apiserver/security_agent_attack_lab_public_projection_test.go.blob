@@ -1,0 +1,154 @@
+package apiserver
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+)
+
+func attackLabApprovalPrivateFixture() json.RawMessage {
+	return json.RawMessage(`{"source_run_id":"pid_78000008-0000-4000-8000-000000000008","source_attempt":1,"definition_id":"pid_78000005-0000-4000-8000-000000000005","definition_version":1,"target_id":"pid_78000007-0000-4000-8000-000000000007","target_kind":"agent_endpoint","source_input_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","source_completed_at":"2026-09-19T12:00:00Z","source_evidence":{"key":"private-key-sentinel","version":"private-version-sentinel","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":128,"reference":"private-reference-sentinel"},"preflight":{"source_run_id":"pid_78000008-0000-4000-8000-000000000008","definition_id":"pid_78000005-0000-4000-8000-000000000005","definition_version":1,"target_id":"pid_78000007-0000-4000-8000-000000000007","target_kind":"agent_endpoint","environment":"test","credential_class":"test_write","destination":"canary.example.test","allowed_destinations":["canary.example.test"],"success_criterion":"isolated canary touched","expected_side_effects":["isolated canary write"],"decision_expires_at":"2026-09-19T12:05:00Z","limits":{"cpu":"500m","memory":"1Gi","ephemeral_storage":"2Gi","timeout_seconds":300},"decision_digest":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}}`)
+}
+
+func TestSecurityAgentAttackLabDecisionHTTPPreservesRedactedSnapshot(t *testing.T) {
+	now := time.Now().UTC()
+	approval := SecurityAgentApproval{ID: "pid_78000001-0000-4000-8000-000000000001", RunID: "pid_78000002-0000-4000-8000-000000000002", StepID: "pid_78000003-0000-4000-8000-000000000003", State: "pending", ExpiresAt: now.Add(time.Minute), Version: 1, ExpectedEffect: "Run a bounded Attack Lab reproduction; human interpretation required", EvidenceSummary: []string{"pid_78000004-0000-4000-8000-000000000004"}, AttackLab: attackLabApprovalPrivateFixture()}
+	result := SecurityAgentApprovalResult{ID: approval.ID, RunID: approval.RunID, StepID: approval.StepID, State: "approved", ExpiresAt: approval.ExpiresAt, Version: 2, ExpectedEffect: approval.ExpectedEffect, EvidenceSummary: approval.EvidenceSummary, AttackLab: approval.AttackLab, AuditID: "pid_78000005-0000-4000-8000-000000000005", CorrelationID: testCorrelationID, ReceiptID: "pid_78000007-0000-4000-8000-000000000007"}
+	stub := &securityAgentPublicAuthorityStub{approval: approval, decided: result}
+	ids := []string{result.AuditID, result.ReceiptID}
+	h, err := NewSecurityAgentPublicHTTPHandler(stub, http.NotFoundHandler(), SecurityAgentPublicHandlerConfig{Clock: func() time.Time { return now }, SigningKey: securityAgentTestSigningKey, NewProductID: func() (string, error) { id := ids[0]; ids = ids[1:]; return id, nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := fixtureRequestIdentity(t)
+	identity.FreshAuthenticated = true
+	identity.FreshAuthExpiresAt = now.Add(time.Minute)
+	r := workflowRequest(t, identity, testCorrelationID, "decideSecurityAgentApproval", map[string]string{"id": approval.ID}, http.MethodPost, "/api/v1/security-agent-approvals/"+approval.ID+"/decision", `{"decision":"approved"}`)
+	r.Header.Set("Idempotency-Key", "attack-decision-response-0001")
+	r.Header.Set("If-Match", `"1"`)
+	r.Header.Set("X-Zasp-Fresh-Auth", "confirmed")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != 200 {
+		t.Fatalf("decision status %d: %s", w.Code, w.Body.String())
+	}
+	var body map[string]json.RawMessage
+	if json.Unmarshal(w.Body.Bytes(), &body) != nil || len(body["attack_lab"]) == 0 {
+		t.Fatalf("decision lost committed approval context: %s", w.Body.String())
+	}
+	if strings.Contains(w.Body.String(), "private-") || strings.Contains(w.Body.String(), "source_evidence") || !strings.Contains(w.Body.String(), `"destination":"canary.example.test"`) {
+		t.Fatal("decision snapshot is not safely redacted")
+	}
+}
+
+func TestSecurityAgentAttackLabApprovalSerializationRedactsPrivateAuthority(t *testing.T) {
+	approval := SecurityAgentApproval{AttackLab: attackLabApprovalPrivateFixture()}
+	raw, err := json.Marshal(approval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "private-") || strings.Contains(string(raw), "source_evidence") || strings.Contains(string(raw), "decision_digest") {
+		t.Fatalf("private authority escaped approval serialization: %s", raw)
+	}
+	if !strings.Contains(string(raw), `"destination":"canary.example.test"`) {
+		t.Fatal("approval hides the bounded approved destination")
+	}
+	for _, required := range []string{`"source_attempt":1`, `"definition_version":1`, `"environment":"test"`, `"expected_side_effects":["isolated canary write"]`, `"timeout_seconds":300`} {
+		if !strings.Contains(string(raw), required) {
+			t.Fatalf("approved bounded context missing %s", required)
+		}
+	}
+}
+
+func TestSecurityAgentAttackLabDecisionResultContract(t *testing.T) {
+	raw := json.RawMessage(`{"attack_lab":` + string(attackLabApprovalPrivateFixture()) + `,"id":"pid_78000001-0000-4000-8000-000000000001","run_id":"pid_78000002-0000-4000-8000-000000000002","step_id":"pid_78000003-0000-4000-8000-000000000003","state":"approved","expires_at":"2030-01-01T00:00:00Z","version":2,"expected_effect":"Run a bounded Attack Lab reproduction; human interpretation required","reversible":false,"ttl_seconds":0,"evidence_summary":["pid_78000004-0000-4000-8000-000000000004"],"audit_id":"pid_78000005-0000-4000-8000-000000000005","correlation_id":"pid_78000006-0000-4000-8000-000000000006","receipt_id":"pid_78000007-0000-4000-8000-000000000007","replayed":false}`)
+	var result SecurityAgentApprovalResult
+	if err := decodeStrictDiscovery(raw, &result); err != nil {
+		t.Fatalf("actual decision shape rejected: %v", err)
+	}
+	if !validSecurityAgentApprovalResult(result, SecurityAgentApprovalDecisionRequest{ApprovalID: result.ID, ExpectedVersion: 1, Decision: "approved"}) {
+		t.Fatal("valid decision rejected")
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil || strings.Contains(string(encoded), "private-") || !strings.Contains(string(encoded), `"receipt_id":`) || !strings.Contains(string(encoded), `"source_attempt":1`) {
+		t.Fatal("decision lost receipt or exposed private authority")
+	}
+}
+
+func attackLabPublicFixture() map[string]any {
+	return map[string]any{"definition_id": existingTestPublicDefinition, "definition_version": 1, "source_run_id": existingTestPublicBefore, "source_attempt": 1, "execution_id": existingTestPublicRun, "attempt": 1, "state": "complete", "verdict": "verified", "cleanup_state": "complete", "cleanup_complete": true, "cancel_requested": false, "evidence": map[string]any{"reference_digest": strings.Repeat("a", 64), "version_id": "immutable-version", "sha256": strings.Repeat("b", 64), "size_bytes": 128}, "settlement": map[string]any{"outcome": "needs_human", "reason": "attack_lab_unsafe_condition_reproduced", "proof_digest": "sha256:" + strings.Repeat("c", 64)}}
+}
+
+func attackLabProjectionFixture(t *testing.T, proof map[string]any) (json.RawMessage, SecurityAgentRunDetail) {
+	return actionProjectionFixture(t, "start_attack_lab", "succeeded", [2]int{}, [2]int{}, func(_, s map[string]any) {
+		s["arguments"] = map[string]any{"target_id": existingTestPublicDefinition, "expected_version": 1}
+		s["attack_lab"] = proof
+	})
+}
+
+// Dropping linked details hides cleanup after a stopped parent; treating a
+// verified verdict as remediation misstates what the sandbox actually proved.
+func TestSecurityAgentAttackLabPublicProjection(t *testing.T) {
+	for _, verdict := range []string{"verified", "not_reproduced", "pending_cleanup"} {
+		t.Run(verdict, func(t *testing.T) {
+			proof := attackLabPublicFixture()
+			if verdict == "not_reproduced" {
+				proof["verdict"] = verdict
+				proof["settlement"].(map[string]any)["reason"] = "attack_lab_not_reproduced_in_bounded_run"
+			}
+			if verdict == "pending_cleanup" {
+				proof["state"] = "cleanup"
+				proof["cleanup_state"] = "pending"
+				proof["cleanup_complete"] = false
+				proof["settlement"] = nil
+			}
+			raw, detail := attackLabProjectionFixture(t, proof)
+			if verdict == "pending_cleanup" {
+				detail.Run.State = "cancelled"
+			}
+			got, err := decodeSecurityAgentActionDetails(raw, detail)
+			if err != nil || len(got) != 1 {
+				t.Fatalf("linked Attack Lab projection missing: %v", err)
+			}
+			detail.ActionDetails = got
+			if !validSecurityAgentActionDetails(detail) {
+				t.Fatal("public validator rejected linked lifecycle")
+			}
+			encoded, err := json.Marshal(got)
+			if err != nil || !strings.Contains(string(encoded), `"attack_lab":`) || !strings.Contains(string(encoded), `"execution_id":"`+existingTestPublicRun+`"`) || strings.Contains(string(encoded), "remediated") {
+				t.Fatal("linked evidence lost or mislabeled")
+			}
+		})
+	}
+}
+
+func TestSecurityAgentAttackLabPublicRejectsContradictions(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mutate func(map[string]any)
+	}{
+		{"private storage", func(p map[string]any) { p["key"] = "private-sentinel" }},
+		{"wrong definition", func(p map[string]any) { p["definition_id"] = existingTestPublicBefore }},
+		{"wrong version", func(p map[string]any) { p["definition_version"] = 2 }},
+		{"remediation", func(p map[string]any) { p["settlement"].(map[string]any)["outcome"] = "remediated" }},
+		{"wrong verdict", func(p map[string]any) { p["verdict"] = "not_reproduced" }},
+		{"cleanup incomplete", func(p map[string]any) { p["cleanup_complete"] = false }},
+		{"wrong proof", func(p map[string]any) {
+			p["settlement"].(map[string]any)["proof_digest"] = "sha256:" + strings.Repeat("d", 64)
+		}},
+		{"null attempt", func(p map[string]any) { p["attempt"] = nil }},
+		{"missing evidence", func(p map[string]any) { p["evidence"] = nil }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := attackLabPublicFixture()
+			tc.mutate(p)
+			raw, detail := attackLabProjectionFixture(t, p)
+			if got, err := decodeSecurityAgentActionDetails(raw, detail); err == nil || got != nil {
+				t.Fatal("contradictory Attack Lab detail accepted")
+			}
+		})
+	}
+}

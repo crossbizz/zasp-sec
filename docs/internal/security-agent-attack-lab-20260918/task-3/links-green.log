@@ -1,0 +1,13 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","node_modules/vitest/vitest.mjs","run","app/domain/activity-links.test.ts","app/features/redteam/ProductionAttackLabView.test.tsx"]
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+
+ Test Files  2 passed (2)
+      Tests  74 passed (74)
+   Start at  03:24:29
+   Duration  1.71s (transform 180ms, setup 399ms, import 296ms, tests 370ms, environment 1.36s)
+
+
+Exit: 0 Signal: null

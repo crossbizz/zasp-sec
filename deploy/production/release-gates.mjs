@@ -54,6 +54,9 @@ export async function verifyReleaseSources() {
     [48, "compatibility"], [49, "compatibility"],
     [50, "backfill"], [50, "query"],
     [51, "precision-consumers"], [51, "precision-intake"],
+    [52, "precision-consumers"], [52, "precision-intake"],
+    [53, "precision-consumers"], [53, "precision-intake"],
+    [54, "precision-consumers"], [54, "precision-intake"],
   ]) {
     const resources = await renderRelease(productionReleaseFixture, { schemaVersion, sessionSearchPhase: phase });
     const schemaJobs = resources.filter(resource => resource.kind === "Job" && resource.metadata.name.startsWith("agentsec-schema-v"));

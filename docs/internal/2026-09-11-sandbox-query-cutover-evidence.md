@@ -475,3 +475,24 @@ this Linux proof. Root read the report and raw old/new test outputs. Local stagi
 checks66039 passed4/4 with no skips in2.317s; the ledger and diff checks passed.
 This is not a green remote CI or main-publication claim. The ledger remains536
 production-available/131 component-only/61 external across728 rows.
+
+## Verified PR and main merge, September12
+
+PR49 head a9341c08ca84884020f5086e5d0d67db7a1a5c77 passed the complete
+pull-request run34685956480. The job finished in39m20s with every step successful:
+runnable UI, Red Team/ledger, release sources, Terraform session-search IAM,
+maintenance alerts, durable runtime/enrollment/candidate authority, sensor
+lineage/authenticated replay, actual daemon lost-success replay and bounded
+Attack Lab network enforcement. The retained watch25230 terminated0.
+
+Root re-read the remote head and base, then merged PR49 using a merge commit
+with the exact head guard. GitHub confirmed MERGED at2026-09-12T10:10:31Z,
+commit fda8ae99921be468b3d95f2369f54112a725e046. Fetch confirmed both parents
+and an empty tree diff from the tested a9341c08 source. No history was squashed,
+no branch protection bypass was requested, and unrelated dirty worktrees were
+not checked out or cleaned.
+
+The main push run34687750130 is in progress under retained watch1883. Original
+M3-46/M3-47 credit still awaits that verification. Main publication is not a live
+deployment or customer-provider acceptance claim. Audit-export work remains on
+the separate local codex/audit-export-api branch. Counts remain536/131/61.

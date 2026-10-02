@@ -1,0 +1,37 @@
+--- a/services/platform/apiserver/security_agent_export_postgres_test.go
++++ b/services/platform/apiserver/security_agent_export_postgres_test.go
+@@ -6,6 +6,7 @@
+ 	"encoding/hex"
+ 	"encoding/json"
+ 	"fmt"
++	"os"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -1570,6 +1571,14 @@
+ 				}
+ 				definition = strings.Replace(definition, "FUNCTION public.zasp_sa_export_settlement_claim(", "FUNCTION public.export_settlement_claim_interleave_fixture(", 1)
+ 				definition = strings.Replace(definition, anchor, "  CROSS JOIN LATERAL (SELECT pg_advisory_xact_lock(5831000::bigint+CASE WHEN d.run_id IS NOT NULL THEN 0 ELSE 1 END)) timing_barrier\n"+anchor, 1)
++				if terminal && os.Getenv("ZASP_TEST_EXPORT_OMIT_SETTLED_GUARD") == "1" {
++					const guard = "CONTINUE WHEN l.settled_at IS NOT NULL OR ("
++					if strings.Count(definition, guard) != 1 {
++						t.Fatal("settled guard mutation anchor changed")
++					}
++					definition = strings.Replace(definition, guard, "CONTINUE WHEN (", 1)
++					t.Log("test-only clone mutation: removed only settled_at guard")
++				}
+ 				if _, err := f.owner.Exec(f.ctx, definition+`; ALTER FUNCTION public.export_settlement_claim_interleave_fixture(text,text,integer,integer,text,text) OWNER TO zasp_discovery_authority; REVOKE ALL ON FUNCTION public.export_settlement_claim_interleave_fixture(text,text,integer,integer,text,text) FROM PUBLIC; GRANT EXECUTE ON FUNCTION public.export_settlement_claim_interleave_fixture(text,text,integer,integer,text,text) TO zasp_security_agent_worker`, pgx.QueryExecModeSimpleProtocol); err != nil {
+ 					t.Fatal(err)
+ 				}
+@@ -1629,6 +1638,11 @@
+ 						t.Fatal(err)
+ 					}
+ 					t.Logf("real winner settled before stale row locking: %s", receipt)
++					// Isolate settled_at: an expired lease must not make a durable
++					// settlement eligible again. Only the test owner changes the clock.
++					if _, err = f.owner.Exec(f.ctx, `UPDATE zasp_sa_export_links SET settlement_lease_expires_at=clock_timestamp()-interval '1 second' WHERE run_id=$1`, exportFixtureRun); err != nil {
++						t.Fatal(err)
++					}
+ 				}
+ 				var before, after string
+ 				if err = f.owner.QueryRow(f.ctx, `SELECT to_jsonb(l)::text FROM zasp_sa_export_links l WHERE run_id=$1`, exportFixtureRun).Scan(&before); err != nil {

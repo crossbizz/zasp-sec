@@ -1,0 +1,13 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npx","--no-install","vitest","run","app/features/securityagents/SecurityAgentsView.test.tsx","-t","fresh workflow operator|irreversible connector revocation|fresh authentication"]
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed | 71 skipped (74)
+   Start at  04:21:25
+   Duration  1.63s (transform 312ms, setup 206ms, import 421ms, tests 208ms, environment 681ms)
+
+
+Exit: 0 Signal: null

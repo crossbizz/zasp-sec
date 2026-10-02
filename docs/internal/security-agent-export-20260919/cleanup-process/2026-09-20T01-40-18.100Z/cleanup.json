@@ -1,0 +1,6 @@
+{
+  "container": "zasp-cleanup-process-gqlzcn",
+  "status": 0,
+  "output": "Error response from daemon: No such container: zasp-cleanup-process-gqlzcn\n",
+  "temporaryRemoved": true
+}

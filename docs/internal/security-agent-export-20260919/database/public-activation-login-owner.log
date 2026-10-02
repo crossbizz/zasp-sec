@@ -1,0 +1,13 @@
+=== RUN   TestSecurityAgentExportPrefixedLoginsPostgres
+    security_agent_export_release_postgres_test.go:30: release58 checksum=bb177323d1faa5fb73596cbc3c5309a7d73f4f65b35e990d1fd649df51b4fc71 fingerprint=e2508a4ecbf0e684021477a827b54317d29e22641fd50974feaa48120e7a6a85
+    security_agent_export_release_postgres_test.go:35: registered58 nonfixed saved owners=[{"acl": [{"grantee": "PUBLIC", "grantable": false}, {"grantee": "zasp_e2e", "grantable": false}, {"grantee": "zasp_discovery_api", "grantable": false}], "owner": "zasp_e2e", "signature": "public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)"}, {"acl": [{"grantee": "PUBLIC", "grantable": false}, {"grantee": "zasp_e2e", "grantable": false}, {"grantee": "zasp_discovery_api", "grantable": false}], "owner": "zasp_e2e", "signature": "public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)"}]
+=== RUN   TestSecurityAgentExportPrefixedLoginsPostgres/zasp_e2e_security_agent_api
+=== RUN   TestSecurityAgentExportPrefixedLoginsPostgres/zasp_e2e_security_agent_worker
+=== RUN   TestSecurityAgentExportPrefixedLoginsPostgres/zasp_e2e_security_agent_action
+=== NAME  TestSecurityAgentExportPrefixedLoginsPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportPrefixedLoginsPostgres1087115561/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportPrefixedLoginsPostgres (5.64s)
+    --- PASS: TestSecurityAgentExportPrefixedLoginsPostgres/zasp_e2e_security_agent_api (0.32s)
+    --- PASS: TestSecurityAgentExportPrefixedLoginsPostgres/zasp_e2e_security_agent_worker (0.26s)
+    --- PASS: TestSecurityAgentExportPrefixedLoginsPostgres/zasp_e2e_security_agent_action (0.01s)
+PASS

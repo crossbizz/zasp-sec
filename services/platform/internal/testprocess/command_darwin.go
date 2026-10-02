@@ -8,10 +8,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func observeSandboxWorkerExit(pid int) error {
+func observeSandboxWorkerExit(pid int) exitObservation {
+	// kqueue does not reap, including setup/observation failures. With no other
+	// Wait owner, all these results leave the exclusive direct child pinned.
 	queue, err := unix.Kqueue()
 	if err != nil {
-		return err
+		return exitObservation{err: err, owned: true}
 	}
 	defer unix.Close(queue)
 	unix.CloseOnExec(queue)
@@ -22,9 +24,9 @@ func observeSandboxWorkerExit(pid int) error {
 		// An already-exited direct child may no longer accept a proc filter.
 		// This helper never reaps, so its child identity remains pinned.
 		if err == unix.ESRCH {
-			return nil
+			return exitObservation{owned: true}
 		}
-		return err
+		return exitObservation{err: err, owned: true}
 	}
 	events := make([]unix.Kevent_t, 1)
 	for {
@@ -33,11 +35,11 @@ func observeSandboxWorkerExit(pid int) error {
 			continue
 		}
 		if err != nil {
-			return err
+			return exitObservation{err: err, owned: true}
 		}
 		if count == 1 && events[0].Ident == uint64(pid) && events[0].Fflags&unix.NOTE_EXIT != 0 {
-			return nil
+			return exitObservation{owned: true}
 		}
-		return errors.New("unexpected owned worker exit observation")
+		return exitObservation{err: errors.New("unexpected owned worker exit observation"), owned: true}
 	}
 }

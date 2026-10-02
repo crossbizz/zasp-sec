@@ -1,0 +1,4 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/opt/homebrew/bin/terraform","fmt","-check","deploy/staging/attack_lab_reconciler.tf","deploy/staging/tests/attack_lab_reconciler_iam.tftest.hcl"]
+
+Exit: 0 Signal: null

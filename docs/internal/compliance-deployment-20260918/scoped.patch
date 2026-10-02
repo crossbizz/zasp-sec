@@ -1,0 +1,1565 @@
+--- a/deploy/production/release-contract.mjs
++++ b/deploy/production/release-contract.mjs
+@@ -10,6 +10,7 @@
+ import { validSessionSearchPhase, validateSessionSearchResources } from "./session-search-rollout.mjs";
+ import { auditExportMigrationCommand, normalizeAuditExports, validateAuditExportResources } from "./audit-export-rollout.mjs";
+ import { normalizeTestReconciler, validateTestReconcilerResources } from "./test-reconciler-rollout.mjs";
++import { normalizeComplianceExports, validateComplianceExportResources, validateComplianceExportCollisions, complianceExportMigrationCommand } from "./compliance-export-rollout.mjs";
+ 
+ const exec = promisify(execFile);
+ const here = path.dirname(fileURLToPath(import.meta.url));
+@@ -71,12 +72,14 @@
+ }
+ 
+ export async function renderRelease(value, options = { schemaVersion: 49 }) {
+-  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler"].includes(key)) || !validSessionSearchPhase(options.schemaVersion, options.sessionSearchPhase ?? "compatibility")) throw new Error("release rejected");
++  if (!validRelease(value) || !options || Object.keys(options).some(key => !["schemaVersion", "sessionSearchPhase", "auditExports", "testReconciler", "complianceExports"].includes(key)) || !validSessionSearchPhase(options.schemaVersion, options.sessionSearchPhase ?? "compatibility")) throw new Error("release rejected");
+   const schemaVersion = options.schemaVersion;
+   const sessionSearchPhase = options.sessionSearchPhase ?? "compatibility";
+   const platformAccountID = value.discovery.roleArn.match(/^arn:aws:iam::([0-9]{12}):role\//)[1];
+   const auditExports = normalizeAuditExports(options.auditExports, platformAccountID, schemaVersion, sessionSearchPhase);
+   const testReconciler = normalizeTestReconciler(options.testReconciler, platformAccountID, schemaVersion, sessionSearchPhase);
++  const complianceExports = normalizeComplianceExports(options.complianceExports, platformAccountID, schemaVersion, sessionSearchPhase);
++  validateComplianceExportCollisions(value, complianceExports, auditExports, testReconciler);
+   const set = [
+     ["schema.expectedVersion", String(schemaVersion)],
+     ["runtime.sessionSearchPhase", sessionSearchPhase],
+@@ -343,11 +346,11 @@
+   let stdout;
+   let exportValuesDirectory;
+   try {
+-    if (auditExports || testReconciler) {
++    if (auditExports || testReconciler || complianceExports) {
+       // A complete policy history can exceed the per-argument limit on Linux.
+       exportValuesDirectory = await mkdtemp(path.join(tmpdir(), "zasp-audit-export-values-"));
+       const exportValuesPath = path.join(exportValuesDirectory, "values.json");
+-      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler }), { mode: 0o600 });
++      await writeFile(exportValuesPath, JSON.stringify({ auditExports, testReconciler, complianceExports }), { mode: 0o600 });
+       valueArgs.push("--values", exportValuesPath);
+     }
+     await exec("helm", ["lint", chart, "--namespace", "agentsec", ...valueArgs], { cwd: root, encoding: "utf8", maxBuffer: 4 * 1024 * 1024 });
+@@ -364,7 +367,7 @@
+     throw new Error("release rejected");
+   }
+   if (resources.length < 20 || resources.some((resource) => !resource?.apiVersion || !resource?.kind || !resource?.metadata?.name)) throw new Error("release rejected");
+-  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler);
++  validateRenderedRelease(resources, platformAccountID, schemaVersion, sessionSearchPhase, auditExports, testReconciler, complianceExports);
+   return Object.freeze(resources);
+ }
+ 
+@@ -534,11 +537,13 @@
+   return value.telemetry.backend === "newrelic" && value.telemetry.endpoint === "https://otlp.nr-data.net";
+ }
+ 
+-export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler) {
++export function validateRenderedRelease(resources, platformAccountID, schemaVersion = 49, sessionSearchPhase = "compatibility", expectedAuditExports, expectedTestReconciler, expectedComplianceExports) {
+   const accountPattern = /^[0-9]{12}$/;
+   if (!Array.isArray(resources) || !accountPattern.test(platformAccountID) || platformAccountID === "000000000000" || !validSessionSearchPhase(schemaVersion, sessionSearchPhase)) throw new Error("release rejected");
+   const auditExports = normalizeAuditExports(expectedAuditExports, platformAccountID, schemaVersion, sessionSearchPhase);
+-  validateAuditExportResources(resources, auditExports, schemaVersion);
++  const complianceExports = normalizeComplianceExports(expectedComplianceExports, platformAccountID, schemaVersion, sessionSearchPhase);
++  validateComplianceExportResources(resources, complianceExports, schemaVersion);
++  validateAuditExportResources(resources, auditExports, schemaVersion, complianceExports);
+   const testReconciler = normalizeTestReconciler(expectedTestReconciler, platformAccountID, schemaVersion, sessionSearchPhase);
+   validateTestReconcilerResources(resources, testReconciler, schemaVersion);
+   const deployments = new Map(resources.filter(({ kind }) => kind === "Deployment").map((resource) => [resource.metadata?.name, resource]));
+@@ -578,6 +583,7 @@
+   ]);
+   if (sessionSearchPhase !== "compatibility") deploymentIdentities.set("agentsec-runtime-session-index-v2", "zasp-runtime-index");
+   if (testReconciler) deploymentIdentities.set("zasp-test-reconciler", "zasp-test-reconciler");
++  if (complianceExports) for (const name of ["zasp-compliance-export-worker", "zasp-compliance-cleanup-worker"]) deploymentIdentities.set(name, name);
+   if (auditExports) {
+     deploymentIdentities.set("zasp-audit-export-worker", "zasp-audit-export-worker");
+     deploymentIdentities.set("zasp-audit-export-outbox", "zasp-audit-export-outbox");
+@@ -637,11 +643,15 @@
+   }
+   const accounts = new Map(resources.filter(({ kind }) => kind === "ServiceAccount").map((resource) => [resource.metadata?.name, resource]));
+   if (testReconciler) identityContracts.set("zasp-test-reconciler", testReconciler.roleArn);
++  if (complianceExports) {
++    identityContracts.set("zasp-compliance-export-worker", complianceExports.writerRoleArn);
++    identityContracts.set("zasp-compliance-cleanup-worker", complianceExports.cleanupRoleArn);
++  }
+   if (accounts.size !== identityContracts.size) throw new Error("release rejected");
+   for (const [name, role] of identityContracts) {
+     const rendered = accounts.get(name);
+     const roleArn = rendered?.metadata?.annotations?.["eks.amazonaws.com/role-arn"];
+-    const explicitRole = (auditExports && ["zasp-audit-export-worker", "zasp-audit-export-outbox"].includes(name)) || (testReconciler && name === "zasp-test-reconciler");
++    const explicitRole = (auditExports && ["zasp-audit-export-worker", "zasp-audit-export-outbox"].includes(name)) || (testReconciler && name === "zasp-test-reconciler") || (complianceExports && ["zasp-compliance-export-worker", "zasp-compliance-cleanup-worker"].includes(name));
+     const expectedRole = explicitRole ? role : `arn:aws:iam::${platformAccountID}:role/zasp-production-${role}`;
+     if (!rendered || (role === null ? roleArn !== undefined : roleArn !== expectedRole)) throw new Error("release rejected");
+   }
+@@ -656,7 +666,7 @@
+   if (sessionSearchPhase !== "compatibility") jobIdentities.set("agentsec-projection-search-init-v2", "agentsec-projection-search-init");
+   if (jobs.length !== jobIdentities.size || jobs.some((resource) => jobIdentities.get(resource.metadata?.name) !== resource.spec?.template?.spec?.serviceAccountName)) throw new Error("release rejected");
+   const migration = jobs.find(({ metadata }) => metadata.name === `agentsec-schema-v${schemaVersion}`);
+-  const command = auditExports ? auditExportMigrationCommand(schemaVersion) : `export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate up-to-${schemaVersion}`;
++  const command = complianceExports ? complianceExportMigrationCommand(schemaVersion, Boolean(auditExports)) : auditExports ? auditExportMigrationCommand(schemaVersion) : `export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate up-to-${schemaVersion}`;
+   const migrationContainers = migration?.spec?.template?.spec?.containers;
+   if (!Array.isArray(migrationContainers) || migrationContainers.length !== 1 || JSON.stringify(migrationContainers[0].command) !== JSON.stringify(["/bin/sh", "-ec"]) || JSON.stringify(migrationContainers[0].args) !== JSON.stringify([command])) throw new Error("release rejected");
+   for (const deployment of deployments.values()) {
+--- a/deploy/production/session-search-rollout.mjs
++++ b/deploy/production/session-search-rollout.mjs
+@@ -2,7 +2,7 @@
+ export function validSessionSearchPhase(schema, phase) {
+   return (phase === "compatibility" && [48, 49].includes(schema)) ||
+     (schema === 50 && ["backfill", "query"].includes(phase)) ||
+-    ([51, 52, 53, 54, 55].includes(schema) && ["precision-consumers", "precision-intake"].includes(phase));
++    ([51, 52, 53, 54, 55, 56].includes(schema) && ["precision-consumers", "precision-intake"].includes(phase));
+ }
+ 
+ export function validateSessionSearchResources(resources, phase) {
+--- a/deploy/production/audit-export-rollout.mjs
++++ b/deploy/production/audit-export-rollout.mjs
+@@ -1,3 +1,4 @@
++import { complianceExportMigrationCommand } from "./compliance-export-rollout.mjs";
+ import { isDeepStrictEqual } from "node:util";
+ import { load } from "js-yaml";
+ import { validAuditExportCIDRs, validateAuditExportNetwork } from "./audit-export-network.mjs";
+@@ -5,7 +6,7 @@
+ 
+ // These checks validate a rendered artifact, not authority to activate a live release.
+ export function auditExportMigrationCommand(schemaVersion = 52) {
+-  requireValue([52, 53, 54, 55].includes(schemaVersion));
++  requireValue([52, 53, 54, 55, 56].includes(schemaVersion));
+   return `ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)" && export ZASP_POSTGRES_DSN && /app/agentsec-migrate up-to-${schemaVersion} && /app/agentsec-migrate register-audit-export-api && /app/agentsec-migrate register-audit-export-workers && exec /app/agentsec-migrate configure-audit-exports`;
+ }
+ 
+@@ -31,7 +32,7 @@
+   if (value === undefined) return undefined;
+   closed(value, configKeys);
+   for (const key of ["stsCIDRs", "sqsCIDRs", "s3CIDRs"]) requireValue(validAuditExportCIDRs(value[key]));
+-  requireValue(value.enabled === true && [52, 53, 54, 55].includes(schemaVersion) && ["precision-consumers", "precision-intake"].includes(phase));
++  requireValue(value.enabled === true && [52, 53, 54, 55, 56].includes(schemaVersion) && ["precision-consumers", "precision-intake"].includes(phase));
+   requireValue(matches(account, /^[0-9]{12}$/) && account !== "000000000000" && matches(value.awsRegion, /^[a-z]{2}(-[a-z0-9]+)+-[0-9]+$/));
+   const roles = [value.writerRoleArn, value.publisherRoleArn, value.readerRoleArn];
+   requireValue(new Set(roles).size === 3 && roles.every(v => matches(v, new RegExp(`^arn:aws:iam::${account}:role/[A-Za-z0-9+=,.@_/-]{1,128}$`))));
+@@ -117,14 +118,14 @@
+   return Object.values(value).flatMap(strings);
+ }
+ 
+-export function validateAuditExportResources(resources, expected, schemaVersion = 52) {
++export function validateAuditExportResources(resources, expected, schemaVersion = 52, complianceExports) {
+   requireValue(Array.isArray(resources));
+   const marker = /ZASP_AUDIT_EXPORT_|zasp_audit_export|audit-export/;
+   if (expected === undefined) {
+     for (const resource of resources) requireValue(!marker.test(JSON.stringify(resource)));
+     return;
+   }
+-  requireValue([52, 53, 54, 55].includes(schemaVersion));
++  requireValue([52, 53, 54, 55, 56].includes(schemaVersion));
+   const trusted = validateAuditExportNetwork(resources, expected);
+   for (const resource of validateAuditExportOperations(resources)) trusted.add(resource);
+   for (const [index, name] of workerNames.entries()) {
+@@ -196,7 +197,7 @@
+   });
+   for (const entry of migrationContainer.env.filter(e => !e.name.startsWith(prefix))) requireValue(![expected.workerPrincipal, expected.outboxPrincipal].includes(entry.value));
+   equal(migrationContainer.command, ["/bin/sh", "-ec"]);
+-  equal(migrationContainer.args, [auditExportMigrationCommand(schemaVersion)]);
++  equal(migrationContainer.args, [complianceExports ? complianceExportMigrationCommand(schemaVersion, true) : auditExportMigrationCommand(schemaVersion)]);
+ 
+   // Export secrets stay CSI-only. Unrelated resources cannot acquire export settings,
+   // roles, secret references or mounted copies through sidecars or nested pod specs.
+--- a/deploy/production/audit-export-network.mjs
++++ b/deploy/production/audit-export-network.mjs
+@@ -56,7 +56,7 @@
+   };
+   equal(inheritedPolicy("default-deny").spec, { podSelector: {}, policyTypes: ["Ingress", "Egress"] });
+   equal(inheritedPolicy("dns-egress").spec, {
+-    podSelector: { matchLabels: { "app.kubernetes.io/part-of": "zasp" }, matchExpressions: [{ key: "app.kubernetes.io/name", operator: "NotIn", values: ["zasp-test-reconciler"] }] }, policyTypes: ["Egress"],
++    podSelector: { matchLabels: { "app.kubernetes.io/part-of": "zasp" }, matchExpressions: [{ key: "app.kubernetes.io/name", operator: "NotIn", values: ["zasp-test-reconciler", ...(resources.some(r => r.kind === "Deployment" && r.metadata?.name === "zasp-compliance-export-worker") ? ["zasp-compliance-export-worker", "zasp-compliance-cleanup-worker"] : [])] }] }, policyTypes: ["Egress"],
+     egress: [{ to: [{ namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "kube-system" } } }], ports: [{ protocol: "UDP", port: 53 }, { protocol: "TCP", port: 53 }] }],
+   });
+   for (const policy of resources.filter(r => r.kind === "NetworkPolicy" && [undefined, "agentsec"].includes(r.metadata?.namespace) && !trusted.has(r) && !inherited.has(r))) {
+--- a/deploy/production/test-reconciler-rollout.mjs
++++ b/deploy/production/test-reconciler-rollout.mjs
+@@ -16,7 +16,7 @@
+     for (const resource of resources) if (resource.kind !== "NetworkPolicy") requireValue(!marker.test(JSON.stringify(resource)));
+     return;
+   }
+-  requireValue(schemaVersion === 55);
++  requireValue([55, 56].includes(schemaVersion));
+   const trusted = validateTestReconcilerNetwork(resources, expected);
+   const equal = (a, b) => requireValue(isDeepStrictEqual(a, b));
+   const one = (kind, resourceName = name) => {
+@@ -40,7 +40,7 @@
+   equal(objects, [{ objectName: expected.databaseSecretArn, objectType: "secretsmanager", objectAlias: "postgres-dsn" }]);
+   const deployment = one("Deployment"), pod = deployment.spec?.template?.spec;
+   requireValue(deployment.apiVersion === "apps/v1" && pod && Number.isInteger(pod.terminationGracePeriodSeconds) && pod.terminationGracePeriodSeconds > 20 && pod.terminationGracePeriodSeconds <= 300);
+-  equal(deployment.spec.template.metadata, { labels, annotations: { "zasp.io/schema-version": "55" } });
++  equal(deployment.spec.template.metadata, { labels, annotations: { "zasp.io/schema-version": String(schemaVersion) } });
+   const image = resources.find(r => r.kind === "Deployment" && r.metadata?.name === "agentsec-security-agent")?.spec?.template?.spec?.containers?.[0]?.image;
+   requireValue(matches(image, /^[a-z0-9][a-z0-9./_-]*(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$/));
+   const value = (name, value) => ({ name, value });
+@@ -72,7 +72,7 @@
+       { name: "identity", projected: { sources: [{ serviceAccountToken: { audience: "sts.amazonaws.com", expirationSeconds: 3600, path: "token" } }] } }],
+   });
+   equal(deployment.spec, { replicas: 2, revisionHistoryLimit: 3, progressDeadlineSeconds: 600,
+-    strategy: { type: "RollingUpdate", rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }, selector, template: { metadata: { labels, annotations: { "zasp.io/schema-version": "55" } }, spec: pod } });
++    strategy: { type: "RollingUpdate", rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }, selector, template: { metadata: { labels, annotations: { "zasp.io/schema-version": String(schemaVersion) } }, spec: pod } });
+   const pdb = one("PodDisruptionBudget"), hpa = one("HorizontalPodAutoscaler");
+   requireValue(pdb.apiVersion === "policy/v1" && hpa.apiVersion === "autoscaling/v2");
+   equal(pdb.spec, { minAvailable: 1, selector });
+@@ -113,7 +113,7 @@
+   const ownKeys = Reflect.ownKeys(value);
+   requireValue(ownKeys.length === keys.length && ownKeys.every(key => typeof key === "string" && keys.includes(key)));
+   requireValue(Object.values(Object.getOwnPropertyDescriptors(value)).every(d => "value" in d && d.enumerable));
+-  requireValue(value.enabled === true && schemaVersion === 55 && ["precision-consumers", "precision-intake"].includes(phase));
++  requireValue(value.enabled === true && [55, 56].includes(schemaVersion) && ["precision-consumers", "precision-intake"].includes(phase));
+   requireValue(matches(account, /^[0-9]{12}$/) && account !== "000000000000" && value.evidenceOwner === account);
+   requireValue(matches(value.awsRegion, /^[a-z]{2}(-gov)?-[a-z]+-[0-9]$/));
+   requireValue(matches(value.roleArn, new RegExp(`^arn:aws:iam::${account}:role/[A-Za-z0-9+=,.@_/-]{1,128}$`)));
+--- a/deploy/production/test-reconciler-rollout.test.mjs
++++ b/deploy/production/test-reconciler-rollout.test.mjs
+@@ -132,7 +132,7 @@
+     v => { v[Symbol("secret")] = true; return v; },
+     v => { Object.setPrototypeOf(v, { extra: true }); return v; },
+   ]) assert.throws(() => normalize(change(testReconcilerReleaseFixture())), /release rejected/);
+-  for (const [schema, phase] of [[54, "precision-intake"], [56, "precision-intake"], [55, "query"], [55, "compatibility"], [55, undefined]]) {
++  for (const [schema, phase] of [[54, "precision-intake"], [57, "precision-intake"], [55, "query"], [55, "compatibility"], [55, undefined]]) {
+     assert.throws(() => normalizeTestReconciler(testReconcilerReleaseFixture(), "123456789012", schema, phase), /release rejected/);
+   }
+   assert.throws(() => normalize(testReconcilerReleaseFixture(), 55, "precision-intake", "000000000000"), /release rejected/);
+--- a/deploy/production/session-search-rollout.test.mjs
++++ b/deploy/production/session-search-rollout.test.mjs
+@@ -93,8 +93,8 @@
+     { schemaVersion: 55 },
+     { schemaVersion: 55, sessionSearchPhase: "compatibility" },
+     { schemaVersion: 55, sessionSearchPhase: "query" },
+-    { schemaVersion: 56, sessionSearchPhase: "precision-consumers" },
+-    { schemaVersion: 56, sessionSearchPhase: "precision-intake" },
++    { schemaVersion: 57, sessionSearchPhase: "precision-consumers" },
++    { schemaVersion: 57, sessionSearchPhase: "precision-intake" },
+   ]) await assert.rejects(renderRelease(release, options), /release rejected/);
+ });
+ 
+--- a/deploy/production/security-agent-budget-rollout.test.mjs
++++ b/deploy/production/security-agent-budget-rollout.test.mjs
+@@ -57,6 +57,6 @@
+     { schemaVersion: 53, sessionSearchPhase: "query" }, { schemaVersion: 53, sessionSearchPhase: "backfill" },
+     { schemaVersion: 54 }, { schemaVersion: 54, sessionSearchPhase: "compatibility" },
+     { schemaVersion: 54, sessionSearchPhase: "query" }, { schemaVersion: 54, sessionSearchPhase: "backfill" },
+-    { schemaVersion: 56, sessionSearchPhase: "precision-consumers" }, { schemaVersion: 56, sessionSearchPhase: "precision-intake" },
++    { schemaVersion: 57, sessionSearchPhase: "precision-consumers" }, { schemaVersion: 57, sessionSearchPhase: "precision-intake" },
+   ]) await assert.rejects(renderRelease(release, options), /release rejected/);
+ });
+--- a/deploy/staging/product/values.yaml
++++ b/deploy/staging/product/values.yaml
+@@ -486,3 +486,7 @@
+   enabled: true
+   schedule: "*/5 * * * *"
+ profile: control_plane
++
++# Dedicated compliance authority is opt-in.
++complianceExports:
++  enabled: false
+--- a/deploy/staging/product/templates/_session-search.tpl
++++ b/deploy/staging/product/templates/_session-search.tpl
+@@ -1,7 +1,7 @@
+ {{- define "zasp.sessionSearch.validate" -}}
+ {{- $phase := .Values.runtime.sessionSearchPhase -}}
+ {{- $schema := toString .Values.schema.expectedVersion -}}
+-{{- if not (or (and (eq $phase "compatibility") (has $schema (list "48" "49"))) (and (has $phase (list "backfill" "query")) (eq $schema "50")) (and (has $phase (list "precision-consumers" "precision-intake")) (has $schema (list "51" "52" "53" "54" "55")))) -}}
++{{- if not (or (and (eq $phase "compatibility") (has $schema (list "48" "49"))) (and (has $phase (list "backfill" "query")) (eq $schema "50")) (and (has $phase (list "precision-consumers" "precision-intake")) (has $schema (list "51" "52" "53" "54" "55" "56")))) -}}
+ {{- fail "session search phase and schema version are incompatible" -}}
+ {{- end -}}
+ {{- end -}}
+--- a/deploy/staging/product/templates/migration.yaml
++++ b/deploy/staging/product/templates/migration.yaml
+@@ -60,12 +60,18 @@
+           image: {{ required "global.productImages.agentsecApi must be an immutable digest" .Values.global.productImages.agentsecApi | quote }}
+           imagePullPolicy: IfNotPresent
+           command: ["/bin/sh", "-ec"]
+-          {{- if .Values.auditExports.enabled }}
++          {{- if .Values.complianceExports.enabled }}
++          args: [{{ include "zasp.complianceExports.migrationCommand" . | quote }}]
++          {{- else if .Values.auditExports.enabled }}
+           args: [{{ include "zasp.auditExports.migrationCommand" . | quote }}]
+           {{- else }}
+           args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate up-to-{{ .Values.schema.expectedVersion }}']
+           {{- end }}
+           env:
++            {{- if .Values.complianceExports.enabled }}
++            - { name: ZASP_COMPLIANCE_WORKER_DB_PRINCIPAL, value: {{ .Values.complianceExports.workerPrincipal | quote }} }
++            - { name: ZASP_COMPLIANCE_CLEANUP_DB_PRINCIPAL, value: {{ .Values.complianceExports.cleanupPrincipal | quote }} }
++            {{- end }}
+             {{- if .Values.auditExports.enabled }}
+             {{- include "zasp.auditExports.migrationEnv" . | nindent 12 }}
+             {{- end }}
+--- a/deploy/staging/product/templates/workloads.yaml
++++ b/deploy/staging/product/templates/workloads.yaml
+@@ -85,6 +85,9 @@
+             - { name: ZASP_CONNECTOR_ROLE_ARN, value: {{ required "connectors.roleArn is required" $root.Values.connectors.roleArn | quote }} }
+             - { name: ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE, value: {{ required "connectors.webIdentityTokenFile is required" $root.Values.connectors.webIdentityTokenFile | quote }} }
+             - { name: ZASP_CONNECTOR_KMS_KEY_ARN, value: {{ required "connectors.kmsKeyArn is required" $root.Values.connectors.kmsKeyArn | quote }} }
++            {{- if $root.Values.complianceExports.enabled }}
++            {{- include "zasp.complianceExports.apiEnv" $root | nindent 12 }}
++            {{- end }}
+             {{- if $root.Values.auditExports.enabled }}
+             {{- include "zasp.auditExports.apiEnv" $root | nindent 12 }}
+             {{- end }}
+--- a/deploy/staging/product/templates/test-reconciler.yaml
++++ b/deploy/staging/product/templates/test-reconciler.yaml
+@@ -2,7 +2,7 @@
+ {{- $monitoring := .Values.monitoring | default dict -}}
+ {{- if and (hasKey $c "enabled") (not (kindIs "bool" $c.enabled)) -}}{{ fail "testReconciler.enabled must be boolean" }}{{- end -}}
+ {{- if $c.enabled -}}
+-{{- if or (ne .Values.profile "control_plane") (ne (toString .Values.schema.expectedVersion) "55") -}}{{ fail "test reconciler requires control-plane schema55" }}{{- end -}}
++{{- if or (ne .Values.profile "control_plane") (not (has (toString .Values.schema.expectedVersion) (list "55" "56"))) -}}{{ fail "test reconciler requires control-plane schema55 or56" }}{{- end -}}
+ {{- if le (int .Values.global.terminationGracePeriodSeconds) 20 -}}{{ fail "test reconciler termination grace must exceed shutdown20s" }}{{- end -}}
+ {{- $region := required "test reconciler region required" $c.awsRegion -}}
+ {{- $owner := required "test reconciler evidence owner required" $c.evidenceOwner -}}
+@@ -75,7 +75,7 @@
+   template:
+     metadata:
+       labels: { app.kubernetes.io/name: zasp-test-reconciler, app.kubernetes.io/part-of: zasp }
+-      annotations: { zasp.io/schema-version: "55" }
++      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+     spec:
+       serviceAccountName: zasp-test-reconciler
+       automountServiceAccountToken: false
+--- a/deploy/staging/product/templates/resilience.yaml
++++ b/deploy/staging/product/templates/resilience.yaml
+@@ -98,7 +98,7 @@
+   podSelector:
+     matchLabels: { app.kubernetes.io/part-of: zasp }
+     matchExpressions:
+-      - { key: app.kubernetes.io/name, operator: NotIn, values: [zasp-test-reconciler] }
++      - { key: app.kubernetes.io/name, operator: NotIn, values: [zasp-test-reconciler{{ if .Values.complianceExports.enabled }}, zasp-compliance-export-worker, zasp-compliance-cleanup-worker{{ end }}] }
+   policyTypes: [Egress]
+   egress:
+     - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]
+--- a/deploy/staging/product/templates/audit-exports.yaml
++++ b/deploy/staging/product/templates/audit-exports.yaml
+@@ -3,8 +3,8 @@
+ {{- if $exports.enabled -}}
+ {{- include "zasp.auditExports.apiValidate" . -}}
+ {{- $_ := include "zasp.auditExports.selectedPolicy" . -}}
+-{{- if or (ne .Values.profile "control_plane") (not (has (toString .Values.schema.expectedVersion) (list "52" "53" "54" "55"))) (not (has .Values.runtime.sessionSearchPhase (list "precision-consumers" "precision-intake"))) -}}
+-{{- fail "audit exports require schema52 through55 and a precision deployment phase" -}}
++{{- if or (ne .Values.profile "control_plane") (not (has (toString .Values.schema.expectedVersion) (list "52" "53" "54" "55" "56"))) (not (has .Values.runtime.sessionSearchPhase (list "precision-consumers" "precision-intake"))) -}}
++{{- fail "audit exports require schema52 through56 and a precision deployment phase" -}}
+ {{- end -}}
+ {{- if le (int .Values.global.terminationGracePeriodSeconds) 20 -}}{{ fail "audit exports require termination grace greater than shutdown20s" }}{{- end -}}
+ {{- $region := required "auditExports.awsRegion is required" $exports.awsRegion -}}
+--- a/deploy/staging/gate.test.mjs
++++ b/deploy/staging/gate.test.mjs
+@@ -12,7 +12,7 @@
+   // A future embedded migration must define its own rollout before this gate
+   // accepts it. Default49 is deliberate: compatible pods precede the50 hook.
+   // This is a manifest compatibility gate, not live transition authorization.
+-  assert.equal(latest, 55, "embedded migration needs an explicit rollout contract");
++  assert.equal(latest, 56, "embedded migration needs an explicit rollout contract");
+   assert.equal(values.schema.expectedVersion, 49);
+   assert.equal(values.runtime.sessionSearchPhase, "compatibility");
+   for (const options of [
+@@ -30,15 +30,17 @@
+     { schemaVersion: 54, sessionSearchPhase: "precision-intake" },
+     { schemaVersion: 55, sessionSearchPhase: "precision-consumers" },
+     { schemaVersion: 55, sessionSearchPhase: "precision-intake" },
++    { schemaVersion: 56, sessionSearchPhase: "precision-consumers" },
++    { schemaVersion: 56, sessionSearchPhase: "precision-intake" },
+   ]) {
+     const resources = await renderRelease(productionReleaseFixture, options);
+     const jobs = resources.filter(r => r.kind === "Job" && r.metadata.name.startsWith("agentsec-schema-v"));
+     assert.equal(jobs.length, 1);
+     assert.equal(jobs[0].metadata.name, `agentsec-schema-v${options.schemaVersion}`);
+     const api = resources.find(r => r.kind === "Deployment" && r.metadata.name === "agentsec-api");
+-    assert.equal(api.spec.template.spec.containers[0].env.find(e => e.name === "ZASP_RUNTIME_SESSION_INDEX").value, options.sessionSearchPhase === "query" || [51, 52, 53, 54, 55].includes(options.schemaVersion) ? "zasp-runtime-sessions-v2" : "zasp-runtime-sessions-v1");
++    assert.equal(api.spec.template.spec.containers[0].env.find(e => e.name === "ZASP_RUNTIME_SESSION_INDEX").value, options.sessionSearchPhase === "query" || [51, 52, 53, 54, 55, 56].includes(options.schemaVersion) ? "zasp-runtime-sessions-v2" : "zasp-runtime-sessions-v1");
+     assert.equal(resources.filter(r => r.kind === "Deployment" && r.metadata.name === "agentsec-runtime-session-index-v2").length, options.schemaVersion >= 50 ? 1 : 0);
+-    if ([51, 52, 53, 54, 55].includes(options.schemaVersion)) {
++    if ([51, 52, 53, 54, 55, 56].includes(options.schemaVersion)) {
+       const env = name => resources.find(r => r.kind === "Deployment" && r.metadata.name === name).spec.template.spec.containers[0].env;
+       assert.equal(env("agentsec-event-ingest").find(e => e.name === "ZASP_RUNTIME_INGEST_SCHEMA").value, options.sessionSearchPhase === "precision-intake" ? "runtime-event-v2" : "runtime-event-v1");
+       for (const name of ["outbox", "coordinator"]) assert.equal(env(`agentsec-runtime-${name}`).find(e => e.name === "ZASP_RUNTIME_DELIVERY_SCHEMA").value, "runtime-event-v2");
+@@ -74,8 +76,10 @@
+     { schemaVersion: 55, sessionSearchPhase: "query" },
+     { schemaVersion: 55, sessionSearchPhase: "precision-active" },
+     { schemaVersion: 55, sessionSearchPhase: "unknown" },
+-    { schemaVersion: 56, sessionSearchPhase: "precision-consumers" },
+-    { schemaVersion: 56, sessionSearchPhase: "precision-intake" },
++    { schemaVersion: 56, sessionSearchPhase: "compatibility" },
++    { schemaVersion: 56, sessionSearchPhase: "query" },
++    { schemaVersion: 57, sessionSearchPhase: "precision-consumers" },
++    { schemaVersion: 57, sessionSearchPhase: "precision-intake" },
+   ]) await assert.rejects(renderRelease(productionReleaseFixture, options), /release rejected/);
+ });
+ 
+--- a/package.json
++++ b/package.json
+@@ -30,7 +30,7 @@
+     "local:product:test": "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs",
+     "local:product:run": "node deploy/local/run.mjs",
+     "production:combined-e2e:test": "node --test scripts/browser-e2e-helpers.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/runtime-pipeline-dependencies.test.mjs && npm run build && node scripts/production-combined-e2e.mjs && ZASP_COMBINED_E2E_COMPLIANCE=true node scripts/production-combined-e2e.mjs",
+-    "production:release:test": "node --test scripts/production-release-gate.test.mjs deploy/production/release-contract.test.mjs deploy/production/release-gates.test.mjs deploy/production/session-search-rollout.test.mjs deploy/production/security-agent-budget-rollout.test.mjs deploy/production/compatibility-observation.test.mjs deploy/production/sandbox-query-observation.test.mjs deploy/production/audit-export-workloads.test.mjs deploy/production/audit-export-rollout.test.mjs deploy/production/audit-export-network.test.mjs deploy/production/audit-export-operations.test.mjs deploy/production/test-reconciler-workloads.test.mjs deploy/production/test-reconciler-rollout.test.mjs",
++    "production:release:test": "node --test scripts/production-release-gate.test.mjs deploy/production/release-contract.test.mjs deploy/production/release-gates.test.mjs deploy/production/session-search-rollout.test.mjs deploy/production/security-agent-budget-rollout.test.mjs deploy/production/compatibility-observation.test.mjs deploy/production/sandbox-query-observation.test.mjs deploy/production/audit-export-workloads.test.mjs deploy/production/audit-export-rollout.test.mjs deploy/production/audit-export-network.test.mjs deploy/production/audit-export-operations.test.mjs deploy/production/test-reconciler-workloads.test.mjs deploy/production/test-reconciler-rollout.test.mjs deploy/production/compliance-export-rollout.test.mjs deploy/production/compliance-export-helm.test.mjs deploy/production/compliance-export-runtime.test.mjs",
+     "production:nango-image:proof": "node --test deploy/production/nango-image-proof.test.mjs",
+     "production:otel-redaction:proof": "node --test deploy/production/otel-redaction-proof.test.mjs",
+     "production:release:gate": "node scripts/production-release-gate.mjs",
+--- a/services/platform/migrations/production_audit_exports.go
++++ b/services/platform/migrations/production_audit_exports.go
+@@ -107,12 +107,17 @@
+ 		return ProductionSecurityAgentRunContext(), readProductionSecurityAgentRunContextState(ctx, queryer)
+ 	case 55:
+ 		return ProductionSecurityAgentExistingTests(), readProductionSecurityAgentExistingTestsState(ctx, queryer)
++	case 56:
++		return ProductionCompliance(), readProductionComplianceState(ctx, queryer)
+ 	default:
+ 		return Metadata{}, ErrInvalidState
+ 	}
+ }
+ 
+ func requireAuditExportConfigurationReadiness(ctx context.Context, queryer Queryer, metadata Metadata) error {
++	if metadata.Version() == 56 {
++		return requireMigrationReadiness(ctx, queryer, productionComplianceReadinessSQL, metadata.Checksum(), ComplianceFingerprint())
++	}
+ 	if metadata.Version() == 55 {
+ 		return requireMigrationReadiness(ctx, queryer, productionSecurityAgentExistingTestsReadinessSQL, metadata.Checksum(), SecurityAgentExistingTestsFingerprint())
+ 	}
+--- a/services/platform/migrations/production_audit_exports_test.go
++++ b/services/platform/migrations/production_audit_exports_test.go
+@@ -97,7 +97,7 @@
+ func TestAuditExportConfigurationOnBudgetReleasePinsAuthority(t *testing.T) {
+ 	config := AuditExportConfiguration{PolicyID: "pid_52000041-0000-4000-8000-000000000041", Bucket: "zasp-audit-export-fixture", ExpectedBucketOwner: "123456789012", KMSKeyARN: "arn:aws:kms:us-east-1:123456789012:key/52000042-0000-4000-8000-000000000042", MaximumExportBytes: 1 << 30, MaximumRetainedBytes: 10 << 30, MaximumInflight: 2, CaptureTimeoutSeconds: 120}
+ 	digest, _ := AuditExportPolicyDigest(config)
+-	for _, releaseVersion := range []int64{53, 54, 55} {
++	for _, releaseVersion := range []int64{53, 54, 55, 56} {
+ 		for _, operation := range []string{"configure", "register", "api"} {
+ 			for _, mode := range []string{"healthy", "lower-version", "future", "wrong-checksum", "wrong-selected-checksum", "initial-drift", "final-drift"} {
+ 				t.Run(operation+"/"+mode, func(t *testing.T) {
+@@ -105,9 +105,12 @@
+ 					if releaseVersion >= 54 {
+ 						metadata = append(metadata, ProductionSecurityAgentRunContext())
+ 					}
+-					if releaseVersion == 55 {
++					if releaseVersion >= 55 {
+ 						metadata = append(metadata, ProductionSecurityAgentExistingTests())
+ 					}
++					if releaseVersion == 56 {
++						metadata = append(metadata, ProductionCompliance())
++					}
+ 					if mode == "wrong-checksum" {
+ 						metadata[52].checksum = "wrong"
+ 					}
+@@ -119,7 +122,7 @@
+ 						count = 51
+ 					}
+ 					if mode == "future" {
+-						count = 56
++						count = 57
+ 					}
+ 					rows := append([]Row{fakeRow{values: []any{count}}}, exactReleaseRows(metadata...)...)
+ 					var result any = digest
+@@ -149,6 +152,9 @@
+ 						if releaseVersion == 55 {
+ 							readyName, fingerprint, checksum = "zasp_production_security_agent_existing_tests_readiness", SecurityAgentExistingTestsFingerprint(), ProductionSecurityAgentExistingTests().Checksum()
+ 						}
++						if releaseVersion == 56 {
++							readyName, fingerprint, checksum = "zasp_compliance_readiness", ComplianceFingerprint(), ProductionCompliance().Checksum()
++						}
+ 						if strings.Count(events, readyName) != 2 || !strings.Contains(events, fingerprint) || !strings.Contains(events, checksum) {
+ 							t.Fatalf("missing compiled pre/post budget authority: %s", events)
+ 						}
+--- /dev/null
++++ b/deploy/production/compliance-export-rollout.mjs
+@@ -0,0 +1,128 @@
++import { isDeepStrictEqual } from "node:util";
++import { load } from "js-yaml";
++import { validAuditExportCIDRs } from "./audit-export-network.mjs";
++import { validateComplianceExportNetwork } from "./compliance-export-network.mjs";
++
++const keys = ["enabled", "awsRegion", "bucket", "bucketOwner", "kmsKeyArn", "readerRoleArn", "writerRoleArn", "cleanupRoleArn", "workerDSNSecretArn", "cleanupDSNSecretArn", "workerPrincipal", "cleanupPrincipal", "databaseCIDRs", "stsCIDRs", "s3CIDRs"];
++const prefix = "ZASP_COMPLIANCE_";
++const names = ["zasp-compliance-export-worker", "zasp-compliance-cleanup-worker"];
++const tokenPath = "/var/run/secrets/eks.amazonaws.com/serviceaccount";
++const requireValue = value => { if (!value) throw new Error("release rejected"); };
++const equal = (actual, expected) => requireValue(isDeepStrictEqual(actual, expected));
++const matches = (v, p) => typeof v === "string" && !/[\r\n]/.test(v) && p.test(v);
++function strings(value) {
++  if (typeof value === "string") return [value];
++  return value && typeof value === "object" ? Object.values(value).flatMap(strings) : [];
++}
++function closed(value, fields) {
++  requireValue(value && Object.getPrototypeOf(value) === Object.prototype);
++  const descriptors = Object.getOwnPropertyDescriptors(value);
++  requireValue(Reflect.ownKeys(value).every(k => typeof k === "string") && Object.values(descriptors).every(d => "value" in d && d.enumerable));
++  equal(Object.keys(value).sort(), [...fields].sort());
++}
++export function normalizeComplianceExports(value, account, schemaVersion, phase) {
++  if (value === undefined) return undefined;
++  closed(value, keys);
++  requireValue(value.enabled === true && schemaVersion === 56 && ["precision-consumers", "precision-intake"].includes(phase));
++  requireValue(matches(account, /^[0-9]{12}$/) && account !== "000000000000" && value.bucketOwner === account);
++  requireValue(matches(value.awsRegion, /^[a-z]{2}(-[a-z0-9]+)+-[0-9]+$/) && matches(value.bucket, /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/));
++  requireValue(matches(value.kmsKeyArn, new RegExp(`^arn:aws:kms:${value.awsRegion}:${account}:key/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)));
++  const roles = [value.readerRoleArn, value.writerRoleArn, value.cleanupRoleArn];
++  requireValue(new Set(roles).size === 3 && roles.every(v => matches(v, new RegExp(`^arn:aws:iam::${account}:role/[A-Za-z0-9+=,.@_/-]{1,128}$`))));
++  const secrets = [value.workerDSNSecretArn, value.cleanupDSNSecretArn];
++  requireValue(new Set(secrets).size === 2 && secrets.every(v => matches(v, new RegExp(`^arn:aws:secretsmanager:${value.awsRegion}:${account}:secret:[A-Za-z0-9/_+=.@-]{1,512}$`))));
++  requireValue(value.workerPrincipal !== value.cleanupPrincipal && [value.workerPrincipal, value.cleanupPrincipal].every(v => matches(v, /^[a-z][a-z0-9_]{2,62}$/) && !v.startsWith("zasp_")));
++  for (const key of ["databaseCIDRs", "stsCIDRs", "s3CIDRs"]) requireValue(validAuditExportCIDRs(value[key]) && value[key].every(v => !/[\r\n]/.test(v)));
++  return structuredClone(value);
++}
++
++// Called before rendering starts. The complete release and both optional
++// predecessors contribute identities and storage that compliance cannot reuse.
++export function validateComplianceExportCollisions(value, config, audit, reconciler) {
++  if (!config) return;
++  const occupied = strings([value, audit, reconciler]);
++  for (const field of ["bucket", "readerRoleArn", "writerRoleArn", "cleanupRoleArn", "workerDSNSecretArn", "cleanupDSNSecretArn", "workerPrincipal", "cleanupPrincipal"]) requireValue(!occupied.includes(config[field]));
++}
++export function complianceExportMigrationCommand(schemaVersion, auditExportsEnabled) {
++  requireValue(schemaVersion === 56 && typeof auditExportsEnabled === "boolean");
++  return 'ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)" && export ZASP_POSTGRES_DSN && /app/agentsec-migrate up-to-56' +
++    (auditExportsEnabled ? " && /app/agentsec-migrate register-audit-export-api && /app/agentsec-migrate register-audit-export-workers && /app/agentsec-migrate configure-audit-exports" : "") +
++    " && exec /app/agentsec-migrate register-compliance-workers";
++}
++function environment(container, expected, exact = false) {
++  requireValue(container && container.envFrom === undefined && Array.isArray(container.env));
++  const entries = container.env;
++  requireValue(entries.every(e => typeof e?.name === "string") && new Set(entries.map(e => e.name)).size === entries.length);
++  const selected = entries.filter(e => exact || e.name.startsWith(prefix));
++  equal(selected.map(e => e.name).sort(), Object.keys(expected).sort());
++  for (const entry of selected) equal(entry, typeof expected[entry.name] === "string" ? { name: entry.name, value: expected[entry.name] } : { name: entry.name, valueFrom: expected[entry.name] });
++}
++function podOf(resource) {
++  const pod = resource.spec?.template?.spec;
++  requireValue(pod && pod.containers?.length === 1 && !pod.initContainers?.length && !pod.ephemeralContainers?.length);
++  requireValue(["hostNetwork", "hostPID", "hostIPC"].every(k => pod[k] === undefined || pod[k] === false));
++  return pod;
++}
++function objects(provider) {
++  requireValue(provider.spec?.provider === "aws" && typeof provider.spec?.parameters?.objects === "string");
++  try { const values = load(provider.spec.parameters.objects); requireValue(Array.isArray(values)); return values; } catch { throw new Error("release rejected"); }
++}
++export function validateComplianceExportResources(resources, config, schemaVersion) {
++  requireValue(Array.isArray(resources));
++  const marker = /ZASP_COMPLIANCE_|zasp_compliance_|zasp-compliance-/;
++  if (!config) {
++    for (const resource of resources) requireValue(!marker.test(JSON.stringify(resource)));
++    return;
++  }
++  requireValue(schemaVersion === 56);
++  const one = (kind, name) => {
++    const rows = resources.filter(r => r?.kind === kind && r.metadata?.name === name);
++    requireValue(rows.length === 1 && [undefined, "agentsec"].includes(rows[0].metadata.namespace));
++    return rows[0];
++  };
++  const trusted = validateComplianceExportNetwork(resources, config);
++  const common = { ZASP_COMPLIANCE_EXPORT_BUCKET: config.bucket, ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER: config.bucketOwner, ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN: config.kmsKeyArn, ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE: `${tokenPath}/token` };
++  for (const [i, name] of names.entries()) {
++    const role = i === 0 ? config.writerRoleArn : config.cleanupRoleArn;
++    const secret = i === 0 ? config.workerDSNSecretArn : config.cleanupDSNSecretArn;
++    const deployment = one("Deployment", name), account = one("ServiceAccount", name), provider = one("SecretProviderClass", `${name}-secrets`);
++    [deployment, account, provider].forEach(r => trusted.add(r));
++    const pod = podOf(deployment), c = pod.containers[0];
++    equal(deployment.spec.template.metadata, { labels: { "app.kubernetes.io/name": name, "app.kubernetes.io/part-of": "zasp" }, annotations: { "zasp.io/schema-version": "56" } });
++    requireValue(deployment.spec.replicas === 2 && pod.serviceAccountName === name && pod.automountServiceAccountToken === false && pod.enableServiceLinks === false && pod.terminationGracePeriodSeconds > 20 && pod.terminationGracePeriodSeconds <= 300);
++    equal(deployment.spec.selector, { matchLabels: { "app.kubernetes.io/name": name } });
++    equal(pod.securityContext, { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: "RuntimeDefault" } });
++    requireValue(matches(c.image, /^[a-z0-9][a-z0-9./_-]*(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$/));
++    equal(c.image, one("Deployment", "agentsec-discovery-worker").spec.template.spec.containers[0].image);
++    equal(c.command, ["/bin/sh", "-ec"]);
++    equal(c.args, ['ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-compliance/postgres-dsn)" && export ZASP_POSTGRES_DSN && exec /app/agentsec-worker']);
++    environment(c, { ...common, ZASP_WORKER_MODE: i === 0 ? "compliance-export" : "compliance-export-cleanup", ZASP_DATABASE_AUTHORITY: i === 0 ? "zasp_compliance_worker" : "zasp_compliance_cleanup", ZASP_WORKER_ID: { fieldRef: { fieldPath: "metadata.name" } }, ZASP_AWS_REGION: config.awsRegion, ZASP_POLL_INTERVAL: "1s", ZASP_LEASE_DURATION: "60s", ZASP_BATCH_SIZE: "1", ZASP_SHUTDOWN_TIMEOUT: "20s", ZASP_PROVIDER_TIMEOUT: "5s", ZASP_COMPLIANCE_EXPORT_ROLE_ARN: role }, true);
++    equal(c.volumeMounts, [{ name: "database", mountPath: "/var/run/secrets/zasp-compliance", readOnly: true }, { name: "identity", mountPath: tokenPath, readOnly: true }]);
++    equal(pod.volumes, [{ name: "database", csi: { driver: "secrets-store.csi.k8s.io", readOnly: true, volumeAttributes: { secretProviderClass: `${name}-secrets` } } }, { name: "identity", projected: { sources: [{ serviceAccountToken: { audience: "sts.amazonaws.com", expirationSeconds: 3600, path: "token" } }] } }]);
++    equal(c.securityContext, { allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 });
++    equal(c.ports, [{ name: "internal", containerPort: 8081 }]);
++    equal(c.resources, { requests: { cpu: "100m", memory: "128Mi" }, limits: { cpu: "1", memory: "1Gi" } });
++    for (const [key, url, failures, period, timeout] of [["startupProbe", "/healthz", 30, 2, 1], ["readinessProbe", "/readyz", 3, 5, 2], ["livenessProbe", "/healthz", 3, 10, 2]]) equal(c[key], { httpGet: { path: url, port: "internal" }, failureThreshold: failures, periodSeconds: period, timeoutSeconds: timeout });
++    requireValue(account.automountServiceAccountToken === false && account.metadata.annotations?.["eks.amazonaws.com/role-arn"] === role);
++    equal(objects(provider), [{ objectName: secret, objectType: "secretsmanager", objectAlias: "postgres-dsn" }]);
++    requireValue(provider.spec.secretObjects === undefined && provider.spec.parameters.region === config.awsRegion);
++  }
++  const api = one("Deployment", "agentsec-api"), apiPod = podOf(api), apiContainer = apiPod.containers[0];
++  trusted.add(api);
++  environment(apiContainer, { ...common, ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN: config.readerRoleArn });
++  equal(apiPod.volumes?.filter(v => v.name === "connector-web-identity"), [{ name: "connector-web-identity", projected: { defaultMode: 256, sources: [{ serviceAccountToken: { audience: "sts.amazonaws.com", expirationSeconds: 900, path: "token" } }] } }]);
++  equal(apiContainer.volumeMounts?.filter(v => v.name === "connector-web-identity"), [{ name: "connector-web-identity", mountPath: tokenPath, readOnly: true }]);
++  const migration = one("Job", "agentsec-schema-v56"), migrationContainer = podOf(migration).containers[0];
++  trusted.add(migration);
++  environment(migrationContainer, { ZASP_COMPLIANCE_WORKER_DB_PRINCIPAL: config.workerPrincipal, ZASP_COMPLIANCE_CLEANUP_DB_PRINCIPAL: config.cleanupPrincipal });
++  equal(migrationContainer.command, ["/bin/sh", "-ec"]);
++  equal(migrationContainer.args, [complianceExportMigrationCommand(56, resources.some(r => r.kind === "Deployment" && r.metadata?.name === "zasp-audit-export-worker"))]);
++  const privateValues = [config.writerRoleArn, config.cleanupRoleArn, config.readerRoleArn, config.workerDSNSecretArn, config.cleanupDSNSecretArn, config.workerPrincipal, config.cleanupPrincipal, config.bucket];
++  for (const r of resources) if (!trusted.has(r)) {
++    const wire = JSON.stringify(r);
++    requireValue(!marker.test(wire) && !privateValues.some(v => wire.includes(v)));
++  }
++  const all = resources.flatMap(strings);
++  for (const r of resources.filter(r => r.kind === "SecretProviderClass")) all.push(...strings(objects(r)));
++  for (const [value, count] of [[config.readerRoleArn, 1], [config.writerRoleArn, 2], [config.cleanupRoleArn, 2], [config.workerDSNSecretArn, 1], [config.cleanupDSNSecretArn, 1], [config.workerPrincipal, 1], [config.cleanupPrincipal, 1], [config.bucket, 3], ...names.map(n => [`${n}-secrets`, 2])]) equal(all.filter(v => v === value).length, count);
++}
+--- /dev/null
++++ b/deploy/production/compliance-export-network.mjs
+@@ -0,0 +1,68 @@
++import { isDeepStrictEqual } from "node:util";
++
++const names = ["zasp-compliance-export-worker", "zasp-compliance-cleanup-worker"];
++const requireValue = v => { if (!v) throw new Error("release rejected"); };
++const equal = (a, b) => requireValue(isDeepStrictEqual(a, b));
++const object = v => v !== null && typeof v === "object" && !Array.isArray(v);
++function selects(selector, labels) {
++  requireValue(object(selector) && Object.keys(selector).every(k => ["matchLabels", "matchExpressions"].includes(k)));
++  const matches = selector.matchLabels ?? {}, expressions = selector.matchExpressions ?? [];
++  requireValue(object(matches) && Object.values(matches).every(v => typeof v === "string") && Array.isArray(expressions));
++  const results = expressions.map(e => {
++    requireValue(object(e) && Object.keys(e).every(k => ["key", "operator", "values"].includes(k)) && typeof e.key === "string" && e.key.length > 0);
++    const present = Object.hasOwn(labels, e.key);
++    if (["In", "NotIn"].includes(e.operator)) {
++      requireValue(Array.isArray(e.values) && e.values.length > 0 && e.values.every(v => typeof v === "string"));
++      const contains = present && e.values.includes(labels[e.key]);
++      return e.operator === "In" ? contains : !contains;
++    }
++    requireValue(["Exists", "DoesNotExist"].includes(e.operator) && (e.values === undefined || Array.isArray(e.values) && e.values.length === 0));
++    return e.operator === "Exists" ? present : !present;
++  });
++  return Object.entries(matches).every(([k, v]) => labels[k] === v) && results.every(Boolean);
++}
++export function validateComplianceExportNetwork(resources, config) {
++  const trusted = new Set();
++  const one = (kind, name) => {
++    const rows = resources.filter(r => r.kind === kind && r.metadata?.name === name);
++    requireValue(rows.length === 1 && [undefined, "agentsec"].includes(rows[0].metadata.namespace));
++    trusted.add(rows[0]); return rows[0];
++  };
++  const selector = name => ({ matchLabels: { "app.kubernetes.io/name": name } });
++  const targets = cidrs => cidrs.map(cidr => ({ ipBlock: { cidr } }));
++  const https = { to: targets([...new Set([...config.stsCIDRs, ...config.s3CIDRs])]), ports: [{ protocol: "TCP", port: 443 }] };
++  const dns = { to: [{ namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "kube-system" } }, podSelector: { matchLabels: { "k8s-app": "kube-dns" } } }], ports: [{ protocol: "UDP", port: 53 }, { protocol: "TCP", port: 53 }] };
++  const rules = [];
++  for (const [i, name] of names.entries()) {
++    const labels = { "app.kubernetes.io/name": name, "app.kubernetes.io/part-of": "zasp" };
++    equal(one("NetworkPolicy", `${name}-dependencies`).spec, { podSelector: selector(name), policyTypes: ["Ingress", "Egress"], ingress: [{ from: [{ namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "monitoring" } } }], ports: [{ protocol: "TCP", port: 8081 }] }], egress: [{ to: targets(config.databaseCIDRs), ports: [{ protocol: "TCP", port: 5432 }] }, https, dns] });
++    const service = one("Service", name);
++    equal(service.metadata.labels, labels);
++    equal(service.spec, { type: "ClusterIP", selector: selector(name).matchLabels, ports: [{ name: "internal", port: 8081, targetPort: "internal", protocol: "TCP" }] });
++    equal(one("PodDisruptionBudget", name).spec, { minAvailable: 1, selector: selector(name) });
++    equal(one("ServiceMonitor", name).spec, { selector: { matchLabels: labels }, namespaceSelector: { matchNames: ["agentsec"] }, endpoints: [{ port: "internal", path: "/metrics", interval: "30s", scrapeTimeout: "5s" }] });
++    const deployment = one("Deployment", name);
++    equal(deployment.spec.strategy, { type: "RollingUpdate", rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } });
++    equal(deployment.spec.template.spec.topologySpreadConstraints, [{ maxSkew: 1, topologyKey: "topology.kubernetes.io/zone", whenUnsatisfiable: "DoNotSchedule", labelSelector: selector(name) }, { maxSkew: 1, topologyKey: "kubernetes.io/hostname", whenUnsatisfiable: "ScheduleAnyway", labelSelector: selector(name) }]);
++    equal(one("HorizontalPodAutoscaler", name).spec, { scaleTargetRef: { apiVersion: "apps/v1", kind: "Deployment", name }, minReplicas: 2, maxReplicas: 6, behavior: { scaleUp: { stabilizationWindowSeconds: 60, policies: [{ type: "Percent", value: 100, periodSeconds: 60 }] }, scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: "Percent", value: 25, periodSeconds: 60 }] } }, metrics: [{ type: "Resource", resource: { name: "cpu", target: { type: "Utilization", averageUtilization: 70 } } }] });
++    const available = `kube_deployment_status_replicas_available{namespace="agentsec",deployment="${name}"}`, up = `up{namespace="agentsec",service="${name}"}`, ready = `agentsec_ready{namespace="agentsec",service="${name}"}`;
++    const alert = i === 0 ? "ZaspComplianceExportWorker" : "ZaspComplianceCleanupWorker";
++    rules.push({ alert: `${alert}Unavailable`, expr: `${available} < 1 or absent(${available})`, for: "5m", labels: { severity: "page" }, annotations: { summary: "Compliance export workload is unavailable or absent" } }, { alert: `${alert}NotReady`, expr: `${ready} == 0 or ${up} == 0 or (${up} == 1 unless on (namespace,service,instance) ${ready}) or absent(${up})`, for: "10m", labels: { severity: "ticket" }, annotations: { summary: "Compliance export worker readiness is unavailable" } });
++  }
++  equal(one("PrometheusRule", "zasp-compliance-export-availability").spec, { groups: [{ name: "zasp.compliance-export.availability", rules }] });
++  equal(one("NetworkPolicy", "zasp-compliance-export-api-dependencies").spec, { podSelector: selector("agentsec-api"), policyTypes: ["Egress"], egress: [https] });
++  equal(one("NetworkPolicy", "default-deny").spec, { podSelector: {}, policyTypes: ["Ingress", "Egress"] });
++  equal(one("NetworkPolicy", "dns-egress").spec, { podSelector: { matchLabels: { "app.kubernetes.io/part-of": "zasp" }, matchExpressions: [{ key: "app.kubernetes.io/name", operator: "NotIn", values: ["zasp-test-reconciler", ...names] }] }, policyTypes: ["Egress"], egress: [{ to: [{ namespaceSelector: { matchLabels: { "kubernetes.io/metadata.name": "kube-system" } } }], ports: [{ protocol: "UDP", port: 53 }, { protocol: "TCP", port: 53 }] }] });
++  for (const policy of resources.filter(r => r.kind === "NetworkPolicy" && [undefined, "agentsec"].includes(r.metadata?.namespace) && !trusted.has(r))) for (const name of names) requireValue(!selects(policy.spec?.podSelector, { "app.kubernetes.io/name": name, "app.kubernetes.io/part-of": "zasp" }));
++  for (const binding of resources.filter(r => ["RoleBinding", "ClusterRoleBinding"].includes(r.kind))) {
++    requireValue(Array.isArray(binding.subjects));
++    for (const s of binding.subjects) {
++      requireValue(object(s) && typeof s.kind === "string" && typeof s.name === "string");
++      const ns = s.namespace ?? binding.metadata?.namespace ?? "agentsec";
++      requireValue(!(s.kind === "ServiceAccount" && ns === "agentsec" && names.includes(s.name)));
++      requireValue(!(s.kind === "User" && names.some(n => s.name === `system:serviceaccount:agentsec:${n}`)));
++      requireValue(!(s.kind === "Group" && ["system:serviceaccounts", "system:serviceaccounts:agentsec", "system:authenticated"].includes(s.name)));
++    }
++  }
++  return trusted;
++}
+--- /dev/null
++++ b/deploy/production/compliance-export-release-fixture.mjs
+@@ -0,0 +1,14 @@
++// Synthetic authority only. These references are not a deployment approval.
++export function complianceExportReleaseFixture() {
++  return {
++    enabled: true, awsRegion: "us-west-2", bucket: "zasp-compliance-fixture", bucketOwner: "123456789012",
++    kmsKeyArn: "arn:aws:kms:us-west-2:123456789012:key/56000000-0000-4000-8000-000000000001",
++    readerRoleArn: "arn:aws:iam::123456789012:role/compliance-reader",
++    writerRoleArn: "arn:aws:iam::123456789012:role/compliance-writer",
++    cleanupRoleArn: "arn:aws:iam::123456789012:role/compliance-cleanup",
++    workerDSNSecretArn: "arn:aws:secretsmanager:us-west-2:123456789012:secret:compliance-worker-owned",
++    cleanupDSNSecretArn: "arn:aws:secretsmanager:us-west-2:123456789012:secret:compliance-cleanup-owned",
++    workerPrincipal: "compliance_export_runtime", cleanupPrincipal: "compliance_cleanup_runtime",
++    databaseCIDRs: ["10.30.0.0/24"], stsCIDRs: ["192.0.2.16/28"], s3CIDRs: ["198.51.100.0/24"],
++  };
++}
+--- /dev/null
++++ b/deploy/production/compliance-export-rollout.test.mjs
+@@ -0,0 +1,101 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import { renderRelease, validateRenderedRelease } from "./release-contract.mjs";
++import { productionReleaseFixture } from "./release-fixture.mjs";
++import { auditExportReleaseFixture } from "./audit-export-release-fixture.mjs";
++import { testReconcilerReleaseFixture } from "./test-reconciler-release-fixture.mjs";
++import { complianceExportReleaseFixture } from "./compliance-export-release-fixture.mjs";
++import { normalizeComplianceExports } from "./compliance-export-rollout.mjs";
++
++const options = (complianceExports = complianceExportReleaseFixture()) => ({ schemaVersion: 56, sessionSearchPhase: "precision-intake", complianceExports });
++const resource = (rows, kind, name) => rows.find(r => r.kind === kind && r.metadata.name === name);
++const pod = (rows, name = "zasp-compliance-export-worker") => resource(rows, "Deployment", name).spec.template.spec;
++const env = (rows, name, field) => pod(rows, name).containers[0].env.find(e => e.name === field);
++
++test("migration uses the published registration environment names", async () => {
++  const rows = await renderRelease(productionReleaseFixture, options());
++  const entries = resource(rows, "Job", "agentsec-schema-v56").spec.template.spec.containers[0].env.filter(e => e.name.startsWith("ZASP_COMPLIANCE_"));
++  assert.deepEqual(entries, [
++    { name: "ZASP_COMPLIANCE_WORKER_DB_PRINCIPAL", value: "compliance_export_runtime" },
++    { name: "ZASP_COMPLIANCE_CLEANUP_DB_PRINCIPAL", value: "compliance_cleanup_runtime" },
++  ]);
++});
++
++test("closed compliance input refuses authority confusion and snapshots before await", async () => {
++  const normalize = v => normalizeComplianceExports(v, "123456789012", 56, "precision-intake");
++  assert.equal(normalize(undefined), undefined);
++  let getterCalls = 0;
++  for (const mutate of [
++    c => ({ ...c, extra: true }), c => ({ ...c, enabled: false }), c => ({ ...c, bucket: c.bucket + "\n" }),
++    c => ({ ...c, bucketOwner: "987654321098" }), c => ({ ...c, awsRegion: "us-east-1" }),
++    c => ({ ...c, cleanupRoleArn: c.writerRoleArn }), c => ({ ...c, cleanupDSNSecretArn: c.workerDSNSecretArn }),
++    c => ({ ...c, cleanupPrincipal: c.workerPrincipal }), c => ({ ...c, workerPrincipal: "zasp_runtime" }),
++    c => Object.defineProperty(c, "bucket", { get() { getterCalls++; return "bad"; } }),
++    c => Object.assign(c, { [Symbol("hidden")]: true }),
++    ...[["127.0.0.0/24"], ["169.254.0.0/16"], ["10.30.0.1/24"], ["10.30.0.0/24", "10.30.0.0/25"], ["10.30.0.0/24\n"]].map(databaseCIDRs => c => ({ ...c, databaseCIDRs })),
++  ]) assert.throws(() => normalize(mutate(complianceExportReleaseFixture())), /release rejected/);
++  assert.equal(getterCalls, 0);
++  const c = complianceExportReleaseFixture();
++  const pending = renderRelease(productionReleaseFixture, options(c));
++  c.bucket = "changed-after-call"; c.databaseCIDRs[0] = "0.0.0.0/0";
++  const rows = await pending;
++  assert.equal(env(rows, "agentsec-api", "ZASP_COMPLIANCE_EXPORT_BUCKET").value, "zasp-compliance-fixture");
++  for (const field of ["readerRoleArn", "writerRoleArn", "cleanupRoleArn"]) await assert.rejects(renderRelease(productionReleaseFixture, options({ ...complianceExportReleaseFixture(), [field]: productionReleaseFixture.discovery.roleArn })), /release rejected/);
++  for (const [field, value] of [["bucket", productionReleaseFixture.discovery.evidenceBucket], ["workerDSNSecretArn", auditExportReleaseFixture().workerDSNSecretArn], ["workerPrincipal", auditExportReleaseFixture().workerPrincipal]]) await assert.rejects(renderRelease(productionReleaseFixture, { ...options({ ...complianceExportReleaseFixture(), [field]: value }), auditExports: auditExportReleaseFixture() }), /release rejected/);
++});
++
++test("rendered compliance rejects authority, sidecar, readiness and additive network mutations", async t => {
++  const c = complianceExportReleaseFixture(), audit = auditExportReleaseFixture(), reconciler = testReconcilerReleaseFixture();
++  const valid = await renderRelease(productionReleaseFixture, { ...options(c), auditExports: audit, testReconciler: reconciler });
++  const mutations = {
++    "unreviewed pinned image": rows => { pod(rows).containers[0].image = `registry.example/foreign@sha256:${"f".repeat(64)}`; },
++    "writer swapped": rows => { env(rows, "zasp-compliance-export-worker", "ZASP_COMPLIANCE_EXPORT_ROLE_ARN").value = c.cleanupRoleArn; },
++    "DSN swapped": rows => { resource(rows, "SecretProviderClass", "zasp-compliance-export-worker-secrets").spec.parameters.objects = resource(rows, "SecretProviderClass", "zasp-compliance-cleanup-worker-secrets").spec.parameters.objects; },
++    "schema requirement removed": rows => { pod(rows, "agentsec-api").containers[0].env = pod(rows, "agentsec-api").containers[0].env.filter(e => e.name !== "ZASP_EXPECTED_SCHEMA_VERSION"); },
++    "worker authority on API": rows => { pod(rows, "agentsec-api").containers[0].env.push({ name: "ZASP_COMPLIANCE_EXPORT_ROLE_ARN", value: c.writerRoleArn }); },
++    "sidecar": rows => { pod(rows).containers.push({ name: "extra", image: "sidecar" }); },
++    "envFrom": rows => { pod(rows).containers[0].envFrom = [{ secretRef: { name: "shared" } }]; },
++    "host network": rows => { pod(rows).hostNetwork = true; },
++    "cross-workload mount": rows => { pod(rows, "agentsec-api").volumes.push(structuredClone(pod(rows).volumes[0])); },
++    "migration ordering": rows => { const c = resource(rows, "Job", "agentsec-schema-v56").spec.template.spec.containers[0]; c.args[0] = c.args[0].replace("configure-audit-exports && exec /app/agentsec-migrate register-compliance-workers", "register-compliance-workers && exec /app/agentsec-migrate configure-audit-exports"); },
++    "readiness weakened": rows => { pod(rows).containers[0].readinessProbe.httpGet.path = "/healthz"; },
++    "memory request removed": rows => { delete pod(rows).containers[0].resources.requests.memory; },
++    "unbounded HPA": rows => { resource(rows, "HorizontalPodAutoscaler", "zasp-compliance-export-worker").spec.maxReplicas = 100; },
++    "monitor absent": rows => rows.splice(rows.findIndex(r => r.kind === "ServiceMonitor" && r.metadata.name === "zasp-compliance-export-worker"), 1),
++    "broad expected selector": rows => { resource(rows, "NetworkPolicy", "zasp-compliance-export-worker-dependencies").spec.podSelector = {}; },
++    "broad egress": rows => { resource(rows, "NetworkPolicy", "zasp-compliance-export-worker-dependencies").spec.egress.push({}); },
++    "unnamed broad policy": rows => rows.push({ apiVersion: "networking.k8s.io/v1", kind: "NetworkPolicy", metadata: { name: "extra" }, spec: { podSelector: {}, policyTypes: ["Egress"], egress: [{}] } }),
++    "malformed unselected selector": rows => rows.push({ apiVersion: "networking.k8s.io/v1", kind: "NetworkPolicy", metadata: { name: "extra" }, spec: { podSelector: { matchLabels: { app: "other" }, matchExpressions: [{ key: "app", operator: "Bogus" }] } } }),
++    "group RBAC": rows => rows.push({ apiVersion: "rbac.authorization.k8s.io/v1", kind: "ClusterRoleBinding", metadata: { name: "extra" }, subjects: [{ kind: "Group", name: "system:serviceaccounts:agentsec" }], roleRef: { kind: "ClusterRole", name: "admin", apiGroup: "rbac.authorization.k8s.io" } }),
++    "cross namespace RBAC": rows => rows.push({ apiVersion: "rbac.authorization.k8s.io/v1", kind: "RoleBinding", metadata: { name: "extra", namespace: "other" }, subjects: [{ kind: "ServiceAccount", name: "zasp-compliance-export-worker", namespace: "agentsec" }], roleRef: { kind: "Role", name: "reader", apiGroup: "rbac.authorization.k8s.io" } }),
++  };
++  for (const [name, mutate] of Object.entries(mutations)) await t.test(name, () => {
++    const rows = structuredClone(valid); mutate(rows);
++    assert.throws(() => validateRenderedRelease(rows, "123456789012", 56, "precision-intake", audit, reconciler, c), /release rejected/);
++  });
++  const legacy = await renderRelease(productionReleaseFixture);
++  for (const r of valid.filter(r => JSON.stringify(r).includes("zasp-compliance"))) assert.throws(() => validateRenderedRelease([...legacy, r], "123456789012"), /release rejected/);
++});
++
++test("compliance56 coexists with both optional predecessors in both phases", async () => {
++  for (const phase of ["precision-consumers", "precision-intake"]) {
++    for (const enabled of [false, true]) for (const auditEnabled of [false, true]) for (const reconcileEnabled of [false, true]) {
++      const compliance = enabled ? complianceExportReleaseFixture() : undefined;
++      const audit = auditEnabled ? auditExportReleaseFixture() : undefined;
++      const reconciler = reconcileEnabled ? testReconcilerReleaseFixture() : undefined;
++      const rows = await renderRelease(productionReleaseFixture, { schemaVersion: 56, sessionSearchPhase: phase, auditExports: audit, testReconciler: reconciler, complianceExports: compliance });
++      assert.doesNotThrow(() => validateRenderedRelease(rows, "123456789012", 56, phase, audit, reconciler, compliance));
++      assert.equal(rows.filter(r => r.kind === "Deployment" && r.metadata.name.startsWith("zasp-compliance")).length, enabled ? 2 : 0);
++      if (enabled) {
++        const migration = rows.find(r => r.kind === "Job" && r.metadata.name === "agentsec-schema-v56");
++        const auditChain = auditEnabled ? " && /app/agentsec-migrate register-audit-export-api && /app/agentsec-migrate register-audit-export-workers && /app/agentsec-migrate configure-audit-exports" : "";
++        assert.equal(migration.spec.template.spec.containers[0].args[0], 'ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)" && export ZASP_POSTGRES_DSN && /app/agentsec-migrate up-to-56' + auditChain + " && exec /app/agentsec-migrate register-compliance-workers");
++      }
++    }
++  }
++});
++
++test("schema55 predecessors still render and57 stays closed", async () => {
++  await renderRelease(productionReleaseFixture, { schemaVersion: 55, sessionSearchPhase: "precision-intake", auditExports: auditExportReleaseFixture(), testReconciler: testReconcilerReleaseFixture() });
++  await assert.rejects(renderRelease(productionReleaseFixture, { schemaVersion: 57, sessionSearchPhase: "precision-intake" }), /release rejected/);
++});
+--- /dev/null
++++ b/deploy/production/compliance-export-runtime.test.mjs
+@@ -0,0 +1,28 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import { execFile } from "node:child_process";
++import { promisify } from "node:util";
++import { mkdtemp, writeFile, rm } from "node:fs/promises";
++import { tmpdir } from "node:os";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++import { renderRelease } from "./release-contract.mjs";
++import { productionReleaseFixture } from "./release-fixture.mjs";
++import { complianceExportReleaseFixture } from "./compliance-export-release-fixture.mjs";
++import { auditExportReleaseFixture } from "./audit-export-release-fixture.mjs";
++import { testReconcilerReleaseFixture } from "./test-reconciler-release-fixture.mjs";
++
++test("real Go loaders consume enabled and disabled rendered compliance environments", async t => {
++  const root = fileURLToPath(new URL("../../", import.meta.url));
++  const dir = await mkdtemp(path.join(tmpdir(), "zasp-compliance-rendered-"));
++  try {
++    const enabled = await renderRelease(productionReleaseFixture, { schemaVersion: 56, sessionSearchPhase: "precision-intake", complianceExports: complianceExportReleaseFixture(), auditExports: auditExportReleaseFixture(), testReconciler: testReconcilerReleaseFixture() });
++    const disabled = await renderRelease(productionReleaseFixture);
++    const fixture = path.join(dir, "rendered.json");
++    await writeFile(fixture, JSON.stringify({ enabled, disabled }), { mode: 0o600 });
++    const { stdout, stderr } = await promisify(execFile)("/opt/homebrew/bin/go", ["test", "-race", "./agentsec-api", "./agentsec-worker", "-run", "^TestComplianceDeploymentRendered", "-count=1", "-v"], { cwd: path.join(root, "services/platform"), timeout: 120000, maxBuffer: 4 * 1024 * 1024, env: { PATH: "/opt/homebrew/bin:/usr/bin:/bin", HOME: process.env.HOME, GOTOOLCHAIN: "local", GOPROXY: "off", GOSUMDB: "off", GOCACHE: "/private/tmp/zasp-budget-go-cache", ZASP_COMPLIANCE_RENDERED_FIXTURE: fixture } });
++    assert.doesNotMatch(stdout, /SKIP|FAIL/); assert.equal(stderr, "");
++    assert.match(stdout, /TestComplianceDeploymentRenderedAPIConfig/); assert.match(stdout, /TestComplianceDeploymentRenderedWorkerConfig/);
++    t.diagnostic(stdout);
++  } finally { await rm(dir, { recursive: true, force: true }); }
++});
+--- /dev/null
++++ b/deploy/production/compliance-export-helm.test.mjs
+@@ -0,0 +1,45 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import { execFile } from "node:child_process";
++import { promisify } from "node:util";
++import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
++import { tmpdir } from "node:os";
++import path from "node:path";
++import { loadAll } from "js-yaml";
++import { complianceExportReleaseFixture } from "./compliance-export-release-fixture.mjs";
++
++test("direct Helm rejects malformed compliance authority without the JS normalizer", async t => {
++  const directory = await mkdtemp(path.join(tmpdir(), "zasp-compliance-helm-"));
++  try {
++    await mkdir(path.join(directory, "templates"));
++    await writeFile(path.join(directory, "Chart.yaml"), "apiVersion: v2\nname: compliance-owned\nversion: 0.1.0\n");
++    for (const file of ["_compliance-exports.tpl", "compliance-exports.yaml", "compliance-export-network.yaml", "compliance-export-operations.yaml"]) await writeFile(path.join(directory, "templates", file), await readFile(new URL(`../staging/product/templates/${file}`, import.meta.url)));
++    const fixture = () => ({ profile: "control_plane", schema: { expectedVersion: 56 }, runtime: { sessionSearchPhase: "precision-intake" }, global: { terminationGracePeriodSeconds: 30, productImages: { agentsecWorker: `registry.example/worker@sha256:${"a".repeat(64)}` } }, monitoring: { enabled: true, namespace: "monitoring" }, serviceAccounts: { api: { roleArn: "arn:aws:iam::123456789012:role/api" } }, complianceExports: complianceExportReleaseFixture() });
++    const render = async value => {
++      await writeFile(path.join(directory, "values.json"), JSON.stringify(value));
++      const { stdout } = await promisify(execFile)("helm", ["template", "owned", directory, "-n", "agentsec", "-f", path.join(directory, "values.json")], { timeout: 20000 });
++      return loadAll(stdout).filter(Boolean);
++    };
++    assert.equal((await render(fixture())).filter(r => r.kind === "Deployment").length, 2);
++    const disabled = fixture(); disabled.complianceExports = { enabled: false }; assert.equal((await render(disabled)).length, 0);
++    const cases = {
++      unknown: v => { v.complianceExports.extra = true; },
++      "disabled authority": v => { v.complianceExports.enabled = false; },
++      "wrong schema": v => { v.schema.expectedVersion = 55; },
++      "future schema": v => { v.schema.expectedVersion = 57; },
++      "wrong phase": v => { v.runtime.sessionSearchPhase = "query"; },
++      "wrong account": v => { v.complianceExports.bucketOwner = "987654321098"; },
++      "wrong region": v => { v.complianceExports.awsRegion = "us-east-1"; },
++      "role collision": v => { v.complianceExports.cleanupRoleArn = v.complianceExports.writerRoleArn; },
++      "prior identity": v => { v.complianceExports.writerRoleArn = v.serviceAccounts.api.roleArn; },
++      "prior DSN": v => { v.secrets = { old: v.complianceExports.workerDSNSecretArn }; },
++      "prior bucket": v => { v.discovery = { evidenceBucket: v.complianceExports.bucket }; },
++      "newline principal": v => { v.complianceExports.workerPrincipal += "\n"; },
++      "metadata CIDR": v => { v.complianceExports.databaseCIDRs = ["169.254.0.0/16"]; },
++      "overlapping CIDRs": v => { v.complianceExports.stsCIDRs = ["10.0.0.0/24", "10.0.0.0/25"]; },
++      "monitor disabled": v => { v.monitoring.enabled = false; },
++      "grace too long": v => { v.global.terminationGracePeriodSeconds = 301; },
++    };
++    for (const [name, mutate] of Object.entries(cases)) await t.test(name, async () => { const value = fixture(); mutate(value); await assert.rejects(render(value), /execution error/); });
++  } finally { await rm(directory, { recursive: true, force: true }); }
++});
+--- /dev/null
++++ b/deploy/staging/product/templates/_compliance-exports.tpl
+@@ -0,0 +1,77 @@
++{{- define "zasp.complianceExports.validate" -}}
++{{- $c := .Values.complianceExports -}}
++{{- if not (kindIs "map" $c) -}}{{ fail "complianceExports must be a map" }}{{- end -}}
++{{- if not (kindIs "bool" $c.enabled) -}}{{ fail "complianceExports.enabled must be boolean" }}{{- end -}}
++{{- if $c.enabled -}}
++{{- $fields := list "enabled" "awsRegion" "bucket" "bucketOwner" "kmsKeyArn" "readerRoleArn" "writerRoleArn" "cleanupRoleArn" "workerDSNSecretArn" "cleanupDSNSecretArn" "workerPrincipal" "cleanupPrincipal" "databaseCIDRs" "stsCIDRs" "s3CIDRs" -}}
++{{- if ne (toJson (keys $c | sortAlpha)) (toJson ($fields | sortAlpha)) -}}{{ fail "compliance export fields are closed" }}{{- end -}}
++{{- if or (ne .Values.profile "control_plane") (ne (toString .Values.schema.expectedVersion) "56") (not (has .Values.runtime.sessionSearchPhase (list "precision-consumers" "precision-intake"))) -}}{{ fail "compliance exports require precision schema56" }}{{- end -}}
++{{- if or (not .Values.monitoring.enabled) (ne .Values.monitoring.namespace "monitoring") (le (int .Values.global.terminationGracePeriodSeconds) 20) (gt (int .Values.global.terminationGracePeriodSeconds) 300) -}}{{ fail "compliance exports require monitoring and bounded grace" }}{{- end -}}
++{{- range $field := $fields -}}
++{{- if not (has $field (list "enabled" "databaseCIDRs" "stsCIDRs" "s3CIDRs")) -}}
++{{- $value := index $c $field -}}
++{{- if or (not (kindIs "string" $value)) (contains "\n" $value) (contains "\r" $value) -}}{{ fail "compliance authority must be plain strings" }}{{- end -}}
++{{- end -}}
++{{- end -}}
++{{- $region := $c.awsRegion -}}{{- $account := $c.bucketOwner -}}
++{{- if or (not (regexMatch "^[a-z]{2}(-[a-z0-9]+)+-[0-9]+$" $region)) (not (regexMatch "^[0-9]{12}$" $account)) (eq $account "000000000000") (not (hasPrefix (printf "arn:aws:iam::%s:role/" $account) .Values.serviceAccounts.api.roleArn)) -}}{{ fail "compliance account/region mismatch" }}{{- end -}}
++{{- if not (regexMatch "^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$" $c.bucket) -}}{{ fail "compliance bucket invalid" }}{{- end -}}
++{{- if not (regexMatch (printf "^arn:aws:kms:%s:%s:key/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" $region $account) $c.kmsKeyArn) -}}{{ fail "compliance KMS authority mismatch" }}{{- end -}}
++{{- $roles := list $c.readerRoleArn $c.writerRoleArn $c.cleanupRoleArn -}}
++{{- if ne (len (uniq $roles)) 3 -}}{{ fail "compliance roles must be distinct" }}{{- end -}}
++{{- range $role := $roles -}}{{- if not (regexMatch (printf "^arn:aws:iam::%s:role/[A-Za-z0-9+=,.@_/-]{1,128}$" $account) $role) -}}{{ fail "compliance role mismatch" }}{{- end -}}{{- end -}}
++{{- if eq $c.workerDSNSecretArn $c.cleanupDSNSecretArn -}}{{ fail "compliance DSNs must be separate" }}{{- end -}}
++{{- range $secret := list $c.workerDSNSecretArn $c.cleanupDSNSecretArn -}}{{- if not (regexMatch (printf "^arn:aws:secretsmanager:%s:%s:secret:[A-Za-z0-9/_+=.@-]{1,512}$" $region $account) $secret) -}}{{ fail "compliance DSN authority mismatch" }}{{- end -}}{{- end -}}
++{{- if eq $c.workerPrincipal $c.cleanupPrincipal -}}{{ fail "compliance principals must be distinct" }}{{- end -}}
++{{- range $principal := list $c.workerPrincipal $c.cleanupPrincipal -}}{{- if or (not (regexMatch "^[a-z][a-z0-9_]{2,62}$" $principal)) (hasPrefix "zasp_" $principal) -}}{{ fail "compliance principal invalid" }}{{- end -}}{{- end -}}
++{{- $predecessors := omit .Values "complianceExports" | toJson -}}
++{{- range $field := list "bucket" "readerRoleArn" "writerRoleArn" "cleanupRoleArn" "workerDSNSecretArn" "cleanupDSNSecretArn" "workerPrincipal" "cleanupPrincipal" -}}
++{{- if contains (toJson (index $c $field)) $predecessors -}}{{ fail "compliance authority collides with predecessor" }}{{- end -}}
++{{- end -}}
++{{- if not (regexMatch "^[a-z0-9][a-z0-9./_-]*(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$" .Values.global.productImages.agentsecWorker) -}}{{ fail "compliance image must be pinned" }}{{- end -}}
++{{- include "zasp.complianceExports.cidrs" . -}}
++{{- else -}}
++{{- if ne (len $c) 1 -}}{{ fail "disabled compliance exports cannot carry authority" }}{{- end -}}
++{{- end -}}
++{{- end -}}
++
++{{- define "zasp.complianceExports.apiEnv" -}}
++{{- $c := .Values.complianceExports -}}
++- { name: ZASP_COMPLIANCE_EXPORT_BUCKET, value: {{ $c.bucket | quote }} }
++- { name: ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER, value: {{ $c.bucketOwner | quote }} }
++- { name: ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN, value: {{ $c.kmsKeyArn | quote }} }
++- { name: ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN, value: {{ $c.readerRoleArn | quote }} }
++- { name: ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE, value: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" }
++{{- end -}}
++
++{{- define "zasp.complianceExports.migrationCommand" -}}
++ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)" && export ZASP_POSTGRES_DSN && /app/agentsec-migrate up-to-56{{ if .Values.auditExports.enabled }} && /app/agentsec-migrate register-audit-export-api && /app/agentsec-migrate register-audit-export-workers && /app/agentsec-migrate configure-audit-exports{{ end }} && exec /app/agentsec-migrate register-compliance-workers
++{{- end -}}
++
++{{- define "zasp.complianceExports.cidrs" -}}
++{{- $c := .Values.complianceExports -}}
++{{- range $field := list "databaseCIDRs" "stsCIDRs" "s3CIDRs" -}}
++{{- $cidrs := index $c $field -}}
++{{- if or (not (kindIs "slice" $cidrs)) (lt (len $cidrs) 1) (gt (len $cidrs) 64) -}}{{ fail "compliance endpoint snapshots required" }}{{- end -}}
++{{- $ranges := list -}}
++{{- range $cidr := $cidrs -}}
++{{- if not (kindIs "string" $cidr) -}}{{ fail "compliance CIDR must be string" }}{{- end -}}
++{{- if not (regexMatch "^([0-9]{1,3}\\.){3}[0-9]{1,3}/(1[6-9]|2[0-9]|3[0-2])$" $cidr) -}}{{ fail "compliance CIDR must be bounded IPv4" }}{{- end -}}
++{{- $parts := splitList "/" $cidr -}}
++{{- $octets := splitList "." (index $parts 0) -}}
++{{- $start := int64 0 -}}
++{{- range $octet := $octets -}}
++{{- if or (gt (int $octet) 255) (ne (toString (int $octet)) $octet) -}}{{ fail "compliance CIDR must be canonical" }}{{- end -}}
++{{- $start = add (mul $start 256) (int $octet) -}}
++{{- end -}}
++{{- $first := int (index $octets 0) -}}
++{{- if or (eq $first 0) (eq $first 127) (ge $first 224) (and (eq $first 169) (eq (index $octets 1) "254")) -}}{{ fail "compliance CIDR cannot be local/metadata/multicast" }}{{- end -}}
++{{- $size := int64 1 -}}
++{{- range until (int (sub 32 (int (index $parts 1)))) -}}{{- $size = mul $size 2 -}}{{- end -}}
++{{- if ne (mod $start $size) 0 -}}{{ fail "compliance CIDR has host bits" }}{{- end -}}
++{{- $end := sub (add $start $size) 1 -}}
++{{- range $prior := $ranges -}}{{- if and (le $start $prior.end) (ge $end $prior.start) -}}{{ fail "compliance endpoint ranges overlap" }}{{- end -}}{{- end -}}
++{{- $ranges = append $ranges (dict "start" $start "end" $end) -}}
++{{- end -}}
++{{- end }}
++{{- end -}}
+--- /dev/null
++++ b/deploy/staging/product/templates/compliance-exports.yaml
+@@ -0,0 +1,93 @@
++{{- include "zasp.complianceExports.validate" . -}}
++{{- $exports := .Values.complianceExports -}}
++{{- if $exports.enabled -}}
++{{- $region := $exports.awsRegion -}}
++{{- $image := .Values.global.productImages.agentsecWorker -}}
++{{- range $worker := list (dict "name" "zasp-compliance-export-worker" "mode" "compliance-export" "authority" "zasp_compliance_worker" "role" $exports.writerRoleArn "secret" $exports.workerDSNSecretArn) (dict "name" "zasp-compliance-cleanup-worker" "mode" "compliance-export-cleanup" "authority" "zasp_compliance_cleanup" "role" $exports.cleanupRoleArn "secret" $exports.cleanupDSNSecretArn) }}
++{{- $name := $worker.name }}
++---
++apiVersion: v1
++kind: ServiceAccount
++metadata:
++  name: {{ $name }}
++  labels: { app.kubernetes.io/part-of: zasp }
++  annotations: { eks.amazonaws.com/role-arn: {{ $worker.role | quote }} }
++automountServiceAccountToken: false
++---
++apiVersion: secrets-store.csi.x-k8s.io/v1
++kind: SecretProviderClass
++metadata:
++  name: {{ $name }}-secrets
++spec:
++  provider: aws
++  parameters:
++    region: {{ $region | quote }}
++    objects: |
++      - objectName: {{ $worker.secret | quote }}
++        objectType: secretsmanager
++        objectAlias: postgres-dsn
++---
++apiVersion: apps/v1
++kind: Deployment
++metadata:
++  name: {{ $name }}
++  labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp }
++spec:
++  replicas: 2
++  revisionHistoryLimit: 3
++  progressDeadlineSeconds: 600
++  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
++  selector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
++  template:
++    metadata:
++      labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp }
++      annotations: { zasp.io/schema-version: {{ $.Values.schema.expectedVersion | quote }} }
++    spec:
++      serviceAccountName: {{ $name }}
++      automountServiceAccountToken: false
++      enableServiceLinks: false
++      topologySpreadConstraints:
++        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } } }
++        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } } }
++      terminationGracePeriodSeconds: {{ $.Values.global.terminationGracePeriodSeconds }}
++      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
++      containers:
++        - name: worker
++          image: {{ $image | quote }}
++          imagePullPolicy: IfNotPresent
++          command: ["/bin/sh", "-ec"]
++          args: ['ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-compliance/postgres-dsn)" && export ZASP_POSTGRES_DSN && exec /app/agentsec-worker']
++          ports: [{ name: internal, containerPort: 8081 }]
++          env:
++            - { name: ZASP_WORKER_MODE, value: {{ $worker.mode | quote }} }
++            - { name: ZASP_DATABASE_AUTHORITY, value: {{ $worker.authority | quote }} }
++            - name: ZASP_WORKER_ID
++              valueFrom: { fieldRef: { fieldPath: metadata.name } }
++            - { name: ZASP_AWS_REGION, value: {{ $region | quote }} }
++            - { name: ZASP_POLL_INTERVAL, value: "1s" }
++            - { name: ZASP_LEASE_DURATION, value: "60s" }
++            - { name: ZASP_BATCH_SIZE, value: "1" }
++            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "20s" }
++            - { name: ZASP_PROVIDER_TIMEOUT, value: "5s" }
++            - { name: ZASP_COMPLIANCE_EXPORT_BUCKET, value: {{ $exports.bucket | quote }} }
++            - { name: ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER, value: {{ $exports.bucketOwner | quote }} }
++            - { name: ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN, value: {{ $exports.kmsKeyArn | quote }} }
++            - { name: ZASP_COMPLIANCE_EXPORT_ROLE_ARN, value: {{ $worker.role | quote }} }
++            - { name: ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE, value: "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" }
++          volumeMounts:
++            - { name: database, mountPath: /var/run/secrets/zasp-compliance, readOnly: true }
++            - { name: identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
++          startupProbe: { httpGet: { path: /healthz, port: internal }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
++          readinessProbe: { httpGet: { path: /readyz, port: internal }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
++          livenessProbe: { httpGet: { path: /healthz, port: internal }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
++          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: "1", memory: 1Gi } }
++          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
++      volumes:
++        - name: database
++          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ printf "%s-secrets" $name | quote }} } }
++        - name: identity
++          projected:
++            sources:
++              - serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 3600, path: token }
++{{- end }}
++{{- end }}
+--- /dev/null
++++ b/deploy/staging/product/templates/compliance-export-network.yaml
+@@ -0,0 +1,72 @@
++{{- if .Values.complianceExports.enabled -}}
++{{- $c := .Values.complianceExports -}}
++{{- range $name := list "zasp-compliance-export-worker" "zasp-compliance-cleanup-worker" }}
++---
++apiVersion: networking.k8s.io/v1
++kind: NetworkPolicy
++metadata:
++  name: {{ $name }}-dependencies
++spec:
++  podSelector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
++  policyTypes: [Ingress, Egress]
++  ingress:
++    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: monitoring } } }]
++      ports: [{ protocol: TCP, port: 8081 }]
++  egress:
++    - to:
++      {{- range $cidr := $c.databaseCIDRs }}
++        - ipBlock: { cidr: {{ $cidr | quote }} }
++      {{- end }}
++      ports: [{ protocol: TCP, port: 5432 }]
++    - to:
++      {{- range $cidr := uniq (concat $c.stsCIDRs $c.s3CIDRs) }}
++        - ipBlock: { cidr: {{ $cidr | quote }} }
++      {{- end }}
++      ports: [{ protocol: TCP, port: 443 }]
++    - to:
++        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
++          podSelector: { matchLabels: { k8s-app: kube-dns } }
++      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
++---
++apiVersion: v1
++kind: Service
++metadata:
++  name: {{ $name }}
++  labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp }
++spec:
++  type: ClusterIP
++  selector: { app.kubernetes.io/name: {{ $name }} }
++  ports: [{ name: internal, port: 8081, targetPort: internal, protocol: TCP }]
++---
++apiVersion: policy/v1
++kind: PodDisruptionBudget
++metadata:
++  name: {{ $name }}
++spec:
++  minAvailable: 1
++  selector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
++---
++apiVersion: monitoring.coreos.com/v1
++kind: ServiceMonitor
++metadata:
++  name: {{ $name }}
++spec:
++  selector: { matchLabels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
++  namespaceSelector: { matchNames: [{{ $.Release.Namespace | quote }}] }
++  endpoints: [{ port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }]
++{{- end }}
++---
++apiVersion: networking.k8s.io/v1
++kind: NetworkPolicy
++metadata:
++  name: zasp-compliance-export-api-dependencies
++spec:
++  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } }
++  policyTypes: [Egress]
++  egress:
++    - to:
++      {{- range $cidr := uniq (concat $c.stsCIDRs $c.s3CIDRs) }}
++        - ipBlock: { cidr: {{ $cidr | quote }} }
++      {{- end }}
++      ports: [{ protocol: TCP, port: 443 }]
++{{- end }}
+--- /dev/null
++++ b/deploy/staging/product/templates/compliance-export-operations.yaml
+@@ -0,0 +1,45 @@
++{{- if .Values.complianceExports.enabled -}}
++{{- range $name := list "zasp-compliance-export-worker" "zasp-compliance-cleanup-worker" }}
++---
++apiVersion: autoscaling/v2
++kind: HorizontalPodAutoscaler
++metadata:
++  name: {{ $name }}
++  labels: { app.kubernetes.io/part-of: zasp }
++spec:
++  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ $name }} }
++  minReplicas: 2
++  maxReplicas: 6
++  behavior:
++    scaleUp: { stabilizationWindowSeconds: 60, policies: [{ type: Percent, value: 100, periodSeconds: 60 }] }
++    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Percent, value: 25, periodSeconds: 60 }] }
++  metrics:
++    - type: Resource
++      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
++{{- end }}
++{{- if .Values.monitoring.enabled }}
++---
++apiVersion: monitoring.coreos.com/v1
++kind: PrometheusRule
++metadata:
++  name: zasp-compliance-export-availability
++  labels: { app.kubernetes.io/part-of: zasp }
++spec:
++  groups:
++    - name: zasp.compliance-export.availability
++      rules:
++        {{- range $worker := list (dict "name" "zasp-compliance-export-worker" "prefix" "ZaspComplianceExportWorker") (dict "name" "zasp-compliance-cleanup-worker" "prefix" "ZaspComplianceCleanupWorker") }}
++        {{- $name := $worker.name }}
++        - alert: {{ $worker.prefix }}Unavailable
++          expr: kube_deployment_status_replicas_available{namespace="{{ $.Release.Namespace }}",deployment="{{ $name }}"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ $.Release.Namespace }}",deployment="{{ $name }}"})
++          for: 5m
++          labels: { severity: page }
++          annotations: { summary: "Compliance export workload is unavailable or absent" }
++        - alert: {{ $worker.prefix }}NotReady
++          expr: agentsec_ready{namespace="{{ $.Release.Namespace }}",service="{{ $name }}"} == 0 or up{namespace="{{ $.Release.Namespace }}",service="{{ $name }}"} == 0 or (up{namespace="{{ $.Release.Namespace }}",service="{{ $name }}"} == 1 unless on (namespace,service,instance) agentsec_ready{namespace="{{ $.Release.Namespace }}",service="{{ $name }}"}) or absent(up{namespace="{{ $.Release.Namespace }}",service="{{ $name }}"})
++          for: 10m
++          labels: { severity: ticket }
++          annotations: { summary: "Compliance export worker readiness is unavailable" }
++        {{- end }}
++{{- end }}
++{{- end }}
+--- /dev/null
++++ b/services/platform/agentsec-api/compliance_deployment_config_test.go
+@@ -0,0 +1,120 @@
++package main
++
++import (
++	"encoding/json"
++	"os"
++	"strings"
++	"testing"
++)
++
++// Only mounted secret values are synthetic. Every plain environment value below
++// is decoded from Helm output by the Node deployment-boundary test.
++func TestComplianceDeploymentRenderedAPIConfig(t *testing.T) {
++	path := os.Getenv("ZASP_COMPLIANCE_RENDERED_FIXTURE")
++	if path == "" {
++		t.Skip("requires the owned rendered manifest fixture")
++	}
++	data, err := os.ReadFile(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var fixtures map[string][]struct {
++		Kind     string `json:"kind"`
++		Metadata struct {
++			Name string `json:"name"`
++		} `json:"metadata"`
++		Spec struct {
++			Template struct {
++				Spec struct {
++					Containers []struct {
++						Env []struct {
++							Name      string          `json:"name"`
++							Value     string          `json:"value"`
++							ValueFrom json.RawMessage `json:"valueFrom"`
++						} `json:"env"`
++						Args []string `json:"args"`
++					} `json:"containers"`
++				} `json:"spec"`
++			} `json:"template"`
++		} `json:"spec"`
++	}
++	if err := json.Unmarshal(data, &fixtures); err != nil {
++		t.Fatal(err)
++	}
++	for _, mode := range []string{"enabled", "disabled"} {
++		t.Run(mode, func(t *testing.T) {
++			found := false
++			for _, resource := range fixtures[mode] {
++				if resource.Kind != "Deployment" || resource.Metadata.Name != "agentsec-api" {
++					continue
++				}
++				found = true
++				if len(resource.Spec.Template.Spec.Containers) != 1 {
++					t.Fatal("API container count")
++				}
++				container := resource.Spec.Template.Spec.Containers[0]
++				values := map[string]string{}
++				for _, e := range container.Env {
++					if len(e.ValueFrom) != 0 {
++						t.Fatal("unexpected API field substitution")
++					}
++					if _, duplicate := values[e.Name]; duplicate {
++						t.Fatal("duplicate environment")
++					}
++					values[e.Name] = e.Value
++				}
++				mounted := map[string]string{
++					"POSTGRES_DSN":                "postgres://zasp_api_runtime@db.internal/zasp?sslmode=verify-full",
++					"SECURITY_AGENT_POSTGRES_DSN": "postgres://zasp_security_agent_api_runtime@db.internal/zasp?sslmode=verify-full",
++					"STYTCH_PROJECT_ID":           "project-live-local", "STYTCH_SECRET": "secret-live-local",
++					"STYTCH_WEBHOOK_SECRET": "whsec_MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=",
++					"STYTCH_PUBLIC_TOKEN":   "public-token-live-local", "STYTCH_ORGANIZATION_ID": "organization-live-local",
++					"WORKFLOW_SIGNING_KEY": "0123456789abcdef0123456789abcdef", "TOKEN_REVEAL_KEY": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY",
++					"AUDIT_EXPORT_CURSOR_SIGNING_KEY": "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHg",
++				}
++				for _, line := range strings.Split(strings.Join(container.Args, "\n"), "\n") {
++					if !strings.HasPrefix(line, "export ZASP_") {
++						continue
++					}
++					name, _, ok := strings.Cut(strings.TrimPrefix(line, "export ZASP_"), "=")
++					value, known := mounted[name]
++					if !ok || !known || strings.HasPrefix(name, "COMPLIANCE_") {
++						t.Fatal("unrecognized mounted secret")
++					}
++					values["ZASP_"+name] = value
++				}
++				load := func() (RuntimeConfig, error) {
++					return loadRuntimeConfigFromEnvironment(func(k string) (string, bool) { v, ok := values[k]; return v, ok })
++				}
++				config, err := load()
++				if err != nil || (config.ComplianceExports != nil) != (mode == "enabled") {
++					t.Fatalf("rendered %s API configuration: %v", mode, err)
++				}
++				if mode == "enabled" {
++					if config.ComplianceExports.Bucket != "zasp-compliance-fixture" || config.ComplianceExports.ReaderRoleARN != "arn:aws:iam::123456789012:role/compliance-reader" {
++						t.Fatal("manifest compliance authority changed")
++					}
++					original := values["ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN"]
++					values["ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN"] = values["ZASP_CONNECTOR_ROLE_ARN"]
++					if _, err := load(); err == nil {
++						t.Fatal("swapped reader role accepted")
++					}
++					values["ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN"] = original
++					for key, value := range values {
++						if strings.HasPrefix(key, "ZASP_COMPLIANCE_EXPORT_") {
++							delete(values, key)
++							if _, err := load(); err == nil {
++								t.Fatal("partial compliance accepted", key)
++							}
++							values[key] = value
++						}
++					}
++				}
++				t.Log("real API loader accepted untouched rendered env; synthetic CSI values only:", mode)
++			}
++			if !found {
++				t.Fatal("API deployment absent")
++			}
++		})
++	}
++}
+--- /dev/null
++++ b/services/platform/agentsec-worker/compliance_deployment_config_test.go
+@@ -0,0 +1,95 @@
++package main
++
++import (
++	"encoding/json"
++	"os"
++	"testing"
++	"time"
++)
++
++func TestComplianceDeploymentRenderedWorkerConfig(t *testing.T) {
++	path := os.Getenv("ZASP_COMPLIANCE_RENDERED_FIXTURE")
++	if path == "" {
++		t.Skip("requires the owned rendered manifest fixture")
++	}
++	data, err := os.ReadFile(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var fixtures map[string][]struct {
++		Kind     string `json:"kind"`
++		Metadata struct {
++			Name string `json:"name"`
++		} `json:"metadata"`
++		Spec struct {
++			Template struct {
++				Spec struct {
++					Containers []struct {
++						Env []struct {
++							Name      string `json:"name"`
++							Value     string `json:"value"`
++							ValueFrom *struct {
++								FieldRef struct {
++									FieldPath string `json:"fieldPath"`
++								} `json:"fieldRef"`
++							} `json:"valueFrom"`
++						} `json:"env"`
++					} `json:"containers"`
++				} `json:"spec"`
++			} `json:"template"`
++		} `json:"spec"`
++	}
++	if err := json.Unmarshal(data, &fixtures); err != nil {
++		t.Fatal(err)
++	}
++	count := 0
++	for _, resource := range fixtures["enabled"] {
++		name := resource.Metadata.Name
++		if resource.Kind != "Deployment" || (name != "zasp-compliance-export-worker" && name != "zasp-compliance-cleanup-worker") {
++			continue
++		}
++		count++
++		t.Run(name, func(t *testing.T) {
++			if len(resource.Spec.Template.Spec.Containers) != 1 {
++				t.Fatal("worker container count")
++			}
++			values := map[string]string{}
++			for _, e := range resource.Spec.Template.Spec.Containers[0].Env {
++				if _, duplicate := values[e.Name]; duplicate {
++					t.Fatal("duplicate environment")
++				}
++				values[e.Name] = e.Value
++				if e.ValueFrom != nil {
++					if e.Name != "ZASP_WORKER_ID" || e.ValueFrom.FieldRef.FieldPath != "metadata.name" {
++						t.Fatal("unexpected field substitution")
++					}
++					values[e.Name] = name + "-fixture"
++				}
++			}
++			principal, role, authority := "compliance_export_runtime", "compliance-writer", "zasp_compliance_worker"
++			if name == "zasp-compliance-cleanup-worker" {
++				principal, role, authority = "compliance_cleanup_runtime", "compliance-cleanup", "zasp_compliance_cleanup"
++			}
++			// The only worker secret substitution. No live DSN is read.
++			values["ZASP_POSTGRES_DSN"] = "postgres://" + principal + "@db.internal/zasp?sslmode=verify-full"
++			load := func() (workerRuntimeConfig, error) { return loadWorkerRuntimeConfig(mapLookup(values)) }
++			config, err := load()
++			if err != nil || config.ComplianceExports == nil || config.ComplianceExports.RoleARN != "arn:aws:iam::123456789012:role/"+role || config.LeaseDuration != time.Minute {
++				t.Fatalf("rendered worker configuration: %v", err)
++			}
++			values["ZASP_DATABASE_AUTHORITY"] = "zasp_audit_export_worker"
++			if _, err := load(); err == nil {
++				t.Fatal("swapped database authority accepted")
++			}
++			values["ZASP_DATABASE_AUTHORITY"] = authority
++			delete(values, "ZASP_COMPLIANCE_EXPORT_ROLE_ARN")
++			if _, err := load(); err == nil {
++				t.Fatal("partial worker configuration accepted")
++			}
++			t.Log("real worker loader accepted untouched rendered env; synthetic DSN and metadata.name only")
++		})
++	}
++	if count != 2 {
++		t.Fatal("both compliance workers required", count)
++	}
++}
+--- /dev/null
++++ b/services/platform/agentsec-migrate/compliance_deployment_postgres_test.go
+@@ -0,0 +1,178 @@
++package main
++
++import (
++	"context"
++	"fmt"
++	"os"
++	"os/exec"
++	"runtime"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/jackc/pgx/v5"
++	"github.com/zasp-ai/zasp-sec/services/platform/internal/testprocess"
++	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
++)
++
++// Opt in only inside the owned Linux PostgreSQL fixture, with the actual CLI
++// pre-built offline and mounted at this path. Never consume an ambient DSN.
++func TestComplianceDeploymentBinaryOwnedPostgres(t *testing.T) {
++	if runtime.GOOS != "linux" || os.Getenv("ZASP_COMPLIANCE_DEPLOYMENT_BINARY") != "/compliance-migrate" {
++		t.Skip("requires owned Linux PostgreSQL fixture and mounted migration CLI")
++	}
++	dsn := startMigrationPostgres(t)
++	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
++	defer cancel()
++	owner := connectMigrationPostgres(t, ctx, dsn)
++	defer owner.Close(context.Background())
++	seed := func(statement string, args ...any) {
++		t.Helper()
++		if _, err := owner.Exec(ctx, statement, args...); err != nil {
++			t.Fatalf("owned fixture setup: %v", err)
++		}
++	}
++	seed(`CREATE ROLE fixture_admin LOGIN SUPERUSER; CREATE ROLE compliance_migrator LOGIN INHERIT SUPERUSER; CREATE ROLE compliance_executor LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS; CREATE ROLE compliance_cleanup LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS; CREATE ROLE audit_executor LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS; CREATE ROLE audit_outbox LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`)
++	adminConfig := owner.Config().Copy()
++	adminConfig.User = "fixture_admin"
++	admin, err := pgx.ConnectConfig(ctx, adminConfig)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer admin.Close(context.Background())
++	base := []string{"ZASP_MIGRATION_TIMEOUT=45s"}
++	forward := append([]string{}, base...)
++	forward = append(forward, "ZASP_MIGRATION_DB_PRINCIPAL=compliance_migrator")
++	for index, key := range []string{
++		discoveryAPIPrincipalEnvironment, discoveryWorkerPrincipalEnvironment, runtimeIngestPrincipalEnvironment,
++		runtimeWorkerPrincipalEnvironment, outboxWorkerPrincipalEnvironment, runtimeGatewayPrincipalEnvironment,
++		discoverySchedulerPrincipalEnvironment, projectionRiskPrincipalEnvironment, projectionGraphPrincipalEnvironment,
++		projectionSearchPrincipalEnvironment, runtimeCoordinatorPrincipalEnvironment, runtimeArchivePrincipalEnvironment,
++		runtimeIndexPrincipalEnvironment, runtimeCorrelationPrincipalEnvironment, runtimeProjectionPrincipalEnvironment,
++		gatewayControlPrincipalEnvironment, securityAgentAPIPrincipalEnvironment, securityAgentWorkerPrincipalEnvironment,
++		securityAgentActionPrincipalEnvironment, redTeamWorkerPrincipalEnvironment, redTeamOutboxPrincipalEnvironment,
++		redTeamAdapterPrincipalEnvironment, attackLabControllerPrincipalEnvironment, attackLabOutboxPrincipalEnvironment,
++		attackLabProxyPrincipalEnvironment, recoveryWorkerPrincipalEnvironment, recoveryOutboxPrincipalEnvironment,
++		policyDeploymentPrincipalEnvironment,
++	} {
++		name := fmt.Sprintf("compliance_prior_%02d", index)
++		seed(`CREATE ROLE ` + pgx.Identifier{name}.Sanitize() + ` LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`)
++		forward = append(forward, key+"="+name)
++	}
++	run := func(label string, args, environment []string, selectedDSN, want string) {
++		t.Helper()
++		bounded, stop := context.WithTimeout(ctx, 50*time.Second)
++		defer stop()
++		command := exec.Command("/compliance-migrate", args...)
++		command.Env = append(append([]string{}, environment...), "ZASP_POSTGRES_DSN="+selectedDSN)
++		output, err := testprocess.Run(bounded, command)
++		if bounded.Err() != nil || (err == nil) != (want == "") || (want != "" && !strings.Contains(string(output), want)) || (want == "" && len(output) != 0) {
++			t.Fatalf("%s: CLI result=%v output=%q", label, err, output)
++		}
++		for _, secret := range []string{selectedDSN, "compliance_executor", "compliance_cleanup", "compliance_other", "private_marker", "SQLSTATE"} {
++			if strings.Contains(string(output), secret) {
++				t.Fatalf("%s: public output disclosed private input", label)
++			}
++		}
++		t.Log("actual CLI:", label)
++	}
++	dsn = strings.Replace(dsn, "zasp_test@", "compliance_migrator@", 1)
++	owner = connectMigrationPostgres(t, ctx, dsn)
++	defer owner.Close(context.Background())
++	run("bootstrap exact56 through published migration command", []string{"up-to-56"}, forward, dsn, "")
++	var count int
++	if err := owner.QueryRow(ctx, `SELECT count(*) FROM zasp_compliance_worker_bindings`).Scan(&count); err != nil || count != 0 {
++		t.Fatal("forward migration registered compliance workers implicitly", count, err)
++	}
++	// The registered migration login owns the release objects. Remove all
++	// superuser/role-creation powers before any compliance registration attempt.
++	if _, err := admin.Exec(ctx, `ALTER ROLE compliance_migrator NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`); err != nil {
++		t.Fatalf("fixture role demotion: %#v", err)
++	}
++	var authority bool
++	if err := owner.QueryRow(ctx, `SELECT session_user='compliance_migrator' AND r.rolcanlogin AND r.rolinherit AND NOT r.rolsuper AND NOT r.rolcreatedb AND NOT r.rolcreaterole AND NOT r.rolreplication AND NOT r.rolbypassrls AND pg_has_role(session_user,'zasp_discovery_authority','MEMBER') AND EXISTS(SELECT 1 FROM zasp_discovery_principal_bindings WHERE principal_name=session_user AND authority_role='zasp_discovery_authority') FROM pg_roles r WHERE r.rolname=session_user`).Scan(&authority); err != nil || !authority {
++		t.Fatal("registration fixture is not registered non-superuser authority", err)
++	}
++	t.Log("registered migration session verified: LOGIN INHERIT, NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS")
++
++	settings := append(append([]string{}, forward...),
++		"ZASP_AUDIT_EXPORT_WORKER_DB_PRINCIPAL=audit_executor", "ZASP_AUDIT_EXPORT_OUTBOX_DB_PRINCIPAL=audit_outbox",
++		"ZASP_COMPLIANCE_WORKER_DB_PRINCIPAL=compliance_executor", "ZASP_COMPLIANCE_CLEANUP_DB_PRINCIPAL=compliance_cleanup")
++	for key, value := range auditExportConfigurationEnvironment() {
++		settings = append(settings, key+"="+value)
++	}
++	runChain := func(wantSuccess bool) {
++		t.Helper()
++		bounded, stop := context.WithTimeout(ctx, 60*time.Second)
++		defer stop()
++		command := exec.Command("/bin/sh", "-ec", "/compliance-migrate up-to-56 && /compliance-migrate register-audit-export-api && /compliance-migrate register-audit-export-workers && /compliance-migrate configure-audit-exports && exec /compliance-migrate register-compliance-workers")
++		command.Env = append(append([]string{}, settings...), "ZASP_POSTGRES_DSN="+dsn)
++		output, err := testprocess.Run(bounded, command)
++		refused := strings.Contains(string(output), "release migration failed") || strings.Contains(string(output), "release principal registration or readiness failed")
++		if bounded.Err() != nil || (err == nil) != wantSuccess || (wantSuccess && len(output) != 0) || (!wantSuccess && !refused) {
++			t.Fatalf("connected CLI chain: err=%v output=%q", err, output)
++		}
++		t.Log("actual CLI chain up-to-56 -> audit API -> audit workers -> audit policy -> compliance workers; success:", wantSuccess)
++	}
++	snapshot := func() string {
++		t.Helper()
++		var value string
++		err := admin.QueryRow(ctx, `SELECT jsonb_build_object(
++		'compliance',(SELECT COALESCE(jsonb_agg(to_jsonb(b) ORDER BY principal_name),'[]') FROM zasp_compliance_worker_bindings b),
++		'audit_workers',(SELECT COALESCE(jsonb_agg(to_jsonb(b) ORDER BY principal_name),'[]') FROM zasp_audit_export_worker_bindings b),
++		'audit_api',(SELECT COALESCE(jsonb_agg(to_jsonb(b) ORDER BY principal_name),'[]') FROM zasp_audit_export_api_bindings b),
++		'policies',(SELECT COALESCE(jsonb_agg(to_jsonb(p) ORDER BY policy_id),'[]') FROM zasp_audit_export_policies p),
++		'current',(SELECT jsonb_agg(to_jsonb(p)) FROM zasp_audit_export_current_policy p),
++		'grants',(SELECT COALESCE(jsonb_agg(to_jsonb(m) ORDER BY roleid,member,grantor),'[]') FROM pg_auth_members m))::text`).Scan(&value)
++		if err != nil {
++			t.Fatal(err)
++		}
++		return value
++	}
++	unchanged := func(before string) {
++		t.Helper()
++		if snapshot() != before {
++			t.Fatal("refused operation changed bindings, policy or role grants")
++		}
++	}
++	// State and readiness refusal happens before any of the optional registries
++	// exists, then repeats after all registries have been populated.
++	for _, populated := range []bool{false, true} {
++		if populated {
++			runChain(true)
++			var exact bool
++			err := admin.QueryRow(ctx, `SELECT
++			(SELECT count(*)=2 AND bool_and((principal_name='audit_executor' AND authority_role='zasp_audit_export_worker') OR (principal_name='audit_outbox' AND authority_role='zasp_audit_export_outbox')) FROM zasp_audit_export_worker_bindings)
++			AND (SELECT count(*)=1 AND bool_and(principal_name='compliance_prior_00' AND capability='audit-export-api-v1') FROM zasp_audit_export_api_bindings)
++			AND (SELECT count(*)=2 AND bool_and((principal_name='compliance_executor' AND authority_role='zasp_compliance_worker') OR (principal_name='compliance_cleanup' AND authority_role='zasp_compliance_cleanup')) FROM zasp_compliance_worker_bindings)
++			AND (SELECT count(*)=1 AND bool_and(policy_id='pid_75000001-0000-4000-8000-000000000001' AND bucket='owned-cli-export-fixture') FROM zasp_audit_export_policies)
++			AND (SELECT policy_id='pid_75000001-0000-4000-8000-000000000001' FROM zasp_audit_export_current_policy WHERE singleton)
++			AND public.zasp_compliance_readiness($1,$2)`, migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()).Scan(&exact)
++			if err != nil || !exact {
++				t.Fatal("connected authority/configuration/readiness mismatch", err)
++			}
++			t.Log("both systems have exact independent bindings; audit policy selected; compiled56 readiness true")
++			before := snapshot()
++			runChain(true)
++			unchanged(before)
++		}
++		for _, drift := range []struct{ label, apply, restore string }{
++			{"invalid56 checksum", `UPDATE zasp_schema_versions SET checksum=repeat('0',64) WHERE version=56`, `UPDATE zasp_schema_versions SET checksum=$1 WHERE version=56`},
++			{"unavailable56 readiness", `UPDATE zasp_schema_metadata SET value=repeat('0',64) WHERE key='production_compliance_checksum'`, `UPDATE zasp_schema_metadata SET value=$1 WHERE key='production_compliance_checksum'`},
++		} {
++			if _, err := admin.Exec(ctx, drift.apply); err != nil {
++				t.Fatal(err)
++			}
++			before := snapshot()
++			for _, operation := range []string{"register-audit-export-api", "register-audit-export-workers", "configure-audit-exports", "register-compliance-workers"} {
++				run(drift.label+"/"+operation, []string{operation}, settings, dsn, "release migration failed")
++				unchanged(before)
++			}
++			runChain(false)
++			unchanged(before)
++			if _, err := admin.Exec(ctx, drift.restore, migrations.ProductionCompliance().Checksum()); err != nil {
++				t.Fatal(err)
++			}
++		}
++	}
++}

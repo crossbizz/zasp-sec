@@ -1,0 +1,22 @@
+
+> zasp-agent-security-console@0.1.0 lint
+> node --test scripts/eslint-scope.test.mjs && eslint . --ignore-pattern dist --ignore-pattern .next
+
+TAP version 13
+# Subtest: lint excludes local agent evidence without excluding product code or durable tests
+ok 1 - lint excludes local agent evidence without excluding product code or durable tests
+  ---
+  duration_ms: 6803.816541
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7173.362875
+
+EXIT_STATUS=0

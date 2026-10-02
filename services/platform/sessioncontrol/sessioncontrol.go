@@ -161,15 +161,47 @@ type ComplianceControl struct {
 	FreshUntil  time.Time `json:"fresh_until"`
 }
 type EvidenceRecord struct {
-	ID      string    `json:"id"`
-	AssetID string    `json:"asset_id"`
-	Source  string    `json:"source"`
-	At      time.Time `json:"at"`
+	ID       string                      `json:"id"`
+	AssetID  string                      `json:"asset_id"`
+	Source   string                      `json:"source"`
+	At       time.Time                   `json:"at"`
+	Target   *ComplianceEvidenceTarget   `json:"target,omitempty"`
+	Metadata *ComplianceEvidenceMetadata `json:"metadata,omitempty"`
+}
+
+type ComplianceEvidenceTarget struct {
+	SourceKind    string `json:"source_kind"`
+	SourceID      string `json:"source_id"`
+	SourceVersion int64  `json:"source_version"`
+}
+
+// Captured metadata is a typed allowlist, never provider/audit arbitrary JSON.
+type ComplianceEvidenceMetadata struct {
+	Action            string   `json:"action,omitempty"`
+	Status            string   `json:"status,omitempty"`
+	Severity          string   `json:"severity,omitempty"`
+	EvidenceIDs       []string `json:"evidence_ids,omitempty"`
+	Verification      string   `json:"verification,omitempty"`
+	MigrationSeeded   *bool    `json:"migration_seeded,omitempty"`
+	DefinitionID      string   `json:"definition_id,omitempty"`
+	DefinitionVersion int64    `json:"definition_version,omitempty"`
+	ReceiptSHA256     string   `json:"receipt_sha256,omitempty"`
+	ReceiptVersion    string   `json:"receipt_version,omitempty"`
+	ReceiptSize       int64    `json:"receipt_size,omitempty"`
 }
 type ComplianceEvidence struct {
-	Control   ComplianceControl `json:"control"`
-	Evidence  []EvidenceRecord  `json:"evidence"`
-	Freshness string            `json:"freshness"`
+	Control         ComplianceControl          `json:"control"`
+	Evidence        []EvidenceRecord           `json:"evidence"`
+	Freshness       string                     `json:"freshness"`
+	SnapshotContext *ComplianceSnapshotContext `json:"snapshot_context,omitempty"`
+}
+
+type ComplianceSnapshotContext struct {
+	OrganizationID  string    `json:"organization_id"`
+	WorkspaceID     string    `json:"workspace_id"`
+	EnvironmentID   string    `json:"environment_id"`
+	MappingRevision string    `json:"mapping_revision"`
+	SnapshotAt      time.Time `json:"snapshot_at"`
 }
 
 func AssembleComplianceEvidence(controls []ComplianceControl, records []EvidenceRecord, now time.Time) ([]ComplianceEvidence, error) {
@@ -226,20 +258,173 @@ func BuildComplianceExport(id string, values []ComplianceEvidence) (ComplianceEx
 		return ComplianceExport{}, ErrRejected
 	}
 	var csvText strings.Builder
+	var human strings.Builder
+	human.WriteString("Evidence package for review. This export reports collected evidence and freshness; it does not attest compliance.\n")
 	writer := csv.NewWriter(&csvText)
-	_ = writer.Write([]string{"control_id", "framework", "freshness", "evidence_count"})
+	attributed := false
+	contextual := false
 	for _, value := range values {
-		if !bounded(value.Control.ID, 128) || !contains([]string{"fresh", "stale", "missing"}, value.Freshness) {
+		if value.SnapshotContext != nil {
+			contextual = true
+		}
+	}
+	for _, value := range values {
+		for _, record := range value.Evidence {
+			if record.Target != nil || record.Metadata != nil {
+				attributed = true
+			}
+		}
+	}
+	header := []string{"control_id", "framework", "freshness", "evidence_count", "evidence_id", "asset_id", "source", "at"}
+	if attributed {
+		header = append(header, "source_kind", "source_id", "source_version", "metadata")
+	}
+	if contextual {
+		header = append(header, "organization_id", "workspace_id", "environment_id", "mapping_revision", "snapshot_at")
+	}
+	_ = writer.Write(header)
+	for _, value := range values {
+		if value.SnapshotContext != nil && !validComplianceSnapshotContext(*value.SnapshotContext) {
 			return ComplianceExport{}, ErrRejected
 		}
-		_ = writer.Write([]string{value.Control.ID, value.Control.Framework, value.Freshness, strconv.Itoa(len(value.Evidence))})
+		if !bounded(value.Control.ID, 128) || len(value.Control.Framework) == 0 || len(value.Control.Framework) > 64 ||
+			len(value.Control.Name) == 0 || len(value.Control.Name) > 256 || len(value.Control.EvidenceIDs) > 100 ||
+			len(value.Evidence) > 100 || !contains([]string{"fresh", "stale", "missing"}, value.Freshness) {
+			return ComplianceExport{}, ErrRejected
+		}
+		for _, evidenceID := range value.Control.EvidenceIDs {
+			if !bounded(evidenceID, 128) {
+				return ComplianceExport{}, ErrRejected
+			}
+		}
+		for _, record := range value.Evidence {
+			if record.Target != nil && (!bounded(record.Target.SourceKind, 64) || !bounded(record.Target.SourceID, 128) || record.Target.SourceID != record.ID || record.Target.SourceVersion < 1) {
+				return ComplianceExport{}, ErrRejected
+			}
+			if record.Metadata != nil && !validComplianceMetadata(*record.Metadata) {
+				return ComplianceExport{}, ErrRejected
+			}
+			if !bounded(record.ID, 128) || !bounded(record.AssetID, 128) ||
+				len(record.Source) == 0 || len(record.Source) > 64 || record.At.IsZero() {
+				return ComplianceExport{}, ErrRejected
+			}
+		}
+		prefix := []string{complianceCSVText(value.Control.ID), complianceCSVText(value.Control.Framework), value.Freshness, strconv.Itoa(len(value.Evidence))}
+		human.WriteString("\nControl " + strconv.Quote(value.Control.ID) + " | " + strconv.Quote(value.Control.Framework) + " | " + strconv.Quote(value.Control.Name) + "\n")
+		if value.SnapshotContext != nil {
+			c := value.SnapshotContext
+			human.WriteString("Captured scope: " + c.OrganizationID + " / " + c.WorkspaceID + " / " + c.EnvironmentID + " | mapping: " + c.MappingRevision + " | snapshot_at: " + c.SnapshotAt.UTC().Format(time.RFC3339Nano) + "\n")
+		}
+		human.WriteString("Freshness: " + value.Freshness + "; fresh until: " + value.Control.FreshUntil.UTC().Format(time.RFC3339Nano) + "\n")
+		human.WriteString("Expected evidence IDs:")
+		for _, evidenceID := range value.Control.EvidenceIDs {
+			human.WriteString(" " + strconv.Quote(evidenceID))
+		}
+		human.WriteString("\n")
+		if len(value.Evidence) == 0 {
+			row := append(prefix, "", "", "", "")
+			if attributed {
+				row = append(row, "", "", "", "")
+			}
+			if contextual {
+				row = append(row, complianceContextCSV(value.SnapshotContext)...)
+			}
+			_ = writer.Write(row)
+			human.WriteString("No collected evidence.\n")
+		}
+		for _, record := range value.Evidence {
+			at := record.At.UTC().Format(time.RFC3339Nano)
+			row := append(prefix, complianceCSVText(record.ID), complianceCSVText(record.AssetID), complianceCSVText(record.Source), at)
+			if attributed {
+				kind, id, version, meta := "", "", "", ""
+				if record.Target != nil {
+					kind = record.Target.SourceKind
+					id = record.Target.SourceID
+					version = strconv.FormatInt(record.Target.SourceVersion, 10)
+				}
+				if record.Metadata != nil {
+					b, _ := json.Marshal(record.Metadata)
+					meta = string(b)
+				}
+				row = append(row, complianceCSVText(kind), complianceCSVText(id), version, complianceCSVText(meta))
+				if record.Target != nil {
+					human.WriteString("Target source_kind: " + strconv.Quote(kind) + " | source_id: " + strconv.Quote(id) + " | source_version: " + version + "\n")
+				}
+				if meta != "" {
+					human.WriteString("Captured metadata: " + meta + "\n")
+				}
+			}
+			if contextual {
+				row = append(row, complianceContextCSV(value.SnapshotContext)...)
+			}
+			_ = writer.Write(row)
+			human.WriteString("Evidence " + strconv.Quote(record.ID) + " | asset " + strconv.Quote(record.AssetID) + " | source " + strconv.Quote(record.Source) + " | at " + at + "\n")
+		}
+		writer.Flush()
+		if writer.Error() != nil || csvText.Len() > 4*1024*1024 || human.Len() > 4*1024*1024 {
+			return ComplianceExport{}, ErrRejected
+		}
 	}
 	writer.Flush()
 	if writer.Error() != nil {
 		return ComplianceExport{}, ErrRejected
 	}
-	human := "Evidence package for review. This export reports collected evidence and freshness; it does not attest compliance."
-	return ComplianceExport{ID: id, Status: "completed", Formats: []string{"json", "csv", "human"}, JSON: jsonBytes, CSV: []byte(csvText.String()), Human: human}, nil
+	result := ComplianceExport{ID: id, Status: "completed", Formats: []string{"json", "csv", "human"}, JSON: jsonBytes, CSV: []byte(csvText.String()), Human: human.String()}
+	packageBytes, err := json.Marshal(complianceExportPackage{Version: 1, ID: id, JSON: jsonBytes, CSV: string(result.CSV), Human: result.Human})
+	if err != nil || len(packageBytes) > 8*1024*1024 {
+		return ComplianceExport{}, ErrRejected
+	}
+	return result, nil
+}
+
+// CSV parsers remove quoting before spreadsheets interpret formulas. Prefix
+// dangerous text cells, retaining original data in the canonical JSON payload.
+func complianceCSVText(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if strings.ContainsAny(value, "\t\r\n") || (len(trimmed) > 0 && strings.ContainsRune("=+-@", rune(trimmed[0]))) {
+		return "'" + value
+	}
+	return value
+}
+
+func validComplianceMetadata(m ComplianceEvidenceMetadata) bool {
+	for _, v := range []string{m.Action, m.Status, m.Severity, m.Verification, m.DefinitionID, m.ReceiptSHA256, m.ReceiptVersion} {
+		if len(v) > 1024 || strings.IndexFunc(v, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 {
+			return false
+		}
+	}
+	if len(m.EvidenceIDs) > 100 || m.DefinitionVersion < 0 || m.ReceiptSize < 0 {
+		return false
+	}
+	for _, id := range m.EvidenceIDs {
+		if !bounded(id, 128) {
+			return false
+		}
+	}
+	return true
+}
+
+func validComplianceSnapshotContext(c ComplianceSnapshotContext) bool {
+	org, err := domain.ParseProductID(c.OrganizationID)
+	if err != nil {
+		return false
+	}
+	workspace, err := domain.ParseProductID(c.WorkspaceID)
+	if err != nil {
+		return false
+	}
+	environment, err := domain.ParseProductID(c.EnvironmentID)
+	if err != nil {
+		return false
+	}
+	_, err = domain.NewScope(org, workspace, environment)
+	return err == nil && c.MappingRevision == "product-evidence-v1" && !c.SnapshotAt.IsZero()
+}
+func complianceContextCSV(c *ComplianceSnapshotContext) []string {
+	if c == nil {
+		return []string{"", "", "", "", ""}
+	}
+	return []string{c.OrganizationID, c.WorkspaceID, c.EnvironmentID, c.MappingRevision, c.SnapshotAt.UTC().Format(time.RFC3339Nano)}
 }
 
 type complianceExportPackage struct {
@@ -255,7 +440,17 @@ func WriteComplianceExportArtifact(ctx context.Context, store artifactstore.Arti
 		!bounded(value.ID, 128) || value.Status != "completed" || len(value.Formats) != 3 || value.Formats[0] != "json" ||
 		value.Formats[1] != "csv" || value.Formats[2] != "human" || len(value.JSON) == 0 || len(value.JSON) > 4*1024*1024 ||
 		!json.Valid(value.JSON) || len(value.CSV) == 0 || len(value.CSV) > 4*1024*1024 || len(value.Human) == 0 ||
-		len(value.Human) > 4096 || containsCertificationLanguage(value.Human) {
+		len(value.Human) > 4*1024*1024 {
+		return artifactstore.Artifact{}, ErrRejected
+	}
+	// Only persist reports generated from this exact canonical evidence. Quoted
+	// labels may legitimately mention certification; they are not product claims.
+	var evidence []ComplianceEvidence
+	if err := json.Unmarshal(value.JSON, &evidence); err != nil {
+		return artifactstore.Artifact{}, ErrRejected
+	}
+	canonical, err := BuildComplianceExport(value.ID, evidence)
+	if err != nil || !bytes.Equal(value.JSON, canonical.JSON) || !bytes.Equal(value.CSV, canonical.CSV) || value.Human != canonical.Human {
 		return artifactstore.Artifact{}, ErrRejected
 	}
 	body, err := json.Marshal(complianceExportPackage{Version: 1, ID: value.ID, JSON: json.RawMessage(bytes.Clone(value.JSON)), CSV: string(value.CSV), Human: value.Human})
@@ -271,7 +466,9 @@ func WriteComplianceExportArtifact(ctx context.Context, store artifactstore.Arti
 		}
 	}()
 	returned, err := store.Put(ctx, request)
-	if err != nil || returned.Locator != locator || returned.MediaType != request.MediaType || returned.Size != int64(len(body)) ||
+	if err != nil || returned.Scope != locator.Scope || returned.Reference != locator.Reference ||
+		len(returned.VersionID) > 1024 || strings.IndexFunc(returned.VersionID, func(character rune) bool { return character < 0x21 || character == 0x7f }) >= 0 ||
+		returned.MediaType != request.MediaType || returned.Size != int64(len(body)) ||
 		returned.SHA256 != sha256.Sum256(body) || !bytes.Equal(returned.Body, body) {
 		return artifactstore.Artifact{}, ErrRejected
 	}

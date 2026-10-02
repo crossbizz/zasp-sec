@@ -1,0 +1,38 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npm","test"]
+
+> zasp-agent-security-console@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ❯ app/quality/m1a-staging-gate-batch-contract.test.ts (2 tests | 1 failed) 10ms
+     × adds the exact executable web/API deployment, evidence, and gate boundary 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/quality/m1a-staging-gate-batch-contract.test.ts > M1A-07 through M1A-10 staging gate batch > adds the exact executable web/API deployment, evidence, and gate boundary
+AssertionError: expected 'node --test deploy/staging/gate.test.…' to be 'node --test deploy/staging/gate.test.…' // Object.is equality
+
+Expected: "node --test deploy/staging/gate.test.mjs deploy/staging/preflight.test.mjs"
+Received: "node --test deploy/staging/gate.test.mjs deploy/staging/preflight.test.mjs deploy/staging/queue-contract.test.mjs deploy/staging/compliance-exports-contract.test.mjs"
+
+ ❯ app/quality/m1a-staging-gate-batch-contract.test.ts:14:46
+     12|     for (const retired of ["runStagingDependencySmoke", "throughIRSA",…
+     13|     const pkg = JSON.parse(read("package.json"));
+     14|     expect(pkg.scripts["staging:gate:test"]).toBe("node --test deploy/…
+       |                                              ^
+     15|   });
+     16|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 225 passed (226)
+      Tests  1 failed | 2158 passed (2159)
+   Start at  05:01:53
+   Duration  47.46s (transform 15.28s, setup 119.30s, import 27.61s, tests 77.76s, environment 342.70s)
+
+
+Exit: 1 Signal: null

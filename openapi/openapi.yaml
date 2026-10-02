@@ -724,9 +724,41 @@ paths:
         - BrowserSession: []
           BrowserExpectedScope: []
       summary: List redacted Organization audit events
+      description: >-
+        With the explicit AuditExports runtime profile, reads the registered shared
+        audit source using current browser authorization. The five filters below
+        are supported only by that profile; historical deployments without it
+        retain the legacy unfiltered audit list. Filters are case-sensitive and
+        each query parameter may occur only once. Continuation cursors bind the
+        current principal, selected scope, normalized filters and page limit.
       parameters:
         - $ref: '#/components/parameters/PageCursor'
         - $ref: '#/components/parameters/PageLimit'
+        - name: actor_id
+          in: query
+          required: false
+          description: Exact actor ProductID within the current organization.
+          schema: { $ref: '#/components/schemas/ProductID' }
+        - name: action
+          in: query
+          required: false
+          description: Exact action, preserving the five retained mixed-case SSO/SCIM actions.
+          schema: { type: string, minLength: 1, maxLength: 127, pattern: '^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|identity_provider\.(?:createSSOConnection|deleteSSOConnection|testSSOConnection|createSCIMConnection|deleteSCIMConnection))(?![\s\S])' }
+        - name: outcome
+          in: query
+          required: false
+          description: Exact public outcome; denied includes stored rejected outcomes.
+          schema: { type: string, enum: [succeeded, denied, failed] }
+        - name: from
+          in: query
+          required: false
+          description: Inclusive UTC occurrence time, normalized to six fractional digits. Must precede to when both are supplied.
+          schema: { type: string, format: date-time, maxLength: 27, pattern: '^(?!0000)[0-9]{4}-[0-9]{2}-[0-9]{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\.[0-9]{1,6})?Z(?![\s\S])' }
+        - name: to
+          in: query
+          required: false
+          description: Exclusive UTC occurrence time, normalized to six fractional digits. Must follow from when both are supplied.
+          schema: { type: string, format: date-time, maxLength: 27, pattern: '^(?!0000)[0-9]{4}-[0-9]{2}-[0-9]{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\.[0-9]{1,6})?Z(?![\s\S])' }
       responses:
         '200':
           description: Append-only audit event page.
@@ -738,6 +770,69 @@ paths:
           $ref: '#/components/responses/ProductErrorResponse'
         default:
           $ref: '#/components/responses/ProductErrorResponse'
+  /api/v1/audit-exports:
+    post:
+      operationId: createAuditExport
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Request an organization-wide retained audit snapshot
+      description: >-
+        Mounted only by the configured AuditExports installation. Requires effective
+        view_audit, current fresh browser authentication, same-origin Origin and CSRF.
+        The empty request is independent of audit list filters. Retain the same
+        idempotency key after an ambiguous response. Creation time is not capture time;
+        a replay can return queued, processing, ready or failed. No download URL is issued.
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AuditExportInput' } } }
+      responses:
+        '201': { description: Durable export descriptor including an exact idempotent replay., content: { application/json: { schema: { $ref: '#/components/schemas/AuditExport' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/audit-exports/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ProductID' }
+    get:
+      operationId: getAuditExport
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      summary: Read durable audit export status and one verified chunk
+      description: >-
+        Mounted only by the configured AuditExports installation. Requires current
+        browser authorization and effective view_audit, but not fresh authentication.
+        Accepts only the optional opaque cursor. A ready response includes the bounded
+        manifest and at most one immutable chunk; pending or failed contents are null.
+        Cursors bind current principal, scope, export and manifest. A later authorized
+        retrieval can restart without a cursor. Foreign or invalid cursor targets do
+        not disclose existence. Temporary provider or readiness refusal returns 503.
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque authenticated continuation returned by this operation; never a provider locator.
+          schema: { type: string, minLength: 1, maxLength: 1024, pattern: '^[A-Za-z0-9_-]+$' }
+      responses:
+        '200': { description: Export status and at most one verified canonical chunk., content: { application/json: { schema: { $ref: '#/components/schemas/AuditExportRead' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/integration-catalog:
     get:
       operationId: listIntegrationCatalog
@@ -2131,6 +2226,22 @@ paths:
     get:
       operationId: getSecurityAgentRun
       summary: Get one redacted Security Agent run detail
+      parameters:
+        - name: X-Zasp-Budget-Details
+          in: header
+          required: false
+          description: Request optional budget_stop_reason details with v1. Omitted or unsupported values preserve the legacy response shape. Older servers may omit the reason even when requested.
+          schema: { type: string }
+        - name: X-Zasp-Run-Context
+          in: header
+          required: false
+          description: Request optional trigger and redacted AI rationale with exactly one v1 value. Omitted, duplicate or unsupported values preserve the legacy shape. Older servers may omit run_context.
+          schema: { type: string }
+        - name: X-Zasp-Action-Details
+          in: header
+          required: false
+          description: Request optional persisted action details with exactly one v1 value. Omitted, duplicate or unsupported values preserve the legacy shape. Older servers may omit action_details. Independent of budget and run-context negotiation.
+          schema: { type: string }
       security:
         - BrowserSession: []
           BrowserExpectedScope: []
@@ -2140,6 +2251,122 @@ paths:
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-audit-events/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getSecurityAgentAuditEvent
+      summary: Get one scoped Security Agent audit record
+      description: Requires a current browser session and view_audit permission in the selected scope. Worker actors remain recorded references. Private audit bodies are never returned. Unsupported release authority is unavailable, not an empty record.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      responses:
+        '200': { description: Exact scoped audit record with Cache-Control no-store., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentAuditEvent' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-runs/{id}/activity/{kind}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      - { name: kind, in: path, required: true, schema: { type: string, enum: [finding, attack_path, session, audit] } }
+    get:
+      operationId: listSecurityAgentRunActivity
+      summary: List scoped activity records related to one run
+      description: Requires a current browser session and view permission. Session targets additionally require investigate_sessions; audit targets require view_audit. Typed persisted trigger/action associations and exact scoped audit rows supply targets. Returns explicit partial coverage for missing legacy authority. Targets are sorted by canonical ID; signed cursors bind principal, full scope, run, kind and page size.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - { name: cursor, in: query, required: false, schema: { type: string, minLength: 2, maxLength: 2048, pattern: '^[A-Za-z0-9_-]+$' } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200': { description: Typed related targets with explicit coverage and Cache-Control no-store., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentActivityTargetPage' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-activity/{kind}/{id}/runs:
+    parameters:
+      - { name: kind, in: path, required: true, schema: { type: string, enum: [finding, attack_path, session, audit] } }
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: listSecurityAgentActivityRuns
+      summary: List runs related to one scoped activity record
+      description: Requires a current browser session and view permission. Session relations additionally require investigate_sessions; audit relations require view_audit. Uses persisted typed associations, not evidence-ID guesses. Coverage is partial when legacy relation authority is incomplete. Cursors bind principal, full scope, kind, record and page size. Unsupported authority is unavailable, not proven empty.
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+      parameters:
+        - { name: cursor, in: query, required: false, schema: { type: string, minLength: 2, maxLength: 2048, pattern: '^[A-Za-z0-9_-]+$' } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200': { description: Related run summaries with explicit coverage and Cache-Control no-store., content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentActivityRunPage' } } } }
+        '400': { $ref: '#/components/responses/ProductErrorResponse' }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        '403': { $ref: '#/components/responses/ProductErrorResponse' }
+        '404': { $ref: '#/components/responses/ProductErrorResponse' }
+        '503': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-runs/{id}/steps/{stepId}/export:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      - { name: stepId, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getSecurityAgentExport
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read a Security Agent step export under current source permissions
+      description: Returns persisted status and frozen selection, without provider coordinates. Expired status does not authorize retrieval.
+      responses:
+        '200': { description: Public export status., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentExportStatus' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-runs/{id}/steps/{stepId}/export/download-grants:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      - { name: stepId, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: createSecurityAgentExportDownloadGrant
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Issue a single-use grant for a frozen Security Agent export
+      description: Requires the current browser session, selected scope and all selected source permissions. Keep the token in memory and send it only in the download body, never URLs or logs.
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string, minLength: 32, maxLength: 512 } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false, required: [format], properties: { format: { $ref: '#/components/schemas/ComplianceDownloadFormat' } } } } } }
+      responses:
+        '201': { description: Body-only scoped grant., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceDownloadGrant' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-runs/{id}/steps/{stepId}/export/download:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+      - { name: stepId, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    post:
+      operationId: downloadSecurityAgentExport
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Download original verified Security Agent export bytes
+      description: Verifies immutable storage and run/step/selection binding, then rechecks current source authority and consumes the grant before sending bytes. A lost response requires a new grant. Human maps to internal readable format.
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string, minLength: 32, maxLength: 512 } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false, required: [format, token], properties: { format: { $ref: '#/components/schemas/ComplianceDownloadFormat' }, token: { type: string, minLength: 64, maxLength: 64, pattern: '^[a-f0-9]{64}$' } } } } } }
+      responses:
+        '200':
+          description: Exact stored format bytes, not a certification or effectiveness attestation.
+          headers:
+            Cache-Control: { schema: { type: string, const: no-store } }
+            Content-Disposition: { schema: { type: string } }
+            X-Content-Type-Options: { schema: { type: string, const: nosniff } }
+          content:
+            application/json: { schema: { type: string, format: binary } }
+            text/csv: { schema: { type: string, format: binary } }
+            text/plain: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agent-runs/{id}/cancel:
     parameters:
@@ -2158,17 +2385,74 @@ paths:
         - $ref: '#/components/parameters/ResourceVersion'
       responses:
         '200':
-          description: Durable cancelled run.
+          description: Durable cancellation result; ordered pre-admission uncertainty can require human intervention.
           headers:
             ETag: { $ref: '#/components/headers/WorkflowETag' }
             X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
             X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
-          content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentRun' } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/SecurityAgentCancellation' } } }
         '400': { $ref: '#/components/responses/ProductErrorResponse' }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         '403': { $ref: '#/components/responses/ProductErrorResponse' }
         '404': { $ref: '#/components/responses/ProductErrorResponse' }
         '409': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/security-agent-runs/{id}/cleanup-recovery:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ProductID' } }
+    get:
+      operationId: getSingleTestCleanupRecovery
+      summary: Read current-authorized original identity and cleanup recovery receipt
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      responses:
+        '200':
+          description: not_requested is not a recovery eligibility or history-absence assertion.
+          headers: { ETag: { $ref: '#/components/headers/WorkflowETag' } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/SingleTestCleanupRecovery' } } }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+    post:
+      operationId: requestSingleTestCleanupRecovery
+      summary: Stop forward work and admit cleanup-only recovery for an existing original run
+      security:
+        - BrowserSession: []
+          BrowserExpectedScope: []
+        - ProductAPIToken: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserMutationCSRFToken'
+        - $ref: '#/components/parameters/BrowserMutationOrigin'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ResourceVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [definition_version, input_digest, diagnostic, stop_original]
+              properties:
+                definition_version: { type: integer, minimum: 1, maximum: 1000000 }
+                input_digest: { type: string, pattern: '^[a-f0-9]{64}$' }
+                diagnostic: { const: history_unavailable }
+                stop_original: { const: true }
+      responses:
+        '202':
+          description: Durable recovery command accepted, not a cleanup-completion claim.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
+          content: { application/json: { schema: { $ref: '#/components/schemas/SingleTestCleanupRecovery' } } }
+        '200':
+          description: Current-authorized exact replay or already-complete native evidence.
+          headers:
+            ETag: { $ref: '#/components/headers/WorkflowETag' }
+            X-Audit-ID: { $ref: '#/components/headers/WorkflowAuditID' }
+            X-Mutation-Receipt-ID: { $ref: '#/components/headers/WorkflowMutationReceiptID' }
+          content: { application/json: { schema: { $ref: '#/components/schemas/SingleTestCleanupRecovery' } } }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/security-agent-approvals:
     get:
@@ -2179,6 +2463,7 @@ paths:
           BrowserExpectedScope: []
         - ProductAPIToken: []
       parameters:
+        - { name: X-Zasp-Approval-Context, in: header, required: false, description: 'Only one exact v1 value opts into legacy persisted approval context. Validated enriched finding-response approvals always include their complete bound context, regardless of this header; other approvals retain legacy negotiation.', schema: { type: string } }
         - { name: state, in: query, required: false, schema: { type: string, enum: [pending, approved, rejected, cancelled, expired] } }
         - { name: run_id, in: query, required: false, schema: { $ref: '#/components/schemas/ProductID' } }
         - { name: cursor, in: query, required: false, schema: { type: string, minLength: 2, maxLength: 512, pattern: '^[A-Za-z0-9_-]+$' } }
@@ -2195,6 +2480,8 @@ paths:
     get:
       operationId: getSecurityAgentApproval
       summary: Get one tenant-scoped Security Agent approval
+      parameters:
+        - { name: X-Zasp-Approval-Context, in: header, required: false, description: 'Only one exact v1 value opts into legacy persisted approval context. Validated enriched finding-response approvals always include their complete bound context, regardless of this header; other approvals retain legacy negotiation.', schema: { type: string } }
       security:
         - BrowserSession: []
           BrowserExpectedScope: []
@@ -2336,7 +2623,9 @@ paths:
           BrowserExpectedScope: []
       summary: List supported compliance controls
       parameters:
-        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/ComplianceFramework'
+        - $ref: '#/components/parameters/ComplianceControlFilter'
+        - $ref: '#/components/parameters/CompliancePageCursor'
         - $ref: '#/components/parameters/PageLimit'
       responses:
         '200': { description: Supported controls., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceControlPage' } } } }
@@ -2350,10 +2639,89 @@ paths:
           BrowserExpectedScope: []
       summary: List freshness-aware compliance evidence
       parameters:
-        - $ref: '#/components/parameters/PageCursor'
+        - $ref: '#/components/parameters/ComplianceFramework'
+        - $ref: '#/components/parameters/ComplianceControlFilter'
+        - $ref: '#/components/parameters/CompliancePageCursor'
         - $ref: '#/components/parameters/PageLimit'
       responses:
         '200': { description: Compliance evidence., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceEvidencePage' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/compliance/evidence/{sourceKind}/{id}:
+    parameters:
+      - { name: sourceKind, in: path, required: true, schema: { $ref: '#/components/schemas/ComplianceSourceKind' } }
+      - { name: id, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 128 } }
+    get:
+      operationId: getComplianceEvidence
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read the exact current compliance source under selected scope
+      parameters:
+        - { name: source_version, in: query, schema: { type: integer, minimum: 1, maximum: 999999999999999 } }
+      responses:
+        '200': { description: Current safe source metadata; source_changed means the linked version changed., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceEvidenceDetail' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/compliance/exports:
+    post:
+      operationId: createComplianceExport
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Queue a durable scoped compliance export
+      description: Requires current view, view_audit and view_compliance permissions, fresh authentication, same origin and CSRF. IDs are generated by the server. Filters are canonicalized before idempotency hashing.
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9_.:-]+$' } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string, minLength: 32, maxLength: 512 } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceExportInput' } } } }
+      responses:
+        '201': { description: Durable job or idempotent replay., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceExport' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/compliance/exports/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ComplianceExportID' } }
+    get:
+      operationId: getComplianceExport
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Read the current authorized compliance export status
+      responses:
+        '200': { description: Public job without provider coordinates., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceExport' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/compliance/exports/{id}/download-grants:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ComplianceExportID' } }
+    post:
+      operationId: createComplianceDownloadGrant
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Issue a short-lived single-use download grant
+      description: The grant binds principal, browser session, selected scope, job and format. Expiry never exceeds export retrieval expiry. Keep the token in memory and send it only in the download body, never in URLs or logs.
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string, minLength: 32, maxLength: 512 } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false, required: [format], properties: { format: { $ref: '#/components/schemas/ComplianceDownloadFormat' } } } } } }
+      responses:
+        '201': { description: Authorized body-only grant., headers: { Cache-Control: { schema: { type: string, const: no-store } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceDownloadGrant' } } } }
+        '401': { $ref: '#/components/responses/ProductErrorResponse' }
+        default: { $ref: '#/components/responses/ProductErrorResponse' }
+  /api/v1/compliance/exports/{id}/download:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: '#/components/schemas/ComplianceExportID' } }
+    post:
+      operationId: downloadComplianceExport
+      security: [{ BrowserSession: [], BrowserExpectedScope: [] }]
+      summary: Download a verified frozen export with a single-use grant
+      description: Current source permissions and grant/export expiry are checked again after immutable storage verification and before bytes. A lost response requires a newly authorized grant. Human format maps to the internal readable format.
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string, minLength: 32, maxLength: 512 } }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, additionalProperties: false, required: [format, token], properties: { format: { $ref: '#/components/schemas/ComplianceDownloadFormat' }, token: { type: string, pattern: '^[a-f0-9]{64}$', minLength: 64, maxLength: 64 } } } } } }
+      responses:
+        '200':
+          description: Exact persisted format bytes, with a safe attachment filename. Not an attestation of certification or control effectiveness.
+          headers:
+            Cache-Control: { schema: { type: string, const: no-store } }
+            Content-Disposition: { schema: { type: string } }
+          content:
+            application/json: { schema: { type: string, format: binary } }
+            text/csv: { schema: { type: string, format: binary } }
+            text/plain: { schema: { type: string, format: binary } }
         '401': { $ref: '#/components/responses/ProductErrorResponse' }
         default: { $ref: '#/components/responses/ProductErrorResponse' }
   /api/v1/settings/data-controls:
@@ -2841,6 +3209,8 @@ components:
       description: Minimum whole seconds before retrying an accepted asynchronous mutation.
       schema: { type: string, pattern: '^[1-9][0-9]{0,2}$' }
   parameters:
+    ComplianceFramework: { name: framework, in: query, schema: { type: string, enum: [soc2_security, hipaa] } }
+    ComplianceControlFilter: { name: control_id, in: query, schema: { type: string, minLength: 1, maxLength: 128, pattern: '^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$' } }
     CSRFToken:
       name: X-CSRF-Token
       in: header
@@ -2880,6 +3250,12 @@ components:
       required: true
       description: Caller-generated key binding an exact workflow mutation and its durable response.
       schema: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
+    CompliancePageCursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/ComplianceCursor'
     PageCursor:
       name: cursor
       in: query
@@ -3322,12 +3698,29 @@ components:
         reversible: { type: boolean }
         verification_kind: { type: string, minLength: 1, maxLength: 64 }
     SecurityActionPage: { type: object, additionalProperties: false, required: [items], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAction' } } } }
+    SecurityAgentCostAllowance:
+      type: integer
+      format: int64
+      minimum: 1
+      maximum: 1000000000000
+      description: Explicit maximum per-run AI cost in nano OpenRouter credits (1 credit = 1000000000 nano-credits), not dollars. Absence on a legacy definition is unknown authority, not zero or an assigned default. Existing run snapshots are unchanged by definition updates. Paid planning also requires a verified model-specific cost policy.
+    SecurityAgentExistingTestReference:
+      type: object
+      additionalProperties: false
+      description: Exact existing test intent. Does not authorize execution or permit target, prompt, safety, scope, or credential overrides. Legacy reads can omit this reference; new test-action mutations require it.
+      required: [definition_id, definition_version]
+      properties:
+        definition_id: { $ref: '#/components/schemas/ProductID' }
+        definition_version: { type: integer, minimum: 1, maximum: 1000000 }
     SecurityAgentDefinition:
       type: object
       additionalProperties: false
       required: [id, name, trigger_kind, trigger_source, environment_ids, autonomy, max_steps, max_duration_seconds, temporary_policy_seconds, ai_token_budget, concurrency_limit, allowed_actions, verification_kind, definition_version, enabled]
       properties:
+        trigger_rules: { $ref: '#/components/schemas/SecurityAgentTriggerRules' }
         id: { $ref: '#/components/schemas/ProductID' }
+        max_ai_cost_nano_credits: { $ref: '#/components/schemas/SecurityAgentCostAllowance' }
+        existing_test: { $ref: '#/components/schemas/SecurityAgentExistingTestReference' }
         name: { type: string, minLength: 1, maxLength: 256 }
         trigger_kind: { type: string, enum: [finding, attack_path, runtime_decision] }
         trigger_source: { type: string, minLength: 1, maxLength: 64 }
@@ -3342,11 +3735,66 @@ components:
         verification_kind: { type: string, minLength: 1, maxLength: 64 }
         definition_version: { type: integer, minimum: 1 }
         enabled: { type: boolean }
+    SecurityAgentTriggerRules:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [version, mode]
+          properties:
+            version: { type: integer, const: 1 }
+            mode: { type: string, const: manual }
+        - type: object
+          additionalProperties: false
+          required: [version, mode, cooldown_seconds, finding]
+          properties:
+            version: { type: integer, const: 1 }
+            mode: { type: string, const: automatic }
+            cooldown_seconds: { type: integer, minimum: 1, maximum: 86400 }
+            finding:
+              type: object
+              additionalProperties: false
+              required: [family, minimum_severity]
+              properties:
+                family: { type: string, minLength: 1, maxLength: 64 }
+                minimum_severity: { type: string, enum: [low, medium, high, critical] }
+        - type: object
+          additionalProperties: false
+          required: [version, mode, cooldown_seconds, attack_path]
+          properties:
+            version: { type: integer, const: 1 }
+            mode: { type: string, const: automatic }
+            cooldown_seconds: { type: integer, minimum: 1, maximum: 86400 }
+            attack_path:
+              type: object
+              additionalProperties: false
+              required: [state]
+              properties:
+                state: { type: string, enum: [potential, observed, verified] }
+        - type: object
+          additionalProperties: false
+          required: [version, mode, cooldown_seconds, runtime]
+          properties:
+            version: { type: integer, const: 1 }
+            mode: { type: string, const: automatic }
+            cooldown_seconds: { type: integer, minimum: 1, maximum: 86400 }
+            runtime:
+              type: object
+              additionalProperties: false
+              required: [decision, action, count, window_seconds]
+              properties:
+                decision: { type: string, enum: [allow, monitor, block] }
+                action: { type: string, minLength: 1, maxLength: 64 }
+                risk: { type: string, enum: [low, medium, high, critical] }
+                count: { type: integer, minimum: 1, maximum: 100 }
+                window_seconds: { type: integer, minimum: 1, maximum: 86400 }
     SecurityAgentInput:
       type: object
       additionalProperties: false
       required: [name, trigger_kind, trigger_source, environment_ids, autonomy, max_steps, max_duration_seconds, temporary_policy_seconds, ai_token_budget, concurrency_limit, allowed_actions, verification_kind, definition_version, enabled]
       properties:
+        trigger_rules: { $ref: '#/components/schemas/SecurityAgentTriggerRules' }
+        max_ai_cost_nano_credits: { $ref: '#/components/schemas/SecurityAgentCostAllowance' }
+        existing_test: { $ref: '#/components/schemas/SecurityAgentExistingTestReference' }
         name: { type: string, minLength: 1, maxLength: 256 }
         trigger_kind: { type: string, enum: [finding, attack_path, runtime_decision] }
         trigger_source: { type: string, minLength: 1, maxLength: 64 }
@@ -3380,7 +3828,7 @@ components:
       required: [target, action_key, enabled, version]
       properties:
         target: { type: string, enum: [global, environment, action] }
-        action_key: { type: string, enum: ['*', create_temporary_policy, isolate_session, revoke_integration_connection, update_finding_response] }
+        action_key: { type: string, enum: ['*', create_evidence_export, create_temporary_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
         enabled: { type: boolean }
         version: { type: integer, minimum: 0, maximum: 1000000 }
     SecurityAgentExecutionControls:
@@ -3390,14 +3838,14 @@ components:
       properties:
         global: { $ref: '#/components/schemas/SecurityAgentExecutionControl' }
         environment: { $ref: '#/components/schemas/SecurityAgentExecutionControl' }
-        actions: { type: array, minItems: 4, maxItems: 4, items: { $ref: '#/components/schemas/SecurityAgentExecutionControl' } }
+        actions: { type: array, oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }, { minItems: 7, maxItems: 7 }, { minItems: 8, maxItems: 8 }], items: { $ref: '#/components/schemas/SecurityAgentExecutionControl' } }
     SecurityAgentExecutionControlInput:
       type: object
       additionalProperties: false
       required: [target, action_key, enabled]
       properties:
         target: { type: string, enum: [environment, action] }
-        action_key: { type: string, enum: ['*', create_temporary_policy, isolate_session, revoke_integration_connection, update_finding_response] }
+        action_key: { type: string, enum: ['*', create_evidence_export, create_temporary_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
         enabled: { type: boolean }
     SecurityAgentExecutionControlResult:
       type: object
@@ -3405,7 +3853,7 @@ components:
       required: [target, action_key, enabled, version, audit_id, correlation_id, receipt_id, replayed]
       properties:
         target: { type: string, enum: [environment, action] }
-        action_key: { type: string, enum: ['*', create_temporary_policy, isolate_session, revoke_integration_connection, update_finding_response] }
+        action_key: { type: string, enum: ['*', create_evidence_export, create_temporary_policy, isolate_session, rerun_test, revoke_integration_connection, run_test, start_attack_lab, update_finding_response] }
         enabled: { type: boolean }
         version: { type: integer, minimum: 1, maximum: 1000000 }
         audit_id: { $ref: '#/components/schemas/ProductID' }
@@ -3464,14 +3912,33 @@ components:
         side_effects: { type: integer, const: 0 }
         version: { type: integer, const: 1 }
     SecurityAgentManualRunInput:
+      oneOf:
+        - { $ref: '#/components/schemas/SecurityAgentLegacyTriggerInput' }
+        - { $ref: '#/components/schemas/SecurityAgentOrderedTriggerInput' }
+    SecurityAgentLegacyTriggerInput:
       type: object
       additionalProperties: false
-      required: [environment_id, trigger_kind, trigger_id]
+      description: Start the current activated definition. Omit both trigger fields for a server-derived manual intent, or supply both for an explicit scoped source. Caller-supplied manual digests are not accepted.
+      required: [environment_id]
+      dependentRequired:
+        trigger_kind: [trigger_id]
+        trigger_id: [trigger_kind]
       properties:
         environment_id: { $ref: '#/components/schemas/ProductID' }
         trigger_kind: { type: string, enum: [finding, attack_path, session] }
         trigger_id: { $ref: '#/components/schemas/ProductID' }
-    SecurityAgentRun:
+    SecurityAgentOrderedTriggerInput:
+      type: object
+      additionalProperties: false
+      required: [environment_id, trigger_kind, trigger_id, trigger_version, trigger_source]
+      properties:
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        trigger_kind: { type: string, enum: [finding, attack_path] }
+        trigger_id: { $ref: '#/components/schemas/ProductID' }
+        trigger_version: { type: integer, minimum: 1, maximum: 1000000 }
+        trigger_source: { type: string, minLength: 1, maxLength: 128, pattern: '^(?!\p{White_Space})(?!.*\p{White_Space}$)[^\x00-\x1F\x7F-\x9F]+$', description: At most 128 UTF-8 bytes; no control characters or leading/trailing Unicode whitespace. }
+    SecurityAgentCancellation:
+      description: Cancellation response only. Ordered cancellation can conservatively require human intervention and cleanup without asserting an effect outcome.
       type: object
       additionalProperties: false
       required: [id, agent_id, state, evidence_ids, definition_version, version]
@@ -3482,6 +3949,90 @@ components:
         evidence_ids: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
         definition_version: { type: integer, minimum: 1 }
         version: { type: integer, minimum: 1 }
+        ordered:
+          type: object
+          additionalProperties: false
+          required: [cleanup_required]
+          properties:
+            cleanup_required: { type: boolean }
+    SecurityAgentOrderedDetail:
+      description: Optional release-62 wire. Unadmitted runs have no steps; admitted runs have the exact containment-then-test pair. Every summary is bound to the corresponding legacy-shaped plan, execution, and approval entry.
+      type: object
+      additionalProperties: false
+      required: [contract_version, steps]
+      properties:
+        contract_version: { type: integer, const: 62 }
+        steps: { type: array, maxItems: 2, items: { $ref: '#/components/schemas/SecurityAgentOrderedStep' } }
+    SecurityAgentOrderedStep:
+      type: object
+      additionalProperties: false
+      required: [step_id, index, action, state, version, dependency, authorization, approval, receipt, settlement, cleanup]
+      properties:
+        step_id: { $ref: '#/components/schemas/ProductID' }
+        index: { type: integer, minimum: 0, maximum: 1 }
+        action: { type: string, enum: [create_temporary_policy, run_test] }
+        state: { type: string, enum: [blocked, waiting_approval, authorized, executing, verifying, succeeded, failed, inconclusive, cancelled] }
+        version: { type: integer, minimum: 1, maximum: 1000000 }
+        dependency: { $ref: '#/components/schemas/SecurityAgentOrderedDependency' }
+        authorization: { type: string, const: approval_required }
+        approval: { $ref: '#/components/schemas/SecurityAgentOrderedApproval' }
+        receipt: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentOrderedReceipt' }, { type: 'null' }] }
+        settlement: { type: string, enum: [not_applicable, pending, not_reproduced, reproduced, unknown] }
+        cleanup: { $ref: '#/components/schemas/SecurityAgentOrderedCleanup' }
+    SecurityAgentOrderedDependency:
+      type: object
+      additionalProperties: false
+      required: [predecessor_step_id, required_receipt_kind, satisfied, blocked, ready]
+      properties:
+        predecessor_step_id: { oneOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+        required_receipt_kind: { oneOf: [{ type: string, const: temporary_policy_applied.v1 }, { type: 'null' }] }
+        satisfied: { type: boolean }
+        blocked: { type: boolean }
+        ready: { type: boolean }
+    SecurityAgentOrderedApproval:
+      type: object
+      additionalProperties: false
+      required: [state, version, approval_id]
+      properties:
+        state: { type: string, enum: [absent, pending, approved, rejected, expired] }
+        version: { type: integer, minimum: 0, maximum: 2 }
+        approval_id: { oneOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+    SecurityAgentOrderedReceipt:
+      description: Safe evidence reference and digest only; never an effect outcome ID or receipt secret.
+      type: object
+      additionalProperties: false
+      required: [kind, version, digest, reference]
+      properties:
+        kind: { type: string, enum: [temporary_policy_applied.v1, existing_test_settled.v1] }
+        version: { type: integer, const: 1 }
+        digest: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+        reference: { $ref: '#/components/schemas/ProductID' }
+    SecurityAgentOrderedCleanup:
+      type: object
+      additionalProperties: false
+      required: [state, version, attempt, partial, cleaned]
+      properties:
+        state: { type: string, enum: [not_applicable, not_started, pending, leased, retryable, cleaned] }
+        version: { type: integer, minimum: 0, maximum: 999999 }
+        attempt: { type: integer, minimum: 0, maximum: 100 }
+        partial: { type: boolean }
+        cleaned: { type: boolean }
+    SecurityAgentRun:
+      type: object
+      additionalProperties: false
+      required: [id, agent_id, state, evidence_ids, definition_version, version]
+      allOf:
+        - if: { required: [manual_trigger], properties: { manual_trigger: {} } }
+          then: { properties: { evidence_ids: { maxItems: 0 } } }
+          else: { properties: { evidence_ids: { minItems: 1 } } }
+      properties:
+        manual_trigger: { $ref: '#/components/schemas/SecurityAgentManualTrigger' }
+        id: { $ref: '#/components/schemas/ProductID' }
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        state: { $ref: '#/components/schemas/SecurityAgentRunState' }
+        evidence_ids: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
+        definition_version: { type: integer, minimum: 1 }
+        version: { type: integer, minimum: 1 }
     SecurityAgentRunPage:
       type: object
       additionalProperties: false
@@ -3489,6 +4040,29 @@ components:
       properties:
         items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentRun' } }
         next_cursor: { type: string, minLength: 2, maxLength: 512, pattern: '^[A-Za-z0-9_-]+$' }
+    SecurityAgentActivityTarget:
+      type: object
+      additionalProperties: false
+      required: [kind, id]
+      properties:
+        kind: { type: string, enum: [finding, attack_path, session, audit] }
+        id: { $ref: '#/components/schemas/ProductID' }
+    SecurityAgentActivityTargetPage:
+      type: object
+      additionalProperties: false
+      required: [items, coverage]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentActivityTarget' } }
+        coverage: { type: string, enum: [complete, partial] }
+        next_cursor: { type: string, minLength: 2, maxLength: 2048, pattern: '^[A-Za-z0-9_-]+$' }
+    SecurityAgentActivityRunPage:
+      type: object
+      additionalProperties: false
+      required: [items, coverage]
+      properties:
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentRun' } }
+        coverage: { type: string, enum: [complete, partial] }
+        next_cursor: { type: string, minLength: 2, maxLength: 2048, pattern: '^[A-Za-z0-9_-]+$' }
     SecurityAgentPlanStep:
       type: object
       additionalProperties: false
@@ -3520,13 +4094,378 @@ components:
         outcome_id: { $ref: '#/components/schemas/ProductID' }
         result_digest: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
         version: { type: integer, minimum: 1 }
+    SecurityAgentManualTrigger:
+      description: Original manual intent identity bound by the server to this scoped run and definition. Never a ProductID or standalone authorization.
+      type: object
+      additionalProperties: false
+      required: [kind, intent_digest, version]
+      properties:
+        kind: { type: string, const: manual }
+        intent_digest: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+        version: { type: integer, minimum: 1, maximum: 9007199254740991 }
+    SecurityAgentRunTrigger:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [kind, id, version]
+          properties:
+            kind: { type: string, const: manual }
+            id: { type: string, pattern: '^[0-9a-f]{64}$' }
+            version: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        - type: object
+          additionalProperties: false
+          required: [kind, id, version]
+          properties:
+            kind: { type: string, enum: [finding, attack_path, runtime_decision] }
+            id: { $ref: '#/components/schemas/ProductID' }
+            version: { type: integer, minimum: 1, maximum: 9007199254740991 }
+    SecurityAgentRationale:
+      description: Redacted explanation from the accepted receipt bound to the displayed plan. Never authorization. Input and output are bounded to 500 UTF-8 bytes; unsafe or oversized text is withheld.
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [state, summary]
+          properties:
+            state: { type: string, const: available }
+            summary: { type: string, minLength: 1, maxLength: 500 }
+        - type: object
+          additionalProperties: false
+          required: [state, summary]
+          properties:
+            state: { type: string, const: withheld }
+            summary: { type: string, const: '' }
+    SecurityAgentRunContext:
+      type: object
+      additionalProperties: false
+      required: [trigger, rationale]
+      properties:
+        preflight_stop_reason: { type: string, enum: [attack_lab_preflight_unavailable], description: Persisted non-executing Attack Lab stop. Only present on an unplanned Needs human run. }
+        trigger: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentRunTrigger' }, { type: 'null' }] }
+        rationale: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentRationale' }, { type: 'null' }] }
+    SecurityAgentActionArguments:
+      description: Fixed argument allowlists from the bound persisted plan. Never raw provider/model arguments. Null means unavailable.
+      oneOf:
+        - type: 'null'
+        - type: object
+          additionalProperties: false
+          required: [target_id, evidence_ids]
+          properties:
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            evidence_ids: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentExportSelection' } }
+        - type: object
+          additionalProperties: false
+          required: [target_id, expected_version]
+          properties:
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            expected_version: { type: integer, minimum: 1, maximum: 1000000 }
+        - type: object
+          additionalProperties: false
+          required: [target_id, expected_version, target_status]
+          properties:
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            expected_version: { type: integer, minimum: 1, maximum: 9007199254740991 }
+            target_status: { type: string, const: under_review }
+        - type: object
+          additionalProperties: false
+          required: [target_id, expected_version, target_status, assignee_id, response_status, note]
+          properties:
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            expected_version: { type: integer, minimum: 1, maximum: 9007199254740991 }
+            target_status: { type: string, const: open }
+            assignee_id: { $ref: '#/components/schemas/ProductID' }
+            response_status: { type: string, const: open }
+            note:
+              type: string
+              minLength: 1
+              maxLength: 512
+              pattern: '^[^\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff](?:[^\u0000-\u001f\u007f-\u009f]*[^\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff])?$'
+              description: Persisted note is never normalized. Reject C0/C1 controls anywhere and edge Unicode White_Space codepoints or FEFF. Interior non-control Unicode is allowed. Runtime validation limits UTF-8 encoding to 1..512 bytes; maxLength counts characters, not bytes.
+        - type: object
+          additionalProperties: false
+          required: [target_id, expected_version, target_status, assignee_id, response_status, note]
+          properties:
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            expected_version: { type: integer, minimum: 1, maximum: 9007199254740991 }
+            target_status: { type: string, const: under_review }
+            assignee_id: { $ref: '#/components/schemas/ProductID' }
+            response_status: { type: string, const: investigating }
+            note:
+              type: string
+              minLength: 1
+              maxLength: 512
+              pattern: '^[^\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff](?:[^\u0000-\u001f\u007f-\u009f]*[^\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff])?$'
+              description: Persisted note is never normalized. Reject C0/C1 controls anywhere and edge Unicode White_Space codepoints or FEFF. Interior non-control Unicode is allowed. Runtime validation limits UTF-8 encoding to 1..512 bytes; maxLength counts characters, not bytes.
+        - type: object
+          additionalProperties: false
+          required: [target_id, mode, scope, ttl_seconds]
+          properties:
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            mode: { type: string, const: block }
+            scope: { $ref: '#/components/schemas/ProductID' }
+            ttl_seconds: { type: integer, minimum: 60, maximum: 3600 }
+        - type: object
+          additionalProperties: false
+          required: [target_id, session_id, device_id, scope, ttl_seconds]
+          properties:
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            session_id: { $ref: '#/components/schemas/ProductID' }
+            device_id: { $ref: '#/components/schemas/ProductID' }
+            scope: { $ref: '#/components/schemas/ProductID' }
+            ttl_seconds: { type: integer, minimum: 60, maximum: 3600 }
+        - type: object
+          additionalProperties: false
+          required: [target_id, integration_id]
+          properties:
+            target_id: { $ref: '#/components/schemas/ProductID' }
+            integration_id: { $ref: '#/components/schemas/ProductID' }
+    SecurityAgentActionVerification:
+      type: object
+      additionalProperties: false
+      required: [state, source]
+      description: Authority-recorded evidence, not a fresh live provider or gateway probe. Application and cleanup verification are separate.
+      properties:
+        state: { type: string, enum: [unavailable, pending, verified, failed, inconclusive] }
+        source: { type: string, enum: [none, effect_record, policy_targets] }
+    SecurityAgentActionResult:
+      type: object
+      additionalProperties: false
+      required: [state]
+      properties:
+        state: { type: string, enum: [pending, leased, succeeded, known_failure, unknown_outcome, verified, cleanup_pending, cleaned, cleanup_failed] }
+        outcome_id: { $ref: '#/components/schemas/ProductID' }
+        result_digest: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+    SecurityAgentActionRollback:
+      type: object
+      additionalProperties: false
+      required: [support, state, verification]
+      properties:
+        support: { type: string, enum: [automatic, manual, not_supported] }
+        state: { type: string, enum: [unavailable, not_started, pending, completed, failed] }
+        verification: { $ref: '#/components/schemas/SecurityAgentActionVerification' }
+    SecurityAgentActionDetail:
+      type: object
+      additionalProperties: false
+      required: [step_id, action, arguments, result, ttl_seconds, control_expires_at, rollback, verification]
+      properties:
+        attack_lab: { $ref: '#/components/schemas/SecurityAgentAttackLabDetail' }
+        existing_test: { $ref: '#/components/schemas/SecurityAgentExistingTestDetail' }
+        step_id: { $ref: '#/components/schemas/ProductID' }
+        action: { type: string, enum: [update_finding_response, create_temporary_policy, isolate_session, revoke_integration_connection, run_test, rerun_test, start_attack_lab, create_evidence_export] }
+        arguments: { $ref: '#/components/schemas/SecurityAgentActionArguments' }
+        result: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentActionResult' }, { type: 'null' }] }
+        ttl_seconds: { type: [integer, 'null'], minimum: 60, maximum: 3600, description: 'Persisted containment TTL. Null is unavailable or not applicable, never zero.' }
+        control_expires_at: { type: [string, 'null'], format: date-time, description: 'Recorded control expiry, not an approval deadline or verification timestamp.' }
+        rollback: { $ref: '#/components/schemas/SecurityAgentActionRollback' }
+        verification: { $ref: '#/components/schemas/SecurityAgentActionVerification' }
+    SecurityAgentTestArtifactIdentity:
+      type: object
+      additionalProperties: false
+      required: [reference_digest, version_id, sha256, size_bytes]
+      properties:
+        reference_digest: { type: string, pattern: '^[0-9a-f]{64}$', description: SHA256 of the stored reference; not a storage URL or download permission. }
+        version_id: { type: string, minLength: 1, maxLength: 512, pattern: '^\S+$' }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size_bytes: { type: integer, minimum: 1, maximum: 16777216 }
+    SecurityAgentTestAttemptProof:
+      type: object
+      additionalProperties: false
+      required: [run_id, attempt, input_digest, input_artifact, output_artifact]
+      properties:
+        run_id: { $ref: '#/components/schemas/ProductID' }
+        attempt: { type: integer, minimum: 1, maximum: 5 }
+        input_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        input_artifact:
+          allOf:
+            - { $ref: '#/components/schemas/SecurityAgentTestArtifactIdentity' }
+            - { type: object, properties: { size_bytes: { type: integer, minimum: 1, maximum: 65536 } } }
+        output_artifact: { $ref: '#/components/schemas/SecurityAgentTestArtifactIdentity' }
+    SecurityAgentTestCheckChange:
+      type: object
+      additionalProperties: false
+      required: [category, check_id, prompt_digest, assertion_digest, before_protected, after_protected, before_http_status, after_http_status]
+      properties:
+        category: { type: string, enum: [prompt_injection, tool_abuse, data_leakage, authorization_bypass, excessive_agency, sensitive_information] }
+        check_id: { type: string, pattern: '^zasp\.curated\.[a-z_]+\.v1$' }
+        prompt_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        assertion_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        before_protected: { type: boolean }
+        after_protected: { type: boolean, const: true }
+        before_http_status: { type: integer, const: 200 }
+        after_http_status: { type: integer, const: 200 }
+    SecurityAgentTestVerification:
+      type: object
+      additionalProperties: false
+      required: [outcome, reason, proof_digest, before, after, checks]
+      description: Stored settlement proof, not a new test or a claim about what caused the observed change. Non-remediated outcomes have no comparison checks.
+      properties:
+        outcome: { type: string, enum: [remediated, needs_human, inconclusive, failed, cancelled] }
+        reason: { type: string, enum: [test_condition_changed, test_baseline_unavailable, test_condition_persists, test_outcome_unknown, test_evidence_unavailable, test_evaluation_inconclusive, test_run_failed, test_run_cancelled] }
+        proof_digest: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+        before: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentTestAttemptProof' }, { type: 'null' }] }
+        after: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentTestAttemptProof' }, { type: 'null' }] }
+        checks: { type: array, maxItems: 6, items: { $ref: '#/components/schemas/SecurityAgentTestCheckChange' } }
+    SecurityAgentExistingTestDetail:
+      type: object
+      additionalProperties: false
+      required: [definition_id, definition_version, test_run_id, state, cancellation_outcome, verification]
+      properties:
+        definition_id: { $ref: '#/components/schemas/ProductID' }
+        definition_version: { type: integer, minimum: 1, maximum: 1000000 }
+        test_run_id: { $ref: '#/components/schemas/ProductID' }
+        state: { type: string, enum: [pending, settled] }
+        cancellation_outcome: { type: [string, 'null'], enum: [cancelled_before_execution, cancelled_after_partial_execution, outcome_unknown, null] }
+        verification: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentTestVerification' }, { type: 'null' }] }
+    SecurityAgentAttackLabDetail:
+      type: object
+      additionalProperties: false
+      required: [definition_id, definition_version, source_run_id, source_attempt, execution_id, attempt, state, verdict, cleanup_state, cleanup_complete, cancel_requested, evidence, settlement]
+      properties:
+        definition_id: { $ref: '#/components/schemas/ProductID' }
+        definition_version: { type: integer, minimum: 1, maximum: 1000000 }
+        source_run_id: { $ref: '#/components/schemas/ProductID' }
+        source_attempt: { type: integer, minimum: 1, maximum: 5 }
+        execution_id: { $ref: '#/components/schemas/ProductID' }
+        attempt: { type: integer, minimum: 0, maximum: 5 }
+        state: { type: string, enum: [queued, leased, running, retryable, cleanup, complete, failed, cancelled] }
+        verdict: { type: [string, 'null'], enum: [verified, not_reproduced, inconclusive, null] }
+        cleanup_state: { type: string, enum: [pending, in_progress, complete, failed] }
+        cleanup_complete: { type: boolean }
+        cancel_requested: { type: boolean }
+        evidence: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentTestArtifactIdentity' }, { type: 'null' }] }
+        settlement: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentAttackLabSettlement' }, { type: 'null' }] }
+    SecurityAgentAttackLabSettlement:
+      type: object
+      additionalProperties: false
+      required: [outcome, reason, proof_digest]
+      description: Both reproduced and not-reproduced bounded outcomes require human interpretation. Neither is remediation.
+      properties:
+        outcome: { type: string, enum: [needs_human, inconclusive, failed, cancelled] }
+        reason: { type: string, enum: [attack_lab_unsafe_condition_reproduced, attack_lab_not_reproduced_in_bounded_run, attack_lab_evidence_unavailable, attack_lab_outcome_unknown, attack_lab_pre_execution_denied, attack_lab_cancelled] }
+        proof_digest: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+    SecurityAgentAttackLabApproval:
+      type: object
+      additionalProperties: false
+      required: [source_run_id, source_attempt, definition_id, definition_version, target_id, target_kind, environment, credential_class, destination, decision_expires_at, limits, expected_side_effects]
+      properties:
+        source_run_id: { $ref: '#/components/schemas/ProductID' }
+        source_attempt: { type: integer, minimum: 1, maximum: 5 }
+        definition_id: { $ref: '#/components/schemas/ProductID' }
+        definition_version: { type: integer, minimum: 1, maximum: 1000000 }
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        target_kind: { type: string, enum: [agent_endpoint, mcp_server, coding_agent] }
+        environment: { type: string, enum: [development, test, staging] }
+        credential_class: { type: string, enum: [read_only, test_write] }
+        destination: { type: string, minLength: 1, maxLength: 253, description: "Exact approved DNS destination; no credentials, path or query." }
+        decision_expires_at: { type: string, format: date-time }
+        limits:
+          type: object
+          additionalProperties: false
+          required: [cpu, memory, ephemeral_storage, timeout_seconds]
+          properties:
+            cpu: { type: string, const: 500m }
+            memory: { type: string, const: 1Gi }
+            ephemeral_storage: { type: string, const: 2Gi }
+            timeout_seconds: { type: integer, const: 300 }
+        expected_side_effects: { type: array, minItems: 1, maxItems: 16, items: { type: string, minLength: 1, maxLength: 500 } }
+    SecurityAgentAuditEvent:
+      type: object
+      additionalProperties: false
+      required: [id, run_id, organization_id, workspace_id, environment_id, actor_reference, event_kind, correlation_id, occurred_at]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        run_id: { $ref: '#/components/schemas/ProductID' }
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        actor_reference: { type: string, minLength: 1, maxLength: 128, description: 'Recorded actor reference, which can identify a worker rather than a human principal.' }
+        event_kind: { type: string, minLength: 1, maxLength: 128 }
+        correlation_id: { $ref: '#/components/schemas/ProductID' }
+        occurred_at: { type: string, format: date-time, pattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$' }
+    SingleTestCleanupRecovery:
+      type: object
+      additionalProperties: false
+      required: [run_id, request_identity, status, reason, parent_version, command, accepted_at, completion]
+      properties:
+        run_id: { $ref: '#/components/schemas/ProductID' }
+        request_identity:
+          type: object
+          additionalProperties: false
+          required: [definition_version, input_digest]
+          properties:
+            definition_version: { type: integer, minimum: 1, maximum: 1000000 }
+            input_digest: { type: string, pattern: '^[a-f0-9]{64}$' }
+        status: { enum: [not_requested, queued, pending, repair_required, complete] }
+        reason: { enum: [not_requested, queued, cleanup_pending, dependency_unavailable, evidence_conflict, verified] }
+        parent_version: { type: integer, minimum: 1 }
+        accepted_at: { type: [string, 'null'], format: date-time }
+        command:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              additionalProperties: false
+              required: [start, command_id, command_digest]
+              properties:
+                command_id: { $ref: '#/components/schemas/ProductID' }
+                command_digest: { type: string, pattern: '^[a-f0-9]{64}$' }
+                start:
+                  type: object
+                  additionalProperties: false
+                  required: [ref, definition_version, input_digest]
+                  properties:
+                    definition_version: { type: integer, minimum: 1, maximum: 1000000 }
+                    input_digest: { type: string, pattern: '^[a-f0-9]{64}$' }
+                    ref:
+                      type: object
+                      additionalProperties: false
+                      required: [organization_id, workspace_id, environment_id, run_id]
+                      properties:
+                        organization_id: { $ref: '#/components/schemas/ProductID' }
+                        workspace_id: { $ref: '#/components/schemas/ProductID' }
+                        environment_id: { $ref: '#/components/schemas/ProductID' }
+                        run_id: { $ref: '#/components/schemas/ProductID' }
+        completion:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              additionalProperties: false
+              required: [receipt_id, evidence_kind, evidence_digest, outcome, completed_at]
+              properties:
+                receipt_id: { $ref: '#/components/schemas/ProductID' }
+                evidence_kind: { enum: [parent, stop, planning_terminal, already_complete] }
+                evidence_digest: { type: string, pattern: '^[a-f0-9]{64}$' }
+                outcome: { enum: [cancelled, failed, inconclusive, needs_human, contained, remediated] }
+                completed_at: { type: string, format: date-time }
+      allOf:
+        - if: { properties: { status: { const: not_requested } } }
+          then: { properties: { reason: { const: not_requested }, command: { type: 'null' }, accepted_at: { type: 'null' }, completion: { type: 'null' } } }
+        - if: { properties: { status: { const: queued } } }
+          then: { properties: { reason: { const: queued }, command: { type: object }, accepted_at: { type: string }, completion: { type: 'null' } } }
+        - if: { properties: { status: { const: pending } } }
+          then: { properties: { reason: { enum: [cleanup_pending, dependency_unavailable] }, command: { type: object }, accepted_at: { type: string }, completion: { type: 'null' } } }
+        - if: { properties: { status: { const: repair_required } } }
+          then: { properties: { reason: { const: evidence_conflict }, command: { type: object }, accepted_at: { type: string }, completion: { type: 'null' } } }
+        - if: { properties: { status: { const: complete } } }
+          then: { properties: { reason: { const: verified }, accepted_at: { type: string }, completion: { type: object } } }
     SecurityAgentRunDetail:
       type: object
       additionalProperties: false
       required: [run, evidence_ids, plan, authorization, approvals, execution, verification]
+      allOf:
+        - if:
+            properties:
+              run: { required: [manual_trigger], properties: { manual_trigger: {} } }
+          then: { properties: { evidence_ids: { maxItems: 0 } } }
+          else: { properties: { evidence_ids: { minItems: 1 } } }
       properties:
+        action_details: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentActionDetail' }, description: Optional negotiated action evidence in persisted plan order. Missing on older servers. }
+        run_context: { $ref: '#/components/schemas/SecurityAgentRunContext' }
+        budget_stop_reason:
+          type: string
+          enum: [budget_deadline_exceeded, budget_steps_exceeded, budget_tokens_exceeded, budget_cost_exceeded, budget_usage_unknown]
+          description: Durable reason preventing further budgeted execution. Omitted when no budget stop is recorded or on older servers. Existing effects may still need cleanup; changing a definition does not reset this run's limits. No provider error text is included.
+        ordered: { $ref: '#/components/schemas/SecurityAgentOrderedDetail' }
         run: { $ref: '#/components/schemas/SecurityAgentRun' }
-        evidence_ids: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
+        evidence_ids: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
         plan: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentPlanSummary' }, { type: 'null' }] }
         authorization: { type: string, enum: [not_planned, authorized, approval_required, approved, denied, cancelled] }
         approvals: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentApproval' } }
@@ -3536,17 +4475,117 @@ components:
       type: object
       additionalProperties: false
       required: [id, run_id, step_id, state, expires_at, version, expected_effect, reversible, ttl_seconds, evidence_summary]
+      allOf:
+        - if: { required: [manual_trigger], properties: { manual_trigger: {} } }
+          then: { properties: { evidence_summary: { maxItems: 0 } } }
+          else: { properties: { evidence_summary: { minItems: 1 } } }
+        - if: { properties: { expected_effect: { const: Assign investigator and update finding response } } }
+          then:
+            required: [approval_context]
+            properties:
+              approval_context:
+                required: [finding_response]
+                properties: { action: { const: update_finding_response }, finding_response: {} }
+          else:
+            properties:
+              approval_context:
+                not: { required: [finding_response], properties: { finding_response: {} } }
       properties:
+        manual_trigger: { $ref: '#/components/schemas/SecurityAgentManualTrigger' }
+        attack_lab: { $ref: '#/components/schemas/SecurityAgentAttackLabApproval' }
+        approval_context: { $ref: '#/components/schemas/SecurityAgentApprovalContext' }
         id: { $ref: '#/components/schemas/ProductID' }
         run_id: { $ref: '#/components/schemas/ProductID' }
         step_id: { $ref: '#/components/schemas/ProductID' }
         state: { type: string, enum: [pending, approved, rejected, cancelled, expired] }
         expires_at: { type: string, format: date-time }
         version: { type: integer, minimum: 1 }
-        expected_effect: { type: string, enum: [Move finding to under review, Apply temporary containment policy, Isolate runtime session, Revoke integration connection] }
+        expected_effect: { type: string, enum: [Move finding to under review, Assign investigator and update finding response, Apply temporary containment policy, Isolate runtime session, Revoke integration connection, Run existing test, Rerun existing test, Run a bounded Attack Lab reproduction; human interpretation required, Create run-scoped evidence export] }
         reversible: { type: boolean }
         ttl_seconds: { type: integer, minimum: 0, maximum: 3600 }
         evidence_summary: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }
+    SecurityAgentFindingResponseApproval:
+      description: Exact persisted finding response arguments. Runtime validation requires target_id to equal the parent approval context target and bounds note UTF-8 bytes; JSON Schema cannot express those cross-field and byte constraints.
+      type: object
+      additionalProperties: false
+      required: [target_id, expected_version, target_status, assignee_id, response_status, note]
+      allOf:
+        - if: { properties: { response_status: { const: open } } }
+          then: { properties: { target_status: { const: open } } }
+          else: { properties: { target_status: { const: under_review } } }
+      properties:
+        target_id: { $ref: '#/components/schemas/ProductID' }
+        expected_version: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        target_status: { type: string, enum: [open, under_review] }
+        assignee_id: { $ref: '#/components/schemas/ProductID' }
+        response_status: { type: string, enum: [open, investigating] }
+        note:
+          type: string
+          minLength: 1
+          maxLength: 512
+          pattern: '^[^\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff](?:[^\u0000-\u001f\u007f-\u009f]*[^\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff])?$'
+          description: Persisted note is never normalized. Reject C0/C1 controls anywhere and edge Unicode White_Space codepoints or FEFF. Interior non-control Unicode is allowed. Runtime validation limits UTF-8 encoding to 1..512 bytes; maxLength counts characters, not bytes.
+    SecurityAgentApprovalContext:
+      description: Persisted selected-step context. Validated enriched finding-response approvals always include the complete bound context; legacy contexts require exact X-Zasp-Approval-Context v1 opt-in. Catalog risk is not a provider assessment; rationale never authorizes a decision.
+      type: object
+      additionalProperties: false
+      required: [agent_id, action, target_id, plan_hash, catalog_version, requester, reason, risk, rationale]
+      allOf:
+        - if:
+            properties: { action: { const: create_evidence_export } }
+          then:
+            required: [export_selection]
+            properties: { target_id: { $ref: '#/components/schemas/ProductID' }, export_selection: {} }
+          else:
+            not: { required: [export_selection], properties: { export_selection: {} } }
+        - if: { required: [finding_response], properties: { finding_response: {} } }
+          then:
+            properties:
+              action: { const: update_finding_response }
+              target_id: { $ref: '#/components/schemas/ProductID' }
+      properties:
+        finding_response: { $ref: '#/components/schemas/SecurityAgentFindingResponseApproval' }
+        agent_id: { $ref: '#/components/schemas/ProductID' }
+        action: { type: string, enum: [update_finding_response, create_temporary_policy, isolate_session, revoke_integration_connection, run_test, rerun_test, start_attack_lab, create_evidence_export] }
+        export_selection:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/SecurityAgentExportSelection' }
+          description: Original selected source versions bound to this approval's parent run. Present only for an evidence export action.
+        target_id: { oneOf: [{ $ref: '#/components/schemas/ProductID' }, { type: 'null' }] }
+        plan_hash: { type: string, pattern: '^sha256:[0-9a-f]{64}$' }
+        catalog_version: { type: string, const: security-agent-actions-v1 }
+        requester:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [state, id]
+              properties:
+                state: { type: string, const: available }
+                id: { $ref: '#/components/schemas/ProductID' }
+            - type: object
+              additionalProperties: false
+              required: [state, id]
+              properties:
+                state: { type: string, const: withheld }
+                id: { type: 'null' }
+        reason:
+          type: object
+          additionalProperties: false
+          required: [code, source]
+          properties:
+            code: { type: string, const: operator_approval_required }
+            source: { type: string, const: persisted_step }
+        risk:
+          type: object
+          additionalProperties: false
+          required: [class, source]
+          properties:
+            class: { type: string, enum: [low, moderate, containment, destructive] }
+            source: { type: string, const: action_catalog }
+        rationale: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentRationale' }, { type: 'null' }] }
     SecurityAgentApprovalPage:
       type: object
       additionalProperties: false
@@ -3622,7 +4661,7 @@ components:
         confidence: { type: string, enum: [exact, strong, probable, unattributed] }
         at: { type: string, format: date-time }
         projected_at: { type: string, format: date-time }
-    ComplianceExportID: { type: string, minLength: 8, maxLength: 128, pattern: '^export-[a-z0-9][a-z0-9-]*$' }
+    ComplianceExportID: { $ref: '#/components/schemas/ProductID' }
     SessionEvent:
       type: object
       additionalProperties: false
@@ -3687,7 +4726,8 @@ components:
           uniqueItems: true
           description: Bounded preview of the first 100 evidence identifiers ordered by identifier; use the paged evidence operation for the complete set.
           items: { type: string, minLength: 1, maxLength: 128 }
-        fresh_until: { type: string, format: date-time }
+        fresh_until: { type: string, format: date-time, description: Latest eligible source timestamp plus its maximum age across the complete control source set; Unix epoch when missing. }
+        freshness: { type: string, enum: [fresh, stale, missing], description: 'Always present on the registered current-source service: aggregate state across all eligible sources, independent of the bounded preview. Absent on the legacy fallback; absence must not be interpreted as current-source evidence.' }
     ComplianceEvidence:
       type: object
       additionalProperties: false
@@ -3710,17 +4750,106 @@ components:
         asset_id: { type: string, minLength: 1, maxLength: 128 }
         source: { type: string, minLength: 1, maxLength: 64 }
         at: { type: string, format: date-time }
-    ComplianceControlPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceControl' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
-    ComplianceEvidencePage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceEvidence' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
-    ComplianceExportInput: { type: object, additionalProperties: false, required: [id], properties: { id: { $ref: '#/components/schemas/ComplianceExportID' } } }
+        target: { $ref: '#/components/schemas/ComplianceEvidenceTarget' }
+        metadata: { $ref: '#/components/schemas/ComplianceEvidenceMetadata' }
+    ComplianceSourceKind: { type: string, enum: [administration, workflow_policy, red_team_mutation, finding, policy, red_team_test, attack_lab_test, configuration] }
+    ComplianceEvidenceTarget:
+      type: object
+      additionalProperties: false
+      required: [source_kind, source_id, source_version]
+      properties:
+        source_kind: { $ref: '#/components/schemas/ComplianceSourceKind' }
+        source_id: { type: string, minLength: 1, maxLength: 128 }
+        source_version: { type: integer, minimum: 1, maximum: 999999999999999 }
+    ComplianceEvidenceMetadata:
+      type: object
+      additionalProperties: false
+      description: Source-specific allowlist. Policy bodies, raw prompts and arbitrary metadata are excluded.
+      properties:
+        action: { type: string, minLength: 1, maxLength: 128 }
+        status: { type: string, enum: [succeeded, rejected, failed, open, under_review, resolved, accepted, pass, fail, engine_error, verified, not_reproduced, inconclusive] }
+        severity: { type: string, enum: [critical, high, medium, low] }
+        evidence_ids: { type: array, maxItems: 64, uniqueItems: true, items: { $ref: '#/components/schemas/ProductID' } }
+        verification: { type: string, enum: [definition_only, unverified, configured] }
+        migration_seeded: { type: boolean }
+        definition_id: { $ref: '#/components/schemas/ProductID' }
+        definition_version: { type: integer, minimum: 1, maximum: 1000000 }
+        receipt_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        receipt_version: { type: string, minLength: 1, maxLength: 512 }
+        receipt_size: { type: integer, minimum: 1, maximum: 67108864 }
+    ComplianceEvidenceDetail:
+      type: object
+      additionalProperties: false
+      required: [record, freshness, organization_id, workspace_id, environment_id]
+      properties:
+        record: { $ref: '#/components/schemas/EvidenceRecord' }
+        freshness: { type: string, enum: [fresh, stale] }
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+    ComplianceControlPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceControl' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
+    ComplianceEvidencePage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceEvidence' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
+    ComplianceExportInput: { type: object, additionalProperties: false, properties: { framework: { type: string, enum: [soc2_security, hipaa] }, control_id: { type: string, minLength: 1, maxLength: 128, pattern: '^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$' } } }
     ComplianceExport:
       type: object
       additionalProperties: false
-      required: [id, status, formats]
+      required: [id, status, formats, created_at, expires_at, failure_code, mapping_revision]
       properties:
         id: { $ref: '#/components/schemas/ComplianceExportID' }
         status: { type: string, enum: [pending, completed, failed] }
         formats: { type: array, minItems: 1, maxItems: 3, uniqueItems: true, items: { type: string, enum: [json, csv, human] } }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        failure_code: { type: [string, 'null'], enum: [collection_failed, storage_unresolved, authorization_revoked, retrieval_expired, null] }
+        mapping_revision: { type: string, const: product-evidence-v1 }
+    SecurityAgentExportSelection:
+      type: object
+      additionalProperties: false
+      required: [source_kind, source_id, source_version, association_digest]
+      properties:
+        source_kind: { type: string, enum: [finding, attack_path, runtime_decision, run_audit, existing_test, attack_lab, manual] }
+        source_id: { type: string, minLength: 1, maxLength: 64 }
+        source_version: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        association_digest: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+      allOf:
+        - if: { properties: { source_kind: { const: manual } } }
+          then: { properties: { source_id: { type: string, pattern: '^[a-f0-9]{64}$' } } }
+          else: { properties: { source_id: { $ref: '#/components/schemas/ProductID' } } }
+    SecurityAgentExportStatus:
+      type: object
+      additionalProperties: false
+      required: [export_id, state, phase, failure_code, created_at, retrieval_expires_at, mapping_revision, snapshot_at, cleanup_state, selection, artifact]
+      properties:
+        export_id: { $ref: '#/components/schemas/ProductID' }
+        state: { type: string, enum: [pending, completed, failed] }
+        phase: { type: string, enum: [queued, collecting, uploading, terminal] }
+        failure_code: { type: [string, 'null'], enum: [collection_failed, storage_unresolved, authorization_revoked, retrieval_expired, integrity_failure, export_cancelled, export_parent_stopped, null] }
+        created_at: { type: string, format: date-time }
+        retrieval_expires_at: { type: string, format: date-time }
+        mapping_revision: { type: string, const: security-agent-run-evidence-v1 }
+        snapshot_at: { type: [string, 'null'], format: date-time }
+        cleanup_state: { type: string, enum: [retained, pending, deleted] }
+        selection: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/SecurityAgentExportSelection' } }
+        artifact:
+          type: [object, 'null']
+          additionalProperties: false
+          required: [sha256, size]
+          properties:
+            sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+            size: { type: integer, minimum: 1, maximum: 8388608 }
+      allOf:
+        - if: { properties: { state: { const: pending } } }
+          then: { properties: { phase: { enum: [queued, collecting, uploading] } } }
+          else: { properties: { phase: { const: terminal } } }
+    ComplianceDownloadFormat: { type: string, enum: [json, csv, human] }
+    ComplianceDownloadGrant:
+      type: object
+      additionalProperties: false
+      required: [token, format, expires_at]
+      properties:
+        token: { type: string, minLength: 64, maxLength: 64, pattern: '^[a-f0-9]{64}$' }
+        format: { $ref: '#/components/schemas/ComplianceDownloadFormat' }
+        expires_at: { type: string, format: date-time }
     DataControls:
       type: object
       additionalProperties: false
@@ -3820,6 +4949,26 @@ components:
           minLength: 1
           maxLength: 128
           pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$'
+    ComplianceCursor:
+      type: string
+      minLength: 2
+      maxLength: 5462
+      pattern: '^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-][AQgw]|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048])?$'
+      description: Opaque canonical unpadded base64url cursor binding scope, operation, framework, control and source. The decoded JSON is bounded to 4096 bytes (5462 encoded characters), accommodating valid 128-character source IDs with all filters.
+    CompliancePageInfo:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [next_cursor, has_more]
+          properties:
+            next_cursor: { $ref: '#/components/schemas/ComplianceCursor' }
+            has_more: { const: true }
+        - type: object
+          additionalProperties: false
+          required: [next_cursor, has_more]
+          properties:
+            next_cursor: { type: 'null' }
+            has_more: { const: false }
     Cursor:
       type: string
       minLength: 2
@@ -4447,7 +5596,7 @@ components:
           type: string
           minLength: 1
           maxLength: 127
-          pattern: '^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$'
+          pattern: '^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|identity_provider\.(?:createSSOConnection|deleteSSOConnection|testSSOConnection|createSCIMConnection|deleteSCIMConnection))(?![\s\S])'
         target_id:
           type: string
           minLength: 1
@@ -4480,23 +5629,234 @@ components:
       type: object
       additionalProperties: false
     AuditExport:
+      description: Durable export descriptor for the explicitly mounted AuditExports installation. Scope identifies the persisted artifact destination, not a filter on organization-wide source events.
+      oneOf:
+        - { $ref: '#/components/schemas/AuditExportPending' }
+        - { $ref: '#/components/schemas/AuditExportReady' }
+        - { $ref: '#/components/schemas/AuditExportFailed' }
+    AuditExportTimestamp:
+      type: string
+      format: date-time
+      minLength: 27
+      maxLength: 27
+      pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$'
+      description: Canonical UTC timestamp with exactly six fractional digits, matching the frozen PostgreSQL microsecond precision without rounding.
+    AuditExportDigest:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+      minLength: 64
+      maxLength: 64
+      description: Lowercase SHA-256 of the exact canonical artifact bytes, verified against persisted authority at runtime.
+    AuditExportPending:
       type: object
       additionalProperties: false
-      required: [id, status, event_count, created_at]
+      required: [id, organization_id, workspace_id, environment_id, created_at, audit_correlation_id, status, event_count]
       properties:
-        id:
-          $ref: '#/components/schemas/ProductID'
-        status:
-          type: string
-          enum: [ready]
-        event_count:
-          type: integer
-          minimum: 0
+        id: { $ref: '#/components/schemas/ProductID' }
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
         created_at:
+          $ref: '#/components/schemas/AuditExportTimestamp'
+          description: Request creation time, unchanged by retries. This is not the later capture time.
+        audit_correlation_id: { $ref: '#/components/schemas/ProductID' }
+        status: { type: string, enum: [queued, processing] }
+        event_count:
+          type: 'null'
+          description: A final count is not published before verified completion.
+    AuditExportReady:
+      type: object
+      additionalProperties: false
+      required: [id, organization_id, workspace_id, environment_id, created_at, audit_correlation_id, status, event_count, captured_at, chunk_count, chunk_bytes, manifest_sha256]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        created_at:
+          $ref: '#/components/schemas/AuditExportTimestamp'
+          description: Request creation time, unchanged by retries. This is not the later capture time.
+        audit_correlation_id: { $ref: '#/components/schemas/ProductID' }
+        status: { type: string, const: ready }
+        captured_at:
+          $ref: '#/components/schemas/AuditExportTimestamp'
+          description: Successful database snapshot capture time, distinct from request creation time.
+        event_count: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        chunk_count: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        chunk_bytes: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        manifest_sha256: { $ref: '#/components/schemas/AuditExportDigest' }
+      oneOf:
+        - properties:
+            event_count: { const: 0 }
+            chunk_count: { const: 0 }
+            chunk_bytes: { const: 0 }
+        - properties:
+            event_count: { minimum: 1 }
+            chunk_count: { minimum: 1 }
+            chunk_bytes: { minimum: 1 }
+    AuditExportFailed:
+      type: object
+      additionalProperties: false
+      required: [id, organization_id, workspace_id, environment_id, created_at, audit_correlation_id, status, event_count, failure_code]
+      properties:
+        id: { $ref: '#/components/schemas/ProductID' }
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        created_at:
+          $ref: '#/components/schemas/AuditExportTimestamp'
+          description: Request creation time, unchanged by retries. This is not the later capture time.
+        audit_correlation_id: { $ref: '#/components/schemas/ProductID' }
+        status: { type: string, const: failed }
+        event_count: { type: 'null' }
+        failure_code:
           type: string
-          format: date-time
-        audit_correlation_id:
-          $ref: '#/components/schemas/ProductID'
+          enum: [capacity_exceeded, invalid_source, execution_failed]
+          description: Stable coarse failure category. Provider details, source contents and operational credentials remain private.
+    AuditExportBinding:
+      type: object
+      additionalProperties: false
+      required: [organization_id, workspace_id, environment_id, export_id, capture_id]
+      properties:
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        export_id: { $ref: '#/components/schemas/ProductID' }
+        capture_id: { $ref: '#/components/schemas/ProductID' }
+      description: Immutable artifact scope and export/capture identity. The codec and repository enforce distinct IDs and exact expected bindings; schema shape alone grants no access.
+    AuditExportEvent:
+      type: object
+      additionalProperties: false
+      required: [ordinal, id, organization_id, workspace_id, environment_id, actor_id, action, target_id, outcome, metadata, occurred_at]
+      properties:
+        ordinal: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        id: { $ref: '#/components/schemas/ProductID' }
+        organization_id: { $ref: '#/components/schemas/ProductID' }
+        workspace_id: { $ref: '#/components/schemas/ProductID' }
+        environment_id: { $ref: '#/components/schemas/ProductID' }
+        actor_id: { $ref: '#/components/schemas/ProductID' }
+        action: { type: string, minLength: 1, maxLength: 127, pattern: '^(?:[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*|identity_provider\.(?:createSSOConnection|deleteSSOConnection|testSSOConnection|createSCIMConnection|deleteSCIMConnection))(?![\s\S])' }
+        target_id: { type: string, minLength: 1, maxLength: 128, pattern: '^[^\x00-\x1f\x7f]+$' }
+        outcome: { type: string, enum: [succeeded, failed, denied] }
+        metadata:
+          type: object
+          maxProperties: 32
+          propertyNames: { minLength: 1, maxLength: 64, pattern: '^[^\x00-\x1f\x7f]+$' }
+          additionalProperties: { type: string, minLength: 1, maxLength: 512, pattern: '^[^\x00-\x1f\x7f]+$' }
+          description: Frozen redacted metadata. The codec enforces UTF-8 byte limits and redaction before persistence; arbitrary metadata keys are not envelope fields.
+        occurred_at: { $ref: '#/components/schemas/AuditExportTimestamp' }
+      description: Exact frozen public audit projection, including a one-based event ordinal. Events from another workspace/environment are allowed only within the authorized organization. Runtime validation enforces byte limits, canonical serialization and persisted event identity.
+    AuditExportChunk:
+      type: object
+      additionalProperties: false
+      required: [schema, binding, ordinal, first_event, event_count, previous_digest, events]
+      properties:
+        schema: { type: string, const: audit-export-chunk-v1 }
+        binding: { $ref: '#/components/schemas/AuditExportBinding' }
+        ordinal: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        first_event: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        event_count: { type: integer, minimum: 1, maximum: 1000 }
+        previous_digest: { $ref: '#/components/schemas/AuditExportDigest' }
+        events:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/AuditExportEvent' }
+      oneOf:
+        - properties:
+            ordinal: { const: 1 }
+            first_event: { const: 1 }
+            previous_digest: { const: '0000000000000000000000000000000000000000000000000000000000000000' }
+        - properties:
+            ordinal: { minimum: 2 }
+            first_event: { minimum: 2 }
+            previous_digest: { pattern: '^(?!0{64}$)[0-9a-f]{64}$' }
+      description: At most 1 MiB of canonical JSON bytes and 1000 events. The codec enforces contiguous ordinals, exact count, descending source order, unique event IDs within the chunk and pinned expected digest/binding. SQL proves cross-chunk coverage and uniqueness; JSON Schema cannot establish these relationships or whole-body byte size.
+    AuditExportManifest:
+      type: object
+      additionalProperties: false
+      required: [schema, binding, event_count, chunk_count, chunk_bytes, chain_root]
+      properties:
+        schema: { type: string, const: audit-export-manifest-v1 }
+        binding: { $ref: '#/components/schemas/AuditExportBinding' }
+        event_count: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        chunk_count: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        chunk_bytes: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        chain_root: { $ref: '#/components/schemas/AuditExportDigest' }
+      oneOf:
+        - properties:
+            event_count: { const: 0 }
+            chunk_count: { const: 0 }
+            chunk_bytes: { const: 0 }
+            chain_root: { const: '0000000000000000000000000000000000000000000000000000000000000000' }
+        - properties:
+            event_count: { minimum: 1 }
+            chunk_count: { minimum: 1 }
+            chunk_bytes: { minimum: 1 }
+            chain_root: { pattern: '^(?!0{64}$)[0-9a-f]{64}$' }
+      description: Bounded manifest without a receipt array. chunk_bytes is the sum of complete canonical chunk byte lengths; chain_root is the last chunk digest, or the zero digest for an empty snapshot. The repository verifies counts, receipt coverage and the pinned manifest SHA-256 before use.
+    AuditExportEmptyContents:
+      type: object
+      additionalProperties: false
+      required: [manifest, chunk, chunk_sha256, page_info]
+      properties:
+        manifest:
+          allOf:
+            - { $ref: '#/components/schemas/AuditExportManifest' }
+            - properties: { event_count: { const: 0 } }
+        chunk: { type: 'null' }
+        chunk_sha256: { type: 'null' }
+        page_info:
+          allOf:
+            - { $ref: '#/components/schemas/PageInfo' }
+            - properties: { has_more: { const: false } }
+    AuditExportChunkContents:
+      type: object
+      additionalProperties: false
+      required: [manifest, chunk, chunk_sha256, page_info]
+      properties:
+        manifest:
+          allOf:
+            - { $ref: '#/components/schemas/AuditExportManifest' }
+            - properties: { event_count: { minimum: 1 } }
+        chunk: { $ref: '#/components/schemas/AuditExportChunk' }
+        chunk_sha256: { $ref: '#/components/schemas/AuditExportDigest' }
+        page_info: { $ref: '#/components/schemas/PageInfo' }
+      description: One actual immutable chunk. Descriptor, manifest and chunk scopes/export IDs, counts, digests and cursor position must agree under runtime repository and codec validation, not merely pass this structural schema. No provider locator, version ID, credential or download URL is public.
+    AuditExportContents:
+      oneOf:
+        - { $ref: '#/components/schemas/AuditExportEmptyContents' }
+        - { $ref: '#/components/schemas/AuditExportChunkContents' }
+    AuditExportRead:
+      description: Same-route GET envelope for the explicitly mounted AuditExports installation. No contents or cursor before ready; a verified empty export has a zero manifest and terminal page. A response is bounded to 1064960 UTF-8 bytes.
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [export, contents]
+          properties:
+            export:
+              oneOf:
+                - { $ref: '#/components/schemas/AuditExportPending' }
+                - { $ref: '#/components/schemas/AuditExportFailed' }
+            contents: { type: 'null' }
+        - type: object
+          additionalProperties: false
+          required: [export, contents]
+          properties:
+            export:
+              allOf:
+                - { $ref: '#/components/schemas/AuditExportReady' }
+                - properties: { event_count: { const: 0 } }
+            contents: { $ref: '#/components/schemas/AuditExportEmptyContents' }
+        - type: object
+          additionalProperties: false
+          required: [export, contents]
+          properties:
+            export:
+              allOf:
+                - { $ref: '#/components/schemas/AuditExportReady' }
+                - properties: { event_count: { minimum: 1 } }
+            contents: { $ref: '#/components/schemas/AuditExportChunkContents' }
     EmptyInput:
       type: object
       additionalProperties: false
@@ -5315,6 +6675,7 @@ components:
         action: { type: string, enum: [monitor, block] }
         rollout: { type: string, enum: [draft, monitor, enforced, disabled] }
         failure_mode: { type: string, enum: [open, closed] }
+        risk: { type: string, enum: [low, medium, high, critical], description: 'Optional policy risk annotation. Omission means unknown.' }
     PolicyPage:
       type: object
       additionalProperties: false
@@ -5474,21 +6835,35 @@ components:
     HomeSummary:
       type: object
       additionalProperties: false
+      description: Counts cover authorized resources only. Both health fields are null when a separate current environment-view authorization is unavailable; null does not mean healthy or degraded. A current environment-view proof permits complementary boolean status values.
       required: [agent_count, high_risk_paths, verified_changes, blocked_changes, pending_approvals, oldest_approval_age_seconds, needs_human_runs, failed_runs, inconclusive_runs, recent_contained, recent_remediated, healthy, attention_required]
       properties:
-        agent_count: { type: integer, minimum: 0 }
-        high_risk_paths: { type: integer, minimum: 0 }
-        verified_changes: { type: integer, minimum: 0 }
-        blocked_changes: { type: integer, minimum: 0 }
-        pending_approvals: { type: integer, minimum: 0 }
-        oldest_approval_age_seconds: { type: integer, minimum: 0 }
-        needs_human_runs: { type: integer, minimum: 0 }
-        failed_runs: { type: integer, minimum: 0 }
-        inconclusive_runs: { type: integer, minimum: 0 }
-        recent_contained: { type: integer, minimum: 0 }
-        recent_remediated: { type: integer, minimum: 0 }
-        healthy: { type: boolean }
-        attention_required: { type: boolean }
+        agent_count: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        high_risk_paths: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        verified_changes: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        blocked_changes: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        pending_approvals: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        oldest_approval_age_seconds: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        needs_human_runs: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        failed_runs: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        inconclusive_runs: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        recent_contained: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        recent_remediated: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        healthy: { type: [boolean, 'null'] }
+        attention_required: { type: [boolean, 'null'] }
+      oneOf:
+        - required: [healthy, attention_required]
+          properties:
+            healthy: { const: true }
+            attention_required: { const: false }
+        - required: [healthy, attention_required]
+          properties:
+            healthy: { const: false }
+            attention_required: { const: true }
+        - required: [healthy, attention_required]
+          properties:
+            healthy: { type: 'null' }
+            attention_required: { type: 'null' }
     SearchResult:
       type: object
       additionalProperties: false

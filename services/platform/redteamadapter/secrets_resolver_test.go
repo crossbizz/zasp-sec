@@ -30,7 +30,7 @@ func (stub *secretsAPIStub) GetSecretValue(_ context.Context, input *secretsmana
 
 func TestSecretsCredentialResolverLoadsExactBinarySecretAndZeroizesEveryCopy(t *testing.T) {
 	providerCopy := []byte(strings.Repeat("s", 64))
-	stub := &secretsAPIStub{output: &secretsmanager.GetSecretValueOutput{SecretBinary: providerCopy}}
+	stub := &secretsAPIStub{output: &secretsmanager.GetSecretValueOutput{SecretBinary: providerCopy, VersionId: ptrVersion("11111111-1111-4111-8111-111111111111")}}
 	resolver, err := NewSecretsCredentialResolver(stub, "zasp/red-team/targets", time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -52,6 +52,9 @@ func TestSecretsCredentialResolverLoadsExactBinarySecretAndZeroizesEveryCopy(t *
 	credential.Destroy()
 	if secret, ok := credential.bytes(); ok || secret != nil {
 		t.Fatal("destroyed credential remained readable")
+	}
+	if secret, version, ok := credential.material(); ok || secret != nil || version != "" {
+		t.Fatal("destroyed credential version remained readable")
 	}
 }
 

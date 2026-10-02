@@ -1,0 +1,21 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["env","ZASP_GO_BIN=/opt/homebrew/bin/go","GOCACHE=/private/tmp/zasp-budget-go-cache","/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","--test","deploy/production/attack-lab-reconciler-runtime.test.mjs"]
+TAP version 13
+# Subtest: actual Go57 worker and registration loaders accept only rendered dedicated authority
+ok 1 - actual Go57 worker and registration loaders accept only rendered dedicated authority
+  ---
+  duration_ms: 17543.720125
+  type: 'test'
+  ...
+# === RUN   TestAttackLabDeploymentRenderedWorkerConfig\\n    security_agent_attack_lab_deployment_test.go:25: real worker loader consumed untouched rendered env; only metadata.name and synthetic DSN substituted\\n--- PASS: TestAttackLabDeploymentRenderedWorkerConfig (0.05s)\\nPASS\\nok  \\tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-worker\\t2.552s\\n=== RUN   TestAttackLabDeploymentRenderedMigrationConfig\\n    attack_lab_deployment_config_test.go:21: real registration loaders consumed actual coexistence57 env\\n--- PASS: TestAttackLabDeploymentRenderedMigrationConfig (0.05s)\\nPASS\\nok  \\tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate\\t1.701s\\n
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17623.924792
+
+Exit: 0 Signal: null

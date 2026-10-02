@@ -1,0 +1,17 @@
+/usr/local/bin/docker run --rm --name zasp-export-db-red-20260919 --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(LateBudget|PlanBinding)Postgres/(expires_at_binding)$|^TestSecurityAgentExportLateBudgetPostgres$' -test.v -test.timeout 300s
+
+=== RUN   TestSecurityAgentExportPlanBindingPostgres
+=== RUN   TestSecurityAgentExportPlanBindingPostgres/expires_at_binding
+    security_agent_export_postgres_test.go:1074: invalid bound plan admitted: {"state": "pending", "run_id": "pid_8e100001-0000-4000-8000-000000000001", "step_id": "pid_8e100005-0000-4000-8000-000000000005", "replayed": false, "export_id": "pid_a8b352f2-0ac3-4491-8ee8-bd86a64f7c19", "run_version": 4, "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001"} <nil>
+    security_agent_export_postgres_test.go:1077: invalid plan reserved export state
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportPlanBindingPostgresexpires_at_binding1907420838/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportPlanBindingPostgres (5.25s)
+    --- FAIL: TestSecurityAgentExportPlanBindingPostgres/expires_at_binding (5.24s)
+=== RUN   TestSecurityAgentExportLateBudgetPostgres
+    security_agent_export_postgres_test.go:1323: expired budget admitted after audit wait: <nil>
+    security_agent_export_postgres_test.go:1329: late expired budget left durable export authority
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestSecurityAgentExportLateBudgetPostgres4001000993/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportLateBudgetPostgres (6.76s)
+FAIL
+
+Container exit: 1

@@ -1,0 +1,10 @@
+df184f1243688c395ec745803d2e3618213156534467c29510cd8c51ccf5dac5  /private/tmp/zasp-group-mapping-update-red.test
+TestGroupMappingExpectedVersionUpdateMountedPostgres
+=== RUN   TestGroupMappingExpectedVersionUpdateMountedPostgres
+    group_mapping_update_postgres_test.go:30: compiled56 checksum=f5871c564709034eaf89f325fcb732a3f3314ecc0ff95f7a0ec99f6d674ddfc1 fingerprint=8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced
+    group_mapping_update_postgres_test.go:129: positive create: registered=security_agent_v33_discovery_api_login security_admin/manage_identity HTTP200 role=security_engineer version1 audit1 session revoked
+    group_mapping_update_postgres_test.go:144: stale version0 conflict409 and foreign tenant target404 controls passed with no audit or foreign mapping change
+    group_mapping_update_postgres_test.go:156: valid expected_version1 update missing: HTTP=409 want200 role=security_engineer wantread_only_viewer version=1 want2 audit_count=1 want2 current_session_revoked=false wanttrue body={"code":"version_conflict","correlation_id":"pid_8c000001-0000-4000-8000-000000000001","message":"Resource version conflict","retryable":false}
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestGroupMappingExpectedVersionUpdateMountedPostgres955406829/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestGroupMappingExpectedVersionUpdateMountedPostgres (6.08s)
+FAIL

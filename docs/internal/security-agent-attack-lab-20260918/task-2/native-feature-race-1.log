@@ -1,0 +1,124 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform
+Command: ["env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go","test","-race","./agentsec-worker","-run","^TestAttackLabReconciler(ConfigIsolation|EvidenceOutcomes|StrictSQLWire|NextScopeBoundary|NextScopeStartAndCancellation|SchedulerRotatesAfterFailureAndWraps|SchedulerEmptyAndInvalidDependencies|SchedulerCancelsAndJoinsBeforeClose|SchedulerFreshInstanceRediscovers|RuntimeDispatch|RuntimeReadOnlyArtifacts|RuntimeComposition|RuntimeCloseRetainsReadinessBorrower)$","-count=1","-v"]
+=== RUN   TestAttackLabReconcilerStrictSQLWire
+--- PASS: TestAttackLabReconcilerStrictSQLWire (0.00s)
+=== RUN   TestAttackLabReconcilerConfigIsolation
+=== RUN   TestAttackLabReconcilerConfigIsolation/ZASP_TEST_RECONCILER_ROLE_ARN
+=== RUN   TestAttackLabReconcilerConfigIsolation/ZASP_ATTACK_LAB_QUEUE_URL
+=== RUN   TestAttackLabReconcilerConfigIsolation/ZASP_ATTACK_LAB_KUBERNETES_TOKEN_FILE
+=== RUN   TestAttackLabReconcilerConfigIsolation/ZASP_SECURITY_AGENT_PLANNER_TOKEN_FILE
+=== RUN   TestAttackLabReconcilerConfigIsolation/AWS_ACCESS_KEY_ID
+=== RUN   TestAttackLabReconcilerConfigIsolation/AWS_PROFILE
+--- PASS: TestAttackLabReconcilerConfigIsolation (0.00s)
+    --- PASS: TestAttackLabReconcilerConfigIsolation/ZASP_TEST_RECONCILER_ROLE_ARN (0.00s)
+    --- PASS: TestAttackLabReconcilerConfigIsolation/ZASP_ATTACK_LAB_QUEUE_URL (0.00s)
+    --- PASS: TestAttackLabReconcilerConfigIsolation/ZASP_ATTACK_LAB_KUBERNETES_TOKEN_FILE (0.00s)
+    --- PASS: TestAttackLabReconcilerConfigIsolation/ZASP_SECURITY_AGENT_PLANNER_TOKEN_FILE (0.00s)
+    --- PASS: TestAttackLabReconcilerConfigIsolation/AWS_ACCESS_KEY_ID (0.00s)
+    --- PASS: TestAttackLabReconcilerConfigIsolation/AWS_PROFILE (0.00s)
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/cleanup
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/unknown
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/source
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/artifact_version
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/artifact_checksum
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/artifact_size
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/scope
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/source_run
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/attempt
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/input
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/criterion_missing
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/verified/duplicate
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/cleanup
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/unknown
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/source
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/artifact_version
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/artifact_checksum
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/artifact_size
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/scope
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/source_run
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/attempt
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/input
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/criterion_missing
+=== RUN   TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/duplicate
+--- PASS: TestAttackLabReconcilerEvidenceOutcomes (0.01s)
+    --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/cleanup (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/unknown (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/source (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/artifact_version (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/artifact_checksum (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/artifact_size (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/scope (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/source_run (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/attempt (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/input (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/criterion_missing (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/verified/duplicate (0.00s)
+    --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/cleanup (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/unknown (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/source (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/artifact_version (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/artifact_checksum (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/artifact_size (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/scope (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/source_run (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/attempt (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/input (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/criterion_missing (0.00s)
+        --- PASS: TestAttackLabReconcilerEvidenceOutcomes/not_reproduced/duplicate (0.00s)
+=== RUN   TestAttackLabReconcilerRuntimeDispatch
+    security_agent_attack_lab_lifecycle_test.go:19: production mode not mounted runtime unavailable
+--- FAIL: TestAttackLabReconcilerRuntimeDispatch (0.00s)
+=== RUN   TestAttackLabReconcilerRuntimeReadOnlyArtifacts
+--- PASS: TestAttackLabReconcilerRuntimeReadOnlyArtifacts (0.00s)
+=== RUN   TestAttackLabReconcilerRuntimeComposition
+--- PASS: TestAttackLabReconcilerRuntimeComposition (0.09s)
+=== RUN   TestAttackLabReconcilerRuntimeCloseRetainsReadinessBorrower
+--- PASS: TestAttackLabReconcilerRuntimeCloseRetainsReadinessBorrower (1.00s)
+=== RUN   TestAttackLabReconcilerNextScopeBoundary
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/next
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/empty
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/null
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/object
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/same
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/duplicate_rows
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/alias
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/unknown
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/duplicate_key
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/missing
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/same_ids
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/invalid
+=== RUN   TestAttackLabReconcilerNextScopeBoundary/database_error
+--- PASS: TestAttackLabReconcilerNextScopeBoundary (1.03s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/next (0.08s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/empty (0.08s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/null (0.08s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/object (0.07s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/same (0.07s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/duplicate_rows (0.08s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/alias (0.07s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/unknown (0.08s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/duplicate_key (0.09s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/missing (0.09s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/same_ids (0.08s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/invalid (0.08s)
+    --- PASS: TestAttackLabReconcilerNextScopeBoundary/database_error (0.07s)
+=== RUN   TestAttackLabReconcilerNextScopeStartAndCancellation
+--- PASS: TestAttackLabReconcilerNextScopeStartAndCancellation (0.04s)
+=== RUN   TestAttackLabReconcilerSchedulerRotatesAfterFailureAndWraps
+--- PASS: TestAttackLabReconcilerSchedulerRotatesAfterFailureAndWraps (0.34s)
+=== RUN   TestAttackLabReconcilerSchedulerEmptyAndInvalidDependencies
+--- PASS: TestAttackLabReconcilerSchedulerEmptyAndInvalidDependencies (0.04s)
+=== RUN   TestAttackLabReconcilerSchedulerCancelsAndJoinsBeforeClose
+--- PASS: TestAttackLabReconcilerSchedulerCancelsAndJoinsBeforeClose (0.09s)
+=== RUN   TestAttackLabReconcilerSchedulerFreshInstanceRediscovers
+--- PASS: TestAttackLabReconcilerSchedulerFreshInstanceRediscovers (0.17s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	4.076s
+FAIL
+
+Exit: 1 Signal: null

@@ -1,0 +1,21 @@
+{
+  "head": "8733b16f8d939d38a8157dd2519e57fc6f630542",
+  "basis": "Fresh BEFORE blobs after final-fix review; only the SDK EOF checksum adapter and its connected tests. Prior final-fix artifacts are preserved.",
+  "files": [
+    {
+      "path": "services/platform/artifactstore/s3driver/driver.go",
+      "before": "f789e68933fc3ccd7a6d49a691da12e2b76a3366",
+      "after": "9ff51d8451494c86d3e4f16ca7f577bd51fdb3a8"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_read_classification_test.go",
+      "before": "61eb59ddc7adf3f7ce66bef35b33172e49059adf",
+      "after": "2f65e40fe71bf13f67dbe6f8b938ddf93ab94fb5"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_read_classification_postgres_test.go",
+      "before": "0ea976f5d1ae0159119a70105cadf458113a373a",
+      "after": "f85fb9c82dbec176e53b9c6452188a7bf644ecf9"
+    }
+  ]
+}

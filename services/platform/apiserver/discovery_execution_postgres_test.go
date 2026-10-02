@@ -224,10 +224,13 @@ CREATE ROLE execution_search_login LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATE
 		t.Helper()
 		for _, test := range cases {
 			err := constructAs(test)
-			if wantReady && err != nil {
+			// The current scheduler requires release60 occurrence authority. The
+			// other execution consumers retain their predecessor release gates.
+			consumerReady := wantReady && test.principal != "execution_scheduler_login"
+			if consumerReady && err != nil {
 				t.Fatalf("%s constructor under %s: %v", test.principal, condition, err)
 			}
-			if !wantReady && !errors.Is(err, ErrRepositoryConfiguration) {
+			if !consumerReady && !errors.Is(err, ErrRepositoryConfiguration) {
 				t.Fatalf("%s constructor under %s error=%v", test.principal, condition, err)
 			}
 		}

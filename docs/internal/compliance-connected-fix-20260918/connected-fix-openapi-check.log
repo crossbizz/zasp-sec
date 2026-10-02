@@ -1,0 +1,7 @@
+
+> zasp-agent-security-console@0.1.0 openapi:check
+> openapi-typescript openapi/openapi.yaml --output apps/web/api/generated.ts --alphabetize --export-type --immutable --root-types --root-types-no-schema-prefix --check
+
+✨ openapi-typescript 7.13.0
+
+EXIT_STATUS=0

@@ -16,6 +16,9 @@ const (
 	postgresReplayReferenceAuthorizationSQL   = `SELECT zasp_reference_authorization_replay($1,$2,$3,$4,$5,$6,$7)`
 	postgresCompleteReferenceAuthorizationSQL = `SELECT zasp_complete_reference_authorization($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14,$15)`
 	postgresExecutionCompleteReferenceSQL     = `SELECT zasp_execution_complete_reference_authorization($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14,$15,$16,$17)`
+	postgresCurrentReferenceReplaySQL         = `SELECT zasp_authorization80.integration_reference_replay($1,$2,$3,$4,$5,$6,$7)`
+	postgresCurrentReferenceValueSQL          = `SELECT zasp_authorization80.integration_reference_value($1,$2,$3,$4)`
+	postgresCurrentReferenceCompleteSQL       = `SELECT zasp_authorization80.integration_reference_complete($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14,$15,$16,$17)`
 	referenceAuthorizationOperation           = "completeIntegrationReferenceAuthorization"
 )
 
@@ -79,8 +82,15 @@ func (repository *ReferenceAuthorizationRepository) Replay(ctx context.Context, 
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || !validRequestIdentity(identity, false) || !validProductID(input.IntegrationID) || len(input.IdempotencyKey) < 16 || len(input.IdempotencyKey) > 128 || !workflowKeyPattern.MatchString(input.IdempotencyKey) || input.ExpectedVersion < 1 || input.ExpectedVersion > 1000000 {
 		return WorkflowMutationResult{}, false, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresReplayReferenceAuthorizationSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IntegrationID, input.IdempotencyKey, input.ExpectedVersion)
+	statement := postgresReplayReferenceAuthorizationSQL
+	if grant, checked := requestAuthorizationFromContext(ctx); checked && grant.OperationID == "authorizeIntegrationReference" {
+		statement = postgresCurrentReferenceReplaySQL
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IntegrationID, input.IdempotencyKey, input.ExpectedVersion)
 	if err != nil {
+		if statement == postgresCurrentReferenceReplaySQL {
+			return WorkflowMutationResult{}, false, currentIntegrationPreparationError(err)
+		}
 		return WorkflowMutationResult{}, false, discoveryProviderError(err)
 	}
 	var envelope struct {
@@ -118,8 +128,17 @@ func (repository *ReferenceAuthorizationRepository) Complete(ctx context.Context
 		statement = postgresExecutionCompleteReferenceSQL
 		args = append(args, input.SubjectKind, input.SubjectID)
 	}
+	if grant, checked := requestAuthorizationFromContext(ctx); checked && grant.OperationID == "authorizeIntegrationReference" {
+		statement = postgresCurrentReferenceCompleteSQL
+		if len(args) == 15 {
+			args = append(args, input.SubjectKind, input.SubjectID)
+		}
+	}
 	payload, err := repository.database.QueryJSON(ctx, statement, args...)
 	if err != nil {
+		if statement == postgresCurrentReferenceCompleteSQL {
+			return WorkflowMutationResult{}, currentIntegrationPreparationError(err)
+		}
 		return WorkflowMutationResult{}, discoveryProviderError(err)
 	}
 	var result WorkflowMutationResult

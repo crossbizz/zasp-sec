@@ -1,0 +1,5 @@
+=== RUN   TestSecurityAgentExportDefinitionPublicLifecyclePostgres
+    security_agent_export_definition_postgres_test.go:96: invalid authority accepted or wrong refusal: <nil>
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportDefinitionPublicLifecyclePostgres35644036/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportDefinitionPublicLifecyclePostgres (5.71s)
+FAIL

@@ -1,0 +1,10 @@
+=== RUN   TestComplianceCandidateAdmissionProgressPostgres
+    compliance_connected_postgres_test.go:38: poll 0 discovered unclaimable head pid_40000003-0000-4000-8000-000000000003: batch1 makes no progress
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestComplianceCandidateAdmissionProgressPostgres3374784207/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestComplianceCandidateAdmissionProgressPostgres (5.90s)
+=== RUN   TestComplianceHTTPMaximumIDCursorPostgres
+    compliance_connected_postgres_test.go:62: soc2_security actual HTTP cursor length=606
+    compliance_connected_postgres_test.go:62: hipaa actual HTTP cursor length=584
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestComplianceHTTPMaximumIDCursorPostgres1533641960/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceHTTPMaximumIDCursorPostgres (5.32s)
+FAIL

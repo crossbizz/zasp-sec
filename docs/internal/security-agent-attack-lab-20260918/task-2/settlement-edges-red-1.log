@@ -1,0 +1,5 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/bin/zsh","-lc","/usr/local/bin/docker run --rm --pull=never --name zasp-attack-lab-task2 --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --env ZASP_ATTACK_LAB_TASK2_WORKER_BINARY=/attack-lab-worker.test --mount type=bind,src=/private/tmp/zasp-attack-lab-task2-worker.test,dst=/attack-lab-worker.test,readonly --mount type=bind,src=/private/tmp/zasp-attack-lab-task2.test,dst=/attack-lab.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /attack-lab.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentAttackLab(Settlement|Runtime)Postgres$/^create_denied -test.v -test.timeout 300s -test.v -test.timeout 300s"]
+zsh:1: unmatched '
+
+Exit: 1 Signal: null

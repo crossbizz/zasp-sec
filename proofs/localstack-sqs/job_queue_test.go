@@ -138,6 +138,7 @@ func TestJobQueueDriverStrictlyReconstructsConsumedMessages(t *testing.T) {
 				MessageID:     "provider-message-" + string(rune('1'+index)),
 				ReceiptHandle: "provider-receipt-" + string(rune('1'+index)),
 				BodyDigest:    md5Hex(string(message.Body)),
+				ReceiveCount:  []int{1, 7}[index],
 			}
 		}
 		return results, nil
@@ -155,8 +156,29 @@ func TestJobQueueDriverStrictlyReconstructsConsumedMessages(t *testing.T) {
 			delivery.Message.JobID != messages[index].JobID || delivery.Message.Kind != messages[index].Kind ||
 			string(delivery.Message.Body) != string(messages[index].Body) || delivery.Message.SHA256 != messages[index].SHA256 ||
 			delivery.MessageID != "provider-message-"+string(rune('1'+index)) ||
-			delivery.ReceiptHandle != "provider-receipt-"+string(rune('1'+index)) {
+			delivery.ReceiptHandle != "provider-receipt-"+string(rune('1'+index)) ||
+			delivery.ReceiveCount != []int{1, 7}[index] {
 			t.Fatalf("delivery %d = %#v", index, delivery)
+		}
+	}
+}
+
+func TestJobQueueDriverRejectsInvalidReceiveCounts(t *testing.T) {
+	t.Parallel()
+
+	message := jobDriverMessages(t)[0]
+	for _, count := range []int{0, -1, 1_000_000_001} {
+		api := noCallJobBatchAPI()
+		api.receive = func(context.Context, string, int) ([]receivedMessage, error) {
+			return []receivedMessage{{
+				Body: string(message.Body), Attributes: expectedJobAttributes(message),
+				MessageID: "provider-message", ReceiptHandle: "provider-receipt",
+				BodyDigest: md5Hex(string(message.Body)), ReceiveCount: count,
+			}}, nil
+		}
+		deliveries, err := mustJobDriver(t, api).ConsumeBatch(context.Background(), 1)
+		if !errors.Is(err, errMessage) || deliveries != nil {
+			t.Fatalf("count %d returned deliveries=%#v, error=%v", count, deliveries, err)
 		}
 	}
 }
@@ -236,7 +258,7 @@ func TestJobQueueDriverRejectsPartialForeignAndMalformedProviderState(t *testing
 					}
 					return []receivedMessage{{
 						Body: string(messages[0].Body), Attributes: attributes, MessageID: "message",
-						ReceiptHandle: "receipt", BodyDigest: md5Hex(string(messages[0].Body)),
+						ReceiptHandle: "receipt", BodyDigest: md5Hex(string(messages[0].Body)), ReceiveCount: 1,
 					}}, nil
 				}
 				return api

@@ -377,8 +377,7 @@ func (resolver *recordingJobCredentialMaterialResolver) ResolveDiscoveryCredenti
 		resolver.leaseByJob = map[string]string{}
 	}
 	resolver.leaseByJob[request.Input.JobID] = string(request.LeaseToken)
-	stored := request
-	stored.Input = cloneExecutionJobInput(request.Input)
+	stored := cloneDiscoveryCredentialMaterialRequest(request)
 	stored.LeaseToken = nil
 	resolver.requests = append(resolver.requests, stored)
 	if resolver.panicCall {

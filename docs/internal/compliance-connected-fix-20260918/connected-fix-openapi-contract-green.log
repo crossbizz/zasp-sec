@@ -1,0 +1,162 @@
+TAP version 13
+# Subtest: M1-23 strict OpenAPI root
+    # Subtest: defines the exact self-contained OpenAPI, auth, pagination, and error boundary
+    ok 1 - defines the exact self-contained OpenAPI, auth, pagination, and error boundary
+      ---
+      duration_ms: 6.142083
+      type: 'test'
+      ...
+    # Subtest: uses only the exact pinned local linter command and justified rule exception
+    ok 2 - uses only the exact pinned local linter command and justified rule exception
+      ---
+      duration_ms: 0.083083
+      type: 'test'
+      ...
+    # Subtest: rejects duplicate YAML keys before semantic validation
+    ok 3 - rejects duplicate YAML keys before semantic validation
+      ---
+      duration_ms: 10.772792
+      type: 'test'
+      ...
+    # Subtest: accepts only canonical unpadded base64url cursor encodings
+    ok 4 - accepts only canonical unpadded base64url cursor encodings
+      ---
+      duration_ms: 0.192417
+      type: 'test'
+      ...
+    # Subtest: rejects every product-error control-character class
+    ok 5 - rejects every product-error control-character class
+      ---
+      duration_ms: 0.192667
+      type: 'test'
+      ...
+    # Subtest: rejects hostile root, authentication, pagination, and error mutations
+    ok 6 - rejects hostile root, authentication, pagination, and error mutations
+      ---
+      duration_ms: 62.603042
+      type: 'test'
+      ...
+    1..6
+ok 1 - M1-23 strict OpenAPI root
+  ---
+  duration_ms: 98.5615
+  type: 'suite'
+  ...
+# Subtest: production workflow concurrency contract
+    # Subtest: publishes the exact replay-safe sensor management surface
+    ok 1 - publishes the exact replay-safe sensor management surface
+      ---
+      duration_ms: 0.375166
+      type: 'test'
+      ...
+    # Subtest: publishes the three retained DELETE operations with no request body
+    ok 2 - publishes the three retained DELETE operations with no request body
+      ---
+      duration_ms: 0.188458
+      type: 'test'
+      ...
+    # Subtest: reports asynchronous integration revocation without claiming early deletion
+    ok 3 - reports asynchronous integration revocation without claiming early deletion
+      ---
+      duration_ms: 0.2125
+      type: 'test'
+      ...
+    # Subtest: separates server-assigned security-agent identity from create input
+    ok 4 - separates server-assigned security-agent identity from create input
+      ---
+      duration_ms: 0.060125
+      type: 'test'
+      ...
+    # Subtest: types idempotency, versions, fresh auth, and durable mutation receipts
+    ok 5 - types idempotency, versions, fresh auth, and durable mutation receipts
+      ---
+      duration_ms: 0.264125
+      type: 'test'
+      ...
+    # Subtest: publishes bounded browser-only receipt reconciliation and acknowledgement
+    ok 6 - publishes bounded browser-only receipt reconciliation and acknowledgement
+      ---
+      duration_ms: 0.106167
+      type: 'test'
+      ...
+    # Subtest: requires the browser scope precondition on every scoped session operation
+    ok 7 - requires the browser scope precondition on every scoped session operation
+      ---
+      duration_ms: 0.046
+      type: 'test'
+      ...
+    # Subtest: publishes exact receipt intent and authoritative result object shapes
+    ok 8 - publishes exact receipt intent and authoritative result object shapes
+      ---
+      duration_ms: 0.094875
+      type: 'test'
+      ...
+    # Subtest: publishes the strict Task 4 sync, schedule, and freshness contract without internal execution authority
+    ok 9 - publishes the strict Task 4 sync, schedule, and freshness contract without internal execution authority
+      ---
+      duration_ms: 0.256125
+      type: 'test'
+      ...
+    # Subtest: publishes bounded browser-only typed activity relations with explicit coverage
+    ok 10 - publishes bounded browser-only typed activity relations with explicit coverage
+      ---
+      duration_ms: 0.081416
+      type: 'test'
+      ...
+    # Subtest: publishes the mounted Security Agent activation, simulation, manual run, and approval surface without read overclaims
+    ok 11 - publishes the mounted Security Agent activation, simulation, manual run, and approval surface without read overclaims
+      ---
+      duration_ms: 1.148667
+      type: 'test'
+      ...
+    # Subtest: publishes strict browser-only integration authorization and OAuth callback contracts
+    ok 12 - publishes strict browser-only integration authorization and OAuth callback contracts
+      ---
+      duration_ms: 0.186458
+      type: 'test'
+      ...
+    # Subtest: publishes strict fresh browser-only reference authorization
+    ok 13 - publishes strict fresh browser-only reference authorization
+      ---
+      duration_ms: 0.058875
+      type: 'test'
+      ...
+    # Subtest: binds risk reads and mutations to strict pagination, security, and recovery contracts
+    ok 14 - binds risk reads and mutations to strict pagination, security, and recovery contracts
+      ---
+      duration_ms: 0.132458
+      type: 'test'
+      ...
+    # Subtest: bounds Security Agent definition pagination with the shared opaque cursor contract
+    ok 15 - bounds Security Agent definition pagination with the shared opaque cursor contract
+      ---
+      duration_ms: 0.03575
+      type: 'test'
+      ...
+    # Subtest: bounds policy and integration pagination with the same exact cursor contract
+    ok 16 - bounds policy and integration pagination with the same exact cursor contract
+      ---
+      duration_ms: 0.040375
+      type: 'test'
+      ...
+    # Subtest: publishes typed discovery inventory pages, details, evidence, and freshness
+    ok 17 - publishes typed discovery inventory pages, details, evidence, and freshness
+      ---
+      duration_ms: 0.080292
+      type: 'test'
+      ...
+    1..17
+ok 2 - production workflow concurrency contract
+  ---
+  duration_ms: 3.725958
+  type: 'suite'
+  ...
+1..2
+# tests 23
+# suites 2
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 159.239084

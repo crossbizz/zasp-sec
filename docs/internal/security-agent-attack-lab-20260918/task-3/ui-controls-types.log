@@ -1,0 +1,14 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","node_modules/typescript/bin/tsc","--noEmit"]
+app/features/securityagents/SecurityAgentsView.test.tsx(56,74): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(role: ByRoleMatcher, options?: ByRoleOptions | undefined, waitForElementOptions?: waitForOptions | undefined): Promise<HTMLElement>', gave the following error.
+    Object literal may only specify known properties, and 'exact' does not exist in type 'ByRoleOptions'.
+  Overload 2 of 2, '(role: ByRoleMatcher, options?: ByRoleOptions | undefined, waitForElementOptions?: waitForOptions | undefined): Promise<HTMLElement>', gave the following error.
+    Object literal may only specify known properties, and 'exact' does not exist in type 'ByRoleOptions'.
+app/features/securityagents/SecurityAgentsView.tsx(78,219): error TS2367: This comparison appears to be unintentional because the types '"update_finding_response" | "revoke_integration_connection" | "*"' and '"start_attack_lab"' have no overlap.
+app/features/securityagents/SecurityAgentsView.tsx(230,226): error TS2345: Argument of type '"update_finding_response" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "run_test" | "rerun_test" | "start_attack_lab" | "*"' is not assignable to parameter of type '"update_finding_response" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "run_test" | "rerun_test" | "*"'.
+  Type '"start_attack_lab"' is not assignable to type '"update_finding_response" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "run_test" | "rerun_test" | "*"'.
+app/features/securityagents/SecurityAgentsView.tsx(245,246): error TS2345: Argument of type '"update_finding_response" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "run_test" | "rerun_test" | "start_attack_lab" | "*"' is not assignable to parameter of type '"update_finding_response" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "run_test" | "rerun_test" | "*"'.
+  Type '"start_attack_lab"' is not assignable to type '"update_finding_response" | "create_temporary_policy" | "isolate_session" | "revoke_integration_connection" | "run_test" | "rerun_test" | "*"'.
+
+Exit: 2 Signal: null

@@ -36,6 +36,9 @@ func (repository *PostgresProductionPipelineRepository) ReadyCandidates(ctx cont
 	if !validProductionPipelineRepository(repository, ctx) || repository.authority != ProductionPipelineAuthorityCorrelation {
 		return ErrProductionPipelineUnavailable
 	}
+	if _, current := repository.database.(*currentRuntimeDatabase); current {
+		return repository.requirePrecisionReady(ctx)
+	}
 	metadata := migrations.ProductionRuntimeCandidateAuthority()
 	payload, err := safeProductionQuery(repository.database, ctx, productionCandidateReadyV48SQL, migrations.ProductionRuntimeAcceptance().Checksum(), migrations.ProductionRuntimeAcceptanceSemanticFingerprint(), metadata.Checksum(), migrations.ProductionRuntimeCandidateAuthoritySemanticFingerprint(), string(repository.authority))
 	var provider *pgconn.PgError

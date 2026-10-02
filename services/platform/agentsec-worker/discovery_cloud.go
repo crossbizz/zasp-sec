@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 )
 
 var (
@@ -144,7 +145,7 @@ func newProductionDiscoveryCloudAuthority(config productionDiscoveryCloudConfig)
 		return nil, errRuntimeUnavailable
 	}
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: config.Timeout, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: config.Timeout, ResponseHeaderTimeout: config.Timeout, MaxResponseHeaderBytes: 1 << 20}
-	httpClient := &http.Client{Transport: transport, Timeout: config.Timeout, CheckRedirect: rejectDiscoveryProviderRedirect}
+	httpClient := &http.Client{Transport: collection.EffectTransport{Next: transport}, Timeout: config.Timeout, CheckRedirect: rejectDiscoveryProviderRedirect}
 	base := aws.Config{Region: config.Region, HTTPClient: httpClient, Credentials: aws.AnonymousCredentials{}, Retryer: func() aws.Retryer { return aws.NopRetryer{} }}
 	webIdentity := &discoveryWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: config.RoleARN, tokenFile: config.TokenFile, timeout: config.Timeout, clock: config.Clock, session: config.Session}
 	credentials := aws.NewCredentialsCache(webIdentity)
@@ -201,7 +202,7 @@ func (authority *productionDiscoveryCloudAuthority) Close() error {
 }
 
 func validProductionDiscoveryCloudConfig(config productionDiscoveryCloudConfig) bool {
-	if !discoveryRegionPattern.MatchString(config.Region) || !discoveryCloudRolePattern.MatchString(config.RoleARN) || config.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validDiscoverySecretRoot(config.SecretRoot) || config.Timeout < time.Second || config.Timeout > 30*time.Second || config.Clock == nil || config.Session != "" && config.Session != "zasp-red-team-worker" && config.Session != "zasp-attack-lab-controller" && config.Session != "zasp-recovery-worker" {
+	if !discoveryRegionPattern.MatchString(config.Region) || !discoveryCloudRolePattern.MatchString(config.RoleARN) || config.TokenFile != "/var/run/secrets/eks.amazonaws.com/serviceaccount/token" || !validDiscoverySecretRoot(config.SecretRoot) || config.Timeout < time.Second || config.Timeout > 30*time.Second || config.Clock == nil || config.Session != "" && config.Session != "zasp-red-team-worker" && config.Session != "zasp-attack-lab-controller" && config.Session != "zasp-recovery-worker" && config.Session != "zasp-test-reconciler" && config.Session != "zasp-attack-lab-reconciler" {
 		return false
 	}
 	now := config.Clock()

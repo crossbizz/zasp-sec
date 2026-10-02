@@ -1,0 +1,26 @@
+Installation-only checkpoints. These binaries did not contain the final registered
+authority test or frozen final source; PASS below is not Task1 acceptance.
+
+Native reference GREEN, session 5016, exit 0:
+ok  github.com/zasp-ai/zasp-sec/services/platform/apiserver 1.114s
+
+Owned install session 51760, exit 1:
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres
+    security_agent_attack_lab_postgres_test.go:16: ERROR: syntax error at end of input (SQLSTATE 42601)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentAttackLabAuthorityPostgres1976803799/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentAttackLabAuthorityPostgres (5.19s)
+FAIL
+
+Owned install session 85809, exit 0, before registration/role SQL was compiled:
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres
+    security_agent_attack_lab_postgres_test.go:25: release57 observed fingerprint: 17cd2b892a16be8148acee51338e8903d55e44864107f6f4688f05d01f8935e7
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentAttackLabAuthorityPostgres274147616/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentAttackLabAuthorityPostgres (4.54s)
+PASS
+
+Owned install session 51719, exit 0, before registered-dispatch assertions:
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres
+    security_agent_attack_lab_postgres_test.go:25: release57 observed fingerprint: 278b60d46e22b4a9f97c9485ef10edbc0a05eff8e9bfa81b9f06ff303ddcf24d
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentAttackLabAuthorityPostgres3260884066/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentAttackLabAuthorityPostgres (4.52s)
+PASS

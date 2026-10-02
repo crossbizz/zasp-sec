@@ -1,0 +1,146 @@
+[
+  {
+    "path": "services/platform/apiserver/security_agent_attack_lab_public_projection_test.go",
+    "before": "0015f7a19a6906750f03e82b730ae7f1aa062e2e",
+    "after": "3fcebc88e9dad6fffbd62efbecca7a4f597b974e",
+    "sha256": "18178619ddc959c15b432375730332d5873d309b982b0ac0e99f5272a82c3595"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_repository.go",
+    "before": "6487353dc2e7283030b5c3f492aa861aa013703e",
+    "after": "6d6bd78cab1863c6898e0b7e9459987fcd4eeb53",
+    "sha256": "9cd9c8f7f6f3e75691761d453d01cd066690ecb1175e7323db19bac20ba9ace3"
+  },
+  {
+    "path": "services/platform/migrations/sql/fragments/security_agent_attack_lab_links.sql",
+    "before": "4379f0506742e6414afd322f058ed8fa216a49c6",
+    "after": "a0c2092b2d05cb9a91388e7de8b07dc95e77963f",
+    "sha256": "5a714335c8dfd9af984fe98318c563245f9dbae04929fbb2f8b2d29906a46c3d"
+  },
+  {
+    "path": "services/platform/migrations/security_agent_attack_lab_release.go",
+    "before": "a2b12ede2b2cc57ad1a0ee29115555a5a8074bd5",
+    "after": "d44734ce2a8ee0f5f2565f4c8a6e9bdb4ba3aa0e",
+    "sha256": "751eee2cc3f9282a0c54c971f85c6b786357b8bcdbd13b131c98ff5c19b19f8a"
+  },
+  {
+    "path": "apps/web/api/decoders.attack-lab.test.ts",
+    "before": "5f916b3ca3f13aa5a1a465a5475bb87b53e5ed85",
+    "after": "d88b4180bed29bdb501d3407a9c37e103bfb3b12",
+    "sha256": "fceed9aef1fe482af50fec461969d3d8b1f6c83976c392d1a765125d42bc8412"
+  },
+  {
+    "path": "apps/web/api/decoders.ts",
+    "before": "f6b7145cb54d53ab17f0d338e46f539ef7a5b647",
+    "after": "72fe56d03f2975b4c9f3be92cc1d713050c13db5",
+    "sha256": "c2380245778f00c04b42a028235f9bbf574c634afe9d036c25a95bc06b25d97f"
+  },
+  {
+    "path": "openapi/openapi.yaml",
+    "before": "2862976d691cd3218658bc2e862eb1d4054e64fd",
+    "after": "c6ed622704a8a561492bd5d81b976b42f01095bd",
+    "sha256": "1eeb284ddd1c14eded22fb57d75a6ac4e6b1f7b473092f28d43fc74dad7eff06"
+  },
+  {
+    "path": "apps/web/api/generated.ts",
+    "before": "b197a0e33a16ba32437aab6e1b2d80fb92807a4b",
+    "after": "634ee0cdbeb028f6c622667c230066444df77578",
+    "sha256": "301235f658d9e0052c3024d9367f1b7066a31009e5746ce7deae50d1eef44755"
+  },
+  {
+    "path": "app/features/securityagents/SecurityAgentsView.tsx",
+    "before": "1704068724b9c199bc64ae6e709bc277a1467035",
+    "after": "e08ee3e27fdcbc1f743e7a5ec1ac37022bb62d1c",
+    "sha256": "beaca7d7a9dc1799431a50a2a0703dae04ed5e67eb3cb12f7fae68562acd5ca3"
+  },
+  {
+    "path": "app/features/securityagents/SecurityAgentsView.test.tsx",
+    "before": "74941e141972337df686fcaf0e1c8f8bc84ebcf0",
+    "after": "9a5b842ceb645d360a302440c79bd9bdb3ca6111",
+    "sha256": "38b1b8de85fda789c6a5ba5bbd70dd76f0246abca643ef1a999d60f3e5c87f29"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_attack_lab_repository.go",
+    "before": "4c259bd0c41e4c8a00da3f400a77185d3150aaac",
+    "after": "5aebaee8871099c1aaa904a37ff7390eee5e6160",
+    "sha256": "9d597fe151bfba836866cba128a90ce66a88f96e5a18a3d1ebfa1dde113432f2"
+  },
+  {
+    "path": "scripts/production-combined-e2e.mjs",
+    "before": "a29bb713bc509315fd63ac5e4d3ecb66a33e5f57",
+    "after": "ba082b0730bbde5236c9ca3d3095342e631d399b",
+    "sha256": "80dfb4a8ae4777be3cd7317caed5204d6edbd53d293753d5952f437bd095aaca"
+  },
+  {
+    "path": "scripts/attack-lab-mounted-browser.mjs",
+    "before": "f3cb7305944a3ab7f5145d37be878807f9c557dc",
+    "after": "ada2acafa7dcb5886d0b55749168a5f2d4b3b5ea",
+    "sha256": "f967ec33d3f5cfcc30cc809efd9e7ca55ea2c6bae9392f44259e023c10ba2884"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_attack_lab_settlement_postgres_test.go",
+    "before": "31a9e79af50349337cdf10aa31ceeb252967c975",
+    "after": "f53cd36c7e372ff9891a39a4a58afe6b3328ab19",
+    "sha256": "0966a0f0f3130f7479f9d73b045bf9b7fb059014b472a52e166c34546c160a76"
+  },
+  {
+    "path": "openapi/openapi.test.mjs",
+    "before": "6019b51fe17ab71906a78a899081b94426bfece1",
+    "after": "18b696938f98d74f745f459978e1806b522f785c",
+    "sha256": "d17f68dce83c212d9bed69a2e9910822771db3cc32ac465e2e89b342d9f907a5"
+  },
+  {
+    "path": "scripts/check-ui-api-coverage.test.mjs",
+    "before": "5aa64d8573674651307dce9817897a742b6b454d",
+    "after": "aef57d8e263c6bc6d79f9a3ebfeff0de0253e61e",
+    "sha256": "c0e39f1269205a0584833f5099e131a509c633da84c25becdcc74daa45848940"
+  },
+  {
+    "path": "services/platform/migrations/sql/fragments/security_agent_attack_lab_planner.sql",
+    "before": "e20ebdb9e646f1949a0c7edf5ee7c13e073e32ab",
+    "after": "c820264e9bd615e7899f6b0870ec8cd80da7244f",
+    "sha256": "f69bcc4abf9139ad724d25faadb791b26cc1f79c1974324074370147d6503aa6"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_worker_repository.go",
+    "before": "45712a97a91709b64ff94d861cfbc8db7cd4d932",
+    "after": "1033602f6e06e1e35fa1c3439ead08b9deaf5982",
+    "sha256": "3eda6569533b83b72fd3b0309638f16b75e6c0f5f5f0175ddc72390fb4141007"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_runtime.go",
+    "before": "e69276bf7fc90e53f48624a7ae64ec5058a7ce3a",
+    "after": "4c4043774515872ed2c8520792ef42d6eca55674",
+    "sha256": "808f7c22e36fbcee1dc743bad53bdcb64fa8c4a90729c038d53626a440d4218d"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_run_context.go",
+    "before": "57bd51c3e4784ff11c13c7395e74d581ca5a13f8",
+    "after": "c3f8a948f4959c10db4a6bdf15b1793c3a7c9cd5",
+    "sha256": "137b6f087e56b6b3eefe1d29d73ba41c6f039a920c1b6f1648a38b122ed8a511"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_run_context_envelope.go",
+    "before": "d48bfc69997da0ac3ef6a77cf1258792395dedd9",
+    "after": "6c040c599b398c13eedf28b0e40f5c956490af2a",
+    "sha256": "9b9e4a55c6968bf65fb5daa8fe4d0a8e19daa5d8bc8b42cce9f78bf71572cb0e"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_runtime_test.go",
+    "before": "fdb594d0869457bcc4c13722e1d46222a9290d4f",
+    "after": "f49481691993b83f536dfb3f2c884277da36ed13",
+    "sha256": "199403064cfb0d6d55f22d05a6b7a8a382d82649c1f83102ba5979f890fb44b3"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_attack_lab_unavailable_test.go",
+    "before": null,
+    "after": "0711a6b89e995af6fbf13d00d1edc93ad806d179",
+    "sha256": "94e2e8def8aa9a8ce00f0116635f42f98e059013b64164c3119e1b493e11648c"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_attack_lab_unavailable_postgres_test.go",
+    "before": null,
+    "after": "1a9da28be10524db6bd25bf31e0d008a62b056cc",
+    "sha256": "bf4aa0c8aacbab63c64746fdc2f15415f655f56040d60d7228d37f24c550c3d6"
+  }
+]

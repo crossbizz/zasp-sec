@@ -114,6 +114,50 @@ func TestInventoryCollectionAPIScopesIdenticalAWSARNsToDifferentOrganizations(t 
 	}
 }
 
+func TestInventoryCollectionStartsNewGenerationFromBoundCompletedCursor(t *testing.T) {
+	caller := &recordingAWSInventoryCaller{snapshot: awsInventoryFixture()}
+	api, err := NewInventoryCollectionAPI(caller, &recordingSecurityAnalyzer{}, awsInventoryAuthority(t, "pid_51000001-0000-4000-8000-000000000001"), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := CollectionPageRequest{Provider: collection.ProviderAWS, Subject: collection.SubjectBinding{Kind: "aws_account", ID: "123456789012"}, Page: 1, RemainingItems: 100, RemainingRelationships: 200, RemainingFindings: 100, RemainingBytes: 1 << 20}
+	credential := []byte("temporary-aws-credential-value")
+	var partial collection.Cursor
+	for page := 1; page <= 4; page++ {
+		q.Page = page
+		out, err := api.FetchCollectionPage(context.Background(), credential, q)
+		if err != nil || out.Complete != (page == 4) {
+			t.Fatal("initial collection", page, err)
+		}
+		q.Cursor = out.Cursor
+		if page == 1 {
+			partial = out.Cursor
+		}
+	}
+	q.Page = 1
+	complete := q.Cursor
+	out, err := api.FetchCollectionPage(context.Background(), credential, q)
+	if err != nil || out.Complete || len(out.Entities) != 1 {
+		t.Fatal("next generation account page", err)
+	}
+	for _, kind := range []string{"foreign subject", "midstream cursor", "complete on later page"} {
+		bad := q
+		switch kind {
+		case "foreign subject":
+			bad.Subject.ID = "210987654321"
+		case "midstream cursor":
+			bad.Cursor = partial
+		case "complete on later page":
+			bad.Cursor = complete
+			bad.Page = 2
+		}
+		before := caller.calls
+		if _, err := api.FetchCollectionPage(context.Background(), credential, bad); err == nil || caller.calls != before {
+			t.Fatal("invalid restart reached provider", kind, err)
+		}
+	}
+}
+
 func awsInventoryFixture() CollectionInventory {
 	cartography := json.RawMessage(`{"account_id":"123456789012","managed_policies":{"arn:aws:iam::123456789012:role/read":{"arn:aws:iam::123456789012:policy/read":[]}},"roles":[{"Arn":"arn:aws:iam::123456789012:role/read","AssumeRolePolicyDocument":{},"CreateDate":"2026-08-20T00:00:00Z","Path":"/","RoleId":"AROAABCDEFGHIJKLMNOP","RoleName":"read"}]}`)
 	prowler := json.RawMessage(`{"account_id":"123456789012","instances":[{"Arn":"arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0","HttpEndpoint":"enabled","HttpTokens":"required","InstanceId":"i-0123456789abcdef0","Region":"us-east-1","State":"running"}],"roles":[{"Arn":"arn:aws:iam::123456789012:role/read","AssumeRolePolicyDocument":{},"AttachedPolicies":[{"PolicyName":"read"}],"IsServiceRole":false,"RoleId":"AROAABCDEFGHIJKLMNOP","RoleName":"read"}]}`)

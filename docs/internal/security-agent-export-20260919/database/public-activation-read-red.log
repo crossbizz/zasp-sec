@@ -1,0 +1,19 @@
+=== RUN   TestSecurityAgentExportDefinitionPublicLifecyclePostgres
+    security_agent_export_definition_postgres_test.go:42: release58 checksum=d5c02cc9eec17f6eb0d59226a47ce1a4cf9126a745237d19f5f66e3332c906d8 fingerprint=146d76fbd61b619e4892f01e52eb621dac20c475345e735d8f25a20ff5026376
+=== RUN   TestSecurityAgentExportDefinitionPublicLifecyclePostgres/legacy_value
+    security_agent_export_definition_postgres_test.go:128: legacy export reader not fenced: <nil>
+=== RUN   TestSecurityAgentExportDefinitionPublicLifecyclePostgres/legacy_detail
+    security_agent_export_definition_postgres_test.go:128: legacy export reader not fenced: <nil>
+=== RUN   TestSecurityAgentExportDefinitionPublicLifecyclePostgres/legacy_page
+    security_agent_export_definition_postgres_test.go:147: legacy page exposed export
+=== NAME  TestSecurityAgentExportDefinitionPublicLifecyclePostgres
+    security_agent_export_definition_postgres_test.go:155: ERROR: export definition permission rejected (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportDefinitionPublicLifecyclePostgres587267633/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportDefinitionPublicLifecyclePostgres (6.63s)
+    --- FAIL: TestSecurityAgentExportDefinitionPublicLifecyclePostgres/legacy_value (0.00s)
+    --- FAIL: TestSecurityAgentExportDefinitionPublicLifecyclePostgres/legacy_detail (0.00s)
+    --- FAIL: TestSecurityAgentExportDefinitionPublicLifecyclePostgres/legacy_page (0.00s)
+=== RUN   TestSecurityAgentExportDefinitionAuthorityWaitPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=53 data=/tmp/TestSecurityAgentExportDefinitionAuthorityWaitPostgres4094189460/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportDefinitionAuthorityWaitPostgres (7.52s)
+FAIL

@@ -1,0 +1,8 @@
+Command: /usr/local/bin/docker run --rm --pull=never --name zasp-attack-lab-task2 --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-attack-lab-task2.test,dst=/attack-lab.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /attack-lab.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentAttackLabSettlementPostgres$' -test.v -test.timeout 120s
+Session12876 exit1
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres
+    security_agent_attack_lab_settlement_postgres_test.go:20: observed57 fingerprint=797b6bdf674dd33b0a2459e12f10660a262a0a365b213944db3bb4f2469849fd
+    security_agent_attack_lab_settlement_postgres_test.go:28: dedicated scope authority missing: ERROR: function zasp_sa_attack_lab_reconcile_scopes(unknown, unknown, unknown, unknown, unknown, unknown) does not exist (SQLSTATE 42883)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentAttackLabSettlementPostgres826489331/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentAttackLabSettlementPostgres (5.39s)
+FAIL

@@ -1,0 +1,17 @@
+/usr/local/bin/docker run --rm --name zasp-export-db-red-20260919 --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(Release|SharedQuota)Postgres$' -test.v -test.timeout 300s
+
+=== RUN   TestSecurityAgentExportSharedQuotaPostgres
+=== RUN   TestSecurityAgentExportSharedQuotaPostgres/agent_first_false
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportSharedQuotaPostgresagent_first_false243508537/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportSharedQuotaPostgres/agent_first_true
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=55 data=/tmp/TestSecurityAgentExportSharedQuotaPostgresagent_first_true1254050496/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportSharedQuotaPostgres (10.81s)
+    --- PASS: TestSecurityAgentExportSharedQuotaPostgres/agent_first_false (5.48s)
+    --- PASS: TestSecurityAgentExportSharedQuotaPostgres/agent_first_true (5.32s)
+=== RUN   TestSecurityAgentExportReleasePostgres
+    security_agent_export_release_postgres_test.go:68: live trigger drift accepted: true <nil>
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=86 data=/tmp/TestSecurityAgentExportReleasePostgres1340495446/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportReleasePostgres (6.84s)
+FAIL
+
+Container exit: 1

@@ -1,0 +1,200 @@
+--- a/services/platform/migrations/sql/fragments/security_agent_export_links.sql
++++ b/services/platform/migrations/sql/fragments/security_agent_export_links.sql
+@@ -1,6 +1,6 @@
+ CREATE FUNCTION public.zasp_sa_export_principal_ready(expected_role text) RETURNS boolean LANGUAGE sql STABLE SET search_path TO pg_catalog,public AS $caller$
+  SELECT COALESCE(public.zasp_security_agent_principal_ready(expected_role),false)
+- AND NOT EXISTS(SELECT 1 FROM pg_roles r WHERE starts_with(r.rolname,'zasp_') AND r.rolname<>expected_role AND pg_has_role(session_user,r.oid,'MEMBER'))
++ AND NOT EXISTS(SELECT 1 FROM pg_roles r WHERE starts_with(r.rolname,'zasp_') AND r.rolname<>expected_role AND r.rolname<>session_user AND pg_has_role(session_user,r.oid,'MEMBER'))
+ $caller$;
+ 
+ CREATE FUNCTION public.zasp_sa_export_principal(o text,w text,e text,actor text) RETURNS void LANGUAGE plpgsql VOLATILE SET search_path TO pg_catalog,public AS $principal$
+--- a/services/platform/migrations/security_agent_exports_release.go
++++ b/services/platform/migrations/security_agent_exports_release.go
+@@ -35,7 +35,7 @@
+ var securityAgentExportDefinitionSQL string
+ 
+ func SecurityAgentExportsFingerprint() string {
+-	return "67a4e601a5597f67a35f3be50f4a47a0a602b3097b3a9e4838e6fc09dcee6b72"
++	return "5b8a094b82a97dd8ab7f9f2dc5951510e6a1bf3c8046303985321020de507f83"
+ }
+ 
+ func ProductionSecurityAgentExports() Metadata {
+--- a/services/platform/apiserver/security_agent_export_release_postgres_test.go
++++ b/services/platform/apiserver/security_agent_export_release_postgres_test.go
+@@ -2,12 +2,145 @@
+ 
+ import (
+ 	"context"
++	"encoding/json"
++	"errors"
+ 	"testing"
+ 
+ 	"github.com/jackc/pgx/v5"
++	"github.com/jackc/pgx/v5/pgconn"
+ 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+ )
+ 
++// Registered concrete logins can share the zasp_ prefix with authority roles.
++// Self-membership must not count as a second authority, but direct or inherited
++// foreign memberships must still block export API/worker calls.
++func TestSecurityAgentExportPrefixedLoginsPostgres(t *testing.T) {
++	runExportDefinitionFixture(t, func(ctx context.Context, owner, _ *pgx.Conn, o, w, e, actor string) {
++		if _, err := owner.Exec(ctx, `CREATE ROLE zasp_e2e_security_agent_api LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
++CREATE ROLE zasp_e2e_security_agent_worker LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
++CREATE ROLE zasp_e2e_security_agent_action LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
++CREATE ROLE export_login_bridge NOLOGIN INHERIT;
++DELETE FROM zasp_security_agent_principal_bindings;
++DELETE FROM zasp_security_agent_action_principal_bindings;
++SELECT zasp_security_agent_register_principals(session_user,'zasp_e2e_security_agent_api','zasp_e2e_security_agent_worker');
++SELECT zasp_security_agent_register_action_principal(session_user,'zasp_e2e_security_agent_action');`); err != nil {
++			t.Fatal(err)
++		}
++		checksum, fp := migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()
++		t.Logf("release58 checksum=%s fingerprint=%s", checksum, fp)
++		for _, item := range []struct {
++			login, role, query string
++			args               []any
++		}{
++			{"zasp_e2e_security_agent_api", "zasp_security_agent_api", `SELECT zasp_sa_export_definition_page($1,$2,$3,$4,'',20,$5,$6)`, []any{o, w, e, actor, checksum, fp}},
++			{"zasp_e2e_security_agent_worker", "zasp_security_agent_worker", `SELECT zasp_sa_export_settlement_claim('prefixed-worker','prefixed-lease-token-0001',60,1,$1,$2)`, []any{checksum, fp}},
++			{"zasp_e2e_security_agent_action", "zasp_security_agent_action_worker", `SELECT zasp_security_agent_claim_temporary_policy_effects('prefixed-action','prefixed-lease-token-0001',60,1)`, nil},
++		} {
++			t.Run(item.login, func(t *testing.T) {
++				cfg := owner.Config().Copy()
++				cfg.User = item.login
++				conn, err := pgx.ConnectConfig(ctx, cfg)
++				if err != nil {
++					t.Fatal(err)
++				}
++				defer conn.Close(context.Background())
++				var session string
++				var self, expected bool
++				if err = conn.QueryRow(ctx, `SELECT session_user,pg_has_role(session_user,session_user,'MEMBER'),pg_has_role(session_user,$1,'MEMBER')`, item.role).Scan(&session, &self, &expected); err != nil || session != item.login || !self || !expected {
++					t.Fatalf("actual login=%s self=%v expected=%v error=%v", session, self, expected, err)
++				}
++				probe := func(want bool) {
++					t.Helper()
++					var raw []byte
++					err := conn.QueryRow(ctx, item.query, item.args...).Scan(&raw)
++					if want {
++						if err != nil || !json.Valid(raw) {
++							t.Errorf("registered %s refused: %s %v", item.login, raw, err)
++						}
++						return
++					}
++					var pg *pgconn.PgError
++					if !errors.As(err, &pg) || (pg.Code != "42501" && pg.Code != "22023") {
++						t.Errorf("foreign authority accepted for %s: %s %v", item.login, raw, err)
++					}
++				}
++				probe(true)
++				if item.role == "zasp_security_agent_api" {
++					var raw []byte
++					if err = conn.QueryRow(ctx, `SELECT zasp_sa_export_controls($1,$2,$3,$4,$5,$6)`, o, w, e, actor, checksum, fp).Scan(&raw); err != nil {
++						t.Errorf("prefixed API controls: %v", err)
++					}
++				}
++				foreign := "zasp_discovery_api"
++				if item.role == "zasp_security_agent_action_worker" {
++					foreign = "zasp_security_agent_worker"
++				}
++				for _, inherited := range []bool{false, true} {
++					grant := `GRANT ` + foreign + ` TO ` + item.login
++					revoke := `REVOKE ` + foreign + ` FROM ` + item.login
++					if inherited {
++						grant = `GRANT ` + foreign + ` TO export_login_bridge; GRANT export_login_bridge TO ` + item.login
++						revoke = `REVOKE export_login_bridge FROM ` + item.login + `; REVOKE ` + foreign + ` FROM export_login_bridge`
++					}
++					if _, err = owner.Exec(ctx, grant); err != nil {
++						t.Fatal(err)
++					}
++					probe(false)
++					if _, err = owner.Exec(ctx, revoke); err != nil {
++						t.Fatal(err)
++					}
++					probe(true)
++				}
++				if item.role == "zasp_security_agent_action_worker" {
++					var raw []byte
++					err = conn.QueryRow(ctx, `SELECT zasp_sa_export_settlement_claim('prefixed-worker','prefixed-lease-token-0001',60,1,$1,$2)`, checksum, fp).Scan(&raw)
++					var pg *pgconn.PgError
++					if !errors.As(err, &pg) || pg.Code != "42501" {
++						t.Fatalf("action borrowed export worker authority: %v", err)
++					}
++				}
++			})
++		}
++	})
++}
++
++func TestSecurityAgentExportMigrationIdentityPostgres(t *testing.T) {
++	runExportDefinitionFixture(t, func(ctx context.Context, owner, api *pgx.Conn, _, _, _, _ string) {
++		if _, err := owner.Exec(ctx, `CREATE ROLE export_unregistered_owner NOLOGIN`); err != nil {
++			t.Fatal(err)
++		}
++		for _, signature := range []string{"public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)", "public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)"} {
++			var originalOwner, originalACL string
++			if err := owner.QueryRow(ctx, `SELECT owner_name,acl::text FROM zasp_sa_export_prior.functions WHERE signature=$1`, signature).Scan(&originalOwner, &originalACL); err != nil {
++				t.Fatal(err)
++			}
++			for _, drift := range []struct{ name, query string }{
++				{"foreign_owner", `UPDATE zasp_sa_export_prior.functions SET owner_name=(SELECT principal_name FROM zasp_security_agent_principal_bindings WHERE authority_role='zasp_security_agent_api') WHERE signature=$1`},
++				{"unregistered_owner", `UPDATE zasp_sa_export_prior.functions SET owner_name='export_unregistered_owner' WHERE signature=$1`},
++				{"extra_acl", `UPDATE zasp_sa_export_prior.functions SET acl=acl||'[{"grantee":"zasp_security_agent_worker","grantable":false}]'::jsonb WHERE signature=$1`},
++				{"grant_option", `UPDATE zasp_sa_export_prior.functions SET acl=(SELECT jsonb_agg(CASE WHEN a->>'grantee'=owner_name THEN jsonb_set(a,'{grantable}','true') ELSE a END ORDER BY n) FROM jsonb_array_elements(acl) WITH ORDINALITY x(a,n)) WHERE signature=$1`},
++			} {
++				t.Run(signature+"/"+drift.name, func(t *testing.T) {
++					if _, err := owner.Exec(ctx, drift.query, signature); err != nil {
++						t.Fatal(err)
++					}
++					var actual string
++					var ready bool
++					if err := owner.QueryRow(ctx, `SELECT zasp_sa_export_live_fingerprint(),zasp_sa_export_readiness($1,$2)`, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&actual, &ready); err != nil || actual == migrations.SecurityAgentExportsFingerprint() || ready {
++						t.Errorf("%s accepted catalog drift: fp=%s ready=%v error=%v", drift.name, actual, ready, err)
++					}
++					if _, err := owner.Exec(ctx, `UPDATE zasp_sa_export_prior.functions SET owner_name=$2,acl=$3::jsonb WHERE signature=$1`, signature, originalOwner, originalACL); err != nil {
++						t.Fatal(err)
++					}
++					if err := api.QueryRow(ctx, `SELECT zasp_sa_export_readiness($1,$2)`, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&ready); err != nil || !ready {
++						t.Fatalf("restored exact raw owner/ACL unavailable: %v %v", ready, err)
++					}
++				})
++			}
++		}
++	})
++}
++
+ func applyExport58(t *testing.T, ctx context.Context, owner *pgx.Conn) {
+ 	t.Helper()
+ 	if err := precisionMigrationRunner(t, owner).UpProductionSecurityAgentExports(ctx); err != nil {
+@@ -39,7 +172,7 @@
+ 		if err := runner.UpProductionSecurityAgentAttackLab(ctx); err != nil {
+ 			t.Fatal(err)
+ 		}
+-		const catalog = `SELECT zasp_sa_attack_lab_live_fingerprint(),(SELECT jsonb_object_agg(oid::regprocedure::text,COALESCE(proacl::text,''))::text FROM pg_proc WHERE pronamespace='public'::regnamespace)`
++		const catalog = `SELECT zasp_sa_attack_lab_live_fingerprint(),(SELECT jsonb_object_agg(oid::regprocedure::text,jsonb_build_object('owner',proowner::regrole::text,'acl',COALESCE(proacl::text,'')))::text FROM pg_proc WHERE pronamespace='public'::regnamespace)`
+ 		var beforeFP, beforeACL string
+ 		if err := owner.QueryRow(ctx, catalog).Scan(&beforeFP, &beforeACL); err != nil {
+ 			t.Fatal(err)
+--- a/services/platform/migrations/sql/0058_production_security_agent_exports.up.sql
++++ b/services/platform/migrations/sql/0058_production_security_agent_exports.up.sql
+@@ -74,9 +74,17 @@
+  SELECT replace(replace(pg_get_functiondef(value),'-- compiled export checksum','<compiled-checksum>'),'-- compiled export fingerprint','<compiled-fingerprint>')
+ $identity$;
+ CREATE FUNCTION public.zasp_sa_export_live_fingerprint() RETURNS text LANGUAGE sql STABLE SET search_path TO pg_catalog,public AS $fingerprint$
+- WITH identities(value) AS (
++ -- These two generic predecessors retain the registered migration login as
++ -- owner. Canonicalize that identity only for hashing; raw restoration bytes
++ -- remain untouched, and every other ACL entry/grant option stays significant.
++ WITH saved AS (
++ SELECT s.*,s.signature IN('public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)','public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)')
++ AND EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings b JOIN pg_roles r ON r.rolname=b.principal_name WHERE b.principal_name=s.owner_name AND b.authority_role='zasp_discovery_authority' AND pg_has_role(r.oid,'zasp_discovery_authority','MEMBER')) AS migration_owned
++ FROM zasp_sa_export_prior.functions s
++ ), identities(value) AS (
+  SELECT concat_ws('|','prior',public.zasp_sa_attack_lab_live_fingerprint())
+- UNION ALL SELECT concat_ws('|','saved',signature,definition,owner_name,acl::text) FROM zasp_sa_export_prior.functions
++ UNION ALL SELECT concat_ws('|','saved',signature,definition,CASE WHEN migration_owned THEN '<registered-migration-principal>' ELSE 'owner:'||owner_name END,
++ CASE WHEN migration_owned THEN (SELECT jsonb_agg(CASE WHEN a->>'grantee'=owner_name THEN jsonb_set(a,'{grantee}','"<registered-migration-principal>"'::jsonb) ELSE a END ORDER BY n)::text FROM jsonb_array_elements(acl) WITH ORDINALITY x(a,n)) ELSE acl::text END) FROM saved
+  UNION ALL SELECT concat_ws('|','schema',nspname,nspowner::regrole::text,COALESCE(nspacl::text,'')) FROM pg_namespace WHERE nspname='zasp_sa_export_prior'
+  UNION ALL SELECT concat_ws('|','function',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid),p.proowner::regrole::text,p.prosecdef,p.provolatile,p.proparallel,p.proisstrict,p.proleakproof,COALESCE(p.proconfig::text,''),COALESCE(p.proacl::text,''),public.zasp_sa_export_function_identity(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND (starts_with(p.proname,'zasp_sa_export_') OR starts_with(p.proname,'zasp_sa_manual_'))
+  UNION ALL SELECT concat_ws('|','table',n.nspname,c.relname,c.relowner::regrole::text,c.relrowsecurity,c.relforcerowsecurity,COALESCE(c.relacl::text,'')) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE (n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND starts_with(c.relname,'zasp_sa_export_')) AND c.relkind='r'

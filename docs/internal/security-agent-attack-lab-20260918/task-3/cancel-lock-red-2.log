@@ -1,0 +1,34 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/usr/local/bin/docker","run","--rm","--pull=never","--name","zasp-attack-lab-task3-projection","--network","none","--read-only","--user","postgres","--cpus","2","--memory","2g","--pids-limit","512","--tmpfs","/tmp:rw,exec,size=1400m","--tmpfs","/var/run/postgresql:rw","--mount","type=bind,src=/private/tmp/zasp-attack-lab-task3.test,dst=/attack-lab.test,readonly","--mount","type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly","-w","/workspace/services/platform/apiserver","--entrypoint","/attack-lab.test","postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba","-test.run","^TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres$","-test.v","-test.timeout","120s"]
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/production_truth
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/revoked_approver
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/wrong_scope_approver
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/stale_authentication
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/expired_lease
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/source_evidence_drift
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/definition_version_drift
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/production_write_declaration
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_stale
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_foreign
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_completed_effect
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_mixed_effect
+=== NAME  TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres
+    security_agent_attack_lab_public_postgres_test.go:130: pending linked cancellation/replay=false refused: repository operation conflict
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres492462517/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres (10.77s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/production_truth (0.09s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/revoked_approver (0.08s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/wrong_scope_approver (0.08s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/stale_authentication (0.08s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/expired_lease (0.09s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/source_evidence_drift (0.09s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/definition_version_drift (0.09s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/production_write_declaration (0.10s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_stale (0.19s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_foreign (0.19s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_completed_effect (0.18s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_mixed_effect (0.17s)
+FAIL
+
+Exit: 1 Signal: null

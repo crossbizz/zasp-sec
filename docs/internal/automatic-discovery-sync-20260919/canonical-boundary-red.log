@@ -1,0 +1,11 @@
+=== RUN   TestAutomaticDiscoveryFullCollectionMeetsTypedSnapshotGrammar
+    pinned_collection_api_test.go:100: collection pages=11 artifacts=12 outcome=<nil> error=collection failed: malformed
+    pinned_collection_api_test.go:113: artifact entity rejected: {"id":"pid_f774e141-b3a8-422c-9bd2-83d8e8e35c8c","kind":"kubernetes_namespace","source_native_id":"kubernetes:namespace:ns-zasp","display_name":"zasp","stable_fields":{"cluster":"prod.example/cluster-a","namespace":"zasp","name":"zasp"},"attributes":{}}
+    pinned_collection_api_test.go:119: valid full inventory rejected: collection failed: malformed
+--- FAIL: TestAutomaticDiscoveryFullCollectionMeetsTypedSnapshotGrammar (0.00s)
+=== RUN   TestKubernetesEntityCanonicalBoundaryPreservesAllValues
+    pinned_collection_api_test.go:139: stable_fields not recursively canonical: {"z":9007199254740993,"a":{"z":[{"b":true,"a":null},"\u003cunchanged\u003e",1.25],"a":"cluster"}}
+--- FAIL: TestKubernetesEntityCanonicalBoundaryPreservesAllValues (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery	0.619s
+FAIL

@@ -157,7 +157,7 @@ func (repository *SensorPublicRepository) ListSensors(ctx context.Context, scope
 	if !validSensorRepository(repository, ctx) || scope.Validate() != nil || after != "" && !validProductID(after) || limit < 1 || limit > 100 {
 		return SensorPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimePublicSensorPageSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), after, limit)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRuntimePublicSensorPageSQL, `SELECT zasp_authorization80.sensor_page($1,$2,$3,NULLIF($4,''),$5)`), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), after, limit)
 	if err != nil {
 		return SensorPage{}, discoveryProviderError(err)
 	}
@@ -188,7 +188,7 @@ func (repository *SensorPublicRepository) GetSensor(ctx context.Context, scope d
 	if !validSensorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(id) {
 		return ProductSensor{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimePublicSensorDetailSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRuntimePublicSensorDetailSQL, `SELECT zasp_authorization80.sensor_detail($1,$2,$3,$4)`), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id)
 	if err != nil {
 		return ProductSensor{}, discoveryProviderError(err)
 	}
@@ -203,7 +203,7 @@ func (repository *SensorPublicRepository) GetSensorCoverage(ctx context.Context,
 	if !validSensorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(id) {
 		return SensorCoverage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimePublicSensorCoverageSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRuntimePublicSensorCoverageSQL, `SELECT zasp_authorization80.sensor_coverage($1,$2,$3,$4)`), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id)
 	if err != nil {
 		return SensorCoverage{}, discoveryProviderError(err)
 	}
@@ -222,7 +222,7 @@ func (repository *SensorPublicRepository) GetSensorTokenAuthority(ctx context.Co
 	if !validSensorRepository(repository, ctx) || scope.Validate() != nil || !validProductID(id) {
 		return SensorTokenAuthority{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimePublicSensorTokenAuthoritySQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRuntimePublicSensorTokenAuthoritySQL, `SELECT zasp_authorization80.sensor_token_authority($1,$2,$3,$4)`), scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), id)
 	if err != nil {
 		return SensorTokenAuthority{}, discoveryProviderError(err)
 	}
@@ -237,12 +237,12 @@ func (repository *SensorPublicRepository) CreateSensor(ctx context.Context, iden
 	if !validSensorMutationAuthority(repository, ctx, identity) || !validCreateSensorMutation(input) {
 		return SensorMutationResult{}, ErrRepositoryOperation
 	}
-	query := postgresRuntimePublicCreateSensorSQL
+	query := authorizationReadStatement(ctx, postgresRuntimePublicCreateSensorSQL, `SELECT zasp_authorization80.create_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`)
 	args := []any{
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(),
 		input.SensorID, input.Name, input.Kind, input.Mode, input.IdempotencyKey, input.RequestDigest, input.TokenID, input.TokenGeneration, input.LocatorDigest, input.Salt, input.TokenHash, input.TokenExpiresAt}
 	if input.RuntimeSensorID != "" {
-		query = postgresRuntimePublicCreatePairedSensorSQL
+		query = authorizationReadStatement(ctx, postgresRuntimePublicCreatePairedSensorSQL, `SELECT zasp_authorization80.create_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`)
 		args = append(args, input.RuntimeSensorID)
 	}
 	payload, err := repository.database.QueryJSON(ctx, query, args...)
@@ -257,7 +257,7 @@ func (repository *SensorPublicRepository) UpdateSensor(ctx context.Context, iden
 	if !validSensorMutationAuthority(repository, ctx, identity) || !validProductID(input.SensorID) || !validSensorName(input.Name) || !validSensorMode(input.Mode) || input.ExpectedVersion < 1 || !validIdempotentDigest(input.IdempotencyKey, input.RequestDigest) {
 		return SensorMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimePublicUpdateSensorSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.SensorID, input.ExpectedVersion, input.Name, input.Mode, input.IdempotencyKey, input.RequestDigest)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRuntimePublicUpdateSensorSQL, `SELECT zasp_authorization80.update_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.SensorID, input.ExpectedVersion, input.Name, input.Mode, input.IdempotencyKey, input.RequestDigest)
 	return decodeSensorMutation(payload, err, input.SensorID, "", 0, false)
 }
 
@@ -265,7 +265,7 @@ func (repository *SensorPublicRepository) DeleteSensor(ctx context.Context, iden
 	if !validSensorMutationAuthority(repository, ctx, identity) || !validProductID(input.SensorID) || input.ExpectedVersion < 1 || !validIdempotentDigest(input.IdempotencyKey, input.RequestDigest) {
 		return SensorMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimePublicDeleteSensorSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.SensorID, input.ExpectedVersion, input.IdempotencyKey, input.RequestDigest)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRuntimePublicDeleteSensorSQL, `SELECT zasp_authorization80.delete_sensor($1,$2,$3,$4,$5,$6,$7,$8)`), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.SensorID, input.ExpectedVersion, input.IdempotencyKey, input.RequestDigest)
 	return decodeSensorMutation(payload, err, input.SensorID, "", 0, false)
 }
 
@@ -273,7 +273,7 @@ func (repository *SensorPublicRepository) RotateSensorToken(ctx context.Context,
 	if !validSensorMutationAuthority(repository, ctx, identity) || !validProductID(input.SensorID) || input.ExpectedVersion < 1 || !validTokenMutation(input.TokenID, input.TokenGeneration, input.LocatorDigest, input.Salt, input.TokenHash, input.TokenExpiresAt) || !validIdempotentDigest(input.IdempotencyKey, input.RequestDigest) {
 		return SensorMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRuntimePublicRotateSensorSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.SensorID, input.ExpectedVersion, input.IdempotencyKey, input.RequestDigest, input.TokenID, input.TokenGeneration, input.LocatorDigest, input.Salt, input.TokenHash, input.TokenExpiresAt)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRuntimePublicRotateSensorSQL, `SELECT zasp_authorization80.rotate_sensor($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.SensorID, input.ExpectedVersion, input.IdempotencyKey, input.RequestDigest, input.TokenID, input.TokenGeneration, input.LocatorDigest, input.Salt, input.TokenHash, input.TokenExpiresAt)
 	return decodeSensorMutation(payload, err, input.SensorID, input.TokenID, input.TokenGeneration, true)
 }
 

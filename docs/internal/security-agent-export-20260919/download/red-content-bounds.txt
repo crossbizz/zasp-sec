@@ -1,0 +1,21 @@
+=== RUN   TestSecurityAgentExportDownloadContentBounds
+--- FAIL: TestSecurityAgentExportDownloadContentBounds (0.00s)
+panic: runtime error: index out of range [0] with length 0 [recovered, repanicked]
+
+goroutine 7 [running]:
+testing.tRunner.func1.2({0x104c53000, 0x14000435128})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:1872 +0x190
+testing.tRunner.func1()
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:1875 +0x31c
+panic({0x104c53000?, 0x14000435128?})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/runtime/panic.go:783 +0x120
+github.com/zasp-ai/zasp-sec/services/platform/apiserver.validAgentExportContentJSON({0x103c6fa07, 0x2})
+	/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform/apiserver/security_agent_export_download.go:148 +0x174
+github.com/zasp-ai/zasp-sec/services/platform/apiserver.TestSecurityAgentExportDownloadContentBounds(0x14000180540)
+	/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform/apiserver/security_agent_export_download_test.go:170 +0x164
+testing.tRunner(0x14000180540, 0x104d17c88)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:1934 +0xc8
+created by testing.(*T).Run in goroutine 1
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:1997 +0x364
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.983s
+FAIL

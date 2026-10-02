@@ -1,0 +1,402 @@
+=== RUN   TestComplianceConflictClassification
+--- PASS: TestComplianceConflictClassification (0.00s)
+=== RUN   TestComplianceCandidateAdmissionProgressPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestComplianceCandidateAdmissionProgressPostgres3868062852/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceCandidateAdmissionProgressPostgres (7.57s)
+=== RUN   TestComplianceHTTPMaximumIDCursorPostgres
+    compliance_connected_postgres_test.go:127: soc2_security actual HTTP cursor length=606
+    compliance_connected_postgres_test.go:127: hipaa actual HTTP cursor length=584
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestComplianceHTTPMaximumIDCursorPostgres2264985396/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceHTTPMaximumIDCursorPostgres (5.73s)
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/old
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/context
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/foreign-context
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/future-envelope
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/duplicate
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/foreign-id
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/context-null
+--- PASS: TestCompliancePersistedAttributionAndHistoricalBytes (0.03s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/old (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/context (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/foreign-context (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/future-envelope (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/duplicate (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/foreign-id (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/context-null (0.00s)
+=== RUN   TestCompliancePersistedEmptyFindingReferences
+--- PASS: TestCompliancePersistedEmptyFindingReferences (0.00s)
+=== RUN   TestComplianceExportBindsRequestedJobAndCanonicalFilters
+--- PASS: TestComplianceExportBindsRequestedJobAndCanonicalFilters (0.05s)
+=== RUN   TestComplianceCreateFreshAfterWaitPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=83 data=/tmp/TestComplianceCreateFreshAfterWaitPostgres3127727791/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceCreateFreshAfterWaitPostgres (6.51s)
+=== RUN   TestComplianceGrantFreshAfterWaitPostgres
+=== RUN   TestComplianceGrantFreshAfterWaitPostgres/issue_grant_lock_false
+=== RUN   TestComplianceGrantFreshAfterWaitPostgres/read_grant_lock_false
+=== RUN   TestComplianceGrantFreshAfterWaitPostgres/read_grant_lock_true
+=== NAME  TestComplianceGrantFreshAfterWaitPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=113 data=/tmp/TestComplianceGrantFreshAfterWaitPostgres774590275/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceGrantFreshAfterWaitPostgres (4.73s)
+    --- PASS: TestComplianceGrantFreshAfterWaitPostgres/issue_grant_lock_false (0.09s)
+    --- PASS: TestComplianceGrantFreshAfterWaitPostgres/read_grant_lock_false (0.09s)
+    --- PASS: TestComplianceGrantFreshAfterWaitPostgres/read_grant_lock_true (0.09s)
+=== RUN   TestComplianceWorkerReplayPostgres
+    compliance_exports_fix_postgres_test.go:235: joined worker prepare: === RUN   TestComplianceReplayRestartProcess
+            compliance_export_replay_test.go:184: registered worker committed exact v1 intent then exited before I/O
+        --- PASS: TestComplianceReplayRestartProcess (1.08s)
+        PASS
+    compliance_exports_fix_postgres_test.go:253: joined worker replay: === RUN   TestComplianceReplayRestartProcess
+            compliance_export_replay_test.go:232: fresh registered worker replayed SQL v1 bytes through NewExport.Put; renderer-v2 calls=0; Finish used renewed lease after original deadline
+        --- PASS: TestComplianceReplayRestartProcess (2.10s)
+        PASS
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=145 data=/tmp/TestComplianceWorkerReplayPostgres190844272/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceWorkerReplayPostgres (7.85s)
+=== RUN   TestComplianceExportsDurablePostgres
+    compliance_exports_postgres_test.go:93: joined fresh owner state-inspection process, state=pending storage=reserved snapshot=false
+    compliance_exports_postgres_test.go:144: joined fresh owner state-inspection process, state=pending storage=reserved snapshot=false
+    compliance_exports_postgres_test.go:154: joined fresh owner state-inspection process, state=pending storage=reserved snapshot=true
+    compliance_exports_postgres_test.go:174: joined fresh owner state-inspection process, state=pending storage=intent snapshot=true
+    compliance_exports_postgres_test.go:201: joined fresh owner state-inspection process, state=pending storage=unknown snapshot=true
+    compliance_exports_postgres_test.go:219: joined fresh owner state-inspection process, state=failed storage=reconcile_required snapshot=true
+    compliance_exports_postgres_test.go:235: joined fresh owner state-inspection process, state=failed storage=verified snapshot=true
+    compliance_exports_postgres_test.go:244: joined fresh owner state-inspection process, state=failed storage=delete_pending snapshot=true
+    compliance_exports_postgres_test.go:258: joined fresh owner state-inspection process, state=failed storage=deleted snapshot=false
+    compliance_exports_postgres_test.go:274: capture denied and snapshot rolled back after observed lock wait, postCapture=false
+    compliance_exports_postgres_test.go:274: capture denied and snapshot rolled back after observed lock wait, postCapture=true
+    compliance_exports_postgres_test.go:284: concurrent policy/finding transaction captured one source snapshot: map[finding:5 policy:5]
+    compliance_exports_postgres_test.go:297: joined fresh owner state-inspection process, state=completed storage=verified snapshot=true
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=187 data=/tmp/TestComplianceExportsDurablePostgres3852375320/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceExportsDurablePostgres (13.32s)
+=== RUN   TestComplianceExportRestartProcess
+    compliance_exports_postgres_test.go:576: owned parent launches this subprocess
+--- SKIP: TestComplianceExportRestartProcess (0.00s)
+=== RUN   TestComplianceConcurrentQuotasPostgres
+=== RUN   TestComplianceConcurrentQuotasPostgres/deployment_active_100
+    compliance_exports_quotas_postgres_test.go:46: registered concurrent clients: one admitted, one 54000; jobs=100 retained_bytes=12583011
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=278 data=/tmp/TestComplianceConcurrentQuotasPostgresdeployment_active_1004230555596/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestComplianceConcurrentQuotasPostgres/deployment_retained_bytes_16GiB
+    compliance_exports_quotas_postgres_test.go:46: registered concurrent clients: one admitted, one 54000; jobs=2049 retained_bytes=17179869184
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=308 data=/tmp/TestComplianceConcurrentQuotasPostgresdeployment_retained_bytes1920391114/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestComplianceConcurrentQuotasPostgres/deployment_retained_jobs_10000
+    compliance_exports_quotas_postgres_test.go:46: registered concurrent clients: one admitted, one 54000; jobs=10000 retained_bytes=12592911
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=338 data=/tmp/TestComplianceConcurrentQuotasPostgresdeployment_retained_jobs_524179863/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestComplianceConcurrentQuotasPostgres/scope_retained_jobs_100
+    compliance_exports_quotas_postgres_test.go:46: registered concurrent clients: one admitted, one 54000; jobs=100 retained_bytes=12583011
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=368 data=/tmp/TestComplianceConcurrentQuotasPostgresscope_retained_jobs_1001178770191/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestComplianceConcurrentQuotasPostgres/principal_scope_grants_20
+    compliance_exports_quotas_postgres_test.go:69: registered concurrent clients: principal/S grants=20, target job grants=4; one admitted, one 54000
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=398 data=/tmp/TestComplianceConcurrentQuotasPostgresprincipal_scope_grants_201640099666/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceConcurrentQuotasPostgres (23.03s)
+    --- PASS: TestComplianceConcurrentQuotasPostgres/deployment_active_100 (4.62s)
+    --- PASS: TestComplianceConcurrentQuotasPostgres/deployment_retained_bytes_16GiB (4.69s)
+    --- PASS: TestComplianceConcurrentQuotasPostgres/deployment_retained_jobs_10000 (4.64s)
+    --- PASS: TestComplianceConcurrentQuotasPostgres/scope_retained_jobs_100 (4.47s)
+    --- PASS: TestComplianceConcurrentQuotasPostgres/principal_scope_grants_20 (4.61s)
+=== RUN   TestComplianceExportsRepository
+--- PASS: TestComplianceExportsRepository (0.02s)
+=== RUN   TestComplianceHTTPPostgresControlFreshness
+=== RUN   TestComplianceHTTPPostgresControlFreshness/fresh_101st_source
+=== RUN   TestComplianceHTTPPostgresControlFreshness/all_stale
+=== RUN   TestComplianceHTTPPostgresControlFreshness/missing
+=== RUN   TestComplianceHTTPPostgresControlFreshness/migration_seeded_only
+=== NAME  TestComplianceHTTPPostgresControlFreshness
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=428 data=/tmp/TestComplianceHTTPPostgresControlFreshness1568287790/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceHTTPPostgresControlFreshness (5.51s)
+    --- PASS: TestComplianceHTTPPostgresControlFreshness/fresh_101st_source (0.14s)
+    --- PASS: TestComplianceHTTPPostgresControlFreshness/all_stale (0.13s)
+    --- PASS: TestComplianceHTTPPostgresControlFreshness/missing (0.14s)
+    --- PASS: TestComplianceHTTPPostgresControlFreshness/migration_seeded_only (0.12s)
+=== RUN   TestComplianceHTTPPostgresGrantLifecycle
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=459 data=/tmp/TestComplianceHTTPPostgresGrantLifecycle3172050646/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceHTTPPostgresGrantLifecycle (5.95s)
+=== RUN   TestComplianceHTTPMountedPublicLifecycle
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/controls
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence?framework=soc2_security
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence/policy/policy-001?source_version=7
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download-grants
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download
+--- PASS: TestComplianceHTTPMountedPublicLifecycle (0.15s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/controls (0.02s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence?framework=soc2_security (0.02s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence/policy/policy-001?source_version=7 (0.02s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports (0.02s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID` (0.02s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download-grants (0.02s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download (0.02s)
+=== RUN   TestComplianceHTTPMountedDenials
+=== RUN   TestComplianceHTTPMountedDenials/origin
+=== RUN   TestComplianceHTTPMountedDenials/csrf
+=== RUN   TestComplianceHTTPMountedDenials/scope
+=== RUN   TestComplianceHTTPMountedDenials/duplicate-cookie
+=== RUN   TestComplianceHTTPMountedDenials/fresh
+=== RUN   TestComplianceHTTPMountedDenials/audit-permission
+=== RUN   TestComplianceHTTPMountedDenials/view-permission
+--- PASS: TestComplianceHTTPMountedDenials (0.16s)
+    --- PASS: TestComplianceHTTPMountedDenials/origin (0.02s)
+    --- PASS: TestComplianceHTTPMountedDenials/csrf (0.02s)
+    --- PASS: TestComplianceHTTPMountedDenials/scope (0.02s)
+    --- PASS: TestComplianceHTTPMountedDenials/duplicate-cookie (0.02s)
+    --- PASS: TestComplianceHTTPMountedDenials/fresh (0.02s)
+    --- PASS: TestComplianceHTTPMountedDenials/audit-permission (0.02s)
+    --- PASS: TestComplianceHTTPMountedDenials/view-permission (0.02s)
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/bytes
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/version
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/scope
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/digest
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/size
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/error
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/revoked
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/expired
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/replay
+--- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume (0.19s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/bytes (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/version (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/scope (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/digest (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/size (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/error (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/revoked (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/expired (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/replay (0.02s)
+=== RUN   TestComplianceHTTPStrictInputs
+--- PASS: TestComplianceHTTPStrictInputs (0.15s)
+=== RUN   TestComplianceRegisteredSourceAuthorityPostgres
+=== RUN   TestComplianceRegisteredSourceAuthorityPostgres/revoked_while_blocked_session
+    compliance_postgres_test.go:406: observed reader PID 503 blocked by session updater PID 504; committed revocation denied without evidence
+=== RUN   TestComplianceRegisteredSourceAuthorityPostgres/revoked_while_blocked_membership
+    compliance_postgres_test.go:406: observed reader PID 503 blocked by membership updater PID 505; committed revocation denied without evidence
+=== NAME  TestComplianceRegisteredSourceAuthorityPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=489 data=/tmp/TestComplianceRegisteredSourceAuthorityPostgres2102384379/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceRegisteredSourceAuthorityPostgres (7.75s)
+    --- PASS: TestComplianceRegisteredSourceAuthorityPostgres/revoked_while_blocked_session (0.07s)
+    --- PASS: TestComplianceRegisteredSourceAuthorityPostgres/revoked_while_blocked_membership (0.07s)
+=== RUN   TestComplianceCompiledFingerprintPostgres
+    compliance_postgres_test.go:468: release56 checksum=f5871c564709034eaf89f325fcb732a3f3314ecc0ff95f7a0ec99f6d674ddfc1 fingerprint=8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=520 data=/tmp/TestComplianceCompiledFingerprintPostgres1907844135/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceCompiledFingerprintPostgres (3.89s)
+=== RUN   TestComplianceHTTPPostgresReadClassification
+=== RUN   TestComplianceHTTPPostgresReadClassification/head-outage
+=== RUN   TestComplianceHTTPPostgresReadClassification/get-outage
+=== RUN   TestComplianceHTTPPostgresReadClassification/body-outage
+=== RUN   TestComplianceHTTPPostgresReadClassification/cancel
+=== RUN   TestComplianceHTTPPostgresReadClassification/deadline
+=== RUN   TestComplianceHTTPPostgresReadClassification/version
+=== RUN   TestComplianceHTTPPostgresReadClassification/metadata
+=== RUN   TestComplianceHTTPPostgresReadClassification/checksum
+=== RUN   TestComplianceHTTPPostgresReadClassification/body-mismatch
+=== RUN   TestComplianceHTTPPostgresReadClassification/envelope
+=== RUN   TestComplianceHTTPPostgresReadClassification/valid
+=== RUN   TestComplianceHTTPPostgresReadClassification/sdk-checksum
+=== RUN   TestComplianceHTTPPostgresReadClassification/sdk-body-outage
+=== RUN   TestComplianceHTTPPostgresReadClassification/sdk-spoof
+=== RUN   TestComplianceHTTPPostgresReadClassification/sdk-cancel
+=== RUN   TestComplianceHTTPPostgresReadClassification/sdk-valid
+=== NAME  TestComplianceHTTPPostgresReadClassification
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=548 data=/tmp/TestComplianceHTTPPostgresReadClassification3673296573/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceHTTPPostgresReadClassification (9.42s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/head-outage (0.25s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/get-outage (0.31s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/body-outage (0.31s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/cancel (0.32s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/deadline (0.28s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/version (0.34s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/metadata (0.30s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/checksum (0.31s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/body-mismatch (0.30s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/envelope (0.31s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/valid (0.31s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/sdk-checksum (0.31s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/sdk-body-outage (0.25s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/sdk-spoof (0.41s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/sdk-cancel (0.27s)
+    --- PASS: TestComplianceHTTPPostgresReadClassification/sdk-valid (0.33s)
+=== RUN   TestComplianceReadFailureClassification
+=== RUN   TestComplianceReadFailureClassification/head-outage
+=== RUN   TestComplianceReadFailureClassification/head-outage/driver
+=== RUN   TestComplianceReadFailureClassification/head-outage/store
+=== RUN   TestComplianceReadFailureClassification/head-outage/http
+=== RUN   TestComplianceReadFailureClassification/get-outage
+=== RUN   TestComplianceReadFailureClassification/get-outage/driver
+=== RUN   TestComplianceReadFailureClassification/get-outage/store
+=== RUN   TestComplianceReadFailureClassification/get-outage/http
+=== RUN   TestComplianceReadFailureClassification/body-outage
+=== RUN   TestComplianceReadFailureClassification/body-outage/driver
+=== RUN   TestComplianceReadFailureClassification/body-outage/store
+=== RUN   TestComplianceReadFailureClassification/body-outage/http
+=== RUN   TestComplianceReadFailureClassification/cancel
+=== RUN   TestComplianceReadFailureClassification/cancel/driver
+=== RUN   TestComplianceReadFailureClassification/cancel/store
+=== RUN   TestComplianceReadFailureClassification/cancel/http
+=== RUN   TestComplianceReadFailureClassification/deadline
+=== RUN   TestComplianceReadFailureClassification/deadline/driver
+=== RUN   TestComplianceReadFailureClassification/deadline/store
+=== RUN   TestComplianceReadFailureClassification/deadline/http
+=== RUN   TestComplianceReadFailureClassification/version
+=== RUN   TestComplianceReadFailureClassification/version/driver
+=== RUN   TestComplianceReadFailureClassification/version/store
+=== RUN   TestComplianceReadFailureClassification/version/http
+=== RUN   TestComplianceReadFailureClassification/metadata
+=== RUN   TestComplianceReadFailureClassification/metadata/driver
+=== RUN   TestComplianceReadFailureClassification/metadata/store
+=== RUN   TestComplianceReadFailureClassification/metadata/http
+=== RUN   TestComplianceReadFailureClassification/checksum
+=== RUN   TestComplianceReadFailureClassification/checksum/driver
+=== RUN   TestComplianceReadFailureClassification/checksum/store
+=== RUN   TestComplianceReadFailureClassification/checksum/http
+=== RUN   TestComplianceReadFailureClassification/body-mismatch
+=== RUN   TestComplianceReadFailureClassification/body-mismatch/driver
+=== RUN   TestComplianceReadFailureClassification/body-mismatch/store
+=== RUN   TestComplianceReadFailureClassification/body-mismatch/http
+=== RUN   TestComplianceReadFailureClassification/envelope
+=== RUN   TestComplianceReadFailureClassification/envelope/driver
+=== RUN   TestComplianceReadFailureClassification/envelope/store
+=== RUN   TestComplianceReadFailureClassification/envelope/http
+=== RUN   TestComplianceReadFailureClassification/valid
+=== RUN   TestComplianceReadFailureClassification/valid/driver
+=== RUN   TestComplianceReadFailureClassification/valid/store
+=== RUN   TestComplianceReadFailureClassification/valid/http
+=== RUN   TestComplianceReadFailureClassification/sdk-checksum
+=== RUN   TestComplianceReadFailureClassification/sdk-checksum/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-checksum/store
+=== RUN   TestComplianceReadFailureClassification/sdk-checksum/http
+=== RUN   TestComplianceReadFailureClassification/sdk-body-outage
+=== RUN   TestComplianceReadFailureClassification/sdk-body-outage/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-body-outage/store
+=== RUN   TestComplianceReadFailureClassification/sdk-body-outage/http
+=== RUN   TestComplianceReadFailureClassification/sdk-spoof
+=== RUN   TestComplianceReadFailureClassification/sdk-spoof/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-spoof/store
+=== RUN   TestComplianceReadFailureClassification/sdk-spoof/http
+=== RUN   TestComplianceReadFailureClassification/sdk-cancel
+=== RUN   TestComplianceReadFailureClassification/sdk-cancel/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-cancel/store
+=== RUN   TestComplianceReadFailureClassification/sdk-cancel/http
+=== RUN   TestComplianceReadFailureClassification/sdk-valid
+=== RUN   TestComplianceReadFailureClassification/sdk-valid/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-valid/store
+=== RUN   TestComplianceReadFailureClassification/sdk-valid/http
+--- PASS: TestComplianceReadFailureClassification (0.69s)
+    --- PASS: TestComplianceReadFailureClassification/head-outage (0.05s)
+        --- PASS: TestComplianceReadFailureClassification/head-outage/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/head-outage/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/head-outage/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/get-outage (0.04s)
+        --- PASS: TestComplianceReadFailureClassification/get-outage/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/get-outage/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/get-outage/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/body-outage (0.05s)
+        --- PASS: TestComplianceReadFailureClassification/body-outage/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/body-outage/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/body-outage/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/cancel (0.04s)
+        --- PASS: TestComplianceReadFailureClassification/cancel/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/cancel/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/cancel/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/deadline (0.05s)
+        --- PASS: TestComplianceReadFailureClassification/deadline/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/deadline/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/deadline/http (0.03s)
+    --- PASS: TestComplianceReadFailureClassification/version (0.05s)
+        --- PASS: TestComplianceReadFailureClassification/version/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/version/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/version/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/metadata (0.04s)
+        --- PASS: TestComplianceReadFailureClassification/metadata/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/metadata/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/metadata/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/checksum (0.04s)
+        --- PASS: TestComplianceReadFailureClassification/checksum/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/checksum/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/checksum/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/body-mismatch (0.04s)
+        --- PASS: TestComplianceReadFailureClassification/body-mismatch/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/body-mismatch/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/body-mismatch/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/envelope (0.04s)
+        --- PASS: TestComplianceReadFailureClassification/envelope/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/envelope/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/envelope/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/valid (0.04s)
+        --- PASS: TestComplianceReadFailureClassification/valid/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/valid/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/valid/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-checksum (0.04s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-checksum/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-checksum/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-checksum/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-body-outage (0.04s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-body-outage/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-body-outage/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-body-outage/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-spoof (0.04s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-spoof/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-spoof/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-spoof/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-cancel (0.04s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-cancel/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-cancel/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-cancel/http (0.02s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-valid (0.04s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-valid/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-valid/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-valid/http (0.02s)
+=== RUN   TestComplianceEvidenceStrictDecoding
+--- PASS: TestComplianceEvidenceStrictDecoding (0.00s)
+=== RUN   TestComplianceRepositoryBindsScopeAndRejectsUnsafeInput
+--- PASS: TestComplianceRepositoryBindsScopeAndRejectsUnsafeInput (0.02s)
+=== RUN   TestComplianceRuntimePollingPostgres
+    compliance_runtime_postgres_test.go:66: joined interrupt: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined interrupt polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (1.31s)
+        PASS
+    compliance_runtime_postgres_test.go:74: joined resume: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined resume polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.57s)
+        PASS
+    compliance_runtime_postgres_test.go:79: joined cleanup_denied: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined cleanup_denied polling worker; provider PUT=0; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.55s)
+        PASS
+    compliance_runtime_postgres_test.go:84: joined cleanup: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined cleanup polling worker; provider PUT=0; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.58s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.70s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.49s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.47s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.49s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.49s)
+        PASS
+    compliance_runtime_postgres_test.go:96: joined reconcile: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined reconcile polling worker; provider PUT=0; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.59s)
+        PASS
+    compliance_runtime_postgres_test.go:103: joined revoked: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined revoked polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.68s)
+        PASS
+    compliance_runtime_postgres_test.go:114: joined lease_lost: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined lease_lost polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.57s)
+        PASS
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=577 data=/tmp/TestComplianceRuntimePollingPostgres2598874851/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceRuntimePollingPostgres (12.49s)
+PASS

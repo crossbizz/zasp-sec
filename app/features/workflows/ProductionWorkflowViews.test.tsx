@@ -39,6 +39,30 @@ const receiptHeaders = {
 const runtimePolicy: Policy = { id: "policy-runtime-history", name: "Runtime history", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "invoke" }], action: "block", rollout: "monitor", failure_mode: "closed" };
 
 describe("production policy evidence", () => {
+	it("loads and edits optional policy risk through the production form", async () => {
+		const annotated = { ...runtimePolicy, risk: "high" };
+		const GET = vi.fn(async (path: string) => {
+			if (path === "/api/v1/session/bootstrap") return jsonResult(sessionBootstrap(new Date(Date.now()+60_000).toISOString()));
+			if (path === "/api/v1/policies") return jsonResult({items:[annotated],page_info:{next_cursor:null,has_more:false}});
+			if (path === "/api/v1/policies/{id}") return jsonResult(annotated,200,{ETag:'"3"'});
+			if (path === "/api/v1/policies/{id}/decisions") return jsonResult({items:[]});
+			throw new Error(path);
+		});
+		const PATCH = vi.fn(async (_path: string, options: {body:unknown}) => jsonResult(options.body,200,receiptHeaders));
+		render(<APIProvider client={{GET,PATCH} as unknown as APIClient}><SessionProvider><WorkflowMutationProvider scopeKey="organization/workspace-a/environment-a"><ProductionPoliciesView canWrite /></WorkflowMutationProvider></SessionProvider></APIProvider>);
+		expect(screen.getByLabelText("Policy risk")).toHaveValue("");
+		await userEvent.click(await screen.findByRole("button",{name:"Open Runtime history"}));
+		expect(screen.getByLabelText("Edit policy risk")).toHaveValue("high");
+		await userEvent.selectOptions(screen.getByLabelText("Edit policy risk"),"critical");
+		await userEvent.click(screen.getByRole("button",{name:"Save changes"}));
+		await waitFor(()=>expect(PATCH).toHaveBeenCalled());
+		expect(PATCH.mock.calls[0][1].body).toMatchObject({risk:"critical"});
+		await screen.findByText(/Policy updated/);
+		await userEvent.selectOptions(screen.getByLabelText("Edit policy risk"),"");
+		await userEvent.click(screen.getByRole("button",{name:"Save changes"}));
+		await waitFor(()=>expect(PATCH).toHaveBeenCalledTimes(2));
+		expect(JSON.parse(JSON.stringify(PATCH.mock.calls[1][1].body))).not.toHaveProperty("risk");
+	});
 	it("simulates bounded runtime history and renders durable tenant decisions", async () => {
 		const user = userEvent.setup();
 		const GET = vi.fn(async (path: string) => {

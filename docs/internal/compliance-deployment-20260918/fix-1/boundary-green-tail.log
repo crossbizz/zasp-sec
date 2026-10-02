@@ -1,0 +1,252 @@
+# Subtest: compliance API startup rejects shell authority and command changes with and without audit
+    # Subtest: compliance-only: worker authority export
+    ok 1 - compliance-only: worker authority export
+      ---
+      duration_ms: 3.215083
+      type: 'test'
+      ...
+    # Subtest: compliance-only: replacement command
+    ok 2 - compliance-only: replacement command
+      ---
+      duration_ms: 2.475042
+      type: 'test'
+      ...
+    # Subtest: compliance-only: extra argument
+    ok 3 - compliance-only: extra argument
+      ---
+      duration_ms: 3.225167
+      type: 'test'
+      ...
+    # Subtest: compliance-only: replacement executable
+    ok 4 - compliance-only: replacement executable
+      ---
+      duration_ms: 2.656417
+      type: 'test'
+      ...
+    # Subtest: compliance-only: missing secret load
+    ok 5 - compliance-only: missing secret load
+      ---
+      duration_ms: 2.6905
+      type: 'test'
+      ...
+    # Subtest: audit: worker authority export
+    ok 6 - audit: worker authority export
+      ---
+      duration_ms: 3.136583
+      type: 'test'
+      ...
+    # Subtest: audit: replacement command
+    ok 7 - audit: replacement command
+      ---
+      duration_ms: 2.777041
+      type: 'test'
+      ...
+    # Subtest: audit: extra argument
+    ok 8 - audit: extra argument
+      ---
+      duration_ms: 2.60125
+      type: 'test'
+      ...
+    # Subtest: audit: replacement executable
+    ok 9 - audit: replacement executable
+      ---
+      duration_ms: 2.657791
+      type: 'test'
+      ...
+    # Subtest: audit: missing secret load
+    ok 10 - audit: missing secret load
+      ---
+      duration_ms: 2.98625
+      type: 'test'
+      ...
+    1..10
+ok 6 - compliance API startup rejects shell authority and command changes with and without audit
+  ---
+  duration_ms: 1133.264833
+  type: 'test'
+  ...
+# Subtest: migration uses the published registration environment names
+ok 7 - migration uses the published registration environment names
+  ---
+  duration_ms: 386.989833
+  type: 'test'
+  ...
+# Subtest: closed compliance input refuses authority confusion and snapshots before await
+ok 8 - closed compliance input refuses authority confusion and snapshots before await
+  ---
+  duration_ms: 367.407542
+  type: 'test'
+  ...
+# Subtest: rendered compliance rejects authority, sidecar, readiness and additive network mutations
+    # Subtest: unreviewed pinned image
+    ok 1 - unreviewed pinned image
+      ---
+      duration_ms: 2.532375
+      type: 'test'
+      ...
+    # Subtest: writer swapped
+    ok 2 - writer swapped
+      ---
+      duration_ms: 2.652375
+      type: 'test'
+      ...
+    # Subtest: DSN swapped
+    ok 3 - DSN swapped
+      ---
+      duration_ms: 2.732209
+      type: 'test'
+      ...
+    # Subtest: schema requirement removed
+    ok 4 - schema requirement removed
+      ---
+      duration_ms: 13.626542
+      type: 'test'
+      ...
+    # Subtest: worker authority on API
+    ok 5 - worker authority on API
+      ---
+      duration_ms: 2.601208
+      type: 'test'
+      ...
+    # Subtest: sidecar
+    ok 6 - sidecar
+      ---
+      duration_ms: 2.190667
+      type: 'test'
+      ...
+    # Subtest: envFrom
+    ok 7 - envFrom
+      ---
+      duration_ms: 2.253375
+      type: 'test'
+      ...
+    # Subtest: host network
+    ok 8 - host network
+      ---
+      duration_ms: 3.454458
+      type: 'test'
+      ...
+    # Subtest: cross-workload mount
+    ok 9 - cross-workload mount
+      ---
+      duration_ms: 6.325209
+      type: 'test'
+      ...
+    # Subtest: migration ordering
+    ok 10 - migration ordering
+      ---
+      duration_ms: 3.310417
+      type: 'test'
+      ...
+    # Subtest: readiness weakened
+    ok 11 - readiness weakened
+      ---
+      duration_ms: 2.42825
+      type: 'test'
+      ...
+    # Subtest: memory request removed
+    ok 12 - memory request removed
+      ---
+      duration_ms: 3.034708
+      type: 'test'
+      ...
+    # Subtest: unbounded HPA
+    ok 13 - unbounded HPA
+      ---
+      duration_ms: 2.372292
+      type: 'test'
+      ...
+    # Subtest: monitor absent
+    ok 14 - monitor absent
+      ---
+      duration_ms: 2.173458
+      type: 'test'
+      ...
+    # Subtest: broad expected selector
+    ok 15 - broad expected selector
+      ---
+      duration_ms: 2.301542
+      type: 'test'
+      ...
+    # Subtest: broad egress
+    ok 16 - broad egress
+      ---
+      duration_ms: 2.279125
+      type: 'test'
+      ...
+    # Subtest: unnamed broad policy
+    ok 17 - unnamed broad policy
+      ---
+      duration_ms: 2.360875
+      type: 'test'
+      ...
+    # Subtest: malformed unselected selector
+    ok 18 - malformed unselected selector
+      ---
+      duration_ms: 2.178292
+      type: 'test'
+      ...
+    # Subtest: group RBAC
+    ok 19 - group RBAC
+      ---
+      duration_ms: 2.310292
+      type: 'test'
+      ...
+    # Subtest: cross namespace RBAC
+    ok 20 - cross namespace RBAC
+      ---
+      duration_ms: 2.742458
+      type: 'test'
+      ...
+    1..20
+ok 9 - rendered compliance rejects authority, sidecar, readiness and additive network mutations
+  ---
+  duration_ms: 888.275959
+  type: 'test'
+  ...
+# Subtest: compliance56 coexists with both optional predecessors in both phases
+ok 10 - compliance56 coexists with both optional predecessors in both phases
+  ---
+  duration_ms: 6086.303458
+  type: 'test'
+  ...
+# Subtest: schema55 predecessors still render and57 stays closed
+ok 11 - schema55 predecessors still render and57 stays closed
+  ---
+  duration_ms: 401.67975
+  type: 'test'
+  ...
+# Subtest: real Go loaders consume enabled and disabled rendered compliance environments
+ok 12 - real Go loaders consume enabled and disabled rendered compliance environments
+  ---
+  duration_ms: 6985.130042
+  type: 'test'
+  ...
+# === RUN   TestComplianceDeploymentRenderedAPIConfig\\n=== RUN   TestComplianceDeploymentRenderedAPIConfig/enabled\\n    compliance_deployment_config_test.go:116: real API loader accepted untouched rendered env; synthetic CSI values only: enabled\\n=== RUN   TestComplianceDeploymentRenderedAPIConfig/disabled\\n    compliance_deployment_config_test.go:116: real API loader accepted untouched rendered env; synthetic CSI values only: disabled\\n=== RUN   TestComplianceDeploymentRenderedAPIConfig/complianceOnly\\n    compliance_deployment_config_test.go:116: real API loader accepted untouched rendered env; synthetic CSI values only: complianceOnly\\n--- PASS: TestComplianceDeploymentRenderedAPIConfig (0.07s)\\n    --- PASS: TestComplianceDeploymentRenderedAPIConfig/enabled (0.00s)\\n    --- PASS: TestComplianceDeploymentRenderedAPIConfig/disabled (0.00s)\\n    --- PASS: TestComplianceDeploymentRenderedAPIConfig/complianceOnly (0.00s)\\nPASS\\nok  \\tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-api\\t2.165s\\n=== RUN   TestComplianceDeploymentRenderedWorkerConfig\\n=== RUN   TestComplianceDeploymentRenderedWorkerConfig/zasp-compliance-export-worker\\n    compliance_deployment_config_test.go:89: real worker loader accepted untouched rendered env; synthetic DSN and metadata.name only\\n=== RUN   TestComplianceDeploymentRenderedWorkerConfig/zasp-compliance-cleanup-worker\\n    compliance_deployment_config_test.go:89: real worker loader accepted untouched rendered env; synthetic DSN and metadata.name only\\n--- PASS: TestComplianceDeploymentRenderedWorkerConfig (0.07s)\\n    --- PASS: TestComplianceDeploymentRenderedWorkerConfig/zasp-compliance-export-worker (0.00s)\\n    --- PASS: TestComplianceDeploymentRenderedWorkerConfig/zasp-compliance-cleanup-worker (0.00s)\\nPASS\\nok  \\tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-worker\\t2.626s\\n
+# Subtest: Go test launch preserves setup-go PATH and configured cache without ambient credentials
+ok 13 - Go test launch preserves setup-go PATH and configured cache without ambient credentials
+  ---
+  duration_ms: 0.672208
+  type: 'test'
+  ...
+# Subtest: Go test launch accepts an explicit executable outside Homebrew and leaves default cache portable
+ok 14 - Go test launch accepts an explicit executable outside Homebrew and leaves default cache portable
+  ---
+  duration_ms: 0.194709
+  type: 'test'
+  ...
+# Subtest: Go test launch refuses an unpinned or malformed toolchain version
+ok 15 - Go test launch refuses an unpinned or malformed toolchain version
+  ---
+  duration_ms: 0.130084
+  type: 'test'
+  ...
+1..15
+# tests 106
+# suites 0
+# pass 106
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9341.412209

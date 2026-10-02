@@ -1,0 +1,30 @@
+import type { SecurityAgentApproval } from "../../../apps/web/api/generated";
+
+export function ApprovalContextFields({ value, id }: { value: SecurityAgentApproval; id?: string }) {
+  const context = value.approval_context;
+  return <span id={id} className="approval-context-fields">
+    <span>Action: {context?.action ?? "unavailable"}</span>
+    <span>Agent: {context?.agent_id ?? "unavailable"}</span>
+    <span>Target: {context?.target_id ?? "unavailable"}</span>
+    <span>Requester: {context?.requester.state === "available" ? context.requester.id : context ? "withheld" : "unavailable"}</span>
+    <span>Run: {value.run_id}</span>
+    <span>Expires: {value.expires_at}</span>
+  </span>;
+}
+
+export function ApprovalContext({ value }: { value: SecurityAgentApproval }) {
+  const context = value.approval_context;
+  return <section className="approval-context" aria-label="Persisted approval context">
+    <h3>Approval context</h3>
+    <ApprovalContextFields value={value} />
+    <h3>Reason</h3>
+    <p>{context ? "This persisted plan step requires operator approval." : "No persisted approval reason is available."}</p>
+    <p>{context ? `Risk: ${context.risk.class} (action catalog)` : "Risk: unavailable"}</p>
+    {context && <p>Catalog {context.catalog_version} · plan {context.plan_hash}</p>}
+    <section className="security-agent-rationale" aria-label="Approval AI rationale">
+      <h3>AI rationale</h3>
+      <p className="security-agent-rationale__disclaimer">AI-generated explanation. This does not authorize any action.</p>
+      <p>{context?.rationale?.state === "available" ? context.rationale.summary : context?.rationale?.state === "withheld" ? "AI rationale was withheld by the redaction policy." : "No AI rationale is available for this approval."}</p>
+    </section>
+  </section>;
+}

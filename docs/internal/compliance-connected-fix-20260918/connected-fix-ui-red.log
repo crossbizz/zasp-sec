@@ -1,0 +1,430 @@
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ × apps/web/api/compliance-decoders.test.ts > compliance current contracts > paginates maximum policy IDs without widening unrelated cursors 4ms
+   → schema mismatch
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > validates authoritative freshness when present on direct live controls 1ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > decodes the disabled-service legacy response without inventing freshness 4ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > accepts typed policy sources, preserving old page records 1ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > rejects scope changes, untyped detail and source metadata outside its allowlist 0ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > bounds public jobs and body-only download grants 0ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > rejects calendar overflow instead of normalizing source timestamps 0ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > bounds event hydration and preserves sessions whose event request fails 6ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > renders ordered evidence and revokes the exact version 83ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > accepts only the declared 204 session revoke response 1ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > renders legacy evidence without claiming current freshness or exports 14ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > updates versioned metadata-only production controls 38ms
+ × app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > loads populated HIPAA and SOC2 with independent cursor chains through the mounted client 1009ms
+   → expected [ <a …(2)></a> ] to have a length of 2 but got 1
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"page-header"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"page-title-row"[39m
+            [36m>[39m
+              [36m<h1>[39m
+                [0mCompliance evidence[0m
+              [36m</h1>[39m
+              [36m<span[39m
+                [33maria-label[39m=[32m"More information"[39m
+                [33mclass[39m=[32m"info-dot"[39m
+              [36m>[39m
+                [0mi[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<p>[39m
+              [0mProduct evidence for review. Freshness and exports do not establish certification or control effectiveness.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label>[39m
+          [0mFramework [0m
+          [36m<select[39m
+            [33maria-label[39m=[32m"Framework"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mAll frameworks[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"soc2_security"[39m
+            [36m>[39m
+              [0mSOC 2 Security[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"hipaa"[39m
+            [36m>[39m
+              [0mHIPAA[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</label>[39m
+        [36m<label>[39m
+          [0mControl [0m
+          [36m<select[39m
+            [33maria-label[39m=[32m"Control"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mAll controls[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"soc2-policy"[39m
+            [36m>[39m
+              [0mPolicy definition[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"hipaa-policies"[39m
+            [36m>[39m
+              [0mHIPAA policy definitions[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</label>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dashboard-grid"[39m
+        [36m>[39m
+          [36m<section[39m
+            [33mclass[39m=[32m"card "[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__header"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"card__title"[39m
+              [36m>[39m
+                [0msoc2_security · Policy definition[0m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"badge badge--warning"[39m
+            [36m>[39m
+              [0mstale[0m
+            [36m</span>[39m
+            [36m<p>[39m
+              [0mSource freshness deadline: [0m
+              [36m<time[39m
+                [33mdatetime[39m=[32m"2026-10-01T12:00:00Z"[39m
+              [36m>[39m
+                [0m2026-10-01T12:00:00Z[0m
+              [36m</time>[39m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mpolicy-production[0m
+              [0m · [0m
+              [0mpolicy[0m
+              [0m · [0m
+              [36m<time[39m
+                [33mdatetime[39m=[32m"2026-09-01T12:00:00Z"[39m
+              [36m>[39m
+                [0m2026-09-01T12:00:00Z[0m
+              [36m</time>[39m
+              [0m · [0m
+              [36m<a[39m
+                [33maria-label[39m=[32m"Open policy policy-production version 2"[39m
+                [33mhref[39m=[32m"/compliance/evidence?source_kind=policy&source_id=policy-production&source_version=2&organization_id=pid_10000001-0000-4000-8000-000000000001&workspace_id=pid_10000002-0000-4000-8000-000000000002&environment_id=pid_10000003-0000-4000-8000-000000000003"[39m
+              [36m>[39m
+                [0mOpen evidence (version [0m
+                [0m2[0m
+                [0m)[0m
+              [36m</a>[39m
+            [36m</p>[39m
+          [36m</section>[39m
+          [36m<section[39m
+            [33mclass[39m=[32m"card "[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__header"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"card__title"[39m
+              [36m>[39m
+                [0mhipaa · HIPAA policy definitions[0m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"badge badge--warning"[39m
+            [36m>[39m
+              [0mstale[0m
+            [36m</span>[39m
+            [36m<p>[39m
+              [0mSource freshness deadline: [0m
+              [36m<time[39m
+                [33mdatetime[39m=[32m"2026-10-01T12:00:00Z"[39m
+              [36m>[39m
+                [0m2026-10-01T12:00:00Z[0m
+              [36m</time>[39m
+            [36m</p>[39m
+          [36m</section>[39m
+        [36m</div>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mEvidence exports[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mExports capture the selected framework and control. Retrieval expires at the displayed time.[0m
+          [36m</p>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"button button--secondary "[39m
+          [36m>[39m
+            [0mCreate evidence export[0m
+          [36m</button>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 1 before a continuation starts 64ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 1 before a continuation starts 63ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 2 before a continuation starts 67ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 2 before a continuation starts 63ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 401 errors before they can invalidate replacement authority 59ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 401 errors before they can invalidate replacement authority 59ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 409 errors before they can invalidate replacement authority 58ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 409 errors before they can invalidate replacement authority 57ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > uses aggregate freshness, exposes typed source/time links, and filters frameworks and controls 45ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > reads exact source versions through the compliance detail endpoint 10ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 409 4ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 404 4ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 403 4ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > creates queued exports with the selected filters, recovers status on reload, and leaves evidence readable on download failure 70ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders failed export without hiding evidence 21ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders expired export without hiding evidence 19ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > drops late evidence responses on a changed principal and hides revoked authority immediately 57ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > loads populated HIPAA and SOC2 with independent cursor chains through the mounted client
+AssertionError: expected [ <a …(2)></a> ] to have a length of 2 but got 1
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"page-header"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"page-title-row"[39m
+            [36m>[39m
+              [36m<h1>[39m
+                [0mCompliance evidence[0m
+              [36m</h1>[39m
+              [36m<span[39m
+                [33maria-label[39m=[32m"More information"[39m
+                [33mclass[39m=[32m"info-dot"[39m
+              [36m>[39m
+                [0mi[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<p>[39m
+              [0mProduct evidence for review. Freshness and exports do not establish certification or control effectiveness.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<label>[39m
+          [0mFramework [0m
+          [36m<select[39m
+            [33maria-label[39m=[32m"Framework"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mAll frameworks[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"soc2_security"[39m
+            [36m>[39m
+              [0mSOC 2 Security[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"hipaa"[39m
+            [36m>[39m
+              [0mHIPAA[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</label>[39m
+        [36m<label>[39m
+          [0mControl [0m
+          [36m<select[39m
+            [33maria-label[39m=[32m"Control"[39m
+          [36m>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m""[39m
+            [36m>[39m
+              [0mAll controls[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"soc2-policy"[39m
+            [36m>[39m
+              [0mPolicy definition[0m
+            [36m</option>[39m
+            [36m<option[39m
+              [33mvalue[39m=[32m"hipaa-policies"[39m
+            [36m>[39m
+              [0mHIPAA policy definitions[0m
+            [36m</option>[39m
+          [36m</select>[39m
+        [36m</label>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dashboard-grid"[39m
+        [36m>[39m
+          [36m<section[39m
+            [33mclass[39m=[32m"card "[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__header"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"card__title"[39m
+              [36m>[39m
+                [0msoc2_security · Policy definition[0m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"badge badge--warning"[39m
+            [36m>[39m
+              [0mstale[0m
+            [36m</span>[39m
+            [36m<p>[39m
+              [0mSource freshness deadline: [0m
+              [36m<time[39m
+                [33mdatetime[39m=[32m"2026-10-01T12:00:00Z"[39m
+              [36m>[39m
+                [0m2026-10-01T12:00:00Z[0m
+              [36m</time>[39m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mpolicy-production[0m
+              [0m · [0m
+              [0mpolicy[0m
+              [0m · [0m
+              [36m<time[39m
+                [33mdatetime[39m=[32m"2026-09-01T12:00:00Z"[39m
+              [36m>[39m
+                [0m2026-09-01T12:00:00Z[0m
+              [36m</time>[39m
+              [0m · [0m
+              [36m<a[39m
+                [33maria-label[39m=[32m"Open policy policy-production version 2"[39m
+                [33mhref[39m=[32m"/compliance/evidence?source_kind=policy&source_id=policy-production&source_version=2&organization_id=pid_10000001-0000-4000-8000-000000000001&workspace_id=pid_10000002-0000-4000-8000-000000000002&environment_id=pid_10000003-0000-4000-8000-000000000003"[39m
+              [36m>[39m
+                [0mOpen evidence (version [0m
+                [0m2[0m
+                [0m)[0m
+              [36m</a>[39m
+            [36m</p>[39m
+          [36m</section>[39m
+          [36m<section[39m
+            [33mclass[39m=[32m"card "[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__header"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"card__title"[39m
+              [36m>[39m
+                [0mhipaa · HIPAA policy definitions[0m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"badge badge--warning"[39m
+            [36m>[39m
+              [0mstale[0m
+            [36m</span>[39m
+            [36m<p>[39m
+              [0mSource freshness deadline: [0m
+              [36m<time[39m
+                [33mdatetime[39m=[32m"2026-10-01T12:00:00Z"[39m
+              [36m>[39m
+                [0m2026-10-01T12:00:00Z[0m
+              [36m</time>[39m
+            [36m</p>[39m
+          [36m</section>[39m
+        [36m</div>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mEvidence exports[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mExports capture the selected framework and control. Retrieval expires at the displayed time.[0m
+          [36m</p>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"button button--secondary "[39m
+          [36m>[39m
+            [0mCreate evidence export[0m
+          [36m</button>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:84:114
+     82|     });
+     83|     render(<SessionsComplianceView surface="compliance" client={client…
+     84|     await waitFor(() => expect(screen.getAllByRole("link", { name: "Op…
+       |                                                                                                                  ^
+     85|     expect(seen).toEqual(["soc2_security:first", "soc2_security:soc2_s…
+     86|     await userEvent.selectOptions(screen.getByLabelText("Framework"), …
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  apps/web/api/compliance-decoders.test.ts > compliance current contracts > paginates maximum policy IDs without widening unrelated cursors
+Error: schema mismatch
+ ❯ bad apps/web/api/administration-decoders.ts:71:31
+
+ ❯ text apps/web/api/administration-decoders.ts:58:127
+ ❯ apps/web/api/administration-decoders.ts:52:299
+ ❯ decoded apps/web/api/administration-decoders.ts:55:189
+ ❯ page apps/web/api/administration-decoders.ts:52:86
+ ❯ decodeComplianceEvidencePage apps/web/api/administration-decoders.ts:44:65
+ ❯ apps/web/api/compliance-decoders.test.ts:17:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 28 passed (30)
+   Start at  20:12:15
+   Duration  3.02s (transform 206ms, setup 377ms, import 353ms, tests 1.89s, environment 1.38s)

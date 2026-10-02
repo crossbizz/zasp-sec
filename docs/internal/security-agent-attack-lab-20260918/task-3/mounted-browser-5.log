@@ -1,0 +1,94 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","scripts/production-combined-e2e.mjs"]
+combined E2E: disposable PostgreSQL ready
+combined E2E: schema 14 typed_inventory_cutover verified
+combined E2E: schema 15 runtime_data_plane verified
+combined E2E: schema 17 runtime_ingest_reconciliation verified
+combined E2E: schema 18 security_agent_execution verified
+combined E2E: schema 19 identity_administration verified
+combined E2E: schema 20 security_agent_controls verified
+combined E2E: schema 21 security_agent_autonomous_response verified
+combined E2E: schema 24 security_agent_session_isolation verified
+combined E2E: schema 27 production_recovery verified
+combined E2E: schema 28 production_policy_deployment verified
+combined E2E: schema 29 production_home_attention verified
+combined E2E: schema 30 production_approval_notification verified
+combined E2E: schema 31 production_workflow_compatibility verified
+combined E2E: schema 32 production_security_agent_planner verified
+combined E2E: schema 33 production_security_agent_attack_path verified
+combined E2E: schema 34 production_integration_setup verified
+combined E2E: schema 35 production_integration_webhook verified
+combined E2E: schema 37 production_red_team_safety verified
+combined E2E: schema 39 production_red_team_artifacts verified
+combined E2E: schema 40 production_runtime_sessions verified
+combined E2E: schema 41 production_runtime_session_reads verified
+combined E2E: schema 42 production_runtime_session_search verified
+combined E2E: schema 43 production_runtime_session_query verified
+combined E2E: schema 44 production_runtime_session_evidence verified
+combined E2E: schema 45 production_runtime_enrollment_pairing verified
+combined E2E: schema 46 production_reconciliation_lane_plan verified
+combined E2E: schema 47 production_runtime_candidate_authority verified
+combined E2E: schema 48 production_runtime_acceptance verified
+combined E2E: migrations and durable seed ready
+mounted Attack Lab browser evidence directory: /var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/zasp-attack-lab-browser-evidence-haQTyF
+combined E2E: browser document transition /api/v1/session/start
+combined E2E: browser document transition /protect/security-agents
+mounted first-read diagnostic /api/v1/security-agents {"status":200,"body":{"items":[],"page_info":{"has_more":false,"next_cursor":null}}}
+mounted first-read diagnostic /api/v1/security-agent-templates {"status":200,"body":{"items":[{"default_actions":["update_finding_response"],"id":"pid_70000001-0000-4000-8000-000000000001","name":"Finding Response","trigger_kind":"finding","verification_condition":"finding_state","version":1},{"default_actions":["create_temporary_policy"],"id":"pid_70000002-0000-4000-8000-000000000002","name":"Temporary Policy Containment","trigger_kind":"finding","verification_condition":"policy_state","version":1},{"default_actions":["run_test"],"id":"pid_70000008-0000-4000-8000-000000000008","name":"Run Existing Test","trigger_kind":"finding","verification_condition":"test_run","version":1},{"default_actions":["rerun_test"],"id":"pid_70000009-0000-4000-8000-000000000009","name":"Rerun Existing Test","trigger_kind":"finding","verification_condition":"test_run","version":1},{"default_actions":["start_attack_lab"],"id":"pid_700000010-0000-4000-8000-0000000000010","name":"Reproduce in Attack Lab","trigger_kind":"finding","verification_condition":"attack_lab_run","version":1}]}}
+mounted first-read diagnostic /api/v1/security-actions {"status":200,"body":{"items":[{"approval_floor":"operator","key":"create_temporary_policy","reversible":true,"risk_class":"containment","target_types":["environment"],"verification_kind":"policy_state"},{"approval_floor":"operator","key":"isolate_session","reversible":true,"risk_class":"containment","target_types":["session"],"verification_kind":"gateway_decision"},{"approval_floor":"none","key":"rerun_test","reversible":false,"risk_class":"low","target_types":["test_definition"],"verification_kind":"test_run"},{"approval_floor":"admin","key":"revoke_integration_connection","reversible":false,"risk_class":"destructive","target_types":["integration_connection"],"verification_kind":"connection_state"},{"approval_floor":"none","key":"run_test","reversible":false,"risk_class":"low","target_types":["test_definition"],"verification_kind":"test_run"},{"approval_floor":"operator","key":"start_attack_lab","reversible":true,"risk_class":"moderate","target_types":["attack_lab"],"verification_kind":"attack_lab_run"},{"approval_floor":"none","key":"update_finding_response","reversible":true,"risk_class":"low","target_types":["finding"],"verification_kind":"finding_state"}]}}
+mounted first-read diagnostic /api/v1/security-agent-runs {"status":200,"body":{"items":[]}}
+mounted first-read diagnostic /api/v1/security-agent-approvals {"status":200,"body":{"items":[]}}
+mounted first-read diagnostic /api/v1/security-agent-execution-controls {"status":200,"body":{"global":{"target":"global","action_key":"*","enabled":true,"version":1},"environment":{"target":"environment","action_key":"*","enabled":false,"version":0},"actions":[{"target":"action","action_key":"create_temporary_policy","enabled":false,"version":0},{"target":"action","action_key":"isolate_session","enabled":false,"version":0},{"target":"action","action_key":"rerun_test","enabled":false,"version":0},{"target":"action","action_key":"revoke_integration_connection","enabled":false,"version":0},{"target":"action","action_key":"run_test","enabled":false,"version":0},{"target":"action","action_key":"update_finding_response","enabled":false,"version":0}]}}
+combined E2E: cleanup browser
+combined E2E: cleanup Task4 workers
+combined E2E: cleanup api
+combined E2E: cleanup proxy
+combined E2E: cleanup identity
+combined E2E: cleanup policy history
+combined E2E: cleanup web
+combined E2E: cleanup postgres
+combined E2E: cleanup remaining processes
+combined E2E: cleanup files
+file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:6281
+  throw new Error(`browser text did not match ${pattern}: ${last}`);
+        ^
+
+Error: browser text did not match /Tenant-scoped response definitions/: Zasp
+Agent Security
+Production
+Staging
+Search
+Sign out
+Overview
+Agents
+Tools & MCP
+Identities
+Runtimes
+Findings
+Attack Paths
+Red Team
+Attack Lab
+Policies
+Integrations
+Sensors
+Security agents
+Approvals
+Identity & Access
+API Access
+Sessions
+Audit Log
+Compliance
+Data & Retention
+Recovery
+External Data Flows
+System Health
+
+Security Agent definitions are unavailable. Retry
+    at waitForBrowserText (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:6281:9)
+    at async runAttackLabMountedBrowser (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/attack-lab-mounted-browser.mjs:36:9)
+    at async exerciseAttackLabMountedBrowser (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:2350:3)
+    at async file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:306:5
+
+Node.js v22.23.1
+
+Exit: 1 Signal: null

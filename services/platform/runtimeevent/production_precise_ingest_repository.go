@@ -18,6 +18,11 @@ func (repository *PostgresProductionIngestRepository) ReadyPrecision(ctx context
 	if !validProductionRepository(repository, ctx) || !repository.precision {
 		return ErrProductionIngestUnavailable
 	}
+	if authority, ok := repository.database.(interface{ VerifySecurityAgentBudgetRelease(context.Context) error }); ok {
+		if err := authority.VerifySecurityAgentBudgetRelease(ctx); err != nil {
+			return ErrProductionIngestUnavailable
+		}
+	}
 	metadata := migrations.ProductionRuntimePrecision()
 	payload, err := safeProductionQuery(repository.database, ctx, `SELECT jsonb_build_object('ready',zasp_production_runtime_precision_readiness($1,$2) AND zasp_discovery_principal_ready('zasp_runtime_ingest'))`, metadata.Checksum(), migrations.ProductionRuntimePrecisionSemanticFingerprint())
 	var ready struct {

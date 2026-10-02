@@ -1,0 +1,329 @@
+Task2 review round1: source-bound registered PostgreSQL RED and GREEN
+Authoritative final checksum: 37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab
+Authoritative final fingerprint: 1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36
+Worktree: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Go: go1.25.6 darwin/arm64; target GOOS=linux GOARCH=arm64 CGO_ENABLED=0
+Pinned image: postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba
+Inspected image architecture: arm64
+Image config ID: sha256:0984215845c9203725ec1049ec2b1bdd2e8f5e0eeb4a82cfea4d9928a952ad40
+RED binary SHA256: 840871e665c1a44ae2cdb7e35a532d538d8a41bdbdca677a714f378cf8fdf66a
+GREEN/final binary SHA256: 0248706cf2718066e815e1be8eba556efed66d754caaf44a21523b918ca3f443
+RED used initial Task2 production identity with new review reproductions.
+GREEN/final used the final source manifest below:
+d6dd3c795d0c156e85f594ceac7715ebe16dedeb555204532809729df29f8b19  services/platform/migrations/sql/0060_production_discovery_schedule_replay.up.sql
+113eabad1c692bcb8a264ecc11c7c7ed75d0ec67ac9e3e34912922648b45d2ff  services/platform/migrations/sql/0060_production_discovery_schedule_replay.down.sql
+d19a8cd9639ea1c108ade09363cad9ec8d1771a3671e955b7bdf752be5d1b40e  services/platform/migrations/production_discovery_schedule_replay.go
+6506210c22f722947f70894478586eacb5bbf0777b98e30ccd73bf2b1802069e  services/platform/migrations/production_discovery_schedule_replay_test.go
+190a0294a54dfd59545685bab6f21d3c14209b13bf1ffbc23b5026abdd96a5b5  services/platform/migrations/migrations.go
+c0333f24f9c3fc86a18d297fcbffa9c508bc24303f4ea365f4d7ddd799e35c5e  services/platform/migrations/migrations_test.go
+c1b555e415bc0cbb7b025b906781f57760f0d88235a13dca7ef6a98aef820591  services/platform/agentsec-migrate/main.go
+4bd8f91f3bfa0897d5d91ac64e9bc7f2a48fb5deea87c37f2641f4955fd81fa8  services/platform/agentsec-migrate/main_test.go
+54c516de81699e07fe045e6a0da51f1eaa70c20c5df1b7fee772c467e376c451  services/platform/agentsec-migrate/bootstrap_release.go
+e05fdaf6e7079363c2ec00aa0ada9c6d08402148d6b81a769d7f880838edf716  services/platform/agentsec-migrate/bootstrap_release_test.go
+ee12db746e0e61003547c379681d675b0ee80ff7e71a1820ffabd17fcf25e5d5  services/platform/agentsec-migrate/release_readiness_test.go
+d740d5abeabf4c98553da1d757d3bba9726e4ec9b8226a866094b7dac4bccd9d  services/platform/agentsec-migrate/existing_tests_command_test.go
+f1a9cfa0a209b802ccc446b541ef90f2a86ae85bed0d220c60a759c5f04db77f  services/platform/agentsec-migrate/security_agent_exports_command_test.go
+97930991236be40a4d7b7d8ebfd84e6e34c39363ddcf3cebe4509f71d70da7a6  services/platform/agentsec-migrate/attack_lab_command_test.go
+
+Build cwd: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform
+$ /opt/homebrew/bin/gofmt -w agentsec-migrate/main_test.go
+$ GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-release60-task2-cache GOOS=linux GOARCH=arm64 CGO_ENABLED=0 /opt/homebrew/bin/go test -c -o /tmp/zasp-release60-task2.H9Kk3e/migration-fix1-red.test ./agentsec-migrate
+exit=0; no compiler output.
+
+Focused RED cwd: repository root
+$ /usr/local/bin/docker run --rm --pull=never --name zasp-release60-task2-fix1-red --label zasp.test.owner=release60-task2 --network none --read-only --user postgres --tmpfs /tmp:rw,nosuid,nodev,mode=1777 --mount type=bind,src=/tmp/zasp-release60-task2.H9Kk3e/migration-fix1-red.test,dst=/migration.test,readonly --entrypoint /migration.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestProductionDiscoveryScheduleReplayPostgres(AuthorityMembership|NonAdvancedCompletion)$' -test.count=1 -test.v -test.timeout=150s
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_discovery_scheduler
+    main_test.go:182: release60 accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: execution_security accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: execution13 accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: export58 accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: webhook59 accepted outgoing membership: ready=true err=<nil>
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_risk_worker
+    main_test.go:182: release60 accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: execution_security accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: execution13 accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: export58 accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: webhook59 accepted outgoing membership: ready=true err=<nil>
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_graph_worker
+    main_test.go:182: release60 accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: execution_security accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: execution13 accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: export58 accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: webhook59 accepted outgoing membership: ready=true err=<nil>
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_search_worker
+    main_test.go:182: release60 accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: execution_security accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: execution13 accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: export58 accepted outgoing membership: ready=true err=<nil>
+    main_test.go:182: webhook59 accepted outgoing membership: ready=true err=<nil>
+=== NAME  TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership
+    main_test.go:4376: owned PostgreSQL joined normally: stop=0 wait=0
+--- FAIL: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership (10.70s)
+    --- FAIL: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_discovery_scheduler (0.58s)
+    --- FAIL: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_risk_worker (0.56s)
+    --- FAIL: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_graph_worker (0.63s)
+    --- FAIL: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_search_worker (0.57s)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion/released
+    main_test.go:219: exact released lost-response retry did not return predecessor-saved result: got= want={"id": "pid_60000006-0000-4000-8000-000000000006", "state": "enabled", "version": 3, "next_run_at": "2026-09-20T05:02:32.936464+00:00"} err=ERROR: schedule lease missing (SQLSTATE P0002)
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:250: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:4376: owned PostgreSQL joined normally: stop=0 wait=0
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion/disabled
+    main_test.go:219: exact disabled lost-response retry did not return predecessor-saved result: got= want={"id": "pid_60000006-0000-4000-8000-000000000006", "state": "disabled", "version": 3, "next_run_at": "2026-09-20T05:02:40.536084+00:00"} err=ERROR: schedule lease missing (SQLSTATE P0002)
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:243: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:250: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:4376: owned PostgreSQL joined normally: stop=0 wait=0
+--- FAIL: TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion (15.12s)
+    --- FAIL: TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion/released (7.52s)
+    --- FAIL: TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion/disabled (7.60s)
+FAIL
+
+exit=1; RUN=8; PASS=0; FAIL=8; SKIP=0; normal joins=3.
+Six failing leaf cases, two failing parent cases.
+20 false-positive readiness assertions plus two lost-response retry errors (P0002).
+All changed-input negative checks passed as refusal controls.
+
+After the implementation change, a diagnostic registered-cycle run computed the new live fingerprint transactionally before changing the compiled pin. It refused the old fingerprint as expected:
+$ /usr/local/bin/docker run --rm --pull=never --name zasp-release60-task2-fix1-candidate --label zasp.test.owner=release60-task2 --network none --read-only --user postgres --tmpfs /tmp:rw,nosuid,nodev,mode=1777 --mount type=bind,src=/tmp/zasp-release60-task2.H9Kk3e/migration-fix1-candidate.test,dst=/migration.test,readonly --entrypoint /migration.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestProductionDiscoveryScheduleReplayPostgres$' -test.count=1 -test.v -test.timeout=150s
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres
+    main_test.go:46: candidate diagnostics: DDL=<nil> live=1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36 query=<nil>
+    main_test.go:48: registered release cycle up-to-60: invalid migration state
+    main_test.go:4376: owned PostgreSQL joined normally: stop=0 wait=0
+--- FAIL: TestProductionDiscoveryScheduleReplayPostgres (8.21s)
+FAIL
+
+The candidate binary was compiled with the same offline/arm64 flags to migration-fix1-candidate.test. This calibration failure is not a behavioral RED or a passing group.
+
+Final build cwd: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform
+$ /opt/homebrew/bin/gofmt -w agentsec-migrate/main_test.go migrations/production_discovery_schedule_replay.go
+$ GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-release60-task2-cache GOOS=linux GOARCH=arm64 CGO_ENABLED=0 /opt/homebrew/bin/go test -c -o /tmp/zasp-release60-task2.H9Kk3e/migration-fix1-green.test ./agentsec-migrate
+exit=0; no compiler output.
+
+Focused GREEN cwd: repository root
+$ /usr/local/bin/docker run --rm --pull=never --name zasp-release60-task2-fix1-green --label zasp.test.owner=release60-task2 --network none --read-only --user postgres --tmpfs /tmp:rw,nosuid,nodev,mode=1777 --mount type=bind,src=/tmp/zasp-release60-task2.H9Kk3e/migration-fix1-green.test,dst=/migration.test,readonly --entrypoint /migration.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestProductionDiscoveryScheduleReplayPostgres(AuthorityMembership|NonAdvancedCompletion)$' -test.count=1 -test.v -test.timeout=150s
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_discovery_scheduler
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_risk_worker
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_graph_worker
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_search_worker
+=== NAME  TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+--- PASS: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership (8.80s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_discovery_scheduler (0.21s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_risk_worker (0.21s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_graph_worker (0.20s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_search_worker (0.21s)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion/released
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:255: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion/disabled
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:255: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+--- PASS: TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion (15.10s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion/released (7.45s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion/disabled (7.65s)
+PASS
+
+exit=0; RUN=8; PASS=8; FAIL=0; SKIP=0; normal joins=3.
+
+Final grouped GREEN cwd: repository root
+$ /usr/local/bin/docker run --rm --pull=never --name zasp-release60-task2-fix1-final --label zasp.test.owner=release60-task2 --network none --read-only --user postgres --tmpfs /tmp:rw,nosuid,nodev,mode=1777 --mount type=bind,src=/tmp/zasp-release60-task2.H9Kk3e/migration-fix1-green.test,dst=/migration.test,readonly --entrypoint /migration.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestProductionDiscoveryScheduleReplayPostgres' -test.count=1 -test.v -test.timeout=240s
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/catalog_and_grants
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_compliance_readiness(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_complete_schedule(text,text,text,text,text,text,text,timestamp_with_time_zone)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_live_fingerprint()
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_readiness(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_request_scheduled_sync(text,text,text,text,text,text,text,text,text,text,text,text,bytea,text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_security_ready()
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_production_security_agent_attack_path_security_ready()
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_production_security_agent_existing_tests_readiness(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_production_workflow_compatibility_security_ready()
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_attack_lab_readiness(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_export_readiness(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_webhook_guard()
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_webhook_readiness(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_attack_lab_prior.audit_fingerprint()
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_attack_lab_prior.predecessor_ready(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_export_prior.predecessor_ready(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_webhook_prior.predecessor_ready(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/catalog_drift_REVOKE_EXECUTE_ON_FUNCTION_zasp_execution_complete_schedule(text,text,text,text,text,text,text,timestamptz)_FROM_zasp_discovery_scheduler
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/catalog_drift_GRANT_EXECUTE_ON_FUNCTION_zasp_execution_request_scheduled_sync(text,text,text,text,text,text,text,text,text,text,text,text,bytea,text,text)_TO_PUBLIC
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/catalog_drift_ALTER_TABLE_zasp_discovery_schedule_runs_DROP_CONSTRAINT_zasp_discovery_schedule_runs_occurrence_key
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_production_security_agent_existing_tests_client_ready
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_compliance_api_ready
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_sa_attack_lab_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_sa_export_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_17_zasp_sa_webhook_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_01_zasp_execution_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_07_zasp_execution_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_08_zasp_execution_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_09_zasp_execution_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_06_zasp_discovery_schedule_replay_readiness
+=== NAME  TestProductionDiscoveryScheduleReplayPostgres
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+--- PASS: TestProductionDiscoveryScheduleReplayPostgres (14.86s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/catalog_and_grants (0.00s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_compliance_readiness(text,text) (0.08s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_complete_schedule(text,text,text,text,text,text,text,timestamp_with_time_zone) (0.08s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_live_fingerprint() (0.09s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_readiness(text,text) (0.09s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_request_scheduled_sync(text,text,text,text,text,text,text,text,text,text,text,text,bytea,text,text) (0.08s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_security_ready() (0.08s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_production_security_agent_attack_path_security_ready() (0.08s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_production_security_agent_existing_tests_readiness(text,text) (0.09s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_production_workflow_compatibility_security_ready() (0.08s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text) (0.08s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_attack_lab_readiness(text,text) (0.08s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_export_readiness(text,text) (0.08s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_webhook_guard() (0.08s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_webhook_readiness(text,text) (0.09s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text) (0.09s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_attack_lab_prior.audit_fingerprint() (0.10s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_attack_lab_prior.predecessor_ready(text,text) (0.10s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_export_prior.predecessor_ready(text,text) (0.09s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_webhook_prior.predecessor_ready(text,text) (0.09s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/catalog_drift_REVOKE_EXECUTE_ON_FUNCTION_zasp_execution_complete_schedule(text,text,text,text,text,text,text,timestamptz)_FROM_zasp_discovery_scheduler (0.08s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/catalog_drift_GRANT_EXECUTE_ON_FUNCTION_zasp_execution_request_scheduled_sync(text,text,text,text,text,text,text,text,text,text,text,text,bytea,text,text)_TO_PUBLIC (0.08s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/catalog_drift_ALTER_TABLE_zasp_discovery_schedule_runs_DROP_CONSTRAINT_zasp_discovery_schedule_runs_occurrence_key (0.09s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_production_security_agent_existing_tests_client_ready (0.18s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_compliance_api_ready (0.18s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_sa_attack_lab_readiness (0.18s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_sa_export_readiness (0.16s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_17_zasp_sa_webhook_readiness (0.15s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_01_zasp_execution_readiness (0.15s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_07_zasp_execution_readiness (0.14s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_08_zasp_execution_readiness (0.13s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_09_zasp_execution_readiness (0.13s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_06_zasp_discovery_schedule_replay_readiness (0.15s)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_discovery_scheduler
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_risk_worker
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_graph_worker
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_search_worker
+=== NAME  TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+--- PASS: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership (8.54s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_discovery_scheduler (0.21s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_risk_worker (0.20s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_graph_worker (0.22s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership/zasp_projection_search_worker (0.20s)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion/released
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:255: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion/disabled
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:248: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:255: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+--- PASS: TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion (15.05s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion/released (7.58s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion/disabled (7.46s)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresPreflight
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresPreflight/duplicate_false
+    main_test.go:360: refused SQLSTATE55000: schedule replay incomplete historical occurrence
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresPreflight/duplicate_true
+    main_test.go:360: refused SQLSTATE55000: schedule replay duplicate historical occurrence
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+--- PASS: TestProductionDiscoveryScheduleReplayPostgresPreflight (19.44s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresPreflight/duplicate_false (7.22s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresPreflight/duplicate_true (12.21s)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresRebind
+    main_test.go:436: refused SQLSTATE23505: schedule run conflict
+    main_test.go:436: refused SQLSTATE23505: schedule run conflict
+    main_test.go:436: refused SQLSTATE23505: schedule run conflict
+    main_test.go:449: refused SQLSTATE23505: schedule run conflict
+    main_test.go:449: refused SQLSTATE23505: schedule run conflict
+    main_test.go:456: refused SQLSTATE23514: new row for relation "zasp_discovery_schedule_runs" violates check constraint "zasp_discovery_schedule_runs_rebind_generation_check"
+    main_test.go:456: refused SQLSTATE23514: new row for relation "zasp_discovery_schedule_runs" violates check constraint "zasp_discovery_schedule_runs_completion_pair"
+    main_test.go:456: refused SQLSTATE23514: new row for relation "zasp_discovery_schedule_runs" violates check constraint "zasp_discovery_schedule_runs_completion_digest_check"
+    main_test.go:464: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:464: refused SQLSTATEP0002: schedule lease missing
+    main_test.go:483: refused SQLSTATE23505: schedule completion conflict
+    main_test.go:493: refused SQLSTATE55000: schedule replay durable evidence retained
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+--- PASS: TestProductionDiscoveryScheduleReplayPostgresRebind (19.46s)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresInstallLocks
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresInstallLocks/committed_old_admission_observed_after_lock
+    main_test.go:530: refused SQLSTATE55000: schedule replay incomplete historical occurrence
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresInstallLocks/already_executing_old_first_is_unsupported_and_stable_replay_refuses
+    main_test.go:571: unsupported predecessor first write committed after maintenance fence was deliberately violated
+    main_test.go:577: refused SQLSTATE23505: schedule run conflict
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+--- PASS: TestProductionDiscoveryScheduleReplayPostgresInstallLocks (19.55s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresInstallLocks/committed_old_admission_observed_after_lock (6.95s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgresInstallLocks/already_executing_old_first_is_unsupported_and_stable_replay_refuses (12.60s)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgresCompletionOnlyDownRefusal
+    main_test.go:609: refused SQLSTATE55000: schedule replay durable evidence retained
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+--- PASS: TestProductionDiscoveryScheduleReplayPostgresCompletionOnlyDownRefusal (7.82s)
+PASS
+
+exit=0; RUN=50; PASS=50; FAIL=0; SKIP=0.
+Seven top-level selectors. Ten PostgreSQL instances, all normal stop=0 wait=0 joins.
+Top-level durations total104.72s. Record counts include subtest parents.
+No relay. No external provider or production database was contacted.
+
+Final teardown:
+$ /usr/local/bin/docker ps -a --filter label=zasp.test.owner=release60-task2 --format '{{.Names}} {{.Status}}'
+exit=0; output empty.
+$ /usr/local/bin/docker inspect zasp-release60-task2-fix1-final
+[]
+error: no such object: zasp-release60-task2-fix1-final
+
+exit=1 (expected container absence after --rm).
+All review-round containers used the same owner label and were removed.
+Task-owned temp binaries/cache remain. No unrelated resources were removed.
+This is component/registered-candidate evidence, not live production proof or public300-second automatic-mode acceptance.

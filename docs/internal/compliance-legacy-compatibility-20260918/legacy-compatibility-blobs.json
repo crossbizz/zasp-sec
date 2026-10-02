@@ -1,0 +1,47 @@
+[
+  {
+    "path": "app/features/sessions/SessionsComplianceView.tsx",
+    "before": "b6fcf29d373e055a4ec24f82bc3a1f2550843fdf",
+    "after": "3307faf67cafa1e52ba40ce0d2f01149245a3937"
+  },
+  {
+    "path": "app/features/sessions/SessionsComplianceView.test.tsx",
+    "before": "0f13c934c12b9e5d08a16b152afc3ca8b3e265b0",
+    "after": "24134a24ae08a1d088e87f784dec599e3bd16348"
+  },
+  {
+    "path": "app/features/sessions/ComplianceEvidenceView.tsx",
+    "before": "4a80295b84676d0a4b6b3c953a0b6bda93632d02",
+    "after": "345f9f6bf7b6ce38f5ad7e9b481b4d1bae390ed3"
+  },
+  {
+    "path": "app/features/sessions/compliance-api.ts",
+    "before": "a0731913ff9f6899666797168235b92a88420289",
+    "after": "1559dab62f8db8af911ad4f463ee5635817354d1"
+  },
+  {
+    "path": "apps/web/api/compliance-decoders.test.ts",
+    "before": "b4e2640290ff5b4e78f27e598eb2580201b2acd0",
+    "after": "abec750ea9d0c7ca80258cb48f1d67a9d7b6c304"
+  },
+  {
+    "path": "services/platform/agentsec-api/compliance_composition_test.go",
+    "before": "223a8038e0a1a7bc4bca3cb522f00c628a94b86d",
+    "after": "7fc9da7344843953bee64c61f1de21b1292d4270"
+  },
+  {
+    "path": "services/platform/agentsec-api/compliance_browser_process_test.go",
+    "before": "53e499d11150ec708ef540a6d7822d0f399a456b",
+    "after": "a9ed404eb260befbacf2185dfea79907a7d19d81"
+  },
+  {
+    "path": "scripts/production-combined-e2e.mjs",
+    "before": "59fda9d9657bb31ed997760ad17581c5e30d18ae",
+    "after": "be0d10e83e90a1fa656246dff5a5511465594e91"
+  },
+  {
+    "path": "apps/web/api/compliance-decoders.ts",
+    "before": "cdb06ae23884cadc9ec735a8ba383c0c16bb21ac",
+    "after": "479e0d99e93df83e36eeb6734940b7c855e643e7"
+  }
+]

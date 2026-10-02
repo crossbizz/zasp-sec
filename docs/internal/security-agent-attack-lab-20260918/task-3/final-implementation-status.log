@@ -1,0 +1,5 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","scripts/implementation-status-check.mjs"]
+Implementation status ledger valid: 728 rows; 526 production-available, 141 component-only, 61 blocked/external, 0 missing.
+
+Exit: 0 Signal: null

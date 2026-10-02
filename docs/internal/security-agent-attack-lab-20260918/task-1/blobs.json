@@ -1,0 +1,147 @@
+[
+  {
+    "path": "services/platform/apiserver/security_agent_attack_lab_reference_test.go",
+    "before": null,
+    "after": "06848806064153e26e815c07498c0ee3a306ceb8"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_attack_lab_postgres_test.go",
+    "before": null,
+    "after": "ffc7a431f3c3cd01a5039af3724164911a6ead7e"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_existing_test_reference.go",
+    "before": "14ddfbf6bac1fb7b4e1fdc9d47ea4f2864b7db52",
+    "after": "8d9943fb346a9fb9dc9e930f7ee89251fb874232"
+  },
+  {
+    "path": "services/platform/apiserver/workflow_handler.go",
+    "before": "1d699a6b9d5b86401a2d9523ab64d043a69fc1e2",
+    "after": "fbbd023cc8aa8b8fcc4d2b469fdeae2cbbc4b2d3"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_repository.go",
+    "before": "3ee4be7a9f8feb91723bd010a528e363ab4a0da2",
+    "after": "1f1c28451b33814673a914f43f4d3c1e55a18ed9"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_worker_repository.go",
+    "before": "12e117c1f064360fc852004ae5eb84f0aa096b22",
+    "after": "45712a97a91709b64ff94d861cfbc8db7cd4d932"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_budget_repository.go",
+    "before": "61c5522b679672b9a4303fd7ce3e34f21875017e",
+    "after": "d2e7a778976f2a257892faf56ff53ddad14d0d13"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_budget_release_database.go",
+    "before": "a724c4f1419735b21d8e4a511b6adc151f4586c2",
+    "after": "a724c4f1419735b21d8e4a511b6adc151f4586c2"
+  },
+  {
+    "path": "services/platform/migrations/migrations.go",
+    "before": "909ddcdc39d03670c9c6e5d1475beddcfee700fa",
+    "after": "f98328d4d545bdd815c3a1bce479ac2d0076872c"
+  },
+  {
+    "path": "services/platform/migrations/production_audit_exports.go",
+    "before": "8161cf639efefdd33a4a866f711f7ee8a671eb44",
+    "after": "06a5877c66751f291549ee48c3b1a9610f3fe4b6"
+  },
+  {
+    "path": "services/platform/agentsec-migrate/main.go",
+    "before": "2d24336fa859bcb2285637dc62a4e9287d0c9d68",
+    "after": "4fe851fbbae2589245f86afe8900385239c23f75"
+  },
+  {
+    "path": "services/platform/migrations/security_agent_attack_lab_release.go",
+    "before": null,
+    "after": "fd18f88f4ccd656aa39eafa35159f4b6c25dbfbc"
+  },
+  {
+    "path": "services/platform/migrations/production_security_agent_attack_lab.go",
+    "before": null,
+    "after": "2591e1319f0a89ed6ab7ca3d55860fb9c676eb36"
+  },
+  {
+    "path": "services/platform/migrations/sql/0057_production_security_agent_attack_lab.up.sql",
+    "before": null,
+    "after": "d45e3b51fb16e4cf71340bd680e59ba21a97949d"
+  },
+  {
+    "path": "services/platform/migrations/sql/0057_production_security_agent_attack_lab.down.sql",
+    "before": null,
+    "after": "9e96cebe73542af5fd566e88e89f662283c83caf"
+  },
+  {
+    "path": "services/platform/migrations/sql/fragments/security_agent_attack_lab_admission.sql",
+    "before": null,
+    "after": "60bbc980a2039c78bd9f2e0af6f750a861e8fae2"
+  },
+  {
+    "path": "services/platform/migrations/sql/fragments/security_agent_attack_lab_definition.sql",
+    "before": null,
+    "after": "59661b3c56e5c8fd17fe845281761f1e29a18696"
+  },
+  {
+    "path": "services/platform/migrations/sql/fragments/security_agent_attack_lab_planner.sql",
+    "before": null,
+    "after": "e20ebdb9e646f1949a0c7edf5ee7c13e073e32ab"
+  },
+  {
+    "path": "services/platform/migrations/sql/fragments/security_agent_attack_lab_links.sql",
+    "before": null,
+    "after": "d9759271e3e56fd669909b2db5c9e3fdab740495"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_attack_lab_repository.go",
+    "before": null,
+    "after": "eeff9b7a5375d8f86c2306479b32a266e1804a55"
+  },
+  {
+    "path": "services/platform/agentsec-migrate/attack_lab_command_test.go",
+    "before": null,
+    "after": "c08704a13ea9792ee990e9faf358bd3d2641c149"
+  },
+  {
+    "path": "services/platform/agentsec-migrate/attack_lab_registration.go",
+    "before": null,
+    "after": "c70f47cc2dbaf3884b1b4e4dad92cac3ab0fb5c4"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_handler.go",
+    "before": "5cff78ac68b2ec143e2457fb0bd8265031cf0c24",
+    "after": "8ac56e976d7f0bdba57f7df78eb6ead20a66b9f7"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_approval_context.go",
+    "before": "637b369757b35df632bcb0a7e217e5d6714c6605",
+    "after": "2df7a1f7ccb0915d741653086f35537bf7900e6a"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_action_details.go",
+    "before": "79ac16e60b718a053827885c6f60650309c7fee4",
+    "after": "f5eb2c625fdb2a442ea1744f8f8fc1363f9d800f"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_approval_context_repository.go",
+    "before": "65d90123c8273fa79dd252df874a184d0789cfa8",
+    "after": "7c3f9f7c17cee80111f5788bbd9069d7f0f1dbbc"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_planner.go",
+    "before": "fb4dd3fbf5cd6bdedc271ad0d98b661f3ecd04dd",
+    "after": "d820cbb6c62d45494876ff0c01f5a9e5b8aa7076"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_runtime.go",
+    "before": "28022ec8fef755c20bbf61552a1f7bc9cfb10d85",
+    "after": "e69276bf7fc90e53f48624a7ae64ec5058a7ce3a"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_planner_test.go",
+    "before": null,
+    "after": "e4a9a8d9a336c239e0f1be02fc36de287fdc1f1d"
+  }
+]

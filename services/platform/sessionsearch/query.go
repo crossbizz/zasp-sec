@@ -19,6 +19,10 @@ var ErrQuery = errors.New("runtime session query rejected")
 type Filters struct {
 	AgentID, PrincipalID, Tool, Process, File, Domain, Credential, Resource, Decision, RawQuery string
 	From, To                                                                                    time.Time
+	// Production callers supply the current, complete checked candidate set.
+	// The zero value retains legacy fixture behavior; restricted empty is deny-all.
+	AuthorizationRestricted bool
+	AllowedInvestigationIDs []string
 }
 
 // BuildQuery matches all selectors on the same event in one exact tenant scope.
@@ -28,6 +32,18 @@ type Filters struct {
 func BuildQuery(scope domain.Scope, filters Filters, after string, limit int) ([]byte, error) {
 	if scope.Validate() != nil || filters.RawQuery != "" || limit < 1 || limit > 101 || !validInvestigationID(after) {
 		return nil, ErrQuery
+	}
+	if filters.AuthorizationRestricted {
+		if len(filters.AllowedInvestigationIDs) > 10000 {
+			return nil, ErrQuery
+		}
+		seen := make(map[string]bool, len(filters.AllowedInvestigationIDs))
+		for _, id := range filters.AllowedInvestigationIDs {
+			if id == "" || !validInvestigationID(id) || seen[id] {
+				return nil, ErrQuery
+			}
+			seen[id] = true
+		}
 	}
 	for _, id := range []string{filters.AgentID, filters.PrincipalID, filters.Credential} {
 		if id != "" {
@@ -58,6 +74,15 @@ func BuildQuery(scope domain.Scope, filters Filters, after string, limit int) ([
 	term("organization_id", scope.OrganizationID().String())
 	term("workspace_id", scope.WorkspaceID().String())
 	term("environment_id", scope.EnvironmentID().String())
+	// This predicate restricts documents before composite buckets, their counts
+	// and continuation keys are computed. It is not a page-level post-filter.
+	if filters.AuthorizationRestricted {
+		if len(filters.AllowedInvestigationIDs) == 0 {
+			clauses = append(clauses, object{"match_none": object{}})
+		} else {
+			clauses = append(clauses, object{"terms": object{"investigation_id": filters.AllowedInvestigationIDs}})
+		}
+	}
 	term("agent_id", filters.AgentID)
 	term("observed_principal_id", filters.PrincipalID)
 	term("tool_id", filters.Tool)

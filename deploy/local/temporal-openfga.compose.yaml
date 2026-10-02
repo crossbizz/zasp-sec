@@ -1,0 +1,92 @@
+# Disposable development infrastructure only. Published ports are loopback-only.
+# Optional local password overrides must be URL-safe; these are not production credentials.
+name: zasp-runtime-services
+x-postgres: &postgres
+  image: postgres:17.7-alpine@sha256:bb377b7239d2774ac8cc76f481596ce96c5a6b5e9d141f6d0a0ee371a6e7c0f2
+  healthcheck:
+    test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+    interval: 2s
+    timeout: 2s
+    retries: 30
+  mem_limit: 256m
+  cpus: 0.5
+services:
+  openfga-cli:
+    image: openfga/cli:v0.8.0@sha256:5e6ba91d1830bb70f0464ae9949e2b37a65897f388bbb595ad583c89bfbd0673
+    profiles: [tools]
+    command: [--help]
+  temporal-db:
+    <<: *postgres
+    environment: { POSTGRES_USER: temporal, POSTGRES_PASSWORD: local-temporal-only, POSTGRES_DB: temporal }
+    volumes: [temporal-data:/var/lib/postgresql/data]
+  visibility-db:
+    <<: *postgres
+    environment: { POSTGRES_USER: visibility, POSTGRES_PASSWORD: local-visibility-only, POSTGRES_DB: temporal_visibility }
+    volumes: [visibility-data:/var/lib/postgresql/data]
+  openfga-db:
+    <<: *postgres
+    environment: { POSTGRES_USER: openfga, POSTGRES_PASSWORD: "${ZASP_LOCAL_OPENFGA_PASSWORD:-local-openfga-only}", POSTGRES_DB: openfga }
+    volumes: [openfga-data:/var/lib/postgresql/data]
+  temporal-migrate:
+    image: temporalio/admin-tools:1.32.0@sha256:a9f84fb9a374b2374fe2e67c8efc0468ff3f1c66c8a0b14597ec86e349e62bca
+    depends_on:
+      temporal-db: { condition: service_healthy }
+      visibility-db: { condition: service_healthy }
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        temporal-sql-tool --plugin postgres12 --ep temporal-db --port 5432 -u temporal --pw local-temporal-only --db temporal setup-schema -v 0.0
+        temporal-sql-tool --plugin postgres12 --ep temporal-db --port 5432 -u temporal --pw local-temporal-only --db temporal update-schema -d /etc/temporal/schema/postgresql/v12/temporal/versioned
+        temporal-sql-tool --plugin postgres12 --ep visibility-db --port 5432 -u visibility --pw local-visibility-only --db temporal_visibility setup-schema -v 0.0
+        temporal-sql-tool --plugin postgres12 --ep visibility-db --port 5432 -u visibility --pw local-visibility-only --db temporal_visibility update-schema -d /etc/temporal/schema/postgresql/v12/visibility/versioned
+  temporal:
+    image: temporalio/server:1.32.0@sha256:c3e752127759616bb1615e0f9ba0e21635aeb5fdeb922de4f371c350955f46ae
+    depends_on: { temporal-migrate: { condition: service_completed_successfully } }
+    entrypoint: [temporal-server, --root, /etc/temporal, --config, config, --env, local, start]
+    volumes: [./temporal-openfga/temporal.yaml:/etc/temporal/config/local.yaml:ro]
+    ports: [127.0.0.1:7233:7233, 127.0.0.1:9090:9090]
+    mem_limit: 1536m
+    cpus: 2
+  temporal-namespace:
+    image: temporalio/admin-tools:1.32.0@sha256:a9f84fb9a374b2374fe2e67c8efc0468ff3f1c66c8a0b14597ec86e349e62bca
+    depends_on: [temporal]
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        for attempt in $$(seq 1 60); do
+          if temporal operator cluster health --address temporal:7233 >/dev/null 2>&1; then
+            temporal operator namespace describe --address temporal:7233 --namespace zasp-dev >/dev/null 2>&1 || temporal operator namespace create --address temporal:7233 --namespace zasp-dev --retention 24h
+            exit 0
+          fi
+          sleep 2
+        done
+        exit 1
+  openfga-migrate:
+    image: openfga/openfga:v1.21.0@sha256:2113c664a486b5da8d7a2cdab479e0d4e30639c80fd2c000540f645c1dbc1e55
+    depends_on: { openfga-db: { condition: service_healthy } }
+    command: [migrate]
+    environment:
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: postgres://openfga:${ZASP_LOCAL_OPENFGA_PASSWORD:-local-openfga-only}@openfga-db:5432/openfga?sslmode=disable
+  openfga:
+    image: openfga/openfga:v1.21.0@sha256:2113c664a486b5da8d7a2cdab479e0d4e30639c80fd2c000540f645c1dbc1e55
+    depends_on: { openfga-migrate: { condition: service_completed_successfully } }
+    command: [run]
+    environment:
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: postgres://openfga:${ZASP_LOCAL_OPENFGA_PASSWORD:-local-openfga-only}@openfga-db:5432/openfga?sslmode=disable
+      OPENFGA_DATASTORE_MAX_OPEN_CONNS: '10'
+      OPENFGA_DATASTORE_MAX_IDLE_CONNS: '5'
+      OPENFGA_AUTHN_METHOD: preshared
+      OPENFGA_AUTHN_PRESHARED_KEYS: local-openfga-smoke-only
+      OPENFGA_PLAYGROUND_ENABLED: 'false'
+      OPENFGA_METRICS_ENABLED: 'true'
+      OPENFGA_LOG_FORMAT: json
+      OPENFGA_LOG_LEVEL: warn
+    ports: [127.0.0.1:8088:8080, 127.0.0.1:2112:2112]
+    mem_limit: 256m
+    cpus: 0.5
+volumes:
+  temporal-data:
+  visibility-data:
+  openfga-data:

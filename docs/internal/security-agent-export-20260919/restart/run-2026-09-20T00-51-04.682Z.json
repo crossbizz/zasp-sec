@@ -1,0 +1,94 @@
+{
+  "commands": [
+    {
+      "command": "/opt/homebrew/bin/go",
+      "args": [
+        "test",
+        "-c",
+        "-o",
+        "/private/tmp/zasp-public-restart-DSZSeq/api.test",
+        "./apiserver"
+      ],
+      "env": {
+        "GOTOOLCHAIN": "local",
+        "GOPROXY": "off",
+        "GOSUMDB": "off",
+        "GOOS": "linux",
+        "GOARCH": "arm64",
+        "CGO_ENABLED": "0"
+      }
+    },
+    {
+      "command": "/opt/homebrew/bin/go",
+      "args": [
+        "test",
+        "-c",
+        "-o",
+        "/private/tmp/zasp-public-restart-DSZSeq/worker.test",
+        "./agentsec-worker"
+      ],
+      "env": {
+        "GOTOOLCHAIN": "local",
+        "GOPROXY": "off",
+        "GOSUMDB": "off",
+        "GOOS": "linux",
+        "GOARCH": "arm64",
+        "CGO_ENABLED": "0"
+      }
+    },
+    {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "--pull=never",
+        "--network",
+        "none",
+        "--read-only",
+        "--user",
+        "postgres",
+        "--cpus",
+        "2",
+        "--memory",
+        "2g",
+        "--pids-limit",
+        "512",
+        "--tmpfs",
+        "/tmp:rw,exec,size=1400m",
+        "--tmpfs",
+        "/var/run/postgresql:rw",
+        "--mount",
+        "type=bind,src=/private/tmp/zasp-public-restart-DSZSeq/api.test,dst=/export.test,readonly",
+        "--mount",
+        "type=bind,src=/private/tmp/zasp-public-restart-DSZSeq/worker.test,dst=/compliance-worker.test,readonly",
+        "--mount",
+        "type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly",
+        "--mount",
+        "type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/docs/internal/security-agent-export-20260919/restart/runtime,dst=/evidence",
+        "--env",
+        "ZASP_PUBLIC_EXPORT_EVIDENCE=/evidence",
+        "--workdir",
+        "/workspace/services/platform/apiserver",
+        "--entrypoint",
+        "/export.test",
+        "postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba",
+        "-test.run",
+        "^TestSecurityAgentExportPublicRestartPostgres$",
+        "-test.v",
+        "-test.timeout",
+        "900s"
+      ],
+      "env": {}
+    }
+  ],
+  "hashes": {
+    "services/platform/apiserver/security_agent_export_public_restart_postgres_test.go": "cb3c2d3ca0636f8091848d3e2fa970087b753d466c5293f4b0fa692fd8f64fd4",
+    "services/platform/apiserver/security_agent_export_public_process_test.go": "1d656ee58c6fb1bfae758ebca465ddbe4b6e3b1a0f3adecd2a380c83ab994294",
+    "services/platform/agentsec-worker/security_agent_export_public_process_test.go": "28b88e31a551fb96e3f62981c12681f778219775cc83e4a725766a49556ca64b",
+    "services/platform/migrations/security_agent_exports_release.go": "52cc2adf7a35838091ea3d5266ecd74e5d0eaa8706ac91d1767b0334fd7fc98b",
+    "api.test": "f802eeea006a48705ac4efab2bc0655a432b51fe22f506b03331db8474abd06a",
+    "worker.test": "d79ec73b104d8d39b991c1c26c73e8ae7d994ccfcd2159d61b9a5c5e0fc7dd0b"
+  },
+  "status": 1,
+  "signal": null
+}

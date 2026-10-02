@@ -1,0 +1,983 @@
+cwd: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+command: git status --short; git rev-parse HEAD; shasum -a 256 read-only inputs; assert both owned paths absent
+exit: 0
+ M .github/workflows/runnable-ui.yml
+ M README.md
+ M app/api/APIProvider.tsx
+ M app/components/ZaspProductionApp.tsx
+ M app/features/administration/AdminOperationsView.test.tsx
+ M app/features/administration/AdminOperationsView.tsx
+ M app/features/redteam/ProductionAttackLabView.test.tsx
+ M app/features/redteam/ProductionAttackLabView.tsx
+ M app/features/redteam/ProductionRedTeamView.test.tsx
+ M app/features/redteam/ProductionRedTeamView.tsx
+ M app/features/risk/ProductionRiskView.test.tsx
+ M app/features/risk/ProductionRiskView.tsx
+ M app/features/securityagents/SecurityAgentsView.test.tsx
+ M app/features/securityagents/SecurityAgentsView.tsx
+ M app/features/sessions/RuntimeSessionTimeline.tsx
+ M app/features/sessions/RuntimeSessionsView.test.tsx
+ M app/features/sessions/RuntimeSessionsView.tsx
+ M app/features/sessions/SessionsComplianceView.test.tsx
+ M app/features/sessions/SessionsComplianceView.tsx
+ M app/features/workflows/api.test.ts
+ M app/globals.css
+ M app/quality/dependency-lock-contract.test.ts
+ M app/quality/localstack-sqs-proof-contract.test.ts
+ M app/quality/localstack-storage-proof-contract.test.ts
+ M app/quality/m1a-m3-foundation-batch-contract.test.ts
+ M app/quality/m1a-staging-gate-batch-contract.test.ts
+ M app/quality/m2-closure-contract.test.ts
+ M app/quality/m2-identity-governance-ui-batch-contract.test.ts
+ M app/quality/m7-session-compliance-batch-contract.test.ts
+ M app/quality/m7a-api-builder-batch-contract.test.ts
+ M app/quality/platform-api-command-contract.test.ts
+ M app/quality/runnable-ui-workflow.test.ts
+ M app/quality/s3-artifact-interface-contract.test.ts
+ M app/quality/ui-api-coverage-ci-contract.test.ts
+ M app/quality/ui-api-map-contract.test.ts
+ M apps/web/api/administration-decoders.ts
+ M apps/web/api/client.ts
+ M apps/web/api/decoders.receipts.test.ts
+ M apps/web/api/decoders.red-team.test.ts
+ M apps/web/api/decoders.security-agent.test.ts
+ M apps/web/api/decoders.ts
+ M apps/web/api/generated.ts
+ M apps/web/api/pagination.test.ts
+ M apps/web/api/pagination.ts
+ M build/dependencies.lock.yaml
+ M cmd/agentsecctl/security_release.go
+ M cmd/agentsecctl/security_release_test.go
+ M deploy/production/compatibility-observation.mjs
+ M deploy/production/compatibility-observation.test.mjs
+ M deploy/production/release-contract.mjs
+ M deploy/production/release-contract.test.mjs
+ M deploy/production/release-gates.mjs
+ M deploy/production/release-gates.test.mjs
+ M deploy/production/session-search-rollout.mjs
+ M deploy/production/session-search-rollout.test.mjs
+ M deploy/production/web.Dockerfile
+ M deploy/staging/gate.test.mjs
+ M deploy/staging/main.tf
+ M deploy/staging/product/templates/_session-search.tpl
+ M deploy/staging/product/templates/migration.yaml
+ M deploy/staging/product/templates/red-team.yaml
+ M deploy/staging/product/templates/resilience.yaml
+ M deploy/staging/product/templates/secrets.yaml
+ M deploy/staging/product/templates/workloads.yaml
+ M deploy/staging/product/values.yaml
+ M deploy/staging/tests/session_search_iam.tftest.hcl
+ M docs/internal/2026-09-11-sandbox-query-cutover-evidence.md
+ M docs/internal/implementation_production_availability_owners_v1.5.tsv
+ M docs/internal/implementation_production_availability_v1.5.tsv
+ M docs/internal/implementation_status_v1.5.md
+ M docs/operations/backup-restore-rollback.md
+ M docs/operations/observability-and-canaries.md
+ M docs/operations/production-deployment.md
+ M docs/product/security-agent-action-readiness.tsv
+ M docs/product/ui-api-map.yaml
+ M eslint.config.mjs
+ M openapi/identity-admin.test.mjs
+ M openapi/openapi.test.mjs
+ M openapi/openapi.yaml
+ M package-lock.json
+ M package.json
+ M proofs/localstack-sqs/go.mod
+ M proofs/localstack-sqs/go.sum
+ M proofs/localstack-sqs/job_queue.go
+ M proofs/localstack-sqs/job_queue_proof_test.go
+ M proofs/localstack-sqs/job_queue_test.go
+ M proofs/localstack-sqs/job_sdk_test.go
+ M proofs/localstack-sqs/proof.go
+ M proofs/localstack-sqs/sdk.go
+ M proofs/localstack-storage/go.mod
+ M proofs/localstack-storage/go.sum
+ M scripts/check-production-imports.mjs
+ M scripts/check-production-imports.test.mjs
+ M scripts/check-ui-api-coverage.test.mjs
+ M scripts/implementation-status-check.mjs
+ M scripts/implementation-status-check.test.mjs
+ M scripts/production-combined-e2e.mjs
+ M scripts/production-combined-e2e.test.mjs
+ M scripts/production-release-gate.mjs
+ M scripts/red-team-runtime-proof.mjs
+ M scripts/red-team-runtime-proof.test.mjs
+ M scripts/sensor-daemon-replay.mjs
+ M scripts/sensor-daemon-replay.test.mjs
+ M scripts/validate-dependencies.mjs
+ M scripts/validate-dependencies.test.mjs
+ M services/platform/agentsec-api/connector_aws.go
+ M services/platform/agentsec-api/main.go
+ M services/platform/agentsec-api/operational.go
+ M services/platform/agentsec-api/operational_test.go
+ M services/platform/agentsec-api/production_runtime.go
+ M services/platform/agentsec-api/runtime.go
+ M services/platform/agentsec-api/runtime_test.go
+ M services/platform/agentsec-migrate/main.go
+ M services/platform/agentsec-migrate/main_test.go
+ M services/platform/agentsec-migrate/runtime_sandbox_binary_postgres_test.go
+ M services/platform/agentsec-migrate/runtime_sandbox_command_test.go
+ M services/platform/agentsec-migrate/runtime_sandbox_prestage_test.go
+ M services/platform/agentsec-worker/discovery_cloud.go
+ M services/platform/agentsec-worker/outbox_production.go
+ M services/platform/agentsec-worker/outbox_production_test.go
+ M services/platform/agentsec-worker/production_combined_e2e_test.go
+ M services/platform/agentsec-worker/production_runtime.go
+ M services/platform/agentsec-worker/production_runtime_test.go
+ M services/platform/agentsec-worker/red_team_artifact.go
+ M services/platform/agentsec-worker/red_team_artifact_test.go
+ M services/platform/agentsec-worker/red_team_execution_runtime.go
+ M services/platform/agentsec-worker/red_team_production.go
+ M services/platform/agentsec-worker/red_team_runner.go
+ M services/platform/agentsec-worker/red_team_runner_test.go
+ M services/platform/agentsec-worker/red_team_runtime_combined_e2e_test.go
+ M services/platform/agentsec-worker/runtime_config.go
+ M services/platform/agentsec-worker/runtime_config_test.go
+ M services/platform/agentsec-worker/security_agent_action_runtime.go
+ M services/platform/agentsec-worker/security_agent_planner.go
+ M services/platform/agentsec-worker/security_agent_planner_test.go
+ M services/platform/agentsec-worker/security_agent_runtime.go
+ M services/platform/agentsec-worker/security_agent_runtime_test.go
+ M services/platform/apiserver/administration_repository.go
+ M services/platform/apiserver/api_token_reveal.go
+ M services/platform/apiserver/composition.go
+ M services/platform/apiserver/composition_test.go
+ M services/platform/apiserver/discovery_repository.go
+ M services/platform/apiserver/postgres_database.go
+ M services/platform/apiserver/postgres_integration_test.go
+ M services/platform/apiserver/production.go
+ M services/platform/apiserver/production_test.go
+ M services/platform/apiserver/red_team_execution_repository.go
+ M services/platform/apiserver/red_team_invocation_postgres_test.go
+ M services/platform/apiserver/red_team_repository.go
+ M services/platform/apiserver/red_team_repository_test.go
+ M services/platform/apiserver/repository.go
+ M services/platform/apiserver/router.go
+ M services/platform/apiserver/runtime_correlation_routing_postgres_test.go
+ M services/platform/apiserver/runtime_sandbox_session_read_postgres_test.go
+ M services/platform/apiserver/security_agent_action_repository.go
+ M services/platform/apiserver/security_agent_attack_path_postgres_test.go
+ M services/platform/apiserver/security_agent_handler.go
+ M services/platform/apiserver/security_agent_repository.go
+ M services/platform/apiserver/security_agent_repository_test.go
+ M services/platform/apiserver/security_agent_surface.go
+ M services/platform/apiserver/security_agent_worker_repository.go
+ M services/platform/apiserver/security_agent_worker_repository_test.go
+ M services/platform/apiserver/sensor_daemon_replay_linux_test.go
+ M services/platform/apiserver/sensor_daemon_replay_process_linux_test.go
+ M services/platform/apiserver/workflow_handler.go
+ M services/platform/apiserver/workflow_repository.go
+ M services/platform/artifactstore/s3driver/driver.go
+ M services/platform/artifactstore/s3driver/driver_test.go
+ M services/platform/artifactstore/store.go
+ M services/platform/artifactstore/store_test.go
+ M services/platform/bucketlayout/layout.go
+ M services/platform/bucketlayout/layout_test.go
+ M services/platform/internal/sandboxcutover/kubernetes_test.go
+ M services/platform/internal/testprocess/command_darwin.go
+ M services/platform/internal/testprocess/command_linux.go
+ M services/platform/internal/testprocess/command_test.go
+ M services/platform/internal/testprocess/command_unix.go
+ M services/platform/migrations/migrations.go
+ M services/platform/migrations/migrations_test.go
+ M services/platform/queuedefinition/definitions.go
+ M services/platform/queuedefinition/definitions_test.go
+ M services/platform/red-team-adapter/production.go
+ M services/platform/red-team-adapter/production_database_test.go
+ M services/platform/redteamadapter/adapter.go
+ M services/platform/redteamadapter/cloud_test.go
+ M services/platform/redteamadapter/http_invoker.go
+ M services/platform/redteamadapter/http_invoker_test.go
+ M services/platform/redteamadapter/secrets_resolver.go
+ M services/platform/redteamadapter/secrets_resolver_test.go
+ M services/platform/runtimeevent/production_precise_ingest_repository.go
+ M services/platform/securityagent/action_readiness.go
+ M services/platform/securityagent/automation_test.go
+ M services/platform/securityagent/builtin_actions.go
+ M services/platform/securityagent/templates.go
+ M services/platform/sessioncontrol/sessioncontrol.go
+ M workers/redteam-node/image-proof.mjs
+ M workers/redteam-node/image.integration.test.mjs
+ M workers/redteam-node/package.json
+ M workers/redteam-node/runner.mjs
+?? .npmrc
+?? app/api/APIProvider.audit-exports.test.tsx
+?? app/components/ZaspProductionApp.test.tsx
+?? app/domain/activity-links.test.ts
+?? app/domain/activity-links.ts
+?? app/domain/compliance-links.test.ts
+?? app/domain/compliance-links.ts
+?? app/features/administration/AuditExportPanel.test.tsx
+?? app/features/administration/AuditExportPanel.tsx
+?? app/features/administration/AuditLogPanel.test.tsx
+?? app/features/administration/AuditLogPanel.tsx
+?? app/features/administration/audit-export-controller.test.ts
+?? app/features/administration/audit-export-controller.ts
+?? app/features/administration/audit-export-resume.test.ts
+?? app/features/administration/audit-export-resume.ts
+?? app/features/administration/audit-export-save.test.ts
+?? app/features/administration/audit-export-save.ts
+?? app/features/securityagents/ActionDetails.tsx
+?? app/features/securityagents/ApprovalContext.tsx
+?? app/features/securityagents/AttackLabEvidence.test.tsx
+?? app/features/securityagents/AttackLabEvidence.tsx
+?? app/features/securityagents/ExistingTestEvidence.test.tsx
+?? app/features/securityagents/ExistingTestEvidence.tsx
+?? app/features/securityagents/ExistingTestPicker.tsx
+?? app/features/securityagents/SecurityAgentActivityPanel.test.tsx
+?? app/features/securityagents/SecurityAgentActivityPanel.tsx
+?? app/features/securityagents/SecurityAgentAuditActivity.test.tsx
+?? app/features/securityagents/SecurityAgentAuditView.test.tsx
+?? app/features/securityagents/SecurityAgentAuditView.tsx
+?? app/features/sessions/ComplianceEvidenceView.tsx
+?? app/features/sessions/RuntimeSessionActivity.test.tsx
+?? app/features/sessions/compliance-api.test.ts
+?? app/features/sessions/compliance-api.ts
+?? app/quality/audit-ci-source-contract.ts
+?? apps/web/api/audit-export-codec.test.ts
+?? apps/web/api/audit-export-codec.ts
+?? apps/web/api/audit-export-decoders.test.ts
+?? apps/web/api/audit-export-decoders.ts
+?? apps/web/api/audit-exports.test.ts
+?? apps/web/api/audit-exports.ts
+?? apps/web/api/audit-log.test.ts
+?? apps/web/api/audit-log.ts
+?? apps/web/api/compliance-decoders.test.ts
+?? apps/web/api/compliance-decoders.ts
+?? apps/web/api/compliance-download.test.ts
+?? apps/web/api/decoders.attack-lab.test.ts
+?? apps/web/api/decoders.security-agent-actions.test.ts
+?? apps/web/api/decoders.security-agent-approval-context.test.ts
+?? apps/web/api/decoders.security-agent-lifecycle.test.ts
+?? apps/web/api/decoders.security-agent-test-proof.test.ts
+?? apps/web/api/security-agent-activity.test.ts
+?? apps/web/api/security-agent-activity.ts
+?? apps/web/api/security-agent-audit.test.ts
+?? apps/web/api/security-agent-audit.ts
+?? apps/web/api/testdata/
+?? cmd/agentsecctl/vulnerability_exception_test.go
+?? deploy/production/api-startup.mjs
+?? deploy/production/attack-lab-reconciler-alerts.test.mjs
+?? deploy/production/attack-lab-reconciler-iam.test.mjs
+?? deploy/production/attack-lab-reconciler-network.mjs
+?? deploy/production/attack-lab-reconciler-release-fixture.mjs
+?? deploy/production/attack-lab-reconciler-rollout.mjs
+?? deploy/production/attack-lab-reconciler-rollout.test.mjs
+?? deploy/production/attack-lab-reconciler-runtime.test.mjs
+?? deploy/production/attack-lab-workflow-readiness.mjs
+?? deploy/production/attack-lab-workflow-readiness.test.mjs
+?? deploy/production/audit-export-alerts.test.mjs
+?? deploy/production/audit-export-network.mjs
+?? deploy/production/audit-export-network.test.mjs
+?? deploy/production/audit-export-operations.mjs
+?? deploy/production/audit-export-operations.test.mjs
+?? deploy/production/audit-export-release-fixture.mjs
+?? deploy/production/audit-export-rollout.mjs
+?? deploy/production/audit-export-rollout.test.mjs
+?? deploy/production/audit-export-workloads.test.mjs
+?? deploy/production/compliance-export-helm.test.mjs
+?? deploy/production/compliance-export-network.mjs
+?? deploy/production/compliance-export-release-fixture.mjs
+?? deploy/production/compliance-export-rollout.mjs
+?? deploy/production/compliance-export-rollout.test.mjs
+?? deploy/production/compliance-export-runtime.test.mjs
+?? deploy/production/compliance-export-toolchain.test.mjs
+?? deploy/production/go-test-runtime.mjs
+?? deploy/production/security-agent-budget-rollout.test.mjs
+?? deploy/production/test-reconciler-alerts.test.mjs
+?? deploy/production/test-reconciler-network.mjs
+?? deploy/production/test-reconciler-release-fixture.mjs
+?? deploy/production/test-reconciler-rollout.mjs
+?? deploy/production/test-reconciler-rollout.test.mjs
+?? deploy/production/test-reconciler-workloads.test.mjs
+?? deploy/staging/attack_lab_reconciler.tf
+?? deploy/staging/audit_exports.tf
+?? deploy/staging/compliance-exports-contract.test.mjs
+?? deploy/staging/compliance_exports.tf
+?? deploy/staging/product/templates/_attack-lab-reconciler.tpl
+?? deploy/staging/product/templates/_audit-exports-api.tpl
+?? deploy/staging/product/templates/_audit-exports-migration.tpl
+?? deploy/staging/product/templates/_compliance-exports.tpl
+?? deploy/staging/product/templates/attack-lab-reconciler-network.yaml
+?? deploy/staging/product/templates/attack-lab-reconciler-operations.yaml
+?? deploy/staging/product/templates/attack-lab-reconciler.yaml
+?? deploy/staging/product/templates/attack-lab-workflow-network.yaml
+?? deploy/staging/product/templates/audit-export-network.yaml
+?? deploy/staging/product/templates/audit-export-operations.yaml
+?? deploy/staging/product/templates/audit-exports.yaml
+?? deploy/staging/product/templates/compliance-export-network.yaml
+?? deploy/staging/product/templates/compliance-export-operations.yaml
+?? deploy/staging/product/templates/compliance-exports.yaml
+?? deploy/staging/product/templates/test-reconciler.yaml
+?? deploy/staging/queue-contract.test.mjs
+?? deploy/staging/test-reconciler.tf
+?? deploy/staging/tests/attack_lab_reconciler_iam.tftest.hcl
+?? deploy/staging/tests/compliance_exports_iam.tftest.hcl
+?? deploy/staging/tests/test_reconciler_iam.tftest.hcl
+?? docs/internal/2026-09-12-audit-export-design.md
+?? docs/internal/2026-09-12-audit-export-evidence.md
+?? docs/internal/2026-09-12-audit-export-plan.md
+?? docs/internal/2026-09-12-audit-export-schema52-audit.md
+?? docs/internal/2026-09-14-dependency-audit-triage.md
+?? docs/internal/2026-09-14-security-agent-batch-audit.md
+?? docs/internal/2026-09-15-audit-export-ui-evidence.md
+?? docs/internal/2026-09-15-data-compliance-batch-audit.md
+?? docs/internal/2026-09-15-local-runtime-batch-audit.md
+?? docs/internal/2026-09-15-offline-audit-gate-gap.md
+?? docs/internal/2026-09-15-original-queue-repair-evidence.md
+?? docs/internal/2026-09-15-planner-tenant-boundary-evidence.md
+?? docs/internal/2026-09-15-security-agent-budget-design.md
+?? docs/internal/2026-09-15-security-agent-budget-gap.md
+?? docs/internal/2026-09-15-security-agent-budget-plan.md
+?? docs/internal/2026-09-15-security-agent-simulation-evidence.md
+?? docs/internal/2026-09-15-staging-batch-audit.md
+?? docs/internal/2026-09-16-release-verification-checkpoint.md
+?? docs/internal/2026-09-16-security-agent-action-details-design.md
+?? docs/internal/2026-09-16-security-agent-action-details-plan.md
+?? docs/internal/2026-09-16-security-agent-activity-links-design.md
+?? docs/internal/2026-09-16-security-agent-activity-links-plan.md
+?? docs/internal/2026-09-16-security-agent-approval-context-design.md
+?? docs/internal/2026-09-16-security-agent-approval-context-plan.md
+?? docs/internal/2026-09-16-security-agent-existing-test-authority.md
+?? docs/internal/2026-09-16-security-agent-existing-test-design.md
+?? docs/internal/2026-09-16-security-agent-existing-test-plan.md
+?? docs/internal/2026-09-16-security-agent-run-context-design.md
+?? docs/internal/2026-09-16-security-agent-run-context-plan.md
+?? docs/internal/2026-09-16-worktree-recovery.md
+?? docs/internal/2026-09-17-api-token-reveal-checkpoint.md
+?? docs/internal/2026-09-17-audit-foundation-shipping-checkpoint.md
+?? docs/internal/2026-09-17-cached-runtime-image-report.md
+?? docs/internal/2026-09-17-candidate-budget-harness-checkpoint.md
+?? docs/internal/2026-09-17-candidate-grouped-ui-verification.md
+?? docs/internal/2026-09-17-candidate-harness-checkpoint.md
+?? docs/internal/2026-09-17-candidate-integration-review.md
+?? docs/internal/2026-09-17-candidate-navigation-checkpoint.md
+?? docs/internal/2026-09-17-candidate-whole-review-checkpoint.md
+?? docs/internal/2026-09-17-compliance-export-formats-checkpoint.md
+?? docs/internal/2026-09-17-compliance-export-prerequisite-audit.md
+?? docs/internal/2026-09-17-execution-readiness-test-report.md
+?? docs/internal/2026-09-17-existing-test-baseline-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-client-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-composed-stop-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-database-evidence-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-evidence-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-execution-wiring-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-execution-wiring-plan.md
+?? docs/internal/2026-09-17-existing-test-generation-plan.md
+?? docs/internal/2026-09-17-existing-test-lifecycle-batch-brief.md
+?? docs/internal/2026-09-17-existing-test-lifecycle-batch-report.md
+?? docs/internal/2026-09-17-existing-test-lifecycle-review-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-mounted-batch-report.md
+?? docs/internal/2026-09-17-existing-test-mounted-readiness-audit.md
+?? docs/internal/2026-09-17-existing-test-mounted-review-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-proof-history-brief.md
+?? docs/internal/2026-09-17-existing-test-proof-history-report.md
+?? docs/internal/2026-09-17-existing-test-proof-ui-brief.md
+?? docs/internal/2026-09-17-existing-test-proof-ui-report.md
+?? docs/internal/2026-09-17-existing-test-public-contract-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-public-go-report.md
+?? docs/internal/2026-09-17-existing-test-public-proof-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-public-proof-design.md
+?? docs/internal/2026-09-17-existing-test-public-proof-plan.md
+?? docs/internal/2026-09-17-existing-test-reconcile-lease-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-release-gate-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-scheduling-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-scheduling-plan.md
+?? docs/internal/2026-09-17-existing-test-settlement-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-settlement-plan.md
+?? docs/internal/2026-09-17-existing-test-snapshot-decoder-checkpoint.md
+?? docs/internal/2026-09-17-existing-test-stopped-cancellation-plan.md
+?? docs/internal/2026-09-17-feature-batch-shipping-policy.md
+?? docs/internal/2026-09-17-global-execution-control-design.md
+?? docs/internal/2026-09-17-global-execution-control-plan.md
+?? docs/internal/2026-09-17-global-operator-cli-checkpoint.md
+?? docs/internal/2026-09-17-global-operator-compilation-inputs.md
+?? docs/internal/2026-09-17-global-operator-compilation-inputs.tsv
+?? docs/internal/2026-09-17-global-operator-concurrency-checkpoint.md
+?? docs/internal/2026-09-17-global-operator-integration-review.md
+?? docs/internal/2026-09-17-global-operator-shipping-boundary.md
+?? docs/internal/2026-09-17-global-operator-transaction-report.md
+?? docs/internal/2026-09-17-kubernetes-collector-scope-addition.md
+?? docs/internal/2026-09-17-owned-browser-postgres-brief.md
+?? docs/internal/2026-09-17-owned-browser-postgres-report.md
+?? docs/internal/2026-09-17-owned-browser-postgres-scoped.patch
+?? docs/internal/2026-09-17-planner-request-binding-checkpoint.md
+?? docs/internal/2026-09-17-planner-request-binding-design.md
+?? docs/internal/2026-09-17-planner-request-binding-plan.md
+?? docs/internal/2026-09-17-production-pricing-critical-path.md
+?? docs/internal/2026-09-17-reconciler-restart-checkpoint.md
+?? docs/internal/2026-09-17-schema55-candidate-assembly.md
+?? docs/internal/2026-09-17-schema55-candidate-runtime.md
+?? docs/internal/2026-09-17-schema55-candidate-tests.md
+?? docs/internal/2026-09-17-schema55-release-checkpoint.md
+?? docs/internal/2026-09-17-schema55-runtime-inputs.tsv
+?? docs/internal/2026-09-17-schema55-test-inputs.tsv
+?? docs/internal/2026-09-17-schema55-ui-inputs.tsv
+?? docs/internal/2026-09-17-temporary-policy-recovery-checkpoint.md
+?? docs/internal/2026-09-17-test-reconciler-deployment-checkpoint.md
+?? docs/internal/2026-09-17-test-reconciler-iam-checkpoint.md
+?? docs/internal/2026-09-18-audit-native-control-probe.md
+?? docs/internal/2026-09-18-compliance-deployment-design.md
+?? docs/internal/2026-09-18-compliance-deployment-gap.md
+?? docs/internal/2026-09-18-compliance-deployment-plan.md
+?? docs/internal/2026-09-18-compliance-production-design.md
+?? docs/internal/2026-09-18-compliance-production-plan.md
+?? docs/internal/2026-09-18-compliance-registration-brief.md
+?? docs/internal/2026-09-18-compliance-storage-source-checkpoint.md
+?? docs/internal/2026-09-18-connector-rejection-design.md
+?? docs/internal/2026-09-18-connector-rejection-plan.md
+?? docs/internal/2026-09-18-security-agent-action-runtime-gap.md
+?? docs/internal/2026-09-18-security-agent-attack-lab-design.md
+?? docs/internal/2026-09-18-security-agent-attack-lab-plan.md
+?? docs/internal/2026-09-18-staging-original-queue-brief.md
+?? docs/internal/2026-09-19-security-agent-evidence-export-design.md
+?? docs/internal/2026-09-19-security-agent-export-authorization-decision.md
+?? docs/internal/2026-09-19-security-agent-export-render-plan.md
+?? docs/internal/2026-09-19-security-agent-export-source-audit.md
+?? docs/internal/2026-09-19-security-agent-webhook-source-audit.md
+?? docs/internal/compliance-api-task4-20260918/
+?? docs/internal/compliance-ci-20260918/
+?? docs/internal/compliance-ci-batch-brief.md
+?? docs/internal/compliance-connected-fix-20260918/
+?? docs/internal/compliance-connected-fix-brief.md
+?? docs/internal/compliance-connected-review-package.md
+?? docs/internal/compliance-connected-review.md
+?? docs/internal/compliance-deployment-20260918/
+?? docs/internal/compliance-final-review-preflight.md
+?? docs/internal/compliance-jobs-task2-20260918/
+?? docs/internal/compliance-legacy-compatibility-20260918/
+?? docs/internal/compliance-legacy-compatibility-brief.md
+?? docs/internal/compliance-publication-gate-audit.md
+?? docs/internal/compliance-registration-20260918/
+?? docs/internal/compliance-runtime-task3-20260918/
+?? docs/internal/compliance-source-task1-20260918/
+?? docs/internal/compliance-storage-20260918/
+?? docs/internal/compliance-ui-task5-20260918/
+?? docs/internal/connector-rejection-20260918/
+?? docs/internal/connector-rejection-green-20260918/
+?? docs/internal/connector-rejection-red-brief.md
+?? docs/internal/connector-ssrf-rejection-gap.md
+?? docs/internal/group-mapping-update-20260918-gap.md
+?? docs/internal/group-mapping-update-20260918/
+?? docs/internal/implementation_batches_v1.5.tsv
+?? docs/internal/security-agent-attack-lab-20260918/
+?? docs/internal/staging-original-queue-20260918/
+?? docs/internal/vulnerability-exception-20260918/
+?? proofs/localstack-storage/audit-export-container.mjs
+?? proofs/localstack-storage/audit-export-container.test.mjs
+?? scripts/attack-lab-mounted-browser.mjs
+?? scripts/audit-export-browser-proof.mjs
+?? scripts/audit-export-browser-proof.test.mjs
+?? scripts/audit-export-volume-proof.test.mjs
+?? scripts/audit-log-browser-proof.mjs
+?? scripts/audit-log-browser-proof.test.mjs
+?? scripts/browser-prerequisites.mjs
+?? scripts/browser-prerequisites.test.mjs
+?? scripts/compliance-browser-bytes.mjs
+?? scripts/compliance-browser-bytes.test.mjs
+?? scripts/dependency-esbuild-regression.test.mjs
+?? scripts/dependency-parser-regression.test.mjs
+?? scripts/eslint-scope.test.mjs
+?? scripts/existing-test-mounted-browser.mjs
+?? scripts/existing-test-mounted-browser.test.mjs
+?? scripts/fixtures/
+?? scripts/isolated-postgres-bridge.mjs
+?? scripts/isolated-postgres-bridge.test.mjs
+?? scripts/owned-browser-postgres.mjs
+?? scripts/owned-browser-postgres.test.mjs
+?? scripts/production-release-gate.test.mjs
+?? scripts/security-agent-simulation-browser-proof.mjs
+?? scripts/security-agent-simulation-browser-proof.test.mjs
+?? services/platform/agentsec-api/attack_lab_action_composition_test.go
+?? services/platform/agentsec-api/attack_lab_browser_process_test.go
+?? services/platform/agentsec-api/attack_lab_deployment_config_test.go
+?? services/platform/agentsec-api/attack_lab_workflow_readiness.go
+?? services/platform/agentsec-api/attack_lab_workflow_readiness_test.go
+?? services/platform/agentsec-api/audit_export_aws.go
+?? services/platform/agentsec-api/audit_export_aws_test.go
+?? services/platform/agentsec-api/audit_export_browser_adapter_test.go
+?? services/platform/agentsec-api/audit_export_browser_process_test.go
+?? services/platform/agentsec-api/audit_export_config.go
+?? services/platform/agentsec-api/audit_export_config_test.go
+?? services/platform/agentsec-api/audit_export_credentials_test.go
+?? services/platform/agentsec-api/audit_export_factory_boundary_test.go
+?? services/platform/agentsec-api/audit_export_runtime_composition_test.go
+?? services/platform/agentsec-api/audit_public_page_composition_test.go
+?? services/platform/agentsec-api/compliance_browser_process_test.go
+?? services/platform/agentsec-api/compliance_composition_test.go
+?? services/platform/agentsec-api/compliance_config.go
+?? services/platform/agentsec-api/compliance_config_test.go
+?? services/platform/agentsec-api/compliance_deployment_config_test.go
+?? services/platform/agentsec-api/connector_rejection_runtime.go
+?? services/platform/agentsec-api/connector_rejection_runtime_test.go
+?? services/platform/agentsec-api/existing_test_composition_test.go
+?? services/platform/agentsec-api/existing_test_tracing_test.go
+?? services/platform/agentsec-api/run_context_tracing_test.go
+?? services/platform/agentsec-migrate/attack_lab_command_test.go
+?? services/platform/agentsec-migrate/attack_lab_deployment_config_test.go
+?? services/platform/agentsec-migrate/attack_lab_registration.go
+?? services/platform/agentsec-migrate/audit_browser_setup_controls_test.go
+?? services/platform/agentsec-migrate/audit_browser_setup_test.go
+?? services/platform/agentsec-migrate/audit_exports_command_postgres_test.go
+?? services/platform/agentsec-migrate/audit_exports_command_test.go
+?? services/platform/agentsec-migrate/audit_exports_configuration.go
+?? services/platform/agentsec-migrate/audit_exports_configuration_test.go
+?? services/platform/agentsec-migrate/audit_exports_registration.go
+?? services/platform/agentsec-migrate/audit_exports_registration_test.go
+?? services/platform/agentsec-migrate/bootstrap_release.go
+?? services/platform/agentsec-migrate/bootstrap_release_test.go
+?? services/platform/agentsec-migrate/compliance_command_test.go
+?? services/platform/agentsec-migrate/compliance_deployment_postgres_test.go
+?? services/platform/agentsec-migrate/compliance_registration.go
+?? services/platform/agentsec-migrate/compliance_registration_postgres_test.go
+?? services/platform/agentsec-migrate/compliance_registration_test.go
+?? services/platform/agentsec-migrate/existing_tests_binary_postgres_test.go
+?? services/platform/agentsec-migrate/existing_tests_command_test.go
+?? services/platform/agentsec-migrate/mounted_readiness_diagnostic_test.go
+?? services/platform/agentsec-migrate/release_readiness_test.go
+?? services/platform/agentsec-migrate/run_context_command_test.go
+?? services/platform/agentsec-migrate/security_agent_global_control.go
+?? services/platform/agentsec-migrate/security_agent_global_control_postgres_test.go
+?? services/platform/agentsec-migrate/security_agent_global_control_test.go
+?? services/platform/agentsec-worker/attack_lab_browser_process_test.go
+?? services/platform/agentsec-worker/audit_export_authority_postgres_test.go
+?? services/platform/agentsec-worker/audit_export_browser_adapter_test.go
+?? services/platform/agentsec-worker/audit_export_chunks_postgres_test.go
+?? services/platform/agentsec-worker/audit_export_completed_postgres_test.go
+?? services/platform/agentsec-worker/audit_export_database.go
+?? services/platform/agentsec-worker/audit_export_database_test.go
+?? services/platform/agentsec-worker/audit_export_dispatch.go
+?? services/platform/agentsec-worker/audit_export_dispatch_test.go
+?? services/platform/agentsec-worker/audit_export_executor_retry_postgres_test.go
+?? services/platform/agentsec-worker/audit_export_http_size_process_test.go
+?? services/platform/agentsec-worker/audit_export_localstack_postgres_test.go
+?? services/platform/agentsec-worker/audit_export_outbox.go
+?? services/platform/agentsec-worker/audit_export_outbox_saturation_postgres_test.go
+?? services/platform/agentsec-worker/audit_export_outbox_test.go
+?? services/platform/agentsec-worker/audit_export_process_postgres_test.go
+?? services/platform/agentsec-worker/audit_export_production.go
+?? services/platform/agentsec-worker/audit_export_production_test.go
+?? services/platform/agentsec-worker/audit_export_receipts_test.go
+?? services/platform/agentsec-worker/audit_export_recovery_process_postgres_test.go
+?? services/platform/agentsec-worker/audit_export_run_context_test.go
+?? services/platform/agentsec-worker/audit_export_runtime.go
+?? services/platform/agentsec-worker/audit_export_runtime_test.go
+?? services/platform/agentsec-worker/compliance_deployment_config_test.go
+?? services/platform/agentsec-worker/compliance_export_composition_test.go
+?? services/platform/agentsec-worker/compliance_export_config.go
+?? services/platform/agentsec-worker/compliance_export_database.go
+?? services/platform/agentsec-worker/compliance_export_database_test.go
+?? services/platform/agentsec-worker/compliance_export_process_test.go
+?? services/platform/agentsec-worker/compliance_export_production.go
+?? services/platform/agentsec-worker/compliance_export_render.go
+?? services/platform/agentsec-worker/compliance_export_replay.go
+?? services/platform/agentsec-worker/compliance_export_replay_test.go
+?? services/platform/agentsec-worker/compliance_export_runtime.go
+?? services/platform/agentsec-worker/compliance_export_runtime_test.go
+?? services/platform/agentsec-worker/production_combined_budget_fixture_test.go
+?? services/platform/agentsec-worker/production_combined_policy_polling_test.go
+?? services/platform/agentsec-worker/red_team_linked_artifact_test.go
+?? services/platform/agentsec-worker/red_team_linked_runtime.go
+?? services/platform/agentsec-worker/red_team_linked_runtime_test.go
+?? services/platform/agentsec-worker/red_team_node_contract_test.go
+?? services/platform/agentsec-worker/red_team_routing.go
+?? services/platform/agentsec-worker/red_team_routing_postgres_test.go
+?? services/platform/agentsec-worker/red_team_routing_test.go
+?? services/platform/agentsec-worker/red_team_storage_contract_test.go
+?? services/platform/agentsec-worker/security_agent_action_budget_postgres_test.go
+?? services/platform/agentsec-worker/security_agent_action_budget_test.go
+?? services/platform/agentsec-worker/security_agent_action_heartbeat_join_test.go
+?? services/platform/agentsec-worker/security_agent_action_recovery_postgres_test.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_client.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_client_test.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_config.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_config_test.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_deployment_test.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_evidence.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_evidence_test.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_json.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_lifecycle_test.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_planner_test.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_reconciler.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_runtime.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_runtime_test.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_scheduler.go
+?? services/platform/agentsec-worker/security_agent_attack_lab_scheduler_test.go
+?? services/platform/agentsec-worker/security_agent_budget.go
+?? services/platform/agentsec-worker/security_agent_budget_heartbeat_test.go
+?? services/platform/agentsec-worker/security_agent_budget_provider_postgres_test.go
+?? services/platform/agentsec-worker/security_agent_budget_runtime.go
+?? services/platform/agentsec-worker/security_agent_budget_runtime_test.go
+?? services/platform/agentsec-worker/security_agent_budget_test.go
+?? services/platform/agentsec-worker/security_agent_completion_heartbeat_test.go
+?? services/platform/agentsec-worker/security_agent_cost_policy.go
+?? services/platform/agentsec-worker/security_agent_cost_policy_test.go
+?? services/platform/agentsec-worker/security_agent_existing_test_runtime_test.go
+?? services/platform/agentsec-worker/security_agent_planner_postgres_test.go
+?? services/platform/agentsec-worker/security_agent_prepared_plan.go
+?? services/platform/agentsec-worker/security_agent_prepared_plan_test.go
+?? services/platform/agentsec-worker/security_agent_test_client.go
+?? services/platform/agentsec-worker/security_agent_test_client_postgres_test.go
+?? services/platform/agentsec-worker/security_agent_test_client_test.go
+?? services/platform/agentsec-worker/security_agent_test_cloud.go
+?? services/platform/agentsec-worker/security_agent_test_comparison.go
+?? services/platform/agentsec-worker/security_agent_test_comparison_test.go
+?? services/platform/agentsec-worker/security_agent_test_concurrent_postgres_test.go
+?? services/platform/agentsec-worker/security_agent_test_evidence.go
+?? services/platform/agentsec-worker/security_agent_test_evidence_test.go
+?? services/platform/agentsec-worker/security_agent_test_generation_test.go
+?? services/platform/agentsec-worker/security_agent_test_reconciler.go
+?? services/platform/agentsec-worker/security_agent_test_reconciler_test.go
+?? services/platform/agentsec-worker/security_agent_test_restart_postgres_test.go
+?? services/platform/agentsec-worker/security_agent_test_runtime.go
+?? services/platform/agentsec-worker/security_agent_test_runtime_test.go
+?? services/platform/agentsec-worker/security_agent_test_scheduler.go
+?? services/platform/agentsec-worker/security_agent_test_scheduler_test.go
+?? services/platform/agentsec-worker/security_agent_test_settlement_client.go
+?? services/platform/agentsec-worker/security_agent_test_settlement_client_test.go
+?? services/platform/agentsec-worker/security_agent_test_settlement_restart_postgres_test.go
+?? services/platform/agentsec-worker/security_agent_test_snapshot.go
+?? services/platform/agentsec-worker/security_agent_test_snapshot_test.go
+?? services/platform/apiserver/api_token_reveal_test.go
+?? services/platform/apiserver/audit_export_artifacts.go
+?? services/platform/apiserver/audit_export_artifacts_test.go
+?? services/platform/apiserver/audit_export_browser_expected_postgres_test.go
+?? services/platform/apiserver/audit_export_browser_expected_test.go
+?? services/platform/apiserver/audit_export_browser_process_test.go
+?? services/platform/apiserver/audit_export_browser_provider_test.go
+?? services/platform/apiserver/audit_export_composition.go
+?? services/platform/apiserver/audit_export_composition_test.go
+?? services/platform/apiserver/audit_export_contents.go
+?? services/platform/apiserver/audit_export_contents_test.go
+?? services/platform/apiserver/audit_export_cursor.go
+?? services/platform/apiserver/audit_export_cursor_test.go
+?? services/platform/apiserver/audit_export_executor_retry_postgres_test.go
+?? services/platform/apiserver/audit_export_http.go
+?? services/platform/apiserver/audit_export_http_orderly_restart_test.go
+?? services/platform/apiserver/audit_export_http_sdk_postgres_test.go
+?? services/platform/apiserver/audit_export_http_size_expected_test.go
+?? services/platform/apiserver/audit_export_http_size_lifetime_test.go
+?? services/platform/apiserver/audit_export_http_size_memory_test.go
+?? services/platform/apiserver/audit_export_http_size_oracle_request_lifetime_test.go
+?? services/platform/apiserver/audit_export_http_size_postgres_test.go
+?? services/platform/apiserver/audit_export_http_size_process_test.go
+?? services/platform/apiserver/audit_export_http_size_provider_test.go
+?? services/platform/apiserver/audit_export_http_test.go
+?? services/platform/apiserver/audit_export_identity_actions_postgres_test.go
+?? services/platform/apiserver/audit_export_localstack_adapter_test.go
+?? services/platform/apiserver/audit_export_localstack_owner_test.go
+?? services/platform/apiserver/audit_export_localstack_postgres_test.go
+?? services/platform/apiserver/audit_export_localstack_provider_test.go
+?? services/platform/apiserver/audit_export_outbox_saturation_postgres_test.go
+?? services/platform/apiserver/audit_export_policy.go
+?? services/platform/apiserver/audit_export_policy_test.go
+?? services/platform/apiserver/audit_export_postgres_test.go
+?? services/platform/apiserver/audit_export_process_postgres_test.go
+?? services/platform/apiserver/audit_export_process_provider_test.go
+?? services/platform/apiserver/audit_export_production.go
+?? services/platform/apiserver/audit_export_production_postgres_test.go
+?? services/platform/apiserver/audit_export_production_test.go
+?? services/platform/apiserver/audit_export_public_source_postgres_test.go
+?? services/platform/apiserver/audit_export_read.go
+?? services/platform/apiserver/audit_export_read_test.go
+?? services/platform/apiserver/audit_export_recovery_process_postgres_test.go
+?? services/platform/apiserver/audit_export_repository.go
+?? services/platform/apiserver/audit_export_repository_test.go
+?? services/platform/apiserver/audit_export_run_context_postgres_test.go
+?? services/platform/apiserver/audit_export_run_context_test.go
+?? services/platform/apiserver/audit_export_sdk_test.go
+?? services/platform/apiserver/audit_export_wire_contract_test.go
+?? services/platform/apiserver/audit_export_worker_postgres_test.go
+?? services/platform/apiserver/audit_exports_upgrade_compatibility_postgres_test.go
+?? services/platform/apiserver/audit_list_filters.go
+?? services/platform/apiserver/audit_list_filters_test.go
+?? services/platform/apiserver/audit_list_handler_postgres_test.go
+?? services/platform/apiserver/audit_list_http.go
+?? services/platform/apiserver/audit_list_http_test.go
+?? services/platform/apiserver/audit_list_repository.go
+?? services/platform/apiserver/audit_list_repository_test.go
+?? services/platform/apiserver/audit_public_page_bounds_postgres_test.go
+?? services/platform/apiserver/audit_public_page_cost_postgres_test.go
+?? services/platform/apiserver/audit_public_page_http_postgres_test.go
+?? services/platform/apiserver/audit_public_page_postgres_test.go
+?? services/platform/apiserver/compliance_conflict_test.go
+?? services/platform/apiserver/compliance_connected_postgres_test.go
+?? services/platform/apiserver/compliance_download.go
+?? services/platform/apiserver/compliance_download_test.go
+?? services/platform/apiserver/compliance_exports_binding_test.go
+?? services/platform/apiserver/compliance_exports_fix_postgres_test.go
+?? services/platform/apiserver/compliance_exports_postgres_test.go
+?? services/platform/apiserver/compliance_exports_quotas_postgres_test.go
+?? services/platform/apiserver/compliance_exports_repository.go
+?? services/platform/apiserver/compliance_exports_repository_test.go
+?? services/platform/apiserver/compliance_http.go
+?? services/platform/apiserver/compliance_http_postgres_test.go
+?? services/platform/apiserver/compliance_http_test.go
+?? services/platform/apiserver/compliance_postgres_test.go
+?? services/platform/apiserver/compliance_production.go
+?? services/platform/apiserver/compliance_read_classification_postgres_test.go
+?? services/platform/apiserver/compliance_read_classification_test.go
+?? services/platform/apiserver/compliance_repository.go
+?? services/platform/apiserver/compliance_repository_test.go
+?? services/platform/apiserver/compliance_runtime_postgres_test.go
+?? services/platform/apiserver/connector_rejection.go
+?? services/platform/apiserver/connector_rejection_authority_postgres_test.go
+?? services/platform/apiserver/connector_rejection_failure_postgres_test.go
+?? services/platform/apiserver/connector_rejection_postgres_test.go
+?? services/platform/apiserver/connector_rejection_repository.go
+?? services/platform/apiserver/connector_rejection_test.go
+?? services/platform/apiserver/connector_rejection_transaction.go
+?? services/platform/apiserver/group_mapping_contention_postgres_test.go
+?? services/platform/apiserver/group_mapping_update_postgres_test.go
+?? services/platform/apiserver/postgres_cleanup_outcomes_test.go
+?? services/platform/apiserver/red_team_linked_cancel_postgres_test.go
+?? services/platform/apiserver/red_team_linked_cancel_test.go
+?? services/platform/apiserver/red_team_linked_finish_postgres_test.go
+?? services/platform/apiserver/red_team_linked_finish_test.go
+?? services/platform/apiserver/red_team_linked_heartbeat_postgres_test.go
+?? services/platform/apiserver/red_team_linked_repository.go
+?? services/platform/apiserver/red_team_linked_repository_test.go
+?? services/platform/apiserver/red_team_protocol_postgres_test.go
+?? services/platform/apiserver/red_team_protocol_test.go
+?? services/platform/apiserver/security_agent_action_budget_worker_postgres_test.go
+?? services/platform/apiserver/security_agent_action_details.go
+?? services/platform/apiserver/security_agent_action_details_http_test.go
+?? services/platform/apiserver/security_agent_action_details_postgres_test.go
+?? services/platform/apiserver/security_agent_action_details_test.go
+?? services/platform/apiserver/security_agent_action_environment_postgres_test.go
+?? services/platform/apiserver/security_agent_action_projection.go
+?? services/platform/apiserver/security_agent_action_projection_test.go
+?? services/platform/apiserver/security_agent_action_recovery_worker_postgres_test.go
+?? services/platform/apiserver/security_agent_action_refusals_postgres_test.go
+?? services/platform/apiserver/security_agent_action_validation.go
+?? services/platform/apiserver/security_agent_activity_access_path_postgres_test.go
+?? services/platform/apiserver/security_agent_activity_audit_postgres_test.go
+?? services/platform/apiserver/security_agent_activity_cursor.go
+?? services/platform/apiserver/security_agent_activity_cursor_test.go
+?? services/platform/apiserver/security_agent_activity_http.go
+?? services/platform/apiserver/security_agent_activity_http_test.go
+?? services/platform/apiserver/security_agent_activity_relations_postgres_test.go
+?? services/platform/apiserver/security_agent_activity_repository.go
+?? services/platform/apiserver/security_agent_activity_repository_test.go
+?? services/platform/apiserver/security_agent_activity_reverse_access_path_postgres_test.go
+?? services/platform/apiserver/security_agent_activity_targets.go
+?? services/platform/apiserver/security_agent_activity_targets_http.go
+?? services/platform/apiserver/security_agent_activity_targets_http_test.go
+?? services/platform/apiserver/security_agent_activity_targets_postgres_test.go
+?? services/platform/apiserver/security_agent_activity_targets_repository.go
+?? services/platform/apiserver/security_agent_activity_targets_repository_test.go
+?? services/platform/apiserver/security_agent_activity_targets_test.go
+?? services/platform/apiserver/security_agent_approval_context.go
+?? services/platform/apiserver/security_agent_approval_context_decisions_postgres_test.go
+?? services/platform/apiserver/security_agent_approval_context_http_test.go
+?? services/platform/apiserver/security_agent_approval_context_page_postgres_test.go
+?? services/platform/apiserver/security_agent_approval_context_postgres_test.go
+?? services/platform/apiserver/security_agent_approval_context_repository.go
+?? services/platform/apiserver/security_agent_approval_context_repository_test.go
+?? services/platform/apiserver/security_agent_approval_context_test.go
+?? services/platform/apiserver/security_agent_approval_page_validation.go
+?? services/platform/apiserver/security_agent_approval_page_validation_test.go
+?? services/platform/apiserver/security_agent_attack_lab_catalog_test.go
+?? services/platform/apiserver/security_agent_attack_lab_controls_test.go
+?? services/platform/apiserver/security_agent_attack_lab_postgres_test.go
+?? services/platform/apiserver/security_agent_attack_lab_public_postgres_test.go
+?? services/platform/apiserver/security_agent_attack_lab_public_projection.go
+?? services/platform/apiserver/security_agent_attack_lab_public_projection_test.go
+?? services/platform/apiserver/security_agent_attack_lab_reference_test.go
+?? services/platform/apiserver/security_agent_attack_lab_replay_postgres_test.go
+?? services/platform/apiserver/security_agent_attack_lab_repository.go
+?? services/platform/apiserver/security_agent_attack_lab_settlement_postgres_test.go
+?? services/platform/apiserver/security_agent_attack_lab_unavailable_postgres_test.go
+?? services/platform/apiserver/security_agent_attack_lab_unavailable_test.go
+?? services/platform/apiserver/security_agent_audit_http.go
+?? services/platform/apiserver/security_agent_audit_http_test.go
+?? services/platform/apiserver/security_agent_audit_repository.go
+?? services/platform/apiserver/security_agent_audit_repository_test.go
+?? services/platform/apiserver/security_agent_budget_action_stop_test.go
+?? services/platform/apiserver/security_agent_budget_apply_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_crash_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_lock_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_migration_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_provider_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_release_database.go
+?? services/platform/apiserver/security_agent_budget_repository.go
+?? services/platform/apiserver/security_agent_budget_repository_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_repository_test.go
+?? services/platform/apiserver/security_agent_budget_reservations_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_reserve_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_settle_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_start_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_steps_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_stop_test.go
+?? services/platform/apiserver/security_agent_budget_upgrade_postgres_test.go
+?? services/platform/apiserver/security_agent_budget_visibility_test.go
+?? services/platform/apiserver/security_agent_budget_worker_binary_test.go
+?? services/platform/apiserver/security_agent_cost_concurrency_postgres_test.go
+?? services/platform/apiserver/security_agent_cost_contract_test.go
+?? services/platform/apiserver/security_agent_cost_error_test.go
+?? services/platform/apiserver/security_agent_cost_postgres_test.go
+?? services/platform/apiserver/security_agent_cost_reconfigure_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_acceptance_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_activation_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_approval_reads_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_baseline_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_binding_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_boundary_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_claim_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_concurrent_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_definition_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_definition_test.go
+?? services/platform/apiserver/security_agent_existing_test_dispatch_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_display_test.go
+?? services/platform/apiserver/security_agent_existing_test_enqueue_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_evidence_snapshot_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_execute_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_execute_routing_test.go
+?? services/platform/apiserver/security_agent_existing_test_failure_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_http_lifecycle_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_http_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_invocation_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_invocation_start_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_invocation_terminal_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_journal_client_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_lifecycle_batch_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_lifecycle_batch_test.go
+?? services/platform/apiserver/security_agent_existing_test_lifecycle_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_link_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_planner_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_preparation_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_prepared_dispatch_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_public_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_public_projection.go
+?? services/platform/apiserver/security_agent_existing_test_public_projection_test.go
+?? services/platform/apiserver/security_agent_existing_test_read_repository.go
+?? services/platform/apiserver/security_agent_existing_test_read_route_test.go
+?? services/platform/apiserver/security_agent_existing_test_readiness_expiry_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_reconcile_lease_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_reference.go
+?? services/platform/apiserver/security_agent_existing_test_reference_test.go
+?? services/platform/apiserver/security_agent_existing_test_release_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_reservation_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_restart_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_rollback_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_runtime_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_scope_discovery_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_settlement_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_settlement_restart_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_versioned_postgres_test.go
+?? services/platform/apiserver/security_agent_existing_test_worker_repository.go
+?? services/platform/apiserver/security_agent_existing_test_worker_repository_test.go
+?? services/platform/apiserver/security_agent_existing_test_write_route_test.go
+?? services/platform/apiserver/security_agent_global_control_concurrency_postgres_test.go
+?? services/platform/apiserver/security_agent_global_control_postgres_test.go
+?? services/platform/apiserver/security_agent_global_control_rollback_concurrency_postgres_test.go
+?? services/platform/apiserver/security_agent_planner_worker_postgres_test.go
+?? services/platform/apiserver/security_agent_rationale.go
+?? services/platform/apiserver/security_agent_rationale_test.go
+?? services/platform/apiserver/security_agent_result_version_test.go
+?? services/platform/apiserver/security_agent_run_context.go
+?? services/platform/apiserver/security_agent_run_context_consumers_postgres_test.go
+?? services/platform/apiserver/security_agent_run_context_envelope.go
+?? services/platform/apiserver/security_agent_run_context_envelope_test.go
+?? services/platform/apiserver/security_agent_run_context_postgres_test.go
+?? services/platform/apiserver/security_agent_run_context_release_postgres_test.go
+?? services/platform/apiserver/security_agent_run_context_retention_postgres_test.go
+?? services/platform/apiserver/security_agent_run_context_test.go
+?? services/platform/apiserver/security_agent_step_binding_test.go
+?? services/platform/artifactstore/read_classification_test.go
+?? services/platform/artifactstore/s3driver/export_lifecycle.go
+?? services/platform/artifactstore/s3driver/export_lifecycle_test.go
+?? services/platform/audit/export.go
+?? services/platform/audit/export_descriptor.go
+?? services/platform/audit/export_descriptor_test.go
+?? services/platform/audit/export_test.go
+?? services/platform/auditexportconfig/
+?? services/platform/internal/ownedpgrelay/
+?? services/platform/internal/testprocess/command_forcekill_test.go
+?? services/platform/internal/testprocess/command_observer_test.go
+?? services/platform/internal/testprocess/command_output_test.go
+?? services/platform/migrations/compliance_release.go
+?? services/platform/migrations/production_audit_exports.go
+?? services/platform/migrations/production_audit_exports_test.go
+?? services/platform/migrations/production_compliance.go
+?? services/platform/migrations/production_compliance_registration_test.go
+?? services/platform/migrations/production_security_agent_attack_lab.go
+?? services/platform/migrations/production_security_agent_budgets.go
+?? services/platform/migrations/production_security_agent_existing_tests.go
+?? services/platform/migrations/production_security_agent_run_context.go
+?? services/platform/migrations/security_agent_attack_lab_release.go
+?? services/platform/migrations/security_agent_budget_candidate.go
+?? services/platform/migrations/security_agent_existing_tests.go
+?? services/platform/migrations/security_agent_existing_tests_release.go
+?? services/platform/migrations/security_agent_global_control.go
+?? services/platform/migrations/security_agent_global_control_test.go
+?? services/platform/migrations/security_agent_run_context_candidate.go
+?? services/platform/migrations/sql/0052_production_audit_exports.down.sql
+?? services/platform/migrations/sql/0052_production_audit_exports.up.sql
+?? services/platform/migrations/sql/0053_production_security_agent_budgets.down.sql
+?? services/platform/migrations/sql/0053_production_security_agent_budgets.up.sql
+?? services/platform/migrations/sql/0054_production_security_agent_run_context.down.sql
+?? services/platform/migrations/sql/0054_production_security_agent_run_context.up.sql
+?? services/platform/migrations/sql/0055_production_security_agent_existing_tests.down.sql
+?? services/platform/migrations/sql/0055_production_security_agent_existing_tests.up.sql
+?? services/platform/migrations/sql/0056_production_compliance.down.sql
+?? services/platform/migrations/sql/0056_production_compliance.up.sql
+?? services/platform/migrations/sql/0057_production_security_agent_attack_lab.down.sql
+?? services/platform/migrations/sql/0057_production_security_agent_attack_lab.up.sql
+?? services/platform/migrations/sql/fragments/compliance_jobs.sql
+?? services/platform/migrations/sql/fragments/security_agent_attack_lab_admission.sql
+?? services/platform/migrations/sql/fragments/security_agent_attack_lab_definition.sql
+?? services/platform/migrations/sql/fragments/security_agent_attack_lab_links.sql
+?? services/platform/migrations/sql/fragments/security_agent_attack_lab_planner.sql
+?? services/platform/migrations/sql/fragments/security_agent_attack_lab_reconcile.sql
+?? services/platform/migrations/sql/fragments/security_agent_attack_lab_settlement.sql
+?? services/platform/migrations/sql/fragments/security_agent_budget_admission.sql
+?? services/platform/migrations/sql/fragments/security_agent_budget_release.sql
+?? services/platform/migrations/sql/fragments/security_agent_budget_starts.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_admission.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_approvals.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_candidate_down.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_controls.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_definition.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_dispatch.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_enqueue.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_evidence.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_execution.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_global_control.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_invocation.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_invocation_journal.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_lifecycle.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_links.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_planner.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_public.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_reads.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_reconcile.sql
+?? services/platform/migrations/sql/fragments/security_agent_existing_test_settlement.sql
+?? services/platform/migrations/sql/fragments/security_agent_run_context.sql
+?? services/platform/red-team-adapter/production_routing.go
+?? services/platform/red-team-adapter/production_routing_postgres_test.go
+?? services/platform/red-team-adapter/production_routing_test.go
+?? services/platform/redteamadapter/credential_version_test.go
+?? services/platform/redteamadapter/invocation_observation_test.go
+?? services/platform/redteamadapter/journaled_handler_test.go
+?? services/platform/redteamadapter/journaled_invocation.go
+?? services/platform/redteamadapter/journaled_invocation_test.go
+?? services/platform/redteamadapter/mounted_existing_test_test.go
+?? services/platform/redteamadapter/postgres_journal.go
+?? services/platform/redteamadapter/postgres_journal_credential_test.go
+?? services/platform/redteamadapter/postgres_journal_https_test.go
+?? services/platform/redteamadapter/postgres_journal_ready_test.go
+?? services/platform/redteamadapter/postgres_journal_test.go
+?? services/platform/redteamadapter/target_comparison.go
+?? services/platform/redteamadapter/target_comparison_test.go
+?? services/platform/securityagent/existing_test_catalog_test.go
+?? services/platform/sessioncontrol/compliance_attribution_test.go
+?? services/platform/sessioncontrol/compliance_export_formats_test.go
+?? services/platform/sessioncontrol/compliance_export_version_test.go
+?? workers/redteam-node/comparison-fixture.mjs
+?? workers/redteam-node/linked.test.mjs
+8733b16f8d939d38a8157dd2519e57fc6f630542
+61f9e7e0ed44f3b38947845d3a97bcd0862d2221ce7172bb277beb9ace334d8d  services/platform/agentsec-worker/compliance_export_database.go
+404bc3c7d7ba41369a2c964ff75287f68c78f4020f49d2a303c34ca51630482f  services/platform/agentsec-worker/compliance_export_render.go
+d40bde5dcf3b7d03ad5c788c5f08b6d0bf416527095869a089e0d5d82480b81b  services/platform/agentsec-worker/compliance_export_runtime_test.go

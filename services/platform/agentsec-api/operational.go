@@ -221,7 +221,7 @@ var metricMethods = map[string]struct{}{
 }
 
 var metricRouteRoots = map[string]struct{}{
-	"admin": {}, "agents": {}, "assets": {}, "attack-paths": {}, "audit-events": {},
+	"admin": {}, "agents": {}, "assets": {}, "attack-paths": {}, "audit-events": {}, "audit-exports": {},
 	"compliance": {}, "environments": {}, "findings": {}, "home": {}, "identities": {},
 	"integration-catalog": {}, "integrations": {}, "me": {}, "organization": {}, "policies": {},
 	"runtimes": {}, "security-agent-templates": {}, "security-agents": {}, "session": {}, "sessions": {},

@@ -34,7 +34,9 @@ func sandboxSessionAPI(t *testing.T, ctx context.Context, admin *pgx.Conn) *pgx.
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { api.Close(context.Background()) })
+	if !auditHTTPFixtureOwnConnection(ctx, "sandbox session API", api) {
+		t.Cleanup(func() { api.Close(context.Background()) })
+	}
 	return api
 }
 

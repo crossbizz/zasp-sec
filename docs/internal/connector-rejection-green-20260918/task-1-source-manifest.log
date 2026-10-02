@@ -1,0 +1,30 @@
+services/platform/apiserver/workflow_handler.go
+  BEFORE 60e41f9739312e54f8d6fd30b769a544564b2ba7c50f9477627f2578577fcbf4
+  AFTER  702c82e419b0db7774ebfcbcb40d5bbd2cfe91ec3c32e00245f699b41c1258ee
+services/platform/apiserver/connector_rejection.go
+  BEFORE ABSENT
+  AFTER  608cb6990903b16998abea348e267b443c60cc92c6e6620e3444ed06256135bc
+services/platform/apiserver/connector_rejection_repository.go
+  BEFORE ABSENT
+  AFTER  1a36be1740a4eb8e0c3326beafc1684b098b1e2c02de721e1b6a6800920eec70
+services/platform/apiserver/connector_rejection_transaction.go
+  BEFORE ABSENT
+  AFTER  fde240399ae4cdf39010645926c5a2cf1423f45e8c3a027dff88f3fff43b8e6c
+services/platform/apiserver/connector_rejection_test.go
+  BEFORE ABSENT
+  AFTER  71fa07a2a5b2d9b85a882269692e178ddd6246d30ea4f9fb3a9bba8c166e3df5
+services/platform/apiserver/connector_rejection_postgres_test.go
+  BEFORE 3a60078282104d84a6d8d7c3f6583f3013c4f4344e98056968845f42b7c214a6
+  AFTER  b5b1f95a87d66bf256ea045dea58cf342757906a87cd0516e8929a5c9d069fab
+services/platform/apiserver/connector_rejection_authority_postgres_test.go
+  BEFORE ABSENT
+  AFTER  5d5b24ba31db50c7f0c5594713c30dddb4778cc95e0ceac28cb6fd6087db2765
+services/platform/apiserver/connector_rejection_failure_postgres_test.go
+  BEFORE ABSENT
+  AFTER  d0431780027c989eb66b352af2e9381e04da1303533cac5fe7dee8ab071c9af9
+services/platform/agentsec-api/connector_rejection_runtime.go
+  BEFORE ABSENT
+  AFTER  a59b3f2a421afa135a6def9ad95bae2c67847e783f89065100e05b2c62d724a5
+services/platform/agentsec-api/connector_rejection_runtime_test.go
+  BEFORE ABSENT
+  AFTER  ebfe02e1a0bbe427bd0fbf34bd3c675b3b127ac486d4760b35b6e8fef733a790

@@ -1,0 +1,12 @@
+=== RUN   TestSecurityAgentExportWorkerLiteralClaimKeys
+=== RUN   TestSecurityAgentExportWorkerLiteralClaimKeys/malformed_step
+=== RUN   TestSecurityAgentExportWorkerLiteralClaimKeys/duplicate_selection_key
+=== RUN   TestSecurityAgentExportWorkerLiteralClaimKeys/unknown_selection_key
+--- PASS: TestSecurityAgentExportWorkerLiteralClaimKeys (0.13s)
+    --- PASS: TestSecurityAgentExportWorkerLiteralClaimKeys/malformed_step (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerLiteralClaimKeys/duplicate_selection_key (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerLiteralClaimKeys/unknown_selection_key (0.04s)
+=== RUN   TestSecurityAgentExportWorkerIngressHeartbeatOwnership
+--- PASS: TestSecurityAgentExportWorkerIngressHeartbeatOwnership (0.33s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	2.927s

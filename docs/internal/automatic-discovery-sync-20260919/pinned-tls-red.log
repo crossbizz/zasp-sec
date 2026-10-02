@@ -1,0 +1,7 @@
+=== RUN   TestPinnedKubernetesCollectionRetainsTrustAnchorThroughRealTLS
+    pinned_collection_api_test.go:65: production pinned path lost parsed trust anchor: Kubernetes connector capability denied
+2026/09/19 18:57:45 http: TLS handshake error from 127.0.0.1:50092: read tcp 127.0.0.1:50090->127.0.0.1:50092: use of closed network connection
+--- FAIL: TestPinnedKubernetesCollectionRetainsTrustAnchorThroughRealTLS (0.01s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery	0.674s
+FAIL

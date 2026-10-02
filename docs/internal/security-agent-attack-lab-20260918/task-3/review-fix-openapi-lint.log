@@ -1,0 +1,16 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npm","run","openapi:lint"]
+
+> zasp-agent-security-console@0.1.0 openapi:lint
+> REDOCLY_TELEMETRY=off REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly lint openapi/openapi.yaml openapi/internal-health.yaml --config redocly.yaml
+
+validating openapi/openapi.yaml...
+openapi/openapi.yaml: validated in 171ms
+
+validating openapi/internal-health.yaml...
+openapi/internal-health.yaml: validated in 8ms
+
+Woohoo! Your API descriptions are valid. 🎉
+
+
+Exit: 0 Signal: null

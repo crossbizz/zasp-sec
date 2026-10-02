@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: explicit C1 browser path fails without fallback
+not ok 1 - explicit C1 browser path fails without fallback
+  ---
+  duration_ms: 1.230083
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/browser-prerequisites.test.mjs:46:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /browser.*(absolute|control|empty)/i. Input:
+    
+    'Error: browser ZASP_COMBINED_E2E_CHROME must be an executable regular file: /tmp/chrome\x85'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'browser ZASP_COMBINED_E2E_CHROME must be an executable regular file: /tmp/chrome\x85'
+  stack: |-
+    executableFile (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/browser-prerequisites.mjs:19:11)
+    Module.selectBrowserExecutable (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/browser-prerequisites.mjs:40:5)
+    file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/browser-prerequisites.test.mjs:48:40
+    getActual (node:assert:609:5)
+    Function.throws (node:assert:757:24)
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/browser-prerequisites.test.mjs:48:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/browser-prerequisites.test.mjs:48:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 66.093542

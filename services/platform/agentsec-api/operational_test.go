@@ -47,6 +47,18 @@ func TestOperationalMetricsNormalizeAndBoundHostileLabels(t *testing.T) {
 	}
 }
 
+func TestAuditExportOperationalLabelsAreBounded(t *testing.T) {
+	metrics := newOperationalMetrics()
+	metrics.observe(http.MethodPost, "/api/v1/audit-exports", http.StatusCreated, time.Millisecond)
+	for index := 0; index < 1000; index++ {
+		metrics.observe(http.MethodGet, fmt.Sprintf("/api/v1/audit-exports/private-export-%d", index), http.StatusOK, time.Millisecond)
+	}
+	payload := metrics.Prometheus()
+	if !strings.Contains(payload, `route="/api/v1/audit-exports"`) || !strings.Contains(payload, `route="/api/v1/audit-exports/:resource"`) || strings.Contains(payload, "private-export-") || strings.Contains(payload, "/unmatched") || strings.Count(payload, "zasp_http_requests_total{") != 2 {
+		t.Fatal("export telemetry is missing or contains unbounded resource labels")
+	}
+}
+
 func TestOperationalSLOHistogramsSurviveDetailedSeriesOverflow(t *testing.T) {
 	metrics := newOperationalMetrics()
 	routes := []string{"/api/v1/admin", "/api/v1/agents", "/api/v1/assets", "/api/v1/attack-paths", "/api/v1/audit-events", "/api/v1/compliance", "/api/v1/environments", "/api/v1/findings", "/api/v1/home", "/api/v1/identities", "/api/v1/integration-catalog", "/api/v1/integrations", "/api/v1/me", "/api/v1/organization", "/api/v1/policies", "/api/v1/runtimes", "/api/v1/security-agent-templates", "/api/v1/security-agents", "/api/v1/session", "/api/v1/sessions", "/api/v1/settings", "/api/v1/system", "/api/v1/tools", "/api/v1/workflow-mutation-receipts", "/api/v1/workspaces"}

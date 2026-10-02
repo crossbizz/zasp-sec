@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { APITransportError, requireAPIData, type APIClient } from "../../../apps/web/api/client";
 import type { RuntimeSession, RuntimeSessionPage, RuntimeSessionSearchStatus } from "../../../apps/web/api/generated";
 import { decodeRuntimeSessionPage } from "../../../apps/web/api/runtime-session-decoders";
+import type { ActivityScope } from "../../domain/activity-links";
 import { Badge, Button, Card, Drawer, EmptyState, Field, LoadingState, PageHeader, Select } from "../../components/ui";
 import { SessionsComplianceView } from "./SessionsComplianceView";
-import { createRuntimeSessionTimelineAPI, RuntimeSessionTimeline, type RuntimeSessionTimelineAPI } from "./RuntimeSessionTimeline";
+import { createRuntimeSessionTimelineAPI, RuntimeSessionTimeline, type RuntimeSessionTimelineAPI, type RuntimeSessionActivity } from "./RuntimeSessionTimeline";
 import { createRuntimeSessionEvidenceAPI, type RuntimeSessionEvidenceAPI } from "./RuntimeSessionEvidence";
 
 const textSelectors = [
@@ -32,24 +33,26 @@ export function createRuntimeSessionsAPI(client: APIClient): RuntimeSessionsAPI 
   };
 }
 
-export function ProductionSessionsView({ client, canRevokeConsole }: { client: APIClient; canRevokeConsole: boolean }) {
+export function ProductionSessionsView({ client, canRevokeConsole, selectedID, onNavigate, activityScope, canReadRuns = false }: { client: APIClient; canRevokeConsole: boolean; activityScope?: ActivityScope; canReadRuns?: boolean; selectedID?: string; onNavigate?: (path: string) => void }) {
   const [surface, setSurface] = useState<"runtime" | "console">("runtime");
   const api = useMemo(() => createRuntimeSessionsAPI(client), [client]);
   const timelineAPI = useMemo(() => createRuntimeSessionTimelineAPI(client), [client]);
   const evidenceAPI = useMemo(() => createRuntimeSessionEvidenceAPI(client), [client]);
+  const activity = activityScope && onNavigate ? { scope: activityScope, canReadRuns, onNavigate } : undefined;
+  if (selectedID) return <div className="page"><PageHeader title="Runtime session detail" description="Exact activity record in the selected scope." /><p>Session <code>{selectedID}</code></p>{onNavigate && <Button onClick={() => onNavigate("/investigate/sessions")}>All sessions</Button>}<RuntimeSessionTimeline key={selectedID} id={selectedID} api={timelineAPI} evidenceAPI={evidenceAPI} activity={activity} /></div>;
   return <>
     <div className="page" aria-label="Session types">
       <Button aria-pressed={surface === "runtime"} onClick={() => setSurface("runtime")}>Agent runtime</Button>
       <Button aria-pressed={surface === "console"} onClick={() => setSurface("console")}>Console logins</Button>
     </div>
-    {surface === "runtime" ? <RuntimeSessionsView api={api} timelineAPI={timelineAPI} evidenceAPI={evidenceAPI} /> : <SessionsComplianceView surface="sessions" client={client} canMutate={canRevokeConsole} />}
+    {surface === "runtime" ? <RuntimeSessionsView api={api} timelineAPI={timelineAPI} evidenceAPI={evidenceAPI} activity={activity} /> : <SessionsComplianceView surface="sessions" client={client} canMutate={canRevokeConsole} />}
   </>;
 }
 
 type Query = { filters: RuntimeSessionFilters; cursor: string | null; page: number };
 type Load = { api: RuntimeSessionsAPI; query: Query; page?: RuntimeSessionPage; error?: boolean };
 
-export function RuntimeSessionsView({ api, timelineAPI, evidenceAPI }: { api: RuntimeSessionsAPI; timelineAPI?: RuntimeSessionTimelineAPI; evidenceAPI?: RuntimeSessionEvidenceAPI }) {
+export function RuntimeSessionsView({ api, timelineAPI, evidenceAPI, activity }: { api: RuntimeSessionsAPI; timelineAPI?: RuntimeSessionTimelineAPI; evidenceAPI?: RuntimeSessionEvidenceAPI; activity?: RuntimeSessionActivity }) {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [filterError, setFilterError] = useState<string | null>(null);
   const [query, setQuery] = useState<Query>({ filters: {}, cursor: null, page: 1 });
@@ -116,7 +119,7 @@ export function RuntimeSessionsView({ api, timelineAPI, evidenceAPI }: { api: Ru
       </nav>
       <p>Pages are not a snapshot. Newly indexed activity may change results; start again from the first page to refresh.</p>
     </>}
-    {selection && selection.query === query && selection.api === api && timelineAPI && <Drawer open title="Runtime timeline" onClose={() => setSelection(null)}><RuntimeSessionTimeline key={selection.id} id={selection.id} api={timelineAPI} evidenceAPI={evidenceAPI} /></Drawer>}
+    {selection && selection.query === query && selection.api === api && timelineAPI && <Drawer open title="Runtime timeline" onClose={() => setSelection(null)}><RuntimeSessionTimeline key={selection.id} id={selection.id} api={timelineAPI} evidenceAPI={evidenceAPI} activity={activity} /></Drawer>}
   </div>;
 }
 

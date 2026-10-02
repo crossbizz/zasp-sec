@@ -22,6 +22,17 @@ const (
 	postgresReadySQL     = `SELECT zasp_runtime_ingest_reconciliation_readiness($1,$2) AND zasp_runtime_principal_ready('zasp_gateway_control')`
 	postgresAuthoritySQL = `SELECT zasp_runtime_gateway_credential_authority($1,'runtime-gateway')`
 	postgresPolicySQL    = `SELECT zasp_runtime_gateway_policy_bundle($1,$2)`
+	postgresRecordV77SQL = `SELECT zasp_temporal77.record_gateway_event(
+ $1,$2,$3,$4,
+ digest(convert_to(jsonb_build_object(
+  'credential_id',$1::text,'device_id',$5::text,'event_id',$2::text,
+  'expected_floor',$3::bigint,'next_floor',$4::bigint,'policy_version',$6::bigint,
+  'decision',$7::text,'action_kind',$8::text,'classification',$9::jsonb,'policy_ids',$10::jsonb,
+  'occurred_at',to_char($11::timestamptz AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+  'evaluation',$12::jsonb
+ )::text,'UTF8'),'sha256'),
+ $6,$7,$8,$9::jsonb,$10::jsonb,$11,$12::jsonb
+)`
 	postgresRecordV27SQL = `SELECT zasp_runtime_gateway_record_event_v27(
  $1,$2,$3,$4,
  digest(convert_to(jsonb_build_object(
@@ -67,6 +78,16 @@ func (repository *PostgresRepository) Ready(ctx context.Context) error {
 	operation, cancel := context.WithTimeout(ctx, repository.timeout)
 	defer cancel()
 	var ready bool
+	var installed bool
+	if err := repository.database.QueryRow(operation, `SELECT to_regnamespace('zasp_temporal77') IS NOT NULL`).Scan(&installed); err != nil || operation.Err() != nil {
+		return errPostgresRepository
+	}
+	if installed {
+		if err := repository.database.QueryRow(operation, `SELECT zasp_temporal77.gateway_ready($1,$2)`, migrations.TemporalAutomaticSourcesChecksum(), migrations.TemporalAutomaticSourcesFingerprint()).Scan(&ready); err != nil || !ready || operation.Err() != nil {
+			return errPostgresRepository
+		}
+		return nil
+	}
 	metadata := migrations.ProductionRecovery()
 	err := repository.database.QueryRow(operation, postgresReadyV27SQL, metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint()).Scan(&ready)
 	if err == nil && ready && operation.Err() == nil {
@@ -132,13 +153,21 @@ func (repository *PostgresRepository) Record(ctx context.Context, event Decision
 	operation, cancel := context.WithTimeout(ctx, repository.timeout)
 	defer cancel()
 	var raw json.RawMessage
-	err = repository.database.QueryRow(operation, postgresRecordV27SQL,
-		event.CredentialID, event.EventID, event.ExpectedFloor, event.NextFloor, event.DeviceID,
-		event.PolicyVersion, event.Decision, event.ActionKind, json.RawMessage(classification), json.RawMessage(policyIDs), event.OccurredAt,
-	).Scan(&raw)
+	arguments := []any{event.CredentialID, event.EventID, event.ExpectedFloor, event.NextFloor, event.DeviceID,
+		event.PolicyVersion, event.Decision, event.ActionKind, json.RawMessage(classification), json.RawMessage(policyIDs), event.OccurredAt}
+	statement := postgresRecordV27SQL
+	if event.Evaluation != nil {
+		evaluation, encodeErr := json.Marshal(event.Evaluation)
+		if encodeErr != nil {
+			return errPostgresRepository
+		}
+		statement = postgresRecordV77SQL
+		arguments = append(arguments, json.RawMessage(evaluation))
+	}
+	err = repository.database.QueryRow(operation, statement, arguments...).Scan(&raw)
 	if err != nil {
 		var postgresError *pgconn.PgError
-		if !errors.As(err, &postgresError) || postgresError.Code != "42883" || operation.Err() != nil {
+		if event.Evaluation != nil || !errors.As(err, &postgresError) || postgresError.Code != "42883" || operation.Err() != nil {
 			return errPostgresRepository
 		}
 		err = repository.database.QueryRow(operation, postgresRecordSQL,

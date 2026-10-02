@@ -1,0 +1,305 @@
+=== RUN   TestComplianceConflictClassification
+--- PASS: TestComplianceConflictClassification (0.00s)
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/old
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/context
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/foreign-context
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/future-envelope
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/duplicate
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/foreign-id
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/context-null
+--- PASS: TestCompliancePersistedAttributionAndHistoricalBytes (0.05s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/old (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/context (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/foreign-context (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/future-envelope (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/duplicate (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/foreign-id (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/context-null (0.00s)
+=== RUN   TestCompliancePersistedEmptyFindingReferences
+--- PASS: TestCompliancePersistedEmptyFindingReferences (0.00s)
+=== RUN   TestComplianceExportBindsRequestedJobAndCanonicalFilters
+--- PASS: TestComplianceExportBindsRequestedJobAndCanonicalFilters (0.08s)
+=== RUN   TestComplianceExportsRepository
+--- PASS: TestComplianceExportsRepository (0.04s)
+=== RUN   TestComplianceHTTPMountedPublicLifecycle
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/controls
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence?framework=soc2_security
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence/policy/policy-001?source_version=7
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download-grants
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download
+--- PASS: TestComplianceHTTPMountedPublicLifecycle (0.27s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/controls (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence?framework=soc2_security (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence/policy/policy-001?source_version=7 (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID` (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download-grants (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download (0.04s)
+=== RUN   TestComplianceHTTPMountedDenials
+=== RUN   TestComplianceHTTPMountedDenials/origin
+=== RUN   TestComplianceHTTPMountedDenials/csrf
+=== RUN   TestComplianceHTTPMountedDenials/scope
+=== RUN   TestComplianceHTTPMountedDenials/duplicate-cookie
+=== RUN   TestComplianceHTTPMountedDenials/fresh
+=== RUN   TestComplianceHTTPMountedDenials/audit-permission
+=== RUN   TestComplianceHTTPMountedDenials/view-permission
+--- PASS: TestComplianceHTTPMountedDenials (0.29s)
+    --- PASS: TestComplianceHTTPMountedDenials/origin (0.04s)
+    --- PASS: TestComplianceHTTPMountedDenials/csrf (0.04s)
+    --- PASS: TestComplianceHTTPMountedDenials/scope (0.04s)
+    --- PASS: TestComplianceHTTPMountedDenials/duplicate-cookie (0.04s)
+    --- PASS: TestComplianceHTTPMountedDenials/fresh (0.04s)
+    --- PASS: TestComplianceHTTPMountedDenials/audit-permission (0.04s)
+    --- PASS: TestComplianceHTTPMountedDenials/view-permission (0.04s)
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/bytes
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/version
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/scope
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/digest
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/size
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/error
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/revoked
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/expired
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/replay
+--- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume (0.36s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/bytes (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/version (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/scope (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/digest (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/size (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/error (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/revoked (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/expired (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/replay (0.04s)
+=== RUN   TestComplianceHTTPStrictInputs
+--- PASS: TestComplianceHTTPStrictInputs (0.28s)
+=== RUN   TestComplianceReadFailureClassification
+=== RUN   TestComplianceReadFailureClassification/head-outage
+=== RUN   TestComplianceReadFailureClassification/head-outage/driver
+=== RUN   TestComplianceReadFailureClassification/head-outage/store
+=== RUN   TestComplianceReadFailureClassification/head-outage/http
+=== RUN   TestComplianceReadFailureClassification/get-outage
+=== RUN   TestComplianceReadFailureClassification/get-outage/driver
+=== RUN   TestComplianceReadFailureClassification/get-outage/store
+=== RUN   TestComplianceReadFailureClassification/get-outage/http
+=== RUN   TestComplianceReadFailureClassification/body-outage
+=== RUN   TestComplianceReadFailureClassification/body-outage/driver
+=== RUN   TestComplianceReadFailureClassification/body-outage/store
+=== RUN   TestComplianceReadFailureClassification/body-outage/http
+=== RUN   TestComplianceReadFailureClassification/cancel
+=== RUN   TestComplianceReadFailureClassification/cancel/driver
+=== RUN   TestComplianceReadFailureClassification/cancel/store
+=== RUN   TestComplianceReadFailureClassification/cancel/http
+=== RUN   TestComplianceReadFailureClassification/deadline
+=== RUN   TestComplianceReadFailureClassification/deadline/driver
+=== RUN   TestComplianceReadFailureClassification/deadline/store
+=== RUN   TestComplianceReadFailureClassification/deadline/http
+=== RUN   TestComplianceReadFailureClassification/version
+=== RUN   TestComplianceReadFailureClassification/version/driver
+=== RUN   TestComplianceReadFailureClassification/version/store
+=== RUN   TestComplianceReadFailureClassification/version/http
+=== RUN   TestComplianceReadFailureClassification/metadata
+=== RUN   TestComplianceReadFailureClassification/metadata/driver
+=== RUN   TestComplianceReadFailureClassification/metadata/store
+=== RUN   TestComplianceReadFailureClassification/metadata/http
+=== RUN   TestComplianceReadFailureClassification/checksum
+=== RUN   TestComplianceReadFailureClassification/checksum/driver
+=== RUN   TestComplianceReadFailureClassification/checksum/store
+=== RUN   TestComplianceReadFailureClassification/checksum/http
+=== RUN   TestComplianceReadFailureClassification/body-mismatch
+=== RUN   TestComplianceReadFailureClassification/body-mismatch/driver
+=== RUN   TestComplianceReadFailureClassification/body-mismatch/store
+=== RUN   TestComplianceReadFailureClassification/body-mismatch/http
+=== RUN   TestComplianceReadFailureClassification/envelope
+=== RUN   TestComplianceReadFailureClassification/envelope/driver
+=== RUN   TestComplianceReadFailureClassification/envelope/store
+=== RUN   TestComplianceReadFailureClassification/envelope/http
+=== RUN   TestComplianceReadFailureClassification/valid
+=== RUN   TestComplianceReadFailureClassification/valid/driver
+=== RUN   TestComplianceReadFailureClassification/valid/store
+=== RUN   TestComplianceReadFailureClassification/valid/http
+=== RUN   TestComplianceReadFailureClassification/sdk-checksum
+=== RUN   TestComplianceReadFailureClassification/sdk-checksum/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-checksum/store
+=== RUN   TestComplianceReadFailureClassification/sdk-checksum/http
+=== RUN   TestComplianceReadFailureClassification/sdk-body-outage
+=== RUN   TestComplianceReadFailureClassification/sdk-body-outage/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-body-outage/store
+=== RUN   TestComplianceReadFailureClassification/sdk-body-outage/http
+=== RUN   TestComplianceReadFailureClassification/sdk-spoof
+=== RUN   TestComplianceReadFailureClassification/sdk-spoof/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-spoof/store
+=== RUN   TestComplianceReadFailureClassification/sdk-spoof/http
+=== RUN   TestComplianceReadFailureClassification/sdk-cancel
+=== RUN   TestComplianceReadFailureClassification/sdk-cancel/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-cancel/store
+=== RUN   TestComplianceReadFailureClassification/sdk-cancel/http
+=== RUN   TestComplianceReadFailureClassification/sdk-valid
+=== RUN   TestComplianceReadFailureClassification/sdk-valid/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-valid/store
+=== RUN   TestComplianceReadFailureClassification/sdk-valid/http
+--- PASS: TestComplianceReadFailureClassification (1.35s)
+    --- PASS: TestComplianceReadFailureClassification/head-outage (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/head-outage/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/head-outage/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/head-outage/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/get-outage (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/get-outage/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/get-outage/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/get-outage/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/body-outage (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/body-outage/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/body-outage/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/body-outage/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/cancel (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/cancel/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/cancel/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/cancel/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/deadline (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/deadline/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/deadline/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/deadline/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/version (0.09s)
+        --- PASS: TestComplianceReadFailureClassification/version/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/version/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/version/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/metadata (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/metadata/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/metadata/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/metadata/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/checksum (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/checksum/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/checksum/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/checksum/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/body-mismatch (0.09s)
+        --- PASS: TestComplianceReadFailureClassification/body-mismatch/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/body-mismatch/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/body-mismatch/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/envelope (0.09s)
+        --- PASS: TestComplianceReadFailureClassification/envelope/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/envelope/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/envelope/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/valid (0.09s)
+        --- PASS: TestComplianceReadFailureClassification/valid/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/valid/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/valid/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-checksum (0.09s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-checksum/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-checksum/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-checksum/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-body-outage (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-body-outage/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-body-outage/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-body-outage/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-spoof (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-spoof/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-spoof/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-spoof/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-cancel (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-cancel/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-cancel/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-cancel/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-valid (0.09s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-valid/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-valid/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-valid/http (0.04s)
+=== RUN   TestComplianceEvidenceStrictDecoding
+--- PASS: TestComplianceEvidenceStrictDecoding (0.00s)
+=== RUN   TestComplianceRepositoryBindsScopeAndRejectsUnsafeInput
+--- PASS: TestComplianceRepositoryBindsScopeAndRejectsUnsafeInput (0.05s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	5.786s
+=== RUN   TestComplianceRuntimeListenerFailureJoinsPolling
+--- PASS: TestComplianceRuntimeListenerFailureJoinsPolling (0.00s)
+=== RUN   TestComplianceRuntimeComposedLifecycle
+=== RUN   TestComplianceRuntimeComposedLifecycle/complete
+=== RUN   TestComplianceRuntimeComposedLifecycle/cancel
+=== RUN   TestComplianceRuntimeComposedLifecycle/lease_loss
+=== RUN   TestComplianceRuntimeComposedLifecycle/revoked
+=== RUN   TestComplianceRuntimeComposedLifecycle/close
+--- PASS: TestComplianceRuntimeComposedLifecycle (1.87s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/complete (0.37s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/cancel (0.37s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/lease_loss (0.36s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/revoked (0.41s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/close (0.36s)
+=== RUN   TestComplianceWorkerPersistedBytes
+--- PASS: TestComplianceWorkerPersistedBytes (0.11s)
+=== RUN   TestComplianceWorkerCleanupReceipt
+--- PASS: TestComplianceWorkerCleanupReceipt (0.04s)
+=== RUN   TestComplianceWorkerHeartbeat
+--- PASS: TestComplianceWorkerHeartbeat (0.11s)
+=== RUN   TestComplianceReplayOutcomes
+=== RUN   TestComplianceReplayOutcomes/completed
+=== RUN   TestComplianceReplayOutcomes/unprepared
+=== RUN   TestComplianceReplayOutcomes/load_failed
+=== RUN   TestComplianceReplayOutcomes/put_failed
+=== RUN   TestComplianceReplayOutcomes/put_panic
+=== RUN   TestComplianceReplayOutcomes/bad_receipt
+=== RUN   TestComplianceReplayOutcomes/finish_failed
+=== RUN   TestComplianceReplayOutcomes/reconcile_rejected
+--- PASS: TestComplianceReplayOutcomes (0.42s)
+    --- PASS: TestComplianceReplayOutcomes/completed (0.08s)
+    --- PASS: TestComplianceReplayOutcomes/unprepared (0.11s)
+    --- PASS: TestComplianceReplayOutcomes/load_failed (0.04s)
+    --- PASS: TestComplianceReplayOutcomes/put_failed (0.04s)
+    --- PASS: TestComplianceReplayOutcomes/put_panic (0.04s)
+    --- PASS: TestComplianceReplayOutcomes/bad_receipt (0.04s)
+    --- PASS: TestComplianceReplayOutcomes/finish_failed (0.08s)
+    --- PASS: TestComplianceReplayOutcomes/reconcile_rejected (0.00s)
+=== RUN   TestComplianceRuntimeRendersFrozenSnapshot
+--- PASS: TestComplianceRuntimeRendersFrozenSnapshot (0.00s)
+=== RUN   TestComplianceRuntimeCandidatesRejectUnsafeWire
+--- PASS: TestComplianceRuntimeCandidatesRejectUnsafeWire (0.19s)
+=== RUN   TestComplianceRuntimeConfiguration
+--- PASS: TestComplianceRuntimeConfiguration (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	7.000s
+=== RUN   TestComplianceStorageFactoryBoundary
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"c079b5340ab34c90a36ea100a388c668","span_id":"22211c0d2b5a7564","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"a5ad56eaabae57d50675d8ac40444bce","span_id":"8d8529916e906c9b","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"b1fcba5501f7b225212806e91a18b6bb","span_id":"46b982c3759dc900","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"40fea928f43d3ab16af1840b0191a11e","span_id":"c66dd620c3e59f92","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"ea16df2bb44cf085bdb34f3e828a2e83","span_id":"0f938f10756c4c70","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"25defa0eec52d9362b1b837e269d1b31","span_id":"be3ce8731f2faf0e","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"fe250edbe87edcce890b0e9ff2cece86","span_id":"471c0bff5272ea8e","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"225809962ad3f05bbcc4fa7698364b75","span_id":"39c814e9b4dc25d6","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"298cb5a2906fef9f855699b15d471f34","span_id":"f8dbe7cd4b0571cd","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+--- PASS: TestComplianceStorageFactoryBoundary (0.01s)
+=== RUN   TestComplianceAPIProductionComposition
+=== RUN   TestComplianceAPIProductionComposition/installed
+=== RUN   TestComplianceAPIProductionComposition/disabled
+=== RUN   TestComplianceAPIProductionComposition/unregistered
+--- PASS: TestComplianceAPIProductionComposition (0.11s)
+    --- PASS: TestComplianceAPIProductionComposition/installed (0.06s)
+    --- PASS: TestComplianceAPIProductionComposition/disabled (0.01s)
+    --- PASS: TestComplianceAPIProductionComposition/unregistered (0.04s)
+=== RUN   TestComplianceAPIConfiguration
+--- PASS: TestComplianceAPIConfiguration (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-api	2.119s
+=== RUN   TestComplianceExplicitReleaseCommands
+--- PASS: TestComplianceExplicitReleaseCommands (0.00s)
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-51
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-52
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-53
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-54
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-55
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-56
+--- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals (0.17s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-51 (0.00s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-52 (0.00s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-53 (0.01s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-54 (0.01s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-55 (0.03s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-56 (0.04s)
+=== RUN   TestRegisterForwardReleaseStopsOnFailedAuthorityOrReadiness
+--- PASS: TestRegisterForwardReleaseStopsOnFailedAuthorityOrReadiness (0.05s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate	3.361s
+
+EXIT_STATUS=0

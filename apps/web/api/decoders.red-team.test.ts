@@ -36,6 +36,16 @@ const completeRun = {
 } as const;
 
 describe("red team API decoders", () => {
+  it("preserves unknown cancellation without claiming confirmed cancellation", () => {
+    const run = { id: runID, version: 4, definition_id: definitionID, definition_version: 2, status: "failed", attempt: 1, cancel_requested: true, queued_at: "2026-08-24T10:02:00Z", started_at: "2026-08-24T10:02:01Z", completed_at: "2026-08-24T10:05:00Z", error_code: "outcome_unknown" };
+    expect(decodeTestRun(run)).toMatchObject({ status: "failed", error_code: "outcome_unknown", cancel_requested: true });
+    expect(decodeTestRunDetail({ ...run, attempts: [] }).status).toBe("failed");
+    expect(decodeTestRunPage({ items: [run] }).items[0]?.error_code).toBe("outcome_unknown");
+    for (const change of [{ cancel_requested: false }, { attempt: 0 }, { started_at: undefined }, { completed_at: undefined }, { verdict: "pass" }, { evidence_reference: "s3://evidence/run" }, { status: "cancelled" }, { attempt: 5, error_code: "exhausted" }]) {
+      expect(() => decodeTestRun({ ...run, ...change })).toThrow("schema mismatch");
+    }
+  });
+
   it("accepts exact definitions and stable pages", () => {
     expect(decodeTestDefinition(definition).id).toBe(definitionID);
     expect(decodeTestDefinitionPage({ items: [definition], next_cursor: "Y3Vyc29yXzAx" }).items).toHaveLength(1);

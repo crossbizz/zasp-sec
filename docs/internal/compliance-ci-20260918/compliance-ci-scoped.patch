@@ -1,0 +1,314 @@
+diff --git a/scripts/production-combined-e2e.mjs b/scripts/production-combined-e2e.mjs
+index 909efa29..190bcfeb 100644
+--- a/scripts/production-combined-e2e.mjs
++++ b/scripts/production-combined-e2e.mjs
+@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
+ import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
+ import { spawnOwnedCommand } from "./owned-command.mjs";
+ import { createOwnedBrowserPostgres } from "./owned-browser-postgres.mjs";
++import { withBrowserPrerequisites } from "./browser-prerequisites.mjs";
+ import { reloadBrowserPage } from "./browser-e2e-helpers.mjs";
+ import { storedComplianceJSON } from "./compliance-browser-bytes.mjs";
+ import { createRuntimePipelineDependencies } from "./runtime-pipeline-dependencies.mjs";
+@@ -55,9 +56,6 @@ if (process.env.ZASP_COMBINED_E2E_RUNTIME_SANDBOX_SEARCH === "true") {
+ const FIXED_NODE_VERSION = "v22.23.1";
+ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+ const platform = path.join(root, "services", "platform");
+-const postgresBin = execFileSync("pg_config", ["--bindir"], { encoding: "utf8", timeout: 5_000, maxBuffer: 4_096 }).trim();
+-assert.ok(path.isAbsolute(postgresBin) && !/[\r\n\0]/.test(postgresBin), "PostgreSQL binary directory rejected");
+-const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+ const productHostname = "zasp.production-e2e.test";
+ const recoveryHostname = "zasp.production-e2e.localhost";
+ const findingTicketOperation = "/api/v1/findings/{id}/ticket";
+@@ -79,7 +77,10 @@ const stytchWebhookSecret = "whsec_MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE="
+ 
+ if (process.version !== FIXED_NODE_VERSION) throw new Error(`production combined E2E requires Node ${FIXED_NODE_VERSION}`);
+ 
+-const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "zasp-production-e2e-"));
++const { chrome, postgresBin, temporaryRoot } = await withBrowserPrerequisites({ root }, async prerequisites => ({
++  ...prerequisites,
++  temporaryRoot: await mkdtemp(path.join(os.tmpdir(), "zasp-production-e2e-")),
++}));
+ const children = [];
+ const ownedCommands = new WeakMap();
+ const runtimePipelineDependencies = createRuntimePipelineDependencies(command);
+diff --git a/scripts/production-combined-e2e.test.mjs b/scripts/production-combined-e2e.test.mjs
+index 85f51f1f..43aed4f7 100644
+--- a/scripts/production-combined-e2e.test.mjs
++++ b/scripts/production-combined-e2e.test.mjs
+@@ -1016,7 +1016,7 @@ test("combined production E2E owns every local boundary and fixed assertion", as
+   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+   const recoveryWorkerSource = await readFile(new URL("../services/platform/agentsec-worker/production_combined_e2e_test.go", import.meta.url), "utf8");
+   for (const value of [
+-    "postgres", "agentsec-migrate", "agentsec-api", "vinext", "Google Chrome",
++    "postgres", "agentsec-migrate", "agentsec-api", "vinext",
+     "/api/v1/session/start", "/auth/callback", "__Host-zasp_session", "Support agent",
+     "not_found", "SIGTERM", "FIXED_NODE_VERSION", "Roll to monitor",
+     "Save Security Agent definition", "configured", "Tenant-scoped response definitions",
+@@ -1255,13 +1255,6 @@ test("failed checkpoint or provider joins retain errors and files while other ow
+   }
+ });
+ 
+-test("PostgreSQL tool discovery does not depend on a macOS installation path", async () => {
+-  const source=await readFile(new URL("./production-combined-e2e.mjs",import.meta.url),"utf8");
+-  assert.ok(/execFileSync\("pg_config", \["--bindir"\]/.test(source));
+-  assert.ok(/path\.isAbsolute\(postgresBin\)/.test(source));
+-  assert.ok(!/const postgresBin = "\/opt\/homebrew/.test(source));
+-});
+-
+ test("combined PostgreSQL startup registers its owner before readiness rejects", async () => {
+   const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+   const start = source.indexOf("async function startPostgres(port)");
+diff --git a/scripts/browser-prerequisites.mjs b/scripts/browser-prerequisites.mjs
+new file mode 100644
+index 00000000..af7c3a58
+--- /dev/null
++++ b/scripts/browser-prerequisites.mjs
+@@ -0,0 +1,75 @@
++import { execFileSync } from "node:child_process";
++import { accessSync, constants, statSync } from "node:fs";
++import path from "node:path";
++
++const controls = /\p{Cc}/u;
++
++function absolutePath(file, label) {
++  if (typeof file !== "string" || !file || !path.isAbsolute(file) || controls.test(file)) {
++    throw new Error(`${label} requires a nonempty absolute path without control characters`);
++  }
++}
++
++function executableFile(file, label) {
++  absolutePath(file, label);
++  try {
++    if (!statSync(file).isFile()) throw new Error("not a regular file");
++    accessSync(file, constants.X_OK);
++  } catch (cause) {
++    throw new Error(`${label} must be an executable regular file: ${file}`, { cause });
++  }
++  return file;
++}
++
++function findExecutable(names, env, label, validate = executableFile) {
++  // Do not search the working directory through empty/relative PATH entries.
++  for (const name of names) {
++    for (const directory of (env.PATH ?? "").split(path.delimiter)) {
++      if (!path.isAbsolute(directory) || controls.test(directory)) continue;
++      const candidate = path.join(directory, name);
++      try { validate(candidate, label); return candidate; } catch { /* Try the next installed candidate. */ }
++    }
++  }
++  throw new Error(`${label} not found as an executable regular file on PATH (${names.join(", ")})`);
++}
++
++export function selectBrowserExecutable({ platform = process.platform, env = process.env, validate = executableFile } = {}) {
++  if (Object.hasOwn(env, "ZASP_COMBINED_E2E_CHROME")) {
++    const explicit = env.ZASP_COMBINED_E2E_CHROME;
++    absolutePath(explicit, "browser ZASP_COMBINED_E2E_CHROME");
++    validate(explicit, "browser ZASP_COMBINED_E2E_CHROME");
++    return explicit;
++  }
++  if (platform === "darwin") {
++    const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
++    validate(chrome, "browser Chrome");
++    return chrome;
++  }
++  if (platform === "linux") return findExecutable(["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"], env, "browser Chrome", validate);
++  throw new Error(`browser requires ZASP_COMBINED_E2E_CHROME on unsupported platform ${platform}`);
++}
++
++// Setup cannot create databases, compile Go, or allocate owned resources until
++// every prerequisite has passed. This never installs tools or pulls images.
++export async function withBrowserPrerequisites({ root, env = process.env, platform = process.platform }, setup) {
++  const chrome = selectBrowserExecutable({ env, platform });
++  for (const name of ["go", "docker", "openssl"]) findExecutable([name], env, `required tool ${name}`);
++  const pgConfig = findExecutable(["pg_config"], env, "required tool pg_config");
++  let postgresBin;
++  try {
++    postgresBin = execFileSync(pgConfig, ["--bindir"], { env, encoding: "utf8", timeout: 5000, killSignal: "SIGKILL", maxBuffer: 4096, stdio: ["ignore", "pipe", "pipe"] }).trim();
++  } catch (cause) {
++    throw new Error("required tool pg_config --bindir failed", { cause });
++  }
++  absolutePath(postgresBin, "PostgreSQL binary directory from pg_config");
++  executableFile(path.join(postgresBin, "psql"), "required tool psql");
++  executableFile(path.join(root, "node_modules/.bin/vinext"), "required tool node_modules/.bin/vinext");
++  const compiledUI = path.join(root, "dist/server/index.js");
++  try {
++    if (!statSync(compiledUI).isFile()) throw new Error("not a regular file");
++    accessSync(compiledUI, constants.R_OK);
++  } catch (cause) {
++    throw new Error(`required compiled UI dist/server/index.js unavailable; run npm run build first: ${compiledUI}`, { cause });
++  }
++  return setup({ chrome, postgresBin });
++}
+diff --git a/scripts/browser-prerequisites.test.mjs b/scripts/browser-prerequisites.test.mjs
+new file mode 100644
+index 00000000..3c756475
+--- /dev/null
++++ b/scripts/browser-prerequisites.test.mjs
+@@ -0,0 +1,132 @@
++import assert from "node:assert/strict";
++import { spawnSync } from "node:child_process";
++import { chmodSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
++import os from "node:os";
++import path from "node:path";
++import test from "node:test";
++
++// A missing implementation is the first RED, not an import-time test crash.
++const implementation = await import("./browser-prerequisites.mjs").catch(error => {
++  if (error.code !== "ERR_MODULE_NOT_FOUND") throw error;
++  return {};
++});
++
++function fixture(t) {
++  const root = mkdtempSync(path.join(os.tmpdir(), "zasp-browser-prerequisites-"));
++  t.after(() => rmSync(root, { recursive: true, force: true }));
++  const executable = (relative, body = "exit 0") => {
++    const file = path.join(root, relative);
++    mkdirSync(path.dirname(file), { recursive: true });
++    writeFileSync(file, `#!/bin/sh\n${body}\n`, { mode: 0o700 });
++    return file;
++  };
++  return { root, executable };
++}
++
++test("macOS preserves the existing application default", () => {
++  assert.equal(typeof implementation.selectBrowserExecutable, "function");
++  const visited = [];
++  const chosen = implementation.selectBrowserExecutable({ platform: "darwin", env: {}, validate: file => { visited.push(file); return file; } });
++  assert.equal(chosen, "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome");
++  assert.deepEqual(visited, [chosen]);
++});
++
++test("explicit Linux executable with spaces and shell metacharacters is passed literally", t => {
++  assert.equal(typeof implementation.selectBrowserExecutable, "function");
++  const { executable } = fixture(t);
++  const chrome = executable("chrome space;$(false)", "printf '%s' \"$1\"");
++  const chosen = implementation.selectBrowserExecutable({ platform: "linux", env: { ZASP_COMBINED_E2E_CHROME: chrome } });
++  assert.equal(chosen, chrome);
++  const result = spawnSync(chosen, ["literal argument"], { encoding: "utf8", timeout: 2000 });
++  assert.equal(result.status, 0);
++  assert.equal(result.stdout, "literal argument");
++});
++
++for (const [label, supplied] of [["relative", "./chrome"], ["newline", "/tmp/chrome\n"], ["NUL", "/tmp/chrome\0"], ["tab", "/tmp/chrome\t"], ["DEL", "/tmp/chrome\x7f"], ["C1", "/tmp/chrome\u0085"], ["empty", ""]]) {
++  test(`explicit ${label} browser path fails without fallback`, () => {
++    assert.equal(typeof implementation.selectBrowserExecutable, "function");
++    assert.throws(() => implementation.selectBrowserExecutable({ platform: "linux", env: { ZASP_COMBINED_E2E_CHROME: supplied } }), /browser.*(absolute|control|empty)/i);
++  });
++}
++
++for (const kind of ["nonexistent", "nonexecutable", "directory"]) {
++  test(`explicit ${kind} path fails despite a valid PATH fallback`, t => {
++    assert.equal(typeof implementation.selectBrowserExecutable, "function");
++    const { root, executable } = fixture(t);
++    executable("google-chrome");
++    const invalid = path.join(root, "invalid");
++    if (kind === "directory") mkdirSync(invalid);
++    if (kind === "nonexecutable") { writeFileSync(invalid, "not executable"); chmodSync(invalid, 0o600); }
++    assert.throws(() => implementation.selectBrowserExecutable({ platform: "linux", env: { PATH: root, ZASP_COMBINED_E2E_CHROME: invalid } }), /browser.*executable regular file/i);
++  });
++}
++
++test("Linux resolves installed Chrome from PATH and refuses missing defaults", t => {
++  assert.equal(typeof implementation.selectBrowserExecutable, "function");
++  const { root, executable } = fixture(t);
++  const chrome = executable("google-chrome-stable");
++  assert.equal(implementation.selectBrowserExecutable({ platform: "linux", env: { PATH: root } }), chrome);
++  assert.throws(() => implementation.selectBrowserExecutable({ platform: "linux", env: { PATH: "/does-not-exist" } }), /browser.*not found/i);
++});
++
++function prerequisites(t) {
++  const { root, executable } = fixture(t);
++  const chrome = executable("chrome");
++  executable("go"); executable("docker"); executable("openssl");
++  executable("pg_config", `printf '%s' '${root}/pg'`);
++  executable("pg/psql"); executable("node_modules/.bin/vinext");
++  mkdirSync(path.join(root, "dist/server"), { recursive: true });
++  writeFileSync(path.join(root, "dist/server/index.js"), "compiled fixture");
++  return { root, env: { PATH: root, ZASP_COMBINED_E2E_CHROME: chrome } };
++}
++
++test("checked prerequisites reach setup once with resolved browser and PostgreSQL paths", async t => {
++  assert.equal(typeof implementation.withBrowserPrerequisites, "function");
++  const options = prerequisites(t);
++  const result = await implementation.withBrowserPrerequisites(options, checked => {
++    writeFileSync(path.join(options.root, "setup"), "setup reached");
++    return checked;
++  });
++  assert.equal(readFileSync(path.join(options.root, "setup"), "utf8"), "setup reached");
++  assert.deepEqual(result, { chrome: options.env.ZASP_COMBINED_E2E_CHROME, postgresBin: path.join(options.root, "pg") });
++});
++
++for (const missing of ["chrome", "go", "docker", "openssl", "pg_config", "pg/psql", "node_modules/.bin/vinext", "dist/server/index.js"]) {
++  test(`missing ${missing} prevents setup and identifies the prerequisite`, async t => {
++    assert.equal(typeof implementation.withBrowserPrerequisites, "function");
++    const options = prerequisites(t);
++    rmSync(path.join(options.root, missing));
++    let setup = false;
++    await assert.rejects(() => implementation.withBrowserPrerequisites(options, () => { setup = true; }), missing === "chrome" ? /browser/i : new RegExp(missing.replaceAll("/", "\\/")));
++    assert.equal(setup, false, "database/compilation setup must not run");
++  });
++}
++
++test("the actual harness exits nonzero before setup for an invalid explicit browser", t => {
++  const { root } = fixture(t);
++  const result = spawnSync(process.execPath, [new URL("./production-combined-e2e.mjs", import.meta.url).pathname], {
++    encoding: "utf8", timeout: 5000,
++    env: { ...process.env, PATH: root, TMPDIR: root, ZASP_COMBINED_E2E_CHROME: "./invalid-browser", ZASP_COMBINED_E2E_COMPLIANCE: "true" },
++  });
++  assert.notEqual(result.status, 0);
++  assert.match(result.stderr, /browser.*absolute/i);
++  assert.deepEqual(readdirSync(root), [], "failed prerequisites must not allocate the harness temporary root");
++});
++
++for (const [label, output] of [["relative", "relative/pg"], ["embedded control", "/tmp/pg\t/bin"], ["empty", ""]]) {
++  test(`invalid ${label} pg_config output prevents setup`, async t => {
++    const options = prerequisites(t);
++    writeFileSync(path.join(options.root, "pg_config"), `#!/bin/sh\nprintf '%s' '${output}'\n`);
++    let setup = false;
++    await assert.rejects(() => implementation.withBrowserPrerequisites(options, () => { setup = true; }), /PostgreSQL.*absolute.*control/i);
++    assert.equal(setup, false);
++  });
++}
++
++test("failed pg_config command identifies the tool and prevents setup", async t => {
++  const options = prerequisites(t);
++  writeFileSync(path.join(options.root, "pg_config"), "#!/bin/sh\nexit 19\n");
++  let setup = false;
++  await assert.rejects(() => implementation.withBrowserPrerequisites(options, () => { setup = true; }), /pg_config --bindir failed/);
++  assert.equal(setup, false);
++});
+diff --git a/.github/workflows/runnable-ui.yml b/.github/workflows/runnable-ui.yml
+index 4003bb7a..bd335dd2 100644
+--- a/.github/workflows/runnable-ui.yml
++++ b/.github/workflows/runnable-ui.yml
+@@ -58,6 +58,29 @@ jobs:
+         run: npm run implementation:status:check
+       - name: Verify runnable UI
+         run: npm run verify
++      - name: Provision isolated compliance browser prerequisites
++        timeout-minutes: 10
++        run: |
++          # This populates the exact cache entry consumed with --pull=never.
++          compliance_postgres_image=postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba
++          docker pull "$compliance_postgres_image"
++          docker image inspect "$compliance_postgres_image" --format '{{json .RepoDigests}}' | node --input-type=module -e 'import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; assert.ok(JSON.parse(readFileSync(0,"utf8")).includes(process.argv[1]), "pinned browser PostgreSQL digest absent");' "$compliance_postgres_image"
++          node --input-type=module <<'NODE'
++          import { execFileSync } from "node:child_process";
++          import { appendFileSync } from "node:fs";
++          import { selectBrowserExecutable } from "./scripts/browser-prerequisites.mjs";
++          const chrome = selectBrowserExecutable();
++          console.log(`Hosted compliance browser: ${chrome}`);
++          console.log(execFileSync(chrome, ["--version"], { encoding: "utf8", timeout: 5000, killSignal: "SIGKILL" }).trim());
++          appendFileSync(process.env.GITHUB_ENV, `ZASP_COMBINED_E2E_CHROME=${chrome}\n`);
++          NODE
++      - name: Verify current compliance browser acceptance
++        timeout-minutes: 15
++        env:
++          ZASP_COMBINED_E2E_COMPLIANCE: "true"
++        run: |
++          node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs
++          node scripts/production-combined-e2e.mjs
+       - name: Verify Red Team runtime and ledger regressions
+         run: |
+           node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs

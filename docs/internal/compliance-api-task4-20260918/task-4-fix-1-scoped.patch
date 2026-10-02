@@ -1,0 +1,411 @@
+diff --git a/services/platform/migrations/sql/0056_production_compliance.up.sql b/services/platform/migrations/sql/0056_production_compliance.up.sql
+index 81af5295..5cef6f19 100644
+--- a/services/platform/migrations/sql/0056_production_compliance.up.sql
++++ b/services/platform/migrations/sql/0056_production_compliance.up.sql
+@@ -206,7 +206,7 @@ BEGIN
+  WITH sources AS MATERIALIZED (SELECT * FROM public.zasp_compliance_sources(org_value,workspace_value,environment_value)),
+  checked AS (SELECT COALESCE(bool_and(source_valid AND source_time IS NOT NULL AND source_time<=stamp AND source_version>0 AND public.zasp_compliance_valid_target(source_kind,source_id)),true) valid FROM sources),
+  page AS (SELECT * FROM sources s WHERE operation_value<>'listControls' AND (family_value IS NULL OR s.source_family=family_value) AND (operation_value<>'getEvidence' OR (s.source_kind,s.source_id)=(kind_value,id_value)) AND (cursor_value IS NULL OR (s.source_kind COLLATE "C",s.source_id COLLATE "C")>(cursor_value->>'source_kind' COLLATE "C",cursor_value->>'source_id' COLLATE "C")) ORDER BY s.source_kind COLLATE "C",s.source_id COLLATE "C" LIMIT limit_value+1),
+- controls AS (SELECT m.*,CASE WHEN NOT EXISTS(SELECT 1 FROM sources s WHERE s.source_family=ANY(m.required_sources) AND COALESCE((s.metadata->>'migration_seeded')::boolean,false)=false) THEN 'missing' WHEN NOT EXISTS(SELECT 1 FROM sources s WHERE s.source_family=ANY(m.required_sources) AND s.source_time>=stamp-m.maximum_age_seconds*interval '1 second' AND COALESCE((s.metadata->>'migration_seeded')::boolean,false)=false) THEN 'stale' ELSE 'fresh' END freshness FROM public.zasp_compliance_mappings() m WHERE operation_value='listControls' AND (framework_value IS NULL OR m.framework=framework_value) AND (control_value IS NULL OR m.control_id=control_value) AND (cursor_value IS NULL OR (m.framework COLLATE "C",m.control_id COLLATE "C")>(cursor_value->>'source_kind' COLLATE "C",cursor_value->>'source_id' COLLATE "C")) ORDER BY m.framework COLLATE "C",m.control_id COLLATE "C" LIMIT limit_value+1)
++ controls AS (SELECT m.*,CASE WHEN NOT EXISTS(SELECT 1 FROM sources s WHERE s.source_family=ANY(m.required_sources) AND COALESCE((s.metadata->>'migration_seeded')::boolean,false)=false) THEN 'missing' WHEN NOT EXISTS(SELECT 1 FROM sources s WHERE s.source_family=ANY(m.required_sources) AND s.source_time>=stamp-m.maximum_age_seconds*interval '1 second' AND COALESCE((s.metadata->>'migration_seeded')::boolean,false)=false) THEN 'stale' ELSE 'fresh' END freshness,to_char(COALESCE((SELECT max(s.source_time)+m.maximum_age_seconds*interval '1 second' FROM sources s WHERE s.source_family=ANY(m.required_sources) AND COALESCE((s.metadata->>'migration_seeded')::boolean,false)=false),'1970-01-01 00:00:00+00'::timestamptz) AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') fresh_until FROM public.zasp_compliance_mappings() m WHERE operation_value='listControls' AND (framework_value IS NULL OR m.framework=framework_value) AND (control_value IS NULL OR m.control_id=control_value) AND (cursor_value IS NULL OR (m.framework COLLATE "C",m.control_id COLLATE "C")>(cursor_value->>'source_kind' COLLATE "C",cursor_value->>'source_id' COLLATE "C")) ORDER BY m.framework COLLATE "C",m.control_id COLLATE "C" LIMIT limit_value+1)
+  SELECT jsonb_build_object('valid',(SELECT valid FROM checked),'items',CASE WHEN operation_value='listControls' THEN COALESCE((SELECT jsonb_agg(to_jsonb(c) ORDER BY c.framework COLLATE "C",c.control_id COLLATE "C") FROM controls c),'[]'::jsonb) ELSE COALESCE((SELECT jsonb_agg(jsonb_build_object('id',s.source_id,'asset',s.source_id,'source',s.source_family,'timestamp',to_char(s.source_time AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'organization_id',org_value,'workspace_id',workspace_value,'environment_id',environment_value,'target',jsonb_build_object('source_kind',s.source_kind,'source_id',s.source_id,'source_version',s.source_version),'freshness',CASE WHEN s.source_time<stamp-interval '24 hours' THEN 'stale' ELSE 'fresh' END,'metadata',s.metadata) ORDER BY s.source_kind COLLATE "C",s.source_id COLLATE "C") FROM page s),'[]'::jsonb) END) INTO result_value;
+  IF NOT (result_value->>'valid')::boolean THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='compliance invalid source';END IF;
+  items_value:=result_value->'items';
+diff --git a/services/platform/migrations/compliance_release.go b/services/platform/migrations/compliance_release.go
+index e2acb634..5210efaf 100644
+--- a/services/platform/migrations/compliance_release.go
++++ b/services/platform/migrations/compliance_release.go
+@@ -17,7 +17,7 @@ var complianceDownSQL string
+ var complianceJobsSQL string
+ 
+ func ComplianceFingerprint() string {
+-	return "794bd599bc37408e07b0c6238ad10052dbd40458ab24380481cc05caa0698cf9"
++	return "30358a1ceacbb18f0283e42353a06c88834d78927814dd8c6a9552a3a1d77a6f"
+ }
+ 
+ func ProductionCompliance() Metadata {
+diff --git a/services/platform/apiserver/compliance_repository.go b/services/platform/apiserver/compliance_repository.go
+index bd288fed..2a4a90eb 100644
+--- a/services/platform/apiserver/compliance_repository.go
++++ b/services/platform/apiserver/compliance_repository.go
+@@ -74,6 +74,7 @@ type ComplianceControl struct {
+ 	RequiredSources   []string `json:"required_sources"`
+ 	MaximumAgeSeconds int      `json:"maximum_age_seconds"`
+ 	Freshness         string   `json:"freshness"`
++	FreshUntil        string   `json:"fresh_until"`
+ }
+ type ComplianceControlPage struct {
+ 	MappingRevision string              `json:"mapping_revision"`
+@@ -221,10 +222,13 @@ func (r *ComplianceRepository) ListControls(ctx context.Context, identity Reques
+ 	page.Items = make([]ComplianceControl, 0, len(items))
+ 	previous := ""
+ 	for _, item := range items {
+-		if _, ok := existingTestPublicObject(item, nil, "framework", "control_id", "label", "required_sources", "maximum_age_seconds", "freshness"); !ok {
++		if _, ok := existingTestPublicObject(item, nil, "framework", "control_id", "label", "required_sources", "maximum_age_seconds", "freshness", "fresh_until"); !ok {
+ 			return ComplianceControlPage{}, ErrRepositoryUnavailable
+ 		}
+ 		var value ComplianceControl
++		if json.Unmarshal(item, &value) != nil || !validComplianceTime(value.FreshUntil) {
++			return ComplianceControlPage{}, ErrRepositoryUnavailable
++		}
+ 		if decodeStrictDiscovery(item, &value) != nil || !validComplianceFramework(value.Framework) || !validComplianceControl(value.ControlID, value.Framework) || len(value.RequiredSources) != 1 || !stringIn(value.RequiredSources[0], "audit", "finding", "policy", "test", "configuration") || value.MaximumAgeSeconds != 86400 || !stringIn(value.Freshness, "fresh", "stale", "missing") || !complianceSafeText(value.Label, 128) {
+ 			return ComplianceControlPage{}, ErrRepositoryUnavailable
+ 		}
+diff --git a/services/platform/apiserver/compliance_http.go b/services/platform/apiserver/compliance_http.go
+index ceab7e96..cc4f1bd1 100644
+--- a/services/platform/apiserver/compliance_http.go
++++ b/services/platform/apiserver/compliance_http.go
+@@ -344,26 +344,23 @@ func complianceHTTPListOptions(r *http.Request, identity RequestIdentity, operat
+ 	}
+ 	return o, nil
+ }
+-func compliancePublicControl(c ComplianceControl, records []ComplianceEvidence) sessioncontrol.ComplianceControl {
++
++// Live aggregate authority is separate from frozen formatter semantics.
++type complianceLiveControl struct {
++	sessioncontrol.ComplianceControl
++	Freshness string `json:"freshness"`
++}
++
++func compliancePublicControl(c ComplianceControl, records []ComplianceEvidence) complianceLiveControl {
+ 	ids := []string{}
+-	var until time.Time
+ 	for _, r := range records {
+ 		if !slices.Contains(ids, r.ID) {
+ 			ids = append(ids, r.ID)
+ 		}
+-		stamp, _ := time.Parse(time.RFC3339Nano, r.Timestamp)
+-		if r.Metadata.MigrationSeeded == nil || !*r.Metadata.MigrationSeeded {
+-			candidate := stamp.Add(time.Duration(c.MaximumAgeSeconds) * time.Second)
+-			if candidate.After(until) {
+-				until = candidate
+-			}
+-		}
+ 	}
+ 	slices.Sort(ids)
+-	if until.IsZero() {
+-		until = time.Unix(0, 0).UTC()
+-	}
+-	return sessioncontrol.ComplianceControl{ID: c.ControlID, Framework: c.Framework, Name: c.Label, EvidenceIDs: ids, FreshUntil: until}
++	until, _ := time.Parse(time.RFC3339Nano, c.FreshUntil)
++	return complianceLiveControl{ComplianceControl: sessioncontrol.ComplianceControl{ID: c.ControlID, Framework: c.Framework, Name: c.Label, EvidenceIDs: ids, FreshUntil: until}, Freshness: c.Freshness}
+ }
+ func compliancePublicRecord(v ComplianceEvidence) map[string]any {
+ 	raw, _ := json.Marshal(v.Metadata)
+diff --git a/services/platform/apiserver/compliance_http_test.go b/services/platform/apiserver/compliance_http_test.go
+index 426d8e02..4d5049d4 100644
+--- a/services/platform/apiserver/compliance_http_test.go
++++ b/services/platform/apiserver/compliance_http_test.go
+@@ -79,7 +79,7 @@ func (d *complianceHTTPDatabase) QueryJSON(ctx context.Context, q string, a ...a
+ 			return json.RawMessage(compliancePolicyJSON), nil
+ 		}
+ 		if op == "listControls" {
+-			return json.RawMessage(`{"mapping_revision":"product-evidence-v1","collected_at":"2026-09-18T00:00:00Z","items":[{"framework":"soc2_security","control_id":"soc2_security-policies","label":"Policy definitions","required_sources":["policy"],"maximum_age_seconds":86400,"freshness":"stale"}],"next_cursor":null}`), nil
++			return json.RawMessage(`{"mapping_revision":"product-evidence-v1","collected_at":"2026-09-18T00:00:00Z","items":[{"framework":"soc2_security","control_id":"soc2_security-policies","label":"Policy definitions","required_sources":["policy"],"maximum_age_seconds":86400,"freshness":"stale","fresh_until":"2026-01-03T00:00:00Z"}],"next_cursor":null}`), nil
+ 		}
+ 		return json.RawMessage(`{"mapping_revision":"product-evidence-v1","collected_at":"2026-09-18T00:00:00Z","items":[` + compliancePolicyJSON + `],"next_cursor":null}`), nil
+ 	}
+diff --git a/services/platform/apiserver/compliance_http_postgres_test.go b/services/platform/apiserver/compliance_http_postgres_test.go
+index 234c94e0..bf553dcc 100644
+--- a/services/platform/apiserver/compliance_http_postgres_test.go
++++ b/services/platform/apiserver/compliance_http_postgres_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"net/http/httptest"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ type compliancePGReader struct {
+@@ -17,6 +18,69 @@ type compliancePGReader struct {
+ 	afterRead func()
+ }
+ 
++func TestComplianceHTTPPostgresControlFreshness(t *testing.T) {
++	withComplianceFixFixture(t, func(f *complianceFixFixture) {
++		api := f.connect("security_agent_v33_discovery_api_login")
++		database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: api})
++		if err != nil {
++			t.Fatal(err)
++		}
++		sessions, err := NewPostgresRepository(database)
++		if err != nil {
++			t.Fatal(err)
++		}
++		source, err := NewComplianceRepository(database)
++		if err != nil {
++			t.Fatal(err)
++		}
++		identity, err := sessions.Authenticate(f.ctx, Credential{Kind: CredentialBrowserSession, Value: "compliance-fix-session"})
++		if err != nil {
++			t.Fatal(err)
++		}
++		router, err := NewCompositionWithCompliance(auditExportCompositionDependencies(), nil, &complianceHTTPHandler{source: source})
++		if err != nil {
++			t.Fatal(err)
++		}
++		mounted, err := NewProductMiddleware(ProductSecurity{PublicOrigin: "https://console.example.test", MaximumBodyBytes: 16384, Authenticate: sessions.Authenticate, GenerateCorrelationID: func() string { return testCorrelationID }}, router)
++		if err != nil {
++			t.Fatal(err)
++		}
++		var fresh time.Time
++		if err := f.owner.QueryRow(f.ctx, `SELECT date_trunc('second',clock_timestamp())`).Scan(&fresh); err != nil {
++			t.Fatal(err)
++		}
++		f.exec(`INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,created_at,updated_at) SELECT $1,$2,$3,'policy','policy-'||lpad(n::text,3,'0'),1,'{}','2020-01-01',CASE WHEN n=101 THEN $4::timestamptz ELSE '2020-01-01'::timestamptz END FROM generate_series(1,101) n;`, complianceOrg, complianceWorkspace, complianceEnvironment, fresh)
++		check := func(t *testing.T, control, freshness string, deadline time.Time, preview int) {
++			t.Helper()
++			w := complianceHTTPRequest(t, mounted, identity, "GET", "/api/v1/compliance/controls?control_id="+control, "", func(r *http.Request) { r.Header.Set("Cookie", browserSessionCookie+"=compliance-fix-session") })
++			var page struct {
++				Items []struct {
++					ID          string    `json:"id"`
++					Freshness   string    `json:"freshness"`
++					FreshUntil  time.Time `json:"fresh_until"`
++					EvidenceIDs []string  `json:"evidence_ids"`
++				} `json:"items"`
++			}
++			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &page) != nil || len(page.Items) != 1 {
++				t.Fatalf("control response %d %s", w.Code, w.Body)
++			}
++			got := page.Items[0]
++			if got.ID != control || got.Freshness != freshness || !got.FreshUntil.Equal(deadline) || len(got.EvidenceIDs) != preview {
++				t.Fatalf("authoritative %s control: %+v want freshness=%s deadline=%s preview=%d", control, got, freshness, deadline, preview)
++			}
++		}
++		t.Run("fresh_101st_source", func(t *testing.T) { check(t, "soc2_security-policies", "fresh", fresh.Add(24*time.Hour), 100) })
++		f.exec(`UPDATE zasp_workflow_records SET updated_at='2020-01-01' WHERE (organization_id,workspace_id,environment_id,kind)=($1,$2,$3,'policy')`, complianceOrg, complianceWorkspace, complianceEnvironment)
++		t.Run("all_stale", func(t *testing.T) {
++			check(t, "soc2_security-policies", "stale", time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC), 100)
++		})
++		f.exec(`DELETE FROM zasp_workflow_records WHERE (organization_id,workspace_id,environment_id,kind)=($1,$2,$3,'policy')`, complianceOrg, complianceWorkspace, complianceEnvironment)
++		t.Run("missing", func(t *testing.T) { check(t, "soc2_security-policies", "missing", time.Unix(0, 0), 0) })
++		f.exec(`INSERT INTO zasp_data_controls(organization_id,workspace_id,environment_id,environment_class,collection_mode,retention_days,deletion_enabled,migration_seeded) VALUES($1,$2,$3,'staging','metadata_only',30,true,true)`, complianceOrg, complianceWorkspace, complianceEnvironment)
++		t.Run("migration_seeded_only", func(t *testing.T) { check(t, "soc2_security-configuration", "missing", time.Unix(0, 0), 1) })
++	})
++}
++
+ func (r *compliancePGReader) Get(ctx context.Context, l artifactstore.Locator) (artifactstore.Artifact, error) {
+ 	if r.afterRead != nil {
+ 		r.afterRead()
+@@ -117,6 +181,43 @@ func TestComplianceHTTPPostgresGrantLifecycle(t *testing.T) {
+ 			t.Fatal("replay duplicated integrity audit")
+ 		}
+ 		reader.artifact.Body = body
++		// Observe and cancel the actual audit INSERT while its relation lock is
++		// blocked. No catalog changes bypass registered readiness or authority.
++		token = grant()
++		reader.artifact.Body = []byte("tampered")
++		httpDone := make(chan struct{})
++		_, _ = f.blocked(api, `LOCK TABLE zasp_admin_audit IN SHARE MODE`, nil, func(ctx context.Context) (json.RawMessage, error) {
++			defer close(httpDone)
++			w = complianceHTTPRequest(t, mounted, identity, "POST", path+"/download", `{"format":"human","token":"`+token+`"}`, func(r *http.Request) {
++				r.Header.Set("Cookie", browserSessionCookie+"=compliance-fix-session")
++				*r = *r.WithContext(ctx)
++			})
++			return w.Body.Bytes(), nil
++		}, func(ctx context.Context) {
++			var inserting bool
++			if err := f.owner.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=$1 AND relation='zasp_admin_audit'::regclass AND mode='RowExclusiveLock' AND NOT granted)`, api.PgConn().PID()).Scan(&inserting); err != nil || !inserting {
++				t.Fatalf("did not reach audit INSERT: %v", err)
++			}
++			if _, err := f.owner.Exec(ctx, `SELECT pg_cancel_backend($1)`, api.PgConn().PID()); err != nil {
++				t.Fatal(err)
++			}
++			select {
++			case <-httpDone:
++			case <-ctx.Done():
++				t.Fatal("cancelled audit HTTP did not join")
++			}
++		})
++		if w.Code != 503 || w.Header().Get("Content-Disposition") != "" || strings.Contains(w.Body.String(), "Frozen") || strings.Contains(w.Body.String(), "diagnostic") {
++			t.Fatalf("audit commit failure disclosed: %d %s", w.Code, w.Body)
++		}
++		var unconsumed bool
++		if err := f.owner.QueryRow(f.ctx, `SELECT used_at IS NULL AND read_expires_at IS NOT NULL FROM zasp_compliance_export_grants WHERE grant_digest=digest($1,'sha256')`, token).Scan(&unconsumed); err != nil || !unconsumed {
++			t.Fatalf("audit commit failure consumed grant: %v", err)
++		}
++		if err := f.owner.QueryRow(f.ctx, `SELECT count(*) FROM zasp_admin_audit WHERE action='compliance.export.integrity_failed' AND target_id=$1`, job.ID).Scan(&count); err != nil || count != 1 {
++			t.Fatalf("audit commit failure persisted a row: %d %v", count, err)
++		}
++		reader.artifact.Body = body
+ 		token = grant()
+ 		reader.afterRead = func() {
+ 			f.exec(`UPDATE zasp_compliance_export_jobs SET retrieval_expires_at=clock_timestamp()-interval '1 second' WHERE export_id=$1`, job.ID)
+diff --git a/openapi/openapi.yaml b/openapi/openapi.yaml
+index fceda80e..667965a8 100644
+--- a/openapi/openapi.yaml
++++ b/openapi/openapi.yaml
+@@ -4214,7 +4214,8 @@ components:
+           uniqueItems: true
+           description: Bounded preview of the first 100 evidence identifiers ordered by identifier; use the paged evidence operation for the complete set.
+           items: { type: string, minLength: 1, maxLength: 128 }
+-        fresh_until: { type: string, format: date-time }
++        fresh_until: { type: string, format: date-time, description: Latest eligible source timestamp plus its maximum age across the complete control source set; Unix epoch when missing. }
++        freshness: { type: string, enum: [fresh, stale, missing], description: 'Always present on the registered current-source service: aggregate state across all eligible sources, independent of the bounded preview. Absent on the legacy fallback; absence must not be interpreted as current-source evidence.' }
+     ComplianceEvidence:
+       type: object
+       additionalProperties: false
+diff --git a/apps/web/api/generated.ts b/apps/web/api/generated.ts
+index c17e92d5..27708f7d 100644
+--- a/apps/web/api/generated.ts
++++ b/apps/web/api/generated.ts
+@@ -2935,8 +2935,16 @@ export type components = {
+             /** @description Bounded preview of the first 100 evidence identifiers ordered by identifier; use the paged evidence operation for the complete set. */
+             readonly evidence_ids: readonly string[];
+             readonly framework: string;
+-            /** Format: date-time */
++            /**
++             * Format: date-time
++             * @description Latest eligible source timestamp plus its maximum age across the complete control source set; Unix epoch when missing.
++             */
+             readonly fresh_until: string;
++            /**
++             * @description Always present on the registered current-source service: aggregate state across all eligible sources, independent of the bounded preview. Absent on the legacy fallback; absence must not be interpreted as current-source evidence.
++             * @enum {string}
++             */
++            readonly freshness?: "fresh" | "stale" | "missing";
+             readonly id: string;
+             readonly name: string;
+         };
+diff --git a/apps/web/api/administration-decoders.ts b/apps/web/api/administration-decoders.ts
+index e83c8a13..9b6ce1c2 100644
+--- a/apps/web/api/administration-decoders.ts
++++ b/apps/web/api/administration-decoders.ts
+@@ -51,7 +51,7 @@ export const decodeSystemVersion = (value: unknown) => decoded<SystemVersion>(va
+ 
+ function page<T>(value: unknown, decodeItem: (item: unknown) => unknown): T { return decoded<T>(value, ["items", "page_info"], (record) => { for (const item of list(record.items, 100)) decodeItem(item); const info = exact(record.page_info, ["next_cursor", "has_more"]); if (info.has_more === true) text(info.next_cursor, 512); else if (info.has_more !== false || info.next_cursor !== null) bad(); }); }
+ function sessionEvent(value: unknown) { const record = exact(value, ["id", "session_id", "class", "label", "evidence_id", "source", "confidence", "at"]); text(record.id, 128); if (typeof record.session_id !== "string" || !SESSION_ID.test(record.session_id)) bad(); one(record.class, ["tool", "runtime", "network", "file", "credential", "policy"]); text(record.label, 256); text(record.evidence_id, 128); text(record.source, 64); one(record.confidence, ["exact", "strong", "probable", "unattributed"]); date(record.at); }
+-function control(value: unknown) { const record = exact(value, ["id", "framework", "name", "evidence_ids", "fresh_until"]); text(record.id, 128); text(record.framework, 64); text(record.name, 256); strings(record.evidence_ids, 100); date(record.fresh_until); }
++function control(value: unknown) { const record = exact(value, ["id", "framework", "name", "evidence_ids", "fresh_until"], ["freshness"]); text(record.id, 128); text(record.framework, 64); text(record.name, 256); strings(record.evidence_ids, 100); date(record.fresh_until); if (Object.hasOwn(record, "freshness")) one(record.freshness, ["fresh", "stale", "missing"]); }
+ function decoded<T>(value: unknown, required: string[], validate: (record: Record<string, unknown>) => void, optional: string[] = []): T { const record = exact(value, required, optional); validate(record); for (const key of optional) if (record[key] !== undefined && key.includes("correlation")) id(record[key]); return value as T; }
+ function exact(value: unknown, required: string[], optional: string[] = []) { if (!value || typeof value !== "object" || Array.isArray(value)) bad(); const record = value as Record<string, unknown>; const allowed = new Set([...required, ...optional]); if (Object.keys(record).some((key) => !allowed.has(key)) || required.some((key) => !(key in record))) bad(); return record; }
+ function id(value: unknown) { if (typeof value !== "string" || !PRODUCT_ID.test(value)) bad(); }
+diff --git a/apps/web/api/compliance-decoders.test.ts b/apps/web/api/compliance-decoders.test.ts
+index 1dada655..1a55ab0e 100644
+--- a/apps/web/api/compliance-decoders.test.ts
++++ b/apps/web/api/compliance-decoders.test.ts
+@@ -1,13 +1,27 @@
+ import { describe, expect, it } from "vitest";
+-import { decodeComplianceEvidencePage } from "./administration-decoders";
++import { decodeComplianceControlPage, decodeComplianceEvidencePage } from "./administration-decoders";
+ import { decodeComplianceEvidenceDetail, decodeComplianceExport, decodeComplianceDownloadGrant } from "./compliance-decoders";
++import { createAPIClient, requireAPIData } from "./client";
+ const scope={organization_id:"pid_10000001-0000-4000-8000-000000000001",workspace_id:"pid_10000002-0000-4000-8000-000000000002",environment_id:"pid_10000003-0000-4000-8000-000000000003"};
+ const record={id:"policy-001",asset_id:"policy-001",source:"policy",at:"2026-01-02T00:00:00.000000Z",target:{source_kind:"policy",source_id:"policy-001",source_version:7},metadata:{verification:"definition_only"}};
+ const detail={...scope,record,freshness:"stale"};
+ describe("compliance current contracts",()=>{
++ it("validates authoritative freshness when present on direct live controls",()=>{
++  const control={id:"soc2_security-policies",framework:"soc2_security",name:"Policy definitions",evidence_ids:[],fresh_until:"1970-01-01T00:00:00Z",freshness:"missing"};
++  const page=(item:unknown)=>({items:[item],page_info:{has_more:false,next_cursor:null}});
++  expect(decodeComplianceControlPage(page(control)).items[0]).toMatchObject({freshness:"missing"});
++  for(const freshness of [undefined,"unknown",null]) expect(()=>decodeComplianceControlPage(page({...control,freshness}))).toThrow();
++ });
++ it("decodes the disabled-service legacy response without inventing freshness",async()=>{
++  const legacy={id:"legacy-control",framework:"SOC 2",name:"Legacy seed",evidence_ids:[],fresh_until:"2020-01-02T00:00:00Z"};
++  const client=createAPIClient({fetch:async()=>new Response(JSON.stringify({items:[legacy],page_info:{has_more:false,next_cursor:null}}),{headers:{"Content-Type":"application/json"}})});
++  const result=await client.GET("/api/v1/compliance/controls");
++  expect(requireAPIData(result,decodeComplianceControlPage).items[0]).toEqual(legacy);
++  expect(requireAPIData(result,decodeComplianceControlPage).items[0]).not.toHaveProperty("freshness");
++ });
+  it("accepts typed policy sources, preserving old page records",()=>{
+   expect(decodeComplianceEvidenceDetail(detail,scope).record.target?.source_version).toBe(7);
+-  const item={control:{id:"soc2_security-policies",framework:"soc2_security",name:"Policy definitions",evidence_ids:["policy-001"],fresh_until:"2026-01-03T00:00:00Z"},freshness:"stale",evidence:[record]};
++  const item={control:{id:"soc2_security-policies",framework:"soc2_security",name:"Policy definitions",evidence_ids:["policy-001"],fresh_until:"2026-01-03T00:00:00Z",freshness:"stale"},freshness:"stale",evidence:[record]};
+   expect(decodeComplianceEvidencePage({items:[item],page_info:{has_more:false,next_cursor:null}}).items[0].evidence[0].target?.source_id).toBe("policy-001");
+  });
+  it("rejects scope changes, untyped detail and source metadata outside its allowlist",()=>{
+diff --git a/apps/web/api/client.ts b/apps/web/api/client.ts
+index 4949add2..084bb4cd 100644
+--- a/apps/web/api/client.ts
++++ b/apps/web/api/client.ts
+@@ -6,6 +6,7 @@ import type { Decoder } from "./decoders";
+ 
+ const DEFAULT_TIMEOUT_MS = 10_000;
+ const DEFAULT_MAXIMUM_RESPONSE_BYTES = 1024 * 1024;
++const MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES = 4 * 1024 * 1024;
+ const PRODUCT_ID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+ const EXPECTED_SCOPE_HEADER = "X-Zasp-Expected-Scope";
+ const SCOPE_STALE_MESSAGE = "Session scope changed; rebootstrap required";
+@@ -78,6 +79,7 @@ export function createAPIClient(options: APIClientOptions = {}) {
+ 	onFreshAuthRequired = () => undefined,
+     ...clientOptions
+   } = options;
++  const attachmentMaximumBytes = Math.min(options.maximumResponseBytes ?? MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES, MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES);
+   if (!validRelativeBaseURL(baseUrl) || typeof configuredFetch !== "function" || !validBound(timeoutMs) || !validBound(maximumResponseBytes)) {
+     throw new APITransportError("invalid_configuration", "Invalid API client configuration");
+   }
+@@ -115,7 +117,7 @@ export function createAPIClient(options: APIClientOptions = {}) {
+       throwIfRequestStopped(request.signal, timeout.signal);
+       const response = await configuredFetch(securedRequest);
+ 	  throwIfRequestStopped(request.signal, timeout.signal);
+-	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal, download);
++	  await validateResponse(response, maximumResponseBytes, onSessionExpired, onScopeStale, onFreshAuthRequired, signal, download, attachmentMaximumBytes);
+ 	  throwIfRequestStopped(request.signal, timeout.signal);
+       return response;
+     } catch (error) {
+@@ -171,7 +173,7 @@ async function complianceDownloadExpectation(request: Request): Promise<Complian
+   if (Object.keys(v).length !== 2 || typeof v.token !== "string" || !/^[a-f0-9]{64}$/.test(v.token) || !["json", "csv", "human"].includes(v.format as string)) throw new APITransportError("invalid_configuration", "Invalid compliance download request");
+   return { id: match[1], media: v.format === "human" ? "text/plain" : v.format === "csv" ? "text/csv" : "application/json", extension: v.format === "human" ? "txt" : v.format as string };
+ }
+-async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void, onFreshAuthRequired: () => void, signal: AbortSignal, download?: ComplianceDownloadExpectation): Promise<void> {
++async function validateResponse(response: Response, maximumBytes: number, onSessionExpired: () => void, onScopeStale: () => void, onFreshAuthRequired: () => void, signal: AbortSignal, download?: ComplianceDownloadExpectation, attachmentMaximumBytes = MAXIMUM_COMPLIANCE_ATTACHMENT_BYTES): Promise<void> {
+   if (signal.aborted) throw signal.reason;
+   if (!(response instanceof Response) || response.redirected) {
+     throw new APITransportError("invalid_response", "API returned an invalid response");
+@@ -180,7 +182,7 @@ async function validateResponse(response: Response, maximumBytes: number, onSess
+   const contentType = response.headers.get("Content-Type")?.split(";", 1)[0].trim().toLowerCase();
+   if (download && response.ok) {
+     if (response.status !== 200 || contentType !== download.media || response.headers.get("Cache-Control") !== "no-store" || response.headers.get("X-Content-Type-Options") !== "nosniff" || response.headers.get("Content-Disposition") !== `attachment; filename="compliance-${download.id}.${download.extension}"`) throw new APITransportError("invalid_response", "API returned an invalid compliance attachment");
+-    const payload = await readBounded(response.clone(), Math.min(maximumBytes, 4 * 1024 * 1024));
++    const payload = await readBounded(response.clone(), attachmentMaximumBytes);
+     if (!payload.length) throw new APITransportError("invalid_response", "API returned an empty compliance attachment");
+     if (signal.aborted) throw signal.reason;
+     return;
+diff --git a/apps/web/api/compliance-download.test.ts b/apps/web/api/compliance-download.test.ts
+index 02fff420..d838daf6 100644
+--- a/apps/web/api/compliance-download.test.ts
++++ b/apps/web/api/compliance-download.test.ts
+@@ -3,6 +3,17 @@ import { createAPIClient } from "./client";
+ const id="pid_10000004-0000-4000-8000-000000000004";
+ const scope="pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+ describe("compliance download transport",()=>{
++ it("uses a four MiB attachment default while honoring explicit lower limits",async()=>{
++  for(const [size,maximumResponseBytes,allowed] of [[1048577,undefined,true],[4194304,undefined,true],[4194305,undefined,false],[1048577,1048576,false]] as const){
++   const client=createAPIClient({maximumResponseBytes,getExpectedScope:()=>scope,fetch:async()=>new Response("x".repeat(size),{headers:{"Content-Type":"text/plain","Cache-Control":"no-store","Content-Disposition":`attachment; filename="compliance-${id}.txt"`,"X-Content-Type-Options":"nosniff"}})});
++   const request=client.POST("/api/v1/compliance/exports/{id}/download",{params:{path:{id},header:{"X-CSRF-Token":"c".repeat(32)}},body:{format:"human",token:"a".repeat(64)},parseAs:"blob"});
++   if(allowed) expect((await request).data).toHaveProperty("size",size); else await expect(request).rejects.toMatchObject({kind:"response_too_large"});
++  }
++ });
++ it("keeps ordinary JSON at its one MiB default",async()=>{
++  const client=createAPIClient({fetch:async()=>new Response(JSON.stringify({text:"x".repeat(1048576)}),{headers:{"Content-Type":"application/json"}})});
++  await expect(client.GET("/api/v1/compliance/controls")).rejects.toMatchObject({kind:"response_too_large"});
++ });
+  it("accepts bounded verified attachments with grants only in POST bodies",async()=>{
+   let observed:Request|undefined;
+   const client=createAPIClient({getCSRFToken:()=>"c".repeat(32),getExpectedScope:()=>scope,fetch:async request=>{observed=request;return new Response("frozen report",{headers:{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store","Content-Disposition":`attachment; filename="compliance-${id}.txt"`,"X-Content-Type-Options":"nosniff"}})}});
+diff --git a/services/platform/agentsec-api/compliance_composition_test.go b/services/platform/agentsec-api/compliance_composition_test.go
+index 00ec562e..140c6773 100644
+--- a/services/platform/agentsec-api/compliance_composition_test.go
++++ b/services/platform/agentsec-api/compliance_composition_test.go
+@@ -14,6 +14,9 @@ type complianceRuntimeDatabase struct {
+ }
+ 
+ func (d *complianceRuntimeDatabase) QueryJSON(ctx context.Context, q string, a ...any) (json.RawMessage, error) {
++	if strings.Contains(q, "FROM zasp_compliance_controls AS control") {
++		return json.RawMessage(`{"items":[{"id":"legacy-control","framework":"SOC 2","name":"Legacy seed","evidence_ids":[],"fresh_until":"2020-01-02T00:00:00Z"}]}`), nil
++	}
+ 	if q == `SELECT to_jsonb(public.zasp_compliance_api_ready($1,$2))` && d.deny {
+ 		return json.RawMessage(`false`), nil
+ 	}
+@@ -57,6 +60,11 @@ func TestComplianceAPIProductionComposition(t *testing.T) {
+ 				if w.Code != 404 {
+ 					t.Fatalf("disabled route %d", w.Code)
+ 				}
++				legacy := httptest.NewRecorder()
++				deps.ProductHandler.ServeHTTP(legacy, publicPageRuntimeRequest(c, "/api/v1/compliance/controls"))
++				if legacy.Code != 200 || !strings.Contains(legacy.Body.String(), `"id":"legacy-control"`) || strings.Contains(legacy.Body.String(), `"freshness"`) {
++					t.Fatalf("disabled legacy compatibility %d %s", legacy.Code, legacy.Body)
++				}
+ 				return
+ 			}
+ 			if w.Code != 200 || !strings.Contains(w.Body.String(), `"source_id":"policy-live"`) {

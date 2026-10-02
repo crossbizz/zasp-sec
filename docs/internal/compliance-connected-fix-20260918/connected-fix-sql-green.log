@@ -1,0 +1,13 @@
+=== RUN   TestComplianceCandidateAdmissionProgressPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=25 data=/tmp/TestComplianceCandidateAdmissionProgressPostgres2110410134/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceCandidateAdmissionProgressPostgres (5.98s)
+=== RUN   TestComplianceHTTPMaximumIDCursorPostgres
+    compliance_connected_postgres_test.go:127: soc2_security actual HTTP cursor length=606
+    compliance_connected_postgres_test.go:127: hipaa actual HTTP cursor length=584
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=55 data=/tmp/TestComplianceHTTPMaximumIDCursorPostgres834350389/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceHTTPMaximumIDCursorPostgres (5.86s)
+=== RUN   TestComplianceCompiledFingerprintPostgres
+    compliance_postgres_test.go:468: release56 checksum=f5871c564709034eaf89f325fcb732a3f3314ecc0ff95f7a0ec99f6d674ddfc1 fingerprint=8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=84 data=/tmp/TestComplianceCompiledFingerprintPostgres3794375573/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceCompiledFingerprintPostgres (4.22s)
+PASS

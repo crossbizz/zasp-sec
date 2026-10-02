@@ -1,0 +1,10 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","-e","const fs=require(\"fs\"),cp=require(\"child_process\"),crypto=require(\"crypto\"),root=\"docs/internal/security-agent-attack-lab-20260918/\",old=JSON.parse(fs.readFileSync(root+\"task-2/blobs.json\")),fix=JSON.parse(fs.readFileSync(root+\"task-2-fix1/blobs.json\"));for(const r of old){const f=fix.find(x=>x.path===r.path);if(f&&f.before!==r.after)throw Error(\"fix baseline mismatch: \"+r.path);const expected=f?f.after:r.after,actual=cp.execFileSync(\"git\",[\"hash-object\",\"--\",r.path],{encoding:\"utf8\"}).trim();if(actual!==expected)throw Error(\"unexpected source change: \"+r.path)}for(const r of fix)console.log(crypto.createHash(\"sha256\").update(fs.readFileSync(r.path)).digest(\"hex\")+\"  \"+r.path);cp.execFileSync(\"git\",[\"apply\",\"--reverse\",\"--check\",root+\"task-2-fix1/scoped.patch\"]);console.log(\"All57 original paths match original-plus-five-path-fix; all fix before blobs equal frozen Task2 after blobs; reverse patch check passed.\")"]
+7111947b58180add66609dc2ba7c34f25580044b5f0f134fe1b29a37d1ba0e7b  deploy/staging/product/templates/attack-lab-reconciler.yaml
+40bd099df05fb193cf80dea47aa6c139e1c1503b3e87bb647ad1db371ee984b9  deploy/production/attack-lab-reconciler-rollout.mjs
+f53280f9cacf8fc737b87d124c1e263f3c4c31d15ec0be9db8ab2bfd1c9b5375  deploy/production/attack-lab-reconciler-rollout.test.mjs
+ad923d71591f2ab53c53bb6dbead77a34e14f51d87edd01c5e79d93203e6b781  services/platform/agentsec-worker/security_agent_attack_lab_deployment_test.go
+f8da96cfbd2a7171068aaaad0601391d6cd149045c55042d9248a38efecd60e2  deploy/production/attack-lab-reconciler-runtime.test.mjs
+All57 original paths match original-plus-five-path-fix; all fix before blobs equal frozen Task2 after blobs; reverse patch check passed.
+
+Exit: 0 Signal: null

@@ -1,0 +1,781 @@
+diff --git a/services/platform/apiserver/security_agent_attack_lab_public_projection_test.go b/services/platform/apiserver/security_agent_attack_lab_public_projection_test.go
+index 0015f7a1..3fcebc88 100644
+--- a/services/platform/apiserver/security_agent_attack_lab_public_projection_test.go
++++ b/services/platform/apiserver/security_agent_attack_lab_public_projection_test.go
+@@ -13,6 +13,43 @@ func attackLabApprovalPrivateFixture() json.RawMessage {
+ 	return json.RawMessage(`{"source_run_id":"pid_78000008-0000-4000-8000-000000000008","source_attempt":1,"definition_id":"pid_78000005-0000-4000-8000-000000000005","definition_version":1,"target_id":"pid_78000007-0000-4000-8000-000000000007","target_kind":"agent_endpoint","source_input_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","source_completed_at":"2026-09-19T12:00:00Z","source_evidence":{"key":"private-key-sentinel","version":"private-version-sentinel","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":128,"reference":"private-reference-sentinel"},"preflight":{"source_run_id":"pid_78000008-0000-4000-8000-000000000008","definition_id":"pid_78000005-0000-4000-8000-000000000005","definition_version":1,"target_id":"pid_78000007-0000-4000-8000-000000000007","target_kind":"agent_endpoint","environment":"test","credential_class":"test_write","destination":"canary.example.test","allowed_destinations":["canary.example.test"],"success_criterion":"isolated canary touched","expected_side_effects":["isolated canary write"],"decision_expires_at":"2026-09-19T12:05:00Z","limits":{"cpu":"500m","memory":"1Gi","ephemeral_storage":"2Gi","timeout_seconds":300},"decision_digest":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}}`)
+ }
+ 
++func TestSecurityAgentAttackLabPreflightStopPublicProjection(t *testing.T) {
++	for _, reason := range []string{"attack_lab_preflight_unavailable", "provider_unavailable"} {
++		detail := runContextDetailFixture(t, "")
++		detail.Run.State = "needs_human"
++		detail.Plan = nil
++		detail.Authorization = "not_planned"
++		detail.Execution = []SecurityAgentExecutionStep{}
++		detail.Verification = "inconclusive"
++		detail.BudgetStopReason = ""
++		raw, _ := json.Marshal(map[string]any{"detail": detail, "context": map[string]any{"trigger": json.RawMessage(runContextTestTrigger), "planner_receipt": nil, "preflight_stop_reason": reason}})
++		projected, err := decodeSecurityAgentRunContextEnvelope(raw, detail.Run.ID)
++		if reason != "attack_lab_preflight_unavailable" {
++			if err == nil {
++				t.Fatal("generic failure accepted as a preflight stop")
++			}
++			continue
++		}
++		if err != nil {
++			t.Fatalf("durable safe stop rejected: %v", err)
++		}
++		public, _ := json.Marshal(projected)
++		if !strings.Contains(string(public), `"preflight_stop_reason":"attack_lab_preflight_unavailable"`) {
++			t.Fatal("durable reason missing")
++		}
++		for _, header := range []string{"", "v1", "v2"} {
++			headers := []string{}
++			if header != "" {
++				headers = append(headers, header)
++			}
++			response := runContextHTTP(t, projected, headers, false)
++			if response.Code != http.StatusOK || strings.Contains(response.Body.String(), "preflight_stop_reason") != (header == "v1") {
++				t.Fatal("preflight stop changed legacy projection negotiation")
++			}
++		}
++	}
++}
++
+ func TestSecurityAgentAttackLabDecisionHTTPPreservesRedactedSnapshot(t *testing.T) {
+ 	now := time.Now().UTC()
+ 	approval := SecurityAgentApproval{ID: "pid_78000001-0000-4000-8000-000000000001", RunID: "pid_78000002-0000-4000-8000-000000000002", StepID: "pid_78000003-0000-4000-8000-000000000003", State: "pending", ExpiresAt: now.Add(time.Minute), Version: 1, ExpectedEffect: "Run a bounded Attack Lab reproduction; human interpretation required", EvidenceSummary: []string{"pid_78000004-0000-4000-8000-000000000004"}, AttackLab: attackLabApprovalPrivateFixture()}
+diff --git a/services/platform/apiserver/security_agent_repository.go b/services/platform/apiserver/security_agent_repository.go
+index 6487353d..6d6bd78c 100644
+--- a/services/platform/apiserver/security_agent_repository.go
++++ b/services/platform/apiserver/security_agent_repository.go
+@@ -574,6 +574,9 @@ func validSecurityAgentApproval(value SecurityAgentApproval) bool {
+ }
+ 
+ func validSecurityAgentRunDetail(value SecurityAgentRunDetail, runID string) bool {
++	if value.RunContext != nil && value.RunContext.PreflightStopReason != "" && (value.Run.State != "needs_human" || value.Plan != nil || value.RunContext.Rationale != nil || value.BudgetStopReason != "") {
++		return false
++	}
+ 	if !validSecurityAgentRunContext(value.RunContext) || !validSecurityAgentActionDetails(value) {
+ 		return false
+ 	}
+diff --git a/services/platform/migrations/sql/fragments/security_agent_attack_lab_links.sql b/services/platform/migrations/sql/fragments/security_agent_attack_lab_links.sql
+index 4379f050..a0c2092b 100644
+--- a/services/platform/migrations/sql/fragments/security_agent_attack_lab_links.sql
++++ b/services/platform/migrations/sql/fragments/security_agent_attack_lab_links.sql
+@@ -277,3 +277,13 @@ BEGIN
+  IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab context predecessor rejected';END IF;
+  EXECUTE replace(d,anchor,anchor||chr(10)||replace(anchor,'''rerun_test''','''start_attack_lab'''));
+ END $reads$;
++
++DO $preflight_read$
++DECLARE signature_value text:='zasp_production_security_agent_existing_tests_run_context(text,text,text,text,text,text)';d text;anchor text;
++BEGIN
++ PERFORM public.zasp_sa_attack_lab_save(signature_value);
++ d:=pg_get_functiondef(('public.'||signature_value)::regprocedure);
++ anchor:='  RETURN NEXT jsonb_set(envelope,''{action_details,steps}'',steps_value);';
++ IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab stop read predecessor rejected';END IF;
++ EXECUTE replace(d,anchor,'  IF EXISTS(SELECT 1 FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,run_id,state,last_error_code)=(o,w,e,r,''needs_human'',''attack_lab_preflight_unavailable'')) THEN envelope:=jsonb_set(envelope,''{context,preflight_stop_reason}'',''"attack_lab_preflight_unavailable"''::jsonb);END IF;'||chr(10)||anchor);
++END $preflight_read$;
+diff --git a/services/platform/migrations/security_agent_attack_lab_release.go b/services/platform/migrations/security_agent_attack_lab_release.go
+index a2b12ede..d44734ce 100644
+--- a/services/platform/migrations/security_agent_attack_lab_release.go
++++ b/services/platform/migrations/security_agent_attack_lab_release.go
+@@ -34,7 +34,7 @@ var securityAgentAttackLabReconcileSQL string
+ var securityAgentAttackLabSettlementSQL string
+ 
+ func SecurityAgentAttackLabFingerprint() string {
+-	return "31acfc93bc7121a66b6b32b66756b278dd8d13c3a0df08880d73ec28c1cea7e5"
++	return "f44bc966ef77ab523a80ace71b59defbe709c1fdbefd69ccfc40cacaf16d7ba8"
+ }
+ 
+ func ProductionSecurityAgentAttackLab() Metadata {
+diff --git a/apps/web/api/decoders.attack-lab.test.ts b/apps/web/api/decoders.attack-lab.test.ts
+index 5f916b3c..d88b4180 100644
+--- a/apps/web/api/decoders.attack-lab.test.ts
++++ b/apps/web/api/decoders.attack-lab.test.ts
+@@ -14,6 +14,11 @@ function detail(link: unknown = proof()) {
+ }
+ 
+ describe("Attack Lab public boundary", () => {
++ it("accepts a closed preflight stop only on an unplanned Needs human run", () => {
++  const value={...detail(),run_context:{trigger:{kind:"finding",id,version:1},rationale:null,preflight_stop_reason:"attack_lab_preflight_unavailable"},plan:null,authorization:"not_planned",approvals:[],execution:[],action_details:[]};
++  expect(decodeSecurityAgentRunDetail(value)).toEqual(value);
++  for(const changed of [{run_context:{...value.run_context,preflight_stop_reason:"provider_unavailable"}},{run:{...value.run,state:"running"},verification:"not_started"},{plan:detail().plan},{run_context:{...value.run_context,private_source:"hidden"}}])expect(()=>decodeSecurityAgentRunDetail({...value,...changed})).toThrow("schema mismatch");
++ });
+  it("accepts only bounded redacted approval authority", () => {
+   expect(decodeSecurityAgentApproval(approval())).toEqual(approval());
+   for (const changed of [{ environment: "production" }, { credential_class: "production_write" }, { source_attempt: null }, { source_evidence: { key: "private" } }, { limits: { ...snapshot().limits, timeout_seconds: 301 } }]) {
+diff --git a/apps/web/api/decoders.ts b/apps/web/api/decoders.ts
+index f6b7145c..72fe56d0 100644
+--- a/apps/web/api/decoders.ts
++++ b/apps/web/api/decoders.ts
+@@ -607,9 +607,12 @@ function decodeSecurityAgentApprovalContext(value: unknown, effect: unknown): vo
+ export function decodeSecurityAgentApprovalPage(value: unknown): SecurityAgentApprovalPage { const record = exactRecord(value, ["items"], ["next_cursor"]); for (const item of array(record.items, 100)) decodeSecurityAgentApproval(item); optionalCursor(record.next_cursor); return value as SecurityAgentApprovalPage; }
+ export function decodeSecurityAgentRunDetail(value: unknown): SecurityAgentRunDetail {
+   const record = exactRecord(value, ["run", "evidence_ids", "plan", "authorization", "approvals", "execution", "verification"], ["budget_stop_reason", "run_context", "action_details"]);
+-  if (Object.hasOwn(record, "run_context")) decodeSecurityAgentRunContext(record.run_context, record.plan !== null);
++  if (Object.hasOwn(record, "run_context")) {
++    decodeSecurityAgentRunContext(record.run_context, record.plan !== null);
++  }
+   if (Object.hasOwn(record, "budget_stop_reason")) enumValue(record.budget_stop_reason, ["budget_deadline_exceeded", "budget_steps_exceeded", "budget_tokens_exceeded", "budget_cost_exceeded", "budget_usage_unknown"]);
+   const run = decodeSecurityAgentRun(record.run); productIDArray(record.evidence_ids, 100); if (!sameJSON(run.evidence_ids, record.evidence_ids)) fail();
++  if (record.run_context && Object.hasOwn(record.run_context as object, "preflight_stop_reason") && (run.state !== "needs_human" || record.plan !== null || Object.hasOwn(record, "budget_stop_reason"))) fail();
+   enumValue(record.authorization, ["not_planned", "authorized", "approval_required", "approved", "denied", "cancelled"]);
+   enumValue(record.verification, ["not_started", "pending", "verified", "failed", "inconclusive"]);
+   const expectedVerification = run.state === "contained" || run.state === "remediated" ? "verified" : run.state === "verifying" ? "pending" : run.state === "failed" ? "failed" : run.state === "inconclusive" || run.state === "needs_human" ? "inconclusive" : "not_started";
+@@ -741,7 +744,8 @@ function decodeSecurityAgentTestProof(value: unknown, argsValue: unknown, result
+ }
+ 
+ function decodeSecurityAgentRunContext(value: unknown, hasPlan: boolean): void {
+-  const context = exactRecord(value, ["trigger", "rationale"]);
++  const context = exactRecord(value, ["trigger", "rationale"], ["preflight_stop_reason"]);
++  if(Object.hasOwn(context,"preflight_stop_reason")) {enumValue(context.preflight_stop_reason,["attack_lab_preflight_unavailable"]);if(hasPlan || context.rationale!==null)fail();}
+   if (context.trigger !== null) {
+     const trigger = exactRecord(context.trigger, ["kind", "id", "version"]);
+     enumValue(trigger.kind, ["finding", "attack_path", "runtime_decision", "manual"]);
+diff --git a/openapi/openapi.yaml b/openapi/openapi.yaml
+index 2862976d..c6ed6227 100644
+--- a/openapi/openapi.yaml
++++ b/openapi/openapi.yaml
+@@ -3854,6 +3854,7 @@ components:
+       additionalProperties: false
+       required: [trigger, rationale]
+       properties:
++        preflight_stop_reason: { type: string, enum: [attack_lab_preflight_unavailable], description: Persisted non-executing Attack Lab stop. Only present on an unplanned Needs human run. }
+         trigger: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentRunTrigger' }, { type: 'null' }] }
+         rationale: { oneOf: [{ $ref: '#/components/schemas/SecurityAgentRationale' }, { type: 'null' }] }
+     SecurityAgentActionArguments:
+diff --git a/apps/web/api/generated.ts b/apps/web/api/generated.ts
+index b197a0e3..634ee0cd 100644
+--- a/apps/web/api/generated.ts
++++ b/apps/web/api/generated.ts
+@@ -4266,6 +4266,11 @@ export type components = {
+             readonly version: number;
+         };
+         readonly SecurityAgentRunContext: {
++            /**
++             * @description Persisted non-executing Attack Lab stop. Only present on an unplanned Needs human run.
++             * @enum {string}
++             */
++            readonly preflight_stop_reason?: "attack_lab_preflight_unavailable";
+             readonly rationale: components["schemas"]["SecurityAgentRationale"] | null;
+             readonly trigger: components["schemas"]["SecurityAgentRunTrigger"] | null;
+         };
+diff --git a/app/features/securityagents/SecurityAgentsView.tsx b/app/features/securityagents/SecurityAgentsView.tsx
+index 17040687..e08ee3e2 100644
+--- a/app/features/securityagents/SecurityAgentsView.tsx
++++ b/app/features/securityagents/SecurityAgentsView.tsx
+@@ -388,6 +388,7 @@ function RunDetail({ value, api, canWrite, canReadTests, mutation, onCancelled,
+       budget_cost_exceeded: "AI cost budget reached.",
+       budget_usage_unknown: "AI usage or pricing could not be verified.",
+     }[value.budget_stop_reason]} Review this run and any required cleanup before starting another run. Definition edits do not reset this run&apos;s limits.</p>}
++    {value.run_context?.preflight_stop_reason === "attack_lab_preflight_unavailable" && <p role="alert">Attack Lab preflight unavailable. No eligible completed failed source was available for the exact test version. No reproduction was started. Review the test and start a new run when its source is ready.</p>}
+     <h3>Trigger</h3>{value.run_context?.trigger ? <p>{value.run_context.trigger.kind} · {value.run_context.trigger.id} · version {value.run_context.trigger.version}</p> : <p>No trigger context is available for this run.</p>}
+     {triggerTarget && activityPermissions[triggerTarget.kind] && activityScope && onNavigate && <Button disabled={mutation.isUnresolved} onClick={() => onNavigate(activityLink(triggerTarget, activityScope))}>Open trigger record</Button>}
+     {activityScope && onNavigate && activityKinds.map(kind => <SecurityAgentActivityPanel key={kind} direction="targets" kind={kind} entityID={value.run.id} scope={activityScope} permitted={activityPermissions[kind] === true} disabled={mutation.isUnresolved} onNavigate={onNavigate} />)}
+diff --git a/app/features/securityagents/SecurityAgentsView.test.tsx b/app/features/securityagents/SecurityAgentsView.test.tsx
+index 74941e14..9a5b842c 100644
+--- a/app/features/securityagents/SecurityAgentsView.test.tsx
++++ b/app/features/securityagents/SecurityAgentsView.test.tsx
+@@ -297,6 +297,14 @@ it("locks all related targets while run cancellation is unresolved", async () =>
+   expect(screen.getByRole("button", { name: `Open finding ${evidenceID}` })).toBeEnabled();
+ });
+ 
++it("shows an unavailable Attack Lab preflight without inventing a plan or execution", async () => {
++  const unavailable:SecurityAgentRunDetail={...runDetail,run:{...run,state:"needs_human"},plan:null,authorization:"not_planned",approvals:[],execution:[],verification:"inconclusive",run_context:{trigger:{kind:"finding",id:evidenceID,version:1},rationale:null,preflight_stop_reason:"attack_lab_preflight_unavailable"}};
++  render(<SecurityAgentsView api={fixtureAPI({getSecurityAgentRun:async()=>unavailable})} initialRunID={runID} canWrite />);
++  expect(await screen.findByText(/Attack Lab preflight unavailable/)).toBeVisible();
++  expect(screen.queryByRole("button",{name:"Cancel run"})).not.toBeInTheDocument();
++  expect(screen.queryByText(/Open linked Attack Lab execution/)).not.toBeInTheDocument();
++});
++
+ it("allows stopping an exact pending Attack Lab link while retaining cleanup evidence", async () => {
+   const linked:SecurityAgentRunDetail={...runDetail,run:{...run,state:"running"},execution:[{step_id:stepID,action:"start_attack_lab",state:"executing",version:2,outcome_id:evidenceID}],action_details:[{step_id:stepID,action:"start_attack_lab",arguments:{target_id:evidenceID,expected_version:1},result:{state:"pending",outcome_id:evidenceID},ttl_seconds:null,control_expires_at:null,rollback:{support:"not_supported",state:"unavailable",verification:{state:"unavailable",source:"none"}},verification:{state:"pending",source:"effect_record"},attack_lab:{definition_id:evidenceID,definition_version:1,source_run_id:runID,source_attempt:1,execution_id:agentID,attempt:1,state:"running",verdict:null,cleanup_state:"pending",cleanup_complete:false,cancel_requested:false,evidence:null,settlement:null}}]};
+   const digest=`sha256:${"d".repeat(64)}`;
+diff --git a/services/platform/apiserver/security_agent_attack_lab_repository.go b/services/platform/apiserver/security_agent_attack_lab_repository.go
+index 4c259bd0..5aebaee8 100644
+--- a/services/platform/apiserver/security_agent_attack_lab_repository.go
++++ b/services/platform/apiserver/security_agent_attack_lab_repository.go
+@@ -9,6 +9,23 @@ import (
+ 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+ )
+ 
++func validSecurityAgentAttackLabPreflightStop(payload json.RawMessage, claim SecurityAgentRunClaim) bool {
++	var envelope struct {
++		Stop json.RawMessage `json:"attack_lab_preflight_stop"`
++	}
++	var stop struct {
++		OrganizationID string `json:"organization_id"`
++		WorkspaceID    string `json:"workspace_id"`
++		EnvironmentID  string `json:"environment_id"`
++		RunID          string `json:"run_id"`
++		Attempt        int    `json:"attempt"`
++		Version        int64  `json:"version"`
++		State          string `json:"state"`
++		Reason         string `json:"reason"`
++	}
++	return exactJSONFields(payload, "attack_lab_preflight_stop") && decodeStrictDiscovery(payload, &envelope) == nil && exactJSONFields(envelope.Stop, "organization_id", "workspace_id", "environment_id", "run_id", "attempt", "version", "state", "reason") && decodeStrictDiscovery(envelope.Stop, &stop) == nil && stop.OrganizationID == claim.OrganizationID && stop.WorkspaceID == claim.WorkspaceID && stop.EnvironmentID == claim.EnvironmentID && stop.RunID == claim.RunID && stop.Attempt == claim.Attempt && stop.Version > claim.Version && stop.Version <= 1000000 && stop.State == "needs_human" && stop.Reason == "attack_lab_preflight_unavailable"
++}
++
+ // Admission is separate from catalog availability. The production decorator
+ // joins installed57 authority with bounded checks of the deployed workers.
+ func (repository *PostgresRepository) SecurityAgentAttackLabWorkflowAvailable(ctx context.Context) (bool, error) {
+diff --git a/scripts/production-combined-e2e.mjs b/scripts/production-combined-e2e.mjs
+index a29bb713..ba082b07 100644
+--- a/scripts/production-combined-e2e.mjs
++++ b/scripts/production-combined-e2e.mjs
+@@ -295,7 +295,7 @@ try {
+       await command(migrate,["register-security-agent-attack-lab-reconciler"],{env:{...migrationEnvironment,ZASP_SECURITY_AGENT_ATTACK_LAB_RECONCILER_DB_PRINCIPAL:"e2e_attack_lab_reconciler"}});
+     }
+     const pin=await command(path.join(postgresBin,"psql"),[dsn,"-X","-At","-c",attackLabMountedMode ? "SELECT zasp_sa_attack_lab_live_fingerprint()" : "SELECT zasp_production_security_agent_existing_tests_live_fingerprint()"]);
+-    assert.equal(pin.stdout.trim(),attackLabMountedMode ? "31acfc93bc7121a66b6b32b66756b278dd8d13c3a0df08880d73ec28c1cea7e5" : "2c324e78917f97feee14f915b397efbb92a183d47afd7473139dd0691cf0bb04","mounted protocol pin changed");
++    assert.equal(pin.stdout.trim(),attackLabMountedMode ? "f44bc966ef77ab523a80ace71b59defbe709c1fdbefd69ccfc40cacaf16d7ba8" : "2c324e78917f97feee14f915b397efbb92a183d47afd7473139dd0691cf0bb04","mounted protocol pin changed");
+   }
+   if (complianceBrowserMode) await command(migrate, ["up-to-56"], { env: migrationEnvironment });
+   if (attackLabMountedMode) await seedAttackLabBrowserIdentity(async statement => (await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim());
+@@ -2348,6 +2348,7 @@ async function exerciseAttackLabMountedBrowser(configuration) {
+     const body=await result.json();assert.equal(result.status,status,JSON.stringify(body));return body;
+   };
+   try { await runAttackLabMountedBrowser({sql,cdp:browser.cdp,publicOrigin,chromePort,step,
++    onlyUnavailable:process.env.ZASP_COMBINED_E2E_ATTACK_LAB_NO_SOURCE_ONLY==="true",
+     providerSnapshot:async()=>{const value=JSON.parse(await readFile(state,"utf8"));return {calls:value.Calls,posts:value.Posts,deletes:value.Deletes};},
+     withCapability:async(mode,check)=>{
+       if(mode==="absent") {
+@@ -2356,7 +2357,7 @@ async function exerciseAttackLabMountedBrowser(configuration) {
+         try {await startAPI("56");await check();} finally {
+           await stopChild(api);await command(migrate,["up-to-57"],{env:migrationEnvironment});
+           await command(migrate,["register-security-agent-attack-lab-reconciler"],{env:{...migrationEnvironment,ZASP_SECURITY_AGENT_ATTACK_LAB_RECONCILER_DB_PRINCIPAL:"e2e_attack_lab_reconciler"}});
+-          assert.equal(await sql("SELECT zasp_sa_attack_lab_live_fingerprint()"),"31acfc93bc7121a66b6b32b66756b278dd8d13c3a0df08880d73ec28c1cea7e5");await startWorker();await startAPI();
++          assert.equal(await sql("SELECT zasp_sa_attack_lab_live_fingerprint()"),"f44bc966ef77ab523a80ace71b59defbe709c1fdbefd69ccfc40cacaf16d7ba8");await startWorker();await startAPI();
+         }
+       } else if(mode==="unready") {
+         await worker.stop();assert.equal((await worker.completed).status,0);try {await check();} finally {await startWorker();}
+diff --git a/scripts/attack-lab-mounted-browser.mjs b/scripts/attack-lab-mounted-browser.mjs
+index f3cb7305..ada2acaf 100644
+--- a/scripts/attack-lab-mounted-browser.mjs
++++ b/scripts/attack-lab-mounted-browser.mjs
+@@ -18,7 +18,7 @@ SELECT zasp_inventory_backfill_scope('${org}','${ws}','${env}');SELECT zasp_inve
+ SELECT zasp_inventory_backfill_scope('${org}','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003');SELECT zasp_inventory_cutover_scope('${org}','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003');`);
+ }
+ 
+-export async function runAttackLabMountedBrowser({sql,cdp,publicOrigin,chromePort,ui,step,providerSnapshot,withCapability,restartWorker,restartAPI,record}) {
++export async function runAttackLabMountedBrowser({sql,cdp,publicOrigin,chromePort,ui,step,providerSnapshot,withCapability,restartWorker,restartAPI,record,onlyUnavailable=false}) {
+   await seedPrerequisites(sql);
+   await sql(`UPDATE zasp_authorized_scopes SET permissions=permissions||'["manage_identity"]'::jsonb WHERE principal_id='${actor}' AND ${owned}`);
+   const {navigateBrowser,waitForBrowserText,waitForBrowserScope,selectBrowserOption,clickBrowserText,clickBrowserAria,fillBrowserLabel,reloadBrowser,browserFetchJSON,browserBodyText,waitForBrowserAction,startBrowserTab}=ui;
+@@ -49,7 +49,7 @@ export async function runAttackLabMountedBrowser({sql,cdp,publicOrigin,chromePor
+     for(const path of ["/api/v1/security-actions","/api/v1/security-agent-templates"]) {
+       const response=await browserFetchJSON(cdp,path,{"X-Zasp-Expected-Scope":scope});assert.equal(response.status,mode==="corrupt"?503:200,JSON.stringify(response));assert.equal(JSON.stringify(response.body).includes("start_attack_lab"),false);
+     }
+-    if(mode!=="unready") {const refused=await mutate(cdp,"/api/v1/security-agents","POST",draft);assert.equal(refused.status,mode==="absent"?400:503,JSON.stringify(refused));}
++    if(mode!=="unready") {const refused=await mutate(cdp,"/api/v1/security-agents","POST",draft,0);assert.equal(refused.status,mode==="absent"?400:503,JSON.stringify(refused));}
+     assert.equal(await snapshot(mode!=="absent"),before,`${mode} capability wrote execution effects`);
+     console.log(`mounted Attack Lab ${mode} capability: actual API refusal, full effect rows unchanged`);
+   });
+@@ -65,18 +65,29 @@ export async function runAttackLabMountedBrowser({sql,cdp,publicOrigin,chromePor
+   }
+   await clickBrowserText(cdp,"Enable environment automation");await waitForBrowserText(cdp,/Environment automation enabled/);
+   await clickBrowserText(cdp,"Enable start_attack_lab");await waitForBrowserText(cdp,/start_attack_lab enabled/);
++  const missingTestID=`pid_${randomUUID()}`;
++  const missingTest=await mutate(cdp,"/api/v1/tests","POST",{id:missingTestID,name:"Attack Lab missing source",target_id:definition.target_id,target_kind:definition.target_kind,categories:definition.categories,safety:definition.safety},0);
++  assert.equal(missingTest.status,201,JSON.stringify(missingTest));
+   const results=[];
+-  for(const item of [{name:"Attack Lab supervised",autonomy:"supervised",verdict:"verified"},{name:"Attack Lab autonomous",autonomy:"autonomous",verdict:"not_reproduced"},{name:"Attack Lab stopped parent",autonomy:"supervised",verdict:"verified",stop:true},{name:"Attack Lab stale approval",autonomy:"supervised",verdict:"verified",drift:true}]) {
++  const scenarios=[{name:"Attack Lab missing source",autonomy:"supervised",verdict:"verified",noSource:true},{name:"Attack Lab supervised",autonomy:"supervised",verdict:"verified"},{name:"Attack Lab autonomous",autonomy:"autonomous",verdict:"not_reproduced"},{name:"Attack Lab stopped parent",autonomy:"supervised",verdict:"verified",stop:true},{name:"Attack Lab stale approval",autonomy:"supervised",verdict:"verified",drift:true}];
++  for(const item of onlyUnavailable?scenarios.slice(0,1):scenarios) {
+     await step(item.verdict==="verified"?"arm-verified":"arm-not-reproduced");
+     await route("/protect/security-agents");await waitForBrowserText(cdp,/Tenant-scoped response definitions/);await clickBrowserText(cdp,"Create Security Agent");
+-    await selectBrowserOption(cdp,"Definition template","Reproduce in Attack Lab");await selectBrowserOption(cdp,"Existing test definition","Attack Lab exact source · version 1");
++    await selectBrowserOption(cdp,"Definition template","Reproduce in Attack Lab");await selectBrowserOption(cdp,"Existing test definition",`${item.noSource?"Attack Lab missing source":"Attack Lab exact source"} · version 1`);
+     await fillBrowserLabel(cdp,"Definition name",item.name);await fillBrowserLabel(cdp,"AI cost budget (nano OpenRouter credits)","10000");await fillBrowserLabel(cdp,"Step limit","1");
+     await clickBrowserText(cdp,"Save Security Agent definition");await waitForBrowserText(cdp,new RegExp(item.name));await clickBrowserAria(cdp,`Open ${item.name}`);
+     await clickBrowserText(cdp,"Validate definition");await waitForBrowserText(cdp,/Resource version 2/);await clickBrowserText(cdp,"Enable supervised execution");await waitForBrowserText(cdp,/Resource version 3/);
+     if(item.autonomy==="autonomous"){await clickBrowserText(cdp,"Enable autonomous execution");await waitForBrowserText(cdp,/Resource version 4/);}
+     await fillBrowserLabel(cdp,"Evidence ID",finding);await clickBrowserText(cdp,`Start ${item.autonomy} run`);await waitForBrowserAction(cdp,`document.querySelector('[aria-label="Close"]')?.disabled === false`);await clickBrowserAria(cdp,"Close");
+-    await step("plan");
++    const beforePlan=await snapshot();await step("plan");
+     const runID=await sql(`SELECT r.run_id FROM zasp_security_agent_runs r JOIN zasp_security_agent_definitions d USING(organization_id,workspace_id,environment_id,definition_id) WHERE d.body->>'name'='${item.name}' AND r.state<>'simulated' ORDER BY r.created_at DESC LIMIT 1`);assert.match(runID,productID);
++    if(item.noSource) {
++      const detail=await read(`/api/v1/security-agent-runs/${runID}`);assert.equal(detail.run.state,"needs_human");assert.equal(detail.run_context.preflight_stop_reason,"attack_lab_preflight_unavailable");assert.equal(detail.plan,null);assert.deepEqual(detail.approvals,[]);assert.deepEqual(detail.execution,[]);assert.equal(await snapshot(),beforePlan);
++      await step("plan");assert.equal(await snapshot(),beforePlan,"unavailable-source retry dispatched effects");
++      await restartAPI();await reloadBrowser(cdp);await waitForBrowserText(cdp,new RegExp(runID));await clickBrowserAria(cdp,`Open run ${runID}`);await waitForBrowserText(cdp,/Attack Lab preflight unavailable/);
++      await record(runID,cdp,{...item,runID,testID:missingTestID,detail,zeroEffects:true,claim:"real API and registered worker; no eligible source; no provider call or execution"});
++      console.log("mounted Attack Lab missing source: durable Needs human reason survives reload; zero execution effects and repeat dispatch");continue;
++    }
+     assert.equal(await sql(`SELECT state FROM zasp_security_agent_runs WHERE run_id='${runID}'`),"waiting_approval",`${item.autonomy} bypassed operator floor`);
+     assert.equal(await sql(`SELECT count(*) FROM zasp_sa_attack_lab_links WHERE run_id='${runID}'`),"0");
+     const approval=await sql(`SELECT approval_id FROM zasp_security_agent_approvals WHERE run_id='${runID}' AND state='pending'`);assert.match(approval,productID);
+@@ -114,6 +125,10 @@ export async function runAttackLabMountedBrowser({sql,cdp,publicOrigin,chromePor
+     const waitUntil=Number(await sql(`SELECT ceil(extract(epoch from lease_expires_at)*1000) FROM zasp_attack_lab_runs WHERE run_id='${executionID}'`));
+     assert.ok(waitUntil-Date.now()<32_000);await delay(Math.max(0,waitUntil-Date.now()+100));
+     const recovered=await step("execute");assert.equal(recovered.provider_calls,1);assert.equal(recovered.job_posts,1);assert.ok(recovered.job_deletes>=1);
++    if(item.stop) {
++      const nextCheck=Number(await sql(`SELECT ceil(extract(epoch from available_at)*1000) FROM zasp_sa_attack_lab_links WHERE run_id='${runID}'`));
++      assert.ok(nextCheck-Date.now()<32_000);await delay(Math.max(0,nextCheck-Date.now()+100));
++    }
+     const settled=await step("reconcile");assert.equal(settled.provider_calls,1);assert.equal(settled.lost_settlement_reply,true);assert.equal(settled.settlement_calls,2);
+     const detail=await read(`/api/v1/security-agent-runs/${runID}`),proof=detail.action_details[0].attack_lab;
+     if(!item.stop)assert.equal(proof.verdict,item.verdict);assert.equal(proof.cleanup_complete,true);assert.equal(proof.settlement.outcome,item.stop?"cancelled":"needs_human");if(item.stop)assert.equal(detail.run.state,"cancelled");
+@@ -124,6 +139,7 @@ export async function runAttackLabMountedBrowser({sql,cdp,publicOrigin,chromePor
+     await clickBrowserText(cdp,"Open linked Attack Lab execution");await waitForBrowserText(cdp,new RegExp(executionID));await reloadBrowser(cdp);await waitForBrowserText(cdp,new RegExp(executionID));
+     results.push({runID,executionID,proof});
+   }
++  if(onlyUnavailable)return;
+   const queuedID=`pid_${randomUUID()}`,queued=await mutate(cdp,`/api/v1/tests/${testID}/runs`,"POST",{run_id:queuedID},2);assert.equal(queued.status,202,JSON.stringify(queued));
+   const beforeQueued=await snapshot(),unreadySource=await browserFetchJSON(cdp,`/api/v1/attack-lab/preflight?source_run_id=${queuedID}`,{"X-Zasp-Expected-Scope":scope});assert.equal(unreadySource.status,404,JSON.stringify(unreadySource));assert.equal(await snapshot(),beforeQueued);
+   const foreignScope="pid_90000001-0000-4000-8000-000000000001/pid_90000002-0000-4000-8000-000000000002/pid_90000003-0000-4000-8000-000000000003";
+diff --git a/services/platform/apiserver/security_agent_attack_lab_settlement_postgres_test.go b/services/platform/apiserver/security_agent_attack_lab_settlement_postgres_test.go
+index 31a9e79a..f53cd36c 100644
+--- a/services/platform/apiserver/security_agent_attack_lab_settlement_postgres_test.go
++++ b/services/platform/apiserver/security_agent_attack_lab_settlement_postgres_test.go
+@@ -77,6 +77,15 @@ func TestSecurityAgentAttackLabSettlementPostgres(t *testing.T) {
+ 			t.Fatalf("claim=%s %v", raw, err)
+ 		}
+ 		c := claims[0]
++		// Stop through registered public authority, without inheriting another
++		// test's rollback fault injection as an implicit stopped-parent fixture.
++		var parentVersion int64
++		if err := owner.QueryRow(ctx, `SELECT version FROM zasp_security_agent_runs WHERE run_id=$1`, c.Run).Scan(&parentVersion); err != nil {
++			t.Fatal(err)
++		}
++		if err := api.QueryRow(ctx, `SELECT zasp_sa_attack_lab_cancel_parent($1,$2,$3,$4,'pid_8a100005-0000-4000-8000-000000000005','settlement-parent-stop-0001',$5,'pid_8bc30000-0000-4000-8000-000000000001','pid_8bc30000-0000-4000-8000-000000000002','pid_8bc30000-0000-4000-8000-000000000003',$6,$7)`, o, w, e, c.Run, parentVersion, m.Checksum(), fingerprint).Scan(&raw); err != nil {
++			t.Fatalf("registered parent cancellation: %v", err)
++		}
+ 		var admissionReceipt json.RawMessage
+ 		if err := owner.QueryRow(ctx, `SELECT result FROM zasp_sa_attack_lab_links WHERE run_id=$1`, c.Run).Scan(&admissionReceipt); err != nil {
+ 			t.Fatal(err)
+diff --git a/openapi/openapi.test.mjs b/openapi/openapi.test.mjs
+index 6019b51f..18b69693 100644
+--- a/openapi/openapi.test.mjs
++++ b/openapi/openapi.test.mjs
+@@ -828,10 +828,10 @@ describe("production workflow concurrency contract", () => {
+     assert.equal(document.components.schemas.SecurityAgentExecutionControlInput.properties.target.enum.includes("global"), false);
+     assert.deepEqual(document.components.schemas.SecurityAgentExecutionControls.properties.actions, {
+       type: "array",
+-      oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }],
++      oneOf: [{ minItems: 2, maxItems: 2 }, { minItems: 3, maxItems: 3 }, { minItems: 4, maxItems: 4 }, { minItems: 6, maxItems: 6 }, { minItems: 7, maxItems: 7 }],
+       items: { $ref: "#/components/schemas/SecurityAgentExecutionControl" },
+     });
+-    assert.deepEqual(document.components.schemas.SecurityAgentExecutionControlInput.properties.action_key.enum, ["*", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "update_finding_response"]);
++    assert.deepEqual(document.components.schemas.SecurityAgentExecutionControlInput.properties.action_key.enum, ["*", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"]);
+ 
+     const activationState = operations.get("getSecurityAgentActivation");
+     assert.equal(activationState.path, "/api/v1/security-agents/{id}/activation");
+diff --git a/scripts/check-ui-api-coverage.test.mjs b/scripts/check-ui-api-coverage.test.mjs
+index 5aa64d85..aef57d8e 100644
+--- a/scripts/check-ui-api-coverage.test.mjs
++++ b/scripts/check-ui-api-coverage.test.mjs
+@@ -52,8 +52,8 @@ test("current API and planned map passes honestly", async () => {
+   const { map, openapi } = await currentSources();
+   assert.deepEqual(validateCoverage(parseMapSource(map), parseOpenAPISource(openapi)), {
+     planned: 2,
+-    apiAvailable: 15,
+-    available: 142,
++    apiAvailable: 10,
++    available: 147,
+     public: 157,
+     internal: 0,
+   });
+@@ -66,8 +66,8 @@ test("all current public operations resolve and deliberate removal fails", async
+   const complete = parseOpenAPISource(futureOpenAPI(operationIDs));
+   assert.deepEqual(validateCoverage(document, complete), {
+     planned: 0,
+-    apiAvailable: 15,
+-    available: 144,
++    apiAvailable: 10,
++    available: 149,
+     public: 159,
+     internal: 0,
+   });
+@@ -84,8 +84,8 @@ test("unmapped public operations fail while unmapped internal operations pass",
+   assert.throws(() => validateCoverage(planned, parseOpenAPISource(futureOpenAPI([...apiOperations, "unmappedPublic"]))));
+   assert.deepEqual(validateCoverage(planned, parseOpenAPISource(futureOpenAPI(apiOperations, { internal: ["ingestEvents"] }))), {
+     planned: 2,
+-    apiAvailable: 15,
+-    available: 142,
++    apiAvailable: 10,
++    available: 147,
+     public: 157,
+     internal: 1,
+   });
+@@ -113,7 +113,7 @@ test("API-available operations require OpenAPI but do not claim a wired UI", asy
+     .filter((action) => action.availability !== "planned")
+     .map((action) => action.operation_id);
+   const result = validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations)));
+-  assert.deepEqual(result, { planned: 2, apiAvailable: 15, available: 142, public: 157, internal: 0 });
++  assert.deepEqual(result, { planned: 2, apiAvailable: 10, available: 147, public: 157, internal: 0 });
+   assert.throws(() => validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations.slice(1)))));
+ });
+ 
+@@ -173,7 +173,7 @@ test("CLI emits only fixed success or rejection lines", async () => {
+   const successOut = captureStream();
+   const successErr = captureStream();
+   assert.equal(await runMain({ stdout: successOut.stream, stderr: successErr.stream }), 0);
+-  assert.equal(successOut.value(), "UI/API coverage passed: planned=2 api_available=15 available=142 public=157 internal=0.\n");
++  assert.equal(successOut.value(), "UI/API coverage passed: planned=2 api_available=10 available=147 public=157 internal=0.\n");
+   assert.equal(successErr.value(), "");
+ 
+   const failureOut = captureStream();
+diff --git a/services/platform/migrations/sql/fragments/security_agent_attack_lab_planner.sql b/services/platform/migrations/sql/fragments/security_agent_attack_lab_planner.sql
+index e20ebdb9..c820264e 100644
+--- a/services/platform/migrations/sql/fragments/security_agent_attack_lab_planner.sql
++++ b/services/platform/migrations/sql/fragments/security_agent_attack_lab_planner.sql
+@@ -9,6 +9,24 @@ BEGIN
+  IF NOT COALESCE(b->'allowed_actions'='["start_attack_lab"]'::jsonb AND b->>'verification_kind'='attack_lab_run' AND jsonb_typeof(ref)='object' AND ref ?& ARRAY['definition_id','definition_version'] AND ref-ARRAY['definition_id','definition_version']='{}'::jsonb AND public.zasp_valid_product_id(ref->>'definition_id') AND ref->>'definition_version' ~ '^([1-9][0-9]{0,5}|1000000)$',false) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab planner reference changed';END IF;
+  RETURN public.zasp_sa_attack_lab_source(o,w,e,ref->>'definition_id',(ref->>'definition_version')::bigint,NULL);
+ END $binding$;
++
++-- Only the initial trusted source lookup may produce this bounded terminal
++-- reason. It grants no plan/effect authority and cannot turn an outage into it.
++CREATE FUNCTION public.zasp_sa_attack_lab_preflight_stop(o text,w text,e text,r text,worker_value text,lease_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog,public AS $stop$
++DECLARE rr public.zasp_security_agent_runs%ROWTYPE;deadline timestamptz;body_value jsonb;
++BEGIN
++ IF NOT public.zasp_security_agent_principal_ready('zasp_security_agent_worker') OR NOT public.zasp_sa_attack_lab_guard() THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='attack lab stop authority unavailable';END IF;
++ IF NOT public.zasp_security_agent_budget_can_start(o,w,e,r,worker_value,lease_value) THEN RETURN public.zasp_security_agent_budget_context_stop(o,w,e,r);END IF;
++ SELECT * INTO rr FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,run_id,state,lease_owner,lease_token)=(o,w,e,r,'planning',worker_value,lease_value) AND lease_expires_at>clock_timestamp() FOR UPDATE;
++ IF NOT FOUND OR EXISTS(SELECT 1 FROM public.zasp_security_agent_plans WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r)) OR EXISTS(SELECT 1 FROM public.zasp_security_agent_effects WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r)) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab stop lease changed';END IF;
++ SELECT deadline_at INTO STRICT deadline FROM public.zasp_security_agent_run_budgets WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r);
++ body_value:=jsonb_build_object('reason','attack_lab_preflight_unavailable','run_id',r,'attempt',rr.attempt);
++ INSERT INTO public.zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,actor_id,event_kind,event_digest,body)
++ VALUES(o,w,e,public.zasp_discovery_canonical_id(o,w,e,'attack_lab_preflight_stop_audit',r),public.zasp_discovery_canonical_id(o,w,e,'attack_lab_preflight_stop_correlation',r),r,worker_value,'preflight_unavailable',digest(convert_to(body_value::text,'UTF8'),'sha256'),body_value);
++ IF rr.lease_expires_at<=clock_timestamp() OR deadline<=clock_timestamp() OR NOT public.zasp_sa_attack_lab_guard() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab stop authority expired';END IF;
++ UPDATE public.zasp_security_agent_runs SET state='needs_human',last_error_code='attack_lab_preflight_unavailable',version=version+1,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,updated_at=clock_timestamp(),completed_at=clock_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r) RETURNING * INTO rr;
++ RETURN jsonb_build_object('attack_lab_preflight_stop',jsonb_build_object('organization_id',o,'workspace_id',w,'environment_id',e,'run_id',r,'attempt',rr.attempt,'version',rr.version,'state',rr.state,'reason',rr.last_error_code));
++END $stop$;
+ DO $planner$
+ DECLARE p record;d text;name_value text;callee text;signature_value text;anchor text;oldprefix text:='zasp_production_security_agent_existing_tests_';newprefix text:='zasp_sa_attack_lab_';
+  names text[]:=ARRAY['planner_context','reserve_core','reserve_planner','recheck_context','prepare_core','finish_prepare','prepare_run','accept_planner','fail_planner'];
+@@ -26,6 +44,11 @@ BEGIN
+   IF name_value IN('planner_context','recheck_context') THEN
+    d:=replace(d,'action_value NOT IN(''run_test'',''rerun_test'')','action_value<>''start_attack_lab''');
+    d:=replace(d,'''existing_test'',jsonb_build_object(','''attack_lab'',binding_value,''existing_test'',jsonb_build_object(');
++   IF name_value='planner_context' THEN
++    anchor:=' binding_value:=public.zasp_sa_attack_lab_planner_binding(o,w,e,run_row.definition_id,run_row.definition_version);';
++    IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab preflight stop predecessor rejected';END IF;
++    d:=replace(d,anchor,' BEGIN'||chr(10)||anchor||chr(10)||' EXCEPTION WHEN no_data_found THEN'||chr(10)||'  IF SQLERRM IS DISTINCT FROM ''attack lab preflight unavailable'' THEN RAISE;END IF;'||chr(10)||'  RETURN public.zasp_sa_attack_lab_preflight_stop(o,w,e,r,worker_value,lease_value);'||chr(10)||' END;');
++   END IF;
+   ELSIF name_value='prepare_core' THEN
+    d:=replace(d,'authorization_value:=CASE definition_row.activation WHEN ''autonomous'' THEN ''autonomous'' ELSE ''approval_required'' END;','authorization_value:=''approval_required'';');
+    d:=replace(d,'state_value:=CASE definition_row.activation WHEN ''autonomous'' THEN ''queued'' ELSE ''waiting_approval'' END;','state_value:=''waiting_approval'';');
+diff --git a/services/platform/apiserver/security_agent_worker_repository.go b/services/platform/apiserver/security_agent_worker_repository.go
+index 45712a97..1033602f 100644
+--- a/services/platform/apiserver/security_agent_worker_repository.go
++++ b/services/platform/apiserver/security_agent_worker_repository.go
+@@ -13,6 +13,7 @@ import (
+ // ErrSecurityAgentBudgetStopped denotes a validated, durably persisted stop.
+ // It is not a provider outage and carries no usable planning authority.
+ var ErrSecurityAgentBudgetStopped = errors.New("security agent budget stopped")
++var ErrSecurityAgentAttackLabPreflightStopped = errors.New("security agent attack lab preflight stopped")
+ 
+ const (
+ 	postgresSecurityAgentWorkerReadyV33SQL     = `SELECT jsonb_build_object('release',zasp_production_security_agent_attack_path_readiness($1,$2),'principal',zasp_security_agent_principal_ready('zasp_security_agent_worker'))`
+@@ -247,6 +248,9 @@ func (repository *SecurityAgentWorkerRepository) LoadSecurityAgentPlannerContext
+ 	if validSecurityAgentBudgetStop(payload, claim) {
+ 		return SecurityAgentPlannerContext{}, ErrSecurityAgentBudgetStopped
+ 	}
++	if attackLab && validSecurityAgentAttackLabPreflightStop(payload, claim) {
++		return SecurityAgentPlannerContext{}, ErrSecurityAgentAttackLabPreflightStopped
++	}
+ 	var envelope struct {
+ 		Context struct {
+ 			Purpose        string `json:"purpose"`
+diff --git a/services/platform/agentsec-worker/security_agent_runtime.go b/services/platform/agentsec-worker/security_agent_runtime.go
+index e69276bf..4c404377 100644
+--- a/services/platform/agentsec-worker/security_agent_runtime.go
++++ b/services/platform/agentsec-worker/security_agent_runtime.go
+@@ -99,7 +99,7 @@ func (processor *securityAgentProcessor) process(ctx context.Context, claim apis
+ 	// A validated committed result (including a durable stop) may clear the
+ 	// lease while a heartbeat is in flight. An unconfirmed operation or an
+ 	// unrelated heartbeat outage must still fail; neither is proof of success.
+-	if (operationErr == nil || errors.Is(operationErr, apiserver.ErrSecurityAgentBudgetStopped)) && (heartbeatErr == nil || errors.Is(heartbeatErr, apiserver.ErrRepositoryConflict)) {
++	if (operationErr == nil || errors.Is(operationErr, apiserver.ErrSecurityAgentBudgetStopped) || errors.Is(operationErr, apiserver.ErrSecurityAgentAttackLabPreflightStopped)) && (heartbeatErr == nil || errors.Is(heartbeatErr, apiserver.ErrRepositoryConflict)) {
+ 		return nil
+ 	}
+ 	if operationErr != nil || heartbeatErr != nil {
+diff --git a/services/platform/apiserver/security_agent_run_context.go b/services/platform/apiserver/security_agent_run_context.go
+index 57bd51c3..c3f8a948 100644
+--- a/services/platform/apiserver/security_agent_run_context.go
++++ b/services/platform/apiserver/security_agent_run_context.go
+@@ -3,8 +3,9 @@ package apiserver
+ // SecurityAgentRunContext contains only the validated public projection. Raw
+ // planner receipt text must be sanitized before constructing this value.
+ type SecurityAgentRunContext struct {
+-	Trigger   *SecurityAgentRunTrigger `json:"trigger"`
+-	Rationale *SecurityAgentRationale  `json:"rationale"`
++	PreflightStopReason string                   `json:"preflight_stop_reason,omitempty"`
++	Trigger             *SecurityAgentRunTrigger `json:"trigger"`
++	Rationale           *SecurityAgentRationale  `json:"rationale"`
+ }
+ 
+ type SecurityAgentRunTrigger struct {
+@@ -22,6 +23,9 @@ func validSecurityAgentRunContext(value *SecurityAgentRunContext) bool {
+ 	if value == nil {
+ 		return true
+ 	}
++	if value.PreflightStopReason != "" && value.PreflightStopReason != "attack_lab_preflight_unavailable" {
++		return false
++	}
+ 	if value.Trigger != nil && (!stringIn(value.Trigger.Kind, "finding", "attack_path", "runtime_decision", "manual") || !validProductID(value.Trigger.ID) || value.Trigger.Version < 1 || value.Trigger.Version > 9007199254740991) {
+ 		return false
+ 	}
+diff --git a/services/platform/apiserver/security_agent_run_context_envelope.go b/services/platform/apiserver/security_agent_run_context_envelope.go
+index d48bfc69..6c040c59 100644
+--- a/services/platform/apiserver/security_agent_run_context_envelope.go
++++ b/services/platform/apiserver/security_agent_run_context_envelope.go
+@@ -23,13 +23,15 @@ func decodeSecurityAgentRunContextEnvelope(payload json.RawMessage, runID string
+ 		return SecurityAgentRunDetail{}, ErrRepositoryUnavailable
+ 	}
+ 	var context struct {
+-		Trigger        json.RawMessage `json:"trigger"`
+-		PlannerReceipt json.RawMessage `json:"planner_receipt"`
++		PreflightStopReason string          `json:"preflight_stop_reason"`
++		Trigger             json.RawMessage `json:"trigger"`
++		PlannerReceipt      json.RawMessage `json:"planner_receipt"`
+ 	}
+-	if !exactJSONFields(envelope.Context, "trigger", "planner_receipt") || decodeStrictDiscovery(envelope.Context, &context) != nil {
++	withPreflightStop := exactJSONFields(envelope.Context, "trigger", "planner_receipt", "preflight_stop_reason")
++	if !withPreflightStop && !exactJSONFields(envelope.Context, "trigger", "planner_receipt") || decodeStrictDiscovery(envelope.Context, &context) != nil || withPreflightStop && context.PreflightStopReason != "attack_lab_preflight_unavailable" {
+ 		return SecurityAgentRunDetail{}, ErrRepositoryUnavailable
+ 	}
+-	projection := &SecurityAgentRunContext{}
++	projection := &SecurityAgentRunContext{PreflightStopReason: context.PreflightStopReason}
+ 	if !bytes.Equal(bytes.TrimSpace(context.Trigger), []byte("null")) {
+ 		var trigger SecurityAgentRunTrigger
+ 		if !exactJSONFields(context.Trigger, "kind", "id", "version") || decodeStrictDiscovery(context.Trigger, &trigger) != nil {
+diff --git a/services/platform/agentsec-worker/security_agent_runtime_test.go b/services/platform/agentsec-worker/security_agent_runtime_test.go
+index fdb594d0..f4948169 100644
+--- a/services/platform/agentsec-worker/security_agent_runtime_test.go
++++ b/services/platform/agentsec-worker/security_agent_runtime_test.go
+@@ -41,18 +41,20 @@ func TestSecurityAgentProcessorPlansForApprovalThenExecutesOnlyApprovedWork(t *t
+ }
+ 
+ func TestSecurityAgentProcessorBudgetStopDoesNotCallPlanner(t *testing.T) {
+-	now := time.Now().UTC()
+-	authority := &securityAgentWorkerAuthorityStub{claims: []apiserver.SecurityAgentRunClaim{securityAgentTestClaim("pid_78000001-0000-4000-8000-000000000001", false, now)}, contextErr: apiserver.ErrSecurityAgentBudgetStopped}
+-	planner := successfulSecurityAgentPlanner()
+-	processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{Authority: authority, Planner: planner, WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 1, HeartbeatInterval: 20 * time.Second, Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil }, NewProductID: func() (string, error) { return "", errors.New("stopped run requested a new artifact ID") }})
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if err := processor.RunOnce(context.Background()); err != nil {
+-		t.Fatalf("durable stop treated as execution failure: %v", err)
+-	}
+-	if len(planner.contexts) != 0 || len(authority.prepared) != 0 || len(authority.executed) != 0 || len(authority.failedPlanner) != 0 {
+-		t.Fatalf("stopped run dispatched work: planner=%d prepared=%v executed=%v failed=%v", len(planner.contexts), authority.prepared, authority.executed, authority.failedPlanner)
++	for _, reason := range []error{apiserver.ErrSecurityAgentBudgetStopped, apiserver.ErrSecurityAgentAttackLabPreflightStopped} {
++		now := time.Now().UTC()
++		authority := &securityAgentWorkerAuthorityStub{claims: []apiserver.SecurityAgentRunClaim{securityAgentTestClaim("pid_78000001-0000-4000-8000-000000000001", false, now)}, contextErr: reason}
++		planner := successfulSecurityAgentPlanner()
++		processor, err := newSecurityAgentProcessor(securityAgentProcessorConfig{Authority: authority, Planner: planner, WorkerID: "security-agent-worker-1", LeaseSeconds: 60, BatchSize: 1, HeartbeatInterval: 20 * time.Second, Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil }, NewProductID: func() (string, error) { return "", errors.New("stopped run requested a new artifact ID") }})
++		if err != nil {
++			t.Fatal(err)
++		}
++		if err := processor.RunOnce(context.Background()); err != nil {
++			t.Fatalf("durable stop treated as execution failure: %v", err)
++		}
++		if len(planner.contexts) != 0 || len(authority.prepared) != 0 || len(authority.executed) != 0 || len(authority.failedPlanner) != 0 {
++			t.Fatalf("stopped run dispatched work: planner=%d prepared=%v executed=%v failed=%v", len(planner.contexts), authority.prepared, authority.executed, authority.failedPlanner)
++		}
+ 	}
+ }
+ 
+diff --git a/services/platform/apiserver/security_agent_attack_lab_unavailable_test.go b/services/platform/apiserver/security_agent_attack_lab_unavailable_test.go
+new file mode 100644
+index 00000000..0711a6b8
+--- /dev/null
++++ b/services/platform/apiserver/security_agent_attack_lab_unavailable_test.go
+@@ -0,0 +1,31 @@
++package apiserver
++
++import (
++	"encoding/json"
++	"testing"
++)
++
++func TestSecurityAgentAttackLabPreflightStopIsClosedAndClaimBound(t *testing.T) {
++	claim := SecurityAgentRunClaim{OrganizationID: "pid_78000001-0000-4000-8000-000000000001", WorkspaceID: "pid_78000002-0000-4000-8000-000000000002", EnvironmentID: "pid_78000003-0000-4000-8000-000000000003", RunID: "pid_78000004-0000-4000-8000-000000000004", Attempt: 1, Version: 2}
++	for _, mutation := range []string{"valid", "organization_id", "workspace_id", "environment_id", "run_id", "attempt", "version", "reason", "state", "extra", "envelope"} {
++		t.Run(mutation, func(t *testing.T) {
++			stop := map[string]any{"organization_id": claim.OrganizationID, "workspace_id": claim.WorkspaceID, "environment_id": claim.EnvironmentID, "run_id": claim.RunID, "attempt": 1, "version": 3, "state": "needs_human", "reason": "attack_lab_preflight_unavailable"}
++			envelope := map[string]any{"attack_lab_preflight_stop": stop}
++			switch mutation {
++			case "valid":
++			case "attempt":
++				stop[mutation] = 2
++			case "version":
++				stop[mutation] = 2
++			case "envelope":
++				envelope["context"] = map[string]any{}
++			default:
++				stop[mutation] = "provider_unavailable"
++			}
++			raw, _ := json.Marshal(envelope)
++			if validSecurityAgentAttackLabPreflightStop(raw, claim) != (mutation == "valid") {
++				t.Fatal("unbound stop changed worker authority")
++			}
++		})
++	}
++}
+diff --git a/services/platform/apiserver/security_agent_attack_lab_unavailable_postgres_test.go b/services/platform/apiserver/security_agent_attack_lab_unavailable_postgres_test.go
+new file mode 100644
+index 00000000..1a9da28b
+--- /dev/null
++++ b/services/platform/apiserver/security_agent_attack_lab_unavailable_postgres_test.go
+@@ -0,0 +1,155 @@
++package apiserver
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"testing"
++	"time"
++
++	"github.com/jackc/pgx/v5"
++)
++
++// The mounted browser test creates and triggers through public entrypoints.
++// This registered-repository fixture isolates lease and deployment faults.
++func TestSecurityAgentAttackLabUnavailableSourcePostgres(t *testing.T) {
++	runVersionedExistingTestFixture(t, func(ctx context.Context, owner, api *pgx.Conn, o, w, e, testID, actor string) {
++		runner := precisionMigrationRunner(t, owner)
++		if err := runner.UpProductionCompliance(ctx); err != nil {
++			t.Fatal(err)
++		}
++		if err := runner.UpProductionSecurityAgentAttackLab(ctx); err != nil {
++			t.Fatal(err)
++		}
++		const run = "pid_8bc10001-0000-4000-8000-000000000001"
++		const finding = "pid_8bc10002-0000-4000-8000-000000000002"
++		const workerID, lease = "attack-lab-unavailable-worker", "attack-lab-unavailable-original-lease"
++		seedExistingTestPreparation(t, ctx, owner, o, w, e, testID, actor, run, finding, "start_attack_lab", workerID, lease)
++		if _, err := owner.Exec(ctx, `UPDATE zasp_security_agent_definitions SET body=jsonb_set(body,'{verification_kind}','"attack_lab_run"') WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3);
++INSERT INTO zasp_security_agent_definition_versions(organization_id,workspace_id,environment_id,definition_id,version,activation,definition,definition_digest,actor_id) SELECT organization_id,workspace_id,environment_id,definition_id,version,activation,body,digest(convert_to(body::text,'UTF8'),'sha256'),$4 FROM zasp_security_agent_definitions WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, pgx.QueryExecModeSimpleProtocol, o, w, e, actor); err != nil {
++			t.Fatal(err)
++		}
++		config := owner.Config().Copy()
++		config.User = "security_agent_v33_worker_login"
++		worker, err := pgx.ConnectConfig(ctx, config)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer worker.Close(context.Background())
++		db, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: worker})
++		if err != nil {
++			t.Fatal(err)
++		}
++		repository, err := NewSecurityAgentWorkerRepository(db)
++		if err != nil {
++			t.Fatal(err)
++		}
++		claim := SecurityAgentRunClaim{OrganizationID: o, WorkspaceID: w, EnvironmentID: e, RunID: run, TriggerID: finding, State: "planning", Version: 2, Attempt: 1}
++		if err := owner.QueryRow(ctx, `SELECT definition_id,definition_version,lease_expires_at FROM zasp_security_agent_runs WHERE run_id=$1`, run).Scan(&claim.DefinitionID, &claim.DefinitionVersion, &claim.LeaseExpiresAt); err != nil {
++			t.Fatal(err)
++		}
++		claim.LeaseExpiresAt = claim.LeaseExpiresAt.UTC()
++		snapshot := func() string { return existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run) }
++		before := snapshot()
++		for _, dimension := range []string{"lease", "organization", "workspace", "environment"} {
++			foreign := claim
++			token := lease
++			switch dimension {
++			case "lease":
++				token = "wrong-attack-lab-lease-token"
++			case "organization":
++				foreign.OrganizationID = "pid_8bcfffff-0000-4000-8000-000000000001"
++			case "workspace":
++				foreign.WorkspaceID = "pid_8bcfffff-0000-4000-8000-000000000002"
++			case "environment":
++				foreign.EnvironmentID = "pid_8bcfffff-0000-4000-8000-000000000003"
++			}
++			if _, err := repository.LoadSecurityAgentPlannerContext(ctx, foreign, workerID, token); err == nil || errors.Is(err, ErrSecurityAgentAttackLabPreflightStopped) || snapshot() != before {
++				t.Fatalf("%s lost source-stop authority: %v", dimension, err)
++			}
++		}
++		// A corrupt deployment must remain an error, not become a benign source stop.
++		var pin string
++		if err := owner.QueryRow(ctx, `UPDATE zasp_schema_metadata SET value=repeat('0',64) WHERE key='production_security_agent_attack_lab_checksum' RETURNING (SELECT value FROM zasp_schema_metadata WHERE key='production_security_agent_attack_lab_checksum')`).Scan(&pin); err != nil {
++			t.Fatal(err)
++		}
++		_, faultErr := repository.LoadSecurityAgentPlannerContext(ctx, claim, workerID, lease)
++		if _, err := owner.Exec(ctx, `UPDATE zasp_schema_metadata SET value=$1 WHERE key='production_security_agent_attack_lab_checksum'`, pin); err != nil {
++			t.Fatal(err)
++		}
++		if faultErr == nil || errors.Is(faultErr, ErrSecurityAgentAttackLabPreflightStopped) || snapshot() != before {
++			t.Fatalf("deployment outage became source stop: %v", faultErr)
++		}
++		// Revoke the lease while the real call waits for the parent row. The stop
++		// must revalidate after the wait and roll back every attempted write.
++		tx, err := owner.Begin(ctx)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if _, err := tx.Exec(ctx, `SELECT 1 FROM zasp_security_agent_runs WHERE run_id=$1 FOR UPDATE`, run); err != nil {
++			t.Fatal(err)
++		}
++		result := make(chan error, 1)
++		go func() {
++			_, err := repository.LoadSecurityAgentPlannerContext(ctx, claim, workerID, lease)
++			result <- err
++		}()
++		waiting := false
++		for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); {
++			if err := tx.QueryRow(ctx, `SELECT coalesce((SELECT wait_event_type='Lock' FROM pg_stat_activity WHERE pid=$1),false)`, worker.PgConn().PID()).Scan(&waiting); err != nil {
++				t.Fatal(err)
++			}
++			if waiting {
++				break
++			}
++			time.Sleep(10 * time.Millisecond)
++		}
++		if !waiting {
++			tx.Rollback(ctx)
++			<-result
++			t.Fatal("planner did not wait on parent")
++		}
++		if _, err := tx.Exec(ctx, `UPDATE zasp_security_agent_runs SET lease_token='revoked-attack-lab-lease-token' WHERE run_id=$1`, run); err != nil {
++			t.Fatal(err)
++		}
++		if err := tx.Commit(ctx); err != nil {
++			t.Fatal(err)
++		}
++		waitedErr := <-result
++		if _, err := owner.Exec(ctx, `UPDATE zasp_security_agent_runs SET lease_token=$2 WHERE run_id=$1`, run, lease); err != nil {
++			t.Fatal(err)
++		}
++		if waitedErr == nil || errors.Is(waitedErr, ErrSecurityAgentAttackLabPreflightStopped) || snapshot() != before {
++			t.Fatalf("revoked lease persisted source stop: %v", waitedErr)
++		}
++		if _, err := repository.LoadSecurityAgentPlannerContext(ctx, claim, workerID, lease); !errors.Is(err, ErrSecurityAgentAttackLabPreflightStopped) {
++			t.Fatalf("missing source did not persist typed stop: %v", err)
++		}
++		var raw json.RawMessage
++		if err := api.QueryRow(ctx, postgresExistingTestRunContextSQL, existingTestReadPins([]any{o, w, e, run})...).Scan(&raw); err != nil {
++			t.Fatal(err)
++		}
++		detail, err := decodeSecurityAgentRunContextEnvelope(raw, run)
++		if err != nil || detail.Run.State != "needs_human" || detail.RunContext == nil || detail.RunContext.PreflightStopReason != "attack_lab_preflight_unavailable" || detail.Plan != nil || len(detail.Approvals) != 0 || len(detail.Execution) != 0 {
++			t.Fatalf("durable unavailable projection rejected: %v", err)
++		}
++		var effects, links, jobs, approvals, plans, reservations, audits int
++		if err := owner.QueryRow(ctx, `SELECT
++ (SELECT count(*) FROM zasp_security_agent_effects WHERE run_id=$1),
++ (SELECT count(*) FROM zasp_sa_attack_lab_links WHERE run_id=$1),
++ (SELECT count(*) FROM zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id)=($2,$3,$4)),
++ (SELECT count(*) FROM zasp_security_agent_approvals WHERE run_id=$1),
++ (SELECT count(*) FROM zasp_security_agent_plans WHERE run_id=$1),
++ (SELECT count(*) FROM zasp_security_agent_provider_reservations WHERE run_id=$1),
++ (SELECT count(*) FROM zasp_security_agent_audit WHERE run_id=$1 AND event_kind='preflight_unavailable')`, run, o, w, e).Scan(&effects, &links, &jobs, &approvals, &plans, &reservations, &audits); err != nil {
++			t.Fatal(err)
++		}
++		if effects+links+jobs+approvals+plans+reservations != 0 || audits != 1 {
++			t.Fatalf("stop created authority: effects=%d links=%d jobs=%d approvals=%d plans=%d reservations=%d audits=%d", effects, links, jobs, approvals, plans, reservations, audits)
++		}
++		before = snapshot()
++		if _, err := repository.LoadSecurityAgentPlannerContext(ctx, claim, workerID, lease); err == nil || snapshot() != before {
++			t.Fatalf("retired lease retried source authority: %v", err)
++		}
++	})
++}

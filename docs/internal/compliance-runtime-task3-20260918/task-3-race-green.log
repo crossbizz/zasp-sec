@@ -1,0 +1,242 @@
+=== RUN   TestComplianceRuntimeListenerFailureJoinsPolling
+--- PASS: TestComplianceRuntimeListenerFailureJoinsPolling (0.00s)
+=== RUN   TestComplianceRuntimeComposedLifecycle
+=== RUN   TestComplianceRuntimeComposedLifecycle/complete
+=== RUN   TestComplianceRuntimeComposedLifecycle/cancel
+=== RUN   TestComplianceRuntimeComposedLifecycle/lease_loss
+=== RUN   TestComplianceRuntimeComposedLifecycle/revoked
+=== RUN   TestComplianceRuntimeComposedLifecycle/close
+--- PASS: TestComplianceRuntimeComposedLifecycle (1.83s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/complete (0.40s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/cancel (0.42s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/lease_loss (0.29s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/revoked (0.39s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/close (0.33s)
+=== RUN   TestComplianceWorkerPersistedBytes
+--- PASS: TestComplianceWorkerPersistedBytes (0.11s)
+=== RUN   TestComplianceWorkerCleanupReceipt
+--- PASS: TestComplianceWorkerCleanupReceipt (0.04s)
+=== RUN   TestComplianceWorkerHeartbeat
+--- PASS: TestComplianceWorkerHeartbeat (0.10s)
+=== RUN   TestComplianceReplayOutcomes
+=== RUN   TestComplianceReplayOutcomes/completed
+=== RUN   TestComplianceReplayOutcomes/unprepared
+=== RUN   TestComplianceReplayOutcomes/load_failed
+=== RUN   TestComplianceReplayOutcomes/put_failed
+=== RUN   TestComplianceReplayOutcomes/put_panic
+=== RUN   TestComplianceReplayOutcomes/bad_receipt
+=== RUN   TestComplianceReplayOutcomes/finish_failed
+=== RUN   TestComplianceReplayOutcomes/reconcile_rejected
+--- PASS: TestComplianceReplayOutcomes (0.38s)
+    --- PASS: TestComplianceReplayOutcomes/completed (0.07s)
+    --- PASS: TestComplianceReplayOutcomes/unprepared (0.10s)
+    --- PASS: TestComplianceReplayOutcomes/load_failed (0.03s)
+    --- PASS: TestComplianceReplayOutcomes/put_failed (0.03s)
+    --- PASS: TestComplianceReplayOutcomes/put_panic (0.03s)
+    --- PASS: TestComplianceReplayOutcomes/bad_receipt (0.03s)
+    --- PASS: TestComplianceReplayOutcomes/finish_failed (0.07s)
+    --- PASS: TestComplianceReplayOutcomes/reconcile_rejected (0.00s)
+=== RUN   TestComplianceRuntimeRendersFrozenSnapshot
+--- PASS: TestComplianceRuntimeRendersFrozenSnapshot (0.00s)
+=== RUN   TestComplianceRuntimeCandidatesRejectUnsafeWire
+--- PASS: TestComplianceRuntimeCandidatesRejectUnsafeWire (0.18s)
+=== RUN   TestComplianceRuntimeConfiguration
+--- PASS: TestComplianceRuntimeConfiguration (0.00s)
+=== RUN   TestServeWorkerRuntimeExposesOperationalMetrics
+--- PASS: TestServeWorkerRuntimeExposesOperationalMetrics (0.00s)
+=== RUN   TestServeWorkerRuntimeBoundsShutdownWhenProcessorIgnoresCancellation
+--- PASS: TestServeWorkerRuntimeBoundsShutdownWhenProcessorIgnoresCancellation (1.00s)
+=== RUN   TestServeWorkerRuntimeSurfacesDependencyDrainFailure
+--- PASS: TestServeWorkerRuntimeSurfacesDependencyDrainFailure (0.00s)
+=== RUN   TestLoadWorkerRuntimeConfigRequiresExactModeAuthority
+=== PAUSE TestLoadWorkerRuntimeConfigRequiresExactModeAuthority
+=== CONT  TestLoadWorkerRuntimeConfigRequiresExactModeAuthority
+=== RUN   TestLoadWorkerRuntimeConfigRequiresExactModeAuthority/unsafe_lease
+=== RUN   TestLoadWorkerRuntimeConfigRequiresExactModeAuthority/union_authority
+=== RUN   TestLoadWorkerRuntimeConfigRequiresExactModeAuthority/missing_dsn
+=== RUN   TestLoadWorkerRuntimeConfigRequiresExactModeAuthority/unknown_mode
+=== RUN   TestLoadWorkerRuntimeConfigRequiresExactModeAuthority/oversized_batch
+--- PASS: TestLoadWorkerRuntimeConfigRequiresExactModeAuthority (0.00s)
+    --- PASS: TestLoadWorkerRuntimeConfigRequiresExactModeAuthority/unsafe_lease (0.00s)
+    --- PASS: TestLoadWorkerRuntimeConfigRequiresExactModeAuthority/union_authority (0.00s)
+    --- PASS: TestLoadWorkerRuntimeConfigRequiresExactModeAuthority/missing_dsn (0.00s)
+    --- PASS: TestLoadWorkerRuntimeConfigRequiresExactModeAuthority/unknown_mode (0.00s)
+    --- PASS: TestLoadWorkerRuntimeConfigRequiresExactModeAuthority/oversized_batch (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	6.171s
+=== RUN   TestComplianceFormatterCapturedAttribution
+--- PASS: TestComplianceFormatterCapturedAttribution (0.00s)
+=== RUN   TestComplianceFormatterFrozenContext
+--- PASS: TestComplianceFormatterFrozenContext (0.00s)
+=== RUN   TestComplianceExportFormatsRetainEvidenceAttribution
+--- PASS: TestComplianceExportFormatsRetainEvidenceAttribution (0.00s)
+=== RUN   TestComplianceExportCSVNeutralizesFormulaFields
+--- PASS: TestComplianceExportCSVNeutralizesFormulaFields (0.00s)
+=== RUN   TestComplianceExportDetailedReportPersistsBeyondDisclaimerSize
+--- PASS: TestComplianceExportDetailedReportPersistsBeyondDisclaimerSize (0.01s)
+=== RUN   TestComplianceExportRefusesOversizedCombinedPackage
+--- PASS: TestComplianceExportRefusesOversizedCombinedPackage (0.37s)
+=== RUN   TestComplianceExportWriterPreservesQuotedLabelsAndRejectsForgedReport
+--- PASS: TestComplianceExportWriterPreservesQuotedLabelsAndRejectsForgedReport (0.00s)
+=== RUN   TestComplianceExportRejectsUnboundedNestedInput
+=== RUN   TestComplianceExportRejectsUnboundedNestedInput/framework
+=== RUN   TestComplianceExportRejectsUnboundedNestedInput/records
+=== RUN   TestComplianceExportRejectsUnboundedNestedInput/expected_ids
+--- PASS: TestComplianceExportRejectsUnboundedNestedInput (0.00s)
+    --- PASS: TestComplianceExportRejectsUnboundedNestedInput/framework (0.00s)
+    --- PASS: TestComplianceExportRejectsUnboundedNestedInput/records (0.00s)
+    --- PASS: TestComplianceExportRejectsUnboundedNestedInput/expected_ids (0.00s)
+=== RUN   TestComplianceExportAcceptsVersionedArtifactStoreReceipt
+--- PASS: TestComplianceExportAcceptsVersionedArtifactStoreReceipt (0.00s)
+=== RUN   TestComplianceExportRejectsInvalidVersionAndChangedOwnership
+=== RUN   TestComplianceExportRejectsInvalidVersionAndChangedOwnership/scope
+=== RUN   TestComplianceExportRejectsInvalidVersionAndChangedOwnership/reference
+=== RUN   TestComplianceExportRejectsInvalidVersionAndChangedOwnership/space
+=== RUN   TestComplianceExportRejectsInvalidVersionAndChangedOwnership/newline
+=== RUN   TestComplianceExportRejectsInvalidVersionAndChangedOwnership/nul
+=== RUN   TestComplianceExportRejectsInvalidVersionAndChangedOwnership/oversize
+--- PASS: TestComplianceExportRejectsInvalidVersionAndChangedOwnership (0.00s)
+    --- PASS: TestComplianceExportRejectsInvalidVersionAndChangedOwnership/scope (0.00s)
+    --- PASS: TestComplianceExportRejectsInvalidVersionAndChangedOwnership/reference (0.00s)
+    --- PASS: TestComplianceExportRejectsInvalidVersionAndChangedOwnership/space (0.00s)
+    --- PASS: TestComplianceExportRejectsInvalidVersionAndChangedOwnership/newline (0.00s)
+    --- PASS: TestComplianceExportRejectsInvalidVersionAndChangedOwnership/nul (0.00s)
+    --- PASS: TestComplianceExportRejectsInvalidVersionAndChangedOwnership/oversize (0.00s)
+=== RUN   TestComplianceExportPersistsExactArtifact
+--- PASS: TestComplianceExportPersistsExactArtifact (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/sessioncontrol	3.049s
+=== RUN   TestExportStoreRejectsDriverProfileAndScopeSubstitution
+=== RUN   TestExportStoreRejectsDriverProfileAndScopeSubstitution/legacy_profile
+=== RUN   TestExportStoreRejectsDriverProfileAndScopeSubstitution/foreign_scope
+=== RUN   TestExportStoreRejectsDriverProfileAndScopeSubstitution/foreign_reference
+=== RUN   TestExportStoreRejectsDriverProfileAndScopeSubstitution/changed_bytes
+--- PASS: TestExportStoreRejectsDriverProfileAndScopeSubstitution (0.00s)
+    --- PASS: TestExportStoreRejectsDriverProfileAndScopeSubstitution/legacy_profile (0.00s)
+    --- PASS: TestExportStoreRejectsDriverProfileAndScopeSubstitution/foreign_scope (0.00s)
+    --- PASS: TestExportStoreRejectsDriverProfileAndScopeSubstitution/foreign_reference (0.00s)
+    --- PASS: TestExportStoreRejectsDriverProfileAndScopeSubstitution/changed_bytes (0.00s)
+=== RUN   TestExportStoreEnforcesRequestBoundsBeforeDriverIO
+--- PASS: TestExportStoreEnforcesRequestBoundsBeforeDriverIO (0.00s)
+=== RUN   TestNewRejectsInvalidConfigurationAndDriver
+=== PAUSE TestNewRejectsInvalidConfigurationAndDriver
+=== CONT  TestNewRejectsInvalidConfigurationAndDriver
+--- PASS: TestNewRejectsInvalidConfigurationAndDriver (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/artifactstore	2.907s
+=== RUN   TestExportStoreSDKUsesScopedExportPrefix
+--- PASS: TestExportStoreSDKUsesScopedExportPrefix (0.00s)
+=== RUN   TestExportStoreSDKCancellationAfterSavedPutRemainsRecoverable
+--- PASS: TestExportStoreSDKCancellationAfterSavedPutRemainsRecoverable (0.00s)
+=== RUN   TestExportProfilesRejectMixedConstructionBeforeProviderIO
+=== RUN   TestExportProfilesRejectMixedConstructionBeforeProviderIO/export_store_legacy_driver
+=== RUN   TestExportProfilesRejectMixedConstructionBeforeProviderIO/legacy_store_export_driver
+--- PASS: TestExportProfilesRejectMixedConstructionBeforeProviderIO (0.00s)
+    --- PASS: TestExportProfilesRejectMixedConstructionBeforeProviderIO/export_store_legacy_driver (0.00s)
+    --- PASS: TestExportProfilesRejectMixedConstructionBeforeProviderIO/legacy_store_export_driver (0.00s)
+=== RUN   TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO
+=== RUN   TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/legacy_prefix
+=== RUN   TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/traversal
+=== RUN   TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/encoded_traversal
+=== RUN   TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/foreign_organization
+=== RUN   TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/foreign_workspace
+=== RUN   TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/foreign_environment
+=== RUN   TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/foreign_reference
+=== RUN   TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/missing_scope
+=== RUN   TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/scope_ID_reused_as_reference
+--- PASS: TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO (0.00s)
+    --- PASS: TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/legacy_prefix (0.00s)
+    --- PASS: TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/traversal (0.00s)
+    --- PASS: TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/encoded_traversal (0.00s)
+    --- PASS: TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/foreign_organization (0.00s)
+    --- PASS: TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/foreign_workspace (0.00s)
+    --- PASS: TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/foreign_environment (0.00s)
+    --- PASS: TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/foreign_reference (0.00s)
+    --- PASS: TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/missing_scope (0.00s)
+    --- PASS: TestExportDriverRejectsForgedKeysAndScopesBeforeProviderIO/scope_ID_reused_as_reference (0.00s)
+=== RUN   TestExportReadRefusesCorruptedProviderAuthority
+=== RUN   TestExportReadRefusesCorruptedProviderAuthority/organization
+=== RUN   TestExportReadRefusesCorruptedProviderAuthority/workspace
+=== RUN   TestExportReadRefusesCorruptedProviderAuthority/environment
+=== RUN   TestExportReadRefusesCorruptedProviderAuthority/reference
+=== RUN   TestExportReadRefusesCorruptedProviderAuthority/digest_metadata
+=== RUN   TestExportReadRefusesCorruptedProviderAuthority/missing_checksum
+=== RUN   TestExportReadRefusesCorruptedProviderAuthority/wrong_checksum
+=== RUN   TestExportReadRefusesCorruptedProviderAuthority/wrong_KMS
+=== RUN   TestExportReadRefusesCorruptedProviderAuthority/wrong_version
+=== RUN   TestExportReadRefusesCorruptedProviderAuthority/changed_body
+=== RUN   TestExportReadRefusesCorruptedProviderAuthority/oversized_read
+--- PASS: TestExportReadRefusesCorruptedProviderAuthority (0.01s)
+    --- PASS: TestExportReadRefusesCorruptedProviderAuthority/organization (0.00s)
+    --- PASS: TestExportReadRefusesCorruptedProviderAuthority/workspace (0.00s)
+    --- PASS: TestExportReadRefusesCorruptedProviderAuthority/environment (0.00s)
+    --- PASS: TestExportReadRefusesCorruptedProviderAuthority/reference (0.00s)
+    --- PASS: TestExportReadRefusesCorruptedProviderAuthority/digest_metadata (0.00s)
+    --- PASS: TestExportReadRefusesCorruptedProviderAuthority/missing_checksum (0.00s)
+    --- PASS: TestExportReadRefusesCorruptedProviderAuthority/wrong_checksum (0.00s)
+    --- PASS: TestExportReadRefusesCorruptedProviderAuthority/wrong_KMS (0.00s)
+    --- PASS: TestExportReadRefusesCorruptedProviderAuthority/wrong_version (0.00s)
+    --- PASS: TestExportReadRefusesCorruptedProviderAuthority/changed_body (0.00s)
+    --- PASS: TestExportReadRefusesCorruptedProviderAuthority/oversized_read (0.00s)
+=== RUN   TestExportDriverKeepsImmutableReplayLimitsAndCancellation
+--- PASS: TestExportDriverKeepsImmutableReplayLimitsAndCancellation (0.00s)
+=== RUN   TestDriverAcceptsOnlyTheOwnedRecoveryMediaTypes
+--- PASS: TestDriverAcceptsOnlyTheOwnedRecoveryMediaTypes (0.00s)
+=== RUN   TestDriverPutIsCreateOnlyAndReconcilesLostAcknowledgement
+--- PASS: TestDriverPutIsCreateOnlyAndReconcilesLostAcknowledgement (0.00s)
+=== RUN   TestDriverGetPinsVersionAndValidatesEveryBoundary
+--- PASS: TestDriverGetPinsVersionAndValidatesEveryBoundary (0.00s)
+=== RUN   TestDriverBuildsTheObjectReferenceFromItsExactBucketAuthority
+=== PAUSE TestDriverBuildsTheObjectReferenceFromItsExactBucketAuthority
+=== RUN   TestDriverReadUsesThePersistedVersionAcrossNewerVersionsAndDeleteMarkers
+--- PASS: TestDriverReadUsesThePersistedVersionAcrossNewerVersionsAndDeleteMarkers (0.00s)
+=== RUN   TestDriverRejectsInvalidInputBeforeCloudAndNeverDeletesImmutableEvidence
+--- PASS: TestDriverRejectsInvalidInputBeforeCloudAndNeverDeletesImmutableEvidence (0.00s)
+=== RUN   TestDriverUsesOneAttemptAndContainsCancellationProviderErrorsAndPanics
+--- PASS: TestDriverUsesOneAttemptAndContainsCancellationProviderErrorsAndPanics (0.00s)
+=== RUN   TestNewRejectsHostileConfigurationAndTypedNilClient
+--- PASS: TestNewRejectsHostileConfigurationAndTypedNilClient (0.00s)
+=== RUN   TestExportCleanupSDKExactVersionAbsence
+=== RUN   TestExportCleanupSDKExactVersionAbsence/deleted
+=== RUN   TestExportCleanupSDKExactVersionAbsence/lost_delete
+=== RUN   TestExportCleanupSDKExactVersionAbsence/ambiguous404
+=== RUN   TestExportCleanupSDKExactVersionAbsence/denied
+--- PASS: TestExportCleanupSDKExactVersionAbsence (0.00s)
+    --- PASS: TestExportCleanupSDKExactVersionAbsence/deleted (0.00s)
+    --- PASS: TestExportCleanupSDKExactVersionAbsence/lost_delete (0.00s)
+    --- PASS: TestExportCleanupSDKExactVersionAbsence/ambiguous404 (0.00s)
+    --- PASS: TestExportCleanupSDKExactVersionAbsence/denied (0.00s)
+=== RUN   TestExportReadOnlyReconciliation
+--- PASS: TestExportReadOnlyReconciliation (0.00s)
+=== RUN   TestExportReadOnlyReconciliationSDKFaults
+=== RUN   TestExportReadOnlyReconciliationSDKFaults/wrong_version
+=== RUN   TestExportReadOnlyReconciliationSDKFaults/wrong_kms
+=== RUN   TestExportReadOnlyReconciliationSDKFaults/wrong_checksum
+=== RUN   TestExportReadOnlyReconciliationSDKFaults/wrong_scope
+=== RUN   TestExportReadOnlyReconciliationSDKFaults/owner_denied
+=== RUN   TestExportReadOnlyReconciliationSDKFaults/missing
+=== RUN   TestExportReadOnlyReconciliationSDKFaults/timeout
+=== RUN   TestExportReadOnlyReconciliationSDKFaults/different_bytes
+--- PASS: TestExportReadOnlyReconciliationSDKFaults (0.03s)
+    --- PASS: TestExportReadOnlyReconciliationSDKFaults/wrong_version (0.00s)
+    --- PASS: TestExportReadOnlyReconciliationSDKFaults/wrong_kms (0.00s)
+    --- PASS: TestExportReadOnlyReconciliationSDKFaults/wrong_checksum (0.00s)
+    --- PASS: TestExportReadOnlyReconciliationSDKFaults/wrong_scope (0.00s)
+    --- PASS: TestExportReadOnlyReconciliationSDKFaults/owner_denied (0.00s)
+    --- PASS: TestExportReadOnlyReconciliationSDKFaults/missing (0.00s)
+    --- PASS: TestExportReadOnlyReconciliationSDKFaults/timeout (0.02s)
+    --- PASS: TestExportReadOnlyReconciliationSDKFaults/different_bytes (0.00s)
+=== RUN   TestExportCleanupRequiresVerifiedExactVersionAbsence
+=== RUN   TestExportCleanupRequiresVerifiedExactVersionAbsence/deleted
+=== RUN   TestExportCleanupRequiresVerifiedExactVersionAbsence/denied
+=== RUN   TestExportCleanupRequiresVerifiedExactVersionAbsence/locked
+=== RUN   TestExportCleanupRequiresVerifiedExactVersionAbsence/missing_version
+--- PASS: TestExportCleanupRequiresVerifiedExactVersionAbsence (0.00s)
+    --- PASS: TestExportCleanupRequiresVerifiedExactVersionAbsence/deleted (0.00s)
+    --- PASS: TestExportCleanupRequiresVerifiedExactVersionAbsence/denied (0.00s)
+    --- PASS: TestExportCleanupRequiresVerifiedExactVersionAbsence/locked (0.00s)
+    --- PASS: TestExportCleanupRequiresVerifiedExactVersionAbsence/missing_version (0.00s)
+=== CONT  TestDriverBuildsTheObjectReferenceFromItsExactBucketAuthority
+--- PASS: TestDriverBuildsTheObjectReferenceFromItsExactBucketAuthority (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/artifactstore/s3driver	2.450s

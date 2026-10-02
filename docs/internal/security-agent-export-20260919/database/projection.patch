@@ -1,0 +1,350 @@
+--- a/services/platform/migrations/sql/fragments/security_agent_export_links.sql
++++ b/services/platform/migrations/sql/fragments/security_agent_export_links.sql
+@@ -240,7 +240,77 @@
+  RETURN result_value;
+ END $settle$;
+ GRANT EXECUTE ON FUNCTION public.zasp_sa_export_settlement_claim(text,text,integer,integer,text,text),public.zasp_sa_export_settle(text,text,text,text,text,text,text,text,text,text) TO zasp_security_agent_worker;
++
++-- Historical action detail is intent plus a checked effect receipt. It is not
++-- download authority and does not recollect mutable evidence or expose storage.
++CREATE FUNCTION public.zasp_sa_export_public_step(o text,w text,e text,r text,step_value jsonb) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO pg_catalog,public AS $public_step$
++DECLARE rr public.zasp_security_agent_runs%ROWTYPE;st public.zasp_security_agent_steps%ROWTYPE;p public.zasp_security_agent_plans%ROWTYPE;l public.zasp_sa_export_links%ROWTYPE;f public.zasp_security_agent_effects%ROWTYPE;j public.zasp_compliance_export_jobs%ROWTYPE;item jsonb;receipt jsonb;facts jsonb;expected_state text;
++BEGIN
++ SELECT * INTO STRICT rr FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r);
++ SELECT * INTO STRICT st FROM public.zasp_security_agent_steps WHERE (organization_id,workspace_id,environment_id,run_id,step_id,action_key)=(o,w,e,r,step_value->>'step_id','create_evidence_export');
++ SELECT * INTO STRICT p FROM public.zasp_security_agent_plans WHERE (organization_id,workspace_id,environment_id,run_id,plan_hash,definition_id,definition_version)=(o,w,e,r,rr.plan_hash,rr.definition_id,rr.definition_version);
++ item:=p.plan->'steps'->st.step_index;
++ PERFORM public.zasp_sa_export_selection(item->'evidence_ids');
++ IF p.plan_hash IS DISTINCT FROM digest(convert_to(p.plan::text,'UTF8'),'sha256') OR p.plan->'verification' IS DISTINCT FROM jsonb_build_object('kind','export')
++ OR item IS DISTINCT FROM jsonb_build_object('index',st.step_index,'step_id',st.step_id,'action','create_evidence_export','target_id',r,'evidence_ids',item->'evidence_ids','authorization',st.authorization_result)
++ OR st.input_digest IS DISTINCT FROM digest(convert_to(item::text,'UTF8'),'sha256')
++ OR step_value->>'action' IS DISTINCT FROM st.action_key OR step_value->'index' IS DISTINCT FROM to_jsonb(st.step_index)
++ OR step_value->'arguments' IS DISTINCT FROM jsonb_build_object('target_id',r,'evidence_ids',item->'evidence_ids')
++ OR step_value->'control_expires_at' IS DISTINCT FROM 'null'::jsonb
++ OR step_value->'apply_targets' IS DISTINCT FROM '{"total":0,"verified":0}'::jsonb OR step_value->'cleanup_targets' IS DISTINCT FROM '{"total":0,"verified":0}'::jsonb
++ THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export public plan changed';END IF;
++ SELECT * INTO l FROM public.zasp_sa_export_links WHERE (organization_id,workspace_id,environment_id,run_id,step_id)=(o,w,e,r,st.step_id);
++ SELECT * INTO f FROM public.zasp_security_agent_effects WHERE (organization_id,workspace_id,environment_id,run_id,step_id,action_key)=(o,w,e,r,st.step_id,'create_evidence_export');
++ IF l.run_id IS NULL THEN
++  IF f.run_id IS NOT NULL OR step_value->'effect' IS DISTINCT FROM 'null'::jsonb THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export public link unavailable';END IF;
++  RETURN step_value;
++ END IF;
++ SELECT * INTO STRICT j FROM public.zasp_compliance_export_jobs WHERE (organization_id,workspace_id,environment_id,export_id,job_origin,agent_run_id,agent_step_id)=(o,w,e,l.export_id,'agent_run',r,st.step_id);
++ IF (l.plan_hash,l.input_digest,l.definition_id,l.definition_version,l.action_key,l.job_origin) IS DISTINCT FROM (p.plan_hash,st.input_digest,rr.definition_id,rr.definition_version,st.action_key,'agent_run'::text)
++ OR l.selection IS DISTINCT FROM item->'evidence_ids' OR j.request IS DISTINCT FROM jsonb_build_object('run_id',r,'step_id',st.step_id,'selection',l.selection)
++ OR j.request_digest IS DISTINCT FROM digest(convert_to(j.request::text,'UTF8'),'sha256')
++ OR f.input_digest IS DISTINCT FROM l.input_digest OR f.outcome_id IS DISTINCT FROM l.export_id OR f.result_digest IS NULL
++ OR step_value->'effect' IS DISTINCT FROM jsonb_build_object('step_id',st.step_id,'action',st.action_key,'state',f.state,'outcome_id',l.export_id,'result_digest','sha256:'||encode(f.result_digest,'hex'))
++ THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export public binding changed';END IF;
++ receipt:=l.dispatch_result;
++ IF receipt IS DISTINCT FROM jsonb_build_object('organization_id',o,'workspace_id',w,'environment_id',e,'run_id',r,'step_id',st.step_id,'export_id',l.export_id,'state','pending','run_version',receipt->'run_version','replayed',false)
++ OR jsonb_typeof(receipt->'run_version') IS DISTINCT FROM 'number' OR NOT COALESCE(receipt->>'run_version' ~ '^[1-9][0-9]*$',false) OR (receipt->>'run_version')::numeric>rr.version
++ THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export public dispatch changed';END IF;
++ IF l.settled_at IS NULL THEN
++  IF f.state IS DISTINCT FROM 'pending' OR f.result_digest IS DISTINCT FROM digest(convert_to(receipt::text,'UTF8'),'sha256') THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export public pending changed';END IF;
++ ELSE
++  receipt:=l.settlement_result;facts:=l.settlement_snapshot;
++  IF receipt IS DISTINCT FROM jsonb_build_object('run_id',r,'run_version',receipt->'run_version','step_id',st.step_id,'export_id',l.export_id,'state',receipt->'state','reason',receipt->'reason','settled',true,'replayed',false)
++  OR jsonb_typeof(receipt->'run_version') IS DISTINCT FROM 'number' OR NOT COALESCE(receipt->>'run_version' ~ '^[1-9][0-9]*$',false) OR (receipt->>'run_version')::numeric>rr.version
++  OR NOT COALESCE(receipt->>'state' IN('contained','remediated','needs_human','failed','inconclusive','cancelled'),false) OR NOT COALESCE(receipt->>'reason' IN('export_available','export_failed','export_cancelled','export_parent_stopped'),false)
++  OR facts IS DISTINCT FROM jsonb_build_object('export_id',l.export_id,'state',facts->'state','storage_state',facts->'storage_state','sha256',facts->'sha256','version',facts->'version','size',facts->'size','retained_bytes',facts->'retained_bytes','retrieval_expires_at',facts->'retrieval_expires_at')
++  OR f.result_digest IS DISTINCT FROM digest(convert_to(facts::text,'UTF8'),'sha256')
++  THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export public settlement changed';END IF;
++  expected_state:=CASE WHEN receipt->>'reason'='export_available' THEN 'succeeded' WHEN facts->>'storage_state' IN('intent','unknown','reconcile_required','delete_pending') THEN 'cleanup_pending' ELSE 'known_failure' END;
++  IF f.state IS DISTINCT FROM expected_state OR expected_state='succeeded' AND (receipt->>'state' IS DISTINCT FROM 'needs_human' OR facts->>'state' IS DISTINCT FROM 'completed' OR facts->>'storage_state' IS DISTINCT FROM 'verified' OR NOT COALESCE(facts->>'sha256' ~ '^[a-f0-9]{64}$',false) OR facts->>'version' IS NULL OR NOT COALESCE((facts->>'size')::bigint>0,false)) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export public result changed';END IF;
++ END IF;
++ RETURN step_value;
++EXCEPTION WHEN OTHERS THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export public projection unavailable';
++END $public_step$;
+ 
++DO $export_reads$
++DECLARE signature_value text;d text;anchor text;
++BEGIN
++ signature_value:='public.zasp_production_security_agent_existing_tests_run_context_core(text,text,text,text)';
++ PERFORM public.zasp_sa_export_save(signature_value);d:=pg_get_functiondef(signature_value::regprocedure);
++ anchor:='''revoke_integration_connection'',''run_test'',''rerun_test'',''start_attack_lab'')';
++ IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export action allowlist predecessor changed';END IF;
++ d:=replace(d,anchor,'''revoke_integration_connection'',''run_test'',''rerun_test'',''start_attack_lab'',''create_evidence_export'')');
++ anchor:='WHEN ''start_attack_lab'' THEN jsonb_build_object(''target_id'',planned_step->''target_id'',''expected_version'',planned_step->''test_definition_version'')';
++ IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export action arguments predecessor changed';END IF;
++ EXECUTE replace(d,anchor,anchor||chr(10)||'WHEN ''create_evidence_export'' THEN jsonb_build_object(''target_id'',planned_step->''target_id'',''evidence_ids'',planned_step->''evidence_ids'')');
++ signature_value:='public.zasp_production_security_agent_existing_tests_public_step(text,text,text,text,jsonb)';
++ PERFORM public.zasp_sa_export_save(signature_value);d:=pg_get_functiondef(signature_value::regprocedure);
++ anchor:=' SELECT * INTO link_row FROM public.zasp_security_agent_test_links';
++ IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='export action public predecessor changed';END IF;
++ EXECUTE replace(d,anchor,' IF step_value->>''action''=''create_evidence_export'' THEN RETURN public.zasp_sa_export_public_step(o,w,e,r,step_value);END IF;'||chr(10)||anchor);
++END $export_reads$;
++
+ CREATE FUNCTION public.zasp_sa_export_api_require(expected_checksum text,expected_fingerprint text) RETURNS void LANGUAGE plpgsql VOLATILE SET search_path TO pg_catalog,public AS $require$
+ BEGIN
+  IF current_setting('transaction_isolation')<>'read committed' OR NOT public.zasp_sa_export_principal_ready('zasp_security_agent_api') OR NOT public.zasp_sa_export_readiness(expected_checksum,expected_fingerprint) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='export API authority unavailable';END IF;
+--- a/services/platform/migrations/security_agent_exports_release.go
++++ b/services/platform/migrations/security_agent_exports_release.go
+@@ -23,7 +23,7 @@
+ var securityAgentExportLinksSQL string
+ 
+ func SecurityAgentExportsFingerprint() string {
+-	return "eb5d958fba7a720ad6f8d47c9f4cfb6a4193b10f4b48a4fb6bdcdc3b67ff0bf0"
++	return "46b69c98336c9a93c168e9b451ae8da69fb248ee1706d6d2c419f31707b6a998"
+ }
+ 
+ func ProductionSecurityAgentExports() Metadata {
+--- /dev/null
++++ b/services/platform/apiserver/security_agent_export_projection_postgres_test.go
+@@ -0,0 +1,256 @@
++package apiserver
++
++import (
++	"context"
++	"crypto/sha256"
++	"encoding/hex"
++	"encoding/json"
++	"fmt"
++	"reflect"
++	"strings"
++	"testing"
++
++	"github.com/jackc/pgx/v5"
++	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
++)
++
++func readExportProjection(f *exportDBFixture, o, w, e, r string) (json.RawMessage, error) {
++	var raw json.RawMessage
++	err := f.api.QueryRow(f.ctx, `SELECT zasp_production_security_agent_existing_tests_run_context($1,$2,$3,$4,$5,$6)`, o, w, e, r, migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&raw)
++	return raw, err
++}
++
++func assertExportProjection(t *testing.T, f *exportDBFixture, state string) {
++	t.Helper()
++	raw, err := readExportProjection(f, f.o, f.w, f.e, exportFixtureRun)
++	if err != nil {
++		t.Fatalf("registered export action projection: %v", err)
++	}
++	if strings.Contains(string(raw), "PRIVATE_PROVIDER_VERSION") || strings.Contains(string(raw), "PRIVATE_PACKAGE_BYTES") || strings.Contains(string(raw), "storage_state") {
++		t.Fatalf("private export storage facts leaked: %s", raw)
++	}
++	var envelope struct {
++		Actions struct {
++			Steps []struct {
++				Arguments struct {
++					TargetID  string          `json:"target_id"`
++					Selection json.RawMessage `json:"evidence_ids"`
++				} `json:"arguments"`
++				Effect *struct {
++					State string `json:"state"`
++				} `json:"effect"`
++			} `json:"steps"`
++		} `json:"action_details"`
++	}
++	if json.Unmarshal(raw, &envelope) != nil || len(envelope.Actions.Steps) != 1 {
++		t.Fatalf("export action envelope: %s", raw)
++	}
++	s := envelope.Actions.Steps[0]
++	var got, want any
++	if json.Unmarshal(s.Arguments.Selection, &got) != nil || json.Unmarshal(f.selection, &want) != nil || !reflect.DeepEqual(got, want) || s.Arguments.TargetID != exportFixtureRun {
++		t.Fatalf("original ordered export selection changed: %s", raw)
++	}
++	if state == "" && s.Effect != nil || state != "" && (s.Effect == nil || s.Effect.State != state) {
++		t.Fatalf("export effect state wanted %q: %s", state, raw)
++	}
++	value, err := decodeSecurityAgentRunContextEnvelope(raw, exportFixtureRun)
++	if err != nil || len(value.ActionDetails) != 1 {
++		t.Fatalf("public export decoder: %v", err)
++	}
++	a := value.ActionDetails[0]
++	verification, source := "pending", "effect_record"
++	switch state {
++	case "":
++		verification, source = "unavailable", "none"
++	case "known_failure":
++		verification = "failed"
++	case "cleanup_pending":
++		verification = "inconclusive"
++	}
++	if a.Verification.State != verification || a.Verification.Source != source || a.Rollback.Support != "not_supported" || a.Rollback.State != "unavailable" || a.Rollback.Verification.State != "unavailable" || a.Rollback.Verification.Source != "none" || a.TTLSeconds != nil || a.ControlExpiresAt != nil {
++		t.Fatalf("export claimed unsupported security verification or rollback: %+v", a)
++	}
++}
++
++func TestSecurityAgentExportProjectionPostgres(t *testing.T) {
++	runExportDBFixture(t, func(f *exportDBFixture) {
++		// Two distinguishable references prove the original array order survives.
++		if _, err := f.owner.Exec(f.ctx, `UPDATE zasp_identity_memberships SET role='security_admin' WHERE principal_id=$6; INSERT INTO zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,actor_id,event_kind,event_digest,body) VALUES($1,$2,$3,$5,$5,$4,$6,'fixture_event',decode(repeat('ac',32),'hex'),'{}')`, pgx.QueryExecModeSimpleProtocol, f.o, f.w, f.e, exportFixtureRun, "pid_8e100021-0000-4000-8000-000000000021", f.actor); err != nil {
++			t.Fatal(err)
++		}
++		f.selection = json.RawMessage(strings.TrimSuffix(string(f.selection), "]") + `,{"source_kind":"run_audit","source_id":"pid_8e100021-0000-4000-8000-000000000021","source_version":1,"association_digest":"sha256:` + strings.Repeat("ac", 32) + `"}]`)
++		f.setSelection(t, f.selection)
++		assertExportProjection(t, f, "")
++		if _, err := f.dispatch(f.o, f.w, f.e, exportFixtureRun, exportFixtureLease); err != nil {
++			t.Fatal(err)
++		}
++		assertExportProjection(t, f, "pending")
++		var reordered json.RawMessage
++		if err := f.owner.QueryRow(f.ctx, `SELECT jsonb_build_array(selection->1,selection->0) FROM zasp_sa_export_links WHERE run_id=$1`, exportFixtureRun).Scan(&reordered); err != nil {
++			t.Fatal(err)
++		}
++		if _, err := f.owner.Exec(f.ctx, `UPDATE zasp_sa_export_links SET selection=$2 WHERE run_id=$1`, exportFixtureRun, reordered); err != nil {
++			t.Fatal(err)
++		}
++		if raw, err := readExportProjection(f, f.o, f.w, f.e, exportFixtureRun); err == nil {
++			t.Fatalf("reordered linked selection accepted: %s", raw)
++		}
++	})
++}
++
++func TestSecurityAgentExportProjectionSettledPostgres(t *testing.T) {
++	for _, state := range []string{"succeeded", "known_failure", "cleanup_pending"} {
++		t.Run(state, func(t *testing.T) {
++			runExportDBFixture(t, func(f *exportDBFixture) {
++				raw, err := f.dispatch(f.o, f.w, f.e, exportFixtureRun, exportFixtureLease)
++				if err != nil {
++					t.Fatal(err)
++				}
++				var dispatched map[string]any
++				if json.Unmarshal(raw, &dispatched) != nil {
++					t.Fatal(string(raw))
++				}
++				id := dispatched["export_id"].(string)
++				f.capture(t, id)
++				cfg := f.owner.Config().Copy()
++				cfg.User = "export_source_executor"
++				executor, err := pgx.ConnectConfig(f.ctx, cfg)
++				if err != nil {
++					t.Fatal(err)
++				}
++				defer executor.Close(context.Background())
++				call := func(fn string, payload any) {
++					t.Helper()
++					if err := executor.QueryRow(f.ctx, fmt.Sprintf(`SELECT %s($1,$2,$3,$4,'export-source-worker',$5,1,$6,$7,$8)`, fn), f.o, f.w, f.e, id, strings.Repeat("b", 64), payload, migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()).Scan(&raw); err != nil {
++						t.Fatal(err)
++					}
++				}
++				body := []byte("PRIVATE_PACKAGE_BYTES")
++				digest := sha256.Sum256(body)
++				if state != "known_failure" {
++					call("zasp_compliance_export_prepare_artifact", map[string]any{"renderer_revision": "security-agent-evidence-envelope-v1", "reference": id, "bytes_hex": hex.EncodeToString(body), "sha256": hex.EncodeToString(digest[:]), "size": len(body), "format_sizes": map[string]int{"json": 5, "csv": 5, "readable": 5}})
++				}
++				if state == "succeeded" {
++					call("zasp_compliance_export_finish", map[string]any{"reference": id, "version": "PRIVATE_PROVIDER_VERSION", "sha256": hex.EncodeToString(digest[:]), "size": len(body)})
++				} else if err = f.api.QueryRow(f.ctx, `SELECT zasp_security_agent_cancel_run($1,$2,$3,$4,$5,'export-projection-cancel',4,'pid_8e100051-0000-4000-8000-000000000051','pid_8e100052-0000-4000-8000-000000000052','pid_8e100053-0000-4000-8000-000000000053')`, f.o, f.w, f.e, exportFixtureRun, f.actor).Scan(&raw); err != nil {
++					t.Fatal(err)
++				}
++				if err = f.worker.QueryRow(f.ctx, `SELECT zasp_sa_export_settlement_claim($1,'export-projection-settle',60,1,$2,$3)`, exportFixtureWorker, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&raw); err != nil {
++					t.Fatal(err)
++				}
++				if err = f.worker.QueryRow(f.ctx, `SELECT zasp_sa_export_settle($1,$2,$3,$4,$5,'export-projection-settle','pid_8e100007-0000-4000-8000-000000000007','pid_8e100008-0000-4000-8000-000000000008',$6,$7)`, f.o, f.w, f.e, exportFixtureRun, exportFixtureWorker, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&raw); err != nil {
++					t.Fatal(err)
++				}
++				assertExportProjection(t, f, state)
++				// Historical projection must not recollect the latest source version.
++				if _, err = f.owner.Exec(f.ctx, `UPDATE zasp_risk_findings SET version=version+1 WHERE id=$1`, exportFixtureFinding); err != nil {
++					t.Fatal(err)
++				}
++				assertExportProjection(t, f, state)
++				if _, err = f.owner.Exec(f.ctx, `UPDATE zasp_security_agent_effects SET result_digest=decode(repeat('fa',32),'hex') WHERE run_id=$1`, exportFixtureRun); err != nil {
++					t.Fatal(err)
++				}
++				if raw, err = readExportProjection(f, f.o, f.w, f.e, exportFixtureRun); err == nil {
++					t.Fatalf("settlement digest drift accepted: %s", raw)
++				}
++			})
++		})
++	}
++}
++
++func TestSecurityAgentExportProjectionStoppedParentPostgres(t *testing.T) {
++	for _, parent := range []string{"contained", "remediated", "inconclusive"} {
++		t.Run(parent, func(t *testing.T) {
++			runExportDBFixture(t, func(f *exportDBFixture) {
++				if _, err := f.dispatch(f.o, f.w, f.e, exportFixtureRun, exportFixtureLease); err != nil {
++					t.Fatal(err)
++				}
++				// This is pre-existing parent history, not a security outcome caused
++				// by export. The registered settler must preserve it and its version.
++				if _, err := f.owner.Exec(f.ctx, `UPDATE zasp_security_agent_runs SET state=$2,last_error_code='prior_parent_stop' WHERE run_id=$1`, exportFixtureRun, parent); err != nil {
++					t.Fatal(err)
++				}
++				var raw json.RawMessage
++				if err := f.worker.QueryRow(f.ctx, `SELECT zasp_sa_export_settlement_claim($1,'export-stopped-projection',60,1,$2,$3)`, exportFixtureWorker, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&raw); err != nil {
++					t.Fatal(err)
++				}
++				if err := f.worker.QueryRow(f.ctx, `SELECT zasp_sa_export_settle($1,$2,$3,$4,$5,'export-stopped-projection','pid_8e100007-0000-4000-8000-000000000007','pid_8e100008-0000-4000-8000-000000000008',$6,$7)`, f.o, f.w, f.e, exportFixtureRun, exportFixtureWorker, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&raw); err != nil {
++					t.Fatal(err)
++				}
++				var receipt struct {
++					State   string `json:"state"`
++					Reason  string `json:"reason"`
++					Version int    `json:"run_version"`
++				}
++				if json.Unmarshal(raw, &receipt) != nil || receipt.State != parent || receipt.Reason != "export_parent_stopped" || receipt.Version != 4 {
++					t.Fatalf("settlement changed stopped parent: %s", raw)
++				}
++				assertExportProjection(t, f, "known_failure")
++			})
++		})
++	}
++}
++
++func TestSecurityAgentExportProjectionRefusalsPostgres(t *testing.T) {
++	runExportDBFixture(t, func(f *exportDBFixture) {
++		for _, selection := range []json.RawMessage{json.RawMessage(`[]`), json.RawMessage(strings.Replace(string(f.selection), `"source_kind":`, `"private_locator":"DO_NOT_LEAK","source_kind":`, 1))} {
++			f.setSelection(t, selection)
++			if raw, err := readExportProjection(f, f.o, f.w, f.e, exportFixtureRun); err == nil {
++				t.Fatalf("malformed selection accepted: %s", raw)
++			}
++		}
++		f.setSelection(t, f.selection)
++		if _, err := f.owner.Exec(f.ctx, `UPDATE zasp_security_agent_plans SET plan=jsonb_set(plan,'{steps,0,target_id}',to_jsonb($2::text)) WHERE run_id=$1`, exportFixtureRun, exportFixtureFinding); err != nil {
++			t.Fatal(err)
++		}
++		f.setSelection(t, f.selection)
++		if raw, err := readExportProjection(f, f.o, f.w, f.e, exportFixtureRun); err == nil {
++			t.Fatalf("foreign parent target accepted: %s", raw)
++		}
++		if _, err := f.owner.Exec(f.ctx, `UPDATE zasp_security_agent_plans SET plan=jsonb_set(plan,'{steps,0,target_id}',to_jsonb($1::text)) WHERE run_id=$1`, exportFixtureRun); err != nil {
++			t.Fatal(err)
++		}
++		f.setSelection(t, f.selection)
++		if _, err := f.dispatch(f.o, f.w, f.e, exportFixtureRun, exportFixtureLease); err != nil {
++			t.Fatal(err)
++		}
++		assertExportProjection(t, f, "pending")
++		for i := 0; i < 4; i++ {
++			ids := []string{f.o, f.w, f.e, exportFixtureRun}
++			ids[i] = "pid_8e100099-0000-4000-8000-000000000099"
++			if raw, err := readExportProjection(f, ids[0], ids[1], ids[2], ids[3]); err != pgx.ErrNoRows {
++				t.Fatalf("foreign dimension %d exposed projection: %s %v", i, raw, err)
++			}
++		}
++		// Each committed corruption is restored before the next independent check.
++		for _, mutation := range []struct{ table, column, sql string }{
++			{"zasp_security_agent_effects", "result_digest", "decode(repeat('ae',32),'hex')"},
++			{"zasp_sa_export_links", "input_digest", "decode(repeat('ae',32),'hex')"},
++			{"zasp_sa_export_links", "selection", `jsonb_set(selection,'{0,source_version}','2')`},
++			{"zasp_compliance_export_jobs", "request", `jsonb_set(request,'{selection,0,source_version}','2')`},
++		} {
++			key := "run_id"
++			if mutation.table == "zasp_compliance_export_jobs" {
++				key = "agent_run_id"
++			}
++			var before string
++			if err := f.owner.QueryRow(f.ctx, fmt.Sprintf("SELECT %s::text FROM %s WHERE %s=$1", mutation.column, mutation.table, key), exportFixtureRun).Scan(&before); err != nil {
++				t.Fatal(err)
++			}
++			if _, err := f.owner.Exec(f.ctx, fmt.Sprintf("UPDATE %s SET %s=%s WHERE %s=$1", mutation.table, mutation.column, mutation.sql, key), exportFixtureRun); err != nil {
++				t.Fatal(err)
++			}
++			if raw, err := readExportProjection(f, f.o, f.w, f.e, exportFixtureRun); err == nil {
++				t.Errorf("%s.%s drift accepted: %s", mutation.table, mutation.column, raw)
++			}
++			cast := "jsonb"
++			if strings.HasSuffix(mutation.column, "digest") {
++				cast = "bytea"
++			}
++			if _, err := f.owner.Exec(f.ctx, fmt.Sprintf("UPDATE %s SET %s=$2::%s WHERE %s=$1", mutation.table, mutation.column, cast, key), exportFixtureRun, before); err != nil {
++				t.Fatal(err)
++			}
++		}
++		assertExportProjection(t, f, "pending")
++	})
++}

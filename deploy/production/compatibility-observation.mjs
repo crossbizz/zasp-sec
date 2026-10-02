@@ -79,11 +79,29 @@ export async function revalidatePrecisionIntake(previous, options, dependencies 
   return revalidateObservation(previous, options, dependencies, observePrecisionIntake);
 }
 
-async function observeConsumers(options, { run = exec, now = Date.now } = {}, { precision = false, backfill = false, query = false, intakeSchema = "runtime-event-v1" }) {
+// Schema52 observations preserve the existing runtime selections. They do not
+// assert that export API/worker capability is deployed or authorize a transition.
+export async function observeSchema52PrecisionConsumers(options, dependencies = {}) {
+  return observeConsumers(options, dependencies, { precision: true, auditSchema: true });
+}
+
+export async function observeSchema52PrecisionIntake(options, dependencies = {}) {
+  return observeConsumers(options, dependencies, { precision: true, auditSchema: true, intakeSchema: "runtime-event-v2" });
+}
+
+export async function revalidateSchema52PrecisionConsumers(previous, options, dependencies = {}) {
+  return revalidateObservation(previous, options, dependencies, observeSchema52PrecisionConsumers);
+}
+
+export async function revalidateSchema52PrecisionIntake(previous, options, dependencies = {}) {
+  return revalidateObservation(previous, options, dependencies, observeSchema52PrecisionIntake);
+}
+
+async function observeConsumers(options, { run = exec, now = Date.now } = {}, { precision = false, backfill = false, query = false, auditSchema = false, intakeSchema = "runtime-event-v1" }) {
   try {
     const forward = precision || backfill;
     const requiredConsumers = forward ? [...consumers, "agentsec-runtime-session-index-v2"] : consumers;
-    const schemaVersion = precision ? "51" : backfill ? "50" : "49";
+    const schemaVersion = precision ? auditSchema ? "52" : "51" : backfill ? "50" : "49";
     const { kubeconfig, context, namespace, namespaceUID, expected } = options;
     if (typeof kubeconfig !== "string" || !path.isAbsolute(kubeconfig) || !identity(context) || !identity(namespace) || !identity(namespaceUID) || !Array.isArray(expected) || !same(expected.map(e => e.name).sort(), [...requiredConsumers].sort())) reject();
     for (const e of expected) {

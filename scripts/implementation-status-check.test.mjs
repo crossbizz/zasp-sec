@@ -20,6 +20,43 @@ const canonicalStatusPath = path.join(
   "docs/internal/implementation_status_v1.5.md",
 );
 
+test("M7A-16 full policy contract cannot gain production credit from Block-only history", async () => {
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  const row = ledger.split("\n").find((line) => line.startsWith("M7A\tM7A-16\t"))?.split("\t");
+  assert.equal(row?.[2], "Complete", "preserve the historical execution record");
+  assert.equal(row?.[3], "component-only", "original typed Monitor/Block contract is not fully implemented");
+  await withLedger((value) => value.replace("M7A\tM7A-16\tComplete\tcomponent-only\t", "M7A\tM7A-16\tComplete\tproduction-available\t"), async (ledgerPath) => {
+    await assert.rejects(() => validateLedger({ ledgerPath, sourcePlanPath }), /production class production-available does not match audited component-only for M7A-16/);
+  });
+});
+
+test("M7A-25 full finding contract cannot gain production credit from status-only history", async () => {
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  const row = ledger.split("\n").find((line) => line.startsWith("M7A\tM7A-25\t"))?.split("\t");
+  assert.equal(row?.[2], "Complete", "preserve the historical execution record");
+  assert.equal(row?.[3], "component-only", "full assignment/status-note review and deployed proof remain open");
+  await withLedger((value) => value.replace("M7A\tM7A-25\tComplete\tcomponent-only\t", "M7A\tM7A-25\tComplete\tproduction-available\t"), async (ledgerPath) => {
+    await assert.rejects(() => validateLedger({ ledgerPath, sourcePlanPath }), /production class production-available does not match audited component-only for M7A-25/);
+  });
+});
+
+test("M2-46b environment class selection cannot gain production credit from name-only onboarding", async () => {
+  await withLedger((ledger) => ledger.replace(
+    /M2\tM2-46b\tComplete\t(?:component-only|production-available)\t/,
+    "M2\tM2-46b\tComplete\tproduction-available\t",
+  ), async (ledgerPath) => {
+    await assert.rejects(
+      () => validateLedger({ ledgerPath, sourcePlanPath }),
+      /production class production-available does not match audited component-only for M2-46b/,
+    );
+  });
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  const row = ledger.split("\n").find((line) => line.startsWith("M2\tM2-46b\t"))?.split("\t");
+  assert.equal(row?.[2], "Complete", "preserve the historical execution record");
+  assert.equal(row?.[3], "component-only", "name-only requests do not save the selected environment class");
+  assert.equal(row?.[4], "T11-identity-admin");
+});
+
 async function withLedger(mutator, assertion) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "zasp-ledger-"));
   const ledgerPath = path.join(directory, "ledger.tsv");
@@ -59,6 +96,41 @@ function rows(ledger) {
 
 test("canonical ledger, owner map and documentation satisfy every audited count", async () => {
   await validateLedger({ ledgerPath: canonicalLedgerPath, sourcePlanPath, statusPath: canonicalStatusPath });
+});
+
+test("group mapping update cannot regain production credit while its mounted acceptance is open", async () => {
+  await withLedger(
+    (ledger) => ledger.replace(
+      "M2\tM2-33\tComplete\tcomponent-only\t",
+      "M2\tM2-33\tComplete\tproduction-available\t",
+    ),
+    async (ledgerPath) => {
+      await assert.rejects(
+        () => validateLedger({ ledgerPath, sourcePlanPath }),
+        /production class production-available does not match audited component-only for M2-33/,
+      );
+    },
+  );
+});
+
+test("seed-backed compliance assembly and read routes remain component-only until current sources are mounted", async () => {
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  for (const id of ["M7-09", "M7-10", "M7-11"]) {
+    const row = rows(ledger).map((line) => line.split("\t")).find((columns) => columns[1] === id);
+    assert.ok(row, `${id} must remain tracked`);
+    assert.equal(row[3], "component-only", `${id} lacks mounted current-source authority`);
+    assert.equal(row[4], "T14-data-workflows");
+  }
+});
+
+test("both-framework mapping and control list remain component-only while HIPAA mappings are unmounted", async () => {
+  const ledger = await readFile(canonicalLedgerPath, "utf8");
+  for (const id of ["M7-08", "M7-15a"]) {
+    const row = rows(ledger).map((line) => line.split("\t")).find((columns) => columns[1] === id);
+    assert.ok(row, `${id} must remain tracked`);
+    assert.equal(row[3], "component-only", `${id} requires both SOC 2 Security and HIPAA mappings`);
+    assert.equal(row[4], "T14-data-workflows");
+  }
 });
 
 test("M1-33 cannot regain production credit before original queue proof and publication", async () => {
@@ -281,7 +353,7 @@ test("rejects audited production-class count drift", async () => {
     async (ledgerPath) => {
       await assert.rejects(
         () => validateLedger({ ledgerPath, sourcePlanPath }),
-        /production-available count is 533; expected 534/,
+        /production-available count is 522; expected 523/,
       );
     },
   );
@@ -360,7 +432,7 @@ test("rejects demotion of audited shipped identity administration tasks", async 
   for (const id of [
     "M2-20", "M2-21", "M2-22", "M2-23", "M2-24",
     "M2-25", "M2-26", "M2-27", "M2-28", "M2-29", "M2-30",
-    "M2-31", "M2-32", "M2-33", "M2-43c", "M2-43d", "M2-43e",
+    "M2-31", "M2-32", "M2-43c", "M2-43d", "M2-43e",
     "M2-47a", "M2-47b",
   ]) {
     await withLedger(
@@ -505,7 +577,7 @@ test("rejects a published availability summary that drifts from the audited ledg
   await withLedgerAndStatus(
     (ledger) => ledger,
     (status) => {
-      const expected = "| Production-available | 534 |";
+      const expected = "| Production-available | 523 |";
       assert.ok(status.includes(expected), "summary-drift fixture must match the current total");
       return status.replace(expected, "| Production-available | 496 |");
     },

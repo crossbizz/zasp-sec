@@ -1,0 +1,678 @@
+Task2 review round1: release60 migrations and CLI GREEN
+Authoritative final candidate identity (supersedes initial Task2 pins):
+checksum=37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab
+fingerprint=1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36
+Worktree=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Go=go1.25.6 darwin/arm64; GOTOOLCHAIN=local; modules offline
+This is component/registered-candidate evidence, not production proof.
+
+Final source SHA256 manifest:
+d6dd3c795d0c156e85f594ceac7715ebe16dedeb555204532809729df29f8b19  services/platform/migrations/sql/0060_production_discovery_schedule_replay.up.sql
+113eabad1c692bcb8a264ecc11c7c7ed75d0ec67ac9e3e34912922648b45d2ff  services/platform/migrations/sql/0060_production_discovery_schedule_replay.down.sql
+d19a8cd9639ea1c108ade09363cad9ec8d1771a3671e955b7bdf752be5d1b40e  services/platform/migrations/production_discovery_schedule_replay.go
+6506210c22f722947f70894478586eacb5bbf0777b98e30ccd73bf2b1802069e  services/platform/migrations/production_discovery_schedule_replay_test.go
+190a0294a54dfd59545685bab6f21d3c14209b13bf1ffbc23b5026abdd96a5b5  services/platform/migrations/migrations.go
+c0333f24f9c3fc86a18d297fcbffa9c508bc24303f4ea365f4d7ddd799e35c5e  services/platform/migrations/migrations_test.go
+c1b555e415bc0cbb7b025b906781f57760f0d88235a13dca7ef6a98aef820591  services/platform/agentsec-migrate/main.go
+4bd8f91f3bfa0897d5d91ac64e9bc7f2a48fb5deea87c37f2641f4955fd81fa8  services/platform/agentsec-migrate/main_test.go
+54c516de81699e07fe045e6a0da51f1eaa70c20c5df1b7fee772c467e376c451  services/platform/agentsec-migrate/bootstrap_release.go
+e05fdaf6e7079363c2ec00aa0ada9c6d08402148d6b81a769d7f880838edf716  services/platform/agentsec-migrate/bootstrap_release_test.go
+ee12db746e0e61003547c379681d675b0ee80ff7e71a1820ffabd17fcf25e5d5  services/platform/agentsec-migrate/release_readiness_test.go
+d740d5abeabf4c98553da1d757d3bba9726e4ec9b8226a866094b7dac4bccd9d  services/platform/agentsec-migrate/existing_tests_command_test.go
+f1a9cfa0a209b802ccc446b541ef90f2a86ae85bed0d220c60a759c5f04db77f  services/platform/agentsec-migrate/security_agent_exports_command_test.go
+97930991236be40a4d7b7d8ebfd84e6e34c39363ddcf3cebe4509f71d70da7a6  services/platform/agentsec-migrate/attack_lab_command_test.go
+
+Command cwd: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform
+$ GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-release60-task2-cache /opt/homebrew/bin/go test ./migrations -count=1 -v
+=== RUN   TestProductionAttackLabExecutionPinsDerivedMultiTenantAuthority
+--- PASS: TestProductionAttackLabExecutionPinsDerivedMultiTenantAuthority (0.00s)
+=== RUN   TestProductionDiscoveryExecutionMigrationOwnsLeasedExecutionAuthority
+--- PASS: TestProductionDiscoveryExecutionMigrationOwnsLeasedExecutionAuthority (0.00s)
+=== RUN   TestProductionIdentityAdministrationMetadataOwnsDurableProviderAuthority
+--- PASS: TestProductionIdentityAdministrationMetadataOwnsDurableProviderAuthority (0.00s)
+=== RUN   TestRunnerProductionIdentityAdministrationRequiresExactV18AndV19Readiness
+=== RUN   TestRunnerProductionIdentityAdministrationRequiresExactV18AndV19Readiness/rejects_v18_drift_before_mutation
+=== RUN   TestRunnerProductionIdentityAdministrationRequiresExactV18AndV19Readiness/rejects_v19_readiness_drift
+--- PASS: TestRunnerProductionIdentityAdministrationRequiresExactV18AndV19Readiness (0.01s)
+    --- PASS: TestRunnerProductionIdentityAdministrationRequiresExactV18AndV19Readiness/rejects_v18_drift_before_mutation (0.01s)
+    --- PASS: TestRunnerProductionIdentityAdministrationRequiresExactV18AndV19Readiness/rejects_v19_readiness_drift (0.00s)
+=== RUN   TestRunnerProductionDiscoveryExecutionRequiresLiveAdjacentReadiness
+=== RUN   TestRunnerProductionDiscoveryExecutionRequiresLiveAdjacentReadiness/preflight_drift_is_mutation_free
+=== RUN   TestRunnerProductionDiscoveryExecutionRequiresLiveAdjacentReadiness/postflight_readiness_is_required
+--- PASS: TestRunnerProductionDiscoveryExecutionRequiresLiveAdjacentReadiness (0.00s)
+    --- PASS: TestRunnerProductionDiscoveryExecutionRequiresLiveAdjacentReadiness/preflight_drift_is_mutation_free (0.00s)
+    --- PASS: TestRunnerProductionDiscoveryExecutionRequiresLiveAdjacentReadiness/postflight_readiness_is_required (0.00s)
+=== RUN   TestBaselineMetadataIsStableAndOpaque
+--- PASS: TestBaselineMetadataIsStableAndOpaque (0.00s)
+=== RUN   TestProductionCoreMetadataOwnsOnlyMountedDurableSessionAndCoreSchema
+--- PASS: TestProductionCoreMetadataOwnsOnlyMountedDurableSessionAndCoreSchema (0.00s)
+=== RUN   TestProductionWorkflowsMetadataOwnsAtomicScopedWorkflowState
+--- PASS: TestProductionWorkflowsMetadataOwnsAtomicScopedWorkflowState (0.00s)
+=== RUN   TestWorkflowReceiptsMetadataExtendsTheImmutableWorkflowRelease
+--- PASS: TestWorkflowReceiptsMetadataExtendsTheImmutableWorkflowRelease (0.00s)
+=== RUN   TestWorkflowReceiptSafetyMetadataSeparatesBrowserReceiptsAndBoundedCleanup
+--- PASS: TestWorkflowReceiptSafetyMetadataSeparatesBrowserReceiptsAndBoundedCleanup (0.00s)
+=== RUN   TestWorkflowReceiptProvenanceMetadataUsesDurableMarkerAndSafeIntermediateDowngrade
+--- PASS: TestWorkflowReceiptProvenanceMetadataUsesDurableMarkerAndSafeIntermediateDowngrade (0.00s)
+=== RUN   TestProductionAdministrationMetadataOwnsOnlyDurableLocalAdministration
+--- PASS: TestProductionAdministrationMetadataOwnsOnlyDurableLocalAdministration (0.00s)
+=== RUN   TestAPITokenRevealGrantsMigrationOwnsEncryptedRecoverableSecrets
+--- PASS: TestAPITokenRevealGrantsMigrationOwnsEncryptedRecoverableSecrets (0.00s)
+=== RUN   TestProductionRiskProjectionMigrationOwnsTypedRiskAuthority
+--- PASS: TestProductionRiskProjectionMigrationOwnsTypedRiskAuthority (0.00s)
+=== RUN   TestProductionDiscoveryMigrationOwnsScopedRuntimeAuthority
+--- PASS: TestProductionDiscoveryMigrationOwnsScopedRuntimeAuthority (0.00s)
+=== RUN   TestConnectorAuthorizationMigrationOwnsDurableProviderEffects
+--- PASS: TestConnectorAuthorizationMigrationOwnsDurableProviderEffects (0.00s)
+=== RUN   TestReferenceAuthorizationMigrationOwnsAtomicFirstPartyReferenceCompletion
+--- PASS: TestReferenceAuthorizationMigrationOwnsAtomicFirstPartyReferenceCompletion (0.00s)
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/empty
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/baseline
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/core
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/workflows
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/receipts
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/safety
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/provenance
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/administration
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/discovery
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/connector
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/reference
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/execution
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/typed_inventory
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_data_plane
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_gateway_reconciliation
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_ingest_reconciliation
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_execution
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/identity_administration
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_controls
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_autonomous
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_temporary_policy
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_connector_revocation
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_session_isolation
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/red_team_execution
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/attack_lab_execution
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_session_search
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_session_query
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_session_evidence
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_enrollment_pairing
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/reconciliation_lane_plan
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_candidate_authority
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_acceptance
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_correlation_routing
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_sandbox_binding
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_precision
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_budgets
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_run_context
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_existing_tests
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/compliance
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_attack_lab
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_exports
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_webhooks
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/schedule_replay
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/drift
+--- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift (1.07s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/empty (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/baseline (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/core (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/workflows (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/receipts (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/safety (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/provenance (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/administration (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/discovery (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/connector (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/reference (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/execution (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/typed_inventory (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_data_plane (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_gateway_reconciliation (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_ingest_reconciliation (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_execution (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/identity_administration (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_controls (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_autonomous (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_temporary_policy (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_connector_revocation (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_session_isolation (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/red_team_execution (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/attack_lab_execution (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_session_search (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_session_query (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_session_evidence (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_enrollment_pairing (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/reconciliation_lane_plan (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_candidate_authority (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_acceptance (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_correlation_routing (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_sandbox_binding (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_precision (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_budgets (0.01s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_run_context (0.01s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_existing_tests (0.02s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/compliance (0.05s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_attack_lab (0.07s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_exports (0.10s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_webhooks (0.12s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/schedule_replay (0.14s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/drift (0.00s)
+=== RUN   TestRunnerDownWorkflowReceiptProvenanceTakesMutationLockBeforeSchemaLock
+--- PASS: TestRunnerDownWorkflowReceiptProvenanceTakesMutationLockBeforeSchemaLock (0.00s)
+=== RUN   TestRunnerDownCoreRequiresExactCoreAndRestoresBaseline
+--- PASS: TestRunnerDownCoreRequiresExactCoreAndRestoresBaseline (0.00s)
+=== RUN   TestRunnerUpCoreRequiresBaselineAndRecordsExactRelease
+--- PASS: TestRunnerUpCoreRequiresBaselineAndRecordsExactRelease (0.00s)
+=== RUN   TestRunnerAppliesAndRemovesWorkflowReleaseOnlyFromExactAdjacentStates
+--- PASS: TestRunnerAppliesAndRemovesWorkflowReleaseOnlyFromExactAdjacentStates (0.00s)
+=== RUN   TestRunnerDownWorkflowReceiptSafetyTakesMutationLockBeforeSchemaLock
+--- PASS: TestRunnerDownWorkflowReceiptSafetyTakesMutationLockBeforeSchemaLock (0.00s)
+=== RUN   TestRunnerUpCreatesAndRecordsExactBaselineInOneTransaction
+--- PASS: TestRunnerUpCreatesAndRecordsExactBaselineInOneTransaction (0.00s)
+=== RUN   TestRunnerDownRequiresExactStateAndRestoresAbsence
+--- PASS: TestRunnerDownRequiresExactStateAndRestoresAbsence (0.00s)
+=== RUN   TestRunnerStateReportsOnlyAbsentOrExactBaseline
+=== RUN   TestRunnerStateReportsOnlyAbsentOrExactBaseline/absent
+=== RUN   TestRunnerStateReportsOnlyAbsentOrExactBaseline/exact
+=== RUN   TestRunnerStateReportsOnlyAbsentOrExactBaseline/wrong_version
+=== RUN   TestRunnerStateReportsOnlyAbsentOrExactBaseline/wrong_name
+=== RUN   TestRunnerStateReportsOnlyAbsentOrExactBaseline/wrong_checksum
+=== RUN   TestRunnerStateReportsOnlyAbsentOrExactBaseline/extra_row
+--- PASS: TestRunnerStateReportsOnlyAbsentOrExactBaseline (0.00s)
+    --- PASS: TestRunnerStateReportsOnlyAbsentOrExactBaseline/absent (0.00s)
+    --- PASS: TestRunnerStateReportsOnlyAbsentOrExactBaseline/exact (0.00s)
+    --- PASS: TestRunnerStateReportsOnlyAbsentOrExactBaseline/wrong_version (0.00s)
+    --- PASS: TestRunnerStateReportsOnlyAbsentOrExactBaseline/wrong_name (0.00s)
+    --- PASS: TestRunnerStateReportsOnlyAbsentOrExactBaseline/wrong_checksum (0.00s)
+    --- PASS: TestRunnerStateReportsOnlyAbsentOrExactBaseline/extra_row (0.00s)
+=== RUN   TestRunnerRejectsExistingOrMissingStateWithoutMutation
+=== RUN   TestRunnerRejectsExistingOrMissingStateWithoutMutation/up_exact_collision
+=== RUN   TestRunnerRejectsExistingOrMissingStateWithoutMutation/up_foreign_collision
+=== RUN   TestRunnerRejectsExistingOrMissingStateWithoutMutation/down_absent
+--- PASS: TestRunnerRejectsExistingOrMissingStateWithoutMutation (0.00s)
+    --- PASS: TestRunnerRejectsExistingOrMissingStateWithoutMutation/up_exact_collision (0.00s)
+    --- PASS: TestRunnerRejectsExistingOrMissingStateWithoutMutation/up_foreign_collision (0.00s)
+    --- PASS: TestRunnerRejectsExistingOrMissingStateWithoutMutation/down_absent (0.00s)
+=== RUN   TestRunnerRollsBackWithFixedErrorsAndCleanupPrecedence
+=== RUN   TestRunnerRollsBackWithFixedErrorsAndCleanupPrecedence/rollback_precedence
+=== RUN   TestRunnerRollsBackWithFixedErrorsAndCleanupPrecedence/query
+=== RUN   TestRunnerRollsBackWithFixedErrorsAndCleanupPrecedence/exec
+=== RUN   TestRunnerRollsBackWithFixedErrorsAndCleanupPrecedence/commit
+--- PASS: TestRunnerRollsBackWithFixedErrorsAndCleanupPrecedence (0.00s)
+    --- PASS: TestRunnerRollsBackWithFixedErrorsAndCleanupPrecedence/rollback_precedence (0.00s)
+    --- PASS: TestRunnerRollsBackWithFixedErrorsAndCleanupPrecedence/query (0.00s)
+    --- PASS: TestRunnerRollsBackWithFixedErrorsAndCleanupPrecedence/exec (0.00s)
+    --- PASS: TestRunnerRollsBackWithFixedErrorsAndCleanupPrecedence/commit (0.00s)
+=== RUN   TestRunnerRollsBackTransactionReturnedWithBeginError
+--- PASS: TestRunnerRollsBackTransactionReturnedWithBeginError (0.00s)
+=== RUN   TestRunnerRejectsCancellationAndMalformedBoundaries
+--- PASS: TestRunnerRejectsCancellationAndMalformedBoundaries (0.00s)
+=== RUN   TestProductionApprovalNotificationPinsDurableMinimalTenantAuthority
+--- PASS: TestProductionApprovalNotificationPinsDurableMinimalTenantAuthority (0.00s)
+=== RUN   TestAuditExportConfigureRunnerPinsResultAndFinalReadiness
+=== RUN   TestAuditExportConfigureRunnerPinsResultAndFinalReadiness/healthy
+=== RUN   TestAuditExportConfigureRunnerPinsResultAndFinalReadiness/wrong-policy-result
+=== RUN   TestAuditExportConfigureRunnerPinsResultAndFinalReadiness/final-drift
+--- PASS: TestAuditExportConfigureRunnerPinsResultAndFinalReadiness (0.02s)
+    --- PASS: TestAuditExportConfigureRunnerPinsResultAndFinalReadiness/healthy (0.01s)
+    --- PASS: TestAuditExportConfigureRunnerPinsResultAndFinalReadiness/wrong-policy-result (0.01s)
+    --- PASS: TestAuditExportConfigureRunnerPinsResultAndFinalReadiness/final-drift (0.01s)
+=== RUN   TestAuditExportPolicyDigestCanonicalBytes
+--- PASS: TestAuditExportPolicyDigestCanonicalBytes (0.00s)
+=== RUN   TestAuditExportRegisterWorkersRequiresBothReadinessChecks
+=== RUN   TestAuditExportRegisterWorkersRequiresBothReadinessChecks/healthy
+=== RUN   TestAuditExportRegisterWorkersRequiresBothReadinessChecks/registration-refused
+=== RUN   TestAuditExportRegisterWorkersRequiresBothReadinessChecks/final-drift
+--- PASS: TestAuditExportRegisterWorkersRequiresBothReadinessChecks (0.02s)
+    --- PASS: TestAuditExportRegisterWorkersRequiresBothReadinessChecks/healthy (0.01s)
+    --- PASS: TestAuditExportRegisterWorkersRequiresBothReadinessChecks/registration-refused (0.01s)
+    --- PASS: TestAuditExportRegisterWorkersRequiresBothReadinessChecks/final-drift (0.01s)
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#03
+--- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority (4.92s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future (0.09s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future (0.10s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future (0.09s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#01 (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#01 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#01 (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#01 (0.09s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#01 (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#01 (0.09s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#02 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#02 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#02 (0.10s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#02 (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#02 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#02 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#02 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#02 (0.08s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#02 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#02 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#02 (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#02 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#02 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#02 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#02 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#02 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#02 (0.10s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#02 (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#02 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#02 (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#02 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#03 (0.13s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#03 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#03 (0.12s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#03 (0.10s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#03 (0.10s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#03 (0.10s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#03 (0.13s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#03 (0.12s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#03 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#03 (0.12s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#03 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#03 (0.12s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#03 (0.12s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#03 (0.13s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#03 (0.13s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#03 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#03 (0.14s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#03 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#03 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#03 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#03 (0.14s)
+=== RUN   TestProductionAuditExportsRunnerVersion
+=== RUN   TestProductionAuditExportsRunnerVersion/healthy
+=== RUN   TestProductionAuditExportsRunnerVersion/wrong52name
+=== RUN   TestProductionAuditExportsRunnerVersion/wrong52checksum
+=== RUN   TestProductionAuditExportsRunnerVersion/wrong51checksum
+=== RUN   TestProductionAuditExportsRunnerVersion/gap
+=== RUN   TestProductionAuditExportsRunnerVersion/unknown53
+--- PASS: TestProductionAuditExportsRunnerVersion (0.02s)
+    --- PASS: TestProductionAuditExportsRunnerVersion/healthy (0.00s)
+    --- PASS: TestProductionAuditExportsRunnerVersion/wrong52name (0.00s)
+    --- PASS: TestProductionAuditExportsRunnerVersion/wrong52checksum (0.00s)
+    --- PASS: TestProductionAuditExportsRunnerVersion/wrong51checksum (0.00s)
+    --- PASS: TestProductionAuditExportsRunnerVersion/gap (0.00s)
+    --- PASS: TestProductionAuditExportsRunnerVersion/unknown53 (0.01s)
+=== RUN   TestProductionAuditExportsInvalidRunner
+--- PASS: TestProductionAuditExportsInvalidRunner (0.00s)
+=== RUN   TestComplianceRegistrationTransaction
+=== RUN   TestComplianceRegistrationTransaction/healthy
+=== RUN   TestComplianceRegistrationTransaction/healthy57
+=== RUN   TestComplianceRegistrationTransaction/healthy58
+=== RUN   TestComplianceRegistrationTransaction/lower-release
+=== RUN   TestComplianceRegistrationTransaction/future-release
+=== RUN   TestComplianceRegistrationTransaction/wrong-checksum
+=== RUN   TestComplianceRegistrationTransaction/initial-drift
+=== RUN   TestComplianceRegistrationTransaction/family-drift
+=== RUN   TestComplianceRegistrationTransaction/registration-false
+=== RUN   TestComplianceRegistrationTransaction/registration-error
+=== RUN   TestComplianceRegistrationTransaction/final-drift
+=== RUN   TestComplianceRegistrationTransaction/final-error
+=== RUN   TestComplianceRegistrationTransaction/commit-error
+=== RUN   TestComplianceRegistrationTransaction/rollback-error
+=== RUN   TestComplianceRegistrationTransaction/cancel-registration
+=== RUN   TestComplianceRegistrationTransaction/cancel-final
+--- PASS: TestComplianceRegistrationTransaction (2.26s)
+    --- PASS: TestComplianceRegistrationTransaction/healthy (0.15s)
+    --- PASS: TestComplianceRegistrationTransaction/healthy57 (0.21s)
+    --- PASS: TestComplianceRegistrationTransaction/healthy58 (0.24s)
+    --- PASS: TestComplianceRegistrationTransaction/lower-release (0.07s)
+    --- PASS: TestComplianceRegistrationTransaction/future-release (0.04s)
+    --- PASS: TestComplianceRegistrationTransaction/wrong-checksum (0.11s)
+    --- PASS: TestComplianceRegistrationTransaction/initial-drift (0.11s)
+    --- PASS: TestComplianceRegistrationTransaction/family-drift (0.13s)
+    --- PASS: TestComplianceRegistrationTransaction/registration-false (0.16s)
+    --- PASS: TestComplianceRegistrationTransaction/registration-error (0.15s)
+    --- PASS: TestComplianceRegistrationTransaction/final-drift (0.15s)
+    --- PASS: TestComplianceRegistrationTransaction/final-error (0.14s)
+    --- PASS: TestComplianceRegistrationTransaction/commit-error (0.15s)
+    --- PASS: TestComplianceRegistrationTransaction/rollback-error (0.15s)
+    --- PASS: TestComplianceRegistrationTransaction/cancel-registration (0.16s)
+    --- PASS: TestComplianceRegistrationTransaction/cancel-final (0.14s)
+=== RUN   TestComplianceRegistrationInvalidRunnerAndContext
+--- PASS: TestComplianceRegistrationInvalidRunnerAndContext (0.00s)
+=== RUN   TestProductionDiscoveryScheduleReplayMetadata
+--- PASS: TestProductionDiscoveryScheduleReplayMetadata (0.06s)
+=== RUN   TestProductionDiscoveryScheduleReplayRunnerFailsClosed
+=== RUN   TestProductionDiscoveryScheduleReplayRunnerFailsClosed/healthy
+=== RUN   TestProductionDiscoveryScheduleReplayRunnerFailsClosed/predecessor-drift
+=== RUN   TestProductionDiscoveryScheduleReplayRunnerFailsClosed/final-drift
+--- PASS: TestProductionDiscoveryScheduleReplayRunnerFailsClosed (0.85s)
+    --- PASS: TestProductionDiscoveryScheduleReplayRunnerFailsClosed/healthy (0.30s)
+    --- PASS: TestProductionDiscoveryScheduleReplayRunnerFailsClosed/predecessor-drift (0.15s)
+    --- PASS: TestProductionDiscoveryScheduleReplayRunnerFailsClosed/final-drift (0.30s)
+=== RUN   TestProductionDiscoveryScheduleReplayDownRequiresExactIdentity
+=== RUN   TestProductionDiscoveryScheduleReplayDownRequiresExactIdentity/healthy
+=== RUN   TestProductionDiscoveryScheduleReplayDownRequiresExactIdentity/current-drift
+=== RUN   TestProductionDiscoveryScheduleReplayDownRequiresExactIdentity/restored-drift
+--- PASS: TestProductionDiscoveryScheduleReplayDownRequiresExactIdentity (0.86s)
+    --- PASS: TestProductionDiscoveryScheduleReplayDownRequiresExactIdentity/healthy (0.29s)
+    --- PASS: TestProductionDiscoveryScheduleReplayDownRequiresExactIdentity/current-drift (0.17s)
+    --- PASS: TestProductionDiscoveryScheduleReplayDownRequiresExactIdentity/restored-drift (0.29s)
+=== RUN   TestProductionHomeAttentionPinsTenantScopedSummaryAuthority
+--- PASS: TestProductionHomeAttentionPinsTenantScopedSummaryAuthority (0.00s)
+=== RUN   TestProductionIntegrationSetupPinsTenantScopedReadOnlyAuthority
+--- PASS: TestProductionIntegrationSetupPinsTenantScopedReadOnlyAuthority (0.00s)
+=== RUN   TestProductionPolicyDeploymentPinsSingleWriterAuthority
+--- PASS: TestProductionPolicyDeploymentPinsSingleWriterAuthority (0.00s)
+=== RUN   TestProductionPolicyDeploymentTemporaryTargetsOnlyEnqueueCentralWriter
+--- PASS: TestProductionPolicyDeploymentTemporaryTargetsOnlyEnqueueCentralWriter (0.00s)
+=== RUN   TestProductionRecoveryPinsTenantScopedExecutionAuthority
+--- PASS: TestProductionRecoveryPinsTenantScopedExecutionAuthority (0.00s)
+=== RUN   TestProductionRecoveryFunctionsFenceScopeLeaseAndDigest
+--- PASS: TestProductionRecoveryFunctionsFenceScopeLeaseAndDigest (0.00s)
+=== RUN   TestProductionSecurityAgentAttackPathPinsTenantFairVersionBoundAuthority
+--- PASS: TestProductionSecurityAgentAttackPathPinsTenantFairVersionBoundAuthority (0.00s)
+=== RUN   TestProductionSecurityAgentAttackPathPlannerKeepsEvidenceUntrustedAndExact
+--- PASS: TestProductionSecurityAgentAttackPathPlannerKeepsEvidenceUntrustedAndExact (0.00s)
+=== RUN   TestProductionSecurityAgentPlannerPinsLeaseFencedFailClosedAuthority
+--- PASS: TestProductionSecurityAgentPlannerPinsLeaseFencedFailClosedAuthority (0.00s)
+=== RUN   TestProductionSecurityAgentPlannerContextAndCandidateAreStructurallyBounded
+--- PASS: TestProductionSecurityAgentPlannerContextAndCandidateAreStructurallyBounded (0.00s)
+=== RUN   TestProductionSecurityAgentWebhooksMetadata
+--- PASS: TestProductionSecurityAgentWebhooksMetadata (0.06s)
+=== RUN   TestProductionSecurityAgentWebhooksRunnerFailsClosed
+=== RUN   TestProductionSecurityAgentWebhooksRunnerFailsClosed/healthy
+=== RUN   TestProductionSecurityAgentWebhooksRunnerFailsClosed/predecessor-drift
+=== RUN   TestProductionSecurityAgentWebhooksRunnerFailsClosed/final-drift
+--- PASS: TestProductionSecurityAgentWebhooksRunnerFailsClosed (0.70s)
+    --- PASS: TestProductionSecurityAgentWebhooksRunnerFailsClosed/healthy (0.25s)
+    --- PASS: TestProductionSecurityAgentWebhooksRunnerFailsClosed/predecessor-drift (0.13s)
+    --- PASS: TestProductionSecurityAgentWebhooksRunnerFailsClosed/final-drift (0.24s)
+=== RUN   TestProductionWorkflowCompatibilityPinsLatestWorkflowWrites
+--- PASS: TestProductionWorkflowCompatibilityPinsLatestWorkflowWrites (0.00s)
+=== RUN   TestProductionRedTeamExecutionMetadataPinsDurableTenantAuthority
+--- PASS: TestProductionRedTeamExecutionMetadataPinsDurableTenantAuthority (0.00s)
+=== RUN   TestProductionRuntimeDataPlaneRegistersImmutableV15Authority
+--- PASS: TestProductionRuntimeDataPlaneRegistersImmutableV15Authority (0.00s)
+=== RUN   TestRunnerProductionRuntimeDataPlaneRequiresExactV14AndV15Readiness
+=== RUN   TestRunnerProductionRuntimeDataPlaneRequiresExactV14AndV15Readiness/preflight_drift_is_mutation_free
+=== RUN   TestRunnerProductionRuntimeDataPlaneRequiresExactV14AndV15Readiness/postflight_drift_rolls_back
+=== RUN   TestRunnerProductionRuntimeDataPlaneRequiresExactV14AndV15Readiness/used_runtime_authority_blocks_rollback_before_mutation
+--- PASS: TestRunnerProductionRuntimeDataPlaneRequiresExactV14AndV15Readiness (0.00s)
+    --- PASS: TestRunnerProductionRuntimeDataPlaneRequiresExactV14AndV15Readiness/preflight_drift_is_mutation_free (0.00s)
+    --- PASS: TestRunnerProductionRuntimeDataPlaneRequiresExactV14AndV15Readiness/postflight_drift_rolls_back (0.00s)
+    --- PASS: TestRunnerProductionRuntimeDataPlaneRequiresExactV14AndV15Readiness/used_runtime_authority_blocks_rollback_before_mutation (0.00s)
+=== RUN   TestProductionRuntimeGatewayReconciliationRegistersImmutableV16Authority
+--- PASS: TestProductionRuntimeGatewayReconciliationRegistersImmutableV16Authority (0.00s)
+=== RUN   TestRunnerProductionRuntimeGatewayReconciliationRequiresExactV15AndV16Readiness
+=== RUN   TestRunnerProductionRuntimeGatewayReconciliationRequiresExactV15AndV16Readiness/preflight_drift_is_mutation_free
+=== RUN   TestRunnerProductionRuntimeGatewayReconciliationRequiresExactV15AndV16Readiness/used_reconciliation_blocks_rollback_before_mutation
+--- PASS: TestRunnerProductionRuntimeGatewayReconciliationRequiresExactV15AndV16Readiness (0.00s)
+    --- PASS: TestRunnerProductionRuntimeGatewayReconciliationRequiresExactV15AndV16Readiness/preflight_drift_is_mutation_free (0.00s)
+    --- PASS: TestRunnerProductionRuntimeGatewayReconciliationRequiresExactV15AndV16Readiness/used_reconciliation_blocks_rollback_before_mutation (0.00s)
+=== RUN   TestProductionRuntimeIngestReconciliationRegistersImmutableV17
+--- PASS: TestProductionRuntimeIngestReconciliationRegistersImmutableV17 (0.00s)
+=== RUN   TestRunnerProductionRuntimeIngestReconciliationRequiresExactV16AndV17Readiness
+=== RUN   TestRunnerProductionRuntimeIngestReconciliationRequiresExactV16AndV17Readiness/preflight_drift_is_mutation_free
+=== RUN   TestRunnerProductionRuntimeIngestReconciliationRequiresExactV16AndV17Readiness/postflight_drift_rolls_back
+--- PASS: TestRunnerProductionRuntimeIngestReconciliationRequiresExactV16AndV17Readiness (0.00s)
+    --- PASS: TestRunnerProductionRuntimeIngestReconciliationRequiresExactV16AndV17Readiness/preflight_drift_is_mutation_free (0.00s)
+    --- PASS: TestRunnerProductionRuntimeIngestReconciliationRequiresExactV16AndV17Readiness/postflight_drift_rolls_back (0.00s)
+=== RUN   TestProductionSecurityAgentConnectorRevocationOwnsSupervisedProviderReconciliation
+=== PAUSE TestProductionSecurityAgentConnectorRevocationOwnsSupervisedProviderReconciliation
+=== RUN   TestProductionSecurityAgentConnectorRevocationRunnerRejectsMissingDatabase
+=== PAUSE TestProductionSecurityAgentConnectorRevocationRunnerRejectsMissingDatabase
+=== RUN   TestProductionSecurityAgentControlsOwnsVersionedExecutionSwitchAuthority
+--- PASS: TestProductionSecurityAgentControlsOwnsVersionedExecutionSwitchAuthority (0.00s)
+=== RUN   TestProductionSecurityAgentControlsSemanticFingerprintIsPinned
+--- PASS: TestProductionSecurityAgentControlsSemanticFingerprintIsPinned (0.00s)
+=== RUN   TestProductionSecurityAgentControlsRunnerRejectsMissingDatabase
+--- PASS: TestProductionSecurityAgentControlsRunnerRejectsMissingDatabase (0.00s)
+=== RUN   TestProductionSecurityAgentExecutionMetadataOwnsTheCompleteScopedAuthority
+--- PASS: TestProductionSecurityAgentExecutionMetadataOwnsTheCompleteScopedAuthority (0.00s)
+=== RUN   TestRunnerProductionSecurityAgentExecutionRequiresExactV17AndV18Readiness
+=== RUN   TestRunnerProductionSecurityAgentExecutionRequiresExactV17AndV18Readiness/preflight_drift_is_mutation_free
+=== RUN   TestRunnerProductionSecurityAgentExecutionRequiresExactV17AndV18Readiness/postflight_drift_rolls_back
+--- PASS: TestRunnerProductionSecurityAgentExecutionRequiresExactV17AndV18Readiness (0.00s)
+    --- PASS: TestRunnerProductionSecurityAgentExecutionRequiresExactV17AndV18Readiness/preflight_drift_is_mutation_free (0.00s)
+    --- PASS: TestRunnerProductionSecurityAgentExecutionRequiresExactV17AndV18Readiness/postflight_drift_rolls_back (0.00s)
+=== RUN   TestGlobalExecutionControlStrictResult
+--- PASS: TestGlobalExecutionControlStrictResult (0.00s)
+=== RUN   TestGlobalExecutionControlTransport
+=== RUN   TestGlobalExecutionControlTransport/read/success
+=== RUN   TestGlobalExecutionControlTransport/read/replay
+=== RUN   TestGlobalExecutionControlTransport/read/malformed
+=== RUN   TestGlobalExecutionControlTransport/read/query-error
+=== RUN   TestGlobalExecutionControlTransport/read/begin-error
+=== RUN   TestGlobalExecutionControlTransport/read/commit-error
+=== RUN   TestGlobalExecutionControlTransport/read/rollback-error
+=== RUN   TestGlobalExecutionControlTransport/read/canceled
+=== RUN   TestGlobalExecutionControlTransport/read/nil-context
+=== RUN   TestGlobalExecutionControlTransport/set/success
+=== RUN   TestGlobalExecutionControlTransport/set/replay
+=== RUN   TestGlobalExecutionControlTransport/set/malformed
+=== RUN   TestGlobalExecutionControlTransport/set/query-error
+=== RUN   TestGlobalExecutionControlTransport/set/begin-error
+=== RUN   TestGlobalExecutionControlTransport/set/commit-error
+=== RUN   TestGlobalExecutionControlTransport/set/rollback-error
+=== RUN   TestGlobalExecutionControlTransport/set/canceled
+=== RUN   TestGlobalExecutionControlTransport/set/nil-context
+--- PASS: TestGlobalExecutionControlTransport (0.42s)
+    --- PASS: TestGlobalExecutionControlTransport/read/success (0.02s)
+    --- PASS: TestGlobalExecutionControlTransport/read/replay (0.02s)
+    --- PASS: TestGlobalExecutionControlTransport/read/malformed (0.02s)
+    --- PASS: TestGlobalExecutionControlTransport/read/query-error (0.02s)
+    --- PASS: TestGlobalExecutionControlTransport/read/begin-error (0.01s)
+    --- PASS: TestGlobalExecutionControlTransport/read/commit-error (0.03s)
+    --- PASS: TestGlobalExecutionControlTransport/read/rollback-error (0.03s)
+    --- PASS: TestGlobalExecutionControlTransport/read/canceled (0.01s)
+    --- PASS: TestGlobalExecutionControlTransport/read/nil-context (0.01s)
+    --- PASS: TestGlobalExecutionControlTransport/set/success (0.02s)
+    --- PASS: TestGlobalExecutionControlTransport/set/replay (0.02s)
+    --- PASS: TestGlobalExecutionControlTransport/set/malformed (0.03s)
+    --- PASS: TestGlobalExecutionControlTransport/set/query-error (0.02s)
+    --- PASS: TestGlobalExecutionControlTransport/set/begin-error (0.01s)
+    --- PASS: TestGlobalExecutionControlTransport/set/commit-error (0.02s)
+    --- PASS: TestGlobalExecutionControlTransport/set/rollback-error (0.03s)
+    --- PASS: TestGlobalExecutionControlTransport/set/canceled (0.02s)
+    --- PASS: TestGlobalExecutionControlTransport/set/nil-context (0.01s)
+=== RUN   TestProductionSecurityAgentSessionIsolationOwnsExactGatewaySessionAuthority
+=== PAUSE TestProductionSecurityAgentSessionIsolationOwnsExactGatewaySessionAuthority
+=== RUN   TestProductionSecurityAgentSessionIsolationRunnerRejectsMissingDatabase
+=== PAUSE TestProductionSecurityAgentSessionIsolationRunnerRejectsMissingDatabase
+=== RUN   TestProductionSecurityAgentTemporaryPolicyOwnsSeparateActionWorkerAuthority
+=== PAUSE TestProductionSecurityAgentTemporaryPolicyOwnsSeparateActionWorkerAuthority
+=== RUN   TestProductionSecurityAgentTemporaryPolicyRunnerRejectsMissingDatabase
+=== PAUSE TestProductionSecurityAgentTemporaryPolicyRunnerRejectsMissingDatabase
+=== RUN   TestProductionTypedInventoryCutoverRegistersImmutableV14Authority
+--- PASS: TestProductionTypedInventoryCutoverRegistersImmutableV14Authority (0.00s)
+=== RUN   TestRunnerProductionTypedInventoryCutoverRequiresExactV13AndV14Readiness
+=== RUN   TestRunnerProductionTypedInventoryCutoverRequiresExactV13AndV14Readiness/preflight_drift_is_mutation_free
+=== RUN   TestRunnerProductionTypedInventoryCutoverRequiresExactV13AndV14Readiness/postflight_drift_rolls_back
+=== RUN   TestRunnerProductionTypedInventoryCutoverRequiresExactV13AndV14Readiness/cutover_blocks_rollback_before_mutation
+--- PASS: TestRunnerProductionTypedInventoryCutoverRequiresExactV13AndV14Readiness (0.00s)
+    --- PASS: TestRunnerProductionTypedInventoryCutoverRequiresExactV13AndV14Readiness/preflight_drift_is_mutation_free (0.00s)
+    --- PASS: TestRunnerProductionTypedInventoryCutoverRequiresExactV13AndV14Readiness/postflight_drift_rolls_back (0.00s)
+    --- PASS: TestRunnerProductionTypedInventoryCutoverRequiresExactV13AndV14Readiness/cutover_blocks_rollback_before_mutation (0.00s)
+=== CONT  TestProductionSecurityAgentConnectorRevocationOwnsSupervisedProviderReconciliation
+=== CONT  TestProductionSecurityAgentSessionIsolationRunnerRejectsMissingDatabase
+=== CONT  TestProductionSecurityAgentTemporaryPolicyRunnerRejectsMissingDatabase
+=== CONT  TestProductionSecurityAgentConnectorRevocationRunnerRejectsMissingDatabase
+--- PASS: TestProductionSecurityAgentTemporaryPolicyRunnerRejectsMissingDatabase (0.00s)
+--- PASS: TestProductionSecurityAgentConnectorRevocationRunnerRejectsMissingDatabase (0.00s)
+=== CONT  TestProductionSecurityAgentSessionIsolationOwnsExactGatewaySessionAuthority
+--- PASS: TestProductionSecurityAgentSessionIsolationRunnerRejectsMissingDatabase (0.00s)
+=== CONT  TestProductionSecurityAgentTemporaryPolicyOwnsSeparateActionWorkerAuthority
+--- PASS: TestProductionSecurityAgentSessionIsolationOwnsExactGatewaySessionAuthority (0.00s)
+--- PASS: TestProductionSecurityAgentConnectorRevocationOwnsSupervisedProviderReconciliation (0.00s)
+--- PASS: TestProductionSecurityAgentTemporaryPolicyOwnsSeparateActionWorkerAuthority (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/migrations	11.936s
+
+exit=0; RUN=289; PASS=289; FAIL=0; SKIP=0
+
+$ GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-release60-task2-cache /opt/homebrew/bin/go test ./agentsec-migrate -run '^(TestProductionDiscoveryScheduleReplayCommands|TestProductionDiscoveryScheduleReplayForwardReadiness|TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals|TestRegisterForwardReleaseStopsOnFailedAuthorityOrReadiness|TestExistingTestsExplicitReleaseCommands|TestExistingTestsReleaseBoundaries|TestSecurityAgentExportsExplicitReleaseCommands|TestSecurityAgentExportsForwardReadiness|TestAttackLabExplicitReleaseCommands|TestSecurityAgentWebhooksExplicitReleaseCommands|TestRegisteredMigrationWebhookCommands|TestRegisteredMigrationBootstrapsBeforeAuditExports|TestRegisteredMigrationBootstrapFailureNeverCrosses51|TestRegisteredMigrationDoesNotRebindHistoricalOrLaterReleases)$' -count=1 -v
+=== RUN   TestAttackLabExplicitReleaseCommands
+--- PASS: TestAttackLabExplicitReleaseCommands (0.00s)
+=== RUN   TestRegisteredMigrationBootstrapsBeforeAuditExports
+--- PASS: TestRegisteredMigrationBootstrapsBeforeAuditExports (0.00s)
+=== RUN   TestRegisteredMigrationBootstrapFailureNeverCrosses51
+--- PASS: TestRegisteredMigrationBootstrapFailureNeverCrosses51 (0.00s)
+=== RUN   TestRegisteredMigrationDoesNotRebindHistoricalOrLaterReleases
+--- PASS: TestRegisteredMigrationDoesNotRebindHistoricalOrLaterReleases (0.00s)
+=== RUN   TestRegisteredMigrationWebhookCommands
+=== RUN   TestRegisteredMigrationWebhookCommands/upgrade
+=== RUN   TestRegisteredMigrationWebhookCommands/downgrade
+--- PASS: TestRegisteredMigrationWebhookCommands (0.00s)
+    --- PASS: TestRegisteredMigrationWebhookCommands/upgrade (0.00s)
+    --- PASS: TestRegisteredMigrationWebhookCommands/downgrade (0.00s)
+=== RUN   TestProductionDiscoveryScheduleReplayCommands
+--- PASS: TestProductionDiscoveryScheduleReplayCommands (0.00s)
+=== RUN   TestExistingTestsExplicitReleaseCommands
+--- PASS: TestExistingTestsExplicitReleaseCommands (0.00s)
+=== RUN   TestExistingTestsReleaseBoundaries
+--- PASS: TestExistingTestsReleaseBoundaries (0.00s)
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-51
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-52
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-53
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-54
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-55
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-56
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-57
+--- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals (0.14s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-51 (0.00s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-52 (0.00s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-53 (0.01s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-54 (0.00s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-55 (0.01s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-56 (0.02s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-57 (0.02s)
+=== RUN   TestRegisterForwardReleaseStopsOnFailedAuthorityOrReadiness
+--- PASS: TestRegisterForwardReleaseStopsOnFailedAuthorityOrReadiness (0.03s)
+=== RUN   TestProductionDiscoveryScheduleReplayForwardReadiness
+--- PASS: TestProductionDiscoveryScheduleReplayForwardReadiness (0.09s)
+=== RUN   TestSecurityAgentExportsExplicitReleaseCommands
+--- PASS: TestSecurityAgentExportsExplicitReleaseCommands (0.00s)
+=== RUN   TestSecurityAgentExportsForwardReadiness
+--- PASS: TestSecurityAgentExportsForwardReadiness (0.09s)
+=== RUN   TestSecurityAgentWebhooksExplicitReleaseCommands
+--- PASS: TestSecurityAgentWebhooksExplicitReleaseCommands (0.04s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate	1.023s
+
+exit=0; RUN=23; PASS=23; FAIL=0; SKIP=0
+
+Known inherited unsupported up-to-56 expectation failures remain outside the focused CLI selector:
+TestAuditExportsCommandsPreserveHistoricalAndFutureBoundaries
+TestPrecisionExplicitReleaseCommand
+TestSandboxExplicitCommands
+They were not changed or claimed passing. Full repository/agentsec-migrate package success is not claimed.

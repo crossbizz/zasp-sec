@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
@@ -26,6 +27,7 @@ type productionDiscoveryClientConfig struct {
 	ParserVersion              string
 	ToolVersion                string
 	KubernetesAllowedCIDRs     []string
+	KubernetesNetwork          *kubernetesdiscovery.CollectionNetwork
 	ProviderTimeout            time.Duration
 	ReadinessTimeout           time.Duration
 	Clock                      func() time.Time
@@ -75,10 +77,33 @@ func (factory *productionLiveDiscoveryCollectorFactory) collectionFactory(bindin
 	if integrationErr != nil || connectionErr != nil || jobErr != nil {
 		return nil, errRuntimeUnavailable
 	}
-	awsAPI, err := awsdiscovery.NewInventoryCollectionAPI(factory.config.AWSInventory, factory.config.AWSSecurity, awsdiscovery.CollectionInventoryAuthority{
+	return factory.collectionFactoryForAuthority(awsdiscovery.CollectionInventoryAuthority{
 		Scope: binding.Scope, IntegrationID: integrationID, ConnectionID: connectionID, JobID: jobID,
 		Attempt: binding.Input.Attempt, ObservedAt: binding.Input.ObservationTime,
-	}, factory.config.ProviderTimeout)
+	})
+}
+
+func (factory *productionLiveDiscoveryCollectorFactory) BuildProductDiscoveryCollector(ctx context.Context, scope domain.Scope, input apiserver.DiscoveryCollectionInput, check func(context.Context) error) (discoveryJobCollector, error) {
+	if factory == nil || ctx == nil || ctx.Err() != nil || check == nil || input.CollectorVersion != factory.collectorVersion(input.Provider) || input.ParserVersion != factory.config.ParserVersion || input.ToolVersion != factory.config.ToolVersion {
+		return nil, errWorkerExecution
+	}
+	request, err := input.CollectionRequest(scope)
+	if err != nil {
+		return nil, errWorkerExecution
+	}
+	providers, err := factory.collectionFactoryForAuthority(awsdiscovery.CollectionInventoryAuthority{Scope: scope, IntegrationID: request.IntegrationID, ConnectionID: request.ConnectionID, JobID: request.JobID, EffectID: input.EffectID, ObservedAt: input.ObservationTime})
+	if err != nil {
+		return nil, errWorkerExecution
+	}
+	bound, err := newProductionDiscoveryCollectorFactory(providers, factory.config.Credentials)
+	if err != nil {
+		return nil, errWorkerExecution
+	}
+	return bound.BuildProductDiscoveryCollector(ctx, scope, input, check)
+}
+
+func (factory *productionLiveDiscoveryCollectorFactory) collectionFactoryForAuthority(authority awsdiscovery.CollectionInventoryAuthority) (collection.CollectorFactory, error) {
+	awsAPI, err := awsdiscovery.NewInventoryCollectionAPI(factory.config.AWSInventory, factory.config.AWSSecurity, authority, factory.config.ProviderTimeout)
 	if err != nil {
 		return nil, errRuntimeUnavailable
 	}
@@ -87,6 +112,9 @@ func (factory *productionLiveDiscoveryCollectorFactory) collectionFactory(bindin
 		return nil, errRuntimeUnavailable
 	}
 	kubernetesAPI := &discoveryBearerCollectionAPI{provider: collection.ProviderKubernetes, kubernetes: func(config kubernetesdiscovery.PinnedCollectionAPIConfig) (kubernetesdiscovery.CollectionAPI, error) {
+		if network := factory.config.KubernetesNetwork; network != nil {
+			return kubernetesdiscovery.NewPinnedKubernetesCollectionAPIWithNetwork(config, *network)
+		}
 		return kubernetesdiscovery.NewPinnedKubernetesCollectionAPI(config)
 	}, allowedCIDRs: append([]string(nil), factory.config.KubernetesAllowedCIDRs...), timeout: factory.config.ProviderTimeout}
 	githubBearerAPI := &discoveryBearerCollectionAPI{provider: collection.ProviderGitHub, github: githubAPI, timeout: factory.config.ProviderTimeout}

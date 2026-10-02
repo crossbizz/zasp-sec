@@ -36,6 +36,37 @@ func TestSecurityAgentWorkerRepositoryLoadsAcceptsAndFailsExactPlannerAuthority(
 	if err != nil || prepared.RunID != claim.RunID || prepared.StepID != stepID {
 		t.Fatalf("prepared=%#v err=%v", prepared, err)
 	}
+	stopped := `{"run_id":"` + claim.RunID + `","state":"needs_human","version":3,"approval_id":"","step_id":"","plan_hash":"","planner_outcome":"budget_stopped","planner_summary":"Review safely","replayed":false}`
+	for name, payload := range map[string]string{
+		"valid stop":        stopped,
+		"replayed stop":     strings.Replace(stopped, `"replayed":false`, `"replayed":true`, 1),
+		"foreign run":       strings.Replace(stopped, claim.RunID, claim.TriggerID, 1),
+		"wrong version":     strings.Replace(stopped, `"version":3`, `"version":2`, 1),
+		"heartbeat stop":    strings.Replace(stopped, `"version":3`, `"version":5`, 1),
+		"huge version":      strings.Replace(stopped, `"version":3`, `"version":1000001`, 1),
+		"step artifact":     strings.Replace(stopped, `"step_id":""`, `"step_id":"`+stepID+`"`, 1),
+		"approval artifact": strings.Replace(stopped, `"approval_id":""`, `"approval_id":"`+approvalID+`"`, 1),
+		"plan artifact":     strings.Replace(stopped, `"plan_hash":""`, `"plan_hash":"sha256:`+strings.Repeat("c", 64)+`"`, 1),
+		"accepted stop":     strings.Replace(stopped, "budget_stopped", "accepted", 1),
+		"stopped plan":      strings.Replace(stopped, "needs_human", "waiting_approval", 1),
+		"changed summary":   strings.Replace(stopped, "Review safely", "Different summary", 1),
+		"null step":         strings.Replace(stopped, `"step_id":""`, `"step_id":null`, 1),
+		"null approval":     strings.Replace(stopped, `"approval_id":""`, `"approval_id":null`, 1),
+		"null plan":         strings.Replace(stopped, `"plan_hash":""`, `"plan_hash":null`, 1),
+		"null replay":       strings.Replace(stopped, `"replayed":false`, `"replayed":null`, 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			database.responses[postgresSecurityAgentAcceptPlannerV33SQL] = json.RawMessage(payload)
+			result, err := repository.AcceptSecurityAgentPlannerCandidate(context.Background(), claim, "security-agent-worker-1", "lease-token-000000000001", submission, approvalID, now.Add(15*time.Minute), "pid_78000006-0000-4000-8000-000000000006", "pid_78000007-0000-4000-8000-000000000007")
+			if name == "valid stop" || name == "replayed stop" || name == "heartbeat stop" {
+				if err != nil || result.State != "needs_human" || result.RunID != claim.RunID {
+					t.Fatalf("valid stop rejected: %#v %v", result, err)
+				}
+			} else if err == nil {
+				t.Fatalf("invalid stop accepted: %#v", result)
+			}
+		})
+	}
 	failed, err := repository.FailSecurityAgentPlanner(context.Background(), claim, "security-agent-worker-1", "lease-token-000000000001", SecurityAgentPlannerFailure{InputDigest: contextValue.InputDigest, Model: "openai/gpt-5-mini", PolicyVersion: "security-agent-planner-v1", ErrorCode: "planner_unavailable"}, "pid_78000008-0000-4000-8000-000000000008", "pid_78000009-0000-4000-8000-000000000009")
 	if err != nil || failed.RunID != claim.RunID || failed.ErrorCode != "planner_unavailable" {
 		t.Fatalf("failed=%#v err=%v statements=%#v", failed, err, database.statements)

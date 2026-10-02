@@ -1,0 +1,67 @@
+=== RUN   TestSecurityAgentExportAuthorityPostgres/empty
+    security_agent_export_postgres_test.go:168: invalid empty selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/duplicate
+    security_agent_export_postgres_test.go:168: invalid duplicate selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/101
+    security_agent_export_postgres_test.go:168: invalid 101 selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/unrelated_same_tenant
+    security_agent_export_postgres_test.go:168: invalid unrelated_same_tenant selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/forged_run_prefix
+    security_agent_export_postgres_test.go:168: invalid forged_run_prefix selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/stale_version
+    security_agent_export_postgres_test.go:168: invalid stale_version selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/forged_association
+    security_agent_export_postgres_test.go:168: invalid forged_association selection admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/expired_lease
+    security_agent_export_postgres_test.go:194: invalid expired_lease authority admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/actor_revoked
+    security_agent_export_postgres_test.go:194: invalid actor_revoked authority admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/workflow_permission_removed
+    security_agent_export_postgres_test.go:194: invalid workflow_permission_removed authority admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/current_finding_version_drift
+    security_agent_export_postgres_test.go:194: invalid current_finding_version_drift authority admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/definition_digest_drift
+    security_agent_export_postgres_test.go:194: invalid definition_digest_drift authority admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/definition_disabled
+    security_agent_export_postgres_test.go:194: invalid definition_disabled authority admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/action_disabled
+    security_agent_export_postgres_test.go:194: invalid action_disabled authority admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/foreign_org
+    security_agent_export_postgres_test.go:216: invalid foreign_org dispatch admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/foreign_workspace
+    security_agent_export_postgres_test.go:216: invalid foreign_workspace dispatch admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/foreign_environment
+    security_agent_export_postgres_test.go:216: invalid foreign_environment dispatch admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/foreign_run
+    security_agent_export_postgres_test.go:216: invalid foreign_run dispatch admitted: {}
+=== RUN   TestSecurityAgentExportAuthorityPostgres/wrong_lease
+    security_agent_export_postgres_test.go:216: invalid wrong_lease dispatch admitted: {}
+=== NAME  TestSecurityAgentExportAuthorityPostgres
+    security_agent_export_postgres_test.go:232: first dispatch did not admit one bound export: {}
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportAuthorityPostgres4207710715/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportAuthorityPostgres (7.74s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/empty (0.16s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/duplicate (0.10s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/101 (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/unrelated_same_tenant (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/forged_run_prefix (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/stale_version (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/forged_association (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/expired_lease (0.10s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/actor_revoked (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/workflow_permission_removed (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/current_finding_version_drift (0.10s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/definition_digest_drift (0.11s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/definition_disabled (0.10s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/action_disabled (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/foreign_org (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/foreign_workspace (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/foreign_environment (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/foreign_run (0.09s)
+    --- FAIL: TestSecurityAgentExportAuthorityPostgres/wrong_lease (0.09s)
+=== RUN   TestSecurityAgentExportReleasePostgres
+    security_agent_export_release_postgres_test.go:54: disabled export control history was destructively downgraded
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestSecurityAgentExportReleasePostgres2737947622/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportReleasePostgres (7.09s)
+FAIL
+

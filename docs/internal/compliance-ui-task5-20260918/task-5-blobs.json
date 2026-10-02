@@ -1,0 +1,122 @@
+{
+  "head": "8733b16f8d939d38a8157dd2519e57fc6f630542",
+  "branch": "codex/cached-runtime-ship-20260917",
+  "basis": "Task5 working-tree BEFORE blobs, not HEAD; preserves Task1-4 and unrelated edits",
+  "files": [
+    {
+      "path": "app/features/sessions/SessionsComplianceView.tsx",
+      "before": "7865fe5d3aaab98fdd05544e5b8db7b8f676250c",
+      "after": "2e1d00f8c6626aa7076ee3bf0fd3c509a36a71c4"
+    },
+    {
+      "path": "app/features/sessions/SessionsComplianceView.test.tsx",
+      "before": "4ebef84495a93683e67e62bdf007b87dafa12f83",
+      "after": "3e549a05da9664144617a2a719e21f1b43379494"
+    },
+    {
+      "path": "app/components/ZaspProductionApp.tsx",
+      "before": "e2de2e5d30fc786fe47a7ee718e74c5ceaae437f",
+      "after": "cc38f7f78b89f728b34e3437aef6519dbb27b0d7"
+    },
+    {
+      "path": "app/components/ZaspProductionApp.test.tsx",
+      "before": "58a61ee1a39aa6f96ff75b29818d4f40f3893245",
+      "after": "410d9941d83fd63788602e88de236eea48eb6f9d"
+    },
+    {
+      "path": "scripts/production-combined-e2e.mjs",
+      "before": "364c4cd48e932ed6474b09519c3fb5634d6f86da",
+      "after": "1b69b218b8ee18b2cede90e7d68cd278378d198d"
+    },
+    {
+      "path": "scripts/production-combined-e2e.test.mjs",
+      "before": "dc178d4724939719cdd2a888755f7a3f0ec0f40e",
+      "after": "85f51f1fc3726b4063b57a9875269491b2a4442e"
+    },
+    {
+      "path": "services/platform/agentsec-api/production_runtime.go",
+      "before": "e9f89ecd2ef821e33f7b8c0045e6480524f813df",
+      "after": "034fe47d5a34b050f0875c8edf29bb6b98899982"
+    },
+    {
+      "path": "package.json",
+      "before": "2347ece9ca75394fe9453ec59a0c97c00135f64e",
+      "after": "052c2e82853010a213e98eb6bde8a6b940b6d685"
+    },
+    {
+      "path": "apps/web/api/client.ts",
+      "before": "084bb4cd8006c4798aecc6a2b1d3f35bf4abd23d",
+      "after": "31c556f84b34840ab69eb93dc75c206f718e5815"
+    },
+    {
+      "path": "docs/product/ui-api-map.yaml",
+      "before": "66efa101cc54928624baa8dad8c9a783fbf79ae2",
+      "after": "1b5374cce55e9e427e477eebe810d117a2784ef5"
+    },
+    {
+      "path": "app/quality/m7-session-compliance-batch-contract.test.ts",
+      "before": "ff42b666b2cedc269f07b42bc7ad9ab4959155d0",
+      "after": "d188a3847ce0ae588e386bc15504b9c8d48b10b3"
+    },
+    {
+      "path": "app/quality/m2-closure-contract.test.ts",
+      "before": "d4ee3b711fe53bfa17085b01457ac3354bb68847",
+      "after": "8cf6b8b36a5d02f465dbcf9c7f8cd3979f2b260d"
+    },
+    {
+      "path": "app/quality/m2-identity-governance-ui-batch-contract.test.ts",
+      "before": "84b588e306e796af41ae8f678fd7c528bceed77b",
+      "after": "de2ba28b6a680468eb42f04c10e761cb3a07da03"
+    },
+    {
+      "path": "app/quality/ui-api-map-contract.test.ts",
+      "before": "7f66690e556dc436c771e0f17ab9315249e8ed62",
+      "after": "572583d6aead96c9db28c2d4d2495f7ab1074ef8"
+    },
+    {
+      "path": "app/quality/ui-api-coverage-ci-contract.test.ts",
+      "before": "50cd599fc07a4a2a7b753aaf883a57db7d740594",
+      "after": "89e817f5f6fb74962f9710b08f1eaf43efd09011"
+    },
+    {
+      "path": "app/domain/compliance-links.ts",
+      "before": null,
+      "after": "4ee7d447b7492ca7485eaea771450d93b902c7e1"
+    },
+    {
+      "path": "app/domain/compliance-links.test.ts",
+      "before": null,
+      "after": "432dc3fb55d1e5eb199403d0bfdda5cc5eb018c8"
+    },
+    {
+      "path": "app/features/sessions/ComplianceEvidenceView.tsx",
+      "before": null,
+      "after": "e6d1a3f67efad28b070f14a4dab04b1b9672a1a7"
+    },
+    {
+      "path": "app/features/sessions/compliance-api.ts",
+      "before": null,
+      "after": "a0731913ff9f6899666797168235b92a88420289"
+    },
+    {
+      "path": "app/features/sessions/compliance-api.test.ts",
+      "before": null,
+      "after": "4fc6cf13afd00721bf22ee21351895584d3672a9"
+    },
+    {
+      "path": "services/platform/agentsec-api/compliance_browser_process_test.go",
+      "before": null,
+      "after": "53e499d11150ec708ef540a6d7822d0f399a456b"
+    },
+    {
+      "path": "scripts/compliance-browser-bytes.mjs",
+      "before": null,
+      "after": "cc09141a3eb721b0778fef2d7e6a6f29db639819"
+    },
+    {
+      "path": "scripts/compliance-browser-bytes.test.mjs",
+      "before": null,
+      "after": "9a14d8182b675b2434fb80575f8c3d27d03f0a65"
+    }
+  ]
+}

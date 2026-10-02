@@ -1,0 +1,72 @@
+{{- if .Values.complianceExports.enabled -}}
+{{- $c := .Values.complianceExports -}}
+{{- range $name := list "zasp-compliance-export-worker" "zasp-compliance-cleanup-worker" }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}-dependencies
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: monitoring } } }]
+      ports: [{ protocol: TCP, port: 8081 }]
+  egress:
+    - to:
+      {{- range $cidr := $c.databaseCIDRs }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to:
+      {{- range $cidr := uniq (concat $c.stsCIDRs $c.s3CIDRs) }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: {{ $name }} }
+  ports: [{ name: internal, port: 8081, targetPort: internal, protocol: TCP }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $name }}
+spec:
+  selector: { matchLabels: { app.kubernetes.io/name: {{ $name }}, app.kubernetes.io/part-of: zasp } }
+  namespaceSelector: { matchNames: [{{ $.Release.Namespace | quote }}] }
+  endpoints: [{ port: internal, path: /metrics, interval: 30s, scrapeTimeout: 5s }]
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zasp-compliance-export-api-dependencies
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-api } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+      {{- range $cidr := uniq (concat $c.stsCIDRs $c.s3CIDRs) }}
+        - ipBlock: { cidr: {{ $cidr | quote }} }
+      {{- end }}
+      ports: [{ protocol: TCP, port: 443 }]
+{{- end }}

@@ -1,0 +1,63 @@
+Automatic discovery connected attempt13. One authorized launch, no retries.
+Parent ruling retained failed attempt12 and authorized this new numbered run after a public-schedule-contract harness correction.
+Task4 brief SHA256 ef357b93e38f3722b9ec949bfc0564011316b16761557dfb722b42abe904fca2
+Node v22.23.1; Go GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off.
+Pinned PostgreSQL postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba
+Inspected image arm64, config sha256:0984215845c9203725ec1049ec2b1bdd2e8f5e0eeb4a82cfea4d9928a952ad40.
+Release60 checksum 37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab
+Release60 fingerprint 1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36
+Harness SHA256 ff7c0704df5153c3d2720b821b6f805617a825c00b1794516bf9ec6fb05e0f2a
+Harness test SHA256 5fa75d8f663885af9354aa62cde808d374fb3ba3c289d1907b007d05bc7ab9e1
+Public-shape RED:12 records,10 pass,2 fail (one leaf and parent),0 skip. Focused GREEN24/24,0 fail/skip.
+Grouped harness145 tests,143 pass,0 fail,2 existing opt-in skips,10.718s; ESLint0.
+RED /tmp/zasp-release60-task4.W4Atku/public-schedule-contract-red.log SHA256 2b75c96c4272eb58e7c200cc63d5542f4b4c82317a82e872a2e1015a43661d6e
+GREEN /tmp/zasp-release60-task4.W4Atku/public-schedule-contract-green.log SHA256 047348eecdb0303ea65531537146f28094fb3d8606c8a2607173bfe753254723
+Grouped /tmp/zasp-release60-task4.W4Atku/harness-attempt13-grouped.log SHA256 16189a29f06cd30d3af3879fcbaad93ea97a23cc92c036af5e6a7e2d2ce05746
+
+Launch cwd /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+PATH=/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-budget-go-cache ZASP_COMBINED_E2E_AUTOMATIC_DISCOVERY=true /Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node scripts/production-combined-e2e.mjs
+
+combined E2E: disposable PostgreSQL ready
+combined E2E: schema 14 typed_inventory_cutover verified
+combined E2E: schema 15 runtime_data_plane verified
+combined E2E: schema 17 runtime_ingest_reconciliation verified
+combined E2E: schema 18 security_agent_execution verified
+combined E2E: schema 19 identity_administration verified
+combined E2E: schema 20 security_agent_controls verified
+combined E2E: schema 21 security_agent_autonomous_response verified
+combined E2E: schema 24 security_agent_session_isolation verified
+combined E2E: schema 27 production_recovery verified
+combined E2E: schema 28 production_policy_deployment verified
+combined E2E: schema 29 production_home_attention verified
+combined E2E: schema 30 production_approval_notification verified
+combined E2E: schema 31 production_workflow_compatibility verified
+combined E2E: schema 32 production_security_agent_planner verified
+combined E2E: schema 33 production_security_agent_attack_path verified
+combined E2E: schema 34 production_integration_setup verified
+combined E2E: schema 35 production_integration_webhook verified
+combined E2E: schema 37 production_red_team_safety verified
+combined E2E: schema 39 production_red_team_artifacts verified
+combined E2E: schema 40 production_runtime_sessions verified
+combined E2E: schema 41 production_runtime_session_reads verified
+combined E2E: schema 42 production_runtime_session_search verified
+combined E2E: schema 43 production_runtime_session_query verified
+combined E2E: schema 44 production_runtime_session_evidence verified
+combined E2E: schema 45 production_runtime_enrollment_pairing verified
+combined E2E: schema 46 production_reconciliation_lane_plan verified
+combined E2E: schema 47 production_runtime_candidate_authority verified
+combined E2E: schema 48 production_runtime_acceptance verified
+combined E2E: migrations and durable seed ready
+automatic discovery evidence directory: /var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/zasp-automatic-discovery-evidence-dSI31M
+automatic discovery: waiting for real due time 2026-09-20T06:03:41.620497Z
+automatic discovery: observing disabled schedule through 2026-09-20T06:08:41.620497Z
+automatic discovery: real cadence, scheduler restart replay, Kubernetes collection, mounted reload, retention and public withdrawal passed; live providers NOT RUN
+combined E2E: cleanup browser
+combined E2E: cleanup Task4 workers
+combined E2E: cleanup api
+combined E2E: cleanup proxy
+combined E2E: cleanup identity
+combined E2E: cleanup policy history
+combined E2E: cleanup web
+combined E2E: cleanup postgres
+combined E2E: cleanup remaining processes
+combined E2E: cleanup files

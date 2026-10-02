@@ -1,0 +1,155 @@
+{
+  "basis": "Reviewed Task5 plus fix1; current byte identities at final-fix freeze. Only production_runtime.go changed, retested through enumerated composition/operational race cases. Browser result is historical, not a fresh final-fix browser execution.",
+  "files": [
+    {
+      "path": "app/features/sessions/SessionsComplianceView.tsx",
+      "reviewed": "34283ba4c02674eb7a66b6d5777ad03090de91c3",
+      "current": "34283ba4c02674eb7a66b6d5777ad03090de91c3",
+      "unchanged": true
+    },
+    {
+      "path": "app/features/sessions/SessionsComplianceView.test.tsx",
+      "reviewed": "b545865a84fc254347f8402f150027782c03b11c",
+      "current": "b545865a84fc254347f8402f150027782c03b11c",
+      "unchanged": true
+    },
+    {
+      "path": "app/components/ZaspProductionApp.tsx",
+      "reviewed": "cc38f7f78b89f728b34e3437aef6519dbb27b0d7",
+      "current": "cc38f7f78b89f728b34e3437aef6519dbb27b0d7",
+      "unchanged": true
+    },
+    {
+      "path": "app/components/ZaspProductionApp.test.tsx",
+      "reviewed": "410d9941d83fd63788602e88de236eea48eb6f9d",
+      "current": "410d9941d83fd63788602e88de236eea48eb6f9d",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/production-combined-e2e.mjs",
+      "reviewed": "909efa2957edefb3ce917b2bcbfd44ce87c72a13",
+      "current": "909efa2957edefb3ce917b2bcbfd44ce87c72a13",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/production-combined-e2e.test.mjs",
+      "reviewed": "85f51f1fc3726b4063b57a9875269491b2a4442e",
+      "current": "85f51f1fc3726b4063b57a9875269491b2a4442e",
+      "unchanged": true
+    },
+    {
+      "path": "services/platform/agentsec-api/production_runtime.go",
+      "reviewed": "034fe47d5a34b050f0875c8edf29bb6b98899982",
+      "current": "328c3ec8c8ff4f96902ee9c4251567b36078dc9b",
+      "unchanged": false
+    },
+    {
+      "path": "package.json",
+      "reviewed": "052c2e82853010a213e98eb6bde8a6b940b6d685",
+      "current": "052c2e82853010a213e98eb6bde8a6b940b6d685",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/api/client.ts",
+      "reviewed": "31c556f84b34840ab69eb93dc75c206f718e5815",
+      "current": "31c556f84b34840ab69eb93dc75c206f718e5815",
+      "unchanged": true
+    },
+    {
+      "path": "docs/product/ui-api-map.yaml",
+      "reviewed": "1b5374cce55e9e427e477eebe810d117a2784ef5",
+      "current": "1b5374cce55e9e427e477eebe810d117a2784ef5",
+      "unchanged": true
+    },
+    {
+      "path": "app/quality/m7-session-compliance-batch-contract.test.ts",
+      "reviewed": "d188a3847ce0ae588e386bc15504b9c8d48b10b3",
+      "current": "d188a3847ce0ae588e386bc15504b9c8d48b10b3",
+      "unchanged": true
+    },
+    {
+      "path": "app/quality/m2-closure-contract.test.ts",
+      "reviewed": "8cf6b8b36a5d02f465dbcf9c7f8cd3979f2b260d",
+      "current": "8cf6b8b36a5d02f465dbcf9c7f8cd3979f2b260d",
+      "unchanged": true
+    },
+    {
+      "path": "app/quality/m2-identity-governance-ui-batch-contract.test.ts",
+      "reviewed": "de2ba28b6a680468eb42f04c10e761cb3a07da03",
+      "current": "de2ba28b6a680468eb42f04c10e761cb3a07da03",
+      "unchanged": true
+    },
+    {
+      "path": "app/quality/ui-api-map-contract.test.ts",
+      "reviewed": "572583d6aead96c9db28c2d4d2495f7ab1074ef8",
+      "current": "572583d6aead96c9db28c2d4d2495f7ab1074ef8",
+      "unchanged": true
+    },
+    {
+      "path": "app/quality/ui-api-coverage-ci-contract.test.ts",
+      "reviewed": "89e817f5f6fb74962f9710b08f1eaf43efd09011",
+      "current": "89e817f5f6fb74962f9710b08f1eaf43efd09011",
+      "unchanged": true
+    },
+    {
+      "path": "app/domain/compliance-links.ts",
+      "reviewed": "4ee7d447b7492ca7485eaea771450d93b902c7e1",
+      "current": "4ee7d447b7492ca7485eaea771450d93b902c7e1",
+      "unchanged": true
+    },
+    {
+      "path": "app/domain/compliance-links.test.ts",
+      "reviewed": "432dc3fb55d1e5eb199403d0bfdda5cc5eb018c8",
+      "current": "432dc3fb55d1e5eb199403d0bfdda5cc5eb018c8",
+      "unchanged": true
+    },
+    {
+      "path": "app/features/sessions/ComplianceEvidenceView.tsx",
+      "reviewed": "4a80295b84676d0a4b6b3c953a0b6bda93632d02",
+      "current": "4a80295b84676d0a4b6b3c953a0b6bda93632d02",
+      "unchanged": true
+    },
+    {
+      "path": "app/features/sessions/compliance-api.ts",
+      "reviewed": "a0731913ff9f6899666797168235b92a88420289",
+      "current": "a0731913ff9f6899666797168235b92a88420289",
+      "unchanged": true
+    },
+    {
+      "path": "app/features/sessions/compliance-api.test.ts",
+      "reviewed": "4fc6cf13afd00721bf22ee21351895584d3672a9",
+      "current": "4fc6cf13afd00721bf22ee21351895584d3672a9",
+      "unchanged": true
+    },
+    {
+      "path": "services/platform/agentsec-api/compliance_browser_process_test.go",
+      "reviewed": "53e499d11150ec708ef540a6d7822d0f399a456b",
+      "current": "53e499d11150ec708ef540a6d7822d0f399a456b",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/compliance-browser-bytes.mjs",
+      "reviewed": "cc09141a3eb721b0778fef2d7e6a6f29db639819",
+      "current": "cc09141a3eb721b0778fef2d7e6a6f29db639819",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/compliance-browser-bytes.test.mjs",
+      "reviewed": "9a14d8182b675b2434fb80575f8c3d27d03f0a65",
+      "current": "9a14d8182b675b2434fb80575f8c3d27d03f0a65",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/api/pagination.ts",
+      "reviewed": "48d6119476e02f735990988642c93354d9d48e72",
+      "current": "48d6119476e02f735990988642c93354d9d48e72",
+      "unchanged": true
+    },
+    {
+      "path": "apps/web/api/pagination.test.ts",
+      "reviewed": "f7b7b69f2a9df5dce77ac7926d8bdad7830e0eb5",
+      "current": "f7b7b69f2a9df5dce77ac7926d8bdad7830e0eb5",
+      "unchanged": true
+    }
+  ]
+}

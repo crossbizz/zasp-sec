@@ -15,8 +15,8 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 )
 
-func TestLoadRuntimeConfigIsStrict(t *testing.T) {
-	values := map[string]string{
+func fixtureRuntimeEnvironment() map[string]string {
+	return map[string]string{
 		"ZASP_ENVIRONMENT": "production", "ZASP_PRODUCT_LISTEN_ADDRESS": ":8080", "ZASP_INTERNAL_LISTEN_ADDRESS": ":8081",
 		"ZASP_PUBLIC_ORIGIN": "https://app.zasp.example", "ZASP_COOKIE_SECURE": "true",
 		"ZASP_TRUSTED_PROXY_CIDRS": "10.20.0.0/16,2001:db8::/32", "ZASP_REQUEST_RATE_PER_SECOND": "100", "ZASP_REQUEST_BURST": "200",
@@ -33,10 +33,15 @@ func TestLoadRuntimeConfigIsStrict(t *testing.T) {
 		"ZASP_AWS_CUSTOMER_ROLE_ARNS": `["arn:aws:iam::111111111111:role/zasp,team/customer","arn:aws:iam::123456789012:role/zasp/customer"]`,
 		"ZASP_GITHUB_CLIENT_ID":       "Iv1.1234567890abcdef", "ZASP_GITHUB_CLIENT_SECRET_REFERENCE": "ref:github/app-secret-0001", "ZASP_GITHUB_APP_ID": "123456", "ZASP_GITHUB_PRIVATE_KEY_REFERENCE": "ref:github/app-private-key-0001", "ZASP_OKTA_CLIENT_ID": "0oa1234567890abcdef", "ZASP_OKTA_CLIENT_SECRET_REFERENCE": "ref:okta/client-secret-0001",
 	}
+}
+
+func TestLoadRuntimeConfigIsStrict(t *testing.T) {
+	values := fixtureRuntimeEnvironment()
 	config, err := loadRuntimeConfig(func(key string) string { return values[key] })
 	if err != nil {
 		t.Fatalf("loadRuntimeConfig() error = %v", err)
 	}
+	testOrderedHTTPRuntimeConfig(t, values)
 	if config.ProductListenAddress != ":8080" || config.InternalListenAddress != ":8081" || config.PublicOrigin != "https://app.zasp.example" || !config.CookieSecure || config.DiscoveryParserVersion != "parser-v1" || config.DiscoveryToolVersion != "tool-v1" || config.SecurityAgentPostgresDSN != values["ZASP_SECURITY_AGENT_POSTGRES_DSN"] || len(config.AWSCustomerRolePrefixes) != 2 || config.AWSCustomerRolePrefixes[0] != "arn:aws:iam::111111111111:role/zasp,team/" || config.AWSCustomerRolePrefixes[1] != "arn:aws:iam::123456789012:role/zasp/" || len(config.AWSCustomerRoleARNs) != 2 {
 		t.Fatalf("config = %#v", config)
 	}

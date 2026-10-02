@@ -1,0 +1,25 @@
+$ /usr/local/bin/docker run --rm --name zasp-manual-borrowed-id-red --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentManualIntegrityPostgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentManualIntegrityPostgres
+=== RUN   TestSecurityAgentManualIntegrityPostgres/borrowed_product_id
+    security_agent_manual_admission_postgres_test.go:393: borrowed_product_id provenance drift was projected
+=== RUN   TestSecurityAgentManualIntegrityPostgres/version
+    security_agent_manual_admission_postgres_test.go:393: version provenance drift was projected
+=== RUN   TestSecurityAgentManualIntegrityPostgres/digest
+    security_agent_manual_admission_postgres_test.go:393: digest provenance drift was projected
+=== RUN   TestSecurityAgentManualIntegrityPostgres/intent
+    security_agent_manual_admission_postgres_test.go:393: intent provenance drift was projected
+=== RUN   TestSecurityAgentManualIntegrityPostgres/response
+    security_agent_manual_admission_postgres_test.go:393: response provenance drift was projected
+=== RUN   TestSecurityAgentManualIntegrityPostgres/original_definition
+    security_agent_manual_admission_postgres_test.go:393: original_definition provenance drift was projected
+=== NAME  TestSecurityAgentManualIntegrityPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentManualIntegrityPostgres1136082910/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentManualIntegrityPostgres (5.78s)
+    --- FAIL: TestSecurityAgentManualIntegrityPostgres/borrowed_product_id (0.08s)
+    --- FAIL: TestSecurityAgentManualIntegrityPostgres/version (0.09s)
+    --- FAIL: TestSecurityAgentManualIntegrityPostgres/digest (0.09s)
+    --- FAIL: TestSecurityAgentManualIntegrityPostgres/intent (0.10s)
+    --- FAIL: TestSecurityAgentManualIntegrityPostgres/response (0.09s)
+    --- FAIL: TestSecurityAgentManualIntegrityPostgres/original_definition (0.09s)
+FAIL
+container exit=1

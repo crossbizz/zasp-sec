@@ -1,0 +1,133 @@
+=== RUN   TestComplianceRuntimeListenerFailureJoinsPolling
+--- PASS: TestComplianceRuntimeListenerFailureJoinsPolling (0.00s)
+=== RUN   TestComplianceRuntimeComposedLifecycle
+=== RUN   TestComplianceRuntimeComposedLifecycle/complete
+=== RUN   TestComplianceRuntimeComposedLifecycle/cancel
+=== RUN   TestComplianceRuntimeComposedLifecycle/lease_loss
+=== RUN   TestComplianceRuntimeComposedLifecycle/revoked
+=== RUN   TestComplianceRuntimeComposedLifecycle/close
+--- PASS: TestComplianceRuntimeComposedLifecycle (1.84s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/complete (0.39s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/cancel (0.35s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/lease_loss (0.27s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/revoked (0.48s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/close (0.35s)
+=== RUN   TestComplianceWorkerPersistedBytes
+--- PASS: TestComplianceWorkerPersistedBytes (0.15s)
+=== RUN   TestComplianceWorkerCleanupReceipt
+--- PASS: TestComplianceWorkerCleanupReceipt (0.05s)
+=== RUN   TestComplianceWorkerHeartbeat
+--- PASS: TestComplianceWorkerHeartbeat (0.11s)
+=== RUN   TestComplianceRuntimeProcess
+    compliance_export_process_test.go:172: owned PostgreSQL parent launches child
+--- SKIP: TestComplianceRuntimeProcess (0.00s)
+=== RUN   TestComplianceReplayOutcomes
+=== RUN   TestComplianceReplayOutcomes/completed
+=== RUN   TestComplianceReplayOutcomes/unprepared
+=== RUN   TestComplianceReplayOutcomes/load_failed
+=== RUN   TestComplianceReplayOutcomes/put_failed
+=== RUN   TestComplianceReplayOutcomes/put_panic
+=== RUN   TestComplianceReplayOutcomes/bad_receipt
+=== RUN   TestComplianceReplayOutcomes/finish_failed
+=== RUN   TestComplianceReplayOutcomes/reconcile_rejected
+--- PASS: TestComplianceReplayOutcomes (0.40s)
+    --- PASS: TestComplianceReplayOutcomes/completed (0.07s)
+    --- PASS: TestComplianceReplayOutcomes/unprepared (0.11s)
+    --- PASS: TestComplianceReplayOutcomes/load_failed (0.04s)
+    --- PASS: TestComplianceReplayOutcomes/put_failed (0.04s)
+    --- PASS: TestComplianceReplayOutcomes/put_panic (0.04s)
+    --- PASS: TestComplianceReplayOutcomes/bad_receipt (0.04s)
+    --- PASS: TestComplianceReplayOutcomes/finish_failed (0.07s)
+    --- PASS: TestComplianceReplayOutcomes/reconcile_rejected (0.00s)
+=== RUN   TestComplianceRuntimeRendersFrozenSnapshot
+--- PASS: TestComplianceRuntimeRendersFrozenSnapshot (0.00s)
+=== RUN   TestComplianceRuntimeCandidatesRejectUnsafeWire
+--- PASS: TestComplianceRuntimeCandidatesRejectUnsafeWire (0.18s)
+=== RUN   TestComplianceRuntimeConfiguration
+--- PASS: TestComplianceRuntimeConfiguration (0.00s)
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/agent
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/browser
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/wrong_binding
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/put_error
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/finish_lost
+--- PASS: TestSecurityAgentExportWorkerProcessorPipeline (0.71s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/agent (0.19s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/browser (0.19s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/wrong_binding (0.07s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/put_error (0.11s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/finish_lost (0.15s)
+=== RUN   TestSecurityAgentExportWorkerLeaseBindingOwnership
+--- PASS: TestSecurityAgentExportWorkerLeaseBindingOwnership (0.00s)
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/valid
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/browser
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/run
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/step
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/selection
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/scope
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/digest
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/mapping
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/missing_binding
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/unknown_origin
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/extra_field
+--- PASS: TestSecurityAgentExportWorkerCaptureBinding (0.53s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/valid (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/browser (0.06s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/run (0.13s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/step (0.11s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/selection (0.06s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/scope (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/digest (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/mapping (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/missing_binding (0.00s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/unknown_origin (0.00s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/extra_field (0.04s)
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/valid
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/browser
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/wrong_revision
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/missing_binding
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/unknown_origin
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/bad_digest
+--- PASS: TestSecurityAgentExportWorkerPreparedOrigin (0.23s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/valid (0.07s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/browser (0.07s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/wrong_revision (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/missing_binding (0.00s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/unknown_origin (0.00s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/bad_digest (0.04s)
+=== RUN   TestSecurityAgentExportWorkerClaimUnion
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/valid
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/browser
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/unknown_origin
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/missing_binding
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/missing_origin
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/unknown_binding_field
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/empty
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/duplicate
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/overflow
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/foreign_kind
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/bad_id
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/bad_version
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/bad_digest
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/bad_run
+--- PASS: TestSecurityAgentExportWorkerClaimUnion (0.56s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/valid (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/browser (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/unknown_origin (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/missing_binding (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/missing_origin (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/unknown_binding_field (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/empty (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/duplicate (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/overflow (0.05s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/foreign_kind (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/bad_id (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/bad_version (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/bad_digest (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/bad_run (0.04s)
+=== RUN   TestSecurityAgentExportWorkerClaimSelectionBoundary
+--- PASS: TestSecurityAgentExportWorkerClaimSelectionBoundary (0.10s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	7.162s

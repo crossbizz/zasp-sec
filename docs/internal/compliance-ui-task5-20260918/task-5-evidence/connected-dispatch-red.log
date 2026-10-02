@@ -1,0 +1,120 @@
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+······················stderr | apps/web/api/audit-log.test.ts > generated audit page adapter > propagates caller abort through the generated transport and refuses late success
+Promise returned by `expect(actual).rejects.toMatchObject(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
+    at /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/apps/web/api/audit-log.test.ts:155:35
+
+·xxx··················x·····················stderr | app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > invalidates scope synchronously before a stale response can return
+Promise returned by `expect(actual).rejects.toMatchObject(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
+    at /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/app/api/APIProvider.audit-exports.test.tsx:56:32
+
+stderr | app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > invalidates principal synchronously before a stale response can return
+Promise returned by `expect(actual).rejects.toMatchObject(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
+    at /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/app/api/APIProvider.audit-exports.test.tsx:56:32
+
+stderr | app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > invalidates suspend synchronously before a stale response can return
+Promise returned by `expect(actual).rejects.toMatchObject(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
+    at /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/app/api/APIProvider.audit-exports.test.tsx:56:32
+
+stderr | app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > invalidates clear synchronously before a stale response can return
+Promise returned by `expect(actual).rejects.toMatchObject(expected)` was not awaited. Vitest currently auto-awaits hanging assertions at the end of the test, but this will cause the test to fail in the next Vitest major. Please remember to await the assertion.
+    at /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/app/api/APIProvider.audit-exports.test.tsx:56:32
+
+·····xxxx·······················································
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > invalidates scope synchronously before a stale response can return
+ FAIL  app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > invalidates principal synchronously before a stale response can return
+ FAIL  app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > invalidates suspend synchronously before a stale response can return
+ FAIL  app/api/APIProvider.audit-exports.test.tsx > APIProvider bounded export ownership > invalidates clear synchronously before a stale response can return
+TypeError: release is not a function
+ ❯ app/api/APIProvider.audit-exports.test.tsx:62:7
+     60|       if (kind === "suspend") result.current.suspendQueryCache();
+     61|       if (kind === "clear") result.current.clearQueryCache();
+     62|       release();
+       |       ^
+     63|     });
+     64|     await refused;
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:47:24
+ ❯ process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:814:22
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:46:25
+ ❯ app/api/APIProvider.audit-exports.test.tsx:57:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  apps/web/api/audit-log.test.ts > generated audit page adapter > shares read ownership across recreated adapters for one client without blocking another client
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ apps/web/api/audit-log.test.ts:35:24
+     33|     const latest = createAuditLogAPI(client).page({ action: "audit.new…
+     34|     try {
+     35|       expect(requests).toHaveLength(1);
+       |                        ^
+     36|       expect(await activeResult).toMatchObject({ name: "AbortError" });
+     37|       expect(await obsoleteResult).toMatchObject({ name: "AbortError" …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  apps/web/api/audit-log.test.ts > generated audit page adapter > joins the old physical read, releases aborted callers immediately, and keeps only the latest pending read
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ apps/web/api/audit-log.test.ts:62:24
+     60|     const latest = api.page({ action: "audit.latest" }, undefined, 50,…
+     61|     try {
+     62|       expect(requests).toHaveLength(1);
+       |                        ^
+     63|       await firstRejected;
+     64|       await secondRejected;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  apps/web/api/audit-log.test.ts > generated audit page adapter > replaces waiting requests without a growing queue and never starts an invalidated waiting scope
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ apps/web/api/audit-log.test.ts:89:22
+     87|     } finally { settle(json(page)); }
+     88|     await new Promise(resolve => setTimeout(resolve, 0));
+     89|     expect(requests).toHaveLength(1);
+       |                      ^
+     90|   });
+     91|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  apps/web/api/audit-log.test.ts > generated audit page adapter > propagates caller abort through the generated transport and refuses late success
+TypeError: Cannot read properties of undefined (reading 'signal')
+ ❯ apps/web/api/audit-log.test.ts:157:20
+    155|     const rejected = expect(result).rejects.toMatchObject({ name: "Abo…
+    156|     controller.abort();
+    157|     expect(request.signal.aborted).toBe(true);
+       |                    ^
+    158|     resolve(json(page));
+    159|     await rejected;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+
+ Test Files  2 failed | 4 passed (6)
+      Tests  8 failed | 122 passed (130)
+   Start at  18:40:40
+   Duration  3.58s (transform 1.03s, setup 1.69s, import 1.35s, tests 2.03s, environment 5.97s)

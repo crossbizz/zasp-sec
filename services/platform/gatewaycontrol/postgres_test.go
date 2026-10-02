@@ -17,6 +17,7 @@ import (
 func TestPostgresRepositoryUsesCurrentV27ReadinessAndAuthority(t *testing.T) {
 	authority := fixtureAuthority(make([]byte, 32))
 	database := &postgresDatabaseStub{responses: []any{
+		false,
 		true,
 		json.RawMessage(`{"organization_id":"` + authority.OrganizationID + `","workspace_id":"` + authority.WorkspaceID + `","environment_id":"` + authority.EnvironmentID + `","device_id":"` + authority.DeviceID + `","device_version":3,"replay_floor":7,"credential_id":"` + authority.CredentialID + `","credential_generation":2,"key_id":"gateway-key-1","algorithm":"Ed25519","public_key":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","audience":"runtime-gateway","expires_at":"2026-08-21T12:00:00Z"}`),
 	}}
@@ -29,7 +30,7 @@ func TestPostgresRepositoryUsesCurrentV27ReadinessAndAuthority(t *testing.T) {
 		t.Fatalf("authority=%#v err=%v", actual, err)
 	}
 	metadata := migrations.ProductionRecovery()
-	if !reflect.DeepEqual(database.calls[0].arguments, []any{metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint()}) || database.calls[1].arguments[0] != authority.CredentialID {
+	if !reflect.DeepEqual(database.calls[1].arguments, []any{metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint()}) || database.calls[2].arguments[0] != authority.CredentialID {
 		t.Fatalf("calls=%#v", database.calls)
 	}
 }
@@ -48,34 +49,34 @@ func TestPostgresRepositoryCanonicalizesEquivalentDatabaseTimeZone(t *testing.T)
 }
 
 func TestPostgresRepositoryUsesExactV27RecoveryReadiness(t *testing.T) {
-	database := &postgresDatabaseStub{responses: []any{true}}
+	database := &postgresDatabaseStub{responses: []any{false, true}}
 	repository, err := NewPostgresRepository(database, time.Second)
 	if err != nil || repository.Ready(context.Background()) != nil {
 		t.Fatalf("repository=%#v err=%v", repository, err)
 	}
 	metadata := migrations.ProductionRecovery()
-	if database.calls[0].statement != postgresReadyV27SQL || !reflect.DeepEqual(database.calls[0].arguments, []any{metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint()}) {
+	if database.calls[1].statement != postgresReadyV27SQL || !reflect.DeepEqual(database.calls[1].arguments, []any{metadata.Checksum(), migrations.ProductionRecoverySemanticFingerprint()}) {
 		t.Fatalf("calls=%#v", database.calls)
 	}
 }
 
 func TestPostgresRepositoryRetainsExactV16ReadinessFallback(t *testing.T) {
-	database := &postgresDatabaseStub{responses: []any{&pgconn.PgError{Code: "42883", Message: "function unavailable"}, true}}
+	database := &postgresDatabaseStub{responses: []any{false, &pgconn.PgError{Code: "42883", Message: "function unavailable"}, true}}
 	repository, err := NewPostgresRepository(database, time.Second)
 	if err != nil || repository.Ready(context.Background()) != nil {
 		t.Fatalf("repository=%#v err=%v", repository, err)
 	}
 	metadata := migrations.ProductionRuntimeIngestReconciliation()
-	if len(database.calls) != 2 || database.calls[1].statement != postgresReadySQL || !reflect.DeepEqual(database.calls[1].arguments, []any{metadata.Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint()}) {
+	if len(database.calls) != 3 || database.calls[2].statement != postgresReadySQL || !reflect.DeepEqual(database.calls[2].arguments, []any{metadata.Checksum(), migrations.ProductionRuntimeIngestReconciliationSemanticFingerprint()}) {
 		t.Fatalf("calls=%#v", database.calls)
 	}
 }
 
 func TestPostgresRepositoryFailsClosedOnCurrentReadinessFailure(t *testing.T) {
 	for _, response := range []any{false, errors.New("permission denied")} {
-		database := &postgresDatabaseStub{responses: []any{response, true}}
+		database := &postgresDatabaseStub{responses: []any{false, response, true}}
 		repository, err := NewPostgresRepository(database, time.Second)
-		if err != nil || !errors.Is(repository.Ready(context.Background()), errPostgresRepository) || len(database.calls) != 1 {
+		if err != nil || !errors.Is(repository.Ready(context.Background()), errPostgresRepository) || len(database.calls) != 2 {
 			t.Fatalf("response=%#v repository=%#v calls=%#v err=%v", response, repository, database.calls, err)
 		}
 	}

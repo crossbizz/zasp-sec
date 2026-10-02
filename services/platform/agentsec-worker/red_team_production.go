@@ -46,7 +46,8 @@ func newProductionRedTeamDependencies(config workerRuntimeConfig) (*productionRe
 		return fail()
 	}
 	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{
-		Artifacts: artifacts, Command: productionRedTeamCommand{}, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/dist/src/entrypoint.js",
+		RunnerImage: config.RedTeamRunnerImage,
+		Artifacts:   artifacts, Command: productionRedTeamCommand{}, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/dist/src/entrypoint.js",
 		TargetEndpoint: config.RedTeamTargetEndpoint, TargetTokenFile: config.RedTeamTargetTokenFile, TargetCAFile: config.RedTeamTargetCAFile, TempRoot: "/tmp", Timeout: config.RedTeamRunnerTimeout, Clock: func() time.Time { return time.Now().UTC() },
 	})
 	if err != nil {
@@ -87,7 +88,7 @@ func composeRedTeamWorkerRuntime(config workerRuntimeConfig, database apiserver.
 	if !validWorkerRuntimeConfig(config) || config.Mode != workerModeRedTeam || database == nil || dependencies == nil || dependencies.Queue == nil || dependencies.Runner == nil || dependencies.ready == nil || dependencies.close == nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	repository, err := apiserver.NewRedTeamExecutionRepository(database, apiserver.RedTeamExecutionAuthorityWorker)
+	repository, err := newRoutedRedTeamAuthority(database)
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}

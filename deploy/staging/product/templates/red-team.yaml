@@ -107,6 +107,10 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: {{ $worker.uid }}, runAsGroup: {{ $worker.uid }} }
           env:
             - { name: ZASP_WORKER_MODE, value: {{ $worker.mode | quote }} }
+            {{- if and $root.Values.authorizationTemporal.profile (eq $worker.mode "red-team") }}
+            - { name: ZASP_ENVIRONMENT, value: {{ $root.Values.global.environment | quote }} }
+            {{- include "zasp.runtimeServices.env" $root | nindent 12 }}
+            {{- end }}
             - { name: ZASP_DATABASE_AUTHORITY, value: {{ $worker.authority | quote }} }
             - name: ZASP_WORKER_ID
               valueFrom: { fieldRef: { apiVersion: v1, fieldPath: metadata.name } }
@@ -128,11 +132,18 @@ spec:
             - { name: ZASP_RED_TEAM_TARGET_TOKEN_FILE, value: "/var/run/secrets/zasp-red-team/adapter-token" }
             - { name: ZASP_RED_TEAM_TARGET_CA_FILE, value: "/var/run/secrets/zasp-red-team/adapter-ca.crt" }
             - { name: ZASP_RED_TEAM_RUNNER_TIMEOUT, value: {{ $root.Values.redTeam.runnerTimeout | quote }} }
+            - { name: ZASP_RED_TEAM_RUNNER_IMAGE, value: {{ $worker.image | quote }} }
             {{- end }}
           volumeMounts:
             - { name: secrets, mountPath: {{ $worker.mount }}, readOnly: true }
+            {{- if and $root.Values.authorizationTemporal.profile (eq $worker.mode "red-team") }}
+            {{- include "zasp.runtimeServices.mount" $root | nindent 12 }}
+            {{- end }}
             - { name: web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
       volumes:
+        {{- if and $root.Values.authorizationTemporal.profile (eq $worker.mode "red-team") }}
+        {{- include "zasp.runtimeServices.volume" $root | nindent 8 }}
+        {{- end }}
         - name: secrets-source
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ $worker.secrets | quote }} } }
         - name: secrets
@@ -166,6 +177,9 @@ spec:
         - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-red-team-adapter } } }
         - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: agentsec-red-team-adapter } } }
       initContainers:
+        {{- if .Values.authorizationTemporal.profile }}
+        {{- include "zasp.workerKeys.init" (dict "image" .Values.global.productImages.redTeamWorker "uid" 1000) | nindent 8 }}
+        {{- end }}
         - name: materialize-red-team-authority
           image: {{ required "global.productImages.redTeamWorker must be an immutable digest" .Values.global.productImages.redTeamWorker | quote }}
           imagePullPolicy: IfNotPresent
@@ -181,7 +195,11 @@ spec:
           image: {{ required "global.productImages.redTeamWorker must be an immutable digest" .Values.global.productImages.redTeamWorker | quote }}
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-ec"]
+          {{- if .Values.authorizationTemporal.profile }}
+          args: ['exec /app/red-team-adapter']
+          {{- else }}
           args: ['export ZASP_DATABASE_URL="$(cat /var/run/secrets/zasp-red-team-adapter-db/postgres-dsn)"; exec /app/red-team-adapter']
+          {{- end }}
           ports: [{ name: target, containerPort: 8443, protocol: TCP }, { name: internal, containerPort: 8081, protocol: TCP }]
           startupProbe: { httpGet: { path: /healthz, port: 8081 }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
           readinessProbe: { httpGet: { path: /readyz, port: 8081 }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
@@ -191,6 +209,15 @@ spec:
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000 }
           env:
             - { name: ZASP_DATABASE_AUTHORITY, value: "zasp_red_team_adapter" }
+            {{- if .Values.authorizationTemporal.profile }}
+            - { name: ZASP_ENVIRONMENT, value: {{ .Values.global.environment | quote }} }
+            {{- include "zasp.runtimeServices.env" . | nindent 12 }}
+            {{- include "zasp.workerKeys.env" . | nindent 12 }}
+            - name: ZASP_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.authorizationTemporal.adapterDSNSecret | quote }}, key: postgres-dsn } }
+            - name: ZASP_TEMPORAL_COMPENSATION_POSTGRES_DSN
+              valueFrom: { secretKeyRef: { name: {{ .Values.authorizationTemporal.compensationDSNSecret | quote }}, key: postgres-dsn } }
+            {{- end }}
             - { name: ZASP_AWS_REGION, value: {{ required "redTeam.awsRegion is required" .Values.redTeam.awsRegion | quote }} }
             - { name: ZASP_RED_TEAM_ADAPTER_ROLE_ARN, value: {{ required "redTeam.adapterRoleArn is required" .Values.redTeam.adapterRoleArn | quote }} }
             - { name: ZASP_RED_TEAM_ADAPTER_WEB_IDENTITY_TOKEN_FILE, value: {{ .Values.redTeam.webIdentityTokenFile | quote }} }
@@ -203,11 +230,19 @@ spec:
             - { name: ZASP_RED_TEAM_ADAPTER_SHUTDOWN_TIMEOUT, value: {{ .Values.redTeam.adapterShutdownTimeout | quote }} }
           volumeMounts:
             - { name: secrets, mountPath: /var/run/secrets/zasp-red-team-adapter-db, readOnly: true }
+            {{- if .Values.authorizationTemporal.profile }}
+            {{- include "zasp.runtimeServices.mount" . | nindent 12 }}
+            {{- include "zasp.workerKeys.mount" . | nindent 12 }}
+            {{- end }}
             - { name: secrets, mountPath: /var/run/secrets/zasp/red-team-adapter/token, subPath: adapter-token, readOnly: true }
             - { name: secrets, mountPath: /var/run/secrets/zasp/red-team-adapter-tls/tls.crt, subPath: tls.crt, readOnly: true }
             - { name: secrets, mountPath: /var/run/secrets/zasp/red-team-adapter-tls/tls.key, subPath: tls.key, readOnly: true }
             - { name: web-identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
       volumes:
+        {{- if .Values.authorizationTemporal.profile }}
+        {{- include "zasp.runtimeServices.volume" . | nindent 8 }}
+        {{- include "zasp.workerKeys.volumes" . | nindent 8 }}
+        {{- end }}
         - name: secrets-source
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.redTeamAdapterProviderClassName | quote }} } }
         - name: secrets

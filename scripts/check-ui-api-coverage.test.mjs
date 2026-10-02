@@ -51,10 +51,10 @@ function captureStream() {
 test("current API and planned map passes honestly", async () => {
   const { map, openapi } = await currentSources();
   assert.deepEqual(validateCoverage(parseMapSource(map), parseOpenAPISource(openapi)), {
-    planned: 6,
-    apiAvailable: 6,
-    available: 141,
-    public: 147,
+    planned: 2,
+    apiAvailable: 15,
+    available: 147,
+    public: 162,
     internal: 0,
   });
 });
@@ -66,9 +66,9 @@ test("all current public operations resolve and deliberate removal fails", async
   const complete = parseOpenAPISource(futureOpenAPI(operationIDs));
   assert.deepEqual(validateCoverage(document, complete), {
     planned: 0,
-    apiAvailable: 6,
-    available: 147,
-    public: 153,
+    apiAvailable: 15,
+    available: 149,
+    public: 164,
     internal: 0,
   });
 
@@ -83,10 +83,10 @@ test("unmapped public operations fail while unmapped internal operations pass", 
     .map((action) => action.operation_id);
   assert.throws(() => validateCoverage(planned, parseOpenAPISource(futureOpenAPI([...apiOperations, "unmappedPublic"]))));
   assert.deepEqual(validateCoverage(planned, parseOpenAPISource(futureOpenAPI(apiOperations, { internal: ["ingestEvents"] }))), {
-    planned: 6,
-    apiAvailable: 6,
-    available: 141,
-    public: 147,
+    planned: 2,
+    apiAvailable: 15,
+    available: 147,
+    public: 162,
     internal: 1,
   });
 });
@@ -113,7 +113,7 @@ test("API-available operations require OpenAPI but do not claim a wired UI", asy
     .filter((action) => action.availability !== "planned")
     .map((action) => action.operation_id);
   const result = validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations)));
-  assert.deepEqual(result, { planned: 6, apiAvailable: 6, available: 141, public: 147, internal: 0 });
+  assert.deepEqual(result, { planned: 2, apiAvailable: 15, available: 147, public: 162, internal: 0 });
   assert.throws(() => validateCoverage(apiMap, parseOpenAPISource(futureOpenAPI(apiOperations.slice(1)))));
 });
 
@@ -173,7 +173,7 @@ test("CLI emits only fixed success or rejection lines", async () => {
   const successOut = captureStream();
   const successErr = captureStream();
   assert.equal(await runMain({ stdout: successOut.stream, stderr: successErr.stream }), 0);
-  assert.equal(successOut.value(), "UI/API coverage passed: planned=6 api_available=6 available=141 public=147 internal=0.\n");
+  assert.equal(successOut.value(), "UI/API coverage passed: planned=2 api_available=15 available=147 public=162 internal=0.\n");
   assert.equal(successErr.value(), "");
 
   const failureOut = captureStream();

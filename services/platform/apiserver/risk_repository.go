@@ -222,7 +222,8 @@ func (repository *PostgresRepository) SearchGlobal(ctx context.Context, scope do
 	if repository == nil || nilInterface(repository.database) || ctx == nil || scope.Validate() != nil || strings.TrimSpace(query) != query || !globalSearchQueryPattern.MatchString(query) || limit < 1 || limit > 100 {
 		return GlobalSearchPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresGlobalSearchSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), query, limit)
+	statement := authorizationReadStatement(ctx, postgresGlobalSearchSQL, `SELECT zasp_authorization80.global_search($1,$2,$3,$4,$5)`)
+	payload, err := repository.database.QueryJSON(ctx, statement, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), query, limit)
 	if err != nil {
 		return GlobalSearchPage{}, riskProviderError(err)
 	}
@@ -264,7 +265,8 @@ func (repository *PostgresRepository) ListRiskFindingPage(ctx context.Context, s
 	if !validRiskPage(repository, ctx, scope, afterID, limit) {
 		return RiskFindingPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRiskFindingPageSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), afterID, limit)
+	statement := authorizationReadStatement(ctx, postgresRiskFindingPageSQL, `SELECT zasp_authorization80.risk_page('finding',$1,$2,$3,NULLIF($4,''),$5)`)
+	payload, err := repository.database.QueryJSON(ctx, statement, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), afterID, limit)
 	return decodeRiskFindingPage(payload, err, limit)
 }
 
@@ -315,7 +317,8 @@ func (repository *PostgresRepository) ListRiskAttackPathPage(ctx context.Context
 	if !validRiskPage(repository, ctx, scope, afterID, limit) {
 		return RiskAttackPathPage{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRiskAttackPathPageSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), afterID, limit)
+	statement := authorizationReadStatement(ctx, postgresRiskAttackPathPageSQL, `SELECT zasp_authorization80.risk_page('attack_path',$1,$2,$3,NULLIF($4,''),$5)`)
+	payload, err := repository.database.QueryJSON(ctx, statement, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), afterID, limit)
 	if err != nil {
 		return RiskAttackPathPage{}, riskProviderError(err)
 	}
@@ -385,7 +388,8 @@ func (repository *PostgresRepository) CountHighRiskPaths(ctx context.Context, sc
 	if repository == nil || nilInterface(repository.database) || ctx == nil || scope.Validate() != nil {
 		return 0, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRiskHighPathCountSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
+	statement := authorizationReadStatement(ctx, postgresRiskHighPathCountSQL, `SELECT to_jsonb(zasp_authorization80.high_path_count($1,$2,$3))`)
+	payload, err := repository.database.QueryJSON(ctx, statement, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String())
 	if err != nil {
 		return 0, riskProviderError(err)
 	}
@@ -400,7 +404,19 @@ func (repository *PostgresRepository) MutateRiskFinding(ctx context.Context, ide
 	if repository == nil || nilInterface(repository.database) || ctx == nil || !validRequestIdentity(identity, false) || !validRiskFindingMutation(mutation) || !validMutationReceiptIdentity(identity, mutation.ReceiptID) {
 		return RiskFindingMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRiskFindingMutateSQL,
+	statement := postgresRiskFindingMutateSQL
+	if probe, ok := repository.database.(interface {
+		RiskAutomaticSourcesAvailable(context.Context) (bool, error)
+	}); ok {
+		available, err := probe.RiskAutomaticSourcesAvailable(ctx)
+		if err != nil {
+			return RiskFindingMutationResult{}, err
+		}
+		if available {
+			statement = `SELECT zasp_temporal77.risk_mutate($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''), NULLIF($10, ''), $11, $12, NULLIF($13, ''))`
+		}
+	}
+	payload, err := repository.database.QueryJSON(ctx, statement,
 		mutation.Operation, mutation.FindingID,
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(),
 		mutation.IdempotencyKey, mutation.ExpectedVersion, mutation.Status, mutation.Reason, mutation.AuditID, mutation.CorrelationID, mutation.ReceiptID,

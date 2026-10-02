@@ -1,0 +1,1615 @@
+=== RUN   TestComplianceConflictClassification
+--- PASS: TestComplianceConflictClassification (0.00s)
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/old
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/context
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/foreign-context
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/future-envelope
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/duplicate
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/foreign-id
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/context-null
+--- PASS: TestCompliancePersistedAttributionAndHistoricalBytes (0.05s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/old (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/context (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/foreign-context (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/future-envelope (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/duplicate (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/foreign-id (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/context-null (0.00s)
+=== RUN   TestCompliancePersistedEmptyFindingReferences
+--- PASS: TestCompliancePersistedEmptyFindingReferences (0.00s)
+=== RUN   TestComplianceExportBindsRequestedJobAndCanonicalFilters
+--- PASS: TestComplianceExportBindsRequestedJobAndCanonicalFilters (0.08s)
+=== RUN   TestComplianceExportsRepository
+--- PASS: TestComplianceExportsRepository (0.04s)
+=== RUN   TestComplianceHTTPMountedPublicLifecycle
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/controls
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence?framework=soc2_security
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence/policy/policy-001?source_version=7
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download-grants
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download
+--- PASS: TestComplianceHTTPMountedPublicLifecycle (0.28s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/controls (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence?framework=soc2_security (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence/policy/policy-001?source_version=7 (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID` (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download-grants (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download (0.04s)
+=== RUN   TestComplianceHTTPMountedDenials
+=== RUN   TestComplianceHTTPMountedDenials/origin
+=== RUN   TestComplianceHTTPMountedDenials/csrf
+=== RUN   TestComplianceHTTPMountedDenials/scope
+=== RUN   TestComplianceHTTPMountedDenials/duplicate-cookie
+=== RUN   TestComplianceHTTPMountedDenials/fresh
+=== RUN   TestComplianceHTTPMountedDenials/audit-permission
+=== RUN   TestComplianceHTTPMountedDenials/view-permission
+--- PASS: TestComplianceHTTPMountedDenials (0.28s)
+    --- PASS: TestComplianceHTTPMountedDenials/origin (0.04s)
+    --- PASS: TestComplianceHTTPMountedDenials/csrf (0.04s)
+    --- PASS: TestComplianceHTTPMountedDenials/scope (0.04s)
+    --- PASS: TestComplianceHTTPMountedDenials/duplicate-cookie (0.04s)
+    --- PASS: TestComplianceHTTPMountedDenials/fresh (0.04s)
+    --- PASS: TestComplianceHTTPMountedDenials/audit-permission (0.04s)
+    --- PASS: TestComplianceHTTPMountedDenials/view-permission (0.04s)
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/bytes
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/version
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/scope
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/digest
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/size
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/error
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/revoked
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/expired
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/replay
+--- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume (0.38s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/bytes (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/version (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/scope (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/digest (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/size (0.05s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/error (0.05s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/revoked (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/expired (0.04s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/replay (0.04s)
+=== RUN   TestComplianceHTTPStrictInputs
+--- PASS: TestComplianceHTTPStrictInputs (0.28s)
+=== RUN   TestComplianceReadFailureClassification
+=== RUN   TestComplianceReadFailureClassification/head-outage
+=== RUN   TestComplianceReadFailureClassification/head-outage/driver
+=== RUN   TestComplianceReadFailureClassification/head-outage/store
+=== RUN   TestComplianceReadFailureClassification/head-outage/http
+=== RUN   TestComplianceReadFailureClassification/get-outage
+=== RUN   TestComplianceReadFailureClassification/get-outage/driver
+=== RUN   TestComplianceReadFailureClassification/get-outage/store
+=== RUN   TestComplianceReadFailureClassification/get-outage/http
+=== RUN   TestComplianceReadFailureClassification/body-outage
+=== RUN   TestComplianceReadFailureClassification/body-outage/driver
+=== RUN   TestComplianceReadFailureClassification/body-outage/store
+=== RUN   TestComplianceReadFailureClassification/body-outage/http
+=== RUN   TestComplianceReadFailureClassification/cancel
+=== RUN   TestComplianceReadFailureClassification/cancel/driver
+=== RUN   TestComplianceReadFailureClassification/cancel/store
+=== RUN   TestComplianceReadFailureClassification/cancel/http
+=== RUN   TestComplianceReadFailureClassification/deadline
+=== RUN   TestComplianceReadFailureClassification/deadline/driver
+=== RUN   TestComplianceReadFailureClassification/deadline/store
+=== RUN   TestComplianceReadFailureClassification/deadline/http
+=== RUN   TestComplianceReadFailureClassification/version
+=== RUN   TestComplianceReadFailureClassification/version/driver
+=== RUN   TestComplianceReadFailureClassification/version/store
+=== RUN   TestComplianceReadFailureClassification/version/http
+=== RUN   TestComplianceReadFailureClassification/metadata
+=== RUN   TestComplianceReadFailureClassification/metadata/driver
+=== RUN   TestComplianceReadFailureClassification/metadata/store
+=== RUN   TestComplianceReadFailureClassification/metadata/http
+=== RUN   TestComplianceReadFailureClassification/checksum
+=== RUN   TestComplianceReadFailureClassification/checksum/driver
+=== RUN   TestComplianceReadFailureClassification/checksum/store
+=== RUN   TestComplianceReadFailureClassification/checksum/http
+=== RUN   TestComplianceReadFailureClassification/body-mismatch
+=== RUN   TestComplianceReadFailureClassification/body-mismatch/driver
+=== RUN   TestComplianceReadFailureClassification/body-mismatch/store
+=== RUN   TestComplianceReadFailureClassification/body-mismatch/http
+=== RUN   TestComplianceReadFailureClassification/envelope
+=== RUN   TestComplianceReadFailureClassification/envelope/driver
+=== RUN   TestComplianceReadFailureClassification/envelope/store
+=== RUN   TestComplianceReadFailureClassification/envelope/http
+=== RUN   TestComplianceReadFailureClassification/valid
+=== RUN   TestComplianceReadFailureClassification/valid/driver
+=== RUN   TestComplianceReadFailureClassification/valid/store
+=== RUN   TestComplianceReadFailureClassification/valid/http
+=== RUN   TestComplianceReadFailureClassification/sdk-checksum
+=== RUN   TestComplianceReadFailureClassification/sdk-checksum/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-checksum/store
+=== RUN   TestComplianceReadFailureClassification/sdk-checksum/http
+=== RUN   TestComplianceReadFailureClassification/sdk-body-outage
+=== RUN   TestComplianceReadFailureClassification/sdk-body-outage/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-body-outage/store
+=== RUN   TestComplianceReadFailureClassification/sdk-body-outage/http
+=== RUN   TestComplianceReadFailureClassification/sdk-spoof
+=== RUN   TestComplianceReadFailureClassification/sdk-spoof/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-spoof/store
+=== RUN   TestComplianceReadFailureClassification/sdk-spoof/http
+=== RUN   TestComplianceReadFailureClassification/sdk-cancel
+=== RUN   TestComplianceReadFailureClassification/sdk-cancel/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-cancel/store
+=== RUN   TestComplianceReadFailureClassification/sdk-cancel/http
+=== RUN   TestComplianceReadFailureClassification/sdk-valid
+=== RUN   TestComplianceReadFailureClassification/sdk-valid/driver
+=== RUN   TestComplianceReadFailureClassification/sdk-valid/store
+=== RUN   TestComplianceReadFailureClassification/sdk-valid/http
+--- PASS: TestComplianceReadFailureClassification (1.29s)
+    --- PASS: TestComplianceReadFailureClassification/head-outage (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/head-outage/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/head-outage/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/head-outage/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/get-outage (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/get-outage/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/get-outage/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/get-outage/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/body-outage (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/body-outage/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/body-outage/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/body-outage/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/cancel (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/cancel/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/cancel/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/cancel/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/deadline (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/deadline/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/deadline/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/deadline/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/version (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/version/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/version/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/version/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/metadata (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/metadata/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/metadata/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/metadata/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/checksum (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/checksum/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/checksum/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/checksum/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/body-mismatch (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/body-mismatch/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/body-mismatch/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/body-mismatch/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/envelope (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/envelope/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/envelope/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/envelope/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/valid (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/valid/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/valid/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/valid/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-checksum (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-checksum/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-checksum/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-checksum/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-body-outage (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-body-outage/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-body-outage/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-body-outage/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-spoof (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-spoof/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-spoof/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-spoof/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-cancel (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-cancel/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-cancel/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-cancel/http (0.04s)
+    --- PASS: TestComplianceReadFailureClassification/sdk-valid (0.08s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-valid/driver (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-valid/store (0.00s)
+        --- PASS: TestComplianceReadFailureClassification/sdk-valid/http (0.04s)
+=== RUN   TestComplianceEvidenceStrictDecoding
+--- PASS: TestComplianceEvidenceStrictDecoding (0.00s)
+=== RUN   TestComplianceRepositoryBindsScopeAndRejectsUnsafeInput
+--- PASS: TestComplianceRepositoryBindsScopeAndRejectsUnsafeInput (0.04s)
+=== RUN   TestSecurityAgentExportActionArguments
+--- PASS: TestSecurityAgentExportActionArguments (0.00s)
+=== RUN   TestSecurityAgentExportActionProjection
+=== RUN   TestSecurityAgentExportActionProjection/#00
+=== RUN   TestSecurityAgentExportActionProjection/pending
+=== RUN   TestSecurityAgentExportActionProjection/succeeded
+=== RUN   TestSecurityAgentExportActionProjection/known_failure
+=== RUN   TestSecurityAgentExportActionProjection/cleanup_pending
+--- PASS: TestSecurityAgentExportActionProjection (0.01s)
+    --- PASS: TestSecurityAgentExportActionProjection/#00 (0.00s)
+    --- PASS: TestSecurityAgentExportActionProjection/pending (0.00s)
+    --- PASS: TestSecurityAgentExportActionProjection/succeeded (0.00s)
+    --- PASS: TestSecurityAgentExportActionProjection/known_failure (0.00s)
+    --- PASS: TestSecurityAgentExportActionProjection/cleanup_pending (0.00s)
+=== RUN   TestSecurityAgentExportActionRejectsSecurityOutcomeStates
+=== RUN   TestSecurityAgentExportActionRejectsSecurityOutcomeStates/verified
+=== RUN   TestSecurityAgentExportActionRejectsSecurityOutcomeStates/cleaned
+=== RUN   TestSecurityAgentExportActionRejectsSecurityOutcomeStates/cleanup_failed
+=== RUN   TestSecurityAgentExportActionRejectsSecurityOutcomeStates/leased
+=== RUN   TestSecurityAgentExportActionRejectsSecurityOutcomeStates/unknown_outcome
+--- PASS: TestSecurityAgentExportActionRejectsSecurityOutcomeStates (0.01s)
+    --- PASS: TestSecurityAgentExportActionRejectsSecurityOutcomeStates/verified (0.00s)
+    --- PASS: TestSecurityAgentExportActionRejectsSecurityOutcomeStates/cleaned (0.00s)
+    --- PASS: TestSecurityAgentExportActionRejectsSecurityOutcomeStates/cleanup_failed (0.00s)
+    --- PASS: TestSecurityAgentExportActionRejectsSecurityOutcomeStates/leased (0.00s)
+    --- PASS: TestSecurityAgentExportActionRejectsSecurityOutcomeStates/unknown_outcome (0.00s)
+=== RUN   TestSecurityAgentExportApprovalContext
+=== RUN   TestSecurityAgentExportApprovalContext/missing_selection
+=== RUN   TestSecurityAgentExportApprovalContext/foreign_parent
+=== RUN   TestSecurityAgentExportApprovalContext/invalid_selection
+=== RUN   TestSecurityAgentExportApprovalContext/wrong_action
+=== RUN   TestSecurityAgentExportApprovalContext/ttl
+=== RUN   TestSecurityAgentExportApprovalContext/reversibility
+--- PASS: TestSecurityAgentExportApprovalContext (0.00s)
+    --- PASS: TestSecurityAgentExportApprovalContext/missing_selection (0.00s)
+    --- PASS: TestSecurityAgentExportApprovalContext/foreign_parent (0.00s)
+    --- PASS: TestSecurityAgentExportApprovalContext/invalid_selection (0.00s)
+    --- PASS: TestSecurityAgentExportApprovalContext/wrong_action (0.00s)
+    --- PASS: TestSecurityAgentExportApprovalContext/ttl (0.00s)
+    --- PASS: TestSecurityAgentExportApprovalContext/reversibility (0.00s)
+=== RUN   TestSecurityAgentExportApprovalRejectsForeignSelectionTarget
+--- PASS: TestSecurityAgentExportApprovalRejectsForeignSelectionTarget (0.00s)
+=== RUN   TestSecurityAgentExportApprovalRunDetail
+--- PASS: TestSecurityAgentExportApprovalRunDetail (0.00s)
+=== RUN   TestSecurityAgentExportCapabilityReleaseChecks
+=== RUN   TestSecurityAgentExportCapabilityReleaseChecks/absent
+=== RUN   TestSecurityAgentExportCapabilityReleaseChecks/ready
+=== RUN   TestSecurityAgentExportCapabilityReleaseChecks/drift
+=== RUN   TestSecurityAgentExportCapabilityReleaseChecks/outage
+--- PASS: TestSecurityAgentExportCapabilityReleaseChecks (0.19s)
+    --- PASS: TestSecurityAgentExportCapabilityReleaseChecks/absent (0.00s)
+    --- PASS: TestSecurityAgentExportCapabilityReleaseChecks/ready (0.09s)
+    --- PASS: TestSecurityAgentExportCapabilityReleaseChecks/drift (0.10s)
+    --- PASS: TestSecurityAgentExportCapabilityReleaseChecks/outage (0.00s)
+=== RUN   TestSecurityAgentExportCatalogRequiresConnectedReadiness
+--- PASS: TestSecurityAgentExportCatalogRequiresConnectedReadiness (0.00s)
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/create
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/replay
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/controls
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/control
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/detail
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/activate
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/value
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/page
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/create
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/replay
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/controls
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/control
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/detail
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/activate
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/value
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/page
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/create
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/replay
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/controls
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/control
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/detail
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/activate
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/value
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/page
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/create
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/replay
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/controls
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/control
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/detail
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/activate
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/value
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/page
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/create
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/replay
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/controls
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/control
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/detail
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/activate
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/value
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/page
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/create
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/replay
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/controls
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/control
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/detail
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/activate
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/value
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/page
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/create
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/replay
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/controls
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/control
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/detail
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/activate
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/value
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/page
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/create
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/replay
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/controls
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/control
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/detail
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/activate
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/value
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/page
+--- PASS: TestSecurityAgentExportDefinitionAuthorityErrors (6.38s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/create (0.05s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/replay (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/controls (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/control (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/detail (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/activate (0.19s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/value (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_permission_rejected/page (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/create (0.05s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/replay (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/controls (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/control (0.11s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/detail (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/activate (0.19s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/value (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_principal_unavailable/page (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/create (0.05s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/replay (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/controls (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/control (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/detail (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/activate (0.19s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/value (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/permission_denied_for_function_zasp_sa_export_controls/page (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/create (0.05s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/replay (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/controls (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/control (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/detail (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/activate (0.19s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/value (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_release_unavailable/page (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/create (0.05s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/replay (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/controls (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/control (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/detail (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/activate (0.18s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/value (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/55000/export_definition_permission_rejected/page (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/create (0.05s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/replay (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/controls (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/control (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/detail (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/activate (0.19s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/value (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/42501/export_definition_scope_rejected/page (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/create (0.04s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/replay (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/controls (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/control (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/detail (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/activate (0.18s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/value (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/23505/existing_unique_conflict/page (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/create (0.04s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/replay (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/controls (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/control (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/detail (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/activate (0.18s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/value (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAuthorityErrors/22023/existing_invalid_input/page (0.09s)
+=== RUN   TestSecurityAgentExportDefinitionAuthorityErrorScope
+--- PASS: TestSecurityAgentExportDefinitionAuthorityErrorScope (0.00s)
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting/create
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting/update
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting/delete
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting/replay
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting/activate
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting/disable
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting/control_enable
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting/control_disable
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting/controls
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting/detail
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting/value
+=== RUN   TestSecurityAgentExportDefinitionRepositoryRouting/page
+--- PASS: TestSecurityAgentExportDefinitionRepositoryRouting (1.25s)
+    --- PASS: TestSecurityAgentExportDefinitionRepositoryRouting/create (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionRepositoryRouting/update (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionRepositoryRouting/delete (0.14s)
+    --- PASS: TestSecurityAgentExportDefinitionRepositoryRouting/replay (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionRepositoryRouting/activate (0.13s)
+    --- PASS: TestSecurityAgentExportDefinitionRepositoryRouting/disable (0.13s)
+    --- PASS: TestSecurityAgentExportDefinitionRepositoryRouting/control_enable (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionRepositoryRouting/control_disable (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionRepositoryRouting/controls (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionRepositoryRouting/detail (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionRepositoryRouting/value (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionRepositoryRouting/page (0.09s)
+=== RUN   TestSecurityAgentExportDefinitionBoundary
+=== RUN   TestSecurityAgentExportDefinitionBoundary/ready_draft_create_and_update
+=== RUN   TestSecurityAgentExportDefinitionBoundary/export_outage_does_not_block_unrelated_draft
+=== RUN   TestSecurityAgentExportDefinitionBoundary/retained_activation_during_outage
+=== RUN   TestSecurityAgentExportDefinitionBoundary/eight_controls
+=== RUN   TestSecurityAgentExportDefinitionBoundary/export_control_HTTP
+=== RUN   TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent
+=== RUN   TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/absent
+=== RUN   TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/outage
+=== RUN   TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/drift
+=== RUN   TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/enabled
+=== RUN   TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/composite
+=== RUN   TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/existing_test
+=== RUN   TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/wrong_verification
+=== RUN   TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/foreign_environment
+=== RUN   TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/multiple_steps
+=== RUN   TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/missing_cost
+=== RUN   TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/outage_malformed
+--- PASS: TestSecurityAgentExportDefinitionBoundary (0.01s)
+    --- PASS: TestSecurityAgentExportDefinitionBoundary/ready_draft_create_and_update (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionBoundary/export_outage_does_not_block_unrelated_draft (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionBoundary/retained_activation_during_outage (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionBoundary/eight_controls (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionBoundary/export_control_HTTP (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent (0.01s)
+        --- PASS: TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/absent (0.00s)
+        --- PASS: TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/outage (0.00s)
+        --- PASS: TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/drift (0.00s)
+        --- PASS: TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/enabled (0.00s)
+        --- PASS: TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/composite (0.00s)
+        --- PASS: TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/existing_test (0.00s)
+        --- PASS: TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/wrong_verification (0.00s)
+        --- PASS: TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/foreign_environment (0.00s)
+        --- PASS: TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/multiple_steps (0.00s)
+        --- PASS: TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/missing_cost (0.00s)
+        --- PASS: TestSecurityAgentExportDefinitionBoundary/draft_readiness_and_malformed_intent/outage_malformed (0.00s)
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/absent/create
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/absent/control
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/absent/activate
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/absent/delete
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/drift/create
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/drift/control
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/drift/activate
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/drift/delete
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/workers_down/create
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/workers_down/control
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/workers_down/activate
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/controls_installed=false
+=== RUN   TestSecurityAgentExportDefinitionAdmissionRefusals/controls_installed=true
+--- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/absent/create (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/absent/control (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/absent/activate (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/absent/delete (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/drift/create (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/drift/control (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/drift/activate (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/drift/delete (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/workers_down/create (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/workers_down/control (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/workers_down/activate (0.05s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/controls_installed=false (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionAdmissionRefusals/controls_installed=true (0.04s)
+=== RUN   TestSecurityAgentExportDispatchReceipt
+--- PASS: TestSecurityAgentExportDispatchReceipt (0.18s)
+=== RUN   TestSecurityAgentExportDispatchRejectsUnboundReceipt
+--- PASS: TestSecurityAgentExportDispatchRejectsUnboundReceipt (0.47s)
+=== RUN   TestSecurityAgentExportDispatchInputGuards
+=== RUN   TestSecurityAgentExportDispatchInputGuards/prepared
+=== RUN   TestSecurityAgentExportDispatchInputGuards/scope
+=== RUN   TestSecurityAgentExportDispatchInputGuards/worker
+=== RUN   TestSecurityAgentExportDispatchInputGuards/lease
+=== RUN   TestSecurityAgentExportDispatchInputGuards/audit
+=== RUN   TestSecurityAgentExportDispatchInputGuards/correlation
+=== RUN   TestSecurityAgentExportDispatchInputGuards/cancelled
+--- PASS: TestSecurityAgentExportDispatchInputGuards (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchInputGuards/prepared (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchInputGuards/scope (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchInputGuards/worker (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchInputGuards/lease (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchInputGuards/audit (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchInputGuards/correlation (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchInputGuards/cancelled (0.00s)
+=== RUN   TestSecurityAgentExportDispatchCommittedCancellation
+--- PASS: TestSecurityAgentExportDispatchCommittedCancellation (0.05s)
+=== RUN   TestSecurityAgentExportDispatchRouting
+=== RUN   TestSecurityAgentExportDispatchRouting/export
+=== RUN   TestSecurityAgentExportDispatchRouting/other_action
+=== RUN   TestSecurityAgentExportDispatchRouting/absent_release
+=== RUN   TestSecurityAgentExportDispatchRouting/null_kind
+=== RUN   TestSecurityAgentExportDispatchRouting/unknown_field
+=== RUN   TestSecurityAgentExportDispatchRouting/duplicate_kind
+--- PASS: TestSecurityAgentExportDispatchRouting (0.05s)
+    --- PASS: TestSecurityAgentExportDispatchRouting/export (0.05s)
+    --- PASS: TestSecurityAgentExportDispatchRouting/other_action (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchRouting/absent_release (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchRouting/null_kind (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchRouting/unknown_field (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchRouting/duplicate_kind (0.00s)
+=== RUN   TestSecurityAgentExportDownloadOriginalFormats
+--- PASS: TestSecurityAgentExportDownloadOriginalFormats (0.00s)
+=== RUN   TestSecurityAgentExportDownloadManifestBinding
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/run
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/step
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/source
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/version
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/association
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/scope
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/duplicate
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/unknown
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/mapping
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/renderer
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/time
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/content_hash
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/content_object
+--- PASS: TestSecurityAgentExportDownloadManifestBinding (0.01s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/run (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/step (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/source (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/version (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/association (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/scope (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/duplicate (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/unknown (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/mapping (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/renderer (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/time (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/content_hash (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/content_object (0.00s)
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/expired
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/missing_selection
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/bad_revision
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/bad_format
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/provider
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/bytes
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/media
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/version
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/cancelled
+--- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/expired (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/missing_selection (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/bad_revision (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/bad_format (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/provider (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/bytes (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/media (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/version (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/cancelled (0.00s)
+=== RUN   TestSecurityAgentExportDownloadContentBounds
+--- PASS: TestSecurityAgentExportDownloadContentBounds (0.00s)
+=== RUN   TestSecurityAgentExportDownloadCancelledDuringRead
+--- PASS: TestSecurityAgentExportDownloadCancelledDuringRead (0.00s)
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/empty
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/unknown_kind
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/manual_product_id
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/zero_version
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/unsafe_version
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/invalid_digest
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/duplicate
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/101
+--- PASS: TestSecurityAgentExportDownloadSelectionBounds (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/empty (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/unknown_kind (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/manual_product_id (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/zero_version (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/unsafe_version (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/invalid_digest (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/duplicate (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/101 (0.00s)
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/order
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/unknown
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/duplicate
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/missing
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/version
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/id
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/csv_limit
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/human_limit
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/package_limit
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/foreign_locator
+--- PASS: TestSecurityAgentExportDownloadPackageBoundaries (1.24s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/order (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/unknown (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/duplicate (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/missing (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/version (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/id (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/csv_limit (0.49s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/human_limit (0.49s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/package_limit (0.26s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/foreign_locator (0.00s)
+=== RUN   TestSecurityAgentExportHTTPGrantAndRefusals
+=== RUN   TestSecurityAgentExportHTTPGrantAndRefusals/json
+=== RUN   TestSecurityAgentExportHTTPGrantAndRefusals/csv
+=== RUN   TestSecurityAgentExportHTTPGrantAndRefusals/human
+=== RUN   TestSecurityAgentExportHTTPGrantAndRefusals/unknown_format
+=== RUN   TestSecurityAgentExportHTTPGrantAndRefusals/duplicate_format
+=== RUN   TestSecurityAgentExportHTTPGrantAndRefusals/unknown_field
+=== RUN   TestSecurityAgentExportHTTPGrantAndRefusals/query
+=== RUN   TestSecurityAgentExportHTTPGrantAndRefusals/invalid_token
+=== RUN   TestSecurityAgentExportHTTPGrantAndRefusals/duplicate_csrf
+--- PASS: TestSecurityAgentExportHTTPGrantAndRefusals (0.14s)
+    --- PASS: TestSecurityAgentExportHTTPGrantAndRefusals/json (0.04s)
+    --- PASS: TestSecurityAgentExportHTTPGrantAndRefusals/csv (0.05s)
+    --- PASS: TestSecurityAgentExportHTTPGrantAndRefusals/human (0.05s)
+    --- PASS: TestSecurityAgentExportHTTPGrantAndRefusals/unknown_format (0.00s)
+    --- PASS: TestSecurityAgentExportHTTPGrantAndRefusals/duplicate_format (0.00s)
+    --- PASS: TestSecurityAgentExportHTTPGrantAndRefusals/unknown_field (0.00s)
+    --- PASS: TestSecurityAgentExportHTTPGrantAndRefusals/query (0.00s)
+    --- PASS: TestSecurityAgentExportHTTPGrantAndRefusals/invalid_token (0.00s)
+    --- PASS: TestSecurityAgentExportHTTPGrantAndRefusals/duplicate_csrf (0.00s)
+=== RUN   TestSecurityAgentExportHTTPConsumeBeforeBytes
+=== RUN   TestSecurityAgentExportHTTPConsumeBeforeBytes/allowed
+=== RUN   TestSecurityAgentExportHTTPConsumeBeforeBytes/revoked
+--- PASS: TestSecurityAgentExportHTTPConsumeBeforeBytes (0.18s)
+    --- PASS: TestSecurityAgentExportHTTPConsumeBeforeBytes/allowed (0.09s)
+    --- PASS: TestSecurityAgentExportHTTPConsumeBeforeBytes/revoked (0.09s)
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutesWholeAdmission
+--- PASS: TestSecurityAgentExportPlannerRepositoryRoutesWholeAdmission (0.00s)
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsContextDrift
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/missing
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/empty
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/duplicate
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/private
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/version
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/digest
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/parent
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/nonexport
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/alias
+--- PASS: TestSecurityAgentExportPlannerRepositoryRejectsContextDrift (0.01s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/missing (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/empty (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/duplicate (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/private (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/version (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/digest (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/parent (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/nonexport (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsContextDrift/alias (0.00s)
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/null
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/duplicate
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/unknown
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/type
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/capability
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/query
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/missing
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/null
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/duplicate
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/unknown
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/type
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/capability
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/query
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/missing
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/accept/capability
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/accept/query
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/accept/missing
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/fail/capability
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/fail/query
+=== RUN   TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/fail/missing
+--- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/null (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/duplicate (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/unknown (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/type (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/capability (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/query (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/load/missing (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/null (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/duplicate (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/unknown (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/type (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/capability (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/query (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/reserve/missing (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/accept/capability (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/accept/query (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/accept/missing (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/fail/capability (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/fail/query (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRoutingFailsClosed/fail/missing (0.00s)
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsSubmissionBeforeSQL
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsSubmissionBeforeSQL/empty
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsSubmissionBeforeSQL/duplicate
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsSubmissionBeforeSQL/parent
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsSubmissionBeforeSQL/version
+=== RUN   TestSecurityAgentExportPlannerRepositoryRejectsSubmissionBeforeSQL/nonexport
+--- PASS: TestSecurityAgentExportPlannerRepositoryRejectsSubmissionBeforeSQL (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsSubmissionBeforeSQL/empty (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsSubmissionBeforeSQL/duplicate (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsSubmissionBeforeSQL/parent (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsSubmissionBeforeSQL/version (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryRejectsSubmissionBeforeSQL/nonexport (0.00s)
+=== RUN   TestSecurityAgentExportPlannerRepositoryPreservesNonexportRoute
+--- PASS: TestSecurityAgentExportPlannerRepositoryPreservesNonexportRoute (0.00s)
+=== RUN   TestSecurityAgentExportPlannerRepositoryReplayDoesNotRequireKindProbe
+=== RUN   TestSecurityAgentExportPlannerRepositoryReplayDoesNotRequireKindProbe/create_evidence_export/accept
+=== RUN   TestSecurityAgentExportPlannerRepositoryReplayDoesNotRequireKindProbe/create_evidence_export/fail
+=== RUN   TestSecurityAgentExportPlannerRepositoryReplayDoesNotRequireKindProbe/update_finding_response/accept
+=== RUN   TestSecurityAgentExportPlannerRepositoryReplayDoesNotRequireKindProbe/update_finding_response/fail
+--- PASS: TestSecurityAgentExportPlannerRepositoryReplayDoesNotRequireKindProbe (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryReplayDoesNotRequireKindProbe/create_evidence_export/accept (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryReplayDoesNotRequireKindProbe/create_evidence_export/fail (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryReplayDoesNotRequireKindProbe/update_finding_response/accept (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRepositoryReplayDoesNotRequireKindProbe/update_finding_response/fail (0.00s)
+=== RUN   TestSecurityAgentExportProductionReleaseGate
+=== RUN   TestSecurityAgentExportProductionReleaseGate/absent
+=== RUN   TestSecurityAgentExportProductionReleaseGate/ready
+=== RUN   TestSecurityAgentExportProductionReleaseGate/drift
+--- PASS: TestSecurityAgentExportProductionReleaseGate (0.00s)
+    --- PASS: TestSecurityAgentExportProductionReleaseGate/absent (0.00s)
+    --- PASS: TestSecurityAgentExportProductionReleaseGate/ready (0.00s)
+    --- PASS: TestSecurityAgentExportProductionReleaseGate/drift (0.00s)
+=== RUN   TestSecurityAgentExportPublicConsumeWriteBoundary
+=== RUN   TestSecurityAgentExportPublicConsumeWriteBoundary/none
+=== RUN   TestSecurityAgentExportPublicConsumeWriteBoundary/header
+=== RUN   TestSecurityAgentExportPublicConsumeWriteBoundary/body
+--- PASS: TestSecurityAgentExportPublicConsumeWriteBoundary (0.00s)
+    --- PASS: TestSecurityAgentExportPublicConsumeWriteBoundary/none (0.00s)
+    --- PASS: TestSecurityAgentExportPublicConsumeWriteBoundary/header (0.00s)
+    --- PASS: TestSecurityAgentExportPublicConsumeWriteBoundary/body (0.00s)
+=== RUN   TestSecurityAgentExportSettlementRejectsMalformedReceipts
+--- PASS: TestSecurityAgentExportSettlementRejectsMalformedReceipts (0.56s)
+=== RUN   TestSecurityAgentExportSettlementResultStates
+=== RUN   TestSecurityAgentExportSettlementResultStates/verifying/export_pending3_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/needs_human/export_available4_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/needs_human/export_failed4_true
+=== RUN   TestSecurityAgentExportSettlementResultStates/cancelled/export_cancelled3_true
+=== RUN   TestSecurityAgentExportSettlementResultStates/needs_human/export_parent_stopped3_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/failed/export_parent_stopped4_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/remediated/export_parent_stopped3_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/running/export_parent_stopped3_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/remediated/export_available4_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/verifying/export_pending3_true
+=== RUN   TestSecurityAgentExportSettlementResultStates/cancelled/export_cancelled2_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/needs_human/export_failed3_false
+--- PASS: TestSecurityAgentExportSettlementResultStates (0.56s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/verifying/export_pending3_false (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/needs_human/export_available4_false (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/needs_human/export_failed4_true (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/cancelled/export_cancelled3_true (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/needs_human/export_parent_stopped3_false (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/failed/export_parent_stopped4_false (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/remediated/export_parent_stopped3_false (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/running/export_parent_stopped3_false (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/remediated/export_available4_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/verifying/export_pending3_true (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/cancelled/export_cancelled2_false (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/needs_human/export_failed3_false (0.05s)
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/worker
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/token
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/duration
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/limit
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/cancelled
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/scope
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/audit
+--- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors (0.14s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/worker (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/token (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/duration (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/limit (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/cancelled (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/scope (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/audit (0.00s)
+=== RUN   TestSecurityAgentExportSettlementClient
+--- PASS: TestSecurityAgentExportSettlementClient (0.18s)
+=== RUN   TestSecurityAgentExportStatusLifecycle
+=== RUN   TestSecurityAgentExportStatusLifecycle/pending
+=== RUN   TestSecurityAgentExportStatusLifecycle/completed
+=== RUN   TestSecurityAgentExportStatusLifecycle/failed
+--- PASS: TestSecurityAgentExportStatusLifecycle (0.27s)
+    --- PASS: TestSecurityAgentExportStatusLifecycle/pending (0.09s)
+    --- PASS: TestSecurityAgentExportStatusLifecycle/completed (0.09s)
+    --- PASS: TestSecurityAgentExportStatusLifecycle/failed (0.09s)
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/private_locator
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/duplicate_state
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/terminal_pending
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/null_selection
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/invalid_version
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/duplicate_version
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/unknown_selection_field
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/bad_association
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/unknown_cleanup
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/unknown_failure
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/zero_snapshot
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/private_artifact_field
+=== RUN   TestSecurityAgentExportStatusRefusesMalformedPayloads/empty_artifact
+--- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads (0.63s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/private_locator (0.05s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/duplicate_state (0.04s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/terminal_pending (0.05s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/null_selection (0.04s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/invalid_version (0.05s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/duplicate_version (0.05s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/unknown_selection_field (0.06s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/bad_association (0.05s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/unknown_cleanup (0.05s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/unknown_failure (0.05s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/zero_snapshot (0.04s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/private_artifact_field (0.05s)
+    --- PASS: TestSecurityAgentExportStatusRefusesMalformedPayloads/empty_artifact (0.05s)
+=== RUN   TestSecurityAgentExportDefinitionsRequireAdmissionRelease
+=== RUN   TestSecurityAgentExportDefinitionsRequireAdmissionRelease/absent
+=== RUN   TestSecurityAgentExportDefinitionsRequireAdmissionRelease/installed
+=== RUN   TestSecurityAgentExportDefinitionsRequireAdmissionRelease/drift
+=== RUN   TestSecurityAgentExportDefinitionsRequireAdmissionRelease/outage
+--- PASS: TestSecurityAgentExportDefinitionsRequireAdmissionRelease (0.18s)
+    --- PASS: TestSecurityAgentExportDefinitionsRequireAdmissionRelease/absent (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionsRequireAdmissionRelease/installed (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionsRequireAdmissionRelease/drift (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionsRequireAdmissionRelease/outage (0.00s)
+=== RUN   TestSecurityAgentExportGrantsRepository
+=== RUN   TestSecurityAgentExportGrantsRepository/issue
+=== RUN   TestSecurityAgentExportGrantsRepository/read
+=== RUN   TestSecurityAgentExportGrantsRepository/consume
+=== RUN   TestSecurityAgentExportGrantsRepository/integrity_failure
+--- PASS: TestSecurityAgentExportGrantsRepository (0.38s)
+    --- PASS: TestSecurityAgentExportGrantsRepository/issue (0.09s)
+    --- PASS: TestSecurityAgentExportGrantsRepository/read (0.10s)
+    --- PASS: TestSecurityAgentExportGrantsRepository/consume (0.09s)
+    --- PASS: TestSecurityAgentExportGrantsRepository/integrity_failure (0.10s)
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/run
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/step
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/duplicate_binding
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/unknown_selection
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/duplicate_selection
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/null_selection
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/expired
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/revision
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/zero_size
+--- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings (0.42s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/run (0.05s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/step (0.05s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/duplicate_binding (0.05s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/unknown_selection (0.05s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/duplicate_selection (0.05s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/null_selection (0.05s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/expired (0.05s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/revision (0.04s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/zero_size (0.05s)
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals/csrf
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals/digest
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals/run
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals/token
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals/format
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals/operation
+--- PASS: TestSecurityAgentExportGrantsCallerRefusals (0.09s)
+    --- PASS: TestSecurityAgentExportGrantsCallerRefusals/csrf (0.00s)
+    --- PASS: TestSecurityAgentExportGrantsCallerRefusals/digest (0.00s)
+    --- PASS: TestSecurityAgentExportGrantsCallerRefusals/run (0.00s)
+    --- PASS: TestSecurityAgentExportGrantsCallerRefusals/token (0.00s)
+    --- PASS: TestSecurityAgentExportGrantsCallerRefusals/format (0.00s)
+    --- PASS: TestSecurityAgentExportGrantsCallerRefusals/operation (0.00s)
+=== RUN   TestSecurityAgentManualClaimBoundary
+=== RUN   TestSecurityAgentManualClaimBoundary/manual
+=== RUN   TestSecurityAgentManualClaimBoundary/maximum_version
+=== RUN   TestSecurityAgentManualClaimBoundary/legacy
+=== RUN   TestSecurityAgentManualClaimBoundary/missing_provenance
+=== RUN   TestSecurityAgentManualClaimBoundary/null_provenance
+=== RUN   TestSecurityAgentManualClaimBoundary/legacy_null
+=== RUN   TestSecurityAgentManualClaimBoundary/mixed_identity
+=== RUN   TestSecurityAgentManualClaimBoundary/mismatched_digest
+=== RUN   TestSecurityAgentManualClaimBoundary/prefixed_trigger
+=== RUN   TestSecurityAgentManualClaimBoundary/wrong_kind
+=== RUN   TestSecurityAgentManualClaimBoundary/zero_version
+=== RUN   TestSecurityAgentManualClaimBoundary/unsafe_version
+=== RUN   TestSecurityAgentManualClaimBoundary/fractional_version
+=== RUN   TestSecurityAgentManualClaimBoundary/null_version
+=== RUN   TestSecurityAgentManualClaimBoundary/uppercase_digest
+=== RUN   TestSecurityAgentManualClaimBoundary/missing_field
+=== RUN   TestSecurityAgentManualClaimBoundary/unknown_field
+=== RUN   TestSecurityAgentManualClaimBoundary/duplicate_field
+=== RUN   TestSecurityAgentManualClaimBoundary/case_alias
+--- PASS: TestSecurityAgentManualClaimBoundary (0.01s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/manual (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/maximum_version (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/legacy (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/missing_provenance (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/null_provenance (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/legacy_null (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/mixed_identity (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/mismatched_digest (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/prefixed_trigger (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/wrong_kind (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/zero_version (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/unsafe_version (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/fractional_version (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/null_version (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/uppercase_digest (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/missing_field (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/unknown_field (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/duplicate_field (0.00s)
+    --- PASS: TestSecurityAgentManualClaimBoundary/case_alias (0.00s)
+=== RUN   TestSecurityAgentManualMutationProvenance
+=== RUN   TestSecurityAgentManualMutationProvenance/cancel/fresh
+=== RUN   TestSecurityAgentManualMutationProvenance/cancel/replay
+=== RUN   TestSecurityAgentManualMutationProvenance/cancel/null_provenance
+=== RUN   TestSecurityAgentManualMutationProvenance/cancel/mixed_evidence
+=== RUN   TestSecurityAgentManualMutationProvenance/cancel/null_evidence
+=== RUN   TestSecurityAgentManualMutationProvenance/cancel/wrong_version
+=== RUN   TestSecurityAgentManualMutationProvenance/cancel/foreign_receipt
+=== RUN   TestSecurityAgentManualMutationProvenance/approve/fresh
+=== RUN   TestSecurityAgentManualMutationProvenance/approve/replay
+=== RUN   TestSecurityAgentManualMutationProvenance/approve/null_provenance
+=== RUN   TestSecurityAgentManualMutationProvenance/approve/mixed_evidence
+=== RUN   TestSecurityAgentManualMutationProvenance/approve/null_evidence
+=== RUN   TestSecurityAgentManualMutationProvenance/approve/wrong_version
+=== RUN   TestSecurityAgentManualMutationProvenance/approve/foreign_receipt
+=== RUN   TestSecurityAgentManualMutationProvenance/approve/missing_fresh_auth
+--- PASS: TestSecurityAgentManualMutationProvenance (0.01s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/cancel/fresh (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/cancel/replay (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/cancel/null_provenance (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/cancel/mixed_evidence (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/cancel/null_evidence (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/cancel/wrong_version (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/cancel/foreign_receipt (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/approve/fresh (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/approve/replay (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/approve/null_provenance (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/approve/mixed_evidence (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/approve/null_evidence (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/approve/wrong_version (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/approve/foreign_receipt (0.00s)
+    --- PASS: TestSecurityAgentManualMutationProvenance/approve/missing_fresh_auth (0.00s)
+=== RUN   TestSecurityAgentManualPlannerContextBinding
+=== RUN   TestSecurityAgentManualPlannerContextBinding/valid
+=== RUN   TestSecurityAgentManualPlannerContextBinding/missing_provenance
+=== RUN   TestSecurityAgentManualPlannerContextBinding/null_provenance
+=== RUN   TestSecurityAgentManualPlannerContextBinding/wrong_digest
+=== RUN   TestSecurityAgentManualPlannerContextBinding/wrong_version
+=== RUN   TestSecurityAgentManualPlannerContextBinding/wrong_evidence_kind
+=== RUN   TestSecurityAgentManualPlannerContextBinding/wrong_evidence_version
+=== RUN   TestSecurityAgentManualPlannerContextBinding/legacy_claim
+=== RUN   TestSecurityAgentManualPlannerContextBinding/alias_provenance
+=== RUN   TestSecurityAgentManualPlannerContextBinding/unknown_run_field
+--- PASS: TestSecurityAgentManualPlannerContextBinding (0.01s)
+    --- PASS: TestSecurityAgentManualPlannerContextBinding/valid (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerContextBinding/missing_provenance (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerContextBinding/null_provenance (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerContextBinding/wrong_digest (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerContextBinding/wrong_version (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerContextBinding/wrong_evidence_kind (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerContextBinding/wrong_evidence_version (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerContextBinding/legacy_claim (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerContextBinding/alias_provenance (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerContextBinding/unknown_run_field (0.00s)
+=== RUN   TestSecurityAgentManualReadPreservesNestedStrictness
+=== RUN   TestSecurityAgentManualReadPreservesNestedStrictness/valid
+=== RUN   TestSecurityAgentManualReadPreservesNestedStrictness/context
+=== RUN   TestSecurityAgentManualReadPreservesNestedStrictness/requester
+=== RUN   TestSecurityAgentManualReadPreservesNestedStrictness/reason
+=== RUN   TestSecurityAgentManualReadPreservesNestedStrictness/risk
+=== RUN   TestSecurityAgentManualReadPreservesNestedStrictness/rationale
+=== RUN   TestSecurityAgentManualReadPreservesNestedStrictness/selection
+--- PASS: TestSecurityAgentManualReadPreservesNestedStrictness (0.01s)
+    --- PASS: TestSecurityAgentManualReadPreservesNestedStrictness/valid (0.00s)
+    --- PASS: TestSecurityAgentManualReadPreservesNestedStrictness/context (0.00s)
+    --- PASS: TestSecurityAgentManualReadPreservesNestedStrictness/requester (0.00s)
+    --- PASS: TestSecurityAgentManualReadPreservesNestedStrictness/reason (0.00s)
+    --- PASS: TestSecurityAgentManualReadPreservesNestedStrictness/risk (0.00s)
+    --- PASS: TestSecurityAgentManualReadPreservesNestedStrictness/rationale (0.00s)
+    --- PASS: TestSecurityAgentManualReadPreservesNestedStrictness/selection (0.00s)
+=== RUN   TestSecurityAgentManualReadBinding
+=== RUN   TestSecurityAgentManualReadBinding/valid_manual
+=== RUN   TestSecurityAgentManualReadBinding/wrong_context_digest
+=== RUN   TestSecurityAgentManualReadBinding/wrong_context_version
+=== RUN   TestSecurityAgentManualReadBinding/missing_context_trigger
+=== RUN   TestSecurityAgentManualReadBinding/duplicate_context_trigger_kind
+=== RUN   TestSecurityAgentManualReadBinding/wrong_context_kind
+=== RUN   TestSecurityAgentManualReadBinding/approval_digest_drift
+=== RUN   TestSecurityAgentManualReadBinding/approval_version_drift
+=== RUN   TestSecurityAgentManualReadBinding/mixed_evidence
+=== RUN   TestSecurityAgentManualReadBinding/null_evidence
+=== RUN   TestSecurityAgentManualReadBinding/null_outer_evidence
+=== RUN   TestSecurityAgentManualReadBinding/null_provenance
+=== RUN   TestSecurityAgentManualReadBinding/duplicate_provenance
+=== RUN   TestSecurityAgentManualReadBinding/alias_provenance
+=== RUN   TestSecurityAgentManualReadBinding/approval_null_evidence
+--- PASS: TestSecurityAgentManualReadBinding (0.02s)
+    --- PASS: TestSecurityAgentManualReadBinding/valid_manual (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/wrong_context_digest (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/wrong_context_version (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/missing_context_trigger (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/duplicate_context_trigger_kind (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/wrong_context_kind (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/approval_digest_drift (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/approval_version_drift (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/mixed_evidence (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/null_evidence (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/null_outer_evidence (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/null_provenance (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/duplicate_provenance (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/alias_provenance (0.00s)
+    --- PASS: TestSecurityAgentManualReadBinding/approval_null_evidence (0.00s)
+=== RUN   TestSecurityAgentManualStart
+=== RUN   TestSecurityAgentManualStart/fresh
+=== RUN   TestSecurityAgentManualStart/replay
+=== RUN   TestSecurityAgentManualStart/explicit_source
+=== RUN   TestSecurityAgentManualStart/missing_capability
+=== RUN   TestSecurityAgentManualStart/capability_error
+=== RUN   TestSecurityAgentManualStart/absent_capability
+=== RUN   TestSecurityAgentManualStart/bearer
+=== RUN   TestSecurityAgentManualStart/kind_only
+=== RUN   TestSecurityAgentManualStart/id_only
+=== RUN   TestSecurityAgentManualStart/null_kind
+=== RUN   TestSecurityAgentManualStart/null_id
+=== RUN   TestSecurityAgentManualStart/empty_fields
+=== RUN   TestSecurityAgentManualStart/caller_manual
+=== RUN   TestSecurityAgentManualStart/caller_digest
+=== RUN   TestSecurityAgentManualStart/duplicate_environment
+=== RUN   TestSecurityAgentManualStart/alias
+=== RUN   TestSecurityAgentManualStart/foreign_environment
+=== RUN   TestSecurityAgentManualStart/null_provenance
+=== RUN   TestSecurityAgentManualStart/missing_provenance
+=== RUN   TestSecurityAgentManualStart/mixed_evidence
+=== RUN   TestSecurityAgentManualStart/null_evidence
+=== RUN   TestSecurityAgentManualStart/wrong_definition
+=== RUN   TestSecurityAgentManualStart/wrong_version
+=== RUN   TestSecurityAgentManualStart/wrong_receipt
+=== RUN   TestSecurityAgentManualStart/duplicate_response
+=== RUN   TestSecurityAgentManualStart/null_replay
+=== RUN   TestSecurityAgentManualStart/wrong_manual_version
+=== RUN   TestSecurityAgentManualStart/revoked_membership
+=== RUN   TestSecurityAgentManualStart/revoked_permissions
+=== RUN   TestSecurityAgentManualStart/database_privilege_failure
+=== RUN   TestSecurityAgentManualStart/wrong_denial_code
+--- PASS: TestSecurityAgentManualStart (1.60s)
+    --- PASS: TestSecurityAgentManualStart/fresh (0.10s)
+    --- PASS: TestSecurityAgentManualStart/replay (0.09s)
+    --- PASS: TestSecurityAgentManualStart/explicit_source (0.00s)
+    --- PASS: TestSecurityAgentManualStart/missing_capability (0.00s)
+    --- PASS: TestSecurityAgentManualStart/capability_error (0.00s)
+    --- PASS: TestSecurityAgentManualStart/absent_capability (0.00s)
+    --- PASS: TestSecurityAgentManualStart/bearer (0.09s)
+    --- PASS: TestSecurityAgentManualStart/kind_only (0.00s)
+    --- PASS: TestSecurityAgentManualStart/id_only (0.00s)
+    --- PASS: TestSecurityAgentManualStart/null_kind (0.00s)
+    --- PASS: TestSecurityAgentManualStart/null_id (0.00s)
+    --- PASS: TestSecurityAgentManualStart/empty_fields (0.00s)
+    --- PASS: TestSecurityAgentManualStart/caller_manual (0.00s)
+    --- PASS: TestSecurityAgentManualStart/caller_digest (0.00s)
+    --- PASS: TestSecurityAgentManualStart/duplicate_environment (0.00s)
+    --- PASS: TestSecurityAgentManualStart/alias (0.00s)
+    --- PASS: TestSecurityAgentManualStart/foreign_environment (0.00s)
+    --- PASS: TestSecurityAgentManualStart/null_provenance (0.09s)
+    --- PASS: TestSecurityAgentManualStart/missing_provenance (0.09s)
+    --- PASS: TestSecurityAgentManualStart/mixed_evidence (0.09s)
+    --- PASS: TestSecurityAgentManualStart/null_evidence (0.09s)
+    --- PASS: TestSecurityAgentManualStart/wrong_definition (0.09s)
+    --- PASS: TestSecurityAgentManualStart/wrong_version (0.10s)
+    --- PASS: TestSecurityAgentManualStart/wrong_receipt (0.09s)
+    --- PASS: TestSecurityAgentManualStart/duplicate_response (0.09s)
+    --- PASS: TestSecurityAgentManualStart/null_replay (0.10s)
+    --- PASS: TestSecurityAgentManualStart/wrong_manual_version (0.10s)
+    --- PASS: TestSecurityAgentManualStart/revoked_membership (0.10s)
+    --- PASS: TestSecurityAgentManualStart/revoked_permissions (0.10s)
+    --- PASS: TestSecurityAgentManualStart/database_privilege_failure (0.09s)
+    --- PASS: TestSecurityAgentManualStart/wrong_denial_code (0.10s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	21.957s
+=== RUN   TestComplianceDeploymentRenderedWorkerConfig
+    compliance_deployment_config_test.go:13: requires the owned rendered manifest fixture
+--- SKIP: TestComplianceDeploymentRenderedWorkerConfig (0.00s)
+=== RUN   TestComplianceRuntimeListenerFailureJoinsPolling
+--- PASS: TestComplianceRuntimeListenerFailureJoinsPolling (0.00s)
+=== RUN   TestComplianceRuntimeComposedLifecycle
+=== RUN   TestComplianceRuntimeComposedLifecycle/complete
+=== RUN   TestComplianceRuntimeComposedLifecycle/cancel
+=== RUN   TestComplianceRuntimeComposedLifecycle/lease_loss
+=== RUN   TestComplianceRuntimeComposedLifecycle/revoked
+=== RUN   TestComplianceRuntimeComposedLifecycle/close
+--- PASS: TestComplianceRuntimeComposedLifecycle (1.75s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/complete (0.36s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/cancel (0.32s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/lease_loss (0.28s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/revoked (0.47s)
+    --- PASS: TestComplianceRuntimeComposedLifecycle/close (0.33s)
+=== RUN   TestComplianceWorkerPersistedBytes
+--- PASS: TestComplianceWorkerPersistedBytes (0.12s)
+=== RUN   TestComplianceWorkerCleanupReceipt
+--- PASS: TestComplianceWorkerCleanupReceipt (0.04s)
+=== RUN   TestComplianceWorkerHeartbeat
+--- PASS: TestComplianceWorkerHeartbeat (0.11s)
+=== RUN   TestComplianceReplayOutcomes
+=== RUN   TestComplianceReplayOutcomes/completed
+=== RUN   TestComplianceReplayOutcomes/unprepared
+=== RUN   TestComplianceReplayOutcomes/load_failed
+=== RUN   TestComplianceReplayOutcomes/put_failed
+=== RUN   TestComplianceReplayOutcomes/put_panic
+=== RUN   TestComplianceReplayOutcomes/bad_receipt
+=== RUN   TestComplianceReplayOutcomes/finish_failed
+=== RUN   TestComplianceReplayOutcomes/reconcile_rejected
+--- PASS: TestComplianceReplayOutcomes (0.42s)
+    --- PASS: TestComplianceReplayOutcomes/completed (0.08s)
+    --- PASS: TestComplianceReplayOutcomes/unprepared (0.11s)
+    --- PASS: TestComplianceReplayOutcomes/load_failed (0.04s)
+    --- PASS: TestComplianceReplayOutcomes/put_failed (0.04s)
+    --- PASS: TestComplianceReplayOutcomes/put_panic (0.04s)
+    --- PASS: TestComplianceReplayOutcomes/bad_receipt (0.04s)
+    --- PASS: TestComplianceReplayOutcomes/finish_failed (0.08s)
+    --- PASS: TestComplianceReplayOutcomes/reconcile_rejected (0.00s)
+=== RUN   TestComplianceRuntimeRendersFrozenSnapshot
+--- PASS: TestComplianceRuntimeRendersFrozenSnapshot (0.00s)
+=== RUN   TestComplianceRuntimeCandidatesRejectUnsafeWire
+--- PASS: TestComplianceRuntimeCandidatesRejectUnsafeWire (0.19s)
+=== RUN   TestComplianceRuntimeConfiguration
+--- PASS: TestComplianceRuntimeConfiguration (0.00s)
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/known
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/reserve_stop
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/reserve_error
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/unknown
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/unavailable
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/settle_error
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/cancel_after_response
+=== RUN   TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/rejected
+--- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/known (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/reserve_stop (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/reserve_error (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/unknown (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/unavailable (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/settle_error (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/cancel_after_response (0.00s)
+    --- PASS: TestSecurityAgentProcessorBudgetDispatchAndAccountingOrder/rejected (0.00s)
+=== RUN   TestSecurityAgentExportBrowserPlannerSelection
+--- PASS: TestSecurityAgentExportBrowserPlannerSelection (0.00s)
+=== RUN   TestSecurityAgentExportBrowserEnvironment
+=== RUN   TestSecurityAgentExportBrowserEnvironment/valid
+=== RUN   TestSecurityAgentExportBrowserEnvironment/opt_in
+=== RUN   TestSecurityAgentExportBrowserEnvironment/external_database
+=== RUN   TestSecurityAgentExportBrowserEnvironment/owner_database
+=== RUN   TestSecurityAgentExportBrowserEnvironment/password
+=== RUN   TestSecurityAgentExportBrowserEnvironment/port_mismatch
+=== RUN   TestSecurityAgentExportBrowserEnvironment/privileged_port
+=== RUN   TestSecurityAgentExportBrowserEnvironment/same_port
+=== RUN   TestSecurityAgentExportBrowserEnvironment/port_alias
+=== RUN   TestSecurityAgentExportBrowserEnvironment/expired
+=== RUN   TestSecurityAgentExportBrowserEnvironment/unbounded
+=== RUN   TestSecurityAgentExportBrowserEnvironment/relative_path
+=== RUN   TestSecurityAgentExportBrowserEnvironment/unowned_root
+=== RUN   TestSecurityAgentExportBrowserEnvironment/unclean
+--- PASS: TestSecurityAgentExportBrowserEnvironment (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/valid (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/opt_in (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/external_database (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/owner_database (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/password (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/port_mismatch (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/privileged_port (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/same_port (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/port_alias (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/expired (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/unbounded (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/relative_path (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/unowned_root (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserEnvironment/unclean (0.00s)
+=== RUN   TestSecurityAgentExportBrowserPhaseRouting
+--- PASS: TestSecurityAgentExportBrowserPhaseRouting (0.00s)
+=== RUN   TestSecurityAgentExportBrowserPlannerRuntime
+--- PASS: TestSecurityAgentExportBrowserPlannerRuntime (0.00s)
+=== RUN   TestSecurityAgentExportBrowserControlRefusals
+=== RUN   TestSecurityAgentExportBrowserControlRefusals/health_failure
+=== RUN   TestSecurityAgentExportBrowserControlRefusals/aggregate
+=== RUN   TestSecurityAgentExportBrowserControlRefusals/unknown_health
+=== RUN   TestSecurityAgentExportBrowserControlRefusals/remote
+=== RUN   TestSecurityAgentExportBrowserControlRefusals/body
+=== RUN   TestSecurityAgentExportBrowserControlRefusals/phase_failure
+=== RUN   TestSecurityAgentExportBrowserControlRefusals/cancelled
+--- PASS: TestSecurityAgentExportBrowserControlRefusals (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserControlRefusals/health_failure (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserControlRefusals/aggregate (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserControlRefusals/unknown_health (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserControlRefusals/remote (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserControlRefusals/body (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserControlRefusals/phase_failure (0.00s)
+    --- PASS: TestSecurityAgentExportBrowserControlRefusals/cancelled (0.00s)
+=== RUN   TestSecurityAgentExportDispatchProcessor
+=== RUN   TestSecurityAgentExportDispatchProcessor/pending_admission
+=== RUN   TestSecurityAgentExportDispatchProcessor/replayed_admission
+=== RUN   TestSecurityAgentExportDispatchProcessor/cleared_lease_heartbeat
+=== RUN   TestSecurityAgentExportDispatchProcessor/unrelated_heartbeat_outage
+=== RUN   TestSecurityAgentExportDispatchProcessor/unconfirmed_admission
+=== RUN   TestSecurityAgentExportDispatchProcessor/foreign_scope
+=== RUN   TestSecurityAgentExportDispatchProcessor/foreign_parent
+=== RUN   TestSecurityAgentExportDispatchProcessor/foreign_step
+=== RUN   TestSecurityAgentExportDispatchProcessor/stale_version
+=== RUN   TestSecurityAgentExportDispatchProcessor/mismatched_version
+=== RUN   TestSecurityAgentExportDispatchProcessor/bad_export
+=== RUN   TestSecurityAgentExportDispatchProcessor/invented_availability
+=== RUN   TestSecurityAgentExportDispatchProcessor/invented_remediation
+=== RUN   TestSecurityAgentExportDispatchProcessor/budget_stop_confusion
+--- PASS: TestSecurityAgentExportDispatchProcessor (0.03s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/pending_admission (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/replayed_admission (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/cleared_lease_heartbeat (0.01s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/unrelated_heartbeat_outage (0.01s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/unconfirmed_admission (0.01s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/foreign_scope (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/foreign_parent (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/foreign_step (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/stale_version (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/mismatched_version (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/bad_export (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/invented_availability (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/invented_remediation (0.00s)
+    --- PASS: TestSecurityAgentExportDispatchProcessor/budget_stop_confusion (0.00s)
+=== RUN   TestSecurityAgentExportPlannerProcessorPreservesSelectionThroughAdmission
+=== RUN   TestSecurityAgentExportPlannerProcessorPreservesSelectionThroughAdmission/invalid=false/manual=false
+=== RUN   TestSecurityAgentExportPlannerProcessorPreservesSelectionThroughAdmission/invalid=true/manual=false
+=== RUN   TestSecurityAgentExportPlannerProcessorPreservesSelectionThroughAdmission/invalid=false/manual=true
+=== RUN   TestSecurityAgentExportPlannerProcessorPreservesSelectionThroughAdmission/invalid=true/manual=true
+--- PASS: TestSecurityAgentExportPlannerProcessorPreservesSelectionThroughAdmission (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerProcessorPreservesSelectionThroughAdmission/invalid=false/manual=false (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerProcessorPreservesSelectionThroughAdmission/invalid=true/manual=false (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerProcessorPreservesSelectionThroughAdmission/invalid=false/manual=true (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerProcessorPreservesSelectionThroughAdmission/invalid=true/manual=true (0.00s)
+=== RUN   TestSecurityAgentExportPlannerRetainsExactSubsetAndOrder
+--- PASS: TestSecurityAgentExportPlannerRetainsExactSubsetAndOrder (0.00s)
+=== RUN   TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection
+=== RUN   TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/empty
+=== RUN   TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/null
+=== RUN   TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/foreign_id
+=== RUN   TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/changed_kind
+=== RUN   TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/case_alias
+=== RUN   TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/new_version
+=== RUN   TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/changed_association
+=== RUN   TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/duplicate_ref
+=== RUN   TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/private_field
+=== RUN   TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/duplicate_key
+--- PASS: TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection (0.01s)
+    --- PASS: TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/empty (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/null (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/foreign_id (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/changed_kind (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/case_alias (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/new_version (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/changed_association (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/duplicate_ref (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/private_field (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRejectsInventedOrMalformedSelection/duplicate_key (0.00s)
+=== RUN   TestSecurityAgentExportPlannerFreezesSelection
+--- PASS: TestSecurityAgentExportPlannerFreezesSelection (0.00s)
+=== RUN   TestSecurityAgentExportPlannerRefusesCrossActionOrParentAuthority
+=== RUN   TestSecurityAgentExportPlannerRefusesCrossActionOrParentAuthority/foreign_parent_context
+=== RUN   TestSecurityAgentExportPlannerRefusesCrossActionOrParentAuthority/nonexport_context
+=== RUN   TestSecurityAgentExportPlannerRefusesCrossActionOrParentAuthority/foreign_parent_candidate
+=== RUN   TestSecurityAgentExportPlannerRefusesCrossActionOrParentAuthority/missing_selection
+=== RUN   TestSecurityAgentExportPlannerRefusesCrossActionOrParentAuthority/nonexport_selection
+--- PASS: TestSecurityAgentExportPlannerRefusesCrossActionOrParentAuthority (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRefusesCrossActionOrParentAuthority/foreign_parent_context (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRefusesCrossActionOrParentAuthority/nonexport_context (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRefusesCrossActionOrParentAuthority/foreign_parent_candidate (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRefusesCrossActionOrParentAuthority/missing_selection (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRefusesCrossActionOrParentAuthority/nonexport_selection (0.00s)
+=== RUN   TestSecurityAgentExportPlannerSupportsAllReferenceKindsAndBounds
+--- PASS: TestSecurityAgentExportPlannerSupportsAllReferenceKindsAndBounds (0.02s)
+=== RUN   TestSecurityAgentExportPlannerRequiresTrustedSelectionBeforeProviderCall
+=== RUN   TestSecurityAgentExportPlannerRequiresTrustedSelectionBeforeProviderCall/missing
+=== RUN   TestSecurityAgentExportPlannerRequiresTrustedSelectionBeforeProviderCall/empty
+=== RUN   TestSecurityAgentExportPlannerRequiresTrustedSelectionBeforeProviderCall/invalid_version
+=== RUN   TestSecurityAgentExportPlannerRequiresTrustedSelectionBeforeProviderCall/invalid_digest
+--- PASS: TestSecurityAgentExportPlannerRequiresTrustedSelectionBeforeProviderCall (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRequiresTrustedSelectionBeforeProviderCall/missing (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRequiresTrustedSelectionBeforeProviderCall/empty (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRequiresTrustedSelectionBeforeProviderCall/invalid_version (0.00s)
+    --- PASS: TestSecurityAgentExportPlannerRequiresTrustedSelectionBeforeProviderCall/invalid_digest (0.00s)
+=== RUN   TestSecurityAgentExportPublicRestartPlannerSelection
+--- PASS: TestSecurityAgentExportPublicRestartPlannerSelection (0.00s)
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/run
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/step
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/empty
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/kind
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/id
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/version
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/digest
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/organization_id
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/workspace_id
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/environment_id
+--- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/run (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/step (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/empty (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/kind (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/version (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/digest (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/organization_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/workspace_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/environment_id (0.00s)
+=== RUN   TestSecurityAgentExportRenderFrozenFormats
+--- PASS: TestSecurityAgentExportRenderFrozenFormats (0.00s)
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/empty_records
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/null_content
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_hash
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/wrong_version
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/revision
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/unknown_outer
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/unknown_record
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/null_record
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/zero_hash
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/non_UTC
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_record
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/wrong_ID
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/null_records
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/uppercase_hash
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/invalid_time
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/non_canonical_time
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/wrong_kind
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_record_key
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/case_alias
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/empty
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/malformed
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/trailing
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/invalid_UTF8
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_outer
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_0
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_4
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_2
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_6
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_13
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_23
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_5
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_9
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_71
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_mapping_revision
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_snapshot_at
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_organization_id
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_workspace_id
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_environment_id
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_run_id
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_step_id
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_records
+--- PASS: TestSecurityAgentExportRenderRejectsInvalidWire (0.01s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/empty_records (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/null_content (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_hash (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/wrong_version (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/revision (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/unknown_outer (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/unknown_record (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/null_record (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/zero_hash (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/non_UTC (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_record (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/wrong_ID (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/null_records (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/uppercase_hash (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/invalid_time (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/non_canonical_time (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/wrong_kind (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_record_key (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/case_alias (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/empty (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/malformed (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/trailing (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/invalid_UTF8 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_outer (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_0 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_4 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_2 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_6 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_13 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_23 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_5 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_9 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_71 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_mapping_revision (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_snapshot_at (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_organization_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_workspace_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_environment_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_run_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_step_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_records (0.00s)
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidSelection
+--- PASS: TestSecurityAgentExportRenderRejectsInvalidSelection (0.00s)
+=== RUN   TestSecurityAgentExportRenderAllKindsAndStates
+--- PASS: TestSecurityAgentExportRenderAllKindsAndStates (0.00s)
+=== RUN   TestSecurityAgentExportRenderCSVFormulaEscaping
+--- PASS: TestSecurityAgentExportRenderCSVFormulaEscaping (0.00s)
+=== RUN   TestSecurityAgentExportRenderCSVLeadingWhitespace
+--- PASS: TestSecurityAgentExportRenderCSVLeadingWhitespace (0.00s)
+=== RUN   TestSecurityAgentExportRenderChecksContextBeforeReturningBytes
+--- PASS: TestSecurityAgentExportRenderChecksContextBeforeReturningBytes (0.00s)
+=== RUN   TestSecurityAgentExportRenderFormatBufferBoundary
+--- PASS: TestSecurityAgentExportRenderFormatBufferBoundary (0.00s)
+=== RUN   TestSecurityAgentExportRenderBoundaries
+--- PASS: TestSecurityAgentExportRenderBoundaries (1.19s)
+=== RUN   TestSecurityAgentExportPollingInFlightCancellation
+=== RUN   TestSecurityAgentExportPollingInFlightCancellation/claim_error
+=== RUN   TestSecurityAgentExportPollingInFlightCancellation/claim_cancel
+=== RUN   TestSecurityAgentExportPollingInFlightCancellation/settle_cancel
+--- PASS: TestSecurityAgentExportPollingInFlightCancellation (0.00s)
+    --- PASS: TestSecurityAgentExportPollingInFlightCancellation/claim_error (0.00s)
+    --- PASS: TestSecurityAgentExportPollingInFlightCancellation/claim_cancel (0.00s)
+    --- PASS: TestSecurityAgentExportPollingInFlightCancellation/settle_cancel (0.00s)
+=== RUN   TestSecurityAgentExportPollingFailureGates
+=== RUN   TestSecurityAgentExportPollingFailureGates/absent
+=== RUN   TestSecurityAgentExportPollingFailureGates/drift
+=== RUN   TestSecurityAgentExportPollingFailureGates/settlement_outage
+=== RUN   TestSecurityAgentExportPollingFailureGates/cancelled
+--- PASS: TestSecurityAgentExportPollingFailureGates (0.00s)
+    --- PASS: TestSecurityAgentExportPollingFailureGates/absent (0.00s)
+    --- PASS: TestSecurityAgentExportPollingFailureGates/drift (0.00s)
+    --- PASS: TestSecurityAgentExportPollingFailureGates/settlement_outage (0.00s)
+    --- PASS: TestSecurityAgentExportPollingFailureGates/cancelled (0.00s)
+=== RUN   TestSecurityAgentExportPollingPreservesRetryIdentity
+--- PASS: TestSecurityAgentExportPollingPreservesRetryIdentity (0.00s)
+=== RUN   TestSecurityAgentExportWorkerLiteralClaimKeys
+=== RUN   TestSecurityAgentExportWorkerLiteralClaimKeys/duplicate_selection_key
+=== RUN   TestSecurityAgentExportWorkerLiteralClaimKeys/unknown_selection_key
+=== RUN   TestSecurityAgentExportWorkerLiteralClaimKeys/malformed_step
+--- PASS: TestSecurityAgentExportWorkerLiteralClaimKeys (0.11s)
+    --- PASS: TestSecurityAgentExportWorkerLiteralClaimKeys/duplicate_selection_key (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerLiteralClaimKeys/unknown_selection_key (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerLiteralClaimKeys/malformed_step (0.04s)
+=== RUN   TestSecurityAgentExportWorkerIngressHeartbeatOwnership
+--- PASS: TestSecurityAgentExportWorkerIngressHeartbeatOwnership (0.33s)
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/agent
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/browser
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/wrong_binding
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/put_error
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/finish_lost
+--- PASS: TestSecurityAgentExportWorkerProcessorPipeline (0.76s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/agent (0.20s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/browser (0.21s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/wrong_binding (0.08s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/put_error (0.12s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/finish_lost (0.16s)
+=== RUN   TestSecurityAgentExportWorkerLeaseBindingOwnership
+--- PASS: TestSecurityAgentExportWorkerLeaseBindingOwnership (0.00s)
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/valid
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/browser
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/run
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/step
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/selection
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/scope
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/digest
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/mapping
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/missing_binding
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/unknown_origin
+=== RUN   TestSecurityAgentExportWorkerCaptureBinding/extra_field
+--- PASS: TestSecurityAgentExportWorkerCaptureBinding (0.36s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/valid (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/browser (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/run (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/step (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/selection (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/scope (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/digest (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/mapping (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/missing_binding (0.00s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/unknown_origin (0.00s)
+    --- PASS: TestSecurityAgentExportWorkerCaptureBinding/extra_field (0.04s)
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/valid
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/browser
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/wrong_revision
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/missing_binding
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/unknown_origin
+=== RUN   TestSecurityAgentExportWorkerPreparedOrigin/bad_digest
+--- PASS: TestSecurityAgentExportWorkerPreparedOrigin (0.25s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/valid (0.08s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/browser (0.08s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/wrong_revision (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/missing_binding (0.00s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/unknown_origin (0.00s)
+    --- PASS: TestSecurityAgentExportWorkerPreparedOrigin/bad_digest (0.04s)
+=== RUN   TestSecurityAgentExportWorkerClaimUnion
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/valid
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/browser
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/unknown_origin
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/missing_binding
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/missing_origin
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/unknown_binding_field
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/empty
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/duplicate
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/overflow
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/foreign_kind
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/bad_id
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/bad_version
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/bad_digest
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/bad_run
+--- PASS: TestSecurityAgentExportWorkerClaimUnion (0.57s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/valid (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/browser (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/unknown_origin (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/missing_binding (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/missing_origin (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/unknown_binding_field (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/empty (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/duplicate (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/overflow (0.05s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/foreign_kind (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/bad_id (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/bad_version (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/bad_digest (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/bad_run (0.04s)
+=== RUN   TestSecurityAgentExportWorkerClaimSelectionBoundary
+--- PASS: TestSecurityAgentExportWorkerClaimSelectionBoundary (0.10s)
+=== RUN   TestSecurityAgentManualPlannerPreparedIdentity
+=== RUN   TestSecurityAgentManualPlannerPreparedIdentity/valid
+=== RUN   TestSecurityAgentManualPlannerPreparedIdentity/missing
+=== RUN   TestSecurityAgentManualPlannerPreparedIdentity/wrong_digest
+=== RUN   TestSecurityAgentManualPlannerPreparedIdentity/wrong_version
+=== RUN   TestSecurityAgentManualPlannerPreparedIdentity/wrong_kind
+=== RUN   TestSecurityAgentManualPlannerPreparedIdentity/missing_evidence
+=== RUN   TestSecurityAgentManualPlannerPreparedIdentity/nonmanual_evidence
+--- PASS: TestSecurityAgentManualPlannerPreparedIdentity (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerPreparedIdentity/valid (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerPreparedIdentity/missing (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerPreparedIdentity/wrong_digest (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerPreparedIdentity/wrong_version (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerPreparedIdentity/wrong_kind (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerPreparedIdentity/missing_evidence (0.00s)
+    --- PASS: TestSecurityAgentManualPlannerPreparedIdentity/nonmanual_evidence (0.00s)
+=== RUN   TestProductionSecurityAgentPlannerLoadsOnlyPinnedCredentialFile
+--- PASS: TestProductionSecurityAgentPlannerLoadsOnlyPinnedCredentialFile (0.00s)
+=== RUN   TestSecurityAgentProcessorPlansForApprovalThenExecutesOnlyApprovedWork
+--- PASS: TestSecurityAgentProcessorPlansForApprovalThenExecutesOnlyApprovedWork (0.00s)
+=== RUN   TestSecurityAgentProcessorBudgetStopDoesNotCallPlanner
+--- PASS: TestSecurityAgentProcessorBudgetStopDoesNotCallPlanner (0.00s)
+=== RUN   TestSecurityAgentProcessorFailsClosedBeforeScheduleWhenApprovalExpiryReconciliationFails
+--- PASS: TestSecurityAgentProcessorFailsClosedBeforeScheduleWhenApprovalExpiryReconciliationFails (0.00s)
+=== RUN   TestSecurityAgentProcessorFailsClosedBeforeClaimWhenTriggerSchedulingFails
+--- PASS: TestSecurityAgentProcessorFailsClosedBeforeClaimWhenTriggerSchedulingFails (0.00s)
+=== RUN   TestSecurityAgentProcessorKeepsLeaseThroughVerifiedEffect
+--- PASS: TestSecurityAgentProcessorKeepsLeaseThroughVerifiedEffect (0.01s)
+=== RUN   TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting
+=== RUN   TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting/unavailable
+=== RUN   TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting/budget_stopped
+--- PASS: TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting (0.00s)
+    --- PASS: TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting/unavailable (0.00s)
+    --- PASS: TestSecurityAgentProcessorPersistsKnownUsagePlannerRejectionWithoutPreparingOrExecuting/budget_stopped (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	9.716s
+=== RUN   TestComplianceStorageFactoryBoundary
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"bbc2996e48c3182da16545a55e8b6540","span_id":"2a433012413423a9","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"6bc7976bce70ff8d96b2420959dc6a15","span_id":"d391a2ae3b0c20a8","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"68aa2ba6317efe05fc362ee7debac9bc","span_id":"586ded3fbdd4ed8f","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"3bef8bf994c50fe735f759ceea84088d","span_id":"989249ed245a7307","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"f993a3fa9fecf3ad7236501cc780c51f","span_id":"1ecdfe42ec1daa77","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"acedb8bfa7d689f66274aa9a18cd1376","span_id":"5ea59a7a54464eac","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"5ea3b41639461d972db091a11765298e","span_id":"15a9e5769bb57517","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"e069ab79cca985552350eaf9b1b94105","span_id":"31ba980a745f987b","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"70ff6418350ff9a5c527ae8154b830ff","span_id":"851395931648c410","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+--- PASS: TestComplianceStorageFactoryBoundary (0.01s)
+=== RUN   TestComplianceAPIProductionComposition
+=== RUN   TestComplianceAPIProductionComposition/installed
+=== RUN   TestComplianceAPIProductionComposition/disabled
+=== RUN   TestComplianceAPIProductionComposition/absent
+=== RUN   TestComplianceAPIProductionComposition/unregistered
+--- PASS: TestComplianceAPIProductionComposition (0.14s)
+    --- PASS: TestComplianceAPIProductionComposition/installed (0.06s)
+    --- PASS: TestComplianceAPIProductionComposition/disabled (0.02s)
+    --- PASS: TestComplianceAPIProductionComposition/absent (0.02s)
+    --- PASS: TestComplianceAPIProductionComposition/unregistered (0.05s)
+=== RUN   TestComplianceAPIConfiguration
+--- PASS: TestComplianceAPIConfiguration (0.01s)
+=== RUN   TestComplianceDeploymentRenderedAPIConfig
+    compliance_deployment_config_test.go:15: requires the owned rendered manifest fixture
+--- SKIP: TestComplianceDeploymentRenderedAPIConfig (0.00s)
+=== RUN   TestSecurityAgentExportBrowserReadinessDestinations
+--- PASS: TestSecurityAgentExportBrowserReadinessDestinations (0.00s)
+=== RUN   TestSecurityAgentExportAPIProductionComposition
+=== RUN   TestSecurityAgentExportAPIProductionComposition/installed
+=== RUN   TestSecurityAgentExportAPIProductionComposition/absent
+=== RUN   TestSecurityAgentExportAPIProductionComposition/drift
+=== RUN   TestSecurityAgentExportAPIProductionComposition/disabled
+--- PASS: TestSecurityAgentExportAPIProductionComposition (0.22s)
+    --- PASS: TestSecurityAgentExportAPIProductionComposition/installed (0.11s)
+    --- PASS: TestSecurityAgentExportAPIProductionComposition/absent (0.06s)
+    --- PASS: TestSecurityAgentExportAPIProductionComposition/drift (0.04s)
+    --- PASS: TestSecurityAgentExportAPIProductionComposition/disabled (0.01s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-api	2.611s

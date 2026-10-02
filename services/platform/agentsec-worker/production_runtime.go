@@ -14,7 +14,9 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
+	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
 
 type workerProcessor interface{ RunOnce(context.Context) error }
@@ -27,6 +29,35 @@ type workerRuntimeDependencies struct {
 }
 
 func buildWorkerRuntime(ctx context.Context, config workerRuntimeConfig) (workerRuntimeDependencies, error) {
+	return buildWorkerRuntimeWithIO(ctx, config, productionWorkerIO())
+}
+
+// Only external provider/storage transports vary. Database authority, runtime
+// service clients, processors and SDK registration stay on this shared path.
+type workerExternalIO struct {
+	planner   func(workerRuntimeConfig) (*productionSecurityAgentPlanner, error)
+	temporal  func(workerRuntimeConfig) (temporalExecutionIO, error)
+	discovery func(productionDiscoveryDependencyConfig) (discoveryDependencyIO, error)
+	outbox    func(workerRuntimeConfig) (outboxDependencyIO, error)
+	redTeam   func(workerRuntimeConfig) (*productionRedTeamDependencies, error)
+	// Optional constructor-only observer decorators. Production leaves this nil;
+	// diagnostics delegate the same IO/product before any worker is registered.
+	temporalDiagnostic *temporalDiagnosticDecorator
+}
+
+type temporalDiagnosticDecorator struct {
+	driver     func(apiserver.PostgresDriver) apiserver.PostgresDriver
+	database   func(apiserver.JSONDatabase) apiserver.JSONDatabase
+	singleTest func(orchestration.SingleTestProduct) orchestration.SingleTestProduct
+}
+
+func productionWorkerIO() workerExternalIO {
+	return workerExternalIO{planner: newProductionSecurityAgentPlanner, temporal: newTemporalExecutionIO, discovery: newProductionDiscoveryIO, outbox: newProductionOutboxIO, redTeam: newProductionRedTeamDependencies}
+}
+func buildWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig, external workerExternalIO) (workerRuntimeDependencies, error) {
+	if external.planner == nil || external.temporal == nil {
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
 	connectCtx, cancel := context.WithTimeout(ctx, minDuration(config.LeaseDuration/2, 5*time.Second))
 	defer cancel()
 	poolConfig, err := pgxpool.ParseConfig(config.PostgresDSN)
@@ -43,35 +74,229 @@ func buildWorkerRuntime(ctx context.Context, config workerRuntimeConfig) (worker
 		pool.Close()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
+	if workerStartupProfileReady(connectCtx, pool, config) != nil {
+		pool.Close()
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
 	database, err := apiserver.NewPostgresJSONDatabase(&workerPostgresDriver{pool: pool})
 	if err != nil {
 		pool.Close()
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
-	dependencies, err := composeWorkerRuntime(connectCtx, config, database)
+	if config.Mode == workerModeSecurityAgent {
+		installed, err := database.SecurityAgentTestSelectorAvailable(connectCtx)
+		if err != nil || installed && !config.RuntimeServices.Enabled {
+			database.Close()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+	}
+	if config.Mode == workerModeDiscovery || config.Mode == workerModeScheduler {
+		installed, err := database.TemporalDiscoveryAvailable(connectCtx, config.DatabaseAuthority)
+		if err != nil {
+			database.Close()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		if installed {
+			return buildTemporalDiscoveryRuntime(ctx, config, database, external)
+		}
+	}
+	dependencies, err := composeWorkerRuntimeWithIO(connectCtx, config, database, external)
 	if err != nil {
 		_ = database.Close()
 		return workerRuntimeDependencies{}, err
 	}
-	closeDependencies := dependencies.Close
-	dependencies.Close = func() error {
+	dependencies.Close = closeWorkerRuntimeDatabase(config.Mode, dependencies.Close, database.Close)
+	services, err := runtimeservices.Connect(ctx, config.RuntimeServices)
+	if err != nil {
+		_ = dependencies.Close()
+		return workerRuntimeDependencies{}, errRuntimeUnavailable
+	}
+	if services != nil {
+		var temporalRuntime *temporalSecurityAgentRuntime
+		if config.Mode == workerModeSecurityAgent {
+			engine, err := orchestration.NewTemporalEngine(services.Temporal, config.RuntimeServices.TaskQueue, config.RuntimeServices.Timeout)
+			if err != nil {
+				_ = services.Close()
+				_ = dependencies.Close()
+				return workerRuntimeDependencies{}, errRuntimeUnavailable
+			}
+			temporalRuntime, err = buildTemporalSecurityAgentRuntimeWithIO(ctx, config, services.Temporal, services.FGA, external)
+			if err != nil {
+				_ = services.Close()
+				_ = dependencies.Close()
+				return workerRuntimeDependencies{}, errRuntimeUnavailable
+			}
+			dependencies.Processor = temporalOutboxProcessor{legacy: dependencies.Processor, relay: &orchestration.Relay{Store: orchestration.SQLStore{Database: database, Timeout: config.RuntimeServices.Timeout}, Engine: retainedTemporalEngine{engine: engine, product: temporalRuntime.product}}}
+			if temporalRuntime.product.singleTestEnabled {
+				dependencies.Processor = temporalOutboxProcessor{legacy: dependencies.Processor, relay: temporalRuntime.product.singleTestControlRelay(func(ctx context.Context, kind string, q orchestration.StartRequest) error {
+					if kind == "cancel" {
+						return engine.CancelSingleTest(ctx, q)
+					}
+					if kind == "approval" {
+						return engine.WakeSingleTest(ctx, q)
+					}
+					return orchestration.ErrInvalid
+				})}
+				// The outer start relay runs first. A decision remains pending when
+				// start acceptance failed, and retries on the next ordinary pass.
+				dependencies.Processor = temporalOutboxProcessor{legacy: dependencies.Processor, relay: temporalRuntime.product.singleTestRelay(engine.StartSingleTest)}
+			}
+			if temporalRuntime.selector != nil {
+				// Selector composition is unchanged by cleanup recovery.
+				dependencies.Processor = temporalOutboxProcessor{legacy: dependencies.Processor, relay: temporalRuntime.selector}
+			}
+			if temporalRuntime.recoveryActivities != nil {
+				dependencies.Processor = temporalOutboxProcessor{legacy: dependencies.Processor, relay: &singleTestRecoveryRelay{database: temporalRuntime.product.executor, start: engine.StartSingleTestRecovery}}
+			}
+			if temporalRuntime.finding != nil {
+				dependencies.Processor = temporalOutboxProcessor{legacy: dependencies.Processor, relay: temporalRuntime.finding}
+			}
+			if temporalRuntime.automatic != nil {
+				dependencies.Processor = temporalOutboxProcessor{legacy: dependencies.Processor, relay: temporalRuntime.automatic}
+			}
+		}
+		if config.Mode == workerModeRedTeam {
+			installed, err := singleTestRuntimeAvailable(ctx, database, true)
+			if err != nil {
+				services.Close()
+				dependencies.Close()
+				return workerRuntimeDependencies{}, errRuntimeUnavailable
+			}
+			if installed {
+				engine, err := orchestration.NewTemporalEngine(services.Temporal, config.RuntimeServices.TaskQueue, config.RuntimeServices.Timeout)
+				gated, ok := dependencies.Processor.(readinessGatedWorkerProcessor)
+				processor, valid := gated.delegate.(*redTeamProcessor)
+				if err != nil || !ok || !valid || processor.bindSingleTestDelivery(database, engine.WakeSingleTest) != nil {
+					services.Close()
+					dependencies.Close()
+					return workerRuntimeDependencies{}, errRuntimeUnavailable
+				}
+				previous := dependencies.Ready
+				dependencies.Ready = func(ctx context.Context) error {
+					if previous(ctx) != nil {
+						return errRuntimeUnavailable
+					}
+					if installed, err := singleTestRuntimeAvailable(ctx, database, true); err != nil || !installed {
+						return errRuntimeUnavailable
+					}
+					return nil
+				}
+			}
+		}
+		previousReady, previousClose := dependencies.Ready, dependencies.Close
+		dependencies.Ready = func(ctx context.Context) error {
+			if err := services.Ready(ctx); err != nil {
+				return err
+			}
+			if temporalRuntime != nil {
+				if err := temporalRuntime.Ready(ctx); err != nil {
+					return err
+				}
+			}
+			return previousReady(ctx)
+		}
+		dependencies.Close = closeWorkerRuntimeServices(previousClose, services.Close)
+		if temporalRuntime != nil {
+			closeRest := dependencies.Close
+			dependencies.Close = func() error {
+				if err := temporalRuntime.Close(); err != nil {
+					return err
+				}
+				return closeRest()
+			}
+		}
+	}
+	if config.Mode == workerModeOutbox {
+		dependencies = joinDiscoveryOutboxRuntime(dependencies, config.ShutdownTimeout)
+	}
+	return dependencies, nil
+}
+
+type temporalOutboxProcessor struct{ legacy, relay workerProcessor }
+
+func (p temporalOutboxProcessor) RunOnce(ctx context.Context) error {
+	// Delivery keeps progressing even when the old processor refuses work.
+	// Each component has its own transaction; neither can acknowledge the other.
+	relayErr := p.relay.RunOnce(ctx)
+	return errors.Join(relayErr, p.legacy.RunOnce(ctx))
+}
+
+// Relay RPCs observe loop cancellation and finite deadlines. SDK Close also
+// cancels in-flight RPCs if the worker's shutdown join reaches its timeout.
+func closeWorkerRuntimeServices(previous, services func() error) func() error {
+	return func() error { return errors.Join(previous(), services()) }
+}
+
+func closeWorkerRuntimeDatabase(mode workerMode, closeDependencies, closeDatabase func() error) func() error {
+	return func() error {
 		dependencyErr := closeDependencies()
-		databaseErr := database.Close()
+		if dependencyErr != nil && (mode == workerModeAuditExport || mode == workerModeAuditExportOutbox || mode == workerModeTestReconciler || mode == workerModeAttackLabReconciler || mode == workerModeComplianceExport || mode == workerModeComplianceCleanup) {
+			// The audit runtime retains clients while canceled borrowers join.
+			// Its database must survive that failed Close for the same reason.
+			return dependencyErr
+		}
+		databaseErr := closeDatabase()
 		if dependencyErr != nil {
 			return dependencyErr
 		}
 		return databaseErr
 	}
-	return dependencies, nil
 }
 
 func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, database apiserver.JSONDatabase) (workerRuntimeDependencies, error) {
+	return composeWorkerRuntimeWithIO(ctx, config, database, productionWorkerIO())
+}
+func composeWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig, database apiserver.JSONDatabase, external workerExternalIO) (workerRuntimeDependencies, error) {
 	if ctx == nil || ctx.Err() != nil || !validWorkerRuntimeConfig(config) || database == nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	switch config.Mode {
+	case workerModeAttackLabReconciler:
+		reader, err := newAttackLabLinkProductionDependencies(config)
+		if err != nil {
+			return workerRuntimeDependencies{}, err
+		}
+		deps, err := composeAttackLabLinkRuntime(config, database, reader)
+		if err != nil {
+			_ = reader.Close()
+			return workerRuntimeDependencies{}, err
+		}
+		return deps, nil
+	case workerModeComplianceExport, workerModeComplianceCleanup:
+		clients, err := newComplianceExportProductionClients(config)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		deps, err := composeComplianceExportWorkerRuntime(ctx, config, database, clients)
+		if err != nil {
+			clients.transport.CloseIdleConnections()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		return deps, nil
+	case workerModeTestReconciler:
+		reader, err := newExistingTestProductionDependencies(config)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		dependencies, err := composeExistingTestRuntime(config, database, reader)
+		if err != nil {
+			_ = reader.Close()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		return dependencies, nil
+	case workerModeAuditExport, workerModeAuditExportOutbox:
+		clients, err := newAuditExportProductionClients(config)
+		if err != nil {
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		dependencies, err := composeAuditExportWorkerRuntime(ctx, config, database, clients)
+		if err != nil {
+			clients.transport.CloseIdleConnections()
+			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		return dependencies, nil
 	case workerModeOutbox, workerModeRuntimeOutbox, workerModeRedTeamOutbox, workerModeAttackLabOutbox, workerModeRecoveryOutbox:
-		publisher, err := newProductionOutboxPublisher(ctx, config)
+		publisher, err := newProductionOutboxPublisherWithIO(ctx, config, external.outbox)
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
@@ -112,7 +337,11 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		}
 		return dependencies, nil
 	case workerModeRedTeam:
-		redTeam, err := newProductionRedTeamDependencies(config)
+		factory := external.redTeam
+		if factory == nil {
+			factory = newProductionRedTeamDependencies
+		}
+		redTeam, err := factory(config)
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
@@ -142,11 +371,37 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
-		return workerRuntimeDependencies{Processor: processor, Ready: repository.Ready, Close: func() error { return nil }}, nil
+		return workerRuntimeDependencies{Processor: readinessGatedWorkerProcessor{delegate: processor, ready: repository.Ready}, Ready: repository.Ready, Close: func() error { return nil }}, nil
 	case workerModeSecurityAgent:
-		planner, err := newProductionSecurityAgentPlanner(config)
+		basePlanner, err := external.planner(config)
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
+		}
+		var planner securityAgentPlanner = basePlanner
+		if config.TemporalPricingBindingsFile != "" {
+			if probe, ok := database.(interface {
+				SecurityAgentCompatibilityAvailable(context.Context) (bool, error)
+			}); ok {
+				installed, err := probe.SecurityAgentCompatibilityAvailable(ctx)
+				if err != nil {
+					basePlanner.Close()
+					return workerRuntimeDependencies{}, errRuntimeUnavailable
+				}
+				if installed {
+					bindings, err := loadTemporalPricingBindings(config.TemporalPricingBindingsFile)
+					if err != nil {
+						basePlanner.Close()
+						return workerRuntimeDependencies{}, errRuntimeUnavailable
+					}
+					for _, binding := range bindings {
+						if !release61PlannerAvailable(basePlanner, binding) {
+							basePlanner.Close()
+							return workerRuntimeDependencies{}, errRuntimeUnavailable
+						}
+					}
+					planner = &installedLegacyPricedPlanner{planner: basePlanner, database: database, bindings: bindings}
+				}
+			}
 		}
 		dependencies, err := composeSecurityAgentWorkerRuntime(config, database, planner)
 		if err != nil {
@@ -167,7 +422,7 @@ func composeWorkerRuntime(ctx context.Context, config workerRuntimeConfig, datab
 		}
 		return composePolicyDeploymentWorkerRuntime(config, database, privateKey)
 	case workerModeDiscovery:
-		discovery, err := newProductionDiscoveryDependencies(productionDiscoveryDependenciesConfig(config))
+		discovery, err := newProductionDiscoveryDependenciesWithIO(productionDiscoveryDependenciesConfig(config), external.discovery)
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
 		}
@@ -275,6 +530,9 @@ func composeRuntimeCoordinatorWorkerRuntime(config workerRuntimeConfig, database
 	if config.RuntimeDeliverySchema == "runtime-event-v2" {
 		repository, err = runtimeevent.NewPostgresPrecisePipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCoordinator)
 	}
+	if workerUsesCurrentRuntimeProfile(config) {
+		repository, err = runtimeevent.NewPostgresCurrentRuntimePipelineRepository(database, runtimeevent.ProductionPipelineAuthorityCoordinator)
+	}
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -289,7 +547,7 @@ func composeRuntimeCoordinatorWorkerRuntime(config workerRuntimeConfig, database
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
 	constructor := newRuntimeCoordinator
-	if config.RuntimeDeliverySchema == "runtime-event-v2" {
+	if workerUsesCurrentRuntimeProfile(config) || config.RuntimeDeliverySchema == "runtime-event-v2" {
 		constructor = newPreciseRuntimeCoordinator
 	}
 	processor, err := constructor(runtimeCoordinatorConfig{
@@ -324,6 +582,9 @@ func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apise
 	if runtimePrecisionVersion(config.RuntimeStageVersion) {
 		repository, err = runtimeevent.NewPostgresPrecisePipelineRepository(database, authority)
 	}
+	if workerUsesCurrentRuntimeProfile(config) {
+		repository, err = runtimeevent.NewPostgresCurrentRuntimePipelineRepository(database, authority)
+	}
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}
@@ -332,6 +593,9 @@ func composeRuntimeStageWorkerRuntime(config workerRuntimeConfig, database apise
 		sessionAuthority, err = newConfiguredPostgresRuntimeSessionSearchAuthority(database, config.RuntimeSessionIndex)
 		if config.RuntimeStageVersion == "runtime-index-v2" {
 			sessionAuthority, err = newPrecisePostgresRuntimeSessionSearchAuthority(database)
+		}
+		if workerUsesCurrentRuntimeProfile(config) {
+			sessionAuthority, err = newCurrentPostgresRuntimeSessionSearchAuthority(database)
 		}
 		if err != nil {
 			return workerRuntimeDependencies{}, errRuntimeUnavailable
@@ -443,7 +707,9 @@ func composeOutboxWorkerRuntime(config workerRuntimeConfig, database apiserver.J
 	var err error
 	topic := discoveryOutboxTopic
 	if config.Mode == workerModeRuntimeOutbox {
-		if config.RuntimeDeliverySchema == "runtime-event-v2" {
+		if workerUsesCurrentRuntimeProfile(config) {
+			repository, err = apiserver.NewCurrentRuntimeOutboxRepository(database)
+		} else if config.RuntimeDeliverySchema == "runtime-event-v2" {
 			repository, err = apiserver.NewPreciseRuntimeOutboxRepository(database)
 		} else {
 			repository, err = apiserver.NewRuntimeOutboxRepository(database)
@@ -673,11 +939,14 @@ func serveWorkerRuntime(ctx context.Context, output interface{ Write([]byte) (in
 		return errRuntimeUnavailable
 	}
 	loopDone := make(chan struct{})
+	loopContext, stopLoop := context.WithCancel(ctx)
+	defer stopLoop()
 	go func() {
-		runWorkerPollingLoop(ctx, dependencies.Processor, config.PollInterval, &executingReady)
+		runWorkerPollingLoop(loopContext, dependencies.Processor, config.PollInterval, &executingReady)
 		close(loopDone)
 	}()
 	serveErr := server.Serve(ctx, listener)
+	stopLoop()
 	shutdownTimer := time.NewTimer(config.ShutdownTimeout)
 	select {
 	case <-loopDone:

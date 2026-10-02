@@ -1,0 +1,184 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","--test","deploy/production/attack-lab-reconciler-rollout.test.mjs","deploy/production/attack-lab-reconciler-iam.test.mjs"]
+TAP version 13
+# Subtest: settlement IAM source declares only exact version reads, bound decrypt and its own DSN
+not ok 1 - settlement IAM source declares only exact version reads, bound decrypt and its own DSN
+  ---
+  duration_ms: 4.681708
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/attack-lab-reconciler-iam.test.mjs:5:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input was expected to not match the regular expression /sqs:|eks:|s3:(?:GetObject"|Put|Delete|List|GetBucket)|kms:(?:Encrypt|GenerateDataKey|DescribeKey)|postgres-security-agent-worker-dsn/. Input:
+    
+    'variable "attack_lab_reconciler_enabled" {\n' +
+      '  description = "Opt-in release57 settlement reader. Does not provision credentials or enable the catalog."\n' +
+      '  type        = bool\n' +
+      '  default     = false\n' +
+      '}\n' +
+      '\n' +
+      'variable "attack_lab_reconciler_database_principal" {\n' +
+      '  description = "Separate PostgreSQL login provisioned and registered outside Terraform."\n' +
+      '  type        = string\n' +
+      '  default     = "attack_lab_reconciler"\n' +
+      '  validation {\n' +
+      '    condition     = can(regex("^[a-z][a-z0-9_]{2,62}$", var.attack_lab_reconciler_database_principal)) && !startswith(var.attack_lab_reconciler_database_principal, "zasp_") && !contains(values(var.database_principals), var.attack_lab_reconciler_database_principal)\n' +
+      '    error_message = "The settlement principal must be canonical and separate from all existing worker logins."\n' +
+      '  }\n' +
+      '}\n' +
+      '\n' +
+      'resource "aws_secretsmanager_secret" "attack_lab_reconciler_dsn" {\n' +
+      '  count                   = var.attack_lab_reconciler_enabled ? 1 : 0\n' +
+      '  name                    = "${var.cluster_name}/postgres-security-agent-attack-lab-reconciler-dsn"\n' +
+      '  kms_key_id              = aws_kms_key.staging.arn\n' +
+      '  recovery_window_in_days = 30\n' +
+      '  tags                    = { DatabasePrincipal = var.attack_lab_reconciler_database_principal }\n' +
+      '}\n' +
+      '\n' +
+      'resource "aws_iam_role" "attack_lab_reconciler" {\n' +
+      '  count = var.attack_lab_reconciler_enabled ? 1 : 0\n' +
+      '  name  = "${var.cluster_name}-attack-lab-reconciler"\n' +
+      '  assume_role_policy = jsonencode({ Version = "2012-10-17", Statement = [{\n' +
+      '    Effect = "Allow", Action = "sts:AssumeRoleWithWebIdentity"\n' +
+      '    Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }\n' +
+      '    Condition = { StringEquals = {\n' +
+      '      "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:security-agent-attack-lab-reconciler"\n' +
+      '      "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"\n' +
+      '    } }\n' +
+      '  }] })\n' +
+      '}\n' +
+      '\n' +
+      'resource "aws_iam_role_policy" "attack_lab_reconciler" {\n' +
+      '  count = var.attack_lab_reconciler_enabled ? 1 : 0\n' +
+      '  name  = "${var.cluster_name}-attack-lab-settlement-reader"\n' +
+      '  role  = aws_iam_role.attack_lab_reconciler[0].id\n' +
+      '  policy = jsonencode({ Version = "2012-10-17", Statement = [\n' +
+      '    { Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" },\n' +
+      '    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.attack_lab_reconciler_dsn[0].arn },\n' +
+      '    { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = {\n' +
+      '      "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com"\n' +
+      '      "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.attack_lab_reconciler_dsn[0].arn\n' +
+      '    } } },\n' +
+      '    { Effect = "Allow", Action = ["s3:GetObjectVersion"], Resource = "${aws_s3_bucket.attack_lab_evidence.arn}/organizations/*/workspaces/*/environments/*/artifacts/*" },\n' +
+      '    { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.attack_lab.arn, Condition = {\n' +
+      '      StringEquals = { "kms:ViaService" = "s3.${var.region}.amazonaws.com" }\n' +
+      '      StringLike = { "kms:EncryptionContext:aws:s3:arn" = [aws_s3_bucket.attack_lab_evidence.arn, "${aws_s3_bucket.attack_lab_evidence.arn}/organizations/*/workspaces/*/environments/*/artifacts/*"] }\n' +
+      '    } },\n' +
+      '  ] })\n' +
+      '}\n' +
+      '\n' +
+      'output "attack_lab_reconciler_deployment_metadata" {\n' +
+      '  description = "Non-secret opt-in57 references. Endpoint CIDRs require independently verified snapshots."\n' +
+      '  value = var.attack_lab_reconciler_enabled ? {\n' +
+      '    awsRegion         = var.region\n' +
+      '    roleArn           = aws_iam_role.attack_lab_reconciler[0].arn\n' +
+      '    databaseSecretArn = aws_secretsmanager_secret.attack_lab_reconciler_dsn[0].arn\n' +
+      '    workerPrincipal   = var.attack_lab_reconciler_database_principal\n' +
+      '    evidenceBucket    = aws_s3_bucket.attack_lab_evidence.bucket\n' +
+      '    evidenceOwner     = var.account_id\n' +
+      '    evidenceKMSKeyArn  = aws_kms_key.attack_lab.arn\n' +
+      '  } : null\n' +
+      '}\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    variable "attack_lab_reconciler_enabled" {
+      description = "Opt-in release57 settlement reader. Does not provision credentials or enable the catalog."
+      type        = bool
+      default     = false
+    }
+    
+    variable "attack_lab_reconciler_database_principal" {
+      description = "Separate PostgreSQL login provisioned and registered outside Terraform."
+      type        = string
+      default     = "attack_lab_reconciler"
+      validation {
+        condition     = can(regex("^[a-z][a-z0-9_]{2,62}$", var.attack_lab_reconciler_database_principal)) && !startswith(var.attack_lab_reconciler_database_principal, "zasp_") && !contains(values(var.database_principals), var.attack_lab_reconciler_database_principal)
+        error_message = "The settlement principal must be canonical and separate from all existing worker logins."
+      }
+    }
+    
+    resource "aws_secretsmanager_secret" "attack_lab_reconciler_dsn" {
+      count                   = var.attack_lab_reconciler_enabled ? 1 : 0
+      name                    = "${var.cluster_name}/postgres-security-agent-attack-lab-reconciler-dsn"
+      kms_key_id              = aws_kms_key.staging.arn
+      recovery_window_in_days = 30
+      tags                    = { DatabasePrincipal = var.attack_lab_reconciler_database_principal }
+    }
+    
+    resource "aws_iam_role" "attack_lab_reconciler" {
+      count = var.attack_lab_reconciler_enabled ? 1 : 0
+      name  = "${var.cluster_name}-attack-lab-reconciler"
+      assume_role_policy = jsonencode({ Version = "2012-10-17", Statement = [{
+        Effect = "Allow", Action = "sts:AssumeRoleWithWebIdentity"
+        Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }
+        Condition = { StringEquals = {
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:security-agent-attack-lab-reconciler"
+          "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
+        } }
+      }] })
+    }
+    
+    resource "aws_iam_role_policy" "attack_lab_reconciler" {
+      count = var.attack_lab_reconciler_enabled ? 1 : 0
+      name  = "${var.cluster_name}-attack-lab-settlement-reader"
+      role  = aws_iam_role.attack_lab_reconciler[0].id
+      policy = jsonencode({ Version = "2012-10-17", Statement = [
+        { Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" },
+        { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.attack_lab_reconciler_dsn[0].arn },
+        { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = {
+          "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com"
+          "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.attack_lab_reconciler_dsn[0].arn
+        } } },
+        { Effect = "Allow", Action = ["s3:GetObjectVersion"], Resource = "${aws_s3_bucket.attack_lab_evidence.arn}/organizations/*/workspaces/*/environments/*/artifacts/*" },
+        { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.attack_lab.arn, Condition = {
+          StringEquals = { "kms:ViaService" = "s3.${var.region}.amazonaws.com" }
+          StringLike = { "kms:EncryptionContext:aws:s3:arn" = [aws_s3_bucket.attack_lab_evidence.arn, "${aws_s3_bucket.attack_lab_evidence.arn}/organizations/*/workspaces/*/environments/*/artifacts/*"] }
+        } },
+      ] })
+    }
+    
+    output "attack_lab_reconciler_deployment_metadata" {
+      description = "Non-secret opt-in57 references. Endpoint CIDRs require independently verified snapshots."
+      value = var.attack_lab_reconciler_enabled ? {
+        awsRegion         = var.region
+        roleArn           = aws_iam_role.attack_lab_reconciler[0].arn
+        databaseSecretArn = aws_secretsmanager_secret.attack_lab_reconciler_dsn[0].arn
+        workerPrincipal   = var.attack_lab_reconciler_database_principal
+        evidenceBucket    = aws_s3_bucket.attack_lab_evidence.bucket
+        evidenceOwner     = var.account_id
+        evidenceKMSKeyArn  = aws_kms_key.attack_lab.arn
+      } : null
+    }
+    
+  operator: 'doesNotMatch'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/attack-lab-reconciler-iam.test.mjs:14:9)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: 57 mounts dedicated settlement authority and rejects additive credentials/network/RBAC
+ok 2 - 57 mounts dedicated settlement authority and rejects additive credentials/network/RBAC
+  ---
+  duration_ms: 724.236334
+  type: 'test'
+  ...
+# Subtest: 57 keeps audit, existing-test and compliance registration commands in both phases
+ok 3 - 57 keeps audit, existing-test and compliance registration commands in both phases
+  ---
+  duration_ms: 864.010625
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 2
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1679.574334
+
+Exit: 1 Signal: null

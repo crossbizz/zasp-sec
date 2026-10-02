@@ -1,4 +1,5 @@
 // Executed only inside the pinned, network-isolated integration-test container.
+import {comparisonFixture} from "./comparison-fixture.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -22,15 +23,18 @@ const input = {
   categories: ["prompt_injection", "tool_abuse"],
   input_digest: "a".repeat(64),
 };
-const endpoint = "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate";
+let endpoint = "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate";
 const token = "isolated-image-proof-token-".repeat(4);
 const lease = "b".repeat(32);
-const configuration = buildPromptfooConfiguration(input, endpoint);
+let configuration = buildPromptfooConfiguration(input, endpoint);
 let mode = "pass";
 let requests = [];
+let activeRequests = 0, peakRequests = 0;
 const server = https.createServer({key: await readFile("/proof-credentials/key.pem"), cert: await readFile("/proof-credentials/cert.pem")}, async (request, response) => {
+  activeRequests += 1;
+  peakRequests = Math.max(peakRequests,activeRequests);
   try {
-    assert.equal(request.url, "/v1/evaluate");
+    assert.equal(request.url, input.schema_version === "red-team-runner-input-v2" ? "/v1/linked/evaluate" : "/v1/evaluate");
     assert.equal(request.method, "POST");
     assert.equal(request.headers.authorization, `Bearer ${token}`);
     assert.equal(request.headers["x-zasp-organization-id"], input.organization_id);
@@ -46,19 +50,30 @@ const server = https.createServer({key: await readFile("/proof-credentials/key.p
     assert.deepEqual(value, {target_id: input.target_id, target_kind: input.target_kind, category: curated.vars.category, input: curated.vars.prompt});
     requests.push(value.category);
     if(mode==="cancel")return;
+    if(input.schema_version === "red-team-runner-input-v2") await new Promise(resolve=>setTimeout(resolve,30));
     response.writeHead(mode === "engine_error" ? 503 : 200, {"content-type":"application/json"});
-    response.end(JSON.stringify({output: (mode === "fail" ? curated.assert[0].value : "Protected boundary") + " proof-secret-fixture"}));
+    response.end(JSON.stringify(input.schema_version === "red-team-runner-input-v2"
+      ? mode === "engine_error" ? {error:"unavailable"} : {target_comparison:comparisonFixture(input),schema_version:"red-team-linked-observation-v1",credential_version_digest:"e".repeat(64),run_id:input.run_id,category:value.category,observation:{http_status:200,response_digest:"c".repeat(64),protected:mode!=="fail"}}
+      : {output: (mode === "fail" ? curated.assert[0].value : "Protected boundary") + " proof-secret-fixture"}));
   } catch {
     response.writeHead(400, {"content-type":"application/json"});
     response.end(JSON.stringify({error:"proof request rejected"}));
+  } finally {
+    activeRequests -= 1;
   }
 });
 server.listen(443, "127.0.0.1");
 await once(server, "listening");
 try {
+  for (const version of ["v1", "v2"]) {
+  input.schema_version=`red-team-runner-input-${version}`;
+  // Controlled declaration for wire-contract checks, not built-image attestation.
+  if(version === "v2") input.runner_image_digest="sha256:"+"d".repeat(64);
+  endpoint=`https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/${version === "v2" ? "linked/" : ""}evaluate`;
+  configuration=buildPromptfooConfiguration(input,endpoint);
   for (const verdict of ["pass", "fail", "engine_error"]) {
-    mode = verdict; requests = [];
-    const directory = `/tmp/red-team-image-${verdict}`;
+    mode = verdict; requests = []; peakRequests = 0;
+    const directory = `/tmp/red-team-image-${version}-${verdict}`;
     await mkdir(directory, {mode:0o700});
     await writeFile(`${directory}/input.json`, JSON.stringify(input), {mode:0o600});
     await writeFile(`${directory}/token`, token, {mode:0o600});
@@ -76,18 +91,23 @@ try {
     assert.equal(output.run_id, input.run_id);
     assert.equal(output.input_digest, input.input_digest);
     assert.equal(output.verdict, verdict);
+    assert.equal(output.schema_version,`red-team-evidence-${version}`);
     const artifact = JSON.parse(await readFile(`${directory}/artifact.json`, "utf8"));
-    assert.equal(artifact.schema_version, "red-team-native-artifact-v1");
-    assert.equal(artifact.redaction_policy, "red-team-artifact-redaction-v1");
+    assert.equal(artifact.schema_version, `red-team-native-artifact-${version}`);
+    assert.equal(artifact.redaction_policy, `red-team-artifact-redaction-${version}`);
     assert.equal(artifact.run_id, input.run_id);
     assert.equal(artifact.input_digest, input.input_digest);
+    if(version === "v2") assert.equal(artifact.evaluation_identity.runner_image_digest,input.runner_image_digest);
     if (verdict !== "engine_error") assert.equal(artifact.native_output.results.results.length, input.categories.length);
     assert.ok(!JSON.stringify(artifact).includes(lease), "lease entered native artifact");
     assert.doesNotMatch(JSON.stringify(artifact), /proof-secret-fixture|isolated-image-proof-token|Protected boundary|credential_reference/);
     assert.ok(!JSON.stringify(output).includes(lease),"lease entered normalized evidence");
     assert.deepEqual([...new Set(requests)].sort(), [...input.categories].sort());
+    if(version==="v2" && verdict!=="engine_error") {assert.equal(requests.length,input.categories.length,"linked engine repeated a completed category");assert.equal(peakRequests,1,"linked engine sent parallel categories");}
     assert.doesNotMatch(JSON.stringify(output), /isolated-image-proof-token|ZASP_RED_TEAM_|Protected boundary|credential_reference/);
-    process.stdout.write(`actual pinned Promptfoo: ${verdict} verified\n`);
+    if(version==="v2" && verdict!=="engine_error") for(const record of artifact.native_output.results.results){assert.equal(record.response.linked_observation.observation.protected,verdict==="pass");assert.equal(record.response.linked_observation.observation.response_digest,"c".repeat(64));}
+    process.stdout.write(`actual pinned Promptfoo: ${verdict} verified (${version})\n`);
+  }
   }
   mode="cancel";requests=[];
   const directory="/tmp/red-team-image-cancel";

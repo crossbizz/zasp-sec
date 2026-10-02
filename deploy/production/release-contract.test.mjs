@@ -1,14 +1,95 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { watch } from "node:fs";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 import { load } from "js-yaml";
 
 import { inspectContainerBuilds, renderCustomerEdgeRelease, renderRelease, validateRenderedRelease } from "./release-contract.mjs";
 import { customerEdgeReleaseFixture as edgeRelease, productionReleaseFixture as release } from "./release-fixture.mjs";
+import { auditExportReleaseFixture } from "./audit-export-release-fixture.mjs";
 
 const exec = promisify(execFile);
+
+test("release removes its owned export values after Helm success or refusal", async () => {
+  for (const mode of ["success", "failure"]) {
+    const directory = await mkdtemp(path.join(tmpdir(), "zasp-export-release-cleanup-"));
+    const observed = new Set();
+    const watcher = watch(directory, (_event, name) => {
+      if (String(name).startsWith("zasp-audit-export-values-")) observed.add(String(name));
+    });
+    try {
+      const source = `
+        import { renderRelease } from ${JSON.stringify(new URL("./release-contract.mjs", import.meta.url).href)};
+        import { productionReleaseFixture as release } from ${JSON.stringify(new URL("./release-fixture.mjs", import.meta.url).href)};
+        import { auditExportReleaseFixture } from ${JSON.stringify(new URL("./audit-export-release-fixture.mjs", import.meta.url).href)};
+        const config = auditExportReleaseFixture();
+        const expectFailure = process.argv[1] === "failure";
+        // This conflict is validated by the actual chart against its connector role.
+        if (expectFailure) config.readerRoleArn = release.connectors.roleArn;
+        let failed = false;
+        try { await renderRelease(release, {schemaVersion:52, sessionSearchPhase:"precision-intake", auditExports:config}); }
+        catch (error) { if (error.message !== "release rejected") throw error; failed = true; }
+        if (failed !== expectFailure) throw new Error("unexpected render outcome");
+      `;
+      await exec(process.execPath, ["--input-type=module", "-e", source, mode], { env: { ...process.env, TMPDIR: directory }, timeout: 30000 });
+      assert.equal(observed.size, 1, "render must have created its owned values directory");
+      assert.deepEqual(await readdir(directory), [], "render left an export values file behind");
+    } finally {
+      watcher.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+});
+
+test("release owns its export configuration while Helm runs", async () => {
+  const exports = auditExportReleaseFixture();
+  const expected = structuredClone(exports);
+  const pending = renderRelease(release, { schemaVersion: 52, sessionSearchPhase: "precision-consumers", auditExports: exports });
+  exports.readerRoleArn = exports.writerRoleArn;
+  exports.policies[1].maximum_inflight = 99;
+  const resources = await pending;
+  assert.equal(envOf(one(resources, "Deployment", "agentsec-api")).ZASP_AUDIT_EXPORT_READER_ROLE_ARN, expected.readerRoleArn);
+  assert.equal(envOf(one(resources, "Job", "agentsec-schema-v52")).ZASP_AUDIT_EXPORT_MAXIMUM_INFLIGHT, "3");
+});
+
+test("release refuses export activation outside its approved schema and phase", async () => {
+  for (const options of [
+    { schemaVersion: 51, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 52, sessionSearchPhase: "compatibility" },
+  ]) await assert.rejects(renderRelease(release, { ...options, auditExports: auditExportReleaseFixture() }), /release rejected/);
+  const exports = auditExportReleaseFixture();
+  exports.cursorSigningKey = "must-not-enter-a-values-file";
+  await assert.rejects(renderRelease(release, { schemaVersion: 52, sessionSearchPhase: "precision-intake", auditExports: exports }), /release rejected/);
+});
+
+test("full release renders export API workers and selected migration policy together", async () => {
+  const exports = auditExportReleaseFixture();
+  const resources = await renderRelease(release, { schemaVersion: 52, sessionSearchPhase: "precision-intake", auditExports: exports });
+  const api = one(resources, "Deployment", "agentsec-api");
+  assert.deepEqual(JSON.parse(envOf(api).ZASP_AUDIT_EXPORT_POLICIES_JSON), exports.policies);
+  assert.equal(envOf(api).ZASP_AUDIT_EXPORT_READER_ROLE_ARN, exports.readerRoleArn);
+  assert.match(api.spec.template.spec.containers[0].args[0], /ZASP_AUDIT_EXPORT_CURSOR_SIGNING_KEY/);
+  const migration = one(resources, "Job", "agentsec-schema-v52");
+  assert.equal(envOf(migration).ZASP_AUDIT_EXPORT_POLICY_ID, exports.currentPolicyID);
+  assert.equal(envOf(migration).ZASP_AUDIT_EXPORT_EXPECTED_CURRENT_POLICY_ID, exports.expectedCurrentPolicyID);
+  assert.equal(envOf(migration).ZASP_AUDIT_EXPORT_MAXIMUM_INFLIGHT, "3");
+  assert.equal(envOf(one(resources, "Deployment", "zasp-audit-export-worker")).ZASP_WORKER_MODE, "audit-export");
+  assert.equal(envOf(one(resources, "Deployment", "zasp-audit-export-outbox")).ZASP_WORKER_MODE, "audit-export-outbox");
+  assert.doesNotThrow(() => validateRenderedRelease(resources, "123456789012", 52, "precision-intake", exports));
+  for (const mutate of [
+    r => { one(r, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.push({ name: "ZASP_AUDIT_EXPORT_READER_ROLE_ARN", value: exports.writerRoleArn }); },
+    r => { one(r, "Job", "agentsec-schema-v52").spec.template.spec.containers[0].args = ["/bin/true"]; },
+    r => { one(r, "Deployment", "zasp-audit-export-outbox").spec.template.spec.containers[0].env.push({ name: "ZASP_AUDIT_EXPORT_POLICIES_JSON", value: JSON.stringify(exports.policies) }); },
+    r => { one(r, "Deployment", "web").spec.template.spec.containers[0].env = [{ name: "ZASP_AUDIT_EXPORT_CURSOR_SIGNING_KEY", value: "leak" }]; },
+  ]) {
+    const drift = structuredClone(resources); mutate(drift);
+    assert.throws(() => validateRenderedRelease(drift, "123456789012", 52, "precision-intake", exports), /release rejected/);
+  }
+});
 
 test("routing release requires the dual-version correlation worker", async () => {
   const resources = await renderRelease(release);
@@ -1235,6 +1316,7 @@ test("release isolates the red team outbox runner and tenant target adapter", as
   const runner = deployments[1].spec.template.spec;
   const runnerEnv = Object.fromEntries(runner.containers[0].env.map(({ name, value }) => [name, value]));
   assert.equal(runnerEnv.ZASP_WORKER_MODE, "red-team");
+  assert.equal(runnerEnv.ZASP_RED_TEAM_RUNNER_IMAGE, runner.containers[0].image);
   assert.equal(runnerEnv.ZASP_DATABASE_AUTHORITY, "zasp_red_team_worker");
   assert.equal(runnerEnv.ZASP_RED_TEAM_TARGET_ENDPOINT, "https://agentsec-red-team-adapter.agentsec.svc.cluster.local/v1/evaluate");
   assert.equal(runnerEnv.ZASP_RED_TEAM_TARGET_CA_FILE, "/var/run/secrets/zasp-red-team/adapter-ca.crt");

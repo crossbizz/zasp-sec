@@ -1,0 +1,13 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["go","test","-C","services/platform","-count=1","-run","^(TestSecurityAgentAttackLabControlsRequireRegisteredSevenActionShape|TestSecurityAgentAttackLabControlMutationReachesRegisteredAuthority|TestExistingTestLifecycleBatchHTTPControls)$","./apiserver"]
+--- FAIL: TestSecurityAgentAttackLabControlsRequireRegisteredSevenActionShape (0.00s)
+    security_agent_attack_lab_controls_test.go:11: seven registered controls rejected
+--- FAIL: TestSecurityAgentAttackLabControlMutationReachesRegisteredAuthority (0.00s)
+    security_agent_attack_lab_controls_test.go:26: repository operation rejected
+--- FAIL: TestExistingTestLifecycleBatchHTTPControls (0.00s)
+    security_agent_existing_test_lifecycle_batch_test.go:223: test action control refused: 400 {"code":"invalid_request","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","message":"Request rejected","retryable":false}
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	1.080s
+FAIL
+
+Exit: 1 Signal: null

@@ -83,6 +83,12 @@ func NewSensorPublicHTTPHandler(repository SensorPublicAuthority, signingKey []b
 }
 
 func (handler *sensorPublicHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	bound := *handler
+	bound.signingKey = authorizationCursorKey(request.Context(), handler.signingKey)
+	bound.serveAuthorizedHTTP(writer, request)
+}
+
+func (handler *sensorPublicHTTPHandler) serveAuthorizedHTTP(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Cache-Control", "no-store")
 	identity, identityOK := IdentityFromRequest(request)
 	routed, routedOK := RoutedOperationFromRequest(request)

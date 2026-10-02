@@ -1,0 +1,96 @@
+=== RUN   TestSecurityAgentExportDownloadOriginalFormats
+--- PASS: TestSecurityAgentExportDownloadOriginalFormats (0.00s)
+=== RUN   TestSecurityAgentExportDownloadManifestBinding
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/run
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/step
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/source
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/version
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/association
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/scope
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/duplicate
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/unknown
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/mapping
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/renderer
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/time
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/content_hash
+=== RUN   TestSecurityAgentExportDownloadManifestBinding/content_object
+--- PASS: TestSecurityAgentExportDownloadManifestBinding (0.01s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/run (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/step (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/source (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/version (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/association (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/scope (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/duplicate (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/unknown (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/mapping (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/renderer (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/time (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/content_hash (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadManifestBinding/content_object (0.00s)
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/expired
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/missing_selection
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/bad_revision
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/bad_format
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/provider
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/bytes
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/media
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/version
+=== RUN   TestSecurityAgentExportDownloadFailsWithoutDisclosure/cancelled
+--- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/expired (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/missing_selection (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/bad_revision (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/bad_format (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/provider (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/bytes (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/media (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/version (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadFailsWithoutDisclosure/cancelled (0.00s)
+=== RUN   TestSecurityAgentExportDownloadContentBounds
+--- PASS: TestSecurityAgentExportDownloadContentBounds (0.00s)
+=== RUN   TestSecurityAgentExportDownloadCancelledDuringRead
+--- PASS: TestSecurityAgentExportDownloadCancelledDuringRead (0.00s)
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/empty
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/unknown_kind
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/manual_product_id
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/zero_version
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/unsafe_version
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/invalid_digest
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/duplicate
+=== RUN   TestSecurityAgentExportDownloadSelectionBounds/101
+--- PASS: TestSecurityAgentExportDownloadSelectionBounds (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/empty (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/unknown_kind (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/manual_product_id (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/zero_version (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/unsafe_version (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/invalid_digest (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/duplicate (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadSelectionBounds/101 (0.00s)
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/order
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/unknown
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/duplicate
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/missing
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/version
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/id
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/csv_limit
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/human_limit
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/package_limit
+=== RUN   TestSecurityAgentExportDownloadPackageBoundaries/foreign_locator
+--- PASS: TestSecurityAgentExportDownloadPackageBoundaries (1.19s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/order (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/unknown (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/duplicate (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/missing (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/version (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/id (0.00s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/csv_limit (0.47s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/human_limit (0.45s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/package_limit (0.26s)
+    --- PASS: TestSecurityAgentExportDownloadPackageBoundaries/foreign_locator (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	3.262s

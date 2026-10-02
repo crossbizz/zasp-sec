@@ -533,7 +533,8 @@ func TestRuntimeOutboxRequiresDistinctExactQueueAuthority(t *testing.T) {
 
 func TestRedTeamModesRequireSeparateExactQueueDatabaseAndRunnerAuthority(t *testing.T) {
 	base := map[string]string{
-		"ZASP_POSTGRES_DSN": "postgres://red_team@postgres.internal/zasp?sslmode=verify-full", "ZASP_WORKER_ID": "red-team-worker-01",
+		"ZASP_RED_TEAM_RUNNER_IMAGE": "registry.example/zasp/red-team-worker@sha256:" + strings.Repeat("d", 64),
+		"ZASP_POSTGRES_DSN":          "postgres://red_team@postgres.internal/zasp?sslmode=verify-full", "ZASP_WORKER_ID": "red-team-worker-01",
 		"ZASP_POLL_INTERVAL": "250ms", "ZASP_LEASE_DURATION": "60s", "ZASP_BATCH_SIZE": "10", "ZASP_SHUTDOWN_TIMEOUT": "20s",
 		"ZASP_RED_TEAM_QUEUE_URL": "https://sqs.us-west-2.amazonaws.com/123456789012/agentsec-red-team-tests", "ZASP_AWS_REGION": "us-west-2",
 		"ZASP_EVIDENCE_BUCKET": "zasp-production-evidence", "ZASP_EVIDENCE_BUCKET_OWNER": "123456789012", "ZASP_EVIDENCE_KMS_KEY_ARN": "arn:aws:kms:us-west-2:123456789012:key/11111111-1111-4111-8111-111111111111",
@@ -542,7 +543,14 @@ func TestRedTeamModesRequireSeparateExactQueueDatabaseAndRunnerAuthority(t *test
 	}
 	worker := cloneStringMap(base)
 	worker["ZASP_WORKER_MODE"], worker["ZASP_DATABASE_AUTHORITY"] = "red-team", "zasp_red_team_worker"
-	if config, err := loadWorkerRuntimeConfig(mapLookup(worker)); err != nil || config.Mode != workerModeRedTeam || config.RedTeamRunnerTimeout != 10*time.Minute {
+	for _, image := range []string{"", "registry.example/zasp/red-team-worker:latest", "registry.example/zasp/red-team-worker@sha256:" + strings.Repeat("0", 64), "registry.example/zasp/red-team-worker@sha256:" + strings.Repeat("D", 64)} {
+		invalid := cloneStringMap(worker)
+		invalid["ZASP_RED_TEAM_RUNNER_IMAGE"] = image
+		if _, err := loadWorkerRuntimeConfig(mapLookup(invalid)); !errors.Is(err, errWorkerConfiguration) {
+			t.Errorf("unpinned runner image accepted: %q %v", image, err)
+		}
+	}
+	if config, err := loadWorkerRuntimeConfig(mapLookup(worker)); err != nil || config.Mode != workerModeRedTeam || config.RedTeamRunnerTimeout != 10*time.Minute || config.RedTeamRunnerImage != worker["ZASP_RED_TEAM_RUNNER_IMAGE"] {
 		t.Fatalf("worker config=%#v err=%v", config, err)
 	}
 	outbox := cloneStringMap(base)

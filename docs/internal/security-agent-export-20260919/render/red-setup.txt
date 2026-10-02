@@ -1,0 +1,17 @@
+cwd: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform
+command: GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-budget-go-cache /opt/homebrew/bin/go test ./agentsec-worker -run '^TestSecurityAgentExportRender' -count=1 -v
+exit: 1
+# github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker [github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker.test]
+agentsec-worker/security_agent_export_render_test.go:19:98: undefined: securityAgentExportBinding
+agentsec-worker/security_agent_export_render_test.go:21:7: undefined: securityAgentExportBinding
+agentsec-worker/security_agent_export_render_test.go:21:150: undefined: securityAgentExportSelection
+agentsec-worker/security_agent_export_render_test.go:25:79: undefined: securityAgentExportBinding
+agentsec-worker/security_agent_export_render_test.go:40:98: undefined: securityAgentExportBinding
+agentsec-worker/security_agent_export_render_test.go:42:12: undefined: renderSecurityAgentEvidenceExportPackage
+agentsec-worker/security_agent_export_render_test.go:52:39: undefined: securityAgentExportSelection
+agentsec-worker/security_agent_export_render_test.go:77:52: undefined: securityAgentExportSelection
+agentsec-worker/security_agent_export_render_test.go:78:9: undefined: renderSecurityAgentEvidenceExportPackage
+agentsec-worker/security_agent_export_render_test.go:79:9: undefined: renderSecurityAgentEvidenceExportPackage
+agentsec-worker/security_agent_export_render_test.go:79:9: too many errors
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker [build failed]
+FAIL

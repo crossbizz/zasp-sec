@@ -9,8 +9,63 @@ import { createIntegrationsAPI, createPoliciesAPI, createRetainedWorkflowMutatio
 const policy: Policy = { id: "policy-production", name: "Production", scope: "environment", trigger: "tool", conditions: [{ field: "action", operator: "equals", value: "write" }], action: "monitor", rollout: "draft", failure_mode: "open" };
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
 const capturedScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+
+it("loads existing agent-test choices through strict paged requests pinned to scope", async () => {
+  const test = { id: "pid_89000012-0000-4000-8000-000000000002", name: "Existing test", version: 7, enabled: true, target_id: "pid_89000011-0000-4000-8000-000000000001", target_kind: "agent_endpoint", categories: ["prompt_injection"], safety: { environment: "staging", credential_class: "read_only", expected_side_effects: ["bounded evaluation"] }, created_at: "2026-09-16T10:00:00Z", updated_at: "2026-09-16T10:00:00Z" };
+  const requests: Request[] = [];
+  const client = createAPIClient({ getExpectedScope: () => capturedScope, fetch: async request => {
+    requests.push(request);
+    const next = new URL(request.url).searchParams.get("cursor");
+    const body = next ? { items: [{ ...test, id: "pid_89000013-0000-4000-8000-000000000003", version: 8 }] } : { items: [test], next_cursor: "cGFnZTI" };
+    return new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } });
+  } });
+  const values = await createSecurityAgentsAPI(client, capturedScope).listExistingTests();
+  expect(values.map(value => [value.id, value.version])).toEqual([[test.id, 7], ["pid_89000013-0000-4000-8000-000000000003", 8]]);
+  expect(requests.map(request => [new URL(request.url).pathname, new URL(request.url).searchParams.get("limit"), request.headers.get("X-Zasp-Expected-Scope")])).toEqual(Array(2).fill(["/api/v1/tests", "100", capturedScope]));
+  expect(new URL(requests[1].url).searchParams.get("cursor")).toBe("cGFnZTI");
+});
 const integration: Integration = { id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "github", name: "GitHub", configuration: { authorization_mode: "github_app" }, status: "revoking", created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z" };
 const referenceIntegration: Integration = { id: "pid_20000001-0000-4000-8000-000000000001", connector_key: "aws", name: "AWS", configuration: { role_arn: "arn:aws:iam::123456789012:role/zasp-discovery", external_id_reference: "ref:aws/external-id/customer-0001", region: "us-east-1" }, status: "active", created_at: "2026-08-19T00:00:00Z", updated_at: "2026-08-19T00:01:00Z" };
+
+it("opts into approval context on list/detail and accepts a legacy server", async () => {
+  const id = "pid_78000001-0000-4000-8000-000000000001";
+  const approval = { id, run_id: id, step_id: id, state: "pending", expires_at: "2030-01-01T00:00:00Z", version: 1, expected_effect: "Move finding to under review", reversible: true, ttl_seconds: 0, evidence_summary: [id] };
+  const headers: Array<string | null> = [];
+  const client = createAPIClient({ getExpectedScope: () => capturedScope, fetch: async (request) => {
+    headers.push(request.headers.get("X-Zasp-Approval-Context"));
+    const body = new URL(request.url).pathname.endsWith(id) ? approval : { items: [approval] };
+    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  } });
+  const api = createSecurityAgentsAPI(client);
+  expect((await api.listSecurityAgentApprovals()).items).toEqual([approval]);
+  expect(await api.getSecurityAgentApproval(id)).toEqual(approval);
+  expect(headers).toEqual(["v1", "v1"]);
+});
+
+it.each([undefined, "budget_usage_unknown"])("requests budget details and accepts server reason %s", async (reason) => {
+	const runID = "pid_78000006-0000-4000-8000-000000000006";
+	const evidenceID = "pid_78000005-0000-4000-8000-000000000005";
+	let emittedHeader: string | null = null;
+	let contextHeader: string | null = null;
+	const client = createAPIClient({
+		getExpectedScope: () => capturedScope,
+		fetch: async (request) => {
+			emittedHeader = request.headers.get("X-Zasp-Budget-Details");
+			contextHeader = request.headers.get("X-Zasp-Run-Context");
+			expect(request.headers.get("X-Zasp-Action-Details")).toBe("v1");
+			return new Response(JSON.stringify({
+				run: { id: runID, agent_id: "pid_78000001-0000-4000-8000-000000000001", state: "needs_human", evidence_ids: [evidenceID], definition_version: 1, version: 4 },
+				evidence_ids: [evidenceID], plan: null, authorization: "not_planned", approvals: [], execution: [], verification: "inconclusive",
+				...(reason ? { budget_stop_reason: reason } : {}),
+			}), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+		},
+	});
+	const detail = await createSecurityAgentsAPI(client).getSecurityAgentRun(runID);
+	expect(emittedHeader).toBe("v1");
+	expect(contextHeader).toBe("v1");
+	expect(detail.run.id).toBe(runID);
+	expect(detail.budget_stop_reason).toBe(reason);
+});
 
 function authorizationURLWithCredentials(): string {
 	const target = new URL("https://github.com/login/oauth/authorize?state=opaque");

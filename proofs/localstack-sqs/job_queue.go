@@ -145,7 +145,8 @@ func (driver *sqsJobDriver) ConsumeBatch(ctx context.Context, maximum int) ([]jo
 	seenHandles := make(map[string]struct{}, len(messages))
 	for index, message := range messages {
 		driverMessage, ok := driverMessageFromReceived(message)
-		if !ok || message.MessageID == "" || message.ReceiptHandle == "" {
+		if !ok || message.MessageID == "" || message.ReceiptHandle == "" ||
+			message.ReceiveCount < 1 || message.ReceiveCount > 1_000_000_000 {
 			return nil, errMessage
 		}
 		if _, duplicate := seenJobs[driverMessage.JobID]; duplicate {
@@ -164,6 +165,7 @@ func (driver *sqsJobDriver) ConsumeBatch(ctx context.Context, maximum int) ([]jo
 			Message:       driverMessage,
 			MessageID:     message.MessageID,
 			ReceiptHandle: message.ReceiptHandle,
+			ReceiveCount:  message.ReceiveCount,
 		}
 	}
 	return deliveries, nil

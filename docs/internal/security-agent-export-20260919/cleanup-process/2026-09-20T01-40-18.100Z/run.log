@@ -1,0 +1,57 @@
+=== RUN   TestSecurityAgentExportCleanupProcessPostgres
+    security_agent_export_cleanup_process_postgres_test.go:113: cleanup compiled/installed58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f
+    security_agent_export_cleanup_process_postgres_test.go:145: joined  pid=39 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:152: joined  pid=45 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:158: joined  pid=51 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:159: joined  pid=57 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:160: joined  pid=63 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:166: joined B pid=69 exit=86 abrupt_post_commit=true
+    security_agent_export_cleanup_process_postgres_test.go:172: joined  pid=78 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:174: joined D pid=83 exit=86 abrupt_post_commit=true
+    security_agent_export_cleanup_process_postgres_test.go:178: joined publish pid=92 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:126: joined  pid=98 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:135: joined  pid=104 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:199: public artifact0 org=pid_6a000001-0000-4000-8000-000000000001 run=pid_8d9d8514-9180-4041-8777-97cb415332e2 export=pid_5a4a5050-62d9-405f-8f99-292f08dc41ec version=fixture-3bd0d3d52b778308ac399a46e97a0381a7484f482fa5dc025b3c1263ad15e247 bytes=4934
+    security_agent_export_cleanup_process_postgres_test.go:142: joined  pid=110 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:145: joined  pid=115 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:152: joined  pid=120 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:158: joined  pid=126 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:159: joined  pid=131 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:160: joined  pid=137 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:166: joined B pid=143 exit=86 abrupt_post_commit=true
+    security_agent_export_cleanup_process_postgres_test.go:172: joined  pid=152 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:174: joined D pid=158 exit=86 abrupt_post_commit=true
+    security_agent_export_cleanup_process_postgres_test.go:178: joined publish pid=167 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:126: joined  pid=173 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:135: joined  pid=178 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:199: public artifact1 org=pid_8ec00001-0000-4000-8000-000000000001 run=pid_998abdb8-0eb7-416d-98ac-8b728cc18a2a export=pid_369b610b-f703-488d-8b99-5faee8e357a5 version=fixture-68c327774c58d09bbbd6141e9dd16df2b26eb60cf90ece9e98e64a9da396ced8 bytes=4934
+    security_agent_export_cleanup_process_postgres_test.go:152: joined  pid=184 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:158: joined  pid=190 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:159: joined  pid=196 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:160: joined  pid=202 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:166: joined B pid=207 exit=86 abrupt_post_commit=true
+    security_agent_export_cleanup_process_postgres_test.go:172: joined  pid=216 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:174: joined D pid=222 exit=86 abrupt_post_commit=true
+    security_agent_export_cleanup_process_postgres_test.go:178: joined publish pid=231 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:126: joined  pid=236 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:135: joined  pid=241 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:199: public artifact2 org=pid_6a000001-0000-4000-8000-000000000001 run=pid_33b942b8-13fb-47a1-880b-26503fcd29a3 export=pid_cbc2cdd0-8bb2-445d-885a-fd65b0135a38 version=fixture-15e1a6ece1e485fc86c1f55855b5ed0f3be7695cd5e1df7e1a6f223e7d385a50 bytes=4934
+    security_agent_export_cleanup_process_postgres_test.go:209: joined  pid=246 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:209: joined  pid=251 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:126: joined  pid=256 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:243: joined  pid=261 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:255: joined blocked pid=267 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:265: waiting real cleanup deadline 29.183s
+    security_agent_export_cleanup_process_postgres_test.go:266: joined delete-loss pid=274 exit=86 abrupt_post_commit=true
+    security_agent_export_cleanup_process_postgres_test.go:278: joined held pid=280 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:282: waiting real cleanup deadline 59.617s
+    security_agent_export_cleanup_process_postgres_test.go:284: joined denied pid=287 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:293: waiting real cleanup deadline 30.045s
+    security_agent_export_cleanup_process_postgres_test.go:284: joined generic404 pid=293 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:293: waiting real cleanup deadline 30.048s
+    security_agent_export_cleanup_process_postgres_test.go:295: joined absent pid=300 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:299: joined done pid=306 exit=0 abrupt_post_commit=false
+    security_agent_export_cleanup_process_postgres_test.go:360: cleanup proof: three public artifacts/two organizations; live read blocked; exact DELETE lost response; real lease/retry deadlines;403/generic404 retain; typed NoSuchVersion clears once; siblings unchanged; zero PUTs
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportCleanupProcessPostgres3278625042/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportCleanupProcessPostgres (191.38s)
+PASS

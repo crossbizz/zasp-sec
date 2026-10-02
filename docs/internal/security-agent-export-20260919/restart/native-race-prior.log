@@ -1,0 +1,164 @@
+--- FAIL: TestProductionSecurityAgentActionNaturalRecovery (125.75s)
+    security_agent_action_recovery_worker_postgres_test.go:44: execution mode=local-offline-build; owned synthetic PostgreSQL, registered release55
+    --- FAIL: TestProductionSecurityAgentActionNaturalRecovery/isolate_session/fairness (11.17s)
+        security_agent_action_recovery_worker_postgres_test.go:48: postgres did not become ready: 2026-09-19 17:59:39.381 PDT [1871] FATAL:  could not create shared memory segment: No space left on device
+            2026-09-19 17:59:39.381 PDT [1871] DETAIL:  Failed system call was shmget(key=238822541, size=56, 03600).
+            2026-09-19 17:59:39.381 PDT [1871] HINT:  This error does *not* mean that you have run out of disk space.  It occurs either if all available shared memory IDs have been taken, in which case you need to raise the SHMMNI parameter in your kernel, or because the system's overall limit for shared memory has been reached.
+            	The PostgreSQL documentation contains more information about shared memory configuration.
+            2026-09-19 17:59:39.381 PDT [1871] LOG:  database system is shut down
+        postgres_integration_test.go:1339: owned PostgreSQL cleanup failed: pid=1871 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestProductionSecurityAgentActionNaturalRecoveryisolate_session2958913534/001/data: pg_ctl=exit status 1 fallback_kill=<nil> wait=exit status 1
+--- FAIL: TestProductionSecurityAgentAutonomousResponseFingerprintIsStableAcrossMigrationPrincipals (0.83s)
+    postgres_integration_test.go:1287: initdb: exit status 1
+        The files belonging to this database system will be owned by user "manishmaheshwari".
+        This user must also own the server process.
+        
+        The database cluster will be initialized with locale "C".
+        The default text search configuration will be set to "english".
+        
+        Data page checksums are enabled.
+        
+        creating directory /var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestProductionSecurityAgentAutonomousResponseFingerprintIsStable1357002802/001/data ... ok
+        creating subdirectories ... ok
+        selecting dynamic shared memory implementation ... posix
+        selecting default "max_connections" ... 20
+        selecting default "shared_buffers" ... 400kB
+        selecting default time zone ... America/Los_Angeles
+        creating configuration files ... ok
+        running bootstrap script ... 2026-09-19 17:59:50.374 PDT [2448] FATAL:  could not create shared memory segment: No space left on device
+        2026-09-19 17:59:50.374 PDT [2448] DETAIL:  Failed system call was shmget(key=238825653, size=56, 03600).
+        2026-09-19 17:59:50.374 PDT [2448] HINT:  This error does *not* mean that you have run out of disk space.  It occurs either if all available shared memory IDs have been taken, in which case you need to raise the SHMMNI parameter in your kernel, or because the system's overall limit for shared memory has been reached.
+        	The PostgreSQL documentation contains more information about shared memory configuration.
+        child process exited with exit code 1
+        initdb: removing data directory "/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestProductionSecurityAgentAutonomousResponseFingerprintIsStable1357002802/001/data"
+panic: test timed out after 3m0s
+	running tests:
+		TestProductionSecurityAgentBudgetStopsClaimedPolicyApply (17s)
+		TestProductionSecurityAgentBudgetStopsClaimedPolicyApply/stopped_reclaim (2s)
+
+goroutine 301 [running]:
+testing.(*M).startAlarm.func1()
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:2682 +0x490
+created by time.goFunc
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/time/sleep.go:215 +0x44
+
+goroutine 1 [chan receive]:
+testing.(*T).Run(0xc000102fc0, {0x10681f644, 0x38}, 0x107b87160)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:2005 +0x700
+testing.runTests.func1(0xc000102fc0)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:2477 +0x78
+testing.tRunner(0xc000102fc0, 0xc00063fad8)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:1934 +0x168
+testing.runTests(0xc0004d4bb8, {0x108aa50c0, 0x4ec, 0x4ec}, {0x9e4be4333093a80e?, 0x0?, 0x108ab4d60?})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:2475 +0x738
+testing.(*M).Run(0xc000331680)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:2337 +0xaf8
+main.main()
+	_testmain.go:2563 +0x104
+
+goroutine 234 [chan receive]:
+testing.(*T).Run(0xc000683500, {0x1067734f3, 0xf}, 0xc0003223c0)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:2005 +0x700
+github.com/zasp-ai/zasp-sec/services/platform/apiserver.TestProductionSecurityAgentBudgetStopsClaimedPolicyApply(0xc000683500)
+	/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform/apiserver/security_agent_budget_apply_postgres_test.go:35 +0x3d0
+testing.tRunner(0xc000683500, 0x107b87160)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:1934 +0x168
+created by testing.(*T).Run in goroutine 1
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:1997 +0x6e4
+
+goroutine 87 [IO wait]:
+internal/poll.runtime_pollWait(0x153116600, 0x72)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0xc000442320, 0x72, 0x0)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/internal/poll/fd_poll_runtime.go:84 +0xb8
+internal/poll.(*pollDesc).waitRead(...)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0xc000442300, {0xc000974000, 0x2000, 0x2000})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/internal/poll/fd_unix.go:165 +0x2f8
+net.(*netFD).Read(0xc000442300, {0xc000974000, 0x2000, 0x2000})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/net/fd_posix.go:68 +0x48
+net.(*conn).Read(0xc000744938, {0xc000974000, 0x2000, 0x2000})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/net/net.go:196 +0x88
+github.com/jackc/pgx/v5/pgconn/internal/bgreader.(*BGReader).Read(0xc0008a1f40, {0xc000974000, 0x2000, 0x2000})
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/pgconn/internal/bgreader/bgreader.go:100 +0x138
+io.ReadAtLeast({0x107ba7fc0, 0xc0008a1f40}, {0xc000974000, 0x2000, 0x2000}, 0x5)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/io/io.go:335 +0xc4
+github.com/jackc/pgx/v5/pgproto3.(*chunkReader).Next(0xc00039ad80, 0x5)
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/pgproto3/chunkreader.go:80 +0x620
+github.com/jackc/pgx/v5/pgproto3.(*Frontend).Receive(0xc00096e488)
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/pgproto3/frontend.go:313 +0x60
+github.com/jackc/pgx/v5/pgconn.(*PgConn).peekMessage(0xc00015a588)
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/pgconn/pgconn.go:645 +0x17c
+github.com/jackc/pgx/v5/pgconn.(*PgConn).receiveMessage(0xc00015a588)
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/pgconn/pgconn.go:669 +0xb8
+github.com/jackc/pgx/v5/pgconn.(*ResultReader).receiveMessage(0xc00015a640)
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/pgconn/pgconn.go:1872 +0x74
+github.com/jackc/pgx/v5/pgconn.(*ResultReader).readUntilRowDescription(0xc00015a640, 0xc0002e4000, {0xc000586018, 0x0, 0x4})
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/pgconn/pgconn.go:1839 +0x60
+github.com/jackc/pgx/v5/pgconn.(*PgConn).execExtendedSuffix(0xc00015a588, 0xc00015a640, 0xc0002e4000, {0xc000586018, 0x0, 0x4})
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/pgconn/pgconn.go:1375 +0x288
+github.com/jackc/pgx/v5/pgconn.(*PgConn).ExecStatement(0xc00015a588, {0x107bbd948, 0xc000222150}, 0xc0002e4000, {0xc0007b6000, 0x3, 0x4}, {0xc000586068, 0x3, 0x4}, ...)
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/pgconn/pgconn.go:1318 +0x1a8
+github.com/jackc/pgx/v5.(*Conn).execPrepared(0xc000016000, {0x107bbd948, 0xc000222150}, 0xc0002e4000, {0xc0003fa000, 0x3, 0x3})
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/conn.go:613 +0x120
+github.com/jackc/pgx/v5.(*Conn).exec(0xc000016000, {0x107bbd948, 0xc000222150}, {0x10685ec71, 0x5f}, {0xc0003fa000, 0x3, 0x3})
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/conn.go:550 +0x610
+github.com/jackc/pgx/v5.(*Conn).Exec(0xc000016000, {0x107bbd948, 0xc000222150}, {0x10685ec71, 0x5f}, {0xc0003fa000, 0x3, 0x3})
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/conn.go:481 +0x118
+github.com/jackc/pgx/v5.(*dbTx).Exec(0xc00047f200, {0x107bbd948, 0xc000222150}, {0x10685ec71, 0x5f}, {0xc0003fa000, 0x3, 0x3})
+	/Users/manishmaheshwari/go/pkg/mod/github.com/jackc/pgx/v5@v5.10.0/tx.go:231 +0xc8
+github.com/zasp-ai/zasp-sec/services/platform/apiserver.(*integrationMigrationTransaction).Exec(0xc00056e4b0, {0x107bbd948, 0xc000222150}, {0x10685ec71, 0x5f}, {0xc0003fa000, 0x3, 0x3})
+	/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform/apiserver/postgres_integration_test.go:1414 +0x7c
+github.com/zasp-ai/zasp-sec/services/platform/migrations.(*Runner).UpProductionRuntimeGatewayReconciliation.func1({0x107bbd948, 0xc000222150}, {0x107bbd670, 0xc00056e4b0})
+	/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform/migrations/migrations.go:1878 +0x540
+github.com/zasp-ai/zasp-sec/services/platform/migrations.(*Runner).withTransaction(0xc0004f6a10, {0x107bbd948, 0xc000222150}, 0x107b8a1f0)
+	/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform/migrations/migrations.go:3201 +0x274
+github.com/zasp-ai/zasp-sec/services/platform/migrations.(*Runner).UpProductionRuntimeGatewayReconciliation(0xc0004f6a10, {0x107bbd948, 0xc000222150})
+	/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform/migrations/migrations.go:1862 +0xc0
+github.com/zasp-ai/zasp-sec/services/platform/apiserver.runSecurityAgentAttackPathFixture(0xc0009261c0, 0xc0002a7e10, {0x0, 0x0, 0x0?})
+	/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform/apiserver/security_agent_attack_path_postgres_test.go:61 +0x6f8
+github.com/zasp-ai/zasp-sec/services/platform/apiserver.runSecurityAgentBudgetFixture(0xc0009261c0, 0xc0008b9e80, {0x0, 0x0, 0x0})
+	/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform/apiserver/security_agent_budget_postgres_test.go:20 +0x94
+github.com/zasp-ai/zasp-sec/services/platform/apiserver.TestProductionSecurityAgentBudgetStopsClaimedPolicyApply.func1(0xc0009261c0)
+	/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform/apiserver/security_agent_budget_apply_postgres_test.go:36 +0x1b4
+testing.tRunner(0xc0009261c0, 0xc0003223c0)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:1934 +0x168
+created by testing.(*T).Run in goroutine 234
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:1997 +0x6e4
+
+goroutine 284 [IO wait]:
+internal/poll.runtime_pollWait(0x153116800, 0x72)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0xc000785e20, 0x72, 0x1)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/internal/poll/fd_poll_runtime.go:84 +0xb8
+internal/poll.(*pollDesc).waitRead(...)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0xc000785e00, {0xc0007bca11, 0x5ef, 0x5ef})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/internal/poll/fd_unix.go:165 +0x2f8
+os.(*File).read(...)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/file_posix.go:29
+os.(*File).Read(0xc000a8cab0, {0xc0007bca11, 0x5ef, 0x5ef})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/file.go:144 +0xb0
+bytes.(*Buffer).ReadFrom(0xc00019ede0, {0x107ba5258, 0xc000744908})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/bytes/buffer.go:217 +0xf0
+io.copyBuffer({0x107ba55a0, 0xc00019ede0}, {0x107ba5258, 0xc000744908}, {0x0, 0x0, 0x0})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/io/io.go:415 +0x1c0
+io.Copy(...)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/io/io.go:388
+os.genericWriteTo(0xc000a8cab0, {0x107ba55a0, 0xc00019ede0})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/file.go:295 +0x68
+os.(*File).WriteTo(0xc000a8cab0, {0x107ba55a0, 0xc00019ede0})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/file.go:273 +0x90
+io.copyBuffer({0x107ba55a0, 0xc00019ede0}, {0x107ba5380, 0xc000a8cab0}, {0x0, 0x0, 0x0})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/io/io.go:411 +0xac
+io.Copy(...)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/io/io.go:388
+os/exec.(*Cmd).writerDescriptor.func1()
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec/exec.go:596 +0x5c
+os/exec.(*Cmd).Start.func2(0xc000ad6360)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec/exec.go:749 +0x3c
+created by os/exec.(*Cmd).Start in goroutine 87
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec/exec.go:748 +0xb2c
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	180.847s
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	9.219s
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-api	3.790s
+FAIL

@@ -1,0 +1,24 @@
+=== RUN   TestComplianceHTTPMountedPublicLifecycle
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/controls
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence?framework=soc2_security
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence/policy/policy-001?source_version=7
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download-grants
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download
+--- PASS: TestComplianceHTTPMountedPublicLifecycle (0.26s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/controls (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence?framework=soc2_security (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence/policy/policy-001?source_version=7 (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID` (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download-grants (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download (0.04s)
+=== RUN   TestSecurityAgentExportHTTPConsumeBeforeBytes
+=== RUN   TestSecurityAgentExportHTTPConsumeBeforeBytes/allowed
+=== RUN   TestSecurityAgentExportHTTPConsumeBeforeBytes/revoked
+--- PASS: TestSecurityAgentExportHTTPConsumeBeforeBytes (0.17s)
+    --- PASS: TestSecurityAgentExportHTTPConsumeBeforeBytes/allowed (0.08s)
+    --- PASS: TestSecurityAgentExportHTTPConsumeBeforeBytes/revoked (0.09s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	2.483s

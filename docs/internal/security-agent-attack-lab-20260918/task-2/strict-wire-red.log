@@ -1,0 +1,10 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform
+Command: ["env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go","test","./agentsec-worker","-run","^TestAttackLabReconcilerStrictSQLWire$","-count=1","-v"]
+=== RUN   TestAttackLabReconcilerStrictSQLWire
+    security_agent_attack_lab_client_test.go:13: actual PostgreSQL timestamp/object envelope rejected
+--- FAIL: TestAttackLabReconcilerStrictSQLWire (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.016s
+FAIL
+
+Exit: 1 Signal: null

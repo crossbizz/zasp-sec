@@ -1,0 +1,17 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npm","test"]
+
+> zasp-agent-security-console@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+
+ Test Files  226 passed (226)
+      Tests  2161 passed (2161)
+   Start at  05:40:42
+   Duration  49.36s (transform 14.05s, setup 117.55s, import 27.40s, tests 74.01s, environment 370.07s)
+
+
+Exit: 0 Signal: null

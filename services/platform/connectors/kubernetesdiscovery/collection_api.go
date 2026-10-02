@@ -76,7 +76,7 @@ func newKubernetesCollectionAPI(endpoint string, roundTripper http.RoundTripper,
 	if !ok || roundTripper == nil || timeout < 100*time.Millisecond || timeout > 30*time.Second {
 		return nil, ErrInvalid
 	}
-	return &KubernetesCollectionAPI{endpoint: "https://" + parsed.Host, host: strings.ToLower(parsed.Hostname()), client: &http.Client{Transport: roundTripper, Timeout: timeout, CheckRedirect: rejectKubernetesRedirect}, timeout: timeout}, nil
+	return &KubernetesCollectionAPI{endpoint: "https://" + parsed.Host, host: strings.ToLower(parsed.Hostname()), client: &http.Client{Transport: collection.EffectTransport{Next: roundTripper}, Timeout: timeout, CheckRedirect: rejectKubernetesRedirect}, timeout: timeout}, nil
 }
 
 func (api *KubernetesCollectionAPI) FetchCollectionPage(ctx context.Context, credential []byte, request CollectionPageRequest) (CollectionPage, error) {
@@ -870,7 +870,30 @@ func validKubernetesSubjectName(value string) bool {
 	return true
 }
 
+// Canonicalize object fields at the emitter boundary, including nested objects
+// in arrays. UseNumber preserves integer precision and numeric values.
+func canonicalKubernetesObject(value json.RawMessage) (json.RawMessage, error) {
+	decoder := json.NewDecoder(bytes.NewReader(value))
+	decoder.UseNumber()
+	var object map[string]any
+	if err := decoder.Decode(&object); err != nil || object == nil {
+		return nil, ErrInvalid
+	}
+	if decoder.Decode(new(any)) != io.EOF {
+		return nil, ErrInvalid
+	}
+	return json.Marshal(object)
+}
+
 func marshalKubernetesEntity(id, kind, sourceNativeID, displayName string, stable, attributes json.RawMessage) (json.RawMessage, error) {
+	stable, err := canonicalKubernetesObject(stable)
+	if err != nil {
+		return nil, err
+	}
+	attributes, err = canonicalKubernetesObject(attributes)
+	if err != nil {
+		return nil, err
+	}
 	return json.Marshal(struct {
 		ID             string          `json:"id"`
 		Kind           string          `json:"kind"`

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { renderRelease, validateRenderedRelease } from "./release-contract.mjs";
 import { productionReleaseFixture as release } from "./release-fixture.mjs";
+import { auditExportReleaseFixture } from "./audit-export-release-fixture.mjs";
 
 const one = (resources, kind, name) => {
   const matches = resources.filter(r => r.kind === kind && r.metadata.name === name);
@@ -9,6 +10,93 @@ const one = (resources, kind, name) => {
   return matches[0];
 };
 const env = resource => Object.fromEntries(resource.spec.template.spec.containers[0].env.map(e => [e.name, e.value]));
+
+for (const phase of ["precision-consumers", "precision-intake"]) {
+  for (const exportsEnabled of [false, true]) {
+    test(`schema55 retains ${phase} and audit exports=${exportsEnabled} with reconciler disabled`, async () => {
+      const auditExports = exportsEnabled ? auditExportReleaseFixture() : undefined;
+      const previous = await renderRelease(release, { schemaVersion: 54, sessionSearchPhase: phase, auditExports });
+      const resources = await renderRelease(release, { schemaVersion: 55, sessionSearchPhase: phase, auditExports });
+      const expected = structuredClone(previous);
+      const migration = one(expected, "Job", "agentsec-schema-v54");
+      migration.metadata.name = "agentsec-schema-v55";
+      const command = migration.spec.template.spec.containers[0];
+      assert.match(command.args[0], /up-to-54\b/);
+      command.args[0] = command.args[0].replace(/up-to-54\b/, "up-to-55");
+      for (const resource of expected.filter(r => r.kind === "Deployment")) {
+        const annotations = resource.spec.template.metadata.annotations;
+        if (annotations?.["zasp.io/schema-version"] !== undefined) {
+          assert.equal(annotations["zasp.io/schema-version"], "54");
+          annotations["zasp.io/schema-version"] = "55";
+        }
+      }
+      one(expected, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(e => e.name === "ZASP_EXPECTED_SCHEMA_VERSION").value = "55";
+      assert.deepEqual(resources, expected, "schema upgrade changed capability activation or workload authority");
+      assert.equal(resources.some(r => r.metadata.name === "zasp-test-reconciler"), false);
+      assert.doesNotThrow(() => validateRenderedRelease(resources, "123456789012", 55, phase, auditExports));
+      for (const mutate of [
+        rows => one(rows, "Job", "agentsec-schema-v55").spec.template.spec.containers[0].args[0] = command.args[0].replace(/up-to-55\b/, "up-to-54"),
+        rows => one(rows, "Deployment", "agentsec-api").spec.template.spec.containers[0].env.find(e => e.name === "ZASP_EXPECTED_SCHEMA_VERSION").value = "54",
+        rows => one(rows, "Deployment", "agentsec-runtime-coordinator").spec.template.metadata.annotations["zasp.io/schema-version"] = "54",
+      ]) {
+        const changed = structuredClone(resources);
+        mutate(changed);
+        assert.throws(() => validateRenderedRelease(changed, "123456789012", 55, phase, auditExports), /release rejected/);
+      }
+    });
+  }
+}
+
+for (const phase of ["precision-consumers", "precision-intake"]) {
+  test(`audit schema52 preserves ${phase} without activating export workloads`, async () => {
+    const previous = await renderRelease(release, { schemaVersion: 51, sessionSearchPhase: phase });
+    const resources = await renderRelease(release, { schemaVersion: 52, sessionSearchPhase: phase });
+    const expected = structuredClone(previous);
+    const migration = one(expected, "Job", "agentsec-schema-v51");
+    migration.metadata.name = "agentsec-schema-v52";
+    const command = migration.spec.template.spec.containers[0];
+    assert.match(command.args[0], /up-to-51$/);
+    command.args[0] = command.args[0].replace(/up-to-51$/, "up-to-52");
+    for (const resource of expected.filter(r => r.kind === "Deployment")) {
+      const annotations = resource.spec.template.metadata.annotations;
+      if (annotations?.["zasp.io/schema-version"] !== undefined) {
+        assert.equal(annotations["zasp.io/schema-version"], "51");
+        annotations["zasp.io/schema-version"] = "52";
+      }
+    }
+    const api = one(expected, "Deployment", "agentsec-api");
+    const version = api.spec.template.spec.containers[0].env.find(e => e.name === "ZASP_EXPECTED_SCHEMA_VERSION");
+    assert.equal(version.value, "51");
+    version.value = "52";
+    assert.deepEqual(resources, expected, "schema-only upgrade changed workload selections or enabled new capabilities");
+    assert.doesNotThrow(() => validateRenderedRelease(resources, "123456789012", 52, phase));
+    for (const mutate of [
+      rows => one(rows, "Job", "agentsec-schema-v52").spec.template.spec.containers[0].args[0] = command.args[0].replace(/up-to-52$/, "up-to-51"),
+      rows => one(rows, "Deployment", "agentsec-api").spec.template.metadata.annotations["zasp.io/schema-version"] = "51",
+      rows => one(rows, "Deployment", "agentsec-runtime-coordinator").spec.template.metadata.annotations["zasp.io/schema-version"] = "51",
+      rows => one(rows, "Deployment", "agentsec-event-ingest").spec.template.spec.containers[0].env.find(e => e.name === "ZASP_RUNTIME_INGEST_SCHEMA").value = phase === "precision-intake" ? "runtime-event-v1" : "runtime-event-v2",
+    ]) {
+      const drift = structuredClone(resources);
+      mutate(drift);
+      assert.throws(() => validateRenderedRelease(drift, "123456789012", 52, phase), /release rejected/);
+    }
+  });
+}
+
+test("audit schema52 requires an explicit supported precision phase", async () => {
+  for (const options of [
+    { schemaVersion: 52 },
+    { schemaVersion: 52, sessionSearchPhase: "compatibility" },
+    { schemaVersion: 52, sessionSearchPhase: "backfill" },
+    { schemaVersion: 52, sessionSearchPhase: "query" },
+    { schemaVersion: 52, sessionSearchPhase: "audit-exports" },
+    { schemaVersion: 55 },
+    { schemaVersion: 55, sessionSearchPhase: "compatibility" },
+    { schemaVersion: 55, sessionSearchPhase: "query" },
+    { schemaVersion: 59, sessionSearchPhase: "precision-consumers" },
+    { schemaVersion: 59, sessionSearchPhase: "precision-intake" },
+  ]) await assert.rejects(renderRelease(release, options), /release rejected/);
+});
 
 test("precision intake changes only admitted schema after consumer upgrade", async () => {
   const consumers = await renderRelease(release, { schemaVersion: 51, sessionSearchPhase: "precision-consumers" });

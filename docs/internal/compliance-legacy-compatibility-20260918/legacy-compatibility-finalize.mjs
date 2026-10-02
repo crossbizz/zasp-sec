@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import assert from 'node:assert/strict';
+const base='.superpowers/sdd/2026-09-18-compliance-production-plan';
+const source='/tmp/zasp-compliance-browser-vdFoCp';
+assert.ok(fs.readFileSync(`${base}/legacy-compatibility-browser-final.log`,'utf8').endsWith('EXIT_STATUS=0\n'));
+fs.cpSync(source,`${base}/legacy-compatibility-browser-artifacts`,{recursive:true,errorOnExist:true,force:false});
+const summary=JSON.parse(fs.readFileSync(`${source}/summary.json`));
+const continuity=JSON.parse(fs.readFileSync(`${source}/continuity.json`));
+const cursors=Object.fromEntries(['soc2_security','hipaa'].map(framework=>[framework,[...new Set(continuity.responses.filter(r=>r.framework===framework&&r.status===200&&r.cursor).map(r=>r.cursorLength))]]));
+const docker=execFileSync('/usr/local/bin/docker',['ps','--all','--format','{{.ID}} {{.Names}} {{.Image}}'],{encoding:'utf8'});
+assert.ok(!docker.includes('zasp-browser-postgres-'));
+const processes=execFileSync('/bin/ps',['-axo','pid,ppid,command'],{encoding:'utf8'}).split('\n').filter(line=>/zasp-production-e2e-|TestComplianceBrowserAPIProcess|TestComplianceRuntimeProcess/.test(line));
+assert.deepEqual(processes,[]);
+const result={head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),summary,cursors,continuityCheckpoints:continuity.checkpoints.length,docker,processes,patchSHA256:createHash('sha256').update(fs.readFileSync(`${base}/legacy-compatibility-scoped.patch`)).digest('hex')};
+fs.writeFileSync(`${base}/legacy-compatibility-cleanup.json`,JSON.stringify(result,null,2));console.log(result);

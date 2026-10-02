@@ -1,0 +1,47 @@
+[
+  {
+    "file": "deploy/production/compliance-export-rollout.mjs",
+    "before": "f880c8e312698b713c17dedd40a04ed5e4dfc000d2e357da86002bf8d2967f57",
+    "after": "11ec76545e81c070be0997afb34bc9ef9d57ac65c7167ef241ad7c08a04cd567"
+  },
+  {
+    "file": "deploy/production/audit-export-rollout.mjs",
+    "before": "e21bbdd639002faa5942b46f130350a9551afd6d673f73f41afe5c8961a0049b",
+    "after": "829df46fe9dbea4bc1fd1277f12fdbbbc75381e901fcb7999e72914c4013753a"
+  },
+  {
+    "file": "deploy/production/compliance-export-rollout.test.mjs",
+    "before": "326f4fb533e74ac3752720f7381f1a4e7cd4fcee6283df4254e5bb8d64ddef43",
+    "after": "0b45a6fecf804e8c047f07e03ed9d5e05d2094abfd8314cddb145796b15fcc6e"
+  },
+  {
+    "file": "deploy/production/compliance-export-runtime.test.mjs",
+    "before": "86d9320bea5deb028e3f2e4cb6416e0e6eff93136c72c9801f4be26d6e1b2650",
+    "after": "337fd7905c77a130ffe81abc89bd1ddce7300aa3476a9c8fdd9fc02ccdfbd108"
+  },
+  {
+    "file": "services/platform/agentsec-api/compliance_deployment_config_test.go",
+    "before": "94279549c6cf5a9a5e04aa890fb8bd73c59f8164304afe671393c26ecf6a8398",
+    "after": "3e5e0e792db78210e232182223a7b97c7e0721e25371480757efa4f915510dc8"
+  },
+  {
+    "file": "package.json",
+    "before": "a8609754ca52d6f7a39da3973a391d3549af1be30757ff005488b40994305603",
+    "after": "faaf34f08d28373c9706e0ccc1e39fdd7930d53b7cec487ebd5077aadd1f0ac3"
+  },
+  {
+    "file": "deploy/production/api-startup.mjs",
+    "before": null,
+    "after": "6901b26926a138fc7ac091395279d03fe5f86d456a2a7ceacfe4312ea5fb367a"
+  },
+  {
+    "file": "deploy/production/go-test-runtime.mjs",
+    "before": null,
+    "after": "3e6993658ef0d71df0d829de8f06a17937cd819ecbcf41a7468555188d8fc3ec"
+  },
+  {
+    "file": "deploy/production/compliance-export-toolchain.test.mjs",
+    "before": null,
+    "after": "b4064e51c66079b2387b28697ae3d2d357d76876509158a1dc4cd3eec374ea79"
+  }
+]

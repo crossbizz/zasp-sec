@@ -36,6 +36,12 @@ function QueryScope({ children }: { children: ReactNode }) {
 }
 
 describe("production Attack Lab view", () => {
+  it("loads a linked execution from the authorized read even outside the current list", async () => {
+    const value = api({ listAttackLabRuns: async () => [], getAttackLabRun: async id => { if (id !== complete.id) throw new Error("wrong identity"); return complete; } });
+    render(<APIProvider><QueryScope><ProductionAttackLabView api={value} canWrite={false} selectedID={complete.id} /></QueryScope></APIProvider>);
+    expect(await screen.findByRole("dialog", { name: "Attack Lab run" })).toBeVisible();
+    expect(screen.getByText(/version-attack-lab-1/)).toBeVisible();
+  });
   it("requires exact preflight and explicit approval before queueing", async () => {
     const preflightAttackLab = vi.fn(api().preflightAttackLab); const createAttackLabRun = vi.fn(api().createAttackLabRun); view(api({ preflightAttackLab, createAttackLabRun })); const user = userEvent.setup();
     await screen.findByRole("button", { name: "Review safety decision" }); expect(screen.getByRole("button", { name: "Run Attack Lab" })).toBeDisabled();

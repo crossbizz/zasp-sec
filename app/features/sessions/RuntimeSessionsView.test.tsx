@@ -12,6 +12,20 @@ const item = { id: "unattributed", kind: "unattributed", workspace_id: id, envir
 const page = (items: RuntimeSessionPage["items"] = [item]): RuntimeSessionPage => ({ items, page_info: { next_cursor: null, has_more: false }, search: { state: "current", pending_batches: 0, pending_batches_capped: false, quarantined_batches: 0, quarantined_batches_capped: false, last_indexed_at: at, oldest_pending_at: null, checked_at: at, selector_coverage: "observed_only" } });
 
 describe("production runtime Sessions list", () => {
+  it("opens an exact linked runtime session through detail APIs without searching session lists", async () => {
+    const requests: string[] = [];
+    const client = createAPIClient({ fetch: async request => {
+      const path = new URL(request.url).pathname; requests.push(path);
+      const body = path === `/api/v1/sessions/${id}` ? { ...item, id, kind: "runtime", agent_id: id, confidence_counts: { exact: 1, strong: 0, probable: 0, unattributed: 0 } } : path === `/api/v1/sessions/${id}/events` ? { items: [{ id, session_id: id, agent_id: id, class: "runtime", action: "exec", label: "Linked session evidence", evidence_id: id, source: "tetragon", confidence: "exact", at, projected_at: at }], page_info: { next_cursor: null, has_more: false } } : null;
+      if (!body) throw new Error(`Unexpected list request ${path}`);
+      return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+    } });
+    render(<ProductionSessionsView client={client} canRevokeConsole={false} selectedID={id} />);
+    expect(await screen.findByText("Linked session evidence")).toBeVisible();
+    expect(requests).toEqual([`/api/v1/sessions/${id}`, `/api/v1/sessions/${id}/events`]);
+    expect(screen.queryByText("No matching runtime sessions")).not.toBeInTheDocument();
+  });
+
   it("uses a bounded runtime API page with all structured selectors and cancellation", async () => {
     const requests: Request[] = [];
     const client = createAPIClient({ fetch: async request => { requests.push(request); return new Response(JSON.stringify(page()), { headers: { "content-type": "application/json" } }); } });

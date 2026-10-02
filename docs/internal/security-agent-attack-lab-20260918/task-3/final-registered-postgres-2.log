@@ -1,0 +1,121 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/usr/local/bin/docker","run","--rm","--pull=never","--name","zasp-attack-lab-task3-projection","--network","none","--read-only","--user","postgres","--cpus","2","--memory","2g","--pids-limit","512","--tmpfs","/tmp:rw,exec,size=1400m","--tmpfs","/var/run/postgresql:rw","--mount","type=bind,src=/private/tmp/zasp-attack-lab-task3.test,dst=/attack-lab.test,readonly","--mount","type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly","-w","/workspace/services/platform/apiserver","--entrypoint","/attack-lab.test","postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba","-test.run","^(TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres|TestSecurityAgentAttackLabAuthorityPostgres|TestSecurityAgentAttackLabReleaseCyclePostgres|TestSecurityAgentAttackLabControlHistoryBlocksRollbackPostgres|TestSecurityAgentAttackLabSettlementPostgres)$","-test.v","-test.timeout","240s"]
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only
+    security_agent_attack_lab_postgres_test.go:38: release57 observed fingerprint: 31acfc93bc7121a66b6b32b66756b278dd8d13c3a0df08880d73ec28c1cea7e5
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/production_truth
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/revoked_approver
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/wrong_scope_approver
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/stale_authentication
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/expired_lease
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/source_evidence_drift
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/definition_version_drift
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/production_write_declaration
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/permission_revocation_after_wait
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/audit_approval
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/audit_lease
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/fresh_auth_expiry_after_wait
+=== NAME  TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentAttackLabAuthorityPostgressupervised_read_only3466358985/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write
+    security_agent_attack_lab_postgres_test.go:38: release57 observed fingerprint: 31acfc93bc7121a66b6b32b66756b278dd8d13c3a0df08880d73ec28c1cea7e5
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/production_truth
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/revoked_approver
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/wrong_scope_approver
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/stale_authentication
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/expired_lease
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/source_evidence_drift
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/definition_version_drift
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/production_write_declaration
+=== NAME  TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=58 data=/tmp/TestSecurityAgentAttackLabAuthorityPostgresautomatic_autonomous1535850075/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres/preflight_expiry_after_wait
+    security_agent_attack_lab_postgres_test.go:38: release57 observed fingerprint: 31acfc93bc7121a66b6b32b66756b278dd8d13c3a0df08880d73ec28c1cea7e5
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=88 data=/tmp/TestSecurityAgentAttackLabAuthorityPostgrespreflight_expiry_aft2269305494/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentAttackLabAuthorityPostgres (35.31s)
+    --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only (13.43s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/production_truth (0.09s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/revoked_approver (0.09s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/wrong_scope_approver (0.09s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/stale_authentication (0.09s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/expired_lease (0.11s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/source_evidence_drift (0.11s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/definition_version_drift (0.10s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/production_write_declaration (0.12s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/permission_revocation_after_wait (0.09s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/audit_approval (2.03s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/audit_lease (2.02s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/supervised_read_only/fresh_auth_expiry_after_wait (2.01s)
+    --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write (9.09s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/production_truth (0.12s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/revoked_approver (0.11s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/wrong_scope_approver (0.10s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/stale_authentication (0.10s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/expired_lease (0.13s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/source_evidence_drift (0.11s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/definition_version_drift (0.10s)
+        --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/automatic_autonomous_test_write/production_write_declaration (0.09s)
+    --- PASS: TestSecurityAgentAttackLabAuthorityPostgres/preflight_expiry_after_wait (12.79s)
+=== RUN   TestSecurityAgentAttackLabReleaseCyclePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=119 data=/tmp/TestSecurityAgentAttackLabReleaseCyclePostgres2172778217/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentAttackLabReleaseCyclePostgres (8.21s)
+=== RUN   TestSecurityAgentAttackLabControlHistoryBlocksRollbackPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=148 data=/tmp/TestSecurityAgentAttackLabControlHistoryBlocksRollbackPostgres308411006/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentAttackLabControlHistoryBlocksRollbackPostgres (4.98s)
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/production_truth
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/revoked_approver
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/wrong_scope_approver
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/stale_authentication
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/expired_lease
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/source_evidence_drift
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/definition_version_drift
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/production_write_declaration
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_stale
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_foreign
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_completed_effect
+=== RUN   TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_mixed_effect
+=== NAME  TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres
+    security_agent_attack_lab_public_postgres_test.go:131: registered cancellation replay=false refused revoked authority after parent lock wait with full rows unchanged
+    security_agent_attack_lab_public_postgres_test.go:131: public cancellation serialized with registered dispatch replay; stopped replay created no further effect
+    security_agent_attack_lab_public_postgres_test.go:131: registered cancellation replay=true refused revoked authority after parent lock wait with full rows unchanged
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=179 data=/tmp/TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres2794830995/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres (13.52s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/production_truth (0.11s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/revoked_approver (0.10s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/wrong_scope_approver (0.11s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/stale_authentication (0.11s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/expired_lease (0.11s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/source_evidence_drift (0.10s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/definition_version_drift (0.11s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/production_write_declaration (0.12s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_stale (0.21s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_foreign (0.20s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_completed_effect (0.24s)
+    --- PASS: TestSecurityAgentAttackLabRegisteredPublicProjectionPostgres/cancel_refuses_mixed_effect (0.21s)
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres
+    security_agent_attack_lab_settlement_postgres_test.go:32: observed57 fingerprint=31acfc93bc7121a66b6b32b66756b278dd8d13c3a0df08880d73ec28c1cea7e5
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/production_truth
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/revoked_approver
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/wrong_scope_approver
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/stale_authentication
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/expired_lease
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/source_evidence_drift
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/definition_version_drift
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/production_write_declaration
+=== NAME  TestSecurityAgentAttackLabSettlementPostgres
+    security_agent_attack_lab_settlement_postgres_test.go:171: observed concurrent registered cancellation and settlement: cancellation retained; queued/stale proof refused
+    security_agent_attack_lab_settlement_postgres_test.go:179: confirmed cancellation={"version": 3, "snapshot": {"run_id": "pid_0fbdf223-a833-4166-8d98-e98db0b9f76f", "source": {"preflight": {"limits": {"cpu": "500m", "memory": "1Gi", "timeout_seconds": 300, "ephemeral_storage": "2Gi"}, "target_id": "pid_89000011-0000-4000-8000-000000000001", "destination": "adapter.customer.example", "environment": "staging", "target_kind": "agent_endpoint", "definition_id": "pid_89000012-0000-4000-8000-000000000002", "source_run_id": "pid_8a100003-0000-4000-8000-000000000003", "decision_digest": "775b875d77ed13a30bae7fca980b678de886a99bf20fcb0e456622ce68bae0e6", "credential_class": "test_write", "success_criterion": "controlled objective", "definition_version": 1, "decision_expires_at": "2026-09-19T13:17:07.860857Z", "allowed_destinations": ["adapter.customer.example"], "expected_side_effects": ["bounded evaluation"]}, "target_id": "pid_89000011-0000-4000-8000-000000000001", "target_kind": "agent_endpoint", "definition_id": "pid_89000012-0000-4000-8000-000000000002", "source_run_id": "pid_8a100003-0000-4000-8000-000000000003", "source_attempt": 1, "source_evidence": {"key": "attack-lab-source", "size": 100, "sha256": "ebe3be2194d0d5e8ca1285f206452bacbfda9dd8c3728756c90f94efb2fd1701", "version": "source-version", "reference": "s3://fixture-bucket/attack-lab-source"}, "definition_version": 1, "source_completed_at": "2026-09-19T12:17:09.124616+00:00", "source_input_digest": "6cade3f5307527336ed34f86cc76f40888daa4e747d1d90f3184324e9a7735e9"}, "step_id": "pid_5a623ff8-62a8-4961-85db-2c2d381027e1", "execution": {"state": "queued", "run_id": "pid_07fb5db1-cfa4-487d-847b-6d3d703fdcea", "attempt": 0, "verdict": null, "artifact": null, "error_code": null, "input_digest": "68f24d2fde6883b537c49eaaf0e1c4fde653666f088a6ea19cd9a12051a119b5", "cleanup_state": "pending", "outcome_unknown": false, "cancel_requested": false, "cleanup_complete": false, "sandbox_reference": null, "pre_execution_denied": false}, "source_valid": true, "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "schema_version": "security-agent-attack-lab-snapshot-v1", "organization_id": "pid_6a000001-0000-4000-8000-000000000001"}, "generation": "702a6fa0-c682-4390-b93d-19ac4393463c", "lease_expires_at": "2026-09-19T12:18:14.639728Z"}
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=210 data=/tmp/TestSecurityAgentAttackLabSettlementPostgres4037379443/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentAttackLabSettlementPostgres (12.09s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/production_truth (0.10s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/revoked_approver (0.10s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/wrong_scope_approver (0.11s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/stale_authentication (0.10s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/expired_lease (0.17s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/source_evidence_drift (0.17s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/definition_version_drift (0.12s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/production_write_declaration (0.12s)
+FAIL
+
+Exit: 1 Signal: null

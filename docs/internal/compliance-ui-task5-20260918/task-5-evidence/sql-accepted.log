@@ -1,0 +1,228 @@
+=== RUN   TestComplianceConflictClassification
+--- PASS: TestComplianceConflictClassification (0.00s)
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/old
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/context
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/foreign-context
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/future-envelope
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/duplicate
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/foreign-id
+=== RUN   TestCompliancePersistedAttributionAndHistoricalBytes/context-null
+--- PASS: TestCompliancePersistedAttributionAndHistoricalBytes (0.04s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/old (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/context (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/foreign-context (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/future-envelope (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/duplicate (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/foreign-id (0.00s)
+    --- PASS: TestCompliancePersistedAttributionAndHistoricalBytes/context-null (0.00s)
+=== RUN   TestCompliancePersistedEmptyFindingReferences
+--- PASS: TestCompliancePersistedEmptyFindingReferences (0.00s)
+=== RUN   TestComplianceExportBindsRequestedJobAndCanonicalFilters
+--- PASS: TestComplianceExportBindsRequestedJobAndCanonicalFilters (0.04s)
+=== RUN   TestComplianceCreateFreshAfterWaitPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestComplianceCreateFreshAfterWaitPostgres3637255692/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceCreateFreshAfterWaitPostgres (6.63s)
+=== RUN   TestComplianceGrantFreshAfterWaitPostgres
+=== RUN   TestComplianceGrantFreshAfterWaitPostgres/issue_grant_lock_false
+=== RUN   TestComplianceGrantFreshAfterWaitPostgres/read_grant_lock_false
+=== RUN   TestComplianceGrantFreshAfterWaitPostgres/read_grant_lock_true
+=== NAME  TestComplianceGrantFreshAfterWaitPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestComplianceGrantFreshAfterWaitPostgres2316481525/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceGrantFreshAfterWaitPostgres (4.54s)
+    --- PASS: TestComplianceGrantFreshAfterWaitPostgres/issue_grant_lock_false (0.10s)
+    --- PASS: TestComplianceGrantFreshAfterWaitPostgres/read_grant_lock_false (0.09s)
+    --- PASS: TestComplianceGrantFreshAfterWaitPostgres/read_grant_lock_true (0.11s)
+=== RUN   TestComplianceWorkerReplayPostgres
+    compliance_exports_fix_postgres_test.go:235: joined worker prepare: === RUN   TestComplianceReplayRestartProcess
+            compliance_export_replay_test.go:184: registered worker committed exact v1 intent then exited before I/O
+        --- PASS: TestComplianceReplayRestartProcess (1.22s)
+        PASS
+    compliance_exports_fix_postgres_test.go:253: joined worker replay: === RUN   TestComplianceReplayRestartProcess
+            compliance_export_replay_test.go:232: fresh registered worker replayed SQL v1 bytes through NewExport.Put; renderer-v2 calls=0; Finish used renewed lease after original deadline
+        --- PASS: TestComplianceReplayRestartProcess (2.13s)
+        PASS
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=88 data=/tmp/TestComplianceWorkerReplayPostgres174822277/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceWorkerReplayPostgres (7.75s)
+=== RUN   TestComplianceExportsDurablePostgres
+    compliance_exports_postgres_test.go:93: joined fresh owner state-inspection process, state=pending storage=reserved snapshot=false
+    compliance_exports_postgres_test.go:144: joined fresh owner state-inspection process, state=pending storage=reserved snapshot=false
+    compliance_exports_postgres_test.go:154: joined fresh owner state-inspection process, state=pending storage=reserved snapshot=true
+    compliance_exports_postgres_test.go:174: joined fresh owner state-inspection process, state=pending storage=intent snapshot=true
+    compliance_exports_postgres_test.go:201: joined fresh owner state-inspection process, state=pending storage=unknown snapshot=true
+    compliance_exports_postgres_test.go:219: joined fresh owner state-inspection process, state=failed storage=reconcile_required snapshot=true
+    compliance_exports_postgres_test.go:235: joined fresh owner state-inspection process, state=failed storage=verified snapshot=true
+    compliance_exports_postgres_test.go:244: joined fresh owner state-inspection process, state=failed storage=delete_pending snapshot=true
+    compliance_exports_postgres_test.go:258: joined fresh owner state-inspection process, state=failed storage=deleted snapshot=false
+    compliance_exports_postgres_test.go:274: capture denied and snapshot rolled back after observed lock wait, postCapture=false
+    compliance_exports_postgres_test.go:274: capture denied and snapshot rolled back after observed lock wait, postCapture=true
+    compliance_exports_postgres_test.go:284: concurrent policy/finding transaction captured one source snapshot: map[finding:5 policy:5]
+    compliance_exports_postgres_test.go:297: joined fresh owner state-inspection process, state=completed storage=verified snapshot=true
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=130 data=/tmp/TestComplianceExportsDurablePostgres4222819028/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceExportsDurablePostgres (12.51s)
+=== RUN   TestComplianceExportRestartProcess
+    compliance_exports_postgres_test.go:576: owned parent launches this subprocess
+--- SKIP: TestComplianceExportRestartProcess (0.00s)
+=== RUN   TestComplianceConcurrentQuotasPostgres
+=== RUN   TestComplianceConcurrentQuotasPostgres/deployment_active_100
+    compliance_exports_quotas_postgres_test.go:46: registered concurrent clients: one admitted, one 54000; jobs=100 retained_bytes=12583011
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=220 data=/tmp/TestComplianceConcurrentQuotasPostgresdeployment_active_1001336425688/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestComplianceConcurrentQuotasPostgres/deployment_retained_bytes_16GiB
+    compliance_exports_quotas_postgres_test.go:46: registered concurrent clients: one admitted, one 54000; jobs=2049 retained_bytes=17179869184
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=250 data=/tmp/TestComplianceConcurrentQuotasPostgresdeployment_retained_bytes3378437099/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestComplianceConcurrentQuotasPostgres/deployment_retained_jobs_10000
+    compliance_exports_quotas_postgres_test.go:46: registered concurrent clients: one admitted, one 54000; jobs=10000 retained_bytes=12592911
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=282 data=/tmp/TestComplianceConcurrentQuotasPostgresdeployment_retained_jobs_1961128186/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestComplianceConcurrentQuotasPostgres/scope_retained_jobs_100
+    compliance_exports_quotas_postgres_test.go:46: registered concurrent clients: one admitted, one 54000; jobs=100 retained_bytes=12583011
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=314 data=/tmp/TestComplianceConcurrentQuotasPostgresscope_retained_jobs_1003502164860/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestComplianceConcurrentQuotasPostgres/principal_scope_grants_20
+    compliance_exports_quotas_postgres_test.go:69: registered concurrent clients: principal/S grants=20, target job grants=4; one admitted, one 54000
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=346 data=/tmp/TestComplianceConcurrentQuotasPostgresprincipal_scope_grants_204251123508/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceConcurrentQuotasPostgres (20.97s)
+    --- PASS: TestComplianceConcurrentQuotasPostgres/deployment_active_100 (4.09s)
+    --- PASS: TestComplianceConcurrentQuotasPostgres/deployment_retained_bytes_16GiB (4.11s)
+    --- PASS: TestComplianceConcurrentQuotasPostgres/deployment_retained_jobs_10000 (4.48s)
+    --- PASS: TestComplianceConcurrentQuotasPostgres/scope_retained_jobs_100 (4.14s)
+    --- PASS: TestComplianceConcurrentQuotasPostgres/principal_scope_grants_20 (4.14s)
+=== RUN   TestComplianceExportsRepository
+--- PASS: TestComplianceExportsRepository (0.03s)
+=== RUN   TestComplianceHTTPPostgresControlFreshness
+=== RUN   TestComplianceHTTPPostgresControlFreshness/fresh_101st_source
+=== RUN   TestComplianceHTTPPostgresControlFreshness/all_stale
+=== RUN   TestComplianceHTTPPostgresControlFreshness/missing
+=== RUN   TestComplianceHTTPPostgresControlFreshness/migration_seeded_only
+=== NAME  TestComplianceHTTPPostgresControlFreshness
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=376 data=/tmp/TestComplianceHTTPPostgresControlFreshness340226757/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceHTTPPostgresControlFreshness (5.08s)
+    --- PASS: TestComplianceHTTPPostgresControlFreshness/fresh_101st_source (0.15s)
+    --- PASS: TestComplianceHTTPPostgresControlFreshness/all_stale (0.13s)
+    --- PASS: TestComplianceHTTPPostgresControlFreshness/missing (0.12s)
+    --- PASS: TestComplianceHTTPPostgresControlFreshness/migration_seeded_only (0.12s)
+=== RUN   TestComplianceHTTPPostgresGrantLifecycle
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=405 data=/tmp/TestComplianceHTTPPostgresGrantLifecycle877868802/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceHTTPPostgresGrantLifecycle (5.63s)
+=== RUN   TestComplianceHTTPMountedPublicLifecycle
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/controls
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence?framework=soc2_security
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence/policy/policy-001?source_version=7
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download-grants
+=== RUN   TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download
+--- PASS: TestComplianceHTTPMountedPublicLifecycle (0.17s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/controls (0.04s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence?framework=soc2_security (0.02s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/evidence/policy/policy-001?source_version=7 (0.02s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports (0.03s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID` (0.02s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download-grants (0.02s)
+    --- PASS: TestComplianceHTTPMountedPublicLifecycle//api/v1/compliance/exports/`ID`/download (0.02s)
+=== RUN   TestComplianceHTTPMountedDenials
+=== RUN   TestComplianceHTTPMountedDenials/origin
+=== RUN   TestComplianceHTTPMountedDenials/csrf
+=== RUN   TestComplianceHTTPMountedDenials/scope
+=== RUN   TestComplianceHTTPMountedDenials/duplicate-cookie
+=== RUN   TestComplianceHTTPMountedDenials/fresh
+=== RUN   TestComplianceHTTPMountedDenials/audit-permission
+=== RUN   TestComplianceHTTPMountedDenials/view-permission
+--- PASS: TestComplianceHTTPMountedDenials (0.14s)
+    --- PASS: TestComplianceHTTPMountedDenials/origin (0.02s)
+    --- PASS: TestComplianceHTTPMountedDenials/csrf (0.02s)
+    --- PASS: TestComplianceHTTPMountedDenials/scope (0.02s)
+    --- PASS: TestComplianceHTTPMountedDenials/duplicate-cookie (0.02s)
+    --- PASS: TestComplianceHTTPMountedDenials/fresh (0.02s)
+    --- PASS: TestComplianceHTTPMountedDenials/audit-permission (0.02s)
+    --- PASS: TestComplianceHTTPMountedDenials/view-permission (0.02s)
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/bytes
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/version
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/scope
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/digest
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/size
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/error
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/revoked
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/expired
+=== RUN   TestComplianceHTTPDownloadNoDisclosureBeforeConsume/replay
+--- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume (0.18s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/bytes (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/version (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/scope (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/digest (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/size (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/error (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/revoked (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/expired (0.02s)
+    --- PASS: TestComplianceHTTPDownloadNoDisclosureBeforeConsume/replay (0.02s)
+=== RUN   TestComplianceHTTPStrictInputs
+--- PASS: TestComplianceHTTPStrictInputs (0.14s)
+=== RUN   TestComplianceRegisteredSourceAuthorityPostgres
+=== RUN   TestComplianceRegisteredSourceAuthorityPostgres/revoked_while_blocked_session
+    compliance_postgres_test.go:406: observed reader PID 453 blocked by session updater PID 454; committed revocation denied without evidence
+=== RUN   TestComplianceRegisteredSourceAuthorityPostgres/revoked_while_blocked_membership
+    compliance_postgres_test.go:406: observed reader PID 453 blocked by membership updater PID 455; committed revocation denied without evidence
+=== NAME  TestComplianceRegisteredSourceAuthorityPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=437 data=/tmp/TestComplianceRegisteredSourceAuthorityPostgres880228703/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceRegisteredSourceAuthorityPostgres (7.26s)
+    --- PASS: TestComplianceRegisteredSourceAuthorityPostgres/revoked_while_blocked_session (0.07s)
+    --- PASS: TestComplianceRegisteredSourceAuthorityPostgres/revoked_while_blocked_membership (0.07s)
+=== RUN   TestComplianceCompiledFingerprintPostgres
+    compliance_postgres_test.go:468: release56 checksum=1aed1a8b4e637d6fa77a2e993eaee3b58c4025e071b483b76487bb9e7a6fa606 fingerprint=30358a1ceacbb18f0283e42353a06c88834d78927814dd8c6a9552a3a1d77a6f
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=470 data=/tmp/TestComplianceCompiledFingerprintPostgres2679753504/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceCompiledFingerprintPostgres (3.61s)
+=== RUN   TestComplianceEvidenceStrictDecoding
+--- PASS: TestComplianceEvidenceStrictDecoding (0.00s)
+=== RUN   TestComplianceRepositoryBindsScopeAndRejectsUnsafeInput
+--- PASS: TestComplianceRepositoryBindsScopeAndRejectsUnsafeInput (0.02s)
+=== RUN   TestComplianceRuntimePollingPostgres
+    compliance_runtime_postgres_test.go:66: joined interrupt: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined interrupt polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.69s)
+        PASS
+    compliance_runtime_postgres_test.go:74: joined resume: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined resume polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.48s)
+        PASS
+    compliance_runtime_postgres_test.go:79: joined cleanup_denied: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined cleanup_denied polling worker; provider PUT=0; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.56s)
+        PASS
+    compliance_runtime_postgres_test.go:84: joined cleanup: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined cleanup polling worker; provider PUT=0; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.63s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.61s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.46s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.48s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.51s)
+        PASS
+    compliance_runtime_postgres_test.go:90: joined unknown: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined unknown polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.46s)
+        PASS
+    compliance_runtime_postgres_test.go:96: joined reconcile: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined reconcile polling worker; provider PUT=0; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.56s)
+        PASS
+    compliance_runtime_postgres_test.go:103: joined revoked: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined revoked polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.66s)
+        PASS
+    compliance_runtime_postgres_test.go:114: joined lease_lost: === RUN   TestComplianceRuntimeProcess
+            compliance_export_process_test.go:244: joined lease_lost polling worker; provider PUT=1; transport is controlled HTTP, not live AWS
+        --- PASS: TestComplianceRuntimeProcess (0.52s)
+        PASS
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=500 data=/tmp/TestComplianceRuntimePollingPostgres1186769963/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestComplianceRuntimePollingPostgres (11.21s)
+PASS

@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
+	"github.com/zasp-ai/zasp-sec/services/platform/bucketlayout"
 )
 
 const maximumArtifactBytes int64 = 64 * 1024 * 1024
@@ -48,10 +49,12 @@ type Config struct {
 type Driver struct {
 	client API
 	config Config
+	export bool
 }
 
 var _ artifactstore.Driver = (*Driver)(nil)
 var _ artifactstore.DriverObjectReferencer = (*Driver)(nil)
+var _ artifactstore.DriverPlannedObjectReferencer = (*Driver)(nil)
 
 func New(client API, config Config) (*Driver, error) {
 	if nilInterface(client) || !bucketPattern.MatchString(config.Bucket) || !ownerPattern.MatchString(config.ExpectedBucketOwner) ||
@@ -59,6 +62,17 @@ func New(client API, config Config) (*Driver, error) {
 		return nil, ErrConfiguration
 	}
 	return &Driver{client: client, config: config}, nil
+}
+
+// NewExport permits only the fixed scoped export profile. New continues to
+// permit only the historical artifact profile.
+func NewExport(client API, config Config) (*Driver, error) {
+	driver, err := New(client, config)
+	if err != nil {
+		return nil, err
+	}
+	driver.export = true
+	return driver, nil
 }
 
 func (driver *Driver) Put(ctx context.Context, object artifactstore.DriverObject) (result artifactstore.DriverObject, resultErr error) {
@@ -98,9 +112,9 @@ func (driver *Driver) Put(ctx context.Context, object artifactstore.DriverObject
 func (driver *Driver) Get(ctx context.Context, locator artifactstore.DriverLocator) (result artifactstore.DriverObject, resultErr error) {
 	defer containPanic(&result, &resultErr, ErrGet)
 	if !driver.ready(ctx) {
-		return artifactstore.DriverObject{}, ErrGet
+		return artifactstore.DriverObject{}, safeReadError(ctx, nil)
 	}
-	if !validLocator(locator) || !validVersion(locator.VersionID) {
+	if !driver.validLocator(locator) || !validVersion(locator.VersionID) {
 		return artifactstore.DriverObject{}, ErrArtifact
 	}
 	return driver.fetch(ctx, locator)
@@ -110,14 +124,23 @@ func (driver *Driver) Delete(ctx context.Context, locator artifactstore.DriverLo
 	if !driver.ready(ctx) {
 		return ErrImmutable
 	}
-	if !validLocator(locator) {
+	if !driver.validLocator(locator) {
 		return ErrArtifact
 	}
 	return ErrImmutable
 }
 
 func (driver *Driver) ObjectReference(locator artifactstore.DriverLocator) (string, error) {
-	if driver == nil || !validLocator(locator) || locator.VersionID == "" {
+	if driver == nil || !driver.validLocator(locator) || locator.VersionID == "" {
+		return "", ErrArtifact
+	}
+	return "s3://" + driver.config.Bucket + "/" + locator.Key, nil
+}
+
+// PlannedObjectReference performs no SDK calls and proves only the configured
+// scoped destination, not object existence or a version's durability.
+func (driver *Driver) PlannedObjectReference(locator artifactstore.DriverLocator) (string, error) {
+	if driver == nil || nilInterface(driver.client) || !driver.validLocator(locator) || locator.VersionID != "" {
 		return "", ErrArtifact
 	}
 	return "s3://" + driver.config.Bucket + "/" + locator.Key, nil
@@ -127,30 +150,68 @@ func (driver *Driver) fetch(ctx context.Context, locator artifactstore.DriverLoc
 	head, err := driver.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(driver.config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(driver.config.ExpectedBucketOwner), ChecksumMode: s3types.ChecksumModeEnabled,
 	}, oneAttemptOption)
-	if err != nil || ctx.Err() != nil || !validHead(head, driver.config) || aws.ToString(head.VersionId) != locator.VersionID {
-		return artifactstore.DriverObject{}, ErrGet
+	if err != nil || ctx.Err() != nil {
+		return artifactstore.DriverObject{}, safeReadError(ctx, err)
+	}
+	if !validHead(head, driver.config) || aws.ToString(head.VersionId) != locator.VersionID {
+		return artifactstore.DriverObject{}, errors.Join(ErrGet, artifactstore.ErrIntegrity)
 	}
 	output, err := driver.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(driver.config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(driver.config.ExpectedBucketOwner), ChecksumMode: s3types.ChecksumModeEnabled,
 	}, oneAttemptOption)
-	if err != nil || ctx.Err() != nil || output == nil || output.Body == nil {
-		return artifactstore.DriverObject{}, ErrGet
+	if err != nil || ctx.Err() != nil {
+		if output != nil && output.Body != nil {
+			_ = output.Body.Close()
+		}
+		return artifactstore.DriverObject{}, safeReadError(ctx, err)
+	}
+	if output == nil || output.Body == nil {
+		return artifactstore.DriverObject{}, errors.Join(ErrGet, artifactstore.ErrIntegrity)
 	}
 	body, readErr := io.ReadAll(io.LimitReader(output.Body, driver.config.MaximumBytes+1))
 	closeErr := output.Body.Close()
-	if readErr != nil || closeErr != nil || ctx.Err() != nil || int64(len(body)) <= 0 || int64(len(body)) > driver.config.MaximumBytes {
-		return artifactstore.DriverObject{}, ErrGet
+	if readErr != nil || closeErr != nil || ctx.Err() != nil {
+		if ctx.Err() == nil && !errors.Is(closeErr, context.Canceled) && !errors.Is(closeErr, context.DeadlineExceeded) && sdkChecksumMismatch(readErr) {
+			return artifactstore.DriverObject{}, errors.Join(ErrGet, artifactstore.ErrIntegrity)
+		}
+		return artifactstore.DriverObject{}, safeReadError(ctx, errors.Join(readErr, closeErr))
+	}
+	if int64(len(body)) <= 0 || int64(len(body)) > driver.config.MaximumBytes {
+		return artifactstore.DriverObject{}, errors.Join(ErrGet, artifactstore.ErrIntegrity)
 	}
 	digest := sha256.Sum256(body)
 	object := artifactstore.DriverObject{DriverLocator: locator, MediaType: aws.ToString(output.ContentType), Body: body, Size: int64(len(body)), SHA256: digest}
 	if !driver.validObject(object) || !validGet(output, head, object, driver.config) {
-		return artifactstore.DriverObject{}, ErrGet
+		return artifactstore.DriverObject{}, errors.Join(ErrGet, artifactstore.ErrIntegrity)
 	}
 	return cloneObject(object), nil
 }
 
+// The pinned AWS checksum module emits an unexported concrete error only after
+// EOF checksum validation. It exposes no sentinel or marker interface. Match
+// its type identity, never provider diagnostic text; the real-SDK transport
+// regression must keep passing when the dependency is upgraded.
+func sdkChecksumMismatch(err error) bool {
+	t := reflect.TypeOf(err)
+	return t != nil && t.PkgPath() == "github.com/aws/aws-sdk-go-v2/service/internal/checksum" && t.Name() == "validationError"
+}
+
+// Provider errors remain opaque. Cancellation is safe to classify, but does
+// not establish that any successfully read object violated its pinned contract.
+func safeReadError(ctx context.Context, err error) error {
+	if ctx != nil && ctx.Err() != nil {
+		return errors.Join(ErrGet, ctx.Err())
+	}
+	for _, category := range []error{context.Canceled, context.DeadlineExceeded} {
+		if errors.Is(err, category) {
+			return errors.Join(ErrGet, category)
+		}
+	}
+	return ErrGet
+}
+
 func (driver *Driver) discover(ctx context.Context, locator artifactstore.DriverLocator) (artifactstore.DriverObject, error) {
-	if !validLocator(locator) || locator.VersionID != "" {
+	if !driver.validLocator(locator) || locator.VersionID != "" {
 		return artifactstore.DriverObject{}, ErrGet
 	}
 	head, err := driver.client.HeadObject(ctx, &s3.HeadObjectInput{
@@ -168,15 +229,22 @@ func (driver *Driver) ready(ctx context.Context) bool {
 }
 
 func (driver *Driver) validObject(object artifactstore.DriverObject) bool {
-	return driver != nil && validLocator(object.DriverLocator) && validMediaType(object.MediaType) && object.Size > 0 && object.Size <= driver.config.MaximumBytes &&
+	return driver != nil && driver.validLocator(object.DriverLocator) && validMediaType(object.MediaType) && object.Size > 0 && object.Size <= driver.config.MaximumBytes &&
 		object.Size == int64(len(object.Body)) && object.SHA256 == sha256.Sum256(object.Body) && (object.VersionID == "" || validVersion(object.VersionID))
 }
 
-func validLocator(locator artifactstore.DriverLocator) bool {
+func (driver *Driver) validLocator(locator artifactstore.DriverLocator) bool {
 	if locator.Scope.Validate() != nil || locator.Reference.Validate() != nil {
 		return false
 	}
 	want := "organizations/" + locator.OrganizationID().String() + "/workspaces/" + locator.WorkspaceID().String() + "/environments/" + locator.EnvironmentID().String() + "/artifacts/" + locator.Reference.String()
+	if driver.export {
+		var err error
+		want, err = bucketlayout.ExportKey(locator.Scope, locator.Reference.ArtifactID())
+		if err != nil {
+			return false
+		}
+	}
 	return locator.Key == want && (locator.VersionID == "" || validVersion(locator.VersionID))
 }
 

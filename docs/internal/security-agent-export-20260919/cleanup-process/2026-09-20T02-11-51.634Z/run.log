@@ -1,0 +1,5 @@
+=== RUN   TestIntegrationWebhookPostgresFencesTenantReplayVersionAndCompletion
+    integration_webhook_postgres_test.go:70: v35 live fingerprint: b9456ee67062bae82d7ddd8d277a4c4d8e137801fd5e95e06657eaf524d67b81
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestIntegrationWebhookPostgresFencesTenantReplayVersionAndComple1224119248/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestIntegrationWebhookPostgresFencesTenantReplayVersionAndCompletion (1.89s)
+PASS

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ type discoveryInventoryCallerStub struct{}
 func (*discoveryInventoryCallerStub) GetCollectionInventory(context.Context, []byte) (awsdiscovery.CollectionInventory, error) {
 	cartography := json.RawMessage(`{"account_id":"123456789012","managed_policies":{},"roles":[]}`)
 	prowler := json.RawMessage(`{"account_id":"123456789012","instances":[],"roles":[]}`)
-	return awsdiscovery.CollectionInventory{Identity: awsdiscovery.Identity{AccountID: "123456789012", PrincipalARN: "arn:aws:sts::123456789012:assumed-role/zasp/session"}, CredentialExpiresAt: time.Now().UTC().Add(10 * time.Minute), CartographySource: cartography, CartographyDigest: sha256.Sum256(cartography), ProwlerSource: prowler, ProwlerDigest: sha256.Sum256(prowler)}, nil
+	return awsdiscovery.CollectionInventory{Identity: awsdiscovery.Identity{AccountID: "123456789012", PrincipalARN: "arn:aws:sts::123456789012:assumed-role/zasp/session"}, CredentialExpiresAt: time.Now().UTC().Truncate(time.Second).Add(10 * time.Minute), CartographySource: cartography, CartographyDigest: sha256.Sum256(cartography), ProwlerSource: prowler, ProwlerDigest: sha256.Sum256(prowler)}, nil
 }
 
 func (*discoveryInventoryCallerStub) CheckCollectionReadiness(context.Context) error { return nil }
@@ -56,6 +57,18 @@ func TestProductionLiveDiscoveryCollectorFactoryBuildsExactJobRegistry(t *testin
 	collector, err := factory.BuildDiscoveryCollector(context.Background(), discoveryCollectorBinding{Scope: scope, Input: input, WorkerID: "discovery-worker-a", LeaseToken: "lease-token-0000000000000001"})
 	if err != nil || collector == nil {
 		t.Fatalf("collector=%#v err=%v", collector, err)
+	}
+	collector.Destroy()
+	var product apiserver.DiscoveryCollectionInput
+	raw, _ := json.Marshal(input)
+	if err := json.Unmarshal(raw, &product); err != nil {
+		t.Fatal(err)
+	}
+	product.EffectID = strings.Repeat("a", 64)
+	product.Deadline = now.Add(time.Hour)
+	collector, err = factory.BuildProductDiscoveryCollector(context.Background(), scope, product, func(context.Context) error { return nil })
+	if err != nil || collector == nil {
+		t.Fatalf("product collector=%#v err=%v", collector, err)
 	}
 	collector.Destroy()
 }

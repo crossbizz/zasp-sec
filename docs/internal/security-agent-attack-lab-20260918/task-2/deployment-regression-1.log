@@ -1,0 +1,1280 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","--test","deploy/production/attack-lab-reconciler-iam.test.mjs","deploy/production/attack-lab-reconciler-rollout.test.mjs","deploy/production/release-contract.test.mjs","deploy/production/audit-export-rollout.test.mjs","deploy/production/audit-export-network.test.mjs","deploy/production/audit-export-workloads.test.mjs","deploy/production/audit-export-operations.test.mjs","deploy/production/test-reconciler-rollout.test.mjs","deploy/production/test-reconciler-workloads.test.mjs","deploy/production/test-reconciler-alerts.test.mjs","deploy/production/compliance-export-rollout.test.mjs","deploy/production/compliance-export-helm.test.mjs"]
+TAP version 13
+# Subtest: settlement IAM source declares only exact version reads, bound decrypt and its own DSN
+ok 1 - settlement IAM source declares only exact version reads, bound decrypt and its own DSN
+  ---
+  duration_ms: 7.335708
+  type: 'test'
+  ...
+# Subtest: 57 mounts dedicated settlement authority and rejects additive credentials/network/RBAC
+ok 2 - 57 mounts dedicated settlement authority and rejects additive credentials/network/RBAC
+  ---
+  duration_ms: 973.729167
+  type: 'test'
+  ...
+# Subtest: 57 keeps audit, existing-test and compliance registration commands in both phases
+ok 3 - 57 keeps audit, existing-test and compliance registration commands in both phases
+  ---
+  duration_ms: 969.567959
+  type: 'test'
+  ...
+# Subtest: exports have mode-specific dependency access and privately scraped healthy workers
+ok 4 - exports have mode-specific dependency access and privately scraped healthy workers
+  ---
+  duration_ms: 918.5785
+  type: 'test'
+  ...
+# Subtest: endpoint normalization rejects executable array entries without invoking them
+ok 5 - endpoint normalization rejects executable array entries without invoking them
+  ---
+  duration_ms: 1.461
+  type: 'test'
+  ...
+# Subtest: exports refuse missing, broad or noncanonical endpoint snapshots
+ok 6 - exports refuse missing, broad or noncanonical endpoint snapshots
+  ---
+  duration_ms: 6.607375
+  type: 'test'
+  ...
+# Subtest: export workers have bounded scaling, spread and separate availability rules
+    # Subtest: unbounded scale
+    ok 1 - unbounded scale
+      ---
+      duration_ms: 4.247
+      type: 'test'
+      ...
+    # Subtest: wrong scale target
+    ok 2 - wrong scale target
+      ---
+      duration_ms: 4.252292
+      type: 'test'
+      ...
+    # Subtest: wrong spread selector
+    ok 3 - wrong spread selector
+      ---
+      duration_ms: 4.68025
+      type: 'test'
+      ...
+    # Subtest: disabled alert
+    ok 4 - disabled alert
+      ---
+      duration_ms: 4.292
+      type: 'test'
+      ...
+    # Subtest: missing CPU request
+    ok 5 - missing CPU request
+      ---
+      duration_ms: 4.625625
+      type: 'test'
+      ...
+    # Subtest: recreate rollout
+    ok 6 - recreate rollout
+      ---
+      duration_ms: 4.293458
+      type: 'test'
+      ...
+    1..6
+ok 7 - export workers have bounded scaling, spread and separate availability rules
+  ---
+  duration_ms: 1105.73225
+  type: 'test'
+  ...
+# Subtest: export normalization copies closed configuration and every historical policy
+ok 8 - export normalization copies closed configuration and every historical policy
+  ---
+  duration_ms: 4.303542
+  type: 'test'
+  ...
+# Subtest: export normalization refuses malformed authority before rendering
+    # Subtest: null
+    ok 1 - null
+      ---
+      duration_ms: 0.341792
+      type: 'test'
+      ...
+    # Subtest: disabled
+    ok 2 - disabled
+      ---
+      duration_ms: 0.914959
+      type: 'test'
+      ...
+    # Subtest: alias
+    ok 3 - alias
+      ---
+      duration_ms: 0.114333
+      type: 'test'
+      ...
+    # Subtest: missing
+    ok 4 - missing
+      ---
+      duration_ms: 0.287333
+      type: 'test'
+      ...
+    # Subtest: role
+    ok 5 - role
+      ---
+      duration_ms: 0.216291
+      type: 'test'
+      ...
+    # Subtest: account
+    ok 6 - account
+      ---
+      duration_ms: 0.104833
+      type: 'test'
+      ...
+    # Subtest: region
+    ok 7 - region
+      ---
+      duration_ms: 0.201625
+      type: 'test'
+      ...
+    # Subtest: queue
+    ok 8 - queue
+      ---
+      duration_ms: 0.1795
+      type: 'test'
+      ...
+    # Subtest: secret
+    ok 9 - secret
+      ---
+      duration_ms: 0.188791
+      type: 'test'
+      ...
+    # Subtest: principal
+    ok 10 - principal
+      ---
+      duration_ms: 0.071542
+      type: 'test'
+      ...
+    # Subtest: sharedPrincipal
+    ok 11 - sharedPrincipal
+      ---
+      duration_ms: 0.055875
+      type: 'test'
+      ...
+    # Subtest: previous
+    ok 12 - previous
+      ---
+      duration_ms: 0.062875
+      type: 'test'
+      ...
+    # Subtest: current
+    ok 13 - current
+      ---
+      duration_ms: 0.09375
+      type: 'test'
+      ...
+    # Subtest: unknownPolicy
+    ok 14 - unknownPolicy
+      ---
+      duration_ms: 0.066791
+      type: 'test'
+      ...
+    # Subtest: unsafeInteger
+    ok 15 - unsafeInteger
+      ---
+      duration_ms: 0.069416
+      type: 'test'
+      ...
+    # Subtest: numericString
+    ok 16 - numericString
+      ---
+      duration_ms: 0.179708
+      type: 'test'
+      ...
+    # Subtest: timeout
+    ok 17 - timeout
+      ---
+      duration_ms: 0.071542
+      type: 'test'
+      ...
+    # Subtest: duplicatePolicy
+    ok 18 - duplicatePolicy
+      ---
+      duration_ms: 0.064083
+      type: 'test'
+      ...
+    # Subtest: empty
+    ok 19 - empty
+      ---
+      duration_ms: 0.046959
+      type: 'test'
+      ...
+    # Subtest: symbol
+    ok 20 - symbol
+      ---
+      duration_ms: 0.035875
+      type: 'test'
+      ...
+    # Subtest: policyAlias
+    ok 21 - policyAlias
+      ---
+      duration_ms: 0.059959
+      type: 'test'
+      ...
+    # Subtest: policyGetter
+    ok 22 - policyGetter
+      ---
+      duration_ms: 0.077125
+      type: 'test'
+      ...
+    # Subtest: arrayProperty
+    ok 23 - arrayProperty
+      ---
+      duration_ms: 0.054791
+      type: 'test'
+      ...
+    1..23
+ok 9 - export normalization refuses malformed authority before rendering
+  ---
+  duration_ms: 5.89525
+  type: 'test'
+  ...
+# Subtest: normalization retains explicit prior selection and safe boundary values
+ok 10 - normalization retains explicit prior selection and safe boundary values
+  ---
+  duration_ms: 0.127625
+  type: 'test'
+  ...
+# Subtest: actual export manifests are pinned to independent expectations and reject authority mutations
+    # Subtest: missingWorker
+    ok 1 - missingWorker
+      ---
+      duration_ms: 2.390916
+      type: 'test'
+      ...
+    # Subtest: duplicateWorker
+    ok 2 - duplicateWorker
+      ---
+      duration_ms: 3.743375
+      type: 'test'
+      ...
+    # Subtest: workerNamespace
+    ok 3 - workerNamespace
+      ---
+      duration_ms: 2.044291
+      type: 'test'
+      ...
+    # Subtest: serviceAccountNamespace
+    ok 4 - serviceAccountNamespace
+      ---
+      duration_ms: 2.867167
+      type: 'test'
+      ...
+    # Subtest: providerNamespace
+    ok 5 - providerNamespace
+      ---
+      duration_ms: 2.381834
+      type: 'test'
+      ...
+    # Subtest: hostNetwork
+    ok 6 - hostNetwork
+      ---
+      duration_ms: 2.913459
+      type: 'test'
+      ...
+    # Subtest: hostPID
+    ok 7 - hostPID
+      ---
+      duration_ms: 3.531791
+      type: 'test'
+      ...
+    # Subtest: hostIPC
+    ok 8 - hostIPC
+      ---
+      duration_ms: 4.277833
+      type: 'test'
+      ...
+    # Subtest: podRoot
+    ok 9 - podRoot
+      ---
+      duration_ms: 2.626208
+      type: 'test'
+      ...
+    # Subtest: privileged
+    ok 10 - privileged
+      ---
+      duration_ms: 2.253917
+      type: 'test'
+      ...
+    # Subtest: addedCapability
+    ok 11 - addedCapability
+      ---
+      duration_ms: 2.30025
+      type: 'test'
+      ...
+    # Subtest: internalPort
+    ok 12 - internalPort
+      ---
+      duration_ms: 2.41075
+      type: 'test'
+      ...
+    # Subtest: hostPort
+    ok 13 - hostPort
+      ---
+      duration_ms: 3.487292
+      type: 'test'
+      ...
+    # Subtest: workerMode
+    ok 14 - workerMode
+      ---
+      duration_ms: 2.21725
+      type: 'test'
+      ...
+    # Subtest: workerShell
+    ok 15 - workerShell
+      ---
+      duration_ms: 2.118792
+      type: 'test'
+      ...
+    # Subtest: workerEnvFrom
+    ok 16 - workerEnvFrom
+      ---
+      duration_ms: 2.153708
+      type: 'test'
+      ...
+    # Subtest: workerPolicy
+    ok 17 - workerPolicy
+      ---
+      duration_ms: 2.232292
+      type: 'test'
+      ...
+    # Subtest: workerToken
+    ok 18 - workerToken
+      ---
+      duration_ms: 2.969167
+      type: 'test'
+      ...
+    # Subtest: workerMount
+    ok 19 - workerMount
+      ---
+      duration_ms: 2.29225
+      type: 'test'
+      ...
+    # Subtest: role
+    ok 20 - role
+      ---
+      duration_ms: 2.203709
+      type: 'test'
+      ...
+    # Subtest: outboxPolicies
+    ok 21 - outboxPolicies
+      ---
+      duration_ms: 2.166
+      type: 'test'
+      ...
+    # Subtest: duplicateEnv
+    ok 22 - duplicateEnv
+      ---
+      duration_ms: 2.1355
+      type: 'test'
+      ...
+    # Subtest: apiCursorShell
+    ok 23 - apiCursorShell
+      ---
+      duration_ms: 4.737667
+      type: 'test'
+      ...
+    # Subtest: apiCursorDuplicate
+    ok 24 - apiCursorDuplicate
+      ---
+      duration_ms: 3.802583
+      type: 'test'
+      ...
+    # Subtest: apiToken
+    ok 25 - apiToken
+      ---
+      duration_ms: 2.906833
+      type: 'test'
+      ...
+    # Subtest: migrationCommand
+    ok 26 - migrationCommand
+      ---
+      duration_ms: 5.51925
+      type: 'test'
+      ...
+    # Subtest: migrationPolicy
+    ok 27 - migrationPolicy
+      ---
+      duration_ms: 3.038333
+      type: 'test'
+      ...
+    # Subtest: secretObject
+    ok 28 - secretObject
+      ---
+      duration_ms: 5.884292
+      type: 'test'
+      ...
+    # Subtest: duplicateAlias
+    ok 29 - duplicateAlias
+      ---
+      duration_ms: 2.957042
+      type: 'test'
+      ...
+    # Subtest: webLeak
+    ok 30 - webLeak
+      ---
+      duration_ms: 3.225
+      type: 'test'
+      ...
+    # Subtest: webMount
+    ok 31 - webMount
+      ---
+      duration_ms: 3.019
+      type: 'test'
+      ...
+    # Subtest: hiddenSidecar
+    ok 32 - hiddenSidecar
+      ---
+      duration_ms: 6.113583
+      type: 'test'
+      ...
+    # Subtest: apiWorkerCredential
+    ok 33 - apiWorkerCredential
+      ---
+      duration_ms: 5.061917
+      type: 'test'
+      ...
+    # Subtest: apiWorkerMount
+    ok 34 - apiWorkerMount
+      ---
+      duration_ms: 9.825583
+      type: 'test'
+      ...
+    # Subtest: aliasMount
+    ok 35 - aliasMount
+      ---
+      duration_ms: 2.65025
+      type: 'test'
+      ...
+    # Subtest: cursorSync
+    ok 36 - cursorSync
+      ---
+      duration_ms: 3.539208
+      type: 'test'
+      ...
+    # Subtest: secretAlias
+    ok 37 - secretAlias
+      ---
+      duration_ms: 5.143584
+      type: 'test'
+      ...
+    # Subtest: absent configuration rejects enabled resources
+    ok 38 - absent configuration rejects enabled resources
+      ---
+      duration_ms: 0.068917
+      type: 'test'
+      ...
+    1..38
+ok 11 - actual export manifests are pinned to independent expectations and reject authority mutations
+  ---
+  duration_ms: 997.542667
+  type: 'test'
+  ...
+# Subtest: absent configuration rejects renamed export consumers and direct Secret settings
+ok 12 - absent configuration rejects renamed export consumers and direct Secret settings
+  ---
+  duration_ms: 0.083375
+  type: 'test'
+  ...
+# Subtest: direct Helm refuses unsafe endpoint ranges and can disable metric scraping
+ok 13 - direct Helm refuses unsafe endpoint ranges and can disable metric scraping
+  ---
+  duration_ms: 2280.213959
+  type: 'test'
+  ...
+# Subtest: export workers render isolated production modes with owned credentials
+ok 14 - export workers render isolated production modes with owned credentials
+  ---
+  duration_ms: 49.857125
+  type: 'test'
+  ...
+# Subtest: migration selects explicit policy and preserves canonical limits and predecessor
+ok 15 - migration selects explicit policy and preserves canonical limits and predecessor
+  ---
+  duration_ms: 471.035333
+  type: 'test'
+  ...
+# Subtest: migration integer limits are exact and malformed retained history is rejected
+ok 16 - migration integer limits are exact and malformed retained history is rejected
+  ---
+  duration_ms: 346.263459
+  type: 'test'
+  ...
+# Subtest: migration shell stops at credential read and each failed command
+ok 17 - migration shell stops at credential read and each failed command
+  ---
+  duration_ms: 845.512208
+  type: 'test'
+  ...
+# Subtest: actual chart defaults disable exports and both precision phases retain bounded history
+ok 18 - actual chart defaults disable exports and both precision phases retain bounded history
+  ---
+  duration_ms: 150.716333
+  type: 'test'
+  ...
+# Subtest: API export configuration uses only reader policy and mounted cursor secret
+ok 19 - API export configuration uses only reader policy and mounted cursor secret
+  ---
+  duration_ms: 332.282
+  type: 'test'
+  ...
+# Subtest: export workload activation refuses missing or incompatible authority
+ok 20 - export workload activation refuses missing or incompatible authority
+  ---
+  duration_ms: 331.072667
+  type: 'test'
+  ...
+# Subtest: export activation rejects malformed flags and deployment boundaries
+ok 21 - export activation rejects malformed flags and deployment boundaries
+  ---
+  duration_ms: 308.625042
+  type: 'test'
+  ...
+# Subtest: direct Helm rejects malformed compliance authority without the JS normalizer
+    # Subtest: unknown
+    ok 1 - unknown
+      ---
+      duration_ms: 90.560792
+      type: 'test'
+      ...
+    # Subtest: disabled authority
+    ok 2 - disabled authority
+      ---
+      duration_ms: 62.380625
+      type: 'test'
+      ...
+    # Subtest: wrong schema
+    ok 3 - wrong schema
+      ---
+      duration_ms: 51.565958
+      type: 'test'
+      ...
+    # Subtest: future schema
+    not ok 4 - future schema
+      ---
+      duration_ms: 127.423042
+      type: 'test'
+      location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-helm.test.mjs:43:65'
+      failureType: 'testCodeFailure'
+      error: 'Missing expected rejection.'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      operator: 'rejects'
+      stack: |-
+        async TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-helm.test.mjs:43:130)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-helm.test.mjs:43:57)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: wrong phase
+    ok 5 - wrong phase
+      ---
+      duration_ms: 111.41175
+      type: 'test'
+      ...
+    # Subtest: wrong account
+    ok 6 - wrong account
+      ---
+      duration_ms: 65.069958
+      type: 'test'
+      ...
+    # Subtest: wrong region
+    ok 7 - wrong region
+      ---
+      duration_ms: 56.487917
+      type: 'test'
+      ...
+    # Subtest: role collision
+    ok 8 - role collision
+      ---
+      duration_ms: 51.36225
+      type: 'test'
+      ...
+    # Subtest: prior identity
+    ok 9 - prior identity
+      ---
+      duration_ms: 48.597833
+      type: 'test'
+      ...
+    # Subtest: prior DSN
+    ok 10 - prior DSN
+      ---
+      duration_ms: 51.868458
+      type: 'test'
+      ...
+    # Subtest: prior bucket
+    ok 11 - prior bucket
+      ---
+      duration_ms: 49.692833
+      type: 'test'
+      ...
+    # Subtest: newline principal
+    ok 12 - newline principal
+      ---
+      duration_ms: 46.421
+      type: 'test'
+      ...
+    # Subtest: metadata CIDR
+    ok 13 - metadata CIDR
+      ---
+      duration_ms: 80.000125
+      type: 'test'
+      ...
+    # Subtest: overlapping CIDRs
+    ok 14 - overlapping CIDRs
+      ---
+      duration_ms: 62.9415
+      type: 'test'
+      ...
+    # Subtest: monitor disabled
+    ok 15 - monitor disabled
+      ---
+      duration_ms: 47.684375
+      type: 'test'
+      ...
+    # Subtest: grace too long
+    ok 16 - grace too long
+      ---
+      duration_ms: 42.973458
+      type: 'test'
+      ...
+    1..16
+not ok 22 - direct Helm rejects malformed compliance authority without the JS normalizer
+  ---
+  duration_ms: 1531.4435
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-helm.test.mjs:11:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: compliance API startup rejects shell authority and command changes with and without audit
+    # Subtest: compliance-only: worker authority export
+    ok 1 - compliance-only: worker authority export
+      ---
+      duration_ms: 3.709875
+      type: 'test'
+      ...
+    # Subtest: compliance-only: replacement command
+    ok 2 - compliance-only: replacement command
+      ---
+      duration_ms: 3.44225
+      type: 'test'
+      ...
+    # Subtest: compliance-only: extra argument
+    ok 3 - compliance-only: extra argument
+      ---
+      duration_ms: 3.006625
+      type: 'test'
+      ...
+    # Subtest: compliance-only: replacement executable
+    ok 4 - compliance-only: replacement executable
+      ---
+      duration_ms: 3.249541
+      type: 'test'
+      ...
+    # Subtest: compliance-only: missing secret load
+    ok 5 - compliance-only: missing secret load
+      ---
+      duration_ms: 3.212875
+      type: 'test'
+      ...
+    # Subtest: audit: worker authority export
+    ok 6 - audit: worker authority export
+      ---
+      duration_ms: 3.960667
+      type: 'test'
+      ...
+    # Subtest: audit: replacement command
+    ok 7 - audit: replacement command
+      ---
+      duration_ms: 3.398375
+      type: 'test'
+      ...
+    # Subtest: audit: extra argument
+    ok 8 - audit: extra argument
+      ---
+      duration_ms: 3.401334
+      type: 'test'
+      ...
+    # Subtest: audit: replacement executable
+    ok 9 - audit: replacement executable
+      ---
+      duration_ms: 3.821
+      type: 'test'
+      ...
+    # Subtest: audit: missing secret load
+    ok 10 - audit: missing secret load
+      ---
+      duration_ms: 3.725875
+      type: 'test'
+      ...
+    1..10
+ok 23 - compliance API startup rejects shell authority and command changes with and without audit
+  ---
+  duration_ms: 1446.50325
+  type: 'test'
+  ...
+# Subtest: migration uses the published registration environment names
+ok 24 - migration uses the published registration environment names
+  ---
+  duration_ms: 387.41475
+  type: 'test'
+  ...
+# Subtest: closed compliance input refuses authority confusion and snapshots before await
+ok 25 - closed compliance input refuses authority confusion and snapshots before await
+  ---
+  duration_ms: 405.771625
+  type: 'test'
+  ...
+# Subtest: rendered compliance rejects authority, sidecar, readiness and additive network mutations
+    # Subtest: unreviewed pinned image
+    ok 1 - unreviewed pinned image
+      ---
+      duration_ms: 3.13125
+      type: 'test'
+      ...
+    # Subtest: writer swapped
+    ok 2 - writer swapped
+      ---
+      duration_ms: 3.151416
+      type: 'test'
+      ...
+    # Subtest: DSN swapped
+    ok 3 - DSN swapped
+      ---
+      duration_ms: 3.173042
+      type: 'test'
+      ...
+    # Subtest: schema requirement removed
+    ok 4 - schema requirement removed
+      ---
+      duration_ms: 12.415834
+      type: 'test'
+      ...
+    # Subtest: worker authority on API
+    ok 5 - worker authority on API
+      ---
+      duration_ms: 3.410375
+      type: 'test'
+      ...
+    # Subtest: sidecar
+    ok 6 - sidecar
+      ---
+      duration_ms: 3.316417
+      type: 'test'
+      ...
+    # Subtest: envFrom
+    ok 7 - envFrom
+      ---
+      duration_ms: 3.328417
+      type: 'test'
+      ...
+    # Subtest: host network
+    ok 8 - host network
+      ---
+      duration_ms: 3.38725
+      type: 'test'
+      ...
+    # Subtest: cross-workload mount
+    ok 9 - cross-workload mount
+      ---
+      duration_ms: 7.462625
+      type: 'test'
+      ...
+    # Subtest: migration ordering
+    ok 10 - migration ordering
+      ---
+      duration_ms: 3.426708
+      type: 'test'
+      ...
+    # Subtest: readiness weakened
+    ok 11 - readiness weakened
+      ---
+      duration_ms: 3.3945
+      type: 'test'
+      ...
+    # Subtest: memory request removed
+    ok 12 - memory request removed
+      ---
+      duration_ms: 3.376083
+      type: 'test'
+      ...
+    # Subtest: unbounded HPA
+    ok 13 - unbounded HPA
+      ---
+      duration_ms: 3.016958
+      type: 'test'
+      ...
+    # Subtest: monitor absent
+    ok 14 - monitor absent
+      ---
+      duration_ms: 2.985042
+      type: 'test'
+      ...
+    # Subtest: broad expected selector
+    ok 15 - broad expected selector
+      ---
+      duration_ms: 2.793583
+      type: 'test'
+      ...
+    # Subtest: broad egress
+    ok 16 - broad egress
+      ---
+      duration_ms: 3.3275
+      type: 'test'
+      ...
+    # Subtest: unnamed broad policy
+    ok 17 - unnamed broad policy
+      ---
+      duration_ms: 3.052958
+      type: 'test'
+      ...
+    # Subtest: malformed unselected selector
+    ok 18 - malformed unselected selector
+      ---
+      duration_ms: 3.09125
+      type: 'test'
+      ...
+    # Subtest: group RBAC
+    ok 19 - group RBAC
+      ---
+      duration_ms: 3.528667
+      type: 'test'
+      ...
+    # Subtest: cross namespace RBAC
+    ok 20 - cross namespace RBAC
+      ---
+      duration_ms: 3.390125
+      type: 'test'
+      ...
+    1..20
+ok 26 - rendered compliance rejects authority, sidecar, readiness and additive network mutations
+  ---
+  duration_ms: 950.803333
+  type: 'test'
+  ...
+# Subtest: compliance56 coexists with both optional predecessors in both phases
+ok 27 - compliance56 coexists with both optional predecessors in both phases
+  ---
+  duration_ms: 6220.885875
+  type: 'test'
+  ...
+# Subtest: schema55 predecessors still render and57 stays closed
+not ok 28 - schema55 predecessors still render and57 stays closed
+  ---
+  duration_ms: 744.07575
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:119:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'rejects'
+  stack: |-
+    async TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:121:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: release removes its owned export values after Helm success or refusal
+ok 29 - release removes its owned export values after Helm success or refusal
+  ---
+  duration_ms: 1517.091042
+  type: 'test'
+  ...
+# Subtest: release owns its export configuration while Helm runs
+ok 30 - release owns its export configuration while Helm runs
+  ---
+  duration_ms: 498.711208
+  type: 'test'
+  ...
+# Subtest: release refuses export activation outside its approved schema and phase
+ok 31 - release refuses export activation outside its approved schema and phase
+  ---
+  duration_ms: 1.840916
+  type: 'test'
+  ...
+# Subtest: full release renders export API workers and selected migration policy together
+ok 32 - full release renders export API workers and selected migration policy together
+  ---
+  duration_ms: 470.641208
+  type: 'test'
+  ...
+# Subtest: routing release requires the dual-version correlation worker
+ok 33 - routing release requires the dual-version correlation worker
+  ---
+  duration_ms: 437.366166
+  type: 'test'
+  ...
+# Subtest: sandbox compatibility staging explicitly pins49 before future activation
+ok 34 - sandbox compatibility staging explicitly pins49 before future activation
+  ---
+  duration_ms: 350.868791
+  type: 'test'
+  ...
+# Subtest: compatibility staging explicitly pins48 without activating routing
+ok 35 - compatibility staging explicitly pins48 without activating routing
+  ---
+  duration_ms: 388.139375
+  type: 'test'
+  ...
+# Subtest: production CI runs sensor lineage and authenticated replay regressions
+ok 36 - production CI runs sensor lineage and authenticated replay regressions
+  ---
+  duration_ms: 1.249916
+  type: 'test'
+  ...
+# Subtest: customer edge selects precise source only explicitly
+ok 37 - customer edge selects precise source only explicitly
+  ---
+  duration_ms: 188.134875
+  type: 'test'
+  ...
+# Subtest: customer edge isolates lineage producer, consumer and layout initialization
+ok 38 - customer edge isolates lineage producer, consumer and layout initialization
+  ---
+  duration_ms: 92.552417
+  type: 'test'
+  ...
+# Subtest: session query API IAM grants only fixed read endpoints
+ok 39 - session query API IAM grants only fixed read endpoints
+  ---
+  duration_ms: 1.473292
+  type: 'test'
+  ...
+# Subtest: runtime session search bootstrap and worker IAM have separate fixed paths
+ok 40 - runtime session search bootstrap and worker IAM have separate fixed paths
+  ---
+  duration_ms: 1.081
+  type: 'test'
+  ...
+# Subtest: Attack Lab release requires a separate same-account test role
+ok 41 - Attack Lab release requires a separate same-account test role
+  ---
+  duration_ms: 0.978292
+  type: 'test'
+  ...
+# Subtest: Attack Lab test IAM identity trusts only its run service account and denies cloud permissions
+ok 42 - Attack Lab test IAM identity trusts only its run service account and denies cloud permissions
+  ---
+  duration_ms: 1.324458
+  type: 'test'
+  ...
+# Subtest: Attack Lab routes image pulls through its own bucket-restricted S3 endpoint
+ok 43 - Attack Lab routes image pulls through its own bucket-restricted S3 endpoint
+  ---
+  duration_ms: 1.690916
+  type: 'test'
+  ...
+# Subtest: Attack Lab security group consumes the executable bounded egress contract
+ok 44 - Attack Lab security group consumes the executable bounded egress contract
+  ---
+  duration_ms: 1.729667
+  type: 'test'
+  ...
+# Subtest: production container builds are exact, non-root, health-bound, and secret-free
+ok 45 - production container builds are exact, non-root, health-bound, and secret-free
+  ---
+  duration_ms: 2.968
+  type: 'test'
+  ...
+# Subtest: customer edge renders database-free gateway, multi-node sensor, and pinned Tetragon
+ok 46 - customer edge renders database-free gateway, multi-node sensor, and pinned Tetragon
+  ---
+  duration_ms: 99.1825
+  type: 'test'
+  ...
+# Subtest: customer edge rejects mutable sensors, broad networks, shared secrets, and ambient state
+ok 47 - customer edge rejects mutable sensors, broad networks, shared secrets, and ambient state
+  ---
+  duration_ms: 0.403041
+  type: 'test'
+  ...
+# Subtest: production release renders private Nango dependency plus a fail-closed local Collector
+ok 48 - production release renders private Nango dependency plus a fail-closed local Collector
+  ---
+  duration_ms: 1184.2015
+  type: 'test'
+  ...
+# Subtest: rendered release rejects an unreviewed job identity
+ok 49 - rendered release rejects an unreviewed job identity
+  ---
+  duration_ms: 343.639333
+  type: 'test'
+  ...
+# Subtest: Grafana and New Relic Collector overlays bound remote failure with one exact secret
+ok 50 - Grafana and New Relic Collector overlays bound remote failure with one exact secret
+  ---
+  duration_ms: 726.010416
+  type: 'test'
+  ...
+# Subtest: release renders one TLS origin, split ports, private internals, and migration/schema gates
+ok 51 - release renders one TLS origin, split ports, private internals, and migration/schema gates
+  ---
+  duration_ms: 345.32175
+  type: 'test'
+  ...
+# Subtest: release runs the security agent with one exact database authority
+ok 52 - release runs the security agent with one exact database authority
+  ---
+  duration_ms: 339.29575
+  type: 'test'
+  ...
+# Subtest: release runs temporary policy actions with a separate signing identity
+ok 53 - release runs temporary policy actions with a separate signing identity
+  ---
+  duration_ms: 341.887
+  type: 'test'
+  ...
+# Subtest: release deploys the central policy writer with one exact signing identity
+ok 54 - release deploys the central policy writer with one exact signing identity
+  ---
+  duration_ms: 341.852958
+  type: 'test'
+  ...
+# Subtest: release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies
+ok 55 - release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies
+  ---
+  duration_ms: 328.455416
+  type: 'test'
+  ...
+# Subtest: release ships the complete v15 runtime data plane behind exact workload authorities
+ok 56 - release ships the complete v15 runtime data plane behind exact workload authorities
+  ---
+  duration_ms: 331.96375
+  type: 'test'
+  ...
+# Subtest: release gives the runtime data plane bounded ingress and dependency egress
+ok 57 - release gives the runtime data plane bounded ingress and dependency egress
+  ---
+  duration_ms: 352.720333
+  type: 'test'
+  ...
+# Subtest: release monitors, scales, and independently alerts every runtime workload
+ok 58 - release monitors, scales, and independently alerts every runtime workload
+  ---
+  duration_ms: 371.266709
+  type: 'test'
+  ...
+# Subtest: release mounts distinct risk and graph projections behind exact DB, Neo4j, and schema authorities
+ok 59 - release mounts distinct risk and graph projections behind exact DB, Neo4j, and schema authorities
+  ---
+  duration_ms: 353.619792
+  type: 'test'
+  ...
+# Subtest: release isolates the discovery outbox publisher behind exact DB, queue, and web-identity authority
+ok 60 - release isolates the discovery outbox publisher behind exact DB, queue, and web-identity authority
+  ---
+  duration_ms: 362.303042
+  type: 'test'
+  ...
+# Subtest: release mounts one readiness-gated discovery worker with exact provider and artifact authority
+ok 61 - release mounts one readiness-gated discovery worker with exact provider and artifact authority
+  ---
+  duration_ms: 327.303625
+  type: 'test'
+  ...
+# Subtest: release isolates the red team outbox runner and tenant target adapter
+ok 62 - release isolates the red team outbox runner and tenant target adapter
+  ---
+  duration_ms: 321.225
+  type: 'test'
+  ...
+# Subtest: release isolates Attack Lab execution behind a proxy-only Fargate authority
+ok 63 - release isolates Attack Lab execution behind a proxy-only Fargate authority
+  ---
+  duration_ms: 366.797083
+  type: 'test'
+  ...
+# Subtest: release gives only API an explicit connector identity, reference-only config, and bounded provider egress
+ok 64 - release gives only API an explicit connector identity, reference-only config, and bounded provider egress
+  ---
+  duration_ms: 339.647584
+  type: 'test'
+  ...
+# Subtest: release gives finding tickets exact API-only webhook egress and secret-read authority
+ok 65 - release gives finding tickets exact API-only webhook egress and secret-read authority
+  ---
+  duration_ms: 342.958
+  type: 'test'
+  ...
+# Subtest: release renders read-only synthetic and exact SLO budgets without credential values
+ok 66 - release renders read-only synthetic and exact SLO budgets without credential values
+  ---
+  duration_ms: 341.756916
+  type: 'test'
+  ...
+# Subtest: release rejects unpinned images and hostile public identifiers
+ok 67 - release rejects unpinned images and hostile public identifiers
+  ---
+  duration_ms: 393.286708
+  type: 'test'
+  ...
+# Subtest: terraform binds each shipped secret consumer to one exact least-privilege IRSA role
+ok 68 - terraform binds each shipped secret consumer to one exact least-privilege IRSA role
+  ---
+  duration_ms: 3.190125
+  type: 'test'
+  ...
+# Subtest: terraform isolates connector mutation and reference authorization behind one API-only web-identity role
+ok 69 - terraform isolates connector mutation and reference authorization behind one API-only web-identity role
+  ---
+  duration_ms: 1.321292
+  type: 'test'
+  ...
+# Subtest: terraform isolates red team queue evidence and target credentials behind three identities
+ok 70 - terraform isolates red team queue evidence and target credentials behind three identities
+  ---
+  duration_ms: 0.7905
+  type: 'test'
+  ...
+# Subtest: terraform isolates Attack Lab queue evidence proxy and runner pod networks
+ok 71 - terraform isolates Attack Lab queue evidence proxy and runner pod networks
+  ---
+  duration_ms: 1.65775
+  type: 'test'
+  ...
+# Subtest: terraform provisions the exact encrypted v15 runtime plane and isolated identities
+ok 72 - terraform provisions the exact encrypted v15 runtime plane and isolated identities
+  ---
+  duration_ms: 1.108625
+  type: 'test'
+  ...
+# Subtest: production recovery renders isolated inert workers and least-privilege cloud authority
+ok 73 - production recovery renders isolated inert workers and least-privilege cloud authority
+  ---
+  duration_ms: 332.928375
+  type: 'test'
+  ...
+# Subtest: rendered reconciler alerts fire for failed or absent targets and clear on recovery
+not ok 74 - rendered reconciler alerts fire for failed or absent targets and clear on recovery
+  ---
+  duration_ms: 806.563125
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/test-reconciler-alerts.test.mjs:13:1'
+  failureType: 'testCodeFailure'
+  error: 'ZASP_PROMTOOL_BIN must select the pinned Prometheus test tool'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/test-reconciler-alerts.test.mjs:17:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: full release reconciler opt-in pins workload authority and rejects tampering
+ok 75 - full release reconciler opt-in pins workload authority and rejects tampering
+  ---
+  duration_ms: 1064.486333
+  type: 'test'
+  ...
+# Subtest: reconciler refuses indirect RBAC grants through authenticated service-account groups
+ok 76 - reconciler refuses indirect RBAC grants through authenticated service-account groups
+  ---
+  duration_ms: 438.99925
+  type: 'test'
+  ...
+# Subtest: reconciler composes with audit exports in both precision phases
+ok 77 - reconciler composes with audit exports in both precision phases
+  ---
+  duration_ms: 866.733916
+  type: 'test'
+  ...
+# Subtest: reconciler metrics remain private and retain unready targets for alerting
+ok 78 - reconciler metrics remain private and retain unready targets for alerting
+  ---
+  duration_ms: 489.278667
+  type: 'test'
+  ...
+# Subtest: reconciler rejects terminal newlines in authority strings
+ok 79 - reconciler rejects terminal newlines in authority strings
+  ---
+  duration_ms: 0.215291
+  type: 'test'
+  ...
+# Subtest: reconciler configuration is explicit and snapshots all authority inputs
+ok 80 - reconciler configuration is explicit and snapshots all authority inputs
+  ---
+  duration_ms: 0.147
+  type: 'test'
+  ...
+# Subtest: reconciler rejects ambiguous and cross-account authority
+not ok 81 - reconciler rejects ambiguous and cross-account authority
+  ---
+  duration_ms: 0.544041
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/test-reconciler-rollout.test.mjs:122:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/test-reconciler-rollout.test.mjs:136:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: reconciler rejects unsafe endpoint snapshots and never invokes input accessors
+ok 82 - reconciler rejects unsafe endpoint snapshots and never invokes input accessors
+  ---
+  duration_ms: 3.250292
+  type: 'test'
+  ...
+# Subtest: reconciler network validator rejects widened dependencies and additive policies
+ok 83 - reconciler network validator rejects widened dependencies and additive policies
+  ---
+  duration_ms: 1011.132167
+  type: 'test'
+  ...
+# Subtest: shared chart policies cannot broaden the reconciler DNS-only allowance
+ok 84 - shared chart policies cannot broaden the reconciler DNS-only allowance
+  ---
+  duration_ms: 486.745375
+  type: 'test'
+  ...
+# Subtest: reconciler is opt-in and refuses incompatible deployment authority
+ok 85 - reconciler is opt-in and refuses incompatible deployment authority
+  ---
+  duration_ms: 641.48525
+  type: 'test'
+  ...
+# Subtest: reconciler renders isolated credentials, fixed runtime and bounded shutdown
+ok 86 - reconciler renders isolated credentials, fixed runtime and bounded shutdown
+  ---
+  duration_ms: 63.236166
+  type: 'test'
+  ...
+# Subtest: turning chart monitoring off removes scrape resources and closes ingress
+ok 87 - turning chart monitoring off removes scrape resources and closes ingress
+  ---
+  duration_ms: 44.1955
+  type: 'test'
+  ...
+# Subtest: reconciler egress is closed to declared database and cloud ranges plus cluster DNS
+ok 88 - reconciler egress is closed to declared database and cloud ranges plus cluster DNS
+  ---
+  duration_ms: 1614.479084
+  type: 'test'
+  ...
+1..88
+# tests 201
+# suites 0
+# pass 196
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12740.704166
+
+Exit: 1 Signal: null

@@ -1,0 +1,14 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go","test","-C","services/platform","./apiserver","-run","^TestSecurityAgentAttackLabPublic","-count=1"]
+--- FAIL: TestSecurityAgentAttackLabPublicProjection (0.00s)
+    --- FAIL: TestSecurityAgentAttackLabPublicProjection/verified (0.00s)
+        security_agent_attack_lab_public_projection_test.go:31: linked Attack Lab projection missing: repository provider unavailable
+    --- FAIL: TestSecurityAgentAttackLabPublicProjection/not_reproduced (0.00s)
+        security_agent_attack_lab_public_projection_test.go:31: linked Attack Lab projection missing: repository provider unavailable
+    --- FAIL: TestSecurityAgentAttackLabPublicProjection/pending_cleanup (0.00s)
+        security_agent_attack_lab_public_projection_test.go:31: linked Attack Lab projection missing: repository provider unavailable
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	1.086s
+FAIL
+
+Exit: 1 Signal: null

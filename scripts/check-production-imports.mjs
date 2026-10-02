@@ -16,6 +16,9 @@ const allowedExactSources = new Set([
   "app/features/sensors/api.ts",
 ]);
 const allowedBrowserStorageSources = new Set([
+  // Metadata-only, identity-checked resume for a server-owned export job.
+  "app/features/administration/AuditExportPanel.tsx",
+	"app/features/sessions/ComplianceEvidenceView.tsx",
 	"app/features/redteam/ProductionRedTeamView.tsx",
 	"app/features/recovery/RecoveryOperationsView.tsx",
   "app/features/risk/ProductionRiskView.tsx",

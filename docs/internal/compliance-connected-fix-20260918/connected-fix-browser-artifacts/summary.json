@@ -1,0 +1,14 @@
+{
+  "jobID": "pid_a0070dfe-d2af-432f-b205-e2f9522546e1",
+  "packageSHA256": "44943bd056f9790b28be2f200724d92f6861800c3c4821988fd83915649b21ab",
+  "nativeJSONBytes": 760,
+  "restartReadableBytes": 770,
+  "hipaaSourceDetail": true,
+  "maximumIDPaging": true,
+  "pagingRecordsRemovedBeforeExport": 101,
+  "grantReplayRefused": true,
+  "siblingDenied": true,
+  "foreignDenied": true,
+  "sourceChanged": true,
+  "provider": "controlled local SDK transport, NOT AWS"
+}

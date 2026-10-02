@@ -1,5 +1,6 @@
 {{- if ne .Values.profile "customer_edge" }}
 {{- range $name := list "web" "agentsec-api" "agentsec-discovery-scheduler" "agentsec-discovery-worker" "agentsec-security-agent" "agentsec-security-agent-action" "agentsec-policy-deployment" "agentsec-projection-risk" "agentsec-projection-graph" "agentsec-projection-search" "agentsec-outbox-publisher" }}
+{{- if or (ne $name "agentsec-discovery-scheduler") (ne $.Values.rollout.discoveryScheduleReplayPhase "maintenance") }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -7,6 +8,7 @@ metadata: { name: {{ $name }}, labels: { app.kubernetes.io/name: {{ $name }}, ap
 spec:
   minAvailable: 1
   selector: { matchLabels: { app.kubernetes.io/name: {{ $name }} } }
+{{- end }}
 {{- end }}
 {{- if ne .Values.profile "customer_edge" }}
 {{- range $name := (include "zasp.runtimeNames" . | fromJsonArray) }}
@@ -52,6 +54,7 @@ spec:
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
 {{- end }}
 {{- range $name := list "agentsec-discovery-scheduler" "agentsec-security-agent" "agentsec-security-agent-action" "agentsec-policy-deployment" "agentsec-outbox-publisher" }}
+{{- if or (ne $name "agentsec-discovery-scheduler") (ne $.Values.rollout.discoveryScheduleReplayPhase "maintenance") }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -66,6 +69,7 @@ spec:
   metrics:
     - type: Resource
       resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+{{- end }}
 {{- end }}
 {{- range $name := (include "zasp.runtimeNames" . | fromJsonArray) }}
 ---
@@ -95,7 +99,10 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: { name: dns-egress, labels: { app.kubernetes.io/part-of: zasp } }
 spec:
-  podSelector: { matchLabels: { app.kubernetes.io/part-of: zasp } }
+  podSelector:
+    matchLabels: { app.kubernetes.io/part-of: zasp }
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: NotIn, values: [zasp-test-reconciler, security-agent-attack-lab-reconciler{{ if .Values.complianceExports.enabled }}, zasp-compliance-export-worker, zasp-compliance-cleanup-worker{{ end }}] }
   policyTypes: [Egress]
   egress:
     - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } } }]

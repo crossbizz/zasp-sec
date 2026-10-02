@@ -1,0 +1,9 @@
+{
+  "containerName": "zasp-public-restart-ehhfv3",
+  "result": {
+    "status": 0,
+    "stdout": "",
+    "stderr": "Error response from daemon: No such container: zasp-public-restart-ehhfv3\n"
+  },
+  "temporaryRemoved": true
+}

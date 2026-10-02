@@ -1,0 +1,54 @@
+=== RUN   TestSecurityAgentExportStatusLifecycle
+=== RUN   TestSecurityAgentExportStatusLifecycle/pending
+=== RUN   TestSecurityAgentExportStatusLifecycle/completed
+=== RUN   TestSecurityAgentExportStatusLifecycle/failed
+--- PASS: TestSecurityAgentExportStatusLifecycle (0.27s)
+    --- PASS: TestSecurityAgentExportStatusLifecycle/pending (0.10s)
+    --- PASS: TestSecurityAgentExportStatusLifecycle/completed (0.09s)
+    --- PASS: TestSecurityAgentExportStatusLifecycle/failed (0.09s)
+=== RUN   TestSecurityAgentExportGrantsRepository
+=== RUN   TestSecurityAgentExportGrantsRepository/issue
+=== RUN   TestSecurityAgentExportGrantsRepository/read
+=== RUN   TestSecurityAgentExportGrantsRepository/consume
+=== RUN   TestSecurityAgentExportGrantsRepository/integrity_failure
+--- PASS: TestSecurityAgentExportGrantsRepository (0.40s)
+    --- PASS: TestSecurityAgentExportGrantsRepository/issue (0.08s)
+    --- PASS: TestSecurityAgentExportGrantsRepository/read (0.10s)
+    --- PASS: TestSecurityAgentExportGrantsRepository/consume (0.12s)
+    --- PASS: TestSecurityAgentExportGrantsRepository/integrity_failure (0.10s)
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/run
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/step
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/duplicate_binding
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/unknown_selection
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/duplicate_selection
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/null_selection
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/expired
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/revision
+=== RUN   TestSecurityAgentExportGrantsRefuseMalformedReadBindings/zero_size
+--- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings (0.39s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/run (0.04s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/step (0.04s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/duplicate_binding (0.04s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/unknown_selection (0.04s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/duplicate_selection (0.04s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/null_selection (0.04s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/expired (0.04s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/revision (0.04s)
+    --- PASS: TestSecurityAgentExportGrantsRefuseMalformedReadBindings/zero_size (0.04s)
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals/csrf
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals/digest
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals/run
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals/token
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals/format
+=== RUN   TestSecurityAgentExportGrantsCallerRefusals/operation
+--- PASS: TestSecurityAgentExportGrantsCallerRefusals (0.09s)
+    --- PASS: TestSecurityAgentExportGrantsCallerRefusals/csrf (0.00s)
+    --- PASS: TestSecurityAgentExportGrantsCallerRefusals/digest (0.00s)
+    --- PASS: TestSecurityAgentExportGrantsCallerRefusals/run (0.00s)
+    --- PASS: TestSecurityAgentExportGrantsCallerRefusals/token (0.00s)
+    --- PASS: TestSecurityAgentExportGrantsCallerRefusals/format (0.00s)
+    --- PASS: TestSecurityAgentExportGrantsCallerRefusals/operation (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	3.209s

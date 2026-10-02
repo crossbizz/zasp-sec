@@ -25,7 +25,7 @@ var (
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	config, err := loadRuntimeConfig(os.Getenv)
+	config, err := loadRuntimeConfigFromEnvironment(os.LookupEnv)
 	if err != nil {
 		os.Exit(1)
 	}

@@ -1,0 +1,1174 @@
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > bounds event hydration and preserves sessions whose event request fails 5ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > renders ordered evidence and revokes the exact version 82ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > accepts only the declared 204 session revoke response 1ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > renders legacy evidence without claiming current freshness or exports 13ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > updates versioned metadata-only production controls 38ms
+ × app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > keeps populated legacy reads usable through the real adapter and strict cursor/limit query contract 1013ms
+   → Unable to find an element with the text: /legacy-asset/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mProduct evidence for review. Freshness and exports do not establish certification or control effectiveness.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mCompliance request failed. Evidence inspection remains available; retry the request.[0m
+        [0m [0m
+        [36m<button[39m
+          [33mclass[39m=[32m"button button--secondary "[39m
+        [36m>[39m
+          [0mRetry evidence[0m
+        [36m</button>[39m
+      [36m</p>[39m
+      [36m<label>[39m
+        [0mFramework [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Framework"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll frameworks[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"soc2_security"[39m
+          [36m>[39m
+            [0mSOC 2 Security[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"hipaa"[39m
+          [36m>[39m
+            [0mHIPAA[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<label>[39m
+        [0mControl [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Control"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll controls[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mCurrent source and export service are not available for this view. Legacy records are not current-source proof.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mProduct evidence for review. Freshness and exports do not establish certification or control effectiveness.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mCompliance request failed. Evidence inspection remains available; retry the request.[0m
+        [0m [0m
+        [36m<button[39m
+          [33mclass[39m=[32m"button button--secondary "[39m
+        [36m>[39m
+          [0mRetry evidence[0m
+        [36m</button>[39m
+      [36m</p>[39m
+      [36m<label>[39m
+        [0mFramework [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Framework"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll frameworks[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"soc2_security"[39m
+          [36m>[39m
+            [0mSOC 2 Security[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"hipaa"[39m
+          [36m>[39m
+            [0mHIPAA[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<label>[39m
+        [0mControl [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Control"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll controls[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mCurrent source and export service are not available for this view. Legacy records are not current-source proof.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ × app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > treats empty controls as unfiltered legacy without inventing current support 16ms
+   → expected [ …(2) ] to deeply equal [ '?limit=100' ]
+ × app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > rejects mixed current/legacy controls before reading evidence 1008ms
+   → Unable to find role="alert"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mProduct evidence for review. Freshness and exports do not establish certification or control effectiveness.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<label>[39m
+        [0mFramework [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Framework"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll frameworks[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"soc2_security"[39m
+          [36m>[39m
+            [0mSOC 2 Security[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"hipaa"[39m
+          [36m>[39m
+            [0mHIPAA[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<label>[39m
+        [0mControl [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Control"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll controls[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"soc2-policy"[39m
+          [36m>[39m
+            [0mPolicy definition[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"legacy-control"[39m
+          [36m>[39m
+            [0mLegacy seed[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0msoc2_security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--warning"[39m
+          [36m>[39m
+            [0mstale[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mSource freshness deadline: [0m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-10-01T12:00:00Z"[39m
+            [36m>[39m
+              [0m2026-10-01T12:00:00Z[0m
+            [36m</time>[39m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-09-01T12:00:00Z"[39m
+            [36m>[39m
+              [0m2026-09-01T12:00:00Z[0m
+            [36m</time>[39m
+            [0m · [0m
+            [36m<a[39m
+              [33maria-label[39m=[32m"Open policy policy-production version 2"[39m
+              [33mhref[39m=[32m"/compliance/evidence?source_kind=policy&source_id=policy-production&source_version=2&organization_id=pid_10000001-0000-4000-8000-000000000001&workspace_id=pid_10000002-0000-4000-8000-000000000002&environment_id=pid_10000003-0000-4000-8000-000000000003"[39m
+            [36m>[39m
+              [0mOpen evidence (version [0m
+              [0m2[0m
+              [0m)[0m
+            [36m</a>[39m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 · Legacy seed[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mLegacy evidence (current freshness unavailable)[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mSource freshness deadline: [0m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2020-01-02T00:00:00Z"[39m
+            [36m>[39m
+              [0m2020-01-02T00:00:00Z[0m
+            [36m</time>[39m
+          [36m</p>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mCurrent source and export service are not available for this view. Legacy records are not current-source proof.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mProduct evidence for review. Freshness and exports do not establish certification or control effectiveness.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<label>[39m
+        [0mFramework [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Framework"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll frameworks[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"soc2_security"[39m
+          [36m>[39m
+            [0mSOC 2 Security[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"hipaa"[39m
+          [36m>[39m
+            [0mHIPAA[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<label>[39m
+        [0mControl [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Control"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll controls[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"soc2-policy"[39m
+          [36m>[39m
+            [0mPolicy definition[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"legacy-control"[39m
+          [36m>[39m
+            [0mLegacy seed[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0msoc2_security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--warning"[39m
+          [36m>[39m
+            [0mstale[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mSource freshness deadline: [0m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-10-01T12:00:00Z"[39m
+            [36m>[39m
+              [0m2026-10-01T12:00:00Z[0m
+            [36m</time>[39m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-09-01T12:00:00Z"[39m
+            [36m>[39m
+              [0m2026-09-01T12:00:00Z[0m
+            [36m</time>[39m
+            [0m · [0m
+            [36m<a[39m
+              [33maria-label[39m=[32m"Open policy policy-production version 2"[39m
+              [33mhref[39m=[32m"/compliance/evidence?source_kind=policy&source_id=policy-production&source_version=2&organization_id=pid_10000001-0000-4000-8000-000000000001&workspace_id=pid_10000002-0000-4000-8000-000000000002&environment_id=pid_10000003-0000-4000-8000-000000000003"[39m
+            [36m>[39m
+              [0mOpen evidence (version [0m
+              [0m2[0m
+              [0m)[0m
+            [36m</a>[39m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 · Legacy seed[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mLegacy evidence (current freshness unavailable)[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mSource freshness deadline: [0m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2020-01-02T00:00:00Z"[39m
+            [36m>[39m
+              [0m2020-01-02T00:00:00Z[0m
+            [36m</time>[39m
+          [36m</p>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mCurrent source and export service are not available for this view. Legacy records are not current-source proof.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ × app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > never downgrades a controls failure 401 into legacy reads 16ms
+   → expected [ '/api/v1/compliance/controls', …(1) ] to deeply equal [ '/api/v1/compliance/controls' ]
+ × app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > never downgrades a controls failure 403 into legacy reads 7ms
+   → expected [ '/api/v1/compliance/controls', …(1) ] to deeply equal [ '/api/v1/compliance/controls' ]
+ × app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > never downgrades a controls failure 409 into legacy reads 8ms
+   → expected [ '/api/v1/compliance/controls', …(1) ] to deeply equal [ '/api/v1/compliance/controls' ]
+ × app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > never downgrades a controls failure 503 into legacy reads 7ms
+   → expected [ '/api/v1/compliance/controls', …(1) ] to deeply equal [ '/api/v1/compliance/controls' ]
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > loads populated HIPAA and SOC2 with independent cursor chains through the mounted client 43ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 1 before a continuation starts 64ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 1 before a continuation starts 63ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 2 before a continuation starts 62ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 2 before a continuation starts 67ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 401 errors before they can invalidate replacement authority 65ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 401 errors before they can invalidate replacement authority 65ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 409 errors before they can invalidate replacement authority 67ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 409 errors before they can invalidate replacement authority 63ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > uses aggregate freshness, exposes typed source/time links, and filters frameworks and controls 46ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > reads exact source versions through the compliance detail endpoint 11ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 409 5ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 404 4ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 403 5ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > creates queued exports with the selected filters, recovers status on reload, and leaves evidence readable on download failure 65ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders failed export without hiding evidence 18ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders expired export without hiding evidence 17ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > drops late evidence responses on a changed principal and hides revoked authority immediately 57ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > keeps populated legacy reads usable through the real adapter and strict cursor/limit query contract
+TestingLibraryElementError: Unable to find an element with the text: /legacy-asset/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mProduct evidence for review. Freshness and exports do not establish certification or control effectiveness.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mCompliance request failed. Evidence inspection remains available; retry the request.[0m
+        [0m [0m
+        [36m<button[39m
+          [33mclass[39m=[32m"button button--secondary "[39m
+        [36m>[39m
+          [0mRetry evidence[0m
+        [36m</button>[39m
+      [36m</p>[39m
+      [36m<label>[39m
+        [0mFramework [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Framework"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll frameworks[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"soc2_security"[39m
+          [36m>[39m
+            [0mSOC 2 Security[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"hipaa"[39m
+          [36m>[39m
+            [0mHIPAA[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<label>[39m
+        [0mControl [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Control"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll controls[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mCurrent source and export service are not available for this view. Legacy records are not current-source proof.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mProduct evidence for review. Freshness and exports do not establish certification or control effectiveness.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [0mCompliance request failed. Evidence inspection remains available; retry the request.[0m
+        [0m [0m
+        [36m<button[39m
+          [33mclass[39m=[32m"button button--secondary "[39m
+        [36m>[39m
+          [0mRetry evidence[0m
+        [36m</button>[39m
+      [36m</p>[39m
+      [36m<label>[39m
+        [0mFramework [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Framework"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll frameworks[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"soc2_security"[39m
+          [36m>[39m
+            [0mSOC 2 Security[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"hipaa"[39m
+          [36m>[39m
+            [0mHIPAA[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<label>[39m
+        [0mControl [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Control"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll controls[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m/>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mCurrent source and export service are not available for this view. Legacy records are not current-source proof.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:79:25
+     77|     } });
+     78|     render(<SessionsComplianceView surface="compliance" client={client…
+     79|     expect(await screen.findByText(/legacy-asset/)).toBeVisible();
+       |                         ^
+     80|     expect(screen.getByText("Legacy evidence (current freshness unavai…
+     81|     expect(screen.getByText("Evidence exports unavailable")).toBeVisib…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > treats empty controls as unfiltered legacy without inventing current support
+AssertionError: expected [ …(2) ] to deeply equal [ '?limit=100' ]
+
+- Expected
++ Received
+
+  [
+-   "?limit=100",
++   "?framework=soc2_security&limit=100",
++   "?framework=hipaa&limit=100",
+  ]
+
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:92:29
+     90|     render(<SessionsComplianceView surface="compliance" client={client…
+     91|     expect(await screen.findByText("Evidence exports unavailable")).to…
+     92|     expect(evidenceQueries).toEqual(["?limit=100"]);
+       |                             ^
+     93|     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+     94|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > rejects mixed current/legacy controls before reading evidence
+TestingLibraryElementError: Unable to find role="alert"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mProduct evidence for review. Freshness and exports do not establish certification or control effectiveness.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<label>[39m
+        [0mFramework [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Framework"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll frameworks[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"soc2_security"[39m
+          [36m>[39m
+            [0mSOC 2 Security[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"hipaa"[39m
+          [36m>[39m
+            [0mHIPAA[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<label>[39m
+        [0mControl [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Control"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll controls[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"soc2-policy"[39m
+          [36m>[39m
+            [0mPolicy definition[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"legacy-control"[39m
+          [36m>[39m
+            [0mLegacy seed[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0msoc2_security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--warning"[39m
+          [36m>[39m
+            [0mstale[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mSource freshness deadline: [0m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-10-01T12:00:00Z"[39m
+            [36m>[39m
+              [0m2026-10-01T12:00:00Z[0m
+            [36m</time>[39m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-09-01T12:00:00Z"[39m
+            [36m>[39m
+              [0m2026-09-01T12:00:00Z[0m
+            [36m</time>[39m
+            [0m · [0m
+            [36m<a[39m
+              [33maria-label[39m=[32m"Open policy policy-production version 2"[39m
+              [33mhref[39m=[32m"/compliance/evidence?source_kind=policy&source_id=policy-production&source_version=2&organization_id=pid_10000001-0000-4000-8000-000000000001&workspace_id=pid_10000002-0000-4000-8000-000000000002&environment_id=pid_10000003-0000-4000-8000-000000000003"[39m
+            [36m>[39m
+              [0mOpen evidence (version [0m
+              [0m2[0m
+              [0m)[0m
+            [36m</a>[39m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 · Legacy seed[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mLegacy evidence (current freshness unavailable)[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mSource freshness deadline: [0m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2020-01-02T00:00:00Z"[39m
+            [36m>[39m
+              [0m2020-01-02T00:00:00Z[0m
+            [36m</time>[39m
+          [36m</p>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mCurrent source and export service are not available for this view. Legacy records are not current-source proof.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mCompliance evidence[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mProduct evidence for review. Freshness and exports do not establish certification or control effectiveness.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<label>[39m
+        [0mFramework [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Framework"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll frameworks[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"soc2_security"[39m
+          [36m>[39m
+            [0mSOC 2 Security[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"hipaa"[39m
+          [36m>[39m
+            [0mHIPAA[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<label>[39m
+        [0mControl [0m
+        [36m<select[39m
+          [33maria-label[39m=[32m"Control"[39m
+        [36m>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m""[39m
+          [36m>[39m
+            [0mAll controls[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"soc2-policy"[39m
+          [36m>[39m
+            [0mPolicy definition[0m
+          [36m</option>[39m
+          [36m<option[39m
+            [33mvalue[39m=[32m"legacy-control"[39m
+          [36m>[39m
+            [0mLegacy seed[0m
+          [36m</option>[39m
+        [36m</select>[39m
+      [36m</label>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dashboard-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0msoc2_security · Policy definition[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--warning"[39m
+          [36m>[39m
+            [0mstale[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mSource freshness deadline: [0m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-10-01T12:00:00Z"[39m
+            [36m>[39m
+              [0m2026-10-01T12:00:00Z[0m
+            [36m</time>[39m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mpolicy-production[0m
+            [0m · [0m
+            [0mpolicy[0m
+            [0m · [0m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-09-01T12:00:00Z"[39m
+            [36m>[39m
+              [0m2026-09-01T12:00:00Z[0m
+            [36m</time>[39m
+            [0m · [0m
+            [36m<a[39m
+              [33maria-label[39m=[32m"Open policy policy-production version 2"[39m
+              [33mhref[39m=[32m"/compliance/evidence?source_kind=policy&source_id=policy-production&source_version=2&organization_id=pid_10000001-0000-4000-8000-000000000001&workspace_id=pid_10000002-0000-4000-8000-000000000002&environment_id=pid_10000003-0000-4000-8000-000000000003"[39m
+            [36m>[39m
+              [0mOpen evidence (version [0m
+              [0m2[0m
+              [0m)[0m
+            [36m</a>[39m
+          [36m</p>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"card "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"card__title"[39m
+            [36m>[39m
+              [0mSOC 2 · Legacy seed[0m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"badge badge--neutral"[39m
+          [36m>[39m
+            [0mLegacy evidence (current freshness unavailable)[0m
+          [36m</span>[39m
+          [36m<p>[39m
+            [0mSource freshness deadline: [0m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2020-01-02T00:00:00Z"[39m
+            [36m>[39m
+              [0m2020-01-02T00:00:00Z[0m
+            [36m</time>[39m
+          [36m</p>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mEvidence exports unavailable[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [0mCurrent source and export service are not available for this view. Legacy records are not current-source proof.[0m
+        [36m</p>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:99:25
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > never downgrades a controls failure 401 into legacy reads
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > never downgrades a controls failure 403 into legacy reads
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > never downgrades a controls failure 409 into legacy reads
+ FAIL  app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > never downgrades a controls failure 503 into legacy reads
+AssertionError: expected [ '/api/v1/compliance/controls', …(1) ] to deeply equal [ '/api/v1/compliance/controls' ]
+
+- Expected
++ Received
+
+  [
+    "/api/v1/compliance/controls",
++   "/api/v1/compliance/evidence",
+  ]
+
+ ❯ app/features/sessions/SessionsComplianceView.test.tsx:108:19
+    106|     render(<SessionsComplianceView surface="compliance" client={client…
+    107|     await screen.findByRole("alert");
+    108|     expect(paths).toEqual(["/api/v1/compliance/controls"]);
+       |                   ^
+    109|     expect(screen.queryByText(/Legacy evidence \(/)).not.toBeInTheDocu…
+    110|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  7 failed | 23 passed (30)
+   Start at  20:37:48
+   Duration  4.37s (transform 160ms, setup 212ms, import 246ms, tests 3.00s, environment 686ms)
+

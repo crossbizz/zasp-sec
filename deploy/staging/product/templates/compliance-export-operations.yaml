@@ -1,0 +1,45 @@
+{{- if .Values.complianceExports.enabled -}}
+{{- range $name := list "zasp-compliance-export-worker" "zasp-compliance-cleanup-worker" }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  labels: { app.kubernetes.io/part-of: zasp }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ $name }} }
+  minReplicas: 2
+  maxReplicas: 6
+  behavior:
+    scaleUp: { stabilizationWindowSeconds: 60, policies: [{ type: Percent, value: 100, periodSeconds: 60 }] }
+    scaleDown: { stabilizationWindowSeconds: 300, policies: [{ type: Percent, value: 25, periodSeconds: 60 }] }
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+{{- end }}
+{{- if .Values.monitoring.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: zasp-compliance-export-availability
+  labels: { app.kubernetes.io/part-of: zasp }
+spec:
+  groups:
+    - name: zasp.compliance-export.availability
+      rules:
+        {{- range $worker := list (dict "name" "zasp-compliance-export-worker" "prefix" "ZaspComplianceExportWorker") (dict "name" "zasp-compliance-cleanup-worker" "prefix" "ZaspComplianceCleanupWorker") }}
+        {{- $name := $worker.name }}
+        - alert: {{ $worker.prefix }}Unavailable
+          expr: kube_deployment_status_replicas_available{namespace="{{ $.Release.Namespace }}",deployment="{{ $name }}"} < 1 or absent(kube_deployment_status_replicas_available{namespace="{{ $.Release.Namespace }}",deployment="{{ $name }}"})
+          for: 5m
+          labels: { severity: page }
+          annotations: { summary: "Compliance export workload is unavailable or absent" }
+        - alert: {{ $worker.prefix }}NotReady
+          expr: agentsec_ready{namespace="{{ $.Release.Namespace }}",service="{{ $name }}"} == 0 or up{namespace="{{ $.Release.Namespace }}",service="{{ $name }}"} == 0 or (up{namespace="{{ $.Release.Namespace }}",service="{{ $name }}"} == 1 unless on (namespace,service,instance) agentsec_ready{namespace="{{ $.Release.Namespace }}",service="{{ $name }}"}) or absent(up{namespace="{{ $.Release.Namespace }}",service="{{ $name }}"})
+          for: 10m
+          labels: { severity: ticket }
+          annotations: { summary: "Compliance export worker readiness is unavailable" }
+        {{- end }}
+{{- end }}
+{{- end }}

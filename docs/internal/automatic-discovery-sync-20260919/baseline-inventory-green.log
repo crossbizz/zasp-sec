@@ -1,0 +1,16 @@
+TAP version 13
+# Subtest: automatic inventory distinguishes seeded rows and requires the collected target
+ok 1 - automatic inventory distinguishes seeded rows and requires the collected target
+  ---
+  duration_ms: 5.348583
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 70.965625

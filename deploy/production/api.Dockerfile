@@ -1,4 +1,4 @@
-FROM golang:1.25.6-alpine3.22@sha256:fa3380ab0d73b706e6b07d2a306a4dc68f20bfc1437a6a6c47c8f88fe4af6f75 AS build
+FROM golang:1.25.13-alpine3.23@sha256:42fc3368d1c50170a452f2bf4a1dfd292a065870c3f258d799aad4316671cb69 AS build
 ARG VERSION
 WORKDIR /src
 COPY services/platform/go.mod services/platform/go.sum ./

@@ -17,6 +17,30 @@ const (
 	wantKMSARN  = "arn:aws:kms:us-west-2:123456789012:key/01234567-89ab-cdef-0123-456789abcdef"
 )
 
+func TestExportKeyUsesTheConfiguredLayoutContract(t *testing.T) {
+	scope, reference := fixtureScope(t), fixtureProductID(t, 4)
+	want := "organizations/pid_00000000-0000-4000-8000-000000000001/workspaces/pid_00000000-0000-4000-8000-000000000002/environments/pid_00000000-0000-4000-8000-000000000003/exports/pid_00000000-0000-4000-8000-000000000004"
+	key, err := ExportKey(scope, reference)
+	if err != nil || key != want {
+		t.Fatal("pure export key differs from fixed contract", key, err)
+	}
+	configured, err := mustLayout(t).Key(scope, ClassExport, reference)
+	if err != nil || configured != want {
+		t.Fatal("configured export key changed", configured, err)
+	}
+	for _, id := range []domain.ProductID{{}, scope.OrganizationID(), scope.WorkspaceID(), scope.EnvironmentID()} {
+		if key, err := ExportKey(scope, id); !errors.Is(err, ErrLayout) || key != "" {
+			t.Fatal("export key accepted aliased/zero identity", key, err)
+		}
+	}
+	if key, err := ExportKey(domain.Scope{}, reference); !errors.Is(err, ErrLayout) || key != "" {
+		t.Fatal("invalid export scope", key, err)
+	}
+	if key, err := (Layout{}).Key(scope, ClassExport, reference); !errors.Is(err, ErrLayout) || key != "" {
+		t.Fatal("pure helper bypassed configured layout validation", key, err)
+	}
+}
+
 func TestLayoutBuildsExactScopedPrefixesAndKeys(t *testing.T) {
 	t.Parallel()
 

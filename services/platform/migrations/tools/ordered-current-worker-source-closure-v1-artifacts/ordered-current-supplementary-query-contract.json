@@ -1,0 +1,4071 @@
+{
+  "format": "ordered-current-supplementary-query-v1",
+  "status": "REFERENCE-CAPTURE-ONLY",
+  "sqlSHA256": "cbc350137d88d191463f3abbd29df14d477f7a9438931730ee5c3d9e9e0febc9",
+  "rulesSHA256": "2871e51281e185f9b43622b07071823eb7ee026cc1e6170b9ba0188e7e77b821",
+  "sitesSHA256": "2a07f66dd3e781bf7e7e3b74bf736060069e2bdb9464d879785394bbb51c78b3",
+  "sourcePins": {
+    "public.zasp_production_runtime_acceptance_live_fingerprint()": {
+      "sourceSHA256": "d431ecc57e280c8fc6174f0a47c8d4706c8515d0ac2cc17d4494f4acaa5edc9b",
+      "definitionSHA256": "c4eb62cc0365f869fee4fff41cb01f5f613e9bb01930fb10e6961e67af49eecd",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_runtime_candidate_authority_live_fingerprint()": {
+      "sourceSHA256": "70a37e815d11cc6c3cda98dbbe5785f90625acb734816449c1fae4225f1d29e5",
+      "definitionSHA256": "2ee7365d6d576656fdc18643ded3b317f9fc59e27a6260d0e6df7f629feb4df0",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_runtime_correlation_routing_live_fingerprint()": {
+      "sourceSHA256": "3bbd0f4ef0bcadb1583d5661bb23f75c718e622e6c9ff1ce0b3e8f6284a437f7",
+      "definitionSHA256": "abface23b685a3085c70ce0dd1bd4466f2167cfb2eb8af65392fe45c4b88effd",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_runtime_enrollment_pairing_live_fingerprint()": {
+      "sourceSHA256": "dc52bfd60b97d0c0abe65350de4f6157fd28d99f2209a57b5cf36b64fea20a4d",
+      "definitionSHA256": "45baaa1e8e7bb71c265490cba0638db5de276b559afbff69be84dfcdd0a6d87f",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_runtime_precision_live_fingerprint()": {
+      "sourceSHA256": "b6f6310ddee97053ec8dbb36b2e18a0604bdf8272d5bc0e1faeaadfb02118892",
+      "definitionSHA256": "2540e996d735a54a96a1fd3add0c1ff3bdd034b5f0d67825ab9fee137603c797",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_runtime_queue_replay_live_fingerprint()": {
+      "sourceSHA256": "1783f14f02de63688cee1d4b1c3f1adea0e7cde92e1a4b73325c9f1859b3df56",
+      "definitionSHA256": "dffd80d7ba89678e85fdd7a61fa7211a17842ce175c17585b989cf60fef177f7",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_runtime_session_evidence_live_fingerprint()": {
+      "sourceSHA256": "198275cf2c10977f1e98ea9da6afe4f56bd00952f9f2b8cccaa0043f799d97b5",
+      "definitionSHA256": "ad4c99b4c03b1f3a520e7fa2b5431ae18d869d745b8cfcebc58e3f2d1eba227d",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_runtime_session_query_live_fingerprint()": {
+      "sourceSHA256": "fb2e2700987e01048bce1bef5c0b4de3ac8696ce8c539b3599bbc862d84f287e",
+      "definitionSHA256": "0cd3d849e94541e0528b4e97e12bf39f0e0d591a5f2cd5186ec9a73d4b80879b",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_runtime_session_reads_live_fingerprint()": {
+      "sourceSHA256": "74a7fdf8b833a8586150990601e682eacdab96b0eaf80d8182b8f93992ec2336",
+      "definitionSHA256": "a18b7c5b1c902d7a8ae2ec6e9d7c571c8321e5b1d3740807027f540c27d45713",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_runtime_session_search_live_fingerprint()": {
+      "sourceSHA256": "b951c37aa8c62b0ccd4901f9818cc92a95c1c3f30c515f5db123f3a074ed88a8",
+      "definitionSHA256": "dbf7b0deb04824e1c6301cdba64eb3f7d0fa0d04f0eee752dfd1138420f7b057",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_runtime_sessions_live_fingerprint()": {
+      "sourceSHA256": "83a869dbeb2ad0a8129879b270a54de4692730f5bfb9c5eef450ee201e9ed04b",
+      "definitionSHA256": "12857815bf14d231369905b7528434d2f528f7ec2dacbdfc65b124bf6df0ca0b",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_approval_notification_live_fingerprint()": {
+      "sourceSHA256": "442c82e65615ba99addbdeaea52cc2c767da812af1ecb843eed1e6c613a8f70e",
+      "definitionSHA256": "919a1534578fc77548d65c70682111ef1224265c0e448f089adbcd1b4731edc6",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_home_attention_live_fingerprint()": {
+      "sourceSHA256": "6337a8151081e2f68a773ba4ce68024f9f47af5b6db7e44fa10847e446b0580f",
+      "definitionSHA256": "043f501a18318b900177a4ae0879352e9e9764f4834323aece9404be08f62c96",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_integration_setup_live_fingerprint()": {
+      "sourceSHA256": "a658f796c31c955db26a859151885b63b0e53cbc47db8a5229ad3d67fafa513e",
+      "definitionSHA256": "5068f01ec463c11cebaa181cb2b5b744499f32a1bc9b749f46251c5c75ec3625",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_integration_webhook_live_fingerprint()": {
+      "sourceSHA256": "1c15bc54f536113727aff8942cdf041737e8d91f33a51a69c95032570a7f1219",
+      "definitionSHA256": "45aa864f09bf795a9a373cde1a7570e0204a6354984cf1bfd0308eb1d5a146a3",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_reconciliation_lane_plan_live_fingerprint()": {
+      "sourceSHA256": "bab1d34ab132c902729f29fab6562bf44e1576d22c16b21d616d8376402b2408",
+      "definitionSHA256": "6c7d78391bfcf01d264b987af78bac4bdde2db2b4008440deb2948404c357ac1",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_red_team_artifacts_live_fingerprint()": {
+      "sourceSHA256": "8c5df3ff67223b74e07e5055dd29d63712af78f7ca321ccd6d4aae456025a787",
+      "definitionSHA256": "275050efb45a97647e60d2eac203689e43a86e22f56bf58397c1660085cc0d43",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_red_team_invocation_live_fingerprint()": {
+      "sourceSHA256": "5d02e3969ada5446071a95551ea96f4e661a17f66b56d6d2040c47e9df866861",
+      "definitionSHA256": "47fc2cd08b3b135e998eedd2f3e7bb505d7265bc17fa4f1ddc9221c02037decc",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_red_team_safety_live_fingerprint()": {
+      "sourceSHA256": "7aae1418fdd0a8a8ade28ce35d6624d1ea6695b7ae05d95cc4eb407c5913012e",
+      "definitionSHA256": "a3a436f12b092c8d85379fad1c1199acce1c32a02579cc0faeba2d396a97d042",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    },
+    "public.zasp_production_workflow_compatibility_live_fingerprint()": {
+      "sourceSHA256": "65b31911c14fa07698e66ee8274a96361cbab8564e2fe93d92a10d0edc01b126",
+      "definitionSHA256": "5c28af675dfbdc91752944281f1da5b0697743e21b05f725b9d0dffbd0e8a36b",
+      "frameSHA256": "8d8f8c2d163170c98548b8ae41161bb613b0e90f82fe2efd217ed5d0e4a85005"
+    }
+  },
+  "modules": {
+    "build-ordered-current-supplementary.mjs": "635cb9c13b967a8d8f3c0d0826c9d4d27d1883ede91b0773712e1676d55d8c64",
+    "ordered-current-runtime-selectors.mjs": "48d5cf2a4db28ceec6137e25393b5ca9d6cd9c10a42855d7461785f992e1bd2b",
+    "ordered-current-product-selectors.mjs": "8de51495fd8943f38d7a9a9a6b8300fbebc1878224be09820246741ea01f5892",
+    "ordered-current-catalog.mjs": "0901442f9885352359aae1065f12c5457a16176b2e13b487efea39719ccab840",
+    "build-ordered-current-integrity.mjs": "0df6c0cb40df6bdf18dcc51ee660efedc1fcdccb34e6ba8dd0d406e7acb53c8b"
+  },
+  "compilerChecksum": "5b129ed0592dde0af626a47bb656a572e009c1cefa182293429a454727af7bf9",
+  "compiledSourceSHA256": "233c2caf66299ad50ee1a573c116746c905a885612a72980b6ce41c916a68850",
+  "compilerArtifactSHA256": "4ad7d7218fff014766d92d8af7522ed5bb382b95e5fa1e12d9be70a407543425",
+  "catalog1FileSHA256": "b13f25c70ac824e0b3db36969cd5a6a71953e6dc15ba3f269de2520134aae077",
+  "sourceContractSHA256": "be343a262db904e6694cf79f582ba4ea57d777886bfa27d83165d3fcd18238c6",
+  "requiredRole": "zasp_discovery_authority",
+  "requiredSearchPath": [
+    "pg_catalog"
+  ],
+  "requiredTimeZone": "UTC",
+  "maxRows": 634,
+  "maxBytes": 16777216,
+  "categoryMaxRows": {
+    "routine": 81,
+    "relation": 8,
+    "column_name": 168,
+    "constraint": 217,
+    "index": 9,
+    "policy_view": 6,
+    "trigger": 10,
+    "information_column": 18,
+    "global_constraint": 68,
+    "index_view": 6,
+    "column": 41,
+    "policy": 2
+  },
+  "ruleMaxRows": {
+    "runtime:acceptance:function": 4,
+    "runtime:candidate_authority:function": 6,
+    "runtime:candidate_authority:table": 2,
+    "runtime:candidate_authority:column": 70,
+    "runtime:candidate_authority:constraint": 55,
+    "runtime:candidate_authority:index": 3,
+    "runtime:candidate_authority:policy": 2,
+    "runtime:candidate_authority:trigger": 2,
+    "runtime:correlation_routing:function": 6,
+    "runtime:correlation_routing:trigger": 1,
+    "runtime:enrollment_pairing:function": 9,
+    "runtime:enrollment_pairing:table": 2,
+    "runtime:enrollment_pairing:column": 18,
+    "runtime:enrollment_pairing:constraint": 68,
+    "runtime:enrollment_pairing:policy": 2,
+    "runtime:enrollment_pairing:trigger": 3,
+    "runtime:queue_replay:function": 3,
+    "runtime:session_evidence:function": 3,
+    "runtime:session_query:function": 4,
+    "runtime:session_reads:function": 8,
+    "runtime:session_reads:table": 1,
+    "runtime:session_reads:constraint": 29,
+    "runtime:session_reads:column": 28,
+    "runtime:session_reads:policy": 1,
+    "runtime:session_reads:index": 1,
+    "runtime:session_reads:trigger": 1,
+    "runtime:session_search:function": 8,
+    "runtime:session_search:table": 1,
+    "runtime:session_search:constraint": 27,
+    "runtime:session_search:column": 34,
+    "runtime:session_search:policy": 1,
+    "runtime:session_search:index": 5,
+    "runtime:session_search:trigger": 2,
+    "product:approval_notification:table": 1,
+    "product:approval_notification:column": 19,
+    "product:approval_notification:constraint": 35,
+    "product:approval_notification:index": 3,
+    "product:approval_notification:policy": 1,
+    "product:approval_notification:function": 7,
+    "product:approval_notification:trigger": 1,
+    "product:home_attention:function": 2,
+    "product:integration_setup:function": 2,
+    "product:integration_webhook:function": 5,
+    "product:integration_webhook:table": 1,
+    "product:integration_webhook:column": 22,
+    "product:integration_webhook:constraint": 44,
+    "product:integration_webhook:index": 3,
+    "product:integration_webhook:policy": 1,
+    "product:reconciliation_lane_plan:function": 3,
+    "product:red_team_artifacts:function": 7,
+    "product:red_team_artifacts:constraint": 27,
+    "product:red_team_artifacts:column": 36,
+    "product:red_team_invocation:function": 1,
+    "product:red_team_safety:function": 1,
+    "product:workflow_compatibility:function": 2
+  },
+  "rules": [
+    {
+      "id": "runtime:acceptance:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_runtime_lookup_acceptance"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_acceptance_security_ready"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_acceptance_readiness"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_candidate_authority_readiness_v47"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:candidate_authority:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_runtime_candidate_lineage_valid"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_candidate_execution_live"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_freeze_candidates"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_candidate_authority_security_ready"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_candidate_authority_readiness"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_reconciliation_lane_plan_readiness_v46"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:candidate_authority:table",
+      "kind": "relation",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_runtime_candidate_observations"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_candidate_snapshots"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "owner",
+        "kind",
+        "row_security",
+        "forced_row_security",
+        "acl_text_or_empty",
+        "options_text_or_empty"
+      ]
+    },
+    {
+      "id": "runtime:candidate_authority:column",
+      "kind": "column_name",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "any": [
+          {
+            "field": "relation",
+            "equals": "public.zasp_runtime_candidate_observations"
+          },
+          {
+            "field": "relation",
+            "equals": "public.zasp_runtime_candidate_snapshots"
+          }
+        ]
+      },
+      "fields": [
+        "relation",
+        "name",
+        "normalized_position",
+        "type",
+        "not_null",
+        "identity",
+        "generated",
+        "acl_text_or_empty",
+        "default_text_or_empty"
+      ]
+    },
+    {
+      "id": "runtime:candidate_authority:constraint",
+      "kind": "constraint",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "any": [
+          {
+            "field": "relation",
+            "equals": "public.zasp_runtime_candidate_observations"
+          },
+          {
+            "field": "relation",
+            "equals": "public.zasp_runtime_candidate_snapshots"
+          }
+        ]
+      },
+      "fields": [
+        "relation",
+        "name",
+        "validated",
+        "definition_pretty"
+      ]
+    },
+    {
+      "id": "runtime:candidate_authority:index",
+      "kind": "index",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "any": [
+          {
+            "field": "relation",
+            "equals": "public.zasp_runtime_candidate_observations"
+          },
+          {
+            "field": "relation",
+            "equals": "public.zasp_runtime_candidate_snapshots"
+          }
+        ]
+      },
+      "fields": [
+        "valid",
+        "ready",
+        "live",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:candidate_authority:policy",
+      "kind": "policy_view",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "relation_name",
+                "equals": "zasp_runtime_candidate_observations"
+              },
+              {
+                "field": "relation_name",
+                "equals": "zasp_runtime_candidate_snapshots"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "relation_name",
+        "name",
+        "roles_text",
+        "permissive",
+        "command",
+        "using",
+        "check"
+      ]
+    },
+    {
+      "id": "runtime:candidate_authority:trigger",
+      "kind": "trigger",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "any": [
+          {
+            "field": "relation",
+            "equals": "public.zasp_runtime_candidate_observations"
+          },
+          {
+            "field": "relation",
+            "equals": "public.zasp_runtime_candidate_snapshots"
+          }
+        ]
+      },
+      "predicate": "user-triggers",
+      "fields": [
+        "relation",
+        "name",
+        "enabled",
+        "definition_pretty"
+      ]
+    },
+    {
+      "id": "runtime:correlation_routing:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_runtime_claim_stage_compatible"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_claim_correlation_v2"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_correlation_claim_version_guard"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_correlation_routing_security_ready"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_correlation_routing_readiness"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_acceptance_readiness_v48"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:correlation_routing:trigger",
+      "kind": "trigger",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "relation",
+            "equals": "public.zasp_runtime_stage_work"
+          },
+          {
+            "field": "name",
+            "equals": "zasp_runtime_correlation_claim_version"
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "enabled",
+        "definition_pretty"
+      ]
+    },
+    {
+      "id": "runtime:enrollment_pairing:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_runtime_pairing_immutable"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_bind_batch_domain"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_public_sensor_value"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_public_sensor_value_v44"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_public_create_sensor"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_public_create_sensor_v44"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_enrollment_pairing_readiness"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_enrollment_pairing_security_ready"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:enrollment_pairing:table",
+      "kind": "relation",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_runtime_sensor_pairings"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_batch_domains"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "owner",
+        "row_security",
+        "forced_row_security",
+        "acl_text_or_empty"
+      ]
+    },
+    {
+      "id": "runtime:enrollment_pairing:column",
+      "kind": "information_column",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "relation_name",
+                "equals": "zasp_runtime_sensor_pairings"
+              },
+              {
+                "field": "relation_name",
+                "equals": "zasp_runtime_batch_domains"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "relation_name",
+        "name",
+        "data_type",
+        "is_nullable",
+        "default_text_or_empty"
+      ]
+    },
+    {
+      "id": "runtime:enrollment_pairing:constraint",
+      "kind": "global_constraint",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "any": [
+          {
+            "any": [
+              {
+                "field": "relation",
+                "equals": "public.zasp_runtime_sensor_pairings"
+              },
+              {
+                "field": "relation",
+                "equals": "public.zasp_runtime_batch_domains"
+              }
+            ]
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_sensor_kind_identity_v45"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_batch_source_identity_v45"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "relation",
+        "name",
+        "definition_pretty"
+      ]
+    },
+    {
+      "id": "runtime:enrollment_pairing:policy",
+      "kind": "policy_view",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "relation_name",
+                "equals": "zasp_runtime_sensor_pairings"
+              },
+              {
+                "field": "relation_name",
+                "equals": "zasp_runtime_batch_domains"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "relation_name",
+        "name",
+        "roles_text",
+        "command",
+        "using",
+        "check"
+      ]
+    },
+    {
+      "id": "runtime:enrollment_pairing:trigger",
+      "kind": "trigger",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "any": [
+          {
+            "field": "name",
+            "equals": "zasp_runtime_sensor_pairings_immutable"
+          },
+          {
+            "field": "name",
+            "equals": "zasp_runtime_batch_domains_immutable"
+          },
+          {
+            "field": "name",
+            "equals": "zasp_runtime_batch_domain_insert"
+          }
+        ]
+      },
+      "predicate": "user-triggers",
+      "fields": [
+        "name",
+        "enabled",
+        "definition_pretty"
+      ]
+    },
+    {
+      "id": "runtime:queue_replay:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_runtime_claim_delivery"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_commit_reserved_batch"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_queue_replay_security_ready"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:session_evidence:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_runtime_session_event_get"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_session_evidence_readiness"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_session_evidence_security_ready"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:session_query:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_runtime_session_query_status"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_session_query_hydrate"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_session_query_readiness"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_session_query_security_ready"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:session_reads:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_session_reads_readiness"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_session_reads_security_ready"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_session_maintain_summary"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_session_summary_json"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_session_read_authorized"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_session_page"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_session_get"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_runtime_session_event_page"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:session_reads:table",
+      "kind": "relation",
+      "namespaces": [],
+      "identities": [
+        "public.zasp_runtime_session_summaries"
+      ],
+      "fields": [
+        "name",
+        "owner",
+        "row_security",
+        "forced_row_security",
+        "acl_text_or_empty"
+      ]
+    },
+    {
+      "id": "runtime:session_reads:constraint",
+      "kind": "constraint",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_runtime_session_summaries"
+      },
+      "fields": [
+        "name",
+        "definition",
+        "validated"
+      ]
+    },
+    {
+      "id": "runtime:session_reads:column",
+      "kind": "column_name",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_runtime_session_summaries"
+      },
+      "fields": [
+        "name",
+        "type",
+        "not_null"
+      ]
+    },
+    {
+      "id": "runtime:session_reads:policy",
+      "kind": "policy_view",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "field": "relation_name",
+            "equals": "zasp_runtime_session_summaries"
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "roles_text",
+        "command",
+        "using",
+        "check"
+      ]
+    },
+    {
+      "id": "runtime:session_reads:index",
+      "kind": "index_view",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "field": "relation_name",
+            "equals": "zasp_runtime_session_summaries"
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:session_reads:trigger",
+      "kind": "trigger",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_runtime_session_events"
+      },
+      "predicate": "user-triggers",
+      "fields": [
+        "name",
+        "enabled",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:session_search:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "like": "zasp_runtime_session_search_%"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_session_search_readiness"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_runtime_session_search_security_ready"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:session_search:table",
+      "kind": "relation",
+      "namespaces": [],
+      "identities": [
+        "public.zasp_runtime_session_search_outbox"
+      ],
+      "fields": [
+        "name",
+        "owner",
+        "row_security",
+        "forced_row_security",
+        "acl_text_or_empty"
+      ]
+    },
+    {
+      "id": "runtime:session_search:constraint",
+      "kind": "constraint",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_runtime_session_search_outbox"
+      },
+      "fields": [
+        "name",
+        "definition",
+        "validated"
+      ]
+    },
+    {
+      "id": "runtime:session_search:column",
+      "kind": "column_name",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_runtime_session_search_outbox"
+      },
+      "fields": [
+        "name",
+        "type",
+        "not_null",
+        "default_text_or_empty"
+      ]
+    },
+    {
+      "id": "runtime:session_search:policy",
+      "kind": "policy_view",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "field": "relation_name",
+            "equals": "zasp_runtime_session_search_outbox"
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "roles_text",
+        "command",
+        "using",
+        "check"
+      ]
+    },
+    {
+      "id": "runtime:session_search:index",
+      "kind": "index_view",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "field": "relation_name",
+            "equals": "zasp_runtime_session_search_outbox"
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "definition"
+      ]
+    },
+    {
+      "id": "runtime:session_search:trigger",
+      "kind": "trigger",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_runtime_session_projection_receipts"
+      },
+      "predicate": "user-triggers",
+      "fields": [
+        "name",
+        "enabled",
+        "definition"
+      ]
+    },
+    {
+      "id": "product:approval_notification:table",
+      "kind": "relation",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "field": "name",
+            "equals": "zasp_security_agent_approval_notifications"
+          },
+          {
+            "any": [
+              {
+                "field": "relation_kind",
+                "equals": "r"
+              },
+              {
+                "field": "relation_kind",
+                "equals": "i"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "owner",
+        "row_security",
+        "forced_row_security",
+        "acl_text_or_empty"
+      ]
+    },
+    {
+      "id": "product:approval_notification:column",
+      "kind": "column",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_security_agent_approval_notifications"
+      },
+      "fields": [
+        "relation_name",
+        "position",
+        "name",
+        "type",
+        "not_null",
+        "default_text_or_empty"
+      ]
+    },
+    {
+      "id": "product:approval_notification:constraint",
+      "kind": "constraint",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_security_agent_approval_notifications"
+      },
+      "fields": [
+        "name",
+        "constraint_type",
+        "validated",
+        "definition_pretty"
+      ]
+    },
+    {
+      "id": "product:approval_notification:index",
+      "kind": "index",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_security_agent_approval_notifications"
+      },
+      "fields": [
+        "name",
+        "definition"
+      ]
+    },
+    {
+      "id": "product:approval_notification:policy",
+      "kind": "policy",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_security_agent_approval_notifications"
+      },
+      "fields": [
+        "name",
+        "permissive",
+        "roles_csv_public_sorted",
+        "using_text_or_empty",
+        "check_text_or_empty"
+      ]
+    },
+    {
+      "id": "product:approval_notification:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_security_agent_enqueue_approval_notification"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_security_agent_claim_approval_notification"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_security_agent_complete_approval_notification"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_security_agent_fail_approval_notification"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_approval_notification_security_ready"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_approval_notification_readiness"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_home_attention_readiness"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "product:approval_notification:trigger",
+      "kind": "trigger",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "relation",
+            "equals": "public.zasp_security_agent_approvals"
+          },
+          {
+            "field": "name",
+            "equals": "zasp_security_agent_enqueue_approval_notification_v30"
+          }
+        ]
+      },
+      "predicate": "user-triggers",
+      "fields": [
+        "name",
+        "definition_pretty"
+      ]
+    },
+    {
+      "id": "product:home_attention:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_inventory_home_summary"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_inventory_home_summary_v29"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "product:integration_setup:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_execution_integration_setup_status"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_integration_setup_security_ready"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "product:integration_webhook:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_integration_webhook_test_public"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_integration_webhook_test_reserve"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_integration_webhook_test_complete"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_integration_webhook_test_status"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_integration_webhook_security_ready"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "product:integration_webhook:table",
+      "kind": "relation",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "identity",
+        "equals": "public.zasp_integration_webhook_tests"
+      },
+      "fields": [
+        "name",
+        "owner",
+        "row_security",
+        "forced_row_security",
+        "acl_text_or_empty"
+      ]
+    },
+    {
+      "id": "product:integration_webhook:column",
+      "kind": "column",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_integration_webhook_tests"
+      },
+      "fields": [
+        "position",
+        "name",
+        "type",
+        "not_null",
+        "default_text_or_empty"
+      ]
+    },
+    {
+      "id": "product:integration_webhook:constraint",
+      "kind": "constraint",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_integration_webhook_tests"
+      },
+      "fields": [
+        "name",
+        "definition_pretty"
+      ]
+    },
+    {
+      "id": "product:integration_webhook:index",
+      "kind": "index",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_integration_webhook_tests"
+      },
+      "fields": [
+        "definition"
+      ]
+    },
+    {
+      "id": "product:integration_webhook:policy",
+      "kind": "policy",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_integration_webhook_tests"
+      },
+      "fields": [
+        "name",
+        "command",
+        "permissive",
+        "roles_named_array_text",
+        "using",
+        "check"
+      ]
+    },
+    {
+      "id": "product:reconciliation_lane_plan:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_connector_claim_reconciliation"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_reconciliation_lane_plan_readiness"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_reconciliation_lane_plan_security_ready"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "product:red_team_artifacts:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_production_red_team_artifacts_readiness"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_production_red_team_artifacts_security_ready"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_red_team_valid_input_artifact"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_red_team_finish_run"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_red_team_finish_run_v38"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_red_team_get_run"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "product:red_team_artifacts:constraint",
+      "kind": "constraint",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_red_team_attempts"
+      },
+      "fields": [
+        "name",
+        "definition",
+        "validated"
+      ]
+    },
+    {
+      "id": "product:red_team_artifacts:column",
+      "kind": "column_name",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "field": "relation",
+        "equals": "public.zasp_red_team_attempts"
+      },
+      "fields": [
+        "name",
+        "type",
+        "not_null"
+      ]
+    },
+    {
+      "id": "product:red_team_invocation:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "field": "name",
+            "equals": "zasp_production_red_team_invocation_security_ready"
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "product:red_team_safety:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "field": "name",
+            "equals": "zasp_production_red_team_safety_security_ready"
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    },
+    {
+      "id": "product:workflow_compatibility:function",
+      "kind": "routine",
+      "namespaces": [],
+      "identities": [],
+      "selector": {
+        "all": [
+          {
+            "field": "namespace",
+            "equals": "public"
+          },
+          {
+            "any": [
+              {
+                "field": "name",
+                "equals": "zasp_workflow_mutate"
+              },
+              {
+                "field": "name",
+                "equals": "zasp_risk_mutate"
+              }
+            ]
+          }
+        ]
+      },
+      "fields": [
+        "name",
+        "identity_arguments",
+        "owner",
+        "security_definer",
+        "config_text_or_empty",
+        "acl_text_or_empty",
+        "definition"
+      ]
+    }
+  ],
+  "sites": [
+    {
+      "family": "acceptance",
+      "identity": "public.zasp_production_runtime_acceptance_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 123,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_runtime_candidate_authority_live_fingerprint())",
+      "sha256": "02d6d37e7050d400a99e847b429d6d4cec9c9f71afad55b86076347d43686f52",
+      "sourceSHA256": "d431ecc57e280c8fc6174f0a47c8d4706c8515d0ac2cc17d4494f4acaa5edc9b",
+      "definitionSHA256": "c4eb62cc0365f869fee4fff41cb01f5f613e9bb01930fb10e6961e67af49eecd",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "acceptance",
+      "identity": "public.zasp_production_runtime_acceptance_live_fingerprint()",
+      "type": "function",
+      "start": 123,
+      "end": 656,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',p.proname,pg_get_function_identity_arguments(p.oid),r.rolname,p.prosecdef,COALESCE(p.proconfig::text,''),COALESCE(p.proacl::text,''),pg_get_functiondef(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace JOIN pg_roles r ON r.oid=p.proowner WHERE n.nspname='public' AND p.proname IN('zasp_runtime_lookup_acceptance','zasp_production_runtime_acceptance_security_ready','zasp_production_runtime_acceptance_readiness','zasp_production_runtime_candidate_authority_readiness_v47')",
+      "sha256": "94dbe7897abda95e29de1ec83a3c11e24a61fbeed4e6d241fe2fe751547ddbef",
+      "sourceSHA256": "d431ecc57e280c8fc6174f0a47c8d4706c8515d0ac2cc17d4494f4acaa5edc9b",
+      "definitionSHA256": "c4eb62cc0365f869fee4fff41cb01f5f613e9bb01930fb10e6961e67af49eecd",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "acceptance",
+      "identity": "public.zasp_production_runtime_acceptance_live_fingerprint()",
+      "type": "digest",
+      "start": 656,
+      "end": 772,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "d431ecc57e280c8fc6174f0a47c8d4706c8515d0ac2cc17d4494f4acaa5edc9b",
+      "definitionSHA256": "c4eb62cc0365f869fee4fff41cb01f5f613e9bb01930fb10e6961e67af49eecd",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "candidate_authority",
+      "identity": "public.zasp_production_runtime_candidate_authority_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 120,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_reconciliation_lane_plan_live_fingerprint())",
+      "sha256": "642f2bf9ae435b76e700695c25c413a21618a3788b22145df2439cafeb6d3f58",
+      "sourceSHA256": "70a37e815d11cc6c3cda98dbbe5785f90625acb734816449c1fae4225f1d29e5",
+      "definitionSHA256": "2ee7365d6d576656fdc18643ded3b317f9fc59e27a6260d0e6df7f629feb4df0",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "candidate_authority",
+      "identity": "public.zasp_production_runtime_candidate_authority_live_fingerprint()",
+      "type": "function",
+      "start": 120,
+      "end": 747,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',p.proname,pg_get_function_identity_arguments(p.oid),r.rolname,p.prosecdef,COALESCE(p.proconfig::text,''),COALESCE(p.proacl::text,''),pg_get_functiondef(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace JOIN pg_roles r ON r.oid=p.proowner WHERE n.nspname='public' AND p.proname IN('zasp_runtime_candidate_lineage_valid','zasp_runtime_candidate_execution_live','zasp_runtime_freeze_candidates','zasp_production_runtime_candidate_authority_security_ready','zasp_production_runtime_candidate_authority_readiness','zasp_production_reconciliation_lane_plan_readiness_v46')",
+      "sha256": "779072c89f55fd5037d8f1381419d5f57369072945f0e4cacbb23778ac1e2264",
+      "sourceSHA256": "70a37e815d11cc6c3cda98dbbe5785f90625acb734816449c1fae4225f1d29e5",
+      "definitionSHA256": "2ee7365d6d576656fdc18643ded3b317f9fc59e27a6260d0e6df7f629feb4df0",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "candidate_authority",
+      "identity": "public.zasp_production_runtime_candidate_authority_live_fingerprint()",
+      "type": "table",
+      "start": 747,
+      "end": 1129,
+      "text": "\n UNION ALL SELECT concat_ws('|','table',c.relname,r.rolname,c.relkind,c.relrowsecurity,c.relforcerowsecurity,COALESCE(c.relacl::text,''),COALESCE(c.reloptions::text,'')) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_roles r ON r.oid=c.relowner WHERE n.nspname='public' AND c.relname IN('zasp_runtime_candidate_observations','zasp_runtime_candidate_snapshots')",
+      "sha256": "028da2ce9133cff9549725517e0ea045b7cd33b7c039a4c31c1347a857f36148",
+      "sourceSHA256": "70a37e815d11cc6c3cda98dbbe5785f90625acb734816449c1fae4225f1d29e5",
+      "definitionSHA256": "2ee7365d6d576656fdc18643ded3b317f9fc59e27a6260d0e6df7f629feb4df0",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "candidate_authority",
+      "identity": "public.zasp_production_runtime_candidate_authority_live_fingerprint()",
+      "type": "column",
+      "start": 1129,
+      "end": 1880,
+      "text": "\n UNION ALL SELECT concat_ws('|','column',a.attrelid::regclass::text,a.attname,CASE WHEN a.attrelid='public.zasp_runtime_candidate_observations'::regclass AND a.attname='sandbox_id' THEN (SELECT count(*) FROM pg_attribute live WHERE live.attrelid=a.attrelid AND live.attnum>0 AND live.attnum<=a.attnum AND NOT live.attisdropped) ELSE a.attnum END,format_type(a.atttypid,a.atttypmod),a.attnotnull,a.attidentity,a.attgenerated,COALESCE(a.attacl::text,''),COALESCE(pg_get_expr(d.adbin,d.adrelid),'')) FROM pg_attribute a LEFT JOIN pg_attrdef d ON (d.adrelid,d.adnum)=(a.attrelid,a.attnum) WHERE a.attrelid IN('public.zasp_runtime_candidate_observations'::regclass,'public.zasp_runtime_candidate_snapshots'::regclass) AND a.attnum>0 AND NOT a.attisdropped",
+      "sha256": "655d55f46dc2a65fc1fb6eb126cfab2badff64cdab33b37d9c940f6db46c7e2a",
+      "sourceSHA256": "70a37e815d11cc6c3cda98dbbe5785f90625acb734816449c1fae4225f1d29e5",
+      "definitionSHA256": "2ee7365d6d576656fdc18643ded3b317f9fc59e27a6260d0e6df7f629feb4df0",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "candidate_authority",
+      "identity": "public.zasp_production_runtime_candidate_authority_live_fingerprint()",
+      "type": "constraint",
+      "start": 1880,
+      "end": 2148,
+      "text": "\n UNION ALL SELECT concat_ws('|','constraint',conrelid::regclass::text,conname,convalidated,pg_get_constraintdef(oid,true)) FROM pg_constraint WHERE conrelid IN('public.zasp_runtime_candidate_observations'::regclass,'public.zasp_runtime_candidate_snapshots'::regclass)",
+      "sha256": "9daf1523bd9ee6b922c71e27351b4fc02b847e06f5ba79dcaa7fb73f0c92a275",
+      "sourceSHA256": "70a37e815d11cc6c3cda98dbbe5785f90625acb734816449c1fae4225f1d29e5",
+      "definitionSHA256": "2ee7365d6d576656fdc18643ded3b317f9fc59e27a6260d0e6df7f629feb4df0",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "candidate_authority",
+      "identity": "public.zasp_production_runtime_candidate_authority_live_fingerprint()",
+      "type": "index",
+      "start": 2148,
+      "end": 2416,
+      "text": "\n UNION ALL SELECT concat_ws('|','index',indexrelid::regclass::text,indisvalid,indisready,indislive,pg_get_indexdef(indexrelid)) FROM pg_index WHERE indrelid IN('public.zasp_runtime_candidate_observations'::regclass,'public.zasp_runtime_candidate_snapshots'::regclass)",
+      "sha256": "8216e9080bfb484a3781a856b9ee4e576cd18ede18639e4bab12a5e74ae2d334",
+      "sourceSHA256": "70a37e815d11cc6c3cda98dbbe5785f90625acb734816449c1fae4225f1d29e5",
+      "definitionSHA256": "2ee7365d6d576656fdc18643ded3b317f9fc59e27a6260d0e6df7f629feb4df0",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "candidate_authority",
+      "identity": "public.zasp_production_runtime_candidate_authority_live_fingerprint()",
+      "type": "policy",
+      "start": 2416,
+      "end": 2656,
+      "text": "\n UNION ALL SELECT concat_ws('|','policy',tablename,policyname,roles::text,permissive,cmd,qual,with_check) FROM pg_policies WHERE schemaname='public' AND tablename IN('zasp_runtime_candidate_observations','zasp_runtime_candidate_snapshots')",
+      "sha256": "057f81e263b94131ceeadc55533eb92fe5bc4116019f6dad5cf420e6d9fa4848",
+      "sourceSHA256": "70a37e815d11cc6c3cda98dbbe5785f90625acb734816449c1fae4225f1d29e5",
+      "definitionSHA256": "2ee7365d6d576656fdc18643ded3b317f9fc59e27a6260d0e6df7f629feb4df0",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "candidate_authority",
+      "identity": "public.zasp_production_runtime_candidate_authority_live_fingerprint()",
+      "type": "trigger",
+      "start": 2656,
+      "end": 2930,
+      "text": "\n UNION ALL SELECT concat_ws('|','trigger',tgrelid::regclass::text,tgname,tgenabled,pg_get_triggerdef(oid,true)) FROM pg_trigger WHERE tgrelid IN('public.zasp_runtime_candidate_observations'::regclass,'public.zasp_runtime_candidate_snapshots'::regclass) AND NOT tgisinternal",
+      "sha256": "a0de6c462f73fd298b6e7f1024b6cdb439719be2fa00feafe3fa25109f5f96bc",
+      "sourceSHA256": "70a37e815d11cc6c3cda98dbbe5785f90625acb734816449c1fae4225f1d29e5",
+      "definitionSHA256": "2ee7365d6d576656fdc18643ded3b317f9fc59e27a6260d0e6df7f629feb4df0",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "candidate_authority",
+      "identity": "public.zasp_production_runtime_candidate_authority_live_fingerprint()",
+      "type": "digest",
+      "start": 2930,
+      "end": 3046,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "70a37e815d11cc6c3cda98dbbe5785f90625acb734816449c1fae4225f1d29e5",
+      "definitionSHA256": "2ee7365d6d576656fdc18643ded3b317f9fc59e27a6260d0e6df7f629feb4df0",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "correlation_routing",
+      "identity": "public.zasp_production_runtime_correlation_routing_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 114,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_runtime_acceptance_live_fingerprint())",
+      "sha256": "f163bd5907c0568e6e1536023947485ad5573ea825251a0c8b87aa0aeea8e906",
+      "sourceSHA256": "3bbd0f4ef0bcadb1583d5661bb23f75c718e622e6c9ff1ce0b3e8f6284a437f7",
+      "definitionSHA256": "abface23b685a3085c70ce0dd1bd4466f2167cfb2eb8af65392fe45c4b88effd",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "correlation_routing",
+      "identity": "public.zasp_production_runtime_correlation_routing_live_fingerprint()",
+      "type": "function",
+      "start": 114,
+      "end": 744,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',p.proname,pg_get_function_identity_arguments(p.oid),r.rolname,p.prosecdef,COALESCE(p.proconfig::text,''),COALESCE(p.proacl::text,''),pg_get_functiondef(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace JOIN pg_roles r ON r.oid=p.proowner WHERE n.nspname='public' AND p.proname IN('zasp_runtime_claim_stage_compatible','zasp_runtime_claim_correlation_v2','zasp_runtime_correlation_claim_version_guard','zasp_production_runtime_correlation_routing_security_ready','zasp_production_runtime_correlation_routing_readiness','zasp_production_runtime_acceptance_readiness_v48')",
+      "sha256": "5474981b0232010c225d8a7d73f8f71328dfa5324ddb422dc0fc32641a1f761f",
+      "sourceSHA256": "3bbd0f4ef0bcadb1583d5661bb23f75c718e622e6c9ff1ce0b3e8f6284a437f7",
+      "definitionSHA256": "abface23b685a3085c70ce0dd1bd4466f2167cfb2eb8af65392fe45c4b88effd",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "correlation_routing",
+      "identity": "public.zasp_production_runtime_correlation_routing_live_fingerprint()",
+      "type": "trigger",
+      "start": 744,
+      "end": 969,
+      "text": "\n UNION ALL SELECT concat_ws('|','trigger',t.tgname,t.tgenabled,pg_get_triggerdef(t.oid,true)) FROM pg_trigger t WHERE t.tgrelid='public.zasp_runtime_stage_work'::regclass AND t.tgname='zasp_runtime_correlation_claim_version'",
+      "sha256": "b816206d702336d325b063a2da51c0d4e747136d428d6dd754c79a12cb2fd628",
+      "sourceSHA256": "3bbd0f4ef0bcadb1583d5661bb23f75c718e622e6c9ff1ce0b3e8f6284a437f7",
+      "definitionSHA256": "abface23b685a3085c70ce0dd1bd4466f2167cfb2eb8af65392fe45c4b88effd",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "correlation_routing",
+      "identity": "public.zasp_production_runtime_correlation_routing_live_fingerprint()",
+      "type": "digest",
+      "start": 969,
+      "end": 1085,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "3bbd0f4ef0bcadb1583d5661bb23f75c718e622e6c9ff1ce0b3e8f6284a437f7",
+      "definitionSHA256": "abface23b685a3085c70ce0dd1bd4466f2167cfb2eb8af65392fe45c4b88effd",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "enrollment_pairing",
+      "identity": "public.zasp_production_runtime_enrollment_pairing_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 120,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_runtime_session_evidence_live_fingerprint())",
+      "sha256": "0e9672c3627ad50d01a58f079ec814c697d96de6ed921fb5cfcd99b278486a43",
+      "sourceSHA256": "dc52bfd60b97d0c0abe65350de4f6157fd28d99f2209a57b5cf36b64fea20a4d",
+      "definitionSHA256": "45baaa1e8e7bb71c265490cba0638db5de276b559afbff69be84dfcdd0a6d87f",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "enrollment_pairing",
+      "identity": "public.zasp_production_runtime_enrollment_pairing_live_fingerprint()",
+      "type": "function",
+      "start": 120,
+      "end": 792,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',p.proname,pg_get_function_identity_arguments(p.oid),r.rolname,p.prosecdef,COALESCE(p.proconfig::text,''),COALESCE(p.proacl::text,''),pg_get_functiondef(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace JOIN pg_roles r ON r.oid=p.proowner WHERE n.nspname='public' AND p.proname IN('zasp_runtime_pairing_immutable','zasp_runtime_bind_batch_domain','zasp_runtime_public_sensor_value','zasp_runtime_public_sensor_value_v44','zasp_runtime_public_create_sensor','zasp_runtime_public_create_sensor_v44','zasp_production_runtime_enrollment_pairing_readiness','zasp_production_runtime_enrollment_pairing_security_ready')",
+      "sha256": "1c306a62eacd107cd8f3f26bc8612eff130418d42e61e769eb7d3a082e0ac08c",
+      "sourceSHA256": "dc52bfd60b97d0c0abe65350de4f6157fd28d99f2209a57b5cf36b64fea20a4d",
+      "definitionSHA256": "45baaa1e8e7bb71c265490cba0638db5de276b559afbff69be84dfcdd0a6d87f",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "enrollment_pairing",
+      "identity": "public.zasp_production_runtime_enrollment_pairing_live_fingerprint()",
+      "type": "table",
+      "start": 792,
+      "end": 1119,
+      "text": "\n UNION ALL SELECT concat_ws('|','table',c.relname,r.rolname,c.relrowsecurity,c.relforcerowsecurity,COALESCE(c.relacl::text,'')) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_roles r ON r.oid=c.relowner WHERE n.nspname='public' AND c.relname IN('zasp_runtime_sensor_pairings','zasp_runtime_batch_domains')",
+      "sha256": "c188955990b5bf12984dee3a0086cb33b90b64689ab3d664d652fd59615adb79",
+      "sourceSHA256": "dc52bfd60b97d0c0abe65350de4f6157fd28d99f2209a57b5cf36b64fea20a4d",
+      "definitionSHA256": "45baaa1e8e7bb71c265490cba0638db5de276b559afbff69be84dfcdd0a6d87f",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "enrollment_pairing",
+      "identity": "public.zasp_production_runtime_enrollment_pairing_live_fingerprint()",
+      "type": "column",
+      "start": 1119,
+      "end": 1373,
+      "text": "\n UNION ALL SELECT concat_ws('|','column',table_name,column_name,data_type,is_nullable,COALESCE(column_default,'')) FROM information_schema.columns WHERE table_schema='public' AND table_name IN('zasp_runtime_sensor_pairings','zasp_runtime_batch_domains')",
+      "sha256": "5d689a8fec86cbabd4b3e0a7b89be7f3322d4554f50d328084ae8507fab8cf73",
+      "sourceSHA256": "dc52bfd60b97d0c0abe65350de4f6157fd28d99f2209a57b5cf36b64fea20a4d",
+      "definitionSHA256": "45baaa1e8e7bb71c265490cba0638db5de276b559afbff69be84dfcdd0a6d87f",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "enrollment_pairing",
+      "identity": "public.zasp_production_runtime_enrollment_pairing_live_fingerprint()",
+      "type": "constraint",
+      "start": 1373,
+      "end": 1703,
+      "text": "\n UNION ALL SELECT concat_ws('|','constraint',conrelid::regclass::text,conname,pg_get_constraintdef(oid,true)) FROM pg_constraint WHERE conrelid IN('public.zasp_runtime_sensor_pairings'::regclass,'public.zasp_runtime_batch_domains'::regclass) OR conname IN('zasp_sensor_kind_identity_v45','zasp_runtime_batch_source_identity_v45')",
+      "sha256": "8505364e12b6721cfd724b578ff4d1498bb7ccd94c6e1af7ab65229291e14d8b",
+      "sourceSHA256": "dc52bfd60b97d0c0abe65350de4f6157fd28d99f2209a57b5cf36b64fea20a4d",
+      "definitionSHA256": "45baaa1e8e7bb71c265490cba0638db5de276b559afbff69be84dfcdd0a6d87f",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "enrollment_pairing",
+      "identity": "public.zasp_production_runtime_enrollment_pairing_live_fingerprint()",
+      "type": "policy",
+      "start": 1703,
+      "end": 1919,
+      "text": "\n UNION ALL SELECT concat_ws('|','policy',tablename,policyname,roles::text,cmd,qual,with_check) FROM pg_policies WHERE schemaname='public' AND tablename IN('zasp_runtime_sensor_pairings','zasp_runtime_batch_domains')",
+      "sha256": "d8b63a1a443fceddd8351c476877a507ccf7810e8f29c319d158588291dc5cdf",
+      "sourceSHA256": "dc52bfd60b97d0c0abe65350de4f6157fd28d99f2209a57b5cf36b64fea20a4d",
+      "definitionSHA256": "45baaa1e8e7bb71c265490cba0638db5de276b559afbff69be84dfcdd0a6d87f",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "enrollment_pairing",
+      "identity": "public.zasp_production_runtime_enrollment_pairing_live_fingerprint()",
+      "type": "trigger",
+      "start": 1919,
+      "end": 2176,
+      "text": "\n UNION ALL SELECT concat_ws('|','trigger',tgname,tgenabled,pg_get_triggerdef(oid,true)) FROM pg_trigger WHERE tgname IN('zasp_runtime_sensor_pairings_immutable','zasp_runtime_batch_domains_immutable','zasp_runtime_batch_domain_insert') AND NOT tgisinternal",
+      "sha256": "9ff6157c4ffb9899aa996e503e9bea4b3783af081223af5de965e217e9f059e0",
+      "sourceSHA256": "dc52bfd60b97d0c0abe65350de4f6157fd28d99f2209a57b5cf36b64fea20a4d",
+      "definitionSHA256": "45baaa1e8e7bb71c265490cba0638db5de276b559afbff69be84dfcdd0a6d87f",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "enrollment_pairing",
+      "identity": "public.zasp_production_runtime_enrollment_pairing_live_fingerprint()",
+      "type": "digest",
+      "start": 2176,
+      "end": 2292,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "dc52bfd60b97d0c0abe65350de4f6157fd28d99f2209a57b5cf36b64fea20a4d",
+      "definitionSHA256": "45baaa1e8e7bb71c265490cba0638db5de276b559afbff69be84dfcdd0a6d87f",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "precision",
+      "identity": "public.zasp_production_runtime_precision_live_fingerprint()",
+      "type": "conditional-wrapper",
+      "start": 0,
+      "end": 404,
+      "text": "\n SELECT CASE WHEN EXISTS(SELECT 1 FROM zasp_temporal72.registration WHERE checksum='e51eecf1201f930449ea508838e94dd5344262f92a4d23768999d93697f2c940' AND fingerprint='b5d7f17f5350c89b337c6c875975402ab67b10ffc6facc2ea34c042342e9f07e') AND zasp_temporal72.fingerprint()='b5d7f17f5350c89b337c6c875975402ab67b10ffc6facc2ea34c042342e9f07e' THEN zasp_temporal72.retained_precision_fingerprint() ELSE NULL END\n",
+      "sha256": "b6f6310ddee97053ec8dbb36b2e18a0604bdf8272d5bc0e1faeaadfb02118892",
+      "sourceSHA256": "b6f6310ddee97053ec8dbb36b2e18a0604bdf8272d5bc0e1faeaadfb02118892",
+      "definitionSHA256": "2540e996d735a54a96a1fd3add0c1ff3bdd034b5f0d67825ab9fee137603c797",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "queue_replay",
+      "identity": "public.zasp_production_runtime_queue_replay_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 115,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_integration_webhook_live_fingerprint())",
+      "sha256": "44de4dd95f19423b279447bbf1c15aa3de0c48f3920c3c577adda703aefe614e",
+      "sourceSHA256": "1783f14f02de63688cee1d4b1c3f1adea0e7cde92e1a4b73325c9f1859b3df56",
+      "definitionSHA256": "dffd80d7ba89678e85fdd7a61fa7211a17842ce175c17585b989cf60fef177f7",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "queue_replay",
+      "identity": "public.zasp_production_runtime_queue_replay_live_fingerprint()",
+      "type": "function",
+      "start": 115,
+      "end": 693,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname IN('zasp_runtime_claim_delivery','zasp_runtime_commit_reserved_batch','zasp_production_runtime_queue_replay_security_ready')",
+      "sha256": "2d62dda2fdb67bc471ff8aebe2691c81948b0bf5f668f58a2e59be870892cf72",
+      "sourceSHA256": "1783f14f02de63688cee1d4b1c3f1adea0e7cde92e1a4b73325c9f1859b3df56",
+      "definitionSHA256": "dffd80d7ba89678e85fdd7a61fa7211a17842ce175c17585b989cf60fef177f7",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "queue_replay",
+      "identity": "public.zasp_production_runtime_queue_replay_live_fingerprint()",
+      "type": "digest",
+      "start": 693,
+      "end": 809,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "1783f14f02de63688cee1d4b1c3f1adea0e7cde92e1a4b73325c9f1859b3df56",
+      "definitionSHA256": "dffd80d7ba89678e85fdd7a61fa7211a17842ce175c17585b989cf60fef177f7",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_evidence",
+      "identity": "public.zasp_production_runtime_session_evidence_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 117,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_runtime_session_query_live_fingerprint())",
+      "sha256": "3beaa7e41531072a5d5a095cc9fd27a9ce246ce432ff1a668bc17b10e52c2568",
+      "sourceSHA256": "198275cf2c10977f1e98ea9da6afe4f56bd00952f9f2b8cccaa0043f799d97b5",
+      "definitionSHA256": "ad4c99b4c03b1f3a520e7fa2b5431ae18d869d745b8cfcebc58e3f2d1eba227d",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_evidence",
+      "identity": "public.zasp_production_runtime_session_evidence_live_fingerprint()",
+      "type": "function",
+      "start": 117,
+      "end": 718,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname IN('zasp_runtime_session_event_get','zasp_production_runtime_session_evidence_readiness','zasp_production_runtime_session_evidence_security_ready')",
+      "sha256": "dae9b2b47a0bf80958a0646a024ffa51f6435404f1b488eda680b97df11f90d8",
+      "sourceSHA256": "198275cf2c10977f1e98ea9da6afe4f56bd00952f9f2b8cccaa0043f799d97b5",
+      "definitionSHA256": "ad4c99b4c03b1f3a520e7fa2b5431ae18d869d745b8cfcebc58e3f2d1eba227d",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_evidence",
+      "identity": "public.zasp_production_runtime_session_evidence_live_fingerprint()",
+      "type": "digest",
+      "start": 718,
+      "end": 834,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "198275cf2c10977f1e98ea9da6afe4f56bd00952f9f2b8cccaa0043f799d97b5",
+      "definitionSHA256": "ad4c99b4c03b1f3a520e7fa2b5431ae18d869d745b8cfcebc58e3f2d1eba227d",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_query",
+      "identity": "public.zasp_production_runtime_session_query_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 118,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_runtime_session_search_live_fingerprint())",
+      "sha256": "6fc052070405ee9bda5f1893d97c7b070da8f1a09cd56fa9439be82dfdd206a0",
+      "sourceSHA256": "fb2e2700987e01048bce1bef5c0b4de3ac8696ce8c539b3599bbc862d84f287e",
+      "definitionSHA256": "0cd3d849e94541e0528b4e97e12bf39f0e0d591a5f2cd5186ec9a73d4b80879b",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_query",
+      "identity": "public.zasp_production_runtime_session_query_live_fingerprint()",
+      "type": "function",
+      "start": 118,
+      "end": 753,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname IN('zasp_runtime_session_query_status','zasp_runtime_session_query_hydrate','zasp_production_runtime_session_query_readiness','zasp_production_runtime_session_query_security_ready')",
+      "sha256": "92724716d26b03727409355ff0620aa7758ac05491a1bb223d7513dca598fa80",
+      "sourceSHA256": "fb2e2700987e01048bce1bef5c0b4de3ac8696ce8c539b3599bbc862d84f287e",
+      "definitionSHA256": "0cd3d849e94541e0528b4e97e12bf39f0e0d591a5f2cd5186ec9a73d4b80879b",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_query",
+      "identity": "public.zasp_production_runtime_session_query_live_fingerprint()",
+      "type": "digest",
+      "start": 753,
+      "end": 869,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "fb2e2700987e01048bce1bef5c0b4de3ac8696ce8c539b3599bbc862d84f287e",
+      "definitionSHA256": "0cd3d849e94541e0528b4e97e12bf39f0e0d591a5f2cd5186ec9a73d4b80879b",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_reads",
+      "identity": "public.zasp_production_runtime_session_reads_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 112,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_runtime_sessions_live_fingerprint())",
+      "sha256": "33f0acffeaa63a2550ac5cedb5b1680e73c3e64d97ef21abb4a61c5a7734e1af",
+      "sourceSHA256": "74a7fdf8b833a8586150990601e682eacdab96b0eaf80d8182b8f93992ec2336",
+      "definitionSHA256": "a18b7c5b1c902d7a8ae2ec6e9d7c571c8321e5b1d3740807027f540c27d45713",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_reads",
+      "identity": "public.zasp_production_runtime_session_reads_live_fingerprint()",
+      "type": "function",
+      "start": 112,
+      "end": 878,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname IN('zasp_production_runtime_session_reads_readiness','zasp_production_runtime_session_reads_security_ready','zasp_runtime_session_maintain_summary','zasp_runtime_session_summary_json','zasp_runtime_session_read_authorized','zasp_runtime_session_page','zasp_runtime_session_get','zasp_runtime_session_event_page')",
+      "sha256": "bcb17e708ebfadce8d19ae96c0d9e8d44efcbca609fc6db93ecd8b2b012bb10b",
+      "sourceSHA256": "74a7fdf8b833a8586150990601e682eacdab96b0eaf80d8182b8f93992ec2336",
+      "definitionSHA256": "a18b7c5b1c902d7a8ae2ec6e9d7c571c8321e5b1d3740807027f540c27d45713",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_reads",
+      "identity": "public.zasp_production_runtime_session_reads_live_fingerprint()",
+      "type": "table",
+      "start": 878,
+      "end": 1086,
+      "text": "\n UNION ALL SELECT concat_ws('|','table',relname,relowner::regrole::text,relrowsecurity,relforcerowsecurity,COALESCE(relacl::text,'')) FROM pg_class WHERE oid='public.zasp_runtime_session_summaries'::regclass",
+      "sha256": "5ad6a8213f6567e05d86847660375d1da098cc45daa7f80a56dc37b99dbb0ede",
+      "sourceSHA256": "74a7fdf8b833a8586150990601e682eacdab96b0eaf80d8182b8f93992ec2336",
+      "definitionSHA256": "a18b7c5b1c902d7a8ae2ec6e9d7c571c8321e5b1d3740807027f540c27d45713",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_reads",
+      "identity": "public.zasp_production_runtime_session_reads_live_fingerprint()",
+      "type": "constraint",
+      "start": 1086,
+      "end": 1263,
+      "text": "\n UNION ALL SELECT concat_ws('|','constraint',conname,pg_get_constraintdef(oid),convalidated) FROM pg_constraint WHERE conrelid='public.zasp_runtime_session_summaries'::regclass",
+      "sha256": "1fcfc619e77d788bb56eaa35bcfadb4c56e11f42213a07229a78cfe4bea00f51",
+      "sourceSHA256": "74a7fdf8b833a8586150990601e682eacdab96b0eaf80d8182b8f93992ec2336",
+      "definitionSHA256": "a18b7c5b1c902d7a8ae2ec6e9d7c571c8321e5b1d3740807027f540c27d45713",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_reads",
+      "identity": "public.zasp_production_runtime_session_reads_live_fingerprint()",
+      "type": "column",
+      "start": 1263,
+      "end": 1473,
+      "text": "\n UNION ALL SELECT concat_ws('|','column',attname,format_type(atttypid,atttypmod),attnotnull) FROM pg_attribute WHERE attrelid='public.zasp_runtime_session_summaries'::regclass AND attnum>0 AND NOT attisdropped",
+      "sha256": "7e139be871e187358c78006e12b1e5b1f9fcda1639e9a76e2cbbedb92a8c9fa6",
+      "sourceSHA256": "74a7fdf8b833a8586150990601e682eacdab96b0eaf80d8182b8f93992ec2336",
+      "definitionSHA256": "a18b7c5b1c902d7a8ae2ec6e9d7c571c8321e5b1d3740807027f540c27d45713",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_reads",
+      "identity": "public.zasp_production_runtime_session_reads_live_fingerprint()",
+      "type": "policy",
+      "start": 1473,
+      "end": 1648,
+      "text": "\n UNION ALL SELECT concat_ws('|','policy',policyname,roles::text,cmd,qual,with_check) FROM pg_policies WHERE schemaname='public' AND tablename='zasp_runtime_session_summaries'",
+      "sha256": "b293aaa5bf74039847528026a06525bd81e4b4e3ecfba189f8150d330dd42fd6",
+      "sourceSHA256": "74a7fdf8b833a8586150990601e682eacdab96b0eaf80d8182b8f93992ec2336",
+      "definitionSHA256": "a18b7c5b1c902d7a8ae2ec6e9d7c571c8321e5b1d3740807027f540c27d45713",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_reads",
+      "identity": "public.zasp_production_runtime_session_reads_live_fingerprint()",
+      "type": "index",
+      "start": 1648,
+      "end": 1797,
+      "text": "\n UNION ALL SELECT concat_ws('|','index',indexname,indexdef) FROM pg_indexes WHERE schemaname='public' AND tablename='zasp_runtime_session_summaries'",
+      "sha256": "108d5ce23b042a06e037c21038d711596eab60607378be8d48338594ddce5b75",
+      "sourceSHA256": "74a7fdf8b833a8586150990601e682eacdab96b0eaf80d8182b8f93992ec2336",
+      "definitionSHA256": "a18b7c5b1c902d7a8ae2ec6e9d7c571c8321e5b1d3740807027f540c27d45713",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_reads",
+      "identity": "public.zasp_production_runtime_session_reads_live_fingerprint()",
+      "type": "trigger",
+      "start": 1797,
+      "end": 1978,
+      "text": "\n UNION ALL SELECT concat_ws('|','trigger',tgname,tgenabled,pg_get_triggerdef(oid)) FROM pg_trigger WHERE tgrelid='public.zasp_runtime_session_events'::regclass AND NOT tgisinternal",
+      "sha256": "7f41d93d6e4f6f8a6634034205c7e193df9333937ee86b4a4ad8e1c9888ec204",
+      "sourceSHA256": "74a7fdf8b833a8586150990601e682eacdab96b0eaf80d8182b8f93992ec2336",
+      "definitionSHA256": "a18b7c5b1c902d7a8ae2ec6e9d7c571c8321e5b1d3740807027f540c27d45713",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_reads",
+      "identity": "public.zasp_production_runtime_session_reads_live_fingerprint()",
+      "type": "digest",
+      "start": 1978,
+      "end": 2094,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "74a7fdf8b833a8586150990601e682eacdab96b0eaf80d8182b8f93992ec2336",
+      "definitionSHA256": "a18b7c5b1c902d7a8ae2ec6e9d7c571c8321e5b1d3740807027f540c27d45713",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_search",
+      "identity": "public.zasp_production_runtime_session_search_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 117,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_runtime_session_reads_live_fingerprint())",
+      "sha256": "a61e19cf4e77d0d91715e7b75141a4238cbe398288b97c3c5e3fd8d7820120cb",
+      "sourceSHA256": "b951c37aa8c62b0ccd4901f9818cc92a95c1c3f30c515f5db123f3a074ed88a8",
+      "definitionSHA256": "dbf7b0deb04824e1c6301cdba64eb3f7d0fa0d04f0eee752dfd1138420f7b057",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_search",
+      "identity": "public.zasp_production_runtime_session_search_live_fingerprint()",
+      "type": "function",
+      "start": 117,
+      "end": 741,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND (procedure.proname LIKE 'zasp_runtime_session_search_%' OR procedure.proname IN('zasp_production_runtime_session_search_readiness','zasp_production_runtime_session_search_security_ready'))",
+      "sha256": "379ef64ced198161ce928fece78029d2fbd53421266bc1819705af940039787d",
+      "sourceSHA256": "b951c37aa8c62b0ccd4901f9818cc92a95c1c3f30c515f5db123f3a074ed88a8",
+      "definitionSHA256": "dbf7b0deb04824e1c6301cdba64eb3f7d0fa0d04f0eee752dfd1138420f7b057",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_search",
+      "identity": "public.zasp_production_runtime_session_search_live_fingerprint()",
+      "type": "table",
+      "start": 741,
+      "end": 953,
+      "text": "\n UNION ALL SELECT concat_ws('|','table',relname,relowner::regrole::text,relrowsecurity,relforcerowsecurity,COALESCE(relacl::text,'')) FROM pg_class WHERE oid='public.zasp_runtime_session_search_outbox'::regclass",
+      "sha256": "192b599d4ab0b023f37c053e1df424fffa799fdc096865554a24b48a79a88ad2",
+      "sourceSHA256": "b951c37aa8c62b0ccd4901f9818cc92a95c1c3f30c515f5db123f3a074ed88a8",
+      "definitionSHA256": "dbf7b0deb04824e1c6301cdba64eb3f7d0fa0d04f0eee752dfd1138420f7b057",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_search",
+      "identity": "public.zasp_production_runtime_session_search_live_fingerprint()",
+      "type": "constraint",
+      "start": 953,
+      "end": 1134,
+      "text": "\n UNION ALL SELECT concat_ws('|','constraint',conname,pg_get_constraintdef(oid),convalidated) FROM pg_constraint WHERE conrelid='public.zasp_runtime_session_search_outbox'::regclass",
+      "sha256": "41ed764025af22bcdf631dc0c182ca259c277b83421bdf8c5ec18f6130a6b99d",
+      "sourceSHA256": "b951c37aa8c62b0ccd4901f9818cc92a95c1c3f30c515f5db123f3a074ed88a8",
+      "definitionSHA256": "dbf7b0deb04824e1c6301cdba64eb3f7d0fa0d04f0eee752dfd1138420f7b057",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_search",
+      "identity": "public.zasp_production_runtime_session_search_live_fingerprint()",
+      "type": "column",
+      "start": 1134,
+      "end": 1612,
+      "text": "\n UNION ALL SELECT concat_ws('|','column',attname,format_type(atttypid,atttypmod),attnotnull,COALESCE(pg_get_expr(default_value.adbin,default_value.adrelid),'')) FROM pg_attribute attribute_value LEFT JOIN pg_attrdef default_value ON default_value.adrelid=attribute_value.attrelid AND default_value.adnum=attribute_value.attnum WHERE attribute_value.attrelid='public.zasp_runtime_session_search_outbox'::regclass AND attribute_value.attnum>0 AND NOT attribute_value.attisdropped",
+      "sha256": "435d613b473966c4bbfc90de25eb830e12c7df19766e5c6bc34c8a499d975172",
+      "sourceSHA256": "b951c37aa8c62b0ccd4901f9818cc92a95c1c3f30c515f5db123f3a074ed88a8",
+      "definitionSHA256": "dbf7b0deb04824e1c6301cdba64eb3f7d0fa0d04f0eee752dfd1138420f7b057",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_search",
+      "identity": "public.zasp_production_runtime_session_search_live_fingerprint()",
+      "type": "policy",
+      "start": 1612,
+      "end": 1791,
+      "text": "\n UNION ALL SELECT concat_ws('|','policy',policyname,roles::text,cmd,qual,with_check) FROM pg_policies WHERE schemaname='public' AND tablename='zasp_runtime_session_search_outbox'",
+      "sha256": "060692c0c2db386cf21c5589bb4ef5a8ea06847514670b47d2d188991669ac11",
+      "sourceSHA256": "b951c37aa8c62b0ccd4901f9818cc92a95c1c3f30c515f5db123f3a074ed88a8",
+      "definitionSHA256": "dbf7b0deb04824e1c6301cdba64eb3f7d0fa0d04f0eee752dfd1138420f7b057",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_search",
+      "identity": "public.zasp_production_runtime_session_search_live_fingerprint()",
+      "type": "index",
+      "start": 1791,
+      "end": 1944,
+      "text": "\n UNION ALL SELECT concat_ws('|','index',indexname,indexdef) FROM pg_indexes WHERE schemaname='public' AND tablename='zasp_runtime_session_search_outbox'",
+      "sha256": "441e7c5e87d793da88a539f7b99141e21e3cc38d0bd644f738d85e32c893e403",
+      "sourceSHA256": "b951c37aa8c62b0ccd4901f9818cc92a95c1c3f30c515f5db123f3a074ed88a8",
+      "definitionSHA256": "dbf7b0deb04824e1c6301cdba64eb3f7d0fa0d04f0eee752dfd1138420f7b057",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_search",
+      "identity": "public.zasp_production_runtime_session_search_live_fingerprint()",
+      "type": "trigger",
+      "start": 1944,
+      "end": 2138,
+      "text": "\n UNION ALL SELECT concat_ws('|','trigger',tgname,tgenabled,pg_get_triggerdef(oid)) FROM pg_trigger WHERE tgrelid='public.zasp_runtime_session_projection_receipts'::regclass AND NOT tgisinternal",
+      "sha256": "15524c068e176683abb5be68cbbb28205710df02e507f5c8b47974e54df64f40",
+      "sourceSHA256": "b951c37aa8c62b0ccd4901f9818cc92a95c1c3f30c515f5db123f3a074ed88a8",
+      "definitionSHA256": "dbf7b0deb04824e1c6301cdba64eb3f7d0fa0d04f0eee752dfd1138420f7b057",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "session_search",
+      "identity": "public.zasp_production_runtime_session_search_live_fingerprint()",
+      "type": "digest",
+      "start": 2138,
+      "end": 2254,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "b951c37aa8c62b0ccd4901f9818cc92a95c1c3f30c515f5db123f3a074ed88a8",
+      "definitionSHA256": "dbf7b0deb04824e1c6301cdba64eb3f7d0fa0d04f0eee752dfd1138420f7b057",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "sessions",
+      "identity": "public.zasp_production_runtime_sessions_live_fingerprint()",
+      "type": "conditional-wrapper",
+      "start": 0,
+      "end": 133,
+      "text": "\n SELECT CASE WHEN zasp_authorization80_worker.catalog_ready() THEN zasp_authorization80_worker.runtime_projected40() ELSE NULL END\n ",
+      "sha256": "83a869dbeb2ad0a8129879b270a54de4692730f5bfb9c5eef450ee201e9ed04b",
+      "sourceSHA256": "83a869dbeb2ad0a8129879b270a54de4692730f5bfb9c5eef450ee201e9ed04b",
+      "definitionSHA256": "12857815bf14d231369905b7528434d2f528f7ec2dacbdfc65b124bf6df0ca0b",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "approval_notification",
+      "identity": "public.zasp_production_approval_notification_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 111,
+      "text": "\n WITH identities(value) AS (\n  SELECT concat_ws('|','prior',zasp_production_home_attention_live_fingerprint())",
+      "sha256": "b88007ca922d9d1ccd4b44ab97accb19b90aa3e23a66d23e60c6074419e16935",
+      "sourceSHA256": "442c82e65615ba99addbdeaea52cc2c767da812af1ecb843eed1e6c613a8f70e",
+      "definitionSHA256": "919a1534578fc77548d65c70682111ef1224265c0e448f089adbcd1b4731edc6",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "approval_notification",
+      "identity": "public.zasp_production_approval_notification_live_fingerprint()",
+      "type": "table",
+      "start": 111,
+      "end": 518,
+      "text": "\n  UNION ALL SELECT concat_ws('|','table',class.relname,owner.rolname,class.relrowsecurity,class.relforcerowsecurity,COALESCE(class.relacl::text,'')) FROM pg_class class JOIN pg_namespace namespace ON namespace.oid=class.relnamespace JOIN pg_roles owner ON owner.oid=class.relowner WHERE namespace.nspname='public' AND class.relname='zasp_security_agent_approval_notifications' AND class.relkind IN('r','i')",
+      "sha256": "2586f976604cbf8a037a73d8d18753edce392f3ec1555db17e1de88cf85b8682",
+      "sourceSHA256": "442c82e65615ba99addbdeaea52cc2c767da812af1ecb843eed1e6c613a8f70e",
+      "definitionSHA256": "919a1534578fc77548d65c70682111ef1224265c0e448f089adbcd1b4731edc6",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "approval_notification",
+      "identity": "public.zasp_production_approval_notification_live_fingerprint()",
+      "type": "column",
+      "start": 518,
+      "end": 1156,
+      "text": "\n  UNION ALL SELECT concat_ws('|','column',class.relname,attribute.attnum,attribute.attname,format_type(attribute.atttypid,attribute.atttypmod),attribute.attnotnull,COALESCE(pg_get_expr(default_value.adbin,default_value.adrelid),'')) FROM pg_attribute attribute JOIN pg_class class ON class.oid=attribute.attrelid JOIN pg_namespace namespace ON namespace.oid=class.relnamespace LEFT JOIN pg_attrdef default_value ON default_value.adrelid=class.oid AND default_value.adnum=attribute.attnum WHERE namespace.nspname='public' AND class.relname='zasp_security_agent_approval_notifications' AND attribute.attnum>0 AND NOT attribute.attisdropped",
+      "sha256": "29b28703c4fc5c55886b93dd41afec00e7f10da7e17b55f5a9261884f452ac36",
+      "sourceSHA256": "442c82e65615ba99addbdeaea52cc2c767da812af1ecb843eed1e6c613a8f70e",
+      "definitionSHA256": "919a1534578fc77548d65c70682111ef1224265c0e448f089adbcd1b4731edc6",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "approval_notification",
+      "identity": "public.zasp_production_approval_notification_live_fingerprint()",
+      "type": "constraint",
+      "start": 1156,
+      "end": 1461,
+      "text": "\n  UNION ALL SELECT concat_ws('|','constraint',constraint_value.conname,constraint_value.contype,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value WHERE constraint_value.conrelid='public.zasp_security_agent_approval_notifications'::regclass",
+      "sha256": "9f53f382fdfc2c9854d5a78f0e5a29906b87fb95e9ed7c449daf17d08cbc96ac",
+      "sourceSHA256": "442c82e65615ba99addbdeaea52cc2c767da812af1ecb843eed1e6c613a8f70e",
+      "definitionSHA256": "919a1534578fc77548d65c70682111ef1224265c0e448f089adbcd1b4731edc6",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "approval_notification",
+      "identity": "public.zasp_production_approval_notification_live_fingerprint()",
+      "type": "index",
+      "start": 1461,
+      "end": 1748,
+      "text": "\n  UNION ALL SELECT concat_ws('|','index',index_value.relname,pg_get_indexdef(index_value.oid)) FROM pg_index index_metadata JOIN pg_class index_value ON index_value.oid=index_metadata.indexrelid WHERE index_metadata.indrelid='public.zasp_security_agent_approval_notifications'::regclass",
+      "sha256": "c159a3f60ed7c8fbb2516db02f3c5034bf728f8d6edec1b7281579f1cf65c1cd",
+      "sourceSHA256": "442c82e65615ba99addbdeaea52cc2c767da812af1ecb843eed1e6c613a8f70e",
+      "definitionSHA256": "919a1534578fc77548d65c70682111ef1224265c0e448f089adbcd1b4731edc6",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "approval_notification",
+      "identity": "public.zasp_production_approval_notification_live_fingerprint()",
+      "type": "policy",
+      "start": 1748,
+      "end": 2374,
+      "text": "\n  UNION ALL SELECT concat_ws('|','policy',policy_value.polname,policy_value.polpermissive,COALESCE((SELECT string_agg(CASE WHEN role_oid=0 THEN 'PUBLIC' ELSE role_value.rolname END,',' ORDER BY CASE WHEN role_oid=0 THEN 'PUBLIC' ELSE role_value.rolname END) FROM unnest(policy_value.polroles) role_oid LEFT JOIN pg_roles role_value ON role_value.oid=role_oid),''),COALESCE(pg_get_expr(policy_value.polqual,policy_value.polrelid),''),COALESCE(pg_get_expr(policy_value.polwithcheck,policy_value.polrelid),'')) FROM pg_policy policy_value WHERE policy_value.polrelid='public.zasp_security_agent_approval_notifications'::regclass",
+      "sha256": "1da8cabc398f509f14e431593bcdd5367352161dbf686bcff9bfcf94a6f80b2b",
+      "sourceSHA256": "442c82e65615ba99addbdeaea52cc2c767da812af1ecb843eed1e6c613a8f70e",
+      "definitionSHA256": "919a1534578fc77548d65c70682111ef1224265c0e448f089adbcd1b4731edc6",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "approval_notification",
+      "identity": "public.zasp_production_approval_notification_live_fingerprint()",
+      "type": "function",
+      "start": 2374,
+      "end": 3192,
+      "text": "\n  UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname=ANY(ARRAY['zasp_security_agent_enqueue_approval_notification','zasp_security_agent_claim_approval_notification','zasp_security_agent_complete_approval_notification','zasp_security_agent_fail_approval_notification','zasp_production_approval_notification_security_ready','zasp_production_approval_notification_readiness','zasp_production_home_attention_readiness'])",
+      "sha256": "094c08ec620020ff0af9ba5abb10632b89136304e8b25b4bbb2328aec2ed2709",
+      "sourceSHA256": "442c82e65615ba99addbdeaea52cc2c767da812af1ecb843eed1e6c613a8f70e",
+      "definitionSHA256": "919a1534578fc77548d65c70682111ef1224265c0e448f089adbcd1b4731edc6",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "approval_notification",
+      "identity": "public.zasp_production_approval_notification_live_fingerprint()",
+      "type": "trigger",
+      "start": 3192,
+      "end": 3522,
+      "text": "\n  UNION ALL SELECT concat_ws('|','trigger',trigger_value.tgname,pg_get_triggerdef(trigger_value.oid,true)) FROM pg_trigger trigger_value WHERE trigger_value.tgrelid='public.zasp_security_agent_approvals'::regclass AND trigger_value.tgname='zasp_security_agent_enqueue_approval_notification_v30' AND NOT trigger_value.tgisinternal",
+      "sha256": "e291c6a0ff4094fa421614c0c3e7a60fa7d07baf84f07286ac7da16bbf37b501",
+      "sourceSHA256": "442c82e65615ba99addbdeaea52cc2c767da812af1ecb843eed1e6c613a8f70e",
+      "definitionSHA256": "919a1534578fc77548d65c70682111ef1224265c0e448f089adbcd1b4731edc6",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "approval_notification",
+      "identity": "public.zasp_production_approval_notification_live_fingerprint()",
+      "type": "digest",
+      "start": 3522,
+      "end": 3638,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "442c82e65615ba99addbdeaea52cc2c767da812af1ecb843eed1e6c613a8f70e",
+      "definitionSHA256": "919a1534578fc77548d65c70682111ef1224265c0e448f089adbcd1b4731edc6",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "home_attention",
+      "identity": "public.zasp_production_home_attention_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 113,
+      "text": "\n WITH identities(value) AS (\n  SELECT concat_ws('|','prior',zasp_policy_deployment_execution_live_fingerprint())",
+      "sha256": "3d7103b9d8f78245d1e1b2dcbe2ef37cd3cbd828f044fe578961caf33e3e83ef",
+      "sourceSHA256": "6337a8151081e2f68a773ba4ce68024f9f47af5b6db7e44fa10847e446b0580f",
+      "definitionSHA256": "043f501a18318b900177a4ae0879352e9e9764f4834323aece9404be08f62c96",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "home_attention",
+      "identity": "public.zasp_production_home_attention_live_fingerprint()",
+      "type": "function",
+      "start": 113,
+      "end": 635,
+      "text": "\n  UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname IN('zasp_inventory_home_summary','zasp_inventory_home_summary_v29')",
+      "sha256": "576f5e0e6017f0b36eb42e0dd399d5b7dbbd3293bd2ae45c9d0c03136511f1b0",
+      "sourceSHA256": "6337a8151081e2f68a773ba4ce68024f9f47af5b6db7e44fa10847e446b0580f",
+      "definitionSHA256": "043f501a18318b900177a4ae0879352e9e9764f4834323aece9404be08f62c96",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "home_attention",
+      "identity": "public.zasp_production_home_attention_live_fingerprint()",
+      "type": "digest",
+      "start": 635,
+      "end": 751,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "6337a8151081e2f68a773ba4ce68024f9f47af5b6db7e44fa10847e446b0580f",
+      "definitionSHA256": "043f501a18318b900177a4ae0879352e9e9764f4834323aece9404be08f62c96",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "integration_setup",
+      "identity": "public.zasp_production_integration_setup_live_fingerprint()",
+      "type": "live-metadata-scalar",
+      "start": 0,
+      "end": 164,
+      "text": "\n WITH identities(value) AS (\n  SELECT concat_ws('|','prior',(SELECT value FROM zasp_schema_metadata WHERE key='production_security_agent_attack_path_fingerprint'))",
+      "sha256": "04ad5987fb2b56f75c87894f7628df59ae2978d73420a061c3cec93cfb06693f",
+      "sourceSHA256": "a658f796c31c955db26a859151885b63b0e53cbc47db8a5229ad3d67fafa513e",
+      "definitionSHA256": "5068f01ec463c11cebaa181cb2b5b744499f32a1bc9b749f46251c5c75ec3625",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "integration_setup",
+      "identity": "public.zasp_production_integration_setup_live_fingerprint()",
+      "type": "compatibility",
+      "start": 164,
+      "end": 272,
+      "text": "\n  UNION ALL SELECT concat_ws('|','compatibility',zasp_production_workflow_compatibility_live_fingerprint())",
+      "sha256": "10d79f19308c75a3289edbd3a5daddead6a41df497de784bcde7dd5cbdfdfb38",
+      "sourceSHA256": "a658f796c31c955db26a859151885b63b0e53cbc47db8a5229ad3d67fafa513e",
+      "definitionSHA256": "5068f01ec463c11cebaa181cb2b5b744499f32a1bc9b749f46251c5c75ec3625",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "integration_setup",
+      "identity": "public.zasp_production_integration_setup_live_fingerprint()",
+      "type": "function",
+      "start": 272,
+      "end": 823,
+      "text": "\n  UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname IN('zasp_execution_integration_setup_status','zasp_production_integration_setup_security_ready')",
+      "sha256": "7eace15ff864ab657c3164c62129e96f26e9825c7ef15fce2838a927378c04a4",
+      "sourceSHA256": "a658f796c31c955db26a859151885b63b0e53cbc47db8a5229ad3d67fafa513e",
+      "definitionSHA256": "5068f01ec463c11cebaa181cb2b5b744499f32a1bc9b749f46251c5c75ec3625",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "integration_setup",
+      "identity": "public.zasp_production_integration_setup_live_fingerprint()",
+      "type": "digest",
+      "start": 823,
+      "end": 939,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "a658f796c31c955db26a859151885b63b0e53cbc47db8a5229ad3d67fafa513e",
+      "definitionSHA256": "5068f01ec463c11cebaa181cb2b5b744499f32a1bc9b749f46251c5c75ec3625",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "integration_webhook",
+      "identity": "public.zasp_production_integration_webhook_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 113,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_integration_setup_live_fingerprint())",
+      "sha256": "eafae7d6252d431c7124e7dede898c11ef28e45551e2ee552567b456036f007d",
+      "sourceSHA256": "1c15bc54f536113727aff8942cdf041737e8d91f33a51a69c95032570a7f1219",
+      "definitionSHA256": "45aa864f09bf795a9a373cde1a7570e0204a6354984cf1bfd0308eb1d5a146a3",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "integration_webhook",
+      "identity": "public.zasp_production_integration_webhook_live_fingerprint()",
+      "type": "function",
+      "start": 113,
+      "end": 782,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname IN('zasp_integration_webhook_test_public','zasp_integration_webhook_test_reserve','zasp_integration_webhook_test_complete','zasp_integration_webhook_test_status','zasp_production_integration_webhook_security_ready')",
+      "sha256": "af1f6539e300333c854d8db522cb3ee26f29e0594b5b41625a6e9221b9f56ebf",
+      "sourceSHA256": "1c15bc54f536113727aff8942cdf041737e8d91f33a51a69c95032570a7f1219",
+      "definitionSHA256": "45aa864f09bf795a9a373cde1a7570e0204a6354984cf1bfd0308eb1d5a146a3",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "integration_webhook",
+      "identity": "public.zasp_production_integration_webhook_live_fingerprint()",
+      "type": "table",
+      "start": 782,
+      "end": 1106,
+      "text": "\n UNION ALL SELECT concat_ws('|','table',table_value.relname,owner.rolname,table_value.relrowsecurity,table_value.relforcerowsecurity,COALESCE(table_value.relacl::text,'')) FROM pg_class table_value JOIN pg_roles owner ON owner.oid=table_value.relowner WHERE table_value.oid='public.zasp_integration_webhook_tests'::regclass",
+      "sha256": "8d8fab0cc5fcae0edc3652ec4cf753055623e60a3d94e8dab29883bf0d635f82",
+      "sourceSHA256": "1c15bc54f536113727aff8942cdf041737e8d91f33a51a69c95032570a7f1219",
+      "definitionSHA256": "45aa864f09bf795a9a373cde1a7570e0204a6354984cf1bfd0308eb1d5a146a3",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "integration_webhook",
+      "identity": "public.zasp_production_integration_webhook_live_fingerprint()",
+      "type": "column",
+      "start": 1106,
+      "end": 1601,
+      "text": "\n UNION ALL SELECT concat_ws('|','column',attribute.attnum,attribute.attname,format_type(attribute.atttypid,attribute.atttypmod),attribute.attnotnull,COALESCE(pg_get_expr(default_value.adbin,default_value.adrelid),'')) FROM pg_attribute attribute LEFT JOIN pg_attrdef default_value ON (default_value.adrelid,default_value.adnum)=(attribute.attrelid,attribute.attnum) WHERE attribute.attrelid='public.zasp_integration_webhook_tests'::regclass AND attribute.attnum>0 AND NOT attribute.attisdropped",
+      "sha256": "1c2903533ad0b9d5713476d15765d71d98580b49ba9df2045136942f2805954d",
+      "sourceSHA256": "1c15bc54f536113727aff8942cdf041737e8d91f33a51a69c95032570a7f1219",
+      "definitionSHA256": "45aa864f09bf795a9a373cde1a7570e0204a6354984cf1bfd0308eb1d5a146a3",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "integration_webhook",
+      "identity": "public.zasp_production_integration_webhook_live_fingerprint()",
+      "type": "constraint",
+      "start": 1601,
+      "end": 1838,
+      "text": "\n UNION ALL SELECT concat_ws('|','constraint',constraint_value.conname,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value WHERE constraint_value.conrelid='public.zasp_integration_webhook_tests'::regclass",
+      "sha256": "f560be5ea9b9ffefd7d00a5412f84bc9b5b9835e64e06fa0cde7928cb1a676b2",
+      "sourceSHA256": "1c15bc54f536113727aff8942cdf041737e8d91f33a51a69c95032570a7f1219",
+      "definitionSHA256": "45aa864f09bf795a9a373cde1a7570e0204a6354984cf1bfd0308eb1d5a146a3",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "integration_webhook",
+      "identity": "public.zasp_production_integration_webhook_live_fingerprint()",
+      "type": "index",
+      "start": 1838,
+      "end": 2022,
+      "text": "\n UNION ALL SELECT concat_ws('|','index',pg_get_indexdef(index_value.indexrelid)) FROM pg_index index_value WHERE index_value.indrelid='public.zasp_integration_webhook_tests'::regclass",
+      "sha256": "4ffa6041b947afefb5d50c5f202a13f76b2872425ff0f9f0d597e8ac86cdbc1c",
+      "sourceSHA256": "1c15bc54f536113727aff8942cdf041737e8d91f33a51a69c95032570a7f1219",
+      "definitionSHA256": "45aa864f09bf795a9a373cde1a7570e0204a6354984cf1bfd0308eb1d5a146a3",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "integration_webhook",
+      "identity": "public.zasp_production_integration_webhook_live_fingerprint()",
+      "type": "policy",
+      "start": 2022,
+      "end": 2391,
+      "text": "\n UNION ALL SELECT concat_ws('|','policy',policy.polname,policy.polcmd,policy.polpermissive,ARRAY(SELECT rolname FROM pg_roles WHERE oid=ANY(policy.polroles) ORDER BY rolname)::text,pg_get_expr(policy.polqual,policy.polrelid),pg_get_expr(policy.polwithcheck,policy.polrelid)) FROM pg_policy policy WHERE policy.polrelid='public.zasp_integration_webhook_tests'::regclass",
+      "sha256": "57c6eab367309d8ffff32d180d44c2746defc367b2fb58967e4b5670ac27198b",
+      "sourceSHA256": "1c15bc54f536113727aff8942cdf041737e8d91f33a51a69c95032570a7f1219",
+      "definitionSHA256": "45aa864f09bf795a9a373cde1a7570e0204a6354984cf1bfd0308eb1d5a146a3",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "integration_webhook",
+      "identity": "public.zasp_production_integration_webhook_live_fingerprint()",
+      "type": "digest",
+      "start": 2391,
+      "end": 2507,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "1c15bc54f536113727aff8942cdf041737e8d91f33a51a69c95032570a7f1219",
+      "definitionSHA256": "45aa864f09bf795a9a373cde1a7570e0204a6354984cf1bfd0308eb1d5a146a3",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "reconciliation_lane_plan",
+      "identity": "public.zasp_production_reconciliation_lane_plan_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 122,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_runtime_enrollment_pairing_live_fingerprint())",
+      "sha256": "620794b212aab4805daa7b0a3cc315f7282b53d68946720bcdf27ea04afa2452",
+      "sourceSHA256": "bab1d34ab132c902729f29fab6562bf44e1576d22c16b21d616d8376402b2408",
+      "definitionSHA256": "6c7d78391bfcf01d264b987af78bac4bdde2db2b4008440deb2948404c357ac1",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "reconciliation_lane_plan",
+      "identity": "public.zasp_production_reconciliation_lane_plan_live_fingerprint()",
+      "type": "function",
+      "start": 122,
+      "end": 612,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',p.proname,pg_get_function_identity_arguments(p.oid),r.rolname,p.prosecdef,COALESCE(p.proconfig::text,''),COALESCE(p.proacl::text,''),pg_get_functiondef(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace JOIN pg_roles r ON r.oid=p.proowner WHERE n.nspname='public' AND p.proname IN('zasp_connector_claim_reconciliation','zasp_production_reconciliation_lane_plan_readiness','zasp_production_reconciliation_lane_plan_security_ready')",
+      "sha256": "caa3321fe4c93a34aeaf853daa05278c0e809d4da530c95f0038436bf9c6b593",
+      "sourceSHA256": "bab1d34ab132c902729f29fab6562bf44e1576d22c16b21d616d8376402b2408",
+      "definitionSHA256": "6c7d78391bfcf01d264b987af78bac4bdde2db2b4008440deb2948404c357ac1",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "reconciliation_lane_plan",
+      "identity": "public.zasp_production_reconciliation_lane_plan_live_fingerprint()",
+      "type": "digest",
+      "start": 612,
+      "end": 728,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "bab1d34ab132c902729f29fab6562bf44e1576d22c16b21d616d8376402b2408",
+      "definitionSHA256": "6c7d78391bfcf01d264b987af78bac4bdde2db2b4008440deb2948404c357ac1",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "red_team_artifacts",
+      "identity": "public.zasp_production_red_team_artifacts_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 115,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_red_team_invocation_live_fingerprint())",
+      "sha256": "effe807de68e24c19c1ea3ea0c6300031f7a29b2d7ebdb27effa1792d535188c",
+      "sourceSHA256": "8c5df3ff67223b74e07e5055dd29d63712af78f7ca321ccd6d4aae456025a787",
+      "definitionSHA256": "275050efb45a97647e60d2eac203689e43a86e22f56bf58397c1660085cc0d43",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "red_team_artifacts",
+      "identity": "public.zasp_production_red_team_artifacts_live_fingerprint()",
+      "type": "function",
+      "start": 115,
+      "end": 790,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname IN('zasp_production_red_team_artifacts_readiness','zasp_production_red_team_artifacts_security_ready','zasp_red_team_valid_input_artifact','zasp_red_team_finish_run','zasp_red_team_finish_run_v38','zasp_red_team_get_run')",
+      "sha256": "724d37f7e7731d7aa8ce1c6ed8620e879944fee8e7d9af31a1ae44cc4499033f",
+      "sourceSHA256": "8c5df3ff67223b74e07e5055dd29d63712af78f7ca321ccd6d4aae456025a787",
+      "definitionSHA256": "275050efb45a97647e60d2eac203689e43a86e22f56bf58397c1660085cc0d43",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "red_team_artifacts",
+      "identity": "public.zasp_production_red_team_artifacts_live_fingerprint()",
+      "type": "constraint",
+      "start": 790,
+      "end": 959,
+      "text": "\n UNION ALL SELECT concat_ws('|','constraint',conname,pg_get_constraintdef(oid),convalidated) FROM pg_constraint WHERE conrelid='public.zasp_red_team_attempts'::regclass",
+      "sha256": "156775e24290a7e96f9efb2e34d5e7c38318e6143259c660b3ccbfaac755e1ec",
+      "sourceSHA256": "8c5df3ff67223b74e07e5055dd29d63712af78f7ca321ccd6d4aae456025a787",
+      "definitionSHA256": "275050efb45a97647e60d2eac203689e43a86e22f56bf58397c1660085cc0d43",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "red_team_artifacts",
+      "identity": "public.zasp_production_red_team_artifacts_live_fingerprint()",
+      "type": "column",
+      "start": 959,
+      "end": 1161,
+      "text": "\n UNION ALL SELECT concat_ws('|','column',attname,format_type(atttypid,atttypmod),attnotnull) FROM pg_attribute WHERE attrelid='public.zasp_red_team_attempts'::regclass AND attnum>0 AND NOT attisdropped",
+      "sha256": "acd64025e03c0830a29cf6567a9a482f062cc573d3c5965e48a7127338bc3ff2",
+      "sourceSHA256": "8c5df3ff67223b74e07e5055dd29d63712af78f7ca321ccd6d4aae456025a787",
+      "definitionSHA256": "275050efb45a97647e60d2eac203689e43a86e22f56bf58397c1660085cc0d43",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "red_team_artifacts",
+      "identity": "public.zasp_production_red_team_artifacts_live_fingerprint()",
+      "type": "digest",
+      "start": 1161,
+      "end": 1277,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "8c5df3ff67223b74e07e5055dd29d63712af78f7ca321ccd6d4aae456025a787",
+      "definitionSHA256": "275050efb45a97647e60d2eac203689e43a86e22f56bf58397c1660085cc0d43",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "red_team_invocation",
+      "identity": "public.zasp_production_red_team_invocation_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 111,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_red_team_safety_live_fingerprint())",
+      "sha256": "c6fc4ac7bedc05da5c66733dc9b6dea4966da7ffe6af1b37a5f323b8f4e79d31",
+      "sourceSHA256": "5d02e3969ada5446071a95551ea96f4e661a17f66b56d6d2040c47e9df866861",
+      "definitionSHA256": "47fc2cd08b3b135e998eedd2f3e7bb505d7265bc17fa4f1ddc9221c02037decc",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "red_team_invocation",
+      "identity": "public.zasp_production_red_team_invocation_live_fingerprint()",
+      "type": "function",
+      "start": 111,
+      "end": 621,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname IN('zasp_production_red_team_invocation_security_ready')",
+      "sha256": "b95972c3208154f0b1a8857f8d631812b59c273bfc4a11956b893e01c957d835",
+      "sourceSHA256": "5d02e3969ada5446071a95551ea96f4e661a17f66b56d6d2040c47e9df866861",
+      "definitionSHA256": "47fc2cd08b3b135e998eedd2f3e7bb505d7265bc17fa4f1ddc9221c02037decc",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "red_team_invocation",
+      "identity": "public.zasp_production_red_team_invocation_live_fingerprint()",
+      "type": "digest",
+      "start": 621,
+      "end": 737,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "5d02e3969ada5446071a95551ea96f4e661a17f66b56d6d2040c47e9df866861",
+      "definitionSHA256": "47fc2cd08b3b135e998eedd2f3e7bb505d7265bc17fa4f1ddc9221c02037decc",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "red_team_safety",
+      "identity": "public.zasp_production_red_team_safety_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 116,
+      "text": "\n WITH identities(value) AS (\n SELECT concat_ws('|','prior',zasp_production_runtime_queue_replay_live_fingerprint())",
+      "sha256": "6c1984be19076b85b1e50722a3822d709d7480a55505cf1507f033fa1f3aceee",
+      "sourceSHA256": "7aae1418fdd0a8a8ade28ce35d6624d1ea6695b7ae05d95cc4eb407c5913012e",
+      "definitionSHA256": "a3a436f12b092c8d85379fad1c1199acce1c32a02579cc0faeba2d396a97d042",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "red_team_safety",
+      "identity": "public.zasp_production_red_team_safety_live_fingerprint()",
+      "type": "function",
+      "start": 116,
+      "end": 622,
+      "text": "\n UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname IN('zasp_production_red_team_safety_security_ready')",
+      "sha256": "58ab555455c23b2bb705a3cd221061042cfd6b1eaa5cba8f153b0f3515121f9c",
+      "sourceSHA256": "7aae1418fdd0a8a8ade28ce35d6624d1ea6695b7ae05d95cc4eb407c5913012e",
+      "definitionSHA256": "a3a436f12b092c8d85379fad1c1199acce1c32a02579cc0faeba2d396a97d042",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "red_team_safety",
+      "identity": "public.zasp_production_red_team_safety_live_fingerprint()",
+      "type": "digest",
+      "start": 622,
+      "end": 738,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "7aae1418fdd0a8a8ade28ce35d6624d1ea6695b7ae05d95cc4eb407c5913012e",
+      "definitionSHA256": "a3a436f12b092c8d85379fad1c1199acce1c32a02579cc0faeba2d396a97d042",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "workflow_compatibility",
+      "identity": "public.zasp_production_workflow_compatibility_live_fingerprint()",
+      "type": "predecessor",
+      "start": 0,
+      "end": 118,
+      "text": "\n WITH identities(value) AS (\n  SELECT concat_ws('|','prior',zasp_production_approval_notification_live_fingerprint())",
+      "sha256": "76c4cb0ab34ad7b3e43bfad95e4cc5476c6394ed1071cd08a3b5c5622efcacbb",
+      "sourceSHA256": "65b31911c14fa07698e66ee8274a96361cbab8564e2fe93d92a10d0edc01b126",
+      "definitionSHA256": "5c28af675dfbdc91752944281f1da5b0697743e21b05f725b9d0dffbd0e8a36b",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "workflow_compatibility",
+      "identity": "public.zasp_production_workflow_compatibility_live_fingerprint()",
+      "type": "function",
+      "start": 118,
+      "end": 618,
+      "text": "\n  UNION ALL SELECT concat_ws('|','function',procedure.proname,pg_get_function_identity_arguments(procedure.oid),owner.rolname,procedure.prosecdef,COALESCE(procedure.proconfig::text,''),COALESCE(procedure.proacl::text,''),pg_get_functiondef(procedure.oid)) FROM pg_proc procedure JOIN pg_namespace namespace ON namespace.oid=procedure.pronamespace JOIN pg_roles owner ON owner.oid=procedure.proowner WHERE namespace.nspname='public' AND procedure.proname IN('zasp_workflow_mutate','zasp_risk_mutate')",
+      "sha256": "979f81e7fe86bc9b026a540c1646eee27212a0f2336a98b4962a04f3085dada8",
+      "sourceSHA256": "65b31911c14fa07698e66ee8274a96361cbab8564e2fe93d92a10d0edc01b126",
+      "definitionSHA256": "5c28af675dfbdc91752944281f1da5b0697743e21b05f725b9d0dffbd0e8a36b",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    },
+    {
+      "family": "workflow_compatibility",
+      "identity": "public.zasp_production_workflow_compatibility_live_fingerprint()",
+      "type": "digest",
+      "start": 618,
+      "end": 734,
+      "text": "\n ) SELECT encode(digest(convert_to(string_agg(value,E'\\n' ORDER BY value),'UTF8'),'sha256'),'hex') FROM identities\n",
+      "sha256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "sourceSHA256": "65b31911c14fa07698e66ee8274a96361cbab8564e2fe93d92a10d0edc01b126",
+      "definitionSHA256": "5c28af675dfbdc91752944281f1da5b0697743e21b05f725b9d0dffbd0e8a36b",
+      "owner": "zasp_discovery_authority",
+      "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}",
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": false
+    }
+  ],
+  "fieldTypes": {
+    "routine": {
+      "name": "string",
+      "identity_arguments": "string",
+      "owner": "string",
+      "security_definer": "boolean",
+      "config_text_or_empty": "string",
+      "acl_text_or_empty": "string",
+      "definition": "string"
+    },
+    "relation": {
+      "name": "string",
+      "owner": "string",
+      "kind": "string",
+      "row_security": "boolean",
+      "forced_row_security": "boolean",
+      "acl_text_or_empty": "string",
+      "options_text_or_empty": "string"
+    },
+    "column_name": {
+      "relation": "string",
+      "name": "string",
+      "normalized_position": "integer",
+      "type": "string",
+      "not_null": "boolean",
+      "identity": "string",
+      "generated": "string",
+      "acl_text_or_empty": "string",
+      "default_text_or_empty": "string"
+    },
+    "constraint": {
+      "relation": "string",
+      "name": "string",
+      "validated": "boolean",
+      "definition_pretty": "string",
+      "definition": "string",
+      "constraint_type": "string"
+    },
+    "index": {
+      "valid": "boolean",
+      "ready": "boolean",
+      "live": "boolean",
+      "definition": "string",
+      "name": "string"
+    },
+    "policy_view": {
+      "relation_name": "string",
+      "name": "string",
+      "roles_text": "string",
+      "permissive": "string",
+      "command": "string",
+      "using": "string",
+      "check": "string"
+    },
+    "trigger": {
+      "relation": "string",
+      "name": "string",
+      "enabled": "string",
+      "definition_pretty": "string",
+      "definition": "string"
+    },
+    "information_column": {
+      "relation_name": "string",
+      "name": "string",
+      "data_type": "string",
+      "is_nullable": "string",
+      "default_text_or_empty": "string"
+    },
+    "global_constraint": {
+      "relation": "string",
+      "name": "string",
+      "definition_pretty": "string"
+    },
+    "index_view": {
+      "name": "string",
+      "definition": "string"
+    },
+    "column": {
+      "relation_name": "string",
+      "position": "integer",
+      "name": "string",
+      "type": "string",
+      "not_null": "boolean",
+      "default_text_or_empty": "string"
+    },
+    "policy": {
+      "name": "string",
+      "permissive": "boolean",
+      "roles_csv_public_sorted": "string",
+      "using_text_or_empty": "string",
+      "check_text_or_empty": "string",
+      "command": "string",
+      "roles_named_array_text": "string",
+      "using": "string",
+      "check": "string"
+    }
+  },
+  "unresolvedObligations": [
+    {
+      "family": "acceptance",
+      "type": "predecessor",
+      "target": "public.zasp_production_runtime_candidate_authority_live_fingerprint()",
+      "siteSHA256": "02d6d37e7050d400a99e847b429d6d4cec9c9f71afad55b86076347d43686f52",
+      "required": "Lower exact predecessor result including NULL/empty and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "acceptance",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Original concat_ws NULL skipping, field coalescing, UNION ALL cardinality, sorted newline aggregation, UTF8 and SHA256 remain source obligations; typed comparison is not a claim of byte-identical old digest."
+    },
+    {
+      "family": "candidate_authority",
+      "type": "predecessor",
+      "target": "public.zasp_production_reconciliation_lane_plan_live_fingerprint()",
+      "siteSHA256": "642f2bf9ae435b76e700695c25c413a21618a3788b22145df2439cafeb6d3f58",
+      "required": "Lower exact predecessor result including NULL/empty and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "candidate_authority",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Original concat_ws NULL skipping, field coalescing, UNION ALL cardinality, sorted newline aggregation, UTF8 and SHA256 remain source obligations; typed comparison is not a claim of byte-identical old digest."
+    },
+    {
+      "family": "correlation_routing",
+      "type": "predecessor",
+      "target": "public.zasp_production_runtime_acceptance_live_fingerprint()",
+      "siteSHA256": "f163bd5907c0568e6e1536023947485ad5573ea825251a0c8b87aa0aeea8e906",
+      "required": "Lower exact predecessor result including NULL/empty and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "correlation_routing",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Original concat_ws NULL skipping, field coalescing, UNION ALL cardinality, sorted newline aggregation, UTF8 and SHA256 remain source obligations; typed comparison is not a claim of byte-identical old digest."
+    },
+    {
+      "family": "enrollment_pairing",
+      "type": "predecessor",
+      "target": "public.zasp_production_runtime_session_evidence_live_fingerprint()",
+      "siteSHA256": "0e9672c3627ad50d01a58f079ec814c697d96de6ed921fb5cfcd99b278486a43",
+      "required": "Lower exact predecessor result including NULL/empty and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "enrollment_pairing",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Original concat_ws NULL skipping, field coalescing, UNION ALL cardinality, sorted newline aggregation, UTF8 and SHA256 remain source obligations; typed comparison is not a claim of byte-identical old digest."
+    },
+    {
+      "family": "precision",
+      "type": "conditional-wrapper",
+      "targets": [
+        "zasp_temporal72.fingerprint()",
+        "zasp_temporal72.retained_precision_fingerprint()"
+      ],
+      "siteSHA256": "b6f6310ddee97053ec8dbb36b2e18a0604bdf8272d5bc0e1faeaadfb02118892",
+      "source": "\n SELECT CASE WHEN EXISTS(SELECT 1 FROM zasp_temporal72.registration WHERE checksum='e51eecf1201f930449ea508838e94dd5344262f92a4d23768999d93697f2c940' AND fingerprint='b5d7f17f5350c89b337c6c875975402ab67b10ffc6facc2ea34c042342e9f07e') AND zasp_temporal72.fingerprint()='b5d7f17f5350c89b337c6c875975402ab67b10ffc6facc2ea34c042342e9f07e' THEN zasp_temporal72.retained_precision_fingerprint() ELSE NULL END\n",
+      "required": "Preserve original CASE/EXISTS comparisons, NULL result and conditional call execution; lower predecessor graph without recursive original calls."
+    },
+    {
+      "family": "queue_replay",
+      "type": "predecessor",
+      "target": "public.zasp_production_integration_webhook_live_fingerprint()",
+      "siteSHA256": "44de4dd95f19423b279447bbf1c15aa3de0c48f3920c3c577adda703aefe614e",
+      "required": "Lower exact predecessor result including NULL/empty and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "queue_replay",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Original concat_ws NULL skipping, field coalescing, UNION ALL cardinality, sorted newline aggregation, UTF8 and SHA256 remain source obligations; typed comparison is not a claim of byte-identical old digest."
+    },
+    {
+      "family": "session_evidence",
+      "type": "predecessor",
+      "target": "public.zasp_production_runtime_session_query_live_fingerprint()",
+      "siteSHA256": "3beaa7e41531072a5d5a095cc9fd27a9ce246ce432ff1a668bc17b10e52c2568",
+      "required": "Lower exact predecessor result including NULL/empty and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "session_evidence",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Original concat_ws NULL skipping, field coalescing, UNION ALL cardinality, sorted newline aggregation, UTF8 and SHA256 remain source obligations; typed comparison is not a claim of byte-identical old digest."
+    },
+    {
+      "family": "session_query",
+      "type": "predecessor",
+      "target": "public.zasp_production_runtime_session_search_live_fingerprint()",
+      "siteSHA256": "6fc052070405ee9bda5f1893d97c7b070da8f1a09cd56fa9439be82dfdd206a0",
+      "required": "Lower exact predecessor result including NULL/empty and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "session_query",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Original concat_ws NULL skipping, field coalescing, UNION ALL cardinality, sorted newline aggregation, UTF8 and SHA256 remain source obligations; typed comparison is not a claim of byte-identical old digest."
+    },
+    {
+      "family": "session_reads",
+      "type": "predecessor",
+      "target": "public.zasp_production_runtime_sessions_live_fingerprint()",
+      "siteSHA256": "33f0acffeaa63a2550ac5cedb5b1680e73c3e64d97ef21abb4a61c5a7734e1af",
+      "required": "Lower exact predecessor result including NULL/empty and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "session_reads",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Original concat_ws NULL skipping, field coalescing, UNION ALL cardinality, sorted newline aggregation, UTF8 and SHA256 remain source obligations; typed comparison is not a claim of byte-identical old digest."
+    },
+    {
+      "family": "session_search",
+      "type": "predecessor",
+      "target": "public.zasp_production_runtime_session_reads_live_fingerprint()",
+      "siteSHA256": "a61e19cf4e77d0d91715e7b75141a4238cbe398288b97c3c5e3fd8d7820120cb",
+      "required": "Lower exact predecessor result including NULL/empty and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "session_search",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Original concat_ws NULL skipping, field coalescing, UNION ALL cardinality, sorted newline aggregation, UTF8 and SHA256 remain source obligations; typed comparison is not a claim of byte-identical old digest."
+    },
+    {
+      "family": "sessions",
+      "type": "conditional-wrapper",
+      "targets": [
+        "zasp_authorization80_worker.catalog_ready()",
+        "zasp_authorization80_worker.runtime_projected40()"
+      ],
+      "siteSHA256": "83a869dbeb2ad0a8129879b270a54de4692730f5bfb9c5eef450ee201e9ed04b",
+      "source": "\n SELECT CASE WHEN zasp_authorization80_worker.catalog_ready() THEN zasp_authorization80_worker.runtime_projected40() ELSE NULL END\n ",
+      "required": "Preserve original CASE/EXISTS comparisons, NULL result and conditional call execution; lower predecessor graph without recursive original calls."
+    },
+    {
+      "family": "approval_notification",
+      "type": "predecessor",
+      "target": "public.zasp_production_home_attention_live_fingerprint()",
+      "siteSHA256": "b88007ca922d9d1ccd4b44ab97accb19b90aa3e23a66d23e60c6074419e16935",
+      "required": "Preserve exact original framed predecessor result, NULL and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "approval_notification",
+      "branch": "constraint",
+      "type": "relation-resolution",
+      "relation": "public.zasp_security_agent_approval_notifications",
+      "siteSHA256": "9f53f382fdfc2c9854d5a78f0e5a29906b87fb95e9ed7c449daf17d08cbc96ac",
+      "required": "Resolve the exact original regclass in its original frame; absent relation raises rather than silently selecting zero rows. Preserve this obligation outside the direct collector."
+    },
+    {
+      "family": "approval_notification",
+      "branch": "index",
+      "type": "relation-resolution",
+      "relation": "public.zasp_security_agent_approval_notifications",
+      "siteSHA256": "c159a3f60ed7c8fbb2516db02f3c5034bf728f8d6edec1b7281579f1cf65c1cd",
+      "required": "Resolve the exact original regclass in its original frame; absent relation raises rather than silently selecting zero rows. Preserve this obligation outside the direct collector."
+    },
+    {
+      "family": "approval_notification",
+      "branch": "policy",
+      "type": "relation-resolution",
+      "relation": "public.zasp_security_agent_approval_notifications",
+      "siteSHA256": "1da8cabc398f509f14e431593bcdd5367352161dbf686bcff9bfcf94a6f80b2b",
+      "required": "Resolve the exact original regclass in its original frame; absent relation raises rather than silently selecting zero rows. Preserve this obligation outside the direct collector."
+    },
+    {
+      "family": "approval_notification",
+      "branch": "trigger",
+      "type": "relation-resolution",
+      "relation": "public.zasp_security_agent_approvals",
+      "siteSHA256": "e291c6a0ff4094fa421614c0c3e7a60fa7d07baf84f07286ac7da16bbf37b501",
+      "required": "Resolve the exact original regclass in its original frame; absent relation raises rather than silently selecting zero rows. Preserve this obligation outside the direct collector."
+    },
+    {
+      "family": "approval_notification",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Preserve concat_ws NULL skipping and exact per-field coalescing, UNION ALL row cardinality, string_agg sorted newline UTF8 SHA256 (including empty/NULL aggregate); typed comparison does not establish byte-identical original digest."
+    },
+    {
+      "family": "home_attention",
+      "type": "predecessor",
+      "target": "public.zasp_policy_deployment_execution_live_fingerprint()",
+      "siteSHA256": "3d7103b9d8f78245d1e1b2dcbe2ef37cd3cbd828f044fe578961caf33e3e83ef",
+      "required": "Preserve exact original framed predecessor result, NULL and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "home_attention",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Preserve concat_ws NULL skipping and exact per-field coalescing, UNION ALL row cardinality, string_agg sorted newline UTF8 SHA256 (including empty/NULL aggregate); typed comparison does not establish byte-identical original digest."
+    },
+    {
+      "family": "integration_setup",
+      "type": "live-metadata-scalar",
+      "relation": "public.zasp_schema_metadata",
+      "key": "production_security_agent_attack_path_fingerprint",
+      "siteSHA256": "04ad5987fb2b56f75c87894f7628df59ae2978d73420a061c3cec93cfb06693f",
+      "source": "\n WITH identities(value) AS (\n  SELECT concat_ws('|','prior',(SELECT value FROM zasp_schema_metadata WHERE key='production_security_agent_attack_path_fingerprint'))",
+      "required": "Preserve original framed scalar lookup: zero rows yields NULL, multiple-row lookup raises, concat_ws skips NULL; do not freeze a product-row value or move lookup into the direct catalog collector."
+    },
+    {
+      "family": "integration_setup",
+      "type": "predecessor",
+      "target": "public.zasp_production_workflow_compatibility_live_fingerprint()",
+      "siteSHA256": "10d79f19308c75a3289edbd3a5daddead6a41df497de784bcde7dd5cbdfdfb38",
+      "required": "Preserve exact original framed predecessor result, NULL and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "integration_setup",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Preserve concat_ws NULL skipping and exact per-field coalescing, UNION ALL row cardinality, string_agg sorted newline UTF8 SHA256 (including empty/NULL aggregate); typed comparison does not establish byte-identical original digest."
+    },
+    {
+      "family": "integration_webhook",
+      "type": "predecessor",
+      "target": "public.zasp_production_integration_setup_live_fingerprint()",
+      "siteSHA256": "eafae7d6252d431c7124e7dede898c11ef28e45551e2ee552567b456036f007d",
+      "required": "Preserve exact original framed predecessor result, NULL and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "integration_webhook",
+      "branch": "table",
+      "type": "relation-resolution",
+      "relation": "public.zasp_integration_webhook_tests",
+      "siteSHA256": "8d8fab0cc5fcae0edc3652ec4cf753055623e60a3d94e8dab29883bf0d635f82",
+      "required": "Resolve the exact original regclass in its original frame; absent relation raises rather than silently selecting zero rows. Preserve this obligation outside the direct collector."
+    },
+    {
+      "family": "integration_webhook",
+      "branch": "column",
+      "type": "relation-resolution",
+      "relation": "public.zasp_integration_webhook_tests",
+      "siteSHA256": "1c2903533ad0b9d5713476d15765d71d98580b49ba9df2045136942f2805954d",
+      "required": "Resolve the exact original regclass in its original frame; absent relation raises rather than silently selecting zero rows. Preserve this obligation outside the direct collector."
+    },
+    {
+      "family": "integration_webhook",
+      "branch": "constraint",
+      "type": "relation-resolution",
+      "relation": "public.zasp_integration_webhook_tests",
+      "siteSHA256": "f560be5ea9b9ffefd7d00a5412f84bc9b5b9835e64e06fa0cde7928cb1a676b2",
+      "required": "Resolve the exact original regclass in its original frame; absent relation raises rather than silently selecting zero rows. Preserve this obligation outside the direct collector."
+    },
+    {
+      "family": "integration_webhook",
+      "branch": "index",
+      "type": "relation-resolution",
+      "relation": "public.zasp_integration_webhook_tests",
+      "siteSHA256": "4ffa6041b947afefb5d50c5f202a13f76b2872425ff0f9f0d597e8ac86cdbc1c",
+      "required": "Resolve the exact original regclass in its original frame; absent relation raises rather than silently selecting zero rows. Preserve this obligation outside the direct collector."
+    },
+    {
+      "family": "integration_webhook",
+      "branch": "policy",
+      "type": "relation-resolution",
+      "relation": "public.zasp_integration_webhook_tests",
+      "siteSHA256": "57c6eab367309d8ffff32d180d44c2746defc367b2fb58967e4b5670ac27198b",
+      "required": "Resolve the exact original regclass in its original frame; absent relation raises rather than silently selecting zero rows. Preserve this obligation outside the direct collector."
+    },
+    {
+      "family": "integration_webhook",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Preserve concat_ws NULL skipping and exact per-field coalescing, UNION ALL row cardinality, string_agg sorted newline UTF8 SHA256 (including empty/NULL aggregate); typed comparison does not establish byte-identical original digest."
+    },
+    {
+      "family": "reconciliation_lane_plan",
+      "type": "predecessor",
+      "target": "public.zasp_production_runtime_enrollment_pairing_live_fingerprint()",
+      "siteSHA256": "620794b212aab4805daa7b0a3cc315f7282b53d68946720bcdf27ea04afa2452",
+      "required": "Preserve exact original framed predecessor result, NULL and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "reconciliation_lane_plan",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Preserve concat_ws NULL skipping and exact per-field coalescing, UNION ALL row cardinality, string_agg sorted newline UTF8 SHA256 (including empty/NULL aggregate); typed comparison does not establish byte-identical original digest."
+    },
+    {
+      "family": "red_team_artifacts",
+      "type": "predecessor",
+      "target": "public.zasp_production_red_team_invocation_live_fingerprint()",
+      "siteSHA256": "effe807de68e24c19c1ea3ea0c6300031f7a29b2d7ebdb27effa1792d535188c",
+      "required": "Preserve exact original framed predecessor result, NULL and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "red_team_artifacts",
+      "branch": "constraint",
+      "type": "relation-resolution",
+      "relation": "public.zasp_red_team_attempts",
+      "siteSHA256": "156775e24290a7e96f9efb2e34d5e7c38318e6143259c660b3ccbfaac755e1ec",
+      "required": "Resolve the exact original regclass in its original frame; absent relation raises rather than silently selecting zero rows. Preserve this obligation outside the direct collector."
+    },
+    {
+      "family": "red_team_artifacts",
+      "branch": "column",
+      "type": "relation-resolution",
+      "relation": "public.zasp_red_team_attempts",
+      "siteSHA256": "acd64025e03c0830a29cf6567a9a482f062cc573d3c5965e48a7127338bc3ff2",
+      "required": "Resolve the exact original regclass in its original frame; absent relation raises rather than silently selecting zero rows. Preserve this obligation outside the direct collector."
+    },
+    {
+      "family": "red_team_artifacts",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Preserve concat_ws NULL skipping and exact per-field coalescing, UNION ALL row cardinality, string_agg sorted newline UTF8 SHA256 (including empty/NULL aggregate); typed comparison does not establish byte-identical original digest."
+    },
+    {
+      "family": "red_team_invocation",
+      "type": "predecessor",
+      "target": "public.zasp_production_red_team_safety_live_fingerprint()",
+      "siteSHA256": "c6fc4ac7bedc05da5c66733dc9b6dea4966da7ffe6af1b37a5f323b8f4e79d31",
+      "required": "Preserve exact original framed predecessor result, NULL and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "red_team_invocation",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Preserve concat_ws NULL skipping and exact per-field coalescing, UNION ALL row cardinality, string_agg sorted newline UTF8 SHA256 (including empty/NULL aggregate); typed comparison does not establish byte-identical original digest."
+    },
+    {
+      "family": "red_team_safety",
+      "type": "predecessor",
+      "target": "public.zasp_production_runtime_queue_replay_live_fingerprint()",
+      "siteSHA256": "6c1984be19076b85b1e50722a3822d709d7480a55505cf1507f033fa1f3aceee",
+      "required": "Preserve exact original framed predecessor result, NULL and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "red_team_safety",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Preserve concat_ws NULL skipping and exact per-field coalescing, UNION ALL row cardinality, string_agg sorted newline UTF8 SHA256 (including empty/NULL aggregate); typed comparison does not establish byte-identical original digest."
+    },
+    {
+      "family": "workflow_compatibility",
+      "type": "predecessor",
+      "target": "public.zasp_production_approval_notification_live_fingerprint()",
+      "siteSHA256": "76c4cb0ab34ad7b3e43bfad95e4cc5476c6394ed1071cd08a3b5c5622efcacbb",
+      "required": "Preserve exact original framed predecessor result, NULL and missing facts; no recursive original collector call."
+    },
+    {
+      "family": "workflow_compatibility",
+      "type": "digest-semantics",
+      "siteSHA256": "93a01210749748363f02a39e13abf7692d933a5f0a565aec97621924c9a75e7b",
+      "required": "Preserve concat_ws NULL skipping and exact per-field coalescing, UNION ALL row cardinality, string_agg sorted newline UTF8 SHA256 (including empty/NULL aggregate); typed comparison does not establish byte-identical original digest."
+    }
+  ],
+  "referenceGaps": [
+    {
+      "family": "candidate_authority",
+      "branch": "column",
+      "kind": "column_name",
+      "siteSHA256": "655d55f46dc2a65fc1fb6eb126cfab2badff64cdab33b37d9c940f6db46c7e2a",
+      "source": "\n UNION ALL SELECT concat_ws('|','column',a.attrelid::regclass::text,a.attname,CASE WHEN a.attrelid='public.zasp_runtime_candidate_observations'::regclass AND a.attname='sandbox_id' THEN (SELECT count(*) FROM pg_attribute live WHERE live.attrelid=a.attrelid AND live.attnum>0 AND live.attnum<=a.attnum AND NOT live.attisdropped) ELSE a.attnum END,format_type(a.atttypid,a.atttypmod),a.attnotnull,a.attidentity,a.attgenerated,COALESCE(a.attacl::text,''),COALESCE(pg_get_expr(d.adbin,d.adrelid),'')) FROM pg_attribute a LEFT JOIN pg_attrdef d ON (d.adrelid,d.adnum)=(a.attrelid,a.attnum) WHERE a.attrelid IN('public.zasp_runtime_candidate_observations'::regclass,'public.zasp_runtime_candidate_snapshots'::regclass) AND a.attnum>0 AND NOT a.attisdropped",
+      "reason": "exact sandbox_id live-count normalization and independently derived reference value required",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "candidate_authority",
+      "branch": "constraint",
+      "kind": "constraint",
+      "siteSHA256": "9daf1523bd9ee6b922c71e27351b4fc02b847e06f5ba79dcaa7fb73f0c92a275",
+      "source": "\n UNION ALL SELECT concat_ws('|','constraint',conrelid::regclass::text,conname,convalidated,pg_get_constraintdef(oid,true)) FROM pg_constraint WHERE conrelid IN('public.zasp_runtime_candidate_observations'::regclass,'public.zasp_runtime_candidate_snapshots'::regclass)",
+      "reason": "actual pg_get_*def(...,true) reference bytes are required; non-pretty deparse is not a substitute",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "candidate_authority",
+      "branch": "policy",
+      "kind": "policy_view",
+      "siteSHA256": "057f81e263b94131ceeadc55533eb92fe5bc4116019f6dad5cf420e6d9fa4848",
+      "source": "\n UNION ALL SELECT concat_ws('|','policy',tablename,policyname,roles::text,permissive,cmd,qual,with_check) FROM pg_policies WHERE schemaname='public' AND tablename IN('zasp_runtime_candidate_observations','zasp_runtime_candidate_snapshots')",
+      "reason": "exact pg_policies roles::text/command/expressions require source-view reference descriptors, not pg_policy approximation",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "candidate_authority",
+      "branch": "trigger",
+      "kind": "trigger",
+      "siteSHA256": "a0de6c462f73fd298b6e7f1024b6cdb439719be2fa00feafe3fa25109f5f96bc",
+      "source": "\n UNION ALL SELECT concat_ws('|','trigger',tgrelid::regclass::text,tgname,tgenabled,pg_get_triggerdef(oid,true)) FROM pg_trigger WHERE tgrelid IN('public.zasp_runtime_candidate_observations'::regclass,'public.zasp_runtime_candidate_snapshots'::regclass) AND NOT tgisinternal",
+      "reason": "actual pg_get_*def(...,true) reference bytes are required; non-pretty deparse is not a substitute",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "correlation_routing",
+      "branch": "trigger",
+      "kind": "trigger",
+      "siteSHA256": "b816206d702336d325b063a2da51c0d4e747136d428d6dd754c79a12cb2fd628",
+      "source": "\n UNION ALL SELECT concat_ws('|','trigger',t.tgname,t.tgenabled,pg_get_triggerdef(t.oid,true)) FROM pg_trigger t WHERE t.tgrelid='public.zasp_runtime_stage_work'::regclass AND t.tgname='zasp_runtime_correlation_claim_version'",
+      "reason": "actual pg_get_*def(...,true) reference bytes are required; non-pretty deparse is not a substitute",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "enrollment_pairing",
+      "branch": "column",
+      "kind": "information_column",
+      "siteSHA256": "5d689a8fec86cbabd4b3e0a7b89be7f3322d4554f50d328084ae8507fab8cf73",
+      "source": "\n UNION ALL SELECT concat_ws('|','column',table_name,column_name,data_type,is_nullable,COALESCE(column_default,'')) FROM information_schema.columns WHERE table_schema='public' AND table_name IN('zasp_runtime_sensor_pairings','zasp_runtime_batch_domains')",
+      "reason": "information_schema visible-row/data_type/is_nullable/default semantics require actual original-frame reference descriptors",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "enrollment_pairing",
+      "branch": "constraint",
+      "kind": "global_constraint",
+      "siteSHA256": "8505364e12b6721cfd724b578ff4d1498bb7ccd94c6e1af7ab65229291e14d8b",
+      "source": "\n UNION ALL SELECT concat_ws('|','constraint',conrelid::regclass::text,conname,pg_get_constraintdef(oid,true)) FROM pg_constraint WHERE conrelid IN('public.zasp_runtime_sensor_pairings'::regclass,'public.zasp_runtime_batch_domains'::regclass) OR conname IN('zasp_sensor_kind_identity_v45','zasp_runtime_batch_source_identity_v45')",
+      "reason": "global conname addition universe must include conrelid=0 via LEFT JOIN; reference input must not omit domain constraints; actual pg_get_*def(...,true) reference bytes are required; non-pretty deparse is not a substitute",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "enrollment_pairing",
+      "branch": "policy",
+      "kind": "policy_view",
+      "siteSHA256": "d8b63a1a443fceddd8351c476877a507ccf7810e8f29c319d158588291dc5cdf",
+      "source": "\n UNION ALL SELECT concat_ws('|','policy',tablename,policyname,roles::text,cmd,qual,with_check) FROM pg_policies WHERE schemaname='public' AND tablename IN('zasp_runtime_sensor_pairings','zasp_runtime_batch_domains')",
+      "reason": "exact pg_policies roles::text/command/expressions require source-view reference descriptors, not pg_policy approximation",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "enrollment_pairing",
+      "branch": "trigger",
+      "kind": "trigger",
+      "siteSHA256": "9ff6157c4ffb9899aa996e503e9bea4b3783af081223af5de965e217e9f059e0",
+      "source": "\n UNION ALL SELECT concat_ws('|','trigger',tgname,tgenabled,pg_get_triggerdef(oid,true)) FROM pg_trigger WHERE tgname IN('zasp_runtime_sensor_pairings_immutable','zasp_runtime_batch_domains_immutable','zasp_runtime_batch_domain_insert') AND NOT tgisinternal",
+      "reason": "actual pg_get_*def(...,true) reference bytes are required; non-pretty deparse is not a substitute",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "precision",
+      "branch": "conditional-wrapper",
+      "siteSHA256": "b6f6310ddee97053ec8dbb36b2e18a0604bdf8272d5bc0e1faeaadfb02118892",
+      "reason": "conditional predecessor lowering belongs to evaluator; original guard and NULL semantics remain required"
+    },
+    {
+      "family": "session_reads",
+      "branch": "policy",
+      "kind": "policy_view",
+      "siteSHA256": "b293aaa5bf74039847528026a06525bd81e4b4e3ecfba189f8150d330dd42fd6",
+      "source": "\n UNION ALL SELECT concat_ws('|','policy',policyname,roles::text,cmd,qual,with_check) FROM pg_policies WHERE schemaname='public' AND tablename='zasp_runtime_session_summaries'",
+      "reason": "exact pg_policies roles::text/command/expressions require source-view reference descriptors, not pg_policy approximation",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "session_search",
+      "branch": "policy",
+      "kind": "policy_view",
+      "siteSHA256": "060692c0c2db386cf21c5589bb4ef5a8ea06847514670b47d2d188991669ac11",
+      "source": "\n UNION ALL SELECT concat_ws('|','policy',policyname,roles::text,cmd,qual,with_check) FROM pg_policies WHERE schemaname='public' AND tablename='zasp_runtime_session_search_outbox'",
+      "reason": "exact pg_policies roles::text/command/expressions require source-view reference descriptors, not pg_policy approximation",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "sessions",
+      "branch": "conditional-wrapper",
+      "siteSHA256": "83a869dbeb2ad0a8129879b270a54de4692730f5bfb9c5eef450ee201e9ed04b",
+      "reason": "conditional predecessor lowering belongs to evaluator; original guard and NULL semantics remain required"
+    },
+    {
+      "family": "approval_notification",
+      "branch": "column",
+      "kind": "column",
+      "siteSHA256": "29b28703c4fc5c55886b93dd41afec00e7f10da7e17b55f5a9261884f452ac36",
+      "source": "\n  UNION ALL SELECT concat_ws('|','column',class.relname,attribute.attnum,attribute.attname,format_type(attribute.atttypid,attribute.atttypmod),attribute.attnotnull,COALESCE(pg_get_expr(default_value.adbin,default_value.adrelid),'')) FROM pg_attribute attribute JOIN pg_class class ON class.oid=attribute.attrelid JOIN pg_namespace namespace ON namespace.oid=class.relnamespace LEFT JOIN pg_attrdef default_value ON default_value.adrelid=class.oid AND default_value.adnum=attribute.attnum WHERE namespace.nspname='public' AND class.relname='zasp_security_agent_approval_notifications' AND attribute.attnum>0 AND NOT attribute.attisdropped",
+      "reason": "physical column descriptor needs class.relname field without ordinal normalization",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "approval_notification",
+      "branch": "constraint",
+      "kind": "constraint",
+      "siteSHA256": "9f53f382fdfc2c9854d5a78f0e5a29906b87fb95e9ed7c449daf17d08cbc96ac",
+      "source": "\n  UNION ALL SELECT concat_ws('|','constraint',constraint_value.conname,constraint_value.contype,constraint_value.convalidated,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value WHERE constraint_value.conrelid='public.zasp_security_agent_approval_notifications'::regclass",
+      "reason": "exact original regclass existence/error obligation must be discharged by evaluator, not replaced by empty selector output; independent original-frame pretty deparse reference bytes required, not non-pretty approximation",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "approval_notification",
+      "branch": "index",
+      "kind": "index",
+      "siteSHA256": "c159a3f60ed7c8fbb2516db02f3c5034bf728f8d6edec1b7281579f1cf65c1cd",
+      "source": "\n  UNION ALL SELECT concat_ws('|','index',index_value.relname,pg_get_indexdef(index_value.oid)) FROM pg_index index_metadata JOIN pg_class index_value ON index_value.oid=index_metadata.indexrelid WHERE index_metadata.indrelid='public.zasp_security_agent_approval_notifications'::regclass",
+      "reason": "exact original regclass existence/error obligation must be discharged by evaluator, not replaced by empty selector output; pg_index descriptor needs index pg_class.relname, not pg_indexes view substitution",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "approval_notification",
+      "branch": "policy",
+      "kind": "policy",
+      "siteSHA256": "1da8cabc398f509f14e431593bcdd5367352161dbf686bcff9bfcf94a6f80b2b",
+      "source": "\n  UNION ALL SELECT concat_ws('|','policy',policy_value.polname,policy_value.polpermissive,COALESCE((SELECT string_agg(CASE WHEN role_oid=0 THEN 'PUBLIC' ELSE role_value.rolname END,',' ORDER BY CASE WHEN role_oid=0 THEN 'PUBLIC' ELSE role_value.rolname END) FROM unnest(policy_value.polroles) role_oid LEFT JOIN pg_roles role_value ON role_value.oid=role_oid),''),COALESCE(pg_get_expr(policy_value.polqual,policy_value.polrelid),''),COALESCE(pg_get_expr(policy_value.polwithcheck,policy_value.polrelid),'')) FROM pg_policy policy_value WHERE policy_value.polrelid='public.zasp_security_agent_approval_notifications'::regclass",
+      "reason": "exact original regclass existence/error obligation must be discharged by evaluator, not replaced by empty selector output; pg_policy name; exact sorted CSV with PUBLIC for OID 0 and LEFT JOIN NULL omission; coalesced using/check required",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "approval_notification",
+      "branch": "trigger",
+      "kind": "trigger",
+      "siteSHA256": "e291c6a0ff4094fa421614c0c3e7a60fa7d07baf84f07286ac7da16bbf37b501",
+      "source": "\n  UNION ALL SELECT concat_ws('|','trigger',trigger_value.tgname,pg_get_triggerdef(trigger_value.oid,true)) FROM pg_trigger trigger_value WHERE trigger_value.tgrelid='public.zasp_security_agent_approvals'::regclass AND trigger_value.tgname='zasp_security_agent_enqueue_approval_notification_v30' AND NOT trigger_value.tgisinternal",
+      "reason": "exact original regclass existence/error obligation must be discharged by evaluator, not replaced by empty selector output; independent original-frame pretty deparse reference bytes required, not non-pretty approximation",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "integration_setup",
+      "type": "live-metadata-scalar",
+      "relation": "public.zasp_schema_metadata",
+      "key": "production_security_agent_attack_path_fingerprint",
+      "siteSHA256": "04ad5987fb2b56f75c87894f7628df59ae2978d73420a061c3cec93cfb06693f",
+      "source": "\n WITH identities(value) AS (\n  SELECT concat_ws('|','prior',(SELECT value FROM zasp_schema_metadata WHERE key='production_security_agent_attack_path_fingerprint'))",
+      "required": "Preserve original framed scalar lookup: zero rows yields NULL, multiple-row lookup raises, concat_ws skips NULL; do not freeze a product-row value or move lookup into the direct catalog collector.",
+      "reason": "live framed metadata obligation requires evaluator integration"
+    },
+    {
+      "family": "integration_webhook",
+      "branch": "table",
+      "kind": "relation",
+      "siteSHA256": "8d8fab0cc5fcae0edc3652ec4cf753055623e60a3d94e8dab29883bf0d635f82",
+      "source": "\n UNION ALL SELECT concat_ws('|','table',table_value.relname,owner.rolname,table_value.relrowsecurity,table_value.relforcerowsecurity,COALESCE(table_value.relacl::text,'')) FROM pg_class table_value JOIN pg_roles owner ON owner.oid=table_value.relowner WHERE table_value.oid='public.zasp_integration_webhook_tests'::regclass",
+      "reason": "exact original regclass existence/error obligation must be discharged by evaluator, not replaced by empty selector output",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "integration_webhook",
+      "branch": "column",
+      "kind": "column",
+      "siteSHA256": "1c2903533ad0b9d5713476d15765d71d98580b49ba9df2045136942f2805954d",
+      "source": "\n UNION ALL SELECT concat_ws('|','column',attribute.attnum,attribute.attname,format_type(attribute.atttypid,attribute.atttypmod),attribute.attnotnull,COALESCE(pg_get_expr(default_value.adbin,default_value.adrelid),'')) FROM pg_attribute attribute LEFT JOIN pg_attrdef default_value ON (default_value.adrelid,default_value.adnum)=(attribute.attrelid,attribute.attnum) WHERE attribute.attrelid='public.zasp_integration_webhook_tests'::regclass AND attribute.attnum>0 AND NOT attribute.attisdropped",
+      "reason": "exact original regclass existence/error obligation must be discharged by evaluator, not replaced by empty selector output",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "integration_webhook",
+      "branch": "constraint",
+      "kind": "constraint",
+      "siteSHA256": "f560be5ea9b9ffefd7d00a5412f84bc9b5b9835e64e06fa0cde7928cb1a676b2",
+      "source": "\n UNION ALL SELECT concat_ws('|','constraint',constraint_value.conname,pg_get_constraintdef(constraint_value.oid,true)) FROM pg_constraint constraint_value WHERE constraint_value.conrelid='public.zasp_integration_webhook_tests'::regclass",
+      "reason": "exact original regclass existence/error obligation must be discharged by evaluator, not replaced by empty selector output; independent original-frame pretty deparse reference bytes required, not non-pretty approximation",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "integration_webhook",
+      "branch": "index",
+      "kind": "index",
+      "siteSHA256": "4ffa6041b947afefb5d50c5f202a13f76b2872425ff0f9f0d597e8ac86cdbc1c",
+      "source": "\n UNION ALL SELECT concat_ws('|','index',pg_get_indexdef(index_value.indexrelid)) FROM pg_index index_value WHERE index_value.indrelid='public.zasp_integration_webhook_tests'::regclass",
+      "reason": "exact original regclass existence/error obligation must be discharged by evaluator, not replaced by empty selector output",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "integration_webhook",
+      "branch": "policy",
+      "kind": "policy",
+      "siteSHA256": "57c6eab367309d8ffff32d180d44c2746defc367b2fb58967e4b5670ac27198b",
+      "source": "\n UNION ALL SELECT concat_ws('|','policy',policy.polname,policy.polcmd,policy.polpermissive,ARRAY(SELECT rolname FROM pg_roles WHERE oid=ANY(policy.polroles) ORDER BY rolname)::text,pg_get_expr(policy.polqual,policy.polrelid),pg_get_expr(policy.polwithcheck,policy.polrelid)) FROM pg_policy policy WHERE policy.polrelid='public.zasp_integration_webhook_tests'::regclass",
+      "reason": "exact original regclass existence/error obligation must be discharged by evaluator, not replaced by empty selector output; pg_policy name; exact sorted pg_roles ARRAY::text omits OID 0; raw nullable using/check required",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "red_team_artifacts",
+      "branch": "constraint",
+      "kind": "constraint",
+      "siteSHA256": "156775e24290a7e96f9efb2e34d5e7c38318e6143259c660b3ccbfaac755e1ec",
+      "source": "\n UNION ALL SELECT concat_ws('|','constraint',conname,pg_get_constraintdef(oid),convalidated) FROM pg_constraint WHERE conrelid='public.zasp_red_team_attempts'::regclass",
+      "reason": "exact original regclass existence/error obligation must be discharged by evaluator, not replaced by empty selector output",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    },
+    {
+      "family": "red_team_artifacts",
+      "branch": "column",
+      "kind": "column_name",
+      "siteSHA256": "acd64025e03c0830a29cf6567a9a482f062cc573d3c5965e48a7127338bc3ff2",
+      "source": "\n UNION ALL SELECT concat_ws('|','column',attname,format_type(atttypid,atttypmod),attnotnull) FROM pg_attribute WHERE attrelid='public.zasp_red_team_attempts'::regclass AND attnum>0 AND NOT attisdropped",
+      "reason": "exact original regclass existence/error obligation must be discharged by evaluator, not replaced by empty selector output",
+      "disposition": "exact proposed rule; descriptor/reference integration unresolved"
+    }
+  ]
+}

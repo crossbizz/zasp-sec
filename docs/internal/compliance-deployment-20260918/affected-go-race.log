@@ -1,0 +1,306 @@
+=== RUN   TestAuditExportRegisterWorkersRequiresBothReadinessChecks
+=== RUN   TestAuditExportRegisterWorkersRequiresBothReadinessChecks/healthy
+=== RUN   TestAuditExportRegisterWorkersRequiresBothReadinessChecks/registration-refused
+=== RUN   TestAuditExportRegisterWorkersRequiresBothReadinessChecks/final-drift
+--- PASS: TestAuditExportRegisterWorkersRequiresBothReadinessChecks (0.07s)
+    --- PASS: TestAuditExportRegisterWorkersRequiresBothReadinessChecks/healthy (0.04s)
+    --- PASS: TestAuditExportRegisterWorkersRequiresBothReadinessChecks/registration-refused (0.01s)
+    --- PASS: TestAuditExportRegisterWorkersRequiresBothReadinessChecks/final-drift (0.01s)
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#03
+--- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority (8.14s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy (0.09s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#01 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#01 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#01 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#01 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#01 (0.08s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#01 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#01 (0.08s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#01 (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#01 (0.08s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#01 (0.08s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#01 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#01 (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#01 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#01 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#01 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#01 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#02 (0.16s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#02 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#02 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#02 (0.13s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#02 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#02 (0.13s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#02 (0.17s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#02 (0.21s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#02 (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#02 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#02 (0.14s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#02 (0.13s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#02 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#02 (0.16s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#02 (0.18s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#02 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#02 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#02 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#02 (0.12s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#02 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#02 (0.14s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#03 (0.25s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#03 (0.08s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#03 (0.08s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#03 (0.20s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#03 (0.21s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#03 (0.21s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#03 (0.26s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#03 (0.29s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#03 (0.12s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#03 (0.08s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#03 (0.20s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#03 (0.20s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#03 (0.21s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#03 (0.25s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#03 (0.25s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#03 (0.08s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#03 (0.08s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#03 (0.21s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#03 (0.20s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#03 (0.21s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#03 (0.27s)
+=== RUN   TestComplianceRegistrationTransaction
+=== RUN   TestComplianceRegistrationTransaction/healthy
+=== RUN   TestComplianceRegistrationTransaction/lower-release
+=== RUN   TestComplianceRegistrationTransaction/future-release
+=== RUN   TestComplianceRegistrationTransaction/wrong-checksum
+=== RUN   TestComplianceRegistrationTransaction/initial-drift
+=== RUN   TestComplianceRegistrationTransaction/registration-false
+=== RUN   TestComplianceRegistrationTransaction/registration-error
+=== RUN   TestComplianceRegistrationTransaction/final-drift
+=== RUN   TestComplianceRegistrationTransaction/final-error
+=== RUN   TestComplianceRegistrationTransaction/commit-error
+=== RUN   TestComplianceRegistrationTransaction/rollback-error
+=== RUN   TestComplianceRegistrationTransaction/cancel-registration
+=== RUN   TestComplianceRegistrationTransaction/cancel-final
+--- PASS: TestComplianceRegistrationTransaction (3.14s)
+    --- PASS: TestComplianceRegistrationTransaction/healthy (0.25s)
+    --- PASS: TestComplianceRegistrationTransaction/lower-release (0.16s)
+    --- PASS: TestComplianceRegistrationTransaction/future-release (0.17s)
+    --- PASS: TestComplianceRegistrationTransaction/wrong-checksum (0.18s)
+    --- PASS: TestComplianceRegistrationTransaction/initial-drift (0.25s)
+    --- PASS: TestComplianceRegistrationTransaction/registration-false (0.26s)
+    --- PASS: TestComplianceRegistrationTransaction/registration-error (0.27s)
+    --- PASS: TestComplianceRegistrationTransaction/final-drift (0.26s)
+    --- PASS: TestComplianceRegistrationTransaction/final-error (0.28s)
+    --- PASS: TestComplianceRegistrationTransaction/commit-error (0.27s)
+    --- PASS: TestComplianceRegistrationTransaction/rollback-error (0.28s)
+    --- PASS: TestComplianceRegistrationTransaction/cancel-registration (0.27s)
+    --- PASS: TestComplianceRegistrationTransaction/cancel-final (0.23s)
+=== RUN   TestComplianceRegistrationInvalidRunnerAndContext
+--- PASS: TestComplianceRegistrationInvalidRunnerAndContext (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/migrations	13.098s
+=== RUN   TestAuditExportWorkerRegistrationConfiguration
+--- PASS: TestAuditExportWorkerRegistrationConfiguration (0.00s)
+=== RUN   TestComplianceExplicitReleaseCommands
+--- PASS: TestComplianceExplicitReleaseCommands (0.00s)
+=== RUN   TestComplianceRegistrationBinaryOwnedPostgres
+    compliance_registration_postgres_test.go:22: requires owned Linux PostgreSQL fixture and mounted migration CLI
+--- SKIP: TestComplianceRegistrationBinaryOwnedPostgres (0.00s)
+=== RUN   TestComplianceRegistrationBinaryPreflight
+=== RUN   TestComplianceRegistrationBinaryPreflight/missing-both
+=== RUN   TestComplianceRegistrationBinaryPreflight/missing-worker
+=== RUN   TestComplianceRegistrationBinaryPreflight/missing-cleanup
+=== RUN   TestComplianceRegistrationBinaryPreflight/duplicate
+=== RUN   TestComplianceRegistrationBinaryPreflight/reserved-worker
+=== RUN   TestComplianceRegistrationBinaryPreflight/reserved-cleanup
+=== RUN   TestComplianceRegistrationBinaryPreflight/uppercase
+=== RUN   TestComplianceRegistrationBinaryPreflight/whitespace
+=== RUN   TestComplianceRegistrationBinaryPreflight/injection
+=== RUN   TestComplianceRegistrationBinaryPreflight/short-worker
+=== RUN   TestComplianceRegistrationBinaryPreflight/long-cleanup
+=== RUN   TestComplianceRegistrationBinaryPreflight/extra-argument
+=== RUN   TestComplianceRegistrationBinaryPreflight/valid-boundaries
+--- PASS: TestComplianceRegistrationBinaryPreflight (3.29s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/missing-both (1.27s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/missing-worker (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/missing-cleanup (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/duplicate (0.03s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/reserved-worker (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/reserved-cleanup (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/uppercase (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/whitespace (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/injection (0.03s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/short-worker (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/long-cleanup (0.03s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/extra-argument (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/valid-boundaries (0.02s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate	5.050s
+=== RUN   TestAuditExportRuntimeEnvironment
+--- PASS: TestAuditExportRuntimeEnvironment (0.00s)
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_POLICIES_JSONmissing
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_POLICIES_JSONempty
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_POLICIES_JSONonly-empty
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_READER_ROLE_ARNmissing
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_READER_ROLE_ARNempty
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_READER_ROLE_ARNonly-empty
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_WEB_IDENTITY_TOKEN_FILEmissing
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_WEB_IDENTITY_TOKEN_FILEempty
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_WEB_IDENTITY_TOKEN_FILEonly-empty
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_CURSOR_SIGNING_KEYmissing
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_CURSOR_SIGNING_KEYempty
+=== RUN   TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_CURSOR_SIGNING_KEYonly-empty
+--- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid (0.01s)
+    --- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_POLICIES_JSONmissing (0.00s)
+    --- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_POLICIES_JSONempty (0.00s)
+    --- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_POLICIES_JSONonly-empty (0.00s)
+    --- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_READER_ROLE_ARNmissing (0.00s)
+    --- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_READER_ROLE_ARNempty (0.00s)
+    --- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_READER_ROLE_ARNonly-empty (0.00s)
+    --- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_WEB_IDENTITY_TOKEN_FILEmissing (0.00s)
+    --- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_WEB_IDENTITY_TOKEN_FILEempty (0.00s)
+    --- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_WEB_IDENTITY_TOKEN_FILEonly-empty (0.00s)
+    --- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_CURSOR_SIGNING_KEYmissing (0.00s)
+    --- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_CURSOR_SIGNING_KEYempty (0.00s)
+    --- PASS: TestAuditExportRuntimeEnvironmentRejectsPartialOrInvalid/ZASP_AUDIT_EXPORT_CURSOR_SIGNING_KEYonly-empty (0.00s)
+=== RUN   TestAuditExportRuntimeTypedConfigurationRevalidated
+=== RUN   TestAuditExportRuntimeTypedConfigurationRevalidated/too_many_policies
+=== RUN   TestAuditExportRuntimeTypedConfigurationRevalidated/bad_bucket
+=== RUN   TestAuditExportRuntimeTypedConfigurationRevalidated/short_key
+=== RUN   TestAuditExportRuntimeTypedConfigurationRevalidated/token_path
+=== RUN   TestAuditExportRuntimeTypedConfigurationRevalidated/empty_policies
+=== RUN   TestAuditExportRuntimeTypedConfigurationRevalidated/duplicate_policies
+=== RUN   TestAuditExportRuntimeTypedConfigurationRevalidated/selector
+=== RUN   TestAuditExportRuntimeTypedConfigurationRevalidated/zero_key
+=== RUN   TestAuditExportRuntimeTypedConfigurationRevalidated/long_key
+=== RUN   TestAuditExportRuntimeTypedConfigurationRevalidated/role
+=== RUN   TestAuditExportRuntimeTypedConfigurationRevalidated/connector_role
+--- PASS: TestAuditExportRuntimeTypedConfigurationRevalidated (0.01s)
+    --- PASS: TestAuditExportRuntimeTypedConfigurationRevalidated/too_many_policies (0.00s)
+    --- PASS: TestAuditExportRuntimeTypedConfigurationRevalidated/bad_bucket (0.00s)
+    --- PASS: TestAuditExportRuntimeTypedConfigurationRevalidated/short_key (0.00s)
+    --- PASS: TestAuditExportRuntimeTypedConfigurationRevalidated/token_path (0.00s)
+    --- PASS: TestAuditExportRuntimeTypedConfigurationRevalidated/empty_policies (0.00s)
+    --- PASS: TestAuditExportRuntimeTypedConfigurationRevalidated/duplicate_policies (0.00s)
+    --- PASS: TestAuditExportRuntimeTypedConfigurationRevalidated/selector (0.00s)
+    --- PASS: TestAuditExportRuntimeTypedConfigurationRevalidated/zero_key (0.00s)
+    --- PASS: TestAuditExportRuntimeTypedConfigurationRevalidated/long_key (0.00s)
+    --- PASS: TestAuditExportRuntimeTypedConfigurationRevalidated/role (0.00s)
+    --- PASS: TestAuditExportRuntimeTypedConfigurationRevalidated/connector_role (0.00s)
+=== RUN   TestComplianceAPIConfiguration
+--- PASS: TestComplianceAPIConfiguration (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-api	2.434s
+testing: warning: no tests to run
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	2.911s [no tests to run]

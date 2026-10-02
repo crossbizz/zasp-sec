@@ -34,6 +34,14 @@ spec:
       - objectName: {{ required "secrets.migrationPostgresDSNObjectName is required" .Values.secrets.migrationPostgresDSNObjectName | quote }}
         objectType: secretsmanager
         objectAlias: postgres-dsn
+      {{- if .Values.authorizationTemporal.profile }}
+      {{- range $entry := list (dict "object" .Values.secrets.workflowSigningKeyObjectName "alias" "workflow-signing-key") (dict "object" .Values.secrets.stytchProjectIDObjectName "alias" "stytch-project-id") (dict "object" .Values.secrets.stytchOrganizationIDObjectName "alias" "stytch-organization-id") }}
+      - objectName: {{ $entry.object | quote }}
+        objectType: secretsmanager
+        objectAlias: {{ $entry.alias }}
+        filePermission: "0440"
+      {{- end }}
+      {{- end }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -55,13 +63,48 @@ spec:
       serviceAccountName: {{ .Values.serviceAccounts.migration.name }}
       automountServiceAccountToken: false
       securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      {{- if .Values.authorizationTemporal.profile }}
+      initContainers:
+        {{- include "zasp.workerKeys.init" (dict "image" .Values.global.productImages.agentsecApi "uid" 65532) | nindent 8 }}
+      {{- end }}
       containers:
         - name: migrate
           image: {{ required "global.productImages.agentsecApi must be an immutable digest" .Values.global.productImages.agentsecApi | quote }}
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-ec"]
+          {{- if .Values.authorizationTemporal.profile }}
+          args: [{{ include "zasp.authorizationTemporal.migrationCommand" . | quote }}]
+          {{- else if .Values.attackLabReconciler.enabled }}
+          args: [{{ include "zasp.attackLabReconciler.migrationCommand" . | quote }}]
+          {{- else if .Values.complianceExports.enabled }}
+          args: [{{ include "zasp.complianceExports.migrationCommand" . | quote }}]
+          {{- else if .Values.auditExports.enabled }}
+          args: [{{ include "zasp.auditExports.migrationCommand" . | quote }}]
+          {{- else }}
           args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate up-to-{{ .Values.schema.expectedVersion }}']
+          {{- end }}
           env:
+            {{- if .Values.authorizationTemporal.profile }}
+            {{- include "zasp.workerKeys.env" . | nindent 12 }}
+            - { name: ZASP_TEMPORAL_EXECUTOR_DB_PRINCIPAL, value: {{ .Values.authorizationTemporal.executorPrincipal | quote }} }
+            - { name: ZASP_TEMPORAL_COMPENSATION_DB_PRINCIPAL, value: {{ .Values.authorizationTemporal.compensationPrincipal | quote }} }
+            - { name: ZASP_PUBLIC_ORIGIN, value: {{ .Values.global.publicOrigin | quote }} }
+            - { name: ZASP_STYTCH_BASE_URL, value: "https://api.stytch.com" }
+            - { name: ZASP_DEPLOYMENT_MODE, value: {{ .Values.global.deploymentMode | quote }} }
+            {{- if eq .Values.global.deploymentMode "single_tenant" }}
+            - { name: ZASP_ORGANIZATION_ID, value: {{ .Values.global.organizationID | quote }} }
+            {{- end }}
+            {{- end }}
+            {{- if .Values.attackLabReconciler.enabled }}
+            - { name: ZASP_SECURITY_AGENT_ATTACK_LAB_RECONCILER_DB_PRINCIPAL, value: {{ .Values.attackLabReconciler.workerPrincipal | quote }} }
+            {{- end }}
+            {{- if .Values.complianceExports.enabled }}
+            - { name: ZASP_COMPLIANCE_WORKER_DB_PRINCIPAL, value: {{ .Values.complianceExports.workerPrincipal | quote }} }
+            - { name: ZASP_COMPLIANCE_CLEANUP_DB_PRINCIPAL, value: {{ .Values.complianceExports.cleanupPrincipal | quote }} }
+            {{- end }}
+            {{- if .Values.auditExports.enabled }}
+            {{- include "zasp.auditExports.migrationEnv" . | nindent 12 }}
+            {{- end }}
             - { name: ZASP_MIGRATION_TIMEOUT, value: {{ .Values.schema.migrationTimeout | quote }} }
             - { name: ZASP_MIGRATION_DB_PRINCIPAL, value: {{ required "databasePrincipals.migration is required" .Values.databasePrincipals.migration | quote }} }
             - { name: ZASP_DISCOVERY_API_DB_PRINCIPAL, value: {{ required "databasePrincipals.api is required" .Values.databasePrincipals.api | quote }} }
@@ -92,10 +135,17 @@ spec:
             - { name: ZASP_RUNTIME_CORRELATION_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeCorrelation is required" .Values.databasePrincipals.runtimeCorrelation | quote }} }
             - { name: ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeProjection is required" .Values.databasePrincipals.runtimeProjection | quote }} }
             - { name: ZASP_GATEWAY_CONTROL_DB_PRINCIPAL, value: {{ required "databasePrincipals.gatewayControl is required" .Values.databasePrincipals.gatewayControl | quote }} }
-          volumeMounts: [{ name: migration-secrets, mountPath: /var/run/secrets/zasp-migration, readOnly: true }]
+          volumeMounts:
+            - { name: migration-secrets, mountPath: /var/run/secrets/zasp-migration, readOnly: true }
+            {{- if .Values.authorizationTemporal.profile }}
+            {{- include "zasp.workerKeys.mount" . | nindent 12 }}
+            {{- end }}
           resources: { requests: { cpu: 100m, memory: 64Mi }, limits: { cpu: "1", memory: 256Mi } }
           securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
       volumes:
+        {{- if .Values.authorizationTemporal.profile }}
+        {{- include "zasp.workerKeys.volumes" . | nindent 8 }}
+        {{- end }}
         - name: migration-secrets
           csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.migrationProviderClassName | quote }} } }
 {{- end }}

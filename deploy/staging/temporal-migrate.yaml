@@ -1,0 +1,46 @@
+# Created before Helm installation by temporal-openfga.mjs. The upstream chart's
+# schema job does not mount its server.additionalVolumes database CA in 1.7.0.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: temporal-schema-
+  namespace: zasp-runtime
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata: { labels: { app.kubernetes.io/part-of: temporal } }
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: persistence
+          image: temporalio/admin-tools:1.32.0@sha256:a9f84fb9a374b2374fe2e67c8efc0468ff3f1c66c8a0b14597ec86e349e62bca
+          command: [sh, -ec, 'temporal-sql-tool setup-schema -v 0.0 && temporal-sql-tool update-schema -d /etc/temporal/schema/postgresql/v12/temporal/versioned']
+          env:
+            - { name: SQL_PLUGIN, value: postgres12 }
+            - { name: SQL_HOST, value: temporal-db.internal }
+            - { name: SQL_PORT, value: '5432' }
+            - { name: SQL_DATABASE, value: temporal }
+            - { name: SQL_USER, value: temporal }
+            - { name: SQL_PASSWORD, valueFrom: { secretKeyRef: { name: temporal-persistence, key: password } } }
+            - { name: SQL_TLS, value: 'true' }
+            - { name: SQL_TLS_CA_FILE, value: /etc/database-ca/ca.crt }
+          volumeMounts: [{ name: database-ca, mountPath: /etc/database-ca, readOnly: true }]
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: '1', memory: 512Mi } }
+      containers:
+        - name: visibility
+          image: temporalio/admin-tools:1.32.0@sha256:a9f84fb9a374b2374fe2e67c8efc0468ff3f1c66c8a0b14597ec86e349e62bca
+          command: [sh, -ec, 'temporal-sql-tool setup-schema -v 0.0 && temporal-sql-tool update-schema -d /etc/temporal/schema/postgresql/v12/visibility/versioned']
+          env:
+            - { name: SQL_PLUGIN, value: postgres12 }
+            - { name: SQL_HOST, value: temporal-visibility-db.internal }
+            - { name: SQL_PORT, value: '5432' }
+            - { name: SQL_DATABASE, value: temporal_visibility }
+            - { name: SQL_USER, value: temporal_visibility }
+            - { name: SQL_PASSWORD, valueFrom: { secretKeyRef: { name: temporal-visibility, key: password } } }
+            - { name: SQL_TLS, value: 'true' }
+            - { name: SQL_TLS_CA_FILE, value: /etc/database-ca/ca.crt }
+          volumeMounts: [{ name: database-ca, mountPath: /etc/database-ca, readOnly: true }]
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: '1', memory: 512Mi } }
+      volumes: [{ name: database-ca, secret: { secretName: runtime-database-ca } }]

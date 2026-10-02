@@ -1,0 +1,13 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","node_modules/vitest/vitest.mjs","run","app/features/securityagents/AttackLabEvidence.test.tsx","app/features/securityagents/SecurityAgentsView.test.tsx","-t","Attack Lab|Attack Lab draft"]
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+
+ Test Files  2 passed (2)
+      Tests  5 passed | 70 skipped (75)
+   Start at  03:22:43
+   Duration  1.79s (transform 322ms, setup 540ms, import 403ms, tests 171ms, environment 1.69s)
+
+
+Exit: 0 Signal: null

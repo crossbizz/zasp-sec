@@ -1,0 +1,33 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","--test","deploy/production/attack-lab-reconciler-runtime.test.mjs"]
+TAP version 13
+# Subtest: actual Go57 worker and registration loaders accept only rendered dedicated authority
+not ok 1 - actual Go57 worker and registration loaders accept only rendered dedicated authority
+  ---
+  duration_ms: 72188.412167
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/attack-lab-reconciler-runtime.test.mjs:17:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Command failed: go test -race ./agentsec-worker ./agentsec-migrate -run ^TestAttackLabDeploymentRendered(WorkerConfig|MigrationConfig)$ -count=1 -v
+    
+  code: 1
+  stack: |-
+    genericNodeError (node:internal/errors:983:15)
+    wrappedFn (node:internal/errors:537:14)
+    ChildProcess.exithandler (node:child_process:417:12)
+    ChildProcess.emit (node:events:519:28)
+    maybeClose (node:internal/child_process:1101:16)
+    ChildProcess._handle.onexit (node:internal/child_process:304:5)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 72259.930792
+
+Exit: 1 Signal: null

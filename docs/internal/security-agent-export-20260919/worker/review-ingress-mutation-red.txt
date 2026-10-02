@@ -1,0 +1,6 @@
+=== RUN   TestSecurityAgentExportWorkerIngressHeartbeatOwnership
+    security_agent_export_worker_review_test.go:133: renewal lost owned binding: worker execution unavailable
+--- FAIL: TestSecurityAgentExportWorkerIngressHeartbeatOwnership (0.10s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.182s
+FAIL

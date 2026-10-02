@@ -1,0 +1,9 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npm","run","openapi:check"]
+
+> zasp-agent-security-console@0.1.0 openapi:check
+> openapi-typescript openapi/openapi.yaml --output apps/web/api/generated.ts --alphabetize --export-type --immutable --root-types --root-types-no-schema-prefix --check
+
+✨ openapi-typescript 7.13.0
+
+Exit: 0 Signal: null

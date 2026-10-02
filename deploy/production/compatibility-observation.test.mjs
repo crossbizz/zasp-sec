@@ -4,19 +4,20 @@ import test from "node:test";
 import { observeCompatibility, observeSandboxBackfill, observePrecisionConsumers, observePrecisionIntake, revalidateCompatibility, revalidateSandboxBackfill, revalidatePrecisionConsumers, revalidatePrecisionIntake } from "./compatibility-observation.mjs";
 import { renderRelease } from "./release-contract.mjs";
 import { productionReleaseFixture } from "./release-fixture.mjs";
+import { observeSchema52PrecisionConsumers, observeSchema52PrecisionIntake, revalidateSchema52PrecisionConsumers, revalidateSchema52PrecisionIntake } from "./compatibility-observation.mjs";
 
 // Expected digests come from a separately serialized, admitted template artifact.
 const stable = value => Array.isArray(value) ? value.map(stable) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map(k => [k, stable(value[k])])) : value;
 const digest = value => createHash("sha256").update(JSON.stringify(stable(value))).digest("hex");
 const names = ["agentsec-api", "agentsec-runtime-outbox", "agentsec-runtime-coordinator", "agentsec-runtime-archive", "agentsec-runtime-index", "agentsec-runtime-correlation", "agentsec-runtime-projection", "agentsec-runtime-complete", "agentsec-event-ingest", "agentsec-gateway-control"];
 const imageID = `docker-pullable://example.invalid/worker@sha256:${"a".repeat(64)}`;
-function fixture(precision = false) {
+function fixture(precision = false, schema = 51) {
   const docs = { namespace: { apiVersion: "v1", kind: "Namespace", metadata: { name: "agentsec", uid: "namespace-1" } }, deployment: [], replicaset: [], pod: [] };
   const expected = (precision ? [...names, "agentsec-runtime-session-index-v2"] : names).map(name => {
     const template = { metadata: { labels: { app: name }, annotations: { "zasp.io/schema-version": "49" } }, spec: { containers: [{ name: "main", image: `example.invalid/worker@sha256:${"a".repeat(64)}`, env: [{ name: "CONFIG", value: "intended" }] }] } };
     if (precision) {
       template.spec.serviceAccountName = `${name}-account`;
-      template.metadata.annotations["zasp.io/schema-version"] = "51";
+      template.metadata.annotations["zasp.io/schema-version"] = String(schema);
       const selections = {
         "agentsec-api": ["ZASP_RUNTIME_SESSION_INDEX", "zasp-runtime-sessions-v2"],
         "agentsec-event-ingest": ["ZASP_RUNTIME_INGEST_SCHEMA", "runtime-event-v1"],
@@ -60,6 +61,45 @@ function setPinnedSelection(f, name, key, value) {
   f.docs.replicaset.find(r => r.metadata.name === `${name}-rs`).spec.template = structuredClone(d.spec.template);
   f.docs.pod.find(p => p.metadata.name === `${name}-pod`).spec = structuredClone(d.spec.template.spec);
   f.options.expected.find(e => e.name === name).templateDigest = digest(d.spec.template);
+}
+
+for (const [phase, observe, revalidate, oldObserve] of [
+  ["consumers", observeSchema52PrecisionConsumers, revalidateSchema52PrecisionConsumers, observePrecisionConsumers],
+  ["intake", observeSchema52PrecisionIntake, revalidateSchema52PrecisionIntake, observePrecisionIntake],
+]) {
+  const setup = (schema = 52) => {
+    const f = fixture(true, schema);
+    if (phase === "intake") setPinnedSelection(f, "agentsec-event-ingest", "ZASP_RUNTIME_INGEST_SCHEMA", "runtime-event-v2");
+    return f;
+  };
+  test(`schema52 ${phase} observation retains full11 identity and exact schema isolation`, async () => {
+    const f = setup();
+    const first = await observe(f.options, f.dependencies);
+    assert.equal(first.deployments.length, 11);
+    f.setTime(2000);
+    await revalidate(first, f.options, f.dependencies);
+    await assert.rejects(oldObserve(f.options, f.dependencies), /compatibility observation rejected/);
+    for (const schema of [51, 53]) {
+      const other = setup(schema);
+      await assert.rejects(observe(other.options, other.dependencies), /compatibility observation rejected/);
+    }
+    f.docs.pod[0].metadata.uid = "replacement-pod";
+    await assert.rejects(revalidate(first, f.options, f.dependencies), /compatibility observation rejected/);
+    const expired = setup();
+    const before = await observe(expired.options, expired.dependencies);
+    expired.setTime(31000);
+    await assert.rejects(revalidate(before, expired.options, expired.dependencies), /compatibility observation rejected/);
+  });
+  test(`schema52 ${phase} observation rejects missing consumers and consistently pinned wrong intake`, async () => {
+    for (const name of [...names, "agentsec-runtime-session-index-v2"]) {
+      const f = setup();
+      f.docs.deployment = f.docs.deployment.filter(d => d.metadata.name !== name);
+      await assert.rejects(observe(f.options, f.dependencies), /compatibility observation rejected/);
+    }
+    const f = setup();
+    setPinnedSelection(f, "agentsec-event-ingest", "ZASP_RUNTIME_INGEST_SCHEMA", phase === "intake" ? "runtime-event-v1" : "runtime-event-v2");
+    await assert.rejects(observe(f.options, f.dependencies), /compatibility observation rejected/);
+  });
 }
 
 test("observer spends only the inherited deadline across sequential reads", async () => {
@@ -221,10 +261,17 @@ test("revalidation rejects expiry and replacement pods with unchanged images", a
   await assert.rejects(revalidateCompatibility(first, f.options, f.dependencies), /compatibility observation rejected/);
 });
 
-for (const phase of ["compatibility", "backfill", "precision-consumers", "precision-intake"]) test(`observes rendered ${phase} with controlled provider metadata`, async () => {
+for (const [schema, phase, observe] of [
+  [49, "compatibility", observeCompatibility],
+  [50, "backfill", observeSandboxBackfill],
+  [51, "precision-consumers", observePrecisionConsumers],
+  [51, "precision-intake", observePrecisionIntake],
+  [52, "precision-consumers", observeSchema52PrecisionConsumers],
+  [52, "precision-intake", observeSchema52PrecisionIntake],
+]) test(`observes rendered schema${schema} ${phase} with controlled provider metadata`, async () => {
   const precision = phase !== "compatibility";
-  const f = fixture(precision);
-  const rendered = precision ? await renderRelease(productionReleaseFixture, { schemaVersion: phase === "backfill" ? 50 : 51, sessionSearchPhase: phase }) : await renderRelease(productionReleaseFixture);
+  const f = fixture(precision, schema);
+  const rendered = await renderRelease(productionReleaseFixture, { schemaVersion: schema, sessionSearchPhase: phase });
   for (const expected of f.options.expected) {
     const template = structuredClone(rendered.find(r => r.kind === "Deployment" && r.metadata.name === expected.name).spec.template);
     expected.templateDigest = digest(template);
@@ -240,7 +287,6 @@ for (const phase of ["compatibility", "backfill", "precision-consumers", "precis
     pod.status.containerStatuses = template.spec.containers.map(c => ({ name: c.name, ready: true, imageID, state: { running: { startedAt: "2026-09-11T00:00:00Z" } } }));
     pod.status.initContainerStatuses = (template.spec.initContainers ?? []).map(c => ({ name: c.name, imageID, state: { terminated: { exitCode: 0 } } }));
   }
-  const observe = phase === "backfill" ? observeSandboxBackfill : phase === "precision-intake" ? observePrecisionIntake : precision ? observePrecisionConsumers : observeCompatibility;
   const result = await observe(f.options, f.dependencies);
   assert.equal(result.deployments.length, precision ? 11 : 10);
   if (phase === "backfill") {

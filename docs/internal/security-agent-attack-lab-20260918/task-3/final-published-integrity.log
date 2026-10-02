@@ -1,0 +1,11 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","docs/internal/security-agent-attack-lab-20260918/task-3/published-integrity.mjs"]
+102 tracked published SQL files match original HEAD8733b16f8d939d38a8157dd2519e57fc6f630542 byte-for-byte.
+e96bd62ad561464a6293c0ad57d79510c5dc3ce8  services/platform/migrations/sql/fragments/compliance_jobs.sql
+b8f6d44f9f6b5dd244012c0706442d4f1cb7f04a  services/platform/migrations/compliance_release.go
+5cef6f19e09e6c882c6dc1237b56bf48bb700261  services/platform/migrations/sql/0056_production_compliance.up.sql
+4f849ace1c181e4c57904486bdded410119dcc2a  services/platform/migrations/sql/0056_production_compliance.down.sql
+Task3 migration delta is Attack Lab57 only. Fresh compiled55/56 checksum+pin assertions are in final-release-pins.log; actual empty rollback56 restoration is in review-fix-registered-postgres.log.
+No complete pre-Task1 file snapshot exists for inherited52..55; this check does not claim byte-identical comparison of every such file.
+
+Exit: 0 Signal: null

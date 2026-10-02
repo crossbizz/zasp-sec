@@ -73,6 +73,7 @@ func (control gatewayHTTPControl) Record(ctx context.Context, event gatewayDecis
 		return errGatewayRuntime
 	}
 	value := gatewaycontrol.DecisionEvent{
+		Evaluation:   cloneGatewayEvaluation(event.Evaluation),
 		CredentialID: event.CredentialID, DeviceID: event.DeviceID, EventID: event.EventID,
 		ExpectedFloor: event.ExpectedFloor, NextFloor: event.NextFloor, PolicyVersion: event.PolicyVersion,
 		Decision: event.Decision, ActionKind: event.ActionKind, PolicyIDs: cloneGatewayStringSlice(event.PolicyIDs), Classification: cloneGatewayStrings(event.Classification), OccurredAt: event.OccurredAt,

@@ -1,0 +1,742 @@
+{
+  "label": "after sibling denial /api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11",
+  "status": 200,
+  "code": null,
+  "principal": "pid_10000004-0000-4000-8000-000000000004",
+  "scope": "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003",
+  "finalURL": "https://zasp.production-e2e.test:61474/compliance/evidence",
+  "signIn": true,
+  "controls": false,
+  "exportAction": false,
+  "responses": [
+    {
+      "method": "GET",
+      "path": "/api/v1/session/start",
+      "status": 302,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/session/callback",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/scopes",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workflow-mutation-receipts",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/controls",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/controls",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": true,
+      "code": null
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/session/scope",
+      "status": 204,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/scopes",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workflow-mutation-receipts",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/controls",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/controls",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence/policy/policy-compliance-browser",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/scopes",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workflow-mutation-receipts",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/controls",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/controls",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/compliance/exports",
+      "status": 201,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11/download-grants",
+      "status": 201,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11/download",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/scopes",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workflow-mutation-receipts",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence/policy/policy-compliance-browser",
+      "status": 409,
+      "cursor": false,
+      "code": "source_changed"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence/policy/policy-compliance-browser",
+      "status": 409,
+      "cursor": false,
+      "code": "source_changed"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/scopes",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workflow-mutation-receipts",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/controls",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/controls",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/scopes",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workflow-mutation-receipts",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/controls",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/controls",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11/download-grants",
+      "status": 201,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11/download",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11/download-grants",
+      "status": 201,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11/download",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11/download-grants",
+      "status": 201,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11/download",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11/download",
+      "status": 401,
+      "cursor": false,
+      "code": "authentication_required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/scopes",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workflow-mutation-receipts",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/scopes",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workflow-mutation-receipts",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/session/scope",
+      "status": 204,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/scopes",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workflow-mutation-receipts",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/controls",
+      "status": 401,
+      "cursor": false,
+      "code": "authentication_required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 401,
+      "cursor": false,
+      "code": "authentication_required"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/controls",
+      "status": 409,
+      "cursor": false,
+      "code": "scope_stale"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/evidence",
+      "status": 409,
+      "cursor": false,
+      "code": "scope_stale"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/compliance/exports/pid_1717648f-b2d4-457c-95be-45f57d176f11",
+      "status": 404,
+      "cursor": false,
+      "code": "not_found"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/session/bootstrap",
+      "status": 200,
+      "cursor": false,
+      "code": null
+    }
+  ],
+  "consoleKinds": []
+}

@@ -1,0 +1,27 @@
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres
+    postgres_integration_test.go:1287: initdb: exit status 1
+        The files belonging to this database system will be owned by user "manishmaheshwari".
+        This user must also own the server process.
+        
+        The database cluster will be initialized with locale "C".
+        The default text search configuration will be set to "english".
+        
+        Data page checksums are enabled.
+        
+        creating directory /var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres2538944542/001/data ... ok
+        creating subdirectories ... ok
+        selecting dynamic shared memory implementation ... posix
+        selecting default "max_connections" ... 20
+        selecting default "shared_buffers" ... 400kB
+        selecting default time zone ... America/Los_Angeles
+        creating configuration files ... ok
+        running bootstrap script ... 2026-09-19 19:40:08.090 PDT [28846] FATAL:  could not create shared memory segment: No space left on device
+        2026-09-19 19:40:08.090 PDT [28846] DETAIL:  Failed system call was shmget(key=239076396, size=56, 03600).
+        2026-09-19 19:40:08.090 PDT [28846] HINT:  This error does *not* mean that you have run out of disk space.  It occurs either if all available shared memory IDs have been taken, in which case you need to raise the SHMMNI parameter in your kernel, or because the system's overall limit for shared memory has been reached.
+        	The PostgreSQL documentation contains more information about shared memory configuration.
+        child process exited with exit code 1
+        initdb: removing data directory "/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres2538944542/001/data"
+--- FAIL: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres (0.75s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	1.672s
+FAIL

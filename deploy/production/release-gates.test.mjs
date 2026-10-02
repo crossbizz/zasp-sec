@@ -52,6 +52,12 @@ test("release sources contain truthful runbooks, canary, SBOM/license/image/secr
     { schemaVersion: 50, phase: "query", schemaJob: "agentsec-schema-v50" },
     { schemaVersion: 51, phase: "precision-consumers", schemaJob: "agentsec-schema-v51" },
     { schemaVersion: 51, phase: "precision-intake", schemaJob: "agentsec-schema-v51" },
+    { schemaVersion: 52, phase: "precision-consumers", schemaJob: "agentsec-schema-v52" },
+    { schemaVersion: 52, phase: "precision-intake", schemaJob: "agentsec-schema-v52" },
+    { schemaVersion: 53, phase: "precision-consumers", schemaJob: "agentsec-schema-v53" },
+    { schemaVersion: 53, phase: "precision-intake", schemaJob: "agentsec-schema-v53" },
+    { schemaVersion: 54, phase: "precision-consumers", schemaJob: "agentsec-schema-v54" },
+    { schemaVersion: 54, phase: "precision-intake", schemaJob: "agentsec-schema-v54" },
   ]);
   assert.equal(result.canary, true);
   assert.equal(result.documentation, true);

@@ -1,0 +1,89 @@
+exit_code: 0
+TAP version 13
+# Subtest: dead_letter.receive_wait_time_seconds pins the canonical value only for the original queues
+ok 1 - dead_letter.receive_wait_time_seconds pins the canonical value only for the original queues
+  ---
+  duration_ms: 1.001
+  type: 'test'
+  ...
+# Subtest: dead_letter.receive_wait_time_seconds guard rejects missing, changed and over-scoped settings
+ok 2 - dead_letter.receive_wait_time_seconds guard rejects missing, changed and over-scoped settings
+  ---
+  duration_ms: 1.422292
+  type: 'test'
+  ...
+# Subtest: dead_letter.max_message_size pins the canonical value only for the original queues
+ok 3 - dead_letter.max_message_size pins the canonical value only for the original queues
+  ---
+  duration_ms: 0.246125
+  type: 'test'
+  ...
+# Subtest: dead_letter.max_message_size guard rejects missing, changed and over-scoped settings
+ok 4 - dead_letter.max_message_size guard rejects missing, changed and over-scoped settings
+  ---
+  duration_ms: 0.705709
+  type: 'test'
+  ...
+# Subtest: dead_letter.delay_seconds pins the canonical value only for the original queues
+ok 5 - dead_letter.delay_seconds pins the canonical value only for the original queues
+  ---
+  duration_ms: 0.139792
+  type: 'test'
+  ...
+# Subtest: dead_letter.delay_seconds guard rejects missing, changed and over-scoped settings
+ok 6 - dead_letter.delay_seconds guard rejects missing, changed and over-scoped settings
+  ---
+  duration_ms: 0.44175
+  type: 'test'
+  ...
+# Subtest: work.delay_seconds pins the canonical value only for the original queues
+ok 7 - work.delay_seconds pins the canonical value only for the original queues
+  ---
+  duration_ms: 0.048833
+  type: 'test'
+  ...
+# Subtest: work.delay_seconds guard rejects missing, changed and over-scoped settings
+ok 8 - work.delay_seconds guard rejects missing, changed and over-scoped settings
+  ---
+  duration_ms: 0.549958
+  type: 'test'
+  ...
+# Subtest: staging retains all three original queue contracts independently of Red Team
+ok 9 - staging retains all three original queue contracts independently of Red Team
+  ---
+  duration_ms: 0.581417
+  type: 'test'
+  ...
+# Subtest: shared staging resources bind each queue to its encrypted DLQ and output
+ok 10 - shared staging resources bind each queue to its encrypted DLQ and output
+  ---
+  duration_ms: 0.640584
+  type: 'test'
+  ...
+# Subtest: Red Team consumer authority stays on its separate queue
+ok 11 - Red Team consumer authority stays on its separate queue
+  ---
+  duration_ms: 0.169167
+  type: 'test'
+  ...
+# Subtest: original queue guard rejects missing tests and changed schema or delivery settings
+ok 12 - original queue guard rejects missing tests and changed schema or delivery settings
+  ---
+  duration_ms: 0.616833
+  type: 'test'
+  ...
+# Subtest: shared-resource guard rejects crossed DLQs, redrive widening and missing output membership
+ok 13 - shared-resource guard rejects crossed DLQs, redrive widening and missing output membership
+  ---
+  duration_ms: 0.675792
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 55.151833

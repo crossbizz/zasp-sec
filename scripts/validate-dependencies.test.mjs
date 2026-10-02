@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { test } from "node:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { dump } from "js-yaml";
 
 import {
@@ -533,6 +535,33 @@ test("rejects non-exact versions, unknown owners, unreviewed runtime, and copyle
       assert.throws(() => validate(lock));
     });
   }
+});
+
+test("accepts a package lock at four MiB and rejects one byte over its own bound", () => {
+  const files = filesFixture();
+  const content = files["package-lock.json"];
+  const bound = 4 * 1024 * 1024;
+  files["package-lock.json"] = content + " ".repeat(bound - Buffer.byteLength(content));
+  assert.equal(Buffer.byteLength(files["package-lock.json"]), bound);
+  assert.deepEqual(validate(lockFixture(), files), { manifests: 13, dependencies: 35 });
+  files["package-lock.json"] += " ";
+  assert.throws(() => validate(lockFixture(), files), /dependency lock invalid/);
+});
+
+test("developer and CI npm installs consume nested configuration, including the web container", () => {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const observed = execFileSync("npm", ["config", "get", "install-strategy"], {
+    cwd: root, encoding: "utf8", timeout: 5_000, maxBuffer: 4 * 1024,
+  }).trim();
+  assert.equal(observed, "nested");
+  assert.equal(readFileSync(new URL("../.npmrc", import.meta.url), "utf8"), "install-strategy=nested\n");
+  const dockerfile = readFileSync(new URL("../deploy/production/web.Dockerfile", import.meta.url), "utf8");
+  const copy = "COPY package.json package-lock.json .npmrc ./";
+  assert.ok(dockerfile.includes(copy));
+  assert.ok(dockerfile.indexOf(copy) < dockerfile.indexOf("RUN npm ci --ignore-scripts"));
+  const workflow = readFileSync(new URL("../.github/workflows/runnable-ui.yml", import.meta.url), "utf8");
+  assert.match(workflow, /run: SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci\s*\n/);
+  assert.doesNotMatch(workflow + dockerfile, /--install-strategy[= ]hoisted|NPM_CONFIG_INSTALL_STRATEGY|npm_config_install_strategy/);
 });
 
 test("rejects missing, extra, version-drifted, and license-drifted npm runtime state", async (t) => {

@@ -1,0 +1,933 @@
+## Task3 verification evidence
+
+Worktree: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Go: /opt/homebrew/bin/go, GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off
+Task cache: /private/tmp/zasp-release60-task3-cache
+Pinned image: postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba
+Inspected architecture: arm64; config ID sha256:0984215845c9203725ec1049ec2b1bdd2e8f5e0eeb4a82cfea4d9928a952ad40
+PostgreSQL builds: GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go test -c ... ./apiserver
+Task3 final binary: /tmp/zasp-release60-task3.wS7ihB/apiserver-final.test
+Final binary SHA256: a069b9d4014b574c1e12a3376bd3cb9944d8bf91f47816f056eec2fbec335500
+Release60 checksum: 37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab
+Release60 fingerprint: 1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36
+Controlled local evidence only; no public300-second cadence, provider, browser or deployment claim.
+
+
+## Readiness and runtime direct RED before production edits
+
+cwd services/platform
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-release60-task3-cache /opt/homebrew/bin/go test ./apiserver ./agentsec-worker -run '^Test(ProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60|ProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60)$' -count=1 -v
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/exact
+    discovery_execution_repository_test.go:58: drifted scheduler stayed ready
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/release59_only
+    discovery_execution_repository_test.go:59: unsafe scheduler constructed: <nil>
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/drift
+    discovery_execution_repository_test.go:59: unsafe scheduler constructed: <nil>
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/malformed
+    discovery_execution_repository_test.go:59: unsafe scheduler constructed: <nil>
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/revoked_execute
+    discovery_execution_repository_test.go:59: unsafe scheduler constructed: <nil>
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/wrong_principal
+    discovery_execution_repository_test.go:60: release60 check=0 schema=0 recovery=1 execution=0
+--- FAIL: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60 (0.00s)
+    --- FAIL: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/exact (0.00s)
+    --- FAIL: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/release59_only (0.00s)
+    --- FAIL: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/drift (0.00s)
+    --- FAIL: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/malformed (0.00s)
+    --- FAIL: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/revoked_execute (0.00s)
+    --- FAIL: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/wrong_principal (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	1.118s
+=== RUN   TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60
+    production_runtime_test.go:838: predecessor-only scheduler started: <nil>
+--- FAIL: TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60 (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.640s
+FAIL
+
+exit=1 expected
+
+## Scheduled decoder direct RED
+
+Selector: ^Test(ProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60|ProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60|AutomaticDiscoveryScheduledOccurrenceRebindPostgres)$/scheduled_decoder
+This selects the decoder subtests only; the unselected readiness children in this invocation are not counted as readiness evidence.
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/exact
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/sync
+    automatic_discovery_scheduler_postgres_test.go:456: scheduled decoder accepted returned/proposed sync mismatch: result={SyncID:pid_79900001-0000-4000-8000-000000000001 JobID:pid_79000005-0000-4000-8000-000000000005 OutboxID:pid_79000006-0000-4000-8000-000000000006 State:queued Replayed:true} err=<nil>
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/job
+    automatic_discovery_scheduler_postgres_test.go:456: scheduled decoder accepted returned/proposed job mismatch: result={SyncID:pid_79000004-0000-4000-8000-000000000004 JobID:pid_79900001-0000-4000-8000-000000000001 OutboxID:pid_79000006-0000-4000-8000-000000000006 State:queued Replayed:true} err=<nil>
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/outbox
+    automatic_discovery_scheduler_postgres_test.go:456: scheduled decoder accepted returned/proposed outbox mismatch: result={SyncID:pid_79000004-0000-4000-8000-000000000004 JobID:pid_79000005-0000-4000-8000-000000000005 OutboxID:pid_79900001-0000-4000-8000-000000000001 State:queued Replayed:true} err=<nil>
+--- FAIL: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres (0.00s)
+    --- FAIL: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/exact (0.00s)
+        --- FAIL: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/sync (0.00s)
+        --- FAIL: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/job (0.00s)
+        --- FAIL: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/outbox (0.00s)
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60
+--- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60 (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.631s
+=== RUN   TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60
+    production_runtime_test.go:838: predecessor-only scheduler started: <nil>
+--- FAIL: TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60 (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	0.810s
+FAIL
+
+exit=1 expected
+
+## Registered predecessor readiness RED and diagnostic fixture correction
+
+/usr/local/bin/docker run --rm --pull=never --name zasp-release60-task3-red --label zasp.test.owner=release60-task3 --network none --read-only --user postgres --tmpfs /tmp:rw,nosuid,nodev,mode=1777 --mount type=bind,src=/tmp/zasp-release60-task3.wS7ihB/apiserver-red.test,dst=/apiserver.test,readonly --entrypoint /apiserver.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres$/exact_reclaim' -test.count=1 -test.v -test.timeout=90s
+Binary SHA256: cb7318003c77e8c84fafee9e38818ce6fce58ee5df3d1716ab67a7d36ec0b9a5
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim
+    automatic_discovery_scheduler_postgres_test.go:64: registered release59 checksum=f5021eaf0e9954cba9ab16b4ae1e0ee57e9ea85d909b44eeffe6ac853d0073f4 fingerprint=e89317deca2aabbeb6e35bbe303d8245ba8ea0dbda6351c2d1b2e458e79842f1 ready=true
+    automatic_discovery_scheduler_postgres_test.go:72: release59-only scheduler started: <nil>
+    automatic_discovery_scheduler_postgres_test.go:78: registered release60 checksum=37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab fingerprint=1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36 ready=true
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/direct_table_writes_and_reads_cannot_bypass_scheduler_RLS
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/wrong_registered_principal_cannot_borrow_live_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/same_live_token_replay_does_not_mutate_receipt_or_freshness
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/simultaneous_expired_admission_and_reclaim_fences_old_process
+=== NAME  TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim
+    automatic_discovery_scheduler_postgres_test.go:338: real lease wait=5.036038809s claim version=2→3 same due=2026-09-20T05:18:33.359492Z
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_organization_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_workspace_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_environment_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_schedule_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_integration_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_sync_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_job_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_outbox_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/exact_occurrence_rebinds_to_verified_replacement
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/replacement_completion_is_occurrence_durable
+    automatic_discovery_scheduler_postgres_test.go:471: stored completion={ID:pid_79000003-0000-4000-8000-000000000003 State:enabled NextRunAt:2026-09-20 05:18:45.971462 +0000 UTC Version:5} result={ID:pid_79000003-0000-4000-8000-000000000003 State:enabled NextRunAt:2026-09-20 05:18:45.971462 +0000 UTC Version:5} err=<nil>
+=== NAME  TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=28 data=/tmp/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgresexact_re2880966782/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres (18.89s)
+    --- FAIL: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim (18.89s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/direct_table_writes_and_reads_cannot_bypass_scheduler_RLS (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/wrong_registered_principal_cannot_borrow_live_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/same_live_token_replay_does_not_mutate_receipt_or_freshness (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/simultaneous_expired_admission_and_reclaim_fences_old_process (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_organization_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_workspace_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_environment_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_schedule_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_integration_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_sync_ID_must_not_authorize_rebind (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_job_ID_must_not_authorize_rebind (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_outbox_ID_must_not_authorize_rebind (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/exact_occurrence_rebinds_to_verified_replacement (0.01s)
+        --- FAIL: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/replacement_completion_is_occurrence_durable (5.04s)
+FAIL
+
+exit=1. The predecessor scheduler acceptance is the intended RED. The completion assertion also failed because == compared time.Time location representation despite equal timestamps; the test now compares identity/state/version and Time.Equal. That second failure is not product-defect evidence.
+
+
+## Runtime drift direct RED after repository fix
+
+Repository fix passed; processor still claimed twice after readiness drift. Production runtime wrapper was not yet changed.
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/exact
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/release59_only
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/drift
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/malformed
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/revoked_execute
+=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/wrong_principal
+--- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60 (0.17s)
+    --- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/exact (0.07s)
+    --- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/release59_only (0.02s)
+    --- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/drift (0.02s)
+    --- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/malformed (0.02s)
+    --- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/revoked_execute (0.02s)
+    --- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/wrong_principal (0.02s)
+=== RUN   TestDiscoveryExecutionRepositoryAppliesOnlyLeaseFencedRiskProjectionInput
+--- PASS: TestDiscoveryExecutionRepositoryAppliesOnlyLeaseFencedRiskProjectionInput (0.00s)
+=== RUN   TestDiscoveryExecutionConstructorsAcceptCurrentV27Readiness
+--- PASS: TestDiscoveryExecutionConstructorsAcceptCurrentV27Readiness (0.00s)
+=== RUN   TestDiscoveryExecutionConstructorsAcceptCurrentV23Readiness
+--- PASS: TestDiscoveryExecutionConstructorsAcceptCurrentV23Readiness (0.00s)
+=== RUN   TestDiscoveryExecutionConstructorsAcceptCurrentV22Readiness
+--- PASS: TestDiscoveryExecutionConstructorsAcceptCurrentV22Readiness (0.00s)
+=== RUN   TestDiscoveryExecutionConstructorsAcceptCurrentV19Readiness
+--- PASS: TestDiscoveryExecutionConstructorsAcceptCurrentV19Readiness (0.00s)
+=== RUN   TestDiscoveryExecutionConstructorsPreferTypedV14Readiness
+--- PASS: TestDiscoveryExecutionConstructorsPreferTypedV14Readiness (0.00s)
+=== RUN   TestDiscoveryExecutionFinishSQLNullsSuccessfulErrorFields
+--- PASS: TestDiscoveryExecutionFinishSQLNullsSuccessfulErrorFields (0.00s)
+=== RUN   TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness
+=== RUN   TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/scheduler
+=== RUN   TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/outbox
+--- PASS: TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness (0.04s)
+    --- PASS: TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/scheduler (0.04s)
+    --- PASS: TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/outbox (0.00s)
+=== RUN   TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput
+--- PASS: TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput (0.00s)
+=== RUN   TestDiscoveryExecutionRepositoryCheckpointsPartialCollectionForReclaim
+--- PASS: TestDiscoveryExecutionRepositoryCheckpointsPartialCollectionForReclaim (0.00s)
+=== RUN   TestDiscoveryExecutionRepositoryRejectsWrongAuthorityAndExpiredLease
+--- PASS: TestDiscoveryExecutionRepositoryRejectsWrongAuthorityAndExpiredLease (0.00s)
+=== RUN   TestDiscoveryExecutionRepositoryConstructorBoundsReadinessProbe
+--- PASS: TestDiscoveryExecutionRepositoryConstructorBoundsReadinessProbe (0.01s)
+=== RUN   TestDiscoveryExecutionScheduleCompletionValidationIsClockIndependent
+--- PASS: TestDiscoveryExecutionScheduleCompletionValidationIsClockIndependent (0.02s)
+=== RUN   TestDiscoveryExecutionScheduleInputUsesDatabaseCadenceBounds
+--- PASS: TestDiscoveryExecutionScheduleInputUsesDatabaseCadenceBounds (0.02s)
+=== RUN   TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus
+--- PASS: TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus (0.00s)
+=== RUN   TestDiscoveryExecutionProjectionClaimsAreKindBound
+=== PAUSE TestDiscoveryExecutionProjectionClaimsAreKindBound
+=== RUN   TestDiscoveryExecutionProjectionAttemptLimitMatchesDatabase
+--- PASS: TestDiscoveryExecutionProjectionAttemptLimitMatchesDatabase (0.00s)
+=== RUN   TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability
+=== PAUSE TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability
+=== RUN   TestDiscoveryExecutionProjectionCompletionRequiresDurableDriverReceipt
+--- PASS: TestDiscoveryExecutionProjectionCompletionRequiresDurableDriverReceipt (0.00s)
+=== CONT  TestDiscoveryExecutionProjectionClaimsAreKindBound
+=== RUN   TestDiscoveryExecutionProjectionClaimsAreKindBound/risk
+=== CONT  TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability
+=== RUN   TestDiscoveryExecutionProjectionClaimsAreKindBound/graph
+--- PASS: TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability (0.00s)
+=== RUN   TestDiscoveryExecutionProjectionClaimsAreKindBound/search
+--- PASS: TestDiscoveryExecutionProjectionClaimsAreKindBound (0.00s)
+    --- PASS: TestDiscoveryExecutionProjectionClaimsAreKindBound/risk (0.00s)
+    --- PASS: TestDiscoveryExecutionProjectionClaimsAreKindBound/graph (0.00s)
+    --- PASS: TestDiscoveryExecutionProjectionClaimsAreKindBound/search (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	2.047s
+=== RUN   TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60
+    production_runtime_test.go:861: drifted scheduler claimed: claims=2
+--- FAIL: TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60 (0.08s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.163s
+FAIL
+
+exit=1 expected for runtime drift
+
+## Runtime drift focused GREEN
+
+=== RUN   TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60
+--- PASS: TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60 (0.12s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.078s
+
+
+## Focused registered GREEN before final same-due completed-rebind control
+
+/usr/local/bin/docker run --rm --pull=never --name zasp-release60-task3-focused --label zasp.test.owner=release60-task3 --network none --read-only --user postgres --tmpfs /tmp:rw,nosuid,nodev,mode=1777 --mount type=bind,src=/tmp/zasp-release60-task3.wS7ihB/apiserver-green.test,dst=/apiserver.test,readonly --entrypoint /apiserver.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres$/(exact_reclaim|expired_legacy_preinstall|unsupported_old_first_after_install|scheduled_decoder)' -test.count=1 -test.v -test.timeout=120s
+Binary SHA256: 925ed116d94f6afd6366cb78e8e73198dae05e8af43a1ef9a70f205267e1d6d9
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/exact
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/sync
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/job
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/outbox
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim
+    automatic_discovery_scheduler_postgres_test.go:64: registered release59 checksum=f5021eaf0e9954cba9ab16b4ae1e0ee57e9ea85d909b44eeffe6ac853d0073f4 fingerprint=e89317deca2aabbeb6e35bbe303d8245ba8ea0dbda6351c2d1b2e458e79842f1 ready=true
+    automatic_discovery_scheduler_postgres_test.go:94: registered release60 checksum=37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab fingerprint=1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36 ready=true
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/direct_table_writes_and_reads_cannot_bypass_scheduler_RLS
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/wrong_registered_principal_cannot_borrow_live_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/same_live_token_replay_does_not_mutate_receipt_or_freshness
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/simultaneous_expired_admission_and_reclaim_fences_old_process
+=== NAME  TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim
+    automatic_discovery_scheduler_postgres_test.go:354: real lease wait=5.054096238s claim version=2→3 same due=2026-09-20T05:22:22.843776Z
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_organization_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_workspace_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_environment_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_schedule_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_integration_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_sync_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_job_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_outbox_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/exact_occurrence_rebinds_to_verified_replacement
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/replacement_completion_is_occurrence_durable
+=== NAME  TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=32 data=/tmp/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgresexact_re518091433/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/expired_legacy_preinstall
+    automatic_discovery_scheduler_postgres_test.go:64: registered release59 checksum=f5021eaf0e9954cba9ab16b4ae1e0ee57e9ea85d909b44eeffe6ac853d0073f4 fingerprint=e89317deca2aabbeb6e35bbe303d8245ba8ea0dbda6351c2d1b2e458e79842f1 ready=true
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=65 data=/tmp/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgresexpired_115858626/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/unsupported_old_first_after_install
+    automatic_discovery_scheduler_postgres_test.go:64: registered release59 checksum=f5021eaf0e9954cba9ab16b4ae1e0ee57e9ea85d909b44eeffe6ac853d0073f4 fingerprint=e89317deca2aabbeb6e35bbe303d8245ba8ea0dbda6351c2d1b2e458e79842f1 ready=true
+    automatic_discovery_scheduler_postgres_test.go:66: already executing predecessor admission resumed and committed after deliberately violated maintenance fence
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=93 data=/tmp/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgresunsuppor1703973612/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres (43.61s)
+    --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs (0.11s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/exact (0.04s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/sync (0.02s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/job (0.03s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/outbox (0.03s)
+    --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim (20.06s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/direct_table_writes_and_reads_cannot_bypass_scheduler_RLS (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/wrong_registered_principal_cannot_borrow_live_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/same_live_token_replay_does_not_mutate_receipt_or_freshness (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/simultaneous_expired_admission_and_reclaim_fences_old_process (0.02s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_organization_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_workspace_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_environment_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_schedule_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_integration_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_sync_ID_must_not_authorize_rebind (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_job_ID_must_not_authorize_rebind (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_outbox_ID_must_not_authorize_rebind (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/exact_occurrence_rebinds_to_verified_replacement (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/replacement_completion_is_occurrence_durable (6.61s)
+    --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/expired_legacy_preinstall (11.85s)
+    --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/unsupported_old_first_after_install (11.58s)
+PASS
+
+exit=0; final group below supersedes this source state.
+
+## FINAL registered replay and predecessor-consumer group
+
+/usr/local/bin/docker run --rm --pull=never --name zasp-release60-task3-final --label zasp.test.owner=release60-task3 --network none --read-only --user postgres --tmpfs /tmp:rw,nosuid,nodev,mode=1777 --mount type=bind,src=/tmp/zasp-release60-task3.wS7ihB/apiserver-final.test,dst=/apiserver.test,readonly --entrypoint /apiserver.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^Test(AutomaticDiscoveryScheduledOccurrenceRebindPostgres|ProductionDiscoveryExecutionWorkerConstructorsUseSecurityDefinerReadiness)$' -test.count=1 -test.v -test.timeout=150s
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/exact
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/sync
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/job
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/outbox
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim
+    automatic_discovery_scheduler_postgres_test.go:64: registered release59 checksum=f5021eaf0e9954cba9ab16b4ae1e0ee57e9ea85d909b44eeffe6ac853d0073f4 fingerprint=e89317deca2aabbeb6e35bbe303d8245ba8ea0dbda6351c2d1b2e458e79842f1 ready=true
+    automatic_discovery_scheduler_postgres_test.go:94: registered release60 checksum=37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab fingerprint=1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36 ready=true
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/direct_table_writes_and_reads_cannot_bypass_scheduler_RLS
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/wrong_registered_principal_cannot_borrow_live_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/same_live_token_replay_does_not_mutate_receipt_or_freshness
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/simultaneous_expired_admission_and_reclaim_fences_old_process
+=== NAME  TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim
+    automatic_discovery_scheduler_postgres_test.go:354: real lease wait=5.041421353s claim version=2→3 same due=2026-09-20T05:24:00.763541Z
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_organization_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_workspace_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_environment_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_schedule_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_integration_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_sync_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_job_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_outbox_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/exact_occurrence_rebinds_to_verified_replacement
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/replacement_completion_is_occurrence_durable
+=== NAME  TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=32 data=/tmp/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgresexact_re2464524720/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest
+    automatic_discovery_scheduler_postgres_test.go:64: registered release59 checksum=f5021eaf0e9954cba9ab16b4ae1e0ee57e9ea85d909b44eeffe6ac853d0073f4 fingerprint=e89317deca2aabbeb6e35bbe303d8245ba8ea0dbda6351c2d1b2e458e79842f1 ready=true
+    automatic_discovery_scheduler_postgres_test.go:94: registered release60 checksum=37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab fingerprint=1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36 ready=true
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/direct_table_writes_and_reads_cannot_bypass_scheduler_RLS
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/wrong_registered_principal_cannot_borrow_live_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/same_live_token_replay_does_not_mutate_receipt_or_freshness
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/simultaneous_expired_admission_and_reclaim_fences_old_process
+=== NAME  TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest
+    automatic_discovery_scheduler_postgres_test.go:354: real lease wait=5.058140062s claim version=2→3 same due=2026-09-20T05:24:20.927324Z
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/changed_organization_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/changed_workspace_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/changed_environment_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/changed_schedule_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/changed_integration_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/normalized_sync_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/normalized_job_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/normalized_outbox_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/exact_occurrence_rebinds_to_verified_replacement
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/different_key_provisional_writes_rollback_changed_digest_false
+=== NAME  TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=66 data=/tmp/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgresdifferen991484289/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest
+    automatic_discovery_scheduler_postgres_test.go:64: registered release59 checksum=f5021eaf0e9954cba9ab16b4ae1e0ee57e9ea85d909b44eeffe6ac853d0073f4 fingerprint=e89317deca2aabbeb6e35bbe303d8245ba8ea0dbda6351c2d1b2e458e79842f1 ready=true
+    automatic_discovery_scheduler_postgres_test.go:94: registered release60 checksum=37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab fingerprint=1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36 ready=true
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/direct_table_writes_and_reads_cannot_bypass_scheduler_RLS
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/wrong_registered_principal_cannot_borrow_live_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/same_live_token_replay_does_not_mutate_receipt_or_freshness
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/simultaneous_expired_admission_and_reclaim_fences_old_process
+=== NAME  TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest
+    automatic_discovery_scheduler_postgres_test.go:354: real lease wait=4.967192964s claim version=2→3 same due=2026-09-20T05:24:36.802532Z
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/changed_organization_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/changed_workspace_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/changed_environment_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/changed_schedule_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/changed_integration_cannot_borrow_replacement_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/normalized_sync_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/normalized_job_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/normalized_outbox_ID_must_not_authorize_rebind
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/exact_occurrence_rebinds_to_verified_replacement
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/different_key_provisional_writes_rollback_changed_digest_true
+=== NAME  TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=96 data=/tmp/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgresdifferen777700055/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/distinct_due_time
+    automatic_discovery_scheduler_postgres_test.go:64: registered release59 checksum=f5021eaf0e9954cba9ab16b4ae1e0ee57e9ea85d909b44eeffe6ac853d0073f4 fingerprint=e89317deca2aabbeb6e35bbe303d8245ba8ea0dbda6351c2d1b2e458e79842f1 ready=true
+    automatic_discovery_scheduler_postgres_test.go:94: registered release60 checksum=37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab fingerprint=1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36 ready=true
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/distinct_due_time/direct_table_writes_and_reads_cannot_bypass_scheduler_RLS
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/distinct_due_time/wrong_registered_principal_cannot_borrow_live_lease
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/distinct_due_time/same_live_token_replay_does_not_mutate_receipt_or_freshness
+=== NAME  TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/distinct_due_time
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=128 data=/tmp/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgresdistinct2562425760/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/expired_legacy_preinstall
+    automatic_discovery_scheduler_postgres_test.go:64: registered release59 checksum=f5021eaf0e9954cba9ab16b4ae1e0ee57e9ea85d909b44eeffe6ac853d0073f4 fingerprint=e89317deca2aabbeb6e35bbe303d8245ba8ea0dbda6351c2d1b2e458e79842f1 ready=true
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=161 data=/tmp/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgresexpired_986738754/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/unsupported_old_first_after_install
+    automatic_discovery_scheduler_postgres_test.go:64: registered release59 checksum=f5021eaf0e9954cba9ab16b4ae1e0ee57e9ea85d909b44eeffe6ac853d0073f4 fingerprint=e89317deca2aabbeb6e35bbe303d8245ba8ea0dbda6351c2d1b2e458e79842f1 ready=true
+    automatic_discovery_scheduler_postgres_test.go:66: already executing predecessor admission resumed and committed after deliberately violated maintenance fence
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=189 data=/tmp/TestAutomaticDiscoveryScheduledOccurrenceRebindPostgresunsuppor3633092137/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres (87.14s)
+    --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs (0.15s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/exact (0.04s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/sync (0.03s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/job (0.03s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/scheduled_decoder_cannot_accept_normalized_manual_replay_IDs/outbox (0.04s)
+    --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim (19.69s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/direct_table_writes_and_reads_cannot_bypass_scheduler_RLS (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/wrong_registered_principal_cannot_borrow_live_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/same_live_token_replay_does_not_mutate_receipt_or_freshness (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/simultaneous_expired_admission_and_reclaim_fences_old_process (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_organization_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_workspace_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_environment_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_schedule_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/changed_integration_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_sync_ID_must_not_authorize_rebind (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_job_ID_must_not_authorize_rebind (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/normalized_outbox_ID_must_not_authorize_rebind (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/exact_occurrence_rebinds_to_verified_replacement (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/exact_reclaim/replacement_completion_is_occurrence_durable (6.70s)
+    --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest (13.33s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/direct_table_writes_and_reads_cannot_bypass_scheduler_RLS (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/wrong_registered_principal_cannot_borrow_live_lease (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/same_live_token_replay_does_not_mutate_receipt_or_freshness (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/simultaneous_expired_admission_and_reclaim_fences_old_process (0.05s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/changed_organization_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/changed_workspace_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/changed_environment_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/changed_schedule_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/changed_integration_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/normalized_sync_ID_must_not_authorize_rebind (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/normalized_job_ID_must_not_authorize_rebind (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/normalized_outbox_ID_must_not_authorize_rebind (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/exact_occurrence_rebinds_to_verified_replacement (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_same_digest/different_key_provisional_writes_rollback_changed_digest_false (0.01s)
+    --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest (16.37s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/direct_table_writes_and_reads_cannot_bypass_scheduler_RLS (0.02s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/wrong_registered_principal_cannot_borrow_live_lease (0.02s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/same_live_token_replay_does_not_mutate_receipt_or_freshness (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/simultaneous_expired_admission_and_reclaim_fences_old_process (0.03s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/changed_organization_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/changed_workspace_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/changed_environment_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/changed_schedule_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/changed_integration_cannot_borrow_replacement_lease (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/normalized_sync_ID_must_not_authorize_rebind (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/normalized_job_ID_must_not_authorize_rebind (0.00s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/normalized_outbox_ID_must_not_authorize_rebind (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/exact_occurrence_rebinds_to_verified_replacement (0.01s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/different_key_changed_digest/different_key_provisional_writes_rollback_changed_digest_true (0.01s)
+    --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/distinct_due_time (11.10s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/distinct_due_time/direct_table_writes_and_reads_cannot_bypass_scheduler_RLS (0.02s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/distinct_due_time/wrong_registered_principal_cannot_borrow_live_lease (0.03s)
+        --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/distinct_due_time/same_live_token_replay_does_not_mutate_receipt_or_freshness (0.01s)
+    --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/expired_legacy_preinstall (14.47s)
+    --- PASS: TestAutomaticDiscoveryScheduledOccurrenceRebindPostgres/unsupported_old_first_after_install (12.03s)
+=== RUN   TestProductionDiscoveryExecutionWorkerConstructorsUseSecurityDefinerReadiness
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=219 data=/tmp/TestProductionDiscoveryExecutionWorkerConstructorsUseSecurityDef2366286992/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestProductionDiscoveryExecutionWorkerConstructorsUseSecurityDefinerReadiness (2.57s)
+PASS
+
+exit=0;58 matching RUN/PASS records;0 FAIL/SKIP;7 normal PostgreSQL joins.
+
+## FINAL exact release cycle on unchanged accepted Task2 binary
+
+/usr/local/bin/docker run --rm --pull=never --name zasp-release60-task3-cycle --label zasp.test.owner=release60-task3 --network none --read-only --user postgres --tmpfs /tmp:rw,nosuid,nodev,mode=1777 --mount type=bind,src=/tmp/zasp-release60-task2.H9Kk3e/migration-fix1-green.test,dst=/migration.test,readonly --entrypoint /migration.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestProductionDiscoveryScheduleReplayPostgres$' -test.count=1 -test.v -test.timeout=90s
+0248706cf2718066e815e1be8eba556efed66d754caaf44a21523b918ca3f443  /tmp/zasp-release60-task2.H9Kk3e/migration-fix1-green.test
+4bd8f91f3bfa0897d5d91ac64e9bc7f2a48fb5deea87c37f2641f4955fd81fa8  services/platform/agentsec-migrate/main_test.go
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/catalog_and_grants
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_compliance_readiness(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_complete_schedule(text,text,text,text,text,text,text,timestamp_with_time_zone)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_live_fingerprint()
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_readiness(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_request_scheduled_sync(text,text,text,text,text,text,text,text,text,text,text,text,bytea,text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_security_ready()
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_production_security_agent_attack_path_security_ready()
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_production_security_agent_existing_tests_readiness(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_production_workflow_compatibility_security_ready()
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_attack_lab_readiness(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_export_readiness(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_webhook_guard()
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_webhook_readiness(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_attack_lab_prior.audit_fingerprint()
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_attack_lab_prior.predecessor_ready(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_export_prior.predecessor_ready(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_webhook_prior.predecessor_ready(text,text)
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/catalog_drift_REVOKE_EXECUTE_ON_FUNCTION_zasp_execution_complete_schedule(text,text,text,text,text,text,text,timestamptz)_FROM_zasp_discovery_scheduler
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/catalog_drift_GRANT_EXECUTE_ON_FUNCTION_zasp_execution_request_scheduled_sync(text,text,text,text,text,text,text,text,text,text,text,text,bytea,text,text)_TO_PUBLIC
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/catalog_drift_ALTER_TABLE_zasp_discovery_schedule_runs_DROP_CONSTRAINT_zasp_discovery_schedule_runs_occurrence_key
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_production_security_agent_existing_tests_client_ready
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_compliance_api_ready
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_sa_attack_lab_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_sa_export_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_17_zasp_sa_webhook_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_01_zasp_execution_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_07_zasp_execution_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_08_zasp_execution_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_09_zasp_execution_readiness
+=== RUN   TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_06_zasp_discovery_schedule_replay_readiness
+=== NAME  TestProductionDiscoveryScheduleReplayPostgres
+    main_test.go:4381: owned PostgreSQL joined normally: stop=0 wait=0
+--- PASS: TestProductionDiscoveryScheduleReplayPostgres (22.02s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/catalog_and_grants (0.01s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_compliance_readiness(text,text) (0.17s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_complete_schedule(text,text,text,text,text,text,text,timestamp_with_time_zone) (0.11s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_live_fingerprint() (0.12s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_readiness(text,text) (0.11s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_request_scheduled_sync(text,text,text,text,text,text,text,text,text,text,text,text,bytea,text,text) (0.11s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_execution_security_ready() (0.12s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_production_security_agent_attack_path_security_ready() (0.55s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_production_security_agent_existing_tests_readiness(text,text) (0.18s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_production_workflow_compatibility_security_ready() (0.14s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_risk_mutate(text,text,text,text,text,text,text,bigint,text,text,text,text,text) (0.13s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_attack_lab_readiness(text,text) (0.13s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_export_readiness(text,text) (0.12s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_webhook_guard() (0.11s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_sa_webhook_readiness(text,text) (0.13s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_public.zasp_workflow_mutate(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text,text) (0.13s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_attack_lab_prior.audit_fingerprint() (0.10s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_attack_lab_prior.predecessor_ready(text,text) (0.11s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_export_prior.predecessor_ready(text,text) (0.10s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/definition_drift_zasp_sa_webhook_prior.predecessor_ready(text,text) (0.11s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/catalog_drift_REVOKE_EXECUTE_ON_FUNCTION_zasp_execution_complete_schedule(text,text,text,text,text,text,text,timestamptz)_FROM_zasp_discovery_scheduler (0.11s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/catalog_drift_GRANT_EXECUTE_ON_FUNCTION_zasp_execution_request_scheduled_sync(text,text,text,text,text,text,text,text,text,text,text,text,bytea,text,text)_TO_PUBLIC (0.11s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/catalog_drift_ALTER_TABLE_zasp_discovery_schedule_runs_DROP_CONSTRAINT_zasp_discovery_schedule_runs_occurrence_key (0.11s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_production_security_agent_existing_tests_client_ready (0.30s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_compliance_api_ready (0.23s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_sa_attack_lab_readiness (0.19s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_00_zasp_sa_export_readiness (0.21s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_17_zasp_sa_webhook_readiness (0.28s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_01_zasp_execution_readiness (0.23s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_07_zasp_execution_readiness (0.17s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_08_zasp_execution_readiness (0.27s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_09_zasp_execution_readiness (0.23s)
+    --- PASS: TestProductionDiscoveryScheduleReplayPostgres/compiled_boundary_replay_login_06_zasp_discovery_schedule_replay_readiness (0.18s)
+PASS
+
+exit=0;34 matching RUN/PASS records;0 FAIL/SKIP;1 normal PostgreSQL join.
+Other accepted Task2 matrix evidence is reused without rerunning unchanged inputs.
+
+## FINAL affected apiserver race group
+
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-release60-task3-cache /opt/homebrew/bin/go test -race ./apiserver -run '^(TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60|TestDiscoveryExecutionRepositoryAppliesOnlyLeaseFencedRiskProjectionInput|TestDiscoveryExecutionConstructorsAcceptCurrentV27Readiness|TestDiscoveryExecutionConstructorsAcceptCurrentV23Readiness|TestDiscoveryExecutionConstructorsAcceptCurrentV22Readiness|TestDiscoveryExecutionConstructorsAcceptCurrentV19Readiness|TestDiscoveryExecutionConstructorsPreferTypedV14Readiness|TestDiscoveryExecutionFinishSQLNullsSuccessfulErrorFields|TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness|TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput|TestDiscoveryExecutionRepositoryCheckpointsPartialCollectionForReclaim|TestDiscoveryExecutionRepositoryRejectsWrongAuthorityAndExpiredLease|TestDiscoveryExecutionRepositoryConstructorBoundsReadinessProbe|TestDiscoveryExecutionScheduleCompletionValidationIsClockIndependent|TestDiscoveryExecutionScheduleInputUsesDatabaseCadenceBounds|TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus|TestDiscoveryExecutionProjectionClaimsAreKindBound|TestDiscoveryExecutionProjectionAttemptLimitMatchesDatabase|TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability|TestDiscoveryExecutionProjectionCompletionRequiresDurableDriverReceipt|TestDiscoveryRepositoryClaimsOnlyExactOutboxTopicAndPreservesPayloadBytes|TestDiscoveryRepositoryHeartbeatsOnlyTheExactTopicLeaseSet|TestDiscoveryRepositoryUsesTopicFencedOutboxTransitions|TestNewDiscoveryRepositoryRequiresLiveDiscoverySchema|TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe|TestDiscoveryRepositoryCreatesReferenceOnlyIntegrationInExactScope|TestDiscoveryRepositoryStrictEntityKeysetsAndOutboxLeases|TestDiscoveryRepositorySnapshotApplyCarriesOneCompleteCandidate|TestDiscoveryRepositoryGatewayEnrollmentUsesTheDistinctAudienceContract|TestDiscoveryRepositoryRejectsHostileLeaseShapesAndTransitions|TestDiscoveryRepositoryRejectsMissingAndNullClaimItems|TestDiscoveryRepositoryRejectsImpossibleLeaseExpirations|TestDiscoveryRepositoryRejectsMismatchedLifecycleResults|TestDiscoveryRepositoryRejectsExpiredIssuedRecords|TestDiscoveryRepositoryRejectsAmbiguousS3ObjectReferences|TestDiscoveryRepositoryNormalizesAllLeaseInstantsToUTC|TestDiscoveryRepositoryExposesStrictTypedParentLifecycles|TestDiscoveryRepositoryExposesStrictWorkerStateTransitions)$' -count=1 -json
+{"Time":"2026-09-19T22:25:06.720823-07:00","Action":"start","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver"}
+{"Time":"2026-09-19T22:25:07.755389-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60"}
+{"Time":"2026-09-19T22:25:07.755468-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60","Output":"=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60\n"}
+{"Time":"2026-09-19T22:25:07.755499-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/exact"}
+{"Time":"2026-09-19T22:25:07.755505-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/exact","Output":"=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/exact\n"}
+{"Time":"2026-09-19T22:25:07.915812-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/exact","Output":"--- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/exact (0.16s)\n"}
+{"Time":"2026-09-19T22:25:07.915849-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/exact","Elapsed":0.16}
+{"Time":"2026-09-19T22:25:07.9159-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/release59_only"}
+{"Time":"2026-09-19T22:25:07.915905-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/release59_only","Output":"=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/release59_only\n"}
+{"Time":"2026-09-19T22:25:07.969263-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/release59_only","Output":"--- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/release59_only (0.05s)\n"}
+{"Time":"2026-09-19T22:25:07.969282-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/release59_only","Elapsed":0.05}
+{"Time":"2026-09-19T22:25:07.969347-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/drift"}
+{"Time":"2026-09-19T22:25:07.969353-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/drift","Output":"=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/drift\n"}
+{"Time":"2026-09-19T22:25:08.024465-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/drift","Output":"--- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/drift (0.06s)\n"}
+{"Time":"2026-09-19T22:25:08.024496-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/drift","Elapsed":0.06}
+{"Time":"2026-09-19T22:25:08.024536-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/malformed"}
+{"Time":"2026-09-19T22:25:08.024543-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/malformed","Output":"=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/malformed\n"}
+{"Time":"2026-09-19T22:25:08.076169-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/malformed","Output":"--- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/malformed (0.05s)\n"}
+{"Time":"2026-09-19T22:25:08.076192-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/malformed","Elapsed":0.05}
+{"Time":"2026-09-19T22:25:08.076247-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/revoked_execute"}
+{"Time":"2026-09-19T22:25:08.076258-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/revoked_execute","Output":"=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/revoked_execute\n"}
+{"Time":"2026-09-19T22:25:08.128312-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/revoked_execute","Output":"--- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/revoked_execute (0.05s)\n"}
+{"Time":"2026-09-19T22:25:08.128333-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/revoked_execute","Elapsed":0.05}
+{"Time":"2026-09-19T22:25:08.128386-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/wrong_principal"}
+{"Time":"2026-09-19T22:25:08.128392-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/wrong_principal","Output":"=== RUN   TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/wrong_principal\n"}
+{"Time":"2026-09-19T22:25:08.181815-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/wrong_principal","Output":"--- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/wrong_principal (0.05s)\n"}
+{"Time":"2026-09-19T22:25:08.181835-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60/wrong_principal","Elapsed":0.05}
+{"Time":"2026-09-19T22:25:08.181839-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60","Output":"--- PASS: TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60 (0.43s)\n"}
+{"Time":"2026-09-19T22:25:08.181846-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60","Elapsed":0.43}
+{"Time":"2026-09-19T22:25:08.181937-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryAppliesOnlyLeaseFencedRiskProjectionInput"}
+{"Time":"2026-09-19T22:25:08.18195-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryAppliesOnlyLeaseFencedRiskProjectionInput","Output":"=== RUN   TestDiscoveryExecutionRepositoryAppliesOnlyLeaseFencedRiskProjectionInput\n"}
+{"Time":"2026-09-19T22:25:08.183024-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryAppliesOnlyLeaseFencedRiskProjectionInput","Output":"--- PASS: TestDiscoveryExecutionRepositoryAppliesOnlyLeaseFencedRiskProjectionInput (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.183035-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryAppliesOnlyLeaseFencedRiskProjectionInput","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.183092-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV27Readiness"}
+{"Time":"2026-09-19T22:25:08.183097-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV27Readiness","Output":"=== RUN   TestDiscoveryExecutionConstructorsAcceptCurrentV27Readiness\n"}
+{"Time":"2026-09-19T22:25:08.183354-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV27Readiness","Output":"--- PASS: TestDiscoveryExecutionConstructorsAcceptCurrentV27Readiness (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.183359-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV27Readiness","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.183403-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV23Readiness"}
+{"Time":"2026-09-19T22:25:08.183405-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV23Readiness","Output":"=== RUN   TestDiscoveryExecutionConstructorsAcceptCurrentV23Readiness\n"}
+{"Time":"2026-09-19T22:25:08.184679-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV23Readiness","Output":"--- PASS: TestDiscoveryExecutionConstructorsAcceptCurrentV23Readiness (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.184691-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV23Readiness","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.184756-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV22Readiness"}
+{"Time":"2026-09-19T22:25:08.184761-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV22Readiness","Output":"=== RUN   TestDiscoveryExecutionConstructorsAcceptCurrentV22Readiness\n"}
+{"Time":"2026-09-19T22:25:08.185781-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV22Readiness","Output":"--- PASS: TestDiscoveryExecutionConstructorsAcceptCurrentV22Readiness (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.185788-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV22Readiness","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.18585-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV19Readiness"}
+{"Time":"2026-09-19T22:25:08.185857-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV19Readiness","Output":"=== RUN   TestDiscoveryExecutionConstructorsAcceptCurrentV19Readiness\n"}
+{"Time":"2026-09-19T22:25:08.187297-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV19Readiness","Output":"--- PASS: TestDiscoveryExecutionConstructorsAcceptCurrentV19Readiness (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.187308-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsAcceptCurrentV19Readiness","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.187371-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsPreferTypedV14Readiness"}
+{"Time":"2026-09-19T22:25:08.187379-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsPreferTypedV14Readiness","Output":"=== RUN   TestDiscoveryExecutionConstructorsPreferTypedV14Readiness\n"}
+{"Time":"2026-09-19T22:25:08.190038-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsPreferTypedV14Readiness","Output":"--- PASS: TestDiscoveryExecutionConstructorsPreferTypedV14Readiness (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.190052-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsPreferTypedV14Readiness","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.190092-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionFinishSQLNullsSuccessfulErrorFields"}
+{"Time":"2026-09-19T22:25:08.1901-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionFinishSQLNullsSuccessfulErrorFields","Output":"=== RUN   TestDiscoveryExecutionFinishSQLNullsSuccessfulErrorFields\n"}
+{"Time":"2026-09-19T22:25:08.190186-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionFinishSQLNullsSuccessfulErrorFields","Output":"--- PASS: TestDiscoveryExecutionFinishSQLNullsSuccessfulErrorFields (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.190213-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionFinishSQLNullsSuccessfulErrorFields","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.190278-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness"}
+{"Time":"2026-09-19T22:25:08.190288-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness","Output":"=== RUN   TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness\n"}
+{"Time":"2026-09-19T22:25:08.190365-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/scheduler"}
+{"Time":"2026-09-19T22:25:08.19037-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/scheduler","Output":"=== RUN   TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/scheduler\n"}
+{"Time":"2026-09-19T22:25:08.304304-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/scheduler","Output":"--- PASS: TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/scheduler (0.11s)\n"}
+{"Time":"2026-09-19T22:25:08.304325-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/scheduler","Elapsed":0.11}
+{"Time":"2026-09-19T22:25:08.304449-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/outbox"}
+{"Time":"2026-09-19T22:25:08.304462-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/outbox","Output":"=== RUN   TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/outbox\n"}
+{"Time":"2026-09-19T22:25:08.308293-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/outbox","Output":"--- PASS: TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/outbox (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.308315-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness/outbox","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.308321-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness","Output":"--- PASS: TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness (0.12s)\n"}
+{"Time":"2026-09-19T22:25:08.308324-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness","Elapsed":0.12}
+{"Time":"2026-09-19T22:25:08.308407-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput"}
+{"Time":"2026-09-19T22:25:08.308414-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput","Output":"=== RUN   TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput\n"}
+{"Time":"2026-09-19T22:25:08.309777-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput","Output":"--- PASS: TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.309822-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.309834-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryCheckpointsPartialCollectionForReclaim"}
+{"Time":"2026-09-19T22:25:08.309837-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryCheckpointsPartialCollectionForReclaim","Output":"=== RUN   TestDiscoveryExecutionRepositoryCheckpointsPartialCollectionForReclaim\n"}
+{"Time":"2026-09-19T22:25:08.310277-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryCheckpointsPartialCollectionForReclaim","Output":"--- PASS: TestDiscoveryExecutionRepositoryCheckpointsPartialCollectionForReclaim (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.310311-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryCheckpointsPartialCollectionForReclaim","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.310325-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryRejectsWrongAuthorityAndExpiredLease"}
+{"Time":"2026-09-19T22:25:08.310327-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryRejectsWrongAuthorityAndExpiredLease","Output":"=== RUN   TestDiscoveryExecutionRepositoryRejectsWrongAuthorityAndExpiredLease\n"}
+{"Time":"2026-09-19T22:25:08.310536-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryRejectsWrongAuthorityAndExpiredLease","Output":"--- PASS: TestDiscoveryExecutionRepositoryRejectsWrongAuthorityAndExpiredLease (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.31055-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryRejectsWrongAuthorityAndExpiredLease","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.310597-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryConstructorBoundsReadinessProbe"}
+{"Time":"2026-09-19T22:25:08.310629-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryConstructorBoundsReadinessProbe","Output":"=== RUN   TestDiscoveryExecutionRepositoryConstructorBoundsReadinessProbe\n"}
+{"Time":"2026-09-19T22:25:08.320846-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryConstructorBoundsReadinessProbe","Output":"--- PASS: TestDiscoveryExecutionRepositoryConstructorBoundsReadinessProbe (0.01s)\n"}
+{"Time":"2026-09-19T22:25:08.320874-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryConstructorBoundsReadinessProbe","Elapsed":0.01}
+{"Time":"2026-09-19T22:25:08.320983-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionScheduleCompletionValidationIsClockIndependent"}
+{"Time":"2026-09-19T22:25:08.320995-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionScheduleCompletionValidationIsClockIndependent","Output":"=== RUN   TestDiscoveryExecutionScheduleCompletionValidationIsClockIndependent\n"}
+{"Time":"2026-09-19T22:25:08.379478-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionScheduleCompletionValidationIsClockIndependent","Output":"--- PASS: TestDiscoveryExecutionScheduleCompletionValidationIsClockIndependent (0.06s)\n"}
+{"Time":"2026-09-19T22:25:08.379501-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionScheduleCompletionValidationIsClockIndependent","Elapsed":0.06}
+{"Time":"2026-09-19T22:25:08.379579-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionScheduleInputUsesDatabaseCadenceBounds"}
+{"Time":"2026-09-19T22:25:08.379699-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionScheduleInputUsesDatabaseCadenceBounds","Output":"=== RUN   TestDiscoveryExecutionScheduleInputUsesDatabaseCadenceBounds\n"}
+{"Time":"2026-09-19T22:25:08.43562-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionScheduleInputUsesDatabaseCadenceBounds","Output":"--- PASS: TestDiscoveryExecutionScheduleInputUsesDatabaseCadenceBounds (0.06s)\n"}
+{"Time":"2026-09-19T22:25:08.435659-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionScheduleInputUsesDatabaseCadenceBounds","Elapsed":0.06}
+{"Time":"2026-09-19T22:25:08.435669-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus"}
+{"Time":"2026-09-19T22:25:08.435672-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus","Output":"=== RUN   TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus\n"}
+{"Time":"2026-09-19T22:25:08.43645-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus","Output":"--- PASS: TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.436468-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionRepositoryStrictDeliveryReplayAndProjectionStatus","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.436493-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound"}
+{"Time":"2026-09-19T22:25:08.436498-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound","Output":"=== RUN   TestDiscoveryExecutionProjectionClaimsAreKindBound\n"}
+{"Time":"2026-09-19T22:25:08.436505-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound","Output":"=== PAUSE TestDiscoveryExecutionProjectionClaimsAreKindBound\n"}
+{"Time":"2026-09-19T22:25:08.436507-07:00","Action":"pause","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound"}
+{"Time":"2026-09-19T22:25:08.436565-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionAttemptLimitMatchesDatabase"}
+{"Time":"2026-09-19T22:25:08.436573-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionAttemptLimitMatchesDatabase","Output":"=== RUN   TestDiscoveryExecutionProjectionAttemptLimitMatchesDatabase\n"}
+{"Time":"2026-09-19T22:25:08.43693-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionAttemptLimitMatchesDatabase","Output":"--- PASS: TestDiscoveryExecutionProjectionAttemptLimitMatchesDatabase (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.436959-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionAttemptLimitMatchesDatabase","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.437571-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability"}
+{"Time":"2026-09-19T22:25:08.437583-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability","Output":"=== RUN   TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability\n"}
+{"Time":"2026-09-19T22:25:08.437639-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability","Output":"=== PAUSE TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability\n"}
+{"Time":"2026-09-19T22:25:08.437645-07:00","Action":"pause","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability"}
+{"Time":"2026-09-19T22:25:08.437739-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionCompletionRequiresDurableDriverReceipt"}
+{"Time":"2026-09-19T22:25:08.437764-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionCompletionRequiresDurableDriverReceipt","Output":"=== RUN   TestDiscoveryExecutionProjectionCompletionRequiresDurableDriverReceipt\n"}
+{"Time":"2026-09-19T22:25:08.438097-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionCompletionRequiresDurableDriverReceipt","Output":"--- PASS: TestDiscoveryExecutionProjectionCompletionRequiresDurableDriverReceipt (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.438122-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionCompletionRequiresDurableDriverReceipt","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.438631-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryClaimsOnlyExactOutboxTopicAndPreservesPayloadBytes"}
+{"Time":"2026-09-19T22:25:08.438638-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryClaimsOnlyExactOutboxTopicAndPreservesPayloadBytes","Output":"=== RUN   TestDiscoveryRepositoryClaimsOnlyExactOutboxTopicAndPreservesPayloadBytes\n"}
+{"Time":"2026-09-19T22:25:08.439238-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryClaimsOnlyExactOutboxTopicAndPreservesPayloadBytes","Output":"--- PASS: TestDiscoveryRepositoryClaimsOnlyExactOutboxTopicAndPreservesPayloadBytes (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.439246-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryClaimsOnlyExactOutboxTopicAndPreservesPayloadBytes","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.439285-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryHeartbeatsOnlyTheExactTopicLeaseSet"}
+{"Time":"2026-09-19T22:25:08.43929-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryHeartbeatsOnlyTheExactTopicLeaseSet","Output":"=== RUN   TestDiscoveryRepositoryHeartbeatsOnlyTheExactTopicLeaseSet\n"}
+{"Time":"2026-09-19T22:25:08.439533-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryHeartbeatsOnlyTheExactTopicLeaseSet","Output":"--- PASS: TestDiscoveryRepositoryHeartbeatsOnlyTheExactTopicLeaseSet (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.439539-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryHeartbeatsOnlyTheExactTopicLeaseSet","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.439577-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryUsesTopicFencedOutboxTransitions"}
+{"Time":"2026-09-19T22:25:08.43958-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryUsesTopicFencedOutboxTransitions","Output":"=== RUN   TestDiscoveryRepositoryUsesTopicFencedOutboxTransitions\n"}
+{"Time":"2026-09-19T22:25:08.439805-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryUsesTopicFencedOutboxTransitions","Output":"--- PASS: TestDiscoveryRepositoryUsesTopicFencedOutboxTransitions (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.439809-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryUsesTopicFencedOutboxTransitions","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.43984-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestNewDiscoveryRepositoryRequiresLiveDiscoverySchema"}
+{"Time":"2026-09-19T22:25:08.439844-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestNewDiscoveryRepositoryRequiresLiveDiscoverySchema","Output":"=== RUN   TestNewDiscoveryRepositoryRequiresLiveDiscoverySchema\n"}
+{"Time":"2026-09-19T22:25:08.439877-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestNewDiscoveryRepositoryRequiresLiveDiscoverySchema","Output":"--- PASS: TestNewDiscoveryRepositoryRequiresLiveDiscoverySchema (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.439905-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestNewDiscoveryRepositoryRequiresLiveDiscoverySchema","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.43993-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe"}
+{"Time":"2026-09-19T22:25:08.439943-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe","Output":"=== RUN   TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe\n"}
+{"Time":"2026-09-19T22:25:08.439983-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe/schema"}
+{"Time":"2026-09-19T22:25:08.439987-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe/schema","Output":"=== RUN   TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe/schema\n"}
+{"Time":"2026-09-19T22:25:08.44003-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe/schema","Output":"--- PASS: TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe/schema (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.440036-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe/schema","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.440098-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe/principal"}
+{"Time":"2026-09-19T22:25:08.440102-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe/principal","Output":"=== RUN   TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe/principal\n"}
+{"Time":"2026-09-19T22:25:08.450715-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe/principal","Output":"--- PASS: TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe/principal (0.01s)\n"}
+{"Time":"2026-09-19T22:25:08.450735-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe/principal","Elapsed":0.01}
+{"Time":"2026-09-19T22:25:08.450748-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe","Output":"--- PASS: TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe (0.01s)\n"}
+{"Time":"2026-09-19T22:25:08.450752-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryConstructorsBoundEveryReadinessProbe","Elapsed":0.01}
+{"Time":"2026-09-19T22:25:08.450829-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryCreatesReferenceOnlyIntegrationInExactScope"}
+{"Time":"2026-09-19T22:25:08.450838-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryCreatesReferenceOnlyIntegrationInExactScope","Output":"=== RUN   TestDiscoveryRepositoryCreatesReferenceOnlyIntegrationInExactScope\n"}
+{"Time":"2026-09-19T22:25:08.451432-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryCreatesReferenceOnlyIntegrationInExactScope","Output":"--- PASS: TestDiscoveryRepositoryCreatesReferenceOnlyIntegrationInExactScope (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.451444-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryCreatesReferenceOnlyIntegrationInExactScope","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.451514-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryStrictEntityKeysetsAndOutboxLeases"}
+{"Time":"2026-09-19T22:25:08.451522-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryStrictEntityKeysetsAndOutboxLeases","Output":"=== RUN   TestDiscoveryRepositoryStrictEntityKeysetsAndOutboxLeases\n"}
+{"Time":"2026-09-19T22:25:08.451915-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryStrictEntityKeysetsAndOutboxLeases","Output":"--- PASS: TestDiscoveryRepositoryStrictEntityKeysetsAndOutboxLeases (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.451923-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryStrictEntityKeysetsAndOutboxLeases","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.451985-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositorySnapshotApplyCarriesOneCompleteCandidate"}
+{"Time":"2026-09-19T22:25:08.452739-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositorySnapshotApplyCarriesOneCompleteCandidate","Output":"=== RUN   TestDiscoveryRepositorySnapshotApplyCarriesOneCompleteCandidate\n"}
+{"Time":"2026-09-19T22:25:08.452747-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositorySnapshotApplyCarriesOneCompleteCandidate","Output":"--- PASS: TestDiscoveryRepositorySnapshotApplyCarriesOneCompleteCandidate (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.452748-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositorySnapshotApplyCarriesOneCompleteCandidate","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.45275-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryGatewayEnrollmentUsesTheDistinctAudienceContract"}
+{"Time":"2026-09-19T22:25:08.452751-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryGatewayEnrollmentUsesTheDistinctAudienceContract","Output":"=== RUN   TestDiscoveryRepositoryGatewayEnrollmentUsesTheDistinctAudienceContract\n"}
+{"Time":"2026-09-19T22:25:08.452759-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryGatewayEnrollmentUsesTheDistinctAudienceContract","Output":"--- PASS: TestDiscoveryRepositoryGatewayEnrollmentUsesTheDistinctAudienceContract (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.452763-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryGatewayEnrollmentUsesTheDistinctAudienceContract","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.452765-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsHostileLeaseShapesAndTransitions"}
+{"Time":"2026-09-19T22:25:08.452765-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsHostileLeaseShapesAndTransitions","Output":"=== RUN   TestDiscoveryRepositoryRejectsHostileLeaseShapesAndTransitions\n"}
+{"Time":"2026-09-19T22:25:08.453761-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsHostileLeaseShapesAndTransitions","Output":"--- PASS: TestDiscoveryRepositoryRejectsHostileLeaseShapesAndTransitions (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.453778-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsHostileLeaseShapesAndTransitions","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.453916-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsMissingAndNullClaimItems"}
+{"Time":"2026-09-19T22:25:08.45392-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsMissingAndNullClaimItems","Output":"=== RUN   TestDiscoveryRepositoryRejectsMissingAndNullClaimItems\n"}
+{"Time":"2026-09-19T22:25:08.454292-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsMissingAndNullClaimItems","Output":"--- PASS: TestDiscoveryRepositoryRejectsMissingAndNullClaimItems (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.454298-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsMissingAndNullClaimItems","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.4543-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsImpossibleLeaseExpirations"}
+{"Time":"2026-09-19T22:25:08.454302-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsImpossibleLeaseExpirations","Output":"=== RUN   TestDiscoveryRepositoryRejectsImpossibleLeaseExpirations\n"}
+{"Time":"2026-09-19T22:25:08.455703-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsImpossibleLeaseExpirations","Output":"--- PASS: TestDiscoveryRepositoryRejectsImpossibleLeaseExpirations (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.455715-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsImpossibleLeaseExpirations","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.455726-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsMismatchedLifecycleResults"}
+{"Time":"2026-09-19T22:25:08.455728-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsMismatchedLifecycleResults","Output":"=== RUN   TestDiscoveryRepositoryRejectsMismatchedLifecycleResults\n"}
+{"Time":"2026-09-19T22:25:08.455888-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsMismatchedLifecycleResults","Output":"--- PASS: TestDiscoveryRepositoryRejectsMismatchedLifecycleResults (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.455912-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsMismatchedLifecycleResults","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.455941-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsExpiredIssuedRecords"}
+{"Time":"2026-09-19T22:25:08.455945-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsExpiredIssuedRecords","Output":"=== RUN   TestDiscoveryRepositoryRejectsExpiredIssuedRecords\n"}
+{"Time":"2026-09-19T22:25:08.456323-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsExpiredIssuedRecords","Output":"--- PASS: TestDiscoveryRepositoryRejectsExpiredIssuedRecords (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.456338-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsExpiredIssuedRecords","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.456433-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsAmbiguousS3ObjectReferences"}
+{"Time":"2026-09-19T22:25:08.456439-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsAmbiguousS3ObjectReferences","Output":"=== RUN   TestDiscoveryRepositoryRejectsAmbiguousS3ObjectReferences\n"}
+{"Time":"2026-09-19T22:25:08.456678-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsAmbiguousS3ObjectReferences","Output":"--- PASS: TestDiscoveryRepositoryRejectsAmbiguousS3ObjectReferences (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.456688-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryRejectsAmbiguousS3ObjectReferences","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.456838-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryNormalizesAllLeaseInstantsToUTC"}
+{"Time":"2026-09-19T22:25:08.456845-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryNormalizesAllLeaseInstantsToUTC","Output":"=== RUN   TestDiscoveryRepositoryNormalizesAllLeaseInstantsToUTC\n"}
+{"Time":"2026-09-19T22:25:08.457049-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryNormalizesAllLeaseInstantsToUTC","Output":"--- PASS: TestDiscoveryRepositoryNormalizesAllLeaseInstantsToUTC (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.457075-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryNormalizesAllLeaseInstantsToUTC","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.457082-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryExposesStrictTypedParentLifecycles"}
+{"Time":"2026-09-19T22:25:08.457084-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryExposesStrictTypedParentLifecycles","Output":"=== RUN   TestDiscoveryRepositoryExposesStrictTypedParentLifecycles\n"}
+{"Time":"2026-09-19T22:25:08.457599-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryExposesStrictTypedParentLifecycles","Output":"--- PASS: TestDiscoveryRepositoryExposesStrictTypedParentLifecycles (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.457608-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryExposesStrictTypedParentLifecycles","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.457632-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryExposesStrictWorkerStateTransitions"}
+{"Time":"2026-09-19T22:25:08.457639-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryExposesStrictWorkerStateTransitions","Output":"=== RUN   TestDiscoveryRepositoryExposesStrictWorkerStateTransitions\n"}
+{"Time":"2026-09-19T22:25:08.457987-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryExposesStrictWorkerStateTransitions","Output":"--- PASS: TestDiscoveryRepositoryExposesStrictWorkerStateTransitions (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.45799-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryRepositoryExposesStrictWorkerStateTransitions","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.464727-07:00","Action":"cont","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound"}
+{"Time":"2026-09-19T22:25:08.464742-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound","Output":"=== CONT  TestDiscoveryExecutionProjectionClaimsAreKindBound\n"}
+{"Time":"2026-09-19T22:25:08.464746-07:00","Action":"cont","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability"}
+{"Time":"2026-09-19T22:25:08.464748-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability","Output":"=== CONT  TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability\n"}
+{"Time":"2026-09-19T22:25:08.464769-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound/risk"}
+{"Time":"2026-09-19T22:25:08.464771-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound/risk","Output":"=== RUN   TestDiscoveryExecutionProjectionClaimsAreKindBound/risk\n"}
+{"Time":"2026-09-19T22:25:08.465012-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound/risk","Output":"--- PASS: TestDiscoveryExecutionProjectionClaimsAreKindBound/risk (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.46502-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound/risk","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.465079-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound/graph"}
+{"Time":"2026-09-19T22:25:08.465085-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound/graph","Output":"=== RUN   TestDiscoveryExecutionProjectionClaimsAreKindBound/graph\n"}
+{"Time":"2026-09-19T22:25:08.46513-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability","Output":"--- PASS: TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.465261-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimStrictlyDecodesAvailability","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.465269-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound/graph","Output":"--- PASS: TestDiscoveryExecutionProjectionClaimsAreKindBound/graph (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.465272-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound/graph","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.465314-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound/search"}
+{"Time":"2026-09-19T22:25:08.465338-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound/search","Output":"=== RUN   TestDiscoveryExecutionProjectionClaimsAreKindBound/search\n"}
+{"Time":"2026-09-19T22:25:08.465467-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound/search","Output":"--- PASS: TestDiscoveryExecutionProjectionClaimsAreKindBound/search (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.465483-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound/search","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.465507-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound","Output":"--- PASS: TestDiscoveryExecutionProjectionClaimsAreKindBound (0.00s)\n"}
+{"Time":"2026-09-19T22:25:08.46572-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Test":"TestDiscoveryExecutionProjectionClaimsAreKindBound","Elapsed":0}
+{"Time":"2026-09-19T22:25:08.465724-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Output":"PASS\n"}
+{"Time":"2026-09-19T22:25:09.469439-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Output":"ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/apiserver\t2.748s\n"}
+{"Time":"2026-09-19T22:25:09.469523-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/apiserver","Elapsed":2.749}
+
+exit=0;51 matching test RUN/PASS events,0 FAIL/SKIP,0 malformed JSONL lines.
+
+## FINAL affected worker race group
+
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-release60-task3-cache /opt/homebrew/bin/go test -race ./agentsec-worker -run '^(TestScheduledOccurrenceIdentitySurvivesExpiredLeaseReclaim|TestSchedulerProcessorRequestsDeterministicSyncBeforeAdvancing|TestNextScheduledRunSkipsLargeBacklogArithmetically|TestSchedulerProcessorStartsEveryClaimedLeaseBeforeWaiting|TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers|TestComposeWorkerRuntimeMountsOnlyProductionReadyModes|TestComposePolicyDeploymentWorkerRuntimeBindsV28AuthorityAndSigningKey|TestComposeDiscoveryWorkerRuntimeBindsRepositoryQueueFactoryAndClose|TestComposeRedTeamRuntimesBindSeparateV25Authorities|TestComposeRedTeamWorkerRejectsMissingArtifactRelease|TestComposeAttackLabOutboxBindsV26AuthorityAndPublisher|TestComposeRecoveryRuntimesBindSeparateV27Authorities|TestComposeAttackLabControllerBindsV26QueueSandboxEvidenceAndCleanup|TestComposeRuntimeCoordinatorBindsV15RepositoryAndQueueReadiness|TestComposeRuntimeArchiveBindsExactStageRepositoryAndExecutor|TestComposeRuntimeIndexBindsExactStageRepositoryAndExecutor|TestComposeRuntimeCorrelationBindsExactStageRepositoryAndExecutor|TestComposeRuntimeProjectionBindsExactStageRepositoryAndExecutor|TestComposeRuntimeCompleteBindsCoordinatorStageWithoutQueueAuthority|TestComposeDiscoveryWorkerRuntimeReadinessGatesQueueConsumption|TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority|TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic|TestComposeOutboxWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts|TestWorkerReadinessCachesEmptyPollsThenFailsClosedAfterExpiry|TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority|TestServeWorkerRuntimeExposesOperationalMetrics|TestComposeWorkerRuntimeMountsDurableRiskProjection|TestComposeProjectionWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts|TestServeWorkerRuntimeBoundsShutdownWhenProcessorIgnoresCancellation|TestServeWorkerRuntimeSurfacesDependencyDrainFailure|TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60|TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect)$' -count=1 -json
+{"Time":"2026-09-19T22:25:27.715765-07:00","Action":"start","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker"}
+{"Time":"2026-09-19T22:25:28.872327-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect"}
+{"Time":"2026-09-19T22:25:28.8724-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect","Output":"=== RUN   TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect\n"}
+{"Time":"2026-09-19T22:25:28.973572-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect","Output":"--- PASS: TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect (0.10s)\n"}
+{"Time":"2026-09-19T22:25:28.973602-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect","Elapsed":0.1}
+{"Time":"2026-09-19T22:25:28.975017-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers"}
+{"Time":"2026-09-19T22:25:28.975026-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers","Output":"=== RUN   TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers\n"}
+{"Time":"2026-09-19T22:25:28.975225-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/audit-export"}
+{"Time":"2026-09-19T22:25:28.975233-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/audit-export","Output":"=== RUN   TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/audit-export\n"}
+{"Time":"2026-09-19T22:25:28.975291-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/audit-export","Output":"--- PASS: TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/audit-export (0.00s)\n"}
+{"Time":"2026-09-19T22:25:28.975314-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/audit-export","Elapsed":0}
+{"Time":"2026-09-19T22:25:28.975399-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/audit-export-outbox"}
+{"Time":"2026-09-19T22:25:28.975408-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/audit-export-outbox","Output":"=== RUN   TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/audit-export-outbox\n"}
+{"Time":"2026-09-19T22:25:28.975465-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/audit-export-outbox","Output":"--- PASS: TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/audit-export-outbox (0.00s)\n"}
+{"Time":"2026-09-19T22:25:28.975482-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/audit-export-outbox","Elapsed":0}
+{"Time":"2026-09-19T22:25:28.975537-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/scheduler"}
+{"Time":"2026-09-19T22:25:28.975543-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/scheduler","Output":"=== RUN   TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/scheduler\n"}
+{"Time":"2026-09-19T22:25:28.975565-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/scheduler","Output":"--- PASS: TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/scheduler (0.00s)\n"}
+{"Time":"2026-09-19T22:25:28.975571-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers/scheduler","Elapsed":0}
+{"Time":"2026-09-19T22:25:28.975591-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers","Output":"--- PASS: TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers (0.00s)\n"}
+{"Time":"2026-09-19T22:25:28.975601-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestAuditExportRuntimeDatabaseCloseRetainsUnjoinedBorrowers","Elapsed":0}
+{"Time":"2026-09-19T22:25:28.97565-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeWorkerRuntimeMountsOnlyProductionReadyModes"}
+{"Time":"2026-09-19T22:25:28.975657-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeWorkerRuntimeMountsOnlyProductionReadyModes","Output":"=== RUN   TestComposeWorkerRuntimeMountsOnlyProductionReadyModes\n"}
+{"Time":"2026-09-19T22:25:29.035808-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeWorkerRuntimeMountsOnlyProductionReadyModes","Output":"--- PASS: TestComposeWorkerRuntimeMountsOnlyProductionReadyModes (0.06s)\n"}
+{"Time":"2026-09-19T22:25:29.035828-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeWorkerRuntimeMountsOnlyProductionReadyModes","Elapsed":0.06}
+{"Time":"2026-09-19T22:25:29.035851-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposePolicyDeploymentWorkerRuntimeBindsV28AuthorityAndSigningKey"}
+{"Time":"2026-09-19T22:25:29.035853-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposePolicyDeploymentWorkerRuntimeBindsV28AuthorityAndSigningKey","Output":"=== RUN   TestComposePolicyDeploymentWorkerRuntimeBindsV28AuthorityAndSigningKey\n"}
+{"Time":"2026-09-19T22:25:29.036531-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposePolicyDeploymentWorkerRuntimeBindsV28AuthorityAndSigningKey","Output":"--- PASS: TestComposePolicyDeploymentWorkerRuntimeBindsV28AuthorityAndSigningKey (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.03654-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposePolicyDeploymentWorkerRuntimeBindsV28AuthorityAndSigningKey","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.036586-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeDiscoveryWorkerRuntimeBindsRepositoryQueueFactoryAndClose"}
+{"Time":"2026-09-19T22:25:29.036593-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeDiscoveryWorkerRuntimeBindsRepositoryQueueFactoryAndClose","Output":"=== RUN   TestComposeDiscoveryWorkerRuntimeBindsRepositoryQueueFactoryAndClose\n"}
+{"Time":"2026-09-19T22:25:29.037519-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeDiscoveryWorkerRuntimeBindsRepositoryQueueFactoryAndClose","Output":"--- PASS: TestComposeDiscoveryWorkerRuntimeBindsRepositoryQueueFactoryAndClose (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.037527-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeDiscoveryWorkerRuntimeBindsRepositoryQueueFactoryAndClose","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.037604-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRedTeamRuntimesBindSeparateV25Authorities"}
+{"Time":"2026-09-19T22:25:29.037609-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRedTeamRuntimesBindSeparateV25Authorities","Output":"=== RUN   TestComposeRedTeamRuntimesBindSeparateV25Authorities\n"}
+{"Time":"2026-09-19T22:25:29.086068-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRedTeamRuntimesBindSeparateV25Authorities","Output":"--- PASS: TestComposeRedTeamRuntimesBindSeparateV25Authorities (0.05s)\n"}
+{"Time":"2026-09-19T22:25:29.08609-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRedTeamRuntimesBindSeparateV25Authorities","Elapsed":0.05}
+{"Time":"2026-09-19T22:25:29.086152-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRedTeamWorkerRejectsMissingArtifactRelease"}
+{"Time":"2026-09-19T22:25:29.086158-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRedTeamWorkerRejectsMissingArtifactRelease","Output":"=== RUN   TestComposeRedTeamWorkerRejectsMissingArtifactRelease\n"}
+{"Time":"2026-09-19T22:25:29.13474-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRedTeamWorkerRejectsMissingArtifactRelease","Output":"--- PASS: TestComposeRedTeamWorkerRejectsMissingArtifactRelease (0.05s)\n"}
+{"Time":"2026-09-19T22:25:29.134764-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRedTeamWorkerRejectsMissingArtifactRelease","Elapsed":0.05}
+{"Time":"2026-09-19T22:25:29.134816-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeAttackLabOutboxBindsV26AuthorityAndPublisher"}
+{"Time":"2026-09-19T22:25:29.134822-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeAttackLabOutboxBindsV26AuthorityAndPublisher","Output":"=== RUN   TestComposeAttackLabOutboxBindsV26AuthorityAndPublisher\n"}
+{"Time":"2026-09-19T22:25:29.135674-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeAttackLabOutboxBindsV26AuthorityAndPublisher","Output":"--- PASS: TestComposeAttackLabOutboxBindsV26AuthorityAndPublisher (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.135683-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeAttackLabOutboxBindsV26AuthorityAndPublisher","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.135732-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRecoveryRuntimesBindSeparateV27Authorities"}
+{"Time":"2026-09-19T22:25:29.135736-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRecoveryRuntimesBindSeparateV27Authorities","Output":"=== RUN   TestComposeRecoveryRuntimesBindSeparateV27Authorities\n"}
+{"Time":"2026-09-19T22:25:29.13948-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRecoveryRuntimesBindSeparateV27Authorities","Output":"--- PASS: TestComposeRecoveryRuntimesBindSeparateV27Authorities (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.139495-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRecoveryRuntimesBindSeparateV27Authorities","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.139563-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeAttackLabControllerBindsV26QueueSandboxEvidenceAndCleanup"}
+{"Time":"2026-09-19T22:25:29.139568-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeAttackLabControllerBindsV26QueueSandboxEvidenceAndCleanup","Output":"=== RUN   TestComposeAttackLabControllerBindsV26QueueSandboxEvidenceAndCleanup\n"}
+{"Time":"2026-09-19T22:25:29.142001-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeAttackLabControllerBindsV26QueueSandboxEvidenceAndCleanup","Output":"--- PASS: TestComposeAttackLabControllerBindsV26QueueSandboxEvidenceAndCleanup (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.142014-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeAttackLabControllerBindsV26QueueSandboxEvidenceAndCleanup","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.142077-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeCoordinatorBindsV15RepositoryAndQueueReadiness"}
+{"Time":"2026-09-19T22:25:29.142084-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeCoordinatorBindsV15RepositoryAndQueueReadiness","Output":"=== RUN   TestComposeRuntimeCoordinatorBindsV15RepositoryAndQueueReadiness\n"}
+{"Time":"2026-09-19T22:25:29.144059-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeCoordinatorBindsV15RepositoryAndQueueReadiness","Output":"--- PASS: TestComposeRuntimeCoordinatorBindsV15RepositoryAndQueueReadiness (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.144077-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeCoordinatorBindsV15RepositoryAndQueueReadiness","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.144134-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeArchiveBindsExactStageRepositoryAndExecutor"}
+{"Time":"2026-09-19T22:25:29.144146-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeArchiveBindsExactStageRepositoryAndExecutor","Output":"=== RUN   TestComposeRuntimeArchiveBindsExactStageRepositoryAndExecutor\n"}
+{"Time":"2026-09-19T22:25:29.145208-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeArchiveBindsExactStageRepositoryAndExecutor","Output":"--- PASS: TestComposeRuntimeArchiveBindsExactStageRepositoryAndExecutor (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.145229-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeArchiveBindsExactStageRepositoryAndExecutor","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.145305-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeIndexBindsExactStageRepositoryAndExecutor"}
+{"Time":"2026-09-19T22:25:29.145309-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeIndexBindsExactStageRepositoryAndExecutor","Output":"=== RUN   TestComposeRuntimeIndexBindsExactStageRepositoryAndExecutor\n"}
+{"Time":"2026-09-19T22:25:29.146276-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeIndexBindsExactStageRepositoryAndExecutor","Output":"--- PASS: TestComposeRuntimeIndexBindsExactStageRepositoryAndExecutor (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.146288-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeIndexBindsExactStageRepositoryAndExecutor","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.146355-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeCorrelationBindsExactStageRepositoryAndExecutor"}
+{"Time":"2026-09-19T22:25:29.146364-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeCorrelationBindsExactStageRepositoryAndExecutor","Output":"=== RUN   TestComposeRuntimeCorrelationBindsExactStageRepositoryAndExecutor\n"}
+{"Time":"2026-09-19T22:25:29.14715-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeCorrelationBindsExactStageRepositoryAndExecutor","Output":"--- PASS: TestComposeRuntimeCorrelationBindsExactStageRepositoryAndExecutor (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.147158-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeCorrelationBindsExactStageRepositoryAndExecutor","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.147221-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeProjectionBindsExactStageRepositoryAndExecutor"}
+{"Time":"2026-09-19T22:25:29.147229-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeProjectionBindsExactStageRepositoryAndExecutor","Output":"=== RUN   TestComposeRuntimeProjectionBindsExactStageRepositoryAndExecutor\n"}
+{"Time":"2026-09-19T22:25:29.147998-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeProjectionBindsExactStageRepositoryAndExecutor","Output":"--- PASS: TestComposeRuntimeProjectionBindsExactStageRepositoryAndExecutor (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.148005-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeProjectionBindsExactStageRepositoryAndExecutor","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.148086-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeCompleteBindsCoordinatorStageWithoutQueueAuthority"}
+{"Time":"2026-09-19T22:25:29.148098-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeCompleteBindsCoordinatorStageWithoutQueueAuthority","Output":"=== RUN   TestComposeRuntimeCompleteBindsCoordinatorStageWithoutQueueAuthority\n"}
+{"Time":"2026-09-19T22:25:29.14911-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeCompleteBindsCoordinatorStageWithoutQueueAuthority","Output":"--- PASS: TestComposeRuntimeCompleteBindsCoordinatorStageWithoutQueueAuthority (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.149119-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeCompleteBindsCoordinatorStageWithoutQueueAuthority","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.149199-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeDiscoveryWorkerRuntimeReadinessGatesQueueConsumption"}
+{"Time":"2026-09-19T22:25:29.149207-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeDiscoveryWorkerRuntimeReadinessGatesQueueConsumption","Output":"=== RUN   TestComposeDiscoveryWorkerRuntimeReadinessGatesQueueConsumption\n"}
+{"Time":"2026-09-19T22:25:29.150248-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeDiscoveryWorkerRuntimeReadinessGatesQueueConsumption","Output":"--- PASS: TestComposeDiscoveryWorkerRuntimeReadinessGatesQueueConsumption (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.150339-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeDiscoveryWorkerRuntimeReadinessGatesQueueConsumption","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.150343-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority"}
+{"Time":"2026-09-19T22:25:29.150344-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority","Output":"=== RUN   TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority\n"}
+{"Time":"2026-09-19T22:25:29.150346-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority","Output":"=== PAUSE TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority\n"}
+{"Time":"2026-09-19T22:25:29.150348-07:00","Action":"pause","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority"}
+{"Time":"2026-09-19T22:25:29.150389-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic"}
+{"Time":"2026-09-19T22:25:29.150395-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic","Output":"=== RUN   TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic\n"}
+{"Time":"2026-09-19T22:25:29.150419-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic","Output":"=== PAUSE TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic\n"}
+{"Time":"2026-09-19T22:25:29.150428-07:00","Action":"pause","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic"}
+{"Time":"2026-09-19T22:25:29.150478-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeOutboxWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts"}
+{"Time":"2026-09-19T22:25:29.150493-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeOutboxWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts","Output":"=== RUN   TestComposeOutboxWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts\n"}
+{"Time":"2026-09-19T22:25:29.15269-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeOutboxWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts","Output":"--- PASS: TestComposeOutboxWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.152703-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeOutboxWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.152769-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestWorkerReadinessCachesEmptyPollsThenFailsClosedAfterExpiry"}
+{"Time":"2026-09-19T22:25:29.152773-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestWorkerReadinessCachesEmptyPollsThenFailsClosedAfterExpiry","Output":"=== RUN   TestWorkerReadinessCachesEmptyPollsThenFailsClosedAfterExpiry\n"}
+{"Time":"2026-09-19T22:25:29.152833-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestWorkerReadinessCachesEmptyPollsThenFailsClosedAfterExpiry","Output":"--- PASS: TestWorkerReadinessCachesEmptyPollsThenFailsClosedAfterExpiry (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.152837-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestWorkerReadinessCachesEmptyPollsThenFailsClosedAfterExpiry","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.152951-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority"}
+{"Time":"2026-09-19T22:25:29.152954-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority","Output":"=== RUN   TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority\n"}
+{"Time":"2026-09-19T22:25:29.152956-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority","Output":"=== PAUSE TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority\n"}
+{"Time":"2026-09-19T22:25:29.152958-07:00","Action":"pause","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority"}
+{"Time":"2026-09-19T22:25:29.152959-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestServeWorkerRuntimeExposesOperationalMetrics"}
+{"Time":"2026-09-19T22:25:29.152971-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestServeWorkerRuntimeExposesOperationalMetrics","Output":"=== RUN   TestServeWorkerRuntimeExposesOperationalMetrics\n"}
+{"Time":"2026-09-19T22:25:29.166008-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestServeWorkerRuntimeExposesOperationalMetrics","Output":"--- PASS: TestServeWorkerRuntimeExposesOperationalMetrics (0.01s)\n"}
+{"Time":"2026-09-19T22:25:29.166025-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestServeWorkerRuntimeExposesOperationalMetrics","Elapsed":0.01}
+{"Time":"2026-09-19T22:25:29.166029-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeWorkerRuntimeMountsDurableRiskProjection"}
+{"Time":"2026-09-19T22:25:29.166037-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeWorkerRuntimeMountsDurableRiskProjection","Output":"=== RUN   TestComposeWorkerRuntimeMountsDurableRiskProjection\n"}
+{"Time":"2026-09-19T22:25:29.166618-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeWorkerRuntimeMountsDurableRiskProjection","Output":"--- PASS: TestComposeWorkerRuntimeMountsDurableRiskProjection (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.16663-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeWorkerRuntimeMountsDurableRiskProjection","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.166672-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeProjectionWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts"}
+{"Time":"2026-09-19T22:25:29.166688-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeProjectionWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts","Output":"=== RUN   TestComposeProjectionWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts\n"}
+{"Time":"2026-09-19T22:25:29.169688-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeProjectionWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts","Output":"--- PASS: TestComposeProjectionWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts (0.00s)\n"}
+{"Time":"2026-09-19T22:25:29.169702-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeProjectionWorkerRuntimeStopsBeforeClaimWhenRepositoryDrifts","Elapsed":0}
+{"Time":"2026-09-19T22:25:29.169706-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestServeWorkerRuntimeBoundsShutdownWhenProcessorIgnoresCancellation"}
+{"Time":"2026-09-19T22:25:29.169707-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestServeWorkerRuntimeBoundsShutdownWhenProcessorIgnoresCancellation","Output":"=== RUN   TestServeWorkerRuntimeBoundsShutdownWhenProcessorIgnoresCancellation\n"}
+{"Time":"2026-09-19T22:25:30.172876-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestServeWorkerRuntimeBoundsShutdownWhenProcessorIgnoresCancellation","Output":"--- PASS: TestServeWorkerRuntimeBoundsShutdownWhenProcessorIgnoresCancellation (1.00s)\n"}
+{"Time":"2026-09-19T22:25:30.172917-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestServeWorkerRuntimeBoundsShutdownWhenProcessorIgnoresCancellation","Elapsed":1}
+{"Time":"2026-09-19T22:25:30.173108-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestServeWorkerRuntimeSurfacesDependencyDrainFailure"}
+{"Time":"2026-09-19T22:25:30.173117-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestServeWorkerRuntimeSurfacesDependencyDrainFailure","Output":"=== RUN   TestServeWorkerRuntimeSurfacesDependencyDrainFailure\n"}
+{"Time":"2026-09-19T22:25:30.175752-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestServeWorkerRuntimeSurfacesDependencyDrainFailure","Output":"--- PASS: TestServeWorkerRuntimeSurfacesDependencyDrainFailure (0.00s)\n"}
+{"Time":"2026-09-19T22:25:30.17577-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestServeWorkerRuntimeSurfacesDependencyDrainFailure","Elapsed":0}
+{"Time":"2026-09-19T22:25:30.175776-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60"}
+{"Time":"2026-09-19T22:25:30.175778-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60","Output":"=== RUN   TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60\n"}
+{"Time":"2026-09-19T22:25:30.461765-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60","Output":"--- PASS: TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60 (0.29s)\n"}
+{"Time":"2026-09-19T22:25:30.46179-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestProductionRuntimeAutomaticDiscoverySchedulerRequiresRelease60","Elapsed":0.29}
+{"Time":"2026-09-19T22:25:30.463808-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestScheduledOccurrenceIdentitySurvivesExpiredLeaseReclaim"}
+{"Time":"2026-09-19T22:25:30.46382-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestScheduledOccurrenceIdentitySurvivesExpiredLeaseReclaim","Output":"=== RUN   TestScheduledOccurrenceIdentitySurvivesExpiredLeaseReclaim\n"}
+{"Time":"2026-09-19T22:25:30.463963-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestScheduledOccurrenceIdentitySurvivesExpiredLeaseReclaim","Output":"--- PASS: TestScheduledOccurrenceIdentitySurvivesExpiredLeaseReclaim (0.00s)\n"}
+{"Time":"2026-09-19T22:25:30.463969-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestScheduledOccurrenceIdentitySurvivesExpiredLeaseReclaim","Elapsed":0}
+{"Time":"2026-09-19T22:25:30.464009-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestSchedulerProcessorRequestsDeterministicSyncBeforeAdvancing"}
+{"Time":"2026-09-19T22:25:30.464014-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestSchedulerProcessorRequestsDeterministicSyncBeforeAdvancing","Output":"=== RUN   TestSchedulerProcessorRequestsDeterministicSyncBeforeAdvancing\n"}
+{"Time":"2026-09-19T22:25:30.464251-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestSchedulerProcessorRequestsDeterministicSyncBeforeAdvancing","Output":"--- PASS: TestSchedulerProcessorRequestsDeterministicSyncBeforeAdvancing (0.00s)\n"}
+{"Time":"2026-09-19T22:25:30.464265-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestSchedulerProcessorRequestsDeterministicSyncBeforeAdvancing","Elapsed":0}
+{"Time":"2026-09-19T22:25:30.464286-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestNextScheduledRunSkipsLargeBacklogArithmetically"}
+{"Time":"2026-09-19T22:25:30.464293-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestNextScheduledRunSkipsLargeBacklogArithmetically","Output":"=== RUN   TestNextScheduledRunSkipsLargeBacklogArithmetically\n"}
+{"Time":"2026-09-19T22:25:30.464308-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestNextScheduledRunSkipsLargeBacklogArithmetically","Output":"--- PASS: TestNextScheduledRunSkipsLargeBacklogArithmetically (0.00s)\n"}
+{"Time":"2026-09-19T22:25:30.464319-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestNextScheduledRunSkipsLargeBacklogArithmetically","Elapsed":0}
+{"Time":"2026-09-19T22:25:30.464359-07:00","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestSchedulerProcessorStartsEveryClaimedLeaseBeforeWaiting"}
+{"Time":"2026-09-19T22:25:30.464365-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestSchedulerProcessorStartsEveryClaimedLeaseBeforeWaiting","Output":"=== RUN   TestSchedulerProcessorStartsEveryClaimedLeaseBeforeWaiting\n"}
+{"Time":"2026-09-19T22:25:30.464553-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestSchedulerProcessorStartsEveryClaimedLeaseBeforeWaiting","Output":"--- PASS: TestSchedulerProcessorStartsEveryClaimedLeaseBeforeWaiting (0.00s)\n"}
+{"Time":"2026-09-19T22:25:30.464572-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestSchedulerProcessorStartsEveryClaimedLeaseBeforeWaiting","Elapsed":0}
+{"Time":"2026-09-19T22:25:30.465795-07:00","Action":"cont","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic"}
+{"Time":"2026-09-19T22:25:30.4658-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic","Output":"=== CONT  TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic\n"}
+{"Time":"2026-09-19T22:25:30.465841-07:00","Action":"cont","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority"}
+{"Time":"2026-09-19T22:25:30.465849-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority","Output":"=== CONT  TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority\n"}
+{"Time":"2026-09-19T22:25:30.465852-07:00","Action":"cont","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority"}
+{"Time":"2026-09-19T22:25:30.465853-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority","Output":"=== CONT  TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority\n"}
+{"Time":"2026-09-19T22:25:30.466305-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority","Output":"--- PASS: TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority (0.00s)\n"}
+{"Time":"2026-09-19T22:25:30.466454-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeProjectionWorkerRuntimeBindsExactSearchAuthority","Elapsed":0}
+{"Time":"2026-09-19T22:25:30.466458-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic","Output":"--- PASS: TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic (0.00s)\n"}
+{"Time":"2026-09-19T22:25:30.466535-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeRuntimeOutboxWorkerBindsV15RepositoryAndTopic","Elapsed":0}
+{"Time":"2026-09-19T22:25:30.466539-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority","Output":"--- PASS: TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority (0.00s)\n"}
+{"Time":"2026-09-19T22:25:30.466684-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Test":"TestComposeOutboxWorkerRuntimeBindsExactTopicAuthority","Elapsed":0}
+{"Time":"2026-09-19T22:25:30.466696-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Output":"PASS\n"}
+{"Time":"2026-09-19T22:25:31.473703-07:00","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Output":"ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-worker\t3.757s\n"}
+{"Time":"2026-09-19T22:25:31.473731-07:00","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker","Elapsed":3.758}
+
+exit=0;35 matching test RUN/PASS events,0 FAIL/SKIP,0 malformed JSONL lines.
+
+## FINAL full migration race group
+
+An earlier full race invocation exited0 but its tool capture truncated JSONL, so it is excluded from authoritative record counts. The repeated group below streams every JSON line, checks matching test names, catches malformed input, preserves child exit, rejects skipped/failed tests and emits a compact receipt plus raw stream hash.
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-release60-task3-cache /Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node -e 'const {spawn}=require("node:child_process");const {createHash}=require("node:crypto");const p=spawn("/opt/homebrew/bin/go",["test","-race","./migrations","-count=1","-json"]);let rest="",parseErrors=0;const hash=createHash("sha256");const sets={run:new Set,pass:new Set,fail:new Set,skip:new Set};p.stdout.on("data",b=>{hash.update(b);rest+=b;let i;while((i=rest.indexOf("\n"))>=0){let s=rest.slice(0,i);rest=rest.slice(i+1);try{let r=JSON.parse(s);if(r.Test&&sets[r.Action])sets[r.Action].add(r.Test);if(r.Action==="fail"||r.Action==="skip")console.log(s)}catch{parseErrors++;console.error(s)}}});p.stderr.pipe(process.stderr);p.on("close",code=>{const missing=[...sets.run].filter(n=>!sets.pass.has(n));console.log(JSON.stringify({command:"go test -race ./migrations -count=1 -json",exit:code,run:sets.run.size,pass:sets.pass.size,fail:sets.fail.size,skip:sets.skip.size,unmatchedRuns:missing,parseErrors,unparsedTail:rest,rawJSONLSHA256:hash.digest("hex")}));process.exitCode=code||parseErrors||missing.length||sets.fail.size||sets.skip.size?1:0});'
+{"command":"go test -race ./migrations -count=1 -json","exit":0,"run":289,"pass":289,"fail":0,"skip":0,"unmatchedRuns":[],"parseErrors":0,"unparsedTail":"","rawJSONLSHA256":"cc4de7cba53b0104b8b0b632c7736887977d5d93fcbb2f7337e0ec25a24bfcbe"}
+
+
+## Final source SHA256
+
+d5be6dd8b2e4c8b9ede6002a8305eaa152f6a8d2158694bc86ed06a63a3f9352  services/platform/apiserver/discovery_execution_repository.go
+973c192207cae561db1aced19a11e8fd140f30ccf5efd06109190083cb96a45d  services/platform/apiserver/discovery_execution_repository_test.go
+bad0889aa110b6b2924a61f63f1c4b58281afa4e8c5f16270a56b772644cdfbb  services/platform/apiserver/discovery_execution_postgres_test.go
+59508e174c2ad3afec2ad13edaf323591afef467e3284b2289894f4f8ba2edd7  services/platform/apiserver/automatic_discovery_scheduler_postgres_test.go
+518c50205e235ebbf4251fb3d2e896e8023bc8bf527906068839b8995890f17b  services/platform/agentsec-worker/production_runtime.go
+00fe6d2ed976da80ecddc9a6fcfba01ce46a791132a07c546ffff1ccf16d0feb  services/platform/agentsec-worker/production_runtime_test.go
+d6dd3c795d0c156e85f594ceac7715ebe16dedeb555204532809729df29f8b19  services/platform/migrations/sql/0060_production_discovery_schedule_replay.up.sql
+113eabad1c692bcb8a264ecc11c7c7ed75d0ec67ac9e3e34912922648b45d2ff  services/platform/migrations/sql/0060_production_discovery_schedule_replay.down.sql
+d19a8cd9639ea1c108ade09363cad9ec8d1771a3671e955b7bdf752be5d1b40e  services/platform/migrations/production_discovery_schedule_replay.go
+
+
+## Cleanup and format verification
+
+git diff --check: exit0, empty output.
+gofmt -l on all six owned files: exit0, empty output.
+git diff --quiet HEAD -- release13 up/down: exit0.
+git apply --check --reverse .superpowers/sdd/2026-09-19-automatic-discovery-schedule-replay-plan/task-3-review.diff: exit0.
+docker ps -a --filter label=zasp.test.owner=release60-task3: exit0, empty output.
+Exact inspect zasp-release60-task3-final: exit1, No such container.
+Exact inspect zasp-release60-task3-cycle: exit1, No such container.
+Exact inspect zasp-release60-task3-focused: exit1, No such container.
+All final8 PostgreSQL instances joined normally; no relay was used.
+Task-owned binaries and baseline snapshots remain under /tmp/zasp-release60-task3.wS7ihB. No unrelated resource was removed.
+No commit, push, migration edit, harness edit, UI edit or ledger promotion.
+

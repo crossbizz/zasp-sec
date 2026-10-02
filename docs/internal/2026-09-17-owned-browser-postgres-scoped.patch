@@ -1,0 +1,350 @@
+diff --git a/scripts/production-combined-e2e.mjs b/scripts/production-combined-e2e.mjs
+--- a/scripts/production-combined-e2e.mjs
++++ b/scripts/production-combined-e2e.mjs
+@@ -13,0 +14,1 @@
++import { createOwnedBrowserPostgres } from "./owned-browser-postgres.mjs";
+@@ -2540,17 +2541,9 @@
+-async function startPostgres(port) {
+-  const data = path.join(temporaryRoot, "postgres-data");
+-  await command(path.join(postgresBin, "initdb"), ["--no-locale", "--encoding=UTF8", "--auth-local=trust", "--auth-host=trust", "--username=zasp_e2e", "-D", data]);
+-  const instrumentation = process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1" ? ["-c", "track_functions=pl"] : [];
+-  const child = startChild(path.join(postgresBin, "postgres"), ["-D", data, "-h", "127.0.0.1", "-p", String(port), "-k", "", ...instrumentation]);
+-  for (let attempt = 0; attempt < 200; attempt += 1) {
+-    const ready = await command(path.join(postgresBin, "pg_isready"), ["-h", "127.0.0.1", "-p", String(port), "-U", "zasp_e2e", "-d", "postgres"], { reject: false });
+-    if (ready.status === 0) return { child, data };
+-    await delay(25);
+-  }
+-  throw new Error(`disposable PostgreSQL did not become ready: ${child.output()}`);
+-}
+-
+-async function stopPostgres(value) {
+-  await command(path.join(postgresBin, "pg_ctl"), ["-D", value.data, "-m", "fast", "-w", "stop"], { reject: false, timeout: 10_000 });
+-  await stopChild(value.child);
+-}
++async function startPostgres(port) {
++  postgres = createOwnedBrowserPostgres({ port, trackFunctions: process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1" });
++  await postgres.start();
++  return postgres;
++}
++
++async function stopPostgres(value) {
++  await value.stop();
++}
+@@ -4443,1 +4436,1 @@
+-  assert.ok(postgres?.child && postgres.child.exitCode === null, "owned PostgreSQL is not running");
++  await postgres.assertRunning();
+diff --git a/scripts/production-combined-e2e.test.mjs b/scripts/production-combined-e2e.test.mjs
+--- a/scripts/production-combined-e2e.test.mjs
++++ b/scripts/production-combined-e2e.test.mjs
+@@ -550,1 +550,1 @@
+-    "initdb", "postgres", "agentsec-migrate", "agentsec-api", "vinext", "Google Chrome",
++    "postgres", "agentsec-migrate", "agentsec-api", "vinext", "Google Chrome",
+@@ -552,1 +552,1 @@
+-    "not_found", "SIGTERM", "pg_ctl", "FIXED_NODE_VERSION", "Roll to monitor",
++    "not_found", "SIGTERM", "FIXED_NODE_VERSION", "Roll to monitor",
+@@ -752,0 +753,26 @@
++test("combined PostgreSQL startup registers its owner before readiness rejects", async () => {
++  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
++  const start = source.indexOf("async function startPostgres(port)");
++  const end = source.indexOf("async function provisionPostgresPrincipals", start);
++  const failure = new Error("owned readiness rejected");
++  const owner = { start: async () => { throw failure; }, stop: async () => { owner.stopped = true; } };
++  const context = { process: { env: { ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC: "1" } }, postgres: undefined,
++    path, temporaryRoot: "/unused", postgresBin: "/unused", command: async () => { throw failure; },
++    createOwnedBrowserPostgres: options => { assert.deepEqual(JSON.parse(JSON.stringify(options)), { port: 54321, trackFunctions: true }); return owner; } };
++  const flow = runInNewContext(`(async () => { ${source.slice(start, end)} try { await startPostgres(54321); } catch (error) { if (postgres) await stopPostgres(postgres); throw error; } })`, context);
++  await assert.rejects(flow(), error => error === failure);
++  assert.equal(context.postgres, owner);
++  assert.equal(owner.stopped, true);
++});
++
++test("retirement diagnostic rejects dead owned container despite a live Docker CLI child", async () => {
++  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
++  const start = source.indexOf("async function exerciseConcurrentRetirementLoad(");
++  const end = source.indexOf("async function runProductionRecoveryLifecycle", start);
++  const failure = new Error("owned container exited");
++  const run = runInNewContext(`(${source.slice(start, end)})`, { assert, URL, Date, path, postgresBin: "/unused",
++    command: async () => { throw new Error("SQL reached before owned container liveness check"); },
++    postgres: { child: { exitCode: null }, assertRunning: async () => { throw failure; } } });
++  await assert.rejects(run("postgres://zasp_e2e@127.0.0.1:54321/postgres"), error => error === failure);
++});
++
+diff --git a/scripts/owned-browser-postgres.mjs b/scripts/owned-browser-postgres.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/owned-browser-postgres.mjs
+@@ -0,0 +1,135 @@
++import { randomBytes } from "node:crypto";
++import { setTimeout as delay } from "node:timers/promises";
++import { spawnOwnedCommand } from "./owned-command.mjs";
++
++const IMAGE = "postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba";
++const LABEL = "zasp.browser-postgres.owner";
++
++// Construct synchronously and register with the harness before awaiting start.
++// Docker CLI completion never stands in for container liveness or removal.
++export function createOwnedBrowserPostgres({ port, trackFunctions = false, spawnCommand = spawnOwnedCommand,
++  commandTimeoutMs = 5000, readinessTimeoutMs = 30000, pollMs = 100 } = {}) {
++  if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw new TypeError("invalid PostgreSQL port");
++  for (const [value, maximum] of [[commandTimeoutMs, 5000], [readinessTimeoutMs, 30000], [pollMs, 1000]]) {
++    if (!Number.isSafeInteger(value) || value < 1 || value > maximum) throw new TypeError("invalid PostgreSQL lifecycle bound");
++  }
++  if (typeof trackFunctions !== "boolean" || typeof spawnCommand !== "function") throw new TypeError("invalid PostgreSQL lifecycle options");
++  const name = `zasp-browser-postgres-${randomBytes(16).toString("hex")}`;
++  const active = new Set(), joinErrors = [];
++  let containerID, createAttempted = false, stopped = false, starting, stopping;
++  const checkpoint = () => { if (stopped) throw new Error("owned PostgreSQL stopped"); };
++
++  async function command(args, { reject = true, timeout = commandTimeoutMs } = {}) {
++    const owned = spawnCommand("docker", args, { graceMs: 1000, killMs: 1000 });
++    active.add(owned);
++    let timer, timeoutStop, timedOut = false;
++    const expired = new Promise((_, rejectDeadline) => {
++      timer = setTimeout(() => {
++        timedOut = true;
++        timeoutStop = owned.stop().catch(error => { joinErrors.push(error); });
++        void timeoutStop.finally(() => {
++          rejectDeadline(new Error(`owned PostgreSQL docker ${args[0]} exceeded its deadline`));
++        });
++      }, timeout);
++    });
++    try {
++      const result = await Promise.race([owned.completed, expired]);
++      if (timedOut) {
++        await timeoutStop;
++        throw new Error(`owned PostgreSQL docker ${args[0]} exceeded its deadline`);
++      }
++      if (reject && result.status !== 0) throw new Error(`owned PostgreSQL docker ${args[0]} failed: ${result.stderr || result.stdout}`);
++      return result;
++    } finally { clearTimeout(timer); active.delete(owned); }
++  }
++
++  function identity(result) {
++    const values = JSON.parse(result.stdout);
++    const value = values[0];
++    if (values.length !== 1 || !/^[a-f0-9]{64}$/.test(value?.Id ?? "") || value.Name !== `/${name}` ||
++      value.Config?.Image !== IMAGE || value.Config?.Labels?.[LABEL] !== name || (containerID && value.Id !== containerID)) {
++      throw new Error(`owned PostgreSQL container identity rejected: ${name}`);
++    }
++    return value;
++  }
++
++  async function assertRunning() {
++    checkpoint();
++    if (!containerID) throw new Error("owned PostgreSQL is not running");
++    const value = identity(await command(["inspect", containerID]));
++    checkpoint();
++    if (value.State?.Running !== true) throw new Error(`owned PostgreSQL is not running: ${containerID}`);
++  }
++
++  async function boot() {
++    checkpoint();
++    createAttempted = true;
++    const created = await command(["create", "--pull=never", "--name", name, "--label", `${LABEL}=${name}`,
++      "--user", "postgres", "--read-only", "--tmpfs", "/tmp:rw,nosuid,nodev,mode=1777",
++      "--tmpfs", "/var/lib/postgresql:rw,nosuid,nodev,mode=1777",
++      "--tmpfs", "/var/run/postgresql:rw,nosuid,nodev,mode=1777", "--publish", `127.0.0.1:${port}:5432`,
++      "--env", "POSTGRES_USER=zasp_e2e", "--env", "POSTGRES_DB=postgres", "--env", "POSTGRES_HOST_AUTH_METHOD=trust",
++      "--env", "PGDATA=/tmp/pgdata", IMAGE, "postgres",
++      ...(trackFunctions ? ["-c", "track_functions=pl"] : [])]);
++    const candidate = created.stdout.trim();
++    if (!/^[a-f0-9]{64}$/.test(candidate)) throw new Error("owned PostgreSQL create returned an invalid container ID");
++    containerID = candidate;
++    checkpoint();
++    await command(["start", containerID]);
++    checkpoint();
++    const deadline = Date.now() + readinessTimeoutMs;
++    while (Date.now() < deadline) {
++      await assertRunning();
++      const ready = await command(["exec", containerID, "pg_isready", "-h", "127.0.0.1", "-U", "zasp_e2e", "-d", "postgres"],
++        { reject: false, timeout: Math.max(1, Math.min(commandTimeoutMs, deadline - Date.now())) });
++      checkpoint();
++      if (ready.status === 0) { await assertRunning(); return; }
++      await delay(Math.min(pollMs, Math.max(1, deadline - Date.now())));
++    }
++    throw new Error("owned PostgreSQL did not become ready");
++  }
++
++  const stop = () => stopping ??= (async () => {
++    stopped = true;
++    const errors = [];
++    const attempt = async operation => { try { await operation(); } catch (error) { errors.push(error); } };
++    await Promise.all([...active].map(owned => attempt(() => owned.stop())));
++    await starting?.catch(() => {});
++    if (createAttempted && !containerID) {
++      // A cancelled create may have reached the daemon before its CLI joined.
++      // Recover only this invocation's random name, verifying its label/image.
++      await attempt(async () => {
++        const inspected = await command(["inspect", name], { reject: false });
++        if (inspected.status === 0) containerID = identity(inspected).Id;
++        else {
++          const listed = await command(["container", "ls", "--all", "--no-trunc", "--filter", `name=^/${name}$`, "--format", "{{.ID}}"]);
++          if (listed.stdout.trim()) throw new Error(`owned PostgreSQL could not identify created container: ${name}`);
++        }
++      });
++    }
++    if (containerID) {
++      await attempt(() => command(["stop", "--time", "2", containerID]));
++      await attempt(() => command(["rm", "--force", "--volumes", containerID]));
++      await attempt(async () => {
++        const listed = await command(["container", "ls", "--all", "--no-trunc", "--filter", `id=${containerID}`, "--format", "{{.ID}}"]);
++        if (listed.stdout.trim()) throw new Error(`owned PostgreSQL container remains: ${containerID}`);
++      });
++    }
++    errors.push(...joinErrors);
++    if (errors.length) throw new AggregateError(errors, `owned PostgreSQL cleanup failed: ${containerID ?? name}`);
++  })();
++
++  return {
++    get containerID() { return containerID; },
++    start() {
++      if (stopped) return Promise.reject(new Error("owned PostgreSQL stopped"));
++      starting ??= boot();
++      return starting.catch(async error => {
++        try { await stop(); } catch (cleanupError) { throw new AggregateError([error, cleanupError], "owned PostgreSQL startup and cleanup failed"); }
++        throw error;
++      });
++    },
++    assertRunning,
++    stop,
++  };
++}
+diff --git a/scripts/owned-browser-postgres.test.mjs b/scripts/owned-browser-postgres.test.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/owned-browser-postgres.test.mjs
+@@ -0,0 +1,134 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++
++const module = await import("./owned-browser-postgres.mjs").catch(error => {
++  if (error.code !== "ERR_MODULE_NOT_FOUND") throw error;
++  return {};
++});
++const image = "postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba";
++const id = "a".repeat(64);
++const ok = (stdout = "") => ({ status: 0, signal: null, stdout, stderr: "" });
++const failed = (stderr = "failure") => ({ status: 1, signal: null, stdout: "", stderr });
++
++// Removing ownership checks, bounded joins, or the cancellation gate breaks
++// these tests. Only the external process boundary is replaced.
++function fixture(options = {}, override = () => undefined) {
++  assert.equal(typeof module.createOwnedBrowserPostgres, "function", "owned PostgreSQL lifecycle must exist");
++  const calls = [], stopped = [];
++  let name, label, exists = false, running = false;
++  const spawnCommand = (executable, args, commandOptions) => {
++    calls.push({ executable, args, options: commandOptions });
++    const result = override(args, { calls, setRunning: value => { running = value; } });
++    let output;
++    switch (args[0]) {
++      case "create":
++        name = args[args.indexOf("--name") + 1]; label = args[args.indexOf("--label") + 1]; exists = true; output = ok(id); break;
++      case "start": running = true; output = ok(id); break;
++      case "inspect":
++        output = exists ? ok(JSON.stringify([{ Id: id, Name: `/${name}`, Config: { Image: image, Labels: { [label.split("=")[0]]: label.split("=")[1] } }, State: { Running: running, ExitCode: 0 } }])) : failed("No such object"); break;
++      case "exec": output = ok(); break;
++      case "stop": running = false; output = ok(id); break;
++      case "rm": exists = false; output = ok(id); break;
++      case "container": output = ok(exists ? `${id}\n` : ""); break;
++      default: throw new Error(`unexpected command: ${args}`);
++    }
++    if (result?.completed) return { ...result, stop: async () => { stopped.push(args); await result.stop(); } };
++    return { completed: Promise.resolve(result ?? output), stop: async () => { stopped.push(args); } };
++  };
++  const owner = module.createOwnedBrowserPostgres({ port: 54321, commandTimeoutMs: 30, readinessTimeoutMs: 40, pollMs: 1, spawnCommand, ...options });
++  return { owner, calls, stopped };
++}
++
++test("starts only pinned loopback ephemeral PostgreSQL and joins its exact container", async () => {
++  const { owner, calls } = fixture({ trackFunctions: true });
++  await owner.start();
++  await owner.assertRunning();
++  assert.equal(owner.containerID, id);
++  const args = calls[0].args;
++  assert.deepEqual(args, ["create", "--pull=never", "--name", args[3], "--label", args[5], "--user", "postgres", "--read-only", "--tmpfs", "/tmp:rw,nosuid,nodev,mode=1777", "--tmpfs", "/var/lib/postgresql:rw,nosuid,nodev,mode=1777", "--tmpfs", "/var/run/postgresql:rw,nosuid,nodev,mode=1777", "--publish", "127.0.0.1:54321:5432", "--env", "POSTGRES_USER=zasp_e2e", "--env", "POSTGRES_DB=postgres", "--env", "POSTGRES_HOST_AUTH_METHOD=trust", "--env", "PGDATA=/tmp/pgdata", image, "postgres", "-c", "track_functions=pl"]);
++  assert.match(args[3], /^zasp-browser-postgres-[a-f0-9]{32}$/);
++  assert.equal(args[5], `zasp.browser-postgres.owner=${args[3]}`);
++  assert.ok(calls.every(call => call.executable === "docker"));
++  assert.deepEqual(calls.find(call => call.args[0] === "exec").args, ["exec", id, "pg_isready", "-h", "127.0.0.1", "-U", "zasp_e2e", "-d", "postgres"]);
++  await owner.stop();
++  assert.deepEqual(calls.slice(-3).map(call => call.args), [["stop", "--time", "2", id], ["rm", "--force", "--volumes", id], ["container", "ls", "--all", "--no-trunc", "--filter", `id=${id}`, "--format", "{{.ID}}"]]);
++});
++
++test("rejects invalid ports before dispatch", () => {
++  for (const port of [0, -1, 65536, 1.5, "5432", NaN]) assert.throws(() => fixture({ port }), /port/);
++});
++
++test("default startup leaves function instrumentation off", async () => {
++  const { owner, calls } = fixture(); await owner.start(); await owner.stop();
++  assert.equal(calls[0].args.includes("track_functions=pl"), false);
++});
++
++test("readiness failure still removes the created container", async () => {
++  const { owner, calls } = fixture({}, args => args[0] === "exec" ? failed("not ready") : undefined);
++  await assert.rejects(owner.start(), /ready/);
++  assert.ok(calls.some(call => call.args[0] === "rm" && call.args.at(-1) === id));
++  await owner.stop();
++});
++
++test("early server exit fails readiness even if the CLI already exited successfully", async () => {
++  const { owner, calls } = fixture({}, (args, state) => { if (args[0] === "inspect") state.setRunning(false); });
++  await assert.rejects(owner.start(), /not running/);
++  assert.equal(calls.some(call => call.args[0] === "exec"), false);
++  assert.ok(calls.some(call => call.args[0] === "rm"));
++});
++
++test("failed start removes the exact created resource", async () => {
++  const { owner, calls } = fixture({}, args => args[0] === "start" ? failed("start rejected") : undefined);
++  await assert.rejects(owner.start(), /start rejected/);
++  assert.ok(calls.some(call => call.args[0] === "rm" && call.args.at(-1) === id));
++});
++
++test("lost create response recovers only the invocation name and matching ownership label", async () => {
++  const { owner, calls } = fixture({}, args => args[0] === "create" ? failed("lost response") : undefined);
++  await assert.rejects(owner.start(), /lost response/);
++  assert.deepEqual(calls[1].args, ["inspect", calls[0].args[3]]);
++  assert.ok(calls.some(call => call.args[0] === "rm" && call.args.at(-1) === id));
++});
++
++test("ambiguous create cannot remove a container without matching ownership", async () => {
++  const { owner, calls } = fixture({}, args => args[0] === "create" ? failed("lost response") : args[0] === "inspect" ? ok(JSON.stringify([{ Id: id, Name: "/foreign", Config: { Image: image, Labels: {} }, State: { Running: true } }])) : undefined);
++  await assert.rejects(owner.start(), /cleanup/);
++  assert.equal(calls.some(call => ["stop", "rm"].includes(call.args[0])), false);
++});
++
++test("concurrent and repeated stop perform one exact cleanup", async () => {
++  const { owner, calls } = fixture(); await owner.start();
++  const first = owner.stop(); assert.equal(owner.stop(), first); await first; await owner.stop();
++  assert.equal(calls.filter(call => call.args[0] === "rm").length, 1);
++  await assert.rejects(owner.start(), /stopped/);
++});
++
++test("cancellation joins an in-flight create then recovers and removes its resource", async () => {
++  let release;
++  const { owner, calls, stopped } = fixture({}, args => args[0] === "create" ? { completed: new Promise(resolve => { release = resolve; }), stop: async () => release(failed("cancelled")) } : undefined);
++  const starting = owner.start(); const rejection = assert.rejects(starting, /cancelled|stopped/);
++  await owner.stop(); await rejection;
++  assert.equal(stopped.length, 1);
++  assert.equal(calls.some(call => call.args[0] === "start"), false);
++  assert.ok(calls.some(call => call.args[0] === "rm"));
++});
++
++test("hung commands are bounded and joined before cleanup", async () => {
++  let release;
++  const { owner, stopped, calls } = fixture({}, args => args[0] === "start" ? { completed: new Promise(resolve => { release = resolve; }), stop: async () => release(failed("stopped")) } : undefined);
++  await assert.rejects(owner.start(), /deadline/);
++  assert.equal(stopped.length, 1);
++  assert.ok(calls.some(call => call.args[0] === "rm"));
++});
++
++test("cleanup failure stays rejected even when repeated and absence checks still run", async () => {
++  const { owner, calls } = fixture({}, args => args[0] === "rm" ? failed("remove denied") : undefined);
++  await owner.start(); await assert.rejects(owner.stop(), /cleanup/); await assert.rejects(owner.stop(), /cleanup/);
++  assert.equal(calls.filter(call => call.args[0] === "rm").length, 1);
++  assert.equal(calls.at(-1).args[0], "container");
++});
++
++test("successful CLI removal without observed container absence fails the join", async () => {
++  const { owner } = fixture({}, args => args[0] === "container" ? ok(id) : undefined);
++  await owner.start(); await assert.rejects(owner.stop(), /cleanup/);
++});

@@ -1,0 +1,98 @@
+[
+  {
+    "file": "affected-go-race.log",
+    "sha256": "810a7969b5ca1b7cb55b92891a71a7cc90072d22de203f830700c0e10d916f0a"
+  },
+  {
+    "file": "audit-green.log",
+    "sha256": "5c0dd2e4dedb676881aee97e47b2faf33f03f129f716e55a73678864f7a25058"
+  },
+  {
+    "file": "audit-red.log",
+    "sha256": "c8ec3c571f3ae872e68dbf9d0e68d6cc3434d9b7e5481a0edaf39604bc1d24d6"
+  },
+  {
+    "file": "binary-hashes.sha256",
+    "sha256": "b1d566236d89b84921fec4161d46e352eea192bd6282837cc63ceb61e3d4986e"
+  },
+  {
+    "file": "capture-evidence.mjs",
+    "sha256": "82eab94d51e786fa9edc363d11b1ab4b39d8f028569c222520eb13c652a834f1"
+  },
+  {
+    "file": "commands.md",
+    "sha256": "41b16e3df06295a756d36ab1fbd38a31eba9d36de7f25574d5f88ba02720596b"
+  },
+  {
+    "file": "connected-node.log",
+    "sha256": "463305e82aba10fe804fddfe659711acda3bcc87fad637d402a9986d314f6e52"
+  },
+  {
+    "file": "containers-final.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "file": "focused-green.log",
+    "sha256": "d30fbe03b8108eaa80d3216ee05b05414be0343aae177e65f10d55632a9cb031"
+  },
+  {
+    "file": "image-red.log",
+    "sha256": "4a7115d5748886c95d4068dec9785d7db76f70d1b0751aa95487d14c702e2735"
+  },
+  {
+    "file": "owned-postgres-green.log",
+    "sha256": "e89abca4a51a685d216fc98ad8d68bd5dae6ccf6be4c7628f5f6a0f9b2a03d0f"
+  },
+  {
+    "file": "owned-postgres.log",
+    "sha256": "93280c700857cd9cb7196399f0366805256ebfae030611453aa9b84b5a133de4"
+  },
+  {
+    "file": "predecessor-alerts-green.log",
+    "sha256": "a05bfb67bd60c2a58fdc4c3bf7d015916745f699acdde37560440a312cef1532"
+  },
+  {
+    "file": "principal-red.log",
+    "sha256": "6c873a905d98d765846cacf07b1aba04da6f959882b8147c8bef1462632cc2de"
+  },
+  {
+    "file": "processes-final.log",
+    "sha256": "f4023fa350fd58d1f3076a6ab4fa80feeea7926f7bfc1079787741b802f370a7"
+  },
+  {
+    "file": "render-green.log",
+    "sha256": "4e0423fac52b0c9a7a5742f59a35e01e09ea27ae3edc93b00153fc3dffd3a76a"
+  },
+  {
+    "file": "render-red.log",
+    "sha256": "60aa17c9d55a1ff1d0da7b255fb20b195eb43fb29f1a5dcbebdd083b6bd5ec91"
+  },
+  {
+    "file": "rendered-fixture.json",
+    "sha256": "f67b812cd646af09e4571474338e95143629b09d3bb55f33816ba864b749d52e"
+  },
+  {
+    "file": "report.md",
+    "sha256": "87ac3f4e8a3cc5ab7b2591ca2576432f99238b7ef76730ee77566081e5517f8f"
+  },
+  {
+    "file": "runtime-config.log",
+    "sha256": "b24a86e667db4ebd4baceaaaa5b7acdf6812da319f1e6a81a38c3767582f4b71"
+  },
+  {
+    "file": "scoped.patch",
+    "sha256": "ae1c743c246c585bd03a4ef899cb8a2b42fea84cce9a87b9858f784a58d7d8a9"
+  },
+  {
+    "file": "source-hashes.json",
+    "sha256": "a71e3c94738e08d385c9c8d9d81aa2e54218c244370b5396bfdf740c9eb89886"
+  },
+  {
+    "file": "staging-red.log",
+    "sha256": "f6d98c0a2fc53455e74fee44a3d817de3a5dcf702bf6d212a2aafc78c4886771"
+  },
+  {
+    "file": "worker-config-race.log",
+    "sha256": "981c5209997f6090efd4a78770a0493a8cc4b33ca66f3d85f9cf48235fe68cf0"
+  }
+]

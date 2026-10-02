@@ -1,0 +1,18 @@
+PROCESS VIOLATION. This native command accidentally included PostgreSQL tests.
+It is not permitted database acceptance evidence. Cached-container database
+evidence is separate in postgres-green.log and authority-waits-green.log.
+
+Working directory: services/platform. Session26940, exit0.
+env GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-budget-go-cache /opt/homebrew/bin/go test ./agentsec-worker ./apiserver ./agentsec-migrate -run 'TestSecurityAgentAttackLab|TestSecurityAgentExistingTestPlannerBinding|TestSecurityAgentExistingTestProcessorPreservesReference|TestAttackLab' -count=1 -race
+
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	3.935s
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	35.518s
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate	3.327s
+
+The native fixture helper uses exec.LookPath(initdb,postgres,pg_isready,pg_ctl).
+Post-run read-only command -v found /opt/homebrew/bin/initdb,
+/opt/homebrew/bin/postgres and /opt/homebrew/bin/pg_ctl. The accidentally broad
+regex included TestSecurityAgentAttackLabAuthorityPostgres and ReleaseCycle.
+Post-run ps inspection found no matching owned PostgreSQL or apiserver.test
+process. Parent was notified immediately after discovery. Subsequent native
+commands use anchored exact test names, inspected with go test -list first.

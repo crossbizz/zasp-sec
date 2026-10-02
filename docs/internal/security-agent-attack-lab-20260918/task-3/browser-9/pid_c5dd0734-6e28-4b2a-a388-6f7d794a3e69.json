@@ -1,0 +1,67 @@
+{
+  "name": "Attack Lab supervised",
+  "autonomy": "supervised",
+  "verdict": "verified",
+  "sourceID": "pid_a69f62f3-9706-4442-9efc-2d2ed8ca15a6",
+  "testID": "pid_f4f5eb97-6fcb-40b8-b8fc-1ca7e2782f8a",
+  "runID": "pid_c5dd0734-6e28-4b2a-a388-6f7d794a3e69",
+  "executionID": "pid_27fa136e-b890-4cff-8a44-81fb121845bb",
+  "proof": {
+    "definition_id": "pid_f4f5eb97-6fcb-40b8-b8fc-1ca7e2782f8a",
+    "definition_version": 1,
+    "source_run_id": "pid_a69f62f3-9706-4442-9efc-2d2ed8ca15a6",
+    "source_attempt": 1,
+    "execution_id": "pid_27fa136e-b890-4cff-8a44-81fb121845bb",
+    "attempt": 1,
+    "state": "complete",
+    "verdict": "verified",
+    "cleanup_state": "complete",
+    "cleanup_complete": true,
+    "cancel_requested": false,
+    "evidence": {
+      "reference_digest": "b65657c0540a0717a5f8dea4672c442ffda08eab62e6503be1fdb228e42f2bce",
+      "version_id": "version-6a376bd756457017",
+      "sha256": "6a376bd756457017ef4ca79a5fd516399cbbcecb8806aab10efc73341357a370",
+      "size_bytes": 1034
+    },
+    "settlement": {
+      "outcome": "needs_human",
+      "reason": "attack_lab_unsafe_condition_reproduced",
+      "proof_digest": "sha256:76fd7f89f498aa25e9bfe854f074246b6ba156c5e1e6591e96a244045bb26d13"
+    }
+  },
+  "interrupted": {
+    "definition_id": "pid_f4f5eb97-6fcb-40b8-b8fc-1ca7e2782f8a",
+    "definition_version": 1,
+    "source_run_id": "pid_a69f62f3-9706-4442-9efc-2d2ed8ca15a6",
+    "source_attempt": 1,
+    "execution_id": "pid_27fa136e-b890-4cff-8a44-81fb121845bb",
+    "attempt": 1,
+    "state": "running",
+    "verdict": null,
+    "cleanup_state": "pending",
+    "cleanup_complete": false,
+    "cancel_requested": false,
+    "evidence": null,
+    "settlement": null
+  },
+  "provider": {
+    "error": "",
+    "job_deletes": 1,
+    "job_posts": 1,
+    "lost_settlement_reply": false,
+    "ok": true,
+    "provider_calls": 1,
+    "settlement_calls": 0
+  },
+  "settlement": {
+    "error": "",
+    "job_deletes": 1,
+    "job_posts": 1,
+    "lost_settlement_reply": true,
+    "ok": true,
+    "provider_calls": 1,
+    "settlement_calls": 2
+  },
+  "claim": "local controlled provider; NOT live EKS or hostile-code acceptance"
+}

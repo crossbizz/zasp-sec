@@ -1,0 +1,615 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","node_modules/vitest/vitest.mjs","run","app/features/securityagents/SecurityAgentsView.test.tsx","-t","^allows stopping an exact pending Attack Lab link while retaining cleanup evidence$"]
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ❯ app/features/securityagents/SecurityAgentsView.test.tsx (75 tests | 1 failed | 74 skipped) 1022ms
+   × allows stopping an exact pending Attack Lab link while retaining cleanup evidence 1022ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  app/features/securityagents/SecurityAgentsView.test.tsx > allows stopping an exact pending Attack Lab link while retaining cleanup evidence
+TestingLibraryElementError: Unable to find role="button" and name "Cancel run"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33minert[39m=[32m""[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mSecurity agents[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mTenant-scoped response definitions, redacted plans, supervised approvals, autonomous actions, outcomes, and verification.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mLinked Security Agent run[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [36m<code>[39m
+            [0mpid_40000004-0000-4000-8000-000000000004[0m
+          [36m</code>[39m
+        [36m</p>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"button button--secondary "[39m
+        [36m>[39m
+          [0mReload linked run[0m
+        [36m</button>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-dialog-layer[39m=[32m"true"[39m
+    [33mstyle[39m=[32m"position: relative; z-index: 100;"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"Close details"[39m
+      [33mclass[39m=[32m"overlay"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m/>[39m
+    [36m<aside[39m
+      [33maria-label[39m=[32m"Run pid_40000004-0000-4000-8000-000000000004"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"drawer drawer--wide"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__header"[39m
+      [36m>[39m
+        [36m<h2>[39m
+          [0mRun pid_40000004-0000-4000-8000-000000000004[0m
+        [36m</h2>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Close"[39m
+          [33mclass[39m=[32m"icon-button"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-x"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M18 6 6 18"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m6 6 12 12"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__body"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"detail-content"[39m
+        [36m>[39m
+          [36m<p>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"badge badge--info"[39m
+            [36m>[39m
+              [0mrunning[0m
+            [36m</span>[39m
+            [0m Version [0m
+            [0m4[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mDefinition [0m
+            [0mpid_40000001-0000-4000-8000-000000000001[0m
+            [0m, revision [0m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mTrigger[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mNo trigger context is available for this run.[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mEvidence[0m
+          [36m</h3>[39m
+          [36m<ul>[39m
+            [36m<li>[39m
+              [0mpid_40000007-0000-4000-8000-000000000007[0m
+            [36m</li>[39m
+          [36m</ul>[39m
+          [36m<section[39m
+            [33maria-label[39m=[32m"AI rationale"[39m
+            [33mclass[39m=[32m"security-agent-rationale"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mAI rationale[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"security-agent-rationale__disclaimer"[39m
+            [36m>[39m
+              [0mAI-generated explanation. This does not authorize any action.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mNo AI rationale is available for this run.[0m
+            [36m</p>[39m
+          [36m</section>[39m
+          [36m<h3>[39m
+            [0mPlan[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mPlan [0m
+            [0msha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa[0m
+            [0m, expires [0m
+            [0m2026-08-21T20:00:00Z[0m
+          [36m</p>[39m
+          [36m<ol>[39m
+            [36m<li>[39m
+              [0mupdate_finding_response[0m
+              [0m · [0m
+              [0mapproval_required[0m
+              [0m · [0m
+              [0mwaiting_approval[0m
+            [36m</li>[39m
+          [36m</ol>[39m
+          [36m<h3>[39m
+            [0mAuthorization and execution[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mapproval_required[0m
+            [0m · verification [0m
+            [0mnot_started[0m
+          [36m</p>[39m
+          [36m<ul>[39m
+            [36m<li>[39m
+              [0mstart_attack_lab[0m
+              [0m · [0m
+              [0mexecuting[0m
+              [0m · outcome pid_40000007-0000-4000-8000-000000000007[0m
+              [36m<section[39m
+                [33maria-label[39m=[32m"Action details pid_40000005-0000-4000-8000-000000000005"[39m
+              [36m>[39m
+                [36m<h4>[39m
+                  [0mPersisted action details[0m
+                [36m</h4>[39m
+                [36m<div>[39m
+                  [36m<p>[39m
+                    [0mTarget: [0m
+                    [0mpid_40000007-0000-4000-8000-000000000007[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mExpected version: [0m
+                    [0m1[0m
+                  [36m</p>[39m
+                [36m</div>[39m
+                [36m<div>[39m
+                  [36m<p>[39m
+                    [0mEffect state: [0m
+                    [0mpending[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mRecorded outcome: [0m
+                    [0mpid_40000007-0000-4000-8000-000000000007[0m
+                  [36m</p>[39m
+                [36m</div>[39m
+                [36m<p>[39m
+                  [0mTTL unavailable or not applicable.[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mControl expiry unavailable.[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mNo rollback support[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mRollback: [0m
+                  [0munavailable[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mCleanup verification [0m
+                  [0munavailable[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mApplication verification [0m
+                  [0mpending[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mRecorded action result[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mRecorded evidence, not a new live provider check.[0m
+                [36m</p>[39m
+                [36m<section[39m
+                  [33maria-label[39m=[32m"Recorded Attack Lab evidence"[39m
+                  [33mstyle[39m=[32m"overflow-wrap: anywhere;"[39m
+                [36m>[39m
+                  [36m<h4>[39m
+                    [0mRecorded Attack Lab evidence[0m
+                  [36m</h4>[39m
+                  [36m<p>[39m
+                    [0mTest definition: [0m
+                    [0mpid_40000007-0000-4000-8000-000000000007[0m
+                    [0m · version [0m
+                    [0m1[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mSource run: [0m
+                    [0mpid_40000004-0000-4000-8000-000000000004[0m
+                    [0m · attempt [0m
+                    [0m1[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mExecution run: [0m
+                    [0mpid_40000001-0000-4000-8000-000000000001[0m
+                    [0m · attempt [0m
+                    [0m1[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mSandbox state: [0m
+                    [0mrunning[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mSandbox cleanup pending. This obligation remains after the Security Agent stops.[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mCleanup checkpoint: [0m
+                    [0mpending[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mAttack Lab verification pending.[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mThis bounded reproduction does not resolve a finding or establish that the target is safe.[0m
+                  [36m</p>[39m
+                [36m</section>[39m
+              [36m</section>[39m
+            [36m</li>[39m
+          [36m</ul>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</aside>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33minert[39m=[32m""[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-title-row"[39m
+          [36m>[39m
+            [36m<h1>[39m
+              [0mSecurity agents[0m
+            [36m</h1>[39m
+            [36m<span[39m
+              [33maria-label[39m=[32m"More information"[39m
+              [33mclass[39m=[32m"info-dot"[39m
+            [36m>[39m
+              [0mi[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mTenant-scoped response definitions, redacted plans, supervised approvals, autonomous actions, outcomes, and verification.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<section[39m
+        [33mclass[39m=[32m"card "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"card__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"card__title"[39m
+          [36m>[39m
+            [0mLinked Security Agent run[0m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<p>[39m
+          [36m<code>[39m
+            [0mpid_40000004-0000-4000-8000-000000000004[0m
+          [36m</code>[39m
+        [36m</p>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"button button--secondary "[39m
+        [36m>[39m
+          [0mReload linked run[0m
+        [36m</button>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-dialog-layer[39m=[32m"true"[39m
+    [33mstyle[39m=[32m"position: relative; z-index: 100;"[39m
+  [36m>[39m
+    [36m<button[39m
+      [33maria-label[39m=[32m"Close details"[39m
+      [33mclass[39m=[32m"overlay"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m/>[39m
+    [36m<aside[39m
+      [33maria-label[39m=[32m"Run pid_40000004-0000-4000-8000-000000000004"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"drawer drawer--wide"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__header"[39m
+      [36m>[39m
+        [36m<h2>[39m
+          [0mRun pid_40000004-0000-4000-8000-000000000004[0m
+        [36m</h2>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Close"[39m
+          [33mclass[39m=[32m"icon-button"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-x"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M18 6 6 18"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m6 6 12 12"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__body"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"detail-content"[39m
+        [36m>[39m
+          [36m<p>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"badge badge--info"[39m
+            [36m>[39m
+              [0mrunning[0m
+            [36m</span>[39m
+            [0m Version [0m
+            [0m4[0m
+          [36m</p>[39m
+          [36m<p>[39m
+            [0mDefinition [0m
+            [0mpid_40000001-0000-4000-8000-000000000001[0m
+            [0m, revision [0m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mTrigger[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mNo trigger context is available for this run.[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mEvidence[0m
+          [36m</h3>[39m
+          [36m<ul>[39m
+            [36m<li>[39m
+              [0mpid_40000007-0000-4000-8000-000000000007[0m
+            [36m</li>[39m
+          [36m</ul>[39m
+          [36m<section[39m
+            [33maria-label[39m=[32m"AI rationale"[39m
+            [33mclass[39m=[32m"security-agent-rationale"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mAI rationale[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"security-agent-rationale__disclaimer"[39m
+            [36m>[39m
+              [0mAI-generated explanation. This does not authorize any action.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mNo AI rationale is available for this run.[0m
+            [36m</p>[39m
+          [36m</section>[39m
+          [36m<h3>[39m
+            [0mPlan[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mPlan [0m
+            [0msha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa[0m
+            [0m, expires [0m
+            [0m2026-08-21T20:00:00Z[0m
+          [36m</p>[39m
+          [36m<ol>[39m
+            [36m<li>[39m
+              [0mupdate_finding_response[0m
+              [0m · [0m
+              [0mapproval_required[0m
+              [0m · [0m
+              [0mwaiting_approval[0m
+            [36m</li>[39m
+          [36m</ol>[39m
+          [36m<h3>[39m
+            [0mAuthorization and execution[0m
+          [36m</h3>[39m
+          [36m<p>[39m
+            [0mapproval_required[0m
+            [0m · verification [0m
+            [0mnot_started[0m
+          [36m</p>[39m
+          [36m<ul>[39m
+            [36m<li>[39m
+              [0mstart_attack_lab[0m
+              [0m · [0m
+              [0mexecuting[0m
+              [0m · outcome pid_40000007-0000-4000-8000-000000000007[0m
+              [36m<section[39m
+                [33maria-label[39m=[32m"Action details pid_40000005-0000-4000-8000-000000000005"[39m
+              [36m>[39m
+                [36m<h4>[39m
+                  [0mPersisted action details[0m
+                [36m</h4>[39m
+                [36m<div>[39m
+                  [36m<p>[39m
+                    [0mTarget: [0m
+                    [0mpid_40000007-0000-4000-8000-000000000007[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mExpected version: [0m
+                    [0m1[0m
+                  [36m</p>[39m
+                [36m</div>[39m
+                [36m<div>[39m
+                  [36m<p>[39m
+                    [0mEffect state: [0m
+                    [0mpending[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mRecorded outcome: [0m
+                    [0mpid_40000007-0000-4000-8000-000000000007[0m
+                  [36m</p>[39m
+                [36m</div>[39m
+                [36m<p>[39m
+                  [0mTTL unavailable or not applicable.[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mControl expiry unavailable.[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mNo rollback support[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mRollback: [0m
+                  [0munavailable[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mCleanup verification [0m
+                  [0munavailable[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mApplication verification [0m
+                  [0mpending[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mRecorded action result[0m
+                [36m</p>[39m
+                [36m<p>[39m
+                  [0mRecorded evidence, not a new live provider check.[0m
+                [36m</p>[39m
+                [36m<section[39m
+                  [33maria-label[39m=[32m"Recorded Attack Lab evidence"[39m
+                  [33mstyle[39m=[32m"overflow-wrap: anywhere;"[39m
+                [36m>[39m
+                  [36m<h4>[39m
+                    [0mRecorded Attack Lab evidence[0m
+                  [36m</h4>[39m
+                  [36m<p>[39m
+                    [0mTest definition: [0m
+                    [0mpid_40000007-0000-4000-8000-000000000007[0m
+                    [0m · version [0m
+                    [0m1[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mSource run: [0m
+                    [0mpid_40000004-0000-4000-8000-000000000004[0m
+                    [0m · attempt [0m
+                    [0m1[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mExecution run: [0m
+                    [0mpid_40000001-0000-4000-8000-000000000001[0m
+                    [0m · attempt [0m
+                    [0m1[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mSandbox state: [0m
+                    [0mrunning[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mSandbox cleanup pending. This obligation remains after the Security Agent stops.[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mCleanup checkpoint: [0m
+                    [0mpending[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mAttack Lab verification pending.[0m
+                  [36m</p>[39m
+                  [36m<p>[39m
+                    [0mThis bounded reproduction does not resolve a finding or establish that the target is safe.[0m
+                  [36m</p>[39m
+                [36m</section>[39m
+              [36m</section>[39m
+            [36m</li>[39m
+          [36m</ul>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</aside>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ app/features/securityagents/SecurityAgentsView.test.tsx:303:38
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 74 skipped (75)
+   Start at  04:49:38
+   Duration  2.53s (transform 250ms, setup 221ms, import 358ms, tests 1.02s, environment 820ms)
+
+
+Exit: 1 Signal: null

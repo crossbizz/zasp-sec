@@ -80,6 +80,32 @@ type GatewayPolicyKeys struct {
 	values map[string]ed25519.PublicKey
 }
 
+// Valid reports whether the immutable verifier set still has the exact shape
+// accepted by NewGatewayPolicyKeys. It performs no provider or filesystem I/O.
+func (keys GatewayPolicyKeys) Valid() bool {
+	if len(keys.values) < 1 || len(keys.values) > 32 {
+		return false
+	}
+	for keyID, key := range keys.values {
+		if !gatewayKeyIDPattern.MatchString(keyID) || len(key) != ed25519.PublicKeySize {
+			return false
+		}
+	}
+	return true
+}
+
+// Contains checks one exact public signing identity without exposing the key
+// map to callers.
+func (keys GatewayPolicyKeys) Contains(keyID string, key ed25519.PublicKey) bool {
+	return keys.Valid() && len(key) == ed25519.PublicKeySize && bytes.Equal(keys.values[keyID], key)
+}
+
+// HasKeyID checks configured membership without obtaining a private key.
+func (keys GatewayPolicyKeys) HasKeyID(keyID string) bool {
+	_, exists := keys.values[keyID]
+	return keys.Valid() && exists
+}
+
 func NewGatewayPolicyKeys(values map[string]ed25519.PublicKey) (GatewayPolicyKeys, error) {
 	if len(values) < 1 || len(values) > 32 {
 		return GatewayPolicyKeys{}, ErrGatewayPolicy
@@ -99,11 +125,38 @@ func VerifyGatewayPolicyEnvelope(envelope GatewayPolicyEnvelope, keys GatewayPol
 }
 
 func SignGatewayPolicyEnvelope(input GatewayPolicySigningInput, privateKey ed25519.PrivateKey) (GatewayPolicyEnvelope, error) {
-	if len(privateKey) != ed25519.PrivateKeySize || !gatewayKeyIDPattern.MatchString(input.KeyID) || !validGatewayBinding(input.Binding) || input.Sequence < 1 || input.PolicyVersion < 1 ||
+	if len(privateKey) != ed25519.PrivateKeySize {
+		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
+	}
+	envelope, payload, err := validatedGatewayPolicySigningInput(input)
+	if err != nil {
+		return GatewayPolicyEnvelope{}, err
+	}
+	envelope.Signature = base64.RawURLEncoding.EncodeToString(ed25519.Sign(privateKey, payload))
+	publicKey, ok := privateKey.Public().(ed25519.PublicKey)
+	if !ok {
+		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
+	}
+	keys, err := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{input.KeyID: publicKey})
+	if err != nil {
+		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
+	}
+	return VerifyGatewayPolicyEnvelope(envelope, keys, input.Binding, input.Now)
+}
+
+// ValidateGatewayPolicySigningInput uses the signer's complete authority and
+// compiled-policy validation, without obtaining a key or producing a signature.
+func ValidateGatewayPolicySigningInput(input GatewayPolicySigningInput) error {
+	_, _, err := validatedGatewayPolicySigningInput(input)
+	return err
+}
+
+func validatedGatewayPolicySigningInput(input GatewayPolicySigningInput) (GatewayPolicyEnvelope, []byte, error) {
+	if !gatewayKeyIDPattern.MatchString(input.KeyID) || !validGatewayBinding(input.Binding) || input.Sequence < 1 || input.PolicyVersion < 1 ||
 		!canonicalGatewayTime(input.Now) || !canonicalGatewayTime(input.IssuedAt) || !canonicalGatewayTime(input.ExpiresAt) || input.IssuedAt.After(input.Now.Add(30*time.Second)) ||
 		!input.ExpiresAt.After(input.Now) || !input.ExpiresAt.After(input.IssuedAt) || input.ExpiresAt.Sub(input.IssuedAt) > 24*time.Hour || input.FailureMode != "open" && input.FailureMode != "closed" ||
 		len(input.Policies) > maximumGatewayPolicies {
-		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
+		return GatewayPolicyEnvelope{}, nil, ErrGatewayPolicy
 	}
 	envelope := GatewayPolicyEnvelope{
 		ContractVersion: 1,
@@ -126,19 +179,10 @@ func SignGatewayPolicyEnvelope(input GatewayPolicySigningInput, privateKey ed255
 	}
 	digest, payload, err := canonicalGatewayPolicyPayload(envelope)
 	if err != nil {
-		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
+		return GatewayPolicyEnvelope{}, nil, ErrGatewayPolicy
 	}
 	envelope.PayloadDigest = digest
-	envelope.Signature = base64.RawURLEncoding.EncodeToString(ed25519.Sign(privateKey, payload))
-	publicKey, ok := privateKey.Public().(ed25519.PublicKey)
-	if !ok {
-		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
-	}
-	keys, err := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{input.KeyID: publicKey})
-	if err != nil {
-		return GatewayPolicyEnvelope{}, ErrGatewayPolicy
-	}
-	return VerifyGatewayPolicyEnvelope(envelope, keys, input.Binding, input.Now)
+	return envelope, payload, nil
 }
 
 func verifyGatewayPolicyEnvelope(envelope GatewayPolicyEnvelope, keys GatewayPolicyKeys, binding GatewayPolicyBinding, now time.Time, allowExpired bool) (GatewayPolicyEnvelope, error) {

@@ -14,11 +14,25 @@ type AttackLabMutationIntent =
   | Readonly<{ kind: "rerun"; sourceRunID: string; sourceVersion: number; runID: string; idempotencyKey: string }>
   | Readonly<{ kind: "cancel"; runID: string; sourceVersion: number; idempotencyKey: string }>;
 
-export function ProductionAttackLabView({ canWrite, api: suppliedAPI }: { canWrite: boolean; api?: ProductionRedTeamAPI }) {
+export function ProductionAttackLabView({ canWrite, api: suppliedAPI, selectedID }: { canWrite: boolean; api?: ProductionRedTeamAPI; selectedID?: string }) {
   const { client } = useAPI(); const api = useMemo(() => suppliedAPI ?? createProductionRedTeamAPI(client), [client, suppliedAPI]);
   const load = useCallback(async (signal?: AbortSignal): Promise<AttackLabData> => { const [redTeamRuns, runs] = await Promise.all([api.listRuns(signal), api.listAttackLabRuns(signal)]); return { sources: redTeamRuns.filter((run) => run.status === "complete" && run.verdict === "fail"), runs }; }, [api]);
   const query = useAPIQuery("attack-lab:surface", load); const [selectedSource, setSelectedSource] = useState(""); const [preflight, setPreflight] = useState<AttackLabPreflight | null>(null); const [approved, setApproved] = useState(false); const [preflightState, setPreflightState] = useState<"idle" | "loading" | "error">("idle"); const [selectedRun, setSelectedRun] = useState<AttackLabRunDetail | null>(null); const [detailState, setDetailState] = useState<"idle" | "loading" | "error">("idle"); const [mutationError, setMutationError] = useState(""); const [mutationPending, setMutationPending] = useState(false); const [mutationIntent, setMutationIntent] = useState<AttackLabMutationIntent | null>(null); const request = useRef<AbortController | null>(null); const mutationActive = useRef(false); const mutationIntentRef = useRef<AttackLabMutationIntent | null>(null);
   useEffect(() => () => request.current?.abort(), []);
+  const [detailSelection, setDetailSelection] = useState({ api, selectedID });
+  if (detailSelection.api !== api || detailSelection.selectedID !== selectedID) {
+    setDetailSelection({ api, selectedID });
+    setSelectedRun(null);
+    setDetailState(selectedID ? "loading" : "idle");
+  }
+  useEffect(() => {
+    if (!selectedID) return;
+    const controller = new AbortController();
+    void api.getAttackLabRun(selectedID, controller.signal).then(value => {
+      if (!controller.signal.aborted) { setSelectedRun(value); setDetailState("idle"); }
+    }).catch(() => { if (!controller.signal.aborted) setDetailState("error"); });
+    return () => controller.abort();
+  }, [api, selectedID]);
   useEffect(() => {
     const intent = mutationIntentRef.current; const authoritativeRuns = query.data?.runs ?? [];
     const reconciled = intent?.kind === "create" || intent?.kind === "rerun" ? authoritativeRuns.some((run) => run.id === intent.runID) : intent?.kind === "cancel" ? authoritativeRuns.some((run) => run.id === intent.runID && (run.cancel_requested || terminal(run))) : false;

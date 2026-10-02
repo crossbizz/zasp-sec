@@ -35,6 +35,57 @@ function QueryScope({ children }: { children: ReactNode }) {
 }
 
 describe("production red team view", () => {
+  it("loads a selected history run absent from the list and reopens it after a remount", async () => {
+    const getRun = vi.fn(api().getRun);
+    const value = api({ listRuns: async () => [], getRun });
+    const element = <APIProvider><QueryScope><ProductionRedTeamView scopeKey={scopeKey} api={value} canWrite={false} onNavigate={() => undefined} selectedID={runID} /></QueryScope></APIProvider>;
+    const first = render(element);
+    expect(await screen.findByRole("dialog", { name: "Red team run" })).toHaveTextContent(runID);
+    expect(getRun).toHaveBeenLastCalledWith(runID, expect.any(AbortSignal));
+    first.unmount();
+    render(element);
+    expect(await screen.findByRole("dialog", { name: "Red team run" })).toHaveTextContent(runID);
+    expect(getRun).toHaveBeenCalledTimes(2);
+  });
+
+  it("discards stale selected-run responses and aborts reads on selection change and unmount", async () => {
+    const otherID = "pid_92000005-0000-4000-8000-000000000005";
+    let finish!: (value: Awaited<ReturnType<ProductionRedTeamAPI["getRun"]>>) => void;
+    const getRun = vi.fn<ProductionRedTeamAPI["getRun"]>().mockImplementationOnce(() => new Promise(resolve => { finish = resolve; })).mockResolvedValue({ ...run, id: otherID, attempts: [] });
+    const value = api({ getRun });
+    const element = (id: string) => <APIProvider><QueryScope><ProductionRedTeamView scopeKey={scopeKey} api={value} canWrite={false} onNavigate={() => undefined} selectedID={id} /></QueryScope></APIProvider>;
+    const mounted = render(element(runID));
+    await waitFor(() => expect(getRun).toHaveBeenCalledTimes(1));
+    mounted.rerender(element(otherID));
+    expect(getRun.mock.calls[0][1]?.aborted).toBe(true);
+    expect(await screen.findByRole("dialog", { name: "Red team run" })).toHaveTextContent(otherID);
+    await act(async () => finish({ ...run, attempts: [] }));
+    expect(screen.getByRole("dialog", { name: "Red team run" })).not.toHaveTextContent(runID);
+    mounted.unmount();
+    expect(getRun.mock.calls[1][1]?.aborted).toBe(true);
+  });
+
+  it("clears prior-scope detail and ignores its late completion after a scope change", async () => {
+    let finish!: (value: Awaited<ReturnType<ProductionRedTeamAPI["getRun"]>>) => void;
+    const getRun = vi.fn<ProductionRedTeamAPI["getRun"]>().mockImplementationOnce(() => new Promise(resolve => { finish = resolve; })).mockRejectedValue(new Error("not found"));
+    const value = api({ getRun });
+    const element = (scope: string) => <APIProvider><QueryScope><ProductionRedTeamView scopeKey={scope} api={value} canWrite={false} onNavigate={() => undefined} selectedID={runID} /></QueryScope></APIProvider>;
+    const mounted = render(element(scopeKey));
+    await waitFor(() => expect(getRun).toHaveBeenCalledTimes(1));
+    mounted.rerender(element(scopeKey.replace("92100004", "92100005")));
+    expect(await screen.findByText("Red Team detail is unavailable.")).toBeVisible();
+    expect(getRun.mock.calls[0][1]?.aborted).toBe(true);
+    await act(async () => finish({ ...run, attempts: [] }));
+    expect(screen.queryByRole("dialog", { name: "Red team run" })).not.toBeInTheDocument();
+  });
+
+  it("does not fetch malformed selected run IDs", async () => {
+    const getRun = vi.fn(api().getRun);
+    render(<APIProvider><QueryScope><ProductionRedTeamView scopeKey={scopeKey} api={api({ getRun })} canWrite={false} onNavigate={() => undefined} selectedID={`${runID}\n`} /></QueryScope></APIProvider>);
+    expect(await screen.findByText("Invalid Red Team run selection.")).toBeVisible();
+    expect(getRun).not.toHaveBeenCalled();
+  });
+
   it("groups results by security outcome and links only unsafe completed runs to safety review", async () => {
     const failed = { ...run, status: "complete" as const, version: 3, attempt: 1, verdict: "fail" as const, started_at: "2026-08-24T10:02:01Z", completed_at: "2026-08-24T10:02:05Z", evidence_reference: "s3://zasp-evidence/result" };
     const protectedRun = { ...failed, id: "pid_92000005-0000-4000-8000-000000000005", verdict: "pass" as const };

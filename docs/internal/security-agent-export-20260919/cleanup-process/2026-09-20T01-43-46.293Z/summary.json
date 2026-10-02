@@ -1,0 +1,288 @@
+{
+  "browser_native_save": false,
+  "checkpoints": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H"
+  ],
+  "checksum": "5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985",
+  "children": [
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "69c4a5ea23299cfc6e71f5e5ad044b1bc870bdaa01b33cb805c92acc6bea27f6",
+      "phase": "",
+      "pid": 652
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "928394507abb54ebf31b00ffb1f3f170f4e2c6aae1e79673dab16d5c422f741f",
+      "phase": "",
+      "pid": 658
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "ca9792c6a8a9428439131c9d07aadd4992724344d6acdad1e700ff3507fe6647",
+      "phase": "",
+      "pid": 664
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "ca9792c6a8a9428439131c9d07aadd4992724344d6acdad1e700ff3507fe6647",
+      "phase": "",
+      "pid": 669
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "ce40927b8e59d003412ab5a431a3db1389bbbf7add7143f7ccc49943780a5fd1",
+      "phase": "",
+      "pid": 674
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "515559fdc03e4ee6db9f6e18e097140594ced4e33fced91c6abe6f85f2371ad3",
+      "phase": "A",
+      "pid": 680
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "2bc325ae0a59be85947039386f0dbec16f5e29e8ea39eae894ae088500ec9e06",
+      "phase": "",
+      "pid": 686
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "d9544074a687006400d2e581dd232f314d517f6a0481aef109bc80d233844519",
+      "phase": "",
+      "pid": 692
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "3f145d339499098abfc5051e84eed4f6623a3f8ae24b1b33eac4d075117c57f1",
+      "phase": "",
+      "pid": 698
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "ca9792c6a8a9428439131c9d07aadd4992724344d6acdad1e700ff3507fe6647",
+      "phase": "",
+      "pid": 703
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "cfff5484b1257bce03f925502726676056d748dfc5b0fbc1e3d9638273b43eda",
+      "phase": "",
+      "pid": 709
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "cf05915b19e03df9af53fd11121e663ce4b33d416cf1834751270c9ca0fa31fc",
+      "phase": "",
+      "pid": 715
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "2cb956c96264290d4a7a13d5fa36b28feca5b64ebd66af176f8deadc592a9e36",
+      "phase": "",
+      "pid": 721
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "4f5598846e7b72efb1de062d3d08b8f6b4a2f2117165e4b61fef367efafa11dc",
+      "phase": "B",
+      "pid": 727
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "3392b74ba29f8aa3eafb4799c896665d434c8c39511d940fb3490e77469c5e9e",
+      "phase": "B-wait",
+      "pid": 735
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "cfc4af3e7c80548eb840e0c665b13d6ccbcd90a74e1981620de7bb7c4937ee66",
+      "phase": "",
+      "pid": 744
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "3f145d339499098abfc5051e84eed4f6623a3f8ae24b1b33eac4d075117c57f1",
+      "phase": "",
+      "pid": 750
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "a0226a6de392e850ccd83c2a5c501118ac906381d4ba8c57345771f11a3f0bfd",
+      "phase": "C",
+      "pid": 755
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "1d71e59e9de6a4fa8f24e02be82ca80da441d5c6f666239d92c5a0f9e11b5525",
+      "phase": "",
+      "pid": 761
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "0d531c734c960af00ca64be3c535f271680399477e932e889768969e64b23f77",
+      "phase": "D",
+      "pid": 767
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "4301fce0dd6395a4bc2c3a1c3068d4b164470919d05195ea3b429031354dc602",
+      "phase": "D-pending",
+      "pid": 775
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "0deaad116649249b877797f147dd9cadf732341f6bcd05f6387eca4089df0f7c",
+      "phase": "E-interrupt",
+      "pid": 783
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "6a1c7c5bfc7f2703cd6734f65cd47705ba6e40245787363fa9b0d915215ec237",
+      "phase": "E-resume",
+      "pid": 803
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "b74a24ee01a54a9f6ad27d3a1ea60cc20bbe7454d2cbe2c3de7b029bbb079465",
+      "phase": "F",
+      "pid": 812
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "c5f06ada57bf46a2077fcbd8f10e74708c02ccfd75d1550aaa4ab7b8d8e04793",
+      "phase": "F-held",
+      "pid": 821
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "887f14b7c067fb0fcda74f67e5fed7a0ea3db379a3024fc5d3f9c0ce82178536",
+      "phase": "G",
+      "pid": 831
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "dffd93fb0a9a602590d6c959d0978c7fe952f28853897792fafa9e366741f25c",
+      "phase": "G-done",
+      "pid": 841
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "7759466c8c6da3b94fb5a9746e528040149033c9e261cab69882a88e702ed893",
+      "phase": "",
+      "pid": 849
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "218c03efda86f19867dee555383d0840ad066b8bb85461f437312f5a8187a59a",
+      "phase": "",
+      "pid": 855
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "8ca90db193bde554609a467992f18311dc59a311bc96b7c96dca5d35f99a42c8",
+      "phase": "",
+      "pid": 860
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "218c03efda86f19867dee555383d0840ad066b8bb85461f437312f5a8187a59a",
+      "phase": "",
+      "pid": 865
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "2fbd04dde690cc196255b175644225425d265ba0b5337368c79472bfc23b47f3",
+      "phase": "H-consume",
+      "pid": 870
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "b1d8b7611fd809e8b4b65a1aba060c763986f8a5100345db8bf4fc754d1b4bca",
+      "phase": "",
+      "pid": 876
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "887a6ec85976874e2e1d9ef212f3c5b77ebe573e01bdd9fc291a4f41f3b9d896",
+      "phase": "",
+      "pid": 881
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "f2a82cd36fd2f562e6302eadf0d147a6b997ef7fb3793a99fb5321bd6bf515d1",
+      "phase": "",
+      "pid": 886
+    }
+  ],
+  "consume_checkpoint_writes": {
+    "body_bytes": 0,
+    "body_writes": 0,
+    "header_writes": 0
+  },
+  "controlled_providers": true,
+  "definition_id": "pid_a9f828ea-6714-476c-bba4-764669483a86",
+  "download_sha256": "ec58e20b4c43b2a509d9d97aabcd8421bde7a9f78816492e52b8cbea0d3ef587",
+  "export_id": "pid_53c66205-45ff-4da4-8219-17dcdf53c7b0",
+  "fingerprint": "8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f",
+  "model_calls": 1,
+  "new_settlement_lease": {
+    "expiry": "2026-09-20T01:49:56.714751+00:00",
+    "worker": "public-export-g-831",
+    "token_digest": "07f2ced6815161396d82bef23c844950fcbd038feca4d2f7cdc28c789ec1b521"
+  },
+  "object_creations": 1,
+  "object_version": "fixture-be8a67f79f1ac618adb46e8558be2d57d64e0c8ffeff58b95672c634ccba5522",
+  "old_settlement_lease": {
+    "expiry": "2026-09-20T01:49:26.027576+00:00",
+    "worker": "public-export-f-812",
+    "token_digest": "7993d5299506730f12ac543e7710282c76461610e7ad44b7594d58e720f6d9ab"
+  },
+  "package_sha256": "1425d9e202874ccc6aa959aea1c57644243fe2261c6c01af0f7cf7513658b762",
+  "put_attempts": 2,
+  "run_id": "pid_cecf8d98-28bf-4c83-b107-660bc0804f5b",
+  "step_id": "pid_89e291d0-fc0a-4663-861e-af807121ef43"
+}

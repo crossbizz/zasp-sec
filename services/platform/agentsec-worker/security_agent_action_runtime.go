@@ -18,6 +18,10 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
 
+// Only the apply-store boundary creates this signal. Other authority methods
+// returning a budget error must not silently turn a failed operation into success.
+var errActionApplyBudgetStopped = errors.New("action apply budget stopped")
+
 type securityAgentActionProcessorConfig struct {
 	Authority         apiserver.SecurityAgentActionAuthority
 	WorkerID          string
@@ -95,17 +99,31 @@ func (processor *securityAgentActionProcessor) RunOnce(ctx context.Context) erro
 
 func (processor *securityAgentActionProcessor) process(ctx context.Context, claim apiserver.TemporaryPolicyEffectClaim, leaseToken string) error {
 	workCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	stopHeartbeats := make(chan struct{})
 	heartbeatDone := make(chan error, 1)
 	go func() {
 		ticker := time.NewTicker(processor.config.HeartbeatInterval)
 		defer ticker.Stop()
 		for {
 			select {
+			case <-stopHeartbeats:
+				heartbeatDone <- nil
+				return
 			case <-workCtx.Done():
 				heartbeatDone <- nil
 				return
 			case <-ticker.C:
-				if err := processor.config.Authority.HeartbeatTemporaryPolicyEffect(workCtx, claim, processor.config.WorkerID, leaseToken, processor.config.LeaseSeconds); err != nil {
+				select {
+				case <-stopHeartbeats:
+					heartbeatDone <- nil
+					return
+				default:
+				}
+				heartbeatCtx, heartbeatCancel := context.WithTimeout(workCtx, 5*time.Second)
+				err := processor.config.Authority.HeartbeatTemporaryPolicyEffect(heartbeatCtx, claim, processor.config.WorkerID, leaseToken, processor.config.LeaseSeconds)
+				heartbeatCancel()
+				if err != nil {
 					heartbeatDone <- err
 					cancel()
 					return
@@ -114,9 +132,15 @@ func (processor *securityAgentActionProcessor) process(ctx context.Context, clai
 		}
 	}()
 	operationErr := processor.applyClaim(workCtx, claim, leaseToken)
-	cancel()
+	// Normal completion stops scheduling, but must not cancel a heartbeat
+	// already in flight and manufacture failure of a committed budget stop.
+	// Parent cancellation and the per-call timeout still bound the join.
+	close(stopHeartbeats)
 	heartbeatErr := <-heartbeatDone
 	if ctx.Err() != nil {
+		return nil
+	}
+	if operationErr == errActionApplyBudgetStopped && heartbeatErr == nil {
 		return nil
 	}
 	if operationErr != nil || heartbeatErr != nil {
@@ -154,6 +178,9 @@ func (processor *securityAgentActionProcessor) applyClaim(ctx context.Context, c
 			return errWorkerExecution
 		}
 		if err := processor.config.Authority.StoreTemporaryPolicyTarget(ctx, claim, processor.config.WorkerID, leaseToken, stored); err != nil {
+			if claim.Phase == "apply" && errors.Is(err, apiserver.ErrSecurityAgentBudgetStopped) {
+				return errActionApplyBudgetStopped
+			}
 			readback, readErr := processor.config.Authority.ReadTemporaryPolicyTarget(ctx, claim, target)
 			if readErr != nil || !sameTemporaryPolicyEnvelope(stored, readback) {
 				return errWorkerExecution

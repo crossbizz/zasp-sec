@@ -1,0 +1,289 @@
+-- Release57 reserves durable obligations. Settlement is deliberately absent
+-- until Task2 connects the reconciler and exact-version evidence verifier.
+CREATE TABLE public.zasp_sa_attack_lab_links(
+ organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,run_id text NOT NULL,step_id text NOT NULL,
+ action_key text NOT NULL DEFAULT 'start_attack_lab' CHECK(action_key='start_attack_lab'),
+ input_digest bytea NOT NULL CHECK(octet_length(input_digest)=32),plan_hash bytea NOT NULL CHECK(octet_length(plan_hash)=32),
+ intent jsonb NOT NULL CHECK(jsonb_typeof(intent)='object'),source_snapshot jsonb NOT NULL CHECK(jsonb_typeof(source_snapshot)='object'),
+ source_run_id text NOT NULL,source_attempt integer NOT NULL,execution_id text NOT NULL,approval_id text NOT NULL,requester_id text NOT NULL,approver_id text NOT NULL CHECK(approver_id<>requester_id),
+ dispatch_worker text NOT NULL,dispatch_lease_digest bytea NOT NULL CHECK(octet_length(dispatch_lease_digest)=32),result jsonb NOT NULL,
+ version bigint NOT NULL DEFAULT 1 CHECK(version>0),generation uuid,lease_owner text,lease_token bytea,lease_expires_at timestamptz,
+ available_at timestamptz NOT NULL DEFAULT clock_timestamp(),settlement_snapshot jsonb,settlement_proof bytea,settlement_digest bytea,settled_at timestamptz,
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ PRIMARY KEY(organization_id,workspace_id,environment_id,run_id,step_id),UNIQUE(organization_id,workspace_id,environment_id,execution_id),
+ FOREIGN KEY(organization_id,workspace_id,environment_id,run_id) REFERENCES public.zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id),
+ FOREIGN KEY(organization_id,workspace_id,environment_id,run_id,step_id) REFERENCES public.zasp_security_agent_steps(organization_id,workspace_id,environment_id,run_id,step_id),
+ FOREIGN KEY(organization_id,workspace_id,environment_id,run_id,step_id,action_key) REFERENCES public.zasp_security_agent_effects(organization_id,workspace_id,environment_id,run_id,step_id,action_key),
+ FOREIGN KEY(organization_id,workspace_id,environment_id,source_run_id,source_attempt) REFERENCES public.zasp_red_team_attempts(organization_id,workspace_id,environment_id,run_id,attempt),
+ FOREIGN KEY(organization_id,workspace_id,environment_id,execution_id) REFERENCES public.zasp_attack_lab_runs(organization_id,workspace_id,environment_id,run_id),
+ FOREIGN KEY(organization_id,workspace_id,environment_id,approval_id) REFERENCES public.zasp_security_agent_approvals(organization_id,workspace_id,environment_id,approval_id),
+ CHECK((lease_owner IS NULL AND lease_token IS NULL AND lease_expires_at IS NULL) OR (lease_owner IS NOT NULL AND octet_length(lease_token)=32 AND lease_expires_at IS NOT NULL AND generation IS NOT NULL)),
+ CHECK((settled_at IS NULL AND settlement_snapshot IS NULL AND settlement_proof IS NULL AND settlement_digest IS NULL) OR (settled_at IS NOT NULL AND settlement_snapshot IS NOT NULL AND octet_length(settlement_proof) BETWEEN 1 AND 65536 AND octet_length(settlement_digest)=32 AND digest(settlement_proof,'sha256')=settlement_digest))
+);
+ALTER TABLE public.zasp_sa_attack_lab_links OWNER TO zasp_discovery_authority;
+ALTER TABLE public.zasp_sa_attack_lab_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.zasp_sa_attack_lab_links FORCE ROW LEVEL SECURITY;
+CREATE POLICY zasp_sa_attack_lab_links_authority ON public.zasp_sa_attack_lab_links TO zasp_discovery_authority USING(true) WITH CHECK(true);
+REVOKE ALL ON public.zasp_sa_attack_lab_links FROM PUBLIC;
+
+CREATE FUNCTION public.zasp_sa_attack_lab_approver(o text,w text,e text,actor_value text,fresh_value timestamptz) RETURNS void LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path TO pg_catalog,public AS $approver$
+BEGIN
+ PERFORM 1 FROM public.zasp_identity_memberships WHERE (organization_id,principal_id,active)=(o,actor_value,true) FOR SHARE;
+ IF NOT FOUND OR NOT EXISTS(SELECT 1 FROM public.zasp_identity_admin_effective_scopes(actor_value,o) s WHERE (s.organization_id,s.workspace_id,s.environment_id)=(o,w,e) AND s.permissions ?& ARRAY['view','manage_workflows','run_tests'])
+ OR fresh_value IS NULL OR fresh_value<clock_timestamp()-interval '5 minutes' OR fresh_value>clock_timestamp()+interval '5 seconds' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='attack lab approver unavailable';END IF;
+END $approver$;
+
+CREATE FUNCTION public.zasp_sa_attack_lab_authorize(o text,w text,e text,r text,s text) RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path TO pg_catalog,public AS $authorize$
+DECLARE rr public.zasp_security_agent_runs%ROWTYPE;st public.zasp_security_agent_steps%ROWTYPE;p public.zasp_security_agent_plans%ROWTYPE;d public.zasp_security_agent_definitions%ROWTYPE;a public.zasp_security_agent_approvals%ROWTYPE;t public.zasp_security_agent_trigger_receipts%ROWTYPE;item jsonb;snapshot jsonb;
+BEGIN
+ SELECT * INTO rr FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,run_id,state)=(o,w,e,r,'planning') FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab run changed';END IF;
+ SELECT * INTO st FROM public.zasp_security_agent_steps WHERE (organization_id,workspace_id,environment_id,run_id,step_id,step_index,state,action_key,authorization_result)=(o,w,e,r,s,0,'authorized','start_attack_lab','approval_required') FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab step changed';END IF;
+ SELECT * INTO p FROM public.zasp_security_agent_plans WHERE (organization_id,workspace_id,environment_id,run_id,definition_id,definition_version)=(o,w,e,r,rr.definition_id,rr.definition_version) FOR SHARE;
+ IF NOT FOUND OR p.plan_hash IS DISTINCT FROM rr.plan_hash OR p.plan_hash IS DISTINCT FROM digest(convert_to(p.plan::text,'UTF8'),'sha256') OR p.expires_at<=clock_timestamp() OR jsonb_array_length(p.plan->'steps')<>1 OR p.plan->'verification'->>'kind' IS DISTINCT FROM 'attack_lab_run' THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab plan changed';END IF;
+ item:=p.plan->'steps'->0;
+ SELECT * INTO d FROM public.zasp_security_agent_definitions WHERE (organization_id,workspace_id,environment_id,definition_id,version)=(o,w,e,rr.definition_id,rr.definition_version) AND deleted_at IS NULL FOR SHARE;
+ IF NOT FOUND OR d.activation NOT IN('supervised','autonomous') OR d.body->>'autonomy' IS DISTINCT FROM d.activation OR d.body->'enabled' IS DISTINCT FROM 'true'::jsonb OR d.body->'allowed_actions' IS DISTINCT FROM '["start_attack_lab"]'::jsonb OR d.body->>'verification_kind' IS DISTINCT FROM 'attack_lab_run'
+ OR item IS DISTINCT FROM jsonb_build_object('index',0,'step_id',s,'action','start_attack_lab','target_id',d.body->'existing_test'->>'definition_id','test_definition_version',d.body->'existing_test'->'definition_version','test_target_id',item->'attack_lab'->>'target_id','test_target_kind',item->'attack_lab'->>'target_kind','authorization','approval_required','attack_lab',item->'attack_lab') OR st.input_digest IS DISTINCT FROM digest(convert_to(item::text,'UTF8'),'sha256') THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab intent changed';END IF;
+ SELECT * INTO a FROM public.zasp_security_agent_approvals WHERE (organization_id,workspace_id,environment_id,run_id,step_id)=(o,w,e,r,s) FOR SHARE;
+ IF NOT FOUND OR a.state<>'approved' OR a.plan_hash IS DISTINCT FROM p.plan_hash OR a.requester_id IS DISTINCT FROM rr.requested_by OR a.approver_id IS NULL OR a.approver_id=a.requester_id OR a.expires_at<=clock_timestamp() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab approval unavailable';END IF;
+ PERFORM public.zasp_sa_attack_lab_approver(o,w,e,a.approver_id,a.fresh_auth_at);
+ snapshot:=public.zasp_sa_attack_lab_source(o,w,e,item->>'target_id',(item->>'test_definition_version')::bigint,item->'attack_lab'->>'source_run_id');
+ IF snapshot IS DISTINCT FROM item->'attack_lab' THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab approved source changed';END IF;
+ SELECT * INTO t FROM public.zasp_security_agent_trigger_receipts WHERE (organization_id,workspace_id,environment_id,run_id,definition_id,trigger_id)=(o,w,e,r,rr.definition_id,rr.trigger_id) FOR SHARE;
+ IF NOT FOUND OR t.trigger_digest IS DISTINCT FROM p.trigger_digest OR public.zasp_production_security_agent_existing_tests_trigger(o,w,e,t.trigger_kind,t.trigger_id,d.body->>'trigger_source',t.trigger_version) IS DISTINCT FROM jsonb_build_object('version',t.trigger_version,'digest',encode(t.trigger_digest,'hex')) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab trigger changed';END IF;
+ PERFORM public.zasp_production_security_agent_existing_tests_controls_guard(o,w,e,'start_attack_lab');
+ PERFORM public.zasp_sa_attack_lab_approver(o,w,e,a.approver_id,a.fresh_auth_at);
+ IF p.expires_at<=clock_timestamp() OR a.expires_at<=clock_timestamp() OR (snapshot->'preflight'->>'decision_expires_at')::timestamptz<=clock_timestamp() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab authority expired';END IF;
+ RETURN jsonb_build_object('scope',jsonb_build_array(o,w,e),'run_id',r,'step_id',s,'plan_hash',encode(p.plan_hash,'hex'),'input_digest',encode(st.input_digest,'hex'),'step',item,'approval_id',a.approval_id,'approval_version',a.version,'requester_id',a.requester_id,'approver_id',a.approver_id,'fresh_auth_at',a.fresh_auth_at,'origin',CASE WHEN public.zasp_valid_product_id(a.requester_id) THEN 'agent_manual' ELSE 'agent_automatic' END);
+END $authorize$;
+
+CREATE FUNCTION public.zasp_sa_attack_lab_execute_run(o text,w text,e text,r text,worker_value text,lease_value text,audit_value text,correlation_value text,expected_checksum text,expected_fingerprint text)
+RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path TO pg_catalog,public AS $execute$
+DECLARE prior public.zasp_sa_attack_lab_links%ROWTYPE;intent_value jsonb;snapshot jsonb;execution_value text;step_value text;result_value jsonb;admission_value jsonb;outcome_value text;lease_deadline timestamptz;deadline_value timestamptz;run_version bigint;
+BEGIN
+ IF NOT public.zasp_security_agent_principal_ready('zasp_security_agent_worker') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='attack lab worker unavailable';END IF;
+ IF NOT public.zasp_sa_attack_lab_readiness(expected_checksum,expected_fingerprint) THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab release unavailable';END IF;
+ IF NOT COALESCE(public.zasp_valid_product_id(o) AND public.zasp_valid_product_id(w) AND public.zasp_valid_product_id(e) AND public.zasp_valid_product_id(r) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND length(lease_value) BETWEEN 16 AND 256,false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab dispatch rejected';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended('security-agent-budget-admission:'||o,0));
+ PERFORM 1 FROM public.zasp_security_agent_org_admissions WHERE organization_id=o FOR UPDATE;
+ PERFORM 1 FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r) FOR UPDATE;
+ SELECT * INTO prior FROM public.zasp_sa_attack_lab_links WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r) FOR UPDATE;
+ IF FOUND THEN
+  IF prior.dispatch_worker IS DISTINCT FROM worker_value OR prior.dispatch_lease_digest IS DISTINCT FROM digest(convert_to(lease_value,'UTF8'),'sha256')
+   OR NOT EXISTS(SELECT 1 FROM public.zasp_security_agent_plans p JOIN public.zasp_security_agent_steps s USING(organization_id,workspace_id,environment_id,run_id) JOIN public.zasp_security_agent_approvals a USING(organization_id,workspace_id,environment_id,run_id,step_id)
+    WHERE (p.organization_id,p.workspace_id,p.environment_id,p.run_id,s.step_id)=(o,w,e,r,prior.step_id) AND p.plan_hash=prior.plan_hash AND digest(convert_to(p.plan::text,'UTF8'),'sha256')=prior.plan_hash AND s.input_digest=prior.input_digest AND p.plan->'steps'->0=prior.intent->'step' AND a.approval_id=prior.approval_id AND a.version=(prior.intent->>'approval_version')::bigint AND a.approver_id=prior.approver_id AND a.requester_id=prior.requester_id AND a.plan_hash=prior.plan_hash AND to_jsonb(a.fresh_auth_at)=prior.intent->'fresh_auth_at' AND a.state='approved') THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab replay conflict';END IF;
+  RETURN prior.result;
+ END IF;
+ IF NOT public.zasp_security_agent_budget_can_start(o,w,e,r,worker_value,lease_value) THEN RETURN public.zasp_security_agent_budget_stop_result(o,w,e,r,'execute');END IF;
+ SELECT step_id INTO STRICT step_value FROM public.zasp_security_agent_steps WHERE (organization_id,workspace_id,environment_id,run_id,step_index)=(o,w,e,r,0) FOR UPDATE;
+ intent_value:=public.zasp_sa_attack_lab_authorize(o,w,e,r,step_value);
+ snapshot:=intent_value->'step'->'attack_lab';
+ SELECT lease_expires_at,version INTO STRICT lease_deadline,run_version FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r);
+ SELECT deadline_at INTO STRICT deadline_value FROM public.zasp_security_agent_run_budgets WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r);
+ execution_value:=public.zasp_discovery_canonical_id(o,w,e,'security_agent_attack_lab',r||chr(31)||step_value||chr(31)||'start_attack_lab');
+ outcome_value:=public.zasp_discovery_canonical_id(o,w,e,'security_agent_effect',r||chr(31)||step_value||chr(31)||'start_attack_lab');
+ IF NOT public.zasp_security_agent_budget_reserve_step(o,w,e,r,worker_value,lease_value,step_value) THEN RETURN public.zasp_security_agent_budget_stop_result(o,w,e,r,'execute');END IF;
+ INSERT INTO public.zasp_security_agent_effects(organization_id,workspace_id,environment_id,run_id,step_id,action_key,input_digest,state,outcome_id) VALUES(o,w,e,r,step_value,'start_attack_lab',decode(intent_value->>'input_digest','hex'),'pending',outcome_value);
+ admission_value:=public.zasp_sa_attack_lab_create_run_core(o,w,e,intent_value->>'approver_id','agent-step:'||execution_value,execution_value,snapshot->>'source_run_id',decode(snapshot->'preflight'->>'decision_digest','hex'),correlation_value);
+ result_value:=jsonb_build_object('run_id',r,'state','running','version',run_version+1,'step_id',step_value,'effect_state','pending','outcome_id',outcome_value,'result_digest','sha256:'||encode(digest(convert_to(admission_value::text,'UTF8'),'sha256'),'hex'));
+ INSERT INTO public.zasp_sa_attack_lab_links(organization_id,workspace_id,environment_id,run_id,step_id,input_digest,plan_hash,intent,source_snapshot,source_run_id,source_attempt,execution_id,approval_id,requester_id,approver_id,dispatch_worker,dispatch_lease_digest,result)
+ VALUES(o,w,e,r,step_value,decode(intent_value->>'input_digest','hex'),decode(intent_value->>'plan_hash','hex'),intent_value,snapshot,snapshot->>'source_run_id',(snapshot->>'source_attempt')::integer,execution_value,intent_value->>'approval_id',intent_value->>'requester_id',intent_value->>'approver_id',worker_value,digest(convert_to(lease_value,'UTF8'),'sha256'),result_value);
+ UPDATE public.zasp_security_agent_effects SET result_digest=decode(substring(result_value->>'result_digest' FROM 8),'hex') WHERE (organization_id,workspace_id,environment_id,run_id,step_id,action_key)=(o,w,e,r,step_value,'start_attack_lab');
+ INSERT INTO public.zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,step_id,actor_id,event_kind,event_digest,body) VALUES(o,w,e,audit_value,correlation_value,r,step_value,worker_value,'effect_dispatched',decode(substring(result_value->>'result_digest' FROM 8),'hex'),jsonb_build_object('run_id',r,'step_id',step_value,'action','start_attack_lab','execution_id',execution_value,'origin',intent_value->>'origin','requester_id',intent_value->>'requester_id','authorizing_operator_id',intent_value->>'approver_id'));
+ IF public.zasp_sa_attack_lab_authorize(o,w,e,r,step_value) IS DISTINCT FROM intent_value OR NOT public.zasp_security_agent_budget_can_start(o,w,e,r,worker_value,lease_value) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab final authority changed';END IF;
+ UPDATE public.zasp_security_agent_steps SET state='executing',version=version+1,updated_at=clock_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id,step_id)=(o,w,e,r,step_value);
+ UPDATE public.zasp_security_agent_runs SET state='running',lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,version=version+1,updated_at=clock_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r);
+ -- The final row writes may themselves wait. No successful result may escape
+ -- once a lease, budget, approval or preflight expired during those writes.
+ PERFORM public.zasp_sa_attack_lab_approver(o,w,e,intent_value->>'approver_id',(intent_value->>'fresh_auth_at')::timestamptz);
+ IF clock_timestamp()>=LEAST(lease_deadline,deadline_value,(snapshot->'preflight'->>'decision_expires_at')::timestamptz,(SELECT expires_at FROM public.zasp_security_agent_approvals WHERE (organization_id,workspace_id,environment_id,approval_id)=(o,w,e,intent_value->>'approval_id'))) OR NOT public.zasp_sa_attack_lab_guard() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab final authority expired';END IF;
+ RETURN result_value;
+END $execute$;
+GRANT EXECUTE ON FUNCTION public.zasp_sa_attack_lab_execute_run(text,text,text,text,text,text,text,text,text,text) TO zasp_security_agent_worker;
+
+CREATE FUNCTION public.zasp_sa_attack_lab_run_kind(o text,w text,e text,r text,worker_value text,lease_value text) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog,public AS $kind$
+DECLARE action_value text;
+BEGIN
+ IF NOT public.zasp_sa_attack_lab_guard() OR NOT public.zasp_security_agent_principal_ready('zasp_security_agent_worker') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='attack lab route unavailable';END IF;
+ IF NOT COALESCE(public.zasp_valid_product_id(o) AND public.zasp_valid_product_id(w) AND public.zasp_valid_product_id(e) AND public.zasp_valid_product_id(r) AND length(worker_value) BETWEEN 1 AND 128 AND length(lease_value) BETWEEN 16 AND 128,false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab route input rejected';END IF;
+ -- Routing discloses only the action family to the registered worker. It is
+ -- not fresh-work authorization: the chosen operation proves its live lease
+ -- or matches the complete immutable receipt before returning any payload.
+ -- Acceptance/failure may already have cleared the lease. Never classify that
+ -- receipt using a later definition version.
+ SELECT COALESCE(p.plan->'steps'->0->>'action',d.body->'allowed_actions'->>0,h.definition->'allowed_actions'->>0) INTO action_value
+ FROM public.zasp_security_agent_runs run
+ LEFT JOIN public.zasp_security_agent_plans p ON (p.organization_id,p.workspace_id,p.environment_id,p.run_id,p.definition_id,p.definition_version)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id,run.definition_id,run.definition_version)
+ LEFT JOIN public.zasp_security_agent_definitions d ON (d.organization_id,d.workspace_id,d.environment_id,d.definition_id,d.version)=(run.organization_id,run.workspace_id,run.environment_id,run.definition_id,run.definition_version)
+ LEFT JOIN public.zasp_security_agent_definition_versions h ON (h.organization_id,h.workspace_id,h.environment_id,h.definition_id,h.version)=(run.organization_id,run.workspace_id,run.environment_id,run.definition_id,run.definition_version)
+ WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id)=(o,w,e,r);
+ IF NOT FOUND OR action_value IS NULL THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab route run rejected';END IF;
+ RETURN jsonb_build_object('attack_lab',action_value='start_attack_lab');
+END $kind$;
+GRANT EXECUTE ON FUNCTION public.zasp_sa_attack_lab_run_kind(text,text,text,text,text,text) TO zasp_security_agent_worker;
+
+CREATE FUNCTION public.zasp_sa_attack_lab_decide_approval(o text,w text,e text,a text,actor_value text,key_value text,expected_version bigint,decision_value text,fresh_auth_value timestamptz,audit_value text,correlation_value text,receipt_value text,expected_checksum text,expected_fingerprint text)
+RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path TO pg_catalog,public AS $decision$
+DECLARE ar public.zasp_security_agent_approvals%ROWTYPE;p public.zasp_security_agent_plans%ROWTYPE;result_value jsonb;snapshot jsonb;
+BEGIN
+ IF NOT public.zasp_security_agent_principal_ready('zasp_security_agent_api') OR NOT public.zasp_sa_attack_lab_readiness(expected_checksum,expected_fingerprint) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='attack lab approval authority unavailable';END IF;
+ SELECT * INTO ar FROM public.zasp_security_agent_approvals WHERE (organization_id,workspace_id,environment_id,approval_id)=(o,w,e,a);
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='attack lab approval unavailable';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended('security-agent-budget-admission:'||o,0));
+ PERFORM 1 FROM public.zasp_security_agent_org_admissions WHERE organization_id=o FOR UPDATE;
+ PERFORM 1 FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,ar.run_id) FOR UPDATE;
+ PERFORM 1 FROM public.zasp_security_agent_steps WHERE (organization_id,workspace_id,environment_id,run_id,step_id,action_key,authorization_result)=(o,w,e,ar.run_id,ar.step_id,'start_attack_lab','approval_required') FOR UPDATE;
+ IF NOT FOUND OR ar.requester_id=actor_value THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab approval intent changed';END IF;
+ SELECT * INTO p FROM public.zasp_security_agent_plans WHERE (organization_id,workspace_id,environment_id,run_id,plan_hash)=(o,w,e,ar.run_id,ar.plan_hash) FOR SHARE;
+ IF NOT FOUND OR p.plan_hash IS DISTINCT FROM digest(convert_to(p.plan::text,'UTF8'),'sha256') OR p.expires_at<=clock_timestamp() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab approval plan changed';END IF;
+ snapshot:=p.plan->'steps'->0->'attack_lab';
+ PERFORM public.zasp_sa_attack_lab_approver(o,w,e,actor_value,fresh_auth_value);
+ IF public.zasp_sa_attack_lab_source(o,w,e,snapshot->>'definition_id',(snapshot->>'definition_version')::bigint,snapshot->>'source_run_id') IS DISTINCT FROM snapshot THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab approval source changed';END IF;
+ result_value:=public.zasp_security_agent_decide_approval(o,w,e,a,actor_value,key_value,expected_version,decision_value,fresh_auth_value,audit_value,correlation_value,receipt_value);
+ result_value:=result_value||jsonb_build_object('expected_effect','Run a bounded Attack Lab reproduction; human interpretation required','reversible',false,'ttl_seconds',0,'attack_lab',snapshot);
+ IF result_value->>'replayed' IS DISTINCT FROM 'true' THEN
+  UPDATE public.zasp_security_agent_request_receipts SET response=result_value WHERE (organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key)=(o,w,e,actor_value,'decideSecurityAgentApproval',key_value);
+ END IF;
+ PERFORM public.zasp_sa_attack_lab_approver(o,w,e,actor_value,fresh_auth_value);
+ IF ar.expires_at<=clock_timestamp() OR p.expires_at<=clock_timestamp() OR (snapshot->'preflight'->>'decision_expires_at')::timestamptz<=clock_timestamp() THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab approval expired';END IF;
+ RETURN result_value;
+END $decision$;
+GRANT EXECUTE ON FUNCTION public.zasp_sa_attack_lab_decide_approval(text,text,text,text,text,text,bigint,text,timestamptz,text,text,text,text,text) TO zasp_security_agent_api;
+
+-- A stop is not an undo. Retain the pending effect/link for the dedicated
+-- reconciler, while immediately fencing any further parent dispatch.
+CREATE FUNCTION public.zasp_sa_attack_lab_cancel_parent(o text,w text,e text,r text,actor_value text,key_value text,expected_version bigint,audit_value text,correlation_value text,receipt_value text,expected_checksum text,expected_fingerprint text)
+RETURNS jsonb LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path TO pg_catalog,public AS $stop$
+DECLARE rr public.zasp_security_agent_runs%ROWTYPE;l public.zasp_sa_attack_lab_links%ROWTYPE;f public.zasp_security_agent_effects%ROWTYPE;x public.zasp_attack_lab_runs%ROWTYPE;intent_value jsonb;intent_digest bytea;result_value jsonb;
+BEGIN
+ IF NOT public.zasp_security_agent_principal_ready('zasp_security_agent_api') OR NOT public.zasp_sa_attack_lab_readiness(expected_checksum,expected_fingerprint) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='attack lab stop authority unavailable';END IF;
+ IF NOT COALESCE(public.zasp_valid_product_id(o) AND public.zasp_valid_product_id(w) AND public.zasp_valid_product_id(e) AND public.zasp_valid_product_id(r) AND public.zasp_valid_product_id(actor_value) AND public.zasp_valid_product_id(audit_value) AND public.zasp_valid_product_id(correlation_value) AND public.zasp_valid_product_id(receipt_value) AND expected_version BETWEEN 1 AND 1000000 AND length(key_value) BETWEEN 16 AND 128 AND key_value~'^[A-Za-z0-9][A-Za-z0-9._:-]*$',false) THEN RAISE EXCEPTION USING ERRCODE='22023',MESSAGE='attack lab stop rejected';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.zasp_sa_attack_lab_links WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r)) THEN
+  RETURN public.zasp_security_agent_cancel_run(o,w,e,r,actor_value,key_value,expected_version,audit_value,correlation_value,receipt_value);
+ END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.zasp_authorized_scopes a JOIN public.zasp_identity_memberships m USING(principal_id,organization_id) WHERE (a.organization_id,a.workspace_id,a.environment_id,a.principal_id)=(o,w,e,actor_value) AND a.permissions ? 'manage_workflows' AND m.active) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='attack lab stop principal unavailable';END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(concat_ws(chr(31),o,w,e,actor_value,'cancelSecurityAgentRun',key_value),0));
+ PERFORM pg_advisory_xact_lock(hashtextextended('security-agent-budget-admission:'||o,0));
+ PERFORM 1 FROM public.zasp_security_agent_org_admissions WHERE organization_id=o FOR UPDATE;
+ SELECT * INTO rr FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r) FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab stop parent unavailable';END IF;
+ PERFORM 1 FROM public.zasp_identity_memberships WHERE (organization_id,principal_id,active)=(o,actor_value,true) FOR SHARE;
+ IF NOT FOUND OR NOT EXISTS(SELECT 1 FROM public.zasp_authorized_scopes WHERE (organization_id,workspace_id,environment_id,principal_id)=(o,w,e,actor_value) AND permissions ? 'manage_workflows') OR NOT EXISTS(SELECT 1 FROM public.zasp_identity_admin_effective_scopes(actor_value,o) a WHERE (a.organization_id,a.workspace_id,a.environment_id)=(o,w,e) AND a.permissions ? 'manage_workflows') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='attack lab stop principal changed';END IF;
+ -- The retained receipt is checked before current version/effect state. The
+ -- published replay contract returns the original IDs and cancelled version.
+ IF EXISTS(SELECT 1 FROM public.zasp_security_agent_request_receipts WHERE (organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key)=(o,w,e,actor_value,'cancelSecurityAgentRun',key_value)) THEN
+  RETURN public.zasp_security_agent_cancel_run(o,w,e,r,actor_value,key_value,expected_version,audit_value,correlation_value,receipt_value);
+ END IF;
+ SELECT * INTO l FROM public.zasp_sa_attack_lab_links WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r) FOR UPDATE;
+ IF NOT FOUND OR l.settled_at IS NOT NULL OR rr.version<>expected_version OR rr.state NOT IN('running','verifying') THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab stop state changed';END IF;
+ PERFORM 1 FROM public.zasp_security_agent_effects WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r) FOR UPDATE;
+ SELECT * INTO f FROM public.zasp_security_agent_effects WHERE (organization_id,workspace_id,environment_id,run_id,step_id,action_key)=(o,w,e,r,l.step_id,'start_attack_lab');
+ IF NOT FOUND OR f.state<>'pending' OR 'sha256:'||encode(f.result_digest,'hex') IS DISTINCT FROM l.result->>'result_digest' OR f.input_digest IS DISTINCT FROM l.input_digest OR f.outcome_id IS DISTINCT FROM l.result->>'outcome_id'
+ OR (SELECT count(*) FROM public.zasp_security_agent_effects WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r))<>1
+ OR (SELECT count(*) FROM public.zasp_security_agent_steps WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r))<>1
+ OR NOT EXISTS(SELECT 1 FROM public.zasp_security_agent_steps s JOIN public.zasp_security_agent_plans p USING(organization_id,workspace_id,environment_id,run_id) WHERE (s.organization_id,s.workspace_id,s.environment_id,s.run_id,s.step_id,s.action_key)=(o,w,e,r,l.step_id,'start_attack_lab') AND s.input_digest=l.input_digest AND p.plan_hash=l.plan_hash AND p.plan_hash=digest(convert_to(p.plan::text,'UTF8'),'sha256') AND p.plan->'steps'->0=l.intent->'step') THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab stop effect changed';END IF;
+ SELECT * INTO x FROM public.zasp_attack_lab_runs WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,l.execution_id) FOR SHARE;
+ IF NOT FOUND OR x.state IN('complete','failed','cancelled') THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='attack lab stop child completed';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.zasp_authorized_scopes WHERE (organization_id,workspace_id,environment_id,principal_id)=(o,w,e,actor_value) AND permissions ? 'manage_workflows') OR NOT EXISTS(SELECT 1 FROM public.zasp_identity_admin_effective_scopes(actor_value,o) a WHERE (a.organization_id,a.workspace_id,a.environment_id)=(o,w,e) AND a.permissions ? 'manage_workflows') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='attack lab stop principal changed';END IF;
+ intent_value:=jsonb_build_object('run_id',r,'expected_version',expected_version);intent_digest:=digest(convert_to(intent_value::text,'UTF8'),'sha256');
+ UPDATE public.zasp_security_agent_approvals SET state='cancelled',version=version+1,decided_at=clock_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id,state)=(o,w,e,r,'pending');
+ UPDATE public.zasp_security_agent_steps SET state='cancelled',version=version+1,updated_at=clock_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r) AND state IN('queued','authorized','waiting_approval','executing','verifying');
+ UPDATE public.zasp_security_agent_runs SET state='cancelled',lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,version=version+1,updated_at=clock_timestamp(),completed_at=clock_timestamp() WHERE (organization_id,workspace_id,environment_id,run_id)=(o,w,e,r);
+ result_value:=jsonb_build_object('id',r,'agent_id',rr.definition_id,'state','cancelled','evidence_ids',jsonb_build_array(rr.trigger_id),'definition_version',rr.definition_version,'version',rr.version+1,'audit_id',audit_value,'correlation_id',correlation_value,'receipt_id',receipt_value,'replayed',false);
+ INSERT INTO public.zasp_security_agent_audit(organization_id,workspace_id,environment_id,audit_id,correlation_id,run_id,actor_id,event_kind,event_digest,body) VALUES(o,w,e,audit_value,correlation_value,r,actor_value,'run_cancelled',intent_digest,jsonb_build_object('run_id',r,'prior_state',rr.state,'version',rr.version+1));
+ INSERT INTO public.zasp_security_agent_request_receipts(organization_id,workspace_id,environment_id,principal_id,operation,idempotency_key,resource_id,expected_version,intent,intent_digest,response,audit_id,correlation_id,receipt_id) VALUES(o,w,e,actor_value,'cancelSecurityAgentRun',key_value,r,expected_version,intent_value,intent_digest,result_value,audit_value,correlation_value,receipt_value);
+ UPDATE public.zasp_security_agent_execution_state SET used_at=COALESCE(used_at,clock_timestamp()) WHERE singleton;
+ RETURN result_value;
+END $stop$;
+GRANT EXECUTE ON FUNCTION public.zasp_sa_attack_lab_cancel_parent(text,text,text,text,text,text,bigint,text,text,text,text,text) TO zasp_security_agent_api;
+
+-- Safe retained approval display. Source selection is not repeated on a read.
+CREATE FUNCTION public.zasp_sa_attack_lab_public_step(o text,w text,e text,r text,step_value jsonb) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO pg_catalog,public AS $public_step$
+DECLARE l public.zasp_sa_attack_lab_links%ROWTYPE;f public.zasp_security_agent_effects%ROWTYPE;s public.zasp_security_agent_steps%ROWTYPE;snapshot jsonb;x jsonb;proof jsonb;settlement jsonb:='null';artifact jsonb:='null';
+BEGIN
+ SELECT * INTO l FROM public.zasp_sa_attack_lab_links WHERE (organization_id,workspace_id,environment_id,run_id,step_id)=(o,w,e,r,step_value->>'step_id');
+ IF NOT FOUND THEN
+  IF step_value->'effect'<>'null'::jsonb THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab public link unavailable';END IF;
+  RETURN step_value;
+ END IF;
+ SELECT * INTO STRICT f FROM public.zasp_security_agent_effects WHERE (organization_id,workspace_id,environment_id,run_id,step_id,action_key)=(o,w,e,r,l.step_id,'start_attack_lab');
+ SELECT * INTO STRICT s FROM public.zasp_security_agent_steps WHERE (organization_id,workspace_id,environment_id,run_id,step_id,action_key)=(o,w,e,r,l.step_id,'start_attack_lab');
+ IF step_value->>'action' IS DISTINCT FROM l.action_key OR step_value->'arguments'->>'target_id' IS DISTINCT FROM l.source_snapshot->>'definition_id'
+  OR step_value->'arguments'->'expected_version' IS DISTINCT FROM l.source_snapshot->'definition_version'
+  OR s.input_digest IS DISTINCT FROM l.input_digest OR f.input_digest IS DISTINCT FROM l.input_digest
+  OR step_value->'effect'->>'outcome_id' IS DISTINCT FROM f.outcome_id OR step_value->'effect'->>'result_digest' IS DISTINCT FROM 'sha256:'||encode(f.result_digest,'hex') THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab public intent changed';END IF;
+ IF l.settled_at IS NULL THEN snapshot:=public.zasp_sa_attack_lab_evidence_snapshot(o,w,e,r,l.step_id);
+ ELSE
+  snapshot:=l.settlement_snapshot;proof:=convert_from(l.settlement_proof,'UTF8')::jsonb;
+  IF digest(l.settlement_proof,'sha256') IS DISTINCT FROM l.settlement_digest OR l.settlement_digest IS DISTINCT FROM f.result_digest
+   OR l.settlement_result->>'proof_sha256' IS DISTINCT FROM encode(f.result_digest,'hex')
+   OR (l.settlement_result->>'run_id',l.settlement_result->>'step_id',l.settlement_result->>'effect_state') IS DISTINCT FROM (r,l.step_id,f.state)
+   OR (l.settlement_result->>'outcome',l.settlement_result->>'reason') IS DISTINCT FROM (proof->>'outcome',proof->>'reason')
+   OR (proof->'execution_id',proof->'attempt',proof->'input_digest',proof->'artifact',proof->'verdict',proof->'cleanup_complete') IS DISTINCT FROM
+    (snapshot->'execution'->'run_id',snapshot->'execution'->'attempt',snapshot->'execution'->'input_digest',snapshot->'execution'->'artifact',snapshot->'execution'->'verdict','true'::jsonb) THEN
+    RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab public settlement changed';END IF;
+  settlement:=jsonb_build_object('outcome',proof->'outcome','reason',proof->'reason','proof_digest','sha256:'||encode(f.result_digest,'hex'));
+ END IF;
+ IF (snapshot->>'organization_id',snapshot->>'workspace_id',snapshot->>'environment_id',snapshot->>'run_id',snapshot->>'step_id') IS DISTINCT FROM (o,w,e,r,l.step_id)
+  OR snapshot->'source' IS DISTINCT FROM l.source_snapshot OR snapshot->'execution'->>'run_id' IS DISTINCT FROM l.execution_id THEN
+  RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab public scope changed';END IF;
+ x:=snapshot->'execution';
+ IF jsonb_typeof(x->'artifact')='object' THEN artifact:=public.zasp_production_security_agent_existing_tests_public_artifact(x->'artifact');END IF;
+ RETURN step_value||jsonb_build_object('attack_lab',jsonb_build_object('definition_id',l.source_snapshot->'definition_id','definition_version',l.source_snapshot->'definition_version',
+  'source_run_id',l.source_run_id,'source_attempt',l.source_attempt,'execution_id',l.execution_id,'attempt',x->'attempt','state',x->'state','verdict',x->'verdict',
+  'cleanup_state',x->'cleanup_state','cleanup_complete',x->'cleanup_complete','cancel_requested',x->'cancel_requested','evidence',artifact,'settlement',settlement));
+END $public_step$;
+
+CREATE FUNCTION public.zasp_sa_attack_lab_approval_value(o text,w text,e text,a text) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO pg_catalog,public AS $approval$
+DECLARE row_value public.zasp_security_agent_approvals%ROWTYPE;p public.zasp_security_agent_plans%ROWTYPE;r public.zasp_security_agent_runs%ROWTYPE;s public.zasp_security_agent_steps%ROWTYPE;
+BEGIN
+ SELECT * INTO STRICT row_value FROM public.zasp_security_agent_approvals WHERE (organization_id,workspace_id,environment_id,approval_id)=(o,w,e,a);
+ SELECT * INTO STRICT p FROM public.zasp_security_agent_plans WHERE (organization_id,workspace_id,environment_id,run_id,plan_hash)=(o,w,e,row_value.run_id,row_value.plan_hash);
+ SELECT * INTO STRICT r FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,run_id,plan_hash)=(o,w,e,row_value.run_id,row_value.plan_hash);
+ SELECT * INTO STRICT s FROM public.zasp_security_agent_steps WHERE (organization_id,workspace_id,environment_id,run_id,step_id,action_key,authorization_result)=(o,w,e,row_value.run_id,row_value.step_id,'start_attack_lab','approval_required');
+ IF p.plan_hash IS DISTINCT FROM digest(convert_to(p.plan::text,'UTF8'),'sha256') OR s.input_digest IS DISTINCT FROM digest(convert_to((p.plan->'steps'->0)::text,'UTF8'),'sha256') THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab approval projection changed';END IF;
+ RETURN jsonb_build_object('id',a,'run_id',r.run_id,'step_id',s.step_id,'state',row_value.state,'expires_at',to_char(row_value.expires_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'version',row_value.version,'expected_effect','Run a bounded Attack Lab reproduction; human interpretation required','reversible',false,'ttl_seconds',0,'evidence_summary',jsonb_build_array(r.trigger_id),'attack_lab',p.plan->'steps'->0->'attack_lab');
+END $approval$;
+
+DO $reads$
+DECLARE d text;signature_value text;anchor text;
+BEGIN
+ signature_value:='zasp_production_security_agent_existing_tests_public_step(text,text,text,text,jsonb)';
+ PERFORM public.zasp_sa_attack_lab_save(signature_value);
+ d:=pg_get_functiondef(('public.'||signature_value)::regprocedure);
+ anchor:=' SELECT * INTO link_row FROM public.zasp_security_agent_test_links';
+ IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab public read predecessor rejected';END IF;
+ EXECUTE replace(d,anchor,' IF step_value->>''action''=''start_attack_lab'' THEN RETURN public.zasp_sa_attack_lab_public_step(o,w,e,r,step_value);END IF;'||chr(10)||anchor);
+ signature_value:='zasp_production_security_agent_existing_tests_approval_value(text,text,text,text)';
+ PERFORM public.zasp_sa_attack_lab_save(signature_value);
+ d:=pg_get_functiondef(('public.'||signature_value)::regprocedure);
+ anchor:=' IF step_row.action_key NOT IN(''run_test'',''rerun_test'') THEN';
+ IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab approval read predecessor rejected';END IF;
+ EXECUTE replace(d,anchor,' IF step_row.action_key=''start_attack_lab'' THEN RETURN public.zasp_sa_attack_lab_approval_value(o,w,e,a);END IF;'||chr(10)||anchor);
+ signature_value:='zasp_production_security_agent_existing_tests_decide_approval(text,text,text,text,text,text,bigint,text,timestamptz,text,text,text,text,text)';
+ PERFORM public.zasp_sa_attack_lab_save(signature_value);
+ d:=pg_get_functiondef(('public.'||signature_value)::regprocedure);
+ anchor:=' IF action_value IS DISTINCT FROM ''run_test'' AND action_value IS DISTINCT FROM ''rerun_test'' THEN';
+ IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab approval decision predecessor rejected';END IF;
+ EXECUTE replace(d,anchor,' IF action_value=''start_attack_lab'' THEN RETURN public.zasp_sa_attack_lab_decide_approval(o,w,e,a,actor_value,key_value,expected_version,decision_value,fresh_auth_value,audit_value,correlation_value,receipt_value,(SELECT value FROM public.zasp_schema_metadata WHERE key=''production_security_agent_attack_lab_checksum''),(SELECT value FROM public.zasp_schema_metadata WHERE key=''production_security_agent_attack_lab_fingerprint''));END IF;'||chr(10)||anchor);
+ signature_value:='zasp_production_security_agent_existing_tests_run_context_core(text,text,text,text)';
+ PERFORM public.zasp_sa_attack_lab_save(signature_value);
+ d:=pg_get_functiondef(('public.'||signature_value)::regprocedure);
+ d:=replace(d,'''revoke_integration_connection'',''run_test'',''rerun_test'')','''revoke_integration_connection'',''run_test'',''rerun_test'',''start_attack_lab'')');
+ anchor:='WHEN ''rerun_test'' THEN jsonb_build_object(''target_id'',planned_step->''target_id'',''expected_version'',planned_step->''test_definition_version'')';
+ IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab context predecessor rejected';END IF;
+ EXECUTE replace(d,anchor,anchor||chr(10)||replace(anchor,'''rerun_test''','''start_attack_lab'''));
+END $reads$;
+
+DO $preflight_read$
+DECLARE signature_value text:='zasp_production_security_agent_existing_tests_run_context(text,text,text,text,text,text)';d text;anchor text;
+BEGIN
+ PERFORM public.zasp_sa_attack_lab_save(signature_value);
+ d:=pg_get_functiondef(('public.'||signature_value)::regprocedure);
+ anchor:='  RETURN NEXT jsonb_set(envelope,''{action_details,steps}'',steps_value);';
+ IF strpos(d,anchor)=0 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='attack lab stop read predecessor rejected';END IF;
+ EXECUTE replace(d,anchor,'  IF EXISTS(SELECT 1 FROM public.zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,run_id,state,last_error_code)=(o,w,e,r,''needs_human'',''attack_lab_preflight_unavailable'')) THEN envelope:=jsonb_set(envelope,''{context,preflight_stop_reason}'',''"attack_lab_preflight_unavailable"''::jsonb);END IF;'||chr(10)||anchor);
+END $preflight_read$;

@@ -1,0 +1,15 @@
+COMMAND: GOPROXY=off GOSUMDB=off go test ./apiserver -run '^TestSecurityAgentExportStorageDownloadRefusalsPostgres$' -count=1 -v
+SOURCE SHA256:
+6b5daa2e061499adb75b035baae0344ea76c39c70d53e219029a23c26e7e77f9  apiserver/security_agent_export_storage_download_postgres_test.go
+EXIT CODE: 1
+
+STDOUT/STDERR (exact captured output):
+=== RUN   TestSecurityAgentExportStorageDownloadRefusalsPostgres
+    security_agent_export_storage_download_postgres_test.go:251: release58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f; registered dispatch/capture/prepare/finish; local storage driver; fixture package renderer
+    security_agent_export_storage_download_postgres_test.go:273: second valid session cannot issue its own grant: 401 {"code":"authentication_required","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","message":"Authentication required","retryable":false}
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=97527 data=/var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/TestSecurityAgentExportStorageDownloadRefusalsPostgres59170461/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportStorageDownloadRefusalsPostgres (11.20s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	12.294s
+FAIL
+

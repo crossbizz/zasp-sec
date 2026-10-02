@@ -5,14 +5,20 @@ import { load } from "js-yaml";
 import { renderRelease } from "../production/release-contract.mjs";
 import { productionReleaseFixture } from "../production/release-fixture.mjs";
 
-test("embedded migration release has explicit compatibility and forward chart phases", async () => {
+test("legacy migration release has explicit phases and rejects unconfigured forward schemas", async () => {
   const files = await readdir(new URL("../../services/platform/migrations/sql/", import.meta.url));
   const latest = Math.max(...files.filter(name => /^\d+_.*\.up\.sql$/.test(name)).map(name => Number(name.split("_")[0])));
   const values = load(await readFile(new URL("./product/values.yaml", import.meta.url), "utf8"));
-  // A future embedded migration must define its own rollout before this gate
-  // accepts it. Default49 is deliberate: compatible pods precede the50 hook.
-  // This is a manifest compatibility gate, not live transition authorization.
-  assert.equal(latest, 51, "embedded migration needs an explicit rollout contract");
+  // Source-only and separately profiled migrations do not extend the legacy
+  // chart's rollout contract. Pin the known source inventory, then prove every
+  // schema beyond60 is refused without its required named profile.
+  // Default49 remains deliberate: compatible pods precede the50 hook.
+  assert.equal(latest, 80, "new migration sources need an explicit rollout review");
+  for (let schemaVersion = 61; schemaVersion <= latest; schemaVersion++) {
+    await assert.rejects(renderRelease(productionReleaseFixture, {
+      schemaVersion, sessionSearchPhase: "precision-intake", discoveryScheduleReplayPhase: "active",
+    }), /release rejected/);
+  }
   assert.equal(values.schema.expectedVersion, 49);
   assert.equal(values.runtime.sessionSearchPhase, "compatibility");
   for (const options of [
@@ -22,15 +28,31 @@ test("embedded migration release has explicit compatibility and forward chart ph
     { schemaVersion: 50, sessionSearchPhase: "query" },
     { schemaVersion: 51, sessionSearchPhase: "precision-consumers" },
     { schemaVersion: 51, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 52, sessionSearchPhase: "precision-consumers" },
+    { schemaVersion: 52, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 53, sessionSearchPhase: "precision-consumers" },
+    { schemaVersion: 53, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 54, sessionSearchPhase: "precision-consumers" },
+    { schemaVersion: 54, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 55, sessionSearchPhase: "precision-consumers" },
+    { schemaVersion: 55, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 56, sessionSearchPhase: "precision-consumers" },
+    { schemaVersion: 56, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 57, sessionSearchPhase: "precision-consumers" },
+    { schemaVersion: 57, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 58, sessionSearchPhase: "precision-consumers" },
+    { schemaVersion: 58, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 59, sessionSearchPhase: "precision-intake", discoveryScheduleReplayPhase: "maintenance" },
+    { schemaVersion: 60, sessionSearchPhase: "precision-intake", discoveryScheduleReplayPhase: "active" },
   ]) {
     const resources = await renderRelease(productionReleaseFixture, options);
     const jobs = resources.filter(r => r.kind === "Job" && r.metadata.name.startsWith("agentsec-schema-v"));
     assert.equal(jobs.length, 1);
     assert.equal(jobs[0].metadata.name, `agentsec-schema-v${options.schemaVersion}`);
     const api = resources.find(r => r.kind === "Deployment" && r.metadata.name === "agentsec-api");
-    assert.equal(api.spec.template.spec.containers[0].env.find(e => e.name === "ZASP_RUNTIME_SESSION_INDEX").value, options.sessionSearchPhase === "query" || options.schemaVersion === 51 ? "zasp-runtime-sessions-v2" : "zasp-runtime-sessions-v1");
+    assert.equal(api.spec.template.spec.containers[0].env.find(e => e.name === "ZASP_RUNTIME_SESSION_INDEX").value, options.sessionSearchPhase === "query" || [51, 52, 53, 54, 55, 56, 57, 58, 59, 60].includes(options.schemaVersion) ? "zasp-runtime-sessions-v2" : "zasp-runtime-sessions-v1");
     assert.equal(resources.filter(r => r.kind === "Deployment" && r.metadata.name === "agentsec-runtime-session-index-v2").length, options.schemaVersion >= 50 ? 1 : 0);
-    if (options.schemaVersion === 51) {
+    if ([51, 52, 53, 54, 55, 56, 57, 58, 59, 60].includes(options.schemaVersion)) {
       const env = name => resources.find(r => r.kind === "Deployment" && r.metadata.name === name).spec.template.spec.containers[0].env;
       assert.equal(env("agentsec-event-ingest").find(e => e.name === "ZASP_RUNTIME_INGEST_SCHEMA").value, options.sessionSearchPhase === "precision-intake" ? "runtime-event-v2" : "runtime-event-v1");
       for (const name of ["outbox", "coordinator"]) assert.equal(env(`agentsec-runtime-${name}`).find(e => e.name === "ZASP_RUNTIME_DELIVERY_SCHEMA").value, "runtime-event-v2");
@@ -49,6 +71,30 @@ test("embedded migration release has explicit compatibility and forward chart ph
     { schemaVersion: 50, sessionSearchPhase: "precision-intake" },
     { schemaVersion: 49, sessionSearchPhase: "precision-intake" },
     { schemaVersion: 51, sessionSearchPhase: "precision-active" },
+    { schemaVersion: 52 },
+    { schemaVersion: 52, sessionSearchPhase: "compatibility" },
+    { schemaVersion: 52, sessionSearchPhase: "backfill" },
+    { schemaVersion: 52, sessionSearchPhase: "query" },
+    { schemaVersion: 52, sessionSearchPhase: "audit-exports" },
+    { schemaVersion: 53 },
+    { schemaVersion: 53, sessionSearchPhase: "compatibility" },
+    { schemaVersion: 54 },
+    { schemaVersion: 54, sessionSearchPhase: "compatibility" },
+    { schemaVersion: 54, sessionSearchPhase: "backfill" },
+    { schemaVersion: 54, sessionSearchPhase: "query" },
+    { schemaVersion: 55 },
+    { schemaVersion: 55, sessionSearchPhase: "compatibility" },
+    { schemaVersion: 55, sessionSearchPhase: "backfill" },
+    { schemaVersion: 55, sessionSearchPhase: "query" },
+    { schemaVersion: 55, sessionSearchPhase: "precision-active" },
+    { schemaVersion: 55, sessionSearchPhase: "unknown" },
+    { schemaVersion: 56, sessionSearchPhase: "compatibility" },
+    { schemaVersion: 56, sessionSearchPhase: "query" },
+    { schemaVersion: 59, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 59, sessionSearchPhase: "precision-intake", discoveryScheduleReplayPhase: "active" },
+    { schemaVersion: 60, sessionSearchPhase: "precision-intake" },
+    { schemaVersion: 60, sessionSearchPhase: "precision-intake", discoveryScheduleReplayPhase: "maintenance" },
+    { schemaVersion: 61, sessionSearchPhase: "precision-intake", discoveryScheduleReplayPhase: "active" },
   ]) await assert.rejects(renderRelease(productionReleaseFixture, options), /release rejected/);
 });
 

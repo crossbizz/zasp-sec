@@ -78,8 +78,29 @@ func TestCoreCompositionMatchesPublicOpenAPI(t *testing.T) {
 			public[key] = documented.OperationID
 		}
 	}
-	if len(seen) != 147 || len(public) != 147 {
-		t.Fatalf("mounted/public operation counts = %d/%d, want 147/147", len(seen), len(public))
+	if len(seen) != 152 || len(public) != 162 {
+		t.Fatalf("base/public operation counts = %d/%d, want 152/162", len(seen), len(public))
+	}
+	extended, err := NewCompositionWithSecurityAgentExports(auditExportCompositionDependencies(), handlerResponse("export"), handlerResponse("compliance"), handlerResponse("agent-export"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, operation := range extended.(*operationRouter).operations {
+		key := operation.method + " " + operation.pattern
+		if public[key] != operation.operationID {
+			t.Fatalf("mounted extended route %s does not match published operation", key)
+		}
+		if operation.operationID == "createAuditExport" || operation.operationID == "getAuditExport" || stringIn(operation.operationID, "getComplianceEvidence", "createComplianceExport", "getComplianceExport", "createComplianceDownloadGrant", "downloadComplianceExport", "getSecurityAgentExport", "createSecurityAgentExportDownloadGrant", "downloadSecurityAgentExport") {
+			if _, present := seen[key]; present {
+				t.Fatal("default router unexpectedly mounted export")
+			}
+			var documented openAPIOperation
+			node := document.Paths[operation.pattern][strings.ToLower(operation.method)]
+			if node.Decode(&documented) != nil || documented.Security == nil || !equalStrings(securityNames(*documented.Security), []string{"BrowserExpectedScope", "BrowserSession"}) {
+				t.Fatal("published export browser security differs")
+			}
+			seen[key] = struct{}{}
+		}
 	}
 	for key, operationID := range public {
 		if _, mounted := seen[key]; !mounted {

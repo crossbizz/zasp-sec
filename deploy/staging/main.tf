@@ -102,10 +102,12 @@ locals {
     background              = { visibility = 300, max_receive = 5, schema = "agentsec.background.v1" }
     "discovery-jobs"        = { visibility = 30, max_receive = 5, schema = "agentsec.discovery-jobs.v1" }
     runtime-events          = { visibility = 120, max_receive = 5, schema = "agentsec.runtime-events.v1" }
+    tests                   = { visibility = 900, max_receive = 5, schema = "agentsec.tests.v1" }
     "red-team-tests"        = { visibility = 900, max_receive = 5, schema = "agentsec.red-team-tests.v1" }
     "attack-lab-jobs"       = { visibility = 60, max_receive = 5, schema = "agentsec.attack-lab-jobs.v1" }
     "recovery-backup-jobs"  = { visibility = 30, max_receive = 100, schema = "agentsec.recovery-backup-jobs.v1" }
     "recovery-restore-jobs" = { visibility = 30, max_receive = 100, schema = "agentsec.recovery-restore-jobs.v1" }
+    "audit-exports"         = { visibility = 300, max_receive = 20, schema = "agentsec.audit-exports.v1" }
   }
   runtime_irsa_contract = {
     ingest          = { role_name = "runtime-ingest", principal = "system:serviceaccount:agentsec:zasp-runtime-ingest", database_secret = "postgres-runtime-ingest-dsn" }
@@ -742,6 +744,9 @@ resource "aws_sqs_queue" "dead_letter" {
   name                       = "agentsec-${each.key}-dlq"
   message_retention_seconds  = 1209600
   visibility_timeout_seconds = 30
+  receive_wait_time_seconds  = contains(["background", "runtime-events", "tests"], each.key) ? 20 : null
+  max_message_size           = contains(["background", "runtime-events", "tests"], each.key) ? 262144 : null
+  delay_seconds              = contains(["background", "runtime-events", "tests"], each.key) ? 0 : null
   kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn : aws_kms_key.staging.arn
   tags                       = { Schema = each.value.schema }
 }
@@ -754,6 +759,7 @@ resource "aws_sqs_queue" "work" {
   visibility_timeout_seconds = each.value.visibility
   receive_wait_time_seconds  = 20
   max_message_size           = 262144
+  delay_seconds              = contains(["background", "runtime-events", "tests"], each.key) ? 0 : null
   kms_master_key_id          = each.key == "red-team-tests" ? aws_kms_key.red_team.arn : each.key == "attack-lab-jobs" ? aws_kms_key.attack_lab.arn : aws_kms_key.staging.arn
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.dead_letter[each.key].arn

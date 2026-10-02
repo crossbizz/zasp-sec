@@ -1,0 +1,619 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -134 +134 @@
+-    "staging:gate:test": "node --test deploy/staging/gate.test.mjs deploy/staging/preflight.test.mjs deploy/staging/queue-contract.test.mjs",
++    "staging:gate:test": "node --test deploy/staging/gate.test.mjs deploy/staging/preflight.test.mjs deploy/staging/queue-contract.test.mjs deploy/staging/compliance-exports-contract.test.mjs",
+diff --git a/deploy/staging/compliance_exports.tf b/deploy/staging/compliance_exports.tf
+new file mode 100644
+index 00000000..bf28afd7
+--- /dev/null
++++ b/deploy/staging/compliance_exports.tf
+@@ -0,0 +1,200 @@
++variable "compliance_exports_enabled" {
++  description = "Provision dedicated compliance export storage and workload identities after schema56 rollout gates."
++  type        = bool
++  default     = false
++}
++
++variable "compliance_export_database_principals" {
++  description = "Distinct compliance LOGIN identities; operators provision credentials outside Terraform."
++  type        = object({ worker = string, cleanup = string })
++  default     = { worker = "compliance_export_runtime", cleanup = "compliance_cleanup_runtime" }
++  validation {
++    condition = length(distinct(values(var.compliance_export_database_principals))) == 2 && alltrue([
++      for principal in values(var.compliance_export_database_principals) :
++      can(regex("^[a-z][a-z0-9_]{2,62}$", principal)) && !startswith(principal, "zasp_") &&
++      !contains(values(var.database_principals), principal) &&
++      !contains(values(var.audit_export_database_principals), principal)
++    ])
++    error_message = "Compliance principals must be distinct bounded lowercase LOGIN names, outside the zasp_ namespace and all predecessor principals."
++  }
++}
++
++locals {
++  compliance_export_identities = var.compliance_exports_enabled ? {
++    reader  = "agentsec-api"
++    writer  = "zasp-compliance-export-worker"
++    cleanup = "zasp-compliance-cleanup-worker"
++  } : {}
++  compliance_export_read_actions = {
++    reader  = ["s3:GetObjectVersion"]
++    writer  = ["s3:GetObject", "s3:GetObjectVersion"]
++    cleanup = ["s3:GetObject", "s3:GetObjectVersion", "s3:DeleteObjectVersion"]
++  }
++  compliance_export_secrets = var.compliance_exports_enabled ? {
++    writer  = { name = "postgres-compliance-export-worker-dsn", principal = var.compliance_export_database_principals.worker }
++    cleanup = { name = "postgres-compliance-cleanup-worker-dsn", principal = var.compliance_export_database_principals.cleanup }
++  } : {}
++}
++
++resource "aws_kms_key" "compliance_exports" {
++  count                   = var.compliance_exports_enabled ? 1 : 0
++  description             = "Dedicated compliance export object encryption"
++  deletion_window_in_days = 30
++  enable_key_rotation     = true
++}
++
++resource "aws_s3_bucket" "compliance_exports" {
++  count  = var.compliance_exports_enabled ? 1 : 0
++  bucket = "zasp-compliance-exports-${md5(var.account_id)}"
++}
++
++resource "aws_s3_bucket_versioning" "compliance_exports" {
++  count  = var.compliance_exports_enabled ? 1 : 0
++  bucket = aws_s3_bucket.compliance_exports[0].id
++  versioning_configuration { status = "Enabled" }
++}
++
++resource "aws_s3_bucket_ownership_controls" "compliance_exports" {
++  count  = var.compliance_exports_enabled ? 1 : 0
++  bucket = aws_s3_bucket.compliance_exports[0].id
++  rule { object_ownership = "BucketOwnerEnforced" }
++}
++
++resource "aws_s3_bucket_public_access_block" "compliance_exports" {
++  count                   = var.compliance_exports_enabled ? 1 : 0
++  bucket                  = aws_s3_bucket.compliance_exports[0].id
++  block_public_acls       = true
++  block_public_policy     = true
++  ignore_public_acls      = true
++  restrict_public_buckets = true
++}
++
++resource "aws_s3_bucket_server_side_encryption_configuration" "compliance_exports" {
++  count  = var.compliance_exports_enabled ? 1 : 0
++  bucket = aws_s3_bucket.compliance_exports[0].id
++  rule {
++    bucket_key_enabled = true
++    apply_server_side_encryption_by_default {
++      kms_master_key_id = aws_kms_key.compliance_exports[0].arn
++      sse_algorithm     = "aws:kms"
++    }
++  }
++}
++
++resource "aws_s3_bucket_lifecycle_configuration" "compliance_exports" {
++  count  = var.compliance_exports_enabled ? 1 : 0
++  bucket = aws_s3_bucket.compliance_exports[0].id
++  # Storage backstop only. UTC-rounded lifecycle eligibility does not guarantee
++  # physical deletion within 24 hours; active cleanup tracks exact versions.
++  rule {
++    id     = "compliance-export-expiration-backstop"
++    status = "Enabled"
++    filter { prefix = "organizations/" }
++    expiration { days = 1 }
++    noncurrent_version_expiration { noncurrent_days = 1 }
++  }
++  rule {
++    id     = "compliance-export-delete-marker-cleanup"
++    status = "Enabled"
++    filter { prefix = "organizations/" }
++    expiration { expired_object_delete_marker = true }
++  }
++  depends_on = [aws_s3_bucket_versioning.compliance_exports]
++}
++
++resource "aws_s3_bucket_policy" "compliance_exports" {
++  count  = var.compliance_exports_enabled ? 1 : 0
++  bucket = aws_s3_bucket.compliance_exports[0].id
++  policy = jsonencode({ Version = "2012-10-17", Statement = [{
++    Sid       = "RequireTLS"
++    Effect    = "Deny"
++    Principal = "*"
++    Action    = "s3:*"
++    Resource  = [aws_s3_bucket.compliance_exports[0].arn, "${aws_s3_bucket.compliance_exports[0].arn}/*"]
++    Condition = { Bool = { "aws:SecureTransport" = "false" } }
++  }] })
++}
++
++resource "aws_iam_role" "compliance_exports" {
++  for_each = local.compliance_export_identities
++  name     = "${var.cluster_name}-compliance-export-${each.key}"
++  assume_role_policy = jsonencode({ Version = "2012-10-17", Statement = [{
++    Effect    = "Allow"
++    Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }
++    Action    = "sts:AssumeRoleWithWebIdentity"
++    Condition = { StringEquals = {
++      "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud" = "sts.amazonaws.com"
++      "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:agentsec:${each.value}"
++    } }
++  }] })
++}
++
++resource "aws_iam_role_policy" "compliance_exports" {
++  for_each = local.compliance_export_identities
++  name     = "${var.cluster_name}-compliance-export-${each.key}"
++  role     = aws_iam_role.compliance_exports[each.key].id
++  policy = jsonencode({ Version = "2012-10-17", Statement = [for statement in compact([
++    jsonencode({
++      Sid      = "ExportVersions", Effect = "Allow"
++      Action   = local.compliance_export_read_actions[each.key]
++      Resource = "${aws_s3_bucket.compliance_exports[0].arn}/organizations/*/workspaces/*/environments/*/exports/*"
++    }),
++    each.key == "writer" ? jsonencode({
++      Sid      = "WriteEncryptedExports", Effect = "Allow", Action = ["s3:PutObject"]
++      Resource = "${aws_s3_bucket.compliance_exports[0].arn}/organizations/*/workspaces/*/environments/*/exports/*"
++      Condition = { StringEquals = {
++        "s3:x-amz-server-side-encryption"                = "aws:kms"
++        "s3:x-amz-server-side-encryption-aws-kms-key-id" = aws_kms_key.compliance_exports[0].arn
++      } }
++    }) : null,
++    jsonencode({
++      Sid      = "ExportKey", Effect = "Allow"
++      Action   = concat(["kms:Decrypt"], each.key == "writer" ? ["kms:GenerateDataKey"] : [])
++      Resource = aws_kms_key.compliance_exports[0].arn
++      # Bucket keys use the bucket context; non-bucket-key objects use the prefix.
++      Condition = {
++        StringEquals = { "kms:ViaService" = "s3.${var.region}.amazonaws.com" }
++        StringLike   = { "kms:EncryptionContext:aws:s3:arn" = [aws_s3_bucket.compliance_exports[0].arn, "${aws_s3_bucket.compliance_exports[0].arn}/organizations/*/workspaces/*/environments/*/exports/*"] }
++      }
++    })
++  ]) : jsondecode(statement)] })
++}
++
++resource "aws_secretsmanager_secret" "compliance_exports" {
++  for_each                = local.compliance_export_secrets
++  name                    = "${var.cluster_name}/${each.value.name}"
++  kms_key_id              = aws_kms_key.staging.arn
++  recovery_window_in_days = 30
++  tags                    = { DatabasePrincipal = each.value.principal, CredentialClass = "postgres_dsn" }
++}
++
++resource "aws_iam_role_policy" "compliance_export_secrets" {
++  for_each = local.compliance_export_secrets
++  name     = "${var.cluster_name}-${each.value.name}"
++  role     = aws_iam_role.compliance_exports[each.key].id
++  policy = jsonencode({ Version = "2012-10-17", Statement = [
++    { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.compliance_exports[each.key].arn },
++    { Effect = "Allow", Action = ["kms:Decrypt"], Resource = aws_kms_key.staging.arn, Condition = { StringEquals = {
++      "kms:ViaService"                  = "secretsmanager.${var.region}.amazonaws.com"
++      "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.compliance_exports[each.key].arn
++    } } }
++  ] })
++}
++
++output "compliance_exports_deployment_metadata" {
++  description = "Non-secret complianceExports fields only. Operators must supply the three deployment CIDR lists and provision external credentials."
++  value = var.compliance_exports_enabled ? {
++    enabled             = true
++    awsRegion           = var.region
++    bucket              = aws_s3_bucket.compliance_exports[0].bucket
++    bucketOwner         = var.account_id
++    kmsKeyArn           = aws_kms_key.compliance_exports[0].arn
++    readerRoleArn       = aws_iam_role.compliance_exports["reader"].arn
++    writerRoleArn       = aws_iam_role.compliance_exports["writer"].arn
++    cleanupRoleArn      = aws_iam_role.compliance_exports["cleanup"].arn
++    workerDSNSecretArn  = aws_secretsmanager_secret.compliance_exports["writer"].arn
++    cleanupDSNSecretArn = aws_secretsmanager_secret.compliance_exports["cleanup"].arn
++    workerPrincipal     = var.compliance_export_database_principals.worker
++    cleanupPrincipal    = var.compliance_export_database_principals.cleanup
++  } : null
++}
+diff --git a/deploy/staging/compliance-exports-contract.test.mjs b/deploy/staging/compliance-exports-contract.test.mjs
+new file mode 100644
+index 00000000..e88f7425
+--- /dev/null
++++ b/deploy/staging/compliance-exports-contract.test.mjs
+@@ -0,0 +1,132 @@
++import assert from "node:assert/strict";
++import { readFile } from "node:fs/promises";
++import test from "node:test";
++
++// Offline source checks only. These do not evaluate HCL, provider defaults, or IAM.
++// Decoded-policy assertions belong to tests/compliance_exports_iam.tftest.hcl.
++const source = await readFile(new URL("./compliance_exports.tf", import.meta.url), "utf8")
++  .catch((error) => { if (error.code === "ENOENT") return ""; throw error; });
++
++function block(text, header) {
++  const start = text.indexOf(`${header} {\n`);
++  assert.notEqual(start, -1, `missing ${header}`);
++  const end = text.indexOf("\n}", start);
++  assert.notEqual(end, -1, `unterminated ${header}`);
++  return text.slice(start, end + 2).replace(/^\s*#.*$/gm, "");
++}
++const resource = (text, type, name = "compliance_exports") => block(text, `resource "${type}" "${name}"`);
++
++function assertOptIn(text) {
++  assert.match(block(text, 'variable "compliance_exports_enabled"'), /default\s*=\s*false\b/);
++  assert.match(text, /compliance_export_identities\s*=\s*var\.compliance_exports_enabled\s*\?\s*\{[\s\S]*?\}\s*:\s*\{\}/);
++  for (const type of ["aws_s3_bucket", "aws_s3_bucket_versioning", "aws_s3_bucket_ownership_controls", "aws_s3_bucket_public_access_block", "aws_s3_bucket_server_side_encryption_configuration", "aws_s3_bucket_lifecycle_configuration", "aws_s3_bucket_policy", "aws_kms_key"]) {
++    assert.match(resource(text, type), /count\s*=\s*var\.compliance_exports_enabled\s*\?\s*1\s*:\s*0/);
++  }
++  for (const type of ["aws_iam_role", "aws_iam_role_policy"]) assert.match(resource(text, type), /for_each\s*=\s*local\.compliance_export_identities/);
++  assert.match(text, /compliance_export_secrets\s*=\s*var\.compliance_exports_enabled\s*\?\s*\{[\s\S]*?\}\s*:\s*\{\}/);
++  assert.match(resource(text, "aws_secretsmanager_secret"), /for_each\s*=\s*local\.compliance_export_secrets/);
++}
++
++function assertStorage(text) {
++  assert.match(resource(text, "aws_s3_bucket"), /bucket\s*=\s*"zasp-compliance-exports-\$\{md5\(var\.account_id\)\}"/);
++  assert.doesNotMatch(text, /force_destroy\s*=\s*true|object_lock|BypassGovernanceRetention|aws_s3_bucket\.evidence/);
++  assert.match(resource(text, "aws_s3_bucket_versioning"), /status\s*=\s*"Enabled"/);
++  assert.match(resource(text, "aws_s3_bucket_ownership_controls"), /object_ownership\s*=\s*"BucketOwnerEnforced"/);
++  for (const setting of ["block_public_acls", "block_public_policy", "ignore_public_acls", "restrict_public_buckets"]) assert.match(resource(text, "aws_s3_bucket_public_access_block"), new RegExp(`${setting}\\s*=\\s*true`));
++  const encryption = resource(text, "aws_s3_bucket_server_side_encryption_configuration");
++  assert.match(encryption, /bucket_key_enabled\s*=\s*true/);
++  assert.match(encryption, /kms_master_key_id\s*=\s*aws_kms_key\.compliance_exports\[0\]\.arn/);
++  assert.match(encryption, /sse_algorithm\s*=\s*"aws:kms"/);
++  assert.match(resource(text, "aws_kms_key"), /enable_key_rotation\s*=\s*true/);
++  const lifecycle = resource(text, "aws_s3_bucket_lifecycle_configuration");
++  assert.match(lifecycle, /expiration\s*\{\s*days\s*=\s*1\s*\}/);
++  assert.match(lifecycle, /noncurrent_version_expiration\s*\{\s*noncurrent_days\s*=\s*1\s*\}/);
++  assert.match(lifecycle, /expiration\s*\{\s*expired_object_delete_marker\s*=\s*true\s*\}/);
++  assert.equal([...lifecycle.matchAll(/filter\s*\{\s*prefix\s*=\s*"organizations\/"\s*\}/g)].length, 2);
++  const tls = resource(text, "aws_s3_bucket_policy");
++  assert.match(tls, /Effect\s*=\s*"Deny"/);
++  assert.match(tls, /"aws:SecureTransport"\s*=\s*"false"/);
++  assert.match(tls, /Resource\s*=\s*\[aws_s3_bucket\.compliance_exports\[0\]\.arn,\s*"\$\{aws_s3_bucket\.compliance_exports\[0\]\.arn\}\/\*"\]/);
++}
++
++function assertAuthority(text) {
++  const identities = text.match(/compliance_export_identities\s*=\s*var\.compliance_exports_enabled\s*\?\s*\{([^}]+)\}/)?.[1];
++  assert.ok(identities, "opt-in identity map required");
++  assert.deepEqual(Object.fromEntries([...identities.matchAll(/(\w+)\s*=\s*"([^"]+)"/g)].map(([, k, v]) => [k, v])), {
++    reader: "agentsec-api", writer: "zasp-compliance-export-worker", cleanup: "zasp-compliance-cleanup-worker",
++  });
++  const actions = text.match(/compliance_export_read_actions\s*=\s*\{([^}]+)\}/)?.[1];
++  assert.ok(actions, "role-specific object actions required");
++  assert.deepEqual(Object.fromEntries([...actions.matchAll(/(\w+)\s*=\s*(\[[^\]]*\])/g)].map(([, k, v]) => [k, JSON.parse(v)])), {
++    reader: ["s3:GetObjectVersion"], writer: ["s3:GetObject", "s3:GetObjectVersion"], cleanup: ["s3:GetObject", "s3:GetObjectVersion", "s3:DeleteObjectVersion"],
++  });
++  const trust = resource(text, "aws_iam_role");
++  assert.match(trust, /Principal\s*=\s*\{ Federated = aws_iam_openid_connect_provider\.eks\.arn \}/);
++  assert.match(trust, /Action\s*=\s*"sts:AssumeRoleWithWebIdentity"/);
++  assert.match(trust, /:aud"\s*=\s*"sts.amazonaws.com"/);
++  assert.match(trust, /:sub"\s*=\s*"system:serviceaccount:agentsec:\$\{each.value\}"/);
++  const policy = resource(text, "aws_iam_role_policy");
++  assert.match(policy, /Action\s*=\s*local\.compliance_export_read_actions\[each.key\]/);
++  assert.match(policy, /each.key == "writer" \? jsonencode\(\{[\s\S]*?Action\s*=\s*\["s3:PutObject"\]/);
++  assert.match(policy, /"s3:x-amz-server-side-encryption"\s*=\s*"aws:kms"/);
++  assert.match(policy, /"s3:x-amz-server-side-encryption-aws-kms-key-id"\s*=\s*aws_kms_key\.compliance_exports\[0\]\.arn/);
++  assert.equal([...policy.matchAll(/Resource\s*=\s*"\$\{aws_s3_bucket\.compliance_exports\[0\]\.arn\}\/organizations\/\*\/workspaces\/\*\/environments\/\*\/exports\/\*"/g)].length, 2);
++  assert.match(policy, /Action\s*=\s*concat\(\["kms:Decrypt"\], each.key == "writer" \? \["kms:GenerateDataKey"\] : \[\]\)/);
++  assert.match(policy, /Resource\s*=\s*aws_kms_key\.compliance_exports\[0\]\.arn/);
++  assert.match(policy, /"kms:ViaService"\s*=\s*"s3.\$\{var.region\}.amazonaws.com"/);
++  assert.match(policy, /"kms:EncryptionContext:aws:s3:arn"\s*=\s*\[aws_s3_bucket\.compliance_exports\[0\]\.arn, "\$\{aws_s3_bucket\.compliance_exports\[0\]\.arn\}\/organizations\/\*\/workspaces\/\*\/environments\/\*\/exports\/\*"\]/);
++  assert.doesNotMatch(policy, /"s3:DeleteObject"|"s3:\*"|"sqs:|"sts:AssumeRole"|Resource\s*=\s*"\*"/);
++}
++
++function assertSecrets(text) {
++  const secrets = resource(text, "aws_secretsmanager_secret");
++  assert.match(secrets, /kms_key_id\s*=\s*aws_kms_key\.staging\.arn/);
++  assert.match(secrets, /recovery_window_in_days\s*=\s*30/);
++  assert.doesNotMatch(text, /aws_secretsmanager_secret_version|secret_string|secret_binary/);
++  const policy = resource(text, "aws_iam_role_policy", "compliance_export_secrets");
++  assert.match(policy, /for_each\s*=\s*local\.compliance_export_secrets/);
++  assert.match(policy, /role\s*=\s*aws_iam_role\.compliance_exports\[each.key\]\.id/);
++  assert.match(policy, /Action\s*=\s*\["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"\], Resource = aws_secretsmanager_secret\.compliance_exports\[each.key\]\.arn/);
++  assert.match(policy, /"kms:EncryptionContext:SecretARN"\s*=\s*aws_secretsmanager_secret\.compliance_exports\[each.key\]\.arn/);
++  assert.match(policy, /"kms:ViaService"\s*=\s*"secretsmanager.\$\{var.region\}.amazonaws.com"/);
++  assert.match(policy, /Action\s*=\s*\["kms:Decrypt"\], Resource = aws_kms_key\.staging\.arn/);
++  const principals = block(text, 'variable "compliance_export_database_principals"');
++  assert.match(principals, /worker\s*=\s*"compliance_export_runtime"/);
++  assert.match(principals, /cleanup\s*=\s*"compliance_cleanup_runtime"/);
++  assert.match(principals, /!startswith\(principal, "zasp_"\)/);
++  assert.match(principals, /!contains\(values\(var.database_principals\), principal\)/);
++  assert.match(principals, /!contains\(values\(var.audit_export_database_principals\), principal\)/);
++  assert.match(principals, /length\(distinct\(values\(var.compliance_export_database_principals\)\)\) == 2/);
++}
++
++function assertMetadata(text) {
++  const output = block(text, 'output "compliance_exports_deployment_metadata"');
++  assert.match(output, /value\s*=\s*var.compliance_exports_enabled\s*\?\s*\{/);
++  assert.match(output, /\}\s*:\s*null/);
++  assert.deepEqual([...output.matchAll(/^    (\w+)\s*=/gm)].map(([, key]) => key).sort(), ["enabled", "awsRegion", "bucket", "bucketOwner", "kmsKeyArn", "readerRoleArn", "writerRoleArn", "cleanupRoleArn", "workerDSNSecretArn", "cleanupDSNSecretArn", "workerPrincipal", "cleanupPrincipal"].sort());
++  assert.match(output, /enabled\s*=\s*true/);
++  assert.match(output, /bucketOwner\s*=\s*var.account_id/);
++}
++
++for (const [name, check] of Object.entries({ optIn: assertOptIn, storage: assertStorage, authority: assertAuthority, secrets: assertSecrets, metadata: assertMetadata })) {
++  test(`source check: compliance ${name} contract`, () => check(source));
++}
++
++for (const [name, check, mutate] of [
++  ["removed versioning", assertStorage, (text) => text.replace(resource(text, "aws_s3_bucket_versioning"), "")],
++  ["current-key deletion", assertAuthority, (text) => text.replace('"s3:DeleteObjectVersion"', '"s3:DeleteObjectVersion", "s3:DeleteObject"')],
++  ["broadened DSN reference", assertSecrets, (text) => text.replaceAll("aws_secretsmanager_secret.compliance_exports[each.key].arn", '"*"')],
++  ["swapped service account", assertAuthority, (text) => text.replace('"zasp-compliance-cleanup-worker"', '"zasp-compliance-export-worker"')],
++]) {
++  test(`source mutation control rejects ${name}`, () => {
++    check(source);
++    const changed = mutate(source);
++    assert.notEqual(changed, source, "mutation must change the production source");
++    assert.throws(() => check(changed), assert.AssertionError);
++  });
++}
++
++test("source check: staging gate includes compliance storage checks", async () => {
++  const pkg = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8"));
++  assert.ok(pkg.scripts["staging:gate:test"].split(" ").includes("deploy/staging/compliance-exports-contract.test.mjs"));
++});
+diff --git a/deploy/staging/tests/compliance_exports_iam.tftest.hcl b/deploy/staging/tests/compliance_exports_iam.tftest.hcl
+new file mode 100644
+index 00000000..4ff70e83
+--- /dev/null
++++ b/deploy/staging/tests/compliance_exports_iam.tftest.hcl
+@@ -0,0 +1,263 @@
++# These assertions require the pinned AWS/TLS provider schemas, even when mocked.
++# They are not a live IAM acceptance test. Secret-version absence is also checked
++# by compliance-exports-contract.test.mjs; Terraform creates metadata only here.
++mock_provider "aws" {
++  override_during = plan
++  mock_resource "aws_eks_cluster" {
++    defaults = { identity = [{ oidc = [{ issuer = "https://oidc.eks.us-west-2.amazonaws.com/id/compliance-test" }] }] }
++  }
++  mock_resource "aws_kms_key" {
++    defaults = { arn = "arn:aws:kms:us-west-2:000000000000:key/11111111-1111-4111-8111-111111111111" }
++  }
++}
++mock_provider "tls" {
++  override_during = plan
++  mock_data "tls_certificate" {
++    defaults = { certificates = [{ sha1_fingerprint = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }] }
++  }
++}
++override_resource {
++  target          = aws_iam_openid_connect_provider.eks
++  override_during = plan
++  values = {
++    arn = "arn:aws:iam::000000000000:oidc-provider/oidc.eks.us-west-2.amazonaws.com/id/compliance-test"
++    url = "https://oidc.eks.us-west-2.amazonaws.com/id/compliance-test"
++  }
++}
++
++variables {
++  account_id         = "000000000000"
++  offline_validation = true
++}
++
++run "disabled_by_default" {
++  command = plan
++  assert {
++    condition     = output.compliance_exports_deployment_metadata == null
++    error_message = "Disabled compliance exports must not publish active deployment metadata."
++  }
++  assert {
++    condition = alltrue([
++      length(aws_kms_key.compliance_exports) == 0,
++      length(aws_s3_bucket.compliance_exports) == 0,
++      length(aws_s3_bucket_versioning.compliance_exports) == 0,
++      length(aws_s3_bucket_ownership_controls.compliance_exports) == 0,
++      length(aws_s3_bucket_public_access_block.compliance_exports) == 0,
++      length(aws_s3_bucket_server_side_encryption_configuration.compliance_exports) == 0,
++      length(aws_s3_bucket_lifecycle_configuration.compliance_exports) == 0,
++      length(aws_s3_bucket_policy.compliance_exports) == 0,
++      length(aws_iam_role.compliance_exports) == 0,
++      length(aws_iam_role_policy.compliance_exports) == 0,
++      length(aws_secretsmanager_secret.compliance_exports) == 0,
++      length(aws_iam_role_policy.compliance_export_secrets) == 0,
++    ])
++    error_message = "Every compliance resource must remain absent unless explicitly enabled."
++  }
++}
++
++run "isolated_versioned_exports" {
++  command = plan
++  variables { compliance_exports_enabled = true }
++
++  override_resource {
++    target          = aws_s3_bucket.compliance_exports[0]
++    override_during = plan
++    values          = { arn = "arn:aws:s3:::compliance-exports-test", id = "compliance-exports-test" }
++  }
++  override_resource {
++    target          = aws_kms_key.compliance_exports[0]
++    override_during = plan
++    values          = { arn = "arn:aws:kms:us-west-2:000000000000:key/22222222-2222-4222-8222-222222222222" }
++  }
++  override_resource {
++    target          = aws_secretsmanager_secret.compliance_exports["writer"]
++    override_during = plan
++    values          = { arn = "arn:aws:secretsmanager:us-west-2:000000000000:secret:compliance-worker-AAAAAA" }
++  }
++  override_resource {
++    target          = aws_secretsmanager_secret.compliance_exports["cleanup"]
++    override_during = plan
++    values          = { arn = "arn:aws:secretsmanager:us-west-2:000000000000:secret:compliance-cleanup-BBBBBB" }
++  }
++  override_resource {
++    target          = aws_iam_role.compliance_exports["reader"]
++    override_during = plan
++    values          = { arn = "arn:aws:iam::000000000000:role/compliance-reader", id = "compliance-reader" }
++  }
++  override_resource {
++    target          = aws_iam_role.compliance_exports["writer"]
++    override_during = plan
++    values          = { arn = "arn:aws:iam::000000000000:role/compliance-writer", id = "compliance-writer" }
++  }
++  override_resource {
++    target          = aws_iam_role.compliance_exports["cleanup"]
++    override_during = plan
++    values          = { arn = "arn:aws:iam::000000000000:role/compliance-cleanup", id = "compliance-cleanup" }
++  }
++
++  assert {
++    condition     = aws_s3_bucket.compliance_exports[0].bucket == "zasp-compliance-exports-${md5("000000000000")}" && aws_s3_bucket.compliance_exports[0].bucket != aws_s3_bucket.evidence.bucket && aws_s3_bucket.compliance_exports[0].bucket != aws_s3_bucket.red_team_evidence.bucket && !aws_s3_bucket.compliance_exports[0].force_destroy
++    error_message = "Compliance storage must use its dedicated canonical bucket and must not force-delete objects."
++  }
++  assert {
++    condition     = aws_s3_bucket_versioning.compliance_exports[0].versioning_configuration[0].status == "Enabled" && aws_s3_bucket_versioning.compliance_exports[0].bucket == aws_s3_bucket.compliance_exports[0].id
++    error_message = "Compliance objects require immutable versions in the dedicated bucket."
++  }
++  assert {
++    condition = (
++      one(aws_s3_bucket_ownership_controls.compliance_exports[0].rule).object_ownership == "BucketOwnerEnforced" &&
++      aws_s3_bucket_public_access_block.compliance_exports[0].block_public_acls &&
++      aws_s3_bucket_public_access_block.compliance_exports[0].block_public_policy &&
++      aws_s3_bucket_public_access_block.compliance_exports[0].ignore_public_acls &&
++      aws_s3_bucket_public_access_block.compliance_exports[0].restrict_public_buckets &&
++      aws_s3_bucket_public_access_block.compliance_exports[0].bucket == aws_s3_bucket.compliance_exports[0].id &&
++      aws_s3_bucket_ownership_controls.compliance_exports[0].bucket == aws_s3_bucket.compliance_exports[0].id
++    )
++    error_message = "The compliance bucket must enforce owner-only ownership and block every public-access path."
++  }
++  assert {
++    condition = (
++      length(aws_s3_bucket_server_side_encryption_configuration.compliance_exports[0].rule) == 1 &&
++      one(aws_s3_bucket_server_side_encryption_configuration.compliance_exports[0].rule).bucket_key_enabled &&
++      one(one(aws_s3_bucket_server_side_encryption_configuration.compliance_exports[0].rule).apply_server_side_encryption_by_default).sse_algorithm == "aws:kms" &&
++      one(one(aws_s3_bucket_server_side_encryption_configuration.compliance_exports[0].rule).apply_server_side_encryption_by_default).kms_master_key_id == "arn:aws:kms:us-west-2:000000000000:key/22222222-2222-4222-8222-222222222222" &&
++      aws_s3_bucket_server_side_encryption_configuration.compliance_exports[0].bucket == aws_s3_bucket.compliance_exports[0].id &&
++      aws_kms_key.compliance_exports[0].enable_key_rotation && aws_kms_key.compliance_exports[0].deletion_window_in_days == 30
++    )
++    error_message = "SSE-KMS must use the dedicated rotating key and bucket keys."
++  }
++  assert {
++    condition = (
++      length(aws_s3_bucket_lifecycle_configuration.compliance_exports[0].rule) == 2 &&
++      aws_s3_bucket_lifecycle_configuration.compliance_exports[0].bucket == aws_s3_bucket.compliance_exports[0].id &&
++      alltrue([for r in aws_s3_bucket_lifecycle_configuration.compliance_exports[0].rule : r.status == "Enabled" && one(r.filter).prefix == "organizations/"]) &&
++      length([for r in aws_s3_bucket_lifecycle_configuration.compliance_exports[0].rule : r if try(one(r.expiration).days == 1 && one(r.noncurrent_version_expiration).noncurrent_days == 1, false)]) == 1 &&
++      length([for r in aws_s3_bucket_lifecycle_configuration.compliance_exports[0].rule : r if try(one(r.expiration).expired_object_delete_marker == true && length(r.noncurrent_version_expiration) == 0, false)]) == 1
++    )
++    error_message = "Current/noncurrent one-day expiration and separate expired-marker cleanup are required as a storage backstop, not a physical 24-hour deletion guarantee."
++  }
++  assert {
++    condition = aws_s3_bucket_policy.compliance_exports[0].bucket == aws_s3_bucket.compliance_exports[0].id && jsonencode(jsondecode(aws_s3_bucket_policy.compliance_exports[0].policy)) == jsonencode({
++      Version = "2012-10-17", Statement = [{
++        Sid       = "RequireTLS", Effect = "Deny", Principal = "*", Action = "s3:*"
++        Resource  = ["arn:aws:s3:::compliance-exports-test", "arn:aws:s3:::compliance-exports-test/*"]
++        Condition = { Bool = { "aws:SecureTransport" = "false" } }
++      }]
++    })
++    error_message = "The bucket policy must deny all plaintext transport without adding access grants."
++  }
++  assert {
++    condition = (
++      toset(keys(aws_iam_role.compliance_exports)) == toset(["reader", "writer", "cleanup"]) &&
++      toset(keys(aws_iam_role_policy.compliance_exports)) == toset(["reader", "writer", "cleanup"]) &&
++      length(distinct([for role in aws_iam_role.compliance_exports : role.name])) == 3 &&
++      alltrue([for name, role in aws_iam_role.compliance_exports : role.name == "zasp-staging-compliance-export-${name}" && jsonencode(jsondecode(role.assume_role_policy)) == jsonencode({
++        Version = "2012-10-17", Statement = [{
++          Effect    = "Allow", Action = "sts:AssumeRoleWithWebIdentity"
++          Principal = { Federated = "arn:aws:iam::000000000000:oidc-provider/oidc.eks.us-west-2.amazonaws.com/id/compliance-test" }
++          Condition = { StringEquals = {
++            "oidc.eks.us-west-2.amazonaws.com/id/compliance-test:aud" = "sts.amazonaws.com"
++            "oidc.eks.us-west-2.amazonaws.com/id/compliance-test:sub" = "system:serviceaccount:agentsec:${ { reader = "agentsec-api", writer = "zasp-compliance-export-worker", cleanup = "zasp-compliance-cleanup-worker" }[name]}"
++          } }
++        }]
++      })])
++    )
++    error_message = "Exactly three distinct roles must trust only their service account, STS audience, and EKS OIDC provider."
++  }
++  assert {
++    condition = alltrue([for name, policy in aws_iam_role_policy.compliance_exports :
++      policy.role == aws_iam_role.compliance_exports[name].id &&
++      length(jsondecode(policy.policy).Statement) == (name == "writer" ? 3 : 2) &&
++      alltrue([for s in jsondecode(policy.policy).Statement : s.Effect == "Allow"]) &&
++      toset(flatten([for s in jsondecode(policy.policy).Statement : s.Action])) == toset({
++        reader  = ["s3:GetObjectVersion", "kms:Decrypt"]
++        writer  = ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject", "kms:Decrypt", "kms:GenerateDataKey"]
++        cleanup = ["s3:GetObject", "s3:GetObjectVersion", "s3:DeleteObjectVersion", "kms:Decrypt"]
++      }[name]) &&
++      alltrue([for s in jsondecode(policy.policy).Statement : s.Resource == "arn:aws:s3:::compliance-exports-test/organizations/*/workspaces/*/environments/*/exports/*" if anytrue([for action in s.Action : startswith(action, "s3:")])]) &&
++      length([for s in jsondecode(policy.policy).Statement : s if contains(s.Action, "kms:Decrypt") && jsonencode(s) == jsonencode({
++        Sid    = "ExportKey", Effect = "Allow", Resource = "arn:aws:kms:us-west-2:000000000000:key/22222222-2222-4222-8222-222222222222"
++        Action = name == "writer" ? ["kms:Decrypt", "kms:GenerateDataKey"] : ["kms:Decrypt"]
++        Condition = {
++          StringEquals = { "kms:ViaService" = "s3.us-west-2.amazonaws.com" }
++          StringLike   = { "kms:EncryptionContext:aws:s3:arn" = ["arn:aws:s3:::compliance-exports-test", "arn:aws:s3:::compliance-exports-test/organizations/*/workspaces/*/environments/*/exports/*"] }
++        }
++      })]) == 1
++    ])
++    error_message = "Each role must retain its exact object/KMS actions, dedicated object prefix, key and encryption contexts; no current-key deletion, queues or other authority."
++  }
++  assert {
++    condition = length([for s in jsondecode(aws_iam_role_policy.compliance_exports["writer"].policy).Statement : s if contains(s.Action, "s3:PutObject") && jsonencode(s.Condition) == jsonencode({
++      StringEquals = {
++        "s3:x-amz-server-side-encryption"                = "aws:kms"
++        "s3:x-amz-server-side-encryption-aws-kms-key-id" = "arn:aws:kms:us-west-2:000000000000:key/22222222-2222-4222-8222-222222222222"
++      }
++    })]) == 1
++    error_message = "Writer PutObject requires both exact encryption headers."
++  }
++  assert {
++    condition = (
++      toset(keys(aws_secretsmanager_secret.compliance_exports)) == toset(["writer", "cleanup"]) &&
++      toset(keys(aws_iam_role_policy.compliance_export_secrets)) == toset(["writer", "cleanup"]) &&
++      alltrue([for name, secret in aws_secretsmanager_secret.compliance_exports :
++        secret.name == { writer = "zasp-staging/postgres-compliance-export-worker-dsn", cleanup = "zasp-staging/postgres-compliance-cleanup-worker-dsn" }[name] &&
++        secret.kms_key_id == "arn:aws:kms:us-west-2:000000000000:key/11111111-1111-4111-8111-111111111111" &&
++        secret.recovery_window_in_days == 30 && secret.tags.CredentialClass == "postgres_dsn" &&
++        secret.tags.DatabasePrincipal == { writer = "compliance_export_runtime", cleanup = "compliance_cleanup_runtime" }[name]
++      ]) &&
++      alltrue([for name, policy in aws_iam_role_policy.compliance_export_secrets : policy.role == aws_iam_role.compliance_exports[name].id && jsonencode(jsondecode(policy.policy)) == jsonencode({
++        Version = "2012-10-17", Statement = [
++          { Effect = "Allow", Action = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"], Resource = aws_secretsmanager_secret.compliance_exports[name].arn },
++          { Effect = "Allow", Action = ["kms:Decrypt"], Resource = "arn:aws:kms:us-west-2:000000000000:key/11111111-1111-4111-8111-111111111111", Condition = { StringEquals = {
++            "kms:ViaService"                  = "secretsmanager.us-west-2.amazonaws.com"
++            "kms:EncryptionContext:SecretARN" = aws_secretsmanager_secret.compliance_exports[name].arn
++          } } }
++        ]
++      })])
++    )
++    error_message = "Only the two worker roles may read their own DSN metadata reference and decrypt its matching Secrets Manager context."
++  }
++  assert {
++    condition = jsonencode(output.compliance_exports_deployment_metadata) == jsonencode({
++      enabled             = true
++      awsRegion           = "us-west-2"
++      bucket              = "zasp-compliance-exports-${md5("000000000000")}"
++      bucketOwner         = "000000000000"
++      kmsKeyArn           = "arn:aws:kms:us-west-2:000000000000:key/22222222-2222-4222-8222-222222222222"
++      readerRoleArn       = "arn:aws:iam::000000000000:role/compliance-reader"
++      writerRoleArn       = "arn:aws:iam::000000000000:role/compliance-writer"
++      cleanupRoleArn      = "arn:aws:iam::000000000000:role/compliance-cleanup"
++      workerDSNSecretArn  = "arn:aws:secretsmanager:us-west-2:000000000000:secret:compliance-worker-AAAAAA"
++      cleanupDSNSecretArn = "arn:aws:secretsmanager:us-west-2:000000000000:secret:compliance-cleanup-BBBBBB"
++      workerPrincipal     = "compliance_export_runtime"
++      cleanupPrincipal    = "compliance_cleanup_runtime"
++    })
++    error_message = "Deployment metadata must contain exactly the non-network complianceExports fields, without credential values or invented CIDRs."
++  }
++}
++
++run "reject_duplicate_principals" {
++  command = plan
++  variables { compliance_export_database_principals = { worker = "compliance_same", cleanup = "compliance_same" } }
++  expect_failures = [var.compliance_export_database_principals]
++}
++
++run "reject_capability_namespace" {
++  command = plan
++  variables { compliance_export_database_principals = { worker = "zasp_compliance_worker", cleanup = "compliance_cleanup_runtime" } }
++  expect_failures = [var.compliance_export_database_principals]
++}
++
++run "reject_malformed_principal" {
++  command = plan
++  variables { compliance_export_database_principals = { worker = "Compliance Worker", cleanup = "compliance_cleanup_runtime" } }
++  expect_failures = [var.compliance_export_database_principals]
++}
++
++run "reject_audit_principal_collision" {
++  command = plan
++  variables {
++    audit_export_database_principals = { worker = "compliance_export_runtime", outbox = "audit_outbox_runtime" }
++  }
++  expect_failures = [var.compliance_export_database_principals]
++}

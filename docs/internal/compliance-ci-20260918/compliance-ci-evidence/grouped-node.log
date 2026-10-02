@@ -1,0 +1,899 @@
+TAP version 13
+# Subtest: lost-create fault sends real status then truncated bytes only after upstream completion
+ok 1 - lost-create fault sends real status then truncated bytes only after upstream completion
+  ---
+  duration_ms: 33.826042
+  type: 'test'
+  ...
+# Subtest: accepts only the spawned provider's owned readiness and rejects foreign authority
+ok 2 - accepts only the spawned provider's owned readiness and rejects foreign authority
+  ---
+  duration_ms: 2.021792
+  type: 'test'
+  ...
+# Subtest: async fixture assertion retains the failure and joins its owned child before exit
+ok 3 - async fixture assertion retains the failure and joins its owned child before exit
+  ---
+  duration_ms: 97.829167
+  type: 'test'
+  ...
+# Subtest: selected export mode refuses ambiguous or unrelated runtime selections
+ok 4 - selected export mode refuses ambiguous or unrelated runtime selections
+  ---
+  duration_ms: 0.348708
+  type: 'test'
+  ...
+# Subtest: preparation-only boundary needs explicit selected mode and refuses misspelled flags
+ok 5 - preparation-only boundary needs explicit selected mode and refuses misspelled flags
+  ---
+  duration_ms: 0.209167
+  type: 'test'
+  ...
+# Subtest: policy diagnostics preserve the original browser failure when CDP is unavailable
+ok 6 - policy diagnostics preserve the original browser failure when CDP is unavailable
+  ---
+  duration_ms: 6.909875
+  type: 'test'
+  ...
+# Subtest: browser text click waits for enabled controls before reporting a dispatched action
+ok 7 - browser text click waits for enabled controls before reporting a dispatched action
+  ---
+  duration_ms: 2.943458
+  type: 'test'
+  ...
+# Subtest: both browser terminal branches propagate provider failure after joining
+ok 8 - both browser terminal branches propagate provider failure after joining
+  ---
+  duration_ms: 4.541042
+  type: 'test'
+  ...
+# Subtest: provider completion rejects actual nonzero and signalled child exits
+ok 9 - provider completion rejects actual nonzero and signalled child exits
+  ---
+  duration_ms: 101.133959
+  type: 'test'
+  ...
+# Subtest: provider join preserves a rejected completion
+ok 10 - provider join preserves a rejected completion
+  ---
+  duration_ms: 0.151541
+  type: 'test'
+  ...
+# Subtest: package acceptance selects both audit browser regression files
+ok 11 - package acceptance selects both audit browser regression files
+  ---
+  duration_ms: 1.27775
+  type: 'test'
+  ...
+# Subtest: large-export validation retains measured diagnostics before rejecting a short envelope
+ok 12 - large-export validation retains measured diagnostics before rejecting a short envelope
+  ---
+  duration_ms: 0.289417
+  type: 'test'
+  ...
+# Subtest: large-export validation preserves event, byte and envelope acceptance boundaries
+ok 13 - large-export validation preserves event, byte and envelope acceptance boundaries
+  ---
+  duration_ms: 0.398334
+  type: 'test'
+  ...
+# Subtest: browser reload preserves the current top-level browsing context
+ok 14 - browser reload preserves the current top-level browsing context
+  ---
+  duration_ms: 0.659917
+  type: 'test'
+  ...
+# Subtest: macOS preserves the existing application default
+ok 15 - macOS preserves the existing application default
+  ---
+  duration_ms: 3.789041
+  type: 'test'
+  ...
+# Subtest: explicit Linux executable with spaces and shell metacharacters is passed literally
+ok 16 - explicit Linux executable with spaces and shell metacharacters is passed literally
+  ---
+  duration_ms: 404.191833
+  type: 'test'
+  ...
+# Subtest: explicit relative browser path fails without fallback
+ok 17 - explicit relative browser path fails without fallback
+  ---
+  duration_ms: 0.500291
+  type: 'test'
+  ...
+# Subtest: explicit newline browser path fails without fallback
+ok 18 - explicit newline browser path fails without fallback
+  ---
+  duration_ms: 0.139416
+  type: 'test'
+  ...
+# Subtest: explicit NUL browser path fails without fallback
+ok 19 - explicit NUL browser path fails without fallback
+  ---
+  duration_ms: 0.050166
+  type: 'test'
+  ...
+# Subtest: explicit tab browser path fails without fallback
+ok 20 - explicit tab browser path fails without fallback
+  ---
+  duration_ms: 0.089583
+  type: 'test'
+  ...
+# Subtest: explicit DEL browser path fails without fallback
+ok 21 - explicit DEL browser path fails without fallback
+  ---
+  duration_ms: 0.035125
+  type: 'test'
+  ...
+# Subtest: explicit C1 browser path fails without fallback
+ok 22 - explicit C1 browser path fails without fallback
+  ---
+  duration_ms: 0.152916
+  type: 'test'
+  ...
+# Subtest: explicit empty browser path fails without fallback
+ok 23 - explicit empty browser path fails without fallback
+  ---
+  duration_ms: 0.196417
+  type: 'test'
+  ...
+# Subtest: explicit nonexistent path fails despite a valid PATH fallback
+ok 24 - explicit nonexistent path fails despite a valid PATH fallback
+  ---
+  duration_ms: 2.214958
+  type: 'test'
+  ...
+# Subtest: explicit nonexecutable path fails despite a valid PATH fallback
+ok 25 - explicit nonexecutable path fails despite a valid PATH fallback
+  ---
+  duration_ms: 2.006166
+  type: 'test'
+  ...
+# Subtest: explicit directory path fails despite a valid PATH fallback
+ok 26 - explicit directory path fails despite a valid PATH fallback
+  ---
+  duration_ms: 1.323416
+  type: 'test'
+  ...
+# Subtest: Linux resolves installed Chrome from PATH and refuses missing defaults
+ok 27 - Linux resolves installed Chrome from PATH and refuses missing defaults
+  ---
+  duration_ms: 1.767291
+  type: 'test'
+  ...
+# Subtest: checked prerequisites reach setup once with resolved browser and PostgreSQL paths
+ok 28 - checked prerequisites reach setup once with resolved browser and PostgreSQL paths
+  ---
+  duration_ms: 204.017375
+  type: 'test'
+  ...
+# Subtest: missing chrome prevents setup and identifies the prerequisite
+ok 29 - missing chrome prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 8.143708
+  type: 'test'
+  ...
+# Subtest: missing go prevents setup and identifies the prerequisite
+ok 30 - missing go prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 6.450291
+  type: 'test'
+  ...
+# Subtest: missing docker prevents setup and identifies the prerequisite
+ok 31 - missing docker prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 7.528458
+  type: 'test'
+  ...
+# Subtest: missing openssl prevents setup and identifies the prerequisite
+ok 32 - missing openssl prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 6.720584
+  type: 'test'
+  ...
+# Subtest: missing pg_config prevents setup and identifies the prerequisite
+ok 33 - missing pg_config prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 6.595417
+  type: 'test'
+  ...
+# Subtest: missing pg/psql prevents setup and identifies the prerequisite
+ok 34 - missing pg/psql prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 199.634917
+  type: 'test'
+  ...
+# Subtest: missing node_modules/.bin/vinext prevents setup and identifies the prerequisite
+ok 35 - missing node_modules/.bin/vinext prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 200.366375
+  type: 'test'
+  ...
+# Subtest: missing dist/server/index.js prevents setup and identifies the prerequisite
+ok 36 - missing dist/server/index.js prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 194.905917
+  type: 'test'
+  ...
+# Subtest: the actual harness exits nonzero before setup for an invalid explicit browser
+ok 37 - the actual harness exits nonzero before setup for an invalid explicit browser
+  ---
+  duration_ms: 61.49125
+  type: 'test'
+  ...
+# Subtest: raw member comparison retains whitespace, escaped strings and record order
+ok 38 - raw member comparison retains whitespace, escaped strings and record order
+  ---
+  duration_ms: 0.45175
+  type: 'test'
+  ...
+# Subtest: starts only pinned loopback ephemeral PostgreSQL and joins its exact container
+ok 39 - starts only pinned loopback ephemeral PostgreSQL and joins its exact container
+  ---
+  duration_ms: 3.836666
+  type: 'test'
+  ...
+# Subtest: rejects invalid ports before dispatch
+ok 40 - rejects invalid ports before dispatch
+  ---
+  duration_ms: 0.224125
+  type: 'test'
+  ...
+# Subtest: initializes the same C UTF8 database as the pinned migration reference fixture
+ok 41 - initializes the same C UTF8 database as the pinned migration reference fixture
+  ---
+  duration_ms: 0.285833
+  type: 'test'
+  ...
+# Subtest: default startup leaves function instrumentation off
+ok 42 - default startup leaves function instrumentation off
+  ---
+  duration_ms: 1.003417
+  type: 'test'
+  ...
+# Subtest: readiness failure still removes the created container
+ok 43 - readiness failure still removes the created container
+  ---
+  duration_ms: 39.794
+  type: 'test'
+  ...
+# Subtest: early server exit fails readiness even if the CLI already exited successfully
+ok 44 - early server exit fails readiness even if the CLI already exited successfully
+  ---
+  duration_ms: 0.478125
+  type: 'test'
+  ...
+# Subtest: failed start removes the exact created resource
+ok 45 - failed start removes the exact created resource
+  ---
+  duration_ms: 0.267833
+  type: 'test'
+  ...
+# Subtest: lost create response recovers only the invocation name and matching ownership label
+ok 46 - lost create response recovers only the invocation name and matching ownership label
+  ---
+  duration_ms: 0.222708
+  type: 'test'
+  ...
+# Subtest: ambiguous create cannot remove a container without matching ownership
+ok 47 - ambiguous create cannot remove a container without matching ownership
+  ---
+  duration_ms: 0.330917
+  type: 'test'
+  ...
+# Subtest: concurrent and repeated stop perform one exact cleanup
+ok 48 - concurrent and repeated stop perform one exact cleanup
+  ---
+  duration_ms: 0.449375
+  type: 'test'
+  ...
+# Subtest: cancellation joins an in-flight create then recovers and removes its resource
+ok 49 - cancellation joins an in-flight create then recovers and removes its resource
+  ---
+  duration_ms: 0.25075
+  type: 'test'
+  ...
+# Subtest: hung commands are bounded and joined before cleanup
+ok 50 - hung commands are bounded and joined before cleanup
+  ---
+  duration_ms: 30.219083
+  type: 'test'
+  ...
+# Subtest: cleanup failure stays rejected even when repeated and absence checks still run
+ok 51 - cleanup failure stays rejected even when repeated and absence checks still run
+  ---
+  duration_ms: 0.328208
+  type: 'test'
+  ...
+# Subtest: successful CLI removal without observed container absence fails the join
+ok 52 - successful CLI removal without observed container absence fails the join
+  ---
+  duration_ms: 0.142
+  type: 'test'
+  ...
+# Subtest: owned command retains exact result and settled cleanup is idempotent
+ok 53 - owned command retains exact result and settled cleanup is idempotent
+  ---
+  duration_ms: 46.487208
+  type: 'test'
+  ...
+# Subtest: failed spawn still settles cleanup without hiding the command error
+ok 54 - failed spawn still settles cleanup without hiding the command error
+  ---
+  duration_ms: 1.440083
+  type: 'test'
+  ...
+# Subtest: owned command settles a TERM-resistant descendant when parent-waits
+ok 55 - owned command settles a TERM-resistant descendant when parent-waits
+  ---
+  duration_ms: 215.135209
+  type: 'test'
+  ...
+# Subtest: owned command settles a TERM-resistant descendant when parent-exits
+ok 56 - owned command settles a TERM-resistant descendant when parent-exits
+  ---
+  duration_ms: 265.675167
+  type: 'test'
+  ...
+# Subtest: temporary policy child budget covers lease recovery and preserves failures
+ok 57 - temporary policy child budget covers lease recovery and preserves failures
+  ---
+  duration_ms: 11.169667
+  type: 'test'
+  ...
+# Subtest: broad release helper rejects migration or readback failure
+ok 58 - broad release helper rejects migration or readback failure
+  ---
+  duration_ms: 6.116833
+  type: 'test'
+  ...
+# Subtest: broad lifecycle orchestration gates migration and startup on the joined historical proof
+ok 59 - broad lifecycle orchestration gates migration and startup on the joined historical proof
+  ---
+  duration_ms: 6.114
+  type: 'test'
+  ...
+# Subtest: broad lifecycle orchestration detects missing joins and bypassed mode or release guards
+ok 60 - broad lifecycle orchestration detects missing joins and bypassed mode or release guards
+  ---
+  duration_ms: 6.669875
+  type: 'test'
+  ...
+# Subtest: automatic fixture selects concurrency from exact scoped trigger inventory
+ok 61 - automatic fixture selects concurrency from exact scoped trigger inventory
+  ---
+  duration_ms: 6.248208
+  type: 'test'
+  ...
+# Subtest: pagination seed retains102 paths but grants verified trigger state only to canonical path1
+ok 62 - pagination seed retains102 paths but grants verified trigger state only to canonical path1
+  ---
+  duration_ms: 2.144583
+  type: 'test'
+  ...
+# Subtest: scoped path readback rejects lost pagination evidence, duplicate IDs and any extra verified trigger
+ok 63 - scoped path readback rejects lost pagination evidence, duplicate IDs and any extra verified trigger
+  ---
+  duration_ms: 7.555542
+  type: 'test'
+  ...
+# Subtest: automatic fixture reconciles only its owned create receipt at v1 before public activation
+ok 64 - automatic fixture reconciles only its owned create receipt at v1 before public activation
+  ---
+  duration_ms: 8.2455
+  type: 'test'
+  ...
+# Subtest: automatic fixture rejects mismatched receipts and readbacks without ACK or activation
+ok 65 - automatic fixture rejects mismatched receipts and readbacks without ACK or activation
+  ---
+  duration_ms: 54.689542
+  type: 'test'
+  ...
+# Subtest: automatic fixture rejects failed ACK or altered pending receipts before activation
+ok 66 - automatic fixture rejects failed ACK or altered pending receipts before activation
+  ---
+  duration_ms: 22.773208
+  type: 'test'
+  ...
+# Subtest: automatic fixture control setup preserves global authority and uses each tenant CAS version
+ok 67 - automatic fixture control setup preserves global authority and uses each tenant CAS version
+  ---
+  duration_ms: 1.696583
+  type: 'test'
+  ...
+# Subtest: automatic fixture authenticates exact scope and sends fresh CAS browser authority
+ok 68 - automatic fixture authenticates exact scope and sends fresh CAS browser authority
+  ---
+  duration_ms: 1.582333
+  type: 'test'
+  ...
+# Subtest: automatic fixture permits headerless204 only for the exact receipt ACK protocol
+ok 69 - automatic fixture permits headerless204 only for the exact receipt ACK protocol
+  ---
+  duration_ms: 1.928375
+  type: 'test'
+  ...
+# Subtest: automatic fixture preserves every scenario and never seeds execution or resets admitted budgets
+ok 70 - automatic fixture preserves every scenario and never seeds execution or resets admitted budgets
+  ---
+  duration_ms: 1.377416
+  type: 'test'
+  ...
+# Subtest: Security Agent simulation mode rejects invalid and conflicting flags before allocating resources
+ok 71 - Security Agent simulation mode rejects invalid and conflicting flags before allocating resources
+  ---
+  duration_ms: 614.092584
+  type: 'test'
+  ...
+# Subtest: Security Agent simulation selection bypasses broad dependencies and propagates failure
+ok 72 - Security Agent simulation selection bypasses broad dependencies and propagates failure
+  ---
+  duration_ms: 3.719375
+  type: 'test'
+  ...
+# Subtest: selected lost-create proof waits for enabled retry after the real response settles
+ok 73 - selected lost-create proof waits for enabled retry after the real response settles
+  ---
+  duration_ms: 2.980167
+  type: 'test'
+  ...
+# Subtest: actual audit adapter replaces the principal through public login and logs out the owned reader
+ok 74 - actual audit adapter replaces the principal through public login and logs out the owned reader
+  ---
+  duration_ms: 3.2285
+  type: 'test'
+  ...
+# Subtest: audit principal restoration failure does not skip owned paging cleanup
+ok 75 - audit principal restoration failure does not skip owned paging cleanup
+  ---
+  duration_ms: 1.323209
+  type: 'test'
+  ...
+# Subtest: selected audit setup runs compiled53 and real API registration before policy configuration
+ok 76 - selected audit setup runs compiled53 and real API registration before policy configuration
+  ---
+  duration_ms: 3.054917
+  type: 'test'
+  ...
+# Subtest: actual combined API environment keeps separate logins and removes ambient audit presence
+ok 77 - actual combined API environment keeps separate logins and removes ambient audit presence
+  ---
+  duration_ms: 1.782
+  type: 'test'
+  ...
+# Subtest: audit browser mode refuses before PostgreSQL discovery or resource allocation
+ok 78 - audit browser mode refuses before PostgreSQL discovery or resource allocation
+  ---
+  duration_ms: 191.780209
+  type: 'test'
+  ...
+# Subtest: precise browser rejects every missing prerequisite before dependency allocation
+ok 79 - precise browser rejects every missing prerequisite before dependency allocation
+  ---
+  duration_ms: 508.51575
+  type: 'test'
+  ...
+# Subtest: precision proof rejects missing prerequisite flags before starting dependencies
+ok 80 - precision proof rejects missing prerequisite flags before starting dependencies
+  ---
+  duration_ms: 166.257416
+  type: 'test'
+  ...
+# Subtest: sandbox search cutover rejects broad harness mode before starting dependencies
+ok 81 - sandbox search cutover rejects broad harness mode before starting dependencies
+  ---
+  duration_ms: 68.354625
+  type: 'test'
+  ...
+# Subtest: combined product proof requires the forward reconciliation migration
+ok 82 - combined product proof requires the forward reconciliation migration
+  ---
+  duration_ms: 2.075708
+  type: 'test'
+  ...
+# Subtest: enrollment pairing proof requires schema45 and real browser lifecycle
+ok 83 - enrollment pairing proof requires schema45 and real browser lifecycle
+  ---
+  duration_ms: 3.194541
+  type: 'test'
+  ...
+# Subtest: observed lineage composition separates v1 preservation from local v2 correlation
+ok 84 - observed lineage composition separates v1 preservation from local v2 correlation
+  ---
+  duration_ms: 1.5335
+  type: 'test'
+  ...
+# Subtest: confidence display fixture cannot claim production correlation reachability
+ok 85 - confidence display fixture cannot claim production correlation reachability
+  ---
+  duration_ms: 1.334417
+  type: 'test'
+  ...
+# Subtest: mixed evidence browser acceptance uses worker data and visible confidence
+ok 86 - mixed evidence browser acceptance uses worker data and visible confidence
+  ---
+  duration_ms: 1.000875
+  type: 'test'
+  ...
+# Subtest: six-class evidence proof requires schema44 and worker-backed scoped links
+ok 87 - six-class evidence proof requires schema44 and worker-backed scoped links
+  ---
+  duration_ms: 1.477959
+  type: 'test'
+  ...
+# Subtest: session indexing composition requires schema42 and production checkpoint proof
+ok 88 - session indexing composition requires schema42 and production checkpoint proof
+  ---
+  duration_ms: 0.955542
+  type: 'test'
+  ...
+# Subtest: runtime query composition requires schema43 and real indexed HTTP search
+ok 89 - runtime query composition requires schema43 and real indexed HTTP search
+  ---
+  duration_ms: 1.146917
+  type: 'test'
+  ...
+# Subtest: audit-only policy fixture refuses session reads when no runtime engine is configured
+ok 90 - audit-only policy fixture refuses session reads when no runtime engine is configured
+  ---
+  duration_ms: 30.54425
+  type: 'test'
+  ...
+# Subtest: runtime proxy forwards only fixed target1 and target2 read routes to the owned engine
+ok 91 - runtime proxy forwards only fixed target1 and target2 read routes to the owned engine
+  ---
+  duration_ms: 54.360167
+  type: 'test'
+  ...
+# Subtest: precise callback readiness accepts authorized empty inventory and still checks fresh session authority
+ok 92 - precise callback readiness accepts authorized empty inventory and still checks fresh session authority
+  ---
+  duration_ms: 2.430583
+  type: 'test'
+  ...
+# Subtest: a pending deadline after server allocation leaves the server owned by parent cleanup
+ok 93 - a pending deadline after server allocation leaves the server owned by parent cleanup
+  ---
+  duration_ms: 1.956916
+  type: 'test'
+  ...
+# Subtest: runtime timeline proves reverse-ingress canonical order across real UI pages
+ok 94 - runtime timeline proves reverse-ingress canonical order across real UI pages
+  ---
+  duration_ms: 1.22
+  type: 'test'
+  ...
+# Subtest: runtime Sessions UI filters worker-written evidence and resets on scope change
+ok 95 - runtime Sessions UI filters worker-written evidence and resets on scope change
+  ---
+  duration_ms: 1.340875
+  type: 'test'
+  ...
+# Subtest: runtime recovery proof owns authenticated TLS Neo4j instead of a graph stub
+ok 96 - runtime recovery proof owns authenticated TLS Neo4j instead of a graph stub
+  ---
+  duration_ms: 4.015541
+  type: 'test'
+  ...
+# Subtest: runtime candidate recovery requires production-created v2 jobs without fixture relabeling
+ok 97 - runtime candidate recovery requires production-created v2 jobs without fixture relabeling
+  ---
+  duration_ms: 3.103167
+  type: 'test'
+  ...
+# Subtest: runtime session browser proof reads worker-written evidence without seeding sessions
+ok 98 - runtime session browser proof reads worker-written evidence without seeding sessions
+  ---
+  duration_ms: 2.588709
+  type: 'test'
+  ...
+# Subtest: session search proof requires committed evidence and real-engine filter completeness
+ok 99 - session search proof requires committed evidence and real-engine filter completeness
+  ---
+  duration_ms: 5.186375
+  type: 'test'
+  ...
+# Subtest: Home exposure E2E waits for loaded rows, not the persistent navigation title
+ok 100 - Home exposure E2E waits for loaded rows, not the persistent navigation title
+  ---
+  duration_ms: 0.988291
+  type: 'test'
+  ...
+# Subtest: webhook browser E2E verifies real persisted outcome across response loss and reload
+ok 101 - webhook browser E2E verifies real persisted outcome across response loss and reload
+  ---
+  duration_ms: 1.081708
+  type: 'test'
+  ...
+# Subtest: Red Team response recovery proves committed authority without duplicate work
+ok 102 - Red Team response recovery proves committed authority without duplicate work
+  ---
+  duration_ms: 1.808875
+  type: 'test'
+  ...
+# Subtest: recommendation browser proof uses discovered targets without granting execution
+ok 103 - recommendation browser proof uses discovered targets without granting execution
+  ---
+  duration_ms: 3.466292
+  type: 'test'
+  ...
+# Subtest: Red Team runtime proof preserves real composition and exact evidence claims
+ok 104 - Red Team runtime proof preserves real composition and exact evidence claims
+  ---
+  duration_ms: 2.251125
+  type: 'test'
+  ...
+# Subtest: Red Team outcome browser proof reaches safety review without granting execution
+ok 105 - Red Team outcome browser proof reaches safety review without granting execution
+  ---
+  duration_ms: 1.615208
+  type: 'test'
+  ...
+# Subtest: combined production E2E owns every local boundary and fixed assertion
+ok 106 - combined production E2E owns every local boundary and fixed assertion
+  ---
+  duration_ms: 22.993417
+  type: 'test'
+  ...
+# Subtest: mounted acceptance rejects Docker pull and build before allocating an owned command
+ok 107 - mounted acceptance rejects Docker pull and build before allocating an owned command
+  ---
+  duration_ms: 2.464
+  type: 'test'
+  ...
+# Subtest: owned cleanup is idempotent
+ok 108 - owned cleanup is idempotent
+  ---
+  duration_ms: 0.241666
+  type: 'test'
+  ...
+# Subtest: failed checkpoint or provider joins retain errors and files while other owned resources close
+    # Subtest: checkpoint
+    ok 1 - checkpoint
+      ---
+      duration_ms: 1.337833
+      type: 'test'
+      ...
+    # Subtest: mounted first
+    ok 2 - mounted first
+      ---
+      duration_ms: 0.985375
+      type: 'test'
+      ...
+    # Subtest: provider
+    ok 3 - provider
+      ---
+      duration_ms: 0.915166
+      type: 'test'
+      ...
+    # Subtest: graph
+    ok 4 - graph
+      ---
+      duration_ms: 32.20475
+      type: 'test'
+      ...
+    # Subtest: browser
+    ok 5 - browser
+      ---
+      duration_ms: 2.73175
+      type: 'test'
+      ...
+    # Subtest: audit provider
+    ok 6 - audit provider
+      ---
+      duration_ms: 1.253833
+      type: 'test'
+      ...
+    # Subtest: postgres
+    ok 7 - postgres
+      ---
+      duration_ms: 1.126208
+      type: 'test'
+      ...
+    # Subtest: all closed
+    ok 8 - all closed
+      ---
+      duration_ms: 1.618958
+      type: 'test'
+      ...
+    1..8
+ok 109 - failed checkpoint or provider joins retain errors and files while other owned resources close
+  ---
+  duration_ms: 46.804458
+  type: 'test'
+  ...
+# Subtest: combined PostgreSQL startup registers its owner before readiness rejects
+ok 110 - combined PostgreSQL startup registers its owner before readiness rejects
+  ---
+  duration_ms: 2.673834
+  type: 'test'
+  ...
+# Subtest: retirement diagnostic rejects dead owned container despite a live Docker CLI child
+ok 111 - retirement diagnostic rejects dead owned container despite a live Docker CLI child
+  ---
+  duration_ms: 2.27075
+  type: 'test'
+  ...
+# Subtest: combined production E2E removes owned processes and temp root on SIGTERM
+ok 112 - combined production E2E removes owned processes and temp root on SIGTERM
+  ---
+  duration_ms: 1975.269625
+  type: 'test'
+  ...
+# Subtest: combined runtime proof removes owned containers and processes on real SIGTERM
+ok 113 - combined runtime proof removes owned containers and processes on real SIGTERM # SKIP
+  ---
+  duration_ms: 0.100167
+  type: 'test'
+  ...
+# Subtest: composed Red Team runtime removes its owned container on real SIGTERM
+ok 114 - composed Red Team runtime removes its owned container on real SIGTERM # SKIP
+  ---
+  duration_ms: 0.03875
+  type: 'test'
+  ...
+# Subtest: cached pipeline preparation performs no registry requests
+ok 115 - cached pipeline preparation performs no registry requests
+  ---
+  duration_ms: 1.080375
+  type: 'test'
+  ...
+# Subtest: runtime proof uses pinned loopback-only disposable dependencies
+ok 116 - runtime proof uses pinned loopback-only disposable dependencies
+  ---
+  duration_ms: 0.381708
+  type: 'test'
+  ...
+# Subtest: cleanup is idempotent and verifies exact ownership before deletion
+ok 117 - cleanup is idempotent and verifies exact ownership before deletion
+  ---
+  duration_ms: 0.327708
+  type: 'test'
+  ...
+# Subtest: cleanup never deletes a container with mismatched ownership
+ok 118 - cleanup never deletes a container with mismatched ownership
+  ---
+  duration_ms: 0.125583
+  type: 'test'
+  ...
+# Subtest: cold image preparation cannot hold container cleanup behind a registry request
+ok 119 - cold image preparation cannot hold container cleanup behind a registry request
+  ---
+  duration_ms: 0.228917
+  type: 'test'
+  ...
+# Subtest: interrupted in-flight starts are bounded and delete only the verified owned ID
+ok 120 - interrupted in-flight starts are bounded and delete only the verified owned ID
+  ---
+  duration_ms: 0.177667
+  type: 'test'
+  ...
+# Subtest: public container bindings fail closed but owned cleanup still runs
+ok 121 - public container bindings fail closed but owned cleanup still runs
+  ---
+  duration_ms: 0.113125
+  type: 'test'
+  ...
+# Subtest: cleanup retries one transient inspection failure before verified deletion
+ok 122 - cleanup retries one transient inspection failure before verified deletion
+  ---
+  duration_ms: 0.201625
+  type: 'test'
+  ...
+# Subtest: cleanup bounds persistent inspection failure and never deletes unverified identity
+ok 123 - cleanup bounds persistent inspection failure and never deletes unverified identity
+  ---
+  duration_ms: 0.266
+  type: 'test'
+  ...
+# Subtest: a successful inspection retry cannot substitute foreign or malformed ownership
+ok 124 - a successful inspection retry cannot substitute foreign or malformed ownership
+  ---
+  duration_ms: 0.710917
+  type: 'test'
+  ...
+# Subtest: browser mode requires every exact prerequisite before allocation
+ok 125 - browser mode requires every exact prerequisite before allocation
+  ---
+  duration_ms: 0.664458
+  type: 'test'
+  ...
+# Subtest: browser acceptance requires exact persisted Strong and unknown identities without inventing source-time display
+ok 126 - browser acceptance requires exact persisted Strong and unknown identities without inventing source-time display
+  ---
+  duration_ms: 2.75575
+  type: 'test'
+  ...
+# Subtest: canonical browser order preserves adjacent nanoseconds despite reverse lexical IDs
+ok 127 - canonical browser order preserves adjacent nanoseconds despite reverse lexical IDs
+  ---
+  duration_ms: 0.112875
+  type: 'test'
+  ...
+# Subtest: canonical browser order uses IDs for equal instants with different fraction widths
+ok 128 - canonical browser order uses IDs for equal instants with different fraction widths
+  ---
+  duration_ms: 0.096917
+  type: 'test'
+  ...
+# Subtest: canonical browser order compares offset instants without dropping nanoseconds
+ok 129 - canonical browser order compares offset instants without dropping nanoseconds
+  ---
+  duration_ms: 0.193417
+  type: 'test'
+  ...
+# Subtest: checkpoint holds the actual HTTP caller until one authorized release
+ok 130 - checkpoint holds the actual HTTP caller until one authorized release
+  ---
+  duration_ms: 24.236125
+  type: 'test'
+  ...
+# Subtest: invalid requests cannot choose a runtime authority or consume readiness
+ok 131 - invalid requests cannot choose a runtime authority or consume readiness
+  ---
+  duration_ms: 13.235625
+  type: 'test'
+  ...
+# Subtest: close before ready rejects all waiters and closes the port
+ok 132 - close before ready rejects all waiters and closes the port
+  ---
+  duration_ms: 0.847292
+  type: 'test'
+  ...
+# Subtest: ready timeout and abort settle readiness without a caller
+ok 133 - ready timeout and abort settle readiness without a caller
+  ---
+  duration_ms: 22.07425
+  type: 'test'
+  ...
+# Subtest: release deadline respects the shorter inherited provider deadline
+ok 134 - release deadline respects the shorter inherited provider deadline
+  ---
+  duration_ms: 82.001583
+  type: 'test'
+  ...
+# Subtest: closing before release fails the paused provider, not a successful release
+ok 135 - closing before release fails the paused provider, not a successful release
+  ---
+  duration_ms: 1.222292
+  type: 'test'
+  ...
+# Subtest: a disconnected paused provider cannot later be released
+ok 136 - a disconnected paused provider cannot later be released
+  ---
+  duration_ms: 1.816583
+  type: 'test'
+  ...
+# Subtest: checkpoint accepts Go HTML escapes while refusing duplicate metadata keys
+ok 137 - checkpoint accepts Go HTML escapes while refusing duplicate metadata keys
+  ---
+  duration_ms: 1.89475
+  type: 'test'
+  ...
+# Subtest: an already cancelled gate returns a valid closed owned endpoint
+ok 138 - an already cancelled gate returns a valid closed owned endpoint
+  ---
+  duration_ms: 0.640709
+  type: 'test'
+  ...
+# Subtest: parent lifecycle preserves provider success but suppresses browser success after a later failure
+ok 139 - parent lifecycle preserves provider success but suppresses browser success after a later failure
+  ---
+  duration_ms: 5.607291
+  type: 'test'
+  ...
+# Subtest: an early provider failure settles the ready waiter before child join
+ok 140 - an early provider failure settles the ready waiter before child join
+  ---
+  duration_ms: 0.415458
+  type: 'test'
+  ...
+1..140
+# tests 148
+# suites 0
+# pass 146
+# fail 0
+# cancelled 0
+# skipped 2
+# todo 0
+# duration_ms 4021.827209

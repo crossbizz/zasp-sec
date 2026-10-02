@@ -1,0 +1,158 @@
+package apiserver
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+)
+
+// Optional driver capability, intentionally absent from general JSONDatabase.
+// The concrete driver must explicitly request READ COMMITTED; no transaction or
+// arbitrary SQL callback escapes this narrow durable-write operation.
+type integrationRejectionTransactionDriver interface {
+	BeginReadCommitted(context.Context) (pgx.Tx, error)
+}
+
+func (database *PostgresJSONDatabase) AuditIntegrationRejection(ctx context.Context, identity RequestIdentity, command IntegrationRejection) error {
+	if database == nil || ctx == nil || !validIntegrationRejection(identity, command) {
+		return ErrRepositoryOperation
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	database.mu.RLock()
+	defer database.mu.RUnlock()
+	if database.closed || nilInterface(database.driver) {
+		return ErrRepositoryUnavailable
+	}
+	driver, ok := database.driver.(integrationRejectionTransactionDriver)
+	if !ok {
+		return ErrRepositoryUnavailable
+	}
+	tx, err := driver.BeginReadCommitted(ctx)
+	if err != nil {
+		return ErrRepositoryUnavailable
+	}
+	defer func() {
+		cleanup, stop := context.WithTimeout(context.Background(), 5*time.Second)
+		defer stop()
+		_ = tx.Rollback(cleanup)
+	}()
+	var isolation string
+	if err = tx.QueryRow(ctx, `SHOW transaction_isolation`).Scan(&isolation); err != nil || isolation != "read committed" {
+		return ErrRepositoryUnavailable
+	}
+	if err = integrationRejectionReady(ctx, tx); err != nil {
+		return err
+	}
+	if err = authorizeIntegrationRejection(ctx, tx, identity, command, false); err != nil {
+		return err
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO public.zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata,occurred_at)
+VALUES($1,$2,$3,$4,$5,'integration.setup.rejected',$6,'rejected',jsonb_build_object('operation',$7::text,'resource_kind','integration','reason','invalid_configuration','correlation_id',$8::text),clock_timestamp())`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), command.AuditID, identity.PrincipalID.String(), command.TargetID, command.Operation, command.CorrelationID)
+	if err != nil {
+		return ErrRepositoryUnavailable
+	}
+	// INSERT may have waited on the audit relation. Use fresh READ COMMITTED
+	// statements, then retain the contributing authority rows through commit.
+	if err = integrationRejectionReady(ctx, tx); err != nil {
+		return err
+	}
+	if err = authorizeIntegrationRejection(ctx, tx, identity, command, true); err != nil {
+		return err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return ErrRepositoryUnavailable
+	}
+	return nil
+}
+
+func integrationRejectionReady(ctx context.Context, tx pgx.Tx) error {
+	var ready bool
+	if err := tx.QueryRow(ctx, `SELECT public.zasp_compliance_api_ready($1,$2)`, migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()).Scan(&ready); err != nil || !ready {
+		return ErrRepositoryUnavailable
+	}
+	return nil
+}
+
+func authorizeIntegrationRejection(ctx context.Context, tx pgx.Tx, identity RequestIdentity, command IntegrationRejection, lock bool) error {
+	args := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String()}
+	suffix := ""
+	if lock {
+		suffix = " FOR SHARE"
+	}
+	// Membership first matches registered resolve-session/deprovision writers.
+	var role string
+	err := tx.QueryRow(ctx, `SELECT role FROM public.zasp_identity_memberships WHERE organization_id=$1 AND principal_id=$2 AND active`+suffix, args[0], args[3]).Scan(&role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrRepositoryAuthorization
+	}
+	if err != nil {
+		return ErrRepositoryUnavailable
+	}
+	table := "public.zasp_product_sessions"
+	if identity.CredentialKind == CredentialBearerToken {
+		table = "public.zasp_product_api_tokens"
+	}
+	var expires time.Time
+	var tokenWrite bool
+	err = tx.QueryRow(ctx, `SELECT expires_at,permissions ? 'manage_workflows' FROM `+table+` WHERE (organization_id,workspace_id,environment_id,principal_id)=($1,$2,$3,$4) AND token_digest=$5 AND revoked_at IS NULL`+suffix, append(args, command.CredentialDigest)...).Scan(&expires, &tokenWrite)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrRepositoryAuthentication
+	}
+	if err != nil {
+		return ErrRepositoryUnavailable
+	}
+	if identity.CredentialKind == CredentialBearerToken && !tokenWrite {
+		return ErrRepositoryAuthorization
+	}
+	var direct bool
+	err = tx.QueryRow(ctx, `SELECT public.zasp_effective_scope_permissions(permissions,$5) ? 'manage_workflows' FROM public.zasp_authorized_scopes WHERE (organization_id,workspace_id,environment_id,principal_id)=($1,$2,$3,$4)`+suffix, append(args, role)...).Scan(&direct)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return ErrRepositoryUnavailable
+	}
+	if !direct {
+		if identity.CredentialKind == CredentialBearerToken {
+			return ErrRepositoryAuthorization
+		}
+		// API cannot read authority-only member_groups directly. Its two
+		// registered writers (release19 resolve_session/reconcile_deprovision)
+		// take membership FOR UPDATE before changing groups, so our membership
+		// lock serializes those writes. Positive mapping witnesses are retained;
+		// new mapping rows can only add grants, not remove the existing witness.
+		if lock {
+			var count int
+			if err = tx.QueryRow(ctx, `SELECT count(*) FROM (SELECT 1 FROM public.zasp_group_mappings WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3) ORDER BY group_reference FOR SHARE) locked`, args[:3]...).Scan(&count); err != nil {
+				return ErrRepositoryUnavailable
+			}
+		}
+		var allowed bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM public.zasp_identity_admin_effective_scopes($4,$1) s WHERE (s.organization_id,s.workspace_id,s.environment_id)=($1,$2,$3) AND s.permissions ? 'manage_workflows')`, args...).Scan(&allowed); err != nil {
+			return ErrRepositoryUnavailable
+		}
+		if !allowed {
+			return ErrRepositoryAuthorization
+		}
+	}
+	if command.Operation == "updateIntegration" {
+		var present bool
+		err = tx.QueryRow(ctx, `SELECT true FROM public.zasp_workflow_records WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4) AND kind='integration' AND deleted_at IS NULL`+suffix, args[0], args[1], args[2], command.TargetID).Scan(&present)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrRepositoryNotFound
+		}
+		if err != nil {
+			return ErrRepositoryUnavailable
+		}
+	}
+	// Wall-clock expiry is checked in a separate statement after all lock waits.
+	var live bool
+	if err = tx.QueryRow(ctx, `SELECT $1::timestamptz > clock_timestamp()`, expires).Scan(&live); err != nil {
+		return ErrRepositoryUnavailable
+	}
+	if !live {
+		return ErrRepositoryAuthentication
+	}
+	return nil
+}

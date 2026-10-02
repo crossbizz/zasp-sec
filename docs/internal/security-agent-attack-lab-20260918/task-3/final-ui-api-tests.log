@@ -1,0 +1,240 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npm","run","ui-api:test"]
+
+> zasp-agent-security-console@0.1.0 ui-api:test
+> node --test scripts/check-ui-api-coverage.test.mjs
+
+TAP version 13
+# Subtest: current API and planned map passes honestly
+not ok 1 - current API and planned map passes honestly
+  ---
+  duration_ms: 47.0895
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/check-ui-api-coverage.test.mjs:51:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    +   apiAvailable: 10,
+    +   available: 147,
+    -   apiAvailable: 15,
+    -   available: 142,
+        internal: 0,
+        planned: 2,
+        public: 157
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    planned: 2
+    apiAvailable: 15
+    available: 142
+    public: 157
+    internal: 0
+  actual:
+    planned: 2
+    apiAvailable: 10
+    available: 147
+    public: 157
+    internal: 0
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/check-ui-api-coverage.test.mjs:53:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: all current public operations resolve and deliberate removal fails
+not ok 2 - all current public operations resolve and deliberate removal fails
+  ---
+  duration_ms: 4.129833
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/check-ui-api-coverage.test.mjs:62:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    +   apiAvailable: 10,
+    +   available: 149,
+    -   apiAvailable: 15,
+    -   available: 144,
+        internal: 0,
+        planned: 0,
+        public: 159
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    planned: 0
+    apiAvailable: 15
+    available: 144
+    public: 159
+    internal: 0
+  actual:
+    planned: 0
+    apiAvailable: 10
+    available: 149
+    public: 159
+    internal: 0
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/check-ui-api-coverage.test.mjs:67:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: unmapped public operations fail while unmapped internal operations pass
+not ok 3 - unmapped public operations fail while unmapped internal operations pass
+  ---
+  duration_ms: 3.2175
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/check-ui-api-coverage.test.mjs:78:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    +   apiAvailable: 10,
+    +   available: 147,
+    -   apiAvailable: 15,
+    -   available: 142,
+        internal: 1,
+        planned: 2,
+        public: 157
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    planned: 2
+    apiAvailable: 15
+    available: 142
+    public: 157
+    internal: 1
+  actual:
+    planned: 2
+    apiAvailable: 10
+    available: 147
+    public: 157
+    internal: 1
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/check-ui-api-coverage.test.mjs:85:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: planned, available, and internal lifecycle mismatches fail
+ok 4 - planned, available, and internal lifecycle mismatches fail
+  ---
+  duration_ms: 4.253333
+  type: 'test'
+  ...
+# Subtest: API-available operations require OpenAPI but do not claim a wired UI
+not ok 5 - API-available operations require OpenAPI but do not claim a wired UI
+  ---
+  duration_ms: 1.936542
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/check-ui-api-coverage.test.mjs:109:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    +   apiAvailable: 10,
+    +   available: 147,
+    -   apiAvailable: 15,
+    -   available: 142,
+        internal: 0,
+        planned: 2,
+        public: 157
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    planned: 2
+    apiAvailable: 15
+    available: 142
+    public: 157
+    internal: 0
+  actual:
+    planned: 2
+    apiAvailable: 10
+    available: 147
+    public: 157
+    internal: 0
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/check-ui-api-coverage.test.mjs:116:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: OpenAPI operation extraction rejects missing, duplicate, and unclassified operations
+ok 6 - OpenAPI operation extraction rejects missing, duplicate, and unclassified operations
+  ---
+  duration_ms: 0.263667
+  type: 'test'
+  ...
+# Subtest: strict YAML parsing rejects representation and map-schema ambiguity
+ok 7 - strict YAML parsing rejects representation and map-schema ambiguity
+  ---
+  duration_ms: 12.303542
+  type: 'test'
+  ...
+# Subtest: fixed file boundary accepts regular UTF-8 and rejects symlink, oversize, and invalid UTF-8
+ok 8 - fixed file boundary accepts regular UTF-8 and rejects symlink, oversize, and invalid UTF-8
+  ---
+  duration_ms: 5.439417
+  type: 'test'
+  ...
+# Subtest: CLI emits only fixed success or rejection lines
+not ok 9 - CLI emits only fixed success or rejection lines
+  ---
+  duration_ms: 9.805625
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/check-ui-api-coverage.test.mjs:172:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'UI/API coverage passed: planned=2 api_available=10 available=147 public=157 internal=0.\n'
+    - 'UI/API coverage passed: planned=2 api_available=15 available=142 public=157 internal=0.\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: |-
+    UI/API coverage passed: planned=2 api_available=15 available=142 public=157 internal=0.
+    
+  actual: |-
+    UI/API coverage passed: planned=2 api_available=10 available=147 public=157 internal=0.
+    
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/check-ui-api-coverage.test.mjs:176:10)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: package command is wired into root verification
+ok 10 - package command is wired into root verification
+  ---
+  duration_ms: 1.147208
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 5
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 152.514625
+
+Exit: 1 Signal: null

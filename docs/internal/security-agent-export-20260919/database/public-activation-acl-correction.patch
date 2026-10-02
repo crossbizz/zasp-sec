@@ -1,0 +1,50 @@
+--- a/services/platform/migrations/sql/0058_production_security_agent_exports.up.sql
++++ b/services/platform/migrations/sql/0058_production_security_agent_exports.up.sql
+@@ -77,6 +77,8 @@
+  -- These two generic predecessors retain the registered migration login as
+  -- owner. Canonicalize that identity only for hashing; raw restoration bytes
+  -- remain untouched, and every other ACL entry/grant option stays significant.
++ -- ACL identity tags sit outside the saved entry, so a literal role name
++ -- cannot impersonate the canonical migration identity in the digest.
+  WITH saved AS (
+  SELECT s.*,s.signature IN('public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)','public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)')
+  AND EXISTS(SELECT 1 FROM public.zasp_discovery_principal_bindings b JOIN pg_roles r ON r.rolname=b.principal_name WHERE b.principal_name=s.owner_name AND b.authority_role='zasp_discovery_authority' AND pg_has_role(r.oid,'zasp_discovery_authority','MEMBER')) AS migration_owned
+@@ -84,7 +86,7 @@
+  ), identities(value) AS (
+  SELECT concat_ws('|','prior',public.zasp_sa_attack_lab_live_fingerprint())
+  UNION ALL SELECT concat_ws('|','saved',signature,definition,CASE WHEN migration_owned THEN '<registered-migration-principal>' ELSE 'owner:'||owner_name END,
+- CASE WHEN migration_owned THEN (SELECT jsonb_agg(CASE WHEN a->>'grantee'=owner_name THEN jsonb_set(a,'{grantee}','"<registered-migration-principal>"'::jsonb) ELSE a END ORDER BY n)::text FROM jsonb_array_elements(acl) WITH ORDINALITY x(a,n)) ELSE acl::text END) FROM saved
++ CASE WHEN migration_owned THEN (SELECT jsonb_agg(CASE WHEN a->>'grantee'=owner_name THEN jsonb_build_array('registered-migration-principal',a-'grantee') ELSE jsonb_build_array('literal',a) END ORDER BY n)::text FROM jsonb_array_elements(acl) WITH ORDINALITY x(a,n)) ELSE acl::text END) FROM saved
+  UNION ALL SELECT concat_ws('|','schema',nspname,nspowner::regrole::text,COALESCE(nspacl::text,'')) FROM pg_namespace WHERE nspname='zasp_sa_export_prior'
+  UNION ALL SELECT concat_ws('|','function',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid),p.proowner::regrole::text,p.prosecdef,p.provolatile,p.proparallel,p.proisstrict,p.proleakproof,COALESCE(p.proconfig::text,''),COALESCE(p.proacl::text,''),public.zasp_sa_export_function_identity(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND (starts_with(p.proname,'zasp_sa_export_') OR starts_with(p.proname,'zasp_sa_manual_'))
+  UNION ALL SELECT concat_ws('|','table',n.nspname,c.relname,c.relowner::regrole::text,c.relrowsecurity,c.relforcerowsecurity,COALESCE(c.relacl::text,'')) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE (n.nspname='zasp_sa_export_prior' OR n.nspname='public' AND starts_with(c.relname,'zasp_sa_export_')) AND c.relkind='r'
+--- a/services/platform/migrations/security_agent_exports_release.go
++++ b/services/platform/migrations/security_agent_exports_release.go
+@@ -35,7 +35,7 @@
+ var securityAgentExportDefinitionSQL string
+ 
+ func SecurityAgentExportsFingerprint() string {
+-	return "5b8a094b82a97dd8ab7f9f2dc5951510e6a1bf3c8046303985321020de507f83"
++	return "8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f"
+ }
+ 
+ func ProductionSecurityAgentExports() Metadata {
+--- a/services/platform/apiserver/security_agent_export_release_postgres_test.go
++++ b/services/platform/apiserver/security_agent_export_release_postgres_test.go
+@@ -106,7 +106,7 @@
+ 
+ func TestSecurityAgentExportMigrationIdentityPostgres(t *testing.T) {
+ 	runExportDefinitionFixture(t, func(ctx context.Context, owner, api *pgx.Conn, _, _, _, _ string) {
+-		if _, err := owner.Exec(ctx, `CREATE ROLE export_unregistered_owner NOLOGIN`); err != nil {
++		if _, err := owner.Exec(ctx, `CREATE ROLE export_unregistered_owner NOLOGIN; CREATE ROLE "<registered-migration-principal>" NOLOGIN`); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 		for _, signature := range []string{"public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)", "public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)"} {
+@@ -115,6 +115,7 @@
+ 				t.Fatal(err)
+ 			}
+ 			for _, drift := range []struct{ name, query string }{
++				{"literal_role_collision", `UPDATE zasp_sa_export_prior.functions SET acl=(SELECT jsonb_agg(CASE WHEN a->>'grantee'=owner_name THEN jsonb_set(a,'{grantee}','"<registered-migration-principal>"') ELSE a END ORDER BY n) FROM jsonb_array_elements(acl) WITH ORDINALITY x(a,n)) WHERE signature=$1`},
+ 				{"foreign_owner", `UPDATE zasp_sa_export_prior.functions SET owner_name=(SELECT principal_name FROM zasp_security_agent_principal_bindings WHERE authority_role='zasp_security_agent_api') WHERE signature=$1`},
+ 				{"unregistered_owner", `UPDATE zasp_sa_export_prior.functions SET owner_name='export_unregistered_owner' WHERE signature=$1`},
+ 				{"extra_acl", `UPDATE zasp_sa_export_prior.functions SET acl=acl||'[{"grantee":"zasp_security_agent_worker","grantable":false}]'::jsonb WHERE signature=$1`},

@@ -1,0 +1,129 @@
+cwd: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform
+command: GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-budget-go-cache /opt/homebrew/bin/go test -race ./agentsec-worker -run '^(TestSecurityAgentExportRender|TestComplianceRuntimeRendersFrozenSnapshot)' -count=1 -v
+exit: 0
+=== RUN   TestComplianceRuntimeRendersFrozenSnapshot
+--- PASS: TestComplianceRuntimeRendersFrozenSnapshot (0.00s)
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/run
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/step
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/empty
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/kind
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/id
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/version
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/digest
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/organization_id
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/workspace_id
+=== RUN   TestSecurityAgentExportRenderBindsScopeAndSelection/environment_id
+--- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/run (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/step (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/empty (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/kind (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/version (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/digest (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/organization_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/workspace_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderBindsScopeAndSelection/environment_id (0.00s)
+=== RUN   TestSecurityAgentExportRenderFrozenFormats
+--- PASS: TestSecurityAgentExportRenderFrozenFormats (0.00s)
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/wrong_kind
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/unknown_outer
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/unknown_record
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_hash
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/non_UTC
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/wrong_ID
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/null_record
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/empty_records
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/revision
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/uppercase_hash
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/non_canonical_time
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/wrong_version
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/null_records
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/null_content
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/zero_hash
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/invalid_time
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_record
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/malformed
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/trailing
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/invalid_UTF8
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_outer
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_record_key
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/case_alias
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/empty
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_0
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_4
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_2
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_6
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_13
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_23
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_5
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_9
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/content_71
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_mapping_revision
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_snapshot_at
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_organization_id
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_workspace_id
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_environment_id
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_run_id
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_step_id
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidWire/missing_records
+--- PASS: TestSecurityAgentExportRenderRejectsInvalidWire (0.01s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/wrong_kind (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/unknown_outer (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/unknown_record (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_hash (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/non_UTC (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/wrong_ID (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/null_record (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/empty_records (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/revision (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/uppercase_hash (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/non_canonical_time (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/wrong_version (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/null_records (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/null_content (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/zero_hash (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/invalid_time (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_record (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/malformed (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/trailing (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/invalid_UTF8 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_outer (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/duplicate_record_key (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/case_alias (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/empty (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_0 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_4 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_2 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_6 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_13 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_23 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_5 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_9 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/content_71 (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_mapping_revision (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_snapshot_at (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_organization_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_workspace_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_environment_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_run_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_step_id (0.00s)
+    --- PASS: TestSecurityAgentExportRenderRejectsInvalidWire/missing_records (0.00s)
+=== RUN   TestSecurityAgentExportRenderRejectsInvalidSelection
+--- PASS: TestSecurityAgentExportRenderRejectsInvalidSelection (0.00s)
+=== RUN   TestSecurityAgentExportRenderAllKindsAndStates
+--- PASS: TestSecurityAgentExportRenderAllKindsAndStates (0.00s)
+=== RUN   TestSecurityAgentExportRenderCSVFormulaEscaping
+--- PASS: TestSecurityAgentExportRenderCSVFormulaEscaping (0.00s)
+=== RUN   TestSecurityAgentExportRenderCSVLeadingWhitespace
+--- PASS: TestSecurityAgentExportRenderCSVLeadingWhitespace (0.00s)
+=== RUN   TestSecurityAgentExportRenderChecksContextBeforeReturningBytes
+--- PASS: TestSecurityAgentExportRenderChecksContextBeforeReturningBytes (0.00s)
+=== RUN   TestSecurityAgentExportRenderFormatBufferBoundary
+--- PASS: TestSecurityAgentExportRenderFormatBufferBoundary (0.01s)
+=== RUN   TestSecurityAgentExportRenderBoundaries
+--- PASS: TestSecurityAgentExportRenderBoundaries (1.13s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	3.404s

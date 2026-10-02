@@ -1,0 +1,172 @@
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#01
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#02
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#03
+=== RUN   TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#03
+--- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority (3.77s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#01 (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#01 (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#01 (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#01 (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#01 (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#01 (0.01s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#01 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#01 (0.03s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#02 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#02 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#02 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#02 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#02 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#02 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#02 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#02 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#02 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#02 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#02 (0.05s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#02 (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#02 (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#02 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#02 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#02 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#02 (0.02s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#02 (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#02 (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#02 (0.06s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#02 (0.07s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/healthy#03 (0.13s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/lower-version#03 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/future#03 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-checksum#03 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/wrong-selected-checksum#03 (0.10s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/initial-drift#03 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/configure/final-drift#03 (0.13s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/healthy#03 (0.13s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/lower-version#03 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/future#03 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-checksum#03 (0.10s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/wrong-selected-checksum#03 (0.10s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/initial-drift#03 (0.10s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/register/final-drift#03 (0.12s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/healthy#03 (0.12s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/lower-version#03 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/future#03 (0.04s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-checksum#03 (0.11s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/wrong-selected-checksum#03 (0.12s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/initial-drift#03 (0.10s)
+    --- PASS: TestAuditExportConfigurationOnBudgetReleasePinsAuthority/api/final-drift#03 (0.11s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/migrations	4.517s

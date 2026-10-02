@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: actual export Prometheus rules detect missing targets and recover independently
+ok 1 - actual export Prometheus rules detect missing targets and recover independently
+  ---
+  duration_ms: 1734.538708
+  type: 'test'
+  ...
+# Subtest: rendered reconciler alerts fire for failed or absent targets and clear on recovery
+ok 2 - rendered reconciler alerts fire for failed or absent targets and clear on recovery
+  ---
+  duration_ms: 1640.397958
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1796.760375

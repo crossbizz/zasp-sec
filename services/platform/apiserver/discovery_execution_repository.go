@@ -12,6 +12,7 @@ import (
 
 	"github.com/zasp-ai/zasp-sec/services/platform/connectors/collection"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/riskprojection"
 )
 
@@ -24,6 +25,7 @@ const (
 	DiscoveryExecutionAuthorityProjectionSearch = "zasp_projection_search_worker"
 
 	postgresExecutionReadySQL               = `SELECT to_jsonb(zasp_execution_readiness($1,$2))`
+	postgresDiscoveryScheduleReplayReadySQL = `SELECT to_jsonb(zasp_discovery_schedule_replay_readiness($1,$2))`
 	postgresExecutionPrincipalReadySQL      = `SELECT to_jsonb(zasp_execution_principal_ready($1))`
 	postgresExecutionRequestSyncSQL         = `SELECT zasp_execution_request_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
 	postgresExecutionJobInputSQL            = `SELECT zasp_execution_job_input($1,$2,$3,$4,$5,$6)`
@@ -79,7 +81,26 @@ func (repository *DiscoveryExecutionRepository) Ready(ctx context.Context) error
 	if !validExecutionRepository(repository, ctx) {
 		return ErrRepositoryUnavailable
 	}
-	if !discoveryExecutionReady(ctx, repository.database) {
+	if repository.authority != DiscoveryExecutionAuthorityScheduler {
+		if probe, ok := repository.database.(interface {
+			TemporalDiscoveryRetainedAvailable(context.Context, string) (bool, error)
+		}); ok {
+			available, err := probe.TemporalDiscoveryRetainedAvailable(ctx, repository.authority)
+			if err != nil {
+				return ErrRepositoryUnavailable
+			}
+			if available {
+				return nil
+			}
+		}
+	}
+	if repository.authority == DiscoveryExecutionAuthorityScheduler {
+		payload, err := repository.database.QueryJSON(ctx, postgresDiscoveryScheduleReplayReadySQL, migrations.ProductionDiscoveryScheduleReplay().Checksum(), migrations.DiscoveryScheduleReplayFingerprint())
+		var ready bool
+		if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
+			return ErrRepositoryUnavailable
+		}
+	} else if !discoveryExecutionReady(ctx, repository.database) {
 		return ErrRepositoryUnavailable
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresExecutionPrincipalReadySQL, repository.authority)
@@ -156,7 +177,19 @@ func (repository *DiscoveryExecutionRepository) ClaimDiscoveryDelivery(ctx conte
 	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityWorker || scope.Validate() != nil || !validProductID(jobID) || !validWorkerLease(worker, leaseToken) || leaseSeconds < 5 || leaseSeconds > 900 {
 		return DiscoveryDeliveryClaim{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionClaimDeliverySQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), jobID, worker, leaseToken, leaseSeconds)
+	query := postgresExecutionClaimDeliverySQL
+	if probe, ok := repository.database.(interface {
+		TemporalDiscoveryRetainedAvailable(context.Context, string) (bool, error)
+	}); ok {
+		available, err := probe.TemporalDiscoveryRetainedAvailable(ctx, repository.authority)
+		if err != nil {
+			return DiscoveryDeliveryClaim{}, ErrRepositoryUnavailable
+		}
+		if available {
+			query = `SELECT zasp_temporal72.claim_retained_delivery($1,$2,$3,$4,$5,$6,$7)`
+		}
+	}
+	payload, err := repository.database.QueryJSON(ctx, query, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), jobID, worker, leaseToken, leaseSeconds)
 	if err != nil {
 		return DiscoveryDeliveryClaim{}, discoveryProviderError(err)
 	}
@@ -197,7 +230,17 @@ func (repository *DiscoveryExecutionRepository) GetDiscoveryJobInput(ctx context
 	}
 	result.LeaseExpiresAt = result.LeaseExpiresAt.UTC()
 	result.ExpectedSubject = collection.SubjectBinding{Kind: result.SubjectKind, ID: result.SubjectID}
-	result.Configuration = append(json.RawMessage(nil), result.Configuration...)
+	// PostgreSQL jsonb ordering/spacing is not the credential wire encoding.
+	// Preserve every reference-only field; strict provider decoding still rejects
+	// unknown or invalid values after this database-boundary canonicalization.
+	var configuration map[string]json.RawMessage
+	if json.Unmarshal(result.Configuration, &configuration) != nil || configuration == nil {
+		return ExecutionJobInput{}, ErrRepositoryUnavailable
+	}
+	result.Configuration, err = json.Marshal(configuration)
+	if err != nil {
+		return ExecutionJobInput{}, ErrRepositoryUnavailable
+	}
 	return result, nil
 }
 
@@ -397,7 +440,7 @@ func (repository *DiscoveryExecutionRepository) RequestScheduledSync(ctx context
 		return SyncRequestResult{}, discoveryProviderError(err)
 	}
 	var result SyncRequestResult
-	if decodeStrictDiscovery(payload, &result) != nil || !validSyncRequestResult(input.SyncRequest, result) {
+	if decodeStrictDiscovery(payload, &result) != nil || !validSyncRequestResult(input.SyncRequest, result) || result.SyncID != input.SyncID || result.JobID != input.JobID || result.OutboxID != input.OutboxID {
 		return SyncRequestResult{}, ErrRepositoryUnavailable
 	}
 	return result, nil
@@ -440,7 +483,19 @@ func (repository *DiscoveryExecutionRepository) ApplyCompleteSnapshot(ctx contex
 	if !validExecutionRepository(repository, ctx) || repository.authority != DiscoveryExecutionAuthorityWorker || scope.Validate() != nil || !validProductID(input.JobID) || !validWorkerLease(input.Worker, input.LeaseToken) || !validCompleteSnapshot(input.CompleteSnapshot) || len(input.ManifestKey) < 32 || len(input.ManifestKey) > 1024 || !strings.HasSuffix(input.ManifestReference, "/"+input.ManifestKey) || len(input.ManifestReference) != strings.LastIndex(input.ManifestReference, "/"+input.ManifestKey)+1+len(input.ManifestKey) || len(input.ManifestVersionID) < 1 || len(input.ManifestVersionID) > 1024 || input.ManifestSizeBytes < 1 || input.ManifestSizeBytes > 512<<20 || input.ManifestMediaType != "application/json" || !executionVersionPattern.MatchString(input.ManifestSchemaVersion) || !executionVersionPattern.MatchString(input.ParserVersion) || !executionVersionPattern.MatchString(input.ToolVersion) {
 		return ExecutionSnapshotApplyResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresExecutionApplySnapshotSQL, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.JobID, input.Worker, input.LeaseToken, input.IntegrationID, input.SyncID, input.SnapshotID, input.Generation, input.Source, input.ManifestReference, input.ManifestKey, input.ManifestVersionID, input.ManifestChecksum, input.ManifestSizeBytes, input.ManifestMediaType, input.ManifestSchemaVersion, input.CollectedAt, input.CursorValue, input.ParserVersion, input.ToolVersion, input.Entities, input.Relationships, input.Evidence)
+	query := postgresExecutionApplySnapshotSQL
+	if probe, ok := repository.database.(interface {
+		TemporalDiscoveryRetainedAvailable(context.Context, string) (bool, error)
+	}); ok {
+		available, err := probe.TemporalDiscoveryRetainedAvailable(ctx, string(repository.authority))
+		if err != nil {
+			return ExecutionSnapshotApplyResult{}, ErrRepositoryUnavailable
+		}
+		if available {
+			query = strings.Replace(query, "zasp_execution_apply_complete_snapshot", "zasp_temporal72.apply_retained_snapshot", 1)
+		}
+	}
+	payload, err := repository.database.QueryJSON(ctx, query, scope.OrganizationID().String(), scope.WorkspaceID().String(), scope.EnvironmentID().String(), input.JobID, input.Worker, input.LeaseToken, input.IntegrationID, input.SyncID, input.SnapshotID, input.Generation, input.Source, input.ManifestReference, input.ManifestKey, input.ManifestVersionID, input.ManifestChecksum, input.ManifestSizeBytes, input.ManifestMediaType, input.ManifestSchemaVersion, input.CollectedAt, input.CursorValue, input.ParserVersion, input.ToolVersion, input.Entities, input.Relationships, input.Evidence)
 	if err != nil {
 		return ExecutionSnapshotApplyResult{}, discoveryProviderError(err)
 	}

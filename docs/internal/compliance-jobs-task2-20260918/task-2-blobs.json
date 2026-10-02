@@ -1,0 +1,70 @@
+{
+  "scope": "Cumulative Task2 implementation and fix1 delta against captured inherited dirty-tree contents; not HEAD",
+  "files": [
+    {
+      "path": "services/platform/migrations/compliance_release.go",
+      "before": "0e24a9be6feaa150e16b11a7f07b1da134698def",
+      "after": "49e8bcaa0b11563df76760b27ca8e194f18fcb81"
+    },
+    {
+      "path": "services/platform/migrations/sql/0056_production_compliance.up.sql",
+      "before": "aed20a126593638afa46fbe2f6e0190eb1fe0fc4",
+      "after": "81af529590b5bf16b7c5fe91aa59afe722832f61"
+    },
+    {
+      "path": "services/platform/migrations/sql/0056_production_compliance.down.sql",
+      "before": "73bed8c606d2422d9072ae799297de675f47b1d7",
+      "after": "4f849ace1c181e4c57904486bdded410119dcc2a"
+    },
+    {
+      "path": "services/platform/migrations/sql/fragments/compliance_jobs.sql",
+      "before": null,
+      "after": "56e3c9e429b0582effd5d0a60b80ce36f311cbdd"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_exports_repository.go",
+      "before": null,
+      "after": "eca3a8dd76f6cac795bd141ebee5c5dfb5b90669"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_exports_repository_test.go",
+      "before": null,
+      "after": "4ee33284fc2e1d723a30a0a2f3f33277b92db245"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_exports_postgres_test.go",
+      "before": null,
+      "after": "0281d16b64c9c587bb22d528d7e76a0008389b60"
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_database.go",
+      "before": null,
+      "after": "24bff1286e44cbd5da36dc07256cdac2edbccd65"
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_database_test.go",
+      "before": null,
+      "after": "35f2d3457b5e6378b5be690d4ba97cbb09bb4d22"
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_replay.go",
+      "before": null,
+      "after": "1ec34674bd8245edf6d52f59551731fd7eafd1f8"
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_replay_test.go",
+      "before": null,
+      "after": "b5d1c3dde0afd928a4527d3cd60332fff1462d0e"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_exports_fix_postgres_test.go",
+      "before": null,
+      "after": "2cf7b55fd85290e843dffc2e10f7769aa0007519"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_exports_quotas_postgres_test.go",
+      "before": null,
+      "after": "f5b97f4362e11bb0960b2be24eb2b71014bb3495"
+    }
+  ]
+}

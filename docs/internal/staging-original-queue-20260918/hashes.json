@@ -1,0 +1,37 @@
+{
+  "head": "8733b16f8d939d38a8157dd2519e57fc6f630542",
+  "before": [
+    {
+      "path": "deploy/staging/main.tf",
+      "sha256": "64192f329c9cc0b409837113f4ec2348cad2aafdcf97df48889106aa24aac071",
+      "bytes": 99412
+    },
+    {
+      "path": "package.json",
+      "sha256": "8bb95caafdfc54e4f0a83ebc84f54148a7bcb40cb6251680ab79337f3c00b75b",
+      "bytes": 16420
+    },
+    {
+      "path": "deploy/staging/queue-contract.test.mjs",
+      "absent": true
+    }
+  ],
+  "after": [
+    {
+      "path": "deploy/staging/main.tf",
+      "sha256": "6e66af209bce409354cb718bf18b0203f32866ac826756d6b44c8dc2f6bbe8eb",
+      "bytes": 99510
+    },
+    {
+      "path": "package.json",
+      "sha256": "287bb54fb5932d63229e34be79aa3343e5a6a4de10ee4a72ad65496f568449c3",
+      "bytes": 16459
+    },
+    {
+      "path": "deploy/staging/queue-contract.test.mjs",
+      "sha256": "d3aac16508aa45592f4f9f91fbfdc71a517b0ba6032f18bdcdd0a99f504710fe",
+      "bytes": 6995
+    }
+  ],
+  "scopeCheck": "PASS: exact inherited bytes preserved except one queue entry and staging test registration."
+}

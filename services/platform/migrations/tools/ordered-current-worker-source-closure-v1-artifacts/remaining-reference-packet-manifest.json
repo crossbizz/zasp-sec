@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "source": "/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917",
+  "files": {
+    ".superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-supplementary-query-contract3.json": "2334ebbbad1382db7eafa47f81eec5b59f7721aaafa34b6b0d51311d959538ce",
+    ".superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-supplementary-select3.sql": "5efdd0db4f55784ec8fa5a36548668d04ed3cd6cb185af9b154c1e4f48ee3d5c",
+    ".superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-supplementary-rules3.json": "26a8c1a80d237164bed740f6e494b534e8ecedc2226b52e5d6c2b17ac0779d15",
+    ".superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-supplementary-sites3.json": "0b44c6d5d0ee1edb388fb6d1ccf7fe2efd1a3f2f4fae02d09c8aea95f5269ee2",
+    ".superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-inventory-compiled.json": "9600d455d8e03d14a3c37983ab1ba8654981befe0d39818eb9197e2d4312a8f4",
+    ".superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-effective-contract3.json": "5fed1f43b6475087e16ba4f1ab1db6d6827f508bf9160b13c05e6ef8f6a975e8",
+    ".superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-effective-catalog1.json": "036c92946205f854600cd0ef0e7ebbd1f8bc672c1a5e23d070ef198959abebec",
+    ".superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-supplementary-reference1.json": "c544ae4e6d04907a20879d359d875135658a7a582f16a27d3263f0bc9c91edb4",
+    ".superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-supplementary-query-contract2.json": "b59111a99e3fa275c7f550eaacb4f98e0636e7132326d0dc2e5c0a58be2c9af5",
+    ".superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-supplementary-select2.sql": "2b2adb28c2537de544ee7a5e543972ef25e771ac73b28313d78c1d20fedc28cd",
+    "services/platform/migrations/tools/build-ordered-current-supplementary3.mjs": "0bd46060165c013ad7cae91527c6e5891424cfdac6c99bdc314987568291dcc2",
+    "services/platform/migrations/tools/ordered-current-reference-needs.mjs": "160ca17c4105825910881d016006d96159877db191504c955dedd8dc0e218aff",
+    "services/platform/migrations/tools/ordered-current-temporal72.mjs": "cd7013c07ef2cdbd1403534299b0396cf0e656120d32ba4e488469318d7da2ec",
+    "services/platform/migrations/tools/ordered-current-temporal-selectors.mjs": "57c2bce7af61151750e5662b7e63165b750690fedc396d619ff28cb614bcb514",
+    "services/platform/migrations/tools/ordered-current-public-selectors.mjs": "56faf97567dea71645706da7d16252d70d97f1c850c3117851bf990b29a05377",
+    "services/platform/migrations/tools/ordered-current-catalog.mjs": "234eb2e6ce9ca1b8789b633f382c06c1ed82031e93931ec637dd703de417d5b9",
+    "services/platform/migrations/tools/ordered-current-static-catalog.mjs": "1512b45520124977b8b3ef09b57acf19e31a9c5db31ca54d139c218ec56aa3f6",
+    "services/platform/migrations/tools/build-ordered-current-integrity.mjs": "7ae7ac20927f30d4c61850fb56f147cf46c33ff81052280f438db22da7ecb8c5",
+    ".superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-supplementary3-proposal.md": "23937ac78b56ec68264db96f764197506ab309cb3ebea4d50355579ecd3f9606"
+  }
+}

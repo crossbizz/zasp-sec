@@ -29,7 +29,11 @@ type credentialResolverStub struct {
 func (stub *credentialResolverStub) ResolveTargetCredential(_ context.Context, reference string) (*Credential, error) {
 	stub.calls++
 	stub.reference = reference
-	return newCredential(stub.secret, func() { stub.destroyed.Store(true) })
+	credential, err := newCredential(stub.secret, func() { stub.destroyed.Store(true) })
+	if err == nil {
+		credential.versionDigest = strings.Repeat("d", 64)
+	}
+	return credential, err
 }
 
 func TestHTTPSInvokerSignsCanonicalPayloadAndZeroizesCredential(t *testing.T) {
@@ -101,6 +105,14 @@ func TestHTTPSInvokerFailsClosedOnRedirectProviderTextAndSchemaDrift(t *testing.
 		{status: http.StatusInternalServerError, body: "provider secret " + string(secret)},
 		{status: http.StatusOK, body: `{"output":"ok","secret":"leak"}`},
 		{status: http.StatusOK, body: strings.Repeat("x", 64*1024+1)},
+		{status: http.StatusOK, body: `{"output":""}`},
+		{status: http.StatusOK, body: `{"output":"ok"} {"output":"other"}`},
+		{status: http.StatusOK, body: `{"output":"ZASP_RED_TEAM_PROMPT_INJECTION","output":"ok"}`},
+		{status: http.StatusOK, body: `{"Output":"ok"}`},
+		{status: http.StatusOK, body: `{"output":null}`},
+		{status: http.StatusOK, body: `[{"output":"ok"}]`},
+		{status: http.StatusOK, body: `{}`},
+		{status: http.StatusOK, body: `{"output":"ok"`},
 	}
 	for index, fixture := range responses {
 		server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
@@ -121,6 +133,9 @@ func TestHTTPSInvokerFailsClosedOnRedirectProviderTextAndSchemaDrift(t *testing.
 		binding := TargetBinding{TargetID: testTargetID, TargetKind: "agent_endpoint", Endpoint: "https://adapter.customer.example/v1/evaluate", CredentialReference: "ref:red-team/target-0001", Version: 1}
 		if output, err := invoker.Invoke(context.Background(), Invocation{Scope: testScope(t), RunID: testRunID, Category: "prompt_injection", Input: curatedInputs["prompt_injection"], Binding: binding}); !errors.Is(err, ErrAdapter) || output != "" || strings.Contains(err.Error(), "provider secret") || strings.Contains(err.Error(), string(secret)) {
 			t.Fatalf("case %d = (%q,%v)", index, output, err)
+		}
+		if output, observation, err := invoker.InvokeObserved(context.Background(), Invocation{Scope: testScope(t), RunID: testRunID, Category: "prompt_injection", Input: curatedInputs["prompt_injection"], Binding: binding}); !errors.Is(err, ErrAdapter) || output != "" || observation.HTTPStatus != 0 || observation.ResponseDigest != "" || observation.Protected != nil {
+			t.Fatalf("case %d produced success evidence for rejected response: %#v %v", index, observation, err)
 		}
 		server.Close()
 	}

@@ -1,0 +1,77 @@
+TAP version 13
+# Subtest: compliance API startup rejects shell authority and command changes with and without audit
+    # Subtest: compliance-only: worker authority export
+    ok 1 - compliance-only: worker authority export
+      ---
+      duration_ms: 3.172375
+      type: 'test'
+      ...
+    # Subtest: compliance-only: replacement command
+    ok 2 - compliance-only: replacement command
+      ---
+      duration_ms: 2.489416
+      type: 'test'
+      ...
+    # Subtest: compliance-only: extra argument
+    ok 3 - compliance-only: extra argument
+      ---
+      duration_ms: 2.584333
+      type: 'test'
+      ...
+    # Subtest: compliance-only: replacement executable
+    ok 4 - compliance-only: replacement executable
+      ---
+      duration_ms: 2.157708
+      type: 'test'
+      ...
+    # Subtest: compliance-only: missing secret load
+    ok 5 - compliance-only: missing secret load
+      ---
+      duration_ms: 2.568417
+      type: 'test'
+      ...
+    # Subtest: audit: worker authority export
+    ok 6 - audit: worker authority export
+      ---
+      duration_ms: 2.525208
+      type: 'test'
+      ...
+    # Subtest: audit: replacement command
+    ok 7 - audit: replacement command
+      ---
+      duration_ms: 2.43475
+      type: 'test'
+      ...
+    # Subtest: audit: extra argument
+    ok 8 - audit: extra argument
+      ---
+      duration_ms: 3.226875
+      type: 'test'
+      ...
+    # Subtest: audit: replacement executable
+    ok 9 - audit: replacement executable
+      ---
+      duration_ms: 2.71025
+      type: 'test'
+      ...
+    # Subtest: audit: missing secret load
+    ok 10 - audit: missing secret load
+      ---
+      duration_ms: 2.290042
+      type: 'test'
+      ...
+    1..10
+ok 1 - compliance API startup rejects shell authority and command changes with and without audit
+  ---
+  duration_ms: 1218.110333
+  type: 'test'
+  ...
+1..1
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1290.540333

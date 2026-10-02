@@ -1,0 +1,692 @@
+diff --git a/services/platform/migrations/sql/fragments/compliance_jobs.sql b/services/platform/migrations/sql/fragments/compliance_jobs.sql
+index a67e16ed..e96bd62a 100644
+--- a/services/platform/migrations/sql/fragments/compliance_jobs.sql
++++ b/services/platform/migrations/sql/fragments/compliance_jobs.sql
+@@ -341,8 +341,11 @@ BEGIN
+  AND CASE lane_value WHEN 'execute' THEN j.state='pending' AND j.storage_state IN('reserved','intent','unknown') AND j.attempt<5 AND j.retrieval_expires_at>clock_timestamp()
+  WHEN 'reconcile' THEN j.storage_state='reconcile_required'
+  ELSE j.retrieval_expires_at<=clock_timestamp() AND j.storage_state IN('verified','reserved','delete_pending') AND NOT EXISTS(SELECT 1 FROM public.zasp_compliance_export_grants g WHERE (g.organization_id,g.workspace_id,g.environment_id,g.export_id)=(j.organization_id,j.workspace_id,j.environment_id,j.export_id) AND g.read_expires_at>clock_timestamp()) END),
+- bounded AS (SELECT * FROM due ORDER BY ordinal,last_claimed_at,created_at,organization_id,workspace_id,environment_id,export_id LIMIT limit_value)
+- SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,'export_id',export_id) ORDER BY ordinal,last_claimed_at,created_at,organization_id,workspace_id,environment_id,export_id),'[]'::jsonb)) INTO result_value FROM bounded;
++ -- Execute scope ties must match claim admission even when an older job belongs
++ -- to a later scope. Preserve the other lanes' age ordering and each scope's
++ -- oldest-job ordinal before applying the bounded batch.
++ bounded AS (SELECT * FROM due ORDER BY ordinal,last_claimed_at,CASE WHEN lane_value<>'execute' THEN created_at END,organization_id,workspace_id,environment_id,created_at,export_id LIMIT limit_value)
++ SELECT jsonb_build_object('items',COALESCE(jsonb_agg(jsonb_build_object('organization_id',organization_id,'workspace_id',workspace_id,'environment_id',environment_id,'export_id',export_id) ORDER BY ordinal,last_claimed_at,CASE WHEN lane_value<>'execute' THEN created_at END,organization_id,workspace_id,environment_id,created_at,export_id),'[]'::jsonb)) INTO result_value FROM bounded;
+  RETURN result_value;
+ END $candidates$;
+ 
+diff --git a/services/platform/migrations/compliance_release.go b/services/platform/migrations/compliance_release.go
+index 5210efaf..b8f6d44f 100644
+--- a/services/platform/migrations/compliance_release.go
++++ b/services/platform/migrations/compliance_release.go
+@@ -17,7 +17,7 @@ var complianceDownSQL string
+ var complianceJobsSQL string
+ 
+ func ComplianceFingerprint() string {
+-	return "30358a1ceacbb18f0283e42353a06c88834d78927814dd8c6a9552a3a1d77a6f"
++	return "8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced"
+ }
+ 
+ func ProductionCompliance() Metadata {
+diff --git a/services/platform/apiserver/compliance_connected_postgres_test.go b/services/platform/apiserver/compliance_connected_postgres_test.go
+new file mode 100644
+index 00000000..359f3d19
+--- /dev/null
++++ b/services/platform/apiserver/compliance_connected_postgres_test.go
+@@ -0,0 +1,134 @@
++package apiserver
++
++import (
++	"encoding/json"
++	"fmt"
++	"net/http"
++	"strings"
++	"testing"
++
++	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
++)
++
++// Discovery must offer a claimable head even when creation order opposes the
++// scope tie-break. Four waiting jobs across three scopes exceed batch size one.
++func TestComplianceCandidateAdmissionProgressPostgres(t *testing.T) {
++	withComplianceFixFixture(t, func(f *complianceFixFixture) {
++		api := f.connect("security_agent_v33_discovery_api_login")
++		worker := f.connect("compliance_executor")
++		ids := map[string][]string{}
++		scopes := []string{"pid_20000003-0000-4000-8000-000000000003", "pid_30000003-0000-4000-8000-000000000003", "pid_40000003-0000-4000-8000-000000000003"}
++		for n := 2; n >= 0; n-- {
++			scope := scopes[n]
++			f.exec(`INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions) VALUES($4,$1,$2,$3,'candidate','["view","view_audit","view_compliance"]'); INSERT INTO zasp_product_sessions(token_digest,principal_id,organization_id,workspace_id,environment_id,permissions,csrf_token,expires_at,authenticated_at) VALUES(digest($3,'sha256'),$4,$1,$2,$3,'["view","view_audit","view_compliance"]',repeat('c',32),clock_timestamp()+interval '1 hour',clock_timestamp())`, complianceOrg, complianceWorkspace, scope, compliancePrincipal)
++			count := 1
++			if n == 0 {
++				count = 2
++			}
++			for i := 0; i < count; i++ {
++				var raw json.RawMessage
++				if err := api.QueryRow(f.ctx, `SELECT zasp_compliance_export_create($1,$2,$3,$4,digest($3,'sha256'),$5,'{}',$6,$7)`, complianceOrg, complianceWorkspace, scope, compliancePrincipal, fmt.Sprintf("candidate-%d", i), migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()).Scan(&raw); err != nil {
++					t.Fatal(err)
++				}
++				var v struct {
++					ID string `json:"export_id"`
++				}
++				if err := json.Unmarshal(raw, &v); err != nil {
++					t.Fatal(err)
++				}
++				ids[scope] = append(ids[scope], v.ID)
++			}
++		}
++		for n, scope := range []string{scopes[0], scopes[1], scopes[2], scopes[0]} {
++			var raw json.RawMessage
++			if err := worker.QueryRow(f.ctx, `SELECT zasp_compliance_export_candidates('execute',1,$1,$2)`, migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()).Scan(&raw); err != nil {
++				t.Fatal(err)
++			}
++			var page struct {
++				Items []struct {
++					Environment string `json:"environment_id"`
++					ID          string `json:"export_id"`
++				} `json:"items"`
++			}
++			if err := json.Unmarshal(raw, &page); err != nil {
++				t.Fatal(err)
++			}
++			if len(page.Items) != 1 {
++				t.Fatalf("poll %d: %s", n, raw)
++			}
++			candidate := page.Items[0]
++			if err := worker.QueryRow(f.ctx, `SELECT zasp_compliance_export_claim($1,$2,$3,$4,'connected-worker',$5,'execute',$6,$7)`, complianceOrg, complianceWorkspace, candidate.Environment, candidate.ID, fmt.Sprintf("%064x", n+1), migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()).Scan(&raw); err != nil {
++				t.Fatal(err)
++			}
++			if string(raw) == "null" {
++				t.Fatalf("poll %d discovered unclaimable head %s: batch1 makes no progress", n, candidate.Environment)
++			}
++			if candidate.Environment != scope || candidate.ID != ids[scope][0] {
++				t.Fatalf("poll %d lost fair oldest ordering: %+v want %s/%s", n, candidate, scope, ids[scope][0])
++			}
++			ids[scope] = ids[scope][1:]
++		}
++	})
++}
++
++func TestComplianceHTTPMaximumIDCursorPostgres(t *testing.T) {
++	withComplianceFixFixture(t, func(f *complianceFixFixture) {
++		api := f.connect("security_agent_v33_discovery_api_login")
++		database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: api})
++		if err != nil {
++			t.Fatal(err)
++		}
++		sessions, err := NewPostgresRepository(database)
++		if err != nil {
++			t.Fatal(err)
++		}
++		source, err := NewComplianceRepository(database)
++		if err != nil {
++			t.Fatal(err)
++		}
++		identity, err := sessions.Authenticate(f.ctx, Credential{Kind: CredentialBrowserSession, Value: "compliance-fix-session"})
++		if err != nil {
++			t.Fatal(err)
++		}
++		router, err := NewCompositionWithCompliance(auditExportCompositionDependencies(), nil, &complianceHTTPHandler{source: source})
++		if err != nil {
++			t.Fatal(err)
++		}
++		mounted, err := NewProductMiddleware(ProductSecurity{PublicOrigin: "https://console.example.test", MaximumBodyBytes: 16384, Authenticate: sessions.Authenticate, GenerateCorrelationID: func() string { return testCorrelationID }}, router)
++		if err != nil {
++			t.Fatal(err)
++		}
++		longID := "policy-" + strings.Repeat("a", 121)
++		f.exec(`INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body) VALUES($1,$2,$3,'policy',$4,7,'{}'),($1,$2,$3,'policy','policy-z',8,'{}')`, complianceOrg, complianceWorkspace, complianceEnvironment, longID)
++		for _, framework := range []string{"soc2_security", "hipaa"} {
++			prefix := "/api/v1/compliance/evidence?framework=" + framework + "&control_id=" + framework + "-policies&limit=1"
++			cursor := ""
++			for i, id := range []string{longID, "policy-z"} {
++				w := complianceHTTPRequest(t, mounted, identity, "GET", prefix+cursor, "", func(r *http.Request) { r.Header.Set("Cookie", browserSessionCookie+"=compliance-fix-session") })
++				var page struct {
++					Items []struct {
++						Evidence []struct {
++							ID string `json:"id"`
++						} `json:"evidence"`
++					} `json:"items"`
++					Info struct {
++						Cursor *string `json:"next_cursor"`
++						More   bool    `json:"has_more"`
++					} `json:"page_info"`
++				}
++				if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &page) != nil || len(page.Items) != 1 || len(page.Items[0].Evidence) != 1 || page.Items[0].Evidence[0].ID != id {
++					t.Fatalf("HTTP page %d: %d %s", i, w.Code, w.Body)
++				}
++				if i == 0 {
++					if page.Info.Cursor == nil || !page.Info.More || len(*page.Info.Cursor) <= 512 {
++						t.Fatalf("maximum source did not emit long cursor: %+v", page.Info)
++					}
++					cursor = "&cursor=" + *page.Info.Cursor
++					t.Logf("%s actual HTTP cursor length=%d", framework, len(*page.Info.Cursor))
++				} else if page.Info.More || page.Info.Cursor != nil {
++					t.Fatal("unexpected third page")
++				}
++			}
++		}
++	})
++}
+diff --git a/services/platform/apiserver/compliance_http.go b/services/platform/apiserver/compliance_http.go
+index f90b747b..273331d3 100644
+--- a/services/platform/apiserver/compliance_http.go
++++ b/services/platform/apiserver/compliance_http.go
+@@ -319,7 +319,8 @@ func (h *complianceHTTPHandler) get(w http.ResponseWriter, r *http.Request, iden
+ 	}
+ }
+ func complianceHTTPListOptions(r *http.Request, identity RequestIdentity, operation string) (ComplianceListOptions, error) {
+-	q, ok := exactWorkflowQuery(r.URL.RawQuery, map[string]int{"framework": 32, "control_id": 128, "cursor": 5500, "limit": 3})
++	// An unpadded base64url encoding of the repository's 4096-byte cursor bound.
++	q, ok := exactWorkflowQuery(r.URL.RawQuery, map[string]int{"framework": 32, "control_id": 128, "cursor": 5462, "limit": 3})
+ 	if !ok {
+ 		return ComplianceListOptions{}, ErrRepositoryOperation
+ 	}
+diff --git a/app/features/sessions/SessionsComplianceView.tsx b/app/features/sessions/SessionsComplianceView.tsx
+index 34283ba4..b6fcf29d 100644
+--- a/app/features/sessions/SessionsComplianceView.tsx
++++ b/app/features/sessions/SessionsComplianceView.tsx
+@@ -40,11 +40,17 @@ export function createSessionsComplianceAPI(client: APIClient): SessionsComplian
+       return loaded.items;
+     },
+     async listEvidence(signal) {
+-      const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<ComplianceEvidencePage>(
+-        await client.GET("/api/v1/compliance/evidence", { signal, params: { query: { limit: 100, ...(cursor ? { cursor } : {}) } } }),
+-        decodeComplianceEvidencePage,
+-      ), { maximumItems: 2_000, maximumPages: 20, signal });
+-      return loaded.items;
++      const items: ComplianceEvidencePage["items"][number][] = [];
++      // Cursors bind their framework. Each framework starts its own chain and
++      // shares the effect's cancellation signal, including between chains.
++      for (const framework of ["soc2_security", "hipaa"] as const) {
++        const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<ComplianceEvidencePage>(
++          await client.GET("/api/v1/compliance/evidence", { signal, params: { query: { framework, limit: 100, ...(cursor ? { cursor } : {}) } } }),
++          decodeComplianceEvidencePage,
++        ), { maximumItems: 2_000, maximumPages: 20, signal });
++        items.push(...loaded.items);
++      }
++      return items;
+     },
+     async getDataControls() { return requireAPIData<DataControls>(await client.GET("/api/v1/settings/data-controls"), decodeDataControls); },
+     async updateDataControls(value) { return requireAPIData<DataControls>(await client.PATCH("/api/v1/settings/data-controls", { params: { header: { "X-CSRF-Token": "", "If-Match": `"${value.version}"` } }, body: { environment_id: value.environment_id, environment_class: value.environment_class, collection_mode: value.collection_mode, retention_days: value.retention_days, deletion_enabled: value.deletion_enabled } }), decodeDataControls); },
+diff --git a/app/features/sessions/SessionsComplianceView.test.tsx b/app/features/sessions/SessionsComplianceView.test.tsx
+index b545865a..0f13c934 100644
+--- a/app/features/sessions/SessionsComplianceView.test.tsx
++++ b/app/features/sessions/SessionsComplianceView.test.tsx
+@@ -57,7 +57,7 @@ function complianceClient(handle?: (request: Request) => Promise<Response | unde
+     const custom = await handle?.(request); if (custom) return custom;
+     const path = new URL(request.url).pathname;
+     if (path.endsWith("/controls")) return response({ items: [control, { ...control, id: "hipaa-config", framework: "HIPAA", name: "Configuration", freshness: "missing", evidence_ids: [] }], page_info: { has_more: false, next_cursor: null } });
+-    if (path.endsWith("/evidence")) return response({ items: [{ control, freshness: "fresh", evidence: [record] }], page_info: { has_more: false, next_cursor: null } });
++    if (path.endsWith("/evidence")) return response({ items: new URL(request.url).searchParams.get("framework") === "hipaa" ? [] : [{ control, freshness: "fresh", evidence: [record] }], page_info: { has_more: false, next_cursor: null } });
+     if (path.endsWith("/policy/policy-production")) return response({ record, freshness: "stale", organization_id: organization, workspace_id: workspace, environment_id: environment });
+     if (path.endsWith("/exports")) return response(job, 201);
+     if (path.endsWith(`/exports/${principal}`)) return response({ ...job, status: "completed" });
+@@ -66,6 +66,28 @@ function complianceClient(handle?: (request: Request) => Promise<Response | unde
+ }
+ function response(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }); }
+ describe("current compliance UI", () => {
++  it("loads populated HIPAA and SOC2 with independent cursor chains through the mounted client", async () => {
++    const seen: string[] = [];
++    const hipaa = { ...control, id: "hipaa-policies", framework: "hipaa", name: "HIPAA policy definitions" };
++    const client = complianceClient(async request => {
++      const url = new URL(request.url);
++      if (url.pathname.endsWith("/controls")) return response({ items: [control, hipaa], page_info: { has_more: false, next_cursor: null } });
++      if (!url.pathname.endsWith("/evidence")) return undefined;
++      const framework = url.searchParams.get("framework") ?? "soc2_security";
++      const cursor = url.searchParams.get("cursor");
++      seen.push(`${framework}:${cursor ?? "first"}`);
++      if (!cursor) return response({ items: [], page_info: { has_more: true, next_cursor: `${framework}-next` } });
++      expect(cursor).toBe(`${framework}-next`);
++      return response({ items: [{ control: framework === "hipaa" ? hipaa : control, freshness: "fresh", evidence: [record] }], page_info: { has_more: false, next_cursor: null } });
++    });
++    render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
++    await waitFor(() => expect(screen.getAllByRole("link", { name: "Open policy policy-production version 2" })).toHaveLength(2));
++    expect(seen).toEqual(["soc2_security:first", "soc2_security:soc2_security-next", "hipaa:first", "hipaa:hipaa-next"]);
++    await userEvent.selectOptions(screen.getByLabelText("Framework"), "hipaa");
++    await userEvent.selectOptions(screen.getByLabelText("Control"), "hipaa-policies");
++    expect(screen.getByRole("link", { name: "Open policy policy-production version 2" })).toHaveAttribute("href", expect.stringContaining("source_kind=policy&source_id=policy-production&source_version=2"));
++    expect(screen.queryByText("soc2_security · Policy definitions")).not.toBeInTheDocument();
++  });
+   it.each([["scope", 1], ["principal", 1], ["scope", 2], ["principal", 2]] as const)("cancels obsolete %s list page %s before a continuation starts", async (replacement, pendingPage) => {
+     const oldRequests: Request[] = [];
+     const releases: Array<(response: Response) => void> = [];
+diff --git a/apps/web/api/administration-decoders.ts b/apps/web/api/administration-decoders.ts
+index 9b6ce1c2..565734ab 100644
+--- a/apps/web/api/administration-decoders.ts
++++ b/apps/web/api/administration-decoders.ts
+@@ -40,8 +40,8 @@ export const decodeSession = (value: unknown) => decoded<Session>(value, ["id",
+ export const decodeSessionPage = (value: unknown) => page<SessionPage>(value, decodeSession);
+ export const decodeSessionEventPage = (value: unknown) => page<SessionEventPage>(value, (event) => { sessionEvent(event); });
+ 
+-export const decodeComplianceControlPage = (value: unknown) => page<ComplianceControlPage>(value, (item) => { control(item); });
+-export const decodeComplianceEvidencePage = (value: unknown) => page<ComplianceEvidencePage>(value, (item) => { const entry = exact(item, ["control", "freshness", "evidence"]); control(entry.control); one(entry.freshness, ["fresh", "stale", "missing"]); const evidence = list(entry.evidence, 1); if (evidence.length !== 1) bad(); decodeComplianceRecord(evidence[0]); });
++export const decodeComplianceControlPage = (value: unknown) => page<ComplianceControlPage>(value, (item) => { control(item); }, 5462);
++export const decodeComplianceEvidencePage = (value: unknown) => page<ComplianceEvidencePage>(value, (item) => { const entry = exact(item, ["control", "freshness", "evidence"]); control(entry.control); one(entry.freshness, ["fresh", "stale", "missing"]); const evidence = list(entry.evidence, 1); if (evidence.length !== 1) bad(); decodeComplianceRecord(evidence[0]); }, 5462);
+ export const decodeDataControls = (value: unknown) => decoded<DataControls>(value, ["environment_id", "environment_class", "collection_mode", "retention_days", "deletion_enabled", "version"], (record) => { id(record.environment_id); one(record.environment_class, ["development", "test", "staging", "production"]); one(record.collection_mode, ["metadata_only", "extended"]); integer(record.retention_days, 1, 3650); if (typeof record.deletion_enabled !== "boolean") bad(); version(record.version); }, ["audit_correlation_id"]);
+ export const decodeExternalFlowPage = (value: unknown) => decoded<ExternalFlowPage>(value, ["items"], (record) => { for (const item of list(record.items, 32)) { const entry = exact(item, ["id", "required", "categories", "enabled", "health"]); text(entry.id, 64); if (typeof entry.required !== "boolean" || typeof entry.enabled !== "boolean") bad(); strings(entry.categories, 16); one(entry.health, ["healthy", "degraded", "disabled"]); } });
+ export const decodeAuditEventPage = (value: unknown) => page<AuditEventPage>(value, (item) => decoded(item, ["id", "workspace_id", "environment_id", "actor_id", "action", "target_id", "outcome", "metadata", "occurred_at"], (record) => { id(record.id); id(record.workspace_id); id(record.environment_id); id(record.actor_id); text(record.action, 127); text(record.target_id, 128); one(record.outcome, ["succeeded", "failed", "denied"]); stringRecord(record.metadata, 32); date(record.occurred_at); }));
+@@ -49,7 +49,9 @@ export const decodeSystemStatus = (value: unknown) => decoded<SystemStatus>(valu
+ export const decodeSystemComponentPage = (value: unknown) => decoded<SystemComponentPage>(value, ["items"], (record) => { for (const item of list(record.items, 64)) { const entry = exact(item, ["id", "required", "state", "fresh_at"]); text(entry.id, 64); if (typeof entry.required !== "boolean") bad(); one(entry.state, ["healthy", "degraded", "unavailable"]); date(entry.fresh_at); } });
+ export const decodeSystemVersion = (value: unknown) => decoded<SystemVersion>(value, ["version"], (record) => text(record.version, 64));
+ 
+-function page<T>(value: unknown, decodeItem: (item: unknown) => unknown): T { return decoded<T>(value, ["items", "page_info"], (record) => { for (const item of list(record.items, 100)) decodeItem(item); const info = exact(record.page_info, ["next_cursor", "has_more"]); if (info.has_more === true) text(info.next_cursor, 512); else if (info.has_more !== false || info.next_cursor !== null) bad(); }); }
++// Compliance's eight-field, scope/filter/source-bound JSON is limited to 4096
++// decoded bytes: ceil(4096 * 4 / 3) = 5462 unpadded base64url characters.
++function page<T>(value: unknown, decodeItem: (item: unknown) => unknown, cursorMaximum = 512): T { return decoded<T>(value, ["items", "page_info"], (record) => { for (const item of list(record.items, 100)) decodeItem(item); const info = exact(record.page_info, ["next_cursor", "has_more"]); if (info.has_more === true) text(info.next_cursor, cursorMaximum); else if (info.has_more !== false || info.next_cursor !== null) bad(); }); }
+ function sessionEvent(value: unknown) { const record = exact(value, ["id", "session_id", "class", "label", "evidence_id", "source", "confidence", "at"]); text(record.id, 128); if (typeof record.session_id !== "string" || !SESSION_ID.test(record.session_id)) bad(); one(record.class, ["tool", "runtime", "network", "file", "credential", "policy"]); text(record.label, 256); text(record.evidence_id, 128); text(record.source, 64); one(record.confidence, ["exact", "strong", "probable", "unattributed"]); date(record.at); }
+ function control(value: unknown) { const record = exact(value, ["id", "framework", "name", "evidence_ids", "fresh_until"], ["freshness"]); text(record.id, 128); text(record.framework, 64); text(record.name, 256); strings(record.evidence_ids, 100); date(record.fresh_until); if (Object.hasOwn(record, "freshness")) one(record.freshness, ["fresh", "stale", "missing"]); }
+ function decoded<T>(value: unknown, required: string[], validate: (record: Record<string, unknown>) => void, optional: string[] = []): T { const record = exact(value, required, optional); validate(record); for (const key of optional) if (record[key] !== undefined && key.includes("correlation")) id(record[key]); return value as T; }
+diff --git a/apps/web/api/compliance-decoders.test.ts b/apps/web/api/compliance-decoders.test.ts
+index 1a55ab0e..b4e26402 100644
+--- a/apps/web/api/compliance-decoders.test.ts
++++ b/apps/web/api/compliance-decoders.test.ts
+@@ -1,11 +1,31 @@
+ import { describe, expect, it } from "vitest";
+-import { decodeComplianceControlPage, decodeComplianceEvidencePage } from "./administration-decoders";
++import { decodeComplianceControlPage, decodeComplianceEvidencePage, decodeSessionPage } from "./administration-decoders";
++import { createSessionsComplianceAPI } from "../../../app/features/sessions/SessionsComplianceView";
+ import { decodeComplianceEvidenceDetail, decodeComplianceExport, decodeComplianceDownloadGrant } from "./compliance-decoders";
+ import { createAPIClient, requireAPIData } from "./client";
+ const scope={organization_id:"pid_10000001-0000-4000-8000-000000000001",workspace_id:"pid_10000002-0000-4000-8000-000000000002",environment_id:"pid_10000003-0000-4000-8000-000000000003"};
+ const record={id:"policy-001",asset_id:"policy-001",source:"policy",at:"2026-01-02T00:00:00.000000Z",target:{source_kind:"policy",source_id:"policy-001",source_version:7},metadata:{verification:"definition_only"}};
+ const detail={...scope,record,freshness:"stale"};
+ describe("compliance current contracts",()=>{
++ it("paginates maximum policy IDs without widening unrelated cursors",async()=>{
++  const id="policy-"+"a".repeat(121);
++  const cursor=btoa(JSON.stringify({...scope,operation:"listEvidence",framework:"soc2_security",control_id:"",source_kind:"policy",source_id:id}).replaceAll(",",", ").replaceAll(":",": ")).replaceAll("=","").replaceAll("+","-").replaceAll("/","_");
++  expect(cursor.length).toBeGreaterThan(512);
++  const longRecord={...record,id,asset_id:id,target:{...record.target,source_id:id}};
++  const item={control:{id:"soc2_security-policies",framework:"soc2_security",name:"Policy definitions",evidence_ids:[id],fresh_until:"2026-01-03T00:00:00Z"},freshness:"stale",evidence:[longRecord]};
++  const first={items:[item],page_info:{has_more:true,next_cursor:cursor}};
++  expect(decodeComplianceEvidencePage(first).items[0].evidence[0].id).toBe(id);
++  expect(()=>decodeSessionPage({items:[],page_info:first.page_info})).toThrow();
++  expect(()=>decodeComplianceEvidencePage({...first,page_info:{has_more:true,next_cursor:"a".repeat(5463)}})).toThrow();
++  const client=createAPIClient({fetch:async request=>{
++   const url=new URL(request.url);
++   const next=url.searchParams.get("cursor");
++   if(url.searchParams.get("framework")==="hipaa")return new Response(JSON.stringify({items:[],page_info:{has_more:false,next_cursor:null}}),{headers:{"Content-Type":"application/json"}});
++   if(next)expect(next).toBe(cursor);
++   return new Response(JSON.stringify(next?{items:[],page_info:{has_more:false,next_cursor:null}}:first),{headers:{"Content-Type":"application/json"}});
++  }});
++  expect((await createSessionsComplianceAPI(client).listEvidence())[0].evidence[0].target?.source_id).toBe(id);
++ });
+  it("validates authoritative freshness when present on direct live controls",()=>{
+   const control={id:"soc2_security-policies",framework:"soc2_security",name:"Policy definitions",evidence_ids:[],fresh_until:"1970-01-01T00:00:00Z",freshness:"missing"};
+   const page=(item:unknown)=>({items:[item],page_info:{has_more:false,next_cursor:null}});
+diff --git a/openapi/openapi.yaml b/openapi/openapi.yaml
+index 667965a8..97d7cfa9 100644
+--- a/openapi/openapi.yaml
++++ b/openapi/openapi.yaml
+@@ -2514,7 +2514,7 @@ paths:
+       parameters:
+         - $ref: '#/components/parameters/ComplianceFramework'
+         - $ref: '#/components/parameters/ComplianceControlFilter'
+-        - $ref: '#/components/parameters/PageCursor'
++        - $ref: '#/components/parameters/CompliancePageCursor'
+         - $ref: '#/components/parameters/PageLimit'
+       responses:
+         '200': { description: Supported controls., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceControlPage' } } } }
+@@ -2530,7 +2530,7 @@ paths:
+       parameters:
+         - $ref: '#/components/parameters/ComplianceFramework'
+         - $ref: '#/components/parameters/ComplianceControlFilter'
+-        - $ref: '#/components/parameters/PageCursor'
++        - $ref: '#/components/parameters/CompliancePageCursor'
+         - $ref: '#/components/parameters/PageLimit'
+       responses:
+         '200': { description: Compliance evidence., content: { application/json: { schema: { $ref: '#/components/schemas/ComplianceEvidencePage' } } } }
+@@ -3139,6 +3139,12 @@ components:
+       required: true
+       description: Caller-generated key binding an exact workflow mutation and its durable response.
+       schema: { type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]*$' }
++    CompliancePageCursor:
++      name: cursor
++      in: query
++      required: false
++      schema:
++        $ref: '#/components/schemas/ComplianceCursor'
+     PageCursor:
+       name: cursor
+       in: query
+@@ -4275,8 +4281,8 @@ components:
+         organization_id: { $ref: '#/components/schemas/ProductID' }
+         workspace_id: { $ref: '#/components/schemas/ProductID' }
+         environment_id: { $ref: '#/components/schemas/ProductID' }
+-    ComplianceControlPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceControl' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
+-    ComplianceEvidencePage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceEvidence' } }, page_info: { $ref: '#/components/schemas/PageInfo' } } }
++    ComplianceControlPage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceControl' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
++    ComplianceEvidencePage: { type: object, additionalProperties: false, required: [items, page_info], properties: { items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ComplianceEvidence' } }, page_info: { $ref: '#/components/schemas/CompliancePageInfo' } } }
+     ComplianceExportInput: { type: object, additionalProperties: false, properties: { framework: { type: string, enum: [soc2_security, hipaa] }, control_id: { type: string, minLength: 1, maxLength: 128, pattern: '^(soc2_security|hipaa)-(audit|findings|policies|tests|configuration)$' } } }
+     ComplianceExport:
+       type: object
+@@ -4398,6 +4404,26 @@ components:
+           minLength: 1
+           maxLength: 128
+           pattern: '^(?!\s)(?!.*\s$)[^\x00-\x1F\x7F-\x9F]+$'
++    ComplianceCursor:
++      type: string
++      minLength: 2
++      maxLength: 5462
++      pattern: '^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-][AQgw]|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048])?$'
++      description: Opaque canonical unpadded base64url cursor binding scope, operation, framework, control and source. The decoded JSON is bounded to 4096 bytes (5462 encoded characters), accommodating valid 128-character source IDs with all filters.
++    CompliancePageInfo:
++      oneOf:
++        - type: object
++          additionalProperties: false
++          required: [next_cursor, has_more]
++          properties:
++            next_cursor: { $ref: '#/components/schemas/ComplianceCursor' }
++            has_more: { const: true }
++        - type: object
++          additionalProperties: false
++          required: [next_cursor, has_more]
++          properties:
++            next_cursor: { type: 'null' }
++            has_more: { const: false }
+     Cursor:
+       type: string
+       minLength: 2
+diff --git a/apps/web/api/generated.ts b/apps/web/api/generated.ts
+index 27708f7d..7668a3f6 100644
+--- a/apps/web/api/generated.ts
++++ b/apps/web/api/generated.ts
+@@ -2950,8 +2950,10 @@ export type components = {
+         };
+         readonly ComplianceControlPage: {
+             readonly items: readonly components["schemas"]["ComplianceControl"][];
+-            readonly page_info: components["schemas"]["PageInfo"];
++            readonly page_info: components["schemas"]["CompliancePageInfo"];
+         };
++        /** @description Opaque canonical unpadded base64url cursor binding scope, operation, framework, control and source. The decoded JSON is bounded to 4096 bytes (5462 encoded characters), accommodating valid 128-character source IDs with all filters. */
++        readonly ComplianceCursor: string;
+         /** @enum {string} */
+         readonly ComplianceDownloadFormat: "json" | "csv" | "human";
+         readonly ComplianceDownloadGrant: {
+@@ -2994,7 +2996,7 @@ export type components = {
+         };
+         readonly ComplianceEvidencePage: {
+             readonly items: readonly components["schemas"]["ComplianceEvidence"][];
+-            readonly page_info: components["schemas"]["PageInfo"];
++            readonly page_info: components["schemas"]["CompliancePageInfo"];
+         };
+         readonly ComplianceEvidenceTarget: {
+             readonly source_id: string;
+@@ -3021,6 +3023,15 @@ export type components = {
+             /** @enum {string} */
+             readonly framework?: "soc2_security" | "hipaa";
+         };
++        readonly CompliancePageInfo: {
++            /** @constant */
++            readonly has_more: true;
++            readonly next_cursor: components["schemas"]["ComplianceCursor"];
++        } | {
++            /** @constant */
++            readonly has_more: false;
++            readonly next_cursor: null;
++        };
+         /** @enum {string} */
+         readonly ComplianceSourceKind: "administration" | "workflow_policy" | "red_team_mutation" | "finding" | "policy" | "red_team_test" | "attack_lab_test" | "configuration";
+         readonly ConnectionDeletion: {
+@@ -4695,6 +4706,7 @@ export type components = {
+         readonly BrowserMutationOrigin: string;
+         readonly ComplianceControlFilter: string;
+         readonly ComplianceFramework: "soc2_security" | "hipaa";
++        readonly CompliancePageCursor: components["schemas"]["ComplianceCursor"];
+         /** @description Quoted current execution-control version, including quoted zero before the first tenant override. */
+         readonly ControlVersion: string;
+         /** @description Short-lived CSRF value bound to the authenticated browser session. Mutations also require an exact same-origin Origin header. */
+@@ -4780,6 +4792,7 @@ export type CapabilityState = components['schemas']['CapabilityState'];
+ export type CollectionFailureCode = components['schemas']['CollectionFailureCode'];
+ export type ComplianceControl = components['schemas']['ComplianceControl'];
+ export type ComplianceControlPage = components['schemas']['ComplianceControlPage'];
++export type ComplianceCursor = components['schemas']['ComplianceCursor'];
+ export type ComplianceDownloadFormat = components['schemas']['ComplianceDownloadFormat'];
+ export type ComplianceDownloadGrant = components['schemas']['ComplianceDownloadGrant'];
+ export type ComplianceEvidence = components['schemas']['ComplianceEvidence'];
+@@ -4790,6 +4803,7 @@ export type ComplianceEvidenceTarget = components['schemas']['ComplianceEvidence
+ export type ComplianceExport = components['schemas']['ComplianceExport'];
+ export type ComplianceExportId = components['schemas']['ComplianceExportID'];
+ export type ComplianceExportInput = components['schemas']['ComplianceExportInput'];
++export type CompliancePageInfo = components['schemas']['CompliancePageInfo'];
+ export type ComplianceSourceKind = components['schemas']['ComplianceSourceKind'];
+ export type ConnectionDeletion = components['schemas']['ConnectionDeletion'];
+ export type ConnectionStatus = components['schemas']['ConnectionStatus'];
+@@ -5019,6 +5033,7 @@ export type ParameterBrowserMutationCsrfToken = components['parameters']['Browse
+ export type ParameterBrowserMutationOrigin = components['parameters']['BrowserMutationOrigin'];
+ export type ParameterComplianceControlFilter = components['parameters']['ComplianceControlFilter'];
+ export type ParameterComplianceFramework = components['parameters']['ComplianceFramework'];
++export type ParameterCompliancePageCursor = components['parameters']['CompliancePageCursor'];
+ export type ParameterControlVersion = components['parameters']['ControlVersion'];
+ export type ParameterCsrfToken = components['parameters']['CSRFToken'];
+ export type ParameterFreshAuth = components['parameters']['FreshAuth'];
+@@ -6210,8 +6225,7 @@ export interface operations {
+         readonly parameters: {
+             readonly query?: {
+                 readonly control_id?: components["parameters"]["ComplianceControlFilter"];
+-                /** @description Opaque cursor returned by the preceding page. */
+-                readonly cursor?: components["parameters"]["PageCursor"];
++                readonly cursor?: components["parameters"]["CompliancePageCursor"];
+                 readonly framework?: components["parameters"]["ComplianceFramework"];
+                 /** @description Maximum number of records to return. */
+                 readonly limit?: components["parameters"]["PageLimit"];
+@@ -6239,8 +6253,7 @@ export interface operations {
+         readonly parameters: {
+             readonly query?: {
+                 readonly control_id?: components["parameters"]["ComplianceControlFilter"];
+-                /** @description Opaque cursor returned by the preceding page. */
+-                readonly cursor?: components["parameters"]["PageCursor"];
++                readonly cursor?: components["parameters"]["CompliancePageCursor"];
+                 readonly framework?: components["parameters"]["ComplianceFramework"];
+                 /** @description Maximum number of records to return. */
+                 readonly limit?: components["parameters"]["PageLimit"];
+diff --git a/scripts/production-combined-e2e.mjs b/scripts/production-combined-e2e.mjs
+index 190bcfeb..59fda9d9 100644
+--- a/scripts/production-combined-e2e.mjs
++++ b/scripts/production-combined-e2e.mjs
+@@ -2131,11 +2131,14 @@ async function exerciseComplianceBrowser(configuration) {
+   const sql=async statement=>(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
+   const org="pid_10000001-0000-4000-8000-000000000001",workspace="pid_10000022-0000-4000-8000-000000000022",environment="pid_10000023-0000-4000-8000-000000000023",actor="pid_10000004-0000-4000-8000-000000000004";
+   const selectedScope=`${org}/${workspace}/${environment}`;
++  const pagingPrefix="policy-"+"a".repeat(118);
++  const pagingLast=pagingPrefix+"101";
+   assert.equal(await sql("SELECT max(version) FROM zasp_schema_versions"),"56");
+   await sql(`CREATE ROLE compliance_executor LOGIN INHERIT; CREATE ROLE compliance_cleanup LOGIN INHERIT;
+ SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanup',(SELECT checksum FROM zasp_schema_versions WHERE version=56),(SELECT value FROM zasp_schema_metadata WHERE key='production_compliance_fingerprint'));
+ UPDATE zasp_authorized_scopes SET permissions=permissions || '["view_audit","view_compliance"]'::jsonb WHERE principal_id='${actor}';
+-INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) VALUES('${org}','${workspace}','${environment}','policy','policy-compliance-browser',7,'{"raw_prompt":"NEVER_EXPORT_BROWSER"}','2020-01-01');`);
++INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) VALUES('${org}','${workspace}','${environment}','policy','policy-compliance-browser',7,'{"raw_prompt":"NEVER_EXPORT_BROWSER"}','2020-01-01');
++INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) SELECT '${org}','${workspace}','${environment}','policy','${pagingPrefix}'||lpad(n::text,3,'0'),7,'{}','2020-01-01' FROM generate_series(1,101) n;`);
+   const storage=await mkdtemp("/tmp/zasp-compliance-browser-");
+   const object=path.join(storage,"object.json"),downloads=path.join(storage,"downloads");
+   // Retained local evidence: downloaded files and exact controlled-provider bytes.
+@@ -2178,6 +2181,23 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
+   await waitForBrowserText(cdp,/Create evidence export/);
+   await selectBrowserOption(cdp,"Authorized scope","Staging");
+   await waitForBrowserScope(cdp,selectedScope);
++  // Both mounted chains must traverse an actual >512-character SQL/HTTP cursor.
++  // These owned paging records are removed before export, whose 100-record cap
++  // and original single-record byte assertions stay unchanged.
++  await waitForBrowserText(cdp,new RegExp(pagingLast));
++  const pagingLinks=await cdp.send("Runtime.evaluate",{expression:`[...document.querySelectorAll('a')].filter(e=>e.getAttribute('aria-label')==='Open policy ${pagingLast} version 7').length`,returnByValue:true});
++  assert.equal(pagingLinks.result.value,2,"all frameworks must include the last maximum-ID policy");
++  for(const framework of ["soc2_security","hipaa"]) assert.ok(complianceResponseTrace.some(entry=>entry.path==="/api/v1/compliance/evidence"&&entry.scope===selectedScope&&entry.framework===framework&&entry.cursorLength>512&&entry.status===200),framework+" mounted long-cursor continuation missing");
++  await selectBrowserOption(cdp,"Framework","HIPAA");
++  await selectBrowserOption(cdp,"Control","Policy definitions");
++  await clickBrowserAria(cdp,`Open policy ${pagingLast} version 7`);
++  assert.match(await waitForBrowserText(cdp,/Evidence source/),/2020-01-01T00:00:00(?:\.0+)?Z[\s\S]*stale/);
++  const hipaaURL=new URL(await browserCurrentURL(cdp));
++  assert.equal(hipaaURL.searchParams.get("source_id"),pagingLast);assert.equal(hipaaURL.searchParams.get("source_version"),"7");
++  const hipaaCapture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-hipaa-detail.png"),Buffer.from(hipaaCapture.data,"base64"));
++  await sql(`DELETE FROM zasp_workflow_records WHERE (organization_id,workspace_id,environment_id,kind)=('${org}','${workspace}','${environment}','policy') AND id IN(SELECT '${pagingPrefix}'||lpad(n::text,3,'0') FROM generate_series(1,101) n)`);
++  await navigateBrowser(cdp,`${publicOrigin}/compliance/evidence`);
++  await selectBrowserOption(cdp,"Framework","SOC 2 Security");
+   const sourceLocation=`/compliance/evidence?source_kind=policy&source_id=policy-compliance-browser&source_version=7&organization_id=${org}&workspace_id=${workspace}&environment_id=${environment}`;
+   await clickBrowserAria(cdp,"Open policy policy-compliance-browser version 7");
+   assert.match(await waitForBrowserText(cdp,/Evidence source/),/2020-01-01T00:00:00(?:\.0+)?Z[\s\S]*stale/);
+@@ -2263,7 +2283,7 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
+   assert.equal(visibleExport.result.value,true,"final screenshot must include the export action");
+   assert.doesNotMatch(await browserStorageAndHistoryText(cdp),/compliance-process-v1|NEVER_EXPORT_BROWSER|"token"|arn:aws/);
+   const capture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-final.png"),Buffer.from(capture.data,"base64"));
+-  await writeFile(path.join(storage,"summary.json"),JSON.stringify({jobID,packageSHA256:pinned,nativeJSONBytes:saved.length,restartReadableBytes:Buffer.byteLength(readable),grantReplayRefused:true,siblingDenied:true,foreignDenied:true,sourceChanged:true,provider:"controlled local SDK transport, NOT AWS"},null,2));
++  await writeFile(path.join(storage,"summary.json"),JSON.stringify({jobID,packageSHA256:pinned,nativeJSONBytes:saved.length,restartReadableBytes:Buffer.byteLength(readable),hipaaSourceDetail:true,maximumIDPaging:true,pagingRecordsRemovedBeforeExport:101,grantReplayRefused:true,siblingDenied:true,foreignDenied:true,sourceChanged:true,provider:"controlled local SDK transport, NOT AWS"},null,2));
+   assert.equal(proxyFailure,undefined);
+   console.log("compliance release56 browser acceptance: real session/API/worker/versioned artifact; source change, exact JSON/CSV/readable, worker/API restart, scope denial and grant replay passed; live AWS NOT RUN");
+ }
+@@ -5558,7 +5578,8 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
+ 		const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
+       if (complianceBrowserMode && target.pathname.startsWith("/api/v1/")) {
+         const expectedScope=String(request.headers["x-zasp-expected-scope"]??"");
+-        const entry={method:request.method,path:target.pathname,status:upstreamResponse.statusCode,cursor:target.searchParams.has("cursor"),scope:/^pid_[a-f0-9-]+\/pid_[a-f0-9-]+\/pid_[a-f0-9-]+$/.test(expectedScope)?expectedScope:null,code:null};
++        const framework=target.searchParams.get("framework");
++        const entry={method:request.method,path:target.pathname,status:upstreamResponse.statusCode,cursor:target.searchParams.has("cursor"),cursorLength:(target.searchParams.get("cursor")??"").length,framework:["soc2_security","hipaa"].includes(framework)?framework:null,scope:/^pid_[a-f0-9-]+\/pid_[a-f0-9-]+\/pid_[a-f0-9-]+$/.test(expectedScope)?expectedScope:null,code:null};
+         complianceResponseTrace.push(entry);
+         // Only product error codes leave memory; never retain bodies, headers or tokens.
+         if (entry.status >= 400) {
+diff --git a/openapi/openapi.test.mjs b/openapi/openapi.test.mjs
+index 2f844de4..6019b51f 100644
+--- a/openapi/openapi.test.mjs
++++ b/openapi/openapi.test.mjs
+@@ -148,6 +148,12 @@ function verifyDocument(value, rawText) {
+       description: "Caller-generated key binding an exact workflow mutation and its durable response.",
+       schema: { type: "string", minLength: 16, maxLength: 128, pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
+     },
++    CompliancePageCursor: {
++      name: "cursor",
++      in: "query",
++      required: false,
++      schema: { $ref: "#/components/schemas/ComplianceCursor" },
++    },
+     PageCursor: {
+       name: "cursor",
+       in: "query",
+diff --git a/app/quality/runnable-ui-workflow.test.ts b/app/quality/runnable-ui-workflow.test.ts
+index 6a46a5eb..f2612ead 100644
+--- a/app/quality/runnable-ui-workflow.test.ts
++++ b/app/quality/runnable-ui-workflow.test.ts
+@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
+ import { assertAuditSourceCoverage, readAuditSources, type AuditLane } from "./audit-ci-source-contract";
+ 
+ type WorkflowStep = {
++  name?: string;
+   id?: string;
+   env?: Record<string, string>;
+   shell?: unknown;
+@@ -44,6 +45,25 @@ const sessionIAMCommand = "task_tf_dir=$(mktemp -d \"${RUNNER_TEMP}/zasp-terrafo
+ const checkoutAction = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1";
+ const setupNodeAction = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020";
+ const setupGoAction = "actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16";
++const compliancePrerequisitesCommand = `# This populates the exact cache entry consumed with --pull=never.
++compliance_postgres_image=postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba
++docker pull "$compliance_postgres_image"
++docker image inspect "$compliance_postgres_image" --format '{{json .RepoDigests}}' | node --input-type=module -e 'import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; assert.ok(JSON.parse(readFileSync(0,"utf8")).includes(process.argv[1]), "pinned browser PostgreSQL digest absent");' "$compliance_postgres_image"
++node --input-type=module <<'NODE'
++import { execFileSync } from "node:child_process";
++import { appendFileSync } from "node:fs";
++import { selectBrowserExecutable } from "./scripts/browser-prerequisites.mjs";
++const chrome = selectBrowserExecutable();
++console.log(\`Hosted compliance browser: \${chrome}\`);
++console.log(execFileSync(chrome, ["--version"], { encoding: "utf8", timeout: 5000, killSignal: "SIGKILL" }).trim());
++appendFileSync(process.env.GITHUB_ENV, \`ZASP_COMBINED_E2E_CHROME=\${chrome}\\n\`);
++NODE
++`;
++const complianceAcceptanceCommand = "node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs\nnode scripts/production-combined-e2e.mjs\n";
++const complianceSteps: WorkflowStep[] = [
++  { name: "Provision isolated compliance browser prerequisites", "timeout-minutes": 10, run: compliancePrerequisitesCommand },
++  { name: "Verify current compliance browser acceptance", "timeout-minutes": 15, env: { ZASP_COMBINED_E2E_COMPLIANCE: "true" }, run: complianceAcceptanceCommand },
++];
+ const postgresFixtureCommand = `fixture_pg_dir=$(mktemp -d "\${RUNNER_TEMP}/zasp-pgdg.XXXXXX")
+ curl --fail --location --retry 3 --max-time 60 --output "$fixture_pg_dir/pgdg.asc" https://www.postgresql.org/media/keys/ACCC4CF8.asc
+ printf '%s  %s\\n' 0144068502a1eddd2a0280ede10ef607d1ec592ce819940991203941564e8e76 "$fixture_pg_dir/pgdg.asc" | sha256sum --check -
+@@ -199,7 +219,7 @@ function assertRunnableUiWorkflow(
+   expect(verificationJob["timeout-minutes"]).toBeUndefined();
+ 
+   const verificationSteps = verificationJob.steps ?? [];
+-  expect(verificationSteps).toHaveLength(30);
++  expect(verificationSteps).toHaveLength(32);
+   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
+     checkoutAction,
+     setupNodeAction,
+@@ -210,6 +230,7 @@ function assertRunnableUiWorkflow(
+     "go install github.com/zricethezav/gitleaks/v8@v8.30.1",
+     "npm run implementation:status:check",
+     "npm run verify",
++    ...complianceSteps.map(step => step.run),
+     "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n",
+     "npm run production:release:gate",
+     sessionIAMCommand,
+@@ -230,18 +251,22 @@ function assertRunnableUiWorkflow(
+     cache: true,
+     "cache-dependency-path": "services/platform/go.sum",
+   });
+-  expect(verificationSteps[11]?.["timeout-minutes"]).toBe(10);
+-  for (const [index, expected] of auditSteps.entries()) {
+-    expect(verificationSteps[14 + index]).toMatchObject({ id: expected.id, "timeout-minutes": expected["timeout-minutes"] });
+-    expect(verificationSteps[14 + index]?.env).toEqual(expected.env);
++  expect(verificationSteps.find(step => step.run === sessionIAMCommand)?.["timeout-minutes"]).toBe(10);
++  for (const expected of complianceSteps) {
++    expect(verificationSteps.find(step => step.name === expected.name)).toEqual(expected);
++  }
++  for (const expected of auditSteps) {
++    const actual = verificationSteps.find(step => step.id === expected.id);
++    expect(actual).toMatchObject({ id: expected.id, "timeout-minutes": expected["timeout-minutes"] });
++    expect(actual?.env).toEqual(expected.env);
+   }
+-  expect(verificationSteps[28]?.["timeout-minutes"]).toBe(15);
++  expect(verificationSteps.find(step => step.run === daemonReplayCommand)?.["timeout-minutes"]).toBe(15);
+   for (const step of verificationSteps) {
+     expect(step.if).toBeUndefined();
+     expect(step["continue-on-error"]).toBeUndefined();
+     expect(step.shell).toBeUndefined();
+     expect(step["working-directory"]).toBeUndefined();
+-    if (!step.id?.startsWith("audit_")) expect(step.env).toBeUndefined();
++    if (!step.id?.startsWith("audit_") && step.name !== complianceSteps[1].name) expect(step.env).toBeUndefined();
+   }
+ }
+ 
+@@ -265,6 +290,7 @@ function validWorkflow(): Workflow {
+           { run: "go install github.com/zricethezav/gitleaks/v8@v8.30.1" },
+           { run: "npm run implementation:status:check" },
+           { run: "npm run verify" },
++          ...structuredClone(complianceSteps),
+           { run: "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n" },
+           { run: "npm run production:release:gate" },
+           { run: sessionIAMCommand, "timeout-minutes": 10 },
+@@ -281,6 +307,21 @@ function validWorkflow(): Workflow {
+ }
+ 
+ describe("runnable UI GitHub Actions gate", () => {
++  it.each(complianceSteps.flatMap(step => ["omitted", "skipped", "allowed failure", "timeout", "command", "environment", "order"].map(condition => [step.name!, condition] as const)))("rejects compliance step %s with %s", async (name, condition) => {
++    const workflow = await readWorkflow();
++    const manifest = await readPackageManifest();
++    assertRunnableUiWorkflow(workflow, manifest);
++    const steps = workflow.jobs!.verify.steps!;
++    const step = steps.find(value => value.name === name)!;
++    if (condition === "omitted") steps.splice(steps.indexOf(step), 1);
++    if (condition === "skipped") step.if = false;
++    if (condition === "allowed failure") step["continue-on-error"] = true;
++    if (condition === "timeout") delete step["timeout-minutes"];
++    if (condition === "command") step.run = "true";
++    if (condition === "environment") step.env = { ZASP_COMBINED_E2E_COMPLIANCE: "false" };
++    if (condition === "order") steps.unshift(steps.splice(steps.indexOf(step), 1)[0]);
++    expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
++  });
+   it("assigns every current audit declaration and parent-owned full-size mode to CI", async () => {
+     const workflow = await readWorkflow();
+     assertAuditSourceCoverage(await readAuditSources(repositoryRoot), actualAuditLanes(workflow));
+@@ -459,8 +500,12 @@ describe("runnable UI GitHub Actions gate", () => {
+     if (condition === "npm pin") steps[3].run = "npm install --global npm";
+     const packages: Record<string, string> = { "worker package": " ./agentsec-worker", "migration package": " ./agentsec-migrate", "testprocess package": " ./internal/testprocess" };
+     const target = packages[condition];
+-    if (target) steps[13].run = steps[13].run!.replace(target, "");
+-    if (condition === "lane before setup") steps.unshift(steps.splice(16, 1)[0]);
++    if (target) {
++      const runtime = steps.find(step => step.run?.startsWith('test -x "$(pg_config --bindir)/initdb"'))!;
++      expect(runtime.run).toContain(target);
++      runtime.run = runtime.run!.replace(target, "");
++    }
++    if (condition === "lane before setup") steps.unshift(steps.splice(steps.findIndex(step => step.id === "audit_a1"), 1)[0]);
+     expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
+   });
+   it("runs the precise browser checkpoint tests in CI and the combined acceptance command", async () => {

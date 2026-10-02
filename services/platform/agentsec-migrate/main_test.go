@@ -27,6 +27,632 @@ func migrationAttackLabSandboxName(organizationID, workspaceID, environmentID, r
 	return "zasp-attack-lab-" + fmt.Sprintf("%x", digest[:16])
 }
 
+// Release60 checks run in the owned Linux PostgreSQL container. All authority
+// calls use registered LOGINs; the owner only installs and inspects the schema.
+func TestProductionDiscoveryScheduleReplayPostgres(t *testing.T) {
+	f := newScheduleReplayFixture(t)
+	ctx, owner, registered := f.ctx, f.owner, f.registered
+	for _, command := range []string{"up-to-60", "down-from-60", "up-to-60"} {
+		if err := runReleaseMigration(ctx, registered, []string{command}); err != nil {
+			if command == "up-to-60" {
+				tx, txErr := owner.Begin(ctx)
+				if txErr != nil {
+					t.Fatal(txErr)
+				}
+				defer tx.Rollback(context.Background())
+				_, detail := tx.Exec(ctx, migrations.ProductionDiscoveryScheduleReplay().UpSQL())
+				var live string
+				fpErr := tx.QueryRow(ctx, `SELECT zasp_discovery_schedule_replay_live_fingerprint()`).Scan(&live)
+				t.Logf("candidate diagnostics: DDL=%v live=%s query=%v", detail, live, fpErr)
+			}
+			t.Fatalf("registered release cycle %s: %v", command, err)
+		}
+	}
+	var ready bool
+	if err := owner.QueryRow(ctx, `SELECT zasp_discovery_schedule_replay_guard()`).Scan(&ready); err != nil || !ready {
+		t.Fatalf("release60 readiness=%t: %v", ready, err)
+	}
+	t.Run("catalog_and_grants", func(t *testing.T) {
+		var correct bool
+		if err := owner.QueryRow(ctx, `SELECT count(*)=2 AND bool_and(p.proowner='zasp_discovery_authority'::regrole AND p.prosecdef AND p.proconfig @> ARRAY['search_path=pg_catalog, public'] AND has_function_privilege('zasp_discovery_scheduler',p.oid,'EXECUTE') AND NOT has_function_privilege('zasp_discovery_api',p.oid,'EXECUTE') AND NOT EXISTS(SELECT 1 FROM aclexplode(p.proacl) a WHERE a.grantee=0)) FROM pg_proc p WHERE p.oid IN('zasp_execution_request_scheduled_sync(text,text,text,text,text,text,text,text,text,text,text,text,bytea,text,text)'::regprocedure,'zasp_execution_complete_schedule(text,text,text,text,text,text,text,timestamptz)'::regprocedure)`).Scan(&correct); err != nil || !correct {
+			t.Fatal("scheduled function authority", correct, err)
+		}
+		if err := owner.QueryRow(ctx, `SELECT count(*)=19 FROM zasp_schedule_replay_prior.functions`).Scan(&correct); err != nil || !correct {
+			t.Fatal("complete prior inventory", correct, err)
+		}
+	})
+	rows, err := owner.Query(ctx, `SELECT signature FROM zasp_schedule_replay_prior.functions ORDER BY signature`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var signatures []string
+	for rows.Next() {
+		var sig string
+		if err := rows.Scan(&sig); err != nil {
+			t.Fatal(err)
+		}
+		signatures = append(signatures, sig)
+	}
+	rows.Close()
+	if rows.Err() != nil {
+		t.Fatal(rows.Err())
+	}
+	for _, sig := range signatures {
+		t.Run("definition_drift_"+sig, func(t *testing.T) {
+			tx, err := owner.Begin(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tx.Rollback(context.Background())
+			if _, err := tx.Exec(ctx, `ALTER FUNCTION `+sig+` COST 101`); err != nil {
+				t.Fatal(err)
+			}
+			if err := tx.QueryRow(ctx, `SELECT zasp_discovery_schedule_replay_guard()`).Scan(&ready); err != nil || ready {
+				t.Fatal("definition drift accepted", ready, err)
+			}
+		})
+	}
+	for _, sql := range []string{`REVOKE EXECUTE ON FUNCTION zasp_execution_complete_schedule(text,text,text,text,text,text,text,timestamptz) FROM zasp_discovery_scheduler`, `GRANT EXECUTE ON FUNCTION zasp_execution_request_scheduled_sync(text,text,text,text,text,text,text,text,text,text,text,text,bytea,text,text) TO PUBLIC`, `ALTER TABLE zasp_discovery_schedule_runs DROP CONSTRAINT zasp_discovery_schedule_runs_occurrence_key`} {
+		t.Run("catalog_drift_"+sql, func(t *testing.T) {
+			tx, err := owner.Begin(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tx.Rollback(context.Background())
+			if _, err := tx.Exec(ctx, sql); err != nil {
+				t.Fatal(err)
+			}
+			if err := tx.QueryRow(ctx, `SELECT zasp_discovery_schedule_replay_guard()`).Scan(&ready); err != nil || ready {
+				t.Fatal("catalog drift accepted", ready, err)
+			}
+		})
+	}
+	for _, b := range []struct{ role, fn, checksum, fingerprint string }{
+		{f.registration.api, "zasp_production_security_agent_existing_tests_client_ready", migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()},
+		{f.registration.api, "zasp_compliance_api_ready", migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()},
+		{f.registration.api, "zasp_sa_attack_lab_readiness", migrations.ProductionSecurityAgentAttackLab().Checksum(), migrations.SecurityAgentAttackLabFingerprint()},
+		{f.registration.api, "zasp_sa_export_readiness", migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()},
+		{f.registration.securityAgentWorker, "zasp_sa_webhook_readiness", migrations.ProductionSecurityAgentWebhooks().Checksum(), migrations.SecurityAgentWebhooksFingerprint()},
+		{f.registration.discovery, "zasp_execution_readiness", migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()},
+		{f.registration.projectionRisk, "zasp_execution_readiness", migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()},
+		{f.registration.projectionGraph, "zasp_execution_readiness", migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()},
+		{f.registration.projectionSearch, "zasp_execution_readiness", migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()},
+		{f.registration.scheduler, "zasp_discovery_schedule_replay_readiness", migrations.ProductionDiscoveryScheduleReplay().Checksum(), migrations.DiscoveryScheduleReplayFingerprint()},
+	} {
+		t.Run("compiled_boundary_"+b.role+"_"+b.fn, func(t *testing.T) {
+			c := f.connect(t, b.role)
+			defer c.Close(context.Background())
+			for _, invalid := range []string{"", "checksum", "fingerprint"} {
+				checksum, fingerprint := b.checksum, b.fingerprint
+				if invalid == "checksum" {
+					checksum = strings.Repeat("a", 64)
+				}
+				if invalid == "fingerprint" {
+					fingerprint = strings.Repeat("a", 64)
+				}
+				if err := c.QueryRow(ctx, `SELECT `+b.fn+`($1,$2)`, checksum, fingerprint).Scan(&ready); err != nil || ready != (invalid == "") {
+					t.Fatalf("invalid pair field=%q ready=%t: %v", invalid, ready, err)
+				}
+			}
+		})
+	}
+}
+
+// Removing outgoing authority-membership checks must never certify an execution
+// role which has gained an unrelated database-wide privilege role.
+func TestProductionDiscoveryScheduleReplayPostgresAuthorityMembership(t *testing.T) {
+	f := newScheduleReplayFixture(t)
+	roles := []string{"zasp_discovery_scheduler", "zasp_projection_risk_worker", "zasp_projection_graph_worker", "zasp_projection_search_worker"}
+	for _, role := range roles {
+		tx, err := f.owner.Begin(f.ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tx.Exec(f.ctx, `GRANT pg_read_all_data TO `+role); err != nil {
+			t.Fatal(err)
+		}
+		var ready bool
+		if err := tx.QueryRow(f.ctx, `SELECT zasp_execution_security_ready()`).Scan(&ready); err != nil || ready {
+			t.Errorf("predecessor accepted outgoing membership %s: ready=%t err=%v", role, ready, err)
+		}
+		if err := tx.Rollback(f.ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := f.runner.UpProductionDiscoveryScheduleReplay(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	for _, role := range roles {
+		t.Run(role, func(t *testing.T) {
+			tx, err := f.owner.Begin(f.ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tx.Rollback(context.Background())
+			if _, err := tx.Exec(f.ctx, `GRANT pg_read_all_data TO `+role); err != nil {
+				t.Fatal(err)
+			}
+			for _, boundary := range []struct {
+				name, sql string
+				args      []any
+			}{
+				{"release60", `SELECT zasp_discovery_schedule_replay_readiness($1,$2)`, []any{migrations.ProductionDiscoveryScheduleReplay().Checksum(), migrations.DiscoveryScheduleReplayFingerprint()}},
+				{"execution_security", `SELECT zasp_execution_security_ready()`, nil},
+				{"execution13", `SELECT zasp_execution_readiness($1,$2)`, []any{migrations.ProductionDiscoveryExecution().Checksum(), migrations.ProductionDiscoveryExecutionSemanticFingerprint()}},
+				{"export58", `SELECT zasp_sa_export_readiness($1,$2)`, []any{migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()}},
+				{"webhook59", `SELECT zasp_sa_webhook_readiness($1,$2)`, []any{migrations.ProductionSecurityAgentWebhooks().Checksum(), migrations.SecurityAgentWebhooksFingerprint()}},
+			} {
+				var ready bool
+				if err := tx.QueryRow(f.ctx, boundary.sql, boundary.args...).Scan(&ready); err != nil || ready {
+					t.Errorf("%s accepted outgoing membership: ready=%t err=%v", boundary.name, ready, err)
+				}
+			}
+		})
+		var ready bool
+		if err := f.owner.QueryRow(f.ctx, `SELECT zasp_discovery_schedule_replay_guard()`).Scan(&ready); err != nil || !ready {
+			t.Fatal("membership rollback did not restore readiness", ready, err)
+		}
+	}
+}
+
+// Requiring a live lease before the predecessor's saved non-advanced result
+// breaks the ordinary lost-response retry after completion clears that lease.
+func TestProductionDiscoveryScheduleReplayPostgresNonAdvancedCompletion(t *testing.T) {
+	for _, outcome := range []string{"released", "disabled"} {
+		t.Run(outcome, func(t *testing.T) {
+			f := newScheduleReplayFixture(t)
+			if err := f.runner.UpProductionDiscoveryScheduleReplay(f.ctx); err != nil {
+				t.Fatal(err)
+			}
+			f.seedIntegration(t)
+			c := f.connect(t, f.registration.scheduler)
+			defer c.Close(context.Background())
+			f.claim(t, c, "owned-release-token-0001", 30)
+			next := time.Now().UTC().Add(time.Minute).Truncate(time.Microsecond)
+			args := []any{replayOrg, replayWorkspace, replayEnvironment, replaySchedule, "owned-scheduler", "owned-release-token-0001", outcome, next}
+			const query = `SELECT zasp_execution_complete_schedule($1,$2,$3,$4,$5,$6,$7,$8)`
+			var first, saved, replayed json.RawMessage
+			if err := c.QueryRow(f.ctx, query, args...).Scan(&first); err != nil {
+				t.Fatal(err)
+			}
+			var cleared bool
+			if err := f.owner.QueryRow(f.ctx, `SELECT completion_result,lease_owner IS NULL AND lease_token IS NULL AND lease_expires_at IS NULL AND (SELECT count(*)=0 FROM zasp_discovery_schedule_runs) FROM zasp_discovery_schedules WHERE id=$1`, replaySchedule).Scan(&saved, &cleared); err != nil || !cleared || !bytes.Equal(first, saved) {
+				t.Fatal("first completion did not persist predecessor result and clear lease", string(first), string(saved), cleared, err)
+			}
+			before := f.snapshot(t)
+			if err := c.QueryRow(f.ctx, query, args...).Scan(&replayed); err != nil || !bytes.Equal(replayed, saved) {
+				t.Errorf("exact %s lost-response retry did not return predecessor-saved result: got=%s want=%s err=%v", outcome, replayed, saved, err)
+			}
+			if f.snapshot(t) != before {
+				t.Fatal("exact non-advanced replay changed full state")
+			}
+			for _, index := range []int{0, 1, 2, 3, 4, 5, 6, 7} {
+				changed := append([]any(nil), args...)
+				switch index {
+				case 0, 1, 2, 3:
+					changed[index] = "pid_60999999-0000-4000-8000-000000000001"
+				case 4:
+					changed[index] = "other-scheduler"
+				case 5:
+					changed[index] = "other-release-token-0002"
+				case 6:
+					if outcome == "released" {
+						changed[index] = "disabled"
+					} else {
+						changed[index] = "released"
+					}
+				case 7:
+					changed[index] = next.Add(time.Second)
+				}
+				err := c.QueryRow(f.ctx, query, changed...).Scan(&replayed)
+				requireReplaySQLState(t, err, "P0002")
+				if f.snapshot(t) != before {
+					t.Fatalf("changed input%d borrowed completion or changed state", index)
+				}
+			}
+			advanced := append([]any(nil), args...)
+			advanced[6] = "advanced"
+			requireReplaySQLState(t, c.QueryRow(f.ctx, query, advanced...).Scan(&replayed), "P0002")
+			if f.snapshot(t) != before {
+				t.Fatal("advanced bypass changed full state")
+			}
+		})
+	}
+}
+
+type scheduleReplayFixture struct {
+	ctx          context.Context
+	owner        *pgx.Conn
+	runner       *migrations.Runner
+	registered   *registeredReleaseMigrationRunner
+	registration discoveryPrincipalRegistration
+}
+
+const replayOrg = "pid_60000001-0000-4000-8000-000000000001"
+const replayWorkspace = "pid_60000002-0000-4000-8000-000000000002"
+const replayEnvironment = "pid_60000003-0000-4000-8000-000000000003"
+const replayPrincipal = "pid_60000004-0000-4000-8000-000000000004"
+const replayIntegration = "pid_60000005-0000-4000-8000-000000000005"
+const replaySchedule = "pid_60000006-0000-4000-8000-000000000006"
+
+func (f scheduleReplayFixture) seedIntegration(t *testing.T) {
+	t.Helper()
+	for _, sql := range []string{
+		`INSERT INTO zasp_integrations(organization_id,workspace_id,environment_id,id,kind,connector_version,display_name,configuration,state) VALUES($1,$2,$3,$4,'aws','v1','Owned replay fixture','{"region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/discovery","external_id_reference":"ref:owned/external-id"}', 'active')`,
+		`INSERT INTO zasp_integration_connections(organization_id,workspace_id,environment_id,integration_id,id,provider,connection_reference,state,verified_at) VALUES($1,$2,$3,$4,'pid_60000007-0000-4000-8000-000000000007','aws','ref:owned/external-id','verified',clock_timestamp())`,
+		`INSERT INTO zasp_discovery_connection_subjects(organization_id,workspace_id,environment_id,integration_id,connection_id,provider,subject_kind,subject_id,connection_version,configuration_digest,source) SELECT $1,$2,$3,$4,'pid_60000007-0000-4000-8000-000000000007','aws','aws_account','123456789012',1,digest(convert_to(configuration::text,'UTF8'),'sha256'),'reference' FROM zasp_integrations WHERE id=$4`,
+	} {
+		if _, err := f.owner.Exec(f.ctx, sql, replayOrg, replayWorkspace, replayEnvironment, replayIntegration); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var raw json.RawMessage
+	if err := f.owner.QueryRow(f.ctx, `SELECT zasp_discovery_put_schedule($1,$2,$3,$4,$5,300,clock_timestamp(),0)`, replayOrg, replayWorkspace, replayEnvironment, replaySchedule, replayIntegration).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+}
+func (f scheduleReplayFixture) claim(t *testing.T, c *pgx.Conn, token string, seconds int) {
+	t.Helper()
+	var raw json.RawMessage
+	if err := c.QueryRow(f.ctx, `SELECT zasp_execution_claim_schedules($1,$2,$3,1)`, "owned-scheduler", token, seconds).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	var body struct {
+		Items []json.RawMessage `json:"items"`
+	}
+	if err := json.Unmarshal(raw, &body); err != nil || len(body.Items) != 1 {
+		t.Fatalf("registered claim: %s %v", raw, err)
+	}
+}
+func replayAdmissionArgs(token string, variant int) []any {
+	digest := sha256.Sum256([]byte("owned exact occurrence"))
+	return []any{replayOrg, replayWorkspace, replayEnvironment, replayPrincipal, replaySchedule, "owned-scheduler", token, replayIntegration, fmt.Sprintf("pid_60100001-0000-4000-8000-%012d", variant), fmt.Sprintf("pid_60100002-0000-4000-8000-%012d", variant), fmt.Sprintf("pid_60100003-0000-4000-8000-%012d", variant), fmt.Sprintf("owned-occurrence-key-%04d", variant), digest[:], "parser_v1", "tool_v1"}
+}
+
+const replayAdmissionSQL = `SELECT zasp_execution_request_scheduled_sync($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
+
+func (f scheduleReplayFixture) admit(t *testing.T, c *pgx.Conn, token string, variant int) json.RawMessage {
+	t.Helper()
+	var raw json.RawMessage
+	if err := c.QueryRow(f.ctx, replayAdmissionSQL, replayAdmissionArgs(token, variant)...).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+func (f scheduleReplayFixture) snapshot(t *testing.T) string {
+	t.Helper()
+	var value string
+	if err := f.owner.QueryRow(f.ctx, `SELECT jsonb_build_object('versions',(SELECT jsonb_agg(to_jsonb(x) ORDER BY version) FROM zasp_schema_versions x),'metadata',(SELECT jsonb_agg(to_jsonb(x) ORDER BY key) FROM zasp_schema_metadata x),'schedules',(SELECT jsonb_agg(to_jsonb(x) ORDER BY id) FROM zasp_discovery_schedules x),'receipts',(SELECT jsonb_agg(to_jsonb(x) ORDER BY sync_id) FROM zasp_discovery_schedule_runs x),'syncs',(SELECT jsonb_agg(to_jsonb(x) ORDER BY id) FROM zasp_discovery_syncs x),'jobs',(SELECT jsonb_agg(to_jsonb(x) ORDER BY id) FROM zasp_discovery_jobs x),'outbox',(SELECT jsonb_agg(to_jsonb(x) ORDER BY id) FROM zasp_discovery_outbox x),'authority',(SELECT jsonb_agg(to_jsonb(x) ORDER BY job_id) FROM zasp_discovery_job_authorities x),'freshness',(SELECT jsonb_agg(to_jsonb(x) ORDER BY integration_id) FROM zasp_discovery_freshness_versions x))::text`).Scan(&value); err != nil {
+		t.Fatal(err)
+	}
+	return value
+}
+func requireReplaySQLState(t *testing.T, err error, code string) {
+	t.Helper()
+	var pgerr *pgconn.PgError
+	if !errors.As(err, &pgerr) || pgerr.Code != code {
+		t.Fatalf("want SQLSTATE%s: %v", code, err)
+	}
+	t.Logf("refused SQLSTATE%s: %s", pgerr.Code, pgerr.Message)
+}
+
+func TestProductionDiscoveryScheduleReplayPostgresPreflight(t *testing.T) {
+	for _, duplicate := range []bool{false, true} {
+		t.Run(fmt.Sprintf("duplicate_%t", duplicate), func(t *testing.T) {
+			f := newScheduleReplayFixture(t)
+			f.seedIntegration(t)
+			c := f.connect(t, f.registration.scheduler)
+			defer c.Close(context.Background())
+			f.claim(t, c, "owned-first-token-0001", 5)
+			f.admit(t, c, "owned-first-token-0001", 1)
+			if duplicate {
+				time.Sleep(5050 * time.Millisecond)
+				f.claim(t, c, "owned-second-token-0002", 30)
+				f.admit(t, c, "owned-second-token-0002", 2)
+			}
+			before := f.snapshot(t)
+			tx, err := f.owner.Begin(f.ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = tx.Exec(f.ctx, migrations.ProductionDiscoveryScheduleReplay().UpSQL())
+			_ = tx.Rollback(context.Background())
+			requireReplaySQLState(t, err, "55000")
+			if err := f.runner.UpProductionDiscoveryScheduleReplay(f.ctx); err == nil {
+				t.Fatal("runner accepted legacy incomplete/duplicate history")
+			}
+			if after := f.snapshot(t); after != before {
+				t.Fatal("refused install changed complete durable state")
+			}
+		})
+	}
+}
+
+func TestProductionDiscoveryScheduleReplayPostgresRebind(t *testing.T) {
+	f := newScheduleReplayFixture(t)
+	if err := f.runner.UpProductionDiscoveryScheduleReplay(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	f.seedIntegration(t)
+	c := f.connect(t, f.registration.scheduler)
+	defer c.Close(context.Background())
+	f.claim(t, c, "owned-first-token-0001", 5)
+	f.admit(t, c, "owned-first-token-0001", 1)
+	checkGeneration := func(want int) {
+		t.Helper()
+		var got int
+		if err := f.owner.QueryRow(f.ctx, `SELECT rebind_generation FROM zasp_discovery_schedule_runs`).Scan(&got); err != nil || got != want {
+			t.Fatalf("generation=%d want=%d %v", got, want, err)
+		}
+	}
+	checkGeneration(0)
+	before := f.snapshot(t)
+	f.admit(t, c, "owned-first-token-0001", 1)
+	checkGeneration(0)
+	if f.snapshot(t) != before {
+		t.Fatal("same-token replay changed state")
+	}
+	for generation, token := range []string{"owned-second-token-0002", "owned-third-token-00003"} {
+		time.Sleep(5050 * time.Millisecond)
+		f.claim(t, c, token, 5)
+		if generation == 0 {
+			tx, err := c.Begin(f.ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var raw json.RawMessage
+			if err := tx.QueryRow(f.ctx, replayAdmissionSQL, replayAdmissionArgs(token, 1)...).Scan(&raw); err != nil {
+				t.Fatal(err)
+			}
+			other := f.connect(t, "zasp_test")
+			defer other.Close(context.Background())
+			down, _ := migrations.NewRunner(&migrationDatabase{connection: other})
+			done := make(chan error, 1)
+			go func() { done <- down.DownProductionDiscoveryScheduleReplay(f.ctx) }()
+			awaitPostgresLockWait(t, f.ctx, f.owner, int32(other.PgConn().PID()), done)
+			if err := tx.Commit(f.ctx); err != nil {
+				t.Fatal(err)
+			}
+			if err := awaitMigrationResult(t, done); err == nil {
+				t.Fatal("concurrent down erased committed rebind")
+			}
+		} else {
+			f.admit(t, c, token, 1)
+		}
+		checkGeneration(generation + 1)
+		before := f.snapshot(t)
+		f.admit(t, c, token, 1)
+		checkGeneration(generation + 1)
+		if f.snapshot(t) != before {
+			t.Fatal("replacement retry changed state")
+		}
+	}
+	before = f.snapshot(t)
+	for _, index := range []int{8, 9, 10} {
+		args := replayAdmissionArgs("owned-third-token-00003", 1)
+		args[index] = "pid_60200001-0000-4000-8000-000000000001"
+		var raw json.RawMessage
+		err := c.QueryRow(f.ctx, replayAdmissionSQL, args...).Scan(&raw)
+		requireReplaySQLState(t, err, "23505")
+		if f.snapshot(t) != before {
+			t.Fatalf("normalized ID%d changed full state", index)
+		}
+	}
+	for _, changedDigest := range []bool{false, true} {
+		args := replayAdmissionArgs("owned-third-token-00003", 3)
+		if changedDigest {
+			digest := sha256.Sum256([]byte("changed occurrence"))
+			args[12] = digest[:]
+		}
+		var raw json.RawMessage
+		err := c.QueryRow(f.ctx, replayAdmissionSQL, args...).Scan(&raw)
+		requireReplaySQLState(t, err, "23505")
+		if f.snapshot(t) != before {
+			t.Fatal("provisional sync/job/outbox/freshness writes survived occurrence conflict")
+		}
+	}
+	for _, sql := range []string{`UPDATE zasp_discovery_schedule_runs SET rebind_generation=-1`, `UPDATE zasp_discovery_schedule_runs SET completion_digest=decode(repeat('00',32),'hex')`, `UPDATE zasp_discovery_schedule_runs SET completion_digest=decode(repeat('00',31),'hex'),completion_result='{}'`} {
+		_, err := f.owner.Exec(f.ctx, sql)
+		requireReplaySQLState(t, err, "23514")
+		if f.snapshot(t) != before {
+			t.Fatal("invalid receipt shape changed state")
+		}
+	}
+	for _, token := range []string{"owned-first-token-0001", "owned-second-token-0002"} {
+		var raw json.RawMessage
+		err := c.QueryRow(f.ctx, `SELECT zasp_execution_complete_schedule($1,$2,$3,$4,'owned-scheduler',$5,'advanced',clock_timestamp()+interval '1 second')`, replayOrg, replayWorkspace, replayEnvironment, replaySchedule, token).Scan(&raw)
+		requireReplaySQLState(t, err, "P0002")
+	}
+	if f.snapshot(t) != before {
+		t.Fatal("old-token completion changed state")
+	}
+	next := time.Now().UTC().Add(time.Second)
+	var completed, replayed json.RawMessage
+	complete := func(when time.Time, out *json.RawMessage) error {
+		return c.QueryRow(f.ctx, `SELECT zasp_execution_complete_schedule($1,$2,$3,$4,'owned-scheduler','owned-third-token-00003','advanced',$5)`, replayOrg, replayWorkspace, replayEnvironment, replaySchedule, when).Scan(out)
+	}
+	if err := complete(next, &completed); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(1050 * time.Millisecond)
+	f.claim(t, c, "owned-later-token-00004", 30)
+	before = f.snapshot(t)
+	if err := complete(next, &replayed); err != nil || !bytes.Equal(completed, replayed) {
+		t.Fatal("durable completion replay", string(completed), string(replayed), err)
+	}
+	requireReplaySQLState(t, complete(next.Add(time.Second), &replayed), "23505")
+	if f.snapshot(t) != before {
+		t.Fatal("completion replay changed later occurrence")
+	}
+	tx, err := f.owner.Begin(f.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(f.ctx, migrations.ProductionDiscoveryScheduleReplay().DownSQL())
+	_ = tx.Rollback(context.Background())
+	requireReplaySQLState(t, err, "55000")
+	if f.snapshot(t) != before {
+		t.Fatal("down erased durable completion")
+	}
+}
+
+func TestProductionDiscoveryScheduleReplayPostgresInstallLocks(t *testing.T) {
+	t.Run("committed_old_admission_observed_after_lock", func(t *testing.T) {
+		f := newScheduleReplayFixture(t)
+		f.seedIntegration(t)
+		c := f.connect(t, f.registration.scheduler)
+		defer c.Close(context.Background())
+		f.claim(t, c, "owned-old-admission-0001", 30)
+		tx, err := c.Begin(f.ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback(context.Background())
+		var raw json.RawMessage
+		if err := tx.QueryRow(f.ctx, replayAdmissionSQL, replayAdmissionArgs("owned-old-admission-0001", 1)...).Scan(&raw); err != nil {
+			t.Fatal(err)
+		}
+		installer := f.connect(t, "zasp_test")
+		defer installer.Close(context.Background())
+		done := make(chan error, 1)
+		go func() {
+			itx, e := installer.Begin(f.ctx)
+			if e == nil {
+				_, e = itx.Exec(f.ctx, migrations.ProductionDiscoveryScheduleReplay().UpSQL())
+				_ = itx.Rollback(context.Background())
+			}
+			done <- e
+		}()
+		awaitPostgresLockWait(t, f.ctx, f.owner, int32(installer.PgConn().PID()), done)
+		if err := tx.Commit(f.ctx); err != nil {
+			t.Fatal(err)
+		}
+		requireReplaySQLState(t, awaitMigrationResult(t, done), "55000")
+		if version, err := f.runner.Version(f.ctx); err != nil || version != 59 {
+			t.Fatal("install crossed legacy evidence", version, err)
+		}
+		var count int
+		if err := f.owner.QueryRow(f.ctx, `SELECT count(*) FROM zasp_discovery_schedule_runs`).Scan(&count); err != nil || count != 1 {
+			t.Fatal("legacy evidence lost", count, err)
+		}
+	})
+	t.Run("already_executing_old_first_is_unsupported_and_stable_replay_refuses", func(t *testing.T) {
+		f := newScheduleReplayFixture(t)
+		f.seedIntegration(t)
+		c := f.connect(t, f.registration.scheduler)
+		defer c.Close(context.Background())
+		f.claim(t, c, "owned-legacy-first-0001", 5)
+		tx, err := f.owner.Begin(f.ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback(context.Background())
+		// Hold the same admission table lock before dispatching the old call. Its
+		// predecessor function body has begun when the observed lock wait occurs.
+		if _, err := tx.Exec(f.ctx, `LOCK TABLE zasp_discovery_schedules IN ACCESS EXCLUSIVE MODE`); err != nil {
+			t.Fatal(err)
+		}
+		done := make(chan error, 1)
+		go func() {
+			var raw json.RawMessage
+			done <- c.QueryRow(f.ctx, replayAdmissionSQL, replayAdmissionArgs("owned-legacy-first-0001", 2)...).Scan(&raw)
+		}()
+		awaitPostgresLockWait(t, f.ctx, f.owner, int32(c.PgConn().PID()), done)
+		inside, _ := migrations.NewRunner(&sandboxCommandTransactionDatabase{transaction: tx})
+		if err := inside.UpProductionDiscoveryScheduleReplay(f.ctx); err != nil {
+			t.Fatal("install while old body is blocked", err)
+		}
+		if err := tx.Commit(f.ctx); err != nil {
+			t.Fatal(err)
+		}
+		if err := awaitMigrationResult(t, done); err != nil {
+			t.Fatal("unsupported old first writer was not reproduced", err)
+		}
+		t.Log("unsupported predecessor first write committed after maintenance fence was deliberately violated")
+		time.Sleep(5050 * time.Millisecond)
+		f.claim(t, c, "owned-stable-reclaim-0002", 30)
+		before := f.snapshot(t)
+		var raw json.RawMessage
+		err = c.QueryRow(f.ctx, replayAdmissionSQL, replayAdmissionArgs("owned-stable-reclaim-0002", 1)...).Scan(&raw)
+		requireReplaySQLState(t, err, "23505")
+		if f.snapshot(t) != before {
+			t.Fatal("stable replay mapped or duplicated legacy receipt")
+		}
+	})
+}
+
+func TestProductionDiscoveryScheduleReplayPostgresCompletionOnlyDownRefusal(t *testing.T) {
+	f := newScheduleReplayFixture(t)
+	if err := f.runner.UpProductionDiscoveryScheduleReplay(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	f.seedIntegration(t)
+	c := f.connect(t, f.registration.scheduler)
+	defer c.Close(context.Background())
+	f.claim(t, c, "owned-completion-only-0001", 30)
+	f.admit(t, c, "owned-completion-only-0001", 1)
+	var raw json.RawMessage
+	if err := c.QueryRow(f.ctx, `SELECT zasp_execution_complete_schedule($1,$2,$3,$4,'owned-scheduler','owned-completion-only-0001','advanced',clock_timestamp()+interval '300 seconds')`, replayOrg, replayWorkspace, replayEnvironment, replaySchedule).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	var completionOnly bool
+	if err := f.owner.QueryRow(f.ctx, `SELECT count(*)=1 AND bool_and(rebind_generation=0 AND completed_at IS NOT NULL AND octet_length(completion_digest)=32 AND completion_result IS NOT NULL) FROM zasp_discovery_schedule_runs`).Scan(&completionOnly); err != nil || !completionOnly {
+		t.Fatal("completion-only evidence", completionOnly, err)
+	}
+	before := f.snapshot(t)
+	tx, err := f.owner.Begin(f.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(f.ctx, migrations.ProductionDiscoveryScheduleReplay().DownSQL())
+	_ = tx.Rollback(context.Background())
+	requireReplaySQLState(t, err, "55000")
+	if err := f.runner.DownProductionDiscoveryScheduleReplay(f.ctx); err == nil {
+		t.Fatal("registered rollback removed completion-only evidence")
+	}
+	if f.snapshot(t) != before {
+		t.Fatal("rollback changed completion-only receipt")
+	}
+}
+func (f scheduleReplayFixture) connect(t *testing.T, role string) *pgx.Conn {
+	t.Helper()
+	cfg := f.owner.Config().Copy()
+	cfg.User = role
+	c, err := pgx.ConnectConfig(f.ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+func newScheduleReplayFixture(t *testing.T) scheduleReplayFixture {
+	t.Helper()
+	dsn := startMigrationPostgres(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	t.Cleanup(cancel)
+	owner := connectMigrationPostgres(t, ctx, dsn)
+	t.Cleanup(func() {
+		if err := owner.Close(context.Background()); err != nil {
+			t.Error(err)
+		}
+	})
+	runner, _ := migrations.NewRunner(&migrationDatabase{connection: owner})
+	registration := discoveryPrincipalRegistration{migration: "zasp_test"}
+	for i, target := range []*string{&registration.api, &registration.discovery, &registration.ingest, &registration.runtime, &registration.outbox, &registration.gateway, &registration.scheduler, &registration.projectionRisk, &registration.projectionGraph, &registration.projectionSearch, &registration.runtimeCoordinator, &registration.runtimeArchive, &registration.runtimeIndex, &registration.runtimeCorrelation, &registration.runtimeProjection, &registration.gatewayControl, &registration.securityAgentAPI, &registration.securityAgentWorker, &registration.securityAgentAction, &registration.redTeamWorker, &registration.redTeamOutbox, &registration.redTeamAdapter, &registration.attackLabController, &registration.attackLabOutbox, &registration.attackLabProxy, &registration.recoveryWorker, &registration.recoveryOutbox, &registration.policyDeployment} {
+		*target = fmt.Sprintf("replay_login_%02d", i)
+		if _, err := owner.Exec(ctx, `CREATE ROLE `+pgx.Identifier{*target}.Sanitize()+` LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`); err != nil {
+			t.Fatal(err)
+		}
+	}
+	registered := &registeredReleaseMigrationRunner{releaseMigrationRunner: runner, queryer: owner, registration: registration}
+	if err := runReleaseMigration(ctx, registered, []string{"up-to-59"}); err != nil {
+		t.Fatal("registered59", err)
+	}
+	if err := registerForwardRelease(ctx, owner, registration, []string{"up-to-59"}); err != nil {
+		t.Fatal(err)
+	}
+	return scheduleReplayFixture{ctx, owner, runner, registered, registration}
+}
+
 func TestLoadMigrationTimeoutRequiresFiniteBound(t *testing.T) {
 	if got, err := loadMigrationTimeout(func(string) string { return "2m" }); err != nil || got != 2*time.Minute {
 		t.Fatalf("timeout = (%v, %v)", got, err)
@@ -73,7 +699,7 @@ func TestPrecisionExplicitReleaseCommand(t *testing.T) {
 			t.Errorf("historical command %s changed precision: version=%d events=%v err=%v", command, runner.version, runner.events, err)
 		}
 	}
-	for _, args := range [][]string{{"up-to-51", "extra"}, {"up-to-52"}, {"down-to-50"}} {
+	for _, args := range [][]string{{"up-to-51", "extra"}, {"up-to-56"}, {"down-to-50"}} {
 		if isForwardMigration(args) {
 			t.Error("unexpected forward command", args)
 		}
@@ -3744,10 +4370,16 @@ func startMigrationPostgres(t *testing.T) string {
 	}
 	t.Cleanup(func() {
 		stop := exec.Command(ctl, "-D", data, "-m", "fast", "-w", "stop")
-		if stop.Run() != nil && command.Process != nil {
+		stopErr := stop.Run()
+		if stopErr != nil && command.Process != nil {
 			_ = command.Process.Kill()
 		}
-		_ = command.Wait()
+		waitErr := command.Wait()
+		if stopErr != nil || waitErr != nil {
+			t.Errorf("owned PostgreSQL join: stop=%v wait=%v", stopErr, waitErr)
+		} else {
+			t.Log("owned PostgreSQL joined normally: stop=0 wait=0")
+		}
 	})
 	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(25 * time.Millisecond) {
 		if exec.Command(ready, "-h", "127.0.0.1", "-p", strconv.Itoa(port), "-U", "zasp_test", "-d", "postgres").Run() == nil {

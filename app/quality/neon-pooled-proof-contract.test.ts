@@ -25,7 +25,7 @@ describe("Neon pooled Go proof repository contract", () => {
       "utf8",
     );
 
-    expect(goModule).toMatch(/^go 1\.25\.0$/m);
+    expect(goModule).toMatch(/^go 1\.25\.4$/m);
     expect(goModule).toMatch(/^toolchain go1\.26\.5$/m);
     expect(goModule).toMatch(/^require github\.com\/jackc\/pgx\/v5 v5\.10\.0$/m);
   });

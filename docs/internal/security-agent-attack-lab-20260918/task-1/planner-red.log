@@ -1,0 +1,11 @@
+Working directory: services/platform. Session90180, exit1. No provider request.
+env GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=/private/tmp/zasp-budget-go-cache /opt/homebrew/bin/go test ./agentsec-worker -run '^TestSecurityAgentAttackLabPreparedRequestBinding$' -count=1
+
+--- FAIL: TestSecurityAgentAttackLabPreparedRequestBinding (0.00s)
+    --- FAIL: TestSecurityAgentAttackLabPreparedRequestBinding/valid (0.00s)
+        security_agent_attack_lab_planner_test.go:28: valid Attack Lab preparation refused: worker execution unavailable
+    --- FAIL: TestSecurityAgentAttackLabPreparedRequestBinding/legacy_digest (0.00s)
+        security_agent_attack_lab_planner_test.go:27: malformed trusted context accepted
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.142s
+FAIL

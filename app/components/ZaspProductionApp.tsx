@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 
 import type { APIClient } from "../../apps/web/api/client";
 import { APIProvider, useAPI } from "../api/APIProvider";
-import { SessionProvider, useSession } from "../auth/SessionProvider";
+import { SessionProvider, useSession, type SessionContextValue } from "../auth/SessionProvider";
 import { AdminOperationsView } from "../features/administration/AdminOperationsView";
+import { AuditExportSaveNotice } from "../features/administration/AuditExportPanel";
 import { ProductionAgentSecurityView } from "../features/agents/ProductionAgentSecurityView";
 import { APIAccessView } from "../features/identity/APIAccessView";
 import { IdentityAPIProvider } from "../features/identity/IdentityAPIProvider";
@@ -16,6 +17,7 @@ import { ProductionAttackLabView } from "../features/redteam/ProductionAttackLab
 import { ProductionRedTeamView } from "../features/redteam/ProductionRedTeamView";
 import { RecoveryOperationsView } from "../features/recovery/RecoveryOperationsView";
 import { ProductionSecurityAgentsView } from "../features/securityagents/SecurityAgentsView";
+import { SecurityAgentAuditView } from "../features/securityagents/SecurityAgentAuditView";
 import { SessionsComplianceView } from "../features/sessions/SessionsComplianceView";
 import { ProductionSessionsView } from "../features/sessions/RuntimeSessionsView";
 import { ProductionSensorSurface } from "../features/sensors/ProductionSensorView";
@@ -23,6 +25,8 @@ import { ProductionIntegrationsView, ProductionPoliciesView } from "../features/
 import { ProductionWorkflowMutationProvider, useWorkflowMutationScopeLock } from "../features/workflows/useRetainedWorkflowMutation";
 import { Button, LoadingState } from "./ui";
 import { ProductionGlobalSearch } from "./ProductionGlobalSearch";
+import { parseActivityLink } from "../domain/activity-links";
+import { parseComplianceLink } from "../domain/compliance-links";
 
 const productionRoutes = [
   { path: "/", label: "Overview", capability: "inventory.read" },
@@ -50,27 +54,55 @@ const productionRoutes = [
   { path: "/administration/system-health", label: "System Health", capability: "system.read" },
 ] as const;
 
-function ProductionRouteSurface({ path, navigate }: { path: string; navigate(path: string): void }) {
+function ProductionRouteSurface({ path, location, navigate }: { path: string; location: string; navigate(path: string): void }) {
   const session = useSession();
-  const { client } = useAPI();
+  const { client, auditExports, queryScopeKey, queryGeneration, getSessionInvalidationGeneration, getScopeStaleGeneration } = useAPI();
   if (session.status !== "authenticated") return null;
-  if (path === "/violations" || path === "/exposure/attack-paths") return <ProductionRiskView path={path} canWrite={session.hasCapability("findings.write")} onNavigate={navigate} />;
-  if (path === "/red-team/results") return <ProductionRedTeamView scopeKey={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("red-team.write")} onNavigate={navigate} />;
-  if (path === "/test/attack-lab") return <ProductionAttackLabView canWrite={session.hasCapability("red-team.write")} />;
+  if (path === "/compliance/evidence") {
+    const compliance = parseComplianceLink(location, session);
+    if (compliance.state === "scope_mismatch") return <div className="page" role="alert">This compliance link belongs to a different organization, workspace or environment. Select its authorized scope explicitly.</div>;
+    if (compliance.state === "invalid") return <div className="page" role="alert">This compliance link is invalid. Open evidence from the authorized list.</div>;
+    const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
+    return <SessionsComplianceView surface="compliance" client={client} selectedSource={compliance.state === "selected" ? compliance.target : undefined} onNavigate={navigate} complianceBoundary={{
+      principalID: session.principal.id, organizationID: session.organizationID, workspaceID: session.workspaceID, environmentID: session.environmentID, generation: queryGeneration,
+      permitted: queryScopeKey !== null && session.hasCapability("compliance.read") && ["view", "view_audit", "view_compliance"].every(permission => session.permissions.includes(permission)),
+      fresh: session.isFreshAuthenticated, reauthenticate: session.reauthenticate,
+      isCurrent: () => expiry === getSessionInvalidationGeneration() && stale === getScopeStaleGeneration(),
+    }} />;
+  }
+  const activity = parseActivityLink(location, session);
+  if (activity.state === "scope_mismatch") return <div className="page" role="alert">This activity link belongs to a different organization, workspace or environment. Select the authorized scope explicitly before opening it.</div>;
+  if (activity.state === "invalid") return <div className="page" role="alert">This activity link is invalid. Open the record from an authorized product page.</div>;
+  const selected = activity.state === "selected" ? activity.target : undefined;
+  if (selected && queryScopeKey === null) return <LoadingState label="Revalidating activity access…" />;
+  if (selected?.kind === "audit") return <SecurityAgentAuditView key={`${session.principal.id}/${queryGeneration}/${selected.id}`} auditID={selected.id} scope={session} permitted={session.hasCapability("audit.read")} canReadRuns={session.hasCapability("security-agents.read")} onNavigate={navigate} />;
+  if (path === "/violations" || path === "/exposure/attack-paths") return <ProductionRiskView path={path} canWrite={session.hasCapability("findings.write")} canReadRuns={session.hasCapability("security-agents.read")} onNavigate={navigate} selectedID={selected?.id} activityScope={session} />;
+  if (path === "/red-team/results") return <ProductionRedTeamView selectedID={selected?.kind === "test_run" ? selected.id : undefined} scopeKey={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("red-team.write")} onNavigate={navigate} />;
+  if (path === "/test/attack-lab") return <ProductionAttackLabView key={`${session.principal.id}/${queryGeneration}`} canWrite={session.hasCapability("red-team.write")} selectedID={selected?.kind === "attack_lab_run" ? selected.id : undefined} />;
   if (path === "/policies") return <ProductionPoliciesView canWrite={session.hasCapability("policies.write")} />;
   if (path === "/connectors") return <ProductionIntegrationsView canWrite={session.hasCapability("integrations.write")} navigate={navigate} />;
   if (path === "/integrations/sensors") return <ProductionSensorSurface canWrite={session.hasCapability("sensors.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
-  if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} />;
+  if (path === "/protect/security-agents") return <ProductionSecurityAgentsView environmentID={session.environmentID} selectedID={selected?.id} onNavigate={navigate} />;
   if (path === "/protect/approvals") return <ProductionSecurityAgentsView environmentID={session.environmentID} surface="approvals" />;
-  if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}><IdentityAccessView /><ScopeOnboardingView client={client} /></IdentityAPIProvider>;
+  if (path === "/administration/identity-access") return <IdentityAPIProvider client={client}>{(session.hasCapability("identity.manage") || session.hasCapability("identity.groups.manage")) && <IdentityAccessView />}{session.hasCapability("identity.scopes.manage") && <ScopeOnboardingView client={client} />}</IdentityAPIProvider>;
   if (path === "/administration/api-access") return <APIAccessView client={client} />;
-  if (path === "/investigate/sessions") return <ProductionSessionsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`} client={client} canRevokeConsole={session.hasCapability("sessions.revoke")} />;
-  if (path === "/compliance/evidence") return <SessionsComplianceView surface="compliance" client={client} />;
+  if (path === "/investigate/sessions") return <ProductionSessionsView key={`${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`} client={client} canRevokeConsole={session.hasCapability("sessions.revoke")} selectedID={selected?.id} onNavigate={navigate} activityScope={session} canReadRuns={session.hasCapability("security-agents.read")} />;
   if (path === "/administration/data-retention") return <SessionsComplianceView surface="data-controls" client={client} canMutate={session.hasCapability("data-controls.manage")} />;
   if (path === "/administration/recovery") return <RecoveryOperationsView client={client} expectedScope={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} canWrite={session.hasCapability("recovery.write")} fresh={session.isFreshAuthenticated} onReauthenticate={session.reauthenticate} />;
   if (path === "/administration/system-health") return <AdminOperationsView surface="health" client={client} />;
   if (path === "/administration/external-data-flows") return <AdminOperationsView surface="external" client={client} />;
-  if (path === "/administration/audit-log") return <AdminOperationsView surface="audit" client={client} />;
+  if (path === "/administration/audit-log") {
+    const expiry = getSessionInvalidationGeneration(), stale = getScopeStaleGeneration();
+    return <AdminOperationsView surface="audit" client={client} auditExport={session.hasCapability("audit.exports") ? {
+      api: auditExports, authority: { principalID: session.principal.id, organizationID: session.organizationID, workspaceID: session.workspaceID, environmentID: session.environmentID, generation: queryGeneration, permitted: queryScopeKey !== null && session.hasCapability("audit.read"), fresh: session.isFreshAuthenticated,
+        isCurrent: () => expiry === getSessionInvalidationGeneration() && stale === getScopeStaleGeneration() },
+      retrySession: session.retry, reauthenticate: session.reauthenticate,
+    } : undefined} auditBoundary={{
+    identityKey: queryScopeKey === null ? null : `${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}/${queryGeneration}`,
+    getSessionInvalidationGeneration,
+    getScopeStaleGeneration,
+  }} />;
+  }
   return <ProductionAgentSecurityView path={path} onNavigate={navigate} canWrite={session.hasCapability("inventory.write")} />;
 }
 
@@ -85,36 +117,41 @@ function ProductionScopeSelector() {
 function ProductionAppContent() {
   const session = useSession();
   const { client } = useAPI();
-  const [path, setPath] = useState(() => { const candidate = typeof window === "undefined" ? "/" : window.location.pathname; return productionRoutes.some((route) => route.path === candidate) ? candidate : "/"; });
+  const [location, setLocation] = useState(() => { const candidate = typeof window === "undefined" ? "/" : window.location.pathname; return productionRoutes.some((route) => route.path === candidate) ? `${candidate}${typeof window === "undefined" ? "" : window.location.search + window.location.hash}` : "/"; });
+  const path = location.split(/[?#]/, 1)[0];
   useEffect(() => { if (!productionRoutes.some((route) => route.path === window.location.pathname)) window.history.replaceState({}, "", "/"); }, []);
   useEffect(() => {
     const handlePopState = () => {
       const candidate = window.location.pathname;
-      const allowed = session.status === "authenticated" && productionRoutes.some((route) => route.path === candidate && session.hasCapability(route.capability));
-      if (allowed) { setPath(candidate); return; }
-      window.history.replaceState({}, "", "/"); setPath("/");
+      const allowed = session.status === "authenticated" && productionRoutes.some((route) => route.path === candidate && hasProductionCapability(session, route.capability));
+      if (allowed) { setLocation(`${candidate}${window.location.search}${window.location.hash}`); return; }
+      window.history.replaceState({}, "", "/"); setLocation("/");
     };
     window.addEventListener("popstate", handlePopState); return () => window.removeEventListener("popstate", handlePopState);
   }, [session]);
   useEffect(() => {
     if (session.status !== "authenticated") return;
-    const allowed = productionRoutes.some((route) => route.path === window.location.pathname && session.hasCapability(route.capability));
-    if (!allowed) { window.history.replaceState({}, "", "/"); queueMicrotask(() => setPath("/")); }
+    const allowed = productionRoutes.some((route) => route.path === window.location.pathname && hasProductionCapability(session, route.capability));
+    if (!allowed) { window.history.replaceState({}, "", "/"); queueMicrotask(() => setLocation("/")); }
   }, [session]);
   if (session.status === "loading") return <main className="page"><h1>Loading Zasp</h1><p role="status">Loading authenticated session…</p></main>;
-  if (session.status === "unauthenticated") return <main className="page"><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(path)}>Sign in</Button></main>;
+  if (session.status === "unauthenticated") return <main className="page"><h1>Sign in to Zasp</h1><Button onClick={() => session.signIn(location)}>Sign in</Button></main>;
   if (session.status === "forbidden") return <main className="page"><h1>Scope unavailable</h1><p role="alert">Authorization rejected</p></main>;
-  if (session.status === "error") return <main className="page"><h1>Session unavailable</h1>{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</main>;
+  if (session.status === "error") return <main className="page"><h1>{session.authorizationStatus === "pending" ? "Authorization pending" : "Session unavailable"}</h1>{session.authorizationStatus === "pending" && <p role="status">Current access is being applied. Retry to load your permissions.</p>}{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</main>;
   if (session.status !== "authenticated") return null;
-  const routes = productionRoutes.filter((route) => session.hasCapability(route.capability));
-  if (routes.length === 0) return <main className="page"><h1>No product capabilities</h1><p>Your account has no enabled product routes.</p><Button onClick={() => void session.signOut()}>Sign out</Button></main>;
+  const routes = productionRoutes.filter((route) => hasProductionCapability(session, route.capability));
+  if (routes.length === 0) return <main className="page"><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><Button onClick={() => void session.signOut()}>Sign out</Button></main>;
   const visiblePath = routes.some((route) => route.path === path) ? path : routes[0].path;
-  const navigate = (nextPath: string) => { if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextPath); setPath(nextPath); };
+  const navigate = (nextLocation: string) => { const nextPath = nextLocation.split(/[?#]/, 1)[0]; if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextLocation); setLocation(nextLocation); };
   const workflowScopeKey = `${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
   const expectedScope = `${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
-  return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}><div className="app-shell production-app"><header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><ProductionScopeSelector /><ProductionGlobalSearch key={expectedScope} client={client} onNavigate={navigate} /><Button onClick={() => void session.signOut()}>Sign out</Button></header><aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside><main className="main-content">{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} navigate={navigate} />}</main></div></ProductionWorkflowMutationProvider>;
+  return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}><div className="app-shell production-app"><header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><ProductionScopeSelector /><ProductionGlobalSearch key={expectedScope} client={client} onNavigate={navigate} /><Button onClick={() => void session.signOut()}>Sign out</Button></header><aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside><main className="main-content">{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main></div></ProductionWorkflowMutationProvider>;
+}
+
+function hasProductionCapability(session: SessionContextValue, capability: string): boolean {
+  return session.hasCapability(capability) || capability === "identity.manage" && (session.hasCapability("identity.groups.manage") || session.hasCapability("identity.scopes.manage"));
 }
 
 export function ZaspProductionApp({ client }: { client?: APIClient } = {}) {
-  return <APIProvider client={client}><SessionProvider><ProductionAppContent /></SessionProvider></APIProvider>;
+  return <APIProvider client={client}><SessionProvider><AuditExportSaveNotice /><ProductionAppContent /></SessionProvider></APIProvider>;
 }

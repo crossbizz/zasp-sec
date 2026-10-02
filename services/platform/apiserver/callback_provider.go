@@ -38,6 +38,7 @@ type IdentityConnectionProvider interface {
 }
 
 type RepositoryIdentityProvider struct {
+	identityIssuer        *identitySessionIssuer
 	authenticator         ExternalIdentityAuthenticator
 	resolver              IdentityGrantResolver
 	states                IdentityStateRepository
@@ -69,6 +70,11 @@ func (provider *RepositoryIdentityProvider) Start(ctx context.Context, returnTo 
 	if provider == nil || nilInterface(provider.states) || ctx == nil || ctx.Err() != nil || !validReturnPath(returnTo) {
 		return "", ErrRepositoryOperation
 	}
+	if provider.identityIssuer != nil {
+		if _, err := provider.identityIssuer.ready(ctx); err != nil {
+			return "", ErrRepositoryUnavailable
+		}
+	}
 	state, err := provider.states.BeginIdentity(ctx, returnTo)
 	if err != nil || len(state) < 32 || len(state) > 512 {
 		return "", ErrRepositoryUnavailable
@@ -99,7 +105,15 @@ func (provider *RepositoryIdentityProvider) Complete(ctx context.Context, code, 
 		return SessionGrant{}, ErrRepositoryAuthentication
 	}
 	returnTo := "/"
-	if provider.states != nil {
+	var attempt identityAttempt
+	if provider.identityIssuer != nil {
+		var err error
+		attempt, err = provider.identityIssuer.repository.consumeIdentityAttempt(ctx, state)
+		if err != nil {
+			return SessionGrant{}, ErrRepositoryAuthentication
+		}
+		returnTo = attempt.ReturnPath
+	} else if provider.states != nil {
 		var consumeErr error
 		returnTo, consumeErr = provider.states.ConsumeIdentity(ctx, state)
 		if consumeErr != nil || !validReturnPath(returnTo) {
@@ -109,6 +123,13 @@ func (provider *RepositoryIdentityProvider) Complete(ctx context.Context, code, 
 	external, err := provider.authenticator.Authenticate(ctx, code)
 	if err != nil {
 		return SessionGrant{}, ErrRepositoryAuthentication
+	}
+	if provider.identityIssuer != nil {
+		prepared, err := provider.identityIssuer.prepare(ctx, external, attempt)
+		if err != nil {
+			return SessionGrant{}, ErrRepositoryAuthentication
+		}
+		ctx = context.WithValue(ctx, identityAdmissionContextKey{}, prepared)
 	}
 	grant, err := provider.resolver.ResolveIdentity(ctx, external)
 	if err != nil || !validSessionGrant(grant) || grant.ExpiresAt.After(external.ExpiresAt()) {
@@ -146,6 +167,11 @@ func validStytchAuthorizePath(value string) bool {
 func (provider *RepositoryIdentityProvider) Ready(ctx context.Context) error {
 	if provider == nil || provider.authenticator.Ready(ctx) != nil {
 		return ErrRepositoryUnavailable
+	}
+	if provider.identityIssuer != nil {
+		if _, err := provider.identityIssuer.ready(ctx); err != nil {
+			return ErrRepositoryUnavailable
+		}
 	}
 	return nil
 }

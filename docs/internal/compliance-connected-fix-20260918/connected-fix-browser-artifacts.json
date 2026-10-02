@@ -1,0 +1,42 @@
+[
+  {
+    "file": ".superpowers/sdd/2026-09-18-compliance-production-plan/connected-fix-browser-artifacts/compliance-final.png",
+    "bytes": 115978,
+    "sha256": "d56d7356f2910277cabac406de9ce77bd852a3d986dc714a78523b787bf49146"
+  },
+  {
+    "file": ".superpowers/sdd/2026-09-18-compliance-production-plan/connected-fix-browser-artifacts/compliance-hipaa-detail.png",
+    "bytes": 46405,
+    "sha256": "8499cf596c56c480ce4058ee914572b34917ddc4e99b91e5f3b8682512f5891f"
+  },
+  {
+    "file": ".superpowers/sdd/2026-09-18-compliance-production-plan/connected-fix-browser-artifacts/continuity.json",
+    "bytes": 57059,
+    "sha256": "7759ecf4a1fe0b3c02f06cd2cacfb9c41a2d30c832d183afad996965b6e26e6f"
+  },
+  {
+    "file": ".superpowers/sdd/2026-09-18-compliance-production-plan/connected-fix-browser-artifacts/downloads/compliance-pid_a0070dfe-d2af-432f-b205-e2f9522546e1.csv",
+    "bytes": 568,
+    "sha256": "4a6593b26a862f79acb919a121b7e15367ec69b73736add4eaa367a7ae9fb5a3"
+  },
+  {
+    "file": ".superpowers/sdd/2026-09-18-compliance-production-plan/connected-fix-browser-artifacts/downloads/compliance-pid_a0070dfe-d2af-432f-b205-e2f9522546e1.json",
+    "bytes": 760,
+    "sha256": "651b16939370e4a178219400157aa93872c2adfb263a317b0083515669ab3027"
+  },
+  {
+    "file": ".superpowers/sdd/2026-09-18-compliance-production-plan/connected-fix-browser-artifacts/downloads/compliance-pid_a0070dfe-d2af-432f-b205-e2f9522546e1.txt",
+    "bytes": 770,
+    "sha256": "3970aa3e15d9b0268c989671e7d57210321ec1ca344769f737eab2b781b4c3fa"
+  },
+  {
+    "file": ".superpowers/sdd/2026-09-18-compliance-production-plan/connected-fix-browser-artifacts/object.json",
+    "bytes": 4013,
+    "sha256": "2a07628908e4185b4e2a2299f2bd412c21dea3cc2874bdc050d93f2e3506662c"
+  },
+  {
+    "file": ".superpowers/sdd/2026-09-18-compliance-production-plan/connected-fix-browser-artifacts/summary.json",
+    "bytes": 462,
+    "sha256": "748a171a025ceb8ef22b1fe979f66b4fb021e6ae8159b78e4f81f790e3b1c5d3"
+  }
+]

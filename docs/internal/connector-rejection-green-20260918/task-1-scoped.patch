@@ -1,0 +1,1104 @@
+--- a/services/platform/apiserver/workflow_handler.go
++++ b/services/platform/apiserver/workflow_handler.go
+@@ -328,7 +328,7 @@
+ 	}
+ 	result, replayed, err := handler.repository.ReplayWorkflow(request.Context(), identity, routed.OperationID, idempotencyKey, intent)
+ 	if err != nil {
+-		writeWorkflowMutationError(writer, request, err)
++		handler.writeIntegrationRejection(writer, request, identity, routed, intent, err)
+ 		return
+ 	}
+ 	if replayed {
+@@ -356,7 +356,7 @@
+ 	}
+ 	mutation, status, responseKind, err := handler.buildMutation(request, identity, routed, idempotencyKey, auditID, correlationID)
+ 	if err != nil {
+-		writeWorkflowMutationError(writer, request, err)
++		handler.writeIntegrationRejection(writer, request, identity, routed, intent, err)
+ 		return
+ 	}
+ 	mutation.ReceiptID = receiptID
+--- a/services/platform/apiserver/connector_rejection.go
++++ b/services/platform/apiserver/connector_rejection.go
+@@ -0,0 +1,82 @@
++package apiserver
++
++import (
++	"crypto/sha256"
++	"encoding/json"
++	"errors"
++	"net/http"
++)
++
++// This recognizes only forbidden authority overrides in otherwise structurally
++// valid integration requests. Ordinary malformed requests retain their errors.
++func integrationAuthorityOverride(intent json.RawMessage, operation string) bool {
++	if !stringIn(operation, "createIntegration", "updateIntegration") {
++		return false
++	}
++	var envelope struct {
++		Body json.RawMessage `json:"body"`
++	}
++	if json.Unmarshal(intent, &envelope) != nil {
++		return false
++	}
++	var input struct {
++		ConnectorKey  string            `json:"connector_key"`
++		Name          string            `json:"name"`
++		Configuration map[string]string `json:"configuration"`
++	}
++	if json.Unmarshal(envelope.Body, &input) != nil || input.Name == "" || len(input.Name) > 128 || (operation == "createIntegration" && input.ConnectorKey == "") {
++		return false
++	}
++	for _, key := range []string{"nango_url", "nango_base_url", "proxy_url", "provider_url"} {
++		if _, present := input.Configuration[key]; present {
++			return true
++		}
++	}
++	return false
++}
++
++func (handler *workflowHTTPHandler) writeIntegrationRejection(writer http.ResponseWriter, request *http.Request, identity RequestIdentity, routed RoutedOperation, intent json.RawMessage, original error) {
++	if !(errors.Is(original, ErrRepositoryOperation) || errors.Is(original, ErrRepositoryConflict)) || !integrationAuthorityOverride(intent, routed.OperationID) {
++		writeWorkflowMutationError(writer, request, original)
++		return
++	}
++	credential, _, ok := requestCredential(request)
++	if !ok || credential.Kind != identity.CredentialKind {
++		writeProductionError(writer, request, ErrRepositoryAuthentication)
++		return
++	}
++	target := identity.Scope.EnvironmentID().String()
++	if routed.OperationID == "updateIntegration" {
++		target = routed.PathParameters["id"]
++		if _, err := handler.repository.GetWorkflow(request.Context(), identity.Scope, "integration", target); err != nil {
++			writeWorkflowMutationError(writer, request, err)
++			return
++		}
++	}
++	auditor, ok := handler.repository.(integrationRejectionAuditor)
++	if !ok {
++		writeProductionError(writer, request, ErrRepositoryUnavailable)
++		return
++	}
++	auditID, err := newWorkflowProductID()
++	if err != nil {
++		writeProductionError(writer, request, ErrRepositoryUnavailable)
++		return
++	}
++	digest := sha256.Sum256([]byte(credential.Value))
++	err = auditor.AuditIntegrationRejection(request.Context(), identity, IntegrationRejection{CredentialDigest: digest[:], Operation: routed.OperationID, TargetID: target, AuditID: auditID, CorrelationID: correlationIDFromContext(request.Context())})
++	if err != nil {
++		writeWorkflowMutationError(writer, request, classifiedRejectionAuditError(err))
++		return
++	}
++	writeWorkflowMutationError(writer, request, original)
++}
++
++func classifiedRejectionAuditError(err error) error {
++	for _, permitted := range []error{ErrRepositoryAuthentication, ErrRepositoryAuthorization, ErrRepositoryNotFound} {
++		if errors.Is(err, permitted) {
++			return permitted
++		}
++	}
++	return ErrRepositoryUnavailable
++}
+--- a/services/platform/apiserver/connector_rejection_repository.go
++++ b/services/platform/apiserver/connector_rejection_repository.go
+@@ -0,0 +1,42 @@
++package apiserver
++
++import (
++	"bytes"
++	"context"
++	"crypto/sha256"
++)
++
++// IntegrationRejection deliberately cannot carry a submitted body, configuration,
++// URL, name, idempotency key or credential value.
++type IntegrationRejection struct {
++	CredentialDigest []byte
++	Operation        string
++	TargetID         string
++	AuditID          string
++	CorrelationID    string
++}
++
++type integrationRejectionAuditor interface {
++	AuditIntegrationRejection(context.Context, RequestIdentity, IntegrationRejection) error
++}
++
++func validIntegrationRejection(identity RequestIdentity, command IntegrationRejection) bool {
++	return validRequestIdentity(identity, false) &&
++		(identity.CredentialKind == CredentialBrowserSession || identity.CredentialKind == CredentialBearerToken) &&
++		stringIn("manage_workflows", identity.Permissions...) &&
++		len(command.CredentialDigest) == sha256.Size && !bytes.Equal(command.CredentialDigest, make([]byte, sha256.Size)) &&
++		stringIn(command.Operation, "createIntegration", "updateIntegration") &&
++		validProductID(command.TargetID) && validProductID(command.AuditID) && validProductID(command.CorrelationID) &&
++		(command.Operation != "createIntegration" || command.TargetID == identity.Scope.EnvironmentID().String())
++}
++
++func (repository *PostgresRepository) AuditIntegrationRejection(ctx context.Context, identity RequestIdentity, command IntegrationRejection) error {
++	if repository == nil || nilInterface(repository.database) || ctx == nil || !validIntegrationRejection(identity, command) {
++		return ErrRepositoryOperation
++	}
++	auditor, ok := repository.database.(integrationRejectionAuditor)
++	if !ok {
++		return ErrRepositoryUnavailable
++	}
++	return auditor.AuditIntegrationRejection(ctx, identity, command)
++}
+--- a/services/platform/apiserver/connector_rejection_transaction.go
++++ b/services/platform/apiserver/connector_rejection_transaction.go
+@@ -0,0 +1,158 @@
++package apiserver
++
++import (
++	"context"
++	"errors"
++	"time"
++
++	"github.com/jackc/pgx/v5"
++	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
++)
++
++// Optional driver capability, intentionally absent from general JSONDatabase.
++// The concrete driver must explicitly request READ COMMITTED; no transaction or
++// arbitrary SQL callback escapes this narrow durable-write operation.
++type integrationRejectionTransactionDriver interface {
++	BeginReadCommitted(context.Context) (pgx.Tx, error)
++}
++
++func (database *PostgresJSONDatabase) AuditIntegrationRejection(ctx context.Context, identity RequestIdentity, command IntegrationRejection) error {
++	if database == nil || ctx == nil || !validIntegrationRejection(identity, command) {
++		return ErrRepositoryOperation
++	}
++	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
++	defer cancel()
++	database.mu.RLock()
++	defer database.mu.RUnlock()
++	if database.closed || nilInterface(database.driver) {
++		return ErrRepositoryUnavailable
++	}
++	driver, ok := database.driver.(integrationRejectionTransactionDriver)
++	if !ok {
++		return ErrRepositoryUnavailable
++	}
++	tx, err := driver.BeginReadCommitted(ctx)
++	if err != nil {
++		return ErrRepositoryUnavailable
++	}
++	defer func() {
++		cleanup, stop := context.WithTimeout(context.Background(), 5*time.Second)
++		defer stop()
++		_ = tx.Rollback(cleanup)
++	}()
++	var isolation string
++	if err = tx.QueryRow(ctx, `SHOW transaction_isolation`).Scan(&isolation); err != nil || isolation != "read committed" {
++		return ErrRepositoryUnavailable
++	}
++	if err = integrationRejectionReady(ctx, tx); err != nil {
++		return err
++	}
++	if err = authorizeIntegrationRejection(ctx, tx, identity, command, false); err != nil {
++		return err
++	}
++	_, err = tx.Exec(ctx, `INSERT INTO public.zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata,occurred_at)
++VALUES($1,$2,$3,$4,$5,'integration.setup.rejected',$6,'rejected',jsonb_build_object('operation',$7::text,'resource_kind','integration','reason','invalid_configuration','correlation_id',$8::text),clock_timestamp())`, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), command.AuditID, identity.PrincipalID.String(), command.TargetID, command.Operation, command.CorrelationID)
++	if err != nil {
++		return ErrRepositoryUnavailable
++	}
++	// INSERT may have waited on the audit relation. Use fresh READ COMMITTED
++	// statements, then retain the contributing authority rows through commit.
++	if err = integrationRejectionReady(ctx, tx); err != nil {
++		return err
++	}
++	if err = authorizeIntegrationRejection(ctx, tx, identity, command, true); err != nil {
++		return err
++	}
++	if err = tx.Commit(ctx); err != nil {
++		return ErrRepositoryUnavailable
++	}
++	return nil
++}
++
++func integrationRejectionReady(ctx context.Context, tx pgx.Tx) error {
++	var ready bool
++	if err := tx.QueryRow(ctx, `SELECT public.zasp_compliance_api_ready($1,$2)`, migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()).Scan(&ready); err != nil || !ready {
++		return ErrRepositoryUnavailable
++	}
++	return nil
++}
++
++func authorizeIntegrationRejection(ctx context.Context, tx pgx.Tx, identity RequestIdentity, command IntegrationRejection, lock bool) error {
++	args := []any{identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String()}
++	suffix := ""
++	if lock {
++		suffix = " FOR SHARE"
++	}
++	// Membership first matches registered resolve-session/deprovision writers.
++	var role string
++	err := tx.QueryRow(ctx, `SELECT role FROM public.zasp_identity_memberships WHERE organization_id=$1 AND principal_id=$2 AND active`+suffix, args[0], args[3]).Scan(&role)
++	if errors.Is(err, pgx.ErrNoRows) {
++		return ErrRepositoryAuthorization
++	}
++	if err != nil {
++		return ErrRepositoryUnavailable
++	}
++	table := "public.zasp_product_sessions"
++	if identity.CredentialKind == CredentialBearerToken {
++		table = "public.zasp_product_api_tokens"
++	}
++	var expires time.Time
++	var tokenWrite bool
++	err = tx.QueryRow(ctx, `SELECT expires_at,permissions ? 'manage_workflows' FROM `+table+` WHERE (organization_id,workspace_id,environment_id,principal_id)=($1,$2,$3,$4) AND token_digest=$5 AND revoked_at IS NULL`+suffix, append(args, command.CredentialDigest)...).Scan(&expires, &tokenWrite)
++	if errors.Is(err, pgx.ErrNoRows) {
++		return ErrRepositoryAuthentication
++	}
++	if err != nil {
++		return ErrRepositoryUnavailable
++	}
++	if identity.CredentialKind == CredentialBearerToken && !tokenWrite {
++		return ErrRepositoryAuthorization
++	}
++	var direct bool
++	err = tx.QueryRow(ctx, `SELECT public.zasp_effective_scope_permissions(permissions,$5) ? 'manage_workflows' FROM public.zasp_authorized_scopes WHERE (organization_id,workspace_id,environment_id,principal_id)=($1,$2,$3,$4)`+suffix, append(args, role)...).Scan(&direct)
++	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
++		return ErrRepositoryUnavailable
++	}
++	if !direct {
++		if identity.CredentialKind == CredentialBearerToken {
++			return ErrRepositoryAuthorization
++		}
++		// API cannot read authority-only member_groups directly. Its two
++		// registered writers (release19 resolve_session/reconcile_deprovision)
++		// take membership FOR UPDATE before changing groups, so our membership
++		// lock serializes those writes. Positive mapping witnesses are retained;
++		// new mapping rows can only add grants, not remove the existing witness.
++		if lock {
++			var count int
++			if err = tx.QueryRow(ctx, `SELECT count(*) FROM (SELECT 1 FROM public.zasp_group_mappings WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3) ORDER BY group_reference FOR SHARE) locked`, args[:3]...).Scan(&count); err != nil {
++				return ErrRepositoryUnavailable
++			}
++		}
++		var allowed bool
++		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM public.zasp_identity_admin_effective_scopes($4,$1) s WHERE (s.organization_id,s.workspace_id,s.environment_id)=($1,$2,$3) AND s.permissions ? 'manage_workflows')`, args...).Scan(&allowed); err != nil {
++			return ErrRepositoryUnavailable
++		}
++		if !allowed {
++			return ErrRepositoryAuthorization
++		}
++	}
++	if command.Operation == "updateIntegration" {
++		var present bool
++		err = tx.QueryRow(ctx, `SELECT true FROM public.zasp_workflow_records WHERE (organization_id,workspace_id,environment_id,id)=($1,$2,$3,$4) AND kind='integration' AND deleted_at IS NULL`+suffix, args[0], args[1], args[2], command.TargetID).Scan(&present)
++		if errors.Is(err, pgx.ErrNoRows) {
++			return ErrRepositoryNotFound
++		}
++		if err != nil {
++			return ErrRepositoryUnavailable
++		}
++	}
++	// Wall-clock expiry is checked in a separate statement after all lock waits.
++	var live bool
++	if err = tx.QueryRow(ctx, `SELECT $1::timestamptz > clock_timestamp()`, expires).Scan(&live); err != nil {
++		return ErrRepositoryUnavailable
++	}
++	if !live {
++		return ErrRepositoryAuthentication
++	}
++	return nil
++}
+--- a/services/platform/apiserver/connector_rejection_test.go
++++ b/services/platform/apiserver/connector_rejection_test.go
+@@ -0,0 +1,82 @@
++package apiserver
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"testing"
++)
++
++func TestConnectorRejectionClassification(t *testing.T) {
++	for _, tc := range []struct {
++		name, body, operation string
++		want                  bool
++	}{
++		{"override", `{"connector_key":"github","name":"x","configuration":{"provider_url":"https://private.invalid"}}`, "createIntegration", true},
++		{"webhook", `{"connector_key":"generic_webhook","name":"x","configuration":{"destination_url":"https://example.test"}}`, "createIntegration", false},
++		{"malformed", `{"name":`, "createIntegration", false},
++		{"wrong_type", `{"connector_key":"github","name":"x","configuration":{"provider_url":42}}`, "createIntegration", false},
++		{"missing_name", `{"connector_key":"github","configuration":{"provider_url":"x"}}`, "createIntegration", false},
++		{"other_operation", `{"connector_key":"github","name":"x","configuration":{"provider_url":"x"}}`, "createPolicy", false},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			intent := json.RawMessage(`{"body":` + tc.body + `}`)
++			if got := integrationAuthorityOverride(intent, tc.operation); got != tc.want {
++				t.Fatalf("classification=%t want=%t", got, tc.want)
++			}
++		})
++	}
++}
++
++type connectorRejectionAuditorStub struct {
++	*workflowRepositoryStub
++	err     error
++	calls   int
++	command IntegrationRejection
++}
++
++func (s *connectorRejectionAuditorStub) AuditIntegrationRejection(_ context.Context, _ RequestIdentity, c IntegrationRejection) error {
++	s.calls++
++	s.command = c
++	return s.err
++}
++
++func TestConnectorRejectionHTTPBoundary(t *testing.T) {
++	for _, tc := range []struct {
++		name    string
++		failure error
++		status  int
++	}{
++		{"commit", nil, 400}, {"authentication", ErrRepositoryAuthentication, 401}, {"authorization", ErrRepositoryAuthorization, 403}, {"target", ErrRepositoryNotFound, 404}, {"raw_database_error", errors.New("secret sql private.invalid"), 503}, {"other_typed_error", ErrRepositoryOperation, 503},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			identity := fixtureRequestIdentity(t)
++			identity.CredentialKind = CredentialBrowserSession
++			identity.Permissions = []string{"view", "manage_workflows"}
++			repository := &connectorRejectionAuditorStub{workflowRepositoryStub: &workflowRepositoryStub{}, err: tc.failure}
++			handler, _ := newWorkflowHTTPHandler(repository, []byte(strings.Repeat("k", 32)), nil)
++			r := workflowRequest(t, identity, testCorrelationID, "createIntegration", nil, "POST", "/api/v1/integrations", "")
++			r.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "opaque-cookie"})
++			w := httptest.NewRecorder()
++			handler.writeIntegrationRejection(w, r, identity, RoutedOperation{OperationID: "createIntegration"}, json.RawMessage(`{"body":{"connector_key":"github","name":"secret name","configuration":{"provider_url":"https://private.invalid"}}}`), ErrRepositoryOperation)
++			if w.Code != tc.status || repository.calls != 1 || strings.Contains(w.Body.String(), "private.invalid") || !validIntegrationRejection(identity, repository.command) {
++				t.Fatalf("status=%d calls=%d body=%s command valid=%t", w.Code, repository.calls, w.Body, validIntegrationRejection(identity, repository.command))
++			}
++		})
++	}
++	t.Run("missing_auditor", func(t *testing.T) {
++		identity := fixtureRequestIdentity(t)
++		identity.CredentialKind = CredentialBrowserSession
++		handler, _ := newWorkflowHTTPHandler(&workflowRepositoryStub{}, []byte(strings.Repeat("k", 32)), nil)
++		r := httptest.NewRequest("POST", "/api/v1/integrations", nil)
++		r.AddCookie(&http.Cookie{Name: browserSessionCookie, Value: "opaque-cookie"})
++		w := httptest.NewRecorder()
++		handler.writeIntegrationRejection(w, r, identity, RoutedOperation{OperationID: "createIntegration"}, json.RawMessage(`{"body":{"connector_key":"github","name":"x","configuration":{"provider_url":"x"}}}`), ErrRepositoryOperation)
++		if w.Code != 503 {
++			t.Fatalf("missing capability status=%d", w.Code)
++		}
++	})
++}
+--- a/services/platform/apiserver/connector_rejection_postgres_test.go
++++ b/services/platform/apiserver/connector_rejection_postgres_test.go
+@@ -45,7 +45,7 @@
+ 			}
+ 		}
+ 		digest := sha256.Sum256([]byte(cookie))
+-		seed(`INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role) VALUES($4,$1,'connector-rejection','workflow-manager','security_engineer');
++		seed(`INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role) VALUES($4,$1,'organization-connector-rejection','member-connector-rejection','security_engineer');
+ INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions) VALUES($4,$1,$2,$3,'connector-rejection','["view","manage_workflows"]');
+ INSERT INTO zasp_product_sessions(token_digest,principal_id,organization_id,workspace_id,environment_id,permissions,csrf_token,expires_at,authenticated_at) VALUES($5,$4,$1,$2,$3,'["view","manage_workflows"]',repeat('c',32),clock_timestamp()+interval '1 hour',clock_timestamp());`, org, workspace, environment, actor, digest[:])
+ 		cfg, err := pgx.ParseConfig(dsn)
+@@ -64,7 +64,7 @@
+ 			t.Fatalf("registered API authority: user=%s super=%t bypass=%t audit-insert=%t err=%v", user, superuser, bypass, directAudit, err)
+ 		}
+ 		t.Logf("registered API ACL observation: current_user=%s audit-table INSERT privilege=%t; product writes use real repository operations only", user, directAudit)
+-		database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: api})
++		database, err := NewPostgresJSONDatabase(&connectorRejectionPGDriver{integrationPostgresDriver: &integrationPostgresDriver{connection: api}})
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -89,10 +89,15 @@
+ 		defer func() { http.DefaultTransport = priorTransport }()
+ 		providerDispatch := 0
+ 		unused := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { providerDispatch++; w.WriteHeader(http.StatusTeapot) })
+-		router, err := NewComposition(Dependencies{Session: handlerResponse("session"), Identity: handlerResponse("identity"), Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: workflow, Connector: unused})
++		pages, err := NewAuditPublicPageRepository(ctx, database)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
++		identityHandler := &identityHTTPHandler{repository: repository, auditPublicPages: pages, signingKey: []byte(strings.Repeat("k", 32))}
++		router, err := NewComposition(Dependencies{Session: handlerResponse("session"), Identity: identityHandler, Inventory: handlerResponse("inventory"), Risk: handlerResponse("risk"), Workflow: workflow, Connector: unused})
++		if err != nil {
++			t.Fatal(err)
++		}
+ 		correlation := "pid_8b000000-0000-4000-8000-000000000000"
+ 		mounted, err := NewProductMiddleware(ProductSecurity{PublicOrigin: "https://console.example.test", MaximumBodyBytes: 16384, Authenticate: repository.Authenticate, GenerateCorrelationID: func() string { return correlation }}, router)
+ 		if err != nil {
+@@ -227,11 +232,19 @@
+ 				})
+ 			}
+ 		}
++		exerciseConnectorRejectionAuthority(t, ctx, owner, api, repository, identity, created.ID, invoke, auditCount)
++		exerciseConnectorRejectionFailures(t, ctx, owner, api, identity)
+ 	})
+ }
+ 
+ type connectorRejectionHTTPTripwire struct{ calls int }
+ 
++type connectorRejectionPGDriver struct{ *integrationPostgresDriver }
++
++func (driver *connectorRejectionPGDriver) BeginReadCommitted(ctx context.Context) (pgx.Tx, error) {
++	return driver.connection.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
++}
++
+ func (tripwire *connectorRejectionHTTPTripwire) RoundTrip(*http.Request) (*http.Response, error) {
+ 	tripwire.calls++
+ 	return nil, errors.New("connector rejection test prohibits HTTP")
+--- a/services/platform/apiserver/connector_rejection_authority_postgres_test.go
++++ b/services/platform/apiserver/connector_rejection_authority_postgres_test.go
+@@ -0,0 +1,388 @@
++package apiserver
++
++import (
++	"context"
++	"crypto/sha256"
++	"encoding/json"
++	"errors"
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/jackc/pgx/v5"
++)
++
++type connectorRejectionInvoke func(string, string, string, string, func(*http.Request)) *httptest.ResponseRecorder
++
++func exerciseConnectorRejectionAuthority(t *testing.T, ctx context.Context, owner, api *pgx.Conn, repository *PostgresRepository, identity RequestIdentity, integrationID string, invoke connectorRejectionInvoke, count func(*testing.T) int) {
++	org, workspace, environment, actor := identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String()
++	const body = `{"connector_key":"github","name":"Do not persist name","configuration":{"authorization_mode":"github_app","provider_url":"https://private.invalid/never-persist"}}`
++	exec := func(sql string, args ...any) {
++		t.Helper()
++		if _, err := owner.Exec(ctx, sql, append([]any{pgx.QueryExecModeSimpleProtocol}, args...)...); err != nil {
++			t.Fatal(err)
++		}
++	}
++	restore := func() {
++		exec(`UPDATE zasp_identity_memberships SET active=true,role='security_engineer' WHERE organization_id=$1 AND principal_id=$2;
++UPDATE zasp_product_sessions SET revoked_at=NULL,expires_at=clock_timestamp()+interval '1 hour' WHERE organization_id=$1 AND principal_id=$2;
++INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions) VALUES($2,$1,$3,$4,'connector-rejection','["view","manage_workflows"]') ON CONFLICT(principal_id,organization_id,workspace_id,environment_id) DO UPDATE SET permissions=excluded.permissions;
++UPDATE zasp_workflow_records SET deleted_at=NULL WHERE id=$5`, org, actor, workspace, environment, integrationID)
++	}
++	check := func(t *testing.T, w *httptest.ResponseRecorder, status, before, delta int) {
++		t.Helper()
++		if w.Code != status || count(t) != before+delta {
++			t.Fatalf("status=%d want=%d audit delta=%d want=%d body=%s", w.Code, status, count(t)-before, delta, w.Body)
++		}
++		if strings.Contains(w.Body.String(), "private.invalid") {
++			t.Fatal("response leaked URL")
++		}
++	}
++	t.Run("retry_and_success_key_conflict", func(t *testing.T) {
++		before := count(t)
++		for n := 0; n < 2; n++ {
++			check(t, invoke("POST", "/api/v1/integrations", body, "connector-retry-same-key", nil), 400, before, n+1)
++		}
++		check(t, invoke("POST", "/api/v1/integrations", body, "connector-safe-create-0001", nil), 409, before, 3)
++		corrected := invoke("POST", "/api/v1/integrations", `{"connector_key":"github","name":"Corrected","configuration":{"authorization_mode":"github_app"}}`, "connector-retry-same-key", nil)
++		if corrected.Code != 201 {
++			t.Fatalf("rejection consumed success key: %d %s", corrected.Code, corrected.Body)
++		}
++	})
++	t.Run("audit_read_API", func(t *testing.T) {
++		const reader = "pid_6a000011-0000-4000-8000-000000000011"
++		digest := sha256.Sum256([]byte("connector-audit-reader"))
++		exec(`INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role) VALUES($4,$1,'organization-connector-reader','member-connector-reader','compliance_viewer');
++INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions) VALUES($4,$1,$2,$3,'reader','["view","view_audit"]');
++INSERT INTO zasp_product_sessions(token_digest,principal_id,organization_id,workspace_id,environment_id,permissions,csrf_token,expires_at,authenticated_at) VALUES($5,$4,$1,$2,$3,'["view","view_audit"]',repeat('c',32),clock_timestamp()+interval '1 hour',clock_timestamp())`, org, workspace, environment, reader, digest[:])
++		w := invoke("GET", "/api/v1/audit-events?action=integration.setup.rejected&outcome=denied&limit=100", "", "", func(r *http.Request) { r.Header.Set("Cookie", browserSessionCookie+"=connector-audit-reader") })
++		var page struct {
++			Items []struct {
++				Action   string         `json:"action"`
++				Outcome  string         `json:"outcome"`
++				Metadata map[string]any `json:"metadata"`
++			} `json:"items"`
++		}
++		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &page) != nil || len(page.Items) != 13 {
++			t.Fatalf("public audit read status=%d %s", w.Code, w.Body)
++		}
++		for _, event := range page.Items {
++			if event.Action != "integration.setup.rejected" || event.Outcome != "denied" {
++				t.Fatalf("public rejected event: %+v", event)
++			}
++		}
++		if strings.Contains(w.Body.String(), "private.invalid") || strings.Contains(w.Body.String(), "attacker.invalid") || strings.Contains(w.Body.String(), "Do not persist") {
++			t.Fatal("audit API leaked submitted input")
++		}
++	})
++	t.Run("token_permission_intersection", func(t *testing.T) {
++		defer restore()
++		digest := sha256.Sum256([]byte("connector-token-fixture"))
++		exec(`INSERT INTO zasp_product_api_tokens(token_digest,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES($5,$4,$1,$2,$3,'["view","manage_workflows"]',clock_timestamp()+interval '1 hour')`, org, workspace, environment, actor, digest[:])
++		use := func(r *http.Request) {
++			r.Header.Del("Cookie")
++			r.Header.Del("Origin")
++			r.Header.Del("X-CSRF-Token")
++			r.Header.Set("Authorization", "Bearer connector-token-fixture")
++		}
++		before := count(t)
++		check(t, invoke("POST", "/api/v1/integrations", body, "connector-token-allowed", use), 400, before, 1)
++		exec(`UPDATE zasp_product_api_tokens SET permissions='["view"]' WHERE token_digest=$1`, digest[:])
++		check(t, invoke("POST", "/api/v1/integrations", body, "connector-token-denied1", use), 403, before, 1)
++		exec(`UPDATE zasp_product_api_tokens SET permissions='["view","manage_workflows"]' WHERE token_digest=$1`, digest[:])
++		exec(`UPDATE zasp_identity_memberships SET role='read_only_viewer' WHERE organization_id=$1 AND principal_id=$2`, org, actor)
++		check(t, invoke("POST", "/api/v1/integrations", body, "connector-token-denied2", use), 403, before, 1)
++		for _, change := range []string{"revoked", "expired", "permission_removed"} {
++			t.Run("blocked_INSERT_"+change, func(t *testing.T) {
++				restore()
++				exec(`UPDATE zasp_product_api_tokens SET revoked_at=NULL,expires_at=clock_timestamp()+interval '1 hour',permissions='["view","manage_workflows"]' WHERE token_digest=$1`, digest[:])
++				before := count(t)
++				w := connectorRejectionBlockedHTTP(t, ctx, owner, api, `LOCK TABLE zasp_admin_audit IN SHARE MODE`, nil, func(call context.Context) *httptest.ResponseRecorder {
++					return invoke("POST", "/api/v1/integrations", body, "connector-token-wait-"+change, func(r *http.Request) { use(r); *r = *r.WithContext(call) })
++				}, func(context.Context) {
++					switch change {
++					case "revoked":
++						exec(`UPDATE zasp_product_api_tokens SET revoked_at=clock_timestamp() WHERE token_digest=$1`, digest[:])
++					case "expired":
++						exec(`UPDATE zasp_product_api_tokens SET expires_at=clock_timestamp()-interval '1 second' WHERE token_digest=$1`, digest[:])
++					case "permission_removed":
++						exec(`UPDATE zasp_product_api_tokens SET permissions='["view"]' WHERE token_digest=$1`, digest[:])
++					}
++				}, false)
++				status := 401
++				if change == "permission_removed" {
++					status = 403
++				}
++				check(t, w, status, before, 0)
++			})
++		}
++	})
++	t.Run("blocked_INSERT_rechecks_authority", func(t *testing.T) {
++		for _, tc := range []struct {
++			name, sql string
++			args      []any
++			status    int
++		}{
++			{"revoked", `UPDATE zasp_product_sessions SET revoked_at=clock_timestamp() WHERE principal_id=$1`, []any{actor}, 401},
++			{"expired", `UPDATE zasp_product_sessions SET expires_at=clock_timestamp()-interval '1 second' WHERE principal_id=$1`, []any{actor}, 401},
++			{"member_disabled", `UPDATE zasp_identity_memberships SET active=false WHERE principal_id=$1`, []any{actor}, 403},
++			{"role_removed", `UPDATE zasp_identity_memberships SET role='read_only_viewer' WHERE principal_id=$1`, []any{actor}, 403},
++			{"scope_removed", `DELETE FROM zasp_authorized_scopes WHERE principal_id=$1`, []any{actor}, 403},
++			{"target_deleted", `UPDATE zasp_workflow_records SET deleted_at=clock_timestamp() WHERE id=$1`, []any{integrationID}, 404},
++		} {
++			t.Run(tc.name, func(t *testing.T) {
++				restore()
++				defer restore()
++				before := count(t)
++				w := connectorRejectionBlockedHTTP(t, ctx, owner, api, `LOCK TABLE zasp_admin_audit IN SHARE MODE`, nil, func(call context.Context) *httptest.ResponseRecorder {
++					return invoke("PATCH", "/api/v1/integrations/"+integrationID, body, "connector-wait-"+tc.name, func(r *http.Request) { *r = *r.WithContext(call) })
++				}, func(context.Context) { exec(tc.sql, tc.args...) }, false)
++				check(t, w, tc.status, before, 0)
++			})
++		}
++	})
++	t.Run("audit_INSERT_cancellation", func(t *testing.T) {
++		before := count(t)
++		w := connectorRejectionBlockedHTTP(t, ctx, owner, api, `LOCK TABLE zasp_admin_audit IN SHARE MODE`, nil, func(call context.Context) *httptest.ResponseRecorder {
++			return invoke("POST", "/api/v1/integrations", body, "connector-cancel-insert", func(r *http.Request) { *r = *r.WithContext(call) })
++		}, nil, true)
++		check(t, w, 503, before, 0)
++	})
++	t.Run("wall_clock_expiry_after_target_wait", func(t *testing.T) {
++		restore()
++		defer restore()
++		exec(`UPDATE zasp_product_sessions SET expires_at=clock_timestamp()+interval '2 seconds' WHERE principal_id=$1`, actor)
++		before := count(t)
++		w := connectorRejectionBlockedHTTP(t, ctx, owner, api, `SELECT 1 FROM zasp_workflow_records WHERE id=$1 FOR UPDATE`, []any{integrationID}, func(call context.Context) *httptest.ResponseRecorder {
++			return invoke("PATCH", "/api/v1/integrations/"+integrationID, body, "connector-clock-expiry", func(r *http.Request) { *r = *r.WithContext(call) })
++		}, func(wait context.Context) {
++			ticker := time.NewTicker(10 * time.Millisecond)
++			defer ticker.Stop()
++			for {
++				var expired bool
++				if err := owner.QueryRow(wait, `SELECT bool_and(expires_at<=clock_timestamp()) FROM zasp_product_sessions WHERE principal_id=$1`, actor).Scan(&expired); err != nil {
++					t.Fatal(err)
++				}
++				if expired {
++					return
++				}
++				select {
++				case <-wait.Done():
++					t.Fatal(wait.Err())
++				case <-ticker.C:
++				}
++			}
++		}, false)
++		check(t, w, 401, before, 0)
++	})
++	t.Run("group_permission_and_registered_writers", func(t *testing.T) {
++		defer restore()
++		var groupCookie, groupCSRF string
++		freshSession := func() {
++			t.Helper()
++			var err error
++			groupCookie, err = repository.CreateSession(ctx, SessionGrant{PrincipalID: identity.PrincipalID, Scope: identity.Scope, Permissions: []string{"view", "manage_workflows"}, ExpiresAt: time.Now().UTC().Add(time.Hour)})
++			if err != nil {
++				t.Fatal(err)
++			}
++			fresh, err := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: groupCookie})
++			if err != nil || !stringIn("manage_workflows", fresh.Permissions...) {
++				t.Fatalf("fresh group session: %v permissions=%v", err, fresh.Permissions)
++			}
++			groupCSRF = fresh.CSRFToken
++		}
++		groupInvoke := func(method, path, body, key string, change func(*http.Request)) *httptest.ResponseRecorder {
++			return invoke(method, path, body, key, func(r *http.Request) {
++				r.Header.Set("Cookie", browserSessionCookie+"="+groupCookie)
++				r.Header.Set("X-CSRF-Token", groupCSRF)
++				if change != nil {
++					change(r)
++				}
++			})
++		}
++		exec(`DELETE FROM zasp_authorized_scopes WHERE principal_id=$1;
++INSERT INTO zasp_group_mappings(organization_id,group_reference,role,workspace_id,environment_id) VALUES($2,'scim-group-test-connector','security_engineer',$3,$4)`, actor, org, workspace, environment)
++		resolve := func(c *pgx.Conn, groups string) error {
++			var raw json.RawMessage
++			return c.QueryRow(ctx, `SELECT zasp_identity_admin_resolve_session('organization-connector-rejection','member-connector-rejection',$1::jsonb)`, groups).Scan(&raw)
++		}
++		if err := resolve(api, `["scim-group-test-connector"]`); err != nil {
++			t.Fatal(err)
++		}
++		if _, err := repository.Authenticate(ctx, Credential{Kind: CredentialBrowserSession, Value: "connector-rejection-session"}); !errors.Is(err, ErrRepositoryAuthentication) {
++			t.Fatalf("changed group membership must revoke previous session: %v", err)
++		}
++		freshSession()
++		before := count(t)
++		check(t, groupInvoke("POST", "/api/v1/integrations", body, "connector-group-allowed", nil), 400, before, 1)
++		for _, change := range []string{"resolve_removes_group", "mapping_role_removed", "mapping_removed"} {
++			t.Run(change, func(t *testing.T) {
++				exec(`INSERT INTO zasp_group_mappings(organization_id,group_reference,role,workspace_id,environment_id) VALUES($1,'scim-group-test-connector','security_engineer',$2,$3) ON CONFLICT(organization_id,group_reference) DO UPDATE SET role='security_engineer'`, org, workspace, environment)
++				if err := resolve(api, `["scim-group-test-connector"]`); err != nil {
++					t.Fatal(err)
++				}
++				freshSession()
++				other, err := pgx.ConnectConfig(ctx, api.Config().Copy())
++				if err != nil {
++					t.Fatal(err)
++				}
++				defer other.Close(context.Background())
++				before := count(t)
++				w := connectorRejectionBlockedHTTP(t, ctx, owner, api, `LOCK TABLE zasp_admin_audit IN SHARE MODE`, nil, func(call context.Context) *httptest.ResponseRecorder {
++					return groupInvoke("POST", "/api/v1/integrations", body, "connector-group-"+change, func(r *http.Request) { *r = *r.WithContext(call) })
++				}, func(context.Context) {
++					if change == "resolve_removes_group" {
++						if err := resolve(other, `[]`); err != nil {
++							t.Fatal(err)
++						}
++					} else if change == "mapping_removed" {
++						exec(`DELETE FROM zasp_group_mappings WHERE organization_id=$1`, org)
++					} else {
++						exec(`UPDATE zasp_group_mappings SET role='read_only_viewer' WHERE organization_id=$1`, org)
++					}
++				}, false)
++				status := 403
++				if change == "resolve_removes_group" {
++					status = 401
++				}
++				check(t, w, status, before, 0)
++			})
++		}
++		// Both registered member-group writers must block behind the final
++		// membership lock, observed while the audit waits on the update target.
++		for _, writer := range []string{"resolve", "deprovision"} {
++			t.Run(writer+"_serializes_on_membership", func(t *testing.T) {
++				restore()
++				exec(`DELETE FROM zasp_authorized_scopes WHERE principal_id=$1;INSERT INTO zasp_group_mappings(organization_id,group_reference,role,workspace_id,environment_id) VALUES($2,'scim-group-test-connector','security_engineer',$3,$4) ON CONFLICT(organization_id,group_reference) DO UPDATE SET role='security_engineer'`, actor, org, workspace, environment)
++				if err := resolve(api, `["scim-group-test-connector"]`); err != nil {
++					t.Fatal(err)
++				}
++				freshSession()
++				other, err := pgx.ConnectConfig(ctx, api.Config().Copy())
++				if err != nil {
++					t.Fatal(err)
++				}
++				defer other.Close(context.Background())
++				writerCtx, stop := context.WithTimeout(ctx, 10*time.Second)
++				defer stop()
++				done := make(chan error, 1)
++				writerStarted, writerJoined := false, false
++				defer func() {
++					stop()
++					if writerStarted && !writerJoined {
++						select {
++						case <-done:
++						case <-time.After(5 * time.Second):
++							t.Error("registered writer did not join during cleanup")
++						}
++					}
++				}()
++				before := count(t)
++				w := connectorRejectionBlockedHTTP(t, ctx, owner, api, `SELECT 1 FROM zasp_workflow_records WHERE id=$1 FOR UPDATE`, []any{integrationID}, func(call context.Context) *httptest.ResponseRecorder {
++					return groupInvoke("PATCH", "/api/v1/integrations/"+integrationID, body, "connector-writer-"+writer, func(r *http.Request) { *r = *r.WithContext(call) })
++				}, func(wait context.Context) {
++					writerStarted = true
++					go func() {
++						var raw json.RawMessage
++						var err error
++						if writer == "resolve" {
++							err = other.QueryRow(writerCtx, `SELECT zasp_identity_admin_resolve_session('organization-connector-rejection','member-connector-rejection','[]')`).Scan(&raw)
++						} else {
++							digest := sha256.Sum256([]byte("deprovision"))
++							err = other.QueryRow(writerCtx, `SELECT zasp_identity_admin_reconcile_deprovision('project-connector','webhook-event-test-connector','organization-connector-rejection','member-connector-rejection',$1,'pid_8b000019-0000-4000-8000-000000000019')`, digest[:]).Scan(&raw)
++						}
++						done <- err
++					}()
++					connectorRejectionAwaitBlocker(t, wait, owner, other.PgConn().PID(), api.PgConn().PID())
++				}, true)
++				check(t, w, 503, before, 0)
++				select {
++				case err := <-done:
++					writerJoined = true
++					if err != nil {
++						t.Fatal(err)
++					}
++				case <-writerCtx.Done():
++					t.Fatal("registered writer did not join")
++				}
++			})
++		}
++	})
++}
++
++func connectorRejectionAwaitBlocker(t *testing.T, ctx context.Context, owner *pgx.Conn, pid, blocker uint32) {
++	t.Helper()
++	ticker := time.NewTicker(5 * time.Millisecond)
++	defer ticker.Stop()
++	for {
++		var blocked bool
++		if err := owner.QueryRow(ctx, `SELECT $1::int=ANY(pg_blocking_pids($2::int))`, blocker, pid).Scan(&blocked); err != nil {
++			t.Fatal(err)
++		}
++		if blocked {
++			return
++		}
++		select {
++		case <-ctx.Done():
++			t.Fatal("expected database blocker not observed")
++		case <-ticker.C:
++		}
++	}
++}
++
++func connectorRejectionBlockedHTTP(t *testing.T, parent context.Context, owner, api *pgx.Conn, lockSQL string, args []any, call func(context.Context) *httptest.ResponseRecorder, change func(context.Context), cancelCall bool) *httptest.ResponseRecorder {
++	t.Helper()
++	ctx, cancel := context.WithTimeout(parent, 8*time.Second)
++	defer cancel()
++	blocker, err := pgx.ConnectConfig(ctx, owner.Config().Copy())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer blocker.Close(context.Background())
++	tx, err := blocker.Begin(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++	done := make(chan *httptest.ResponseRecorder, 1)
++	started, joined := false, false
++	defer func() {
++		cleanup, stop := context.WithTimeout(context.Background(), 5*time.Second)
++		defer stop()
++		_ = tx.Rollback(cleanup)
++		cancel()
++		if started && !joined {
++			select {
++			case <-done:
++			case <-cleanup.Done():
++				t.Error("HTTP did not join")
++			}
++		}
++	}()
++	if _, err = tx.Exec(ctx, lockSQL, args...); err != nil {
++		t.Fatal(err)
++	}
++	started = true
++	go func() { done <- call(ctx) }()
++	connectorRejectionAwaitBlocker(t, ctx, owner, api.PgConn().PID(), blocker.PgConn().PID())
++	if change != nil {
++		change(ctx)
++	}
++	if cancelCall {
++		if _, err = owner.Exec(ctx, `SELECT pg_cancel_backend($1)`, api.PgConn().PID()); err != nil {
++			t.Fatal(err)
++		}
++	}
++	if err = tx.Rollback(context.Background()); err != nil {
++		t.Fatal(err)
++	}
++	select {
++	case w := <-done:
++		joined = true
++		return w
++	case <-time.After(5 * time.Second):
++		t.Fatal("HTTP did not join after unblock")
++	}
++	return nil
++}
+--- a/services/platform/apiserver/connector_rejection_failure_postgres_test.go
++++ b/services/platform/apiserver/connector_rejection_failure_postgres_test.go
+@@ -0,0 +1,160 @@
++package apiserver
++
++import (
++	"context"
++	"crypto/sha256"
++	"errors"
++	"net/url"
++	"os"
++	"os/exec"
++	"strconv"
++	"testing"
++	"time"
++
++	"github.com/jackc/pgx/v5"
++	"github.com/jackc/pgx/v5/pgconn"
++	"github.com/zasp-ai/zasp-sec/services/platform/domain"
++)
++
++func exerciseConnectorRejectionFailures(t *testing.T, ctx context.Context, owner, api *pgx.Conn, identity RequestIdentity) {
++	digest := sha256.Sum256([]byte("connector-rejection-session"))
++	command := IntegrationRejection{CredentialDigest: digest[:], Operation: "createIntegration", TargetID: identity.Scope.EnvironmentID().String(), AuditID: "pid_8b000030-0000-4000-8000-000000000030", CorrelationID: "pid_8b000031-0000-4000-8000-000000000031"}
++	for _, mode := range []string{"missing_driver", "closed", "commit_failure", "rollback_error", "panic_after_INSERT", "canceled_after_INSERT", "forged_principal", "wrong_credential_kind", "wrong_scope", "unregistered"} {
++		t.Run(mode, func(t *testing.T) {
++			cfg := api.Config().Copy()
++			if mode == "unregistered" {
++				if _, err := owner.Exec(ctx, `CREATE ROLE connector_unregistered LOGIN INHERIT`); err != nil {
++					t.Fatal(err)
++				}
++				cfg.User = "connector_unregistered"
++			}
++			connection, err := pgx.ConnectConfig(ctx, cfg)
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer connection.Close(context.Background())
++			call, cancel := context.WithCancel(ctx)
++			defer cancel()
++			driver := &connectorRejectionFaultDriver{connectorRejectionPGDriver: connectorRejectionPGDriver{&integrationPostgresDriver{connection: connection}}, mode: mode, cancel: cancel}
++			var sqlDriver PostgresDriver = driver
++			if mode == "missing_driver" {
++				sqlDriver = &integrationPostgresDriver{connection: connection}
++			}
++			db, err := NewPostgresJSONDatabase(sqlDriver)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if mode == "closed" {
++				if err = db.Close(); err != nil {
++					t.Fatal(err)
++				}
++			}
++			candidate := identity
++			if mode == "forged_principal" {
++				candidate.PrincipalID = integrationProductID(t, "pid_6a000099-0000-4000-8000-000000000099")
++			}
++			if mode == "wrong_credential_kind" {
++				candidate.CredentialKind = CredentialBearerToken
++			}
++			if mode == "wrong_scope" {
++				candidate.Scope, err = domain.NewScope(integrationProductID(t, "pid_9a000001-0000-4000-8000-000000000001"), integrationProductID(t, "pid_9a000002-0000-4000-8000-000000000002"), integrationProductID(t, "pid_9a000003-0000-4000-8000-000000000003"))
++				if err != nil {
++					t.Fatal(err)
++				}
++			}
++			input := command
++			if mode == "wrong_scope" {
++				input.TargetID = candidate.Scope.EnvironmentID().String()
++			}
++			panicked := false
++			func() {
++				defer func() {
++					if recover() != nil {
++						panicked = true
++					}
++				}()
++				err = db.AuditIntegrationRejection(call, candidate, input)
++			}()
++			if mode == "panic_after_INSERT" {
++				if !panicked {
++					t.Fatal("fault did not reach real INSERT")
++				}
++			} else if err == nil || panicked {
++				t.Fatalf("expected safe error mode=%s err=%v panic=%t", mode, err, panicked)
++			}
++			var n int
++			if err := owner.QueryRow(ctx, `SELECT count(*) FROM zasp_admin_audit WHERE id=$1`, command.AuditID).Scan(&n); err != nil || n != 0 {
++				t.Fatalf("failed transaction retained audit: %d %v", n, err)
++			}
++		})
++	}
++	t.Run("actual_production_driver_and_decorator", func(t *testing.T) {
++		binary := os.Getenv("ZASP_CONNECTOR_REJECTION_RUNTIME_TEST")
++		if binary == "" {
++			t.Skip("production runtime binary is supplied by run-focused.sh")
++		}
++		call, cancel := context.WithTimeout(ctx, 30*time.Second)
++		defer cancel()
++		// ConnString preserves the original parsed owner DSN, not Config.User
++		// changed for the registered API connection. Serialize the actual role.
++		cfg := api.Config()
++		dsn := &url.URL{Scheme: "postgres", User: url.User(cfg.User), Host: "localhost", Path: "/" + cfg.Database}
++		dsn.RawQuery = url.Values{"host": {cfg.Host}, "port": {strconv.Itoa(int(cfg.Port))}, "sslmode": {"disable"}}.Encode()
++		for _, args := range [][]string{{"-test.list", "^TestConnectorRejectionRuntimePostgres$"}, {"-test.run", "^TestConnectorRejectionRuntimePostgres$", "-test.v", "-test.timeout", "20s"}} {
++			process := exec.CommandContext(call, binary, args...)
++			process.Env = append(os.Environ(), "ZASP_CONNECTOR_REJECTION_RUNTIME_DSN="+dsn.String())
++			process.WaitDelay = 3 * time.Second
++			output, err := process.CombinedOutput()
++			t.Logf("joined production runtime process: %s", output)
++			if err != nil {
++				t.Fatalf("production runtime process: %v", err)
++			}
++		}
++	})
++}
++
++type connectorRejectionFaultDriver struct {
++	connectorRejectionPGDriver
++	mode   string
++	cancel context.CancelFunc
++}
++
++func (d *connectorRejectionFaultDriver) BeginReadCommitted(ctx context.Context) (pgx.Tx, error) {
++	tx, err := d.connectorRejectionPGDriver.BeginReadCommitted(ctx)
++	if err != nil {
++		return nil, err
++	}
++	return &connectorRejectionFaultTx{Tx: tx, mode: d.mode, cancel: d.cancel}, nil
++}
++
++type connectorRejectionFaultTx struct {
++	pgx.Tx
++	mode   string
++	cancel context.CancelFunc
++}
++
++func (tx *connectorRejectionFaultTx) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
++	result, err := tx.Tx.Exec(ctx, sql, args...)
++	if err == nil {
++		switch tx.mode {
++		case "panic_after_INSERT":
++			panic("owned fault after real INSERT")
++		case "canceled_after_INSERT":
++			tx.cancel()
++		}
++	}
++	return result, err
++}
++func (tx *connectorRejectionFaultTx) Commit(ctx context.Context) error {
++	if tx.mode == "commit_failure" || tx.mode == "rollback_error" {
++		return errors.New("owned commit fault")
++	}
++	return tx.Tx.Commit(ctx)
++}
++func (tx *connectorRejectionFaultTx) Rollback(ctx context.Context) error {
++	err := tx.Tx.Rollback(ctx)
++	if tx.mode == "rollback_error" {
++		return errors.Join(err, errors.New("owned rollback report fault after actual cleanup"))
++	}
++	return err
++}
+--- a/services/platform/agentsec-api/connector_rejection_runtime.go
++++ b/services/platform/agentsec-api/connector_rejection_runtime.go
+@@ -0,0 +1,29 @@
++package main
++
++import (
++	"context"
++	"github.com/jackc/pgx/v5"
++	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
++)
++
++func (driver *pgxProductionDriver) BeginReadCommitted(ctx context.Context) (pgx.Tx, error) {
++	if driver == nil || driver.pool == nil {
++		return nil, apiserver.ErrRepositoryUnavailable
++	}
++	return driver.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
++}
++
++func (database *tracedJSONDatabase) AuditIntegrationRejection(ctx context.Context, identity apiserver.RequestIdentity, command apiserver.IntegrationRejection) (err error) {
++	if database == nil || invalidRuntimeValue(database.next) || ctx == nil {
++		return apiserver.ErrRepositoryUnavailable
++	}
++	auditor, ok := database.next.(interface {
++		AuditIntegrationRejection(context.Context, apiserver.RequestIdentity, apiserver.IntegrationRejection) error
++	})
++	if !ok {
++		return apiserver.ErrRepositoryUnavailable
++	}
++	ctx, end := startOperationalSpan(ctx, database.exporter, "repository.integration_rejection", "client", map[string]string{"db.system": "postgresql", "db.operation.name": "integration_rejection"})
++	defer func() { database.metrics.observeDependency("repository", err); end(err) }()
++	return auditor.AuditIntegrationRejection(ctx, identity, command)
++}
+--- a/services/platform/agentsec-api/connector_rejection_runtime_test.go
++++ b/services/platform/agentsec-api/connector_rejection_runtime_test.go
+@@ -0,0 +1,62 @@
++package main
++
++import (
++	"context"
++	"crypto/sha256"
++	"os"
++	"testing"
++	"time"
++
++	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
++)
++
++// The parent mounted PostgreSQL fixture supplies its registered API DSN. No
++// owner SQL or fake transaction/decorator is used for this production path.
++func TestConnectorRejectionRuntimePostgres(t *testing.T) {
++	dsn := os.Getenv("ZASP_CONNECTOR_REJECTION_RUNTIME_DSN")
++	if dsn == "" {
++		t.Skip("requires the owned mounted connector-rejection fixture")
++	}
++	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
++	defer cancel()
++	db, pool, err := openRuntimePostgres(ctx, dsn, time.Second)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer db.Close()
++	var current string
++	var superuser, bypass bool
++	if err = pool.QueryRow(ctx, `SELECT current_user,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user`).Scan(&current, &superuser, &bypass); err != nil || current != "security_agent_v33_discovery_api_login" || superuser || bypass {
++		t.Fatalf("actual runtime role=%s super=%t bypass=%t err=%v", current, superuser, bypass, err)
++	}
++	traced := &tracedJSONDatabase{next: db, metrics: newOperationalMetrics(), exporter: &captureSpanExporter{}}
++	repository, err := apiserver.NewPostgresRepository(traced)
++	if err != nil {
++		t.Fatal(err)
++	}
++	identity, err := repository.Authenticate(ctx, apiserver.Credential{Kind: apiserver.CredentialBrowserSession, Value: "connector-rejection-session"})
++	if err != nil {
++		t.Fatal(err)
++	}
++	digest := sha256.Sum256([]byte("connector-rejection-session"))
++	command := apiserver.IntegrationRejection{CredentialDigest: digest[:], Operation: "createIntegration", TargetID: identity.Scope.EnvironmentID().String(), AuditID: "pid_8b000022-0000-4000-8000-000000000022", CorrelationID: "pid_8b000023-0000-4000-8000-000000000023"}
++	if err = repository.AuditIntegrationRejection(ctx, identity, command); err != nil {
++		t.Fatal(err)
++	}
++	var action, outcome string
++	if err = pool.QueryRow(ctx, `SELECT action,outcome FROM zasp_admin_audit WHERE id=$1`, command.AuditID).Scan(&action, &outcome); err != nil || action != "integration.setup.rejected" || outcome != "rejected" {
++		t.Fatalf("actual pgx/traced durable event: %s %s %v", action, outcome, err)
++	}
++	legacy := &tracedJSONDatabase{next: boundaryDatabase{}}
++	if err = legacy.AuditIntegrationRejection(ctx, identity, command); err != apiserver.ErrRepositoryUnavailable {
++		t.Fatalf("missing decorator capability error=%v", err)
++	}
++	if err = db.Close(); err != nil {
++		t.Fatal(err)
++	}
++	command.AuditID = "pid_8b000024-0000-4000-8000-000000000024"
++	if err = traced.AuditIntegrationRejection(ctx, identity, command); err != apiserver.ErrRepositoryUnavailable {
++		t.Fatalf("closed runtime DB error=%v", err)
++	}
++	t.Log("actual pgxpool READ COMMITTED driver + production tracing + repository committed one safe audit; missing/closed capabilities fail unavailable")
++}

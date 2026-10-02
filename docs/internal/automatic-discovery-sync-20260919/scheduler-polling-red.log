@@ -1,0 +1,6 @@
+=== RUN   TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect
+    automatic_discovery_process_test.go:157: scheduler stopped instead of reconnecting on next poll: calls=1 err=worker execution unavailable
+--- FAIL: TestAutomaticDiscoverySchedulerRecoversTransientRelayDisconnect (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	0.901s
+FAIL

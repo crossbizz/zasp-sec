@@ -1,0 +1,17 @@
+=== RUN   TestSecurityAgentExportPublicRestartPostgres
+    security_agent_export_public_restart_postgres_test.go:228: public restart compiled/installed58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f
+    security_agent_export_public_restart_postgres_test.go:242: joined  pid=40 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:254: joined  pid=46 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:256: joined  pid=52 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:257: joined  pid=58 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:258: joined  pid=64 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:260: joined A pid=70 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:263: joined  pid=75 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:272: joined  pid=81 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:272: joined  pid=86 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:272: joined  pid=91 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:272: joined  pid=97 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:272: public response status=409 want=200 body={"code":"operation_conflict","correlation_id":"pid_8ed00000-0000-4000-8000-000000000011","message":"Operation conflicted","retryable":false}
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=25 data=/tmp/TestSecurityAgentExportPublicRestartPostgres557788565/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportPublicRestartPostgres (14.01s)
+FAIL

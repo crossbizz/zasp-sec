@@ -35,6 +35,72 @@ func TestOutboxWebIdentityProviderUsesOnlyExplicitBoundAuthority(t *testing.T) {
 	}
 }
 
+func TestAuditExportWebIdentityUsesOnlyExactWorkerSessions(t *testing.T) {
+	for _, session := range []string{"zasp-audit-export-worker", "zasp-audit-export-outbox", "zasp-audit-export-reader", " zasp-audit-export-worker", "zasp-audit-export"} {
+		t.Run(session, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "token")
+			token := "header.payload.signature-with-owned-test-token-length-1234567890123456"
+			if err := os.WriteFile(path, []byte(token), 0600); err != nil {
+				t.Fatal(err)
+			}
+			expiration := time.Now().Add(10 * time.Minute)
+			api := &outboxAssumeRoleStub{output: &sts.AssumeRoleWithWebIdentityOutput{Credentials: &ststypes.Credentials{AccessKeyId: aws.String("ASIAEXAMPLE00000000"), SecretAccessKey: aws.String("fixture-secret-not-real"), SessionToken: aws.String("fixture-session-not-real"), Expiration: &expiration}}}
+			provider := &outboxWebIdentityProvider{client: api, roleARN: "arn:aws:iam::123456789012:role/zasp-owned-audit-worker", tokenFile: path, timeout: time.Second, session: session}
+			credentials, err := provider.Retrieve(context.Background())
+			valid := session == "zasp-audit-export-worker" || session == "zasp-audit-export-outbox"
+			if valid && (err != nil || api.input == nil || aws.ToString(api.input.RoleSessionName) != session || aws.ToString(api.input.RoleArn) != provider.roleARN || credentials.AccessKeyID == "") {
+				t.Fatal("explicit export role/session refused", err)
+			}
+			if !valid && (err == nil || api.input != nil) {
+				t.Fatal("unreviewed session reached STS")
+			}
+		})
+	}
+}
+
+type auditExportAssumeCallback func(context.Context, *sts.AssumeRoleWithWebIdentityInput) (*sts.AssumeRoleWithWebIdentityOutput, error)
+
+func (f auditExportAssumeCallback) AssumeRoleWithWebIdentity(ctx context.Context, in *sts.AssumeRoleWithWebIdentityInput, _ ...func(*sts.Options)) (*sts.AssumeRoleWithWebIdentityOutput, error) {
+	return f(ctx, in)
+}
+
+func TestAuditExportWebIdentityRejectsLateOrEmptySuccessfulCredentials(t *testing.T) {
+	for _, fault := range []string{"caller cancellation", "own deadline", "empty access", "empty secret", "empty session"} {
+		t.Run(fault, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "token")
+			if err := os.WriteFile(path, []byte("header.payload.signature-with-owned-test-token-length-1234567890123456"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			api := auditExportAssumeCallback(func(bounded context.Context, _ *sts.AssumeRoleWithWebIdentityInput) (*sts.AssumeRoleWithWebIdentityOutput, error) {
+				if fault == "caller cancellation" {
+					cancel()
+				}
+				if fault == "own deadline" {
+					<-bounded.Done()
+				}
+				expiry := time.Now().Add(10 * time.Minute)
+				credentials := &ststypes.Credentials{AccessKeyId: aws.String("ASIAEXAMPLE00000000"), SecretAccessKey: aws.String("fixture-secret-not-real"), SessionToken: aws.String("fixture-session-not-real"), Expiration: &expiry}
+				switch fault {
+				case "empty access":
+					credentials.AccessKeyId = aws.String("")
+				case "empty secret":
+					credentials.SecretAccessKey = aws.String("")
+				case "empty session":
+					credentials.SessionToken = aws.String("")
+				}
+				return &sts.AssumeRoleWithWebIdentityOutput{Credentials: credentials}, nil
+			})
+			provider := &outboxWebIdentityProvider{client: api, roleARN: "arn:aws:iam::123456789012:role/zasp-owned-audit-worker", tokenFile: path, timeout: time.Second, session: "zasp-audit-export-worker"}
+			credentials, err := provider.Retrieve(ctx)
+			if err == nil || credentials.AccessKeyID != "" || credentials.SecretAccessKey != "" || credentials.SessionToken != "" {
+				t.Fatal("expired/empty STS success released credentials")
+			}
+		})
+	}
+}
+
 func TestWebIdentitySessionAuthorityIncludesEveryRuntimeStage(t *testing.T) {
 	for _, value := range []string{"", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-red-team-outbox-worker", "zasp-attack-lab-outbox-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker", "zasp-runtime-complete-worker"} {
 		if !validOutboxSession(value) {

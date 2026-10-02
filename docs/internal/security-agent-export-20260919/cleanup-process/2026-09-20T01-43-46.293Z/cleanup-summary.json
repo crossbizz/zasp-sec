@@ -1,0 +1,547 @@
+{
+  "artifacts": [
+    {
+      "download_sha256": "383167d0aee4744a6050a217510f8e03b6367cb03f1ebdd263290bf9e1e5a93a",
+      "environment": "pid_6a000003-0000-4000-8000-000000000003",
+      "export": "pid_baaf649b-c031-47db-8fbf-2d893007216b",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_baaf649b-c031-47db-8fbf-2d893007216b",
+      "organization": "pid_6a000001-0000-4000-8000-000000000001",
+      "package_sha256": "6a88e3310c61a078c51ca9bb01aac0ef0d664f6a635103bad586f00df5d15870",
+      "run": "pid_e9b6f8c7-dee1-433b-8049-4d5e7167b9b4",
+      "version": "fixture-9a50e2e77f212567fa287a084c997a909ec19be2e37f9800dd7635c6f5edb18c",
+      "workspace": "pid_6a000002-0000-4000-8000-000000000002"
+    },
+    {
+      "download_sha256": "a63a1e89385fc6b58eb8d753bf38da3ea926c2cc89abf87cbb7353aca8e1d882",
+      "environment": "pid_8ec00003-0000-4000-8000-000000000003",
+      "export": "pid_bbe74002-c5da-4faf-89ed-53562a18b7fb",
+      "key": "organizations/pid_8ec00001-0000-4000-8000-000000000001/workspaces/pid_8ec00002-0000-4000-8000-000000000002/environments/pid_8ec00003-0000-4000-8000-000000000003/exports/pid_bbe74002-c5da-4faf-89ed-53562a18b7fb",
+      "organization": "pid_8ec00001-0000-4000-8000-000000000001",
+      "package_sha256": "c787c2bf9ea84634d77855166d1ce5a9de4cf96104ff2cbead4e6120c8a3477a",
+      "run": "pid_20ca01fb-4f4b-48ef-8f1f-839d221eb6ae",
+      "version": "fixture-447eb1fe58de964b6482cda23c8295fe427d2bd73f8cb31e31fff569d941b57c",
+      "workspace": "pid_8ec00002-0000-4000-8000-000000000002"
+    },
+    {
+      "download_sha256": "23e065cbf53830570e0603bb4416c8c03299aba2e694c57bf3d35ed6da6199fe",
+      "environment": "pid_6a000003-0000-4000-8000-000000000003",
+      "export": "pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "organization": "pid_6a000001-0000-4000-8000-000000000001",
+      "package_sha256": "2c9aac5cf343cb1d120aeb588c5a51289d01ce56dbb445143cec98237a2de2af",
+      "run": "pid_7639d58d-6c5f-498c-b908-83ad63285d94",
+      "version": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "workspace": "pid_6a000002-0000-4000-8000-000000000002"
+    }
+  ],
+  "checksum": "5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985",
+  "children": [
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "f97bc0b8fe17e93429812a4f831d777e8776225237b2e08bdd430157ad093b64",
+      "phase": "",
+      "pid": 205
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "2cb6f974bf172bf872d50caa0e5a4051ff0aacd01081455065cad751c0c991ae",
+      "phase": "",
+      "pid": 211
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "66efa206044df53c191c63cc656618fd94d39fbe977f3ee4ae2ad1dc44b33140",
+      "phase": "",
+      "pid": 217
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "4e363e6a2e8841a703a5c8cce0701e842664a851b2397afb904d0c93c6f59a3b",
+      "phase": "",
+      "pid": 223
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "870945f4475a8b4b5290e7eae9b77c37d7bed66eef4c971fb3360388a3868803",
+      "phase": "",
+      "pid": 228
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "4f5598846e7b72efb1de062d3d08b8f6b4a2f2117165e4b61fef367efafa11dc",
+      "phase": "B",
+      "pid": 233
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "4c5256c98d57be50cb08aad788e7e51e6d043c34314b65581c467813649df5f6",
+      "phase": "",
+      "pid": 242
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "0d531c734c960af00ca64be3c535f271680399477e932e889768969e64b23f77",
+      "phase": "D",
+      "pid": 248
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "f91edb31818d0940c320464590edba31e3385dbf56ae718552d96059faf5fc53",
+      "phase": "publish",
+      "pid": 257
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "9e1d3016e7614051519c8f6d12f3cbc5042c57f949a761511b5da976ad5faa1a",
+      "phase": "",
+      "pid": 262
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "1a38dad3103f4ab10ae2fa685236819524653d0f7e086516374150b985a7030e",
+      "phase": "",
+      "pid": 267
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "3c2e1878b531227a88747ba1c601469779e1c7782a1fe6789fca9c6839929c26",
+      "phase": "",
+      "pid": 273
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "1a152cacb42f95f1f5ce7f0571bccc5f820ec46ba857eae0baff3e5026026ee4",
+      "phase": "",
+      "pid": 278
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "68bbcfe4fd3534cee40bf88decd90a9503532c42a8add2745bb70c7ac37d9e71",
+      "phase": "",
+      "pid": 284
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "66efa206044df53c191c63cc656618fd94d39fbe977f3ee4ae2ad1dc44b33140",
+      "phase": "",
+      "pid": 290
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "34ae84d9df141d3cd5edaac6f303af29aa8fd5a1784bff8155ae924fa2038e3d",
+      "phase": "",
+      "pid": 296
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "75a68c64beb1ec3f3b6cd71ffa202526e91a1cfa145c9c66e331060325b1776c",
+      "phase": "",
+      "pid": 302
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "4f5598846e7b72efb1de062d3d08b8f6b4a2f2117165e4b61fef367efafa11dc",
+      "phase": "B",
+      "pid": 308
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "4816dd930f6aef4cb57c77f288d5bea4cf4f0db51d73ec613bd55ec8033981f7",
+      "phase": "",
+      "pid": 317
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "0d531c734c960af00ca64be3c535f271680399477e932e889768969e64b23f77",
+      "phase": "D",
+      "pid": 322
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "8822863c69b6511ca075b19e33db7e84afacbbe3dfacfabff41d17b883dbc292",
+      "phase": "publish",
+      "pid": 331
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "ddaedf9b32cad02cc4b071cde1932347d51bdde3fd62548622c6b5f8603e9948",
+      "phase": "",
+      "pid": 337
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "aea9d97458feeea557e95da6a2c951785f9d799aab851b3dff32fa9b357fa810",
+      "phase": "",
+      "pid": 342
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "4d7a8e2cac4091d7eb9ba57fd95c7df165e16210c2202207b0968229e8ec2b54",
+      "phase": "",
+      "pid": 348
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "f93caf3fd00e9355f380aa1aca277e71ff9f0fe8d8ab4baf0f403678a07d1ac8",
+      "phase": "",
+      "pid": 354
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "34ae84d9df141d3cd5edaac6f303af29aa8fd5a1784bff8155ae924fa2038e3d",
+      "phase": "",
+      "pid": 360
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "4e70f3e1601b2e13c8c53cb1ef55aa650614a2498e7de05a13ced9e7935a8299",
+      "phase": "",
+      "pid": 366
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "4f5598846e7b72efb1de062d3d08b8f6b4a2f2117165e4b61fef367efafa11dc",
+      "phase": "B",
+      "pid": 371
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "1010b4e9b96ed3ee7618433f8b94926d826401cbf7a7c93bb0bcb39ea1092b07",
+      "phase": "",
+      "pid": 379
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "0d531c734c960af00ca64be3c535f271680399477e932e889768969e64b23f77",
+      "phase": "D",
+      "pid": 384
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "7349d1e226373f7cb0f10c61b589aac6dfb96399934993bb678fbaf6114b8688",
+      "phase": "publish",
+      "pid": 392
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "887a6ec85976874e2e1d9ef212f3c5b77ebe573e01bdd9fc291a4f41f3b9d896",
+      "phase": "",
+      "pid": 398
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "dd78fc03c84f6a56ce4c1fb117dffbb31cfe74b44e1980d33070ac565f9a664e",
+      "phase": "",
+      "pid": 403
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "4b12ea3d5f5f4d51ae1468f9155a00817b5423c6ff76a93bb4400051d00b5695",
+      "phase": "",
+      "pid": 409
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "8bfceda9868ff2cecb050fec04739af2ace88d6cec0b2e62de150483f2a05026",
+      "phase": "",
+      "pid": 414
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "83f20be2f15fb3a11e9181541230f9d2da99a331c1914942fe863da6a6d6f964",
+      "phase": "",
+      "pid": 420
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "cf05915b19e03df9af53fd11121e663ce4b33d416cf1834751270c9ca0fa31fc",
+      "phase": "",
+      "pid": 426
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "2679af8692a836de1ace836930e0c73ab75ee750a5d7c956b1cb233cbe3ecbe0",
+      "phase": "blocked",
+      "pid": 432
+    },
+    {
+      "abrupt_post_commit": true,
+      "exit_code": 86,
+      "output_sha256": "2eb5db2b132fb566dc36e42a9756a016c30dd44311b49711413a565d9c33d491",
+      "phase": "delete-loss",
+      "pid": 438
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "2cb585b7c086c2574ecb422802cea39c1439d0a6976b91e1994489a4f9edcb2a",
+      "phase": "held",
+      "pid": 444
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "9d19baa3517de938f11010f5338ecf39f3f33ea1cc458e1e1ec4632c70ff9345",
+      "phase": "denied",
+      "pid": 452
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "51c196b316229364256228cc59e18b67a19da27695055a88445f2bf6cf3b863d",
+      "phase": "generic404",
+      "pid": 459
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "dc35d7ac47953ae9a08bce88a2f6f95f948d991a06ac00d0be84391435d56344",
+      "phase": "absent",
+      "pid": 466
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "5b41c4ffbdd6aeca45a122a00eaebd9249666e71e6226507b84b07b943d794fa",
+      "phase": "done",
+      "pid": 472
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "f8588ee3e170721b1bab6adc0636376d1aed576d8fc16317c95b08290857c7dc",
+      "phase": "",
+      "pid": 477
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "dd78fc03c84f6a56ce4c1fb117dffbb31cfe74b44e1980d33070ac565f9a664e",
+      "phase": "",
+      "pid": 482
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "d9544074a687006400d2e581dd232f314d517f6a0481aef109bc80d233844519",
+      "phase": "",
+      "pid": 487
+    },
+    {
+      "abrupt_post_commit": false,
+      "exit_code": 0,
+      "output_sha256": "8e9cd6dd659e1da466057452aa3e2e6fa30947f14fbc30bae86171cae9771894",
+      "phase": "",
+      "pid": 492
+    }
+  ],
+  "cleanup_puts": 0,
+  "cleanup_requests": [
+    {
+      "sequence": 46,
+      "method": "DELETE",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "before",
+      "status": 0,
+      "size": 0
+    },
+    {
+      "sequence": 47,
+      "method": "DELETE",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "stored",
+      "status": 204,
+      "size": 4934,
+      "sha256": "2c9aac5cf343cb1d120aeb588c5a51289d01ce56dbb445143cec98237a2de2af"
+    },
+    {
+      "sequence": 48,
+      "method": "DELETE",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "before",
+      "status": 0,
+      "size": 0
+    },
+    {
+      "sequence": 49,
+      "method": "DELETE",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "response",
+      "status": 403,
+      "code": "AccessDenied",
+      "size": 0
+    },
+    {
+      "sequence": 50,
+      "method": "GET",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "before",
+      "status": 0,
+      "size": 0
+    },
+    {
+      "sequence": 51,
+      "method": "GET",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "response",
+      "status": 403,
+      "code": "AccessDenied",
+      "size": 0
+    },
+    {
+      "sequence": 52,
+      "method": "DELETE",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "before",
+      "status": 0,
+      "size": 0
+    },
+    {
+      "sequence": 53,
+      "method": "DELETE",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "response",
+      "status": 404,
+      "code": "NotFound",
+      "size": 0
+    },
+    {
+      "sequence": 54,
+      "method": "GET",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "before",
+      "status": 0,
+      "size": 0
+    },
+    {
+      "sequence": 55,
+      "method": "GET",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "response",
+      "status": 404,
+      "code": "NotFound",
+      "size": 0
+    },
+    {
+      "sequence": 56,
+      "method": "DELETE",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "before",
+      "status": 0,
+      "size": 0
+    },
+    {
+      "sequence": 57,
+      "method": "DELETE",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "stored",
+      "status": 404,
+      "code": "NoSuchVersion",
+      "size": 0
+    },
+    {
+      "sequence": 58,
+      "method": "DELETE",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "response",
+      "status": 404,
+      "code": "NoSuchVersion",
+      "size": 0
+    },
+    {
+      "sequence": 59,
+      "method": "GET",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "before",
+      "status": 0,
+      "size": 0
+    },
+    {
+      "sequence": 60,
+      "method": "GET",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "stored",
+      "status": 404,
+      "code": "NoSuchVersion",
+      "size": 0
+    },
+    {
+      "sequence": 61,
+      "method": "GET",
+      "key": "organizations/pid_6a000001-0000-4000-8000-000000000001/workspaces/pid_6a000002-0000-4000-8000-000000000002/environments/pid_6a000003-0000-4000-8000-000000000003/exports/pid_f985455b-4072-4aff-87ad-922fc911ece0",
+      "version_id": "fixture-3f36a6530981f6469879cf03e9b7c4f7153eef64524ec6f17ae072ff8d1de6ed",
+      "stage": "response",
+      "status": 404,
+      "code": "NoSuchVersion",
+      "size": 0
+    }
+  ],
+  "fingerprint": "8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f",
+  "lost_delete_lease_expires_at": "2026-09-20T01:46:26.63941Z",
+  "model_calls": 3,
+  "organizations": 2,
+  "physical_deletions": 1,
+  "public_artifacts": 3,
+  "read_lease_expires_at": "2026-09-20T01:45:25.968052Z",
+  "retained_bytes_after": 12172,
+  "retained_bytes_before": 18260,
+  "second_org_export": "pid_bbe74002-c5da-4faf-89ed-53562a18b7fb",
+  "second_org_rows_sha256": "96a238de300644bbf76ec2cf7b1a7dd484c0e30e0e0e557b921ce29f4c1ff639",
+  "sibling_export": "pid_baaf649b-c031-47db-8fbf-2d893007216b",
+  "sibling_rows_sha256": "503f24f15bb63d303da3b512a47b2b1b7117b3fd7b1de9f21a84fee6b705188b",
+  "target_export": "pid_f985455b-4072-4aff-87ad-922fc911ece0",
+  "typed_absence_confirmations": 1
+}

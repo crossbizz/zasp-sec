@@ -1,0 +1,3 @@
+ok  	github.com/zasp-ai/zasp-sec/services/platform/connectors/kubernetesdiscovery	1.763s
+ok  	github.com/zasp-ai/zasp-sec/services/platform/connectors/collection	1.416s [no tests to run]
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	2.742s

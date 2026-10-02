@@ -11,9 +11,10 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
-	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/redteamadapter"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
 
 type postgresJSONDatabase struct {
@@ -80,17 +81,45 @@ func buildProductionDependencies(ctx context.Context, config runtimeConfig) (*pr
 		cancelLifetime()
 		return nil, errRuntimeUnavailable
 	}
+	var compensationConnection *pgxpool.Pool
+	var authorityClient *runtimeservices.AuthorizationClient
+	var forward, compensation *authorization.WorkerExecutor
 	fail := func(cloud *redteamadapter.CloudAuthority) (*productionDependencies, error) {
 		cancelLifetime()
 		if cloud != nil {
 			cloud.Close()
 		}
 		connection.Close()
+		if compensationConnection != nil {
+			compensationConnection.Close()
+		}
+		if authorityClient != nil {
+			_ = authorityClient.Close()
+		}
 		return nil, errRuntimeUnavailable
 	}
-	resolver, err := redteamadapter.NewPostgresResolver(postgresJSONDatabase{connection: connection, lifetime: lifetime, timeout: config.RequestTimeout}, migrations.ProductionRedTeamInvocation().Checksum(), migrations.ProductionRedTeamInvocationSemanticFingerprint())
-	if err != nil || resolver.Ready(startup) != nil {
+	database := postgresJSONDatabase{connection: connection, lifetime: lifetime, timeout: config.RequestTimeout}
+	workerProfile, err := adapterProductionProfile(startup, database, config.Authorization.Enabled)
+	if err != nil {
 		return fail(nil)
+	}
+	if workerProfile {
+		compensationConnection, err = connectAdapterDatabase(startup, config.CompensationDatabaseURL)
+		if err != nil {
+			return fail(nil)
+		}
+		authorityClient, err = runtimeservices.ConnectAuthorizationOnly(startup, config.Authorization)
+		if err != nil {
+			return fail(nil)
+		}
+		checker, err := authorization.NewOpenFGAAuthorizationOnly(authorityClient.FGA, config.Authorization)
+		if err != nil {
+			return fail(nil)
+		}
+		forward, compensation, err = bindWorkerAdapterAuthority(startup, config, checker, connection, compensationConnection)
+		if err != nil {
+			return fail(nil)
+		}
 	}
 	cloud, err := redteamadapter.NewProductionCloudAuthority(config.AWS)
 	if err != nil || cloud.Ready(startup) != nil {
@@ -105,7 +134,13 @@ func buildProductionDependencies(ctx context.Context, config runtimeConfig) (*pr
 		return fail(cloud)
 	}
 	defer clear(token)
-	handler, err := redteamadapter.NewHandler(redteamadapter.Config{WorkerToken: token, MaximumRequestBytes: config.MaximumRequestBytes}, resolver, invoker)
+	var handler http.Handler
+	var protocolReady func(context.Context) error
+	if workerProfile {
+		handler, protocolReady, err = composeWorkerAdapterProtocols(startup, database, redteamadapter.Config{WorkerToken: token, MaximumRequestBytes: config.MaximumRequestBytes}, invoker, forward, compensation)
+	} else {
+		handler, protocolReady, err = composeAdapterProtocols(startup, database, redteamadapter.Config{WorkerToken: token, MaximumRequestBytes: config.MaximumRequestBytes}, invoker)
+	}
 	if err != nil {
 		return fail(cloud)
 	}
@@ -114,7 +149,10 @@ func buildProductionDependencies(ctx context.Context, config runtimeConfig) (*pr
 		defer cancel()
 		stop := context.AfterFunc(lifetime, cancel)
 		defer stop()
-		if resolver.Ready(readyCtx) != nil || cloud.Ready(readyCtx) != nil {
+		if protocolReady(readyCtx) != nil || cloud.Ready(readyCtx) != nil {
+			return errRuntimeUnavailable
+		}
+		if authorityClient != nil && authorityClient.Ready(readyCtx) != nil {
 			return errRuntimeUnavailable
 		}
 		return nil
@@ -125,8 +163,17 @@ func buildProductionDependencies(ctx context.Context, config runtimeConfig) (*pr
 		closeOnce.Do(func() {
 			cancelLifetime()
 			cloud.Close()
+			if authorityClient != nil {
+				_ = authorityClient.Close()
+			}
 			closed := make(chan struct{})
-			go func() { connection.Close(); close(closed) }()
+			go func() {
+				connection.Close()
+				if compensationConnection != nil {
+					compensationConnection.Close()
+				}
+				close(closed)
+			}()
 			timer := time.NewTimer(config.ShutdownTimeout)
 			defer timer.Stop()
 			select {

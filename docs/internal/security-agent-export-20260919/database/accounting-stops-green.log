@@ -1,0 +1,21 @@
+$ /usr/local/bin/docker run --rm --name zasp-export-accounting-stops-green --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(AccountingStops)Postgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentExportAccountingStopsPostgres
+=== RUN   TestSecurityAgentExportAccountingStopsPostgres/export
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportAccountingStopsPostgresexport536901876/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingStopsPostgres/existing_test
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=54 data=/tmp/TestSecurityAgentExportAccountingStopsPostgresexisting_test2047090074/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingStopsPostgres/attack_lab
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=84 data=/tmp/TestSecurityAgentExportAccountingStopsPostgresattack_lab2566863872/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingStopsPostgres/legacy
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=114 data=/tmp/TestSecurityAgentExportAccountingStopsPostgreslegacy138370962/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportAccountingStopsPostgres/v33
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=144 data=/tmp/TestSecurityAgentExportAccountingStopsPostgresv331959297362/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportAccountingStopsPostgres (35.78s)
+    --- PASS: TestSecurityAgentExportAccountingStopsPostgres/export (8.55s)
+    --- PASS: TestSecurityAgentExportAccountingStopsPostgres/existing_test (7.77s)
+    --- PASS: TestSecurityAgentExportAccountingStopsPostgres/attack_lab (7.98s)
+    --- PASS: TestSecurityAgentExportAccountingStopsPostgres/legacy (5.89s)
+    --- PASS: TestSecurityAgentExportAccountingStopsPostgres/v33 (5.59s)
+PASS
+
+exit=0

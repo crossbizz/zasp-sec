@@ -1,0 +1,27 @@
+=== RUN   TestSecurityAgentExportMigrationIdentityPostgres
+=== RUN   TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)/literal_role_collision
+    security_agent_export_release_postgres_test.go:131: literal_role_collision accepted catalog drift: fp=5b8a094b82a97dd8ab7f9f2dc5951510e6a1bf3c8046303985321020de507f83 ready=true error=<nil>
+=== RUN   TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)/foreign_owner
+=== RUN   TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)/unregistered_owner
+=== RUN   TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)/extra_acl
+=== RUN   TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)/grant_option
+=== RUN   TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)/literal_role_collision
+    security_agent_export_release_postgres_test.go:131: literal_role_collision accepted catalog drift: fp=5b8a094b82a97dd8ab7f9f2dc5951510e6a1bf3c8046303985321020de507f83 ready=true error=<nil>
+=== RUN   TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)/foreign_owner
+=== RUN   TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)/unregistered_owner
+=== RUN   TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)/extra_acl
+=== RUN   TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)/grant_option
+=== NAME  TestSecurityAgentExportMigrationIdentityPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportMigrationIdentityPostgres175191668/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportMigrationIdentityPostgres (7.34s)
+    --- FAIL: TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)/literal_role_collision (0.34s)
+    --- PASS: TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)/foreign_owner (0.26s)
+    --- PASS: TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)/unregistered_owner (0.25s)
+    --- PASS: TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)/extra_acl (0.24s)
+    --- PASS: TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_mutate_v3(text,text,text,text,text,text,text,text,text,bigint,jsonb,jsonb,text,text)/grant_option (0.26s)
+    --- FAIL: TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)/literal_role_collision (0.28s)
+    --- PASS: TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)/foreign_owner (0.22s)
+    --- PASS: TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)/unregistered_owner (0.24s)
+    --- PASS: TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)/extra_acl (0.28s)
+    --- PASS: TestSecurityAgentExportMigrationIdentityPostgres/public.zasp_workflow_replay(text,text,text,text,text,text,jsonb)/grant_option (0.27s)
+FAIL

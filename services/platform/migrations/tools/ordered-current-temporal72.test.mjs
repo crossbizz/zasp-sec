@@ -1,0 +1,22 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {compileOrderedCollector} from './ordered-current-catalog.mjs';
+const component=await import('./ordered-current-temporal72.mjs').catch(()=>({}));
+const contract=JSON.parse(fs.readFileSync(new URL('../../../../.superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-effective-contract3.json',import.meta.url)));
+test('six exact temporal72 transformations become source-selected direct fields with original obligations',()=>{
+  assert.equal(typeof component.lowerOrderedTemporal72Catalog,'function');
+  const result=component.lowerOrderedTemporal72Catalog(contract);
+  assert.equal(result.rules.length,6);
+  assert.equal(result.sites.length,6);
+  assert.deepEqual(result.rules.find(r=>r.kind==='role').fields,['name','login','inherit','superuser','create_db','create_role','replication','bypass_rls','execution_v1_managed_here']);
+  assert.deepEqual(result.rules.find(r=>r.id.endsWith(':precision-function')).fields,['namespace_name','name','identity_arguments','owner','security_definer','config_text_or_empty','acl_text_or_empty','precision_definition']);
+  const trigger=result.rules.find(r=>r.kind==='trigger');
+  assert.equal(trigger.predicate,'user-triggers');
+  assert.deepEqual(trigger.fields,['relation_name','name','execution_definition','enabled','function']);
+  assert.doesNotThrow(()=>compileOrderedCollector(result.rules));
+  assert.ok(result.obligations.some(o=>o.required.includes('NULL')));
+  assert.ok(result.obligations.some(o=>o.required.includes('multiple')));
+  const changed=structuredClone(contract);changed.nodes.find(n=>n.identity==='zasp_temporal72.retained_execution_fingerprint()').source+=' ';
+  assert.throws(()=>component.lowerOrderedTemporal72Catalog(changed),/source/);
+});

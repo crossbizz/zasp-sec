@@ -1,0 +1,89 @@
+=== RUN   TestComplianceRegistrationTransaction
+=== RUN   TestComplianceRegistrationTransaction/healthy
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+=== RUN   TestComplianceRegistrationTransaction/lower-release
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+=== RUN   TestComplianceRegistrationTransaction/future-release
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+=== RUN   TestComplianceRegistrationTransaction/wrong-checksum
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+=== RUN   TestComplianceRegistrationTransaction/initial-drift
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+=== RUN   TestComplianceRegistrationTransaction/registration-false
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+=== RUN   TestComplianceRegistrationTransaction/registration-error
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+=== RUN   TestComplianceRegistrationTransaction/final-drift
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+=== RUN   TestComplianceRegistrationTransaction/final-error
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+=== RUN   TestComplianceRegistrationTransaction/commit-error
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+=== RUN   TestComplianceRegistrationTransaction/rollback-error
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+=== RUN   TestComplianceRegistrationTransaction/cancel-registration
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+=== RUN   TestComplianceRegistrationTransaction/cancel-final
+    production_compliance_registration_test.go:49: runner has no explicit compliance worker registration path
+--- FAIL: TestComplianceRegistrationTransaction (0.78s)
+    --- FAIL: TestComplianceRegistrationTransaction/healthy (0.08s)
+    --- FAIL: TestComplianceRegistrationTransaction/lower-release (0.07s)
+    --- FAIL: TestComplianceRegistrationTransaction/future-release (0.07s)
+    --- FAIL: TestComplianceRegistrationTransaction/wrong-checksum (0.06s)
+    --- FAIL: TestComplianceRegistrationTransaction/initial-drift (0.05s)
+    --- FAIL: TestComplianceRegistrationTransaction/registration-false (0.05s)
+    --- FAIL: TestComplianceRegistrationTransaction/registration-error (0.07s)
+    --- FAIL: TestComplianceRegistrationTransaction/final-drift (0.05s)
+    --- FAIL: TestComplianceRegistrationTransaction/final-error (0.05s)
+    --- FAIL: TestComplianceRegistrationTransaction/commit-error (0.06s)
+    --- FAIL: TestComplianceRegistrationTransaction/rollback-error (0.07s)
+    --- FAIL: TestComplianceRegistrationTransaction/cancel-registration (0.05s)
+    --- FAIL: TestComplianceRegistrationTransaction/cancel-final (0.05s)
+=== RUN   TestComplianceRegistrationInvalidRunnerAndContext
+    production_compliance_registration_test.go:78: runner has no explicit compliance worker registration path
+--- FAIL: TestComplianceRegistrationInvalidRunnerAndContext (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/migrations	1.440s
+=== RUN   TestComplianceRegistrationBinaryPreflight
+=== RUN   TestComplianceRegistrationBinaryPreflight/missing-both
+    compliance_registration_test.go:43: preflight failure: exit status 1 2026/09/18 22:49:35 release migration database unavailable
+=== RUN   TestComplianceRegistrationBinaryPreflight/missing-worker
+    compliance_registration_test.go:43: preflight failure: exit status 1 2026/09/18 22:49:35 release migration database unavailable
+=== RUN   TestComplianceRegistrationBinaryPreflight/missing-cleanup
+    compliance_registration_test.go:43: preflight failure: exit status 1 2026/09/18 22:49:35 release migration database unavailable
+=== RUN   TestComplianceRegistrationBinaryPreflight/duplicate
+    compliance_registration_test.go:43: preflight failure: exit status 1 2026/09/18 22:49:35 release migration database unavailable
+=== RUN   TestComplianceRegistrationBinaryPreflight/reserved-worker
+    compliance_registration_test.go:43: preflight failure: exit status 1 2026/09/18 22:49:35 release migration database unavailable
+=== RUN   TestComplianceRegistrationBinaryPreflight/reserved-cleanup
+    compliance_registration_test.go:43: preflight failure: exit status 1 2026/09/18 22:49:35 release migration database unavailable
+=== RUN   TestComplianceRegistrationBinaryPreflight/uppercase
+    compliance_registration_test.go:43: preflight failure: exit status 1 2026/09/18 22:49:35 release migration database unavailable
+=== RUN   TestComplianceRegistrationBinaryPreflight/whitespace
+    compliance_registration_test.go:43: preflight failure: exit status 1 2026/09/18 22:49:35 release migration database unavailable
+=== RUN   TestComplianceRegistrationBinaryPreflight/injection
+    compliance_registration_test.go:43: preflight failure: exit status 1 2026/09/18 22:49:35 release migration database unavailable
+=== RUN   TestComplianceRegistrationBinaryPreflight/short-worker
+    compliance_registration_test.go:43: preflight failure: exit status 1 2026/09/18 22:49:35 release migration database unavailable
+=== RUN   TestComplianceRegistrationBinaryPreflight/long-cleanup
+    compliance_registration_test.go:43: preflight failure: exit status 1 2026/09/18 22:49:35 release migration database unavailable
+=== RUN   TestComplianceRegistrationBinaryPreflight/extra-argument
+    compliance_registration_test.go:43: preflight failure: exit status 1 2026/09/18 22:49:35 release migration database unavailable
+=== RUN   TestComplianceRegistrationBinaryPreflight/valid-boundaries
+--- FAIL: TestComplianceRegistrationBinaryPreflight (1.31s)
+    --- FAIL: TestComplianceRegistrationBinaryPreflight/missing-both (0.55s)
+    --- FAIL: TestComplianceRegistrationBinaryPreflight/missing-worker (0.01s)
+    --- FAIL: TestComplianceRegistrationBinaryPreflight/missing-cleanup (0.01s)
+    --- FAIL: TestComplianceRegistrationBinaryPreflight/duplicate (0.01s)
+    --- FAIL: TestComplianceRegistrationBinaryPreflight/reserved-worker (0.01s)
+    --- FAIL: TestComplianceRegistrationBinaryPreflight/reserved-cleanup (0.01s)
+    --- FAIL: TestComplianceRegistrationBinaryPreflight/uppercase (0.01s)
+    --- FAIL: TestComplianceRegistrationBinaryPreflight/whitespace (0.01s)
+    --- FAIL: TestComplianceRegistrationBinaryPreflight/injection (0.02s)
+    --- FAIL: TestComplianceRegistrationBinaryPreflight/short-worker (0.02s)
+    --- FAIL: TestComplianceRegistrationBinaryPreflight/long-cleanup (0.01s)
+    --- FAIL: TestComplianceRegistrationBinaryPreflight/extra-argument (0.01s)
+    --- PASS: TestComplianceRegistrationBinaryPreflight/valid-boundaries (0.01s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate	1.915s
+FAIL

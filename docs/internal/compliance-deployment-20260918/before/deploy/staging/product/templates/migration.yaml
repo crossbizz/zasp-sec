@@ -1,0 +1,108 @@
+{{- if ne .Values.profile "customer_edge" }}
+{{- include "zasp.sessionSearch.validate" . }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.serviceAccounts.migration.name }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-30"
+    helm.sh/hook-delete-policy: before-hook-creation
+    eks.amazonaws.com/role-arn: {{ required "serviceAccounts.migration.roleArn is required" .Values.serviceAccounts.migration.roleArn | quote }}
+automountServiceAccountToken: false
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: {{ .Values.secrets.migrationProviderClassName }}
+  labels: { app.kubernetes.io/part-of: zasp }
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-20"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  provider: aws
+  secretObjects:
+    - secretName: zasp-migration-secrets
+      type: Opaque
+      data: [{ objectName: postgres-dsn, key: ZASP_POSTGRES_DSN }]
+  parameters:
+    region: {{ .Values.secrets.region | quote }}
+    objects: |
+      - objectName: {{ required "secrets.migrationPostgresDSNObjectName is required" .Values.secrets.migrationPostgresDSNObjectName | quote }}
+        objectType: secretsmanager
+        objectAlias: postgres-dsn
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: agentsec-schema-v{{ .Values.schema.expectedVersion }}
+  labels: { app.kubernetes.io/name: agentsec-schema, app.kubernetes.io/part-of: zasp }
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 900
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata: { labels: { app.kubernetes.io/name: agentsec-schema, app.kubernetes.io/part-of: zasp } }
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ .Values.serviceAccounts.migration.name }}
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: migrate
+          image: {{ required "global.productImages.agentsecApi must be an immutable digest" .Values.global.productImages.agentsecApi | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          {{- if .Values.auditExports.enabled }}
+          args: [{{ include "zasp.auditExports.migrationCommand" . | quote }}]
+          {{- else }}
+          args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/zasp-migration/postgres-dsn)"; exec /app/agentsec-migrate up-to-{{ .Values.schema.expectedVersion }}']
+          {{- end }}
+          env:
+            {{- if .Values.auditExports.enabled }}
+            {{- include "zasp.auditExports.migrationEnv" . | nindent 12 }}
+            {{- end }}
+            - { name: ZASP_MIGRATION_TIMEOUT, value: {{ .Values.schema.migrationTimeout | quote }} }
+            - { name: ZASP_MIGRATION_DB_PRINCIPAL, value: {{ required "databasePrincipals.migration is required" .Values.databasePrincipals.migration | quote }} }
+            - { name: ZASP_DISCOVERY_API_DB_PRINCIPAL, value: {{ required "databasePrincipals.api is required" .Values.databasePrincipals.api | quote }} }
+            - { name: ZASP_SECURITY_AGENT_API_DB_PRINCIPAL, value: {{ required "databasePrincipals.securityAgentAPI is required" .Values.databasePrincipals.securityAgentAPI | quote }} }
+            - { name: ZASP_SECURITY_AGENT_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.securityAgentWorker is required" .Values.databasePrincipals.securityAgentWorker | quote }} }
+            - { name: ZASP_SECURITY_AGENT_ACTION_DB_PRINCIPAL, value: {{ required "databasePrincipals.securityAgentActionWorker is required" .Values.databasePrincipals.securityAgentActionWorker | quote }} }
+            - { name: ZASP_POLICY_DEPLOYMENT_DB_PRINCIPAL, value: {{ required "databasePrincipals.policyDeploymentWorker is required" .Values.databasePrincipals.policyDeploymentWorker | quote }} }
+            - { name: ZASP_DISCOVERY_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.discoveryWorker is required" .Values.databasePrincipals.discoveryWorker | quote }} }
+            - { name: ZASP_DISCOVERY_SCHEDULER_DB_PRINCIPAL, value: {{ required "databasePrincipals.discoveryScheduler is required" .Values.databasePrincipals.discoveryScheduler | quote }} }
+            - { name: ZASP_PROJECTION_RISK_DB_PRINCIPAL, value: {{ required "databasePrincipals.projectionRisk is required" .Values.databasePrincipals.projectionRisk | quote }} }
+            - { name: ZASP_PROJECTION_GRAPH_DB_PRINCIPAL, value: {{ required "databasePrincipals.projectionGraph is required" .Values.databasePrincipals.projectionGraph | quote }} }
+            - { name: ZASP_PROJECTION_SEARCH_DB_PRINCIPAL, value: {{ required "databasePrincipals.projectionSearch is required" .Values.databasePrincipals.projectionSearch | quote }} }
+            - { name: ZASP_RUNTIME_INGEST_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeIngest is required" .Values.databasePrincipals.runtimeIngest | quote }} }
+            - { name: ZASP_RUNTIME_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeWorker is required" .Values.databasePrincipals.runtimeWorker | quote }} }
+            - { name: ZASP_OUTBOX_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.outboxWorker is required" .Values.databasePrincipals.outboxWorker | quote }} }
+            - { name: ZASP_RECOVERY_OUTBOX_DB_PRINCIPAL, value: {{ required "databasePrincipals.recoveryOutboxWorker is required" .Values.databasePrincipals.recoveryOutboxWorker | quote }} }
+            - { name: ZASP_RECOVERY_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.recoveryWorker is required" .Values.databasePrincipals.recoveryWorker | quote }} }
+            - { name: ZASP_RED_TEAM_OUTBOX_DB_PRINCIPAL, value: {{ required "databasePrincipals.redTeamOutboxWorker is required" .Values.databasePrincipals.redTeamOutboxWorker | quote }} }
+            - { name: ZASP_RED_TEAM_WORKER_DB_PRINCIPAL, value: {{ required "databasePrincipals.redTeamWorker is required" .Values.databasePrincipals.redTeamWorker | quote }} }
+            - { name: ZASP_RED_TEAM_ADAPTER_DB_PRINCIPAL, value: {{ required "databasePrincipals.redTeamAdapter is required" .Values.databasePrincipals.redTeamAdapter | quote }} }
+            - { name: ZASP_ATTACK_LAB_CONTROLLER_DB_PRINCIPAL, value: {{ required "databasePrincipals.attackLabController is required" .Values.databasePrincipals.attackLabController | quote }} }
+            - { name: ZASP_ATTACK_LAB_OUTBOX_DB_PRINCIPAL, value: {{ required "databasePrincipals.attackLabOutbox is required" .Values.databasePrincipals.attackLabOutbox | quote }} }
+            - { name: ZASP_ATTACK_LAB_PROXY_DB_PRINCIPAL, value: {{ required "databasePrincipals.attackLabProxy is required" .Values.databasePrincipals.attackLabProxy | quote }} }
+            - { name: ZASP_RUNTIME_GATEWAY_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeGateway is required" .Values.databasePrincipals.runtimeGateway | quote }} }
+            - { name: ZASP_RUNTIME_COORDINATOR_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeCoordinator is required" .Values.databasePrincipals.runtimeCoordinator | quote }} }
+            - { name: ZASP_RUNTIME_ARCHIVE_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeArchive is required" .Values.databasePrincipals.runtimeArchive | quote }} }
+            - { name: ZASP_RUNTIME_INDEX_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeIndex is required" .Values.databasePrincipals.runtimeIndex | quote }} }
+            - { name: ZASP_RUNTIME_CORRELATION_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeCorrelation is required" .Values.databasePrincipals.runtimeCorrelation | quote }} }
+            - { name: ZASP_RUNTIME_PROJECTION_DB_PRINCIPAL, value: {{ required "databasePrincipals.runtimeProjection is required" .Values.databasePrincipals.runtimeProjection | quote }} }
+            - { name: ZASP_GATEWAY_CONTROL_DB_PRINCIPAL, value: {{ required "databasePrincipals.gatewayControl is required" .Values.databasePrincipals.gatewayControl | quote }} }
+          volumeMounts: [{ name: migration-secrets, mountPath: /var/run/secrets/zasp-migration, readOnly: true }]
+          resources: { requests: { cpu: 100m, memory: 64Mi }, limits: { cpu: "1", memory: 256Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532 }
+      volumes:
+        - name: migration-secrets
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: {{ .Values.secrets.migrationProviderClassName | quote }} } }
+{{- end }}

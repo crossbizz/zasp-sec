@@ -129,7 +129,7 @@ func (repository *PostgresProductionIngestRepository) Reserve(ctx context.Contex
 		return IngestReservation{}, ErrProductionIngest
 	}
 	if repository.precision {
-		if err := repository.ReadyPrecision(ctx); err != nil {
+		if err := repository.intakePreflight(ctx); err != nil {
 			return IngestReservation{}, err
 		}
 	}
@@ -176,7 +176,7 @@ func (repository *PostgresProductionIngestRepository) Finalize(ctx context.Conte
 		return IngestResult{}, ErrProductionIngest
 	}
 	if repository.precision {
-		if err := repository.ReadyPrecision(ctx); err != nil {
+		if err := repository.intakePreflight(ctx); err != nil {
 			return IngestResult{}, err
 		}
 	}

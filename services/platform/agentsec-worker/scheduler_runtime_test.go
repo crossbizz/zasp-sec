@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sync"
@@ -10,6 +11,35 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 )
+
+func TestScheduledOccurrenceIdentitySurvivesExpiredLeaseReclaim(t *testing.T) {
+	scope := workerScope(t)
+	due := time.Date(2026, 9, 20, 2, 28, 11, 704141000, time.UTC)
+	first := apiserver.ExecutionScheduleInput{ScheduleID: "pid_10000020-0000-4000-8000-000000000020", IntegrationID: "pid_10000001-0000-4000-8000-000000000001", CadenceSeconds: 300, NextRunAt: due, Version: 2, LeaseExpiresAt: due.Add(5 * time.Second)}
+	// SQL increments version on each claim, including a replacement claim after
+	// expiry. This metadata must not change the identity of an unchanged due run.
+	reclaimed := first
+	reclaimed.Version = 3
+	reclaimed.LeaseExpiresAt = due.Add(10 * time.Second)
+	a, _, okA := scheduledRequest(scope, first, "parser_v1", "tool_v1")
+	b, _, okB := scheduledRequest(scope, reclaimed, "parser_v1", "tool_v1")
+	if !okA || !okB {
+		t.Fatal("valid claims rejected")
+	}
+	if a.SyncID != b.SyncID || a.JobID != b.JobID || a.OutboxID != b.OutboxID || a.IdempotencyKey != b.IdempotencyKey || !bytes.Equal(a.RequestDigest, b.RequestDigest) {
+		t.Fatalf("reclaim changed occurrence identity: first=%s/%s/%s/%s reclaimed=%s/%s/%s/%s", a.SyncID, a.JobID, a.OutboxID, a.IdempotencyKey, b.SyncID, b.JobID, b.OutboxID, b.IdempotencyKey)
+	}
+	next := reclaimed
+	next.NextRunAt = due.Add(300 * time.Second)
+	c, _, ok := scheduledRequest(scope, next, "parser_v1", "tool_v1")
+	if !ok || a.SyncID == c.SyncID || a.JobID == c.JobID || a.OutboxID == c.OutboxID || a.IdempotencyKey == c.IdempotencyKey {
+		t.Fatal("different due occurrence reused identity")
+	}
+	reclaimed.Version = 0
+	if _, _, ok := scheduledRequest(scope, reclaimed, "parser_v1", "tool_v1"); ok {
+		t.Fatal("invalid authority version accepted")
+	}
+}
 
 func TestSchedulerProcessorRequestsDeterministicSyncBeforeAdvancing(t *testing.T) {
 	scope := workerScope(t)

@@ -1,0 +1,16 @@
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/agent
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/browser
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/wrong_binding
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/put_error
+=== RUN   TestSecurityAgentExportWorkerProcessorPipeline/finish_lost
+--- PASS: TestSecurityAgentExportWorkerProcessorPipeline (0.36s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/agent (0.10s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/browser (0.09s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/wrong_binding (0.04s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/put_error (0.06s)
+    --- PASS: TestSecurityAgentExportWorkerProcessorPipeline/finish_lost (0.08s)
+=== RUN   TestSecurityAgentExportWorkerLeaseBindingOwnership
+--- PASS: TestSecurityAgentExportWorkerLeaseBindingOwnership (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.485s

@@ -1,0 +1,17 @@
+$ /usr/local/bin/docker run --rm --name zasp-manual-integrity-final --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentManualIntegrityPostgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentManualIntegrityPostgres
+=== RUN   TestSecurityAgentManualIntegrityPostgres/version
+=== RUN   TestSecurityAgentManualIntegrityPostgres/digest
+=== RUN   TestSecurityAgentManualIntegrityPostgres/intent
+=== RUN   TestSecurityAgentManualIntegrityPostgres/response
+=== RUN   TestSecurityAgentManualIntegrityPostgres/original_definition
+=== NAME  TestSecurityAgentManualIntegrityPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentManualIntegrityPostgres3041033433/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentManualIntegrityPostgres (5.80s)
+    --- PASS: TestSecurityAgentManualIntegrityPostgres/version (0.12s)
+    --- PASS: TestSecurityAgentManualIntegrityPostgres/digest (0.11s)
+    --- PASS: TestSecurityAgentManualIntegrityPostgres/intent (0.12s)
+    --- PASS: TestSecurityAgentManualIntegrityPostgres/response (0.10s)
+    --- PASS: TestSecurityAgentManualIntegrityPostgres/original_definition (0.10s)
+PASS
+container exit=0

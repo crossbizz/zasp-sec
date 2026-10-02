@@ -1,0 +1,149 @@
+46a8548ac45f87a2159b5497c06f7acc0fe1c0f68ccacd7e862058b1ced9a927  /private/tmp/zasp-connector-rejection-apiserver.test
+TestConnectorRejectedAuthorityOverridesPostgres
+TestConnectorRejectionClassification
+TestConnectorRejectionHTTPBoundary
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres
+    connector_rejection_postgres_test.go:40: compiled release56 checksum=f5871c564709034eaf89f325fcb732a3f3314ecc0ff95f7a0ec99f6d674ddfc1 fingerprint=8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced
+    connector_rejection_postgres_test.go:66: registered API ACL observation: current_user=security_agent_v33_discovery_api_login audit-table INSERT privilege=true; product writes use real repository operations only
+    connector_rejection_postgres_test.go:139: positive controls: registered role=security_agent_v33_discovery_api_login real security_engineer manage_workflows session; GitHub=201, generic-webhook=201
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/unauthenticated
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/csrf
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/foreign_scope
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/foreign_target
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/POST_nango_url
+    connector_rejection_postgres_test.go:227: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=1 records=[{"id": "pid_46947bbe-a19e-4d2e-b4aa-ebfeb3e49320", "action": "integration.setup.rejected", "outcome": "rejected", "actor_id": "pid_6a000009-0000-4000-8000-000000000009", "metadata": {"reason": "invalid_configuration", "operation": "createIntegration", "resource_kind": "integration", "correlation_id": "pid_8b000000-0000-4000-8000-000000000001"}, "target_id": "pid_6a000003-0000-4000-8000-000000000003", "occurred_at": "2026-09-19T04:37:16.753044+00:00", "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001"}]
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/POST_nango_base_url
+    connector_rejection_postgres_test.go:227: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=1 records=[{"id": "pid_a0cabb31-c5d4-4666-a23a-f17ce2ba5405", "action": "integration.setup.rejected", "outcome": "rejected", "actor_id": "pid_6a000009-0000-4000-8000-000000000009", "metadata": {"reason": "invalid_configuration", "operation": "createIntegration", "resource_kind": "integration", "correlation_id": "pid_8b000000-0000-4000-8000-000000000002"}, "target_id": "pid_6a000003-0000-4000-8000-000000000003", "occurred_at": "2026-09-19T04:37:16.92643+00:00", "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001"}]
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/POST_proxy_url
+    connector_rejection_postgres_test.go:227: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=1 records=[{"id": "pid_d727875e-b038-4edc-9b08-2b32c9ab6d92", "action": "integration.setup.rejected", "outcome": "rejected", "actor_id": "pid_6a000009-0000-4000-8000-000000000009", "metadata": {"reason": "invalid_configuration", "operation": "createIntegration", "resource_kind": "integration", "correlation_id": "pid_8b000000-0000-4000-8000-000000000003"}, "target_id": "pid_6a000003-0000-4000-8000-000000000003", "occurred_at": "2026-09-19T04:37:17.112658+00:00", "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001"}]
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/POST_provider_url
+    connector_rejection_postgres_test.go:227: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=1 records=[{"id": "pid_dce2d728-6163-4c25-9a98-9af7a2d70775", "action": "integration.setup.rejected", "outcome": "rejected", "actor_id": "pid_6a000009-0000-4000-8000-000000000009", "metadata": {"reason": "invalid_configuration", "operation": "createIntegration", "resource_kind": "integration", "correlation_id": "pid_8b000000-0000-4000-8000-000000000004"}, "target_id": "pid_6a000003-0000-4000-8000-000000000003", "occurred_at": "2026-09-19T04:37:17.282662+00:00", "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001"}]
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/POST_provider_url_with_secret
+    connector_rejection_postgres_test.go:227: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=1 records=[{"id": "pid_83bf6e36-1259-4a18-bfb6-c177b6b49f29", "action": "integration.setup.rejected", "outcome": "rejected", "actor_id": "pid_6a000009-0000-4000-8000-000000000009", "metadata": {"reason": "invalid_configuration", "operation": "createIntegration", "resource_kind": "integration", "correlation_id": "pid_8b000000-0000-4000-8000-000000000005"}, "target_id": "pid_6a000003-0000-4000-8000-000000000003", "occurred_at": "2026-09-19T04:37:17.455698+00:00", "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001"}]
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/PATCH_nango_url
+    connector_rejection_postgres_test.go:227: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=1 records=[{"id": "pid_ff7d886c-1c68-465d-b8a8-de8be9db18e6", "action": "integration.setup.rejected", "outcome": "rejected", "actor_id": "pid_6a000009-0000-4000-8000-000000000009", "metadata": {"reason": "invalid_configuration", "operation": "updateIntegration", "resource_kind": "integration", "correlation_id": "pid_8b000000-0000-4000-8000-000000000006"}, "target_id": "pid_6de599b9-83c6-4d09-b446-79a1cd0b5d57", "occurred_at": "2026-09-19T04:37:17.652438+00:00", "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001"}]
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/PATCH_nango_base_url
+    connector_rejection_postgres_test.go:227: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=1 records=[{"id": "pid_e93e210b-c3a6-4444-921d-5339a60f0d50", "action": "integration.setup.rejected", "outcome": "rejected", "actor_id": "pid_6a000009-0000-4000-8000-000000000009", "metadata": {"reason": "invalid_configuration", "operation": "updateIntegration", "resource_kind": "integration", "correlation_id": "pid_8b000000-0000-4000-8000-000000000007"}, "target_id": "pid_6de599b9-83c6-4d09-b446-79a1cd0b5d57", "occurred_at": "2026-09-19T04:37:17.842691+00:00", "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001"}]
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/PATCH_proxy_url
+    connector_rejection_postgres_test.go:227: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=1 records=[{"id": "pid_68e83838-1906-425d-be41-b817f346e667", "action": "integration.setup.rejected", "outcome": "rejected", "actor_id": "pid_6a000009-0000-4000-8000-000000000009", "metadata": {"reason": "invalid_configuration", "operation": "updateIntegration", "resource_kind": "integration", "correlation_id": "pid_8b000000-0000-4000-8000-000000000008"}, "target_id": "pid_6de599b9-83c6-4d09-b446-79a1cd0b5d57", "occurred_at": "2026-09-19T04:37:18.03481+00:00", "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001"}]
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/PATCH_provider_url
+    connector_rejection_postgres_test.go:227: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=1 records=[{"id": "pid_b374e21c-34b5-4857-a3ff-742bd954e26d", "action": "integration.setup.rejected", "outcome": "rejected", "actor_id": "pid_6a000009-0000-4000-8000-000000000009", "metadata": {"reason": "invalid_configuration", "operation": "updateIntegration", "resource_kind": "integration", "correlation_id": "pid_8b000000-0000-4000-8000-000000000009"}, "target_id": "pid_6de599b9-83c6-4d09-b446-79a1cd0b5d57", "occurred_at": "2026-09-19T04:37:18.23317+00:00", "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001"}]
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/PATCH_provider_url_with_secret
+    connector_rejection_postgres_test.go:227: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=1 records=[{"id": "pid_e5a38631-fefa-4400-976d-3fcf45792b68", "action": "integration.setup.rejected", "outcome": "rejected", "actor_id": "pid_6a000009-0000-4000-8000-000000000009", "metadata": {"reason": "invalid_configuration", "operation": "updateIntegration", "resource_kind": "integration", "correlation_id": "pid_8b000000-0000-4000-8000-000000000010"}, "target_id": "pid_6de599b9-83c6-4d09-b446-79a1cd0b5d57", "occurred_at": "2026-09-19T04:37:18.423204+00:00", "workspace_id": "pid_6a000002-0000-4000-8000-000000000002", "environment_id": "pid_6a000003-0000-4000-8000-000000000003", "organization_id": "pid_6a000001-0000-4000-8000-000000000001"}]
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/retry_and_success_key_conflict
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/audit_read_API
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/token_permission_intersection
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/token_permission_intersection/blocked_INSERT_revoked
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/token_permission_intersection/blocked_INSERT_expired
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/token_permission_intersection/blocked_INSERT_permission_removed
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority/revoked
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority/expired
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority/member_disabled
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority/role_removed
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority/scope_removed
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority/target_deleted
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/audit_INSERT_cancellation
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/wall_clock_expiry_after_target_wait
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/group_permission_and_registered_writers
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/group_permission_and_registered_writers/resolve_removes_group
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/group_permission_and_registered_writers/mapping_role_removed
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/group_permission_and_registered_writers/mapping_removed
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/group_permission_and_registered_writers/resolve_serializes_on_membership
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/group_permission_and_registered_writers/deprovision_serializes_on_membership
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/missing_driver
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/closed
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/commit_failure
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/rollback_error
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/panic_after_INSERT
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/canceled_after_INSERT
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/forged_principal
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/wrong_credential_kind
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/wrong_scope
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/unregistered
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/actual_production_driver_and_decorator
+    connector_rejection_failure_postgres_test.go:108: joined production runtime process: TestConnectorRejectionRuntimePostgres
+    connector_rejection_failure_postgres_test.go:108: joined production runtime process: === RUN   TestConnectorRejectionRuntimePostgres
+            connector_rejection_runtime_test.go:61: actual pgxpool READ COMMITTED driver + production tracing + repository committed one safe audit; missing/closed capabilities fail unavailable
+        --- PASS: TestConnectorRejectionRuntimePostgres (0.45s)
+        PASS
+=== NAME  TestConnectorRejectedAuthorityOverridesPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestConnectorRejectedAuthorityOverridesPostgres3178898806/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestConnectorRejectedAuthorityOverridesPostgres (14.75s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/unauthenticated (0.01s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/csrf (0.00s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/foreign_scope (0.00s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/foreign_target (0.00s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/POST_nango_url (0.20s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/POST_nango_base_url (0.17s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/POST_proxy_url (0.18s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/POST_provider_url (0.17s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/POST_provider_url_with_secret (0.19s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/PATCH_nango_url (0.19s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/PATCH_nango_base_url (0.19s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/PATCH_proxy_url (0.20s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/PATCH_provider_url (0.20s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/PATCH_provider_url_with_secret (0.18s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/retry_and_success_key_conflict (0.73s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/audit_read_API (0.23s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/token_permission_intersection (0.82s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/token_permission_intersection/blocked_INSERT_revoked (0.21s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/token_permission_intersection/blocked_INSERT_expired (0.21s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/token_permission_intersection/blocked_INSERT_permission_removed (0.21s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority (1.20s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority/revoked (0.21s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority/expired (0.20s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority/member_disabled (0.23s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority/role_removed (0.21s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority/scope_removed (0.19s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/blocked_INSERT_rechecks_authority/target_deleted (0.18s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/audit_INSERT_cancellation (0.11s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/wall_clock_expiry_after_target_wait (2.01s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/group_permission_and_registered_writers (1.14s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/group_permission_and_registered_writers/resolve_removes_group (0.20s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/group_permission_and_registered_writers/mapping_role_removed (0.18s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/group_permission_and_registered_writers/mapping_removed (0.17s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/group_permission_and_registered_writers/resolve_serializes_on_membership (0.20s)
+        --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/group_permission_and_registered_writers/deprovision_serializes_on_membership (0.19s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/missing_driver (0.00s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/closed (0.00s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/commit_failure (0.24s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/rollback_error (0.25s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/panic_after_INSERT (0.18s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/canceled_after_INSERT (0.23s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/forged_principal (0.13s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/wrong_credential_kind (0.13s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/wrong_scope (0.15s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/unregistered (0.03s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/actual_production_driver_and_decorator (0.53s)
+=== RUN   TestConnectorRejectionClassification
+=== RUN   TestConnectorRejectionClassification/override
+=== RUN   TestConnectorRejectionClassification/webhook
+=== RUN   TestConnectorRejectionClassification/malformed
+=== RUN   TestConnectorRejectionClassification/wrong_type
+=== RUN   TestConnectorRejectionClassification/missing_name
+=== RUN   TestConnectorRejectionClassification/other_operation
+--- PASS: TestConnectorRejectionClassification (0.00s)
+    --- PASS: TestConnectorRejectionClassification/override (0.00s)
+    --- PASS: TestConnectorRejectionClassification/webhook (0.00s)
+    --- PASS: TestConnectorRejectionClassification/malformed (0.00s)
+    --- PASS: TestConnectorRejectionClassification/wrong_type (0.00s)
+    --- PASS: TestConnectorRejectionClassification/missing_name (0.00s)
+    --- PASS: TestConnectorRejectionClassification/other_operation (0.00s)
+=== RUN   TestConnectorRejectionHTTPBoundary
+=== RUN   TestConnectorRejectionHTTPBoundary/commit
+=== RUN   TestConnectorRejectionHTTPBoundary/authentication
+=== RUN   TestConnectorRejectionHTTPBoundary/authorization
+=== RUN   TestConnectorRejectionHTTPBoundary/target
+=== RUN   TestConnectorRejectionHTTPBoundary/raw_database_error
+=== RUN   TestConnectorRejectionHTTPBoundary/other_typed_error
+=== RUN   TestConnectorRejectionHTTPBoundary/missing_auditor
+--- PASS: TestConnectorRejectionHTTPBoundary (0.00s)
+    --- PASS: TestConnectorRejectionHTTPBoundary/commit (0.00s)
+    --- PASS: TestConnectorRejectionHTTPBoundary/authentication (0.00s)
+    --- PASS: TestConnectorRejectionHTTPBoundary/authorization (0.00s)
+    --- PASS: TestConnectorRejectionHTTPBoundary/target (0.00s)
+    --- PASS: TestConnectorRejectionHTTPBoundary/raw_database_error (0.00s)
+    --- PASS: TestConnectorRejectionHTTPBoundary/other_typed_error (0.00s)
+    --- PASS: TestConnectorRejectionHTTPBoundary/missing_auditor (0.00s)
+PASS

@@ -1,0 +1,10 @@
+=== RUN   TestSecurityAgentExportDefinitionHTTPPostgres
+    security_agent_export_definition_http_postgres_test.go:198: HTTP status=409 want=200 body={"code":"version_conflict","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","message":"Resource version conflict","retryable":false}
+         SQL=SELECT public.zasp_sa_export_mutate_definition($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14,$15,$16) error=repository operation conflict provider=ERROR: duplicate key value violates unique constraint "zasp_workflow_audit_organization_id_correlation_id_operatio_key" (SQLSTATE 23505)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportDefinitionHTTPPostgres3603443615/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportDefinitionHTTPPostgres (13.89s)
+=== RUN   TestSecurityAgentExportDefinitionAuthorityWaitPostgres
+    security_agent_export_definition_postgres_test.go:335: autonomous stage autonomous: ERROR: export activation autonomy rejected (SQLSTATE 22023)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=53 data=/tmp/TestSecurityAgentExportDefinitionAuthorityWaitPostgres969931428/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportDefinitionAuthorityWaitPostgres (6.71s)
+FAIL

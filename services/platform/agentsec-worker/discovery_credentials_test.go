@@ -216,6 +216,12 @@ func TestProductionDiscoveryCredentialsRejectBindingAndConfigurationBeforeIO(t *
 		"configuration": func(request *discoveryCredentialMaterialRequest) {
 			request.Input.Configuration = json.RawMessage(`{"external_id_reference":"ref:aws/external-id/customer-0001","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/zasp/discovery","secret":"leak"}`)
 		},
+		"invalid value": func(request *discoveryCredentialMaterialRequest) {
+			request.Input.Configuration = json.RawMessage(`{"external_id_reference":"ref:aws/external-id/customer-0001","region":42,"role_arn":"arn:aws:iam::123456789012:role/zasp/discovery"}`)
+		},
+		"mixed provider fields": func(request *discoveryCredentialMaterialRequest) {
+			request.Input.Configuration = json.RawMessage(`{"authorization_mode":"github_app","external_id_reference":"ref:aws/external-id/customer-0001","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/zasp/discovery"}`)
+		},
 	}
 	for name, mutate := range tests {
 		t.Run(name, func(t *testing.T) {

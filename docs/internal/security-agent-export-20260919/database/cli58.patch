@@ -1,0 +1,268 @@
+--- a/services/platform/agentsec-migrate/compliance_deployment_postgres_test.go
++++ b/services/platform/agentsec-migrate/compliance_deployment_postgres_test.go
+@@ -18,19 +18,23 @@
+ // Opt in only inside the owned Linux PostgreSQL fixture, with the actual CLI
+ // pre-built offline and mounted at this path. Never consume an ambient DSN.
+ func TestComplianceDeploymentBinaryOwnedPostgres(t *testing.T) {
+-	exerciseComplianceDeploymentBinaryOwnedPostgres(t, false)
++	exerciseComplianceDeploymentBinaryOwnedPostgres(t, false, false)
+ }
+ 
+ func TestAttackLabDeploymentBinaryOwnedPostgres(t *testing.T) {
+-	exerciseComplianceDeploymentBinaryOwnedPostgres(t, true)
++	exerciseComplianceDeploymentBinaryOwnedPostgres(t, true, false)
+ }
+ 
+-func exerciseComplianceDeploymentBinaryOwnedPostgres(t *testing.T, attackLab bool) {
++func TestSecurityAgentExportsDeploymentBinaryOwnedPostgres(t *testing.T) {
++	exerciseComplianceDeploymentBinaryOwnedPostgres(t, true, true)
++}
++
++func exerciseComplianceDeploymentBinaryOwnedPostgres(t *testing.T, attackLab, exports bool) {
+ 	if runtime.GOOS != "linux" || os.Getenv("ZASP_COMPLIANCE_DEPLOYMENT_BINARY") != "/compliance-migrate" {
+ 		t.Skip("requires owned Linux PostgreSQL fixture and mounted migration CLI")
+ 	}
+ 	dsn := startMigrationPostgres(t)
+-	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
++	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+ 	defer cancel()
+ 	owner := connectMigrationPostgres(t, ctx, dsn)
+ 	defer owner.Close(context.Background())
+@@ -241,5 +245,89 @@
+ 			unchanged(before)
+ 		}
+ 		t.Log("LOCAL actual57 CLI chain and existing56 checks complete; no provider or credential provisioning")
++		if exports {
++			if _, err := admin.Exec(ctx, `UPDATE zasp_schema_metadata SET value=$1 WHERE key='production_security_agent_attack_lab_checksum'`, migrations.ProductionSecurityAgentAttackLab().Checksum()); err != nil {
++				t.Fatal(err)
++			}
++			before57 := snapshot()
++			run("57 rejects wrong-source export rollback", []string{"down-from-58"}, settings, dsn, "release migration failed")
++			unchanged(before57)
++			if err := owner.QueryRow(ctx, `SELECT zasp_sa_attack_lab_readiness($1,$2)`, migrations.ProductionSecurityAgentAttackLab().Checksum(), migrations.SecurityAgentAttackLabFingerprint()).Scan(&ready); err != nil || !ready {
++				t.Fatalf("57 readiness before58: %v %v", ready, err)
++			}
++			if _, err := admin.Exec(ctx, `ALTER ROLE compliance_migrator SUPERUSER`); err != nil {
++				t.Fatal(err)
++			}
++			run("explicit58 upgrade from registered57", []string{"up-to-58"}, settings, dsn, "")
++			if _, err := admin.Exec(ctx, `ALTER ROLE compliance_migrator NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`); err != nil {
++				t.Fatal(err)
++			}
++			chainCommand = strings.ReplaceAll(chainCommand, "up-to-57", "up-to-58")
++			for _, operation := range []string{"up-to-58", "register-audit-export-api", "register-audit-export-workers", "configure-audit-exports", "register-compliance-workers", "register-security-agent-attack-lab-reconciler"} {
++				run("58 boundary "+operation, []string{operation}, settings, dsn, "")
++			}
++			runChain(true)
++			if err := owner.QueryRow(ctx, `SELECT zasp_sa_export_readiness($1,$2) AND zasp_sa_attack_lab_readiness($3,$4) AND zasp_compliance_readiness($5,$6) AND (SELECT max(version)=58 FROM zasp_schema_versions) AND NOT (SELECT rolsuper OR rolcreaterole OR rolbypassrls FROM pg_roles WHERE rolname=session_user) AND (SELECT count(*)=1 AND bool_and(principal_name='attack_lab_settlement' AND authority_role='zasp_security_agent_attack_lab_reconciler') FROM zasp_sa_attack_lab_principals)`, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint(), migrations.ProductionSecurityAgentAttackLab().Checksum(), migrations.SecurityAgentAttackLabFingerprint(), migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint()).Scan(&ready); err != nil || !ready {
++				t.Fatalf("registered58 coexistence/readiness: %v %v", ready, err)
++			}
++			if err := testConnection.QueryRow(ctx, `SELECT zasp_production_security_agent_existing_tests_reconcile_scopes('','','','coexistence-test-reconciler',$1,$2)::text`, migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&scopes); err != nil || scopes != "[]" {
++				t.Fatalf("existing-test scope authority at58: %s %v", scopes, err)
++			}
++			before58 := snapshot()
++			runChain(true)
++			unchanged(before58)
++			for _, command := range []string{"up", "up-to-56", "up-to-57", "up-to-59", "down-from-57", "down-from-56"} {
++				run("58 refuses unsupported/default/wrong downgrade "+command, []string{command}, settings, dsn, "release migration failed")
++				unchanged(before58)
++			}
++			for _, drift := range []struct{ label, apply, restore string }{
++				{"invalid58 checksum", `UPDATE zasp_schema_versions SET checksum=repeat('0',64) WHERE version=58`, `UPDATE zasp_schema_versions SET checksum=$1 WHERE version=58`},
++				{"unavailable58 readiness", `UPDATE zasp_schema_metadata SET value=repeat('0',64) WHERE key='production_security_agent_exports_checksum'`, `UPDATE zasp_schema_metadata SET value=$1 WHERE key='production_security_agent_exports_checksum'`},
++			} {
++				if _, err := admin.Exec(ctx, drift.apply); err != nil {
++					t.Fatal(err)
++				}
++				for _, operation := range []string{"up-to-58", "register-audit-export-api", "register-audit-export-workers", "configure-audit-exports", "register-compliance-workers", "register-security-agent-attack-lab-reconciler", "down-from-58"} {
++					want := "release migration failed"
++					if operation == "up-to-58" && drift.label == "unavailable58 readiness" {
++						want = "release principal registration or readiness failed"
++					}
++					run(drift.label+"/"+operation, []string{operation}, settings, dsn, want)
++					unchanged(before58)
++				}
++				if _, err := admin.Exec(ctx, drift.restore, migrations.ProductionSecurityAgentExports().Checksum()); err != nil {
++					t.Fatal(err)
++				}
++			}
++			// Empty export history can restore57. Audit/compliance/Attack Lab
++			// registrations and policy are retained exactly across that rollback.
++			if _, err := admin.Exec(ctx, `ALTER ROLE compliance_migrator SUPERUSER`); err != nil {
++				t.Fatal(err)
++			}
++			run("empty58 explicit guarded rollback", []string{"down-from-58"}, settings, dsn, "")
++			if _, err := admin.Exec(ctx, `ALTER ROLE compliance_migrator NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`); err != nil {
++				t.Fatal(err)
++			}
++			unchanged(before57)
++			if err := owner.QueryRow(ctx, `SELECT zasp_sa_attack_lab_live_fingerprint()=$1 AND zasp_sa_attack_lab_readiness($2,$1) AND (SELECT max(version)=57 FROM zasp_schema_versions) AND to_regprocedure('public.zasp_sa_export_readiness(text,text)') IS NULL`, migrations.SecurityAgentAttackLabFingerprint(), migrations.ProductionSecurityAgentAttackLab().Checksum()).Scan(&ready); err != nil || !ready {
++				t.Fatalf("CLI rollback did not restore exact57: %v %v", ready, err)
++			}
++			run("repeat export rollback refuses57", []string{"down-from-58"}, settings, dsn, "release migration failed")
++			if _, err := admin.Exec(ctx, `ALTER ROLE compliance_migrator SUPERUSER`); err != nil {
++				t.Fatal(err)
++			}
++			run("re-upgrade58 after exact rollback", []string{"up-to-58"}, settings, dsn, "")
++			// Disabled controls are retained history, not an empty deployment.
++			seed(`INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by) VALUES('pid_8e580001-0000-4000-8000-000000000001','pid_8e580002-0000-4000-8000-000000000002','pid_8e580003-0000-4000-8000-000000000003','create_evidence_export',false,'cli-fixture')`)
++			run("retained disabled export control refuses rollback", []string{"down-from-58"}, settings, dsn, "release migration failed")
++			if _, err := admin.Exec(ctx, `ALTER ROLE compliance_migrator NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`); err != nil {
++				t.Fatal(err)
++			}
++			unchanged(before58)
++			if err := owner.QueryRow(ctx, `SELECT zasp_sa_export_readiness($1,$2) AND (SELECT max(version)=58 FROM zasp_schema_versions) AND EXISTS(SELECT 1 FROM zasp_security_agent_kill_switches WHERE action_key='create_evidence_export' AND NOT execution_enabled)`, migrations.ProductionSecurityAgentExports().Checksum(), migrations.SecurityAgentExportsFingerprint()).Scan(&ready); err != nil || !ready {
++				t.Fatalf("guarded rollback lost58/history: %v %v", ready, err)
++			}
++			t.Log("LOCAL actual58 CLI upgrade/replay, coexistence, exact readiness, downgrade/restore and retention refusal complete; no deployed worker or provider proof")
++		}
+ 	}
+ }
+--- a/services/platform/migrations/migrations.go
++++ b/services/platform/migrations/migrations.go
+@@ -869,7 +869,7 @@
+ 	if err := scanRow(ctx, runner.database, countRowsSQL, nil, &count); err != nil {
+ 		return 0, fixedDatabaseError(ctx, err)
+ 	}
+-	if count < 1 || count > 57 {
++	if count < 1 || count > 58 {
+ 		return 0, ErrInvalidState
+ 	}
+ 	metadata := []Metadata{Baseline()}
+@@ -1007,9 +1007,12 @@
+ 	if count >= 56 {
+ 		metadata = append(metadata, ProductionCompliance())
+ 	}
+-	if count == 57 {
++	if count >= 57 {
+ 		metadata = append(metadata, ProductionSecurityAgentAttackLab())
+ 	}
++	if count == 58 {
++		metadata = append(metadata, ProductionSecurityAgentExports())
++	}
+ 	for _, expected := range metadata {
+ 		var version int64
+ 		var name, checksum string
+--- a/services/platform/migrations/production_security_agent_attack_lab.go
++++ b/services/platform/migrations/production_security_agent_attack_lab.go
+@@ -72,9 +72,18 @@
+ 		return ErrInvalidRunner
+ 	}
+ 	return runner.withTransaction(ctx, func(ctx context.Context, tx Transaction) error {
+-		if err := readProductionSecurityAgentAttackLabState(ctx, tx); err != nil {
++		current, err := readAuditExportConfigurationState(ctx, tx)
++		if err != nil {
+ 			return err
+ 		}
++		// Operational registration coexists with the additive export release;
++		// historical upgrade/down readers remain exact to schema57.
++		if current.Version() != 57 && current.Version() != 58 {
++			return ErrInvalidState
++		}
++		if err := requireAuditExportConfigurationReadiness(ctx, tx, current); err != nil {
++			return err
++		}
+ 		m := ProductionSecurityAgentAttackLab()
+ 		if err := requireMigrationReadiness(ctx, tx, productionSecurityAgentAttackLabReadinessSQL, m.Checksum(), SecurityAgentAttackLabFingerprint()); err != nil {
+ 			return err
+@@ -86,6 +95,6 @@
+ 		if !registered {
+ 			return ErrInvalidState
+ 		}
+-		return requireMigrationReadiness(ctx, tx, productionSecurityAgentAttackLabReadinessSQL, m.Checksum(), SecurityAgentAttackLabFingerprint())
++		return requireAuditExportConfigurationReadiness(ctx, tx, current)
+ 	})
+ }
+--- a/services/platform/migrations/migrations_test.go
++++ b/services/platform/migrations/migrations_test.go
+@@ -595,7 +595,10 @@
+ 		{name: "security agent budgets", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(productionAuditExportsPredecessors(), ProductionAuditExports(), ProductionSecurityAgentBudgets())...)...), want: 53},
+ 		{name: "security agent run context", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(productionAuditExportsPredecessors(), ProductionAuditExports(), ProductionSecurityAgentBudgets(), ProductionSecurityAgentRunContext())...)...), want: 54},
+ 		{name: "security agent existing tests", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(productionAuditExportsPredecessors(), ProductionAuditExports(), ProductionSecurityAgentBudgets(), ProductionSecurityAgentRunContext(), ProductionSecurityAgentExistingTests())...)...), want: 55},
+-		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(56)}}}, wantErr: ErrInvalidState},
++		{name: "compliance", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(productionAuditExportsPredecessors(), ProductionAuditExports(), ProductionSecurityAgentBudgets(), ProductionSecurityAgentRunContext(), ProductionSecurityAgentExistingTests(), ProductionCompliance())...)...), want: 56},
++		{name: "security agent attack lab", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(productionAuditExportsPredecessors(), ProductionAuditExports(), ProductionSecurityAgentBudgets(), ProductionSecurityAgentRunContext(), ProductionSecurityAgentExistingTests(), ProductionCompliance(), ProductionSecurityAgentAttackLab())...)...), want: 57},
++		{name: "security agent exports", rows: append([]Row{fakeRow{values: []any{true}}}, exactReleaseRows(append(productionAuditExportsPredecessors(), ProductionAuditExports(), ProductionSecurityAgentBudgets(), ProductionSecurityAgentRunContext(), ProductionSecurityAgentExistingTests(), ProductionCompliance(), ProductionSecurityAgentAttackLab(), ProductionSecurityAgentExports())...)...), want: 58},
++		{name: "drift", rows: []Row{fakeRow{values: []any{true}}, fakeRow{values: []any{int64(59)}}}, wantErr: ErrInvalidState},
+ 	} {
+ 		t.Run(test.name, func(t *testing.T) {
+ 			database := &fakeDatabase{rows: test.rows, transaction: &fakeTransaction{}}
+--- a/services/platform/migrations/production_compliance_registration_test.go
++++ b/services/platform/migrations/production_compliance_registration_test.go
+@@ -23,18 +23,25 @@
+ // Removing either readiness check, accepting false, interpolating identities or
+ // using caller-supplied pins must break this transaction-boundary contract.
+ func TestComplianceRegistrationTransaction(t *testing.T) {
+-	for _, mode := range []string{"healthy", "lower-release", "future-release", "wrong-checksum", "initial-drift", "registration-false", "registration-error", "final-drift", "final-error", "commit-error", "rollback-error", "cancel-registration", "cancel-final"} {
++	for _, mode := range []string{"healthy", "healthy57", "healthy58", "lower-release", "future-release", "wrong-checksum", "initial-drift", "family-drift", "registration-false", "registration-error", "final-drift", "final-error", "commit-error", "rollback-error", "cancel-registration", "cancel-final"} {
+ 		t.Run(mode, func(t *testing.T) {
+ 			metadata := append(productionAuditExportsPredecessors(), ProductionAuditExports(), ProductionSecurityAgentBudgets(), ProductionSecurityAgentRunContext(), ProductionSecurityAgentExistingTests(), ProductionCompliance())
++			if mode == "healthy57" || mode == "healthy58" {
++				metadata = append(metadata, ProductionSecurityAgentAttackLab())
++			}
++			if mode == "healthy58" {
++				metadata = append(metadata, ProductionSecurityAgentExports())
++			}
+ 			if mode == "wrong-checksum" {
+ 				metadata[55].checksum = "wrong"
+ 			}
+-			rows := exactReleaseRows(metadata...)
+ 			if mode == "lower-release" {
+-				rows[0] = fakeRow{values: []any{int64(55)}}
++				metadata = metadata[:55]
+ 			}
++			// Current-release dispatch reads a count before its exact reader does.
++			rows := append([]Row{fakeRow{values: []any{int64(len(metadata))}}}, exactReleaseRows(metadata...)...)
+ 			if mode == "future-release" {
+-				rows[0] = fakeRow{values: []any{int64(57)}}
++				rows[0] = fakeRow{values: []any{int64(59)}}
+ 			}
+ 			ctx, cancel := context.WithCancel(context.Background())
+ 			defer cancel()
+@@ -52,20 +59,21 @@
+ 			if mode == "cancel-final" {
+ 				final = complianceCancelRow{cancel: cancel}
+ 			}
+-			rows = append(rows, fakeRow{values: []any{mode != "initial-drift"}}, registration, final)
++			registrationIndex := len(rows) + 2
++			rows = append(rows, fakeRow{values: []any{mode != "initial-drift"}}, fakeRow{values: []any{mode != "family-drift"}}, registration, final)
+ 			tx := &fakeTransaction{rows: rows}
+ 			if mode == "commit-error" {
+ 				tx.commitError = errors.New("private SQL detail")
+ 			}
+ 			if mode == "rollback-error" {
+ 				tx.rollbackError = errors.New("private SQL detail")
+-				tx.rows[58] = fakeRow{values: []any{false}}
++				tx.rows[registrationIndex] = fakeRow{values: []any{false}}
+ 			}
+ 			db := &fakeDatabase{transaction: tx}
+ 			runner, _ := NewRunner(db)
+ 			err := complianceRegistrationRunner(t, runner).RegisterComplianceWorkers(ctx, "compliance_executor", "compliance_cleanup")
+ 			events := strings.Join(db.events, "\n")
+-			if mode == "healthy" {
++			if strings.HasPrefix(mode, "healthy") {
+ 				if err != nil || !strings.Contains(events, "commit") || strings.Contains(events, "rollback") {
+ 					t.Fatalf("healthy registration: %v %s", err, events)
+ 				}
+@@ -82,7 +90,7 @@
+ 				}
+ 			}
+ 			called := strings.Contains(events, "query:SELECT public.zasp_compliance_register_workers($1,$2,$3,$4)")
+-			preflightRefused := mode == "lower-release" || mode == "future-release" || mode == "wrong-checksum" || mode == "initial-drift"
++			preflightRefused := mode == "lower-release" || mode == "future-release" || mode == "wrong-checksum" || mode == "initial-drift" || mode == "family-drift"
+ 			if called == preflightRefused {
+ 				t.Fatalf("registration crossed preflight boundary: %s", events)
+ 			}
+@@ -91,8 +99,11 @@
+ 				if !strings.Contains(events, "args:compliance_executor,compliance_cleanup,"+pins) {
+ 					t.Fatalf("registration did not bind names and compiled pins: %s", events)
+ 				}
+-				checks := 2
++				checks := 3
+ 				if strings.HasPrefix(mode, "registration-") || mode == "rollback-error" {
++					checks = 2
++				}
++				if mode == "healthy57" || mode == "healthy58" {
+ 					checks = 1
+ 				}
+ 				if strings.Count(events, "query:SELECT public.zasp_compliance_readiness($1,$2)\nargs:"+pins) != checks {

@@ -13,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-	"github.com/zasp-ai/zasp-sec/services/platform/connectors/awsdiscovery"
 )
 
 type productionDiscoveryDependencyConfig struct {
@@ -117,20 +116,31 @@ type productionDiscoveryDependencies struct {
 }
 
 func newProductionDiscoveryDependencies(config productionDiscoveryDependencyConfig) (*productionDiscoveryDependencies, error) {
-	if !validProductionDiscoveryDependencyAuthority(config) {
+	return newProductionDiscoveryDependenciesWithIO(config, newProductionDiscoveryIO)
+}
+
+func newProductionDiscoveryDependenciesWithIO(config productionDiscoveryDependencyConfig, create func(productionDiscoveryDependencyConfig) (discoveryDependencyIO, error)) (*productionDiscoveryDependencies, error) {
+	if !validProductionDiscoveryDependencyAuthority(config) || create == nil {
 		return nil, errRuntimeUnavailable
 	}
-	cloud, err := newProductionDiscoveryCloudAuthority(config.Cloud)
+	cloud, err := create(config)
 	if err != nil {
 		return nil, errRuntimeUnavailable
 	}
+	if cloud.Close == nil {
+		return nil, errRuntimeUnavailable
+	}
 	var queue productionDiscoveryQueue
+	var artifactCache *discoveryArtifactCache
 	fail := func() (*productionDiscoveryDependencies, error) {
 		_ = queue.Close()
+		if artifactCache != nil {
+			_ = artifactCache.Close()
+		}
 		_ = cloud.Close()
 		return nil, errRuntimeUnavailable
 	}
-	secrets, err := newDiscoverySecretsManagerReader(cloud.secrets, config.Cloud.SecretRoot, config.Cloud.Timeout)
+	secrets, err := newDiscoverySecretsManagerReader(cloud.Secrets, config.Cloud.SecretRoot, config.Cloud.Timeout)
 	if err != nil {
 		return fail()
 	}
@@ -149,7 +159,7 @@ func newProductionDiscoveryDependencies(config productionDiscoveryDependencyConf
 		return fail()
 	}
 	credentials, err := newProductionDiscoveryCredentialResolver(productionDiscoveryCredentialConfig{
-		Secrets: secrets, AssumeRole: cloud.assumeRole, GitHub: github, Okta: okta,
+		Secrets: secrets, AssumeRole: cloud.AssumeRole, GitHub: github, Okta: okta,
 		GitHubAppID: config.GitHubAppID, GitHubPrivateKeyReference: config.GitHubPrivateKeyReference,
 		OktaClientID: config.OktaClientID, OktaClientSecretReference: config.OktaClientSecretReference, Clock: config.Cloud.Clock,
 	})
@@ -157,38 +167,34 @@ func newProductionDiscoveryDependencies(config productionDiscoveryDependencyConf
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
-	inventory, err := newDiscoveryAWSCollectionInventoryCaller(discoveryAWSInventoryFactory{Identity: cloud.NewCallerIdentity, IAM: cloud.NewIAM, EC2: cloud.NewEC2}, config.Cloud.Clock)
+	inventory, err := newDiscoveryAWSCollectionInventoryCaller(cloud.Inventory, config.Cloud.Clock)
 	if err != nil {
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
-	securityRunner, err := awsdiscovery.NewSecurityRunner(15 * time.Minute)
+	artifacts, err := newProductionDiscoveryArtifactAuthority(cloud.S3, config.Artifacts)
 	if err != nil {
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
-	securityAnalyzer, err := newDiscoveryAWSSecurityRunner(securityRunner, config.Cloud.Clock)
+	artifactCache, err = newDiscoveryArtifactCache(artifacts, config.Artifacts, 1024, 64<<20)
 	if err != nil {
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
-	artifacts, err := newProductionDiscoveryArtifactAuthority(cloud.s3, config.Artifacts)
-	if err != nil {
-		providerTransport.CloseIdleConnections()
-		return fail()
-	}
-	queue, err = newProductionDiscoveryQueue(cloud.sqs, productionDiscoveryQueueConfig{Region: config.Cloud.Region, QueueURL: config.QueueURL, OperationTimeout: config.QueueOperationTimeout, Visibility: config.LeaseDuration, ShutdownTimeout: config.ShutdownTimeout})
+	queue, err = newProductionDiscoveryQueue(cloud.Queue, productionDiscoveryQueueConfig{Region: config.Cloud.Region, QueueURL: config.QueueURL, OperationTimeout: config.QueueOperationTimeout, Visibility: config.LeaseDuration, ShutdownTimeout: config.ShutdownTimeout})
 	if err != nil {
 		providerTransport.CloseIdleConnections()
 		return fail()
 	}
 	factory, err := newProductionLiveDiscoveryCollectorFactory(productionDiscoveryClientConfig{
-		Artifacts: artifacts, Credentials: credentials, AWSInventory: inventory, AWSSecurity: securityAnalyzer,
+		Artifacts: artifactCache, Credentials: credentials, AWSInventory: inventory, AWSSecurity: cloud.Security,
 		AWSCollectorVersion: config.AWSCollectorVersion, KubernetesCollectorVersion: config.KubernetesCollectorVersion,
 		GitHubCollectorVersion: config.GitHubCollectorVersion, OktaCollectorVersion: config.OktaCollectorVersion,
 		ParserVersion: config.ParserVersion, ToolVersion: config.ToolVersion,
 		KubernetesAllowedCIDRs: config.KubernetesAllowedCIDRs, ProviderTimeout: config.ProviderTimeout,
-		ReadinessTimeout: config.ReadinessTimeout, Clock: config.Cloud.Clock,
+		KubernetesNetwork: cloud.KubernetesNetwork,
+		ReadinessTimeout:  config.ReadinessTimeout, Clock: config.Cloud.Clock,
 	})
 	if err != nil {
 		providerTransport.CloseIdleConnections()
@@ -203,6 +209,7 @@ func newProductionDiscoveryDependencies(config productionDiscoveryDependencyConf
 	}
 	dependencies.close = func() error {
 		queueErr := queue.Close()
+		_ = artifactCache.Close()
 		providerTransport.CloseIdleConnections()
 		cloudErr := cloud.Close()
 		if queueErr != nil {
@@ -232,18 +239,18 @@ func (dependencies *productionDiscoveryDependencies) Close() error {
 	return dependencies.closeErr
 }
 
-func readyProductionDiscoveryDependencies(ctx context.Context, cloud *productionDiscoveryCloudAuthority, secrets *discoverySecretsManagerReader, config productionDiscoveryDependencyConfig) error {
-	if ctx == nil || ctx.Err() != nil || cloud == nil || cloud.credentials == nil || cloud.s3 == nil || secrets == nil {
+func readyProductionDiscoveryDependencies(ctx context.Context, cloud discoveryDependencyIO, secrets *discoverySecretsManagerReader, config productionDiscoveryDependencyConfig) error {
+	if ctx == nil || ctx.Err() != nil || nilWorkerDependency(cloud.Credentials) || nilWorkerDependency(cloud.S3) || secrets == nil {
 		return errRuntimeUnavailable
 	}
 	bounded, cancel := context.WithTimeout(ctx, config.ReadinessTimeout)
 	defer cancel()
-	credentials, err := cloud.credentials.Retrieve(bounded)
+	credentials, err := cloud.Credentials.Retrieve(bounded)
 	clearAWSCredentials(&credentials)
 	if err != nil || bounded.Err() != nil {
 		return errRuntimeUnavailable
 	}
-	if readyProductionDiscoveryRole(bounded, cloud.assumeRole, config.Cloud, config.Artifacts) != nil || readyProductionDiscoveryArtifactAuthority(bounded, cloud.s3, cloud.kms, config.Cloud, config.Artifacts) != nil {
+	if readyProductionDiscoveryRole(bounded, cloud.AssumeRole, config.Cloud, config.Artifacts) != nil || readyProductionDiscoveryArtifactAuthority(bounded, cloud.S3, cloud.KMS, config.Cloud, config.Artifacts) != nil {
 		return errRuntimeUnavailable
 	}
 	for _, reference := range []string{config.GitHubPrivateKeyReference, config.OktaClientSecretReference} {

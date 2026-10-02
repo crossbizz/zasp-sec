@@ -1,0 +1,10 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/usr/bin/env","PATH=/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin","npm","run","openapi:generate"]
+
+> zasp-agent-security-console@0.1.0 openapi:generate
+> openapi-typescript openapi/openapi.yaml --output apps/web/api/generated.ts --alphabetize --export-type --immutable --root-types --root-types-no-schema-prefix
+
+✨ openapi-typescript 7.13.0
+🚀 openapi/openapi.yaml → apps/web/api/generated.ts [234.5ms]
+
+Exit: 0 Signal: null

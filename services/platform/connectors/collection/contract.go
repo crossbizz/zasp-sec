@@ -100,14 +100,18 @@ func (cursor Cursor) validResult(provider Provider) bool {
 }
 
 type Bounds struct {
-	MaxPages    int
-	MaxItems    int
-	MaxRawBytes int64
-	Timeout     time.Duration
+	MaxPages int
+	// FreshPageLimit bounds new provider pages in a product effect. Zero keeps
+	// the legacy cumulative-only contract; resumed manifest pages still count
+	// against MaxPages, MaxItems and MaxRawBytes.
+	FreshPageLimit int
+	MaxItems       int
+	MaxRawBytes    int64
+	Timeout        time.Duration
 }
 
 func (bounds Bounds) valid() bool {
-	return bounds.MaxPages >= 1 && bounds.MaxPages <= 10_000 && bounds.MaxItems >= 1 && bounds.MaxItems <= 100_000 &&
+	return bounds.MaxPages >= 1 && bounds.MaxPages <= 10_000 && bounds.FreshPageLimit >= 0 && bounds.FreshPageLimit <= bounds.MaxPages && bounds.MaxItems >= 1 && bounds.MaxItems <= 100_000 &&
 		bounds.MaxRawBytes >= 1 && bounds.MaxRawBytes <= maximumRawBytes && bounds.Timeout >= 100*time.Millisecond && bounds.Timeout <= 15*time.Minute
 }
 
@@ -117,6 +121,7 @@ type Request struct {
 	ConnectionID        domain.ProductID
 	JobID               domain.ProductID
 	Attempt             int
+	EffectID            string
 	Provider            Provider
 	CollectorVersion    string
 	CredentialClass     CredentialClass
@@ -133,7 +138,7 @@ type Request struct {
 func (request Request) Validate() error {
 	if request.Scope.Validate() != nil || !validProductID(request.IntegrationID) || !validProductID(request.ConnectionID) || !validProductID(request.JobID) ||
 		request.IntegrationID == request.ConnectionID || request.IntegrationID == request.JobID || request.ConnectionID == request.JobID ||
-		request.Attempt < 1 || request.Attempt > 100 || !request.Provider.valid() || !versionPattern.MatchString(request.CollectorVersion) ||
+		!ValidExecutionIdentity(request.Attempt, request.EffectID) || request.EffectID == "" && request.Bounds.FreshPageLimit != 0 || !request.Provider.valid() || !versionPattern.MatchString(request.CollectorVersion) ||
 		!credentialMatchesProvider(request.CredentialClass, request.Provider) || !validCredentialReference(request.Provider, request.CredentialReference) ||
 		!request.ExpectedSubject.valid(request.Provider) || !request.Cursor.valid(request.Provider) || !versionPattern.MatchString(request.ParserVersion) || !versionPattern.MatchString(request.ToolVersion) ||
 		(!request.ObservationTime.IsZero() && !canonicalObservationTime(request.ObservationTime)) || !request.Bounds.valid() {
@@ -482,6 +487,7 @@ type CredentialRequest struct {
 	ConnectionID    domain.ProductID
 	JobID           domain.ProductID
 	Attempt         int
+	EffectID        string
 	Provider        Provider
 	Class           CredentialClass
 	Reference       string
@@ -489,8 +495,17 @@ type CredentialRequest struct {
 }
 
 func (request CredentialRequest) valid() bool {
-	return request.Scope.Validate() == nil && validProductID(request.IntegrationID) && validProductID(request.ConnectionID) && validProductID(request.JobID) && request.Attempt >= 1 && request.Attempt <= 100 &&
+	return request.Scope.Validate() == nil && validProductID(request.IntegrationID) && validProductID(request.ConnectionID) && validProductID(request.JobID) && ValidExecutionIdentity(request.Attempt, request.EffectID) &&
 		credentialMatchesProvider(request.Class, request.Provider) && validCredentialReference(request.Provider, request.Reference) && request.ExpectedSubject.valid(request.Provider)
+}
+
+var productEffectPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+// ValidExecutionIdentity keeps retained worker attempts separate from durable
+// product effects. SQL binds the latter to scope/run/generation/page receipt;
+// syntax validation alone grants no effect authority.
+func ValidExecutionIdentity(attempt int, effectID string) bool {
+	return effectID == "" && attempt >= 1 && attempt <= 100 || attempt == 0 && productEffectPattern.MatchString(effectID)
 }
 
 type CredentialMaterial struct {
@@ -542,6 +557,9 @@ type ProviderClient interface {
 }
 
 type ResumeSeed struct {
+	// EffectID is the producing effect recorded by product SQL for this pinned
+	// checkpoint, not the newly authorized effect that is consuming it.
+	EffectID string
 	// CheckpointDigest is the durable repository authority binding this pinned
 	// manifest to the leased job. Provider clients cannot recompute the SQL
 	// digest, but require the nonzero value before loading any artifact.
@@ -585,11 +603,14 @@ func (adapter *ProviderAdapter) Collect(ctx context.Context, request Request) (O
 	if ctx.Err() != nil {
 		return nil, collectionDependencyError(ctx.Err())
 	}
+	if err := RequireProductEffect(ctx, request.EffectID); err != nil {
+		return nil, err
+	}
 	bounded, cancel := context.WithTimeout(ctx, request.Bounds.Timeout)
 	defer cancel()
 	credentialRequest := CredentialRequest{
 		Scope: request.Scope, IntegrationID: request.IntegrationID, ConnectionID: request.ConnectionID, JobID: request.JobID,
-		Attempt: request.Attempt, Provider: request.Provider, Class: request.CredentialClass, Reference: request.CredentialReference,
+		Attempt: request.Attempt, EffectID: request.EffectID, Provider: request.Provider, Class: request.CredentialClass, Reference: request.CredentialReference,
 		ExpectedSubject: request.ExpectedSubject,
 	}
 	material, err := adapter.resolver.ResolveCollectionCredential(bounded, credentialRequest)
@@ -605,6 +626,9 @@ func (adapter *ProviderAdapter) Collect(ctx context.Context, request Request) (O
 	defer material.Destroy()
 	var outcome Outcome
 	err = material.Use(credentialRequest, func(credential []byte) error {
+		if err := CheckEffectBoundary(bounded); err != nil {
+			return err
+		}
 		var callErr error
 		outcome, callErr = callProviderClient(adapter.client, bounded, request, credential)
 		return callErr

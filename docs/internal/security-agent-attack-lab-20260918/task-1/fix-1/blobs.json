@@ -1,0 +1,17 @@
+[
+  {
+    "path": "services/platform/migrations/sql/fragments/security_agent_attack_lab_links.sql",
+    "before": "d9759271e3e56fd669909b2db5c9e3fdab740495",
+    "after": "864d176f2db542478c37c10cedefd391422de067"
+  },
+  {
+    "path": "services/platform/migrations/security_agent_attack_lab_release.go",
+    "before": "fd18f88f4ccd656aa39eafa35159f4b6c25dbfbc",
+    "after": "99b4710c6dc6133f7d44b127c29e1068c5eec16d"
+  },
+  {
+    "path": "services/platform/apiserver/security_agent_attack_lab_replay_postgres_test.go",
+    "before": null,
+    "after": "d9506485fe1e90acbac7c93f2ba3bd5d0e8dbd43"
+  }
+]

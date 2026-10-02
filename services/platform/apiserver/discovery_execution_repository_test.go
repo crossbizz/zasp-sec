@@ -18,6 +18,64 @@ import (
 
 type blockingDiscoveryExecutionDatabase struct{}
 
+const scheduleReplayReadyQuery = `SELECT to_jsonb(zasp_discovery_schedule_replay_readiness($1,$2))`
+
+type scheduleReplayReadinessDatabase struct {
+	executionReadinessOnlyDatabase
+	response json.RawMessage
+	err      error
+	checks   int
+}
+
+func (database *scheduleReplayReadinessDatabase) QueryJSON(ctx context.Context, query string, args ...any) (json.RawMessage, error) {
+	if query == scheduleReplayReadyQuery {
+		database.checks++
+		if len(args) != 2 || args[0] != "37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab" || args[1] != "1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36" {
+			return nil, errors.New("wrong compiled release60 identity")
+		}
+		return database.response, database.err
+	}
+	return database.executionReadinessOnlyDatabase.QueryJSON(ctx, query, args...)
+}
+
+// Accepting any predecessor readiness would start a scheduler without the
+// occurrence-rebind and durable-completion contract it now requires.
+func TestProductionDiscoveryScheduleReplayRepositoryRequiresExactRelease60(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		response  json.RawMessage
+		err       error
+		principal json.RawMessage
+		ok        bool
+	}{
+		{"exact", json.RawMessage(`true`), nil, json.RawMessage(`true`), true},
+		{"release59_only", nil, errors.New("function absent"), json.RawMessage(`true`), false},
+		{"drift", json.RawMessage(`false`), nil, json.RawMessage(`true`), false},
+		{"malformed", json.RawMessage(`{"ready":true}`), nil, json.RawMessage(`true`), false},
+		{"revoked_execute", nil, errors.New("permission denied"), json.RawMessage(`true`), false},
+		{"wrong_principal", json.RawMessage(`true`), nil, json.RawMessage(`false`), false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			database := &scheduleReplayReadinessDatabase{executionReadinessOnlyDatabase: executionReadinessOnlyDatabase{recoveryReady: json.RawMessage(`true`), ready: json.RawMessage(`true`), principal: test.principal}, response: test.response, err: test.err}
+			repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+			if test.ok {
+				if err != nil || repository.Ready(context.Background()) != nil {
+					t.Fatalf("exact scheduler rejected: %v", err)
+				}
+				database.response = json.RawMessage(`false`)
+				if repository.Ready(context.Background()) != ErrRepositoryUnavailable {
+					t.Fatal("drifted scheduler stayed ready")
+				}
+			} else if err != ErrRepositoryConfiguration || repository != nil {
+				t.Fatalf("unsafe scheduler constructed: %v", err)
+			}
+			if database.checks == 0 || database.schemaCalls != 0 || database.recoveryCalls != 0 || database.executionCalls != 0 {
+				t.Fatalf("release60 check=%d schema=%d recovery=%d execution=%d", database.checks, database.schemaCalls, database.recoveryCalls, database.executionCalls)
+			}
+		})
+	}
+}
+
 func (*blockingDiscoveryExecutionDatabase) SchemaVersion(ctx context.Context) (string, error) {
 	return "", errors.New("schema metadata must not be read")
 }
@@ -78,6 +136,7 @@ func newTestDiscoveryExecutionRepository(t *testing.T, database *discoveryCallDa
 	t.Helper()
 	database.schema = DiscoveryExecutionSchemaVersion
 	database.responses[postgresExecutionReadySQL] = json.RawMessage(`true`)
+	database.responses[postgresDiscoveryScheduleReplayReadySQL] = json.RawMessage(`true`)
 	database.responses[postgresExecutionPrincipalReadySQL] = json.RawMessage(`true`)
 	repository, err := NewDiscoveryExecutionRepository(database, authority)
 	if err != nil {
@@ -152,7 +211,7 @@ func TestDiscoveryExecutionConstructorsAcceptCurrentV27Readiness(t *testing.T) {
 		recoveryReady: json.RawMessage(`true`),
 		principal:     json.RawMessage(`true`),
 	}
-	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityWorker)
 	if err != nil {
 		t.Fatalf("v27 constructor error=%v", err)
 	}
@@ -169,7 +228,7 @@ func TestDiscoveryExecutionConstructorsAcceptCurrentV23Readiness(t *testing.T) {
 		connectorReady: json.RawMessage(`true`),
 		principal:      json.RawMessage(`true`),
 	}
-	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityWorker)
 	if err != nil {
 		t.Fatalf("v23 constructor error=%v", err)
 	}
@@ -186,7 +245,7 @@ func TestDiscoveryExecutionConstructorsAcceptCurrentV22Readiness(t *testing.T) {
 		temporaryReady: json.RawMessage(`true`),
 		principal:      json.RawMessage(`true`),
 	}
-	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityWorker)
 	if err != nil {
 		t.Fatalf("v22 constructor error=%v", err)
 	}
@@ -203,7 +262,7 @@ func TestDiscoveryExecutionConstructorsAcceptCurrentV19Readiness(t *testing.T) {
 		identityReady: json.RawMessage(`true`),
 		principal:     json.RawMessage(`true`),
 	}
-	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityWorker)
 	if err != nil {
 		t.Fatalf("v19 constructor error=%v", err)
 	}
@@ -221,7 +280,7 @@ func TestDiscoveryExecutionConstructorsPreferTypedV14Readiness(t *testing.T) {
 		ready:          json.RawMessage(`false`),
 		principal:      json.RawMessage(`true`),
 	}
-	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityScheduler)
+	repository, err := NewDiscoveryExecutionRepository(database, DiscoveryExecutionAuthorityWorker)
 	if err != nil {
 		t.Fatalf("v14 constructor error=%v", err)
 	}
@@ -262,7 +321,7 @@ func TestDiscoveryExecutionConstructorsUseOnlySecurityDefinerReadiness(t *testin
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			database := &executionReadinessOnlyDatabase{ready: json.RawMessage(`true`), principal: json.RawMessage(`true`)}
+			database := &scheduleReplayReadinessDatabase{executionReadinessOnlyDatabase: executionReadinessOnlyDatabase{ready: json.RawMessage(`true`), principal: json.RawMessage(`true`)}, response: json.RawMessage(`true`)}
 			repository, err := test.construct(database)
 			if err != nil {
 				t.Fatalf("constructor error=%v", err)
@@ -290,6 +349,12 @@ func TestDiscoveryExecutionRepositoryStrictlyHydratesCollectionInput(t *testing.
 	input, err := repository.GetDiscoveryJobInput(context.Background(), identity.Scope, jobID, "worker-01", "lease-token-000000000001")
 	if err != nil || input.JobID != jobID || input.ExpectedSubject.ID != "123456789012" || input.LeaseExpiresAt.Location() != time.UTC {
 		t.Fatalf("input=%#v err=%v", input, err)
+	}
+	canonicalConfiguration := string(input.Configuration)
+	database.responses[postgresExecutionJobInputSQL] = json.RawMessage(strings.Replace(string(database.responses[postgresExecutionJobInputSQL]), canonicalConfiguration, `{"role_arn": "arn:aws:iam::123456789012:role/zasp-discovery", "region": "us-east-1", "external_id_reference": "ref:aws/external-id/customer-0001"}`, 1))
+	input, err = repository.GetDiscoveryJobInput(context.Background(), identity.Scope, jobID, "worker-01", "lease-token-000000000001")
+	if err != nil || string(input.Configuration) != canonicalConfiguration {
+		t.Fatal("database jsonb was not canonicalized for strict credential binding", err, string(input.Configuration))
 	}
 	database.responses[postgresExecutionJobInputSQL] = json.RawMessage(`{"organization_id":"` + identity.Scope.OrganizationID().String() + `","workspace_id":"` + identity.Scope.WorkspaceID().String() + `","environment_id":"` + identity.Scope.EnvironmentID().String() + `","job_id":"` + jobID + `","attempt":2,"lease_expires_at":"` + now.Format(time.RFC3339Nano) + `","sync_id":"pid_80000004-0000-4000-8000-000000000004","integration_id":"` + integrationID + `","connection_id":"` + connectionID + `","snapshot_id":"` + snapshotID + `","generation":1,"provider":"aws","collector_version":"collector_v1","credential_class":"aws_assume_role","credential_reference":"ref:aws/external-id/customer-0001","subject_kind":"aws_account","subject_id":"123456789012","cursor_provider":"aws","cursor_version":"cursor_v1","cursor_value":"page-101","parser_version":"parser_v1","tool_version":"tool_v1","configuration":{"external_id_reference":"ref:aws/external-id/customer-0001","region":"us-east-1","role_arn":"arn:aws:iam::123456789012:role/zasp-discovery"},"checkpoint_version":1,"checkpoint_digest":"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=","checkpoint_manifest_reference":"s3://zasp-evidence/organizations/pid_00000001-0000-4000-8000-000000000001/workspaces/pid_00000002-0000-4000-8000-000000000002/environments/pid_00000003-0000-4000-8000-000000000003/artifacts/pid_80100002-0000-4000-8000-000000000002","checkpoint_manifest_key":"organizations/pid_00000001-0000-4000-8000-000000000001/workspaces/pid_00000002-0000-4000-8000-000000000002/environments/pid_00000003-0000-4000-8000-000000000003/artifacts/pid_80100002-0000-4000-8000-000000000002","checkpoint_manifest_version_id":"version-0001","checkpoint_manifest_checksum":"AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=","checkpoint_manifest_size_bytes":128,"checkpoint_manifest_media_type":"application/json","checkpoint_manifest_schema_version":"raw-manifest-v1"}`)
 	input, err = repository.GetDiscoveryJobInput(context.Background(), identity.Scope, jobID, "worker-01", "lease-token-000000000001")

@@ -110,6 +110,37 @@ func TestRedTeamRepositoryAcceptsOnlyCanonicalRunStatesAndLaterSuccessfulAttempt
 	}
 }
 
+func TestRedTeamRepositoryPreservesUnknownCancellationOutcome(t *testing.T) {
+	identity := fixtureRequestIdentity(t)
+	queued := time.Date(2026, 9, 17, 10, 0, 0, 0, time.UTC)
+	started, completed := queued.Add(time.Second), queued.Add(time.Minute)
+	run := RedTeamRun{ID: "pid_79000011-0000-4000-8000-000000000011", Version: 4, DefinitionID: "pid_79000012-0000-4000-8000-000000000012", DefinitionVersion: 1, Status: "failed", Attempt: 1, CancelRequested: true, QueuedAt: queued, StartedAt: &started, CompletedAt: &completed, ErrorCode: "outcome_unknown"}
+	database := &securityAgentRepositoryDatabase{responses: map[string]json.RawMessage{postgresRedTeamGetRunSQL: mustRedTeamJSON(t, RedTeamRunDetail{RedTeamRun: run, Attempts: []RedTeamAttempt{}})}}
+	repository := &PostgresRepository{database: database, schema: RedTeamExecutionSchemaVersion}
+	result, err := repository.GetRedTeamRun(context.Background(), identity, run.ID)
+	if err != nil || result.Status != "failed" || result.ErrorCode != "outcome_unknown" || !result.CancelRequested {
+		t.Fatalf("unknown cancellation detail=%#v err=%v", result, err)
+	}
+	for name, mutate := range map[string]func(*RedTeamRun){
+		"not requested":          func(r *RedTeamRun) { r.CancelRequested = false },
+		"never attempted":        func(r *RedTeamRun) { r.Attempt = 0 },
+		"not started":            func(r *RedTeamRun) { r.StartedAt = nil },
+		"not terminal":           func(r *RedTeamRun) { r.CompletedAt = nil },
+		"claimed verdict":        func(r *RedTeamRun) { r.Verdict = "pass" },
+		"claimed evidence":       func(r *RedTeamRun) { r.EvidenceReference = "s3://evidence/run" },
+		"confirmed cancellation": func(r *RedTeamRun) { r.Status = "cancelled" },
+		"exhausted cancellation": func(r *RedTeamRun) { r.ErrorCode = "exhausted"; r.Attempt = 5 },
+	} {
+		t.Run(name, func(t *testing.T) {
+			invalid := run
+			mutate(&invalid)
+			if validRedTeamRun(invalid) {
+				t.Fatalf("invalid cancellation accepted: %#v", invalid)
+			}
+		})
+	}
+}
+
 func withRedTeamRunAttempt(value RedTeamRun, attempt int) RedTeamRun {
 	value.Attempt = attempt
 	return value

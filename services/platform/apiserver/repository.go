@@ -67,12 +67,13 @@ const (
 )
 
 var (
-	ErrRepositoryConfiguration  = errors.New("production repository configuration rejected")
-	ErrRepositoryAuthentication = errors.New("repository authentication rejected")
-	ErrRepositoryNotFound       = errors.New("repository record not found")
-	ErrRepositoryOperation      = errors.New("repository operation rejected")
-	ErrRepositoryUnavailable    = errors.New("repository provider unavailable")
-	ErrRepositoryConflict       = errors.New("repository operation conflict")
+	ErrRepositoryConfiguration      = errors.New("production repository configuration rejected")
+	ErrRepositoryAuthentication     = errors.New("repository authentication rejected")
+	ErrRepositoryNotFound           = errors.New("repository record not found")
+	ErrRepositoryOperation          = errors.New("repository operation rejected")
+	ErrRepositoryCostBudgetRequired = errors.Join(ErrRepositoryOperation, errors.New("security agent cost budget configuration required"))
+	ErrRepositoryUnavailable        = errors.New("repository provider unavailable")
+	ErrRepositoryConflict           = errors.New("repository operation conflict")
 )
 
 type JSONDatabase interface {
@@ -82,6 +83,7 @@ type JSONDatabase interface {
 }
 
 type PostgresRepository struct {
+	currentAuthorization   bool
 	database               JSONDatabase
 	schema                 string
 	connectorWorkflows     bool
@@ -101,12 +103,34 @@ func NewPostgresRepository(database JSONDatabase) (*PostgresRepository, error) {
 	if err != nil || !supportedProductSchema(version) {
 		return nil, ErrRepositoryConfiguration
 	}
-	return &PostgresRepository{database: database, schema: version, connectorWorkflows: version == ConnectorSchemaVersion || version == ReferenceSchemaVersion || isDiscoveryExecutionSchema(version)}, nil
+	if currentAuthorizationRequired(database) {
+		payload, err := database.QueryJSON(ctx, postgresProductionRecoveryReadinessSQL, migrations.ProductionRecovery().Checksum(), migrations.ProductionRecoverySemanticFingerprint())
+		var ready bool
+		if err != nil || decodeStrictDiscovery(payload, &ready) != nil || !ready {
+			return nil, ErrRepositoryConfiguration
+		}
+	}
+	return &PostgresRepository{database: database, schema: version, currentAuthorization: currentAuthorizationRequired(database), connectorWorkflows: version == ConnectorSchemaVersion || version == ReferenceSchemaVersion || isDiscoveryExecutionSchema(version)}, nil
 }
 
 func (repository *PostgresRepository) Ready(ctx context.Context) error {
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryUnavailable
+	}
+	if repository.currentAuthorization && !repository.securityAgentExecution {
+		// Registered80 verifies the composed canonical predecessor and source
+		// catalogs. Readiness does not run legacy cross-tenant cleanup writes.
+		version, err := repository.database.SchemaVersion(ctx)
+		if err != nil || version != repository.schema {
+			return ErrRepositoryUnavailable
+		}
+		_, err = repository.identityMetadata(ctx)
+		return err
+	}
+	if authority, ok := repository.database.(interface{ VerifySecurityAgentBudgetRelease(context.Context) error }); ok {
+		if err := authority.VerifySecurityAgentBudgetRelease(ctx); err != nil {
+			return ErrRepositoryUnavailable
+		}
 	}
 	if err := repository.readyRuntimeSessionSearch(ctx); err != nil {
 		return err
@@ -194,11 +218,20 @@ func (repository *PostgresRepository) Authenticate(ctx context.Context, credenti
 	if repository == nil || nilInterface(repository.database) || ctx == nil || credential.Value == "" || credential.Kind != CredentialBrowserSession && credential.Kind != CredentialBearerToken {
 		return RequestIdentity{}, ErrRepositoryAuthentication
 	}
+	if repository.currentAuthorization && credential.Kind == CredentialBearerToken {
+		return repository.authenticateNativePAT(ctx, credential)
+	}
 	statement := postgresAuthenticateSessionSQL
 	if credential.Kind == CredentialBearerToken {
 		statement = postgresAuthenticatePATSQL
 	} else if isIdentityAdministrationSchema(repository.schema) {
 		statement = postgresAuthenticateSessionV19SQL
+	}
+	if repository.currentAuthorization {
+		statement = postgresAuthorizationSessionSQL
+		if credential.Kind == CredentialBearerToken {
+			statement = postgresAuthorizationPATSQL
+		}
 	}
 	payload, err := repository.database.QueryJSON(ctx, statement, credential.Value)
 	if err != nil {
@@ -209,6 +242,11 @@ func (repository *PostgresRepository) Authenticate(ctx context.Context, credenti
 		return RequestIdentity{}, ErrRepositoryAuthentication
 	}
 	identity.CredentialKind = credential.Kind
+	if repository.currentAuthorization {
+		if err := bindAuthorizationCredential(&identity, credential, payload); err != nil {
+			return RequestIdentity{}, err
+		}
+	}
 	return identity, nil
 }
 
@@ -249,6 +287,9 @@ func identityFromJSON(payload json.RawMessage, requireCSRF bool) (RequestIdentit
 func (repository *PostgresRepository) CreateSession(ctx context.Context, grant SessionGrant) (string, error) {
 	if repository == nil || nilInterface(repository.database) || ctx == nil || !validSessionGrant(grant) {
 		return "", ErrRepositoryOperation
+	}
+	if repository.currentAuthorization {
+		return repository.createNativeSession(ctx, grant)
 	}
 	token, tokenErr := randomCredential()
 	csrf, csrfErr := randomCredential()
@@ -299,6 +340,9 @@ func equalPermissionSets(left, right []string) bool {
 }
 
 func (repository *PostgresRepository) Bootstrap(ctx context.Context, identity RequestIdentity) (json.RawMessage, error) {
+	if repository != nil && repository.currentAuthorization {
+		return repository.postLoginRead(ctx, identity, false)
+	}
 	if !validRequestIdentity(identity, false) {
 		return nil, ErrRepositoryOperation
 	}
@@ -331,6 +375,25 @@ func (repository *PostgresRepository) Read(ctx context.Context, scope domain.Sco
 }
 
 func (repository *PostgresRepository) Revoke(ctx context.Context, identity RequestIdentity, token string) error {
+	if repository != nil && repository.currentAuthorization {
+		if !validRequestIdentity(identity, true) || identity.CredentialKind != CredentialBrowserSession || token == "" {
+			return ErrRepositoryOperation
+		}
+		d, err := repository.nativeIdentityDatabase()
+		if err != nil {
+			return err
+		}
+		_, err = d.identityTransaction(ctx, identityLogout, []any{token, identity.CSRFToken, identity.Scope.OrganizationID().String(), identity.PrincipalID.String()}, func(b json.RawMessage) error {
+			var v struct {
+				Revoked bool `json:"revoked"`
+			}
+			if decodeStrictIdentityAdministration(b, &v) != nil || !v.Revoked {
+				return ErrRepositoryOperation
+			}
+			return nil
+		})
+		return err
+	}
 	if !validRequestIdentity(identity, true) || token == "" || repository.database.Exec(ctx, postgresRevokeSessionSQL, token, identity.Scope.OrganizationID().String(), identity.PrincipalID.String()) != nil {
 		return ErrRepositoryOperation
 	}
@@ -338,6 +401,9 @@ func (repository *PostgresRepository) Revoke(ctx context.Context, identity Reque
 }
 
 func (repository *PostgresRepository) ListScopes(ctx context.Context, identity RequestIdentity) (json.RawMessage, error) {
+	if repository != nil && repository.currentAuthorization {
+		return repository.postLoginRead(ctx, identity, true)
+	}
 	if !validRequestIdentity(identity, true) {
 		return nil, ErrRepositoryOperation
 	}
@@ -352,6 +418,27 @@ func (repository *PostgresRepository) ListScopes(ctx context.Context, identity R
 func (repository *PostgresRepository) SwitchScope(ctx context.Context, identity RequestIdentity, token string, scope domain.Scope) (RequestIdentity, error) {
 	if !validRequestIdentity(identity, true) || token == "" || scope.Validate() != nil || scope.OrganizationID() != identity.Scope.OrganizationID() {
 		return RequestIdentity{}, ErrRepositoryNotFound
+	}
+	if repository.currentAuthorization {
+		if identity.CredentialKind != CredentialBrowserSession {
+			return RequestIdentity{}, ErrRepositoryOperation
+		}
+		d, err := repository.nativeIdentityDatabase()
+		if err != nil {
+			return RequestIdentity{}, err
+		}
+		var updated RequestIdentity
+		_, err = d.identityTransaction(ctx, identitySwitch, []any{token, identity.CSRFToken, identity.Scope.OrganizationID().String(), identity.PrincipalID.String(), scope.WorkspaceID().String(), scope.EnvironmentID().String()}, func(b json.RawMessage) error {
+			var err error
+			updated, err = identityFromJSON(b, true)
+			if err != nil || updated.Scope != scope || updated.PrincipalID != identity.PrincipalID || updated.CSRFToken != identity.CSRFToken || len(updated.Permissions) != 0 {
+				return ErrRepositoryUnavailable
+			}
+			return nil
+		})
+		updated.CredentialKind = identity.CredentialKind
+		updated.credentialBinding = identity.credentialBinding
+		return updated, err
 	}
 	csrf := identity.CSRFToken
 	statement := postgresSwitchScopeSQL
@@ -375,6 +462,9 @@ func (repository *PostgresRepository) SwitchScope(ctx context.Context, identity 
 func (repository *PostgresRepository) ResolveIdentity(ctx context.Context, external platformidentity.ExternalPrincipal) (SessionGrant, error) {
 	if repository == nil || external.OrganizationReference() == "" || external.MemberReference() == "" {
 		return SessionGrant{}, ErrRepositoryAuthentication
+	}
+	if repository.currentAuthorization {
+		return repository.resolveNativeIdentity(ctx, external)
 	}
 	statement := postgresResolveIdentitySQL
 	arguments := []any{external.OrganizationReference(), external.MemberReference()}
@@ -461,6 +551,22 @@ func (repository *PostgresRepository) BeginIdentity(ctx context.Context, returnT
 	if err != nil {
 		return "", ErrRepositoryUnavailable
 	}
+	if repository.currentAuthorization {
+		d, err := repository.nativeIdentityDatabase()
+		if err != nil {
+			return "", err
+		}
+		_, err = d.identityTransaction(ctx, identityBegin, []any{state, returnTo}, func(b json.RawMessage) error {
+			if string(b) != "true" {
+				return ErrRepositoryUnavailable
+			}
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+		return state, nil
+	}
 	if err := repository.database.Exec(ctx, postgresBeginIdentitySQL, state, returnTo); err != nil {
 		return "", ErrRepositoryUnavailable
 	}
@@ -470,6 +576,10 @@ func (repository *PostgresRepository) BeginIdentity(ctx context.Context, returnT
 func (repository *PostgresRepository) ConsumeIdentity(ctx context.Context, state string) (string, error) {
 	if repository == nil || len(state) < 32 || len(state) > 512 {
 		return "", ErrRepositoryAuthentication
+	}
+	if repository.currentAuthorization {
+		a, err := repository.consumeIdentityAttempt(ctx, state)
+		return a.ReturnPath, err
 	}
 	payload, err := repository.database.QueryJSON(ctx, postgresConsumeIdentitySQL, state)
 	if err != nil {

@@ -1,0 +1,69 @@
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ✓ apps/web/api/pagination.test.ts > bounded cursor pagination > does not call a page reader after its authority is aborted 2ms
+ ✓ apps/web/api/pagination.test.ts > bounded cursor pagination > does not follow a successful obsolete continuation after authority changes during a page 0ms
+ ✓ apps/web/api/pagination.test.ts > bounded cursor pagination > preserves each page boundary and follows only the returned continuation 0ms
+ ✓ apps/web/api/pagination.test.ts > bounded cursor pagination > fails closed on repeated cursors and item/page caps 1ms
+ ✓ apps/web/api/pagination.test.ts > bounded cursor pagination > propagates cancellation without issuing a later page 0ms
+ ✓ app/features/sessions/compliance-api.test.ts > compliance action authority > downloads exact bounded bytes with the one-time grant only in its POST body 9ms
+ ✓ app/features/sessions/compliance-api.test.ts > compliance action authority > does not redeem a late grant after session authority changes 1ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > paginates maximum policy IDs without widening unrelated cursors 6ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > validates authoritative freshness when present on direct live controls 1ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > decodes the disabled-service legacy response without inventing freshness 1ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > accepts typed policy sources, preserving old page records 0ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > rejects scope changes, untyped detail and source metadata outside its allowlist 0ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > bounds public jobs and body-only download grants 0ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > rejects calendar overflow instead of normalizing source timestamps 0ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > bounds event hydration and preserves sessions whose event request fails 5ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > renders ordered evidence and revokes the exact version 86ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > accepts only the declared 204 session revoke response 2ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > renders legacy evidence without claiming current freshness or exports 14ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > updates versioned metadata-only production controls 38ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > keeps populated legacy reads usable through the real adapter and strict cursor/limit query contract 13ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > treats empty controls as unfiltered legacy without inventing current support 8ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > rejects mixed current/legacy controls before reading evidence 8ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > never downgrades a controls failure 401 into legacy reads 7ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > never downgrades a controls failure 403 into legacy reads 6ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > never downgrades a controls failure 409 into legacy reads 6ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > compliance retained-service compatibility > never downgrades a controls failure 503 into legacy reads 6ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > loads populated HIPAA and SOC2 with independent cursor chains through the mounted client 42ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 1 in controls before a continuation starts 64ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 1 in controls before a continuation starts 62ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 2 in controls before a continuation starts 62ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 2 in controls before a continuation starts 62ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 1 in soc2_security before a continuation starts 64ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 1 in soc2_security before a continuation starts 70ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 2 in soc2_security before a continuation starts 69ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 2 in soc2_security before a continuation starts 69ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 1 in hipaa before a continuation starts 69ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 1 in hipaa before a continuation starts 68ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 2 in hipaa before a continuation starts 67ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 2 in hipaa before a continuation starts 67ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 401 errors before they can invalidate replacement authority (authentication_required/Authentication required/false/controls) 64ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 401 errors before they can invalidate replacement authority (authentication_required/Authentication required/false/controls) 63ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 409 errors before they can invalidate replacement authority (scope_stale/Session scope changed; rebootstrap required/true/controls) 64ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 409 errors before they can invalidate replacement authority (scope_stale/Session scope changed; rebootstrap required/true/controls) 58ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 401 errors before they can invalidate replacement authority (authentication_required/Authentication required/false/soc2_security) 60ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 401 errors before they can invalidate replacement authority (authentication_required/Authentication required/false/soc2_security) 64ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 409 errors before they can invalidate replacement authority (scope_stale/Session scope changed; rebootstrap required/true/soc2_security) 58ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 409 errors before they can invalidate replacement authority (scope_stale/Session scope changed; rebootstrap required/true/soc2_security) 57ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 401 errors before they can invalidate replacement authority (authentication_required/Authentication required/false/hipaa) 59ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 401 errors before they can invalidate replacement authority (authentication_required/Authentication required/false/hipaa) 58ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 409 errors before they can invalidate replacement authority (scope_stale/Session scope changed; rebootstrap required/true/hipaa) 58ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 409 errors before they can invalidate replacement authority (scope_stale/Session scope changed; rebootstrap required/true/hipaa) 58ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > uses aggregate freshness, exposes typed source/time links, and filters frameworks and controls 44ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > reads exact source versions through the compliance detail endpoint 9ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 409 4ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 404 3ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 403 3ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > creates queued exports with the selected filters, recovers status on reload, and leaves evidence readable on download failure 60ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders failed export without hiding evidence 19ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders expired export without hiding evidence 17ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > drops late evidence responses on a changed principal and hides revoked authority immediately 55ms
+
+ Test Files  4 passed (4)
+      Tests  60 passed (60)
+   Start at  20:38:56
+   Duration  3.04s (transform 304ms, setup 679ms, import 459ms, tests 1.99s, environment 2.44s)
+

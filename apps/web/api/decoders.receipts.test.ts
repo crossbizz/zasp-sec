@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { decodeWorkflowMutationReceipt } from "./decoders";
+import { decodeSecurityAgentDefinition, decodeWorkflowMutationReceipt } from "./decoders";
 
 const expectedScope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
 
@@ -64,6 +64,58 @@ function receipt(operation: string): MutableReceipt {
 }
 
 describe("workflow mutation receipt decoder", () => {
+  it.each(["run_test", "rerun_test"])("preserves bounded %s references in reads and receipts", (action) => {
+    const reference = { definition_id: "pid_89000012-0000-4000-8000-000000000002", definition_version: 7 };
+    const definition = { ...agent, enabled: false, allowed_actions: [action], existing_test: reference };
+    expect(decodeSecurityAgentDefinition(definition)).toEqual(definition);
+    for (const operation of ["createSecurityAgent", "updateSecurityAgent"]) {
+      const value = receipt(operation);
+      value.result = definition;
+      value.intent.body = operation === "createSecurityAgent" ? Object.fromEntries(Object.entries(definition).filter(([key]) => key !== "id")) : definition;
+      expect(decodeWorkflowMutationReceipt(value)).toEqual(value);
+      value.intent.body = { ...(value.intent.body as Record<string, unknown>), existing_test: { ...reference, definition_version: 8 } };
+      expect(() => decodeWorkflowMutationReceipt(value)).toThrow("schema mismatch");
+    }
+  });
+
+  it.each([null, undefined, {}, [], { definition_id: agent.id }, { definition_id: agent.id, definition_version: 0 }, { definition_id: agent.id, definition_version: 1000001 }, { definition_id: agent.id, definition_version: "1" }, { definition_id: agent.id, definition_version: 1.5 }, { definition_id: "bad", definition_version: 1 }, { definition_id: agent.id, definition_version: 1, prompt: "override" }])("rejects invalid explicit existing-test reference %j", (existing_test) => {
+    expect(() => decodeSecurityAgentDefinition({ ...agent, existing_test })).toThrow("schema mismatch");
+  });
+
+  it.each([
+    { allowed_actions: ["update_finding_response"], verification_kind: "finding_state" },
+    { allowed_actions: ["run_test", "rerun_test"], verification_kind: "test_run" },
+    { allowed_actions: ["run_test"], verification_kind: "finding_state" },
+  ])("rejects reference/action mismatch %j", (intent) => {
+    expect(() => decodeSecurityAgentDefinition({ ...agent, ...intent, existing_test: { definition_id: agent.id, definition_version: 1 } })).toThrow("schema mismatch");
+  });
+
+  it("reads legacy definitions without assigning a cost allowance", () => {
+    expect(decodeSecurityAgentDefinition(agent)).not.toHaveProperty("max_ai_cost_nano_credits");
+  });
+
+  it.each([1, 1000000000000])("preserves explicit cost allowance %s through reads and mutation receipts", (cost) => {
+    const definition = { ...agent, max_ai_cost_nano_credits: cost };
+    expect(decodeSecurityAgentDefinition(definition)).toEqual(definition);
+    for (const operation of ["createSecurityAgent", "updateSecurityAgent"]) {
+      const value = receipt(operation);
+      value.result = definition;
+      value.intent.body = { ...(value.intent.body as Record<string, unknown>), max_ai_cost_nano_credits: cost };
+      expect(decodeWorkflowMutationReceipt(value)).toEqual(value);
+      value.intent.body = { ...(value.intent.body as Record<string, unknown>), max_ai_cost_nano_credits: cost === 1 ? 2 : 1 };
+      expect(() => decodeWorkflowMutationReceipt(value)).toThrow("schema mismatch");
+    }
+  });
+
+  it.each([0, -1, 1000000000001, 0.5, null, undefined, "1", true, {}, [], NaN, Infinity])("rejects malformed explicit cost %s", (cost) => {
+    const definition = { ...agent, max_ai_cost_nano_credits: cost };
+    expect(() => decodeSecurityAgentDefinition(definition)).toThrow("schema mismatch");
+    const value = receipt("updateSecurityAgent");
+    value.result = definition;
+    value.intent.body = definition;
+    expect(() => decodeWorkflowMutationReceipt(value)).toThrow("schema mismatch");
+  });
+
   it.each([
     "createPolicy", "updatePolicy", "deletePolicy", "rolloutPolicy", "disablePolicy",
     "createIntegration", "updateIntegration", "deleteIntegration", "remediateIntegrationAuthorization", "completeIntegrationOAuth", "completeIntegrationReferenceAuthorization",

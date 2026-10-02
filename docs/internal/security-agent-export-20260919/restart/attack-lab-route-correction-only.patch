@@ -1,0 +1,217 @@
+diff --git a/services/platform/apiserver/security_agent_export_approval_route_postgres_test.go b/services/platform/apiserver/security_agent_export_approval_route_postgres_test.go
+--- a/services/platform/apiserver/security_agent_export_approval_route_postgres_test.go
++++ b/services/platform/apiserver/security_agent_export_approval_route_postgres_test.go
+@@ -231,68 +231,117 @@
+ 				defer worker.Close(context.Background())
+ 				f := &exportDBFixture{ctx: ctx, owner: owner, api: api, worker: worker, o: o, w: w, e: e, actor: actor}
+ 				if family == "attack_lab" {
+-					exerciseAttackLabRegisteredDispatch(t, ctx, owner, api, o, w, e, testID, actor, true, false)
+-					var run string
+-					if err = owner.QueryRow(ctx, `SELECT run_id FROM zasp_sa_attack_lab_links WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, o, w, e).Scan(&run); err != nil {
+-						t.Fatal(err)
+-					}
+-					raw, err := exportRunKind(f, worker, o, w, e, run, "attack-lab-worker", "attack-lab-dispatch-lease")
+-					if err != nil || string(raw) != `{"export": false}` {
+-						t.Fatalf("durable Attack Lab replay route=%s %v", raw, err)
+-					}
+-					if _, err = exportRunKind(f, worker, o, w, e, run, "attack-lab-worker", "foreign-attack-lab-lease"); err == nil {
+-						t.Fatal("foreign Attack Lab replay routed")
+-					}
+-					if _, err = owner.Exec(ctx, `UPDATE zasp_security_agent_approvals SET version=version+1 WHERE run_id=$1`, run); err != nil {
+-						t.Fatal(err)
+-					}
+-					if _, err = exportRunKind(f, worker, o, w, e, run, "attack-lab-worker", "attack-lab-dispatch-lease"); err == nil {
+-						t.Fatal("changed Attack Lab approval routed")
+-					}
+-					return
+-				}
+-				const run = "pid_8e140001-0000-4000-8000-000000000001"
+-				const finding = "pid_8e140002-0000-4000-8000-000000000002"
+-				const workerID = "export-route-existing-test"
+-				const planningLease = "export-route-planning-lease"
+-				const dispatchLease = "export-route-dispatch-lease"
+-				seedExistingTestPreparation(t, ctx, owner, o, w, e, testID, actor, run, finding, "run_test", workerID, planningLease)
+-				if _, err = owner.Exec(ctx, `UPDATE zasp_security_agent_definitions SET activation='autonomous',body=jsonb_set(body,'{autonomy}','"autonomous"') WHERE organization_id=$1;
+- INSERT INTO zasp_security_agent_definition_versions(organization_id,workspace_id,environment_id,definition_id,version,activation,definition,definition_digest,actor_id) SELECT organization_id,workspace_id,environment_id,definition_id,version,activation,body,digest(convert_to(body::text,'UTF8'),'sha256'),$2 FROM zasp_security_agent_definitions WHERE organization_id=$1 ON CONFLICT(organization_id,workspace_id,environment_id,definition_id,version) DO UPDATE SET activation=excluded.activation,definition=excluded.definition,definition_digest=excluded.definition_digest,actor_id=excluded.actor_id;
+- INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by) VALUES($1,$3,$4,'run_test',true,$2) ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO UPDATE SET execution_enabled=true`, pgx.QueryExecModeSimpleProtocol, o, actor, w, e); err != nil {
+-					t.Fatal(err)
+-				}
+-				raw, err := exportRunKind(f, worker, o, w, e, run, workerID, planningLease)
+-				if err != nil || string(raw) != `{"export": false}` {
+-					t.Fatalf("unplanned existing-test route=%s %v", raw, err)
+-				}
+-				if err = worker.QueryRow(ctx, existingTestPrepareSQL, o, w, e, run, workerID, planningLease, "pid_8e140003-0000-4000-8000-000000000003", time.Now().UTC().Add(5*time.Minute), "pid_8e140004-0000-4000-8000-000000000004", "pid_8e140005-0000-4000-8000-000000000005").Scan(&raw); err != nil {
+-					t.Fatal(err)
+-				}
+-				if err = worker.QueryRow(ctx, postgresSecurityAgentClaimRunsV24SQL, workerID, dispatchLease, 60, 1).Scan(&raw); err != nil {
+-					t.Fatal(err)
+-				}
+-				raw, err = exportRunKind(f, worker, o, w, e, run, workerID, dispatchLease)
+-				if err != nil || string(raw) != `{"export": false}` {
+-					t.Fatalf("planned existing-test route=%s %v", raw, err)
+-				}
+-				execute := func() error {
+-					return worker.QueryRow(ctx, `SELECT zasp_production_security_agent_existing_tests_execute_run($1,$2,$3,$4,$5,$6,'pid_8e140006-0000-4000-8000-000000000006','pid_8e140007-0000-4000-8000-000000000007',$7,$8)`, o, w, e, run, workerID, dispatchLease, migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&raw)
+-				}
+-				if err = execute(); err != nil {
+-					t.Fatal(err)
+-				}
+-				before := existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run)
+-				if err = execute(); err == nil {
+-					t.Fatal("predecessor unexpectedly permits cleared-lease replay")
+-				}
+-				if _, err = exportRunKind(f, worker, o, w, e, run, workerID, dispatchLease); err == nil {
+-					t.Fatal("route invented existing-test replay authority")
+-				}
+-				if got := existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run); got != before {
+-					t.Fatal("refused replay mutated state")
+-				}
+-			})
+-		})
++					seedExportRouteAttackLabDefinition(t, ctx, owner, api, o, w, e, testID, actor)
++					exerciseAttackLabRegisteredDispatch(t, ctx, owner, api, o, w, e, testID, actor, true, false)
++					var exact bool
++					if err = owner.QueryRow(ctx, `SELECT d.activation='autonomous' AND d.version=5 AND h.activation=d.activation AND h.definition=d.body AND h.actor_id=$4 AND h.definition_digest=digest(convert_to(d.body::text,'UTF8'),'sha256') FROM zasp_security_agent_definitions d JOIN zasp_security_agent_definition_versions h USING(organization_id,workspace_id,environment_id,definition_id,version) WHERE (d.organization_id,d.workspace_id,d.environment_id,d.definition_id)=($1,$2,$3,'pid_6a000004-0000-4000-8000-000000000004')`, o, w, e, actor).Scan(&exact); err != nil || !exact {
++						t.Fatalf("Attack Lab fixture changed registered definition history: exact=%t err=%v", exact, err)
++					}
++					var run string
++					if err = owner.QueryRow(ctx, `SELECT run_id FROM zasp_sa_attack_lab_links WHERE (organization_id,workspace_id,environment_id)=($1,$2,$3)`, o, w, e).Scan(&run); err != nil {
++						t.Fatal(err)
++					}
++					raw, err := exportRunKind(f, worker, o, w, e, run, "attack-lab-worker", "attack-lab-dispatch-lease")
++					if err != nil || string(raw) != `{"export": false}` {
++						t.Fatalf("durable Attack Lab replay route=%s %v", raw, err)
++					}
++					if _, err = exportRunKind(f, worker, o, w, e, run, "attack-lab-worker", "foreign-attack-lab-lease"); err == nil {
++						t.Fatal("foreign Attack Lab replay routed")
++					}
++					if _, err = owner.Exec(ctx, `UPDATE zasp_security_agent_approvals SET version=version+1 WHERE run_id=$1`, run); err != nil {
++						t.Fatal(err)
++					}
++					if _, err = exportRunKind(f, worker, o, w, e, run, "attack-lab-worker", "attack-lab-dispatch-lease"); err == nil {
++						t.Fatal("changed Attack Lab approval routed")
++					}
++					return
++				}
++				const run = "pid_8e140001-0000-4000-8000-000000000001"
++				const finding = "pid_8e140002-0000-4000-8000-000000000002"
++				const workerID = "export-route-existing-test"
++				const planningLease = "export-route-planning-lease"
++				const dispatchLease = "export-route-dispatch-lease"
++				seedExistingTestPreparation(t, ctx, owner, o, w, e, testID, actor, run, finding, "run_test", workerID, planningLease)
++				if _, err = owner.Exec(ctx, `UPDATE zasp_security_agent_definitions SET activation='autonomous',body=jsonb_set(body,'{autonomy}','"autonomous"') WHERE organization_id=$1;
++ INSERT INTO zasp_security_agent_definition_versions(organization_id,workspace_id,environment_id,definition_id,version,activation,definition,definition_digest,actor_id) SELECT organization_id,workspace_id,environment_id,definition_id,version,activation,body,digest(convert_to(body::text,'UTF8'),'sha256'),$2 FROM zasp_security_agent_definitions WHERE organization_id=$1 ON CONFLICT(organization_id,workspace_id,environment_id,definition_id,version) DO UPDATE SET activation=excluded.activation,definition=excluded.definition,definition_digest=excluded.definition_digest,actor_id=excluded.actor_id;
++ INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by) VALUES($1,$3,$4,'run_test',true,$2) ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO UPDATE SET execution_enabled=true`, pgx.QueryExecModeSimpleProtocol, o, actor, w, e); err != nil {
++					t.Fatal(err)
++				}
++				raw, err := exportRunKind(f, worker, o, w, e, run, workerID, planningLease)
++				if err != nil || string(raw) != `{"export": false}` {
++					t.Fatalf("unplanned existing-test route=%s %v", raw, err)
++				}
++				if err = worker.QueryRow(ctx, existingTestPrepareSQL, o, w, e, run, workerID, planningLease, "pid_8e140003-0000-4000-8000-000000000003", time.Now().UTC().Add(5*time.Minute), "pid_8e140004-0000-4000-8000-000000000004", "pid_8e140005-0000-4000-8000-000000000005").Scan(&raw); err != nil {
++					t.Fatal(err)
++				}
++				if err = worker.QueryRow(ctx, postgresSecurityAgentClaimRunsV24SQL, workerID, dispatchLease, 60, 1).Scan(&raw); err != nil {
++					t.Fatal(err)
++				}
++				raw, err = exportRunKind(f, worker, o, w, e, run, workerID, dispatchLease)
++				if err != nil || string(raw) != `{"export": false}` {
++					t.Fatalf("planned existing-test route=%s %v", raw, err)
++				}
++				execute := func() error {
++					return worker.QueryRow(ctx, `SELECT zasp_production_security_agent_existing_tests_execute_run($1,$2,$3,$4,$5,$6,'pid_8e140006-0000-4000-8000-000000000006','pid_8e140007-0000-4000-8000-000000000007',$7,$8)`, o, w, e, run, workerID, dispatchLease, migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&raw)
++				}
++				if err = execute(); err != nil {
++					t.Fatal(err)
++				}
++				before := existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run)
++				if err = execute(); err == nil {
++					t.Fatal("predecessor unexpectedly permits cleared-lease replay")
++				}
++				if _, err = exportRunKind(f, worker, o, w, e, run, workerID, dispatchLease); err == nil {
++					t.Fatal("route invented existing-test replay authority")
++				}
++				if got := existingTestAcceptanceSnapshot(t, ctx, owner, o, w, e, run); got != before {
++					t.Fatal("refused replay mutated state")
++				}
++			})
++		})
++	}
++}
++
++// The inherited Attack Lab helper starts from an owner-seeded live definition.
++// Release58 routes every unplanned run through its immutable definition version.
++// Publish that version through the registered lifecycle, not a history-table
++// fixture insert that could hide a broken product provenance contract.
++func seedExportRouteAttackLabDefinition(t *testing.T, ctx context.Context, owner, api *pgx.Conn, o, w, e, testID, actor string) {
++	t.Helper()
++	const id = "pid_6a000004-0000-4000-8000-000000000004"
++	body := map[string]any{"name": "Export route Attack Lab predecessor", "trigger_kind": "finding", "trigger_source": "credential", "environment_ids": []string{e}, "autonomy": "supervised", "max_steps": 1, "max_duration_seconds": 300, "temporary_policy_seconds": 600, "ai_token_budget": 1000, "max_ai_cost_nano_credits": 1000000, "concurrency_limit": 1, "allowed_actions": []string{"start_attack_lab"}, "verification_kind": "attack_lab_run", "definition_version": 1, "enabled": false, "existing_test": map[string]any{"definition_id": testID, "definition_version": 1}}
++	intent, err := json.Marshal(map[string]any{"resource_id": "", "expected_version": 0, "body": body})
++	if err != nil {
++		t.Fatal(err)
++	}
++	body["id"] = id
++	payload, err := json.Marshal(body)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var raw json.RawMessage
++	if err = api.QueryRow(ctx, postgresSecurityAgentExistingTestDefinitionMutateSQL, "create", id, o, w, e, actor, "createSecurityAgent", "export-route-attack-lab-create", int64(0), json.RawMessage(intent), json.RawMessage(payload), "pid_8e150001-0000-4000-8000-000000000001", "pid_8e150002-0000-4000-8000-000000000002", "pid_8e150003-0000-4000-8000-000000000003", migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&raw); err != nil {
++		t.Fatalf("registered Attack Lab route definition: %v", err)
++	}
++	var created WorkflowMutationResult
++	if json.Unmarshal(raw, &created) != nil || created.Version != 2 || created.Replayed || !equalIntegrationJSON(created.Body, payload) {
++		t.Fatalf("registered Attack Lab route draft: %s", raw)
++	}
++	if err = api.QueryRow(ctx, postgresExistingTestSetControlSQL, existingTestReadPins([]any{o, w, e, actor, "export-route-attack-lab-control", "action", "start_attack_lab", true, int64(0), time.Now().UTC().Add(time.Minute), "pid_8e150041-0000-4000-8000-000000000001", "pid_8e150042-0000-4000-8000-000000000002", "pid_8e150043-0000-4000-8000-000000000003"})...).Scan(&raw); err != nil {
++		t.Fatalf("registered Attack Lab route execution control: %v", err)
++	}
++	for i, activation := range []string{"validated", "supervised", "autonomous"} {
++		ids := [3][3]string{
++			{"pid_8e150011-0000-4000-8000-000000000001", "pid_8e150012-0000-4000-8000-000000000002", "pid_8e150013-0000-4000-8000-000000000003"},
++			{"pid_8e150021-0000-4000-8000-000000000001", "pid_8e150022-0000-4000-8000-000000000002", "pid_8e150023-0000-4000-8000-000000000003"},
++			{"pid_8e150031-0000-4000-8000-000000000001", "pid_8e150032-0000-4000-8000-000000000002", "pid_8e150033-0000-4000-8000-000000000003"},
++		}[i]
++		if err = api.QueryRow(ctx, existingTestActivateSQL, o, w, e, id, actor, "export-route-attack-lab-"+activation, int64(i+2), activation, time.Now().UTC().Add(time.Minute), ids[0], ids[1], ids[2], migrations.ProductionSecurityAgentExistingTests().Checksum(), migrations.SecurityAgentExistingTestsFingerprint()).Scan(&raw); err != nil {
++			t.Fatalf("registered Attack Lab route activation %s: %v", activation, err)
++		}
++	}
++	var exact bool
++	if err = owner.QueryRow(ctx, `SELECT d.activation='autonomous' AND d.version=5 AND d.body=$5::jsonb||'{"enabled":true,"autonomy":"autonomous"}'::jsonb AND h.activation=d.activation AND h.definition=d.body AND h.actor_id=$4 AND h.definition_digest=digest(convert_to(d.body::text,'UTF8'),'sha256') FROM zasp_security_agent_definitions d JOIN zasp_security_agent_definition_versions h USING(organization_id,workspace_id,environment_id,definition_id,version) WHERE (d.organization_id,d.workspace_id,d.environment_id,d.definition_id)=($1,$2,$3,'pid_6a000004-0000-4000-8000-000000000004')`, o, w, e, actor, json.RawMessage(payload)).Scan(&exact); err != nil || !exact {
++		t.Fatalf("registered Attack Lab route immutable version: exact=%t err=%v", exact, err)
+ 	}
+ }
+diff --git a/services/platform/apiserver/security_agent_attack_lab_postgres_test.go b/services/platform/apiserver/security_agent_attack_lab_postgres_test.go
+--- a/services/platform/apiserver/security_agent_attack_lab_postgres_test.go
++++ b/services/platform/apiserver/security_agent_attack_lab_postgres_test.go
+@@ -289,8 +289,27 @@
+ 		if err != nil || loaded.ExistingTest == nil || loaded.ExistingTest.DefinitionID != testID || len(loaded.AttackLab) == 0 {
+ 			t.Fatalf("real repository source planner bridge: %+v %v", loaded, err)
+ 		}
+-		prepare = func() error {
+-			result, err := repository.AcceptSecurityAgentPlannerCandidate(ctx, claim, workerID, planningLease, SecurityAgentPlannerSubmission{InputDigest: loaded.InputDigest, OutputDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Model: "fixture-model", PolicyVersion: "fixture-policy", Summary: "Reproduce the configured unsafe result", Action: "start_attack_lab", TargetID: testID}, approval, time.Now().UTC().Add(4*time.Minute), "pid_8a100006-0000-4000-8000-000000000006", "pid_8a100007-0000-4000-8000-000000000007")
++		const outputDigest = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
++		const model, policy = "fixture-model", "fixture-policy"
++		exportRelease, err := repository.SecurityAgentExportsAvailable(ctx)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if exportRelease {
++			// Release58 requires settled accounting for predecessor planner output,
++			// too. Exercise the registered path; no owner-seeded budget receipt.
++			reservation := SecurityAgentBudgetReservation{ReservationID: "attack-lab-route-reservation", InputDigest: loaded.InputDigest, Model: model, CostPolicyVersion: policy, CostUnit: "openrouter_credit", MaximumTokens: 100, MaximumCostNanoCredits: 1000}
++			permit, err := repository.ReserveSecurityAgentPlannerBudget(ctx, claim, workerID, planningLease, reservation)
++			if err != nil || permit.Reservation != reservation {
++				t.Fatalf("registered Attack Lab planner reservation: %+v %v", permit, err)
++			}
++			settlement, err := repository.SettleSecurityAgentPlannerBudget(ctx, claim, workerID, planningLease, SecurityAgentBudgetUsage{ReservationID: reservation.ReservationID, OutputDigest: outputDigest, Known: true, PromptTokens: 1, CompletionTokens: 1, TotalTokens: 2, CostNanoCredits: 10})
++			if err != nil || !settlement.Known || settlement.ReservationID != reservation.ReservationID || settlement.StopReason != "" {
++				t.Fatalf("registered Attack Lab planner settlement: %+v %v", settlement, err)
++			}
++		}
++		prepare = func() error {
++			result, err := repository.AcceptSecurityAgentPlannerCandidate(ctx, claim, workerID, planningLease, SecurityAgentPlannerSubmission{InputDigest: loaded.InputDigest, OutputDigest: outputDigest, Model: model, PolicyVersion: policy, Summary: "Reproduce the configured unsafe result", Action: "start_attack_lab", TargetID: testID}, approval, time.Now().UTC().Add(4*time.Minute), "pid_8a100006-0000-4000-8000-000000000006", "pid_8a100007-0000-4000-8000-000000000007")
+ 			if err == nil {
+ 				raw, _ = json.Marshal(result)
+ 			}

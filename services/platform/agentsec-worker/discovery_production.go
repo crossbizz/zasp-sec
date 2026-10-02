@@ -16,11 +16,13 @@ import (
 var discoveryCollectorVersionPattern = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
 
 type discoveryCredentialMaterialRequest struct {
-	Scope      domain.Scope
-	Input      apiserver.ExecutionJobInput
-	WorkerID   string
-	LeaseToken []byte
-	Credential collection.CredentialRequest
+	Scope        domain.Scope
+	Input        apiserver.ExecutionJobInput
+	WorkerID     string
+	LeaseToken   []byte
+	Credential   collection.CredentialRequest
+	Product      *apiserver.DiscoveryCollectionInput
+	CheckCurrent func(context.Context) error
 }
 
 type discoveryCredentialMaterialResolver interface {
@@ -79,13 +81,49 @@ func (factory *productionDiscoveryCollectorFactory) BuildDiscoveryCollector(ctx 
 	return &jobBoundDiscoveryCollector{expected: expected, delegate: delegate, resolver: resolver}, nil
 }
 
+func (factory *productionDiscoveryCollectorFactory) BuildProductDiscoveryCollector(ctx context.Context, scope domain.Scope, input apiserver.DiscoveryCollectionInput, check func(context.Context) error) (discoveryJobCollector, error) {
+	if factory == nil || nilWorkerDependency(factory.providers) || nilWorkerDependency(factory.credentials) || ctx == nil || ctx.Err() != nil || check == nil || !input.Deadline.After(time.Now()) {
+		return nil, errWorkerExecution
+	}
+	expected, err := input.CollectionRequest(scope)
+	if err != nil {
+		return nil, errWorkerExecution
+	}
+	resolver := &jobBoundCredentialResolver{resolver: factory.credentials, request: cloneDiscoveryCredentialMaterialRequest(discoveryCredentialMaterialRequest{Scope: scope, Product: &input, CheckCurrent: check, Credential: credentialRequestForJob(expected)})}
+	seed, present, valid := productDiscoveryResumeSeed(input)
+	if !valid {
+		resolver.Destroy()
+		return nil, errWorkerExecution
+	}
+	var delegate collection.Collector
+	if present {
+		resumed, ok := factory.providers.(interface {
+			BuildCollectionCollectorWithResume(collection.WorkerCredentialResolver, collection.ResumeSeed) (collection.Collector, error)
+		})
+		if !ok {
+			resolver.Destroy()
+			return nil, errWorkerExecution
+		}
+		delegate, err = buildResumeCollectionCollector(resumed, resolver, seed)
+	} else {
+		delegate, err = buildCollectionCollector(factory.providers, resolver)
+	}
+	if err != nil || nilWorkerDependency(delegate) {
+		resolver.Destroy()
+		return nil, errWorkerExecution
+	}
+	return &jobBoundDiscoveryCollector{expected: expected, delegate: delegate, resolver: resolver, productDeadline: input.Deadline, productCheck: check}, nil
+}
+
 type jobBoundDiscoveryCollector struct {
-	mu        sync.Mutex
-	expected  collection.Request
-	delegate  collection.Collector
-	resolver  *jobBoundCredentialResolver
-	used      bool
-	destroyed bool
+	mu              sync.Mutex
+	expected        collection.Request
+	delegate        collection.Collector
+	resolver        *jobBoundCredentialResolver
+	used            bool
+	destroyed       bool
+	productDeadline time.Time
+	productCheck    func(context.Context) error
 }
 
 func (collector *jobBoundDiscoveryCollector) Collect(ctx context.Context, request collection.Request) (collection.Outcome, error) {
@@ -104,8 +142,17 @@ func (collector *jobBoundDiscoveryCollector) Collect(ctx context.Context, reques
 		return nil, collection.ErrContract
 	}
 	delegate := collector.delegate
+	deadline, check := collector.productDeadline, collector.productCheck
 	collector.mu.Unlock()
 	defer collector.Destroy()
+	if request.EffectID != "" {
+		bounded, cancel, err := collection.WithScopedProductEffect(ctx, request.EffectID, request.Scope, deadline, check)
+		if err != nil {
+			return nil, err
+		}
+		defer cancel()
+		ctx = bounded
+	}
 	return callBoundCollectionCollector(delegate, ctx, request)
 }
 
@@ -123,6 +170,7 @@ func (collector *jobBoundDiscoveryCollector) Destroy() {
 	collector.expected = collection.Request{}
 	collector.delegate = nil
 	collector.resolver = nil
+	collector.productCheck = nil
 	collector.mu.Unlock()
 	resolver.Destroy()
 }
@@ -254,9 +302,20 @@ func discoveryResumeSeed(input apiserver.ExecutionJobInput) (collection.ResumeSe
 	return seed, true, true
 }
 
+func productDiscoveryResumeSeed(input apiserver.DiscoveryCollectionInput) (collection.ResumeSeed, bool, bool) {
+	present := input.CheckpointEffectID != "" || input.CheckpointVersion != 0 || len(input.CheckpointDigest) != 0 || input.CheckpointManifestReference != "" || input.CheckpointManifestKey != "" || input.CheckpointManifestVersionID != "" || len(input.CheckpointManifestChecksum) != 0 || input.CheckpointManifestSizeBytes != 0 || input.CheckpointManifestMediaType != "" || input.CheckpointManifestSchemaVersion != ""
+	if !present {
+		return collection.ResumeSeed{}, false, true
+	}
+	if !collection.ValidExecutionIdentity(0, input.CheckpointEffectID) || input.CheckpointVersion < 1 || len(input.CheckpointDigest) != 32 || input.CursorProvider == nil || input.CursorVersion == nil || input.CursorValue == nil {
+		return collection.ResumeSeed{}, true, false
+	}
+	return collection.ResumeSeed{EffectID: input.CheckpointEffectID, CheckpointVersion: input.CheckpointVersion, CheckpointDigest: bytes.Clone(input.CheckpointDigest), Cursor: collection.Cursor{Provider: *input.CursorProvider, Version: *input.CursorVersion, Value: *input.CursorValue}, ManifestReference: input.CheckpointManifestReference, ManifestKey: input.CheckpointManifestKey, ManifestVersionID: input.CheckpointManifestVersionID, ManifestChecksum: bytes.Clone(input.CheckpointManifestChecksum), ManifestSizeBytes: input.CheckpointManifestSizeBytes, ManifestMediaType: input.CheckpointManifestMediaType, ManifestSchema: input.CheckpointManifestSchemaVersion, ParserVersion: input.ParserVersion, ToolVersion: input.ToolVersion}, true, true
+}
+
 func credentialRequestForJob(request collection.Request) collection.CredentialRequest {
 	return collection.CredentialRequest{
-		Scope: request.Scope, IntegrationID: request.IntegrationID, ConnectionID: request.ConnectionID, JobID: request.JobID, Attempt: request.Attempt,
+		Scope: request.Scope, IntegrationID: request.IntegrationID, ConnectionID: request.ConnectionID, JobID: request.JobID, Attempt: request.Attempt, EffectID: request.EffectID,
 		Provider: request.Provider, Class: request.CredentialClass, Reference: request.CredentialReference, ExpectedSubject: request.ExpectedSubject,
 	}
 }
@@ -306,6 +365,25 @@ func callDiscoveryCredentialResolver(resolver discoveryCredentialMaterialResolve
 func cloneDiscoveryCredentialMaterialRequest(request discoveryCredentialMaterialRequest) discoveryCredentialMaterialRequest {
 	request.Input = cloneExecutionJobInput(request.Input)
 	request.LeaseToken = bytes.Clone(request.LeaseToken)
+	if request.Product != nil {
+		input := *request.Product
+		input.Configuration = bytes.Clone(input.Configuration)
+		input.CheckpointDigest = bytes.Clone(input.CheckpointDigest)
+		input.CheckpointManifestChecksum = bytes.Clone(input.CheckpointManifestChecksum)
+		if input.CursorProvider != nil {
+			value := *input.CursorProvider
+			input.CursorProvider = &value
+		}
+		if input.CursorVersion != nil {
+			value := *input.CursorVersion
+			input.CursorVersion = &value
+		}
+		if input.CursorValue != nil {
+			value := *input.CursorValue
+			input.CursorValue = &value
+		}
+		request.Product = &input
+	}
 	return request
 }
 
@@ -317,6 +395,12 @@ func destroyDiscoveryCredentialMaterialRequest(request *discoveryCredentialMater
 	clear(request.Input.Configuration)
 	clear(request.Input.CheckpointDigest)
 	clear(request.Input.CheckpointManifestChecksum)
+	if request.Product != nil {
+		clear(request.Product.Configuration)
+		clear(request.Product.CheckpointDigest)
+		clear(request.Product.CheckpointManifestChecksum)
+		*request.Product = apiserver.DiscoveryCollectionInput{}
+	}
 	*request = discoveryCredentialMaterialRequest{}
 }
 

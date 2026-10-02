@@ -1,0 +1,50 @@
+=== RUN   TestSecurityAgentExportSettlementRejectsMalformedReceipts
+--- PASS: TestSecurityAgentExportSettlementRejectsMalformedReceipts (0.54s)
+=== RUN   TestSecurityAgentExportSettlementResultStates
+=== RUN   TestSecurityAgentExportSettlementResultStates/verifying/export_pending3_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/needs_human/export_available4_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/needs_human/export_failed4_true
+=== RUN   TestSecurityAgentExportSettlementResultStates/cancelled/export_cancelled3_true
+=== RUN   TestSecurityAgentExportSettlementResultStates/needs_human/export_parent_stopped3_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/failed/export_parent_stopped4_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/remediated/export_parent_stopped3_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/running/export_parent_stopped3_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/remediated/export_available4_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/verifying/export_pending3_true
+=== RUN   TestSecurityAgentExportSettlementResultStates/cancelled/export_cancelled2_false
+=== RUN   TestSecurityAgentExportSettlementResultStates/needs_human/export_failed3_false
+--- PASS: TestSecurityAgentExportSettlementResultStates (0.53s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/verifying/export_pending3_false (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/needs_human/export_available4_false (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/needs_human/export_failed4_true (0.05s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/cancelled/export_cancelled3_true (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/needs_human/export_parent_stopped3_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/failed/export_parent_stopped4_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/remediated/export_parent_stopped3_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/running/export_parent_stopped3_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/remediated/export_available4_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/verifying/export_pending3_true (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/cancelled/export_cancelled2_false (0.04s)
+    --- PASS: TestSecurityAgentExportSettlementResultStates/needs_human/export_failed3_false (0.04s)
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/worker
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/token
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/duration
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/limit
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/cancelled
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/scope
+=== RUN   TestSecurityAgentExportSettlementInputsAndProviderErrors/audit
+--- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors (0.13s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/worker (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/token (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/duration (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/limit (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/cancelled (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/scope (0.00s)
+    --- PASS: TestSecurityAgentExportSettlementInputsAndProviderErrors/audit (0.00s)
+=== RUN   TestSecurityAgentExportSettlementClient
+--- PASS: TestSecurityAgentExportSettlementClient (0.17s)
+=== RUN   TestSecurityAgentExportSettlementPostgresUTCTimestamp
+--- PASS: TestSecurityAgentExportSettlementPostgresUTCTimestamp (0.04s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	3.492s

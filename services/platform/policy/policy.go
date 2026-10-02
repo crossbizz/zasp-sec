@@ -37,6 +37,7 @@ type Policy struct {
 	Action      Action      `json:"action"`
 	Rollout     string      `json:"rollout"`
 	FailureMode string      `json:"failure_mode"`
+	Risk        string      `json:"risk,omitempty"`
 }
 type Capabilities struct {
 	Triggers, Fields []string
@@ -44,6 +45,9 @@ type Capabilities struct {
 }
 
 func Validate(value Policy, capabilities Capabilities) error {
+	if !validOptionalRisk(value.Risk) {
+		return ErrRejected
+	}
 	if !bounded(value.ID, 128) || !bounded(value.Name, 256) || value.Scope != "environment" || !contains(capabilities.Triggers, value.Trigger) || !contains(capabilities.Actions, value.Action) || (value.Action != ActionMonitor && value.Action != ActionBlock) || !contains([]string{"draft", "monitor", "enforced", "disabled"}, value.Rollout) || (value.FailureMode != "open" && value.FailureMode != "closed") || len(value.Conditions) == 0 || len(value.Conditions) > 32 {
 		return ErrRejected
 	}
@@ -62,9 +66,13 @@ type CompiledPolicy struct {
 	Digest     string      `json:"digest"`
 	Action     Action      `json:"action"`
 	Conditions []Condition `json:"conditions"`
+	Risk       string      `json:"risk,omitempty"`
 }
 
 func Compile(value Policy) (CompiledPolicy, error) {
+	if !validOptionalRisk(value.Risk) {
+		return CompiledPolicy{}, ErrRejected
+	}
 	if !bounded(value.ID, 128) || !bounded(value.Trigger, 64) || len(value.Conditions) == 0 || (value.Action != ActionMonitor && value.Action != ActionBlock) {
 		return CompiledPolicy{}, ErrRejected
 	}
@@ -79,8 +87,20 @@ func Compile(value Policy) (CompiledPolicy, error) {
 	if err != nil {
 		return CompiledPolicy{}, ErrRejected
 	}
+	return CompiledPolicy{ID: value.ID, Trigger: value.Trigger, Rego: module, Digest: compiledDigest(module, value.Risk), Action: value.Action, Conditions: conditions, Risk: value.Risk}, nil
+}
+
+func validOptionalRisk(value string) bool {
+	return value == "" || value == "low" || value == "medium" || value == "high" || value == "critical"
+}
+
+func compiledDigest(module, risk string) string {
+	// Preserve the original digest exactly when the annotation is absent.
+	if risk != "" {
+		module += "\x00policy-risk-v1\x00" + risk
+	}
 	digest := sha256.Sum256([]byte(module))
-	return CompiledPolicy{ID: value.ID, Trigger: value.Trigger, Rego: module, Digest: hex.EncodeToString(digest[:]), Action: value.Action, Conditions: conditions}, nil
+	return hex.EncodeToString(digest[:])
 }
 
 type Decision struct {
@@ -263,6 +283,9 @@ func equal[T comparable](left, right []T) bool {
 }
 
 func verifyCompiled(value CompiledPolicy) error {
+	if !validOptionalRisk(value.Risk) {
+		return ErrRejected
+	}
 	if !bounded(value.ID, 128) || !bounded(value.Trigger, 64) || len(value.Digest) != 64 || len(value.Conditions) == 0 || (value.Action != ActionMonitor && value.Action != ActionBlock) {
 		return ErrRejected
 	}
@@ -270,8 +293,7 @@ func verifyCompiled(value CompiledPolicy) error {
 	if err != nil || expected != value.Rego {
 		return ErrRejected
 	}
-	digest := sha256.Sum256([]byte(value.Rego))
-	if hex.EncodeToString(digest[:]) != value.Digest {
+	if compiledDigest(value.Rego, value.Risk) != value.Digest {
 		return ErrRejected
 	}
 	return nil

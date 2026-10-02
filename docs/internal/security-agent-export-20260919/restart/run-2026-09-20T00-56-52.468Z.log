@@ -1,0 +1,46 @@
+=== RUN   TestSecurityAgentExportPublicRestartPostgres
+    security_agent_export_public_restart_postgres_test.go:230: public restart compiled/installed58 checksum=5ee183aae4e67f55c6e1ed89b2d020266b3160e0df8e3101ba51faa705f4c985 fingerprint=8ddd2617904003772da27cdf92dd48fcc3714596d773a144f67dc8abf175ca1f
+    security_agent_export_public_restart_postgres_test.go:244: joined  pid=39 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:256: joined  pid=45 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:258: joined  pid=51 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:259: joined  pid=57 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:260: joined  pid=63 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:262: joined A pid=69 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:265: joined  pid=74 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:274: joined  pid=79 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:274: joined  pid=84 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:274: joined  pid=90 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:274: joined  pid=96 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:295: joined  pid=102 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:297: joined  pid=108 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:299: checkpoint A: public setup/manual receipts survive new API processes
+    security_agent_export_public_restart_postgres_test.go:301: joined B pid=114 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:307: joined B-wait pid=123 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:312: joined  pid=132 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:313: joined  pid=137 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:314: checkpoint B: accepted plan retained; exactly one controlled model request and settled reservation
+    security_agent_export_public_restart_postgres_test.go:317: joined C pid=143 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:320: joined  pid=149 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:325: joined D pid=155 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:331: joined D-pending pid=163 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:336: checkpoints C/D: original independent decision, one dispatch, pending settlement no-op
+    security_agent_export_public_restart_postgres_test.go:338: joined E-interrupt pid=171 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:353: joined E-resume pid=179 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:403: checkpoint E: SIGTERM unknown write; real retry deadline; generation2 prepared replay; one immutable object
+    security_agent_export_public_restart_postgres_test.go:409: joined F pid=189 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:417: joined F-held pid=198 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:458: joined G pid=207 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:460: joined G-done pid=216 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:466: checkpoints F/G: dedicated30s lease survives loss, no theft, stale token refused, one runtime settlement
+    security_agent_export_public_restart_postgres_test.go:469: joined  pid=225 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:471: joined  pid=230 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:481: joined  pid=236 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:471: joined  pid=242 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:481: joined H-consume pid=247 exit=86 abrupt_post_commit=true
+    security_agent_export_public_restart_postgres_test.go:481: joined  pid=253 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:471: joined  pid=258 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:481: joined  pid=263 exit=0 abrupt_post_commit=false
+    security_agent_export_public_restart_postgres_test.go:537: checkpoint H: mounted download bytes=1186 sha256=77661ba1278379d0bd4ce48c5fb7b4be9c2fde490438e254a0d7966cfeda6b42; issue/restart and consume/lost-response/fresh-grant recovery
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportPublicRestartPostgres2433294009/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportPublicRestartPostgres (95.79s)
+PASS

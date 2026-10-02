@@ -1,0 +1,7 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services
+Command: ["/usr/bin/env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go","test","./platform/agentsec-api","-run","^(TestAttackLabProductionDecoratorPreservesAdmission|TestAttackLabProductionDecoratorDefaultsCatalogOff)$","-count=1"]
+go: cannot find main module, but found .git/config in /Users/manishmaheshwari/Projects/zasp-sec
+	to create a module there, run:
+	cd ../../.. && go mod init
+
+Exit: 1 Signal: null

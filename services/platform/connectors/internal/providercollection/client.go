@@ -301,7 +301,11 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 		}
 	}
 
-	for pageNumber := seededPages + 1; pageNumber <= request.Bounds.MaxPages; pageNumber++ {
+	lastPage := request.Bounds.MaxPages
+	if request.Bounds.FreshPageLimit > 0 {
+		lastPage = min(lastPage, seededPages+request.Bounds.FreshPageLimit)
+	}
+	for pageNumber := seededPages + 1; pageNumber <= lastPage; pageNumber++ {
 		if remainingItems < 1 || remainingRelationships < 1 {
 			if len(objects) == 0 {
 				return nil, collection.ErrContract
@@ -457,6 +461,12 @@ func (client *Client) CollectWithCredential(ctx context.Context, request collect
 	sort.Slice(objects, func(left, right int) bool {
 		return objects[left].Reference().String() < objects[right].Reference().String()
 	})
+	if request.Bounds.FreshPageLimit > 0 && !complete && len(objects) == seededPages {
+		// No newly collected page means a cumulative budget is exhausted. Do not
+		// mint a new manifest/partial checkpoint that cannot advance its cursor.
+		failure, _ := collection.NewFailure(collection.FailurePartial, time.Time{})
+		return nil, failure
+	}
 	if complete {
 		var resolved bool
 		relationships, resolved = relationshipsResolve(request.Provider, request.ExpectedSubject, relationships, entities, entityObjects)
@@ -1425,6 +1435,7 @@ type manifestDocument struct {
 	ConnectionID     string               `json:"connection_id"`
 	JobID            string               `json:"job_id"`
 	Attempt          int                  `json:"attempt"`
+	EffectID         string               `json:"effect_id,omitempty"`
 	CollectorVersion string               `json:"collector_version"`
 	CursorProvider   collection.Provider  `json:"cursor_provider"`
 	CursorVersion    string               `json:"cursor_version"`
@@ -1477,7 +1488,7 @@ func marshalManifest(request collection.Request, cursor collection.Cursor, objec
 		checksum := object.Checksum()
 		descriptors[index] = manifestDescriptor{Reference: object.Reference().String(), Key: object.Key(), VersionID: object.VersionID(), ObjectReference: object.ObjectReference(), ChecksumHex: hex.EncodeToString(checksum[:]), SizeBytes: object.Size(), MediaType: object.MediaType(), SchemaVersion: object.SchemaVersion()}
 	}
-	return json.Marshal(manifestDocument{Version: manifestSchemaVersion, RequestDigest: hex.EncodeToString(requestDigest[:]), Provider: request.Provider, Subject: manifestSubject{Kind: request.ExpectedSubject.Kind, ID: request.ExpectedSubject.ID}, IntegrationID: request.IntegrationID.String(), ConnectionID: request.ConnectionID.String(), JobID: request.JobID.String(), Attempt: request.Attempt, CollectorVersion: request.CollectorVersion, CursorProvider: cursor.Provider, CursorVersion: cursor.Version, CursorValue: cursor.Value, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Objects: descriptors})
+	return json.Marshal(manifestDocument{Version: manifestSchemaVersion, RequestDigest: hex.EncodeToString(requestDigest[:]), Provider: request.Provider, Subject: manifestSubject{Kind: request.ExpectedSubject.Kind, ID: request.ExpectedSubject.ID}, IntegrationID: request.IntegrationID.String(), ConnectionID: request.ConnectionID.String(), JobID: request.JobID.String(), Attempt: request.Attempt, EffectID: request.EffectID, CollectorVersion: request.CollectorVersion, CursorProvider: cursor.Provider, CursorVersion: cursor.Version, CursorValue: cursor.Value, ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, Objects: descriptors})
 }
 
 func rawObjectFromArtifact(request collection.Request, expected artifactstore.Locator, artifact artifactstore.Artifact, schema string, authority ArtifactAuthority) (collection.RawObject, error) {
@@ -1520,10 +1531,11 @@ func collectionRequestDigest(request collection.Request) ([sha256.Size]byte, err
 		Value    string              `json:"value"`
 	}
 	type digestBounds struct {
-		MaxPages    int   `json:"max_pages"`
-		MaxItems    int   `json:"max_items"`
-		MaxRawBytes int64 `json:"max_raw_bytes"`
-		TimeoutNS   int64 `json:"timeout_ns"`
+		MaxPages       int   `json:"max_pages"`
+		FreshPageLimit int   `json:"fresh_page_limit,omitempty"`
+		MaxItems       int   `json:"max_items"`
+		MaxRawBytes    int64 `json:"max_raw_bytes"`
+		TimeoutNS      int64 `json:"timeout_ns"`
 	}
 	type digestRequest struct {
 		Scope               digestScope                `json:"scope"`
@@ -1531,6 +1543,7 @@ func collectionRequestDigest(request collection.Request) ([sha256.Size]byte, err
 		ConnectionID        string                     `json:"connection_id"`
 		JobID               string                     `json:"job_id"`
 		Attempt             int                        `json:"attempt"`
+		EffectID            string                     `json:"effect_id,omitempty"`
 		Provider            collection.Provider        `json:"provider"`
 		CollectorVersion    string                     `json:"collector_version"`
 		CredentialClass     collection.CredentialClass `json:"credential_class"`
@@ -1548,11 +1561,11 @@ func collectionRequestDigest(request collection.Request) ([sha256.Size]byte, err
 	}
 	encoded, err := json.Marshal(digestRequest{
 		Scope:         digestScope{OrganizationID: request.Scope.OrganizationID().String(), WorkspaceID: request.Scope.WorkspaceID().String(), EnvironmentID: request.Scope.EnvironmentID().String()},
-		IntegrationID: request.IntegrationID.String(), ConnectionID: request.ConnectionID.String(), JobID: request.JobID.String(), Attempt: request.Attempt,
+		IntegrationID: request.IntegrationID.String(), ConnectionID: request.ConnectionID.String(), JobID: request.JobID.String(), Attempt: request.Attempt, EffectID: request.EffectID,
 		Provider: request.Provider, CollectorVersion: request.CollectorVersion, CredentialClass: request.CredentialClass, CredentialReference: request.CredentialReference,
 		ExpectedSubject: request.ExpectedSubject, Cursor: digestCursor{Provider: request.Cursor.Provider, Version: request.Cursor.Version, Value: request.Cursor.Value},
 		ParserVersion: request.ParserVersion, ToolVersion: request.ToolVersion, ObservationTime: observationTime,
-		Bounds: digestBounds{MaxPages: request.Bounds.MaxPages, MaxItems: request.Bounds.MaxItems, MaxRawBytes: request.Bounds.MaxRawBytes, TimeoutNS: int64(request.Bounds.Timeout)},
+		Bounds: digestBounds{MaxPages: request.Bounds.MaxPages, FreshPageLimit: request.Bounds.FreshPageLimit, MaxItems: request.Bounds.MaxItems, MaxRawBytes: request.Bounds.MaxRawBytes, TimeoutNS: int64(request.Bounds.Timeout)},
 	})
 	if err != nil {
 		return [sha256.Size]byte{}, collection.ErrContract

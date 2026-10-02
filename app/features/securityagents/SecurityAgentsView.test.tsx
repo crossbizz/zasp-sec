@@ -1,10 +1,12 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SecurityAction, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentDefinition, SecurityAgentExecutionControls, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentSimulation, SecurityAgentTemplate } from "../../../apps/web/api/generated";
 import { decodeSecurityActionPage, decodeSecurityAgentActivationState, decodeSecurityAgentApprovalPage, decodeSecurityAgentExecutionControlResult, decodeSecurityAgentExecutionControls, decodeSecurityAgentRunDetail, decodeSecurityAgentRunPage, decodeSecurityAgentSimulation, decodeSecurityAgentPage } from "../../../apps/web/api/decoders";
-import { SecurityAgentsView, type SecurityAgentsAPI } from "./SecurityAgentsView";
+import { createSecurityAgentsAPI, SecurityAgentsView, type SecurityAgentsAPI } from "./SecurityAgentsView";
+import { APIProductError, APITransportError, createAPIClient } from "../../../apps/web/api/client";
+import { APIProvider } from "../../api/APIProvider";
 
 const environmentID = "pid_10000003-0000-4000-8000-000000000003";
 const agentID = "pid_40000001-0000-4000-8000-000000000001";
@@ -21,15 +23,388 @@ const temporaryPolicyAction: SecurityAction = { key: "create_temporary_policy", 
 const sessionIsolationAction: SecurityAction = { key: "isolate_session", risk_class: "containment", target_types: ["session"], approval_floor: "operator", reversible: true, verification_kind: "gateway_decision" };
 const connectorRevocationAction: SecurityAction = { key: "revoke_integration_connection", risk_class: "destructive", target_types: ["integration"], approval_floor: "admin", reversible: false, verification_kind: "connection_state" };
 const created: SecurityAgentDefinition = { id: agentID, name: "Bounded response definition", trigger_kind: "finding", trigger_source: "credential", environment_ids: [environmentID], autonomy: "supervised", max_steps: 10, max_duration_seconds: 900, temporary_policy_seconds: 3600, ai_token_budget: 4000, concurrency_limit: 2, allowed_actions: ["update_finding_response"], verification_kind: "finding_state", definition_version: 1, enabled: false };
+const existingTest = { id: evidenceID, name: "Scoped injection test", version: 7, enabled: true, target_id: agentID, target_kind: "agent_endpoint" as const, categories: ["prompt_injection" as const], safety: { environment: "staging" as const, credential_class: "read_only" as const, expected_side_effects: ["bounded evaluation"] }, created_at: "2026-09-16T10:00:00Z", updated_at: "2026-09-16T10:00:00Z" };
+const existingTestTemplate: SecurityAgentTemplate = { ...template, name: "Re-test finding", default_actions: ["rerun_test"], verification_condition: "test_run" };
+const existingTestAction: SecurityAction = { key: "rerun_test", risk_class: "moderate", target_types: ["test"], approval_floor: "operator", reversible: false, verification_kind: "test_run" };
+const exportAction: SecurityAction = { key: "create_evidence_export", risk_class: "low", target_types: ["evidence"], approval_floor: "none", reversible: true, verification_kind: "export" };
+
+it("retains lost cleanup requests and locks drawer navigation until reconciliation", async () => {
+  const requests: unknown[] = [];
+  const api = fixtureAPI({
+    getSecurityAgentRun: async () => ({ ...runDetail, run_context: { trigger: { kind: "finding", id: evidenceID, version: 1 }, rationale: null } }),
+    recovery: {
+      get: async () => ({ run_id: runID, parent_version: run.version, status: "not_requested", reason: "not_requested", request_identity: { definition_version: 1, input_digest: "a".repeat(64) }, command: null, accepted_at: null, completion: null }),
+      request: async (intent, attempt) => { requests.push({ intent, attempt }); throw new APITransportError("timeout", "response lost"); },
+    },
+  });
+  const onNavigate = vi.fn();
+  render(<APIProvider client={relationClient([])}><SecurityAgentsView api={api} initialRunID={runID} activityScope={relationScope} activityPermissions={relationPermissions} onNavigate={onNavigate} canWrite /></APIProvider>);
+  await userEvent.click(await screen.findByRole("checkbox", { name: /original workflow history/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Request cleanup recovery" }));
+  await screen.findByRole("button", { name: "Retry retained cleanup request" });
+  expect(screen.getByRole("button", { name: "Open trigger record" })).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "Open trigger record" }));
+  expect(onNavigate).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Retry retained cleanup request" }));
+  await waitFor(() => expect(requests).toHaveLength(2));
+  expect(requests[1]).toEqual(requests[0]);
+});
+
+it("submits configured trigger rules through the real public client", async () => {
+  const requests: unknown[] = [];
+  const actual = createSecurityAgentsAPI(createAPIClient({ fetch: async request => {
+    const body = await request.json() as Record<string, unknown>; requests.push(body);
+    return Response.json({ ...body, id: agentID }, { headers: { ETag: '"1"', "X-Audit-ID": auditID, "X-Mutation-Receipt-ID": receiptID } });
+  } }));
+  render(<SecurityAgentsView api={fixtureAPI({ createSecurityAgent: actual.createSecurityAgent })} environmentID={environmentID} />);
+  await userEvent.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+  await userEvent.selectOptions(screen.getByLabelText("Trigger mode"), "automatic");
+  await userEvent.clear(screen.getByLabelText("Finding family"));
+  await userEvent.type(screen.getByLabelText("Finding family"), "credential");
+  await userEvent.selectOptions(screen.getByLabelText("Minimum finding severity"), "high");
+  await userEvent.clear(screen.getByLabelText("Trigger cooldown seconds"));
+  await userEvent.type(screen.getByLabelText("Trigger cooldown seconds"), "600");
+  await userEvent.click(screen.getByRole("button", { name: "Save Security Agent definition" }));
+  await screen.findByRole("button", { name: "Open Bounded response definition" });
+  expect(requests).toHaveLength(1);
+  expect(requests[0]).toMatchObject({ trigger_kind: "finding", trigger_source: "credential", enabled: false, trigger_rules: { version: 1, mode: "automatic", cooldown_seconds: 600, finding: { family: "credential", minimum_severity: "high" } } });
+});
+
+it("edits trigger rules as a disabled draft through the public client", async () => {
+  const configured: SecurityAgentDefinition = { ...created, enabled: true, max_ai_cost_nano_credits: 1000, trigger_rules: { mode: "automatic", finding: { family: "credential", minimum_severity: "high" }, version: 1, cooldown_seconds: 600 } };
+  const requests: unknown[] = [];
+  const actual = createSecurityAgentsAPI(createAPIClient({ fetch: async request => {
+    expect(request.method).toBe("PATCH");
+    expect(request.headers.get("If-Match")).toBe('"3"');
+    const body = await request.json() as Record<string, unknown>; requests.push(body);
+    return Response.json(body, { headers: { ETag: '"4"', "X-Audit-ID": auditID, "X-Mutation-Receipt-ID": receiptID } });
+  } }));
+  render(<SecurityAgentsView api={fixtureAPI({ listSecurityAgents: async () => ({ items: [configured], page_info: { next_cursor: null, has_more: false } }), getSecurityAgent: async () => ({ value: configured, version: '"3"' }), getSecurityAgentActivation: async () => ({ id: agentID, activation: "supervised", enabled: true, version: 3 }), updateSecurityAgent: actual.updateSecurityAgent })} environmentID={environmentID} fresh />);
+  await userEvent.click(await screen.findByRole("button", { name: `Open ${created.name}` }));
+  expect(await screen.findByLabelText("Minimum finding severity")).toHaveValue("high");
+  expect(screen.getByLabelText("Trigger cooldown seconds")).toHaveValue(600);
+  expect(screen.getByRole("button", { name: "Enable autonomous execution" })).toBeEnabled();
+  await userEvent.selectOptions(screen.getByLabelText("Trigger mode"), "manual");
+  expect(screen.getByRole("button", { name: "Enable autonomous execution" })).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "Save as disabled draft" }));
+  await waitFor(() => expect(requests).toHaveLength(1));
+  expect(requests[0]).toMatchObject({ enabled: false, trigger_source: "credential", trigger_rules: { version: 1, mode: "manual" } });
+});
+
+it("creates a catalog-backed export-only draft through the public client and retains lost-response intent", async () => {
+  const requests: { body: unknown; key: string | null }[] = [];
+  const actual = createSecurityAgentsAPI(createAPIClient({ fetch: async request => {
+    expect(new URL(request.url).pathname).toBe("/api/v1/security-agents");
+    expect(request.method).toBe("POST");
+    const body = await request.json() as Parameters<SecurityAgentsAPI["createSecurityAgent"]>[0];
+    requests.push({ body, key: request.headers.get("Idempotency-Key") });
+    if (requests.length <= 2) throw new TypeError("Controlled lost response");
+    return Response.json({ ...body, id: agentID }, { headers: { ETag: '"1"', "X-Audit-ID": auditID, "X-Mutation-Receipt-ID": receiptID } });
+  } }));
+  const composite = { ...template, name: "Composite export must remain absent", default_actions: ["update_finding_response", "create_evidence_export"] };
+  render(<SecurityAgentsView api={fixtureAPI({ listSecurityAgentTemplates: async () => [composite], listSecurityActions: async () => [exportAction], createSecurityAgent: actual.createSecurityAgent })} environmentID={environmentID} />);
+  await userEvent.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+  expect(screen.queryByRole("option", { name: composite.name })).not.toBeInTheDocument();
+  await userEvent.selectOptions(screen.getByLabelText("Definition template"), "export-only");
+  expect(screen.getByLabelText("Step limit")).toHaveValue(1);
+  expect(screen.getByLabelText("Step limit")).toBeDisabled();
+  expect(screen.queryByLabelText("Existing test definition")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeDisabled();
+  expect(requests).toHaveLength(0);
+  expect(screen.queryByText(/Leave blank to save a draft/)).not.toBeInTheDocument();
+  const budget = screen.getByLabelText("AI cost budget (nano OpenRouter credits)");
+  for (const invalid of ["0", "1000000000001", "1.5"]) {
+    await userEvent.clear(budget); await userEvent.type(budget, invalid);
+    expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeDisabled();
+  }
+  await userEvent.clear(budget); await userEvent.type(budget, "1000000");
+  await userEvent.click(screen.getByRole("button", { name: "Save Security Agent definition" }));
+  const retry = await screen.findByRole("button", { name: "Retry retained Security Agent definition" });
+  expect(budget).toBeDisabled();
+  await userEvent.click(retry);
+  await screen.findByRole("button", { name: "Open Bounded response definition" });
+  expect(requests).toHaveLength(3);
+  expect(requests[0]).toEqual({ body: { name: "Bounded response definition", trigger_kind: "finding", trigger_source: "credential", environment_ids: [environmentID], autonomy: "supervised", max_steps: 1, max_duration_seconds: 900, temporary_policy_seconds: 3600, ai_token_budget: 4000, max_ai_cost_nano_credits: 1000000, concurrency_limit: 2, allowed_actions: ["create_evidence_export"], verification_kind: "export", definition_version: 1, enabled: false }, key: expect.stringMatching(/^wf_/) });
+  expect(requests[1]).toEqual(requests[0]); expect(requests[2]).toEqual(requests[0]);
+});
+
+it.each([false, true])("preserves blank non-export budgets and requires bounded export update cost: export=%s", async exportOnly => {
+  const value = { ...created, max_ai_cost_nano_credits: 1000, ...(exportOnly ? { allowed_actions: ["create_evidence_export"], verification_kind: "export", max_steps: 1 } : {}) };
+  const requests: { body: unknown; key: string | null; version: string | null }[] = [];
+  const actual = createSecurityAgentsAPI(createAPIClient({ fetch: async request => {
+    expect(new URL(request.url).pathname).toBe(`/api/v1/security-agents/${agentID}`);
+    expect(request.method).toBe("PATCH");
+    const body = await request.json();
+    requests.push({ body, key: request.headers.get("Idempotency-Key"), version: request.headers.get("If-Match") });
+    if (requests.length <= 2) throw new TypeError("Controlled lost update response");
+    return Response.json(body, { headers: { ETag: '"2"', "X-Audit-ID": auditID, "X-Mutation-Receipt-ID": receiptID } });
+  } }));
+  const api = fixtureAPI({ getSecurityAgent: async () => ({ value, version: '"1"' }), getSecurityAgentActivation: async () => ({ ...draftActivation, version: 1 }), updateSecurityAgent: actual.updateSecurityAgent });
+  render(<SecurityAgentsView api={api} environmentID={environmentID} initialSnapshot={{ agents: [value], templates: [], actions: [exportOnly ? exportAction : action] }} autoLoad={false} />);
+  await userEvent.click(screen.getByRole("button", { name: `Open ${value.name}` }));
+  const budget = await screen.findByLabelText("AI cost budget (nano OpenRouter credits)");
+  await userEvent.clear(budget);
+  const save = screen.getByRole("button", { name: "Save definition" });
+  if (exportOnly) {
+    expect(save).toBeDisabled();
+    for (const invalid of ["0", "1000000000001", "1.5"]) {
+      await userEvent.clear(budget); await userEvent.type(budget, invalid);
+      expect(save).toBeDisabled();
+    }
+    expect(requests).toHaveLength(0);
+    await userEvent.clear(budget); await userEvent.type(budget, "1000000");
+  }
+  expect(save).toBeEnabled();
+  await userEvent.click(save);
+  const retry = await screen.findByRole("button", { name: "Retry retained definition operation" });
+  expect(budget).toBeDisabled();
+  await userEvent.click(retry);
+  await screen.findByRole("button", { name: "Save definition" });
+  expect(requests).toHaveLength(3);
+  expect(requests[0]).toEqual({ body: exportOnly ? { ...value, max_ai_cost_nano_credits: 1000000 } : created, key: expect.stringMatching(/^wf_/), version: '"1"' });
+  expect(requests[1]).toEqual(requests[0]); expect(requests[2]).toEqual(requests[0]);
+});
+
+it.each([[], [{ ...exportAction, verification_kind: "finding_state" }], [{ ...exportAction, target_types: ["finding"] }], [{ ...exportAction, approval_floor: "operator" as const }], [{ ...exportAction, reversible: false }], [{ ...exportAction, risk_class: "moderate" as const }]].map(actions => ({ actions })))("withholds native export creation without exact catalog metadata $actions", async ({ actions }) => {
+  render(<SecurityAgentsView api={fixtureAPI({ listSecurityAgentTemplates: async () => [], listSecurityActions: async () => actions })} environmentID={environmentID} />);
+  await userEvent.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+  expect(screen.queryByRole("option", { name: "Run-scoped evidence export" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeDisabled();
+});
+
+it("requires the exact test version for a catalog-ready Attack Lab draft", async () => {
+  const user = userEvent.setup();
+  const attackTemplate = { ...existingTestTemplate, name: "Reproduce in Attack Lab", default_actions: ["start_attack_lab"], verification_condition: "attack_lab_run" };
+  const attackAction = { ...existingTestAction, key: "start_attack_lab", verification_kind: "attack_lab_run" };
+  let saved: unknown;
+  const api = fixtureAPI({ listSecurityAgentTemplates: async () => [attackTemplate], listSecurityActions: async () => [attackAction], listExistingTests: async () => [existingTest], createSecurityAgent: async value => { saved = value; return { value: { ...value, id: agentID }, version: '"1"', auditID, receiptID }; } });
+  render(<SecurityAgentsView api={api} environmentID={environmentID} canReadTests />);
+  await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+  expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeDisabled();
+  await user.selectOptions(await screen.findByLabelText("Existing test definition"), evidenceID);
+  await user.click(screen.getByRole("button", { name: "Save Security Agent definition" }));
+  await waitFor(() => expect(saved).toMatchObject({ allowed_actions: ["start_attack_lab"], verification_kind: "attack_lab_run", existing_test: { definition_id: evidenceID, definition_version: 7 }, enabled: false }));
+});
 const draftActivation: SecurityAgentActivationState = { id: agentID, activation: "draft", enabled: false, version: 7 };
 const simulation: SecurityAgentSimulation = { run_id: "pid_40000008-0000-4000-8000-000000000008", definition_id: agentID, definition_version: 3, plan_hash: `sha256:${"b".repeat(64)}`, catalog_version: "security-agent-actions-v1", expires_at: expiresAt, matched_evidence_ids: [evidenceID], summary: "Planned one finding response", steps: [{ index: 0, action: "update_finding_response", authorization: "approval_required", approval_required: true }], side_effects: 0, version: 1 };
 const run: SecurityAgentRun = { id: runID, agent_id: agentID, state: "waiting_approval", evidence_ids: [evidenceID], definition_version: 1, version: 4 };
+
+it("uses public export update and activation with fresh auth, exact versions and draft reset", async () => {
+  const exported = { ...created, allowed_actions: ["create_evidence_export"], verification_kind: "export", max_steps: 1, max_ai_cost_nano_credits: 1000 };
+  const requests: { path: string; method: string; body: unknown; version: string | null; fresh: string | null }[] = [];
+  const actual = createSecurityAgentsAPI(createAPIClient({ fetch: async request => {
+    const path = new URL(request.url).pathname;
+    const body = await request.json() as Record<string, unknown>;
+    requests.push({ path, method: request.method, body, version: request.headers.get("If-Match"), fresh: request.headers.get("X-Zasp-Fresh-Auth") });
+    expect(request.headers.get("Idempotency-Key")).toMatch(/^wf_/);
+    const version = Number(request.headers.get("If-Match")?.replaceAll('"', "")) + 1;
+    const value = request.method === "PATCH" ? body : { id: agentID, activation: body.activation, enabled: body.activation === "supervised", version };
+    return Response.json(value, { headers: { "Cache-Control": "no-store", ETag: '"' + version + '"', "X-Audit-ID": auditID, "X-Mutation-Receipt-ID": receiptID } });
+  } }));
+  const api = fixtureAPI({ getSecurityAgent: async () => ({ value: exported, version: '"1"' }), getSecurityAgentActivation: async () => ({ ...draftActivation, version: 1 }), activateSecurityAgent: actual.activateSecurityAgent, updateSecurityAgent: actual.updateSecurityAgent });
+  const initialSnapshot = { agents: [exported], templates: [], actions: [exportAction] };
+  const view = render(<SecurityAgentsView api={api} environmentID={environmentID} initialSnapshot={initialSnapshot} autoLoad={false} />);
+  await userEvent.click(screen.getByRole("button", { name: `Open ${exported.name}` }));
+  await screen.findByRole("button", { name: "Reauthenticate to activate" });
+  expect(requests).toHaveLength(0);
+  view.rerender(<SecurityAgentsView api={api} environmentID={environmentID} initialSnapshot={initialSnapshot} autoLoad={false} fresh />);
+  await userEvent.click(screen.getByRole("button", { name: "Validate definition" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Enable supervised execution" }));
+  await screen.findByRole("button", { name: "Start supervised run" });
+  await userEvent.click(screen.getByRole("button", { name: "Save as disabled draft" }));
+  await screen.findByRole("button", { name: "Validate definition" });
+  expect(screen.queryByRole("button", { name: "Start supervised run" })).not.toBeInTheDocument();
+  expect(screen.getByLabelText("Definition enabled")).not.toBeChecked();
+  expect(requests).toEqual([
+    { path: `/api/v1/security-agents/${agentID}/activation`, method: "POST", body: { activation: "validated" }, version: '"1"', fresh: "confirmed" },
+    { path: `/api/v1/security-agents/${agentID}/activation`, method: "POST", body: { activation: "supervised" }, version: '"2"', fresh: "confirmed" },
+    { path: `/api/v1/security-agents/${agentID}`, method: "PATCH", body: exported, version: '"3"', fresh: null },
+  ]);
+});
+
+it("withdraws manual export start when workflow permission is lost", async () => {
+  const exported = { ...created, allowed_actions: ["create_evidence_export"], verification_kind: "export", max_steps: 1, enabled: true, max_ai_cost_nano_credits: 1000 };
+  let starts = 0;
+  const api = fixtureAPI({ getSecurityAgent: async () => ({ value: exported, version: '"3"' }), getSecurityAgentActivation: async () => ({ id: agentID, activation: "supervised", enabled: true, version: 3 }), runSecurityAgent: async () => { starts++; throw new Error("Must not start after authority withdrawal"); } });
+  const initialSnapshot = { agents: [exported], templates: [], actions: [exportAction] };
+  const view = render(<SecurityAgentsView api={api} environmentID={environmentID} initialSnapshot={initialSnapshot} autoLoad={false} />);
+  await userEvent.click(screen.getByRole("button", { name: `Open ${exported.name}` }));
+  expect(await screen.findByRole("button", { name: "Start supervised run" })).toBeEnabled();
+  view.rerender(<SecurityAgentsView api={api} environmentID={environmentID} initialSnapshot={initialSnapshot} autoLoad={false} canWrite={false} />);
+  expect(screen.getByRole("button", { name: "Start supervised run" })).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "Start supervised run" }));
+  expect(starts).toBe(0);
+});
+
+it("retains export activation after response loss and waits for renewed fresh authentication", async () => {
+  const exported = { ...created, allowed_actions: ["create_evidence_export"], verification_kind: "export", max_steps: 1, max_ai_cost_nano_credits: 1000 };
+  const requests: { body: unknown; key: string | null; version: string | null }[] = [];
+  const actual = createSecurityAgentsAPI(createAPIClient({ fetch: async request => {
+    requests.push({ body: await request.json(), key: request.headers.get("Idempotency-Key"), version: request.headers.get("If-Match") });
+    expect(new URL(request.url).pathname).toBe(`/api/v1/security-agents/${agentID}/activation`);
+    expect(request.headers.get("X-Zasp-Fresh-Auth")).toBe("confirmed");
+    if (requests.length <= 2) throw new TypeError("Controlled lost response");
+    return Response.json({ id: agentID, activation: "validated", enabled: false, version: 2 }, { headers: { "Cache-Control": "no-store", ETag: '"2"', "X-Audit-ID": auditID, "X-Mutation-Receipt-ID": receiptID } });
+  } }));
+  const api = fixtureAPI({ getSecurityAgent: async () => ({ value: exported, version: '"1"' }), getSecurityAgentActivation: async () => ({ ...draftActivation, version: 1 }), activateSecurityAgent: actual.activateSecurityAgent });
+  const initialSnapshot = { agents: [exported], templates: [], actions: [exportAction] };
+  const view = render(<SecurityAgentsView api={api} environmentID={environmentID} initialSnapshot={initialSnapshot} autoLoad={false} fresh />);
+  await userEvent.click(screen.getByRole("button", { name: `Open ${exported.name}` }));
+  await userEvent.click(await screen.findByRole("button", { name: "Validate definition" }));
+  await screen.findByRole("button", { name: "Retry retained activation" });
+  view.rerender(<SecurityAgentsView api={api} environmentID={environmentID} initialSnapshot={initialSnapshot} autoLoad={false} fresh={false} />);
+  expect(screen.queryByRole("button", { name: "Retry retained activation" })).not.toBeInTheDocument();
+  expect(requests).toHaveLength(2);
+  view.rerender(<SecurityAgentsView api={api} environmentID={environmentID} initialSnapshot={initialSnapshot} autoLoad={false} fresh />);
+  expect(screen.getByRole("button", { name: "Retry retained activation" })).toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "Retry retained activation" }));
+  await screen.findByRole("button", { name: "Enable supervised execution" });
+  expect(requests).toHaveLength(3);
+  expect(requests[0]).toEqual({ body: { activation: "validated" }, key: expect.stringMatching(/^wf_/), version: '"1"' });
+  expect(requests[1]).toEqual(requests[0]); expect(requests[2]).toEqual(requests[0]);
+});
+
+it("retains export control intent across fresh-auth withdrawal and safe disabling", async () => {
+  const keys = ["create_evidence_export", "create_temporary_policy", "isolate_session", "rerun_test", "revoke_integration_connection", "run_test", "start_attack_lab", "update_finding_response"] as const;
+  const value = decodeSecurityAgentExecutionControls({ global: { target: "global", action_key: "*", enabled: false, version: 1 }, environment: { target: "environment", action_key: "*", enabled: false, version: 1 }, actions: keys.map(action_key => ({ target: "action", action_key, enabled: action_key === "create_evidence_export", version: 1 })) });
+  const requests: { body: unknown; key: string | null; version: string | null }[] = [];
+  const actual = createSecurityAgentsAPI(createAPIClient({ fetch: async request => {
+    requests.push({ body: await request.json(), key: request.headers.get("Idempotency-Key"), version: request.headers.get("If-Match") });
+    expect(new URL(request.url).pathname).toBe("/api/v1/security-agent-execution-controls");
+    expect(request.headers.get("X-Zasp-Fresh-Auth")).toBe("confirmed");
+    if (requests.length <= 2) throw new TypeError("Controlled lost response");
+    return Response.json({ target: "action", action_key: "create_evidence_export", enabled: false, version: 2, audit_id: auditID, correlation_id: "pid_40000009-0000-4000-8000-000000000009", receipt_id: receiptID, replayed: true }, { headers: { "Cache-Control": "no-store", ETag: '"2"', "X-Audit-ID": auditID, "X-Mutation-Receipt-ID": receiptID } });
+  } }));
+  const api = fixtureAPI({ setSecurityAgentExecutionControl: actual.setSecurityAgentExecutionControl });
+  const initialSnapshot = { agents: [], templates: [], controls: value };
+  const view = render(<SecurityAgentsView api={api} environmentID={environmentID} initialSnapshot={initialSnapshot} autoLoad={false} fresh canManageControls />);
+  await userEvent.click(screen.getByRole("button", { name: "Disable create_evidence_export" }));
+  await screen.findByRole("button", { name: "Retry retained create_evidence_export control" });
+  view.rerender(<SecurityAgentsView api={api} environmentID={environmentID} initialSnapshot={initialSnapshot} autoLoad={false} fresh={false} canManageControls />);
+  expect(screen.queryByRole("button", { name: "Retry retained create_evidence_export control" })).not.toBeInTheDocument();
+  expect(requests).toHaveLength(2);
+  view.rerender(<SecurityAgentsView api={api} environmentID={environmentID} initialSnapshot={initialSnapshot} autoLoad={false} fresh canManageControls />);
+  await userEvent.click(screen.getByRole("button", { name: "Retry retained create_evidence_export control" }));
+  await screen.findByText("create_evidence_export disabled");
+  expect(requests).toHaveLength(3);
+  expect(requests[0]).toEqual({ body: { target: "action", action_key: "create_evidence_export", enabled: false }, key: expect.stringMatching(/^wf_/), version: '"1"' });
+  expect(requests[1]).toEqual(requests[0]); expect(requests[2]).toEqual(requests[0]);
+});
+
+it.each([false, true])("starts an export without a source and retains manual intent after lost reply=%s", async lostReply => {
+  const manual_trigger = { kind: "manual" as const, intent_digest: `sha256:${"a".repeat(64)}`, version: 1 };
+  const accepted = { ...run, state: "queued" as const, version: 1, evidence_ids: [], manual_trigger };
+  const requests: { body: unknown; key: string | null }[] = [];
+  const actual = createSecurityAgentsAPI(createAPIClient({ fetch: async request => {
+    expect(new URL(request.url).pathname).toBe(`/api/v1/security-agents/${agentID}/runs`);
+    requests.push({ body: await request.json(), key: request.headers.get("Idempotency-Key") });
+    if (lostReply && requests.length <= 2) throw new TypeError("Controlled lost reply");
+    return Response.json(accepted, { status: 202, headers: { "Cache-Control": "no-store", ETag: '"1"', "X-Audit-ID": auditID, "X-Mutation-Receipt-ID": receiptID } });
+  } }));
+  const api = fixtureAPI({
+    listSecurityAgents: async () => ({ items: [created], page_info: { has_more: false, next_cursor: null } }),
+    getSecurityAgent: async () => ({ value: { ...created, allowed_actions: ["create_evidence_export"], verification_kind: "export", max_steps: 1, enabled: true, max_ai_cost_nano_credits: 1000 }, version: '"1"' }),
+    getSecurityAgentActivation: async () => ({ id: agentID, activation: "supervised", enabled: true, version: 1 }),
+    runSecurityAgent: actual.runSecurityAgent,
+    getSecurityAgentRun: async () => ({ ...runDetail, run: accepted, evidence_ids: [], approvals: [] }),
+  });
+  render(<SecurityAgentsView api={api} environmentID={environmentID} />);
+  await userEvent.click(await screen.findByRole("button", { name: `Open ${created.name}` }));
+  const start = await screen.findByRole("button", { name: "Start supervised run" });
+  expect(start).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Simulate plan" })).toBeDisabled();
+  await userEvent.click(start);
+  if (lostReply) {
+    const retry = await screen.findByRole("button", { name: "Retry retained manual run" });
+    expect(screen.getByLabelText("Evidence ID")).toBeDisabled();
+    await userEvent.click(retry);
+  }
+  await waitFor(() => expect(requests).toHaveLength(lostReply ? 3 : 1));
+  expect(requests[0]).toEqual({ body: { environment_id: environmentID }, key: expect.stringMatching(/^wf_/) });
+  if (lostReply) { expect(requests[1]).toEqual(requests[0]); expect(requests[2]).toEqual(requests[0]); }
+  await userEvent.click(screen.getByRole("button", { name: "Close" }));
+  await userEvent.click(await screen.findByRole("button", { name: `Open run ${runID}` }));
+  expect(await screen.findByText(`Manual intent: ${manual_trigger.intent_digest} · version 1`)).toBeInTheDocument();
+});
+
+it.each(["manual", "missing provenance", "wrong manual version", "explicit mismatch"])("binds manual-start client response: %s", async variant => {
+  const manual_trigger = { kind: "manual" as const, intent_digest: `sha256:${"a".repeat(64)}`, version: variant === "wrong manual version" ? 2 : 1 };
+  const value = variant === "missing provenance" ? run : { ...run, evidence_ids: [], manual_trigger };
+  const api = createSecurityAgentsAPI(createAPIClient({ fetch: async () => Response.json(value, { status: 202, headers: { "Cache-Control": "no-store", ETag: '"4"', "X-Audit-ID": auditID, "X-Mutation-Receipt-ID": receiptID } }) }));
+  const body = variant === "explicit mismatch" ? { environment_id: environmentID, trigger_kind: "finding" as const, trigger_id: evidenceID } : { environment_id: environmentID };
+  const promise = api.runSecurityAgent(agentID, 1, body);
+  if (variant === "manual") expect((await promise).value).toEqual(value);
+  else await expect(promise).rejects.toThrow();
+});
 const approval: SecurityAgentApproval = { id: approvalID, run_id: runID, step_id: stepID, state: "pending", expires_at: expiresAt, version: 1, expected_effect: "Move finding to under review", reversible: true, ttl_seconds: 0, evidence_summary: [evidenceID] };
 const runDetail: SecurityAgentRunDetail = { run, evidence_ids: [evidenceID], plan: { plan_hash: `sha256:${"a".repeat(64)}`, catalog_version: "security-agent-actions-v1", expires_at: expiresAt, steps: [{ id: stepID, index: 0, action: "update_finding_response", authorization: "approval_required", state: "waiting_approval", version: 1 }] }, authorization: "approval_required", approvals: [approval], execution: [{ step_id: stepID, action: "update_finding_response", state: "waiting_approval", version: 1 }], verification: "not_started" };
+
+it("shows manual run intent without inventing a ProductID link", async () => {
+  const manual_trigger = { kind: "manual", intent_digest: `sha256:${"a".repeat(64)}`, version: 7 };
+  const value = decodeSecurityAgentRunDetail({ run: { ...run, state: "planning", evidence_ids: [], manual_trigger }, evidence_ids: [], plan: null, authorization: "not_planned", approvals: [], execution: [], verification: "not_started" });
+  render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentRun: async () => value })} initialRunID={runID} canWrite={false} />);
+  const intent = await screen.findByText(`Manual intent: ${manual_trigger.intent_digest} · version 7`);
+  expect(intent.closest("a")).toBeNull();
+});
+
+it("shows manual intent on an approval before a decision", async () => {
+  const manual_trigger = { kind: "manual" as const, intent_digest: `sha256:${"b".repeat(64)}`, version: 4 };
+  const value: SecurityAgentApproval = { ...approval, evidence_summary: [], manual_trigger, expected_effect: "Create run-scoped evidence export" };
+  render(<SecurityAgentsView api={fixtureAPI()} autoLoad={false} initialSnapshot={{ agents: [], templates: [], approvals: [value] }} canWrite={false} />);
+  expect(await screen.findByText(`Manual intent: ${manual_trigger.intent_digest} · version 4`)).toBeInTheDocument();
+});
+
+it("mounts real export status for the original run and export step", async () => {
+  const requests: string[] = [];
+  const client = createAPIClient({ fetch: async request => {
+    requests.push(new URL(request.url).pathname);
+    return Response.json({ export_id: evidenceID, state: "pending", phase: "queued", failure_code: null, created_at: "2026-09-19T00:00:00Z", retrieval_expires_at: "2099-01-01T00:00:00Z", mapping_revision: "security-agent-run-evidence-v1", snapshot_at: null, cleanup_state: "retained", selection: [{ source_kind: "finding", source_id: evidenceID, source_version: 7, association_digest: `sha256:${"a".repeat(64)}` }], artifact: null });
+  } });
+  const actual = createSecurityAgentsAPI(client);
+  const detail: SecurityAgentRunDetail = { ...runDetail, execution: [{ step_id: stepID, action: "create_evidence_export", state: "executing", version: 1 }] };
+  render(<SecurityAgentsView api={fixtureAPI({ exports: actual.exports, getSecurityAgentRun: async () => detail })} initialRunID={runID} canWrite={false} />);
+  expect(await screen.findByText("Export queued")).toBeInTheDocument();
+  expect(requests).toEqual([`/api/v1/security-agent-runs/${runID}/steps/${stepID}/export`]);
+});
 const controls: SecurityAgentExecutionControls = { global: { target: "global", action_key: "*", enabled: true, version: 1 }, environment: { target: "environment", action_key: "*", enabled: false, version: 0 }, actions: [{ target: "action", action_key: "create_temporary_policy", enabled: false, version: 0 }, { target: "action", action_key: "isolate_session", enabled: false, version: 0 }, { target: "action", action_key: "revoke_integration_connection", enabled: false, version: 0 }, { target: "action", action_key: "update_finding_response", enabled: false, version: 0 }] };
+
+it("allows a fresh workflow operator to approve an exact Attack Lab snapshot without identity administration", async()=>{
+  const value:SecurityAgentApproval={...approval,reversible:false,expected_effect:"Run a bounded Attack Lab reproduction; human interpretation required",attack_lab:{source_run_id:runID,source_attempt:1,definition_id:evidenceID,definition_version:1,target_id:agentID,target_kind:"agent_endpoint",environment:"staging",credential_class:"read_only",destination:"canary.example.test",decision_expires_at:expiresAt,limits:{cpu:"500m",memory:"1Gi",ephemeral_storage:"2Gi",timeout_seconds:300},expected_side_effects:["Bounded canary call"]},approval_context:{agent_id:agentID,action:"start_attack_lab",target_id:evidenceID,plan_hash:`sha256:${"a".repeat(64)}`,catalog_version:"security-agent-actions-v1",requester:{state:"available",id:agentID},reason:{code:"operator_approval_required",source:"persisted_step"},risk:{class:"moderate",source:"action_catalog"},rationale:null}};
+  let decision:string|undefined;
+  const api=fixtureAPI({getSecurityAgentApproval:async()=>value,decideSecurityAgentApproval:async(_id,_version,state)=>{decision=state;return {value:{...value,state,version:2},version:'"2"',auditID,receiptID};}});
+  render(<SecurityAgentsView api={api} environmentID={environmentID} autoLoad={false} initialSnapshot={{agents:[],templates:[],approvals:[value]}} fresh canWrite canApproveIrreversible={false}/>);
+  await userEvent.click(screen.getByRole("button",{name:`Open approval ${approvalID}`}));
+  await userEvent.click(await screen.findByRole("button",{name:"Approve"}));
+  await waitFor(()=>expect(decision).toBe("approved"));
+  expect(screen.queryByText("Identity administrator approval required")).not.toBeInTheDocument();
+});
+
+it.each(["run_test", "rerun_test", "start_attack_lab", "create_evidence_export"] as const)("lifecycle batch enables %s through the real client and renders returned control", async actionKey => {
+  const client = createAPIClient({ fetch: async request => {
+    const body = await request.json();
+    expect(body).toEqual({ target: "action", action_key: actionKey, enabled: true });
+    expect(request.headers.get("X-Zasp-Fresh-Auth")).toBe("confirmed");
+    expect(request.headers.get("If-Match")).toBe('"0"');
+    return new Response(JSON.stringify({ target: "action", action_key: actionKey, enabled: true, version: 1, audit_id: auditID, correlation_id: "pid_40000009-0000-4000-8000-000000000009", receipt_id: receiptID, replayed: false }), { headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ETag: '"1"', "X-Audit-ID": auditID, "X-Mutation-Receipt-ID": receiptID } });
+  } });
+  const actual = createSecurityAgentsAPI(client);
+  const newActions = [{ target: "action", action_key: "create_evidence_export", enabled: false, version: 0 }, { target: "action", action_key: "run_test", enabled: false, version: 0 }, { target: "action", action_key: "rerun_test", enabled: false, version: 0 }, { target: "action", action_key: "start_attack_lab", enabled: false, version: 0 }] as const;
+  const value: SecurityAgentExecutionControls = { ...controls, environment: { ...controls.environment, enabled: true, version: 1 }, actions: [...controls.actions, ...newActions].sort((a, b) => a.action_key.localeCompare(b.action_key)) };
+  render(<SecurityAgentsView api={fixtureAPI({ setSecurityAgentExecutionControl: actual.setSecurityAgentExecutionControl })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [], actions: [], runs: [], approvals: [], controls: value }} canManageControls fresh />);
+  await userEvent.click(screen.getByRole("button", { name: `Enable ${actionKey}` }));
+  expect(await screen.findByText(`${actionKey} enabled`)).toBeInTheDocument();
+});
+
+it("strictly decodes the seven registered57 controls without accepting arbitrary or duplicate actions", () => {
+  const keys=["create_temporary_policy","isolate_session","rerun_test","revoke_integration_connection","run_test","start_attack_lab","update_finding_response"];
+  const value={...controls,actions:keys.map(action_key=>({target:"action",action_key,enabled:false,version:0}))};
+  expect(decodeSecurityAgentExecutionControls(value)).toEqual(value);
+  for(const invalid of ["arbitrary_action","run_test"]) expect(()=>decodeSecurityAgentExecutionControls({...value,actions:value.actions.map(item=>item.action_key==="start_attack_lab"?{...item,action_key:invalid}:item)})).toThrow();
+});
 
 function fixtureAPI(overrides: Partial<SecurityAgentsAPI> = {}): SecurityAgentsAPI {
   return {
+    listExistingTests: async () => [],
     listSecurityAgentTemplates: async () => [template],
     listSecurityActions: async () => [temporaryPolicyAction, sessionIsolationAction, connectorRevocationAction, action],
     getSecurityAgentExecutionControls: async () => controls,
@@ -53,7 +428,542 @@ function fixtureAPI(overrides: Partial<SecurityAgentsAPI> = {}): SecurityAgentsA
   };
 }
 
+describe("existing-test builder", () => {
+  it("does not resurrect cached options when returning to a previous API before a pending lookup completes", async () => {
+    const user = userEvent.setup();
+    let finish!: (tests: readonly typeof existingTest[]) => void;
+    const listExistingTests = vi.fn<SecurityAgentsAPI["listExistingTests"]>().mockResolvedValueOnce([existingTest]).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const api = fixtureAPI({ listSecurityAgentTemplates: async () => [existingTestTemplate], listSecurityActions: async () => [existingTestAction], listExistingTests });
+    const view = render(<SecurityAgentsView api={api} environmentID={environmentID} canReadTests />);
+    await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+    await screen.findByRole("option", { name: "Scoped injection test · version 7" });
+    await user.selectOptions(screen.getByLabelText("Existing test definition"), evidenceID);
+    let finishOther!: (tests: readonly typeof existingTest[]) => void;
+    const replacement = { ...api, listExistingTests: () => new Promise<readonly typeof existingTest[]>(resolve => { finishOther = resolve; }) };
+    view.rerender(<SecurityAgentsView api={replacement} environmentID={environmentID} canReadTests />);
+    view.rerender(<SecurityAgentsView api={api} environmentID={environmentID} canReadTests />);
+    expect(screen.getByLabelText("Existing test definition")).toBeDisabled();
+    expect(screen.queryByRole("option", { name: "Scoped injection test · version 7" })).not.toBeInTheDocument();
+    await act(async () => finishOther([{ ...existingTest, version: 9 }]));
+    expect(screen.queryByRole("option", { name: /version 9/ })).not.toBeInTheDocument();
+    await act(async () => finish([{ ...existingTest, version: 8 }]));
+    await screen.findByRole("option", { name: "Scoped injection test · version 8" });
+    expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeDisabled();
+  });
+
+  it("shows the pinned test version after reopening and preserves it when editing the definition name", async () => {
+    const user = userEvent.setup();
+    const definition: SecurityAgentDefinition = { ...created, allowed_actions: ["rerun_test"], verification_kind: "test_run", existing_test: { definition_id: evidenceID, definition_version: 7 } };
+    let saved: SecurityAgentDefinition | undefined;
+    const api = fixtureAPI({ listSecurityAgents: async () => ({ items: [definition], page_info: { has_more: false, next_cursor: null } }), getSecurityAgent: async () => ({ value: definition, version: '"7"' }), updateSecurityAgent: async (_id, _version, value) => { saved = value; return { value, version: '"8"', auditID, receiptID }; } });
+    render(<SecurityAgentsView api={api} environmentID={environmentID} fresh />);
+    await user.click(await screen.findByRole("button", { name: `Open ${definition.name}` }));
+    const binding = await screen.findByRole("region", { name: "Pinned existing test" });
+    expect(within(binding).getByText(evidenceID)).toBeInTheDocument();
+    expect(within(binding).getByText("Test definition version 7")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validate definition" })).toBeDisabled();
+    await user.clear(screen.getByLabelText("Definition name"));
+    await user.type(screen.getByLabelText("Definition name"), "Renamed test response");
+    await user.click(screen.getByRole("button", { name: "Save definition" }));
+    await waitFor(() => expect(saved?.name).toBe("Renamed test response"));
+    expect(saved?.existing_test).toEqual({ definition_id: evidenceID, definition_version: 7 });
+    expect(saved?.enabled).toBe(false);
+  });
+
+  it("hides old choices while a replacement API lookup is pending", async () => {
+    const user = userEvent.setup();
+    const api = fixtureAPI({ listSecurityAgentTemplates: async () => [existingTestTemplate], listSecurityActions: async () => [existingTestAction], listExistingTests: async () => [existingTest] });
+    const view = render(<SecurityAgentsView api={api} environmentID={environmentID} canReadTests />);
+    await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+    await screen.findByRole("option", { name: "Scoped injection test · version 7" });
+    await user.selectOptions(screen.getByLabelText("Existing test definition"), evidenceID);
+    let finish!: (tests: readonly typeof existingTest[]) => void;
+    const replacement = { ...api, listExistingTests: () => new Promise<readonly typeof existingTest[]>(resolve => { finish = resolve; }) };
+    view.rerender(<SecurityAgentsView api={replacement} environmentID={environmentID} canReadTests />);
+    expect(screen.getByLabelText("Existing test definition")).toBeDisabled();
+    expect(screen.queryByRole("option", { name: "Scoped injection test · version 7" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeDisabled();
+    await act(async () => finish([{ ...existingTest, version: 8 }]));
+    await screen.findByRole("option", { name: "Scoped injection test · version 8" });
+    expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText("Existing test definition"), evidenceID);
+    expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeEnabled();
+  });
+
+  it("ignores a late lookup after read permission is removed", async () => {
+    let finish!: (tests: readonly typeof existingTest[]) => void;
+    let signal: AbortSignal | undefined;
+    const api = fixtureAPI({ listSecurityAgentTemplates: async () => [existingTestTemplate], listSecurityActions: async () => [existingTestAction], listExistingTests: incoming => { signal = incoming; return new Promise(resolve => { finish = resolve; }); } });
+    const view = render(<SecurityAgentsView api={api} environmentID={environmentID} canReadTests />);
+    await userEvent.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+    await screen.findByText("Loading existing tests…");
+    view.rerender(<SecurityAgentsView api={api} environmentID={environmentID} canReadTests={false} />);
+    expect(signal?.aborted).toBe(true);
+    await act(async () => finish([existingTest]));
+    expect(screen.queryByLabelText("Existing test definition")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeDisabled();
+  });
+
+  it("retains the exact test reference and idempotency key after a lost save response", async () => {
+    const user = userEvent.setup();
+    const calls: Array<{ value: Parameters<SecurityAgentsAPI["createSecurityAgent"]>[0]; key: string }> = [];
+    const api = fixtureAPI({ listSecurityAgentTemplates: async () => [existingTestTemplate], listSecurityActions: async () => [existingTestAction], listExistingTests: async () => [existingTest], createSecurityAgent: async (value, attempt) => {
+      calls.push({ value, key: attempt?.idempotencyKey ?? "" });
+      if (calls.length === 1) throw new TypeError("response lost");
+      return { value: { id: agentID, ...value }, version: '"1"', auditID, receiptID };
+    } });
+    render(<SecurityAgentsView api={api} environmentID={environmentID} canReadTests />);
+    await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+    await screen.findByRole("option", { name: "Scoped injection test · version 7" });
+    await user.selectOptions(screen.getByLabelText("Existing test definition"), evidenceID);
+    await user.click(screen.getByRole("button", { name: "Save Security Agent definition" }));
+    const retry = await screen.findByRole("button", { name: "Retry retained Security Agent definition" });
+    expect(screen.getByLabelText("Existing test definition")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reload existing tests" })).toBeDisabled();
+    await user.click(retry);
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect(calls[0].key).toMatch(/^wf_/);
+    expect(calls[1]).toEqual(calls[0]);
+    expect(calls[1].value.existing_test).toEqual({ definition_id: evidenceID, definition_version: 7 });
+  });
+
+  it("requires an explicit enabled test and freezes its exact version in draft intent", async () => {
+    const user = userEvent.setup();
+    let saved: Parameters<SecurityAgentsAPI["createSecurityAgent"]>[0] | undefined;
+    const api = fixtureAPI({ listSecurityAgentTemplates: async () => [existingTestTemplate], listSecurityActions: async () => [existingTestAction], listExistingTests: async () => [existingTest, { ...existingTest, id: runID, name: "Disabled test", enabled: false }], createSecurityAgent: async value => { saved = value; return { value: { id: agentID, ...value }, version: '"1"', auditID, receiptID }; } });
+    render(<SecurityAgentsView api={api} environmentID={environmentID} canReadTests />);
+    await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+    const selector = await screen.findByLabelText("Existing test definition");
+    expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeDisabled();
+    expect(await screen.findByRole("option", { name: "Scoped injection test · version 7" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Disabled test/ })).not.toBeInTheDocument();
+    await user.selectOptions(selector, evidenceID);
+    await user.click(screen.getByRole("button", { name: "Save Security Agent definition" }));
+    await waitFor(() => expect(saved).toMatchObject({ existing_test: { definition_id: evidenceID, definition_version: 7 }, allowed_actions: ["rerun_test"], verification_kind: "test_run", enabled: false }));
+    expect(saved?.existing_test).toEqual({ definition_id: evidenceID, definition_version: 7 });
+  });
+
+  it.each(["catalog", "permission"])("does not fetch or save without %s authority", async missing => {
+    const listExistingTests = vi.fn(async () => [existingTest]);
+    const api = fixtureAPI({ listSecurityAgentTemplates: async () => [existingTestTemplate], listSecurityActions: async () => missing === "catalog" ? [] : [existingTestAction], listExistingTests });
+    render(<SecurityAgentsView api={api} environmentID={environmentID} canReadTests={missing !== "permission"} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+    expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeDisabled();
+    expect(screen.queryByLabelText("Existing test definition")).not.toBeInTheDocument();
+    expect(listExistingTests).not.toHaveBeenCalled();
+  });
+
+  it("clears the selected version when reloading and blocks save on lookup failure", async () => {
+    const user = userEvent.setup();
+    const api = fixtureAPI({ listSecurityAgentTemplates: async () => [existingTestTemplate], listSecurityActions: async () => [existingTestAction], listExistingTests: vi.fn().mockResolvedValueOnce([existingTest]).mockRejectedValueOnce(new Error("lookup failed")) });
+    render(<SecurityAgentsView api={api} environmentID={environmentID} canReadTests />);
+    await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+    await screen.findByRole("option", { name: "Scoped injection test · version 7" });
+    await user.selectOptions(screen.getByLabelText("Existing test definition"), evidenceID);
+    expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Reload existing tests" }));
+    expect(await screen.findByText("Existing tests could not be loaded. Retry the lookup before saving.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Security Agent definition" })).toBeDisabled();
+  });
+});
+
+const relationScope = { organizationID: agentID, workspaceID: receiptID, environmentID };
+const relationPermissions = { finding: true, attack_path: true, session: true, audit: true };
+function relationClient(requests: Request[]) {
+  return createAPIClient({ fetch: async request => {
+    requests.push(request); const kind = new URL(request.url).pathname.split("/").at(-1);
+    return new Response(JSON.stringify({ items: [{ kind, id: evidenceID }], coverage: kind === "audit" ? "complete" : "partial" }), { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  } });
+}
+
+it.each([true, false])("links all four related record kinds from a run (direct=%s) and removes revoked links", async direct => {
+  const requests: Request[] = []; const client = relationClient(requests); const onNavigate = vi.fn();
+  const api = fixtureAPI({ listSecurityAgentRuns: async () => ({ items: [run] }) });
+  const props = { api, canWrite: false, initialRunID: direct ? runID : undefined, activityScope: relationScope, onNavigate };
+  const view = render(<APIProvider client={client}><SecurityAgentsView {...props} activityPermissions={relationPermissions} /></APIProvider>);
+  if (!direct) await userEvent.click(await screen.findByRole("button", { name: `Open run ${runID}` }));
+  for (const [kind, label, route] of [["finding", "finding", "/violations"], ["attack_path", "attack path", "/exposure/attack-paths"], ["session", "session", "/investigate/sessions"], ["audit", "audit record", "/administration/audit-log"]]) {
+    await userEvent.click(await screen.findByRole("button", { name: `Open ${label} ${evidenceID}` }));
+    expect(onNavigate).toHaveBeenLastCalledWith(`${route}?entity_id=${evidenceID}&organization_id=${agentID}&workspace_id=${receiptID}&environment_id=${environmentID}`);
+    const request = requests.find(request => new URL(request.url).pathname === `/api/v1/security-agent-runs/${runID}/activity/${kind}`);
+    expect(request?.headers.get("X-Zasp-Expected-Scope")).toBe(`${agentID}/${receiptID}/${environmentID}`);
+  }
+  expect(requests).toHaveLength(4);
+  view.rerender(<APIProvider client={client}><SecurityAgentsView {...props} activityPermissions={{ ...relationPermissions, session: false }} /></APIProvider>);
+  expect(screen.queryByRole("button", { name: `Open session ${evidenceID}` })).not.toBeInTheDocument();
+  for (const label of ["finding", "attack path", "audit record"]) expect(screen.getByRole("button", { name: `Open ${label} ${evidenceID}` })).toBeEnabled();
+  expect(requests).toHaveLength(4);
+  view.rerender(<APIProvider client={client}><SecurityAgentsView {...props} activityPermissions={{}} /></APIProvider>);
+  expect(screen.queryByRole("button", { name: `Open finding ${evidenceID}` })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: `Open attack path ${evidenceID}` })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: `Open session ${evidenceID}` })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: `Open audit record ${evidenceID}` })).not.toBeInTheDocument();
+  expect(requests).toHaveLength(4);
+});
+
+it("makes no relation request or trigger link without destination capability", async () => {
+  const requests: Request[] = [];
+  render(<APIProvider client={relationClient(requests)}><SecurityAgentsView api={fixtureAPI({ getSecurityAgentRun: async () => ({ ...runDetail, run_context: { trigger: { kind: "finding", id: evidenceID, version: 1 }, rationale: null } }) })} initialRunID={runID} activityScope={relationScope} onNavigate={vi.fn()} canWrite={false} /></APIProvider>);
+  await screen.findByRole("dialog");
+  expect(screen.queryByRole("button", { name: "Open trigger record" })).not.toBeInTheDocument();
+  expect(requests).toHaveLength(0);
+});
+
+it("locks all related targets while run cancellation is unresolved", async () => {
+  let resolve!: (value: Awaited<ReturnType<SecurityAgentsAPI["cancelSecurityAgentRun"]>>) => void;
+  const pending = new Promise<Awaited<ReturnType<SecurityAgentsAPI["cancelSecurityAgentRun"]>>>(done => { resolve = done; });
+  render(<APIProvider client={relationClient([])}><SecurityAgentsView api={fixtureAPI({ cancelSecurityAgentRun: () => pending })} initialRunID={runID} activityScope={relationScope} activityPermissions={relationPermissions} onNavigate={vi.fn()} /></APIProvider>);
+  await screen.findByRole("button", { name: `Open finding ${evidenceID}` });
+  await userEvent.click(screen.getByRole("button", { name: "Cancel run" }));
+  for (const label of ["finding", "attack path", "session", "audit record"]) expect(screen.getByRole("button", { name: `Open ${label} ${evidenceID}` })).toBeDisabled();
+  await act(async () => resolve(await fixtureAPI().cancelSecurityAgentRun(runID, run.version, { idempotencyKey: "test" })));
+  expect(screen.getByRole("button", { name: `Open finding ${evidenceID}` })).toBeEnabled();
+});
+
+it("shows an unavailable Attack Lab preflight without inventing a plan or execution", async () => {
+  const unavailable:SecurityAgentRunDetail={...runDetail,run:{...run,state:"needs_human"},plan:null,authorization:"not_planned",approvals:[],execution:[],verification:"inconclusive",run_context:{trigger:{kind:"finding",id:evidenceID,version:1},rationale:null,preflight_stop_reason:"attack_lab_preflight_unavailable"}};
+  render(<SecurityAgentsView api={fixtureAPI({getSecurityAgentRun:async()=>unavailable})} initialRunID={runID} canWrite />);
+  expect(await screen.findByText(/Attack Lab preflight unavailable/)).toBeVisible();
+  expect(screen.queryByRole("button",{name:"Cancel run"})).not.toBeInTheDocument();
+  expect(screen.queryByText(/Open linked Attack Lab execution/)).not.toBeInTheDocument();
+});
+
+it("allows stopping an exact pending Attack Lab link while retaining cleanup evidence", async () => {
+  const linked:SecurityAgentRunDetail={...runDetail,run:{...run,state:"running"},execution:[{step_id:stepID,action:"start_attack_lab",state:"executing",version:2,outcome_id:evidenceID}],action_details:[{step_id:stepID,action:"start_attack_lab",arguments:{target_id:evidenceID,expected_version:1},result:{state:"pending",outcome_id:evidenceID},ttl_seconds:null,control_expires_at:null,rollback:{support:"not_supported",state:"unavailable",verification:{state:"unavailable",source:"none"}},verification:{state:"pending",source:"effect_record"},attack_lab:{definition_id:evidenceID,definition_version:1,source_run_id:runID,source_attempt:1,execution_id:agentID,attempt:1,state:"running",verdict:null,cleanup_state:"pending",cleanup_complete:false,cancel_requested:false,evidence:null,settlement:null}}]};
+  const digest=`sha256:${"d".repeat(64)}`;
+  const pending:SecurityAgentRunDetail={...linked,execution:linked.execution.map(step=>({...step,result_digest:digest})),action_details:linked.action_details!.map(detail=>({...detail,result:{...detail.result!,result_digest:digest}}))};
+  render(<SecurityAgentsView api={fixtureAPI({getSecurityAgentRun:async()=>pending})} initialRunID={runID} canWrite />);
+  await userEvent.click(await screen.findByRole("button",{name:"Cancel run"}));
+  expect(await screen.findByText("Sandbox cleanup pending. This obligation remains after the Security Agent stops.")).toBeInTheDocument();
+  expect(screen.queryByRole("button",{name:"Cancel run"})).not.toBeInTheDocument();
+});
+
+it.each([ ["finding", "/violations"], ["attack_path", "/exposure/attack-paths"], ["runtime_decision", "/investigate/sessions"] ] as const)("opens an exact linked run without list reads and links its persisted %s trigger", async (kind, destination) => {
+  const scope = { organizationID: "pid_10000001-0000-4000-8000-000000000001", workspaceID: "pid_10000002-0000-4000-8000-000000000002", environmentID };
+  const list = vi.fn(fixtureAPI().listSecurityAgentRuns);
+  const get = vi.fn(async (id: string) => { expect(id).toBe(runID); return { ...runDetail, run_context: { trigger: { kind, id: evidenceID, version: 1 }, rationale: null } }; });
+  const onNavigate = vi.fn();
+  render(<APIProvider client={relationClient([])}><SecurityAgentsView api={fixtureAPI({ getSecurityAgentRun: get, listSecurityAgentRuns: list })} environmentID={environmentID} initialRunID={runID} activityScope={scope} activityPermissions={relationPermissions} onNavigate={onNavigate} canWrite={false} /></APIProvider>);
+  expect(await screen.findByRole("dialog", { name: `Run ${runID}` })).toHaveTextContent("Version 4");
+  expect(get).toHaveBeenCalledWith(runID, expect.any(AbortSignal));
+  expect(list).not.toHaveBeenCalled();
+  expect(screen.queryByText("No Security Agent runs")).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Open trigger record" }));
+  expect(onNavigate).toHaveBeenCalledWith(`${destination}?entity_id=pid_40000007-0000-4000-8000-000000000007&organization_id=pid_10000001-0000-4000-8000-000000000001&workspace_id=pid_10000002-0000-4000-8000-000000000002&environment_id=pid_10000003-0000-4000-8000-000000000003`);
+});
+
+it("does not invent an entity type for a manual trigger", async () => {
+  const scope = { organizationID: agentID, workspaceID: receiptID, environmentID };
+  render(<APIProvider client={relationClient([])}><SecurityAgentsView api={fixtureAPI({ getSecurityAgentRun: async () => ({ ...runDetail, run_context: { trigger: { kind: "manual", id: evidenceID, version: 1 }, rationale: null } }) })} initialRunID={runID} activityScope={scope} onNavigate={vi.fn()} canWrite={false} /></APIProvider>);
+  expect(await screen.findByRole("dialog")).toHaveTextContent(`manual · ${evidenceID}`);
+  expect(screen.queryByRole("button", { name: "Open trigger record" })).not.toBeInTheDocument();
+});
+
+it("does not let an older run read overwrite a newer explicit reload", async () => {
+  const pending: ((value: SecurityAgentRunDetail) => void)[] = [];
+  const signals: (AbortSignal | undefined)[] = [];
+  render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentRun: (_id, signal) => { signals.push(signal); return new Promise(resolve => pending.push(resolve)); } })} initialRunID={runID} canWrite={false} />);
+  await waitFor(() => expect(pending).toHaveLength(1));
+  await userEvent.click(screen.getByRole("button", { name: "Reload linked run" }));
+  await waitFor(() => expect(pending).toHaveLength(2));
+  await act(async () => pending[1]({ ...runDetail, run: { ...run, version: 5 } }));
+  expect(await screen.findByRole("dialog")).toHaveTextContent("Version 5");
+  await act(async () => pending[0](runDetail));
+  expect(screen.getByRole("dialog")).toHaveTextContent("Version 5");
+  expect(signals[0]?.aborted).toBe(true);
+});
+
+it.each(["approval", "definition"] as const)("abandons a pending run read when selecting a %s", async kind => {
+  let resolve!: (value: SecurityAgentRunDetail) => void;
+  let signal: AbortSignal | undefined;
+  const api = fixtureAPI({ getSecurityAgentRun: (_id, current) => { signal = current; return new Promise(done => { resolve = done; }); } });
+  render(<SecurityAgentsView api={api} autoLoad={false} initialSnapshot={{ agents: [created], templates: [], runs: [run], approvals: [approval] }} canWrite={false} />);
+  await userEvent.click(screen.getByRole("button", { name: `Open run ${runID}` }));
+  await userEvent.click(screen.getByRole("button", { name: kind === "approval" ? `Open approval ${approvalID}` : `Open ${created.name}` }));
+  const title = kind === "approval" ? `Approval ${approvalID}` : created.name;
+  expect(await screen.findByRole("dialog", { name: title })).toBeVisible();
+  await act(async () => resolve(runDetail));
+  expect(screen.getByRole("dialog", { name: title })).toBeVisible();
+  expect(screen.queryByRole("dialog", { name: `Run ${runID}` })).not.toBeInTheDocument();
+  expect(signal?.aborted).toBe(true);
+});
+
+it("shows persisted approval context in pending/history lists and separates reason from rationale", async () => {
+  const user = userEvent.setup();
+  const contextual: SecurityAgentApproval = { ...approval, approval_context: { agent_id: agentID, action: "update_finding_response", target_id: evidenceID, plan_hash: `sha256:${"a".repeat(64)}`, catalog_version: "security-agent-actions-v1", requester: { state: "available", id: agentID }, reason: { code: "operator_approval_required", source: "persisted_step" }, risk: { class: "low", source: "action_catalog" }, rationale: { state: "available", summary: "<img src=x onerror=alert(1)> Review persisted evidence." } } };
+  const history = { ...contextual, id: "pid_40000016-0000-4000-8000-000000000016", state: "rejected" as const };
+  render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentApproval: async () => contextual })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [], approvals: [contextual, history] }} fresh />);
+  for (const id of [contextual.id, history.id]) {
+    const row = screen.getByRole("button", { name: `Open approval ${id}` });
+    expect(within(row).getByText(`Agent: ${agentID}`)).toBeInTheDocument();
+    expect(within(row).getByText(`Target: ${evidenceID}`)).toBeInTheDocument();
+    expect(within(row).getByText(`Requester: ${agentID}`)).toBeInTheDocument();
+    expect(within(row).getByText(`Expires: ${expiresAt}`)).toBeInTheDocument();
+    expect(row).toHaveAccessibleDescription(expect.stringContaining(`Agent: ${agentID}`));
+  }
+  await user.click(screen.getByRole("button", { name: `Open approval ${approvalID}` }));
+  const drawer = await screen.findByRole("dialog");
+  expect(within(drawer).getByText("This persisted plan step requires operator approval.")).toBeInTheDocument();
+  expect(within(drawer).getByText("Risk: low (action catalog)")).toBeInTheDocument();
+  expect(within(drawer).getByText("AI-generated explanation. This does not authorize any action.")).toBeInTheDocument();
+  expect(within(drawer).getByText("<img src=x onerror=alert(1)> Review persisted evidence.")).toBeInTheDocument();
+  expect(drawer.querySelector("img")).toBeNull();
+});
+
+it("keeps a committed cancellation authoritative when context refresh fails", async () => {
+  const user = userEvent.setup();
+  const getSecurityAgentApproval = vi.fn().mockResolvedValueOnce(approval).mockRejectedValueOnce(new TypeError("read unavailable"));
+  const decideSecurityAgentApproval = vi.fn(async () => ({ value: { ...approval, state: "cancelled" as const, version: 2 }, version: '"2"', auditID, receiptID }));
+  render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentApproval, decideSecurityAgentApproval })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [], approvals: [approval] }} fresh />);
+  await user.click(screen.getByRole("button", { name: `Open approval ${approvalID}` }));
+  const drawer = await screen.findByRole("dialog");
+  await user.click(within(drawer).getByRole("button", { name: "Cancel approval" }));
+  expect(await within(drawer).findByText("cancelled")).toBeInTheDocument();
+  await user.click(within(drawer).getByRole("button", { name: "Refresh approval context" }));
+  expect(await within(drawer).findByText("Context could not be refreshed. The recorded decision is unchanged.")).toBeInTheDocument();
+  expect(within(drawer).getByText("cancelled")).toBeInTheDocument();
+  expect(within(drawer).queryByRole("button", { name: "Retry retained approval decision" })).not.toBeInTheDocument();
+  expect(decideSecurityAgentApproval).toHaveBeenCalledTimes(1);
+});
+
+it.each([false, true])("refreshes only matching terminal approval context (stale=%s)", async (stale) => {
+  const user = userEvent.setup();
+  const terminal: SecurityAgentApproval = { ...approval, state: "cancelled", version: 2 };
+  const enriched: SecurityAgentApproval = { ...terminal, ...(stale ? { state: "pending", version: 1 } : {}), approval_context: { agent_id: agentID, action: "update_finding_response", target_id: evidenceID, plan_hash: `sha256:${"a".repeat(64)}`, catalog_version: "security-agent-actions-v1", requester: { state: "available", id: agentID }, reason: { code: "operator_approval_required", source: "persisted_step" }, risk: { class: "low", source: "action_catalog" }, rationale: null } };
+  const getSecurityAgentApproval = vi.fn().mockResolvedValueOnce(terminal).mockResolvedValueOnce(enriched);
+  render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentApproval })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [], approvals: [terminal] }} fresh />);
+  await user.click(screen.getByRole("button", { name: `Open approval ${approvalID}` }));
+  const drawer = await screen.findByRole("dialog");
+  await user.click(within(drawer).getByRole("button", { name: "Refresh approval context" }));
+  if (stale) expect(await within(drawer).findByText("Context could not be refreshed. The recorded decision is unchanged.")).toBeInTheDocument();
+  else expect(await within(drawer).findByText(`Agent: ${agentID}`)).toBeInTheDocument();
+  expect(within(drawer).getByText("cancelled")).toBeInTheDocument();
+  expect(within(drawer).queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+});
+
+it.each(["missing", "withheld"])("shows honest %s approval context without changing read-only authority", async (state) => {
+  const user = userEvent.setup();
+  const value: SecurityAgentApproval = state === "missing" ? approval : { ...approval, approval_context: { agent_id: agentID, action: "update_finding_response", target_id: null, plan_hash: `sha256:${"a".repeat(64)}`, catalog_version: "security-agent-actions-v1", requester: { state: "withheld", id: null }, reason: { code: "operator_approval_required", source: "persisted_step" }, risk: { class: "low", source: "action_catalog" }, rationale: { state: "withheld", summary: "" } } };
+  render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentApproval: async () => value })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [], approvals: [value] }} canWrite={false} fresh />);
+  await user.click(screen.getByRole("button", { name: `Open approval ${approvalID}` }));
+  const drawer = await screen.findByRole("dialog");
+  expect(within(drawer).getByText("Target: unavailable")).toBeInTheDocument();
+  expect(within(drawer).getByText(state === "missing" ? "Requester: unavailable" : "Requester: withheld")).toBeInTheDocument();
+  expect(within(drawer).getByText(state === "missing" ? "No AI rationale is available for this approval." : "AI rationale was withheld by the redaction policy.")).toBeInTheDocument();
+  expect(within(drawer).queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+  expect(within(drawer).queryByRole("button", { name: "Cancel approval" })).not.toBeInTheDocument();
+});
+
+it("separates untrusted AI rationale from evidence and deterministic authorization", async () => {
+  const user = userEvent.setup();
+  const summary = "<img src=x onerror=alert(1)> Review exposed credential.";
+  const detail = { ...runDetail, run_context: { trigger: { kind: "finding" as const, id: evidenceID, version: 1 }, rationale: { state: "available" as const, summary } } };
+  render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentRun: async () => detail })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [template], runs: [run], approvals: [] }} />);
+  await user.click(screen.getByRole("button", { name: `Open run ${runID}` }));
+  const dialog = await screen.findByRole("dialog", { name: `Run ${runID}` });
+  const rationale = within(dialog).getByRole("region", { name: "AI rationale" });
+  expect(within(rationale).getByText(summary)).toBeInTheDocument();
+  expect(within(rationale).getByText("AI-generated explanation. This does not authorize any action.")).toBeInTheDocument();
+  expect(rationale.querySelector("img")).toBeNull();
+  expect(within(rationale).queryByText(evidenceID)).not.toBeInTheDocument();
+  expect(within(rationale).queryByText(/approval_required/)).not.toBeInTheDocument();
+  expect(within(dialog).getByRole("heading", { name: "Trigger" })).toBeInTheDocument();
+  expect(within(dialog).getByRole("heading", { name: "Evidence" })).toBeInTheDocument();
+  expect(within(dialog).getByRole("heading", { name: "Authorization and execution" })).toBeInTheDocument();
+  expect(within(dialog).getByText("update_finding_response · approval_required · waiting_approval")).toBeInTheDocument();
+});
+
+it.each([undefined, { trigger: null, rationale: null }, { trigger: { kind: "finding" as const, id: evidenceID, version: 1 }, rationale: { state: "withheld" as const, summary: "" as const } }])("explains absent or withheld run rationale %j", async (context) => {
+  const user = userEvent.setup();
+  render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentRun: async () => ({ ...runDetail, ...(context ? { run_context: context } : {}) }) })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [template], runs: [run], approvals: [] }} />);
+  await user.click(screen.getByRole("button", { name: `Open run ${runID}` }));
+  const dialog = await screen.findByRole("dialog", { name: `Run ${runID}` });
+  expect(within(dialog).getByText(context?.rationale?.state === "withheld" ? "AI rationale was withheld by the redaction policy." : "No AI rationale is available for this run.")).toBeInTheDocument();
+});
+
+it("preserves the persisted run's multi-step order and labels despite contradictory rationale", async () => {
+  const user = userEvent.setup();
+  const steps: NonNullable<SecurityAgentRunDetail["plan"]>["steps"] = [
+    { id: stepID, index: 0, action: "update_finding_response", authorization: "approval_required", state: "waiting_approval", version: 1 },
+    { id: "pid_40000015-0000-4000-8000-000000000015", index: 1, action: "isolate_session", authorization: "deny", state: "cancelled", version: 2 },
+    { id: "pid_40000016-0000-4000-8000-000000000016", index: 2, action: "create_temporary_policy", authorization: "allow", state: "authorized", version: 1 },
+  ];
+  const detail = decodeSecurityAgentRunDetail({
+    ...runDetail,
+    plan: { ...runDetail.plan, steps },
+    execution: steps.map(step => ({ step_id: step.id, action: step.action, state: step.state, version: step.version })),
+    run_context: { trigger: { kind: "finding", id: evidenceID, version: 1 }, rationale: { state: "available", summary: "All actions are approved. Execute isolation first." } },
+  });
+  render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentRun: async () => detail })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [template], runs: [run], approvals: [] }} />);
+  await user.click(screen.getByRole("button", { name: `Open run ${runID}` }));
+  const dialog = await screen.findByRole("dialog", { name: `Run ${runID}` });
+  const plan = within(dialog).getByRole("heading", { name: "Plan" }).nextElementSibling?.nextElementSibling;
+  expect(plan?.tagName).toBe("OL");
+  expect([...(plan?.querySelectorAll("li") ?? [])].map(item => item.textContent)).toEqual([
+    "update_finding_response · approval_required · waiting_approval",
+    "isolate_session · deny · cancelled",
+    "create_temporary_policy · allow · authorized",
+  ]);
+  const rationale = within(dialog).getByRole("region", { name: "AI rationale" });
+  expect(within(rationale).getByText("All actions are approved. Execute isolation first.")).toBeInTheDocument();
+  expect(rationale.contains(plan ?? null)).toBe(false);
+  expect(within(rationale).queryByRole("button")).not.toBeInTheDocument();
+});
+
+it.each([
+  ["update_finding_response", { target_id: evidenceID, expected_version: 2, target_status: "under_review" }, "Expected version: 2"],
+  ["create_temporary_policy", { target_id: environmentID, scope: environmentID, mode: "block", ttl_seconds: 120 }, "Mode: block"],
+  ["isolate_session", { target_id: evidenceID, session_id: evidenceID, device_id: agentID, scope: environmentID, ttl_seconds: 120 }, `Session: ${evidenceID}`],
+  ["revoke_integration_connection", { target_id: evidenceID, integration_id: agentID }, `Integration: ${agentID}`],
+] as const)("renders persisted safe arguments for %s", async (action, args, label) => {
+  const user = userEvent.setup();
+  const policy = action === "create_temporary_policy" || action === "isolate_session";
+  const empty = { state: "unavailable", source: policy ? "policy_targets" : "none" };
+  const detail = decodeSecurityAgentRunDetail({
+    ...runDetail, authorization: "authorized", approvals: [],
+    plan: { ...runDetail.plan, steps: [{ id: stepID, index: 0, action, authorization: "allow", state: "authorized", version: 1 }] },
+    execution: [{ step_id: stepID, action, state: "authorized", version: 1 }],
+    action_details: [{ step_id: stepID, action, arguments: args, result: null, ttl_seconds: policy ? 120 : null, control_expires_at: null,
+      rollback: { support: policy ? "automatic" : action === "update_finding_response" ? "manual" : "not_supported", state: policy ? "not_started" : "unavailable", verification: empty }, verification: empty }],
+  });
+  render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentRun: async () => detail })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [template], runs: [run], approvals: [] }} />);
+  await user.click(screen.getByRole("button", { name: `Open run ${runID}` }));
+  const region = await screen.findByRole("region", { name: `Action details ${stepID}` });
+  expect(within(region).getByText(label)).toBeInTheDocument();
+  expect(within(region).getByText("Application verification unavailable")).toBeInTheDocument();
+  expect(within(region).getByText("No effect result recorded.")).toBeInTheDocument();
+  expect(within(region).getByText(policy ? "TTL: 120 seconds" : "TTL unavailable or not applicable.")).toBeInTheDocument();
+  expect(within(region).queryByRole("button")).not.toBeInTheDocument();
+});
+
+it.each(["cleaned", "unknown_outcome"] as const)("renders recorded %s without inventing application verification", async (state) => {
+  const user = userEvent.setup();
+  const cleaned = state === "cleaned", action = cleaned ? "isolate_session" : "revoke_integration_connection";
+  const result = cleaned ? { state, outcome_id: agentID, result_digest: `sha256:${"c".repeat(64)}` } : { state };
+  const detail = decodeSecurityAgentRunDetail({
+    ...runDetail, run: { ...run, state: "needs_human" }, verification: "inconclusive", authorization: "authorized", approvals: [],
+    plan: { ...runDetail.plan, steps: [{ id: stepID, index: 0, action, authorization: "allow", state: "inconclusive", version: 1 }] },
+    execution: [{ step_id: stepID, action, state: "inconclusive", version: 1, ...(cleaned ? { outcome_id: agentID, result_digest: `sha256:${"c".repeat(64)}` } : {}) }],
+    action_details: [{ step_id: stepID, action, arguments: cleaned ? { target_id: evidenceID, session_id: evidenceID, device_id: agentID, scope: environmentID, ttl_seconds: 120 } : { target_id: evidenceID, integration_id: agentID }, result,
+      ttl_seconds: cleaned ? 120 : null, control_expires_at: cleaned ? "2026-09-16T12:05:00Z" : null,
+      rollback: { support: cleaned ? "automatic" : "not_supported", state: cleaned ? "completed" : "unavailable", verification: { state: "unavailable", source: cleaned ? "policy_targets" : "none" } },
+      verification: cleaned ? { state: "unavailable", source: "policy_targets" } : { state: "inconclusive", source: "effect_record" } }],
+  });
+  render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentRun: async () => detail })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [template], runs: [detail.run], approvals: [] }} />);
+  await user.click(screen.getByRole("button", { name: `Open run ${runID}` }));
+  const region = await screen.findByRole("region", { name: `Action details ${stepID}` });
+  expect(within(region).getByText(`Effect state: ${state}`)).toBeInTheDocument();
+  expect(within(region).getByText(cleaned ? "Rollback: completed" : "Rollback: unavailable")).toBeInTheDocument();
+  expect(within(region).getByText(cleaned ? "Application verification unavailable" : "Application verification inconclusive")).toBeInTheDocument();
+  expect(within(region).getByText("Cleanup verification unavailable")).toBeInTheDocument();
+  if (cleaned) {
+    expect(within(region).getByText(`Recorded outcome: ${agentID}`)).toBeInTheDocument();
+    expect(within(region).getByText(`Result digest: sha256:${"c".repeat(64)}`)).toBeInTheDocument();
+    expect(within(region).getByText("TTL: 120 seconds")).toBeInTheDocument();
+    expect(within(region).getByText("Control expires: 2026-09-16T12:05:00Z")).toBeInTheDocument();
+  } else {
+    expect(within(region).queryByText(/Recorded outcome:/)).not.toBeInTheDocument();
+    expect(within(region).getByText("No rollback support")).toBeInTheDocument();
+  }
+});
+
 describe("Security Agent definition surface", () => {
+  it.each([
+    ["budget_deadline_exceeded", "Run time limit reached."],
+    ["budget_steps_exceeded", "Run step limit reached."],
+    ["budget_tokens_exceeded", "AI token budget reached."],
+    ["budget_cost_exceeded", "AI cost budget reached."],
+    ["budget_usage_unknown", "AI usage or pricing could not be verified."],
+  ] as const)("explains %s without offering a budget reset", async (reason, message) => {
+    const user = userEvent.setup();
+    const stopped = { ...runDetail, run: { ...run, state: "needs_human" as const }, verification: "inconclusive" as const, budget_stop_reason: reason };
+    render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentRun: async () => stopped })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [template], runs: [stopped.run], approvals: [] }} />);
+    await user.click(screen.getByRole("button", { name: `Open run ${runID}` }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(message);
+    expect(alert).toHaveTextContent("Review this run and any required cleanup before starting another run. Definition edits do not reset this run's limits.");
+    expect(screen.queryByRole("button", { name: /reset budget/i })).not.toBeInTheDocument();
+  });
+
+  it("shows an actionable server cost refusal even when the loaded definition had a budget", async () => {
+    const user = userEvent.setup();
+    const definition = { ...created, max_ai_cost_nano_credits: 1000 };
+    const activateSecurityAgent = vi.fn().mockRejectedValue(new APIProductError(400, { code: "cost_budget_required", message: "untrusted provider message", correlation_id: auditID, retryable: false }));
+    render(<SecurityAgentsView api={fixtureAPI({ activateSecurityAgent, getSecurityAgent: async () => ({ value: definition, version: '"7"' }), getSecurityAgentActivation: async () => ({ ...draftActivation, activation: "validated" }) })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [definition], templates: [template], actions: [action] }} fresh />);
+    await user.click(screen.getByRole("button", { name: `Open ${definition.name}` }));
+    await user.click(await screen.findByRole("button", { name: "Enable supervised execution" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Save an explicit AI cost budget as a disabled draft, then validate it again before enabling execution.");
+    expect(screen.queryByText("untrusted provider message")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enable supervised execution" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Save as disabled draft" }));
+    expect(await screen.findByRole("button", { name: "Validate definition" })).toBeEnabled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("does not activate a saved budget while a different amount is displayed, and permits explicit removal as a draft", async () => {
+    const user = userEvent.setup();
+    const definition = { ...created, max_ai_cost_nano_credits: 123 };
+    const updateSecurityAgent = vi.fn(fixtureAPI().updateSecurityAgent);
+    render(<SecurityAgentsView api={fixtureAPI({ updateSecurityAgent, getSecurityAgent: async () => ({ value: definition, version: '"7"' }), getSecurityAgentActivation: async () => ({ ...draftActivation, activation: "validated" }) })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [definition], templates: [template], actions: [action] }} fresh />);
+    await user.click(screen.getByRole("button", { name: `Open ${definition.name}` }));
+    const cost = await screen.findByLabelText("AI cost budget (nano OpenRouter credits)");
+    expect(cost).toHaveValue("123");
+    const activate = screen.getByRole("button", { name: "Enable supervised execution" });
+    expect(activate).toBeEnabled();
+    await user.clear(cost);
+    await user.type(cost, "456");
+    expect(activate).toBeDisabled();
+    await user.clear(cost);
+    await user.click(screen.getByRole("button", { name: "Save as disabled draft" }));
+    await waitFor(() => expect(updateSecurityAgent).toHaveBeenCalled());
+    expect(updateSecurityAgent.mock.calls[0]?.[2]).not.toHaveProperty("max_ai_cost_nano_credits");
+    expect(updateSecurityAgent.mock.calls[0]?.[2].enabled).toBe(false);
+  });
+
+  it.each(["draft", "validated", "supervised"] as const)("saves explicit cost on a %s definition as a disabled draft before activation", async (activation) => {
+    const user = userEvent.setup();
+    const definition = { ...created, enabled: activation === "supervised" };
+    const updateSecurityAgent = vi.fn(fixtureAPI().updateSecurityAgent);
+    const activateSecurityAgent = vi.fn(fixtureAPI().activateSecurityAgent);
+    render(<SecurityAgentsView api={fixtureAPI({ updateSecurityAgent, activateSecurityAgent, getSecurityAgent: async () => ({ value: definition, version: '"7"' }), getSecurityAgentActivation: async () => ({ ...draftActivation, activation, enabled: definition.enabled }) })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [definition], templates: [template], actions: [action] }} fresh />);
+    await user.click(screen.getByRole("button", { name: `Open ${definition.name}` }));
+    const cost = await screen.findByLabelText("AI cost budget (nano OpenRouter credits)");
+    expect(cost).toHaveValue("");
+    expect(screen.getByText(/Cost budget configuration required/)).toBeInTheDocument();
+    if (activation !== "draft") expect(screen.getByRole("button", { name: activation === "validated" ? "Enable supervised execution" : "Enable autonomous execution" })).toBeDisabled();
+    await user.type(cost, "00123456789");
+    if (activation !== "draft") expect(screen.getByRole("button", { name: activation === "validated" ? "Enable supervised execution" : "Enable autonomous execution" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: activation === "draft" ? "Save definition" : "Save as disabled draft" }));
+    await waitFor(() => expect(updateSecurityAgent).toHaveBeenCalledWith(agentID, '"7"', expect.objectContaining({ max_ai_cost_nano_credits: 123456789, enabled: false }), expect.anything()));
+    expect(await screen.findByRole("button", { name: "Validate definition" })).toBeEnabled();
+    expect(screen.queryByText(/Cost budget configuration required/)).not.toBeInTheDocument();
+    expect(activateSecurityAgent).not.toHaveBeenCalled();
+  });
+
+  it("requires an explicit valid nano-credit amount when configuring a draft cost budget", async () => {
+    const user = userEvent.setup();
+    const createSecurityAgent = vi.fn(fixtureAPI().createSecurityAgent);
+    render(<SecurityAgentsView api={fixtureAPI({ createSecurityAgent })} environmentID={environmentID} />);
+    await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+    const cost = await screen.findByLabelText("AI cost budget (nano OpenRouter credits)");
+    expect(cost).toHaveValue("");
+    expect(screen.getByText(/1 OpenRouter credit = 1,000,000,000 nano-credits/)).toBeInTheDocument();
+    const save = screen.getByRole("button", { name: "Save Security Agent definition" });
+    for (const invalid of ["0", "-1", "1.5", "1000000000001", "abc", "1e2", " 1"]) {
+      await user.clear(cost);
+      await user.type(cost, invalid);
+      expect(save).toBeDisabled();
+    }
+    expect(createSecurityAgent).not.toHaveBeenCalled();
+    await user.clear(cost);
+    await user.type(cost, "1");
+    expect(save).toBeEnabled();
+    await user.clear(cost);
+    await user.type(cost, "1000000000000");
+    await user.click(save);
+    await waitFor(() => expect(createSecurityAgent).toHaveBeenCalledWith(expect.objectContaining({ max_ai_cost_nano_credits: 1000000000000 }), expect.anything()));
+  });
+
   it("strictly decodes hierarchical execution controls without tenant-global mutation authority", () => {
     expect(decodeSecurityAgentExecutionControls(controls)).toEqual(controls);
     expect(decodeSecurityAgentExecutionControlResult({ target: "environment", action_key: "*", enabled: true, version: 1, audit_id: auditID, correlation_id: "pid_40000009-0000-4000-8000-000000000009", receipt_id: receiptID, replayed: false }).target).toBe("environment");
@@ -86,6 +996,8 @@ describe("Security Agent definition surface", () => {
     expect(() => decodeSecurityActionPage({ items: [{ ...action, key: "z" }, action] })).toThrow();
     expect(() => decodeSecurityAgentActivationState({ ...draftActivation, enabled: true })).toThrow();
     expect(() => decodeSecurityAgentSimulation({ ...simulation, side_effects: 1 })).toThrow();
+    expect(() => decodeSecurityAgentSimulation({ ...simulation, matched_evidence_ids: [] })).toThrow();
+    expect(() => decodeSecurityAgentSimulation({ ...simulation, steps: [] })).toThrow();
     expect(decodeSecurityAgentRunPage({ items: [run], next_cursor: "b2s" })).toEqual({ items: [run], next_cursor: "b2s" });
     expect(decodeSecurityAgentApprovalPage({ items: [approval] })).toEqual({ items: [approval] });
     expect(decodeSecurityAgentRunDetail(runDetail)).toEqual(runDetail);
@@ -107,6 +1019,7 @@ describe("Security Agent definition surface", () => {
     await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
     await user.click(screen.getByRole("button", { name: "Save Security Agent definition" }));
     await waitFor(() => expect(createSecurityAgent).toHaveBeenCalledWith(expect.objectContaining({ environment_ids: [environmentID], autonomy: "supervised", allowed_actions: ["update_finding_response"], verification_kind: "finding_state" }), expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
+    expect(createSecurityAgent.mock.calls[0]?.[0]).not.toHaveProperty("max_ai_cost_nano_credits");
     expect(screen.getByText("Pending approvals")).toBeInTheDocument();
   });
 
@@ -117,7 +1030,7 @@ describe("Security Agent definition surface", () => {
     const activateSecurityAgent = vi.fn(fixtureAPI().activateSecurityAgent);
     const simulateSecurityAgent = vi.fn(fixtureAPI().simulateSecurityAgent);
     const runSecurityAgent = vi.fn(fixtureAPI().runSecurityAgent);
-    const api = fixtureAPI({ getSecurityAgent: async () => ({ value: created, version: `"1"` }), getSecurityAgentActivation, activateSecurityAgent, simulateSecurityAgent, runSecurityAgent });
+    const api = fixtureAPI({ getSecurityAgent: async () => ({ value: { ...created, max_ai_cost_nano_credits: 1000 }, version: `"1"` }), getSecurityAgentActivation, activateSecurityAgent, simulateSecurityAgent, runSecurityAgent });
     const initialSnapshot = { agents: [created], templates: [template], actions: [action], runs: [], approvals: [] };
     const { rerender } = render(<SecurityAgentsView api={api} environmentID={environmentID} autoLoad={false} initialSnapshot={initialSnapshot} fresh={false} onReauthenticate={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: `Open ${created.name}` }));
@@ -134,14 +1047,85 @@ describe("Security Agent definition surface", () => {
     await user.click(screen.getByRole("button", { name: "Simulate plan" }));
     await waitFor(() => expect(simulateSecurityAgent).toHaveBeenCalledWith(agentID, 3, expect.objectContaining({ evidence_ids: [evidenceID], environment_id: environmentID }), expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
     expect(await screen.findByText("Planned one finding response")).toBeInTheDocument();
+    const result = screen.getByRole("region", { name: "Simulation result" });
+    expect(within(result).getByRole("list", { name: "Matched evidence" })).toHaveTextContent(evidenceID);
+    const proposed = within(result).getByRole("list", { name: "Proposed steps" });
+    expect(proposed).toHaveTextContent("update_finding_response");
+    expect(proposed).toHaveTextContent("Authorization: approval_required");
+    expect(proposed).toHaveTextContent("Approval required");
+    expect(runSecurityAgent).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Start supervised run" }));
     await waitFor(() => expect(runSecurityAgent).toHaveBeenCalledWith(agentID, 3, { environment_id: environmentID, trigger_kind: "finding", trigger_id: evidenceID }, expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })));
+  });
+
+  it("renders every matched evidence ID and ordered authorization without executing a simulation", async () => {
+    const user = userEvent.setup();
+    const result: SecurityAgentSimulation = {
+      ...simulation,
+      matched_evidence_ids: [evidenceID, "pid_40000009-0000-4000-8000-000000000009"],
+      steps: [
+        { index: 0, action: "update_finding_response", authorization: "allow", approval_required: false },
+        { index: 1, action: "isolate_session", authorization: "deny", approval_required: false },
+        { index: 2, action: "create_temporary_policy", authorization: "approval_required", approval_required: true },
+      ],
+    };
+    const api = fixtureAPI({
+      getSecurityAgent: async () => ({ value: { ...created, enabled: true }, version: `"3"` }),
+      getSecurityAgentActivation: async () => ({ id: agentID, activation: "supervised", enabled: true, version: 3 }),
+      simulateSecurityAgent: async () => ({ value: decodeSecurityAgentSimulation(result), version: `"1"`, auditID, receiptID }),
+    });
+    const mutations = [vi.spyOn(api, "runSecurityAgent"), vi.spyOn(api, "decideSecurityAgentApproval"), vi.spyOn(api, "activateSecurityAgent"), vi.spyOn(api, "setSecurityAgentExecutionControl"), vi.spyOn(api, "updateSecurityAgent"), vi.spyOn(api, "deleteSecurityAgent"), vi.spyOn(api, "cancelSecurityAgentRun")];
+    render(<SecurityAgentsView api={api} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [created], templates: [template], actions: [action], runs: [], approvals: [] }} fresh />);
+    await user.click(screen.getByRole("button", { name: `Open ${created.name}` }));
+    await user.type(await screen.findByLabelText("Evidence ID"), evidenceID);
+    expect(screen.queryByRole("region", { name: "Simulation result" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Simulate plan" }));
+    const displayed = await screen.findByRole("region", { name: "Simulation result" });
+    expect(within(displayed).getByText("Simulation only. This does not execute the proposed steps.")).toBeInTheDocument();
+    expect(within(displayed).getByRole("heading", { name: "Simulation summary" })).toBeInTheDocument();
+    expect(displayed).toHaveTextContent(result.plan_hash);
+    expect(displayed).toHaveTextContent(expiresAt);
+    expect(within(within(displayed).getByRole("list", { name: "Matched evidence" })).getAllByRole("listitem").map((item) => item.textContent)).toEqual([evidenceID, "pid_40000009-0000-4000-8000-000000000009"]);
+    const proposed = within(displayed).getByRole("list", { name: "Proposed steps" });
+    expect(proposed.tagName).toBe("OL");
+    const steps = within(proposed).getAllByRole("listitem");
+    expect(steps).toHaveLength(3);
+    expect(steps[0]).toHaveTextContent("update_finding_response");
+    expect(steps[0]).toHaveTextContent("Authorization: allow");
+    expect(steps[0]).toHaveTextContent("Approval not required");
+    expect(steps[1]).toHaveTextContent("isolate_session");
+    expect(steps[1]).toHaveTextContent("Authorization: deny");
+    expect(steps[1]).toHaveTextContent("Approval not required");
+    expect(steps[2]).toHaveTextContent("create_temporary_policy");
+    expect(steps[2]).toHaveTextContent("Authorization: approval_required");
+    expect(steps[2]).toHaveTextContent("Approval required");
+    expect(within(displayed).queryByRole("button")).not.toBeInTheDocument();
+    for (const mutation of mutations) expect(mutation).not.toHaveBeenCalled();
+  });
+
+  it("keeps simulation summary and action markup as inert text", async () => {
+    const user = userEvent.setup();
+    const summary = '<img src=x onerror="alert(1)">';
+    const proposedAction = '<button onclick="alert(2)">Execute</button>';
+    const api = fixtureAPI({
+      getSecurityAgent: async () => ({ value: created, version: `"3"` }),
+      getSecurityAgentActivation: async () => ({ id: agentID, activation: "validated", enabled: false, version: 3 }),
+      simulateSecurityAgent: async () => ({ value: decodeSecurityAgentSimulation({ ...simulation, summary, steps: [{ ...simulation.steps[0], action: proposedAction }] }), version: `"1"`, auditID, receiptID }),
+    });
+    render(<SecurityAgentsView api={api} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [created], templates: [template], actions: [action], runs: [], approvals: [] }} fresh />);
+    await user.click(screen.getByRole("button", { name: `Open ${created.name}` }));
+    await user.type(await screen.findByLabelText("Evidence ID"), evidenceID);
+    await user.click(screen.getByRole("button", { name: "Simulate plan" }));
+    const displayed = await screen.findByRole("region", { name: "Simulation result" });
+    expect(within(displayed).getByText(summary)).toBeInTheDocument();
+    expect(within(displayed).getByText(proposedAction)).toBeInTheDocument();
+    expect(displayed.querySelector("img, button, script, [onclick], [onerror]")).toBeNull();
   });
 
   it("promotes supervised execution to autonomous execution with fresh authentication", async () => {
 	const user = userEvent.setup();
 	const activateSecurityAgent = vi.fn(fixtureAPI().activateSecurityAgent);
-	const autonomousDefinition = { ...created, enabled: true };
+	const autonomousDefinition = { ...created, max_ai_cost_nano_credits: 1000, enabled: true };
 	const api = fixtureAPI({
 	  getSecurityAgent: async () => ({ value: autonomousDefinition, version: `"3"` }),
 	  getSecurityAgentActivation: async () => ({ id: agentID, activation: "supervised", enabled: true, version: 3 }),
@@ -212,6 +1196,40 @@ describe("Security Agent definition surface", () => {
     expect(decideSecurityAgentApproval).not.toHaveBeenCalled();
   });
 
+  it("cancels an irreversible approval and retries only the retained cancellation after response loss", async () => {
+    const user = userEvent.setup();
+    const irreversible = { ...approval, reversible: false };
+    const decideSecurityAgentApproval = vi.fn()
+      .mockRejectedValueOnce(new TypeError("cancellation response lost"))
+      .mockResolvedValueOnce({ value: { ...irreversible, state: "cancelled", version: 2 }, version: '"2"', auditID, receiptID });
+    render(<SecurityAgentsView api={fixtureAPI({ getSecurityAgentApproval: async () => irreversible, decideSecurityAgentApproval })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [], approvals: [irreversible] }} fresh />);
+    await user.click(screen.getByRole("button", { name: `Open approval ${approvalID}` }));
+    const dialog = await screen.findByRole("dialog", { name: `Approval ${approvalID}` });
+    await user.click(within(dialog).getByRole("button", { name: "Cancel approval" }));
+    const retry = await within(dialog).findByRole("button", { name: "Retry retained approval decision" });
+    expect(within(dialog).queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Cancel approval" })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Close" })).toBeDisabled();
+    await user.click(retry);
+    expect(await within(dialog).findByText("cancelled")).toBeInTheDocument();
+    expect(decideSecurityAgentApproval).toHaveBeenCalledTimes(2);
+    expect(decideSecurityAgentApproval.mock.calls[0]).toEqual([approvalID, 1, "cancelled", expect.objectContaining({ idempotencyKey: expect.stringMatching(/^wf_/) })]);
+    expect(decideSecurityAgentApproval.mock.calls[1]).toEqual(decideSecurityAgentApproval.mock.calls[0]);
+    expect(within(dialog).queryByRole("button", { name: "Cancel approval" })).not.toBeInTheDocument();
+  });
+
+  it.each([{ canWrite: false, fresh: true }, { canWrite: true, fresh: false }])("does not expose cancellation without current decision authority %j", async (authority) => {
+    const user = userEvent.setup();
+    const decideSecurityAgentApproval = vi.fn(fixtureAPI().decideSecurityAgentApproval);
+    render(<SecurityAgentsView api={fixtureAPI({ decideSecurityAgentApproval })} environmentID={environmentID} autoLoad={false} initialSnapshot={{ agents: [], templates: [], approvals: [approval] }} {...authority} />);
+    await user.click(screen.getByRole("button", { name: `Open approval ${approvalID}` }));
+    const dialog = await screen.findByRole("dialog", { name: `Approval ${approvalID}` });
+    expect(within(dialog).queryByRole("button", { name: "Cancel approval" })).not.toBeInTheDocument();
+    expect(decideSecurityAgentApproval).not.toHaveBeenCalled();
+    if (authority.canWrite) expect(within(dialog).getByRole("button", { name: "Reauthenticate to decide" })).toBeInTheDocument();
+  });
+
   it("applies stale UI intent with the displayed ETag and never refetches before mutation", async () => {
     const user = userEvent.setup();
     const getSecurityAgent = vi.fn(fixtureAPI().getSecurityAgent);
@@ -235,12 +1253,16 @@ describe("Security Agent definition surface", () => {
     const createSecurityAgent = vi.fn(async (value: Parameters<SecurityAgentsAPI["createSecurityAgent"]>[0], attempt?: Parameters<SecurityAgentsAPI["createSecurityAgent"]>[1]) => {
       calls.push({ value, key: attempt?.idempotencyKey ?? "" });
       if (calls.length === 1) throw new TypeError("two transport responses were lost");
-      return { value: created, version: `"1"`, auditID, receiptID };
+      return { value: { ...created, ...value }, version: `"1"`, auditID, receiptID };
     });
     render(<SecurityAgentsView api={fixtureAPI({ createSecurityAgent })} environmentID={environmentID} />);
     await user.click(await screen.findByRole("button", { name: "Create Security Agent" }));
+    await user.type(screen.getByLabelText("AI cost budget (nano OpenRouter credits)"), "123456789");
     await user.click(screen.getByRole("button", { name: "Save Security Agent definition" }));
     await screen.findByRole("button", { name: "Retry retained Security Agent definition" });
+    const cost = screen.getByLabelText("AI cost budget (nano OpenRouter credits)");
+    expect(cost).toBeDisabled();
+    await user.type(cost, "9");
     expect(screen.getByLabelText("Definition name")).toBeDisabled();
     expect(screen.getByLabelText("Definition template")).toBeDisabled();
     expect(screen.getByLabelText("Step limit")).toBeDisabled();
@@ -253,6 +1275,7 @@ describe("Security Agent definition surface", () => {
     await waitFor(() => expect(createSecurityAgent).toHaveBeenCalledTimes(2));
     expect(new Set(calls.map(({ key }) => key)).size).toBe(1);
     expect(calls[1]?.value).toEqual(calls[0]?.value);
+    expect(calls[1]?.value.max_ai_cost_nano_credits).toBe(123456789);
   });
 
   it("locks the drawer and every competing definition action while an update is unresolved", async () => {

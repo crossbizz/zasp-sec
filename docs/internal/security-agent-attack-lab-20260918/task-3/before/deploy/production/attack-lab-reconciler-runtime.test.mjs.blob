@@ -1,0 +1,31 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { mkdtemp,writeFile,rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { renderRelease } from "./release-contract.mjs";
+import { productionReleaseFixture } from "./release-fixture.mjs";
+import { attackLabReconcilerReleaseFixture } from "./attack-lab-reconciler-release-fixture.mjs";
+import { complianceExportReleaseFixture } from "./compliance-export-release-fixture.mjs";
+import { auditExportReleaseFixture } from "./audit-export-release-fixture.mjs";
+import { testReconcilerReleaseFixture } from "./test-reconciler-release-fixture.mjs";
+import { goTestRuntime,requireGoTestVersion } from "./go-test-runtime.mjs";
+
+test("actual Go57 worker and registration loaders accept only rendered dedicated authority",async t=>{
+ const launch=goTestRuntime(),exec=promisify(execFile),root=fileURLToPath(new URL("../../",import.meta.url));
+ requireGoTestVersion((await exec(launch.executable,["env","GOVERSION"],{env:launch.env})).stdout);
+ const dir=await mkdtemp(path.join(tmpdir(),"zasp-attack-lab-rendered-"));
+ try{
+  const enabled=await renderRelease(productionReleaseFixture,{schemaVersion:57,sessionSearchPhase:"precision-intake",attackLabReconciler:attackLabReconcilerReleaseFixture(),complianceExports:complianceExportReleaseFixture(),auditExports:auditExportReleaseFixture(),testReconciler:testReconcilerReleaseFixture()});
+  const disabled=await renderRelease(productionReleaseFixture);
+  const fixture=path.join(dir,"rendered.json");await writeFile(fixture,JSON.stringify({enabled,disabled}),{mode:0o600});
+  const pattern="^TestAttackLabDeploymentRendered(WorkerConfig|MigrationConfig)$";
+  const options={cwd:path.join(root,"services/platform"),env:{...launch.env,ZASP_ATTACK_LAB_RENDERED_FIXTURE:fixture},timeout:120000,maxBuffer:4*1024*1024};
+  const listed=await exec(launch.executable,["test","./agentsec-worker","./agentsec-migrate","-list",pattern],options);assert.match(listed.stdout,/TestAttackLabDeploymentRenderedWorkerConfig/);assert.match(listed.stdout,/TestAttackLabDeploymentRenderedMigrationConfig/);
+  const {stdout,stderr}=await exec(launch.executable,["test","-race","./agentsec-worker","./agentsec-migrate","-run",pattern,"-count=1","-v"],options).catch(error=>{t.diagnostic(error.stdout??"");t.diagnostic(error.stderr??"");throw error;});
+  assert.doesNotMatch(stdout,/SKIP|FAIL/);assert.equal(stderr,"");t.diagnostic(stdout);
+ }finally{await rm(dir,{recursive:true,force:true})}
+});

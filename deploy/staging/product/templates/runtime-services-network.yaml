@@ -1,0 +1,37 @@
+{{- if .Values.runtimeServices.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: runtime-services-egress }
+spec:
+  podSelector:
+    matchExpressions:
+      {{- if .Values.authorizationTemporal.profile }}
+      - { key: app.kubernetes.io/name, operator: In, values: [agentsec-api, agentsec-discovery-scheduler, agentsec-discovery-worker, agentsec-red-team-worker, agentsec-security-agent, zasp-authorization-projector] }
+      {{- else }}
+      - { key: app.kubernetes.io/name, operator: In, values: [agentsec-api, agentsec-discovery-scheduler] }
+      {{- end }}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: zasp-runtime } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: temporal } }
+      ports: [{ protocol: TCP, port: 7233 }]
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: zasp-runtime } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: openfga } }
+      ports: [{ protocol: TCP, port: 8080 }]
+{{- if .Values.authorizationTemporal.profile }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: authorization-adapter-fga-egress }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: agentsec-red-team-adapter } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: zasp-runtime } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: openfga } }
+      ports: [{ protocol: TCP, port: 8080 }]
+{{- end }}
+{{- end }}

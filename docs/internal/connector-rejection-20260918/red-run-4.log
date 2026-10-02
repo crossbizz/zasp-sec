@@ -1,0 +1,59 @@
+0151bd28b0db2addab1407bd48626a12ec1903eb56efbede6adc9af4c810ae1d  /private/tmp/zasp-connector-rejection-red.test
+d861b2325e2252f97532ca50d3e7f4aab8e65103e32b4eead54e0fbde05bbbe9  services/platform/apiserver/connector_rejection_postgres_test.go
+TestConnectorRejectedAuthorityOverridesPostgres
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres
+    connector_rejection_postgres_test.go:64: registered API ACL observation: current_user=security_agent_v33_discovery_api_login audit-table INSERT privilege=true; product writes use real repository operations only
+    connector_rejection_postgres_test.go:132: positive controls: registered role=security_agent_v33_discovery_api_login real security_engineer manage_workflows session; GitHub=201, generic-webhook=201
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/unauthenticated
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/csrf
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/foreign_scope
+    connector_rejection_postgres_test.go:172: control: 409 {"code":"scope_stale","message":"Session scope changed; rebootstrap required","correlation_id":"pid_8b000000-0000-4000-8000-000000000000","retryable":true}
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/foreign_target
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/POST_nango_url
+    connector_rejection_postgres_test.go:216: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=0 records=[]
+    connector_rejection_postgres_test.go:219: missing durable safe scoped rejection audit: want one authorized-attempt event with correlation pid_8b000000-0000-4000-8000-000000000001; got delta=0 matching=0
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/POST_nango_base_url
+    connector_rejection_postgres_test.go:216: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=0 records=[]
+    connector_rejection_postgres_test.go:219: missing durable safe scoped rejection audit: want one authorized-attempt event with correlation pid_8b000000-0000-4000-8000-000000000002; got delta=0 matching=0
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/POST_proxy_url
+    connector_rejection_postgres_test.go:216: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=0 records=[]
+    connector_rejection_postgres_test.go:219: missing durable safe scoped rejection audit: want one authorized-attempt event with correlation pid_8b000000-0000-4000-8000-000000000003; got delta=0 matching=0
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/POST_provider_url
+    connector_rejection_postgres_test.go:216: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=0 records=[]
+    connector_rejection_postgres_test.go:219: missing durable safe scoped rejection audit: want one authorized-attempt event with correlation pid_8b000000-0000-4000-8000-000000000004; got delta=0 matching=0
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/POST_provider_url_with_secret
+    connector_rejection_postgres_test.go:216: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=0 records=[]
+    connector_rejection_postgres_test.go:219: missing durable safe scoped rejection audit: want one authorized-attempt event with correlation pid_8b000000-0000-4000-8000-000000000005; got delta=0 matching=0
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/PATCH_nango_url
+    connector_rejection_postgres_test.go:216: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=0 records=[]
+    connector_rejection_postgres_test.go:219: missing durable safe scoped rejection audit: want one authorized-attempt event with correlation pid_8b000000-0000-4000-8000-000000000006; got delta=0 matching=0
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/PATCH_nango_base_url
+    connector_rejection_postgres_test.go:216: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=0 records=[]
+    connector_rejection_postgres_test.go:219: missing durable safe scoped rejection audit: want one authorized-attempt event with correlation pid_8b000000-0000-4000-8000-000000000007; got delta=0 matching=0
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/PATCH_proxy_url
+    connector_rejection_postgres_test.go:216: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=0 records=[]
+    connector_rejection_postgres_test.go:219: missing durable safe scoped rejection audit: want one authorized-attempt event with correlation pid_8b000000-0000-4000-8000-000000000008; got delta=0 matching=0
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/PATCH_provider_url
+    connector_rejection_postgres_test.go:216: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=0 records=[]
+    connector_rejection_postgres_test.go:219: missing durable safe scoped rejection audit: want one authorized-attempt event with correlation pid_8b000000-0000-4000-8000-000000000009; got delta=0 matching=0
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres/PATCH_provider_url_with_secret
+    connector_rejection_postgres_test.go:216: authorized rejection: HTTP=400 state unchanged; connector dispatch=0 default HTTP=0; scoped rejected audit delta=0 records=[]
+    connector_rejection_postgres_test.go:219: missing durable safe scoped rejection audit: want one authorized-attempt event with correlation pid_8b000000-0000-4000-8000-000000000010; got delta=0 matching=0
+=== NAME  TestConnectorRejectedAuthorityOverridesPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestConnectorRejectedAuthorityOverridesPostgres3689895760/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestConnectorRejectedAuthorityOverridesPostgres (4.73s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/unauthenticated (0.00s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/csrf (0.00s)
+    --- FAIL: TestConnectorRejectedAuthorityOverridesPostgres/foreign_scope (0.00s)
+    --- PASS: TestConnectorRejectedAuthorityOverridesPostgres/foreign_target (0.00s)
+    --- FAIL: TestConnectorRejectedAuthorityOverridesPostgres/POST_nango_url (0.00s)
+    --- FAIL: TestConnectorRejectedAuthorityOverridesPostgres/POST_nango_base_url (0.00s)
+    --- FAIL: TestConnectorRejectedAuthorityOverridesPostgres/POST_proxy_url (0.00s)
+    --- FAIL: TestConnectorRejectedAuthorityOverridesPostgres/POST_provider_url (0.00s)
+    --- FAIL: TestConnectorRejectedAuthorityOverridesPostgres/POST_provider_url_with_secret (0.00s)
+    --- FAIL: TestConnectorRejectedAuthorityOverridesPostgres/PATCH_nango_url (0.00s)
+    --- FAIL: TestConnectorRejectedAuthorityOverridesPostgres/PATCH_nango_base_url (0.00s)
+    --- FAIL: TestConnectorRejectedAuthorityOverridesPostgres/PATCH_proxy_url (0.00s)
+    --- FAIL: TestConnectorRejectedAuthorityOverridesPostgres/PATCH_provider_url (0.00s)
+    --- FAIL: TestConnectorRejectedAuthorityOverridesPostgres/PATCH_provider_url_with_secret (0.00s)
+FAIL

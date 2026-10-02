@@ -1,0 +1,38 @@
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > paginates maximum policy IDs without widening unrelated cursors 5ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > validates authoritative freshness when present on direct live controls 1ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > decodes the disabled-service legacy response without inventing freshness 1ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > accepts typed policy sources, preserving old page records 0ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > rejects scope changes, untyped detail and source metadata outside its allowlist 0ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > bounds public jobs and body-only download grants 0ms
+ ✓ apps/web/api/compliance-decoders.test.ts > compliance current contracts > rejects calendar overflow instead of normalizing source timestamps 0ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > bounds event hydration and preserves sessions whose event request fails 5ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > renders ordered evidence and revokes the exact version 80ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > accepts only the declared 204 session revoke response 1ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > renders legacy evidence without claiming current freshness or exports 14ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > Sessions, compliance, and data controls > updates versioned metadata-only production controls 37ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > loads populated HIPAA and SOC2 with independent cursor chains through the mounted client 45ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 1 before a continuation starts 65ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 1 before a continuation starts 62ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete scope list page 2 before a continuation starts 66ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > cancels obsolete principal list page 2 before a continuation starts 61ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 401 errors before they can invalidate replacement authority 63ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 401 errors before they can invalidate replacement authority 66ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete scope 409 errors before they can invalidate replacement authority 69ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > refuses obsolete principal 409 errors before they can invalidate replacement authority 66ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > uses aggregate freshness, exposes typed source/time links, and filters frameworks and controls 43ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > reads exact source versions through the compliance detail endpoint 8ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 409 4ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 404 4ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > keeps deterministic detail denial 403 4ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > creates queued exports with the selected filters, recovers status on reload, and leaves evidence readable on download failure 56ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders failed export without hiding evidence 19ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > renders expired export without hiding evidence 21ms
+ ✓ app/features/sessions/SessionsComplianceView.test.tsx > current compliance UI > drops late evidence responses on a changed principal and hides revoked authority immediately 57ms
+
+ Test Files  2 passed (2)
+      Tests  30 passed (30)
+   Start at  20:13:50
+   Duration  2.19s (transform 265ms, setup 487ms, import 460ms, tests 925ms, environment 1.40s)

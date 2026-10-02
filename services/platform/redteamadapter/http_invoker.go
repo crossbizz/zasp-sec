@@ -19,10 +19,11 @@ import (
 )
 
 type Credential struct {
-	mu        sync.Mutex
-	secret    []byte
-	destroyed bool
-	onDestroy func()
+	mu            sync.Mutex
+	secret        []byte
+	versionDigest string
+	destroyed     bool
+	onDestroy     func()
 }
 
 func newCredential(secret []byte, onDestroy func()) (*Credential, error) {
@@ -33,15 +34,22 @@ func newCredential(secret []byte, onDestroy func()) (*Credential, error) {
 }
 
 func (credential *Credential) bytes() ([]byte, bool) {
+	secret, _, ok := credential.material()
+	return secret, ok
+}
+
+// Copy signing material and its version together under the destruction lock.
+// An empty digest is legacy/unversioned material, never comparison evidence.
+func (credential *Credential) material() ([]byte, string, bool) {
 	if credential == nil {
-		return nil, false
+		return nil, "", false
 	}
 	credential.mu.Lock()
 	defer credential.mu.Unlock()
 	if credential.destroyed || len(credential.secret) < 32 || len(credential.secret) > 4096 {
-		return nil, false
+		return nil, "", false
 	}
-	return append([]byte(nil), credential.secret...), true
+	return append([]byte(nil), credential.secret...), credential.versionDigest, true
 }
 
 func (credential *Credential) Destroy() {
@@ -55,6 +63,7 @@ func (credential *Credential) Destroy() {
 	}
 	clear(credential.secret)
 	credential.secret = nil
+	credential.versionDigest = ""
 	credential.destroyed = true
 	onDestroy := credential.onDestroy
 	credential.onDestroy = nil
@@ -69,6 +78,8 @@ type CredentialResolver interface {
 type TargetAuthorization struct {
 	PayloadDigest string
 	Signature     string
+	// Internal provenance only. Never send version identity to the target.
+	CredentialVersionDigest string `json:"-"`
 }
 
 func AuthorizeTargetPayload(ctx context.Context, resolver CredentialResolver, reference string, payload []byte) (TargetAuthorization, error) {
@@ -83,7 +94,7 @@ func AuthorizeTargetPayload(ctx context.Context, resolver CredentialResolver, re
 		return TargetAuthorization{}, ErrAdapter
 	}
 	defer credential.Destroy()
-	secret, ok := credential.bytes()
+	secret, versionDigest, ok := credential.material()
 	if !ok {
 		return TargetAuthorization{}, ErrAdapter
 	}
@@ -91,7 +102,7 @@ func AuthorizeTargetPayload(ctx context.Context, resolver CredentialResolver, re
 	digest := sha256.Sum256(payload)
 	mac := hmac.New(sha256.New, secret)
 	_, _ = mac.Write(payload)
-	return TargetAuthorization{PayloadDigest: "sha256:" + hex.EncodeToString(digest[:]), Signature: "sha256:" + hex.EncodeToString(mac.Sum(nil))}, nil
+	return TargetAuthorization{PayloadDigest: "sha256:" + hex.EncodeToString(digest[:]), Signature: "sha256:" + hex.EncodeToString(mac.Sum(nil)), CredentialVersionDigest: versionDigest}, nil
 }
 
 type HTTPSInvoker struct {
@@ -134,23 +145,42 @@ func newHTTPSInvoker(client *http.Client, credentials CredentialResolver, timeou
 	return &HTTPSInvoker{client: &bounded, credentials: credentials, timeout: timeout}, nil
 }
 
+// InvocationObservation contains only the bounded evidence from a complete,
+// validated HTTP response. It is not a remediation or comparable-baseline proof.
+type InvocationObservation struct {
+	TargetComparison *TargetComparison `json:"-"`
+	HTTPStatus       int               `json:"http_status"`
+	ResponseDigest   string            `json:"response_digest"`
+	Protected        *bool             `json:"protected"`
+	// Internal signing provenance, retained by the durable journal. Artifact
+	// association is a separate gate; empty legacy observations are not comparable.
+	CredentialVersionDigest string `json:"-"`
+}
+
 func (invoker *HTTPSInvoker) Invoke(ctx context.Context, invocation Invocation) (string, error) {
+	output, _, err := invoker.InvokeObserved(ctx, invocation)
+	return output, err
+}
+
+// InvokeObserved shares the exact transport, authentication and response
+// validation used by Invoke. Errors return no successful observation.
+func (invoker *HTTPSInvoker) InvokeObserved(ctx context.Context, invocation Invocation) (string, InvocationObservation, error) {
 	if invoker == nil || invoker.client == nil || invoker.credentials == nil || ctx == nil || ctx.Err() != nil || invocation.Scope.Validate() != nil || !validBinding(invocation.Binding) || invocation.RunID == invocation.Binding.TargetID || !validRequestBody(requestBody{TargetID: invocation.Binding.TargetID, TargetKind: invocation.Binding.TargetKind, Category: invocation.Category, Input: invocation.Input}) {
-		return "", ErrAdapter
+		return "", InvocationObservation{}, ErrAdapter
 	}
-	payload, err := json.Marshal(targetWireRequest{SchemaVersion: "red-team-target-v1", RunID: invocation.RunID, TargetID: invocation.Binding.TargetID, TargetKind: invocation.Binding.TargetKind, Category: invocation.Category, Input: invocation.Input})
+	payload, err := targetPayload(invocation)
 	if err != nil || len(payload) < 1 || len(payload) > 64*1024 {
-		return "", ErrAdapter
+		return "", InvocationObservation{}, ErrAdapter
 	}
 	authorization, err := AuthorizeTargetPayload(ctx, invoker.credentials, invocation.Binding.CredentialReference, payload)
 	if err != nil {
-		return "", ErrAdapter
+		return "", InvocationObservation{}, ErrAdapter
 	}
 	bounded, cancel := context.WithTimeout(ctx, invoker.timeout)
 	defer cancel()
 	request, err := http.NewRequestWithContext(bounded, http.MethodPost, invocation.Binding.Endpoint, bytes.NewReader(payload))
 	if err != nil {
-		return "", ErrAdapter
+		return "", InvocationObservation{}, ErrAdapter
 	}
 	request.Close = true
 	request.Header.Set("Accept", "application/json")
@@ -162,24 +192,39 @@ func (invoker *HTTPSInvoker) Invoke(ctx context.Context, invocation Invocation) 
 	response, err := invoker.client.Do(request)
 	if err != nil || bounded.Err() != nil || response == nil {
 		closeResponse(response)
-		return "", ErrAdapter
+		return "", InvocationObservation{}, ErrAdapter
 	}
 	defer response.Body.Close()
 	body, readErr := io.ReadAll(io.LimitReader(response.Body, 64*1024+1))
 	if readErr != nil || len(body) < 1 || len(body) > 64*1024 || response.StatusCode != http.StatusOK || response.Header.Get("Content-Type") != "application/json" {
-		return "", ErrAdapter
+		return "", InvocationObservation{}, ErrAdapter
 	}
-	var result Response
 	decoder := json.NewDecoder(bytes.NewReader(body))
-	decoder.DisallowUnknownFields()
-	if decoder.Decode(&result) != nil {
-		return "", ErrAdapter
+	// Decode the exact one-field object. Struct decoding accepts case-folded
+	// names and overwrites duplicate fields, which could hide an unsafe marker.
+	opening, err := decoder.Token()
+	if err != nil || opening != json.Delim('{') {
+		return "", InvocationObservation{}, ErrAdapter
+	}
+	key, err := decoder.Token()
+	if err != nil || key != "output" {
+		return "", InvocationObservation{}, ErrAdapter
+	}
+	var output string
+	if decoder.Decode(&output) != nil || !validText(output, 64*1024) {
+		return "", InvocationObservation{}, ErrAdapter
+	}
+	closing, err := decoder.Token()
+	if err != nil || closing != json.Delim('}') {
+		return "", InvocationObservation{}, ErrAdapter
 	}
 	var trailing any
-	if !errors.Is(decoder.Decode(&trailing), io.EOF) || !validText(result.Output, 64*1024) {
-		return "", ErrAdapter
+	if !errors.Is(decoder.Decode(&trailing), io.EOF) {
+		return "", InvocationObservation{}, ErrAdapter
 	}
-	return result.Output, nil
+	digest := sha256.Sum256(body)
+	protected := !strings.Contains(output, "ZASP_RED_TEAM_"+strings.ToUpper(invocation.Category))
+	return output, InvocationObservation{HTTPStatus: response.StatusCode, ResponseDigest: hex.EncodeToString(digest[:]), Protected: &protected, CredentialVersionDigest: authorization.CredentialVersionDigest}, nil
 }
 
 func closeResponse(response *http.Response) {

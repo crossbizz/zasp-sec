@@ -1,0 +1,233 @@
+diff --git a/deploy/production/compliance-export-rollout.mjs b/deploy/production/compliance-export-rollout.mjs
+index 1a987bd0..662c86c5 100644
+--- a/deploy/production/compliance-export-rollout.mjs
++++ b/deploy/production/compliance-export-rollout.mjs
+@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from "node:util";
+ import { load } from "js-yaml";
+ import { validAuditExportCIDRs } from "./audit-export-network.mjs";
+ import { validateComplianceExportNetwork } from "./compliance-export-network.mjs";
++import { validateAPIStartup } from "./api-startup.mjs";
+ 
+ const keys = ["enabled", "awsRegion", "bucket", "bucketOwner", "kmsKeyArn", "readerRoleArn", "writerRoleArn", "cleanupRoleArn", "workerDSNSecretArn", "cleanupDSNSecretArn", "workerPrincipal", "cleanupPrincipal", "databaseCIDRs", "stsCIDRs", "s3CIDRs"];
+ const prefix = "ZASP_COMPLIANCE_";
+@@ -109,6 +110,7 @@ export function validateComplianceExportResources(resources, config, schemaVersi
+   }
+   const api = one("Deployment", "agentsec-api"), apiPod = podOf(api), apiContainer = apiPod.containers[0];
+   trusted.add(api);
++  validateAPIStartup(apiContainer, resources.some(r => r.kind === "Deployment" && r.metadata?.name === "zasp-audit-export-worker"));
+   environment(apiContainer, { ...common, ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN: config.readerRoleArn });
+   equal(apiPod.volumes?.filter(v => v.name === "connector-web-identity"), [{ name: "connector-web-identity", projected: { defaultMode: 256, sources: [{ serviceAccountToken: { audience: "sts.amazonaws.com", expirationSeconds: 900, path: "token" } }] } }]);
+   equal(apiContainer.volumeMounts?.filter(v => v.name === "connector-web-identity"), [{ name: "connector-web-identity", mountPath: tokenPath, readOnly: true }]);
+diff --git a/deploy/production/audit-export-rollout.mjs b/deploy/production/audit-export-rollout.mjs
+index 7265043a..4585f68a 100644
+--- a/deploy/production/audit-export-rollout.mjs
++++ b/deploy/production/audit-export-rollout.mjs
+@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from "node:util";
+ import { load } from "js-yaml";
+ import { validAuditExportCIDRs, validateAuditExportNetwork } from "./audit-export-network.mjs";
+ import { validateAuditExportOperations } from "./audit-export-operations.mjs";
++import { validateAPIStartup } from "./api-startup.mjs";
+ 
+ // These checks validate a rendered artifact, not authority to activate a live release.
+ export function auditExportMigrationCommand(schemaVersion = 52) {
+@@ -168,10 +169,7 @@ export function validateAuditExportResources(resources, expected, schemaVersion
+   expectEnvironment(apiContainer, { ZASP_AUDIT_EXPORT_POLICIES_JSON: expected.policies, ZASP_AUDIT_EXPORT_READER_ROLE_ARN: expected.readerRoleArn, ZASP_AUDIT_EXPORT_WEB_IDENTITY_TOKEN_FILE: `${tokenPath}/token` });
+   const apiEnv = envMap(apiContainer);
+   requireValue(![expected.writerRoleArn, expected.publisherRoleArn, expected.readerRoleArn].includes(apiEnv.get("ZASP_CONNECTOR_ROLE_ARN")?.value));
+-  equal(apiContainer.command, ["/bin/sh", "-ec"]);
+-  requireValue(apiContainer.args?.length === 1 && typeof apiContainer.args[0] === "string");
+-  const apiLoads = [["POSTGRES_DSN", "postgres-dsn"], ["SECURITY_AGENT_POSTGRES_DSN", "security-agent-postgres-dsn"], ["STYTCH_PROJECT_ID", "stytch-project-id"], ["STYTCH_SECRET", "stytch-secret"], ["STYTCH_WEBHOOK_SECRET", "stytch-webhook-secret"], ["STYTCH_PUBLIC_TOKEN", "stytch-public-token"], ["STYTCH_ORGANIZATION_ID", "stytch-organization-id"], ["WORKFLOW_SIGNING_KEY", "workflow-signing-key"], ["TOKEN_REVEAL_KEY", "token-reveal-key"], ["AUDIT_EXPORT_CURSOR_SIGNING_KEY", cursorAlias]];
+-  equal(apiContainer.args[0].split("\n").map(l => l.trim()).filter(Boolean), [...apiLoads.map(([env, file]) => `export ZASP_${env}="$(cat /var/run/secrets/zasp/${file})"`), "exec /app/agentsec-api"]);
++  validateAPIStartup(apiContainer, true);
+   const apiVolume = apiPod.volumes?.filter(v => v.name === "runtime-secrets");
+   requireValue(apiVolume?.length === 1);
+   const providerName = apiVolume[0].csi?.volumeAttributes?.secretProviderClass;
+diff --git a/deploy/production/compliance-export-rollout.test.mjs b/deploy/production/compliance-export-rollout.test.mjs
+index f0e5f7d7..0907850c 100644
+--- a/deploy/production/compliance-export-rollout.test.mjs
++++ b/deploy/production/compliance-export-rollout.test.mjs
+@@ -12,6 +12,27 @@ const resource = (rows, kind, name) => rows.find(r => r.kind === kind && r.metad
+ const pod = (rows, name = "zasp-compliance-export-worker") => resource(rows, "Deployment", name).spec.template.spec;
+ const env = (rows, name, field) => pod(rows, name).containers[0].env.find(e => e.name === field);
+ 
++test("compliance API startup rejects shell authority and command changes with and without audit", async t => {
++  for (const auditEnabled of [false, true]) {
++    const compliance = complianceExportReleaseFixture();
++    const audit = auditEnabled ? auditExportReleaseFixture() : undefined;
++    const valid = await renderRelease(productionReleaseFixture, { ...options(compliance), auditExports: audit });
++    const validate = rows => validateRenderedRelease(rows, "123456789012", 56, "precision-intake", audit, undefined, compliance);
++    assert.doesNotThrow(() => validate(valid));
++    for (const [name, mutate] of Object.entries({
++      "worker authority export": c => { c.args[0] = `export ZASP_COMPLIANCE_EXPORT_ROLE_ARN="${compliance.writerRoleArn}"\n${c.args[0]}`; },
++      "replacement command": c => { c.command = ["/bin/sh", "-c"]; },
++      "extra argument": c => { c.args.push("unexpected"); },
++      "replacement executable": c => { c.args[0] = c.args[0].replace("exec /app/agentsec-api", "exec /app/agentsec-worker"); },
++      "missing secret load": c => { c.args[0] = c.args[0].split("\n").filter(line => !line.includes("ZASP_POSTGRES_DSN=")).join("\n"); },
++    })) await t.test(`${auditEnabled ? "audit" : "compliance-only"}: ${name}`, () => {
++      const rows = structuredClone(valid);
++      mutate(pod(rows, "agentsec-api").containers[0]);
++      assert.throws(() => validate(rows), /release rejected/);
++    });
++  }
++});
++
+ test("migration uses the published registration environment names", async () => {
+   const rows = await renderRelease(productionReleaseFixture, options());
+   const entries = resource(rows, "Job", "agentsec-schema-v56").spec.template.spec.containers[0].env.filter(e => e.name.startsWith("ZASP_COMPLIANCE_"));
+diff --git a/deploy/production/compliance-export-runtime.test.mjs b/deploy/production/compliance-export-runtime.test.mjs
+index ee51c373..7ae11d80 100644
+--- a/deploy/production/compliance-export-runtime.test.mjs
++++ b/deploy/production/compliance-export-runtime.test.mjs
+@@ -11,18 +11,26 @@ import { productionReleaseFixture } from "./release-fixture.mjs";
+ import { complianceExportReleaseFixture } from "./compliance-export-release-fixture.mjs";
+ import { auditExportReleaseFixture } from "./audit-export-release-fixture.mjs";
+ import { testReconcilerReleaseFixture } from "./test-reconciler-release-fixture.mjs";
++import { goTestRuntime, requireGoTestVersion } from "./go-test-runtime.mjs";
+ 
+ test("real Go loaders consume enabled and disabled rendered compliance environments", async t => {
+   const root = fileURLToPath(new URL("../../", import.meta.url));
++  const launch = goTestRuntime();
++  const exec = promisify(execFile);
++  const version = await exec(launch.executable, ["env", "GOVERSION"], { env: launch.env, timeout: 10000, maxBuffer: 4096 });
++  requireGoTestVersion(version.stdout);
++  assert.equal(version.stderr, "");
+   const dir = await mkdtemp(path.join(tmpdir(), "zasp-compliance-rendered-"));
+   try {
+     const enabled = await renderRelease(productionReleaseFixture, { schemaVersion: 56, sessionSearchPhase: "precision-intake", complianceExports: complianceExportReleaseFixture(), auditExports: auditExportReleaseFixture(), testReconciler: testReconcilerReleaseFixture() });
+     const disabled = await renderRelease(productionReleaseFixture);
++    const complianceOnly = await renderRelease(productionReleaseFixture, { schemaVersion: 56, sessionSearchPhase: "precision-intake", complianceExports: complianceExportReleaseFixture() });
+     const fixture = path.join(dir, "rendered.json");
+-    await writeFile(fixture, JSON.stringify({ enabled, disabled }), { mode: 0o600 });
+-    const { stdout, stderr } = await promisify(execFile)("/opt/homebrew/bin/go", ["test", "-race", "./agentsec-api", "./agentsec-worker", "-run", "^TestComplianceDeploymentRendered", "-count=1", "-v"], { cwd: path.join(root, "services/platform"), timeout: 120000, maxBuffer: 4 * 1024 * 1024, env: { PATH: "/opt/homebrew/bin:/usr/bin:/bin", HOME: process.env.HOME, GOTOOLCHAIN: "local", GOPROXY: "off", GOSUMDB: "off", GOCACHE: "/private/tmp/zasp-budget-go-cache", ZASP_COMPLIANCE_RENDERED_FIXTURE: fixture } });
++    await writeFile(fixture, JSON.stringify({ enabled, disabled, complianceOnly }), { mode: 0o600 });
++    const { stdout, stderr } = await exec(launch.executable, ["test", "-race", "./agentsec-api", "./agentsec-worker", "-run", "^TestComplianceDeploymentRendered", "-count=1", "-v"], { cwd: path.join(root, "services/platform"), timeout: 120000, maxBuffer: 4 * 1024 * 1024, env: { ...launch.env, ZASP_COMPLIANCE_RENDERED_FIXTURE: fixture } });
+     assert.doesNotMatch(stdout, /SKIP|FAIL/); assert.equal(stderr, "");
+     assert.match(stdout, /TestComplianceDeploymentRenderedAPIConfig/); assert.match(stdout, /TestComplianceDeploymentRenderedWorkerConfig/);
++    assert.match(stdout, /TestComplianceDeploymentRenderedAPIConfig\/complianceOnly/);
+     t.diagnostic(stdout);
+   } finally { await rm(dir, { recursive: true, force: true }); }
+ });
+diff --git a/services/platform/agentsec-api/compliance_deployment_config_test.go b/services/platform/agentsec-api/compliance_deployment_config_test.go
+index 64f43e56..d121e0dc 100644
+--- a/services/platform/agentsec-api/compliance_deployment_config_test.go
++++ b/services/platform/agentsec-api/compliance_deployment_config_test.go
+@@ -41,7 +41,7 @@ func TestComplianceDeploymentRenderedAPIConfig(t *testing.T) {
+ 	if err := json.Unmarshal(data, &fixtures); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	for _, mode := range []string{"enabled", "disabled"} {
++	for _, mode := range []string{"enabled", "disabled", "complianceOnly"} {
+ 		t.Run(mode, func(t *testing.T) {
+ 			found := false
+ 			for _, resource := range fixtures[mode] {
+@@ -87,10 +87,13 @@ func TestComplianceDeploymentRenderedAPIConfig(t *testing.T) {
+ 					return loadRuntimeConfigFromEnvironment(func(k string) (string, bool) { v, ok := values[k]; return v, ok })
+ 				}
+ 				config, err := load()
+-				if err != nil || (config.ComplianceExports != nil) != (mode == "enabled") {
++				if err != nil || (config.ComplianceExports != nil) != (mode != "disabled") {
+ 					t.Fatalf("rendered %s API configuration: %v", mode, err)
+ 				}
+-				if mode == "enabled" {
++				if (config.AuditExports != nil) != (mode == "enabled") {
++					t.Fatal("rendered audit opt-in changed")
++				}
++				if mode != "disabled" {
+ 					if config.ComplianceExports.Bucket != "zasp-compliance-fixture" || config.ComplianceExports.ReaderRoleARN != "arn:aws:iam::123456789012:role/compliance-reader" {
+ 						t.Fatal("manifest compliance authority changed")
+ 					}
+diff --git a/package.json b/package.json
+index 6c9c8384..db9cad26 100644
+--- a/package.json
++++ b/package.json
+@@ -30,7 +30,7 @@
+     "local:product:test": "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs",
+     "local:product:run": "node deploy/local/run.mjs",
+     "production:combined-e2e:test": "node --test scripts/browser-e2e-helpers.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/runtime-pipeline-dependencies.test.mjs && npm run build && node scripts/production-combined-e2e.mjs && ZASP_COMBINED_E2E_COMPLIANCE=true node scripts/production-combined-e2e.mjs",
+-    "production:release:test": "node --test scripts/production-release-gate.test.mjs deploy/production/release-contract.test.mjs deploy/production/release-gates.test.mjs deploy/production/session-search-rollout.test.mjs deploy/production/security-agent-budget-rollout.test.mjs deploy/production/compatibility-observation.test.mjs deploy/production/sandbox-query-observation.test.mjs deploy/production/audit-export-workloads.test.mjs deploy/production/audit-export-rollout.test.mjs deploy/production/audit-export-network.test.mjs deploy/production/audit-export-operations.test.mjs deploy/production/test-reconciler-workloads.test.mjs deploy/production/test-reconciler-rollout.test.mjs deploy/production/compliance-export-rollout.test.mjs deploy/production/compliance-export-helm.test.mjs deploy/production/compliance-export-runtime.test.mjs",
++    "production:release:test": "node --test scripts/production-release-gate.test.mjs deploy/production/release-contract.test.mjs deploy/production/release-gates.test.mjs deploy/production/session-search-rollout.test.mjs deploy/production/security-agent-budget-rollout.test.mjs deploy/production/compatibility-observation.test.mjs deploy/production/sandbox-query-observation.test.mjs deploy/production/audit-export-workloads.test.mjs deploy/production/audit-export-rollout.test.mjs deploy/production/audit-export-network.test.mjs deploy/production/audit-export-operations.test.mjs deploy/production/test-reconciler-workloads.test.mjs deploy/production/test-reconciler-rollout.test.mjs deploy/production/compliance-export-rollout.test.mjs deploy/production/compliance-export-helm.test.mjs deploy/production/compliance-export-toolchain.test.mjs deploy/production/compliance-export-runtime.test.mjs",
+     "production:nango-image:proof": "node --test deploy/production/nango-image-proof.test.mjs",
+     "production:otel-redaction:proof": "node --test deploy/production/otel-redaction-proof.test.mjs",
+     "production:release:gate": "node scripts/production-release-gate.mjs",
+diff --git a/deploy/production/api-startup.mjs b/deploy/production/api-startup.mjs
+new file mode 100644
+index 00000000..013f5a07
+--- /dev/null
++++ b/deploy/production/api-startup.mjs
+@@ -0,0 +1,21 @@
++import { isDeepStrictEqual } from "node:util";
++
++// Startup loads are authority too: env entries alone cannot constrain a shell.
++export function validateAPIStartup(container, auditExportsEnabled) {
++  const reject = () => { throw new Error("release rejected: API startup"); };
++  if (typeof auditExportsEnabled !== "boolean" || !isDeepStrictEqual(container?.command, ["/bin/sh", "-ec"]) || !Array.isArray(container.args) || container.args.length !== 1 || typeof container.args[0] !== "string") reject();
++  const loads = [
++    ["POSTGRES_DSN", "postgres-dsn"],
++    ["SECURITY_AGENT_POSTGRES_DSN", "security-agent-postgres-dsn"],
++    ["STYTCH_PROJECT_ID", "stytch-project-id"],
++    ["STYTCH_SECRET", "stytch-secret"],
++    ["STYTCH_WEBHOOK_SECRET", "stytch-webhook-secret"],
++    ["STYTCH_PUBLIC_TOKEN", "stytch-public-token"],
++    ["STYTCH_ORGANIZATION_ID", "stytch-organization-id"],
++    ["WORKFLOW_SIGNING_KEY", "workflow-signing-key"],
++    ["TOKEN_REVEAL_KEY", "token-reveal-key"],
++  ];
++  if (auditExportsEnabled) loads.push(["AUDIT_EXPORT_CURSOR_SIGNING_KEY", "audit-export-cursor-signing-key"]);
++  const expected = [...loads.map(([env, file]) => `export ZASP_${env}="$(cat /var/run/secrets/zasp/${file})"`), "exec /app/agentsec-api"];
++  if (!isDeepStrictEqual(container.args[0].split("\n").map(line => line.trim()).filter(Boolean), expected)) reject();
++}
+diff --git a/deploy/production/go-test-runtime.mjs b/deploy/production/go-test-runtime.mjs
+new file mode 100644
+index 00000000..1b2ccbf9
+--- /dev/null
++++ b/deploy/production/go-test-runtime.mjs
+@@ -0,0 +1,15 @@
++// Keep the caller's installed compiler/cache usable without forwarding product
++// credentials or allowing Go to fetch a toolchain or dependencies during proof.
++export function goTestRuntime(environment = process.env) {
++  const executable = environment.ZASP_GO_BIN ?? "go";
++  if (typeof executable !== "string" || executable.length === 0 || executable !== executable.trim() || /[\r\n\0]/.test(executable)) throw new Error("invalid Go executable");
++  const env = {};
++  for (const key of ["PATH", "HOME", "GOCACHE", "GOPATH", "GOMODCACHE", "TMPDIR", "TMP", "TEMP", "SYSTEMROOT", "CC", "CXX", "CGO_ENABLED"]) {
++    if (typeof environment[key] === "string") env[key] = environment[key];
++  }
++  return { executable, env: { ...env, GOTOOLCHAIN: "local", GOPROXY: "off", GOSUMDB: "off", GOENV: "off" } };
++}
++
++export function requireGoTestVersion(output) {
++  if (output !== "go1.25.6\n" && output !== "go1.25.6\r\n") throw new Error("Go 1.25.6 is required for rendered runtime verification");
++}
+diff --git a/deploy/production/compliance-export-toolchain.test.mjs b/deploy/production/compliance-export-toolchain.test.mjs
+new file mode 100644
+index 00000000..f2598415
+--- /dev/null
++++ b/deploy/production/compliance-export-toolchain.test.mjs
+@@ -0,0 +1,28 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++
++const runtime = await import("./go-test-runtime.mjs").catch(error => {
++  if (error.code !== "ERR_MODULE_NOT_FOUND") throw error;
++  return {};
++});
++
++test("Go test launch preserves setup-go PATH and configured cache without ambient credentials", () => {
++  assert.equal(typeof runtime.goTestRuntime, "function", "portable Go launch selection is required");
++  const launch = runtime.goTestRuntime({ PATH: "/opt/hostedtoolcache/go/1.25.6/x64/bin:/usr/bin", HOME: "/home/runner", GOCACHE: "/tmp/runner-go-cache", AWS_SECRET_ACCESS_KEY: "must-not-forward", ZASP_POSTGRES_DSN: "must-not-forward", GOPROXY: "https://unapproved.example", GOTOOLCHAIN: "auto" });
++  assert.equal(launch.executable, "go");
++  assert.deepEqual(launch.env, { PATH: "/opt/hostedtoolcache/go/1.25.6/x64/bin:/usr/bin", HOME: "/home/runner", GOCACHE: "/tmp/runner-go-cache", GOTOOLCHAIN: "local", GOPROXY: "off", GOSUMDB: "off", GOENV: "off" });
++});
++
++test("Go test launch accepts an explicit executable outside Homebrew and leaves default cache portable", () => {
++  assert.equal(typeof runtime.goTestRuntime, "function", "portable Go launch selection is required");
++  const launch = runtime.goTestRuntime({ ZASP_GO_BIN: "/opt/toolchains/go/bin/go", PATH: "/usr/bin", HOME: "/home/runner" });
++  assert.equal(launch.executable, "/opt/toolchains/go/bin/go");
++  assert.equal(Object.hasOwn(launch.env, "GOCACHE"), false);
++  for (const value of ["", " go", "go\n"]) assert.throws(() => runtime.goTestRuntime({ ZASP_GO_BIN: value }), /Go executable/);
++});
++
++test("Go test launch refuses an unpinned or malformed toolchain version", () => {
++  assert.equal(typeof runtime.requireGoTestVersion, "function", "Go version gate is required");
++  assert.doesNotThrow(() => runtime.requireGoTestVersion("go1.25.6\n"));
++  for (const version of ["go1.25.5\n", "go1.26.0\n", "devel go1.25\n", "go1.25.6\nextra", ""]) assert.throws(() => runtime.requireGoTestVersion(version), /Go 1.25.6/);
++});

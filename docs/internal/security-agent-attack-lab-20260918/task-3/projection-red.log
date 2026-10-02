@@ -1,0 +1,5 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go1.25.6","test","-C","services/platform","./apiserver","-run","^TestSecurityAgentAttackLabPublic","-count=1"]
+env: /opt/homebrew/bin/go1.25.6: No such file or directory
+
+Exit: 127 Signal: null

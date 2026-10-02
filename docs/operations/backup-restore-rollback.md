@@ -14,6 +14,13 @@ Do not run `agentsec-migrate down` as a routine rollback. The command removes mi
 
 The explicit `agentsec-migrate down-to-49` command only rolls schema 50 back to 49 when the existing rollback guards permit it; retained evidence can refuse the operation. It does not roll back schema 51. No schema-51 down command is exposed. Do not substitute plain `down` for either boundary.
 
+For the run-context release, `agentsec-migrate down-to-53` is the explicit54-to53
+boundary. It restores predecessor functions and removes54-owned projection and
+readiness objects, preserving53 budget data. Verify exact53 compiled readiness
+and compatible reviewed images before reopening traffic; local rollback tests
+are not a substitute for the pre-release snapshot or a deployed restore drill.
+This command does not roll back53 to52 or authorize a live database transition.
+
 ## Queue and provider recovery
 
 Provider calls use bounded timeout, concurrency and retry rules; non-idempotent mutations are never retried automatically. Keep the API ready only while PostgreSQL and required identity provider checks pass. For queue recovery, stop consumers, measure visible/in-flight/DLQ counts, redrive only after the poison message cause is fixed, preserve idempotency keys, and confirm each durable effect once. Never delete a queue or DLQ to clear an alert.

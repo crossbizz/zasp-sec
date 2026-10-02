@@ -1,0 +1,106 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/usr/bin/env","PATH=/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin","npm","run","typecheck"]
+
+> zasp-agent-security-console@0.1.0 typecheck
+> tsc --noEmit
+
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(5,32): error TS2307: Cannot find module '../../apps/web/api/client' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(6,37): error TS2307: Cannot find module '../api/APIProvider' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(7,45): error TS2307: Cannot find module '../auth/SessionProvider' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(8,37): error TS2307: Cannot find module '../features/administration/AdminOperationsView' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(9,39): error TS2307: Cannot find module '../features/administration/AuditExportPanel' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(10,45): error TS2307: Cannot find module '../features/agents/ProductionAgentSecurityView' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(11,31): error TS2307: Cannot find module '../features/identity/APIAccessView' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(12,37): error TS2307: Cannot find module '../features/identity/IdentityAPIProvider' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(13,36): error TS2307: Cannot find module '../features/identity/IdentityAccessView' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(14,37): error TS2307: Cannot find module '../features/identity/ScopeOnboardingView' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(15,36): error TS2307: Cannot find module '../features/risk/ProductionRiskView' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(17,39): error TS2307: Cannot find module '../features/redteam/ProductionRedTeamView' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(18,40): error TS2307: Cannot find module '../features/recovery/RecoveryOperationsView' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(20,40): error TS2307: Cannot find module '../features/securityagents/SecurityAgentAuditView' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(21,40): error TS2307: Cannot find module '../features/sessions/SessionsComplianceView' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(22,40): error TS2307: Cannot find module '../features/sessions/RuntimeSessionsView' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(23,41): error TS2307: Cannot find module '../features/sensors/ProductionSensorView' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(24,68): error TS2307: Cannot find module '../features/workflows/ProductionWorkflowViews' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(25,82): error TS2307: Cannot find module '../features/workflows/useRetainedWorkflowMutation' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(26,38): error TS2307: Cannot find module './ui' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(27,40): error TS2307: Cannot find module './ProductionGlobalSearch' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(29,37): error TS2307: Cannot find module '../domain/compliance-links' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(114,200): error TS7006: Parameter 'item' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/components/ZaspProductionApp.tsx(114,383): error TS7006: Parameter 'scope' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.test.tsx(7,37): error TS2307: Cannot find module '../../api/APIProvider' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.test.tsx(9,43): error TS2307: Cannot find module './api' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(6,24): error TS2307: Cannot find module '../../api/APIProvider' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(7,29): error TS2307: Cannot find module '../../api/query' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(8,65): error TS2307: Cannot find module '../../components/ui' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(9,112): error TS2307: Cannot find module './api' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(19,226): error TS7006: Parameter 'run' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(24,104): error TS7006: Parameter 'run' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(24,191): error TS7006: Parameter 'run' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(38,20): error TS18047: 'preflight' is possibly 'null'.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(40,164): error TS18047: 'preflight' is possibly 'null'.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(41,79): error TS18047: 'preflight' is possibly 'null'.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(47,780): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(47,838): error TS7006: Parameter 'run' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/redteam/ProductionAttackLabView.tsx(47,1938): error TS7006: Parameter 'run' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/ActionDetails.tsx(2,38): error TS2307: Cannot find module './ExistingTestEvidence' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.test.tsx(8,50): error TS2307: Cannot find module '../../../apps/web/api/client' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.test.tsx(9,29): error TS2307: Cannot find module '../../api/APIProvider' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.test.tsx(37,49): error TS7006: Parameter 'request' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.test.tsx(218,41): error TS7006: Parameter 'request' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(7,101): error TS2307: Cannot find module '../../../apps/web/api/client' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(10,24): error TS2307: Cannot find module '../../api/APIProvider' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(11,29): error TS2307: Cannot find module '../../api/query' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(12,28): error TS2307: Cannot find module '../../auth/SessionProvider' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(13,98): error TS2307: Cannot find module '../../components/ui' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(23,8): error TS2307: Cannot find module '../workflows/api' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(24,45): error TS2307: Cannot find module '../workflows/useRetainedWorkflowMutation' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(26,44): error TS2307: Cannot find module './SecurityAgentActivityPanel' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(27,48): error TS2307: Cannot find module '../../../apps/web/api/security-agent-activity' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(29,44): error TS2307: Cannot find module '../redteam/api' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(30,36): error TS2307: Cannot find module './ExistingTestPicker' or its corresponding type declarations.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(79,45): error TS7006: Parameter 'active' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(91,45): error TS7006: Parameter 'active' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(97,45): error TS7006: Parameter 'active' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(100,45): error TS7006: Parameter 'active' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(107,45): error TS7006: Parameter 'active' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(114,45): error TS7006: Parameter 'active' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(121,45): error TS7006: Parameter 'active' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(138,45): error TS7006: Parameter 'active' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(157,45): error TS7006: Parameter 'active' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(230,154): error TS7006: Parameter 'frozen' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(230,162): error TS7006: Parameter 'attempt' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(234,48): error TS18046: 'reason' is of type 'unknown'.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(275,43): error TS7006: Parameter 'frozen' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(275,51): error TS7006: Parameter 'attempt' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(280,104): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(282,109): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(284,144): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(287,159): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(287,362): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(287,594): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(287,819): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(287,1032): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(314,121): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(314,129): error TS7006: Parameter 'attempt' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(316,133): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(316,141): error TS7006: Parameter 'attempt' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(325,253): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(325,261): error TS7006: Parameter 'attempt' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(327,76): error TS18046: 'reason' is of type 'unknown'.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(327,101): error TS18046: 'reason' is of type 'unknown'.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(333,290): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(333,298): error TS7006: Parameter 'attempt' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(341,297): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(341,305): error TS7006: Parameter 'attempt' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(347,351): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(347,1455): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(348,174): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(348,314): error TS7006: Parameter 'event' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(376,85): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(376,93): error TS7006: Parameter 'attempt' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(432,95): error TS7006: Parameter 'intent' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(432,103): error TS7006: Parameter 'attempt' implicitly has an 'any' type.
+docs/internal/security-agent-attack-lab-20260918/task-3/before/app/features/securityagents/SecurityAgentsView.tsx(525,795): error TS7006: Parameter 'current' implicitly has an 'any' type.
+
+Exit: 2 Signal: null

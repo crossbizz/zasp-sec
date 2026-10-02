@@ -28,7 +28,7 @@ func TestSandboxPrestageStopsAt49AndRegistersPrincipals(t *testing.T) {
 	if !isForwardMigration([]string{"up-to-49"}) {
 		t.Fatal("prestage skipped principal configuration and registration")
 	}
-	for _, args := range [][]string{{"up-to-49", "extra"}, {"up-to-52"}, {"down"}} {
+	for _, args := range [][]string{{"up-to-49", "extra"}, {"up-to-56"}, {"down"}} {
 		if isForwardMigration(args) {
 			t.Fatal("unsupported command gained registration side effects", args)
 		}

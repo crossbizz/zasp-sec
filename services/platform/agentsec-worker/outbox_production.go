@@ -67,7 +67,7 @@ func (provider *outboxWebIdentityProvider) Retrieve(ctx context.Context) (aws.Cr
 		RoleArn: aws.String(provider.roleARN), RoleSessionName: aws.String(session), WebIdentityToken: aws.String(string(token)), DurationSeconds: &duration,
 	})
 	clear(token)
-	if assumeErr != nil || result == nil || result.Credentials == nil || result.Credentials.AccessKeyId == nil || result.Credentials.SecretAccessKey == nil || result.Credentials.SessionToken == nil || result.Credentials.Expiration == nil || !result.Credentials.Expiration.After(time.Now().Add(time.Minute)) {
+	if assumeErr != nil || bounded.Err() != nil || result == nil || result.Credentials == nil || aws.ToString(result.Credentials.AccessKeyId) == "" || aws.ToString(result.Credentials.SecretAccessKey) == "" || aws.ToString(result.Credentials.SessionToken) == "" || result.Credentials.Expiration == nil || !result.Credentials.Expiration.After(time.Now().Add(time.Minute)) {
 		return aws.Credentials{}, errRuntimeUnavailable
 	}
 	return aws.Credentials{AccessKeyID: *result.Credentials.AccessKeyId, SecretAccessKey: *result.Credentials.SecretAccessKey, SessionToken: *result.Credentials.SessionToken, CanExpire: true, Expires: result.Credentials.Expiration.UTC(), Source: "zasp-outbox-web-identity"}, nil
@@ -75,7 +75,7 @@ func (provider *outboxWebIdentityProvider) Retrieve(ctx context.Context) (aws.Cr
 
 func validOutboxSession(value string) bool {
 	switch value {
-	case "", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-red-team-outbox-worker", "zasp-attack-lab-outbox-worker", "zasp-recovery-outbox-worker", "zasp-recovery-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker", "zasp-runtime-complete-worker":
+	case "", "zasp-outbox-worker", "zasp-runtime-outbox-worker", "zasp-red-team-outbox-worker", "zasp-attack-lab-outbox-worker", "zasp-recovery-outbox-worker", "zasp-recovery-worker", "zasp-runtime-coordinator", "zasp-runtime-archive-worker", "zasp-runtime-index-worker", "zasp-runtime-correlation-worker", "zasp-runtime-projection-worker", "zasp-runtime-complete-worker", "zasp-audit-export-worker", "zasp-audit-export-outbox":
 		return true
 	default:
 		return false
@@ -123,8 +123,23 @@ func (readiness *cachedOutboxReadiness) Ready(ctx context.Context) error {
 }
 
 func newProductionOutboxPublisher(ctx context.Context, config workerRuntimeConfig) (productionOutboxPublisher, error) {
-	if ctx == nil || ctx.Err() != nil || !validOutboxAWSAuthority(config) {
-		return productionOutboxPublisher{}, errRuntimeUnavailable
+	return newProductionOutboxPublisherWithIO(ctx, config, newProductionOutboxIO)
+}
+
+// The publisher, scope envelope, readiness and transport lease behavior stay
+// real. Only cloud credentials and the low-level SQS client are external IO.
+type outboxDependencyIO struct {
+	Credentials aws.CredentialsProvider
+	Queue       interface {
+		sqsdriver.Client
+		outboxQueueReadinessAPI
+	}
+	Close func() error
+}
+
+func newProductionOutboxIO(config workerRuntimeConfig) (outboxDependencyIO, error) {
+	if !validOutboxAWSAuthority(config) {
+		return outboxDependencyIO{}, errRuntimeUnavailable
 	}
 	transport := &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext, ForceAttemptHTTP2: true, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: minDuration(config.LeaseDuration/3, 30*time.Second), MaxResponseHeaderBytes: 1 << 20}
 	client := &http.Client{Transport: transport, Timeout: minDuration(config.LeaseDuration/3, 30*time.Second), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
@@ -142,12 +157,27 @@ func newProductionOutboxPublisher(ctx context.Context, config workerRuntimeConfi
 	roleARN, tokenFile := outboxRoleAuthority(config)
 	provider := &outboxWebIdentityProvider{client: sts.NewFromConfig(base), roleARN: roleARN, tokenFile: tokenFile, timeout: minDuration(config.LeaseDuration/3, 30*time.Second), session: session}
 	credentials := aws.NewCredentialsCache(provider)
-	if _, err := credentials.Retrieve(ctx); err != nil {
-		transport.CloseIdleConnections()
-		return productionOutboxPublisher{}, errRuntimeUnavailable
-	}
 	base.Credentials = credentials
 	sqsClient := sqs.NewFromConfig(base)
+	return outboxDependencyIO{Credentials: credentials, Queue: sqsClient, Close: func() error { transport.CloseIdleConnections(); return nil }}, nil
+}
+
+func newProductionOutboxPublisherWithIO(ctx context.Context, config workerRuntimeConfig, create func(workerRuntimeConfig) (outboxDependencyIO, error)) (productionOutboxPublisher, error) {
+	if ctx == nil || ctx.Err() != nil || !validOutboxAWSAuthority(config) || create == nil {
+		return productionOutboxPublisher{}, errRuntimeUnavailable
+	}
+	external, err := create(config)
+	if err != nil {
+		return productionOutboxPublisher{}, errRuntimeUnavailable
+	}
+	if external.Close == nil {
+		return productionOutboxPublisher{}, errRuntimeUnavailable
+	}
+	if external.Credentials == nil || external.Queue == nil {
+		external.Close()
+		return productionOutboxPublisher{}, errRuntimeUnavailable
+	}
+	credentials, sqsClient := external.Credentials, external.Queue
 	liveCheck := func(readyCtx context.Context) error {
 		if readyCtx == nil || readyCtx.Err() != nil {
 			return errRuntimeUnavailable
@@ -158,36 +188,40 @@ func newProductionOutboxPublisher(ctx context.Context, config workerRuntimeConfi
 		return nil
 	}
 	if err := liveCheck(ctx); err != nil {
-		transport.CloseIdleConnections()
+		external.Close()
 		return productionOutboxPublisher{}, errRuntimeUnavailable
 	}
 	readiness, err := newCachedOutboxReadiness(liveCheck, 30*time.Second)
 	if err != nil {
-		transport.CloseIdleConnections()
+		external.Close()
 		return productionOutboxPublisher{}, errRuntimeUnavailable
 	}
 	queueURL, _, ok := outboxQueueAuthority(config)
 	if !ok {
-		transport.CloseIdleConnections()
+		external.Close()
 		return productionOutboxPublisher{}, errRuntimeUnavailable
 	}
 	maximumReceiveCount := outboxMaximumReceiveCount(config)
 	driver, err := sqsdriver.New(sqsClient, sqsdriver.Config{QueueURL: queueURL, ReceiveWaitSeconds: 0, VisibilityTimeoutSeconds: int32(config.LeaseDuration / time.Second), MaximumReceiveCount: maximumReceiveCount})
 	if err != nil {
-		transport.CloseIdleConnections()
+		external.Close()
 		return productionOutboxPublisher{}, errRuntimeUnavailable
 	}
 	queue, err := jobqueue.New(driver, jobqueue.Config{OperationTimeout: minDuration(config.LeaseDuration/3, 30*time.Second), MaximumBatchMessages: 10, MaximumMessageBytes: 262144, MaximumBatchBytes: 1048576})
 	if err != nil {
-		transport.CloseIdleConnections()
+		external.Close()
 		return productionOutboxPublisher{}, errRuntimeUnavailable
 	}
+	var closeOnce sync.Once
+	var closeErr error
 	closePublisher := func() error {
 		drainCtx, cancel := context.WithTimeout(context.Background(), minDuration(config.ShutdownTimeout, config.LeaseDuration/2))
 		defer cancel()
-		err := driver.Drain(drainCtx)
-		transport.CloseIdleConnections()
-		return err
+		if err := driver.Drain(drainCtx); err != nil {
+			return err
+		}
+		closeOnce.Do(func() { closeErr = external.Close() })
+		return closeErr
 	}
 	return productionOutboxPublisher{publisher: queue, ready: readiness.Ready, close: closePublisher}, nil
 }

@@ -1,0 +1,80 @@
+{
+  "baseHead": "8733b16f8d939d38a8157dd2519e57fc6f630542",
+  "files": [
+    {
+      "path": "services/platform/agentsec-worker/runtime_config.go",
+      "before": "e4d5625a94fdc43ad229f755c035a086c7554f1f",
+      "after": "dd2cf7cf520e3ce99d824a7759a2c296b2b0b72b"
+    },
+    {
+      "path": "services/platform/agentsec-worker/production_runtime.go",
+      "before": "52fad4fba53da294746d635ee36da5bec639779e",
+      "after": "f8f61bf3fc2e32bcc864af285a463dfa1aa6946f"
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_database.go",
+      "before": "24bff1286e44cbd5da36dc07256cdac2edbccd65",
+      "after": "80b27166875ed539cc964a949a66cfb181ebb385"
+    },
+    {
+      "path": "services/platform/sessioncontrol/sessioncontrol.go",
+      "before": "70f6c0389e8babf9877faf5407a10e4d2218bade",
+      "after": "046ace59314f3e83ab4a3bdaa05054682b25f0b0"
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_runtime_test.go",
+      "before": null,
+      "after": "3693ecf7868dbbadcf21d9cb832f72643e1a6a3d"
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_config.go",
+      "before": null,
+      "after": "9dcb394f564e3b5c012ebcdfd677d9c3cc943feb"
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_render.go",
+      "before": null,
+      "after": "ad6c7b9fceda774e8ef18f073613342aee63545a"
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_runtime.go",
+      "before": null,
+      "after": "fc5c76c97979dddf0015613453f1d9fe033b715d"
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_production.go",
+      "before": null,
+      "after": "17d1dcfcb054863f66e5b6760a591b581efca1fa"
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_composition_test.go",
+      "before": null,
+      "after": "9b72eee784bf801e7cbf5f5dcb2d7ef4cc9b2850"
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_process_test.go",
+      "before": null,
+      "after": "f22a5b551630c7bdd7991d5b6dafbbf729fc2e5f"
+    },
+    {
+      "path": "services/platform/artifactstore/s3driver/export_lifecycle.go",
+      "before": null,
+      "after": "0a791801ba0ec4846db63009149c626ebd34e18c"
+    },
+    {
+      "path": "services/platform/artifactstore/s3driver/export_lifecycle_test.go",
+      "before": null,
+      "after": "369ee6487babdc454fc25a911b93acf496b57226"
+    },
+    {
+      "path": "services/platform/sessioncontrol/compliance_attribution_test.go",
+      "before": null,
+      "after": "85991eacaa7f1cecbe5b63692dbbc1dbd1af2289"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_runtime_postgres_test.go",
+      "before": null,
+      "after": "bde7d131c95247d7c79cdbe0e26fba98d3ab782c"
+    }
+  ]
+}

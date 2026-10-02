@@ -18,9 +18,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -57,6 +59,7 @@ func TestProductionCombinedE2ERedTeamRuntime(t *testing.T) {
 		t.Fatal("disposable AWS endpoint rejected")
 	}
 	runID := os.Getenv("ZASP_RED_TEAM_RUNTIME_RUN_ID")
+	linked := os.Getenv("ZASP_EXISTING_TEST_MOUNTED_RESPONSE") != ""
 	workerID(t, runID)
 	ctx, cancel := context.WithTimeout(context.Background(), 210*time.Second)
 	defer cancel()
@@ -88,6 +91,16 @@ func TestProductionCombinedE2ERedTeamRuntime(t *testing.T) {
 		t.Fatal(err)
 	}
 	keyARN := aws.ToString(key.KeyMetadata.Arn)
+	if linked {
+		// A stable owned alias lets the next real execution read the previous
+		// run's KMS-bound evidence without rewriting any artifact receipt.
+		prior, lookupErr := kmsAPI.DescribeKey(ctx, &kms.DescribeKeyInput{KeyId: aws.String("alias/zasp-mounted-existing-test")})
+		if lookupErr == nil {
+			keyARN = aws.ToString(prior.KeyMetadata.Arn)
+		} else if _, err := kmsAPI.CreateAlias(ctx, &kms.CreateAliasInput{AliasName: aws.String("alias/zasp-mounted-existing-test"), TargetKeyId: key.KeyMetadata.KeyId}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	const bucket = "zasp-red-team-runtime-proof"
 	if _, err := s3API.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(bucket)}); err != nil {
 		t.Fatal(err)
@@ -135,12 +148,19 @@ func TestProductionCombinedE2ERedTeamRuntime(t *testing.T) {
 	}
 	temp := t.TempDir()
 	// This exact secret mount is an owned in-memory filesystem in the proof image.
-	caFile := redTeamRuntimeTLS(t, "/var/run/secrets/zasp-red-team", handler)
-	tokenFile := "/var/run/secrets/zasp-red-team/adapter-token"
-	if err := os.WriteFile(tokenFile, token, 0o400); err != nil {
-		t.Fatal(err)
+	caFile := "/var/run/secrets/zasp-red-team/adapter-ca.crt"
+	if linked {
+		startMountedExistingTestAdapter(t)
+	} else {
+		caFile = redTeamRuntimeTLS(t, "/var/run/secrets/zasp-red-team", handler)
 	}
-	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{Artifacts: artifacts, Command: productionRedTeamCommand{}, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/dist/src/entrypoint.js", TargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", TargetTokenFile: tokenFile, TargetCAFile: caFile, TempRoot: temp, Timeout: 90 * time.Second, Clock: func() time.Time { return time.Now().UTC() }})
+	tokenFile := "/var/run/secrets/zasp-red-team/adapter-token"
+	if !linked {
+		if err := os.WriteFile(tokenFile, token, 0o400); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runner, err := newProductionRedTeamRunner(productionRedTeamRunnerConfig{RunnerImage: "registry.example/zasp/red-team-worker@sha256:" + strings.Repeat("d", 64), Artifacts: artifacts, Command: productionRedTeamCommand{}, NodePath: "/usr/local/bin/node", ScriptPath: "/app/redteam-runner.mjs", PromptfooPath: "/app/dist/src/entrypoint.js", TargetEndpoint: "https://agentsec-red-team-adapter.zasp.svc.cluster.local/v1/evaluate", TargetTokenFile: tokenFile, TargetCAFile: caFile, TempRoot: temp, Timeout: 90 * time.Second, Clock: func() time.Time { return time.Now().UTC() }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,6 +235,45 @@ func TestProductionCombinedE2ERedTeamRuntime(t *testing.T) {
 	var summary string
 	if err := admin.QueryRow(ctx, `SELECT concat_ws('|',state,attempt,COALESCE(verdict,'none'),COALESCE(error_code,'none')) FROM zasp_red_team_runs WHERE run_id=$1`, runID).Scan(&summary); err != nil {
 		t.Fatal(err)
+	}
+	if linked {
+		mode := os.Getenv("ZASP_EXISTING_TEST_MOUNTED_RESPONSE")
+		want := "complete|1|" + mode + "|none"
+		if mode == "engine_error" {
+			want = "complete|1|engine_error|outcome_unknown"
+		}
+		if summary != want {
+			t.Fatalf("linked runtime result=%s want=%s", summary, want)
+		}
+		reader, err := newExistingTestArtifactReader(s3API, productionDiscoveryArtifactConfig{Bucket: bucket, ExpectedBucketOwner: "000000000000", KMSKeyARN: keyARN, MaximumBytes: 1 << 20, OperationTimeout: 5 * time.Second})
+		if err != nil {
+			t.Fatal(err)
+		}
+		c := loadExistingTestRuntimeFixture(t)
+		c.PostgresDSN = strings.Replace(dsn.String(), "zasp_e2e@", "zasp_e2e_security_agent_worker@", 1)
+		c.AWSRegion = base.Region
+		c.EvidenceBucket, c.EvidenceOwner, c.EvidenceKMSKeyARN = bucket, "000000000000", keyARN
+		c.TestReconcilerRoleARN = "arn:aws:iam::000000000000:role/zasp-test-reconciler"
+		if !validWorkerRuntimeConfig(c) {
+			t.Fatal("owned reconciler must preserve production region/account/key configuration agreement")
+		}
+		reconciler, err := composeExistingTestRuntime(c, database("zasp_e2e_security_agent_worker"), existingTestRuntimeDependencies{Artifacts: reader, Ready: localReady, Close: func() error { return nil }})
+		if err != nil {
+			t.Fatal("reconciler composition", err)
+		}
+		defer reconciler.Close()
+		if err := reconciler.Ready(ctx); err != nil {
+			t.Fatal("reconciler readiness", err)
+		}
+		if err := reconciler.Processor.RunOnce(ctx); err != nil {
+			t.Fatal("stored evidence reconciliation", err)
+		}
+		var settled bool
+		if err := admin.QueryRow(ctx, `SELECT reconcile_state='settled' FROM zasp_security_agent_test_links WHERE test_run_id=$1`, runID).Scan(&settled); err != nil || !settled {
+			t.Fatalf("link not settled: %v %v", settled, err)
+		}
+		t.Log("mounted linked runtime passed: queued public run, real outbox/SQS, pinned engine, TLS journaled adapter, KMS artifacts and scoped reconciler")
+		return
 	}
 	if summary != "complete|1|fail|none" {
 		t.Fatalf("runtime result=%s customer calls=%d", summary, fixture.calls.Load())
@@ -306,6 +365,37 @@ func TestProductionCombinedE2ERedTeamRuntime(t *testing.T) {
 		}
 	}
 	t.Log("red team runtime proof passed: browser queue, real outbox/SQS duplicate ACK, pinned Promptfoo, TLS Go adapter with live PostgreSQL lease, one fail attempt, versioned KMS input/native evidence with PostgreSQL receipts; customer invocation fixture only")
+}
+
+func startMountedExistingTestAdapter(t *testing.T) {
+	t.Helper()
+	child := exec.Command("/proof/adapter.test", "-test.run=^TestMountedExistingTestAdapter$", "-test.v", "-test.timeout=230s")
+	child.Stdout, child.Stderr = os.Stdout, os.Stderr
+	if err := child.Start(); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- child.Wait() }()
+	t.Cleanup(func() {
+		_ = child.Process.Signal(syscall.SIGTERM)
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Error("adapter child", err)
+			}
+		case <-time.After(3 * time.Second):
+			_ = child.Process.Kill()
+			<-done
+			t.Error("adapter child required forced cleanup")
+		}
+	})
+	for i := 0; i < 100; i++ {
+		if body, err := os.ReadFile("/var/run/secrets/zasp-red-team/ready"); err == nil && string(body) == "registered55\n" {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("adapter child not ready")
 }
 
 type redTeamRuntimeDuplicatePublisher struct {

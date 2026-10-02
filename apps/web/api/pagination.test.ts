@@ -3,6 +3,26 @@ import { describe, expect, it, vi } from "vitest";
 import { loadAllCursorPages } from "./pagination";
 
 describe("bounded cursor pagination", () => {
+  it("does not call a page reader after its authority is aborted", async () => {
+    const controller = new AbortController();
+    controller.abort(new DOMException("authority changed", "AbortError"));
+    let pages = 0;
+    await expect(loadAllCursorPages(async () => {
+      pages++;
+      return { items: [], page_info: { has_more: false, next_cursor: null } };
+    }, { maximumItems: 10, maximumPages: 3, signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(pages).toBe(0);
+  });
+  it("does not follow a successful obsolete continuation after authority changes during a page", async () => {
+    const controller = new AbortController();
+    let pages = 0;
+    await expect(loadAllCursorPages(async () => {
+      pages++;
+      controller.abort(new DOMException("authority changed", "AbortError"));
+      return { items: ["old"], page_info: { has_more: true, next_cursor: "next" } };
+    }, { maximumItems: 10, maximumPages: 3, signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(pages).toBe(1);
+  });
   it("preserves each page boundary and follows only the returned continuation", async () => {
     const read = vi.fn(async (cursor?: string) => cursor === undefined
       ? { items: ["a", "b"], page_info: { has_more: true as const, next_cursor: "cursor-1" } }

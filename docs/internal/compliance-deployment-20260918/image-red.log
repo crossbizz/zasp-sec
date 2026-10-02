@@ -1,0 +1,157 @@
+TAP version 13
+# Subtest: rendered compliance rejects authority, sidecar, readiness and additive network mutations
+    # Subtest: unreviewed pinned image
+    not ok 1 - unreviewed pinned image
+      ---
+      duration_ms: 12.255708
+      type: 'test'
+      location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:72:67'
+      failureType: 'testCodeFailure'
+      error: 'Missing expected exception.'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      operator: 'throws'
+      stack: |-
+        TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:74:12)
+        Test.runInAsyncScope (node:async_hooks:214:14)
+        Test.run (node:internal/test_runner/test:1047:25)
+        Test.start (node:internal/test_runner/test:944:17)
+        TestContext.test (node:internal/test_runner/test:373:20)
+        TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:72:67)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: writer swapped
+    ok 2 - writer swapped
+      ---
+      duration_ms: 2.683708
+      type: 'test'
+      ...
+    # Subtest: DSN swapped
+    ok 3 - DSN swapped
+      ---
+      duration_ms: 2.196875
+      type: 'test'
+      ...
+    # Subtest: schema requirement removed
+    ok 4 - schema requirement removed
+      ---
+      duration_ms: 10.859833
+      type: 'test'
+      ...
+    # Subtest: worker authority on API
+    ok 5 - worker authority on API
+      ---
+      duration_ms: 2.528083
+      type: 'test'
+      ...
+    # Subtest: sidecar
+    ok 6 - sidecar
+      ---
+      duration_ms: 2.75425
+      type: 'test'
+      ...
+    # Subtest: envFrom
+    ok 7 - envFrom
+      ---
+      duration_ms: 2.38525
+      type: 'test'
+      ...
+    # Subtest: host network
+    ok 8 - host network
+      ---
+      duration_ms: 2.453916
+      type: 'test'
+      ...
+    # Subtest: cross-workload mount
+    ok 9 - cross-workload mount
+      ---
+      duration_ms: 6.18725
+      type: 'test'
+      ...
+    # Subtest: migration ordering
+    ok 10 - migration ordering
+      ---
+      duration_ms: 2.586958
+      type: 'test'
+      ...
+    # Subtest: readiness weakened
+    ok 11 - readiness weakened
+      ---
+      duration_ms: 2.536458
+      type: 'test'
+      ...
+    # Subtest: memory request removed
+    ok 12 - memory request removed
+      ---
+      duration_ms: 2.491209
+      type: 'test'
+      ...
+    # Subtest: unbounded HPA
+    ok 13 - unbounded HPA
+      ---
+      duration_ms: 2.330042
+      type: 'test'
+      ...
+    # Subtest: monitor absent
+    ok 14 - monitor absent
+      ---
+      duration_ms: 2.1755
+      type: 'test'
+      ...
+    # Subtest: broad expected selector
+    ok 15 - broad expected selector
+      ---
+      duration_ms: 1.934709
+      type: 'test'
+      ...
+    # Subtest: broad egress
+    ok 16 - broad egress
+      ---
+      duration_ms: 1.919
+      type: 'test'
+      ...
+    # Subtest: unnamed broad policy
+    ok 17 - unnamed broad policy
+      ---
+      duration_ms: 2.070208
+      type: 'test'
+      ...
+    # Subtest: malformed unselected selector
+    ok 18 - malformed unselected selector
+      ---
+      duration_ms: 2.68875
+      type: 'test'
+      ...
+    # Subtest: group RBAC
+    ok 19 - group RBAC
+      ---
+      duration_ms: 2.170959
+      type: 'test'
+      ...
+    # Subtest: cross namespace RBAC
+    ok 20 - cross namespace RBAC
+      ---
+      duration_ms: 2.223875
+      type: 'test'
+      ...
+    1..20
+not ok 1 - rendered compliance rejects authority, sidecar, readiness and additive network mutations
+  ---
+  duration_ms: 1088.099417
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.test.mjs:47:1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 21
+# suites 0
+# pass 19
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1152.740541

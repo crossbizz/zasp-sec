@@ -21,6 +21,9 @@ const (
 )
 
 func (repository *PostgresRepository) ReconcileStytchWebhook(ctx context.Context, event platformidentity.WebhookEvent, digest []byte, auditID string) (bool, error) {
+	if repository != nil && repository.currentAuthorization {
+		return false, ErrRepositoryOperation
+	}
 	if repository == nil || !isIdentityAdministrationSchema(repository.schema) || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil || event.Kind() != "scim.member.delete" || event.Vertical != "B2B" || !validStytchReference(event.ProjectID, "project-") || !validStytchReference(event.WorkspaceID, "workspace-") || !validStytchReference(event.Details.OrganizationReference, "organization-") || !validStytchReference(event.ObjectID, "member-") || len(digest) != 32 || !validProductID(auditID) {
 		return false, ErrRepositoryOperation
 	}

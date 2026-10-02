@@ -1,0 +1,25 @@
+=== RUN   TestComplianceRegistrationBinaryOwnedPostgres
+    compliance_registration_postgres_test.go:87: actual CLI: bootstrap exact56 through published migration command
+    compliance_registration_postgres_test.go:101: registered migration session verified: LOGIN INHERIT, NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
+    compliance_registration_postgres_test.go:117: actual CLI: missing second SQL login rolls back first grant
+    compliance_registration_postgres_test.go:120: actual CLI: cross-authority principal rejected
+    compliance_registration_postgres_test.go:122: actual CLI: explicit non-superuser worker registration
+    compliance_registration_postgres_test.go:127: exact worker/cleanup binding and INHERIT TRUE, SET FALSE, ADMIN FALSE grants verified with compiled56 readiness
+    compliance_registration_postgres_test.go:129: actual CLI: idempotent replay
+    compliance_registration_postgres_test.go:134: actual CLI: missing-name
+    compliance_registration_postgres_test.go:134: actual CLI: duplicate-names
+    compliance_registration_postgres_test.go:134: actual CLI: reserved-name
+    compliance_registration_postgres_test.go:134: actual CLI: malformed-name
+    compliance_registration_postgres_test.go:137: actual CLI: extra argument
+    compliance_registration_postgres_test.go:139: actual CLI: different existing worker cannot replace binding
+    compliance_registration_postgres_test.go:157: actual CLI: nonregistered caller denied: compliance_executor
+    compliance_registration_postgres_test.go:157: actual CLI: nonregistered caller denied: compliance_cleanup
+    compliance_registration_postgres_test.go:157: actual CLI: nonregistered caller denied: compliance_prior_00
+    compliance_registration_postgres_test.go:157: actual CLI: nonregistered caller denied: compliance_other
+    compliance_registration_postgres_test.go:157: actual CLI: nonregistered caller denied: fixture_admin
+    compliance_registration_postgres_test.go:168: actual CLI: wrong release checksum
+    compliance_registration_postgres_test.go:168: actual CLI: unavailable compiled readiness
+    compliance_registration_postgres_test.go:179: actual CLI: future release refused
+    compliance_registration_postgres_test.go:185: actual CLI: restored exact56 replay
+--- PASS: TestComplianceRegistrationBinaryOwnedPostgres (8.24s)
+PASS

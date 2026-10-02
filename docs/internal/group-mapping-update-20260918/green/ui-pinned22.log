@@ -1,0 +1,72 @@
+v22.23.1
+10.9.8
+
+> zasp-agent-security-console@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+
+ Test Files  224 passed (224)
+      Tests  2136 passed (2136)
+   Start at  21:58:03
+   Duration  47.54s (transform 16.14s, setup 112.71s, import 29.46s, tests 87.54s, environment 341.07s)
+
+
+> zasp-agent-security-console@0.1.0 typecheck
+> tsc --noEmit
+
+
+> zasp-agent-security-console@0.1.0 lint
+> node --test scripts/eslint-scope.test.mjs && eslint . --ignore-pattern dist --ignore-pattern .next
+
+TAP version 13
+# Subtest: lint excludes local agent evidence without excluding product code or durable tests
+ok 1 - lint excludes local agent evidence without excluding product code or durable tests
+  ---
+  duration_ms: 3510.361292
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3713.645667
+
+> zasp-agent-security-console@0.1.0 build
+> WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build
+
+
+  vinext build  (Vite 8.0.16)
+
+[1/5] analyze client references...
+[2Ktransforming...✓ 223 modules transformed.
+rendering chunks...
+✓ built in 621ms
+[2/5] analyze server references...
+[2Ktransforming...✓ 160 modules transformed.
+rendering chunks...
+✓ built in 295ms
+[3/5] build rsc environment...
+[2Ktransforming...✓ 221 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 425ms
+[4/5] build client environment...
+[2Ktransforming...✓ 2031 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 880ms
+[5/5] build ssr environment...
+[2Ktransforming...✓ 166 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 413ms
+  Generated standalone output in dist/standalone/
+  Start it with: node dist/standalone/server.js
+

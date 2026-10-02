@@ -1,0 +1,391 @@
+package apiserver
+
+import (
+	"encoding/json"
+	"fmt"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+)
+
+type exportAccountingFixture struct {
+	*exportDBFixture
+	contextSQL, reserveSQL, acceptSQL, failSQL string
+	input, output                              []byte
+	candidate                                  json.RawMessage
+	model                                      string
+	attempt                                    int
+}
+
+func settleExportPlannerFixture(t *testing.T, f *exportDBFixture, reserveSQL string, input, output []byte) {
+	t.Helper()
+	var raw json.RawMessage
+	var attempt int
+	if err := f.owner.QueryRow(f.ctx, `SELECT attempt FROM zasp_security_agent_runs WHERE run_id=$1`, exportFixtureRun).Scan(&attempt); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.worker.QueryRow(f.ctx, reserveSQL, f.o, f.w, f.e, exportFixtureRun, exportFixtureWorker, exportFixtureLease, attempt, "settled-fixture-accounting", input, "fixture-model", "fixture-cost-policy", "openrouter_credit", 50, 100).Scan(&raw); err != nil || !strings.Contains(string(raw), "budget_permit") {
+		t.Fatalf("fixture permit: %s %v", raw, err)
+	}
+	if err := f.worker.QueryRow(f.ctx, `SELECT zasp_security_agent_budget_settle_planner($1,$2,$3,$4,$5,$6,$7,'settled-fixture-accounting',$8,0,0,0,0)`, f.o, f.w, f.e, exportFixtureRun, exportFixtureWorker, exportFixtureLease, attempt, output).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func runExportAccountingFixture(t *testing.T, family string, exercise func(*exportAccountingFixture)) {
+	t.Helper()
+	runExportPlannerFixture(t, "autonomous", func(f *exportDBFixture) {
+		a := &exportAccountingFixture{exportDBFixture: f, model: "fixture-model", output: []byte(strings.Repeat("x", 32))}
+		prefix := "zasp_sa_export_"
+		contextName, reserveName, acceptName, failName := "planner_context", "reserve_planner", "accept_planner", "fail_planner"
+		if family != "export" {
+			var target string
+			if err := f.owner.QueryRow(f.ctx, `SELECT definition_id FROM zasp_red_team_definitions WHERE organization_id=$1 ORDER BY definition_id LIMIT 1`, f.o).Scan(&target); err != nil {
+				t.Fatal(err)
+			}
+			action, verification := "run_test", "test_run"
+			if family == "attack_lab" {
+				action, verification = "start_attack_lab", "attack_lab_run"
+			}
+			if family == "legacy" || family == "v33" {
+				action, verification = "update_finding_response", "finding_state"
+			}
+			if _, err := f.owner.Exec(f.ctx, `UPDATE zasp_security_agent_definitions SET body=(body-'existing_test')||jsonb_build_object('allowed_actions',jsonb_build_array($2::text),'verification_kind',$3::text)||CASE WHEN $2 IN('run_test','start_attack_lab') THEN jsonb_build_object('existing_test',jsonb_build_object('definition_id',$4::text,'definition_version',1)) ELSE '{}'::jsonb END WHERE organization_id=$1;
+ UPDATE zasp_security_agent_definition_versions v SET definition=d.body,definition_digest=digest(convert_to(d.body::text,'UTF8'),'sha256') FROM zasp_security_agent_definitions d WHERE v.organization_id=d.organization_id AND v.definition_id=d.definition_id AND v.version=d.version AND v.organization_id=$1;
+ UPDATE zasp_authorized_scopes SET permissions=permissions||'"run_tests"'::jsonb WHERE organization_id=$1`, pgx.QueryExecModeSimpleProtocol, f.o, action, verification, target); err != nil {
+				t.Fatal(err)
+			}
+			prefix = "zasp_production_security_agent_existing_tests_"
+			if family == "attack_lab" {
+				prefix = "zasp_sa_attack_lab_"
+				if _, err := f.owner.Exec(f.ctx, `UPDATE zasp_red_team_definitions SET safety=jsonb_set(safety,'{credential_class}','"test_write"') WHERE organization_id=$1;
+ UPDATE zasp_attack_lab_credential_bindings SET credential_class='test_write' WHERE organization_id=$1;
+ INSERT INTO zasp_red_team_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,requested_by,state,attempt,input_digest,verdict,evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at) VALUES($1,$2,$3,'pid_8e170001-0000-4000-8000-000000000001',$4,1,$5,'complete',1,digest('accounting-source','sha256'),'fail','s3://fixture-bucket/accounting-source','accounting-source','source-version',digest('evidence','sha256'),100,clock_timestamp());
+ INSERT INTO zasp_red_team_attempts(organization_id,workspace_id,environment_id,run_id,attempt,input_digest,verdict,objective,behavior,evidence,evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at) SELECT organization_id,workspace_id,environment_id,run_id,attempt,input_digest,verdict,'controlled objective','controlled failure','[]',evidence_reference,evidence_key,evidence_version_id,evidence_checksum,evidence_size,completed_at FROM zasp_red_team_runs WHERE run_id='pid_8e170001-0000-4000-8000-000000000001'`, pgx.QueryExecModeSimpleProtocol, f.o, f.w, f.e, target, f.actor); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if family == "legacy" || family == "v33" {
+				prefix = "zasp_security_agent_"
+				reserveName = "budget_reserve_planner"
+				acceptName = "accept_planner_candidate"
+				if family == "v33" {
+					contextName += "_v33"
+					acceptName += "_v33"
+					failName += "_v33"
+				}
+			}
+		}
+		a.contextSQL = fmt.Sprintf("SELECT %s%s($1,$2,$3,$4,$5,$6)", prefix, contextName)
+		a.reserveSQL = fmt.Sprintf("SELECT %s%s($1,$2,$3,$4,$5,$6,$7,'accounting-bound-request',$8,$9,'fixture-cost-policy','openrouter_credit',50,100)", prefix, reserveName)
+		a.acceptSQL = fmt.Sprintf("SELECT %s%s($1,$2,$3,$4,$5,$6,$7,$8,$9,'planner-v1',$10,$11,$12,'pid_8e170002-0000-4000-8000-000000000002','pid_8e170003-0000-4000-8000-000000000003')", prefix, acceptName)
+		a.failSQL = fmt.Sprintf("SELECT %s%s($1,$2,$3,$4,$5,$6,$7,$8,$9,'planner-v1',$10,'pid_8e170002-0000-4000-8000-000000000002','pid_8e170003-0000-4000-8000-000000000003')", prefix, failName)
+		var raw json.RawMessage
+		if err := f.worker.QueryRow(f.ctx, a.contextSQL, f.o, f.w, f.e, exportFixtureRun, exportFixtureWorker, exportFixtureLease).Scan(&raw); err != nil {
+			t.Fatal(err)
+		}
+		var envelope struct {
+			Input   string `json:"input_digest"`
+			Context struct {
+				Actions   []string                       `json:"allowed_actions"`
+				Targets   []string                       `json:"allowed_targets"`
+				Selection []SecurityAgentExportSelection `json:"export_selection"`
+			} `json:"context"`
+		}
+		if json.Unmarshal(raw, &envelope) != nil || len(envelope.Context.Actions) != 1 || len(envelope.Context.Targets) != 1 {
+			t.Fatalf("context=%s", raw)
+		}
+		a.input, _ = decodeSecurityAgentDigest(envelope.Input)
+		step := map[string]any{"index": 0, "action": envelope.Context.Actions[0], "target_id": envelope.Context.Targets[0]}
+		if family == "export" {
+			step["evidence_ids"] = envelope.Context.Selection[:1]
+		}
+		a.candidate, _ = json.Marshal(map[string]any{"version": 1, "summary": "Accounted candidate", "steps": []any{step}})
+		if err := f.owner.QueryRow(f.ctx, `SELECT attempt FROM zasp_security_agent_runs WHERE run_id=$1`, exportFixtureRun).Scan(&a.attempt); err != nil {
+			t.Fatal(err)
+		}
+		exercise(a)
+	})
+}
+
+func (a *exportAccountingFixture) invoke(failure string) (json.RawMessage, error) {
+	var raw json.RawMessage
+	args := []any{a.o, a.w, a.e, exportFixtureRun, exportFixtureWorker, exportFixtureLease, a.input, a.output, a.model}
+	query := a.acceptSQL
+	if failure == "" {
+		args = append(args, a.candidate, exportApprovalID, time.Now().UTC().Add(4*time.Minute))
+	} else {
+		query = a.failSQL
+		args = append(args, failure)
+	}
+	err := a.worker.QueryRow(a.ctx, query, args...).Scan(&raw)
+	return raw, err
+}
+
+func (a *exportAccountingFixture) reserve(t *testing.T) {
+	t.Helper()
+	var raw json.RawMessage
+	if err := a.worker.QueryRow(a.ctx, a.reserveSQL, a.o, a.w, a.e, exportFixtureRun, exportFixtureWorker, exportFixtureLease, a.attempt, a.input, a.model).Scan(&raw); err != nil || !strings.Contains(string(raw), "budget_permit") {
+		t.Fatalf("reserve=%s %v", raw, err)
+	}
+}
+
+func (a *exportAccountingFixture) settle(t *testing.T, known bool) {
+	t.Helper()
+	var raw json.RawMessage
+	var usage any = int64(0)
+	if !known {
+		usage = nil
+	}
+	if err := a.worker.QueryRow(a.ctx, `SELECT zasp_security_agent_budget_settle_planner($1,$2,$3,$4,$5,$6,$7,'accounting-bound-request',$8,$9,$9,$9,$9)`, a.o, a.w, a.e, exportFixtureRun, exportFixtureWorker, exportFixtureLease, a.attempt, a.output, usage).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (a *exportAccountingFixture) probe(t *testing.T, label, failure string, wantSuccess bool) {
+	t.Helper()
+	before := existingTestAcceptanceSnapshot(t, a.ctx, a.owner, a.o, a.w, a.e, exportFixtureRun)
+	if _, err := a.worker.Exec(a.ctx, "BEGIN"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := a.invoke(failure)
+	if _, rollbackErr := a.worker.Exec(a.ctx, "ROLLBACK"); rollbackErr != nil {
+		t.Fatal(rollbackErr)
+	}
+	if (err == nil) != wantSuccess {
+		t.Errorf("%s success=%v want=%v response=%s error=%v", label, err == nil, wantSuccess, raw, err)
+	}
+	if after := existingTestAcceptanceSnapshot(t, a.ctx, a.owner, a.o, a.w, a.e, exportFixtureRun); after != before {
+		t.Fatal("probe changed durable authority")
+	}
+}
+
+func TestSecurityAgentExportAccountingAdmissionPostgres(t *testing.T) {
+	for _, family := range []string{"export", "existing_test", "attack_lab", "legacy", "v33"} {
+		t.Run(family, func(t *testing.T) {
+			runExportAccountingFixture(t, family, func(a *exportAccountingFixture) {
+				a.probe(t, "missing accounting", "", false)
+				a.probe(t, "missing rejected-output accounting", "planner_rejected", false)
+				output := a.output
+				a.output = nil
+				a.probe(t, "zero-provider unavailable", "planner_unavailable", true)
+				a.probe(t, "NULL output cannot accept", "", false)
+				a.output = output
+				a.reserve(t)
+				a.probe(t, "outstanding accounting", "", false)
+				a.probe(t, "outstanding rejected-output accounting", "planner_rejected", false)
+				a.output = nil
+				a.probe(t, "outstanding unavailable", "planner_unavailable", false)
+				if _, err := a.owner.Exec(a.ctx, `UPDATE zasp_security_agent_provider_reservations SET attempt=attempt+1 WHERE run_id=$1`, exportFixtureRun); err != nil {
+					t.Fatal(err)
+				}
+				a.probe(t, "no current permit but outstanding run permit", "planner_unavailable", false)
+				if _, err := a.owner.Exec(a.ctx, `UPDATE zasp_security_agent_provider_reservations SET attempt=attempt-1 WHERE run_id=$1`, exportFixtureRun); err != nil {
+					t.Fatal(err)
+				}
+				a.output = output
+				a.settle(t, true)
+				a.input[0] ^= 1
+				a.probe(t, "wrong input", "", false)
+				a.input[0] ^= 1
+				a.output[0] ^= 1
+				a.probe(t, "wrong output", "", false)
+				a.output[0] ^= 1
+				a.model = "other-model"
+				a.probe(t, "wrong model", "", false)
+				a.model = "fixture-model"
+				for _, field := range []string{"attempt", "worker_id", "lease_token_digest"} {
+					var original any
+					switch field {
+					case "attempt":
+						original = a.attempt
+					case "worker_id":
+						original = exportFixtureWorker
+					default:
+						if err := a.owner.QueryRow(a.ctx, `SELECT lease_token_digest FROM zasp_security_agent_provider_reservations WHERE run_id=$1`, exportFixtureRun).Scan(&original); err != nil {
+							t.Fatal(err)
+						}
+					}
+					var changed any = "different-issuer"
+					if field == "attempt" {
+						changed = a.attempt + 1
+					}
+					if field == "lease_token_digest" {
+						changed = []byte(strings.Repeat("y", 32))
+					}
+					if _, err := a.owner.Exec(a.ctx, "UPDATE zasp_security_agent_provider_reservations SET "+field+"=$2 WHERE run_id=$1", exportFixtureRun, changed); err != nil {
+						t.Fatal(err)
+					}
+					a.probe(t, "wrong reservation "+field, "", false)
+					if _, err := a.owner.Exec(a.ctx, "UPDATE zasp_security_agent_provider_reservations SET "+field+"=$2 WHERE run_id=$1", exportFixtureRun, original); err != nil {
+						t.Fatal(err)
+					}
+				}
+				a.probe(t, "settled rejected output", "planner_rejected", true)
+				raw, err := a.invoke("")
+				if err != nil {
+					t.Fatalf("settled zero usage refused: %v", err)
+				}
+				var receipt, replay map[string]any
+				if json.Unmarshal(raw, &receipt) != nil {
+					t.Fatal(string(raw))
+				}
+				raw, err = a.invoke("")
+				receipt["replayed"] = true
+				if err != nil || json.Unmarshal(raw, &replay) != nil || !reflect.DeepEqual(receipt, replay) {
+					t.Fatalf("lost reply=%s %v", raw, err)
+				}
+				a.output[0] ^= 1
+				if _, err = a.invoke(""); err == nil {
+					t.Fatal("changed output replayed")
+				}
+			})
+		})
+	}
+}
+
+func TestSecurityAgentExportAccountingFailurePostgres(t *testing.T) {
+	for _, family := range []string{"export", "existing_test", "attack_lab", "legacy", "v33"} {
+		t.Run(family, func(t *testing.T) {
+			runExportAccountingFixture(t, family, func(a *exportAccountingFixture) {
+				a.reserve(t)
+				a.settle(t, true)
+				raw, err := a.invoke("planner_rejected")
+				if err != nil {
+					t.Fatal(err)
+				}
+				var first, replay map[string]any
+				if json.Unmarshal(raw, &first) != nil || first["state"] != "failed" {
+					t.Fatalf("failure=%s", raw)
+				}
+				raw, err = a.invoke("planner_rejected")
+				first["replayed"] = true
+				if err != nil || json.Unmarshal(raw, &replay) != nil || !reflect.DeepEqual(first, replay) {
+					t.Fatalf("failure replay=%s %v", raw, err)
+				}
+				a.output[0] ^= 1
+				if _, err = a.invoke("planner_rejected"); err == nil {
+					t.Fatal("changed failure replayed")
+				}
+				var settled bool
+				if err = a.owner.QueryRow(a.ctx, `SELECT settled_at IS NOT NULL AND total_tokens=0 AND cost_nano_credits=0 FROM zasp_security_agent_provider_reservations WHERE run_id=$1`, exportFixtureRun).Scan(&settled); err != nil || !settled {
+					t.Fatalf("failure erased usage: %v %v", settled, err)
+				}
+			})
+		})
+	}
+}
+
+func TestSecurityAgentExportAccountingNoProviderPostgres(t *testing.T) {
+	for _, family := range []string{"export", "existing_test", "attack_lab", "legacy", "v33"} {
+		t.Run(family, func(t *testing.T) {
+			runExportAccountingFixture(t, family, func(a *exportAccountingFixture) {
+				a.output = nil
+				raw, err := a.invoke("planner_unavailable")
+				if err != nil {
+					t.Fatal(err)
+				}
+				var first, replay map[string]any
+				if json.Unmarshal(raw, &first) != nil || first["state"] != "failed" {
+					t.Fatalf("zero-provider failure=%s", raw)
+				}
+				raw, err = a.invoke("planner_unavailable")
+				first["replayed"] = true
+				if err != nil || json.Unmarshal(raw, &replay) != nil || !reflect.DeepEqual(first, replay) {
+					t.Fatalf("zero-provider replay=%s %v", raw, err)
+				}
+				var count int
+				if err = a.owner.QueryRow(a.ctx, `SELECT (SELECT count(*) FROM zasp_security_agent_provider_reservations WHERE run_id=$1)+(SELECT count(*) FROM zasp_security_agent_plans WHERE run_id=$1)`, exportFixtureRun).Scan(&count); err != nil || count != 0 {
+					t.Fatalf("zero-provider failure created work: %d %v", count, err)
+				}
+				a.output = []byte(strings.Repeat("x", 32))
+				if _, err = a.invoke(""); err == nil {
+					t.Fatal("unavailable failure replay became acceptance")
+				}
+			})
+		})
+	}
+}
+
+func TestSecurityAgentExportAccountingStopsPostgres(t *testing.T) {
+	for _, family := range []string{"export", "existing_test", "attack_lab", "legacy", "v33"} {
+		t.Run(family, func(t *testing.T) {
+			runExportAccountingFixture(t, family, func(a *exportAccountingFixture) {
+				// Both dispositions must record only a stop, even for an unaccounted
+				// attacker output. Inspect committed rows through owner, never worker
+				// table privileges. Restore only this isolated fixture between cases.
+				var originalRun json.RawMessage
+				if err := a.owner.QueryRow(a.ctx, `SELECT to_jsonb(r) FROM zasp_security_agent_runs r WHERE run_id=$1`, exportFixtureRun).Scan(&originalRun); err != nil {
+					t.Fatal(err)
+				}
+				for _, mode := range []string{"deadline", "sticky"} {
+					update := `UPDATE zasp_security_agent_run_budgets SET deadline_at=clock_timestamp()-interval '1 millisecond' WHERE run_id=$1`
+					if mode == "sticky" {
+						update = `UPDATE zasp_security_agent_run_budgets SET stop_reason='budget_usage_unknown' WHERE run_id=$1`
+					}
+					if _, err := a.owner.Exec(a.ctx, update, exportFixtureRun); err != nil {
+						t.Fatal(err)
+					}
+					for _, failure := range []string{"", "planner_rejected"} {
+						raw, err := a.invoke(failure)
+						if err != nil {
+							t.Fatal(err)
+						}
+						var outcome string
+						var plans int
+						if err = a.owner.QueryRow(a.ctx, `SELECT outcome,(SELECT count(*) FROM zasp_security_agent_plans WHERE run_id=$1)+(SELECT count(*) FROM zasp_security_agent_steps WHERE run_id=$1)+(SELECT count(*) FROM zasp_security_agent_approvals WHERE run_id=$1) FROM zasp_security_agent_planner_receipts WHERE run_id=$1`, exportFixtureRun).Scan(&outcome, &plans); err != nil || outcome != "budget_stopped" || plans != 0 {
+							t.Fatalf("stop admitted output: %s %s plans=%d %v", raw, outcome, plans, err)
+						}
+						if _, err = a.invoke(failure); err != nil {
+							t.Fatalf("stop lost-reply: %v", err)
+						}
+						a.input[0] ^= 1
+						if _, err = a.invoke(failure); err == nil {
+							t.Fatal("changed stop request replayed")
+						}
+						a.input[0] ^= 1
+						if _, err = a.owner.Exec(a.ctx, `DELETE FROM zasp_security_agent_planner_receipts WHERE run_id=$1;
+ UPDATE zasp_security_agent_runs SET state=$2::jsonb->>'state',version=($2::jsonb->>'version')::bigint,lease_owner=$2::jsonb->>'lease_owner',lease_token=$2::jsonb->>'lease_token',lease_expires_at=($2::jsonb->>'lease_expires_at')::timestamptz,last_error_code=$2::jsonb->>'last_error_code',updated_at=($2::jsonb->>'updated_at')::timestamptz,completed_at=($2::jsonb->>'completed_at')::timestamptz WHERE run_id=$1`, pgx.QueryExecModeSimpleProtocol, exportFixtureRun, originalRun); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if _, err := a.owner.Exec(a.ctx, `UPDATE zasp_security_agent_run_budgets SET stop_reason=NULL,deadline_at=clock_timestamp()+interval '10 minutes' WHERE run_id=$1`, exportFixtureRun); err != nil {
+						t.Fatal(err)
+					}
+				}
+				a.reserve(t)
+				a.settle(t, false)
+				a.probe(t, "unknown usage accept", "", false)
+				a.output = nil
+				a.probe(t, "unknown usage NULL-output failure", "planner_unavailable", false)
+				var state, reason string
+				var outstanding, plans int
+				if err := a.owner.QueryRow(a.ctx, `SELECT r.state,b.stop_reason,(SELECT count(*) FROM zasp_security_agent_provider_reservations WHERE run_id=$1 AND settled_at IS NULL),(SELECT count(*) FROM zasp_security_agent_plans WHERE run_id=$1) FROM zasp_security_agent_runs r JOIN zasp_security_agent_run_budgets b USING(organization_id,workspace_id,environment_id,run_id) WHERE r.run_id=$1`, exportFixtureRun).Scan(&state, &reason, &outstanding, &plans); err != nil || state != "needs_human" || reason != "budget_usage_unknown" || outstanding != 1 || plans != 0 {
+					t.Fatalf("unknown stop lost: %s %s %d %d %v", state, reason, outstanding, plans, err)
+				}
+			})
+		})
+	}
+}
+
+func TestSecurityAgentExportAccountingPrivateACLPostgres(t *testing.T) {
+	runExportAccountingFixture(t, "export", func(a *exportAccountingFixture) {
+		var clones, saved int
+		var accessible bool
+		if err := a.owner.QueryRow(a.ctx, `SELECT count(*),bool_or(has_function_privilege('zasp_security_agent_worker',p.oid,'EXECUTE') OR has_function_privilege('zasp_security_agent_api',p.oid,'EXECUTE')) FROM pg_proc p WHERE p.pronamespace='zasp_sa_export_prior'::regnamespace AND p.proname LIKE 'accounting_%'`).Scan(&clones, &accessible); err != nil || clones != 10 || accessible {
+			t.Fatalf("clone ACL: %d %v %v", clones, accessible, err)
+		}
+		if err := a.owner.QueryRow(a.ctx, `SELECT count(*) FROM zasp_sa_export_prior.functions WHERE signature LIKE '%accept_planner%' OR signature LIKE '%fail_planner%'`).Scan(&saved); err != nil || saved != 8 {
+			t.Fatalf("saved entrypoints: %d %v", saved, err)
+		}
+		if _, err := a.worker.Exec(a.ctx, `SELECT public.zasp_sa_export_planner_accounting_gate($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL)`, a.o, a.w, a.e, exportFixtureRun, exportFixtureWorker, exportFixtureLease, a.input, a.output, a.model); err == nil {
+			t.Fatal("worker called private gate")
+		}
+		if _, err := a.worker.Exec(a.ctx, `SELECT zasp_sa_export_prior.accounting_9($1,$2,$3,$4,$5,$6,$7,$8,$9,'planner-v1',$10,$11,clock_timestamp()+interval '1 minute',$11,$11)`, a.o, a.w, a.e, exportFixtureRun, exportFixtureWorker, exportFixtureLease, a.input, a.output, a.model, a.candidate, exportApprovalID); err == nil {
+			t.Fatal("worker bypassed with saved clone")
+		}
+	})
+}

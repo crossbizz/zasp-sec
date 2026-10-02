@@ -39,12 +39,12 @@ func (repository *PostgresRepository) readRuntimeSession(ctx context.Context, id
 		if parameters["kind"] != "runtime" || parameters["principal_id"] != "" || parameters["agent_id"] != "" && !validAdministrationProductID(parameters["agent_id"]) {
 			return nil, ErrRepositoryOperation
 		}
-		return repository.database.QueryJSON(ctx, postgresRuntimeSessionPageSQL, append(args, parameters["after_id"], adminLimit(parameters)+1, parameters["agent_id"], optionalAdministrationTime(parameters["from"]), optionalAdministrationTime(parameters["to"]))...)
+		return repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRuntimeSessionPageSQL, `SELECT zasp_authorization80.runtime_session_page($1,$2,$3,$4,$5,$6,$7,$8,$9)`), append(args, parameters["after_id"], adminLimit(parameters)+1, parameters["agent_id"], optionalAdministrationTime(parameters["from"]), optionalAdministrationTime(parameters["to"]))...)
 	case "getSession":
 		if !runtimeSessionTarget(parameters["id"]) {
 			return nil, ErrRepositoryNotFound
 		}
-		return repository.database.QueryJSON(ctx, postgresRuntimeSessionGetSQL, append(args, parameters["id"])...)
+		return repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRuntimeSessionGetSQL, `SELECT zasp_authorization80.runtime_session_get($1,$2,$3,$4,$5)`), append(args, parameters["id"])...)
 	case "getSessionEvent":
 		if !runtimeSessionTarget(parameters["id"]) || !validAdministrationProductID(parameters["eventId"]) || len(parameters) != 2 {
 			return nil, ErrRepositoryOperation
@@ -77,17 +77,24 @@ func (repository *PostgresRepository) runtimeSessionEventStatement(ctx context.C
 	if page {
 		statement = postgresRuntimeSessionEventPageSQL
 	}
+	current := `SELECT zasp_authorization80.runtime_session_event_get($1,$2,$3,$4,$5,$6)`
+	if page {
+		current = `SELECT zasp_authorization80.runtime_session_event_page($1,$2,$3,$4,$5,$6,$7,$8)`
+	}
 	if !repository.sandboxSessionReads {
-		return statement, nil
+		return authorizationReadStatement(ctx, statement, current), nil
 	}
 	if ctx == nil || ctx.Err() != nil {
 		return "", ErrRepositoryUnavailable
 	}
 	metadata := migrations.ProductionRuntimeSandboxBinding()
-	body, err := repository.database.QueryJSON(ctx, `SELECT to_jsonb(zasp_production_runtime_sandbox_binding_readiness($1,$2))`, metadata.Checksum(), migrations.ProductionRuntimeSandboxBindingSemanticFingerprint())
+	body, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, `SELECT to_jsonb(zasp_production_runtime_sandbox_binding_readiness($1,$2))`, `SELECT to_jsonb(zasp_authorization80.session_source_readiness(50,$1,$2))`), metadata.Checksum(), migrations.ProductionRuntimeSandboxBindingSemanticFingerprint())
 	sandbox := true
 	var provider *pgconn.PgError
 	if ctx.Err() == nil && errors.As(err, &provider) && provider.Code == "42883" {
+		if _, checked := requestAuthorizationFromContext(ctx); checked {
+			return "", ErrRepositoryUnavailable
+		}
 		prior := migrations.ProductionRuntimeCorrelationRouting()
 		body, err = repository.database.QueryJSON(ctx, `SELECT to_jsonb(zasp_production_runtime_correlation_routing_readiness($1,$2))`, prior.Checksum(), migrations.ProductionRuntimeCorrelationRoutingSemanticFingerprint())
 		sandbox = false
@@ -96,10 +103,14 @@ func (repository *PostgresRepository) runtimeSessionEventStatement(ctx context.C
 		return "", ErrRepositoryUnavailable
 	}
 	if sandbox {
+		current = `SELECT zasp_authorization80.runtime_sandbox_session_event_get($1,$2,$3,$4,$5,$6)`
+		if page {
+			current = `SELECT zasp_authorization80.runtime_sandbox_session_event_page($1,$2,$3,$4,$5,$6,$7,$8)`
+		}
 		statement = `SELECT zasp_runtime_sandbox_session_event_get($1,$2,$3,$4,$5,$6)`
 		if page {
 			statement = `SELECT zasp_runtime_sandbox_session_event_page($1,$2,$3,$4,$5,$6,$7,$8)`
 		}
 	}
-	return statement, nil
+	return authorizationReadStatement(ctx, statement, current), nil
 }

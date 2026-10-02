@@ -1,0 +1,19 @@
+=== RUN   TestSecurityAgentExportPrefixedLoginsPostgres
+    security_agent_export_release_postgres_test.go:30: release58 checksum=78e98a4f8ed1532f431e1f9f14aaf59770bd963faa37a3bb20a2c06ec86b9c05 fingerprint=67a4e601a5597f67a35f3be50f4a47a0a602b3097b3a9e4838e6fc09dcee6b72
+=== RUN   TestSecurityAgentExportPrefixedLoginsPostgres/zasp_e2e_security_agent_api
+    security_agent_export_release_postgres_test.go:67: registered zasp_e2e_security_agent_api refused:  ERROR: export definition principal unavailable (SQLSTATE 42501)
+    security_agent_export_release_postgres_test.go:71: prefixed API controls: ERROR: export definition principal unavailable (SQLSTATE 42501)
+    security_agent_export_release_postgres_test.go:92: registered zasp_e2e_security_agent_api refused:  ERROR: export definition principal unavailable (SQLSTATE 42501)
+    security_agent_export_release_postgres_test.go:92: registered zasp_e2e_security_agent_api refused:  ERROR: export definition principal unavailable (SQLSTATE 42501)
+=== RUN   TestSecurityAgentExportPrefixedLoginsPostgres/zasp_e2e_security_agent_worker
+    security_agent_export_release_postgres_test.go:67: registered zasp_e2e_security_agent_worker refused:  ERROR: export settlement authority rejected (SQLSTATE 42501)
+    security_agent_export_release_postgres_test.go:92: registered zasp_e2e_security_agent_worker refused:  ERROR: export settlement authority rejected (SQLSTATE 42501)
+    security_agent_export_release_postgres_test.go:92: registered zasp_e2e_security_agent_worker refused:  ERROR: export settlement authority rejected (SQLSTATE 42501)
+=== RUN   TestSecurityAgentExportPrefixedLoginsPostgres/zasp_e2e_security_agent_action
+=== NAME  TestSecurityAgentExportPrefixedLoginsPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportPrefixedLoginsPostgres363369671/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportPrefixedLoginsPostgres (5.52s)
+    --- FAIL: TestSecurityAgentExportPrefixedLoginsPostgres/zasp_e2e_security_agent_api (0.00s)
+    --- FAIL: TestSecurityAgentExportPrefixedLoginsPostgres/zasp_e2e_security_agent_worker (0.00s)
+    --- PASS: TestSecurityAgentExportPrefixedLoginsPostgres/zasp_e2e_security_agent_action (0.01s)
+FAIL

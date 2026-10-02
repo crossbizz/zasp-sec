@@ -1,0 +1,9 @@
+cwd: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+command: shasum -a 256 owned and read-only files plus task-only.patch; gofmt -l owned files; git diff --no-index --check /dev/null each owned file
+exit: 1
+bb933859b4ba754f446e2cf4147371aea230eb3f1f244752446571d5caea1e04  services/platform/agentsec-worker/security_agent_export_render.go
+0b541bee4e3639d54e85308d797abb59bdf5309aa694258442256eb7876cf2cf  services/platform/agentsec-worker/security_agent_export_render_test.go
+61f9e7e0ed44f3b38947845d3a97bcd0862d2221ce7172bb277beb9ace334d8d  services/platform/agentsec-worker/compliance_export_database.go
+404bc3c7d7ba41369a2c964ff75287f68c78f4020f49d2a303c34ca51630482f  services/platform/agentsec-worker/compliance_export_render.go
+d40bde5dcf3b7d03ad5c788c5f08b6d0bf416527095869a089e0d5d82480b81b  services/platform/agentsec-worker/compliance_export_runtime_test.go
+8aec587fa84f33247586d9124b99becc70ac65d8a1c53a0343c89875cc893ecf  docs/internal/security-agent-export-20260919/render/task-only.patch

@@ -3,9 +3,20 @@ package main
 import (
 	"context"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
 	"github.com/zasp-ai/zasp-sec/services/platform/sensor"
 )
+
+func newProfiledProductionIngestRepository(database runtimeevent.ProductionIngestDatabase, config productionIngestConfig) (*runtimeevent.PostgresProductionIngestRepository, error) {
+	if config.DatabaseProfile == migrations.AuthorizationRuntimeProfileName {
+		return runtimeevent.NewPostgresCurrentRuntimeIngestRepository(database)
+	}
+	if config.DatabaseProfile != "" {
+		return nil, errRuntimeUnavailable
+	}
+	return newConfiguredProductionIngestRepository(database, config.RuntimeSchema)
+}
 
 func newConfiguredProductionIngestRepository(database runtimeevent.ProductionIngestDatabase, schema string) (*runtimeevent.PostgresProductionIngestRepository, error) {
 	if schema == "runtime-event-v2" {

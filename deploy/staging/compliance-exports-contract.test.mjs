@@ -1,0 +1,132 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+// Offline source checks only. These do not evaluate HCL, provider defaults, or IAM.
+// Decoded-policy assertions belong to tests/compliance_exports_iam.tftest.hcl.
+const source = await readFile(new URL("./compliance_exports.tf", import.meta.url), "utf8")
+  .catch((error) => { if (error.code === "ENOENT") return ""; throw error; });
+
+function block(text, header) {
+  const start = text.indexOf(`${header} {\n`);
+  assert.notEqual(start, -1, `missing ${header}`);
+  const end = text.indexOf("\n}", start);
+  assert.notEqual(end, -1, `unterminated ${header}`);
+  return text.slice(start, end + 2).replace(/^\s*#.*$/gm, "");
+}
+const resource = (text, type, name = "compliance_exports") => block(text, `resource "${type}" "${name}"`);
+
+function assertOptIn(text) {
+  assert.match(block(text, 'variable "compliance_exports_enabled"'), /default\s*=\s*false\b/);
+  assert.match(text, /compliance_export_identities\s*=\s*var\.compliance_exports_enabled\s*\?\s*\{[\s\S]*?\}\s*:\s*\{\}/);
+  for (const type of ["aws_s3_bucket", "aws_s3_bucket_versioning", "aws_s3_bucket_ownership_controls", "aws_s3_bucket_public_access_block", "aws_s3_bucket_server_side_encryption_configuration", "aws_s3_bucket_lifecycle_configuration", "aws_s3_bucket_policy", "aws_kms_key"]) {
+    assert.match(resource(text, type), /count\s*=\s*var\.compliance_exports_enabled\s*\?\s*1\s*:\s*0/);
+  }
+  for (const type of ["aws_iam_role", "aws_iam_role_policy"]) assert.match(resource(text, type), /for_each\s*=\s*local\.compliance_export_identities/);
+  assert.match(text, /compliance_export_secrets\s*=\s*var\.compliance_exports_enabled\s*\?\s*\{[\s\S]*?\}\s*:\s*\{\}/);
+  assert.match(resource(text, "aws_secretsmanager_secret"), /for_each\s*=\s*local\.compliance_export_secrets/);
+}
+
+function assertStorage(text) {
+  assert.match(resource(text, "aws_s3_bucket"), /bucket\s*=\s*"zasp-compliance-exports-\$\{md5\(var\.account_id\)\}"/);
+  assert.doesNotMatch(text, /force_destroy\s*=\s*true|object_lock|BypassGovernanceRetention|aws_s3_bucket\.evidence/);
+  assert.match(resource(text, "aws_s3_bucket_versioning"), /status\s*=\s*"Enabled"/);
+  assert.match(resource(text, "aws_s3_bucket_ownership_controls"), /object_ownership\s*=\s*"BucketOwnerEnforced"/);
+  for (const setting of ["block_public_acls", "block_public_policy", "ignore_public_acls", "restrict_public_buckets"]) assert.match(resource(text, "aws_s3_bucket_public_access_block"), new RegExp(`${setting}\\s*=\\s*true`));
+  const encryption = resource(text, "aws_s3_bucket_server_side_encryption_configuration");
+  assert.match(encryption, /bucket_key_enabled\s*=\s*true/);
+  assert.match(encryption, /kms_master_key_id\s*=\s*aws_kms_key\.compliance_exports\[0\]\.arn/);
+  assert.match(encryption, /sse_algorithm\s*=\s*"aws:kms"/);
+  assert.match(resource(text, "aws_kms_key"), /enable_key_rotation\s*=\s*true/);
+  const lifecycle = resource(text, "aws_s3_bucket_lifecycle_configuration");
+  assert.match(lifecycle, /expiration\s*\{\s*days\s*=\s*1\s*\}/);
+  assert.match(lifecycle, /noncurrent_version_expiration\s*\{\s*noncurrent_days\s*=\s*1\s*\}/);
+  assert.match(lifecycle, /expiration\s*\{\s*expired_object_delete_marker\s*=\s*true\s*\}/);
+  assert.equal([...lifecycle.matchAll(/filter\s*\{\s*prefix\s*=\s*"organizations\/"\s*\}/g)].length, 2);
+  const tls = resource(text, "aws_s3_bucket_policy");
+  assert.match(tls, /Effect\s*=\s*"Deny"/);
+  assert.match(tls, /"aws:SecureTransport"\s*=\s*"false"/);
+  assert.match(tls, /Resource\s*=\s*\[aws_s3_bucket\.compliance_exports\[0\]\.arn,\s*"\$\{aws_s3_bucket\.compliance_exports\[0\]\.arn\}\/\*"\]/);
+}
+
+function assertAuthority(text) {
+  const identities = text.match(/compliance_export_identities\s*=\s*var\.compliance_exports_enabled\s*\?\s*\{([^}]+)\}/)?.[1];
+  assert.ok(identities, "opt-in identity map required");
+  assert.deepEqual(Object.fromEntries([...identities.matchAll(/(\w+)\s*=\s*"([^"]+)"/g)].map(([, k, v]) => [k, v])), {
+    reader: "agentsec-api", writer: "zasp-compliance-export-worker", cleanup: "zasp-compliance-cleanup-worker",
+  });
+  const actions = text.match(/compliance_export_read_actions\s*=\s*\{([^}]+)\}/)?.[1];
+  assert.ok(actions, "role-specific object actions required");
+  assert.deepEqual(Object.fromEntries([...actions.matchAll(/(\w+)\s*=\s*(\[[^\]]*\])/g)].map(([, k, v]) => [k, JSON.parse(v)])), {
+    reader: ["s3:GetObjectVersion"], writer: ["s3:GetObject", "s3:GetObjectVersion"], cleanup: ["s3:GetObject", "s3:GetObjectVersion", "s3:DeleteObjectVersion"],
+  });
+  const trust = resource(text, "aws_iam_role");
+  assert.match(trust, /Principal\s*=\s*\{ Federated = aws_iam_openid_connect_provider\.eks\.arn \}/);
+  assert.match(trust, /Action\s*=\s*"sts:AssumeRoleWithWebIdentity"/);
+  assert.match(trust, /:aud"\s*=\s*"sts.amazonaws.com"/);
+  assert.match(trust, /:sub"\s*=\s*"system:serviceaccount:agentsec:\$\{each.value\}"/);
+  const policy = resource(text, "aws_iam_role_policy");
+  assert.match(policy, /Action\s*=\s*local\.compliance_export_read_actions\[each.key\]/);
+  assert.match(policy, /each.key == "writer" \? jsonencode\(\{[\s\S]*?Action\s*=\s*\["s3:PutObject"\]/);
+  assert.match(policy, /"s3:x-amz-server-side-encryption"\s*=\s*"aws:kms"/);
+  assert.match(policy, /"s3:x-amz-server-side-encryption-aws-kms-key-id"\s*=\s*aws_kms_key\.compliance_exports\[0\]\.arn/);
+  assert.equal([...policy.matchAll(/Resource\s*=\s*"\$\{aws_s3_bucket\.compliance_exports\[0\]\.arn\}\/organizations\/\*\/workspaces\/\*\/environments\/\*\/exports\/\*"/g)].length, 2);
+  assert.match(policy, /Action\s*=\s*concat\(\["kms:Decrypt"\], each.key == "writer" \? \["kms:GenerateDataKey"\] : \[\]\)/);
+  assert.match(policy, /Resource\s*=\s*aws_kms_key\.compliance_exports\[0\]\.arn/);
+  assert.match(policy, /"kms:ViaService"\s*=\s*"s3.\$\{var.region\}.amazonaws.com"/);
+  assert.match(policy, /"kms:EncryptionContext:aws:s3:arn"\s*=\s*\[aws_s3_bucket\.compliance_exports\[0\]\.arn, "\$\{aws_s3_bucket\.compliance_exports\[0\]\.arn\}\/organizations\/\*\/workspaces\/\*\/environments\/\*\/exports\/\*"\]/);
+  assert.doesNotMatch(policy, /"s3:DeleteObject"|"s3:\*"|"sqs:|"sts:AssumeRole"|Resource\s*=\s*"\*"/);
+}
+
+function assertSecrets(text) {
+  const secrets = resource(text, "aws_secretsmanager_secret");
+  assert.match(secrets, /kms_key_id\s*=\s*aws_kms_key\.staging\.arn/);
+  assert.match(secrets, /recovery_window_in_days\s*=\s*30/);
+  assert.doesNotMatch(text, /aws_secretsmanager_secret_version|secret_string|secret_binary/);
+  const policy = resource(text, "aws_iam_role_policy", "compliance_export_secrets");
+  assert.match(policy, /for_each\s*=\s*local\.compliance_export_secrets/);
+  assert.match(policy, /role\s*=\s*aws_iam_role\.compliance_exports\[each.key\]\.id/);
+  assert.match(policy, /Action\s*=\s*\["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue"\], Resource = aws_secretsmanager_secret\.compliance_exports\[each.key\]\.arn/);
+  assert.match(policy, /"kms:EncryptionContext:SecretARN"\s*=\s*aws_secretsmanager_secret\.compliance_exports\[each.key\]\.arn/);
+  assert.match(policy, /"kms:ViaService"\s*=\s*"secretsmanager.\$\{var.region\}.amazonaws.com"/);
+  assert.match(policy, /Action\s*=\s*\["kms:Decrypt"\], Resource = aws_kms_key\.staging\.arn/);
+  const principals = block(text, 'variable "compliance_export_database_principals"');
+  assert.match(principals, /worker\s*=\s*"compliance_export_runtime"/);
+  assert.match(principals, /cleanup\s*=\s*"compliance_cleanup_runtime"/);
+  assert.match(principals, /!startswith\(principal, "zasp_"\)/);
+  assert.match(principals, /!contains\(values\(var.database_principals\), principal\)/);
+  assert.match(principals, /!contains\(values\(var.audit_export_database_principals\), principal\)/);
+  assert.match(principals, /length\(distinct\(values\(var.compliance_export_database_principals\)\)\) == 2/);
+}
+
+function assertMetadata(text) {
+  const output = block(text, 'output "compliance_exports_deployment_metadata"');
+  assert.match(output, /value\s*=\s*var.compliance_exports_enabled\s*\?\s*\{/);
+  assert.match(output, /\}\s*:\s*null/);
+  assert.deepEqual([...output.matchAll(/^ {4}(\w+)\s*=/gm)].map(([, key]) => key).sort(), ["enabled", "awsRegion", "bucket", "bucketOwner", "kmsKeyArn", "readerRoleArn", "writerRoleArn", "cleanupRoleArn", "workerDSNSecretArn", "cleanupDSNSecretArn", "workerPrincipal", "cleanupPrincipal"].sort());
+  assert.match(output, /enabled\s*=\s*true/);
+  assert.match(output, /bucketOwner\s*=\s*var.account_id/);
+}
+
+for (const [name, check] of Object.entries({ optIn: assertOptIn, storage: assertStorage, authority: assertAuthority, secrets: assertSecrets, metadata: assertMetadata })) {
+  test(`source check: compliance ${name} contract`, () => check(source));
+}
+
+for (const [name, check, mutate] of [
+  ["removed versioning", assertStorage, (text) => text.replace(resource(text, "aws_s3_bucket_versioning"), "")],
+  ["current-key deletion", assertAuthority, (text) => text.replace('"s3:DeleteObjectVersion"', '"s3:DeleteObjectVersion", "s3:DeleteObject"')],
+  ["broadened DSN reference", assertSecrets, (text) => text.replaceAll("aws_secretsmanager_secret.compliance_exports[each.key].arn", '"*"')],
+  ["swapped service account", assertAuthority, (text) => text.replace('"zasp-compliance-cleanup-worker"', '"zasp-compliance-export-worker"')],
+]) {
+  test(`source mutation control rejects ${name}`, () => {
+    check(source);
+    const changed = mutate(source);
+    assert.notEqual(changed, source, "mutation must change the production source");
+    assert.throws(() => check(changed), assert.AssertionError);
+  });
+}
+
+test("source check: staging gate includes compliance storage checks", async () => {
+  const pkg = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8"));
+  assert.ok(pkg.scripts["staging:gate:test"].split(" ").includes("deploy/staging/compliance-exports-contract.test.mjs"));
+});

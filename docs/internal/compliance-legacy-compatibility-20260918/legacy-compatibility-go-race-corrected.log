@@ -1,0 +1,27 @@
+=== RUN   TestComplianceStorageFactoryBoundary
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"2886cd732870fc9f2eac9e658d701f10","span_id":"719c10bdfb062d3e","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"91b9428530f9450f5c206ec1ce9b86f2","span_id":"41478fde1841c672","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"1102021d9fecf793b047d3231fff58fb","span_id":"2136a1714a2d109d","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"ea57ec97834c63d13c5a65b22ed98141","span_id":"e50df976e51866d3","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"ea4a7cbb20997a6f5cf6829eb4f1a723","span_id":"63dcbe2564d68cc9","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"2894d975096eca65dbe9cd5aff8f4162","span_id":"e7e112c4364e41e7","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"2079746d8cfce6fa5a8cfedf7313fd89","span_id":"084b2694441b2311","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"bfda677a6fc6b9bf0c83f5baa5b117a8","span_id":"c6abf72d264281fe","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"668217406378b5c853b3ac2526c63b14","span_id":"9bf631ebeef2f835","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+--- PASS: TestComplianceStorageFactoryBoundary (0.01s)
+=== RUN   TestComplianceAPIProductionComposition
+=== RUN   TestComplianceAPIProductionComposition/installed
+=== RUN   TestComplianceAPIProductionComposition/disabled
+=== RUN   TestComplianceAPIProductionComposition/absent
+=== RUN   TestComplianceAPIProductionComposition/unregistered
+--- PASS: TestComplianceAPIProductionComposition (0.28s)
+    --- PASS: TestComplianceAPIProductionComposition/installed (0.11s)
+    --- PASS: TestComplianceAPIProductionComposition/disabled (0.03s)
+    --- PASS: TestComplianceAPIProductionComposition/absent (0.03s)
+    --- PASS: TestComplianceAPIProductionComposition/unregistered (0.10s)
+=== RUN   TestComplianceAPIConfiguration
+--- PASS: TestComplianceAPIConfiguration (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-api	2.325s
+
+EXIT_STATUS=0

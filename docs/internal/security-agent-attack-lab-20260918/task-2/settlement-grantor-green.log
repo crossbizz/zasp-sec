@@ -1,0 +1,26 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/usr/local/bin/docker","run","--rm","--pull=never","--name","zasp-attack-lab-task2","--network","none","--read-only","--user","postgres","--cpus","2","--memory","2g","--pids-limit","512","--tmpfs","/tmp:rw,exec,size=1400m","--tmpfs","/var/run/postgresql:rw","--mount","type=bind,src=/private/tmp/zasp-attack-lab-task2.test,dst=/attack-lab.test,readonly","--mount","type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly","-w","/workspace/services/platform/apiserver","--entrypoint","/attack-lab.test","postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba","-test.run","^TestSecurityAgentAttackLabSettlementPostgres$","-test.v","-test.timeout","120s"]
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres
+    security_agent_attack_lab_settlement_postgres_test.go:26: observed57 fingerprint=b385bef942260146ead5ad3cefdcffa8b630563508d8a953183d13fd70d0a00b
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/production_truth
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/revoked_approver
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/wrong_scope_approver
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/stale_authentication
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/expired_lease
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/source_evidence_drift
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/definition_version_drift
+=== RUN   TestSecurityAgentAttackLabSettlementPostgres/production_write_declaration
+=== NAME  TestSecurityAgentAttackLabSettlementPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentAttackLabSettlementPostgres3334824895/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentAttackLabSettlementPostgres (11.91s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/production_truth (0.10s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/revoked_approver (0.09s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/wrong_scope_approver (0.09s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/stale_authentication (0.10s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/expired_lease (0.09s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/source_evidence_drift (0.10s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/definition_version_drift (0.09s)
+    --- PASS: TestSecurityAgentAttackLabSettlementPostgres/production_write_declaration (0.08s)
+PASS
+
+Exit: 0 Signal: null

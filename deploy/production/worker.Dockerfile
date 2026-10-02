@@ -1,4 +1,4 @@
-FROM golang:1.25.6-alpine3.22@sha256:fa3380ab0d73b706e6b07d2a306a4dc68f20bfc1437a6a6c47c8f88fe4af6f75 AS build
+FROM golang:1.25.13-alpine3.23@sha256:42fc3368d1c50170a452f2bf4a1dfd292a065870c3f258d799aad4316671cb69 AS build
 ARG VERSION
 WORKDIR /src/platform
 COPY services/health /src/health
@@ -7,7 +7,20 @@ RUN go mod download
 COPY services/platform ./
 RUN test -n "$VERSION" && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.buildVersion=$VERSION" -o /out/agentsec-worker ./agentsec-worker && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.buildVersion=$VERSION" -o /out/agentsec-attack-lab-proxy ./attack-lab-proxy && \
+    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/zasp-authorization-reconcile ./cmd/zasp-authorization-reconcile && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/zasp-healthcheck ./cmd/zasp-healthcheck
+
+FROM ghcr.io/promptfoo/promptfoo:0.121.19@sha256:50d3a796710e4db7a5ede90bf27dc28146ef022a7ebb83914c5105608396fd96 AS promptfoo-assets
+FROM node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 AS node-assets
+FROM python:3.13.11-slim-bookworm@sha256:20080e807bfc404f8450b185cf0fc95d553462673598549613735f70a5b4d5d0 AS runner-assets
+ENV HOME=/tmp PROMPTFOO_CACHE_ENABLED=false PROMPTFOO_CONFIG_DIR=/tmp/promptfoo-state PROMPTFOO_DISABLE_ERROR_LOG=1 PROMPTFOO_DISABLE_REMOTE_GENERATION=1 PROMPTFOO_DISABLE_TELEMETRY=1 PROMPTFOO_DISABLE_UPDATE=1
+WORKDIR /app
+COPY --from=node-assets /usr/local/bin/node /usr/local/bin/node
+COPY --from=promptfoo-assets /app/ /app/
+COPY workers/redteam-node/runner.mjs /app/redteam-runner.mjs
+USER 65532:65532
+RUN test "$(node --version)" = "v22.23.1" && test "$(node /app/dist/src/entrypoint.js --version)" = "0.121.19" && \
+    node --input-type=module -e "const m = await import('./redteam-runner.mjs'); if (typeof m.buildPromptfooConfiguration !== 'function') process.exit(1); const {createClient} = await import('@libsql/client'); const db = createClient({url:'file:/tmp/runner-abi.db'}); await db.execute('SELECT 1'); db.close()"
 
 FROM python:3.13.11-slim-bookworm@sha256:20080e807bfc404f8450b185cf0fc95d553462673598549613735f70a5b4d5d0 AS security-python-build
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1
@@ -30,8 +43,11 @@ RUN python -m venv /opt/zasp/security/prowler && \
 
 FROM python:3.13.11-slim-bookworm@sha256:20080e807bfc404f8450b185cf0fc95d553462673598549613735f70a5b4d5d0 AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV HOME=/tmp PROMPTFOO_CACHE_ENABLED=false PROMPTFOO_CONFIG_DIR=/tmp/promptfoo-state PROMPTFOO_DISABLE_ERROR_LOG=1 PROMPTFOO_DISABLE_REMOTE_GENERATION=1 PROMPTFOO_DISABLE_TELEMETRY=1 PROMPTFOO_DISABLE_UPDATE=1
 WORKDIR /app
-COPY --from=build --chown=65532:65532 /out/agentsec-worker /out/agentsec-attack-lab-proxy /out/zasp-healthcheck ./
+COPY --from=runner-assets /usr/local/bin/node /usr/local/bin/node
+COPY --from=runner-assets --chown=65532:65532 /app/ /app/
+COPY --from=build --chown=65532:65532 /out/agentsec-worker /out/agentsec-attack-lab-proxy /out/zasp-authorization-reconcile /out/zasp-healthcheck ./
 COPY --from=security-python-build --chown=65532:65532 /opt/zasp/security /opt/zasp/security
 USER 65532:65532
 EXPOSE 8081

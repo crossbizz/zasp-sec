@@ -1,0 +1,9 @@
+Evidence package for review. This export reports collected evidence and freshness; it does not attest compliance.
+
+Control "soc2_security-policies" | "soc2_security" | "Policy definitions"
+Captured scope: pid_10000001-0000-4000-8000-000000000001 / pid_10000022-0000-4000-8000-000000000022 / pid_10000023-0000-4000-8000-000000000023 | mapping: product-evidence-v1 | snapshot_at: 2026-09-19T02:51:56.624349Z
+Freshness: stale; fresh until: 2020-01-02T00:00:00Z
+Expected evidence IDs: "policy-compliance-browser"
+Target source_kind: "policy" | source_id: "policy-compliance-browser" | source_version: 7
+Captured metadata: {"verification":"definition_only"}
+Evidence "policy-compliance-browser" | asset "policy-compliance-browser" | source "policy" | at 2020-01-01T00:00:00Z

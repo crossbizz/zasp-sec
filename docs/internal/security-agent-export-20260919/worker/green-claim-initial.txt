@@ -1,0 +1,32 @@
+=== RUN   TestSecurityAgentExportWorkerClaimUnion
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/valid
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/browser
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/unknown_origin
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/missing_binding
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/missing_origin
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/unknown_binding_field
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/empty
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/duplicate
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/overflow
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/foreign_kind
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/bad_id
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/bad_version
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/bad_digest
+=== RUN   TestSecurityAgentExportWorkerClaimUnion/bad_run
+--- PASS: TestSecurityAgentExportWorkerClaimUnion (0.25s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/valid (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/browser (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/unknown_origin (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/missing_binding (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/missing_origin (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/unknown_binding_field (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/empty (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/duplicate (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/overflow (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/foreign_kind (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/bad_id (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/bad_version (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/bad_digest (0.02s)
+    --- PASS: TestSecurityAgentExportWorkerClaimUnion/bad_run (0.02s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.380s

@@ -1,0 +1,78 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npm","run","ui-api:test"]
+
+> zasp-agent-security-console@0.1.0 ui-api:test
+> node --test scripts/check-ui-api-coverage.test.mjs
+
+TAP version 13
+# Subtest: current API and planned map passes honestly
+ok 1 - current API and planned map passes honestly
+  ---
+  duration_ms: 26.619125
+  type: 'test'
+  ...
+# Subtest: all current public operations resolve and deliberate removal fails
+ok 2 - all current public operations resolve and deliberate removal fails
+  ---
+  duration_ms: 4.875708
+  type: 'test'
+  ...
+# Subtest: unmapped public operations fail while unmapped internal operations pass
+ok 3 - unmapped public operations fail while unmapped internal operations pass
+  ---
+  duration_ms: 2.175666
+  type: 'test'
+  ...
+# Subtest: planned, available, and internal lifecycle mismatches fail
+ok 4 - planned, available, and internal lifecycle mismatches fail
+  ---
+  duration_ms: 3.687459
+  type: 'test'
+  ...
+# Subtest: API-available operations require OpenAPI but do not claim a wired UI
+ok 5 - API-available operations require OpenAPI but do not claim a wired UI
+  ---
+  duration_ms: 2.116958
+  type: 'test'
+  ...
+# Subtest: OpenAPI operation extraction rejects missing, duplicate, and unclassified operations
+ok 6 - OpenAPI operation extraction rejects missing, duplicate, and unclassified operations
+  ---
+  duration_ms: 0.246791
+  type: 'test'
+  ...
+# Subtest: strict YAML parsing rejects representation and map-schema ambiguity
+ok 7 - strict YAML parsing rejects representation and map-schema ambiguity
+  ---
+  duration_ms: 26.737875
+  type: 'test'
+  ...
+# Subtest: fixed file boundary accepts regular UTF-8 and rejects symlink, oversize, and invalid UTF-8
+ok 8 - fixed file boundary accepts regular UTF-8 and rejects symlink, oversize, and invalid UTF-8
+  ---
+  duration_ms: 7.423
+  type: 'test'
+  ...
+# Subtest: CLI emits only fixed success or rejection lines
+ok 9 - CLI emits only fixed success or rejection lines
+  ---
+  duration_ms: 9.81275
+  type: 'test'
+  ...
+# Subtest: package command is wired into root verification
+ok 10 - package command is wired into root verification
+  ---
+  duration_ms: 0.917959
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 147.990625
+
+Exit: 0 Signal: null

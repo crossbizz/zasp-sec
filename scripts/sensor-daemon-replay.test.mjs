@@ -9,7 +9,13 @@ import { buildDaemonReplayArguments, validateDaemonReplayContainer, validateDaem
 
 const owner = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 const id = "a".repeat(64);
-const passingOutput = "--- PASS: TestRuntimeAcceptanceActualDaemonLostSuccessReplay (3.00s)\nPASS\n";
+const passingOutput = `--- PASS: TestRuntimeAcceptanceActualDaemonLostSuccessReplay (12.00s)
+    --- PASS: TestRuntimeAcceptanceActualDaemonLostSuccessReplay/schema48/tetragon-local-stream-v1 (3.00s)
+    --- PASS: TestRuntimeAcceptanceActualDaemonLostSuccessReplay/schema48/tetragon-local-stream-v2 (3.00s)
+    --- PASS: TestRuntimeAcceptanceActualDaemonLostSuccessReplay/schema53/tetragon-local-stream-v1 (3.00s)
+    --- PASS: TestRuntimeAcceptanceActualDaemonLostSuccessReplay/schema53/tetragon-local-stream-v2 (3.00s)
+PASS
+`;
 const config = { owner, directory: "/tmp/zasp-daemon-proof-fixture", platform: "linux/amd64", imageEnvironment: ["PATH=/usr/local/bin:/usr/bin:/bin"] };
 
 test("daemon proof selects the actual Docker host platform instead of a foreign image", () => {
@@ -84,6 +90,16 @@ test("daemon proof inspects exact identity, mounts, isolation and exit", () => {
     const value = fixture(); Object.assign(value.State, state); assert.throws(() => validateDaemonReplayResult(value, passingOutput));
   }
   assert.throws(() => validateDaemonReplayResult(fixture(), "--- SKIP: TestRuntimeAcceptanceActualDaemonLostSuccessReplay\nPASS\n"));
+});
+
+test("daemon proof requires both profiles at historical48 and current53 without skips", () => {
+  validateDaemonReplayResult(fixture(), passingOutput);
+  const lines = passingOutput.split("\n");
+  for (const profileLine of lines.filter(line => line.includes("/tetragon-local-stream-"))) {
+    assert.throws(() => validateDaemonReplayResult(fixture(), lines.filter(line => line !== profileLine).join("\n")), "omitted profile must fail");
+    assert.throws(() => validateDaemonReplayResult(fixture(), passingOutput.replace(profileLine, profileLine.replace("--- PASS:", "--- SKIP:"))), "skipped profile must fail");
+  }
+  assert.throws(() => validateDaemonReplayResult(fixture(), passingOutput.replace("PASS\n", "--- SKIP: TestSensorDaemonReplayOwnershipCleanup (0.00s)\nPASS\n")));
 });
 
 test("cleanup only removes verified stopped owned container on success", async () => {

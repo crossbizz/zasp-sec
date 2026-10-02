@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zasp-ai/zasp-sec/services/platform/gatewaycontrol"
 	"github.com/zasp-ai/zasp-sec/services/platform/policy"
 )
 
@@ -23,27 +24,29 @@ type gatewayQuarantinedWire struct {
 }
 
 type gatewayDecisionEventWire struct {
-	CredentialID   string            `json:"credential_id"`
-	DeviceID       string            `json:"device_id"`
-	EventID        string            `json:"event_id"`
-	ExpectedFloor  uint64            `json:"expected_floor"`
-	NextFloor      uint64            `json:"next_floor"`
-	PolicyVersion  uint64            `json:"policy_version"`
-	Decision       string            `json:"decision"`
-	ActionKind     string            `json:"action_kind"`
-	PolicyIDs      []string          `json:"policy_ids"`
-	Classification map[string]string `json:"classification"`
-	OccurredAt     string            `json:"occurred_at"`
+	CredentialID   string                             `json:"credential_id"`
+	DeviceID       string                             `json:"device_id"`
+	EventID        string                             `json:"event_id"`
+	ExpectedFloor  uint64                             `json:"expected_floor"`
+	NextFloor      uint64                             `json:"next_floor"`
+	PolicyVersion  uint64                             `json:"policy_version"`
+	Decision       string                             `json:"decision"`
+	ActionKind     string                             `json:"action_kind"`
+	PolicyIDs      []string                           `json:"policy_ids"`
+	Classification map[string]string                  `json:"classification"`
+	OccurredAt     string                             `json:"occurred_at"`
+	Evaluation     *gatewaycontrol.EvaluationEvidence `json:"evaluation,omitempty"`
 }
 
 type gatewayEvaluationWire struct {
-	EventID          string   `json:"event_id"`
-	RequestDigest    string   `json:"request_digest"`
-	Decision         string   `json:"decision"`
-	PolicyVersion    uint64   `json:"policy_version"`
-	CacheState       string   `json:"cache_state"`
-	MatchedPolicyIDs []string `json:"matched_policy_ids"`
-	EvaluatedAt      string   `json:"evaluated_at"`
+	EventID          string                             `json:"event_id"`
+	RequestDigest    string                             `json:"request_digest"`
+	Decision         string                             `json:"decision"`
+	PolicyVersion    uint64                             `json:"policy_version"`
+	CacheState       string                             `json:"cache_state"`
+	MatchedPolicyIDs []string                           `json:"matched_policy_ids"`
+	EvaluatedAt      string                             `json:"evaluated_at"`
+	Evaluation       *gatewaycontrol.EvaluationEvidence `json:"evaluation,omitempty"`
 }
 
 type gatewayStoredQuarantineAcknowledgment struct {
@@ -165,6 +168,9 @@ func cloneGatewayQuarantinedDecisionEvents(events []gatewayQuarantinedDecisionEv
 }
 
 func validGatewayEvidenceEvent(event gatewayDecisionEvent, expected gatewayAuthority) bool {
+	if !gatewaycontrol.ValidEvaluationEvidence(event.Evaluation, event.Decision, event.PolicyIDs) || event.Evaluation != nil && event.Classification["session_id"] != event.Evaluation.SessionID {
+		return false
+	}
 	return event.CredentialID == expected.CredentialID && event.DeviceID == expected.DeviceID && validGatewayProductID(event.EventID) && event.PolicyVersion > 0 &&
 		(event.Decision == "allow" || event.Decision == "monitor" || event.Decision == "block") && (event.ActionKind == "http" || event.ActionKind == "mcp") && validGatewayPolicyIDs(event.PolicyIDs) && validGatewayClassification(event.Classification) && validGatewayTime(event.OccurredAt)
 }
@@ -186,6 +192,9 @@ func validGatewayEvaluationReceipt(receipt gatewayEvaluationReceipt) bool {
 }
 
 func validGatewayEvaluationResult(result gatewayEvaluationResult) bool {
+	if !gatewaycontrol.ValidEvaluationEvidence(result.Evaluation, result.Decision, result.MatchedPolicyIDs) {
+		return false
+	}
 	if result.PolicyVersion == 0 || result.MatchedPolicyIDs == nil || result.Decision != "allow" && result.Decision != "monitor" && result.Decision != "block" || result.CacheState != policy.GatewayPolicyValid && result.CacheState != policy.GatewayPolicyExpiredOpen && result.CacheState != policy.GatewayPolicyExpiredClosed || len(result.MatchedPolicyIDs) > 512 {
 		return false
 	}
@@ -205,12 +214,15 @@ func validGatewayEvaluationResult(result gatewayEvaluationResult) bool {
 }
 
 func gatewayReceiptMatchesEvent(receipt gatewayEvaluationReceipt, event gatewayDecisionEvent) bool {
+	if !sameGatewayEvaluation(receipt.Result.Evaluation, event.Evaluation) {
+		return false
+	}
 	return receipt.EventID == event.EventID && receipt.Result.PolicyVersion == event.PolicyVersion && receipt.Result.Decision == event.Decision && receipt.EvaluatedAt.Equal(event.OccurredAt) && sameGatewayStringSlice(receipt.Result.MatchedPolicyIDs, event.PolicyIDs)
 }
 
 func gatewayEvaluationReceiptToWire(receipt gatewayEvaluationReceipt) gatewayEvaluationWire {
 	result := cloneGatewayEvaluationResult(receipt.Result)
-	return gatewayEvaluationWire{EventID: receipt.EventID, RequestDigest: hex.EncodeToString(receipt.RequestDigest[:]), Decision: result.Decision, PolicyVersion: result.PolicyVersion, CacheState: result.CacheState, MatchedPolicyIDs: result.MatchedPolicyIDs, EvaluatedAt: receipt.EvaluatedAt.Format("2006-01-02T15:04:05Z")}
+	return gatewayEvaluationWire{Evaluation: cloneGatewayEvaluation(result.Evaluation), EventID: receipt.EventID, RequestDigest: hex.EncodeToString(receipt.RequestDigest[:]), Decision: result.Decision, PolicyVersion: result.PolicyVersion, CacheState: result.CacheState, MatchedPolicyIDs: result.MatchedPolicyIDs, EvaluatedAt: receipt.EvaluatedAt.Format("2006-01-02T15:04:05Z")}
 }
 
 func gatewayEvaluationReceiptFromWire(receipt gatewayEvaluationWire) (gatewayEvaluationReceipt, error) {
@@ -224,12 +236,12 @@ func gatewayEvaluationReceiptFromWire(receipt gatewayEvaluationWire) (gatewayEva
 	}
 	var requestDigest [sha256.Size]byte
 	copy(requestDigest[:], digest)
-	result := cloneGatewayEvaluationResult(gatewayEvaluationResult{Decision: receipt.Decision, PolicyVersion: receipt.PolicyVersion, CacheState: receipt.CacheState, MatchedPolicyIDs: receipt.MatchedPolicyIDs})
+	result := cloneGatewayEvaluationResult(gatewayEvaluationResult{Evaluation: cloneGatewayEvaluation(receipt.Evaluation), Decision: receipt.Decision, PolicyVersion: receipt.PolicyVersion, CacheState: receipt.CacheState, MatchedPolicyIDs: receipt.MatchedPolicyIDs})
 	return gatewayEvaluationReceipt{EventID: receipt.EventID, RequestDigest: requestDigest, Result: result, EvaluatedAt: evaluatedAt}, nil
 }
 
 func gatewayDecisionEventToWire(event gatewayDecisionEvent) gatewayDecisionEventWire {
-	return gatewayDecisionEventWire{CredentialID: event.CredentialID, DeviceID: event.DeviceID, EventID: event.EventID, ExpectedFloor: event.ExpectedFloor, NextFloor: event.NextFloor, PolicyVersion: event.PolicyVersion, Decision: event.Decision, ActionKind: event.ActionKind, PolicyIDs: cloneGatewayStringSlice(event.PolicyIDs), Classification: cloneGatewayStrings(event.Classification), OccurredAt: event.OccurredAt.Format("2006-01-02T15:04:05Z")}
+	return gatewayDecisionEventWire{Evaluation: cloneGatewayEvaluation(event.Evaluation), CredentialID: event.CredentialID, DeviceID: event.DeviceID, EventID: event.EventID, ExpectedFloor: event.ExpectedFloor, NextFloor: event.NextFloor, PolicyVersion: event.PolicyVersion, Decision: event.Decision, ActionKind: event.ActionKind, PolicyIDs: cloneGatewayStringSlice(event.PolicyIDs), Classification: cloneGatewayStrings(event.Classification), OccurredAt: event.OccurredAt.Format("2006-01-02T15:04:05Z")}
 }
 
 func gatewayDecisionEventFromWire(event gatewayDecisionEventWire) (gatewayDecisionEvent, error) {
@@ -237,10 +249,13 @@ func gatewayDecisionEventFromWire(event gatewayDecisionEventWire) (gatewayDecisi
 	if err != nil {
 		return gatewayDecisionEvent{}, errGatewayRuntime
 	}
-	return gatewayDecisionEvent{CredentialID: event.CredentialID, DeviceID: event.DeviceID, EventID: event.EventID, ExpectedFloor: event.ExpectedFloor, NextFloor: event.NextFloor, PolicyVersion: event.PolicyVersion, Decision: event.Decision, ActionKind: event.ActionKind, PolicyIDs: cloneGatewayStringSlice(event.PolicyIDs), Classification: cloneGatewayStrings(event.Classification), OccurredAt: occurredAt}, nil
+	return gatewayDecisionEvent{Evaluation: cloneGatewayEvaluation(event.Evaluation), CredentialID: event.CredentialID, DeviceID: event.DeviceID, EventID: event.EventID, ExpectedFloor: event.ExpectedFloor, NextFloor: event.NextFloor, PolicyVersion: event.PolicyVersion, Decision: event.Decision, ActionKind: event.ActionKind, PolicyIDs: cloneGatewayStringSlice(event.PolicyIDs), Classification: cloneGatewayStrings(event.Classification), OccurredAt: occurredAt}, nil
 }
 
 func sameGatewayDecisionEvent(left, right gatewayDecisionEvent) bool {
+	if !sameGatewayEvaluation(left.Evaluation, right.Evaluation) {
+		return false
+	}
 	if left.CredentialID != right.CredentialID || left.DeviceID != right.DeviceID || left.EventID != right.EventID || left.ExpectedFloor != right.ExpectedFloor || left.NextFloor != right.NextFloor || left.PolicyVersion != right.PolicyVersion || left.Decision != right.Decision || left.ActionKind != right.ActionKind || !left.OccurredAt.Equal(right.OccurredAt) || !sameGatewayStringSlice(left.PolicyIDs, right.PolicyIDs) || len(left.Classification) != len(right.Classification) {
 		return false
 	}

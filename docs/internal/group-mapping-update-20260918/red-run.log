@@ -1,0 +1,8 @@
+fe47c7bea38a91f51d3abb3b238503f2b7fa6e97acd95d2a00b76eb3b03962b3  /private/tmp/zasp-group-mapping-update-red.test
+TestGroupMappingExpectedVersionUpdateMountedPostgres
+=== RUN   TestGroupMappingExpectedVersionUpdateMountedPostgres
+    group_mapping_update_postgres_test.go:30: compiled56 checksum=f5871c564709034eaf89f325fcb732a3f3314ecc0ff95f7a0ec99f6d674ddfc1 fingerprint=8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced
+    group_mapping_update_postgres_test.go:42: ERROR: insert or update on table "zasp_group_mappings" violates foreign key constraint "zasp_group_mappings_scope_fkey" (SQLSTATE 23503)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestGroupMappingExpectedVersionUpdateMountedPostgres258190980/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestGroupMappingExpectedVersionUpdateMountedPostgres (15.53s)
+FAIL

@@ -1,0 +1,28 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","scripts/production-combined-e2e.mjs"]
+combined E2E: disposable PostgreSQL ready
+combined E2E: cleanup browser
+combined E2E: cleanup Task4 workers
+combined E2E: cleanup api
+combined E2E: cleanup proxy
+combined E2E: cleanup identity
+combined E2E: cleanup policy history
+combined E2E: cleanup web
+combined E2E: cleanup postgres
+combined E2E: cleanup remaining processes
+combined E2E: cleanup files
+file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:6690
+	if (status !== 0 && options.reject !== false) throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
+	                                                    ^
+
+Error: go failed (1): # github.com/zasp-ai/zasp-sec/services/platform/agentsec-api [github.com/zasp-ai/zasp-sec/services/platform/agentsec-api.test]
+agentsec-api/attack_lab_workflow_readiness_test.go:51:10: handler.SetReady undefined (type *healthserver.Server has no field or method SetReady)
+agentsec-api/attack_lab_workflow_readiness_test.go:63:11: handler.ServeHTTP undefined (type *healthserver.Server has no field or method ServeHTTP)
+agentsec-api/attack_lab_workflow_readiness_test.go:118:10: handler.SetReady undefined (type *healthserver.Server has no field or method SetReady)
+
+    at command (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:6690:54)
+    at async file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:186:3
+
+Node.js v22.23.1
+
+Exit: 1 Signal: null

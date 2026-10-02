@@ -69,9 +69,27 @@ test("source graph permits only the exact scoped retry-recovery storage boundari
   const redTeamResult = await checkSourceGraph({ root: redTeam });
   assert.ok(redTeamResult.files.includes("app/features/redteam/redTeamMutationRecovery.ts"));
 
+  const auditExport = await fixture({
+    "app/page.tsx": 'export { AuditExportPanel } from "./features/administration/AuditExportPanel";',
+    "app/[...path]/page.tsx": "export {};",
+    "app/features/administration/AuditExportPanel.tsx": 'export const AuditExportPanel = window.sessionStorage.getItem("zasp.audit-export.resume.v1");',
+  });
+  const auditExportResult = await checkSourceGraph({ root: auditExport });
+  assert.ok(auditExportResult.files.includes("app/features/administration/AuditExportPanel.tsx"));
+
+  const complianceExport = await fixture({
+    "app/page.tsx": 'export { ComplianceEvidenceView } from "./features/sessions/ComplianceEvidenceView";',
+    "app/[...path]/page.tsx": "export {};",
+    "app/features/sessions/ComplianceEvidenceView.tsx": 'export const ComplianceEvidenceView = window.sessionStorage.getItem("zasp.compliance.export/principal/organization/workspace/environment");',
+  });
+  const complianceExportResult = await checkSourceGraph({ root: complianceExport });
+  assert.ok(complianceExportResult.files.includes("app/features/sessions/ComplianceEvidenceView.tsx"));
+
   for (const [entry, source] of [
     ["app/features/risk/OtherRiskView.tsx", 'export const View = window.sessionStorage.getItem("state");'],
     ["app/features/recovery/OtherRecoveryView.tsx", 'export const View = window.sessionStorage.getItem("state");'],
+    ["app/features/administration/OtherAuditExportPanel.tsx", 'export const View = window.sessionStorage.getItem("state");'],
+    ["app/features/sessions/OtherComplianceEvidenceView.tsx", 'export const View = window.sessionStorage.getItem("state");'],
   ]) {
     const unapproved = await fixture({
       "app/page.tsx": `export { View } from "./${entry.slice(4, -4)}";`,

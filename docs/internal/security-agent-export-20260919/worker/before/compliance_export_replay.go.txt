@@ -1,0 +1,104 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/hex"
+	"encoding/json"
+	"sync"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+)
+
+// The runtime owns heartbeat scheduling. This holder serializes renewals and
+// supplies the newest validated expiry after bounded provider work.
+type complianceLeaseHandle struct {
+	mu    sync.Mutex
+	lease complianceExportLease
+}
+
+func (h *complianceLeaseHandle) current() complianceExportLease {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.lease
+}
+func (h *complianceLeaseHandle) heartbeat(ctx context.Context, a *postgresComplianceExportAuthority) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	next, err := a.Heartbeat(ctx, h.lease)
+	if err != nil {
+		return err
+	}
+	h.lease = next
+	return nil
+}
+
+type compliancePackageRenderer func(context.Context, complianceExportLease, json.RawMessage) (compliancePreparedArtifact, error)
+type complianceReplayOutcome string
+
+const (
+	complianceBeforePut      complianceReplayOutcome = "before_put"
+	complianceWriteUnknown   complianceReplayOutcome = "unknown"
+	complianceWriteCompleted complianceReplayOutcome = "completed"
+)
+
+// executeComplianceExportPackage is the execute-lane bridge reused by the
+// runtime. It owns no polling or heartbeat goroutines. A prepared job never
+// reaches render; new rendering is committed by Prepare before provider I/O.
+//
+// Once Put starts, every error (including an invalid receipt or failed Finish)
+// is an unknown write. Callers must retain intent/quota and reconcile it. This
+// helper never retries, releases accounting, or uploads in the reconcile lane.
+func executeComplianceExportPackage(ctx context.Context, a *postgresComplianceExportAuthority, store *artifactstore.Store, lease *complianceLeaseHandle, render compliancePackageRenderer) (outcome complianceReplayOutcome, resultErr error) {
+	outcome = complianceBeforePut
+	defer func() {
+		if recover() != nil {
+			resultErr = errWorkerExecution
+		}
+	}()
+	if ctx == nil || ctx.Err() != nil || a == nil || store == nil || lease == nil {
+		return outcome, errWorkerExecution
+	}
+	l := lease.current()
+	if l.Lane != "execute" || l.Attempt < 1 || l.Attempt > 5 {
+		return outcome, errWorkerExecution
+	}
+	var p compliancePreparedArtifact
+	var err error
+	if l.Prepared {
+		p, err = a.LoadPrepared(ctx, l)
+	} else {
+		if render == nil {
+			return outcome, errWorkerExecution
+		}
+		var snapshot json.RawMessage
+		snapshot, err = a.Capture(ctx, l)
+		if err == nil {
+			p, err = render(ctx, lease.current(), snapshot)
+		}
+		if err == nil {
+			p, err = a.Prepare(ctx, lease.current(), p)
+		}
+	}
+	if err != nil {
+		return outcome, err
+	}
+	ref, err := domain.ParseEvidenceRef(p.Reference)
+	if err != nil {
+		return outcome, errWorkerExecution
+	}
+	outcome = complianceWriteUnknown
+	receipt, err := store.Put(ctx, artifactstore.PutRequest{Locator: artifactstore.Locator{Scope: l.Scope, Reference: ref}, MediaType: "application/json", Body: p.Bytes})
+	if err != nil {
+		return outcome, err
+	}
+	if receipt.Scope != l.Scope || receipt.Reference != ref || receipt.VersionID == "" || len(receipt.VersionID) > 1024 || receipt.MediaType != "application/json" || receipt.Size != p.Size || hex.EncodeToString(receipt.SHA256[:]) != p.SHA256 || !bytes.Equal(receipt.Body, p.Bytes) {
+		return outcome, errWorkerExecution
+	}
+	// Renewals can complete during Put. Do not reuse its pre-I/O lease value.
+	if err = a.Finish(ctx, lease.current(), p, receipt.VersionID); err != nil {
+		return outcome, err
+	}
+	return complianceWriteCompleted, nil
+}

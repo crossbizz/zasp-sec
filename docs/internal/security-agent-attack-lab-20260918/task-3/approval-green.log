@@ -1,0 +1,5 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go","test","-C","services/platform","./apiserver","-run","^TestSecurityAgentAttackLabApprovalSerializationRedactsPrivateAuthority$","-count=1"]
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	1.073s
+
+Exit: 0 Signal: null

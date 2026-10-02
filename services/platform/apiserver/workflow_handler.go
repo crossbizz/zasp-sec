@@ -10,9 +10,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -73,6 +75,12 @@ func newWorkflowHTTPHandler(repository workflowRepository, signingKey []byte, no
 }
 
 func (handler *workflowHTTPHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	bound := *handler
+	bound.signingKey = authorizationCursorKey(request.Context(), handler.signingKey)
+	bound.serveAuthorizedHTTP(writer, request)
+}
+
+func (handler *workflowHTTPHandler) serveAuthorizedHTTP(writer http.ResponseWriter, request *http.Request) {
 	identity, identityOK := IdentityFromRequest(request)
 	routed, routedOK := RoutedOperationFromRequest(request)
 	if !identityOK || !routedOK {
@@ -134,12 +142,43 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 		writeProductionResponse(writer, request, http.StatusOK, payload, nil)
 		return
 	}
-	if routed.OperationID == "listSecurityAgentTemplates" {
-		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": workflowTemplates(handler.connectorRevocationAvailable(), handler.sessionIsolationAvailable())}, nil)
-		return
-	}
-	if routed.OperationID == "listSecurityActions" {
-		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": workflowActions(handler.connectorRevocationAvailable(), handler.sessionIsolationAvailable())}, nil)
+	if routed.OperationID == "listSecurityAgentTemplates" || routed.OperationID == "listSecurityActions" {
+		capabilities := workflowCatalogCapabilities{connectorRevocation: handler.connectorRevocationAvailable(), sessionIsolation: handler.sessionIsolationAvailable()}
+		if probe, ok := handler.repository.(interface {
+			SecurityAgentExportsWorkflowAvailable(context.Context) (bool, error)
+		}); ok {
+			var err error
+			capabilities.evidenceExport, err = probe.SecurityAgentExportsWorkflowAvailable(request.Context())
+			if err != nil {
+				writeProductionError(writer, request, ErrRepositoryUnavailable)
+				return
+			}
+		}
+		if probe, ok := handler.repository.(interface {
+			SecurityAgentAttackLabWorkflowAvailable(context.Context) (bool, error)
+		}); ok {
+			var err error
+			capabilities.attackLab, err = probe.SecurityAgentAttackLabWorkflowAvailable(request.Context())
+			if err != nil {
+				writeProductionError(writer, request, ErrRepositoryUnavailable)
+				return
+			}
+		}
+		if probe, ok := handler.repository.(interface {
+			SecurityAgentExistingTestDefinitionsAvailable(context.Context) (bool, error)
+		}); ok {
+			var err error
+			capabilities.existingTest, err = probe.SecurityAgentExistingTestDefinitionsAvailable(request.Context())
+			if err != nil {
+				writeProductionError(writer, request, ErrRepositoryUnavailable)
+				return
+			}
+		}
+		items := workflowActions(capabilities)
+		if routed.OperationID == "listSecurityAgentTemplates" {
+			items = workflowTemplates(capabilities)
+		}
+		writeJSONValue(writer, request, http.StatusOK, map[string]any{"items": items}, nil)
 		return
 	}
 	kind, list, parentField, parentID, ok := workflowReadTarget(routed)
@@ -156,9 +195,15 @@ func (handler *workflowHTTPHandler) read(writer http.ResponseWriter, request *ht
 		handler.readWorkflowPage(writer, request, identity, kind)
 		return
 	}
-	value, err := handler.repository.GetWorkflow(request.Context(), identity.Scope, kind, routed.PathParameters["id"])
+	var value WorkflowValue
+	var err error
+	if reader, ok := handler.repository.(securityAgentIdentityReader); ok {
+		value, err = reader.GetWorkflowForIdentity(request.Context(), identity, kind, routed.PathParameters["id"])
+	} else {
+		value, err = handler.repository.GetWorkflow(request.Context(), identity.Scope, kind, routed.PathParameters["id"])
+	}
 	if err != nil {
-		writeProductionError(writer, request, err)
+		writeSecurityAgentDefinitionError(writer, request, err)
 		return
 	}
 	writer.Header().Set("ETag", quoteVersion(value.Version))
@@ -217,9 +262,15 @@ func (handler *workflowHTTPHandler) readWorkflowPage(writer http.ResponseWriter,
 			return
 		}
 	}
-	page, err := handler.repository.ListWorkflowPage(request.Context(), identity.Scope, kind, afterID, limit)
+	var page WorkflowListPage
+	var err error
+	if reader, ok := handler.repository.(securityAgentIdentityReader); ok {
+		page, err = reader.ListWorkflowPageForIdentity(request.Context(), identity, kind, afterID, limit)
+	} else {
+		page, err = handler.repository.ListWorkflowPage(request.Context(), identity.Scope, kind, afterID, limit)
+	}
 	if err != nil {
-		writeProductionError(writer, request, err)
+		writeSecurityAgentDefinitionError(writer, request, err)
 		return
 	}
 	pageInfo := map[string]any{"next_cursor": nil, "has_more": false}
@@ -316,7 +367,7 @@ func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *
 	}
 	result, replayed, err := handler.repository.ReplayWorkflow(request.Context(), identity, routed.OperationID, idempotencyKey, intent)
 	if err != nil {
-		writeWorkflowMutationError(writer, request, err)
+		handler.writeIntegrationRejection(writer, request, identity, routed, intent, err)
 		return
 	}
 	if replayed {
@@ -344,7 +395,7 @@ func (handler *workflowHTTPHandler) mutate(writer http.ResponseWriter, request *
 	}
 	mutation, status, responseKind, err := handler.buildMutation(request, identity, routed, idempotencyKey, auditID, correlationID)
 	if err != nil {
-		writeWorkflowMutationError(writer, request, err)
+		handler.writeIntegrationRejection(writer, request, identity, routed, intent, err)
 		return
 	}
 	mutation.ReceiptID = receiptID
@@ -488,6 +539,17 @@ func canonicalWorkflowIntent(request *http.Request, routed RoutedOperation) (jso
 	} else if len(bytes.TrimSpace(body)) == 0 {
 		body = []byte(`{}`)
 	}
+	if routed.OperationID == "createSecurityAgent" || routed.OperationID == "updateSecurityAgent" {
+		if validateSecurityAgentDefinitionObject(body) != nil {
+			return nil, 0, ErrRepositoryOperation
+		}
+	}
+	if routed.OperationID == "createPolicy" || routed.OperationID == "updatePolicy" {
+		var value platformpolicy.Policy
+		if json.Unmarshal(body, &value) != nil {
+			return nil, 0, ErrRepositoryOperation
+		}
+	}
 	var decoded map[string]any
 	if json.Unmarshal(body, &decoded) != nil || decoded == nil {
 		return nil, 0, ErrRepositoryOperation
@@ -603,7 +665,64 @@ func (handler *workflowHTTPHandler) buildMutation(request *http.Request, identit
 		if routed.OperationID == "createSecurityAgent" && id == "" {
 			id = handler.idempotentProductID(identity.Scope, routed.OperationID, idempotencyKey)
 		}
-		body, id, err = securityAgentBody(request, identity.Scope, id, routed.OperationID == "createSecurityAgent", handler.connectorRevocationAvailable(), handler.sessionIsolationAvailable())
+		raw, readErr := io.ReadAll(io.LimitReader(request.Body, 16*1024+1))
+		if readErr != nil || validateSecurityAgentDefinitionObject(raw) != nil {
+			return WorkflowMutation{}, 0, "", ErrRepositoryOperation
+		}
+		request.Body = io.NopCloser(bytes.NewReader(raw))
+		exportIntent, exportErr := securityAgentExportBodyAuthority(raw)
+		if exportErr != nil {
+			return WorkflowMutation{}, 0, "", exportErr
+		}
+		if exportIntent {
+			// Validate the closed draft before checking health. Malformed intent
+			// stays 400; a valid export draft with unavailable workers is 503.
+			body, id, err = securityAgentBody(request, identity.Scope, id, routed.OperationID == "createSecurityAgent", handler.connectorRevocationAvailable(), handler.sessionIsolationAvailable(), false, false, true)
+			if err != nil {
+				return WorkflowMutation{}, 0, "", err
+			}
+			exportAvailable, exportErr := securityAgentExportWorkflowAvailable(request.Context(), handler.repository)
+			if exportErr != nil {
+				return WorkflowMutation{}, 0, "", exportErr
+			}
+			if !exportAvailable {
+				return WorkflowMutation{}, 0, "", ErrRepositoryUnavailable
+			}
+			break
+		}
+		// Read the entire bounded list before choosing authority. A mixed list
+		// must not hide a requested family behind its first action.
+		var requested struct {
+			Actions []string `json:"allowed_actions"`
+		}
+		if json.Unmarshal(raw, &requested) != nil || len(requested.Actions) == 0 || len(requested.Actions) > 32 {
+			return WorkflowMutation{}, 0, "", ErrRepositoryOperation
+		}
+		seenActions := map[string]bool{}
+		for _, action := range requested.Actions {
+			if action == "" || len(action) > 128 || strings.TrimSpace(action) != action || seenActions[action] {
+				return WorkflowMutation{}, 0, "", ErrRepositoryOperation
+			}
+			seenActions[action] = true
+		}
+		available := false
+		var capabilityErr error
+		if seenActions["run_test"] || seenActions["rerun_test"] {
+			available, capabilityErr = handler.existingTestDefinitionsAvailable(request.Context())
+			if capabilityErr != nil {
+				return WorkflowMutation{}, 0, "", capabilityErr
+			}
+		}
+		attackLabAvailable := false
+		if capability, ok := handler.repository.(interface {
+			SecurityAgentAttackLabAvailable(context.Context) (bool, error)
+		}); ok && seenActions["start_attack_lab"] {
+			attackLabAvailable, capabilityErr = capability.SecurityAgentAttackLabAvailable(request.Context())
+			if capabilityErr != nil {
+				return WorkflowMutation{}, 0, "", capabilityErr
+			}
+		}
+		body, id, err = securityAgentBody(request, identity.Scope, id, routed.OperationID == "createSecurityAgent", handler.connectorRevocationAvailable(), handler.sessionIsolationAvailable(), available, attackLabAvailable)
 		if err != nil {
 			return WorkflowMutation{}, 0, "", err
 		}
@@ -699,7 +818,23 @@ func (handler *workflowHTTPHandler) integrationBody(request *http.Request, scope
 	if err != nil {
 		return nil, "", ErrRepositoryUnavailable
 	}
-	if catalog.ValidateSetup(input.ConnectorKey, input.Configuration) != nil {
+	setupConfiguration := input.Configuration
+	if input.ConnectorKey == "generic-webhook" {
+		if version, present := input.Configuration["signing_secret_version"]; present {
+			if !validResponseWebhookSigningVersion(version) {
+				return nil, "", ErrRepositoryOperation
+			}
+			// The predecessor catalog owns the two required fields. This optional
+			// value is immutable provider metadata, never key material.
+			setupConfiguration = make(map[string]string, len(input.Configuration)-1)
+			for key, value := range input.Configuration {
+				if key != "signing_secret_version" {
+					setupConfiguration[key] = value
+				}
+			}
+		}
+	}
+	if catalog.ValidateSetup(input.ConnectorKey, setupConfiguration) != nil {
 		return nil, "", ErrRepositoryOperation
 	}
 	if input.ConnectorKey == "generic-webhook" && !nilInterface(handler.webhookTests) && (!validIntegrationWebhookDestination(input.Configuration["destination_url"]) || !validIntegrationWebhookSecretReference(input.Configuration["signing_secret_reference"])) {
@@ -721,28 +856,57 @@ func (handler *workflowHTTPHandler) integrationBody(request *http.Request, scope
 	return body, id, nil
 }
 
-func securityAgentBody(request *http.Request, scope domain.Scope, id string, create, connectorRevocationAvailable, sessionIsolationAvailable bool) (json.RawMessage, string, error) {
-	var input struct {
-		ID                     *string  `json:"id"`
-		Name                   string   `json:"name"`
-		TriggerKind            string   `json:"trigger_kind"`
-		TriggerSource          string   `json:"trigger_source"`
-		EnvironmentIDs         []string `json:"environment_ids"`
-		Autonomy               string   `json:"autonomy"`
-		MaxSteps               int      `json:"max_steps"`
-		MaxDurationSeconds     int      `json:"max_duration_seconds"`
-		TemporaryPolicySeconds int      `json:"temporary_policy_seconds"`
-		AITokenBudget          int      `json:"ai_token_budget"`
-		ConcurrencyLimit       int      `json:"concurrency_limit"`
-		AllowedActions         []string `json:"allowed_actions"`
-		VerificationKind       string   `json:"verification_kind"`
-		DefinitionVersion      int      `json:"definition_version"`
-		Enabled                bool     `json:"enabled"`
+func validResponseWebhookSigningVersion(value string) bool {
+	if len(value) < 32 || len(value) > 64 {
+		return false
 	}
-	decoder := json.NewDecoder(request.Body)
+	for _, c := range value {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-') {
+			return false
+		}
+	}
+	return true
+}
+
+func securityAgentBody(request *http.Request, scope domain.Scope, id string, create, connectorRevocationAvailable, sessionIsolationAvailable, existingTestDefinitionsAvailable bool, additionalCapabilities ...bool) (json.RawMessage, string, error) {
+	var input struct {
+		TriggerRules           json.RawMessage `json:"trigger_rules"`
+		ExistingTest           json.RawMessage `json:"existing_test"`
+		MaxAICostNanoCredits   json.RawMessage `json:"max_ai_cost_nano_credits"`
+		ID                     *string         `json:"id"`
+		Name                   string          `json:"name"`
+		TriggerKind            string          `json:"trigger_kind"`
+		TriggerSource          string          `json:"trigger_source"`
+		EnvironmentIDs         []string        `json:"environment_ids"`
+		Autonomy               string          `json:"autonomy"`
+		MaxSteps               int             `json:"max_steps"`
+		MaxDurationSeconds     int             `json:"max_duration_seconds"`
+		TemporaryPolicySeconds int             `json:"temporary_policy_seconds"`
+		AITokenBudget          int             `json:"ai_token_budget"`
+		ConcurrencyLimit       int             `json:"concurrency_limit"`
+		AllowedActions         []string        `json:"allowed_actions"`
+		VerificationKind       string          `json:"verification_kind"`
+		DefinitionVersion      int             `json:"definition_version"`
+		Enabled                bool            `json:"enabled"`
+	}
+	raw, readErr := io.ReadAll(io.LimitReader(request.Body, 16*1024+1))
+	if readErr != nil || validateSecurityAgentDefinitionObject(raw) != nil {
+		return nil, "", ErrRepositoryOperation
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&input) != nil {
 		return nil, "", ErrRepositoryOperation
+	}
+	rules, rulesErr := securityagent.DecodeTriggerRules(input.TriggerRules, input.TriggerKind, input.TriggerSource)
+	if rulesErr != nil {
+		return nil, "", ErrRepositoryOperation
+	}
+	var maxAICostNanoCredits int64
+	if len(input.MaxAICostNanoCredits) != 0 {
+		if json.Unmarshal(input.MaxAICostNanoCredits, &maxAICostNanoCredits) != nil || maxAICostNanoCredits < 1 || maxAICostNanoCredits > 1000000000000 {
+			return nil, "", ErrRepositoryOperation
+		}
 	}
 	if create {
 		if input.ID != nil {
@@ -752,10 +916,42 @@ func securityAgentBody(request *http.Request, scope domain.Scope, id string, cre
 		return nil, "", ErrRepositoryOperation
 	}
 	value := securityagent.SecurityAgent{ID: id, OrganizationID: scope.OrganizationID().String(), Name: input.Name, Trigger: securityagent.Trigger{Kind: input.TriggerKind, Source: input.TriggerSource}, Scope: securityagent.Scope{OrganizationID: scope.OrganizationID().String(), EnvironmentIDs: input.EnvironmentIDs}, Autonomy: securityagent.Autonomy(input.Autonomy), Limits: securityagent.RunLimits{MaxSteps: input.MaxSteps, MaxDuration: time.Duration(input.MaxDurationSeconds) * time.Second, TemporaryPolicyTTL: time.Duration(input.TemporaryPolicySeconds) * time.Second, MaxAITokens: input.AITokenBudget, MaxConcurrent: input.ConcurrencyLimit}, AllowedActions: input.AllowedActions, Verification: securityagent.Verification{Kind: input.VerificationKind}, DefinitionVersion: input.DefinitionVersion, Enabled: input.Enabled}
-	if securityagent.ValidateAgent(value) != nil || !exactWorkflowEnvironment(input.EnvironmentIDs, scope.EnvironmentID().String()) || !servedWorkflowActionsAtAutonomyWithCapabilities(input.AllowedActions, input.Autonomy, connectorRevocationAvailable, sessionIsolationAvailable) {
+	var existingTest securityAgentExistingTestReference
+	testAction := len(input.AllowedActions) == 1 && (input.AllowedActions[0] == "run_test" || input.AllowedActions[0] == "rerun_test")
+	attackLabAction := len(input.AllowedActions) == 1 && input.AllowedActions[0] == "start_attack_lab"
+	exportAction := len(input.AllowedActions) == 1 && input.AllowedActions[0] == "create_evidence_export"
+	if testAction || attackLabAction {
+		var err error
+		existingTest, err = decodeSecurityAgentExistingTestReference(input.ExistingTest)
+		verification, available := "test_run", existingTestDefinitionsAvailable
+		if attackLabAction {
+			verification, available = "attack_lab_run", len(additionalCapabilities) >= 1 && additionalCapabilities[0]
+		}
+		// Accept bounded draft intent only. Activation and execution remain
+		// unavailable until durable admission and invocation are integrated.
+		if err != nil || input.VerificationKind != verification || input.Enabled || !available {
+			return nil, "", ErrRepositoryOperation
+		}
+	} else if len(input.ExistingTest) != 0 {
 		return nil, "", ErrRepositoryOperation
 	}
-	body, _ := json.Marshal(map[string]any{"id": id, "name": input.Name, "trigger_kind": input.TriggerKind, "trigger_source": input.TriggerSource, "environment_ids": input.EnvironmentIDs, "autonomy": input.Autonomy, "max_steps": input.MaxSteps, "max_duration_seconds": input.MaxDurationSeconds, "temporary_policy_seconds": input.TemporaryPolicySeconds, "ai_token_budget": input.AITokenBudget, "concurrency_limit": input.ConcurrencyLimit, "allowed_actions": input.AllowedActions, "verification_kind": input.VerificationKind, "definition_version": input.DefinitionVersion, "enabled": input.Enabled})
+	if exportAction && (input.VerificationKind != "export" || input.Enabled || input.MaxSteps != 1 || len(input.MaxAICostNanoCredits) == 0 || len(additionalCapabilities) < 2 || !additionalCapabilities[1]) {
+		return nil, "", ErrRepositoryOperation
+	}
+	if securityagent.ValidateAgent(value) != nil || !exactWorkflowEnvironment(input.EnvironmentIDs, scope.EnvironmentID().String()) || (!testAction && !attackLabAction && !exportAction && !servedWorkflowActionsAtAutonomyWithCapabilities(input.AllowedActions, input.Autonomy, connectorRevocationAvailable, sessionIsolationAvailable)) {
+		return nil, "", ErrRepositoryOperation
+	}
+	fields := map[string]any{"id": id, "name": input.Name, "trigger_kind": input.TriggerKind, "trigger_source": input.TriggerSource, "environment_ids": input.EnvironmentIDs, "autonomy": input.Autonomy, "max_steps": input.MaxSteps, "max_duration_seconds": input.MaxDurationSeconds, "temporary_policy_seconds": input.TemporaryPolicySeconds, "ai_token_budget": input.AITokenBudget, "concurrency_limit": input.ConcurrencyLimit, "allowed_actions": input.AllowedActions, "verification_kind": input.VerificationKind, "definition_version": input.DefinitionVersion, "enabled": input.Enabled}
+	if rules != nil {
+		fields["trigger_rules"] = rules
+	}
+	if len(input.MaxAICostNanoCredits) != 0 {
+		fields["max_ai_cost_nano_credits"] = maxAICostNanoCredits
+	}
+	if testAction || attackLabAction {
+		fields["existing_test"] = existingTest
+	}
+	body, _ := json.Marshal(fields)
 	return body, id, nil
 }
 
@@ -773,11 +969,15 @@ func workflowPolicyCapabilities() platformpolicy.Capabilities {
 	return platformpolicy.Capabilities{Triggers: []string{"tool", "runtime", "network", "file", "credential"}, Fields: []string{"action", "resource", "principal_id", "agent_id", "session_id", "environment_id"}, Actions: []platformpolicy.Action{platformpolicy.ActionMonitor, platformpolicy.ActionBlock}}
 }
 
-func workflowTemplates(connectorRevocationAvailable, sessionIsolationAvailable bool) []map[string]any {
+type workflowCatalogCapabilities struct{ connectorRevocation, sessionIsolation, existingTest, attackLab, evidenceExport bool }
+
+func workflowTemplates(capabilities workflowCatalogCapabilities) []map[string]any {
 	values := securityagent.BuiltInTemplates()
 	result := make([]map[string]any, 0, len(values))
 	for index, value := range values {
-		if !servedWorkflowActionsWithCapabilities(value.DefaultActions, connectorRevocationAvailable, sessionIsolationAvailable) {
+		testTemplate := capabilities.existingTest && len(value.DefaultActions) == 1 && stringIn(value.DefaultActions[0], "run_test", "rerun_test") && value.VerificationCondition == "test_run"
+		testTemplate = testTemplate || capabilities.attackLab && len(value.DefaultActions) == 1 && value.DefaultActions[0] == "start_attack_lab" && value.VerificationCondition == "attack_lab_run"
+		if !testTemplate && !servedWorkflowActionsWithCapabilities(value.DefaultActions, capabilities.connectorRevocation, capabilities.sessionIsolation) {
 			continue
 		}
 		result = append(result, map[string]any{"id": deterministicProductID(index + 1), "name": value.Name, "version": value.Version, "trigger_kind": value.TriggerKind, "default_actions": value.DefaultActions, "verification_condition": value.VerificationCondition})
@@ -785,14 +985,25 @@ func workflowTemplates(connectorRevocationAvailable, sessionIsolationAvailable b
 	return result
 }
 
-func workflowActions(connectorRevocationAvailable, sessionIsolationAvailable bool) []map[string]any {
+func workflowActions(capabilities workflowCatalogCapabilities) []map[string]any {
 	values := securityagent.ProductionActionMetadata()
+	if capabilities.existingTest || capabilities.attackLab || capabilities.evidenceExport {
+		for _, value := range securityagent.BuiltInResponseActionMetadata() {
+			if capabilities.existingTest && stringIn(value.Key, "run_test", "rerun_test") || capabilities.attackLab && value.Key == "start_attack_lab" || capabilities.evidenceExport && value.Key == "create_evidence_export" {
+				values = append(values, value)
+			}
+		}
+		sort.Slice(values, func(i, j int) bool { return values[i].Key < values[j].Key })
+	}
 	result := make([]map[string]any, 0, len(values))
 	for _, value := range values {
-		if value.Key == "revoke_integration_connection" && !connectorRevocationAvailable {
+		if !securityagent.ProductionActionAvailable(value.Key, securityagent.AutonomySupervised) && !(capabilities.existingTest && stringIn(value.Key, "run_test", "rerun_test")) && !(capabilities.attackLab && value.Key == "start_attack_lab") && !(capabilities.evidenceExport && value.Key == "create_evidence_export") {
 			continue
 		}
-		if value.Key == "isolate_session" && !sessionIsolationAvailable {
+		if value.Key == "revoke_integration_connection" && !capabilities.connectorRevocation {
+			continue
+		}
+		if value.Key == "isolate_session" && !capabilities.sessionIsolation {
 			continue
 		}
 		result = append(result, map[string]any{"key": value.Key, "risk_class": value.RiskClass, "target_types": value.TargetTypes, "approval_floor": value.ApprovalFloor, "reversible": value.Reversible, "verification_kind": value.VerificationKind})
@@ -870,13 +1081,24 @@ func (handler *workflowHTTPHandler) connectorRevocationAvailable() bool {
 	return ok && capabilities.SecurityAgentConnectorRevocationAvailable()
 }
 
+// Draft support is a live release check, never permission to activate or run.
+func (handler *workflowHTTPHandler) existingTestDefinitionsAvailable(ctx context.Context) (bool, error) {
+	capabilities, ok := handler.repository.(interface {
+		SecurityAgentExistingTestDefinitionsAvailable(context.Context) (bool, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	return capabilities.SecurityAgentExistingTestDefinitionsAvailable(ctx)
+}
+
 func (handler *workflowHTTPHandler) sessionIsolationAvailable() bool {
 	capabilities, ok := handler.repository.(workflowSecurityAgentCapabilities)
 	return ok && capabilities.SecurityAgentSessionIsolationAvailable()
 }
 
 func deterministicProductID(index int) string {
-	return "pid_7000000" + strconv.Itoa(index) + "-0000-4000-8000-00000000000" + strconv.Itoa(index)
+	return fmt.Sprintf("pid_%08d-0000-4000-8000-%012d", 70000000+index, index)
 }
 
 func newWorkflowProductID() (string, error) {

@@ -71,6 +71,14 @@ export function validateDaemonReplayResult(value, output) {
   assert.equal(value.State?.OOMKilled, false);
   assert.equal(value.State?.Error, "");
   assert.ok(output.includes(`--- PASS: ${testName} (`) && /\nPASS\s*$/.test(output), "actual daemon composition didn't pass");
+  const lines = output.split("\n").map(line => line.trimStart());
+  assert.ok(!lines.some(line => line.startsWith("--- SKIP:")), "daemon proof contains skipped checks");
+  for (const schema of [48, 53]) {
+    for (const profile of ["tetragon-local-stream-v1", "tetragon-local-stream-v2"]) {
+      const marker = `--- PASS: ${testName}/schema${schema}/${profile} (`;
+      assert.equal(lines.filter(line => line.startsWith(marker)).length, 1, `missing or repeated schema${schema}/${profile} proof`);
+    }
+  }
 }
 export async function closeDaemonReplayContainer(command, config, successful) {
   const inspect = async () => {

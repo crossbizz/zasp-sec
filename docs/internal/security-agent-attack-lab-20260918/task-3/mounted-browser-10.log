@@ -1,0 +1,74 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","scripts/production-combined-e2e.mjs"]
+combined E2E: disposable PostgreSQL ready
+combined E2E: schema 14 typed_inventory_cutover verified
+combined E2E: schema 15 runtime_data_plane verified
+combined E2E: schema 17 runtime_ingest_reconciliation verified
+combined E2E: schema 18 security_agent_execution verified
+combined E2E: schema 19 identity_administration verified
+combined E2E: schema 20 security_agent_controls verified
+combined E2E: schema 21 security_agent_autonomous_response verified
+combined E2E: schema 24 security_agent_session_isolation verified
+combined E2E: schema 27 production_recovery verified
+combined E2E: schema 28 production_policy_deployment verified
+combined E2E: schema 29 production_home_attention verified
+combined E2E: schema 30 production_approval_notification verified
+combined E2E: schema 31 production_workflow_compatibility verified
+combined E2E: schema 32 production_security_agent_planner verified
+combined E2E: schema 33 production_security_agent_attack_path verified
+combined E2E: schema 34 production_integration_setup verified
+combined E2E: schema 35 production_integration_webhook verified
+combined E2E: schema 37 production_red_team_safety verified
+combined E2E: schema 39 production_red_team_artifacts verified
+combined E2E: schema 40 production_runtime_sessions verified
+combined E2E: schema 41 production_runtime_session_reads verified
+combined E2E: schema 42 production_runtime_session_search verified
+combined E2E: schema 43 production_runtime_session_query verified
+combined E2E: schema 44 production_runtime_session_evidence verified
+combined E2E: schema 45 production_runtime_enrollment_pairing verified
+combined E2E: schema 46 production_reconciliation_lane_plan verified
+combined E2E: schema 47 production_runtime_candidate_authority verified
+combined E2E: schema 48 production_runtime_acceptance verified
+combined E2E: migrations and durable seed ready
+mounted Attack Lab browser evidence directory: /var/folders/0v/qngy01614391_pdtwjmwbcvm0000gn/T/zasp-attack-lab-browser-evidence-aogAbx
+combined E2E: browser document transition /api/v1/session/start
+mounted Attack Lab absent capability: actual API refusal, full effect rows unchanged
+mounted Attack Lab corrupt capability: actual API refusal, full effect rows unchanged
+mounted Attack Lab unready capability: actual API refusal, full effect rows unchanged
+mounted Attack Lab production/write perimeter refusal: full effect rows unchanged; no runtime safety drift claim
+combined E2E: browser document transition /protect/security-agents
+combined E2E: browser document transition /protect/security-agents
+combined E2E: browser document transition /protect/approvals
+combined E2E: browser document transition /protect/security-agents
+combined E2E: browser document transition /protect/security-agents
+combined E2E: browser document transition /protect/approvals
+combined E2E: browser document transition /protect/security-agents
+combined E2E: browser document transition /protect/security-agents
+combined E2E: browser document transition /protect/approvals
+combined E2E: browser document transition /protect/security-agents
+mounted Attack Lab decision responses [{"path":"/api/v1/security-agent-approvals/pid_19878332-c4de-49f4-b184-ed98623676af/decision","status":200,"idempotencyKey":"wf_5f5e4a96-4edf-4430-a948-8d20565889a1","ifMatch":"\"1\"","fresh":"confirmed","audit":"pid_bfd31db9-41d9-49e0-b9c9-806f6b311512","receipt":"pid_83a3c333-5c19-4887-b4f5-9f901c47353b","errorBody":""},{"path":"/api/v1/security-agent-approvals/pid_cd266afd-8ed7-4358-9862-f15007cb978e/decision","status":200,"idempotencyKey":"wf_fced817a-627f-4fb6-9132-6d1f4a3b995d","ifMatch":"\"1\"","fresh":"confirmed","audit":"pid_e3a4e105-b2de-4f7e-a992-313b5530f48d","receipt":"pid_b758c604-e80c-4bad-b474-3313156c5f32","errorBody":""},{"path":"/api/v1/security-agent-approvals/pid_f9ac8489-c7c9-44f4-a5be-1883c172b226/decision","status":200,"idempotencyKey":"wf_31164535-5e81-4926-8b98-3d07d1561e19","ifMatch":"\"1\"","fresh":"confirmed","audit":"pid_b6e77d90-ff3b-4d15-952c-8b6b8b20deb4","receipt":"pid_f9157f3d-3436-462e-9560-7c05acebb845","errorBody":""}]
+mounted Attack Lab durable approval states [{"state": "approved", "version": 2}, {"state": "approved", "version": 2}, {"state": "approved", "version": 2}]
+combined E2E: cleanup browser
+combined E2E: cleanup Task4 workers
+combined E2E: cleanup api
+combined E2E: cleanup proxy
+combined E2E: cleanup identity
+combined E2E: cleanup policy history
+combined E2E: cleanup web
+combined E2E: cleanup postgres
+combined E2E: cleanup remaining processes
+combined E2E: cleanup files
+file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:6458
+	throw new Error(`browser action target unavailable: ${expression}; state=${JSON.stringify(diagnostic.result?.value)}`);
+	      ^
+
+Error: browser action target unavailable: (() => { const value = "Cancel run"; const element = [...document.querySelectorAll('button,a')].find((candidate) => candidate.textContent?.trim() === value); if (!element || element.disabled) return false; element.focus(); element.click(); return true; })(); state={"href":"https://zasp.production-e2e.test:65406/protect/security-agents","body":"Zasp\nAgent Security\nProduction\nStaging\nSearch\nSign out\nOverview\nAgents\nTools & MCP\nIdentities\nRuntimes\nFindings\nAttack Paths\nRed Team\nAttack Lab\nPolicies\nIntegrations\nSensors\nSecurity agents\nApprovals\nIdentity & Access\nAPI Access\nSessions\nAudit Log\nCompliance\nData & Retention\nRecovery\nExternal Data Flows\nSystem Health\nSecurity agents\ni\n\nTenant-scoped response definitions, redacted plans, supervised approvals, autonomous actions, outcomes, and verification.\n\nCreate Security Agent\nExecution controls\n\nPlatform execution enabled Platform authority is read-only to tenant administrators.\n\nEnvironment automation enabled · version 1\n\ncreate_temporary_policy disabled · version 0\n\nisolate_session disabled · version 0\n\nrerun_test disabled · version 0\n\nrevoke_integration_connection disabled · version 0\n\nrun_test disabled · version 0\n\nstart_attack_lab enabled · version 1\n\nupdate_finding_response disabled · version 0\n\nDisable environment automationEnable create_temporary_policyEnable isolate_sessionEnable rerun_testEnable revoke_integration_connectionEnable run_testDisable start_attack_labEnable update_finding_response\nSecurity Agent definitions\nAttack Lab stopped parent\nfinding\nenabled\nAttack Lab autonomous\nfinding\nenabled\nAttack Lab supervised\nfinding\nenabled\nSecurity Agent runs\nrunning\npid_d08641b1-ea76-4a73-ac2b-8fd72b854e3e\n1 evidence item\nneeds_human\npid_dd7d3d12-3a3b-4dd1-b138-5552a67143ed\n1 evidence item\nneeds_human\npid_63f208cd-0750-45b4-9017-5159e6b2b74d\n1 evidence item\nPending approvals\nNo pending approvals\n\nSupervised action requests appear here before any provider effect.\n\nApproval history\napproved · Run a bounded Attack Lab reproduction; human interpretation required\nAction: start_attack_lab\nAgent: pid_5030fce7-2e17-4054-8f03-596fab267116\nTarget: pid_d7a41df5-d005-46ed-82bb-aa1ad34ebbb2\nRequester: pid_10000004-0000-4000-8000-000000000004\nRun: pid_d08641b1-ea76-4a73-ac2b-8fd72b854e3e\nExpires: 2026-09-19T11:59:49.674237Z\napproved · Run a bounded Attack Lab reproduction; human interpretation required\nAction: start_attack_lab\nAgent: pid_b1da2716-d57d-4ba5-9eef-db817e0fbf4b\nTarget: pid_d7a41df5-d005-46ed-82bb-aa1ad34ebbb2\nRequester: pid_10000004-0000-4000-8000-000000000004\nRun: pid_dd7d3d12-3a3b-4dd1-b138-5552a67143ed\nExpires: 2026-09-19T11:58:56.754882Z\napproved · Run a bounded Attack Lab reproduction; human interpretation required\nAction: start_attack_lab\nAgent: pid_d6f8e398-3e1e-494c-bf17-deab063f54c1\nTarget: pid_d7a41df5-d005-46ed-82bb-aa1ad34ebbb2\nRequester: pid_10000004-0000-4000-8000-000000000004\nRun: pid_63f208cd-0750-45b4-9017-5159e6b2b74d\nExpires: 2026-09-19T11:58:03.888345Z\nRun pid_d08641b1-ea76-4a73-ac2b-8fd72b854e3e\n\nrunning Version 6\n\nDefinition pid_5030fce7-2e17-4054-8f03-596fab267116, revision 3\n\nTrigger\n\nfinding · pid_7f550001-0000-4000-8000-000000000001 · version 1\n\nOpen trigger record\nRelated findings\nReload related activity\nRelated activity is unavailable. No links are displayed.\nPrevious related page\nPage 1\nNext related page\nRelated attack paths\nReload related activity\nRelated activity is unavailable. No links are displayed.\nPrevious related page\nPage 1\nNext related page\nRelated sessions\nReload related activity\nRelated activity is unavailable. No links are displayed.\nPrevious related page\nPage 1\nNext related page\nRelated audit records\nReload related activity\nRelated activity is unavailable. No links are displayed.\nPrevious related page\nPage 1\nNext related page\nEvidence\npid_7f550001-0000-4000-8000-000000000001\nAI rationale\n\nAI-generated explanation. This does not authorize any action.\n\nBounded production E2E response\n\nPlan\n\nPlan sha256:6e478e8efeb9e0b362051bd9c45b009c201cef672639ff11f41b4915ff23ad48, expires 2026-09-19T11:59:49.674237Z\n\nstart_attack_lab · approval_required · executing\nAuthorization and execution\n\napproved · verification not_started\n\nstart_attack_lab · executing · outcome pid_bf523d94-0843-4a7a-8f7f-ea550f85877b\nPersisted action details\n\nTarget: pid_d7a41df5-d005-46ed-82bb-aa1ad34ebbb2\n\nExpected version: 1\n\nEffect state: pending\n\nRecorded outcome: pid_bf523d94-0843-4a7a-8f7f-ea550f85877b\n\nR"}
+    at waitForBrowserAction (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:6458:8)
+    at async clickBrowserText (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:6432:3)
+    at async runAttackLabMountedBrowser (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/attack-lab-mounted-browser.mjs:106:184)
+    at async exerciseAttackLabMountedBrowser (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:2350:9)
+    at async file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:306:5
+
+Node.js v22.23.1
+
+Exit: 1 Signal: null

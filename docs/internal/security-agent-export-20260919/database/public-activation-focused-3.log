@@ -1,0 +1,9 @@
+=== RUN   TestSecurityAgentExportDefinitionHTTPPostgres
+    security_agent_export_definition_http_postgres_test.go:176: HTTP status=409 want=200 body={"code":"version_conflict","correlation_id":"pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","message":"Resource version conflict","retryable":false}
+         SQL=SELECT public.zasp_sa_export_mutate_definition($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14,$15,$16) error=repository operation conflict
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportDefinitionHTTPPostgres2366438691/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportDefinitionHTTPPostgres (13.46s)
+=== RUN   TestSecurityAgentExportDefinitionAuthorityWaitPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=53 data=/tmp/TestSecurityAgentExportDefinitionAuthorityWaitPostgres524945616/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportDefinitionAuthorityWaitPostgres (6.27s)
+FAIL

@@ -22,7 +22,7 @@ describe("M7A audit, API, and builder batch", () => {
     }
   });
 
-  it("ships the generated-client run and approval surface while keeping evidence-bound launch controls API-only", async () => {
+  it("ships the generated-client builder, evidence-bound run, and approval surface", async () => {
     const [app, view, routes] = await Promise.all([
       readFile(resolve(root, "app/components/ZaspProductionApp.tsx"), "utf8"),
       readFile(resolve(root, "app/features/securityagents/SecurityAgentsView.tsx"), "utf8"),
@@ -30,10 +30,13 @@ describe("M7A audit, API, and builder batch", () => {
     ]);
     expect(routes).toContain('path: "/protect/security-agents"');
     expect(routes).toContain('path: "/protect/approvals"');
+    expect(app).toContain('import { ProductionSecurityAgentsView } from "../features/securityagents/SecurityAgentsView"');
     expect(app).toContain("<ProductionSecurityAgentsView");
+    expect(view).toContain("return <SecurityAgentsView");
+    expect(view).toContain("<AgentDetail selected={selected} activation={selectedActivation} actions={actions}");
     expect(view).toContain('from "../../../apps/web/api/generated"');
     for (const operation of mountedOperations) expect(view).toContain(operation);
-    for (const label of ["Definition template", "Definition name", "Authorized environment", "Step limit", "Runtime seconds", "Temporary-policy seconds", "AI token budget", "Concurrency", "Production action catalog", "Template controls", "Limits", "Definition enabled", "Validate definition", "Enable supervised execution", "Enable autonomous execution", "Zero-effect simulation", "Simulate plan", "Start supervised run", "Start autonomous run", "Security Agent runs", "Pending approvals", "Expected effect", "Cancel run", "Reauthenticate to decide", "Approve", "Reject"]) expect(view).toContain(label);
+    for (const label of ["Definition template", "Definition name", "Authorized environment", "Step limit", "Runtime seconds", "Temporary-policy seconds", "AI token budget", "Concurrency", "Supported action catalog", "Template controls", "Limits", "Definition enabled", "Validate definition", "Enable supervised execution", "Enable autonomous execution", "Zero-effect simulation", "Simulate plan", "Start supervised run", "Start autonomous run", "Security Agent runs", "Pending approvals", "Expected effect", "Cancel run", "Reauthenticate to decide", "Approve", "Reject"]) expect(view).toContain(label);
     expect(view).not.toMatch(/textarea|tool URL|shell command|arbitrary query/i);
   });
 

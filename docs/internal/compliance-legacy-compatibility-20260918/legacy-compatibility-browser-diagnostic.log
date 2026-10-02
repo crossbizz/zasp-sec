@@ -1,0 +1,166 @@
+combined E2E: disposable PostgreSQL ready
+combined E2E: schema 14 typed_inventory_cutover verified
+combined E2E: schema 15 runtime_data_plane verified
+combined E2E: schema 17 runtime_ingest_reconciliation verified
+combined E2E: schema 18 security_agent_execution verified
+combined E2E: schema 19 identity_administration verified
+combined E2E: schema 20 security_agent_controls verified
+combined E2E: schema 21 security_agent_autonomous_response verified
+combined E2E: schema 24 security_agent_session_isolation verified
+combined E2E: schema 27 production_recovery verified
+combined E2E: schema 28 production_policy_deployment verified
+combined E2E: schema 29 production_home_attention verified
+combined E2E: schema 30 production_approval_notification verified
+combined E2E: schema 31 production_workflow_compatibility verified
+combined E2E: schema 32 production_security_agent_planner verified
+combined E2E: schema 33 production_security_agent_attack_path verified
+combined E2E: schema 34 production_integration_setup verified
+combined E2E: schema 35 production_integration_webhook verified
+combined E2E: schema 37 production_red_team_safety verified
+combined E2E: schema 39 production_red_team_artifacts verified
+combined E2E: schema 40 production_runtime_sessions verified
+combined E2E: schema 41 production_runtime_session_reads verified
+combined E2E: schema 42 production_runtime_session_search verified
+combined E2E: schema 43 production_runtime_session_query verified
+combined E2E: schema 44 production_runtime_session_evidence verified
+combined E2E: schema 45 production_runtime_enrollment_pairing verified
+combined E2E: schema 46 production_reconciliation_lane_plan verified
+combined E2E: schema 47 production_runtime_candidate_authority verified
+combined E2E: schema 48 production_runtime_acceptance verified
+combined E2E: migrations and durable seed ready
+compliance browser evidence: /tmp/zasp-compliance-browser-U6gmFZ
+legacy failure trace: [{"method":"GET","path":"/api/v1/session/start","status":302,"cursor":false,"cursorLength":0,"framework":null,"scope":null,"code":null},{"method":"POST","path":"/api/v1/session/callback","status":200,"cursor":false,"cursorLength":0,"framework":null,"scope":null,"code":null},{"method":"GET","path":"/api/v1/session/bootstrap","status":200,"cursor":false,"cursorLength":0,"framework":null,"scope":null,"code":null},{"method":"GET","path":"/api/v1/session/scopes","status":200,"cursor":false,"cursorLength":0,"framework":null,"scope":"pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003","code":null},{"method":"GET","path":"/api/v1/workflow-mutation-receipts","status":200,"cursor":false,"cursorLength":0,"framework":null,"scope":"pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003","code":null},{"method":"GET","path":"/api/v1/compliance/controls","status":200,"cursor":false,"cursorLength":0,"framework":null,"scope":"pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003","code":null},{"method":"GET","path":"/api/v1/compliance/controls","status":200,"cursor":false,"cursorLength":0,"framework":null,"scope":"pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003","code":null},{"method":"GET","path":"/api/v1/compliance/evidence","status":200,"cursor":false,"cursorLength":0,"framework":null,"scope":"pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003","code":null}]
+owned legacy API: nt":"correlation_span","name":"repository.query","kind":"client","trace_id":"975ed209edcd6e7c79a3a6bf7395696a","span_id":"aa10529db78e0c5e","status":"ok","duration_ms":2,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"b2126aae580c2fc261249cbce5b4e963","span_id":"503d372506ca162c","status":"ok","duration_ms":194,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"50af4ddf166e4a8fab70ad927e3e2d04","span_id":"e260be14a34bd90a","status":"ok","duration_ms":61,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"f78c73be1dd2230e9e8c6e010640e061","span_id":"377346eb3bcbdf2b","status":"ok","duration_ms":70,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"identity.ready","kind":"client","trace_id":"d961cf55d16e01ff0061c45163c09649","span_id":"6db49c2593c5e05f","status":"ok","duration_ms":0,"attributes":{"rpc.method":"ready","server.address":"stytch"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"afabc4613130bc98aaadb46e0dac50ac","span_id":"97d305283b2a958a","status":"ok","duration_ms":2,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"ba7d93ce7c5e53e9dfddd0f741e3c094","span_id":"cfba5f0f300b8154","status":"ok","duration_ms":1,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"d4b20c19bc61c14a7c3b87b628fa055e","span_id":"0359388ca182aa38","status":"ok","duration_ms":1,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"48edb05d5a2b62c87383d04ae19f9809","span_id":"2c7474ec419bfd3f","status":"ok","duration_ms":193,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"4fbc5660cc73f2742db08e3170dba118","span_id":"70c6f2f24ef7238d","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"ae75cb3bbab69c6902d276a871d061ec","span_id":"a08ebba2ff228630","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"df4d0f1512850d83e7c52937e22bc3dc","span_id":"6f6f2b69ce7ef2de","status":"ok","duration_ms":63,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"0ec221775af3ffa29102d1511cfd22a6","span_id":"70d08929a6730a5f","status":"ok","duration_ms":64,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"7881cc9503f44f31e7792c5549b0a9df","span_id":"ca3dc80dd0309c6a","status":"ok","duration_ms":198,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"2514d0d035dbd04af3f84d01ad5911a0","span_id":"ea5b3f25aec3582c","status":"ok","duration_ms":62,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"f59af5b9c1c8629ac16c0e39b09ef0ba","span_id":"fc4ac380209a1783","status":"ok","duration_ms":1,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"160db1567cbb51d87b84f0f815c66de2","span_id":"c7cc6eb81530e6e7","status":"ok","duration_ms":213,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"329d0126988dce917a6e48ca315a4e99","span_id":"14a18acfdebc1b73","status":"ok","duration_ms":72,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"7a646a1f1679e0410f6160d9da8a304c","span_id":"bd2f11004d51cb45","status":"ok","duration_ms":70,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"identity.ready","kind":"client","trace_id":"cacb66710a00b62a6478cf595be42f75","span_id":"0b402b03650e5c92","status":"ok","duration_ms":0,"attributes":{"rpc.method":"ready","server.address":"stytch"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"2d1805b60a402309d8d2777c6bd4437d","span_id":"ae46e63189fa59f7","status":"ok","duration_ms":2,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"6dc93bb5399ab31fd15d789866fa95cd","span_id":"6b6a222596790c22","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"1669e5239b4acce1a6f6bc16b124ad33","span_id":"48c395d237a77936","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"2444214270b5de103ee2a2fa4bd60cec","span_id":"7362603b2750a3ea","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"92d85cc92d8a5f6ed2d1acd3f6009445","span_id":"c583a61ab0b16933","status":"ok","duration_ms":195,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"24341a9425f3b58cf5404d331dba3df2","span_id":"04adb0b481bd7640","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"a674ae7d8eac5c303fcd05cf91f85ed0","span_id":"983bd83fd9d065b6","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"f8c571348895a876138283f95bb30204","span_id":"d5400422c81e5eeb","status":"ok","duration_ms":63,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"56b03935e56bbddd088224dc4e9a701c","span_id":"17795cf9e7cade73","status":"ok","duration_ms":63,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"64c2df17e15984429c4c75e9098aedc0","span_id":"e07b9221f83f7fd1","status":"ok","duration_ms":237,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"233f8201b109a4a36030f6347a05a7b5","span_id":"efdcc1b751c551a0","status":"ok","duration_ms":75,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"8406d7ecb5e04bed62b28a934c20fb23","span_id":"7d46c8b6fb1f84af","status":"ok","duration_ms":1,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"d2e9541d3ab1eb5b62ba60c3cd087551","span_id":"808a95f7cba20c7a","status":"ok","duration_ms":201,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"00811de6f24224b2e045c0240170b1ae","span_id":"62a179e69e6ef5ba","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"52874f894cd5bcb77c8c8ba4b0a1d258","span_id":"ac6fee79005ffbe0","status":"ok","duration_ms":1,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"66a1b60a555060502c00444e7570ad57","span_id":"6af27f92cc7f754b","status":"ok","duration_ms":1,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"99076a4e0e244e14a5bb13fa0d607b30","span_id":"00f6b4e16d57491a","status":"ok","duration_ms":65,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"0a71f71dcaa5e305bb07ed444b51a9b0","span_id":"7399a3a163e2f480","status":"ok","duration_ms":68,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"identity.ready","kind":"client","trace_id":"5f836417d475465d04b6436f72b70d38","span_id":"d2e6f4946f2dc294","status":"ok","duration_ms":0,"attributes":{"rpc.method":"ready","server.address":"stytch"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"d2028d502fbfab6726a414cbad04e8ff","span_id":"8bcffc220daac84f","status":"ok","duration_ms":258,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"bed0231eae0f76e20df4b61b6de9cd8e","span_id":"53073cc70f969de3","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"742e5e23f17880d42f747a9916c3085d","span_id":"95713b1a9f0132c1","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"2357935b15215c9c1c6a2eb9d29202e1","span_id":"6001a5cf4d982a50","status":"ok","duration_ms":95,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"09dbf2e7c355b8c60e1b551f2247bf6d","span_id":"a381cc99227913af","status":"ok","duration_ms":75,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"200408d0642576f10916a7b4f9201d5f","span_id":"32b13b54ebf5b221","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"fdf63808a2abd093767ee78e86e72084","span_id":"379e23bdd8461287","status":"ok","duration_ms":4,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"ad48a8dff3c58058e803bdfbeae9daf2","span_id":"bc20d18bee0acab8","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"37ad1369c43cfc101a2e16b2e855d35e","span_id":"393676b505537d2d","status":"ok","duration_ms":240,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"f6d96095731d69886bf677eddcdd5bbf","span_id":"81171937ecdeb3a1","status":"ok","duration_ms":67,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"af4f0c6cc3dd921aff3a5832994c76ad","span_id":"eb38a877300bf7d0","status":"ok","duration_ms":1,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"2ca5998e98cb9b7f444e26363395af4f","span_id":"d3bc36a8f07fccd2","status":"ok","duration_ms":203,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"04448c3e5d2ebbeb3470ed33a35d5c88","span_id":"7b393785ba9f8185","status":"ok","duration_ms":68,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"c5f856389d59edfbccbf34edcbf12e66","span_id":"1848a92461ae44ff","status":"ok","duration_ms":66,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"identity.ready","kind":"client","trace_id":"06268a14a23414a6d8be4e31764629fa","span_id":"3a281a509dff46f9","status":"ok","duration_ms":0,"attributes":{"rpc.method":"ready","server.address":"stytch"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"a4d14a83534e9a66ec084b996c49789e","span_id":"0ca5cb931c746d28","status":"ok","duration_ms":191,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"955723bfcdac9a3ca9f97661df5956fe","span_id":"9d8904c4cac7aa26","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"7ec57fcdc8e29720e346a2d92c5d691b","span_id":"76b3ddc83775f279","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"6f57c80e7e997fa58cfcd3f042dc17ca","span_id":"ee1f2c500bf734e7","status":"ok","duration_ms":1,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"1b001156af8c2d0096ff4ab7910c33d3","span_id":"e600fd1c18d5bb75","status":"ok","duration_ms":1,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"f744c6e2cb0b7c1f301ec1d59ad63082","span_id":"c4acda4960a7f69a","status":"ok","duration_ms":0,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"379409a7bbca4535bf4031e6db1505db","span_id":"badfceeafbdfb734","status":"ok","duration_ms":62,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"4e565dc2bf9ff044015c34d2723eaa60","span_id":"469afc05ae78c2a8","status":"ok","duration_ms":59,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"418c22f723cc1ff0c4f9d41a1b763f53","span_id":"a7626709005db421","status":"ok","duration_ms":179,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"98274547080ca2bb611078981a286fa3","span_id":"47273fd319e61bf4","status":"ok","duration_ms":63,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"59fbeb8871015c073ddc35a3ce140930","span_id":"7a9522ee7cf03392","status":"ok","duration_ms":1,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.schema","kind":"client","trace_id":"3875c79e235e6f73deae42e2bc5535d8","span_id":"db34313649a7518f","status":"ok","duration_ms":191,"attributes":{"db.operation.name":"schema","db.system":"postgresql"}}
+{"event":"correlation_span","name":"repository.query","kind":"client","trace_id":"fad684b2615fb55032a9314cb592c3cc","span_id":"c7fc02da128775c4","status":"ok","duration_ms":66,"attributes":{"db.operation.name":"query","db.system":"postgresql"}}
+
+combined E2E: cleanup browser
+combined E2E: cleanup Task4 workers
+combined E2E: cleanup api
+combined E2E: cleanup proxy
+combined E2E: cleanup identity
+combined E2E: cleanup policy history
+combined E2E: cleanup web
+combined E2E: cleanup postgres
+combined E2E: cleanup remaining processes
+combined E2E: cleanup files
+file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:6219
+  throw new Error(`browser text did not match ${pattern}: ${last}`);
+        ^
+
+Error: browser text did not match /evidence-membership/: Zasp
+Agent Security
+Production
+Staging
+Search
+Sign out
+Overview
+Agents
+Tools & MCP
+Identities
+Runtimes
+Findings
+Attack Paths
+Red Team
+Attack Lab
+Policies
+Integrations
+Sensors
+Security agents
+Approvals
+Identity & Access
+API Access
+Sessions
+Audit Log
+Compliance
+Data & Retention
+Recovery
+External Data Flows
+System Health
+Compliance evidence
+i
+
+Product evidence for review. Freshness and exports do not establish certification or control effectiveness.
+
+Compliance request failed. Evidence inspection remains available; retry the request. Retry evidence
+
+Framework 
+All frameworks
+SOC 2 Security
+HIPAA
+Control 
+All controls
+Evidence exports unavailable
+
+Current source and export service are not available for this view. Legacy records are not current-source proof.
+    at waitForBrowserText (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:6219:9)
+    at async exerciseComplianceBrowser (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:2181:20)
+    at async file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/scripts/production-combined-e2e.mjs:298:5
+
+Node.js v22.23.1
+
+EXIT_STATUS=1

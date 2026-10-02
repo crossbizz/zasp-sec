@@ -1,0 +1,133 @@
+{{- $c := .Values.attackLabReconciler | default dict -}}
+{{- $monitoring := .Values.monitoring | default dict -}}
+{{- if and (hasKey $c "enabled") (not (kindIs "bool" $c.enabled)) -}}{{ fail "attackLabReconciler.enabled must be boolean" }}{{- end -}}
+{{- if $c.enabled -}}
+{{- $fields := list "enabled" "awsRegion" "roleArn" "databaseSecretArn" "workerPrincipal" "evidenceBucket" "evidenceOwner" "evidenceKMSKeyArn" "databaseCIDRs" "stsCIDRs" "s3CIDRs" -}}
+{{- if ne (toJson (keys $c | sortAlpha)) (toJson ($fields | sortAlpha)) -}}{{ fail "attack lab reconciler fields are closed" }}{{- end -}}
+{{- if or (not (regexMatch "^[a-z][a-z0-9_]{2,62}$" $c.workerPrincipal)) (hasPrefix "zasp_" $c.workerPrincipal) -}}{{ fail "attack lab reconciler principal invalid" }}{{- end -}}
+{{- $other := omit .Values "attackLabReconciler" | toJson -}}
+{{- range $field := list "roleArn" "databaseSecretArn" "workerPrincipal" -}}
+{{- if contains (toJson (index $c $field)) $other -}}{{ fail "attack lab reconciler authority collision" }}{{- end -}}
+{{- end -}}
+{{- if not (has .Values.runtime.sessionSearchPhase (list "precision-consumers" "precision-intake")) -}}{{ fail "attack lab reconciler requires precision phase" }}{{- end -}}
+{{- if or (ne .Values.profile "control_plane") (ne (toString .Values.schema.expectedVersion) "57") -}}{{ fail "attack lab reconciler requires control-plane schema57" }}{{- end -}}
+{{- if le (int .Values.global.terminationGracePeriodSeconds) 20 -}}{{ fail "attack lab reconciler termination grace must exceed shutdown20s" }}{{- end -}}
+{{- $region := required "attack lab reconciler region required" $c.awsRegion -}}
+{{- $owner := required "attack lab reconciler evidence owner required" $c.evidenceOwner -}}
+{{- if or (not (regexMatch "^[a-z]{2}(-gov)?-[a-z]+-[0-9]$" $region)) (not (regexMatch "^[0-9]{12}$" $owner)) -}}{{ fail "attack lab reconciler region/account invalid" }}{{- end -}}
+{{- $role := required "attack lab reconciler role required" $c.roleArn -}}
+{{- if not (regexMatch (printf "^arn:aws:iam::%s:role/[A-Za-z0-9+=,.@_/-]{1,128}$" $owner) $role) -}}{{ fail "attack lab reconciler role/account mismatch" }}{{- end -}}
+{{- $secret := required "attack lab reconciler database secret required" $c.databaseSecretArn -}}
+{{- if not (regexMatch (printf "^arn:aws:secretsmanager:%s:%s:secret:[A-Za-z0-9/_+=.@-]{1,512}$" $region $owner) $secret) -}}{{ fail "attack lab reconciler database secret account/region mismatch" }}{{- end -}}
+{{- $bucket := required "attack lab reconciler evidence bucket required" $c.evidenceBucket -}}
+{{- if not (regexMatch "^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$" $bucket) -}}{{ fail "attack lab reconciler evidence bucket invalid" }}{{- end -}}
+{{- $key := required "attack lab reconciler evidence KMS key required" $c.evidenceKMSKeyArn -}}
+{{- if not (regexMatch (printf "^arn:aws:kms:%s:%s:key/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" $region $owner) $key) -}}{{ fail "attack lab reconciler evidence KMS key mismatch" }}{{- end -}}
+{{- $image := required "attack lab reconciler worker image required" .Values.global.productImages.agentsecWorker -}}
+{{- if not (regexMatch "^[a-z0-9][a-z0-9./_-]*(:[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$" $image) -}}{{ fail "attack lab reconciler image must be digest pinned" }}{{- end -}}
+{{- range $field := list "databaseCIDRs" "stsCIDRs" "s3CIDRs" -}}
+{{- $cidrs := index $c $field -}}
+{{- if or (not (kindIs "slice" $cidrs)) (lt (len $cidrs) 1) (gt (len $cidrs) 64) -}}{{ fail "attack lab reconciler endpoint snapshots required" }}{{- end -}}
+{{- $ranges := list -}}
+{{- range $cidr := $cidrs -}}
+{{- if not (kindIs "string" $cidr) -}}{{ fail "attack lab reconciler CIDR must be string" }}{{- end -}}
+{{- if not (regexMatch "^([0-9]{1,3}\\.){3}[0-9]{1,3}/(1[6-9]|2[0-9]|3[0-2])$" $cidr) -}}{{ fail "attack lab reconciler CIDR must be bounded IPv4" }}{{- end -}}
+{{- $parts := splitList "/" $cidr -}}
+{{- $octets := splitList "." (index $parts 0) -}}
+{{- $start := int64 0 -}}
+{{- range $octet := $octets -}}
+{{- if or (gt (int $octet) 255) (ne (toString (int $octet)) $octet) -}}{{ fail "attack lab reconciler CIDR must be canonical" }}{{- end -}}
+{{- $start = add (mul $start 256) (int $octet) -}}
+{{- end -}}
+{{- $first := int (index $octets 0) -}}
+{{- if or (eq $first 0) (eq $first 127) (ge $first 224) (and (eq $first 169) (eq (index $octets 1) "254")) -}}{{ fail "attack lab reconciler CIDR cannot be local/metadata/multicast" }}{{- end -}}
+{{- $size := int64 1 -}}
+{{- range until (int (sub 32 (int (index $parts 1)))) -}}{{- $size = mul $size 2 -}}{{- end -}}
+{{- if ne (mod $start $size) 0 -}}{{ fail "attack lab reconciler CIDR has host bits" }}{{- end -}}
+{{- $end := sub (add $start $size) 1 -}}
+{{- range $prior := $ranges -}}{{- if and (le $start $prior.end) (ge $end $prior.start) -}}{{ fail "attack lab reconciler endpoint ranges overlap" }}{{- end -}}{{- end -}}
+{{- $ranges = append $ranges (dict "start" $start "end" $end) -}}
+{{- end -}}
+{{- end }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: security-agent-attack-lab-reconciler
+  annotations: { eks.amazonaws.com/role-arn: {{ $role | quote }} }
+automountServiceAccountToken: false
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata: { name: security-agent-attack-lab-reconciler-secrets }
+spec:
+  provider: aws
+  parameters:
+    region: {{ $region | quote }}
+    objects: |
+      - objectName: {{ $secret | quote }}
+        objectType: secretsmanager
+        objectAlias: postgres-dsn
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: security-agent-attack-lab-reconciler
+  labels: { app.kubernetes.io/name: security-agent-attack-lab-reconciler, app.kubernetes.io/part-of: zasp }
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app.kubernetes.io/name: security-agent-attack-lab-reconciler } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: security-agent-attack-lab-reconciler, app.kubernetes.io/part-of: zasp }
+      annotations: { zasp.io/schema-version: {{ .Values.schema.expectedVersion | quote }} }
+    spec:
+      serviceAccountName: security-agent-attack-lab-reconciler
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: {{ .Values.global.terminationGracePeriodSeconds }}
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: topology.kubernetes.io/zone, whenUnsatisfiable: DoNotSchedule, labelSelector: { matchLabels: { app.kubernetes.io/name: security-agent-attack-lab-reconciler } } }
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app.kubernetes.io/name: security-agent-attack-lab-reconciler } } }
+      securityContext: { runAsNonRoot: true, runAsUser: 65532, runAsGroup: 65532, fsGroup: 65532, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: worker
+          image: {{ $image | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args: ['export ZASP_POSTGRES_DSN="$(cat /var/run/secrets/security-agent-attack-lab-reconciler/postgres-dsn)"; exec /app/agentsec-worker']
+          ports: [{ name: internal, containerPort: 8081 }]
+          env:
+            - { name: ZASP_WORKER_MODE, value: security-agent-attack-lab-reconciler }
+            - { name: ZASP_DATABASE_AUTHORITY, value: zasp_security_agent_attack_lab_reconciler }
+            - name: ZASP_WORKER_ID
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - { name: ZASP_POLL_INTERVAL, value: "1s" }
+            - { name: ZASP_LEASE_DURATION, value: "60s" }
+            - { name: ZASP_BATCH_SIZE, value: "1" }
+            - { name: ZASP_SHUTDOWN_TIMEOUT, value: "20s" }
+            - { name: ZASP_AWS_REGION, value: {{ $region | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET, value: {{ $bucket | quote }} }
+            - { name: ZASP_EVIDENCE_BUCKET_OWNER, value: {{ $owner | quote }} }
+            - { name: ZASP_EVIDENCE_KMS_KEY_ARN, value: {{ $key | quote }} }
+            - { name: ZASP_ATTACK_LAB_RECONCILER_ROLE_ARN, value: {{ $role | quote }} }
+            - { name: ZASP_ATTACK_LAB_RECONCILER_WEB_IDENTITY_TOKEN_FILE, value: /var/run/secrets/eks.amazonaws.com/serviceaccount/token }
+          volumeMounts:
+            - { name: database, mountPath: /var/run/secrets/security-agent-attack-lab-reconciler, readOnly: true }
+            - { name: identity, mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount, readOnly: true }
+          startupProbe: { httpGet: { path: /healthz, port: internal }, failureThreshold: 30, periodSeconds: 2, timeoutSeconds: 1 }
+          readinessProbe: { httpGet: { path: /readyz, port: internal }, failureThreshold: 3, periodSeconds: 5, timeoutSeconds: 2 }
+          livenessProbe: { httpGet: { path: /healthz, port: internal }, failureThreshold: 3, periodSeconds: 10, timeoutSeconds: 2 }
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: "1", memory: 1Gi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] }, privileged: false, readOnlyRootFilesystem: true }
+      volumes:
+        - name: database
+          csi: { driver: secrets-store.csi.k8s.io, readOnly: true, volumeAttributes: { secretProviderClass: security-agent-attack-lab-reconciler-secrets } }
+        - name: identity
+          projected:
+            sources:
+              - serviceAccountToken: { audience: sts.amazonaws.com, expirationSeconds: 3600, path: token }
+{{- end }}

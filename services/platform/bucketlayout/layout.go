@@ -120,7 +120,20 @@ func (layout Layout) Prefix(scope domain.Scope, class Class) (string, error) {
 }
 
 func (layout Layout) Key(scope domain.Scope, class Class, reference domain.ProductID) (string, error) {
-	if layout.Validate() != nil || scope.Validate() != nil || !class.valid() || !validProductID(reference) ||
+	if layout.Validate() != nil {
+		return "", ErrLayout
+	}
+	return scopedKey(scope, class, reference)
+}
+
+// ExportKey builds only the fixed export profile. Provider configuration and
+// encryption remain the responsibility of the configured storage adapter.
+func ExportKey(scope domain.Scope, reference domain.ProductID) (string, error) {
+	return scopedKey(scope, ClassExport, reference)
+}
+
+func scopedKey(scope domain.Scope, class Class, reference domain.ProductID) (string, error) {
+	if scope.Validate() != nil || !class.valid() || !validProductID(reference) ||
 		reference == scope.OrganizationID() || reference == scope.WorkspaceID() || reference == scope.EnvironmentID() {
 		return "", ErrLayout
 	}

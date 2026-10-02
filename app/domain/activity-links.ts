@@ -1,0 +1,49 @@
+export type ActivityScope = Readonly<{ organizationID: string; workspaceID: string; environmentID: string }>;
+export type ActivityKind = "finding" | "attack_path" | "session" | "audit" | "run" | "test_run" | "attack_lab_run";
+export type ActivityTarget = Readonly<{ kind: ActivityKind; id: string }>;
+export type ActivityLinkResult = { state: "none" | "invalid" | "scope_mismatch" } | { state: "selected"; target: ActivityTarget };
+
+const routes: Record<ActivityKind, string> = {
+  finding: "/violations",
+  attack_path: "/exposure/attack-paths",
+  session: "/investigate/sessions",
+  audit: "/administration/audit-log",
+  run: "/protect/security-agents",
+  test_run: "/red-team/results",
+  attack_lab_run: "/test/attack-lab",
+};
+const productID = /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$(?![\s\S])/;
+const keys = ["entity_id", "organization_id", "workspace_id", "environment_id"] as const;
+const inventoryRoutes = new Set(["/discovery/assets", "/inventory/tools", "/identities", "/inventory/runtimes"]);
+function validScope(scope: ActivityScope): boolean {
+  return [scope.organizationID, scope.workspaceID, scope.environmentID].every(value => productID.test(value));
+}
+
+export function activityLink(target: ActivityTarget, scope: ActivityScope): string {
+  const path = routes[target.kind];
+  if (typeof path !== "string" || !productID.test(target.id) || !validScope(scope)) throw new TypeError("Invalid scoped activity target");
+  return `${path}?${new URLSearchParams({ entity_id: target.id, organization_id: scope.organizationID, workspace_id: scope.workspaceID, environment_id: scope.environmentID })}`;
+}
+
+// Parse only canonical relative locations. URL normalization must not turn
+// an external, encoded or ambiguous input into a trusted product destination.
+// This validates navigation context, not record existence or authorization.
+export function parseActivityLink(location: string, scope: ActivityScope): ActivityLinkResult {
+  const invalid: ActivityLinkResult = { state: "invalid" };
+  if (!validScope(scope) || !/^\/(?:[a-z0-9/-]*)(?:\?[^?#]*)?$(?![\s\S])/.test(location) || location.startsWith("//") || location.includes("//")) return invalid;
+  const separator = location.indexOf("?");
+  if (separator < 0) return { state: "none" };
+  const path = location.slice(0, separator);
+  const query = location.slice(separator + 1);
+  // These product surfaces own their existing inventory selector. Delegate only
+  // its exact canonical form; mixed or encoded activity keys must still fail.
+  if (inventoryRoutes.has(path) && query.startsWith("inventory=") && productID.test(query.slice("inventory=".length))) return { state: "none" };
+  const kind = (Object.keys(routes) as ActivityKind[]).find(value => routes[value] === path);
+  if (!kind) return invalid;
+  const entries = query.split("&").map(part => part.split("="));
+  if (entries.length !== keys.length || entries.some(([key, value, extra]) => !keys.some(allowed => key === allowed) || extra !== undefined || !value || !productID.test(value))) return invalid;
+  const values = new Map(entries.map(([key, value]) => [key, value]));
+  if (values.size !== keys.length) return invalid;
+  if (values.get("organization_id") !== scope.organizationID || values.get("workspace_id") !== scope.workspaceID || values.get("environment_id") !== scope.environmentID) return { state: "scope_mismatch" };
+  return { state: "selected", target: { kind, id: values.get("entity_id")! } };
+}

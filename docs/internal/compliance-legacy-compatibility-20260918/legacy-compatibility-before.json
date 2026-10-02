@@ -1,0 +1,38 @@
+[
+  {
+    "path": "app/features/sessions/SessionsComplianceView.tsx",
+    "before": "b6fcf29d373e055a4ec24f82bc3a1f2550843fdf"
+  },
+  {
+    "path": "app/features/sessions/SessionsComplianceView.test.tsx",
+    "before": "0f13c934c12b9e5d08a16b152afc3ca8b3e265b0"
+  },
+  {
+    "path": "app/features/sessions/ComplianceEvidenceView.tsx",
+    "before": "4a80295b84676d0a4b6b3c953a0b6bda93632d02"
+  },
+  {
+    "path": "app/features/sessions/compliance-api.ts",
+    "before": "a0731913ff9f6899666797168235b92a88420289"
+  },
+  {
+    "path": "apps/web/api/compliance-decoders.test.ts",
+    "before": "b4e2640290ff5b4e78f27e598eb2580201b2acd0"
+  },
+  {
+    "path": "services/platform/agentsec-api/compliance_composition_test.go",
+    "before": "223a8038e0a1a7bc4bca3cb522f00c628a94b86d"
+  },
+  {
+    "path": "services/platform/agentsec-api/compliance_browser_process_test.go",
+    "before": "53e499d11150ec708ef540a6d7822d0f399a456b"
+  },
+  {
+    "path": "scripts/production-combined-e2e.mjs",
+    "before": "59fda9d9657bb31ed997760ad17581c5e30d18ae"
+  },
+  {
+    "path": "apps/web/api/compliance-decoders.ts",
+    "before": "cdb06ae23884cadc9ec735a8ba383c0c16bb21ac"
+  }
+]

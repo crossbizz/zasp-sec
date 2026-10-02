@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: staging retains all three original queue contracts independently of Red Team
+ok 1 - staging retains all three original queue contracts independently of Red Team
+  ---
+  duration_ms: 1.011458
+  type: 'test'
+  ...
+# Subtest: shared staging resources bind each queue to its encrypted DLQ and output
+ok 2 - shared staging resources bind each queue to its encrypted DLQ and output
+  ---
+  duration_ms: 0.559209
+  type: 'test'
+  ...
+# Subtest: Red Team consumer authority stays on its separate queue
+ok 3 - Red Team consumer authority stays on its separate queue
+  ---
+  duration_ms: 0.16675
+  type: 'test'
+  ...
+# Subtest: original queue guard rejects missing tests and changed schema or delivery settings
+ok 4 - original queue guard rejects missing tests and changed schema or delivery settings
+  ---
+  duration_ms: 1.14725
+  type: 'test'
+  ...
+# Subtest: shared-resource guard rejects crossed DLQs, redrive widening and missing output membership
+ok 5 - shared-resource guard rejects crossed DLQs, redrive widening and missing output membership
+  ---
+  duration_ms: 1.16525
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 67.153417

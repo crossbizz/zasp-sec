@@ -1,0 +1,70 @@
+=== RUN   TestSecurityAgentExportDefinitionHTTPPostgres
+=== RUN   TestSecurityAgentExportDefinitionHTTPPostgres/bearer_CRUD_and_original_request_retries
+=== NAME  TestSecurityAgentExportDefinitionHTTPPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportDefinitionHTTPPostgres1156478134/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportDefinitionHTTPPostgres (28.97s)
+    --- PASS: TestSecurityAgentExportDefinitionHTTPPostgres/bearer_CRUD_and_original_request_retries (6.18s)
+=== RUN   TestSecurityAgentExportDefinitionReceiptPostgres
+    security_agent_export_definition_postgres_test.go:75: release58 checksum=78e98a4f8ed1532f431e1f9f14aaf59770bd963faa37a3bb20a2c06ec86b9c05 fingerprint=67a4e601a5597f67a35f3be50f4a47a0a602b3097b3a9e4838e6fc09dcee6b72
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=56 data=/tmp/TestSecurityAgentExportDefinitionReceiptPostgres1781265227/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportDefinitionReceiptPostgres (11.06s)
+=== RUN   TestSecurityAgentExportDefinitionPublicLifecyclePostgres
+    security_agent_export_definition_postgres_test.go:170: release58 checksum=78e98a4f8ed1532f431e1f9f14aaf59770bd963faa37a3bb20a2c06ec86b9c05 fingerprint=67a4e601a5597f67a35f3be50f4a47a0a602b3097b3a9e4838e6fc09dcee6b72
+=== RUN   TestSecurityAgentExportDefinitionPublicLifecyclePostgres/legacy_value
+=== RUN   TestSecurityAgentExportDefinitionPublicLifecyclePostgres/legacy_detail
+=== RUN   TestSecurityAgentExportDefinitionPublicLifecyclePostgres/legacy_page
+=== NAME  TestSecurityAgentExportDefinitionPublicLifecyclePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=85 data=/tmp/TestSecurityAgentExportDefinitionPublicLifecyclePostgres3012159692/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportDefinitionPublicLifecyclePostgres (9.28s)
+    --- PASS: TestSecurityAgentExportDefinitionPublicLifecyclePostgres/legacy_value (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionPublicLifecyclePostgres/legacy_detail (0.00s)
+    --- PASS: TestSecurityAgentExportDefinitionPublicLifecyclePostgres/legacy_page (0.00s)
+=== RUN   TestSecurityAgentExportDefinitionAuthorityWaitPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=114 data=/tmp/TestSecurityAgentExportDefinitionAuthorityWaitPostgres1148134086/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportDefinitionAuthorityWaitPostgres (6.86s)
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/missing
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/null
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/versionless
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/zero_version
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/excess_version
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/string_version
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/fractional_version
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/noncanonical_id
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/stale
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/absent_test
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/override
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/other_action
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/disabled_test
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/foreign_organization
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/foreign_workspace
+=== RUN   TestSecurityAgentExportDefinitionPredecessorsPostgres/foreign_environment
+=== NAME  TestSecurityAgentExportDefinitionPredecessorsPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=144 data=/tmp/TestSecurityAgentExportDefinitionPredecessorsPostgres1605342731/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres (8.89s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/missing (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/null (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/versionless (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/zero_version (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/excess_version (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/string_version (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/fractional_version (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/noncanonical_id (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/stale (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/absent_test (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/override (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/other_action (0.10s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/disabled_test (0.09s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/foreign_organization (0.25s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/foreign_workspace (0.27s)
+    --- PASS: TestSecurityAgentExportDefinitionPredecessorsPostgres/foreign_environment (0.28s)
+=== RUN   TestSecurityAgentExportReleasePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=173 data=/tmp/TestSecurityAgentExportReleasePostgres2416440722/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportReleasePostgres (6.36s)
+=== RUN   TestSecurityAgentManualAdmissionPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=202 data=/tmp/TestSecurityAgentManualAdmissionPostgres3512948481/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentManualAdmissionPostgres (7.46s)
+=== RUN   TestSecurityAgentManualHTTPPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=233 data=/tmp/TestSecurityAgentManualHTTPPostgres969648178/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentManualHTTPPostgres (5.54s)
+PASS

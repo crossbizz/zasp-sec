@@ -9,12 +9,13 @@ import (
 var ErrInvalidComposition = errors.New("invalid API composition")
 
 type Dependencies struct {
-	Session   http.Handler
-	Identity  http.Handler
-	Inventory http.Handler
-	Risk      http.Handler
-	Workflow  http.Handler
-	Connector http.Handler
+	Authorizer RequestAuthorizer
+	Session    http.Handler
+	Identity   http.Handler
+	Inventory  http.Handler
+	Risk       http.Handler
+	Workflow   http.Handler
+	Connector  http.Handler
 }
 
 type OperationDefinition struct {
@@ -171,7 +172,12 @@ var coreOperations = withBrowserExpectedScope([]coreOperation{
 	{OperationDefinition{"POST", "/api/v1/security-agents/{id}/runs", "runSecurityAgent", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agent-runs", "listSecurityAgentRuns", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agent-runs/{id}", "getSecurityAgentRun", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agent-audit-events/{id}", "getSecurityAgentAuditEvent", "view_audit", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agent-activity/{kind}/{id}/runs", "listSecurityAgentActivityRuns", "view", []string{"BrowserSession"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agent-runs/{id}/activity/{kind}", "listSecurityAgentRunActivity", "view", []string{"BrowserSession"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/security-agent-runs/{id}/cancel", "cancelSecurityAgentRun", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"POST", "/api/v1/security-agent-runs/{id}/cleanup-recovery", "requestSingleTestCleanupRecovery", "manage_workflows", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
+	{OperationDefinition{"GET", "/api/v1/security-agent-runs/{id}/cleanup-recovery", "getSingleTestCleanupRecovery", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agent-approvals", "listSecurityAgentApprovals", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"GET", "/api/v1/security-agent-approvals/{id}", "getSecurityAgentApproval", "view", []string{"BrowserSession", "ProductAPIToken"}}, workflowDependency},
 	{OperationDefinition{"POST", "/api/v1/security-agent-approvals/{id}/decision", "decideSecurityAgentApproval", "manage_workflows", []string{"BrowserSession"}}, workflowDependency},
@@ -220,7 +226,31 @@ func CoreOperations() []OperationDefinition {
 }
 
 func NewComposition(dependencies Dependencies) (http.Handler, error) {
+	return newComposition(dependencies, nil)
+}
+
+func newComposition(dependencies Dependencies, exports http.Handler, compliance ...http.Handler) (http.Handler, error) {
+	var complianceHandler http.Handler
+	var agentExportHandler http.Handler
+	if len(compliance) > 2 {
+		return nil, ErrInvalidComposition
+	}
+	if len(compliance) >= 1 {
+		complianceHandler = compliance[0]
+	}
+	if len(compliance) == 2 {
+		agentExportHandler = compliance[1]
+	}
 	handlers := []http.Handler{dependencies.Session, dependencies.Identity, dependencies.Inventory, dependencies.Risk, dependencies.Workflow, dependencies.Connector}
+	if complianceHandler != nil {
+		handlers = append(handlers, complianceHandler)
+	}
+	if exports != nil {
+		handlers = append(handlers, exports)
+	}
+	if agentExportHandler != nil {
+		handlers = append(handlers, agentExportHandler)
+	}
 	seenHandlers := make(map[uintptr]struct{}, len(handlers))
 	for _, handler := range handlers {
 		identity, valid := handlerIdentity(handler)
@@ -232,10 +262,21 @@ func NewComposition(dependencies Dependencies) (http.Handler, error) {
 		}
 		seenHandlers[identity] = struct{}{}
 	}
+	// Seal discoverability to this router's actual production export surface.
+	// A copy keeps disabled/enabled routers and the original dependencies independent.
+	if session, ok := dependencies.Session.(*sessionHTTPHandler); ok {
+		local := *session
+		surface, installed := exports.(*auditExportProductionSurface)
+		local.auditExportsInstalled = installed && surface != nil && surface.repository != nil && !nilInterface(surface.Handler)
+		dependencies.Session = &local
+	}
 
 	operations := make([]Operation, 0, len(coreOperations))
 	for _, definition := range coreOperations {
 		handler := dependencyHandler(dependencies, definition.dependency)
+		if complianceHandler != nil && stringIn(definition.OperationID, "listComplianceControls", "listComplianceEvidence") {
+			handler = complianceHandler
+		}
 		security := make([]CredentialKind, 0, len(definition.Security))
 		for _, scheme := range definition.Security {
 			switch scheme {
@@ -250,10 +291,34 @@ func NewComposition(dependencies Dependencies) (http.Handler, error) {
 		requireCSRF := definition.OperationID == "signOutSession" || definition.OperationID == "switchSessionScope" || isMutation(definition.Method) && len(security) > 0
 		operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: definition.Permission, Security: security, RequireCSRF: requireCSRF, RequireFreshAuth: requiresFreshAuthentication(definition.OperationID), Handler: handler})
 	}
+	if exports != nil {
+		operations = append(operations,
+			Operation{Method: http.MethodPost, Pattern: "/api/v1/audit-exports", OperationID: "createAuditExport", Permission: "view_audit", Security: []CredentialKind{CredentialBrowserSession}, RequireCSRF: true, RequireFreshAuth: true, Handler: exports},
+			Operation{Method: http.MethodGet, Pattern: "/api/v1/audit-exports/{id}", OperationID: "getAuditExport", Permission: "view_audit", Security: []CredentialKind{CredentialBrowserSession}, Handler: exports},
+		)
+	}
+	seenOperations := make(map[string]bool, len(operations))
+	if complianceHandler != nil {
+		for _, definition := range complianceOperations {
+			operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: "view_compliance", Security: []CredentialKind{CredentialBrowserSession}, RequireCSRF: definition.Method == http.MethodPost, RequireFreshAuth: definition.OperationID == "createComplianceExport", Handler: complianceHandler})
+		}
+	}
+	if agentExportHandler != nil {
+		for _, definition := range securityAgentExportOperations {
+			operations = append(operations, Operation{Method: definition.Method, Pattern: definition.Pattern, OperationID: definition.OperationID, Permission: "view", Security: []CredentialKind{CredentialBrowserSession}, RequireCSRF: definition.Method == http.MethodPost, Handler: agentExportHandler})
+		}
+	}
+	for _, operation := range operations {
+		if seenOperations[operation.OperationID] {
+			return nil, ErrInvalidComposition
+		}
+		seenOperations[operation.OperationID] = true
+	}
 	router, err := NewRouter(operations)
 	if err != nil {
 		return nil, errors.Join(ErrInvalidComposition, err)
 	}
+	router.(*operationRouter).authorizer = dependencies.Authorizer
 	return router, nil
 }
 

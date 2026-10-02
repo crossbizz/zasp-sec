@@ -1,0 +1,435 @@
+diff --git a/app/features/sessions/SessionsComplianceView.tsx b/app/features/sessions/SessionsComplianceView.tsx
+index b6fcf29d..3307faf6 100644
+--- a/app/features/sessions/SessionsComplianceView.tsx
++++ b/app/features/sessions/SessionsComplianceView.tsx
+@@ -8,6 +8,7 @@ import { loadAllCursorPages } from "../../../apps/web/api/pagination";
+ import { useOptionalSession } from "../../auth/SessionProvider";
+ import { Badge, Button, Card, EmptyState, Field, LoadingState, PageHeader } from "../../components/ui";
+ import { ComplianceEvidenceView, type ComplianceViewProps } from "./ComplianceEvidenceView";
++import type { ComplianceReadMode } from "./compliance-api";
+ 
+ type Surface = "sessions" | "compliance" | "data-controls";
+ type SessionItem = SessionPage["items"][number];
+@@ -17,7 +18,7 @@ export interface SessionsComplianceAPI {
+   listSessions(): Promise<readonly HydratedSession[]>;
+   revokeSession(id: string, version: number): Promise<void>;
+   listControls(signal?: AbortSignal): Promise<ComplianceControlPage["items"]>;
+-  listEvidence(signal?: AbortSignal): Promise<ComplianceEvidencePage["items"]>;
++  listEvidence(signal: AbortSignal | undefined, mode: ComplianceReadMode): Promise<ComplianceEvidencePage["items"]>;
+   getDataControls(): Promise<DataControls>;
+   updateDataControls(value: DataControls): Promise<DataControls>;
+ }
+@@ -39,13 +40,13 @@ export function createSessionsComplianceAPI(client: APIClient): SessionsComplian
+       ), { maximumItems: 2_000, maximumPages: 20, signal });
+       return loaded.items;
+     },
+-    async listEvidence(signal) {
++    async listEvidence(signal, mode) {
+       const items: ComplianceEvidencePage["items"][number][] = [];
+       // Cursors bind their framework. Each framework starts its own chain and
+       // shares the effect's cancellation signal, including between chains.
+-      for (const framework of ["soc2_security", "hipaa"] as const) {
++      for (const framework of mode === "current" ? ["soc2_security", "hipaa"] as const : [undefined]) {
+         const loaded = await loadAllCursorPages(async (cursor) => requireAPIData<ComplianceEvidencePage>(
+-          await client.GET("/api/v1/compliance/evidence", { signal, params: { query: { framework, limit: 100, ...(cursor ? { cursor } : {}) } } }),
++          await client.GET("/api/v1/compliance/evidence", { signal, params: { query: { ...(framework ? { framework } : {}), limit: 100, ...(cursor ? { cursor } : {}) } } }),
+           decodeComplianceEvidencePage,
+         ), { maximumItems: 2_000, maximumPages: 20, signal });
+         items.push(...loaded.items);
+diff --git a/app/features/sessions/SessionsComplianceView.test.tsx b/app/features/sessions/SessionsComplianceView.test.tsx
+index 0f13c934..24134a24 100644
+--- a/app/features/sessions/SessionsComplianceView.test.tsx
++++ b/app/features/sessions/SessionsComplianceView.test.tsx
+@@ -65,6 +65,50 @@ function complianceClient(handle?: (request: Request) => Promise<Response | unde
+   } });
+ }
+ function response(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }); }
++const legacyControl = { id: "legacy-control", framework: "SOC 2", name: "Legacy seed", evidence_ids: ["legacy-evidence"], fresh_until: "2020-01-02T00:00:00Z" };
++const legacyEvidence = { control: legacyControl, freshness: "fresh", evidence: [{ id: "legacy-evidence", asset_id: "legacy-asset", source: "runtime", at: "2020-01-01T00:00:00+00:00" }] };
++describe("compliance retained-service compatibility", () => {
++  it("keeps populated legacy reads usable through the real adapter and strict cursor/limit query contract", async () => {
++    const requests: URL[] = [];
++    const client = createAPIClient({ fetch: async request => {
++      const url = new URL(request.url); requests.push(url);
++      if ([...url.searchParams.keys()].some(key => !["cursor", "limit"].includes(key))) return response({ code: "invalid_request", message: "Invalid request", correlation_id: principal, retryable: false }, 400);
++      return response({ items: [url.pathname.endsWith("/controls") ? legacyControl : legacyEvidence], page_info: { has_more: false, next_cursor: null } });
++    } });
++    render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
++    expect(await screen.findByText(/legacy-asset/)).toBeVisible();
++    expect(screen.getByText("Legacy evidence (current freshness unavailable)")).toBeVisible();
++    expect(screen.getByText("Evidence exports unavailable")).toBeVisible();
++    expect(screen.queryByText("fresh", { exact: true })).not.toBeInTheDocument();
++    expect(screen.queryByRole("button", { name: "Create evidence export" })).not.toBeInTheDocument();
++    expect(requests.map(url => url.pathname)).toEqual(["/api/v1/compliance/controls", "/api/v1/compliance/evidence"]);
++    expect(requests.every(url => !url.searchParams.has("framework"))).toBe(true);
++  });
++  it("treats empty controls as unfiltered legacy without inventing current support", async () => {
++    const evidenceQueries: string[] = [];
++    const client = complianceClient(async request => { const url = new URL(request.url); if (url.pathname.endsWith("/evidence")) evidenceQueries.push(url.search); return response({ items: [], page_info: { has_more: false, next_cursor: null } }); });
++    render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
++    expect(await screen.findByText("Evidence exports unavailable")).toBeVisible();
++    expect(evidenceQueries).toEqual(["?limit=100"]);
++    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
++  });
++  it("rejects mixed current/legacy controls before reading evidence", async () => {
++    let evidenceReads = 0;
++    const client = complianceClient(async request => { if (new URL(request.url).pathname.endsWith("/evidence")) { evidenceReads++; return undefined; } return response({ items: [control, legacyControl], page_info: { has_more: false, next_cursor: null } }); });
++    render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
++    expect(await screen.findByRole("alert")).toHaveTextContent("Compliance request failed");
++    expect(evidenceReads).toBe(0);
++    expect(screen.queryByRole("button", { name: "Create evidence export" })).not.toBeInTheDocument();
++  });
++  it.each([[401, "authentication_required"], [403, "forbidden"], [409, "scope_stale"], [503, "service_unavailable"]] as const)("never downgrades a controls failure %s into legacy reads", async (status, code) => {
++    const paths: string[] = [];
++    const client = createAPIClient({ fetch: async request => { paths.push(new URL(request.url).pathname); return response({ code, message: "Request denied", correlation_id: principal, retryable: status === 409 || status === 503 }, status); } });
++    render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
++    await screen.findByRole("alert");
++    expect(paths).toEqual(["/api/v1/compliance/controls"]);
++    expect(screen.queryByText(/Legacy evidence \(/)).not.toBeInTheDocument();
++  });
++});
+ describe("current compliance UI", () => {
+   it("loads populated HIPAA and SOC2 with independent cursor chains through the mounted client", async () => {
+     const seen: string[] = [];
+@@ -88,20 +132,22 @@ describe("current compliance UI", () => {
+     expect(screen.getByRole("link", { name: "Open policy policy-production version 2" })).toHaveAttribute("href", expect.stringContaining("source_kind=policy&source_id=policy-production&source_version=2"));
+     expect(screen.queryByText("soc2_security · Policy definitions")).not.toBeInTheDocument();
+   });
+-  it.each([["scope", 1], ["principal", 1], ["scope", 2], ["principal", 2]] as const)("cancels obsolete %s list page %s before a continuation starts", async (replacement, pendingPage) => {
++  it.each((["controls", "soc2_security", "hipaa"] as const).flatMap(chain => [["scope", 1, chain], ["principal", 1, chain], ["scope", 2, chain], ["principal", 2, chain]] as const))("cancels obsolete %s list page %s in %s before a continuation starts", async (replacement, pendingPage, chain) => {
+     const oldRequests: Request[] = [];
+     const releases: Array<(response: Response) => void> = [];
+     let replaced = false;
+     let obsoleteContinuations = 0;
+     const client = complianceClient(async request => {
+-      if (new URL(request.url).searchParams.get("cursor") === "obsolete-page-two") obsoleteContinuations++;
++      const url = new URL(request.url);
++      if (url.searchParams.get("cursor") === "obsolete-page-two") obsoleteContinuations++;
+       if (replaced) return undefined;
++      if ((url.pathname.endsWith("/controls") ? "controls" : url.searchParams.get("framework")) !== chain) return undefined;
+       if (pendingPage === 2 && !new URL(request.url).searchParams.has("cursor")) return response({ items: [], page_info: { has_more: true, next_cursor: "first-continuation" } });
+       oldRequests.push(request);
+       return new Promise(resolve => releases.push(resolve));
+     });
+     const view = render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
+-    await waitFor(() => expect(releases).toHaveLength(2));
++    await waitFor(() => expect(releases).toHaveLength(1));
+     replaced = true;
+     const next = { ...boundary, generation: 2, ...(replacement === "scope" ? { workspaceID: principal } : { principalID: environment }) };
+     view.rerender(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={next} />);
+@@ -110,24 +156,29 @@ describe("current compliance UI", () => {
+       releases.forEach((release, i) => release(response({ items: new URL(oldRequests[i].url).pathname.endsWith("/controls") ? [control] : [{ control, freshness: "fresh", evidence: [record] }], page_info: { has_more: true, next_cursor: "obsolete-page-two" } })));
+     });
+     expect(oldRequests.every(request => request.signal.aborted)).toBe(true);
+-    expect(oldRequests).toHaveLength(2);
++    expect(oldRequests).toHaveLength(1);
+     expect(obsoleteContinuations).toBe(0);
+   });
+-  it.each([
++  it.each((["controls", "soc2_security", "hipaa"] as const).flatMap(chain => ([
+     ["scope", 401, "authentication_required", "Authentication required", false],
+     ["principal", 401, "authentication_required", "Authentication required", false],
+     ["scope", 409, "scope_stale", "Session scope changed; rebootstrap required", true],
+     ["principal", 409, "scope_stale", "Session scope changed; rebootstrap required", true],
+-  ] as const)("refuses obsolete %s %s errors before they can invalidate replacement authority", async (replacement, status, code, message, retryable) => {
++  ] as const).map(values => [...values, chain] as const)))("refuses obsolete %s %s errors before they can invalidate replacement authority (%s/%s/%s/%s)", async (replacement, status, code, message, retryable, chain) => {
+     let replaced = false, invalidations = 0;
+     const releases: Array<(response: Response) => void> = [];
+     const client = createAPIClient({
+       onSessionExpired: () => { invalidations++; },
+       onScopeStale: () => { invalidations++; },
+-      fetch: async () => replaced ? response({ items: [], page_info: { has_more: false, next_cursor: null } }) : new Promise(resolve => releases.push(resolve)),
++      fetch: async request => {
++        if (replaced) return response({ items: [], page_info: { has_more: false, next_cursor: null } });
++        const url = new URL(request.url);
++        if ((url.pathname.endsWith("/controls") ? "controls" : url.searchParams.get("framework")) !== chain) return response({ items: url.pathname.endsWith("/controls") ? [control] : [], page_info: { has_more: false, next_cursor: null } });
++        return new Promise(resolve => releases.push(resolve));
++      },
+     });
+     const view = render(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={boundary} />);
+-    await waitFor(() => expect(releases).toHaveLength(2));
++    await waitFor(() => expect(releases).toHaveLength(1));
+     replaced = true;
+     view.rerender(<SessionsComplianceView surface="compliance" client={client} complianceBoundary={{ ...boundary, generation: 2, ...(replacement === "scope" ? { workspaceID: principal } : { principalID: environment }) }} />);
+     await screen.findByText("Evidence exports unavailable");
+diff --git a/app/features/sessions/ComplianceEvidenceView.tsx b/app/features/sessions/ComplianceEvidenceView.tsx
+index 4a80295b..345f9f6b 100644
+--- a/app/features/sessions/ComplianceEvidenceView.tsx
++++ b/app/features/sessions/ComplianceEvidenceView.tsx
+@@ -6,7 +6,7 @@ import type { ActivityScope } from "../../domain/activity-links";
+ import { complianceLink } from "../../domain/compliance-links";
+ import { Badge, Button, Card, LoadingState, PageHeader } from "../../components/ui";
+ import type { SessionsComplianceAPI } from "./SessionsComplianceView";
+-import { createComplianceAPI } from "./compliance-api";
++import { complianceReadMode, createComplianceAPI } from "./compliance-api";
+ 
+ export type ComplianceBoundary = ActivityScope & { principalID: string; generation: number; permitted: boolean; fresh: boolean; isCurrent(): boolean; reauthenticate?(): void };
+ export type ComplianceViewProps = { api: SessionsComplianceAPI | null; client?: APIClient; complianceBoundary?: ComplianceBoundary; selectedSource?: ComplianceEvidenceTarget; onNavigate?(path: string): void };
+@@ -75,7 +75,10 @@ function ComplianceEvidenceContent({ api, client, complianceBoundary: boundary,
+           if (valid()) setDetail(value);
+         } else {
+           if (!api) throw new Error();
+-          const [nextControls, nextEvidence] = await Promise.all([api.listControls(controller.signal), api.listEvidence(controller.signal)]);
++          const nextControls = await api.listControls(controller.signal);
++          controller.signal.throwIfAborted();
++          if (!valid()) return;
++          const nextEvidence = await api.listEvidence(controller.signal, complianceReadMode(nextControls));
+           if (valid()) { setControls(nextControls); setEvidence(nextEvidence); }
+         }
+       } catch (e) { if (valid()) setError(message(e)); }
+diff --git a/app/features/sessions/compliance-api.ts b/app/features/sessions/compliance-api.ts
+index a0731913..1559dab6 100644
+--- a/app/features/sessions/compliance-api.ts
++++ b/app/features/sessions/compliance-api.ts
+@@ -1,8 +1,18 @@
+ import { APITransportError, requireAPIData, type APIClient } from "../../../apps/web/api/client";
+ import { decodeComplianceDownloadGrant, decodeComplianceEvidenceDetail, decodeComplianceExport } from "../../../apps/web/api/compliance-decoders";
+-import type { ComplianceDownloadFormat, ComplianceEvidenceTarget, ComplianceExportInput } from "../../../apps/web/api/generated";
++import type { ComplianceControl, ComplianceDownloadFormat, ComplianceEvidenceTarget, ComplianceExportInput } from "../../../apps/web/api/generated";
+ import type { ActivityScope } from "../../domain/activity-links";
+ 
++export type ComplianceReadMode = "current" | "legacy";
++// Strictly decoded live controls carry authoritative freshness; retained seed
++// controls omit it. Empty data cannot assert current-service support. Do not
++// turn mixed responses or authorization/read errors into a compatibility retry.
++export function complianceReadMode(controls: readonly ComplianceControl[]): ComplianceReadMode {
++  const current = controls.filter(control => control.freshness !== undefined).length;
++  if (current !== 0 && current !== controls.length) throw new APITransportError("invalid_response", "Mixed compliance control authority");
++  return current > 0 ? "current" : "legacy";
++}
++
+ export function createComplianceAPI(client: APIClient, scope: ActivityScope) {
+   return {
+     async detail(target: ComplianceEvidenceTarget, signal: AbortSignal) {
+diff --git a/apps/web/api/compliance-decoders.test.ts b/apps/web/api/compliance-decoders.test.ts
+index b4e26402..abec750e 100644
+--- a/apps/web/api/compliance-decoders.test.ts
++++ b/apps/web/api/compliance-decoders.test.ts
+@@ -24,7 +24,7 @@ describe("compliance current contracts",()=>{
+    if(next)expect(next).toBe(cursor);
+    return new Response(JSON.stringify(next?{items:[],page_info:{has_more:false,next_cursor:null}}:first),{headers:{"Content-Type":"application/json"}});
+   }});
+-  expect((await createSessionsComplianceAPI(client).listEvidence())[0].evidence[0].target?.source_id).toBe(id);
++  expect((await createSessionsComplianceAPI(client).listEvidence(undefined,"current"))[0].evidence[0].target?.source_id).toBe(id);
+  });
+  it("validates authoritative freshness when present on direct live controls",()=>{
+   const control={id:"soc2_security-policies",framework:"soc2_security",name:"Policy definitions",evidence_ids:[],fresh_until:"1970-01-01T00:00:00Z",freshness:"missing"};
+@@ -44,15 +44,24 @@ describe("compliance current contracts",()=>{
+   const item={control:{id:"soc2_security-policies",framework:"soc2_security",name:"Policy definitions",evidence_ids:["policy-001"],fresh_until:"2026-01-03T00:00:00Z",freshness:"stale"},freshness:"stale",evidence:[record]};
+   expect(decodeComplianceEvidencePage({items:[item],page_info:{has_more:false,next_cursor:null}}).items[0].evidence[0].target?.source_id).toBe("policy-001");
+  });
++ it("accepts retained PostgreSQL offset timestamps only on untargeted legacy records",()=>{
++  const legacy={control:{id:"access-control",name:"Logical access controls",framework:"SOC 2",fresh_until:"2026-09-20T00:00:00+00:00",evidence_ids:["evidence-membership"]},evidence:[{at:"2026-09-19T00:00:00+00:00",id:"evidence-membership",source:"product-membership",asset_id:"asset-member"}],freshness:"fresh"};
++  const page={items:[legacy],page_info:{has_more:false,next_cursor:null}};
++  expect(decodeComplianceEvidencePage(page).items[0].evidence[0].at).toBe("2026-09-19T00:00:00+00:00");
++  for(const at of ["2026-09-18T17:00:00-07:00","2026-09-19T05:30:00+05:30"])expect(decodeComplianceEvidencePage({...page,items:[{...legacy,evidence:[{...legacy.evidence[0],at}]}]}).items[0].evidence[0].at).toBe(at);
++  for(const at of ["2026-02-31T00:00:00+00:00","2026-09-19T00:00:00+24:00","2026-09-19T00:00:00+05:60","2026-09-19T00:00:00"] )expect(()=>decodeComplianceEvidencePage({...page,items:[{...legacy,evidence:[{...legacy.evidence[0],at}]}]})).toThrow();
++  expect(()=>decodeComplianceEvidenceDetail({...detail,record:{...record,at:"2026-01-02T00:00:00+00:00"}},scope)).toThrow();
++  expect(()=>decodeComplianceEvidencePage({...page,items:[{...legacy,evidence:[{...record,at:"2026-01-02T00:00:00+00:00"}]}]})).toThrow();
++ });
+  it("rejects scope changes, untyped detail and source metadata outside its allowlist",()=>{
+   for(const value of [{...detail,environment_id:scope.workspace_id},{...detail,record:{...record,target:undefined}},{...detail,record:{...record,metadata:{verification:"definition_only",prompt:"private"}}},{...detail,record:{...record,target:{...record.target,source_kind:"unknown"}}},{...detail,record:{...record,target:{...record.target,source_id:"policy-other"}}}]) expect(()=>decodeComplianceEvidenceDetail(value,scope)).toThrow();
+  });
+  it("bounds public jobs and body-only download grants",()=>{
+   const job={id:scope.organization_id,status:"pending",formats:["json","csv","human"],created_at:"2026-09-18T00:00:00Z",expires_at:"2026-09-19T00:00:00Z",failure_code:null,mapping_revision:"product-evidence-v1"};
+   expect(decodeComplianceExport(job).status).toBe("pending");
+-  for(const value of [{...job,reference:"s3://private"},{...job,id:"export-caller"},{...job,status:"uploading"},{...job,expires_at:job.created_at}])expect(()=>decodeComplianceExport(value)).toThrow();
++  for(const value of [{...job,reference:"s3://private"},{...job,id:"export-caller"},{...job,status:"uploading"},{...job,expires_at:job.created_at},{...job,created_at:"2026-09-18T00:00:00+00:00"}])expect(()=>decodeComplianceExport(value)).toThrow();
+   const grant={token:"a".repeat(64),format:"human",expires_at:job.expires_at};expect(decodeComplianceDownloadGrant(grant).format).toBe("human");
+-  for(const value of [{...grant,format:"readable"},{...grant,url:"https://private"},{...grant,token:"short"}])expect(()=>decodeComplianceDownloadGrant(value)).toThrow();
++  for(const value of [{...grant,format:"readable"},{...grant,url:"https://private"},{...grant,token:"short"},{...grant,expires_at:"2026-09-19T00:00:00+00:00"}])expect(()=>decodeComplianceDownloadGrant(value)).toThrow();
+  });
+  it("rejects calendar overflow instead of normalizing source timestamps",()=>{
+   expect(()=>decodeComplianceEvidenceDetail({...detail,record:{...record,at:"2026-02-31T00:00:00Z"}},scope)).toThrow();
+diff --git a/services/platform/agentsec-api/compliance_composition_test.go b/services/platform/agentsec-api/compliance_composition_test.go
+index 223a8038..7fc9da73 100644
+--- a/services/platform/agentsec-api/compliance_composition_test.go
++++ b/services/platform/agentsec-api/compliance_composition_test.go
+@@ -33,6 +33,9 @@ type complianceRuntimeDatabase struct {
+ }
+ 
+ func (d *complianceRuntimeDatabase) QueryJSON(ctx context.Context, q string, a ...any) (json.RawMessage, error) {
++	if strings.Contains(q, "FROM zasp_compliance_evidence AS evidence JOIN") {
++		return json.RawMessage(`{"items":[{"control":{"id":"legacy-control","framework":"SOC 2","name":"Legacy seed","evidence_ids":["legacy-evidence"],"fresh_until":"2020-01-02T00:00:00Z"},"freshness":"stale","evidence":[{"id":"legacy-evidence","asset_id":"legacy-asset","source":"runtime","at":"2020-01-01T00:00:00Z"}]}]}`), nil
++	}
+ 	if strings.Contains(q, "FROM zasp_compliance_controls AS control") {
+ 		return json.RawMessage(`{"items":[{"id":"legacy-control","framework":"SOC 2","name":"Legacy seed","evidence_ids":[],"fresh_until":"2020-01-02T00:00:00Z"}]}`), nil
+ 	}
+@@ -40,15 +43,33 @@ func (d *complianceRuntimeDatabase) QueryJSON(ctx context.Context, q string, a .
+ 		return json.RawMessage(`false`), nil
+ 	}
+ 	if strings.HasPrefix(q, `SELECT public.zasp_compliance_read(`) {
+-		return json.RawMessage(`{"id":"policy-live","asset":"policy-live","source":"policy","timestamp":"2026-09-18T00:00:00Z","organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","target":{"source_kind":"policy","source_id":"policy-live","source_version":1},"freshness":"fresh","metadata":{"verification":"definition_only"}}`), nil
++		record := `{"id":"policy-live","asset":"policy-live","source":"policy","timestamp":"2026-09-18T00:00:00Z","organization_id":"pid_10000001-0000-4000-8000-000000000001","workspace_id":"pid_10000002-0000-4000-8000-000000000002","environment_id":"pid_10000003-0000-4000-8000-000000000003","target":{"source_kind":"policy","source_id":"policy-live","source_version":1},"freshness":"fresh","metadata":{"verification":"definition_only"}}`
++		if a[5] == "getEvidence" {
++			return json.RawMessage(record), nil
++		}
++		if a[5] == "listControls" {
++			framework := "soc2_security"
++			if strings.Contains(string(a[6].(json.RawMessage)), "hipaa") {
++				framework = "hipaa"
++			}
++			record = `{"framework":"` + framework + `","control_id":"` + framework + `-policies","label":"Policy definitions","required_sources":["policy"],"maximum_age_seconds":86400,"freshness":"fresh","fresh_until":"2026-09-19T00:00:00Z"}`
++		}
++		return json.RawMessage(`{"mapping_revision":"product-evidence-v1","collected_at":"2026-09-18T00:00:00Z","items":[` + record + `],"next_cursor":null}`), nil
+ 	}
+ 	return d.auditExportRuntimeDatabase.QueryJSON(ctx, q, a...)
+ }
+ func TestComplianceAPIProductionComposition(t *testing.T) {
+ 	t.Setenv("HOSTNAME", "compliance-runtime-test")
+-	for _, mode := range []string{"installed", "disabled", "unregistered"} {
++	for _, mode := range []string{"installed", "disabled", "absent", "unregistered"} {
+ 		t.Run(mode, func(t *testing.T) {
+ 			v := complianceAPIEnvironment()
++			if mode == "absent" {
++				for key := range v {
++					if strings.HasPrefix(key, "ZASP_COMPLIANCE_EXPORT_") {
++						delete(v, key)
++					}
++				}
++			}
+ 			c, err := loadRuntimeConfigFromEnvironment(func(k string) (string, bool) { s, ok := v[k]; return s, ok })
+ 			if err != nil {
+ 				t.Fatal(err)
+@@ -87,7 +108,7 @@ func TestComplianceAPIProductionComposition(t *testing.T) {
+ 			if !strings.Contains(capture.String(), `"event":"http_request"`) {
+ 				t.Fatal("request telemetry was not captured")
+ 			}
+-			if mode == "disabled" {
++			if mode == "disabled" || mode == "absent" {
+ 				if w.Code != 404 {
+ 					t.Fatalf("disabled route %d", w.Code)
+ 				}
+@@ -96,11 +117,31 @@ func TestComplianceAPIProductionComposition(t *testing.T) {
+ 				if legacy.Code != 200 || !strings.Contains(legacy.Body.String(), `"id":"legacy-control"`) || strings.Contains(legacy.Body.String(), `"freshness"`) {
+ 					t.Fatalf("disabled legacy compatibility %d %s", legacy.Code, legacy.Body)
+ 				}
++				for _, query := range []string{"?limit=100", "?limit=100&framework=soc2_security"} {
++					page := httptest.NewRecorder()
++					deps.ProductHandler.ServeHTTP(page, publicPageRuntimeRequest(c, "/api/v1/compliance/evidence"+query))
++					if strings.Contains(query, "framework") {
++						if page.Code != 400 {
++							t.Fatalf("legacy accepted unsupported framework: %d %s", page.Code, page.Body)
++						}
++						continue
++					}
++					if page.Code != 200 || !strings.Contains(page.Body.String(), `"id":"legacy-evidence"`) || strings.Contains(page.Body.String(), `"target"`) {
++						t.Fatalf("legacy evidence: %d %s", page.Code, page.Body)
++					}
++				}
+ 				return
+ 			}
+ 			if w.Code != 200 || !strings.Contains(w.Body.String(), `"source_id":"policy-live"`) {
+ 				t.Fatalf("production route %d %s", w.Code, w.Body)
+ 			}
++			for _, route := range []string{"/api/v1/compliance/controls?limit=100", "/api/v1/compliance/evidence?limit=100&framework=soc2_security", "/api/v1/compliance/evidence?limit=100&framework=hipaa"} {
++				page := httptest.NewRecorder()
++				deps.ProductHandler.ServeHTTP(page, publicPageRuntimeRequest(c, route))
++				if page.Code != 200 || !strings.Contains(page.Body.String(), `"freshness":"fresh"`) {
++					t.Fatalf("installed current signal: %s %d %s", route, page.Code, page.Body)
++				}
++			}
+ 			found := false
+ 			for _, s := range deps.Stores {
+ 				if s.Name == "aws-s3-compliance-exports" && s.Durable {
+diff --git a/services/platform/agentsec-api/compliance_browser_process_test.go b/services/platform/agentsec-api/compliance_browser_process_test.go
+index 53e499d1..a9ed404e 100644
+--- a/services/platform/agentsec-api/compliance_browser_process_test.go
++++ b/services/platform/agentsec-api/compliance_browser_process_test.go
+@@ -75,7 +75,8 @@ func TestComplianceBrowserAPIProcess(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if auditBrowserProcessInputs(config, os.Getenv("ZASP_COMPLIANCE_BROWSER_PG_PORT")) != nil || config.ComplianceExports == nil {
++	legacy := os.Getenv("ZASP_COMPLIANCE_BROWSER_LEGACY") == "true"
++	if auditBrowserProcessInputs(config, os.Getenv("ZASP_COMPLIANCE_BROWSER_PG_PORT")) != nil || (config.ComplianceExports == nil) != legacy {
+ 		t.Fatal("owned database/config refused")
+ 	}
+ 	path := os.Getenv("ZASP_COMPLIANCE_BROWSER_OBJECT")
+@@ -91,6 +92,9 @@ func TestComplianceBrowserAPIProcess(t *testing.T) {
+ 	ctx, cancel := context.WithDeadline(ctx, deadline)
+ 	defer cancel()
+ 	factory := func(c RuntimeConfig) (complianceStorageResources, error) {
++		if legacy {
++			return complianceStorageResources{}, errors.New("disabled compliance service invoked storage factory")
++		}
+ 		provider := s3.New(s3.Options{Region: "us-east-1", BaseEndpoint: aws.String("https://controlled.invalid"), UsePathStyle: true, Credentials: aws.AnonymousCredentials{}, HTTPClient: &http.Client{Transport: complianceBrowserReadTransport{path}}})
+ 		p := c.ComplianceExports
+ 		return complianceStorageResources{config: apiserver.ComplianceHandlerConfiguration{Bucket: p.Bucket, ExpectedBucketOwner: p.Owner, KMSKeyARN: p.KMSKey, Client: provider, ProviderTimeout: c.ProviderTimeout}, transport: &http.Transport{}}, nil
+diff --git a/scripts/production-combined-e2e.mjs b/scripts/production-combined-e2e.mjs
+index 59fda9d9..be0d10e8 100644
+--- a/scripts/production-combined-e2e.mjs
++++ b/scripts/production-combined-e2e.mjs
+@@ -2147,8 +2147,8 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
+   identity=await startIdentityServer(identityPort,publicOrigin); policyHistory=await startPolicyHistoryServer(policyHistoryPort);
+   const apiEnvironment={...combinedAPIEnvironment({...configuration,publicOrigin}), ZASP_COMPLIANCE_BROWSER_API:"true", ZASP_COMPLIANCE_BROWSER_PG_PORT:String(postgresPort), ZASP_COMPLIANCE_BROWSER_OBJECT:object,ZASP_COMPLIANCE_BROWSER_DEADLINE:new Date(Date.now()+20*60_000).toISOString(),
+     ZASP_COMPLIANCE_EXPORT_BUCKET:"zasp-compliance-exports", ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER:"123456789012",ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN:"arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111",ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN:"arn:aws:iam::123456789012:role/compliance-api-reader",ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE:"/var/run/secrets/eks.amazonaws.com/serviceaccount/token"};
+-  const startAPI=async()=>{api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:apiEnvironment});try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(e){throw new Error(`${e.message}; ${api.output()}`);}};
+-  await startAPI();
++  const startAPI=async(enabled=true)=>{const environment={...apiEnvironment};if(!enabled){for(const key of Object.keys(environment))if(key.startsWith("ZASP_COMPLIANCE_EXPORT_"))delete environment[key];environment.ZASP_COMPLIANCE_BROWSER_LEGACY="true";}api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:environment});try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(e){throw new Error(`${e.message}; ${api.output()}`);}};
++  await startAPI(false);
+   web=startChild(path.join(root,"node_modules/.bin/vinext"),["start","--port",String(webPort),"--hostname","127.0.0.1"],{cwd:root});
+   await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`,200);
+   const key=path.join(temporaryRoot,"compliance-tls.key"),certificate=path.join(temporaryRoot,"compliance-tls.crt");
+@@ -2178,6 +2178,22 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
+       assert.equal(state.exportAction,true,label+" export action not mounted");
+     }
+   };
++  const legacyText=await waitForBrowserText(cdp,/evidence-membership/).catch(async error=>{await writeFile(path.join(storage,"legacy-failure-trace.json"),JSON.stringify(complianceResponseTrace,null,2));console.log("legacy failure trace: "+JSON.stringify(complianceResponseTrace));throw error;});
++  assert.match(legacyText,/Legacy evidence \(current freshness unavailable\)/);
++  assert.match(legacyText,/product-membership/);
++  assert.doesNotMatch(legacyText,/Create evidence export/);
++  const legacyRequests=complianceResponseTrace.filter(entry=>entry.path==="/api/v1/compliance/evidence");
++  assert.ok(legacyRequests.length>0,"retained legacy evidence was not read");
++  assert.ok(legacyRequests.every(entry=>!entry.framework&&entry.status===200),"legacy adapter sent unsupported framework filters");
++  const legacyScope=`${org}/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003`;
++  const legacyWire=await browserFetchJSON(cdp,"/api/v1/compliance/evidence?limit=100",{"X-Zasp-Expected-Scope":legacyScope});
++  assert.equal(legacyWire.status,200);assert.match(legacyWire.body.items[0].evidence[0].at,/[+-]\d{2}:\d{2}$/);
++  const legacyFiltered=await browserFetchJSON(cdp,"/api/v1/compliance/evidence?limit=100&framework=soc2_security",{"X-Zasp-Expected-Scope":legacyScope});
++  assert.equal(legacyFiltered.status,400,"legacy query allowlist must remain strict");
++  const legacyCapture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-legacy.png"),Buffer.from(legacyCapture.data,"base64"));
++  await continuity("legacy disabled service readable",legacyScope);
++  await stopChild(api);await startAPI();
++  await reloadBrowser(cdp);
+   await waitForBrowserText(cdp,/Create evidence export/);
+   await selectBrowserOption(cdp,"Authorized scope","Staging");
+   await waitForBrowserScope(cdp,selectedScope);
+@@ -2283,7 +2299,7 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
+   assert.equal(visibleExport.result.value,true,"final screenshot must include the export action");
+   assert.doesNotMatch(await browserStorageAndHistoryText(cdp),/compliance-process-v1|NEVER_EXPORT_BROWSER|"token"|arn:aws/);
+   const capture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-final.png"),Buffer.from(capture.data,"base64"));
+-  await writeFile(path.join(storage,"summary.json"),JSON.stringify({jobID,packageSHA256:pinned,nativeJSONBytes:saved.length,restartReadableBytes:Buffer.byteLength(readable),hipaaSourceDetail:true,maximumIDPaging:true,pagingRecordsRemovedBeforeExport:101,grantReplayRefused:true,siblingDenied:true,foreignDenied:true,sourceChanged:true,provider:"controlled local SDK transport, NOT AWS"},null,2));
++  await writeFile(path.join(storage,"summary.json"),JSON.stringify({jobID,packageSHA256:pinned,nativeJSONBytes:saved.length,restartReadableBytes:Buffer.byteLength(readable),legacyDisabledReads:true,legacyStrictQuery:true,disabledToEnabledReload:true,hipaaSourceDetail:true,maximumIDPaging:true,pagingRecordsRemovedBeforeExport:101,grantReplayRefused:true,siblingDenied:true,foreignDenied:true,sourceChanged:true,provider:"controlled local SDK transport, NOT AWS"},null,2));
+   assert.equal(proxyFailure,undefined);
+   console.log("compliance release56 browser acceptance: real session/API/worker/versioned artifact; source change, exact JSON/CSV/readable, worker/API restart, scope denial and grant replay passed; live AWS NOT RUN");
+ }
+diff --git a/apps/web/api/compliance-decoders.ts b/apps/web/api/compliance-decoders.ts
+index cdb06ae2..479e0d99 100644
+--- a/apps/web/api/compliance-decoders.ts
++++ b/apps/web/api/compliance-decoders.ts
+@@ -16,6 +16,12 @@ function date(v: unknown) {
+   if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(v) || !Number.isFinite(Date.parse(v)) || v.startsWith("0001-")) bad();
+   if (new Date(v).toISOString().slice(0, 19) !== v.slice(0, 19)) bad();
+ }
++function legacyDate(v: unknown) {
++  // Retained PostgreSQL JSON uses RFC3339 numeric offsets. Validate the local
++  // calendar separately from its offset, without normalizing the returned wire.
++  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(v) || !Number.isFinite(Date.parse(v))) bad();
++  date(v.replace(/[+-]\d{2}:\d{2}$/, "Z"));
++}
+ function target(value: unknown) {
+   const t = exact(value, ["source_kind", "source_id", "source_version"]); integer(t.source_version); text(t.source_id, 128);
+   switch (t.source_kind) {
+@@ -28,8 +34,10 @@ function target(value: unknown) {
+   return t;
+ }
+ export function decodeComplianceRecord(value: unknown, requireTarget = false): EvidenceRecord {
+-  const v = exact(value, ["id", "asset_id", "source", "at"], ["target", "metadata"]); text(v.id, 128); text(v.asset_id, 128); text(v.source, 64); date(v.at);
+-  if (requireTarget || Object.hasOwn(v, "target") || Object.hasOwn(v, "metadata")) {
++  const v = exact(value, ["id", "asset_id", "source", "at"], ["target", "metadata"]); text(v.id, 128); text(v.asset_id, 128); text(v.source, 64);
++  const current = requireTarget || Object.hasOwn(v, "target") || Object.hasOwn(v, "metadata");
++  if (current) date(v.at); else legacyDate(v.at);
++  if (current) {
+     const t = target(v.target); if (t.source_id !== v.id || v.asset_id !== v.id) bad(); let family: string;
+     switch (t.source_kind) {
+       case "policy": { family = "policy"; const m = exact(v.metadata, ["verification"]); one(m.verification, ["definition_only"]); break; }

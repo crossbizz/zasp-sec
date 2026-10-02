@@ -1,0 +1,61 @@
+Command:
+/usr/local/bin/docker run --rm --name zasp-export-db-red-20260919 --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(Authority|Release|Lifecycle|StoppedSettlement)Postgres$' -test.v -test.timeout 300s
+Exit: 0
+=== RUN   TestSecurityAgentExportLifecyclePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportLifecyclePostgres216480932/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportLifecyclePostgres (7.12s)
+=== RUN   TestSecurityAgentExportStoppedSettlementPostgres
+=== RUN   TestSecurityAgentExportStoppedSettlementPostgres/needs_human
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=55 data=/tmp/TestSecurityAgentExportStoppedSettlementPostgresneeds_human163366137/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportStoppedSettlementPostgres/cancelled
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=85 data=/tmp/TestSecurityAgentExportStoppedSettlementPostgrescancelled296027355/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportStoppedSettlementPostgres (11.56s)
+    --- PASS: TestSecurityAgentExportStoppedSettlementPostgres/needs_human (5.85s)
+    --- PASS: TestSecurityAgentExportStoppedSettlementPostgres/cancelled (5.71s)
+=== RUN   TestSecurityAgentExportAuthorityPostgres
+=== RUN   TestSecurityAgentExportAuthorityPostgres/empty
+=== RUN   TestSecurityAgentExportAuthorityPostgres/duplicate
+=== RUN   TestSecurityAgentExportAuthorityPostgres/101
+=== RUN   TestSecurityAgentExportAuthorityPostgres/unrelated_same_tenant
+=== RUN   TestSecurityAgentExportAuthorityPostgres/forged_run_prefix
+=== RUN   TestSecurityAgentExportAuthorityPostgres/stale_version
+=== RUN   TestSecurityAgentExportAuthorityPostgres/forged_association
+=== RUN   TestSecurityAgentExportAuthorityPostgres/expired_lease
+=== RUN   TestSecurityAgentExportAuthorityPostgres/actor_revoked
+=== RUN   TestSecurityAgentExportAuthorityPostgres/workflow_permission_removed
+=== RUN   TestSecurityAgentExportAuthorityPostgres/current_finding_version_drift
+=== RUN   TestSecurityAgentExportAuthorityPostgres/definition_digest_drift
+=== RUN   TestSecurityAgentExportAuthorityPostgres/definition_disabled
+=== RUN   TestSecurityAgentExportAuthorityPostgres/action_disabled
+=== RUN   TestSecurityAgentExportAuthorityPostgres/foreign_org
+=== RUN   TestSecurityAgentExportAuthorityPostgres/foreign_workspace
+=== RUN   TestSecurityAgentExportAuthorityPostgres/foreign_environment
+=== RUN   TestSecurityAgentExportAuthorityPostgres/foreign_run
+=== RUN   TestSecurityAgentExportAuthorityPostgres/wrong_lease
+=== NAME  TestSecurityAgentExportAuthorityPostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=115 data=/tmp/TestSecurityAgentExportAuthorityPostgres3411613348/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportAuthorityPostgres (7.15s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/empty (0.16s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/duplicate (0.15s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/101 (0.09s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/unrelated_same_tenant (0.10s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/forged_run_prefix (0.10s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/stale_version (0.09s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/forged_association (0.09s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/expired_lease (0.09s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/actor_revoked (0.09s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/workflow_permission_removed (0.10s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/current_finding_version_drift (0.09s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/definition_digest_drift (0.09s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/definition_disabled (0.09s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/action_disabled (0.10s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/foreign_org (0.11s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/foreign_workspace (0.08s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/foreign_environment (0.08s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/foreign_run (0.09s)
+    --- PASS: TestSecurityAgentExportAuthorityPostgres/wrong_lease (0.13s)
+=== RUN   TestSecurityAgentExportReleasePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=147 data=/tmp/TestSecurityAgentExportReleasePostgres2423676387/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportReleasePostgres (6.85s)
+PASS
+

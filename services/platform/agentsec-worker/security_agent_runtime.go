@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"sync"
 	"time"
 
@@ -37,6 +40,9 @@ func newSecurityAgentProcessor(config securityAgentProcessorConfig) (*securityAg
 
 func (processor *securityAgentProcessor) RunOnce(ctx context.Context) error {
 	if processor == nil || ctx == nil || ctx.Err() != nil {
+		return errWorkerExecution
+	}
+	if err := processor.reconcileExportSettlements(ctx); err != nil {
 		return errWorkerExecution
 	}
 	if _, err := processor.config.Authority.ExpireSecurityAgentApprovals(ctx, processor.config.WorkerID, processor.config.BatchSize); err != nil {
@@ -93,6 +99,12 @@ func (processor *securityAgentProcessor) process(ctx context.Context, claim apis
 	if ctx.Err() != nil {
 		return nil
 	}
+	// A validated committed result (including a durable stop) may clear the
+	// lease while a heartbeat is in flight. An unconfirmed operation or an
+	// unrelated heartbeat outage must still fail; neither is proof of success.
+	if (operationErr == nil || errors.Is(operationErr, apiserver.ErrSecurityAgentBudgetStopped) || errors.Is(operationErr, apiserver.ErrSecurityAgentAttackLabPreflightStopped)) && (heartbeatErr == nil || errors.Is(heartbeatErr, apiserver.ErrRepositoryConflict)) {
+		return nil
+	}
 	if operationErr != nil || heartbeatErr != nil {
 		return errWorkerExecution
 	}
@@ -105,7 +117,25 @@ func (processor *securityAgentProcessor) processClaim(ctx context.Context, claim
 		if err != nil {
 			return err
 		}
-		_, err = processor.config.Authority.ExecuteSecurityAgentRun(ctx, claim, processor.config.WorkerID, leaseToken, ids[0], ids[1])
+		result, err := processor.config.Authority.ExecuteSecurityAgentRun(ctx, claim, processor.config.WorkerID, leaseToken, ids[0], ids[1])
+		if err == nil && result.ExportDispatch != nil {
+			if !validSecurityAgentExportDispatch(result, claim) {
+				return errWorkerExecution
+			}
+			return nil
+		}
+		if err == nil && result.State == "needs_human" {
+			if result.RunID != claim.RunID || result.Version <= claim.Version || result.Version > 1000000 || result.StepID != "" || result.EffectState != "" || result.OutcomeID != "" || result.ResultDigest != "" {
+				return errWorkerExecution
+			}
+			return apiserver.ErrSecurityAgentBudgetStopped
+		}
+		if err == nil {
+			validState := result.State == "remediated" && result.EffectState == "verified" || result.State == "running" && result.EffectState == "pending"
+			if !validState || result.RunID != claim.RunID || result.Version <= claim.Version || result.Version > 1000000 || !validSecurityAgentPlannerProductID(result.StepID) || !validSecurityAgentPlannerProductID(result.OutcomeID) || !providerAckPattern.MatchString(result.ResultDigest) {
+				return errWorkerExecution
+			}
+		}
 		return err
 	}
 	contextAuthority, err := processor.plannerAuthority.LoadSecurityAgentPlannerContext(ctx, claim, processor.config.WorkerID, leaseToken)
@@ -116,18 +146,39 @@ func (processor *securityAgentProcessor) processClaim(ctx context.Context, claim
 		OrganizationID: contextAuthority.OrganizationID, WorkspaceID: contextAuthority.WorkspaceID, EnvironmentID: contextAuthority.EnvironmentID, RunID: contextAuthority.RunID, DefinitionID: contextAuthority.DefinitionID,
 		Purpose: contextAuthority.Purpose, OperatorGoal: contextAuthority.OperatorGoal, CatalogVersion: contextAuthority.CatalogVersion, MaximumSteps: contextAuthority.MaximumSteps,
 		AllowedActions: append([]string(nil), contextAuthority.AllowedActions...), AllowedTargets: append([]string(nil), contextAuthority.AllowedTargets...),
+		ExportSelection: append([]apiserver.SecurityAgentExportSelection(nil), contextAuthority.ExportSelection...),
+	}
+	if contextAuthority.ExistingTest != nil {
+		reference := *contextAuthority.ExistingTest
+		plannerContext.ExistingTest = &reference
+	}
+	if contextAuthority.ManualTrigger != nil {
+		manual := *contextAuthority.ManualTrigger
+		plannerContext.ManualTrigger = &manual
+	}
+	// Only a bounded trusted digest reaches the model, not private evidence
+	// references or the raw safety/source snapshot. Strings clone by value.
+	if len(contextAuthority.AttackLab) != 0 {
+		digest := sha256.Sum256(contextAuthority.AttackLab)
+		plannerContext.AttackLabDigest = "sha256:" + hex.EncodeToString(digest[:])
 	}
 	plannerContext.Evidence = make([]securityAgentPlannerEvidence, len(contextAuthority.Evidence))
 	for index, evidence := range contextAuthority.Evidence {
 		plannerContext.Evidence[index] = securityAgentPlannerEvidence{ID: evidence.ID, Kind: evidence.Kind, Version: evidence.Version, Summary: evidence.Summary}
 	}
-	plannerResult := processor.config.Planner.Plan(ctx, plannerContext)
+	plannerResult, err := processor.planWithBudget(ctx, claim, leaseToken, contextAuthority.InputDigest, plannerContext)
+	if err != nil {
+		return err
+	}
 	if plannerResult.Failure != "" {
 		ids, idErr := processor.newProductIDs(2)
 		if idErr != nil {
 			return idErr
 		}
-		_, failErr := processor.plannerAuthority.FailSecurityAgentPlanner(ctx, claim, processor.config.WorkerID, leaseToken, apiserver.SecurityAgentPlannerFailure{InputDigest: contextAuthority.InputDigest, OutputDigest: plannerResult.OutputDigest, Model: plannerResult.Model, PolicyVersion: plannerResult.PolicyVersion, ErrorCode: string(plannerResult.Failure)}, ids[0], ids[1])
+		failed, failErr := processor.plannerAuthority.FailSecurityAgentPlanner(ctx, claim, processor.config.WorkerID, leaseToken, apiserver.SecurityAgentPlannerFailure{InputDigest: contextAuthority.InputDigest, OutputDigest: plannerResult.OutputDigest, Model: plannerResult.Model, PolicyVersion: plannerResult.PolicyVersion, ErrorCode: string(plannerResult.Failure)}, ids[0], ids[1])
+		if failErr == nil && (failed.RunID != claim.RunID || failed.State != "failed" || failed.Version <= claim.Version || failed.Version > 1000000 || failed.ErrorCode != string(plannerResult.Failure)) {
+			return errWorkerExecution
+		}
 		return failErr
 	}
 	if len(plannerResult.Candidate.Steps) != 1 {
@@ -139,7 +190,19 @@ func (processor *securityAgentProcessor) processClaim(ctx context.Context, claim
 	}
 	expiresAt := processor.config.Now().UTC().Add(15 * time.Minute).Truncate(time.Microsecond)
 	step := plannerResult.Candidate.Steps[0]
-	_, err = processor.plannerAuthority.AcceptSecurityAgentPlannerCandidate(ctx, claim, processor.config.WorkerID, leaseToken, apiserver.SecurityAgentPlannerSubmission{InputDigest: contextAuthority.InputDigest, OutputDigest: plannerResult.OutputDigest, Model: plannerResult.Model, PolicyVersion: plannerResult.PolicyVersion, Summary: plannerResult.Candidate.Summary, Action: step.Action, TargetID: step.TargetID}, ids[0], expiresAt, ids[1], ids[2])
+	result, err := processor.plannerAuthority.AcceptSecurityAgentPlannerCandidate(ctx, claim, processor.config.WorkerID, leaseToken, apiserver.SecurityAgentPlannerSubmission{InputDigest: contextAuthority.InputDigest, OutputDigest: plannerResult.OutputDigest, Model: plannerResult.Model, PolicyVersion: plannerResult.PolicyVersion, Summary: plannerResult.Candidate.Summary, Action: step.Action, TargetID: step.TargetID, EvidenceIDs: append([]apiserver.SecurityAgentExportSelection(nil), step.EvidenceIDs...)}, ids[0], expiresAt, ids[1], ids[2])
+	if err == nil && result.State == "needs_human" {
+		if result.RunID != claim.RunID || result.Version <= claim.Version || result.Version > 1000000 || result.StepID != "" || result.ApprovalID != "" || result.PlanHash != "" {
+			return errWorkerExecution
+		}
+		return apiserver.ErrSecurityAgentBudgetStopped
+	}
+	if err == nil {
+		validState := result.State == "waiting_approval" && result.ApprovalID == ids[0] || result.State == "queued" && result.ApprovalID == ""
+		if !validState || result.RunID != claim.RunID || result.Version <= claim.Version || result.Version > 1000000 || !validSecurityAgentPlannerProductID(result.StepID) || !providerAckPattern.MatchString(result.PlanHash) {
+			return errWorkerExecution
+		}
+	}
 	return err
 }
 

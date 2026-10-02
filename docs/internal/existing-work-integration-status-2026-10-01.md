@@ -1,0 +1,42 @@
+# Existing-work integration checkpoint — 2026-10-01
+
+The user requested preservation and safe integration of existing work with minimal new changes. This checkpoint is not a release approval or production-readiness claim.
+
+## Final reviewed continuation checkpoint
+
+The user authorized the separately reviewed large-line scanner repair. It is committed in the installed local gstack checkout at `adfafa4f9f8342598be9890879f07128bcf78e8a`: 159 tests, zero failures, 369 assertions across six files. Accepted lines up to32MiB are scanned intact; larger lines/read errors still block. Ordinary scanner calls retain their default1MiB cap, and credential patterns, severity, range selection and the installed wrapper are unchanged. This is not a hook bypass. Large non-identity normalization has substantial resource cost: the complete candidate scan observed roughly1.75GiB maximum resident memory.
+
+The repaired scan identified25HIGH source literals. Independent review audited every location: twenty controlled negative-test URLs, three synthetic PEM headers without key material, and two disposable local OpenFGA URIs. The test/doc literals now construct exactly the same runtime bytes from explicit string parts; all malformed punctuation, rejection and leak assertions remain unchanged. This technique is only for these audited synthetic inputs, never for real credentials. Local OpenFGA uses a quoted, fully braced optional password reference with the previous disposable default; overrides must be URL-safe, not arbitrary production secrets. Three Docker config-only tests passed for unset, empty and URL-safe override values without loading `.env`, creating containers or calling providers. Frozen proof files were not rewritten.
+
+Fresh verification after isolated locked dependency installation: UI246files/2535tests passed, typecheck/build and compiled imports passed, full lint passed, dependency regressions9 passed, launch runner12 passed, discovery-composition37 passed, and affected Go race packages passed (migration CLI22.443s, worker3.431s, API4.785s, migrations3.049s). Earlier retries that relied on the root checkout's older dependencies failed with missing imports/types; those failures were environmental and are not counted as passes.
+
+Integration uses the final reviewed tree as one main-parent squash checkpoint, preserving original implementation/checkpoint branches locally rather than uploading superseded rejected versions. The published tree must match the reviewed local checkpoint exactly and pass the complete installed hook. Verify the actual remote main SHA before cloud continuation; this document is pre-push evidence, not an automatic cloud receipt. Historical local Git objects, ignored caches and proof archives are not transferred by a main checkout. All original728 requirements and current523/144/61 evidence classifications remain unchanged, and the release-license/advisory/capture/deployed gates below remain open.
+
+## Earlier reconciliation and refusal evidence
+
+Initial normal push outcome: reconciliation merge `e35ce8240be4e82f966748f5a773414745db0078` was committed, then `git push origin HEAD:main` was refused by the installed credential hook with `git diff line exceeds scan capacity`. At that attempt, `git ls-remote` still reported `8484fba94176071026f711a11fe908a22a02913f`. No bypass or forced push was used. The final reviewed continuation section above supersedes the scanner-repair prerequisite, not the unresolved production gates.
+
+The older observations below are historical, not the current merge state. Latest origin/main `8484fba94176071026f711a11fe908a22a02913f` is included in the implementation branch. The root checkpoint is reconciled without replacing the current ledger, twelve-test launch runner, risk evidence or log with older versions. All thirteen root versions are also byte-exact in `archive/root-checkpoint-2026-10-01`; that archive is not current scope or executable authority. No original requirement or availability row is promoted.
+
+Fresh grouped verification on the reconciled source:
+
+- UI: 246 files, 2,535 tests passed after the recovery-panel and proof-module fixture repairs. Typecheck and production build passed; compiled import graph passed (seven client and eight server chunks).
+- OpenAPI/UI contract group: 55 passed, zero failures/skips; exact operation counts reflect the already implemented cleanup-recovery APIs. Launch runner: twelve passed. Ledger: 728 rows, 523 production-available evidence categories, 144 component-only, 61 externally blocked, zero missing.
+- Full API and worker race packages passed (4.384s and 157.257s), as did health, event-ingest, runtime-gateway, grouped tenancy/graph/RLS checks. Proof-module Go floors and selected transitive dependencies were tidied to the existing platform graph, not new runtime features. The Neon proof retains its pre-existing Go1.26.5 toolchain selection.
+- Staging: thirty passed, zero failures/skips. Known SQL source inventory80 does not authorize rollout: every unconfigured legacy schema61–80 is refused and default49 plus the existing48–60 phase assertions remain checked. Release/chart/values behavior was not changed.
+- Final affected migration-tool group: seventy passed, zero failures and five explicitly opt-in native skips. This is component verification, not native acceptance. Immutable capture/source fingerprints remain discrepant and were not refreshed.
+- Narrow independent review approved the reconciliation fixes and root archive preservation; this is not blanket review of the entire accumulated implementation or production acceptance.
+
+The full `npm run verify` attempt was not green: initial stale count fixtures were corrected and constituent groups rerun, but pinned production-release tests still report284 passes and one failure. That failure is the already documented license gate for `github.com/nexus-rpc/nexus-proto-annotations@v0.1.0`, whose pinned archive lacks license terms. The dependency advisory and live deployment gates also remain enforced and open. No release clearance is claimed.
+
+The installed credential hook's diff-spool capacity repair is committed and independently reviewed: forty-five tests passed, no bypass or credential-pattern changes. A separate read-only diff-size inspection finds seven added generated JSON lines over its preserved1MiB line limit, maximum20,129,369 bytes. Normal hook execution refused upload as recorded above; the refusal must not be bypassed or concealed by changing frozen evidence. `cloud-main-continuation-2026-10-01.md` describes the original goal and missing cloud prerequisites. A cloud receipt and main upload are not established by this candidate.
+
+## Historical preservation observations
+
+- Root checkout changes are preserved in commit `10a622ac` on `codex/existing-root-checkpoint-20261001`, pushed to origin. Its seven launch-runner tests passed; credential scanning found no findings in the thirteen changed files.
+- The implementation worktree's 77,094 previously captured files were freshly SHA-256 checked against the preservation manifest: zero mismatches. Full evidence remains in local branch `codex/cloud-handoff-20261001` at `8cbd61fd161d4f5040756995f6be6d032843212f`.
+- A non-mutating merge check against origin/main `8484fba94176071026f711a11fe908a22a02913f` found a content conflict in `docs/internal/implementation_status_v1.5.md`. Root-checkout ledger edits also remove historical evidence; neither version should replace the authoritative ledger without reconciliation.
+- Fresh `node services/platform/migrations/tools/build-ordered-current-consolidated-reference.mjs --check` failed with `complete capture output differs services/platform/migrations/ordered_current/consolidated-capture-contract.json`. No generated outputs were refreshed to hide the failure.
+- A fresh push of implementation preservation commit `c00fe339c19b87aaff5a77fa730670d53def2414` was refused by the installed credential pre-push hook: `git diff failed (status=killed/overflow)`. Its Git-diff buffer limit is 64 MiB. The implementation checkpoint remains local. No hook bypass was used. The reviewed capacity repair is unfinished.
+
+At that earlier preservation checkpoint, main integration was blocked on the artifact discrepancy, source/review verification and ledger reconciliation. The latest reconciliation section supersedes this integration status, without accepting the still-open production/capture gates. No local work was discarded.

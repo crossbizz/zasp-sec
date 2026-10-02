@@ -1,0 +1,40 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node","--test","deploy/production/attack-lab-reconciler-rollout.test.mjs"]
+TAP version 13
+# Subtest: 57 mounts dedicated settlement authority and rejects additive credentials/network/RBAC
+ok 1 - 57 mounts dedicated settlement authority and rejects additive credentials/network/RBAC
+  ---
+  duration_ms: 1603.49875
+  type: 'test'
+  ...
+# Subtest: 57 keeps audit, existing-test and compliance registration commands in both phases
+not ok 2 - 57 keeps audit, existing-test and compliance registration commands in both phases
+  ---
+  duration_ms: 448.906542
+  type: 'test'
+  location: '/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/attack-lab-reconciler-rollout.test.mjs:28:1'
+  failureType: 'testCodeFailure'
+  error: 'release rejected'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    requireValue (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-network.mjs:4:43)
+    equal (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-network.mjs:5:25)
+    validateComplianceExportNetwork (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-network.mjs:55:3)
+    validateComplianceExportResources (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/compliance-export-rollout.mjs:85:19)
+    validateRenderedRelease (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/release-contract.mjs:550:3)
+    renderRelease (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/release-contract.mjs:373:3)
+    async TestContext.<anonymous> (file:///Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/deploy/production/attack-lab-reconciler-rollout.test.mjs:31:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2258.726875
+
+Exit: 1 Signal: null

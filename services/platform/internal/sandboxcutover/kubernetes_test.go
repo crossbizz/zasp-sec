@@ -472,17 +472,50 @@ func TestCutoverKubernetesDelayedPersistenceOverlap(t *testing.T) {
 			b := a
 			b.TransitionID = "transition-2"
 			b.ReceiptSetDigest = strings.Repeat("9", 64)
-			for _, audit := range []Audit{a, b} {
-				ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-				_, err := c.DispatchQuery(ctx, f.config.Binding, f.old(), audit)
-				cancel()
-				if err == nil {
-					t.Fatal("paused PATCH appeared applied")
+			for index, audit := range []Audit{a, b} {
+				// Establish the ambiguous-write boundary before cancellation. The
+				// preflight reads are not part of the delayed-persistence oracle.
+				ctx, cancel := context.WithCancel(context.Background())
+				type dispatchResult struct {
+					state AppliedState
+					err   error
 				}
+				result := make(chan dispatchResult, 1)
+				joined := make(chan struct{})
+				t.Cleanup(func() {
+					cancel()
+					unblock(0)
+					unblock(1)
+					select {
+					case <-joined:
+					case <-time.After(2 * time.Second):
+						t.Error("owned dispatch did not join during cleanup")
+					}
+				})
+				go func() {
+					defer close(joined)
+					state, err := c.DispatchQuery(ctx, f.config.Binding, f.old(), audit)
+					result <- dispatchResult{state, err}
+				}()
 				select {
-				case <-entered:
+				case actual := <-entered:
+					if actual != index {
+						t.Fatal("unexpected PATCH arrival", actual, index)
+					}
+				case early := <-result:
+					t.Fatal("dispatch returned before PATCH arrival", early)
 				case <-time.After(2 * time.Second):
 					t.Fatal("PATCH never reached overlap gate")
+				}
+				cancel()
+				select {
+				case <-joined:
+				case <-time.After(2 * time.Second):
+					t.Fatal("canceled dispatch did not join")
+				}
+				outcome := <-result
+				if !errors.Is(outcome.err, errRejected) || !reflect.DeepEqual(outcome.state, AppliedState{}) {
+					t.Fatal("paused PATCH was not an ambiguous write", outcome)
 				}
 			}
 			unblock(winner)

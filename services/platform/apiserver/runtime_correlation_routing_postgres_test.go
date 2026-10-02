@@ -35,7 +35,9 @@ func runtimeCorrelationRoutingPredecessor(t *testing.T, ctx context.Context) (*p
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { worker.Close(context.Background()) })
+	if !auditHTTPFixtureOwnConnection(ctx, "correlation worker", worker) {
+		t.Cleanup(func() { worker.Close(context.Background()) })
+	}
 	return admin, runner, worker
 }
 

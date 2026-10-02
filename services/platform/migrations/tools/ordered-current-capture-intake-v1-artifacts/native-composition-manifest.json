@@ -1,0 +1,39 @@
+{
+  "format": "ordered-current-native-composition-manifest-v1",
+  "status": "LOCAL-NATIVE-VERIFIED-UNBOUND",
+  "installable": false,
+  "sourceAuthority": {
+    "direct": "accepted-recovery80-source-2ca-local-parity-only",
+    "missing": "accepted-recovery80-source-2ca-missing-reference-capture-only",
+    "private": "accepted-recovery80-source-2ca-private57-capture-only"
+  },
+  "packets": {
+    "directSHA256": "c936c721c58de952ccd1d55baa89d3381a841ec82a4e7f62b1aadb26d72af4ab",
+    "missingSHA256": "23930c86b7cd4a623a3317be48d30654f62cccf19c1f2c6115fc80902a932287",
+    "privateSHA256": "6a487133102fb497db4e3209842a00ce3a0cec48ffd595c84dc3216a982a9cd0"
+  },
+  "captures": {
+    "missingSHA256": "76e42de4fc2f53938704942e632549797fa1b885461ca30109fb45b37b28fe39",
+    "privateSHA256": "b8694163c33accd304e85324bddda311bf4ab4704e898823bb2814c1647c0d80"
+  },
+  "compositionLogSHA256": "2a875ddd77d36971fa5f66921d45b69ae3f8f9165be95c070fc159327948100a",
+  "counts": {
+    "directFacts": 1600,
+    "missingRules": 12,
+    "missingFacts": 204,
+    "missingControls": 18,
+    "privateRows": 57,
+    "privateRoutineRows": 22,
+    "privateFacts": 35
+  },
+  "controls": {
+    "missingCanonicalIdentities": 204,
+    "privateRoutineParity": 22,
+    "privatePublicationMode": "0600",
+    "privateFrameRestored": true
+  },
+  "provenance": {
+    "compositionLogDisposition": "evidence-metadata-only; never expected-fact input",
+    "captures": "fixed reviewed local-native bytes"
+  }
+}

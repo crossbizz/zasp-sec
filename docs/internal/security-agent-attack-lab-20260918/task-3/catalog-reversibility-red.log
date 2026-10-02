@@ -1,0 +1,9 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["go","test","-C","services/platform","./apiserver","-run","^TestSecurityAgentAttackLabCatalogRequiresConnectedReadiness$","-count=1"]
+--- FAIL: TestSecurityAgentAttackLabCatalogRequiresConnectedReadiness (0.00s)
+    security_agent_attack_lab_catalog_test.go:44: bounded reproduction cannot be undone; operator floor still required
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	1.171s
+FAIL
+
+Exit: 1 Signal: null

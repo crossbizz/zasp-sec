@@ -52,6 +52,7 @@ type TargetResolver interface {
 type TargetResolution struct {
 	Scope                                             domain.Scope
 	RunID, LeaseToken, TargetID, TargetKind, Category string
+	EffectKey                                         string
 }
 
 type TargetInvoker interface {
@@ -63,9 +64,24 @@ type Response struct {
 }
 
 type Handler struct {
-	config   Config
-	resolver TargetResolver
-	invoker  TargetInvoker
+	config           Config
+	resolver         TargetResolver
+	invoker          TargetInvoker
+	journal          InvocationJournal
+	journaledInvoker *HTTPSInvoker
+	effectProtocol   bool
+	completedReader  *TemporalPostgresJournal
+}
+
+// LinkedObservationResponse carries durable, redacted evidence. It does not
+// fabricate the raw provider output that a replay cannot recover.
+type LinkedObservationResponse struct {
+	TargetComparison        *TargetComparison     `json:"target_comparison"`
+	SchemaVersion           string                `json:"schema_version"`
+	RunID                   string                `json:"run_id"`
+	Category                string                `json:"category"`
+	Observation             InvocationObservation `json:"observation"`
+	CredentialVersionDigest string                `json:"credential_version_digest"`
 }
 
 type requestBody struct {
@@ -92,6 +108,30 @@ func NewHandler(config Config, resolver TargetResolver, invoker TargetInvoker) (
 	return &Handler{config: config, resolver: resolver, invoker: invoker}, nil
 }
 
+func NewJournaledHandler(config Config, resolver TargetResolver, invoker *HTTPSInvoker, journal InvocationJournal) (*Handler, error) {
+	if invoker == nil || journal == nil {
+		return nil, ErrAdapter
+	}
+	handler, err := NewHandler(config, resolver, invoker)
+	if err != nil {
+		return nil, err
+	}
+	handler.journal, handler.journaledInvoker = journal, invoker
+	return handler, nil
+}
+
+// NewEffectJournaledHandler accepts authenticated product effect identities.
+// Its resolver/journal must validate the committed effect under a narrow SQL
+// authority. A key is an identity, never a substitute for authorization.
+func NewEffectJournaledHandler(config Config, resolver TargetResolver, invoker *HTTPSInvoker, journal InvocationJournal) (*Handler, error) {
+	handler, err := NewJournaledHandler(config, resolver, invoker, journal)
+	if err != nil {
+		return nil, err
+	}
+	handler.effectProtocol = true
+	return handler, nil
+}
+
 func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	status := http.StatusServiceUnavailable
 	defer func() {
@@ -107,37 +147,79 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 		writeError(writer, http.StatusForbidden)
 		return
 	}
+	if handler.completedReader != nil && request.URL.Path == "/v1/effects/completed-receipt" {
+		handler.serveCompletedReceipt(writer, request)
+		return
+	}
 	status = http.StatusBadRequest
-	if request.Method != http.MethodPost || request.URL.Path != "/v1/evaluate" || request.URL.RawQuery != "" || request.URL.EscapedPath() != request.URL.Path || request.Header.Get("Content-Type") != "application/json" || request.ContentLength > handler.config.MaximumRequestBytes {
+	path := "/v1/evaluate"
+	if handler.journal != nil {
+		path = "/v1/linked/evaluate"
+	}
+	if handler.effectProtocol {
+		path = "/v1/effects/evaluate"
+	}
+	if request.Method != http.MethodPost || request.URL.Path != path || request.URL.RawQuery != "" || request.URL.EscapedPath() != request.URL.Path || request.Header.Get("Content-Type") != "application/json" || request.ContentLength > handler.config.MaximumRequestBytes {
 		writeError(writer, status)
 		return
 	}
 	scope, runID, ok := requestScope(request)
 	lease, leaseOK := exactHeader(request, "X-Zasp-Run-Lease")
-	if !ok || !leaseOK || !runLeaseRE.MatchString(lease) {
+	effect, effectOK := exactHeader(request, "X-Zasp-Effect-Key")
+	validAuthority := leaseOK && runLeaseRE.MatchString(lease) && len(request.Header.Values("X-Zasp-Effect-Key")) == 0
+	if handler.effectProtocol {
+		validAuthority = effectOK && ValidEffectKey(effect) && len(request.Header.Values("X-Zasp-Run-Lease")) == 0
+	}
+	if !ok || !validAuthority {
 		writeError(writer, status)
 		return
 	}
 	request.Body = http.MaxBytesReader(writer, request.Body, handler.config.MaximumRequestBytes)
-	decoder := json.NewDecoder(request.Body)
-	decoder.DisallowUnknownFields()
 	var input requestBody
-	if decoder.Decode(&input) != nil {
-		writeError(writer, status)
-		return
+	if handler.journal != nil {
+		body, err := io.ReadAll(request.Body)
+		fields, shapeErr := exactJournalObject(body, "target_id target_kind category input")
+		if err != nil || shapeErr != nil || len(fields) != 4 || json.Unmarshal(body, &input) != nil {
+			writeError(writer, status)
+			return
+		}
+	} else {
+		decoder := json.NewDecoder(request.Body)
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&input) != nil {
+			writeError(writer, status)
+			return
+		}
+		var trailing any
+		if !errors.Is(decoder.Decode(&trailing), io.EOF) {
+			writeError(writer, status)
+			return
+		}
 	}
-	var trailing any
-	if !errors.Is(decoder.Decode(&trailing), io.EOF) || !validRequestBody(input) || runID == input.TargetID {
+	if !validRequestBody(input) || runID == input.TargetID {
 		writeError(writer, status)
 		return
 	}
 	status = http.StatusServiceUnavailable
-	binding, err := handler.resolver.ResolveTarget(request.Context(), TargetResolution{Scope: scope, RunID: runID, LeaseToken: lease, TargetID: input.TargetID, TargetKind: input.TargetKind, Category: input.Category})
+	binding, err := handler.resolver.ResolveTarget(request.Context(), TargetResolution{Scope: scope, RunID: runID, LeaseToken: lease, EffectKey: effect, TargetID: input.TargetID, TargetKind: input.TargetKind, Category: input.Category})
 	if err != nil || !validBinding(binding) || binding.TargetID != input.TargetID || binding.TargetKind != input.TargetKind {
 		writeError(writer, status)
 		return
 	}
-	output, err := handler.invoker.Invoke(request.Context(), Invocation{Scope: scope, RunID: runID, Category: input.Category, Input: input.Input, Binding: binding})
+	invocation := Invocation{Scope: scope, RunID: runID, Category: input.Category, Input: input.Input, Binding: binding}
+	if handler.journal != nil {
+		observation, err := handler.journaledInvoker.InvokeJournaled(request.Context(), JournalRequest{Invocation: invocation, LeaseToken: lease, EffectKey: effect}, handler.journal)
+		if err != nil || !validInvocationObservation(observation) || !validCredentialVersionDigest(observation.CredentialVersionDigest) {
+			writeError(writer, status)
+			return
+		}
+		writer.Header().Set("Cache-Control", "no-store")
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(writer).Encode(LinkedObservationResponse{TargetComparison: observation.TargetComparison, SchemaVersion: "red-team-linked-observation-v1", RunID: runID, Category: input.Category, Observation: observation, CredentialVersionDigest: observation.CredentialVersionDigest})
+		return
+	}
+	output, err := handler.invoker.Invoke(request.Context(), invocation)
 	if err != nil || !validText(output, 64*1024) {
 		writeError(writer, status)
 		return

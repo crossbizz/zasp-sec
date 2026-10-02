@@ -1,0 +1,13 @@
+# Product chart overlay. Set real IDs after P5 model publication. Enabled with
+# missing IDs fails rendering; do not insert made-up IDs for a deployment.
+runtimeServices:
+  enabled: true
+  timeout: 5s
+  temporalAddress: temporal-frontend.zasp-runtime.svc.cluster.local:7233
+  namespace: zasp-staging
+  taskQueue: zasp-security-agent
+  discoveryTaskQueue: zasp-discovery
+  openfgaURL: https://openfga.zasp-runtime.svc.cluster.local:8080
+  storeID: ''
+  modelID: ''
+  clientSecret: zasp-runtime-services-client

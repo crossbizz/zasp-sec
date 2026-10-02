@@ -1,0 +1,9 @@
+1352deb2ae1f4ff0b4b7be0d158f1183591051db08f8a6ac67769eaa41255e28  /private/tmp/zasp-connector-rejection-red.test
+ec6306aa92a7c4d5f6d9fb43b40331e77d8c56e4c1a10ab74859dd33fd6be065  services/platform/apiserver/connector_rejection_postgres_test.go
+TestConnectorRejectedAuthorityOverridesPostgres
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres
+    connector_rejection_postgres_test.go:64: registered API ACL observation: current_user=security_agent_v33_discovery_api_login audit-table INSERT privilege=true; product writes use real repository operations only
+    connector_rejection_postgres_test.go:92: invalid API composition
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestConnectorRejectedAuthorityOverridesPostgres3121440698/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestConnectorRejectedAuthorityOverridesPostgres (4.91s)
+FAIL

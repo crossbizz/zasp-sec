@@ -2,6 +2,8 @@ package redteamadapter
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 	"time"
 
@@ -38,12 +40,16 @@ func (resolver *SecretsCredentialResolver) ResolveTargetCredential(ctx context.C
 	defer cancel()
 	stage := "AWSCURRENT"
 	output, err := resolver.client.GetSecretValue(bounded, &secretsmanager.GetSecretValueInput{SecretId: aws.String(resolver.prefix + "/" + identifier), VersionStage: &stage}, func(options *secretsmanager.Options) { options.Retryer = aws.NopRetryer{} })
-	if err != nil || bounded.Err() != nil || output == nil || output.SecretString != nil || len(output.SecretBinary) < 32 || len(output.SecretBinary) > 4096 {
+	if err != nil || bounded.Err() != nil || output == nil || output.SecretString != nil || len(output.SecretBinary) < 32 || len(output.SecretBinary) > 4096 || output.VersionId == nil || !validSecretVersion(*output.VersionId) {
 		if output != nil {
 			clear(output.SecretBinary)
+			output.SecretBinary = nil
 		}
 		return nil, ErrAdapter
 	}
+	// VersionId and secret bytes come from the same GetSecretValue response.
+	// Include the reference so equal version labels on distinct secrets differ.
+	versionDigest := sha256.Sum256([]byte("zasp-red-team-credential-version-v1\x00" + reference + "\x00" + *output.VersionId))
 	secret := append([]byte(nil), output.SecretBinary...)
 	clear(output.SecretBinary)
 	output.SecretBinary = nil
@@ -52,7 +58,20 @@ func (resolver *SecretsCredentialResolver) ResolveTargetCredential(ctx context.C
 		clear(secret)
 		return nil, ErrAdapter
 	}
+	credential.versionDigest = hex.EncodeToString(versionDigest[:])
 	return credential, nil
+}
+
+func validSecretVersion(value string) bool {
+	if len(value) < 32 || len(value) > 64 {
+		return false
+	}
+	for _, b := range []byte(value) {
+		if b <= 0x20 || b >= 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 var _ CredentialResolver = (*SecretsCredentialResolver)(nil)

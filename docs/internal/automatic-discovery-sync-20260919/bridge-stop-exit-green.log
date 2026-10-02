@@ -1,0 +1,193 @@
+TAP version 13
+# Subtest: bridge stop rejects numeric failure and signals it did not issue
+    # Subtest: exit7
+    ok 1 - exit7
+      ---
+      duration_ms: 6.977334
+      type: 'test'
+      ...
+    # Subtest: unissued-term
+    ok 2 - unissued-term
+      ---
+      duration_ms: 2.329792
+      type: 'test'
+      ...
+    # Subtest: unissued-kill
+    ok 3 - unissued-kill
+      ---
+      duration_ms: 1.151083
+      type: 'test'
+      ...
+    1..3
+ok 1 - bridge stop rejects numeric failure and signals it did not issue
+  ---
+  duration_ms: 11.101084
+  type: 'test'
+  ...
+# Subtest: bridge accepts SIGPIPE only after its own peer-close path
+    # Subtest: owned-pipe
+    ok 1 - owned-pipe
+      ---
+      duration_ms: 1.352959
+      type: 'test'
+      ...
+    # Subtest: owned-nonzero
+    ok 2 - owned-nonzero
+      ---
+      duration_ms: 1.115417
+      type: 'test'
+      ...
+    # Subtest: spontaneous-pipe
+    ok 3 - spontaneous-pipe
+      ---
+      duration_ms: 0.986417
+      type: 'test'
+      ...
+    # Subtest: spontaneous-nonzero
+    ok 4 - spontaneous-nonzero
+      ---
+      duration_ms: 0.893333
+      type: 'test'
+      ...
+    1..4
+ok 2 - bridge accepts SIGPIPE only after its own peer-close path
+  ---
+  duration_ms: 4.915417
+  type: 'test'
+  ...
+# Subtest: bridge forwards raw bytes only through its owned container and joins on stop
+ok 3 - bridge forwards raw bytes only through its owned container and joins on stop
+  ---
+  duration_ms: 1.542375
+  type: 'test'
+  ...
+# Subtest: bridge rejects foreign container identity and invalid bounds before listening
+ok 4 - bridge rejects foreign container identity and invalid bounds before listening
+  ---
+  duration_ms: 0.235458
+  type: 'test'
+  ...
+# Subtest: bridge joins only its own SIGTERM and SIGKILL escalation
+    # Subtest: SIGTERM
+    ok 1 - SIGTERM
+      ---
+      duration_ms: 290.3285
+      type: 'test'
+      ...
+    # Subtest: SIGKILL
+    ok 2 - SIGKILL
+      ---
+      duration_ms: 1298.673875
+      type: 'test'
+      ...
+    1..2
+ok 5 - bridge joins only its own SIGTERM and SIGKILL escalation
+  ---
+  duration_ms: 1589.529
+  type: 'test'
+  ...
+# Subtest: starts only pinned loopback ephemeral PostgreSQL and joins its exact container
+ok 6 - starts only pinned loopback ephemeral PostgreSQL and joins its exact container
+  ---
+  duration_ms: 1.773209
+  type: 'test'
+  ...
+# Subtest: rejects invalid ports before dispatch
+ok 7 - rejects invalid ports before dispatch
+  ---
+  duration_ms: 0.601375
+  type: 'test'
+  ...
+# Subtest: optional discovery helper is one exact readonly regular executable mount
+ok 8 - optional discovery helper is one exact readonly regular executable mount
+  ---
+  duration_ms: 7.96575
+  type: 'test'
+  ...
+# Subtest: isolated browser PostgreSQL has no published port and joins its raw-wire bridge
+ok 9 - isolated browser PostgreSQL has no published port and joins its raw-wire bridge
+  ---
+  duration_ms: 0.601125
+  type: 'test'
+  ...
+# Subtest: initializes the same C UTF8 database as the pinned migration reference fixture
+ok 10 - initializes the same C UTF8 database as the pinned migration reference fixture
+  ---
+  duration_ms: 0.623833
+  type: 'test'
+  ...
+# Subtest: default startup leaves function instrumentation off
+ok 11 - default startup leaves function instrumentation off
+  ---
+  duration_ms: 0.166875
+  type: 'test'
+  ...
+# Subtest: readiness failure still removes the created container
+ok 12 - readiness failure still removes the created container
+  ---
+  duration_ms: 40.185584
+  type: 'test'
+  ...
+# Subtest: early server exit fails readiness even if the CLI already exited successfully
+ok 13 - early server exit fails readiness even if the CLI already exited successfully
+  ---
+  duration_ms: 0.283833
+  type: 'test'
+  ...
+# Subtest: failed start removes the exact created resource
+ok 14 - failed start removes the exact created resource
+  ---
+  duration_ms: 0.460125
+  type: 'test'
+  ...
+# Subtest: lost create response recovers only the invocation name and matching ownership label
+ok 15 - lost create response recovers only the invocation name and matching ownership label
+  ---
+  duration_ms: 0.435833
+  type: 'test'
+  ...
+# Subtest: ambiguous create cannot remove a container without matching ownership
+ok 16 - ambiguous create cannot remove a container without matching ownership
+  ---
+  duration_ms: 0.18775
+  type: 'test'
+  ...
+# Subtest: concurrent and repeated stop perform one exact cleanup
+ok 17 - concurrent and repeated stop perform one exact cleanup
+  ---
+  duration_ms: 0.153875
+  type: 'test'
+  ...
+# Subtest: cancellation joins an in-flight create then recovers and removes its resource
+ok 18 - cancellation joins an in-flight create then recovers and removes its resource
+  ---
+  duration_ms: 0.207416
+  type: 'test'
+  ...
+# Subtest: hung commands are bounded and joined before cleanup
+ok 19 - hung commands are bounded and joined before cleanup
+  ---
+  duration_ms: 30.413584
+  type: 'test'
+  ...
+# Subtest: cleanup failure stays rejected even when repeated and absence checks still run
+ok 20 - cleanup failure stays rejected even when repeated and absence checks still run
+  ---
+  duration_ms: 0.3645
+  type: 'test'
+  ...
+# Subtest: successful CLI removal without observed container absence fails the join
+ok 21 - successful CLI removal without observed container absence fails the join
+  ---
+  duration_ms: 0.123
+  type: 'test'
+  ...
+1..21
+# tests 30
+# suites 0
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1659.156125

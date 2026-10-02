@@ -1,0 +1,1327 @@
+[2026-10-01T22:10:48.057643+00:00] startup: base_url=https://chatgpt.com/backend-api path_style=wham
+[2026-10-01T22:10:48.057933+00:00] auth: mode=ChatGPT account_id=8a0d021f-08ed-493d-8907-0af08d77acd4
+[2026-10-01T22:10:48.058073+00:00] auth: set ChatGPT-Account-Id header: 8a0d021f-08ed-493d-8907-0af08d77acd4
+[2026-10-01T22:10:48.451005+00:00] http.list_tasks: env=<all> limit=5 cursor_in=<none> cursor_out=<none> items=0
+[2026-10-01T22:11:32.081991+00:00] startup: base_url=https://chatgpt.com/backend-api path_style=wham
+[2026-10-01T22:11:32.082357+00:00] auth: mode=ChatGPT account_id=8a0d021f-08ed-493d-8907-0af08d77acd4
+[2026-10-01T22:11:32.082641+00:00] auth: set ChatGPT-Account-Id header: 8a0d021f-08ed-493d-8907-0af08d77acd4
+[2026-10-01T22:11:32.083236+00:00] startup: wham_force_internal=false ua=Codex Desktop/0.159.0 (Mac OS 26.7.0; arm64) dumb (codex_cloud_tasks_tui)
+[2026-10-01T22:11:32.122621+00:00] env: git origins: [SanitizedGitUrl("https://github.com/crossbizz/zasp-sec.git")]
+[2026-10-01T22:11:32.122778+00:00] env: parsed HTTP GitHub origin => crossbizz/zasp-sec
+[2026-10-01T22:11:32.122852+00:00] env: GET https://chatgpt.com/backend-api/wham/environments/by-repo/github/crossbizz/zasp-sec
+[2026-10-01T22:11:32.127817+00:00] env: parsed HTTP GitHub origin => crossbizz/zasp-sec
+[2026-10-01T22:11:32.353088+00:00] http.list_tasks: env=<all> limit=20 cursor_in=<none> cursor_out=<none> items=0
+[2026-10-01T22:11:32.353425+00:00] refresh.apply: env=<all> count=0
+[2026-10-01T22:11:33.016621+00:00] env: status=200 OK content-type=application/json
+[2026-10-01T22:11:33.019732+00:00] env: by-repo returned 0 env(s) for crossbizz/zasp-sec
+[2026-10-01T22:11:33.019986+00:00] env: GET https://chatgpt.com/backend-api/wham/environments
+[2026-10-01T22:11:33.423188+00:00] env: status=200 OK content-type=application/json
+[2026-10-01T22:11:33.430210+00:00] env: status=200 OK content-type=application/json
+[2026-10-01T22:11:33.435183+00:00] env: /environments JSON (pretty):
+[
+  {
+    "id": "682f917e42d4819189225a725a480f7e",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "coreweave/data-engineering",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": null,
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-898580313"
+    ],
+    "setup": [
+      "cd sdk\npip install poetry\npoetry config virtualenvs.create false\npoetry install --no-interaction --only main,dev --no-root\n"
+    ],
+    "maintenance_setup": null,
+    "repo_map": {
+      "github-898580313": {
+        "id": "898580313",
+        "name": "data-engineering",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/data-engineering",
+        "clone_url": "https://github.com/coreweave/data-engineering.git",
+        "default_branch": "main",
+        "git_commits_url": "https://api.github.com/repos/coreweave/data-engineering/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/data-engineering/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/data-engineering.git",
+        "visibility": "private",
+        "archived": false,
+        "allow_auto_merge": null,
+        "allow_merge_commit": null,
+        "allow_rebase_merge": null,
+        "allow_squash_merge": null,
+        "allow_update_branch": null,
+        "language": null,
+        "size": 993938,
+        "master_branch": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": false,
+          "pull": false
+        }
+      }
+    },
+    "env_vars": {
+      "CODEX_ENV_PYTHON_VERSION": "3.12",
+      "CODEX_ENV_NODE_VERSION": "20",
+      "CODEX_ENV_RUBY_VERSION": "3.4.4",
+      "CODEX_ENV_RUST_VERSION": "1.87.0",
+      "CODEX_ENV_GO_VERSION": "1.23.8",
+      "CODEX_ENV_BUN_VERSION": "1.2.14",
+      "CODEX_ENV_JAVA_VERSION": "21",
+      "CODEX_ENV_SWIFT_VERSION": "6.1"
+    },
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 496,
+    "creator_id": "user-AV93uj73MVT3wnVCQU68kDkh__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1747947902.261163,
+    "auto_setup_settings": null,
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"68027edb-0000-0200-0000-6abec46e0000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "69b5ba1c70a08191ac53549db8eb4a0e",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "core",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": {
+      "mode": "off",
+      "preset_allowlist": null,
+      "allowlist_domains": null,
+      "allowlist_rules": null,
+      "denylist_domains": null,
+      "safe_methods_only": null
+    },
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-86654767"
+    ],
+    "setup": "",
+    "maintenance_setup": "",
+    "repo_map": {
+      "github-86654767": {
+        "id": "86654767",
+        "name": "core",
+        "owner": {
+          "login": "wandb",
+          "id": 26401354,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/26401354?v=4",
+          "url": "https://api.github.com/users/wandb"
+        },
+        "repository_full_name": "wandb/core",
+        "clone_url": "https://github.com/wandb/core.git",
+        "default_branch": "master",
+        "git_commits_url": "https://api.github.com/repos/wandb/core/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/wandb/core/git/refs{/sha}",
+        "git_url": "git://github.com/wandb/core.git",
+        "visibility": "private",
+        "archived": false,
+        "allow_auto_merge": null,
+        "allow_merge_commit": null,
+        "allow_rebase_merge": null,
+        "allow_squash_merge": null,
+        "allow_update_branch": null,
+        "language": null,
+        "size": 2542394,
+        "master_branch": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": false,
+          "pull": false
+        }
+      }
+    },
+    "env_vars": {},
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 290,
+    "creator_id": "user-WNFK4C27t0HTuUwluFRfvHIG__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1773517340.987082,
+    "auto_setup_settings": {
+      "use_auto_setup": true
+    },
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"5c02ac8a-0000-0200-0000-6abea2560000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "69f3e106dafc8191bd70661b54ae749b",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "weave",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": {
+      "mode": "off",
+      "preset_allowlist": null,
+      "allowlist_domains": null,
+      "allowlist_rules": null,
+      "denylist_domains": null,
+      "safe_methods_only": null
+    },
+    "codex_github_direct": null,
+    "github_connector_id": "connector_76869538009648d5b282a4bb21c3d157",
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-650377372"
+    ],
+    "setup": "",
+    "maintenance_setup": "",
+    "repo_map": {
+      "github-650377372": {
+        "id": "650377372",
+        "name": "weave",
+        "owner": {
+          "login": "wandb",
+          "id": 26401354,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/26401354?v=4",
+          "url": "https://api.github.com/users/wandb"
+        },
+        "repository_full_name": "wandb/weave",
+        "clone_url": "https://github.com/wandb/weave.git",
+        "default_branch": "master",
+        "git_commits_url": "https://api.github.com/repos/wandb/weave/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/wandb/weave/git/refs{/sha}",
+        "git_url": "git://github.com/wandb/weave.git",
+        "visibility": "public",
+        "archived": false,
+        "allow_auto_merge": true,
+        "allow_merge_commit": false,
+        "allow_rebase_merge": false,
+        "allow_squash_merge": true,
+        "allow_update_branch": true,
+        "language": null,
+        "size": 1623097,
+        "master_branch": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": true,
+          "pull": true
+        }
+      }
+    },
+    "env_vars": {},
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 4,
+    "creator_id": "user-RGkPFyp2Ms45ObbrYizGDott__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1777590535.284373,
+    "auto_setup_settings": {
+      "use_auto_setup": true
+    },
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"7f008101-0000-0200-0000-6aa979ee0000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "69e0275c61a88191b9a9d9a3f17efc57",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "wandb",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": {
+      "mode": "off",
+      "preset_allowlist": null,
+      "allowlist_domains": null,
+      "allowlist_rules": null,
+      "denylist_domains": null,
+      "safe_methods_only": null
+    },
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-86031674"
+    ],
+    "setup": "",
+    "maintenance_setup": "",
+    "repo_map": {
+      "github-86031674": {
+        "id": "86031674",
+        "name": "wandb",
+        "owner": {
+          "login": "wandb",
+          "id": 26401354,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/26401354?v=4",
+          "url": "https://api.github.com/users/wandb"
+        },
+        "repository_full_name": "wandb/wandb",
+        "clone_url": "https://github.com/wandb/wandb.git",
+        "default_branch": "main",
+        "git_commits_url": "https://api.github.com/repos/wandb/wandb/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/wandb/wandb/git/refs{/sha}",
+        "git_url": "git://github.com/wandb/wandb.git",
+        "visibility": "public",
+        "archived": false,
+        "allow_auto_merge": true,
+        "allow_merge_commit": false,
+        "allow_rebase_merge": false,
+        "allow_squash_merge": true,
+        "allow_update_branch": true,
+        "language": null,
+        "size": 214581,
+        "master_branch": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": true,
+          "pull": true
+        }
+      }
+    },
+    "env_vars": {},
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 8,
+    "creator_id": "user-RGkPFyp2Ms45ObbrYizGDott__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1776297820.822229,
+    "auto_setup_settings": {
+      "use_auto_setup": true
+    },
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"e8010b4b-0000-0200-0000-6a6a6f420000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "6a57e23136ec8191b40138dd94dc7dfa",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "coreweave/onboarding-deploy",
+    "is_pinned": false,
+    "description": "Creating an environment in which to deploy Thinky Inkling model on the SA cluster with SGLang.",
+    "workspace_dir": "/workspace",
+    "agent_network_access": {
+      "mode": "off",
+      "preset_allowlist": null,
+      "allowlist_domains": null,
+      "allowlist_rules": null,
+      "denylist_domains": null,
+      "safe_methods_only": null
+    },
+    "codex_github_direct": null,
+    "github_connector_id": "connector_76869538009648d5b282a4bb21c3d157",
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-1117752569"
+    ],
+    "setup": "",
+    "maintenance_setup": "",
+    "repo_map": {
+      "github-1117752569": {
+        "id": "1117752569",
+        "name": "onboarding-deploy",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/onboarding-deploy",
+        "clone_url": "https://github.com/coreweave/onboarding-deploy.git",
+        "default_branch": "main",
+        "git_commits_url": "https://api.github.com/repos/coreweave/onboarding-deploy/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/onboarding-deploy/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/onboarding-deploy.git",
+        "visibility": "internal",
+        "archived": false,
+        "allow_auto_merge": false,
+        "allow_merge_commit": false,
+        "allow_rebase_merge": true,
+        "allow_squash_merge": true,
+        "allow_update_branch": false,
+        "language": null,
+        "size": 235,
+        "master_branch": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": true,
+          "pull": true
+        }
+      }
+    },
+    "env_vars": {
+      "CODEX_ENV_PYTHON_VERSION": "3.12",
+      "CODEX_ENV_NODE_VERSION": "20",
+      "CODEX_ENV_RUBY_VERSION": "3.4.4",
+      "CODEX_ENV_RUST_VERSION": "1.89.0",
+      "CODEX_ENV_GO_VERSION": "1.24.3",
+      "CODEX_ENV_BUN_VERSION": "1.2.14",
+      "CODEX_ENV_PHP_VERSION": "8.4",
+      "CODEX_ENV_JAVA_VERSION": "21",
+      "CODEX_ENV_SWIFT_VERSION": "6.1"
+    },
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 0,
+    "creator_id": "user-toSH155I2zKiEPaD8ZkcKYUd__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1784144433.781677,
+    "auto_setup_settings": {
+      "use_auto_setup": true
+    },
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"e50139ef-0000-0200-0000-6a57e2310000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "682c9a065a808191ba406c6e03c7d55a",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "coreweave/cloud-console",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": null,
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-774572850"
+    ],
+    "setup": [
+      "make install\nmake install.bff\nmake install.frontend"
+    ],
+    "maintenance_setup": null,
+    "repo_map": {
+      "github-774572850": {
+        "id": "774572850",
+        "name": "cloud-console",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/cloud-console",
+        "clone_url": "https://github.com/coreweave/cloud-console.git",
+        "default_branch": "master",
+        "git_commits_url": "https://api.github.com/repos/coreweave/cloud-console/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/cloud-console/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/cloud-console.git",
+        "visibility": "internal",
+        "archived": false,
+        "allow_auto_merge": false,
+        "allow_merge_commit": false,
+        "allow_rebase_merge": true,
+        "allow_squash_merge": true,
+        "allow_update_branch": false,
+        "language": null,
+        "size": 22639,
+        "master_branch": null,
+        "permissions": {
+          "admin": false,
+          "maintain": true,
+          "push": true,
+          "pull": true
+        }
+      }
+    },
+    "env_vars": {
+      "CODEX_ENV_PYTHON_VERSION": "3.11"
+    },
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 225,
+    "creator_id": "user-OtGj22fxTWPBhhey8ipZoYFJ__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1747753478.353782,
+    "auto_setup_settings": null,
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"51008c90-0000-0200-0000-6a26e3690000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "6841dd13b3a081919559165e97f63838",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "coreweave/k8s-services",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": null,
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-211762899"
+    ],
+    "setup": "",
+    "maintenance_setup": null,
+    "repo_map": {
+      "github-211762899": {
+        "id": "211762899",
+        "name": "k8s-services",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/k8s-services",
+        "clone_url": "https://github.com/coreweave/k8s-services.git",
+        "default_branch": "master",
+        "git_commits_url": "https://api.github.com/repos/coreweave/k8s-services/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/k8s-services/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/k8s-services.git",
+        "visibility": "private",
+        "archived": false,
+        "allow_auto_merge": null,
+        "allow_merge_commit": null,
+        "allow_rebase_merge": null,
+        "allow_squash_merge": null,
+        "allow_update_branch": null,
+        "language": null,
+        "size": 129755,
+        "master_branch": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": false,
+          "pull": false
+        }
+      }
+    },
+    "env_vars": {},
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 34,
+    "creator_id": "user-dfcwulRDWCd9dZ4d28dbl4lD__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1749146899.701846,
+    "auto_setup_settings": {
+      "use_auto_setup": true
+    },
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"a90495ee-0000-0200-0000-6a1745a80000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "69855c07d2e08191a18db729e932409a",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "api-gateway",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": {
+      "mode": "off",
+      "preset_allowlist": null,
+      "allowlist_domains": null,
+      "allowlist_rules": null,
+      "denylist_domains": null,
+      "safe_methods_only": null
+    },
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-342011758"
+    ],
+    "setup": "",
+    "maintenance_setup": "",
+    "repo_map": {
+      "github-342011758": {
+        "id": "342011758",
+        "name": "api-gateway",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/api-gateway",
+        "clone_url": "https://github.com/coreweave/api-gateway.git",
+        "default_branch": "master",
+        "git_commits_url": "https://api.github.com/repos/coreweave/api-gateway/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/api-gateway/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/api-gateway.git",
+        "visibility": "private",
+        "archived": null,
+        "allow_auto_merge": null,
+        "allow_merge_commit": null,
+        "allow_rebase_merge": null,
+        "allow_squash_merge": null,
+        "allow_update_branch": null,
+        "language": null,
+        "size": 75361,
+        "master_branch": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": false,
+          "pull": true
+        }
+      }
+    },
+    "env_vars": {},
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 1,
+    "creator_id": "user-2zfqrRV2i9v8luTsaQCBhHfX__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1770347530.256435,
+    "auto_setup_settings": {
+      "use_auto_setup": true
+    },
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"4500ff1b-0000-0200-0000-69855c120000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "6928bc68e814819184a5ba277888c17d",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "backstage-glean-connector",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": {
+      "mode": "off",
+      "preset_allowlist": null,
+      "allowlist_domains": null,
+      "allowlist_rules": null,
+      "denylist_domains": null,
+      "safe_methods_only": null
+    },
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-1101627240"
+    ],
+    "setup": "",
+    "maintenance_setup": "",
+    "repo_map": {
+      "github-1101627240": {
+        "id": "1101627240",
+        "name": "backstage-glean-connector",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/backstage-glean-connector",
+        "clone_url": "https://github.com/coreweave/backstage-glean-connector.git",
+        "default_branch": "main",
+        "git_commits_url": "https://api.github.com/repos/coreweave/backstage-glean-connector/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/backstage-glean-connector/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/backstage-glean-connector.git",
+        "visibility": "internal",
+        "archived": null,
+        "allow_auto_merge": false,
+        "allow_merge_commit": true,
+        "allow_rebase_merge": true,
+        "allow_squash_merge": true,
+        "allow_update_branch": false,
+        "language": null,
+        "size": 181,
+        "master_branch": null,
+        "permissions": {
+          "admin": true,
+          "maintain": false,
+          "push": true,
+          "pull": true
+        }
+      }
+    },
+    "env_vars": {},
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 2,
+    "creator_id": "user-qFh3iR9FcZpNMRMdE53aC5gq__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1764277352.907066,
+    "auto_setup_settings": {
+      "use_auto_setup": true
+    },
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"af021eeb-0000-0200-0000-6928edb70000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "69200278d7408191a249e60ec42a061c",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "bb-infrahub-test",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": {
+      "mode": "off",
+      "preset_allowlist": null,
+      "allowlist_domains": null,
+      "allowlist_rules": null,
+      "denylist_domains": null,
+      "safe_methods_only": null
+    },
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-889158523"
+    ],
+    "setup": "",
+    "maintenance_setup": "",
+    "repo_map": {
+      "github-889158523": {
+        "id": "889158523",
+        "name": "bb-infrahub-test",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/bb-infrahub-test",
+        "clone_url": "https://github.com/coreweave/bb-infrahub-test.git",
+        "default_branch": "main",
+        "git_commits_url": "https://api.github.com/repos/coreweave/bb-infrahub-test/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/bb-infrahub-test/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/bb-infrahub-test.git",
+        "visibility": "internal",
+        "archived": null,
+        "allow_auto_merge": false,
+        "allow_merge_commit": true,
+        "allow_rebase_merge": true,
+        "allow_squash_merge": true,
+        "allow_update_branch": false,
+        "language": null,
+        "size": 1951,
+        "master_branch": null,
+        "permissions": {
+          "admin": true,
+          "maintain": false,
+          "push": true,
+          "pull": true
+        }
+      }
+    },
+    "env_vars": {},
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 0,
+    "creator_id": "user-My0mJu9iwxwD4yNe97xTGapG__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1763705464.840977,
+    "auto_setup_settings": {
+      "use_auto_setup": true
+    },
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"a8030224-0000-0200-0000-692002dc0000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "690e99daae448191960d113ffc891996",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "coreweave/support-access-management",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": {
+      "mode": "off",
+      "preset_allowlist": null,
+      "allowlist_domains": null,
+      "allowlist_rules": null,
+      "denylist_domains": null,
+      "safe_methods_only": null
+    },
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-1009672210"
+    ],
+    "setup": "",
+    "maintenance_setup": "",
+    "repo_map": {
+      "github-1009672210": {
+        "id": "1009672210",
+        "name": "support-access-management",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/support-access-management",
+        "clone_url": "https://github.com/coreweave/support-access-management.git",
+        "default_branch": "main",
+        "git_commits_url": "https://api.github.com/repos/coreweave/support-access-management/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/support-access-management/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/support-access-management.git",
+        "visibility": "internal",
+        "archived": null,
+        "allow_auto_merge": false,
+        "allow_merge_commit": true,
+        "allow_rebase_merge": true,
+        "allow_squash_merge": true,
+        "allow_update_branch": false,
+        "language": null,
+        "size": 9837,
+        "master_branch": null,
+        "permissions": {
+          "admin": true,
+          "maintain": false,
+          "push": true,
+          "pull": true
+        }
+      }
+    },
+    "env_vars": {
+      "CODEX_ENV_PYTHON_VERSION": "3.12",
+      "CODEX_ENV_NODE_VERSION": "20",
+      "CODEX_ENV_RUBY_VERSION": "3.4.4",
+      "CODEX_ENV_RUST_VERSION": "1.89.0",
+      "CODEX_ENV_GO_VERSION": "1.24.3",
+      "CODEX_ENV_BUN_VERSION": "1.2.14",
+      "CODEX_ENV_PHP_VERSION": "8.4",
+      "CODEX_ENV_JAVA_VERSION": "21",
+      "CODEX_ENV_SWIFT_VERSION": "6.1"
+    },
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 6,
+    "creator_id": "user-NrZKyivCILjJdV0TDzzunUAf__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1762564570.680914,
+    "auto_setup_settings": {
+      "use_auto_setup": true
+    },
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"1f016a71-0000-0200-0000-690fb1f90000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "682e0594cdb88191904e60a6d9bf6778",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "coreweave/admin-app-js",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": null,
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-839011429"
+    ],
+    "setup": "#!/usr/bin/env bash\n# scripts/setup_yarn_corepack.sh\n# ------------------------------------------------------------\n# Sets up Node.js LTS, Corepack, and Yarn for a Codex workspace\n# ------------------------------------------------------------\nset -euo pipefail\n\necho \"🔍  Checking Node.js…\"\nif ! command -v node >/dev/null 2>&1; then\n  echo \"📦  Installing latest Node LTS…\"\n  curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -\n  sudo apt-get install -y nodejs\nelse\n  echo \"✅  Found Node $(node -v)\"\nfi\n\necho \"🔧  Enabling Corepack (ships with Node ≥ 16.10)…\"\ncorepack enable\n\necho \"⬆️   Activating latest stable Yarn…\"\ncorepack prepare yarn@stable --activate\n\necho \"📂  Point Yarn’s global folder to ~/.yarn for easy caching\"\nyarn config set globalFolder \"${HOME}/.yarn\" --home\n\necho \"🧹  Cleaning npm cache (optional)\"\nnpm cache clean --force >/dev/null 2>&1 || true\n\necho \"🎉  Yarn $(yarn --version) is ready to use!\"\n",
+    "maintenance_setup": null,
+    "repo_map": {
+      "github-839011429": {
+        "id": "839011429",
+        "name": "admin-app",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/admin-app",
+        "clone_url": "https://github.com/coreweave/admin-app.git",
+        "default_branch": "master",
+        "git_commits_url": "https://api.github.com/repos/coreweave/admin-app/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/admin-app/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/admin-app.git",
+        "visibility": "internal",
+        "archived": null,
+        "allow_auto_merge": false,
+        "allow_merge_commit": true,
+        "allow_rebase_merge": true,
+        "allow_squash_merge": true,
+        "allow_update_branch": false,
+        "language": null,
+        "size": 1878,
+        "master_branch": null,
+        "permissions": null
+      }
+    },
+    "env_vars": {
+      "CODEX_ENV_PYTHON_VERSION": "3.12",
+      "CODEX_ENV_NODE_VERSION": "22",
+      "CODEX_ENV_RUBY_VERSION": "3.4.4",
+      "CODEX_ENV_RUST_VERSION": "1.87.0",
+      "CODEX_ENV_GO_VERSION": "1.23.8",
+      "CODEX_ENV_BUN_VERSION": "1.2.10",
+      "CODEX_ENV_JAVA_VERSION": "21",
+      "CODEX_ENV_SWIFT_VERSION": "6.1"
+    },
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 0,
+    "creator_id": "user-crnrmkgaday9tFBuUHx2EDD7__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1747846548.803807,
+    "auto_setup_settings": null,
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"da0058eb-0000-0200-0000-68a4c0320000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "6840f988aee081918f5c1f749dd2fbda",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "coreweave/data-plat-mgmt",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": {
+      "mode": "off",
+      "preset_allowlist": null,
+      "allowlist_domains": null,
+      "allowlist_rules": null,
+      "denylist_domains": null,
+      "safe_methods_only": null
+    },
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-800048379"
+    ],
+    "setup": "",
+    "maintenance_setup": null,
+    "repo_map": {
+      "github-800048379": {
+        "id": "800048379",
+        "name": "data-plat-mgmt",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/data-plat-mgmt",
+        "clone_url": "https://github.com/coreweave/data-plat-mgmt.git",
+        "default_branch": "main",
+        "git_commits_url": "https://api.github.com/repos/coreweave/data-plat-mgmt/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/data-plat-mgmt/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/data-plat-mgmt.git",
+        "visibility": "internal",
+        "archived": null,
+        "allow_auto_merge": true,
+        "allow_merge_commit": true,
+        "allow_rebase_merge": true,
+        "allow_squash_merge": true,
+        "allow_update_branch": true,
+        "language": null,
+        "size": 13403,
+        "master_branch": null,
+        "permissions": null
+      }
+    },
+    "env_vars": {
+      "CODEX_ENV_PYTHON_VERSION": "3.12",
+      "CODEX_ENV_NODE_VERSION": "20",
+      "CODEX_ENV_RUBY_VERSION": "3.4.4",
+      "CODEX_ENV_RUST_VERSION": "1.87.0",
+      "CODEX_ENV_GO_VERSION": "1.23.8",
+      "CODEX_ENV_BUN_VERSION": "1.2.14",
+      "CODEX_ENV_JAVA_VERSION": "21",
+      "CODEX_ENV_SWIFT_VERSION": "6.1"
+    },
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 13,
+    "creator_id": "user-TmiCTUENmy0ZPlGk5de40Vf3__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1749088648.683283,
+    "auto_setup_settings": null,
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"260008b8-0000-0200-0000-689282090000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "6840bdd562a08191b482647b65df6d09",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "coreweave/kafka-sdk",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": null,
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-898586670"
+    ],
+    "setup": "",
+    "maintenance_setup": null,
+    "repo_map": {
+      "github-898586670": {
+        "id": "898586670",
+        "name": "kafka-sdk",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/kafka-sdk",
+        "clone_url": "https://github.com/coreweave/kafka-sdk.git",
+        "default_branch": "main",
+        "git_commits_url": "https://api.github.com/repos/coreweave/kafka-sdk/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/kafka-sdk/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/kafka-sdk.git",
+        "visibility": "internal",
+        "archived": null,
+        "allow_auto_merge": false,
+        "allow_merge_commit": false,
+        "allow_rebase_merge": false,
+        "allow_squash_merge": true,
+        "allow_update_branch": false,
+        "language": null,
+        "size": 243,
+        "master_branch": null,
+        "permissions": null
+      }
+    },
+    "env_vars": {},
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 6,
+    "creator_id": "user-TmiCTUENmy0ZPlGk5de40Vf3__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1749073365.385564,
+    "auto_setup_settings": null,
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"c000eaf4-0000-0200-0000-689282090000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "684a0d9d90e48191b3c127bbb18f6ca3",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "coreweave/telecaster-kafkaconnect-poc",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": {
+      "mode": "off",
+      "preset_allowlist": null,
+      "allowlist_domains": null,
+      "allowlist_rules": null,
+      "denylist_domains": null,
+      "safe_methods_only": null
+    },
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-946914693"
+    ],
+    "setup": "",
+    "maintenance_setup": null,
+    "repo_map": {
+      "github-946914693": {
+        "id": "946914693",
+        "name": "telecaster-kafkaconnect-poc",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/telecaster-kafkaconnect-poc",
+        "clone_url": "https://github.com/coreweave/telecaster-kafkaconnect-poc.git",
+        "default_branch": "main",
+        "git_commits_url": "https://api.github.com/repos/coreweave/telecaster-kafkaconnect-poc/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/telecaster-kafkaconnect-poc/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/telecaster-kafkaconnect-poc.git",
+        "visibility": "internal",
+        "archived": null,
+        "allow_auto_merge": false,
+        "allow_merge_commit": true,
+        "allow_rebase_merge": true,
+        "allow_squash_merge": true,
+        "allow_update_branch": false,
+        "language": null,
+        "size": 95051,
+        "master_branch": null,
+        "permissions": null
+      }
+    },
+    "env_vars": {
+      "CODEX_ENV_PYTHON_VERSION": "3.12",
+      "CODEX_ENV_NODE_VERSION": "20",
+      "CODEX_ENV_RUBY_VERSION": "3.4.4",
+      "CODEX_ENV_RUST_VERSION": "1.87.0",
+      "CODEX_ENV_GO_VERSION": "1.23.8",
+      "CODEX_ENV_BUN_VERSION": "1.2.14",
+      "CODEX_ENV_JAVA_VERSION": "21",
+      "CODEX_ENV_SWIFT_VERSION": "6.1"
+    },
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 0,
+    "creator_id": "user-TmiCTUENmy0ZPlGk5de40Vf3__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1749683613.566236,
+    "auto_setup_settings": null,
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"20001311-0000-0200-0000-68a4c0320000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  },
+  {
+    "id": "6841a006c89881918bf1f0a2f01a1459",
+    "devcontainer": null,
+    "machine_id": "wham-public/wham-universal",
+    "label": "coreweave/pverify",
+    "is_pinned": false,
+    "description": "",
+    "workspace_dir": "/workspace",
+    "agent_network_access": null,
+    "codex_github_direct": null,
+    "github_connector_id": null,
+    "enable_gitlab_webhooks": false,
+    "repos": [
+      "github-995548560"
+    ],
+    "setup": "",
+    "maintenance_setup": null,
+    "repo_map": {
+      "github-995548560": {
+        "id": "995548560",
+        "name": "pverify",
+        "owner": {
+          "login": "coreweave",
+          "id": 50837895,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50837895?v=4",
+          "url": "https://api.github.com/users/coreweave"
+        },
+        "repository_full_name": "coreweave/pverify",
+        "clone_url": "https://github.com/coreweave/pverify.git",
+        "default_branch": "main",
+        "git_commits_url": "https://api.github.com/repos/coreweave/pverify/git/commits{/sha}",
+        "git_refs_url": "https://api.github.com/repos/coreweave/pverify/git/refs{/sha}",
+        "git_url": "git://github.com/coreweave/pverify.git",
+        "visibility": "internal",
+        "archived": null,
+        "allow_auto_merge": false,
+        "allow_merge_commit": true,
+        "allow_rebase_merge": true,
+        "allow_squash_merge": true,
+        "allow_update_branch": false,
+        "language": null,
+        "size": 39,
+        "master_branch": null,
+        "permissions": null
+      }
+    },
+    "env_vars": {},
+    "secrets": {},
+    "secrets_with_domains": null,
+    "task_count": 2,
+    "creator_id": "user-4o0Gm3CEno2AjlosjofJ9SxZ__8a0d021f-08ed-493d-8907-0af08d77acd4",
+    "share_settings": "workspace",
+    "share_targets": [],
+    "permissions": {
+      "can_write": true,
+      "can_delete": true
+    },
+    "created_at": 1749131270.783775,
+    "auto_setup_settings": null,
+    "cache_settings": {
+      "post_setup_cache_enabled": true,
+      "cache_invalidation_key": ""
+    },
+    "etag": "\"2500fc64-0000-0200-0000-689282090000\"",
+    "enable_authtranslator": false,
+    "enable_docker_in_docker": false
+  }
+]
+[2026-10-01T22:11:33.440969+00:00] env: selecting by task_count/first: 682f917e42d4819189225a725a480f7e
+[2026-10-01T22:11:33.441646+00:00] env.select: autodetected id=682f917e42d4819189225a725a480f7e label=coreweave/data-engineering
+[2026-10-01T22:11:33.496735+00:00] env: parsed HTTP GitHub origin => crossbizz/zasp-sec
+[2026-10-01T22:11:33.661667+00:00] http.list_tasks: env=682f917e42d4819189225a725a480f7e limit=20 cursor_in=<none> cursor_out=<none> items=0
+[2026-10-01T22:11:33.666580+00:00] refresh.apply: env=682f917e42d4819189225a725a480f7e count=0
+[2026-10-01T22:11:33.850588+00:00] env: status=200 OK content-type=application/json
+[2026-10-01T22:11:34.577487+00:00] env: status=200 OK content-type=application/json
+[2026-10-01T22:11:34.887006+00:00] env: status=200 OK content-type=application/json
+[2026-10-01T22:19:23.867095+00:00] startup: base_url=https://chatgpt.com/backend-api path_style=wham
+[2026-10-01T22:19:23.867355+00:00] auth: mode=ChatGPT account_id=8a0d021f-08ed-493d-8907-0af08d77acd4
+[2026-10-01T22:19:23.867431+00:00] auth: set ChatGPT-Account-Id header: 8a0d021f-08ed-493d-8907-0af08d77acd4
+[2026-10-01T22:19:24.140423+00:00] http.list_tasks: env=<all> limit=1 cursor_in=<none> cursor_out=<none> items=0

@@ -1,0 +1,29 @@
+$ /usr/local/bin/docker run --rm --name zasp-export-db-projection-final-green --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExport(ProjectionStoppedParent|ProjectionSettled|Release)Postgres$' -test.v -test.timeout 300s
+=== RUN   TestSecurityAgentExportProjectionSettledPostgres
+=== RUN   TestSecurityAgentExportProjectionSettledPostgres/succeeded
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=23 data=/tmp/TestSecurityAgentExportProjectionSettledPostgressucceeded3367894504/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportProjectionSettledPostgres/known_failure
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=56 data=/tmp/TestSecurityAgentExportProjectionSettledPostgresknown_failure552994664/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportProjectionSettledPostgres/cleanup_pending
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=88 data=/tmp/TestSecurityAgentExportProjectionSettledPostgrescleanup_pending3076635144/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportProjectionSettledPostgres (20.92s)
+    --- PASS: TestSecurityAgentExportProjectionSettledPostgres/succeeded (7.31s)
+    --- PASS: TestSecurityAgentExportProjectionSettledPostgres/known_failure (6.46s)
+    --- PASS: TestSecurityAgentExportProjectionSettledPostgres/cleanup_pending (7.14s)
+=== RUN   TestSecurityAgentExportProjectionStoppedParentPostgres
+=== RUN   TestSecurityAgentExportProjectionStoppedParentPostgres/contained
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=120 data=/tmp/TestSecurityAgentExportProjectionStoppedParentPostgrescontained2156461826/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportProjectionStoppedParentPostgres/remediated
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=151 data=/tmp/TestSecurityAgentExportProjectionStoppedParentPostgresremediate2560004118/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== RUN   TestSecurityAgentExportProjectionStoppedParentPostgres/inconclusive
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=183 data=/tmp/TestSecurityAgentExportProjectionStoppedParentPostgresinconclus2305229359/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportProjectionStoppedParentPostgres (16.78s)
+    --- PASS: TestSecurityAgentExportProjectionStoppedParentPostgres/contained (5.58s)
+    --- PASS: TestSecurityAgentExportProjectionStoppedParentPostgres/remediated (5.47s)
+    --- PASS: TestSecurityAgentExportProjectionStoppedParentPostgres/inconclusive (5.73s)
+=== RUN   TestSecurityAgentExportReleasePostgres
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=213 data=/tmp/TestSecurityAgentExportReleasePostgres934952022/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestSecurityAgentExportReleasePostgres (7.41s)
+PASS
+
+Container exit: 0

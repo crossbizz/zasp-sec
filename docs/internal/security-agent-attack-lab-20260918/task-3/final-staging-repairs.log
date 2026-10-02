@@ -1,0 +1,152 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["node","--test","deploy/staging/queue-contract.test.mjs","deploy/staging/compliance-exports-contract.test.mjs"]
+TAP version 13
+# Subtest: source check: compliance optIn contract
+ok 1 - source check: compliance optIn contract
+  ---
+  duration_ms: 1.53775
+  type: 'test'
+  ...
+# Subtest: source check: compliance storage contract
+ok 2 - source check: compliance storage contract
+  ---
+  duration_ms: 0.691958
+  type: 'test'
+  ...
+# Subtest: source check: compliance authority contract
+ok 3 - source check: compliance authority contract
+  ---
+  duration_ms: 1.740458
+  type: 'test'
+  ...
+# Subtest: source check: compliance secrets contract
+ok 4 - source check: compliance secrets contract
+  ---
+  duration_ms: 0.392208
+  type: 'test'
+  ...
+# Subtest: source check: compliance metadata contract
+ok 5 - source check: compliance metadata contract
+  ---
+  duration_ms: 0.275833
+  type: 'test'
+  ...
+# Subtest: source mutation control rejects removed versioning
+ok 6 - source mutation control rejects removed versioning
+  ---
+  duration_ms: 0.626167
+  type: 'test'
+  ...
+# Subtest: source mutation control rejects current-key deletion
+ok 7 - source mutation control rejects current-key deletion
+  ---
+  duration_ms: 0.889916
+  type: 'test'
+  ...
+# Subtest: source mutation control rejects broadened DSN reference
+ok 8 - source mutation control rejects broadened DSN reference
+  ---
+  duration_ms: 0.470458
+  type: 'test'
+  ...
+# Subtest: source mutation control rejects swapped service account
+ok 9 - source mutation control rejects swapped service account
+  ---
+  duration_ms: 0.4425
+  type: 'test'
+  ...
+# Subtest: source check: staging gate includes compliance storage checks
+ok 10 - source check: staging gate includes compliance storage checks
+  ---
+  duration_ms: 11.041208
+  type: 'test'
+  ...
+# Subtest: dead_letter.receive_wait_time_seconds pins the canonical value only for the original queues
+ok 11 - dead_letter.receive_wait_time_seconds pins the canonical value only for the original queues
+  ---
+  duration_ms: 0.864458
+  type: 'test'
+  ...
+# Subtest: dead_letter.receive_wait_time_seconds guard rejects missing, changed and over-scoped settings
+ok 12 - dead_letter.receive_wait_time_seconds guard rejects missing, changed and over-scoped settings
+  ---
+  duration_ms: 2.573083
+  type: 'test'
+  ...
+# Subtest: dead_letter.max_message_size pins the canonical value only for the original queues
+ok 13 - dead_letter.max_message_size pins the canonical value only for the original queues
+  ---
+  duration_ms: 0.125875
+  type: 'test'
+  ...
+# Subtest: dead_letter.max_message_size guard rejects missing, changed and over-scoped settings
+ok 14 - dead_letter.max_message_size guard rejects missing, changed and over-scoped settings
+  ---
+  duration_ms: 2.709791
+  type: 'test'
+  ...
+# Subtest: dead_letter.delay_seconds pins the canonical value only for the original queues
+ok 15 - dead_letter.delay_seconds pins the canonical value only for the original queues
+  ---
+  duration_ms: 0.177042
+  type: 'test'
+  ...
+# Subtest: dead_letter.delay_seconds guard rejects missing, changed and over-scoped settings
+ok 16 - dead_letter.delay_seconds guard rejects missing, changed and over-scoped settings
+  ---
+  duration_ms: 0.529375
+  type: 'test'
+  ...
+# Subtest: work.delay_seconds pins the canonical value only for the original queues
+ok 17 - work.delay_seconds pins the canonical value only for the original queues
+  ---
+  duration_ms: 0.067417
+  type: 'test'
+  ...
+# Subtest: work.delay_seconds guard rejects missing, changed and over-scoped settings
+ok 18 - work.delay_seconds guard rejects missing, changed and over-scoped settings
+  ---
+  duration_ms: 1.368666
+  type: 'test'
+  ...
+# Subtest: staging retains all three original queue contracts independently of Red Team
+ok 19 - staging retains all three original queue contracts independently of Red Team
+  ---
+  duration_ms: 1.645292
+  type: 'test'
+  ...
+# Subtest: shared staging resources bind each queue to its encrypted DLQ and output
+ok 20 - shared staging resources bind each queue to its encrypted DLQ and output
+  ---
+  duration_ms: 0.896666
+  type: 'test'
+  ...
+# Subtest: Red Team consumer authority stays on its separate queue
+ok 21 - Red Team consumer authority stays on its separate queue
+  ---
+  duration_ms: 0.208958
+  type: 'test'
+  ...
+# Subtest: original queue guard rejects missing tests and changed schema or delivery settings
+ok 22 - original queue guard rejects missing tests and changed schema or delivery settings
+  ---
+  duration_ms: 0.724542
+  type: 'test'
+  ...
+# Subtest: shared-resource guard rejects crossed DLQs, redrive widening and missing output membership
+ok 23 - shared-resource guard rejects crossed DLQs, redrive widening and missing output membership
+  ---
+  duration_ms: 0.695708
+  type: 'test'
+  ...
+1..23
+# tests 23
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 69.359542
+
+Exit: 0 Signal: null

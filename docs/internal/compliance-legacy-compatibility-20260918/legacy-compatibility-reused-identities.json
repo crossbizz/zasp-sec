@@ -1,0 +1,584 @@
+[
+  {
+    "file": "services/platform/migrations/migrations.go",
+    "previous": "909ddcdc39d03670c9c6e5d1475beddcfee700fa",
+    "current": "909ddcdc39d03670c9c6e5d1475beddcfee700fa",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-migrate/main.go",
+    "previous": "8f8c4e36da2d649857bbe535e28f90e9da684230",
+    "current": "8f8c4e36da2d649857bbe535e28f90e9da684230",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-migrate/existing_tests_command_test.go",
+    "previous": "b24aec5d71b259b9955d9e62eede00ce4bacffbd",
+    "current": "b24aec5d71b259b9955d9e62eede00ce4bacffbd",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-migrate/release_readiness_test.go",
+    "previous": "354e5f5ed41fe231f7eb4c920fa6393606edbad5",
+    "current": "354e5f5ed41fe231f7eb4c920fa6393606edbad5",
+    "reused": true
+  },
+  {
+    "file": "services/platform/migrations/compliance_release.go",
+    "previous": "b8f6d44f9f6b5dd244012c0706442d4f1cb7f04a",
+    "current": "b8f6d44f9f6b5dd244012c0706442d4f1cb7f04a",
+    "reused": true
+  },
+  {
+    "file": "services/platform/migrations/production_compliance.go",
+    "previous": "573f26222a865aa031591acf4d26439a06eac7ce",
+    "current": "573f26222a865aa031591acf4d26439a06eac7ce",
+    "reused": true
+  },
+  {
+    "file": "services/platform/migrations/sql/0056_production_compliance.up.sql",
+    "previous": "5cef6f19e09e6c882c6dc1237b56bf48bb700261",
+    "current": "5cef6f19e09e6c882c6dc1237b56bf48bb700261",
+    "reused": true
+  },
+  {
+    "file": "services/platform/migrations/sql/0056_production_compliance.down.sql",
+    "previous": "4f849ace1c181e4c57904486bdded410119dcc2a",
+    "current": "4f849ace1c181e4c57904486bdded410119dcc2a",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_repository.go",
+    "previous": "2a4a90eb9622a5d322f8b87ee9c237e6b058fe2d",
+    "current": "2a4a90eb9622a5d322f8b87ee9c237e6b058fe2d",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_repository_test.go",
+    "previous": "d2ca44f5694036298528a26fa6b04fce7cf57f2a",
+    "current": "d2ca44f5694036298528a26fa6b04fce7cf57f2a",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_postgres_test.go",
+    "previous": "1e016d3bb81eecdd6ad2e19851a66f1521144947",
+    "current": "1e016d3bb81eecdd6ad2e19851a66f1521144947",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-migrate/compliance_command_test.go",
+    "previous": "904bc9e91f0f50bee98869152d6636e946f9f99d",
+    "current": "904bc9e91f0f50bee98869152d6636e946f9f99d",
+    "reused": true
+  },
+  {
+    "file": "services/platform/migrations/sql/fragments/compliance_jobs.sql",
+    "previous": "e96bd62ad561464a6293c0ad57d79510c5dc3ce8",
+    "current": "e96bd62ad561464a6293c0ad57d79510c5dc3ce8",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_exports_repository.go",
+    "previous": "37ef671cdab773eac9f79ccab12057842437f456",
+    "current": "37ef671cdab773eac9f79ccab12057842437f456",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_exports_repository_test.go",
+    "previous": "4ee33284fc2e1d723a30a0a2f3f33277b92db245",
+    "current": "4ee33284fc2e1d723a30a0a2f3f33277b92db245",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_exports_postgres_test.go",
+    "previous": "0281d16b64c9c587bb22d528d7e76a0008389b60",
+    "current": "0281d16b64c9c587bb22d528d7e76a0008389b60",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/compliance_export_database.go",
+    "previous": "80b27166875ed539cc964a949a66cfb181ebb385",
+    "current": "80b27166875ed539cc964a949a66cfb181ebb385",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/compliance_export_database_test.go",
+    "previous": "35f2d3457b5e6378b5be690d4ba97cbb09bb4d22",
+    "current": "35f2d3457b5e6378b5be690d4ba97cbb09bb4d22",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/compliance_export_replay.go",
+    "previous": "1ec34674bd8245edf6d52f59551731fd7eafd1f8",
+    "current": "1ec34674bd8245edf6d52f59551731fd7eafd1f8",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/compliance_export_replay_test.go",
+    "previous": "b5d1c3dde0afd928a4527d3cd60332fff1462d0e",
+    "current": "b5d1c3dde0afd928a4527d3cd60332fff1462d0e",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_exports_fix_postgres_test.go",
+    "previous": "2cf7b55fd85290e843dffc2e10f7769aa0007519",
+    "current": "2cf7b55fd85290e843dffc2e10f7769aa0007519",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_exports_quotas_postgres_test.go",
+    "previous": "f5b97f4362e11bb0960b2be24eb2b71014bb3495",
+    "current": "f5b97f4362e11bb0960b2be24eb2b71014bb3495",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/runtime_config.go",
+    "previous": "dd2cf7cf520e3ce99d824a7759a2c296b2b0b72b",
+    "current": "dd2cf7cf520e3ce99d824a7759a2c296b2b0b72b",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/production_runtime.go",
+    "previous": "f8f61bf3fc2e32bcc864af285a463dfa1aa6946f",
+    "current": "f8f61bf3fc2e32bcc864af285a463dfa1aa6946f",
+    "reused": true
+  },
+  {
+    "file": "services/platform/sessioncontrol/sessioncontrol.go",
+    "previous": "046ace59314f3e83ab4a3bdaa05054682b25f0b0",
+    "current": "046ace59314f3e83ab4a3bdaa05054682b25f0b0",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/compliance_export_runtime_test.go",
+    "previous": "3693ecf7868dbbadcf21d9cb832f72643e1a6a3d",
+    "current": "3693ecf7868dbbadcf21d9cb832f72643e1a6a3d",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/compliance_export_config.go",
+    "previous": "9dcb394f564e3b5c012ebcdfd677d9c3cc943feb",
+    "current": "9dcb394f564e3b5c012ebcdfd677d9c3cc943feb",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/compliance_export_render.go",
+    "previous": "ad6c7b9fceda774e8ef18f073613342aee63545a",
+    "current": "ad6c7b9fceda774e8ef18f073613342aee63545a",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/compliance_export_runtime.go",
+    "previous": "fc5c76c97979dddf0015613453f1d9fe033b715d",
+    "current": "fc5c76c97979dddf0015613453f1d9fe033b715d",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/compliance_export_production.go",
+    "previous": "17d1dcfcb054863f66e5b6760a591b581efca1fa",
+    "current": "17d1dcfcb054863f66e5b6760a591b581efca1fa",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/compliance_export_composition_test.go",
+    "previous": "9b72eee784bf801e7cbf5f5dcb2d7ef4cc9b2850",
+    "current": "9b72eee784bf801e7cbf5f5dcb2d7ef4cc9b2850",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-worker/compliance_export_process_test.go",
+    "previous": "f22a5b551630c7bdd7991d5b6dafbbf729fc2e5f",
+    "current": "f22a5b551630c7bdd7991d5b6dafbbf729fc2e5f",
+    "reused": true
+  },
+  {
+    "file": "services/platform/artifactstore/s3driver/export_lifecycle.go",
+    "previous": "0a791801ba0ec4846db63009149c626ebd34e18c",
+    "current": "0a791801ba0ec4846db63009149c626ebd34e18c",
+    "reused": true
+  },
+  {
+    "file": "services/platform/artifactstore/s3driver/export_lifecycle_test.go",
+    "previous": "369ee6487babdc454fc25a911b93acf496b57226",
+    "current": "369ee6487babdc454fc25a911b93acf496b57226",
+    "reused": true
+  },
+  {
+    "file": "services/platform/sessioncontrol/compliance_attribution_test.go",
+    "previous": "85991eacaa7f1cecbe5b63692dbbc1dbd1af2289",
+    "current": "85991eacaa7f1cecbe5b63692dbbc1dbd1af2289",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_runtime_postgres_test.go",
+    "previous": "bde7d131c95247d7c79cdbe0e26fba98d3ab782c",
+    "current": "bde7d131c95247d7c79cdbe0e26fba98d3ab782c",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/postgres_database.go",
+    "previous": "56addb2aedbadf26f2251921b606a82274f31be1",
+    "current": "56addb2aedbadf26f2251921b606a82274f31be1",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/composition.go",
+    "previous": "241f3724f02ece91ddc6b806a045d031f3f50d08",
+    "current": "241f3724f02ece91ddc6b806a045d031f3f50d08",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-api/runtime.go",
+    "previous": "05a6599818a8d1c0eececcad83f9fea05815f072",
+    "current": "05a6599818a8d1c0eececcad83f9fea05815f072",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-api/production_runtime.go",
+    "previous": "328c3ec8c8ff4f96902ee9c4251567b36078dc9b",
+    "current": "328c3ec8c8ff4f96902ee9c4251567b36078dc9b",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-api/audit_export_config.go",
+    "previous": "086fa62bdc4476469a821aceaaa3433898b9d441",
+    "current": "086fa62bdc4476469a821aceaaa3433898b9d441",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-api/connector_aws.go",
+    "previous": "1c9ec5fd9ef27a563fa3bf6be9e0bcea146c668a",
+    "current": "1c9ec5fd9ef27a563fa3bf6be9e0bcea146c668a",
+    "reused": true
+  },
+  {
+    "file": "openapi/openapi.yaml",
+    "previous": "97d7cfa96ffb43c475cda523f50e455236d88071",
+    "current": "97d7cfa96ffb43c475cda523f50e455236d88071",
+    "reused": true
+  },
+  {
+    "file": "apps/web/api/generated.ts",
+    "previous": "7668a3f638f996b796a59de4efe0f0fc757d6ace",
+    "current": "7668a3f638f996b796a59de4efe0f0fc757d6ace",
+    "reused": true
+  },
+  {
+    "file": "docs/product/ui-api-map.yaml",
+    "previous": "1b5374cce55e9e427e477eebe810d117a2784ef5",
+    "current": "1b5374cce55e9e427e477eebe810d117a2784ef5",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/router.go",
+    "previous": "30bb1b4ec76379930ac2657dd5020ca72691e5d4",
+    "current": "30bb1b4ec76379930ac2657dd5020ca72691e5d4",
+    "reused": true
+  },
+  {
+    "file": "apps/web/api/administration-decoders.ts",
+    "previous": "565734ab278055e0297ff496e40d8874bba03954",
+    "current": "565734ab278055e0297ff496e40d8874bba03954",
+    "reused": true
+  },
+  {
+    "file": "apps/web/api/client.ts",
+    "previous": "31c556f84b34840ab69eb93dc75c206f718e5815",
+    "current": "31c556f84b34840ab69eb93dc75c206f718e5815",
+    "reused": true
+  },
+  {
+    "file": "openapi/openapi.test.mjs",
+    "previous": "6019b51fe17ab71906a78a899081b94426bfece1",
+    "current": "6019b51fe17ab71906a78a899081b94426bfece1",
+    "reused": true
+  },
+  {
+    "file": "scripts/check-ui-api-coverage.test.mjs",
+    "previous": "5aa64d8573674651307dce9817897a742b6b454d",
+    "current": "5aa64d8573674651307dce9817897a742b6b454d",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/composition_test.go",
+    "previous": "121e6eed537c16482988caad6d80c9dee1be51af",
+    "current": "121e6eed537c16482988caad6d80c9dee1be51af",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_http.go",
+    "previous": "273331d3e3445207072dc46b0d72316cdb196b16",
+    "current": "273331d3e3445207072dc46b0d72316cdb196b16",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_download.go",
+    "previous": "2c9e0a765eb0c18d8aab2b6db53332f82a2e1229",
+    "current": "2c9e0a765eb0c18d8aab2b6db53332f82a2e1229",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_production.go",
+    "previous": "5a85945f3ec857faf50ce216720b8f249906c0a5",
+    "current": "5a85945f3ec857faf50ce216720b8f249906c0a5",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_conflict_test.go",
+    "previous": "923f717ff510abbe3fe396c00ba0c92e77650682",
+    "current": "923f717ff510abbe3fe396c00ba0c92e77650682",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_http_test.go",
+    "previous": "2321dccbc58bb33216991fb521083ae7f894bdf9",
+    "current": "2321dccbc58bb33216991fb521083ae7f894bdf9",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_download_test.go",
+    "previous": "71d75479f8535676aac49e653b5ba32818925e48",
+    "current": "71d75479f8535676aac49e653b5ba32818925e48",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_exports_binding_test.go",
+    "previous": "30cd149871bac0110eef9d05ff28df804d30713b",
+    "current": "30cd149871bac0110eef9d05ff28df804d30713b",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_http_postgres_test.go",
+    "previous": "bf553dcc8aa468fca709c7867720ad732494fac7",
+    "current": "bf553dcc8aa468fca709c7867720ad732494fac7",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-api/compliance_config.go",
+    "previous": "796f3760e1e5a865b88a107c040ca0acf7413863",
+    "current": "796f3760e1e5a865b88a107c040ca0acf7413863",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-api/compliance_config_test.go",
+    "previous": "63f60504cd112c7156c0e4451f7e3f402af8c612",
+    "current": "63f60504cd112c7156c0e4451f7e3f402af8c612",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-api/compliance_composition_test.go",
+    "previous": "223a8038e0a1a7bc4bca3cb522f00c628a94b86d",
+    "current": "7fc9da7344843953bee64c61f1de21b1292d4270",
+    "reused": false
+  },
+  {
+    "file": "apps/web/api/compliance-decoders.ts",
+    "previous": "cdb06ae23884cadc9ec735a8ba383c0c16bb21ac",
+    "current": "479e0d99e93df83e36eeb6734940b7c855e643e7",
+    "reused": false
+  },
+  {
+    "file": "apps/web/api/compliance-decoders.test.ts",
+    "previous": "b4e2640290ff5b4e78f27e598eb2580201b2acd0",
+    "current": "abec750ea9d0c7ca80258cb48f1d67a9d7b6c304",
+    "reused": false
+  },
+  {
+    "file": "apps/web/api/compliance-download.test.ts",
+    "previous": "d838daf66afa1740f0449f23efb53be712e0530e",
+    "current": "d838daf66afa1740f0449f23efb53be712e0530e",
+    "reused": true
+  },
+  {
+    "file": "app/features/sessions/SessionsComplianceView.tsx",
+    "previous": "b6fcf29d373e055a4ec24f82bc3a1f2550843fdf",
+    "current": "3307faf67cafa1e52ba40ce0d2f01149245a3937",
+    "reused": false
+  },
+  {
+    "file": "app/features/sessions/SessionsComplianceView.test.tsx",
+    "previous": "0f13c934c12b9e5d08a16b152afc3ca8b3e265b0",
+    "current": "24134a24ae08a1d088e87f784dec599e3bd16348",
+    "reused": false
+  },
+  {
+    "file": "app/components/ZaspProductionApp.tsx",
+    "previous": "cc38f7f78b89f728b34e3437aef6519dbb27b0d7",
+    "current": "cc38f7f78b89f728b34e3437aef6519dbb27b0d7",
+    "reused": true
+  },
+  {
+    "file": "app/components/ZaspProductionApp.test.tsx",
+    "previous": "410d9941d83fd63788602e88de236eea48eb6f9d",
+    "current": "410d9941d83fd63788602e88de236eea48eb6f9d",
+    "reused": true
+  },
+  {
+    "file": "scripts/production-combined-e2e.mjs",
+    "previous": "59fda9d9657bb31ed997760ad17581c5e30d18ae",
+    "current": "be0d10e83e90a1fa656246dff5a5511465594e91",
+    "reused": false
+  },
+  {
+    "file": "scripts/production-combined-e2e.test.mjs",
+    "previous": "43aed4f706a2e93239c31d69d92bc58d29d808df",
+    "current": "43aed4f706a2e93239c31d69d92bc58d29d808df",
+    "reused": true
+  },
+  {
+    "file": "package.json",
+    "previous": "052c2e82853010a213e98eb6bde8a6b940b6d685",
+    "current": "052c2e82853010a213e98eb6bde8a6b940b6d685",
+    "reused": true
+  },
+  {
+    "file": "app/quality/m7-session-compliance-batch-contract.test.ts",
+    "previous": "d188a3847ce0ae588e386bc15504b9c8d48b10b3",
+    "current": "d188a3847ce0ae588e386bc15504b9c8d48b10b3",
+    "reused": true
+  },
+  {
+    "file": "app/quality/m2-closure-contract.test.ts",
+    "previous": "8cf6b8b36a5d02f465dbcf9c7f8cd3979f2b260d",
+    "current": "8cf6b8b36a5d02f465dbcf9c7f8cd3979f2b260d",
+    "reused": true
+  },
+  {
+    "file": "app/quality/m2-identity-governance-ui-batch-contract.test.ts",
+    "previous": "de2ba28b6a680468eb42f04c10e761cb3a07da03",
+    "current": "de2ba28b6a680468eb42f04c10e761cb3a07da03",
+    "reused": true
+  },
+  {
+    "file": "app/quality/ui-api-map-contract.test.ts",
+    "previous": "572583d6aead96c9db28c2d4d2495f7ab1074ef8",
+    "current": "572583d6aead96c9db28c2d4d2495f7ab1074ef8",
+    "reused": true
+  },
+  {
+    "file": "app/quality/ui-api-coverage-ci-contract.test.ts",
+    "previous": "89e817f5f6fb74962f9710b08f1eaf43efd09011",
+    "current": "89e817f5f6fb74962f9710b08f1eaf43efd09011",
+    "reused": true
+  },
+  {
+    "file": "app/domain/compliance-links.ts",
+    "previous": "4ee7d447b7492ca7485eaea771450d93b902c7e1",
+    "current": "4ee7d447b7492ca7485eaea771450d93b902c7e1",
+    "reused": true
+  },
+  {
+    "file": "app/domain/compliance-links.test.ts",
+    "previous": "432dc3fb55d1e5eb199403d0bfdda5cc5eb018c8",
+    "current": "432dc3fb55d1e5eb199403d0bfdda5cc5eb018c8",
+    "reused": true
+  },
+  {
+    "file": "app/features/sessions/ComplianceEvidenceView.tsx",
+    "previous": "4a80295b84676d0a4b6b3c953a0b6bda93632d02",
+    "current": "345f9f6bf7b6ce38f5ad7e9b481b4d1bae390ed3",
+    "reused": false
+  },
+  {
+    "file": "app/features/sessions/compliance-api.ts",
+    "previous": "a0731913ff9f6899666797168235b92a88420289",
+    "current": "1559dab62f8db8af911ad4f463ee5635817354d1",
+    "reused": false
+  },
+  {
+    "file": "app/features/sessions/compliance-api.test.ts",
+    "previous": "4fc6cf13afd00721bf22ee21351895584d3672a9",
+    "current": "4fc6cf13afd00721bf22ee21351895584d3672a9",
+    "reused": true
+  },
+  {
+    "file": "services/platform/agentsec-api/compliance_browser_process_test.go",
+    "previous": "53e499d11150ec708ef540a6d7822d0f399a456b",
+    "current": "a9ed404eb260befbacf2185dfea79907a7d19d81",
+    "reused": false
+  },
+  {
+    "file": "scripts/compliance-browser-bytes.mjs",
+    "previous": "cc09141a3eb721b0778fef2d7e6a6f29db639819",
+    "current": "cc09141a3eb721b0778fef2d7e6a6f29db639819",
+    "reused": true
+  },
+  {
+    "file": "scripts/compliance-browser-bytes.test.mjs",
+    "previous": "9a14d8182b675b2434fb80575f8c3d27d03f0a65",
+    "current": "9a14d8182b675b2434fb80575f8c3d27d03f0a65",
+    "reused": true
+  },
+  {
+    "file": "apps/web/api/pagination.ts",
+    "previous": "48d6119476e02f735990988642c93354d9d48e72",
+    "current": "48d6119476e02f735990988642c93354d9d48e72",
+    "reused": true
+  },
+  {
+    "file": "apps/web/api/pagination.test.ts",
+    "previous": "f7b7b69f2a9df5dce77ac7926d8bdad7830e0eb5",
+    "current": "f7b7b69f2a9df5dce77ac7926d8bdad7830e0eb5",
+    "reused": true
+  },
+  {
+    "file": "services/platform/artifactstore/store.go",
+    "previous": "54434b7933d136951b0797f810a0ab6220c66b23",
+    "current": "54434b7933d136951b0797f810a0ab6220c66b23",
+    "reused": true
+  },
+  {
+    "file": "services/platform/artifactstore/s3driver/driver.go",
+    "previous": "9ff51d8451494c86d3e4f16ca7f577bd51fdb3a8",
+    "current": "9ff51d8451494c86d3e4f16ca7f577bd51fdb3a8",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_read_classification_test.go",
+    "previous": "2f65e40fe71bf13f67dbe6f8b938ddf93ab94fb5",
+    "current": "2f65e40fe71bf13f67dbe6f8b938ddf93ab94fb5",
+    "reused": true
+  },
+  {
+    "file": "services/platform/artifactstore/read_classification_test.go",
+    "previous": "65fcd9c148d7f4802c6503a2d1cc9c66c1a7a67b",
+    "current": "65fcd9c148d7f4802c6503a2d1cc9c66c1a7a67b",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_read_classification_postgres_test.go",
+    "previous": "f85fb9c82dbec176e53b9c6452188a7bf644ecf9",
+    "current": "f85fb9c82dbec176e53b9c6452188a7bf644ecf9",
+    "reused": true
+  },
+  {
+    "file": "scripts/browser-prerequisites.mjs",
+    "previous": "af7c3a58ab580739d197d59c8b2e4a35a04007b5",
+    "current": "af7c3a58ab580739d197d59c8b2e4a35a04007b5",
+    "reused": true
+  },
+  {
+    "file": "scripts/browser-prerequisites.test.mjs",
+    "previous": "3c756475d248a471422bd1d41661a24345a06a76",
+    "current": "3c756475d248a471422bd1d41661a24345a06a76",
+    "reused": true
+  },
+  {
+    "file": ".github/workflows/runnable-ui.yml",
+    "previous": "bd335dd2892885d6cc155c2d67b9cd42d9bc6be1",
+    "current": "bd335dd2892885d6cc155c2d67b9cd42d9bc6be1",
+    "reused": true
+  },
+  {
+    "file": "services/platform/apiserver/compliance_connected_postgres_test.go",
+    "previous": "359f3d19edf330e9cc771e20a3d0177dd88c2be7",
+    "current": "359f3d19edf330e9cc771e20a3d0177dd88c2be7",
+    "reused": true
+  },
+  {
+    "file": "app/quality/runnable-ui-workflow.test.ts",
+    "previous": "f2612eadcb4b33be34c358f75e4ae953cd32d7d9",
+    "current": "f2612eadcb4b33be34c358f75e4ae953cd32d7d9",
+    "reused": true
+  }
+]

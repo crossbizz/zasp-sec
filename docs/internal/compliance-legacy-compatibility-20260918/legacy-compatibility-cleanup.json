@@ -1,0 +1,36 @@
+{
+  "head": "8733b16f8d939d38a8157dd2519e57fc6f630542",
+  "summary": {
+    "jobID": "pid_32190dad-400a-404f-a186-454101f95969",
+    "packageSHA256": "610b99247d95213f67fde8dea6f1cbdf642012fa61f986608ff2759c342de5d0",
+    "nativeJSONBytes": 760,
+    "restartReadableBytes": 770,
+    "legacyDisabledReads": true,
+    "legacyStrictQuery": true,
+    "disabledToEnabledReload": true,
+    "hipaaSourceDetail": true,
+    "maximumIDPaging": true,
+    "pagingRecordsRemovedBeforeExport": 101,
+    "grantReplayRefused": true,
+    "siblingDenied": true,
+    "foreignDenied": true,
+    "sourceChanged": true,
+    "provider": "controlled local SDK transport, NOT AWS"
+  },
+  "cursors": {
+    "soc2_security": [
+      460,
+      427,
+      576
+    ],
+    "hipaa": [
+      450,
+      416,
+      566
+    ]
+  },
+  "continuityCheckpoints": 7,
+  "docker": "657fad5b61a1 zasp-daemon-replay-0ed39cf2-a273-461e-8ff5-c4b0e770370e postgres:18.6-bookworm\nb681accdd906 zasp-daemon-replay-eb8efdb0-8816-4708-9519-05fcc3c0e3bb postgres:18.6-bookworm\n10c69bde2704 voxeval-local-postgres-1 pgvector/pgvector:0.8.1-pg16\nbdeb0a2df25c voxeval-local-api-1 voxeval-local-api\n6ff399b41c69 voxeval-local-artifact-finalizer-1 voxeval-local-artifact-finalizer\nb5a9def19ab6 voxeval-local-evaluation-worker-1 voxeval-local-evaluation-worker\nd645bb618cb7 voxeval-local-call-worker-1 voxeval-local-call-worker\n236d54b1e870 voxeval-local-reconciliation-worker-1 voxeval-local-reconciliation-worker\n02ee436ce72d voxeval-local-run-worker-1 voxeval-local-run-worker\n55dab6b9f5c2 voxeval-local-twilio-simulator-1 voxeval-local-twilio-simulator\n3772b49f732e voxeval-local-localstack-1 localstack/localstack:4.7.0\ndca2d3f469e4 voxeval-local-otel-collector-1 otel/opentelemetry-collector-contrib:0.133.0\n",
+  "processes": [],
+  "patchSHA256": "41c988dd92b8808a80b3a36835edf771bc309ece26069556fec99b4ecbed54b4"
+}

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, createHmac, generateKeyPairSync, randomBytes } from "node:crypto";
 import { once } from "node:events";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
 import net from "node:net";
@@ -11,12 +11,73 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installBoundedSignalCleanup } from "./bounded-signal-cleanup.mjs";
 import { spawnOwnedCommand } from "./owned-command.mjs";
+import { createOwnedBrowserPostgres } from "./owned-browser-postgres.mjs";
+import { withBrowserPrerequisites } from "./browser-prerequisites.mjs";
 import { reloadBrowserPage } from "./browser-e2e-helpers.mjs";
+import { storedComplianceJSON } from "./compliance-browser-bytes.mjs";
 import { createRuntimePipelineDependencies } from "./runtime-pipeline-dependencies.mjs";
 import { createGraphFixtureDependency } from "../proofs/neo4j-graphstore/run.mjs";
 import { createRedTeamRuntimeProof } from "./red-team-runtime-proof.mjs";
+import { runExistingTestMountedBrowser } from "./existing-test-mounted-browser.mjs";
+import { prepareExportBrowserRelease, seedExportBrowserIdentity, runSecurityAgentExportMountedBrowser, exportBrowserScope, exportBrowserForeignScope, exportBrowserRelease, exportBrowserIdentity } from "./security-agent-export-mounted-browser.mjs";
+import { runAttackLabMountedBrowser, seedAttackLabBrowserIdentity } from "./attack-lab-mounted-browser.mjs";
 import { assertPrecisionBrowserCanonicalOrder, assertPrecisionBrowserIdentity, createPrecisionBrowserCheckpoint, runPrecisionBrowserProof, validatePrecisionBrowserMode } from "./runtime-precision-browser-proof.mjs";
+import { assertAuditPublicWitnessProjection, auditBrowserAPISettings, auditBrowserEnvironment, auditBrowserPolicyEnvironment, createAuditMutationCollector, createAuditRequestTrace, forwardAuditPage, runAuditLogBrowserProof, validateAuditBrowserMode } from "./audit-log-browser-proof.mjs";
+import { assertSecurityAgentSimulationProof, assertSecurityAgentSimulationDurability, validateSecurityAgentSimulationMode, validateSecurityAgentRunContextMode } from "./security-agent-simulation-browser-proof.mjs";
+import { auditExportVolumeMetadata, assertAuditExportVolume, joinAuditExportProvider, auditExportProviderCommand, installAuditBrowserFatalCleanup, parseAuditExportProviderReady, validateAuditExportBrowserMode, validateAuditExportPrepareMode, truncateAuditExportCreateResponse } from "./audit-export-browser-proof.mjs";
+import { currentDiscoveryExitCode, currentDiscoveryFailureCode, runCurrentDiscoveryMode } from "./discovery-current-composition.mjs";
 
+// Exclusive before every legacy validator, prerequisite, migration and seed.
+// Closed runtime refuses before browser/provider work. Legacy setup is untouched.
+if (Object.hasOwn(process.env, "ZASP_COMBINED_E2E_CURRENT_DISCOVERY")) {
+  try {
+    const result = await runCurrentDiscoveryMode(process.env);
+    console.error(`current discovery: ${result.code}; journey ${result.journey==="not-run"?"not run":result.journey}`);
+    process.exit(currentDiscoveryExitCode(result));
+  } catch (error) {
+    console.error(`current discovery: ${currentDiscoveryFailureCode(error)}`);
+  }
+  process.exit(1);
+}
+
+const securityAgentSimulationMode = validateSecurityAgentSimulationMode(process.env);
+const securityAgentRunContextMode = validateSecurityAgentRunContextMode(process.env);
+const automaticDiscoveryMode = Object.hasOwn(process.env, "ZASP_COMBINED_E2E_AUTOMATIC_DISCOVERY");
+if (automaticDiscoveryMode) {
+  assert.equal(process.env.ZASP_COMBINED_E2E_AUTOMATIC_DISCOVERY, "true", "automatic discovery requires exact true or absent opt-in");
+  for (const key of Object.keys(process.env)) {
+    if (key.startsWith("ZASP_COMBINED_E2E_") && !["ZASP_COMBINED_E2E_AUTOMATIC_DISCOVERY", "ZASP_COMBINED_E2E_CHROME"].includes(key)) throw new Error(`automatic discovery cannot combine with ${key}`);
+  }
+  assert.equal(Object.hasOwn(process.env, "ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC"), false);
+}
+const securityAgentExportMode = Object.hasOwn(process.env, "ZASP_COMBINED_E2E_SECURITY_AGENT_EXPORT");
+if (securityAgentExportMode) {
+  assert.equal(process.env.ZASP_COMBINED_E2E_SECURITY_AGENT_EXPORT, "true", "export browser requires exact true or absent opt-in");
+  for (const key of Object.keys(process.env)) {
+    if (key.startsWith("ZASP_COMBINED_E2E_") && key !== "ZASP_COMBINED_E2E_SECURITY_AGENT_EXPORT" && key !== "ZASP_COMBINED_E2E_CHROME") throw new Error(`export browser cannot combine with ${key}`);
+  }
+  assert.equal(Object.hasOwn(process.env, "ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC"), false, "export browser cannot combine with load diagnostics");
+}
+const attackLabMountedMode = process.env.ZASP_COMBINED_E2E_ATTACK_LAB === "true";
+const existingTestMountedMode = process.env.ZASP_COMBINED_E2E_EXISTING_TEST === "true" || attackLabMountedMode;
+assert.ok(!attackLabMountedMode || process.env.ZASP_COMBINED_E2E_EXISTING_TEST !== "true", "Attack Lab browser mode is isolated");
+const complianceBrowserMode = process.env.ZASP_COMBINED_E2E_COMPLIANCE === "true";
+const complianceResponseTrace = [];
+assert.ok(!complianceBrowserMode || !existingTestMountedMode && !securityAgentSimulationMode && !securityAgentRunContextMode, "compliance browser mode is isolated");
+assert.ok(!existingTestMountedMode || !securityAgentSimulationMode && !securityAgentRunContextMode, "mounted existing-test mode is isolated");
+const auditBrowserMode = validateAuditBrowserMode(process.env);
+const auditExportBrowserMode = validateAuditExportBrowserMode(process.env);
+const auditExportPrepareMode = validateAuditExportPrepareMode(process.env,auditExportBrowserMode);
+const auditExportLargeMode = process.env.ZASP_COMBINED_E2E_AUDIT_EXPORT_LARGE === "true";
+assert.ok(!auditExportLargeMode || auditExportBrowserMode,"large save requires selected owned export mode");
+const auditExportCreateRequests=[];
+let loseAuditExportCreateResponse=auditExportBrowserMode;
+const auditExportReadTotals={responses:0,cursorResponses:0,bytes:0,maximumEnvelopeBytes:0,incomplete:0};
+let auditExportProvider;
+const auditMutationWitnesses = createAuditMutationCollector();
+const auditRequestTrace = createAuditRequestTrace();
+let auditFailNext = false, auditDelayNext = false, releaseAuditDelayed;
+let auditExpectedEvents = [];
 const precisionBrowserMode = validatePrecisionBrowserMode(process.env);
 
 if (process.env.ZASP_COMBINED_E2E_RUNTIME_PRECISION === "true") {
@@ -27,11 +88,9 @@ if (process.env.ZASP_COMBINED_E2E_RUNTIME_SANDBOX_SEARCH === "true") {
 }
 
 const FIXED_NODE_VERSION = "v22.23.1";
+const automaticDiscoveryRelease = Object.freeze({version:60,checksum:"37956023196757f30a7ecb415e9d7d7e6f76cfa32a3ffa2d45445c172f6313ab",fingerprint:"1ed52fb5f9a83384e1d3fecbc3bc116d3981a36479e9b3b1f6ec04b5cd4f3b36"});
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const platform = path.join(root, "services", "platform");
-const postgresBin = execFileSync("pg_config", ["--bindir"], { encoding: "utf8", timeout: 5_000, maxBuffer: 4_096 }).trim();
-assert.ok(path.isAbsolute(postgresBin) && !/[\r\n\0]/.test(postgresBin), "PostgreSQL binary directory rejected");
-const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const productHostname = "zasp.production-e2e.test";
 const recoveryHostname = "zasp.production-e2e.localhost";
 const findingTicketOperation = "/api/v1/findings/{id}/ticket";
@@ -53,13 +112,17 @@ const stytchWebhookSecret = "whsec_MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE="
 
 if (process.version !== FIXED_NODE_VERSION) throw new Error(`production combined E2E requires Node ${FIXED_NODE_VERSION}`);
 
-const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "zasp-production-e2e-"));
+const { chrome, postgresBin, temporaryRoot } = await withBrowserPrerequisites({ root }, async prerequisites => ({
+  ...prerequisites,
+  temporaryRoot: await realpath(await mkdtemp(path.join(os.tmpdir(), "zasp-production-e2e-"))),
+}));
 const children = [];
 const ownedCommands = new WeakMap();
 const runtimePipelineDependencies = createRuntimePipelineDependencies(command);
 let runtimeGraphDependency;
 let precisionBrowserCheckpoint, runtimePipelineChild;
 const redTeamRuntimeProof = createRedTeamRuntimeProof(command);
+const mountedRuntimeProofs = [];
 let redTeamRuntimeConfiguration;
 let proxy;
 let identity;
@@ -70,6 +133,13 @@ let postgres;
 let web;
 let browser;
 let secondBrowserTab;
+const exportBrowserProfiles = [];
+const exportBrowserAPILifetimes = [];
+const exportBrowserAPIShutdowns = new WeakMap();
+const exportBrowserTrace = [];
+let exportBrowserEvidenceDirectory;
+let automaticDiscoveryEvidenceDirectory;
+let automaticDiscoverySourceHashes;
 const task4Workers = [];
 let observedSessionCookie = false;
 const lostPolicyResponseKeys = [];
@@ -125,8 +195,10 @@ const recoveryBackupRequestKeys = [];
 const securityAgentApprovalResponses = [];
 let loseNextRecoveryBackupResponse = true;
 const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
+if (auditExportBrowserMode) installAuditBrowserFatalCleanup(()=>cleanupController.run());
 
 try {
+  if (automaticDiscoveryMode) automaticDiscoverySourceHashes = await hashAutomaticDiscoveryInputs();
   const ports = await Promise.all(Array.from({ length: 8 }, reservePort));
   const [postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort] = ports;
   const githubAppPrivateKey = path.join(temporaryRoot, "github-app-private-key.pem");
@@ -151,14 +223,16 @@ try {
 	const gatewayE2EBinary = path.join(temporaryRoot, "runtime-gateway-e2e");
 	const agentsecctl = path.join(temporaryRoot, "agentsecctl");
   await command("go", ["build", "-o", migrate, "./agentsec-migrate"], { cwd: platform });
-  await command("go", ["build", "-o", apiBinary, "./agentsec-api"], { cwd: platform });
-  await command("go", ["build", "-o", workerBinary, "./agentsec-worker"], { cwd: platform });
+  await command("go", [auditExportBrowserMode || complianceBrowserMode || attackLabMountedMode || securityAgentExportMode ? "test" : "build", ...(auditExportBrowserMode || complianceBrowserMode || attackLabMountedMode || securityAgentExportMode ? ["-c"] : []), "-o", apiBinary, "./agentsec-api"], { cwd: platform, timeout: 120_000 });
+  if (!auditExportBrowserMode) {
+  if (!existingTestMountedMode && !complianceBrowserMode && !securityAgentExportMode) await command("go", ["build", "-o", workerBinary, "./agentsec-worker"], { cwd: platform });
   await command("go", ["test", "-c", "-o", workerE2EBinary, "./agentsec-worker"], { cwd: platform, timeout: 120_000 });
-	await command("go", ["test", "-c", "-o", gatewayE2EBinary, "."], { cwd: path.join(root, "services", "runtime-gateway"), timeout: 120_000 });
-	await command("go", ["build", "-o", agentsecctl, "."], { cwd: path.join(root, "cmd", "agentsecctl") });
-  const migrationResult = await command(migrate, ["up-to-48"], { reject: false, env: {
-    ...process.env,
-    ZASP_POSTGRES_DSN: dsn,
+	if (!existingTestMountedMode && !complianceBrowserMode && !securityAgentExportMode) await command("go", ["test", "-c", "-o", gatewayE2EBinary, "."], { cwd: path.join(root, "services", "runtime-gateway"), timeout: 120_000 });
+	if (!existingTestMountedMode && !complianceBrowserMode && !securityAgentExportMode) await command("go", ["build", "-o", agentsecctl, "."], { cwd: path.join(root, "cmd", "agentsecctl") });
+  }
+  const migrationEnvironment = {
+    ...auditBrowserEnvironment(process.env),
+    ZASP_POSTGRES_DSN: existingTestMountedMode ? `${dsn}&options=-clog_error_verbosity%3Dverbose` : dsn,
     ZASP_MIGRATION_TIMEOUT: "20s",
     ZASP_MIGRATION_DB_PRINCIPAL: "zasp_e2e",
     ZASP_DISCOVERY_API_DB_PRINCIPAL: "zasp_e2e_api",
@@ -189,8 +263,23 @@ try {
 		ZASP_ATTACK_LAB_PROXY_DB_PRINCIPAL: "zasp_e2e_attack_lab_proxy",
 		ZASP_RECOVERY_WORKER_DB_PRINCIPAL: "zasp_e2e_recovery",
 		ZASP_RECOVERY_OUTBOX_DB_PRINCIPAL: "zasp_e2e_recovery_outbox",
-  } });
+  };
+  const migrationResult = await command(migrate, ["up-to-48"], { reject: false, env: migrationEnvironment });
 	if (migrationResult.status !== 0) {
+		if(existingTestMountedMode && postgres.containerID) {
+			const diagnostic=await command("docker",["logs","--tail","250",postgres.containerID],{reject:false,timeout:5000});
+			console.error("owned migration diagnostic:",((diagnostic.stderr??"")+"\n"+(diagnostic.stdout??"")).split("\n").filter(line=>/ERROR:|DETAIL:|CONTEXT:|FATAL:/.test(line)).slice(-20).join("\n"));
+			const readiness=await command(path.join(postgresBin,"psql"),[dsn,"-X","-At","-c",`SELECT version(),(SELECT datcollate FROM pg_database WHERE datname=current_database()),zasp_connector_security_ready(),zasp_reference_authorization_security_ready(),zasp_reference_authorization_readiness(v.checksum,m.value),m.value FROM zasp_schema_versions v,zasp_schema_metadata m WHERE v.version=12 AND m.key='reference_authorization_fingerprint'; SELECT p.proname,p.proowner::regrole,p.prosecdef,p.proconfig,p.proacl FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname LIKE '%reference_authorization%' ORDER BY p.proname;`],{reject:false,timeout:5000});
+			console.error("owned reference readiness:",readiness.stdout,readiness.stderr);
+			const body=await command(path.join(postgresBin,"psql"),[dsn,"-X","-At","-c","SELECT prosrc FROM pg_proc WHERE oid='public.zasp_reference_authorization_readiness(text,text)'::regprocedure"],{reject:false,timeout:5000});
+			if(body.status===0 && body.stdout.includes(" SELECT EXISTS(SELECT 1 FROM zasp_schema_versions")) {
+				const fingerprintSQL=body.stdout.split(" SELECT EXISTS(SELECT 1 FROM zasp_schema_versions")[0]+" SELECT value FROM live";
+				const live=await command(path.join(postgresBin,"psql"),[dsn,"-X","-At","-c",fingerprintSQL],{reject:false,timeout:5000});
+				console.error("owned reference live fingerprint:",live.stdout,live.stderr);
+			}
+			const observed=await command("go",["test","./agentsec-migrate","-run","^TestMountedReadinessDiagnostic$","-count=1","-v"],{cwd:platform,env:migrationEnvironment,reject:false,timeout:60000});
+			console.error("owned runner diagnostic:",observed.stdout,observed.stderr);
+		}
 		const installed = await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions ORDER BY version;"], { reject: false });
 		throw new Error(`agentsec-migrate failed at installed releases ${installed.stdout.trim()}: ${migrationResult.stderr || migrationResult.stdout}`);
 	}
@@ -224,9 +313,56 @@ try {
   console.log("combined E2E: schema 46 production_reconciliation_lane_plan verified");
   console.log("combined E2E: schema 47 production_runtime_candidate_authority verified");
   console.log("combined E2E: schema 48 production_runtime_acceptance verified");
-  await seedPostgres(dsn);
+  if (auditBrowserMode) {
+    await command(migrate, ["up-to-53"], { env: migrationEnvironment });
+    const selectedRelease = await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-c", "SELECT version || '|' || name FROM zasp_schema_versions WHERE version>=49 ORDER BY version"]);
+    assert.equal(selectedRelease.stdout.trim(), "49|production_runtime_correlation_routing\n50|production_runtime_sandbox_binding\n51|production_runtime_precision\n52|production_audit_exports\n53|production_security_agent_budgets", "selected audit browse did not reach exact compiled53");
+    await command(migrate, ["register-audit-export-api"], { env: migrationEnvironment });
+    await command(migrate, ["configure-audit-exports"], { env: { ...migrationEnvironment, ...auditBrowserPolicyEnvironment() } });
+    console.log("combined E2E: selected compiled53 audit reader registered/configured through release CLI; live STS/S3 NOT RUN");
+  }
+  if (securityAgentRunContextMode) {
+    await command(migrate, ["up-to-54"], { env: migrationEnvironment });
+    const selected = await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-c", "SELECT max(version) FROM zasp_schema_versions"]);
+    assert.equal(selected.stdout.trim(), "54", "run-context browser requires registered54");
+  }
+  if (existingTestMountedMode) {
+    await command(migrate,[attackLabMountedMode ? "up-to-57" : "up-to-55"],{env:migrationEnvironment});
+    const selected=await command(path.join(postgresBin,"psql"),[dsn,"-X","-At","-c","SELECT max(version) FROM zasp_schema_versions"]);
+    assert.equal(selected.stdout.trim(),attackLabMountedMode ? "57" : "55","mounted linked browser requires exact compiled release");
+    if (attackLabMountedMode) {
+      await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-c","CREATE ROLE e2e_attack_lab_reconciler LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS"]);
+      await command(migrate,["register-security-agent-attack-lab-reconciler"],{env:{...migrationEnvironment,ZASP_SECURITY_AGENT_ATTACK_LAB_RECONCILER_DB_PRINCIPAL:"e2e_attack_lab_reconciler"}});
+    }
+    const pin=await command(path.join(postgresBin,"psql"),[dsn,"-X","-At","-c",attackLabMountedMode ? "SELECT zasp_sa_attack_lab_live_fingerprint()" : "SELECT zasp_production_security_agent_existing_tests_live_fingerprint()"]);
+    assert.equal(pin.stdout.trim(),attackLabMountedMode ? "f44bc966ef77ab523a80ace71b59defbe709c1fdbefd69ccfc40cacaf16d7ba8" : "2c324e78917f97feee14f915b397efbb92a183d47afd7473139dd0691cf0bb04","mounted protocol pin changed");
+  }
+  if (complianceBrowserMode) await command(migrate, ["up-to-56"], { env: migrationEnvironment });
+  if (automaticDiscoveryMode) await command(migrate, ["up-to-60"], { env: migrationEnvironment });
+  if (securityAgentExportMode) {
+    const sql = async statement => (await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
+    await prepareExportBrowserRelease({migrate,migrationEnvironment,command,sql});
+    await seedExportBrowserIdentity(sql);
+  }
+  else if (attackLabMountedMode) await seedAttackLabBrowserIdentity(async statement => (await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim());
+  else await seedPostgres(dsn);
   console.log("combined E2E: migrations and durable seed ready");
 
+  if (automaticDiscoveryMode) {
+    await exerciseAutomaticDiscoveryBrowser({dsn,apiDSN,apiBinary,workerBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort});
+  } else if (securityAgentExportMode) {
+    await exerciseSecurityAgentExportMountedBrowser({dsn,apiDSN,apiBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort});
+  } else if (attackLabMountedMode) {
+    await exerciseAttackLabMountedBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, migrate, migrationEnvironment, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
+  } else if (complianceBrowserMode) {
+    await exerciseComplianceBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
+  } else if (existingTestMountedMode) {
+    await exerciseExistingTestMountedBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
+  } else if (securityAgentSimulationMode) {
+    await exerciseSecurityAgentSimulationBrowser({ dsn, apiDSN, apiBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
+  } else if (auditExportBrowserMode) {
+    await exerciseAuditExportNativeBrowser({ dsn, apiDSN, apiBinary, migrate, migrationEnvironment, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
+  } else {
   // Construct only when needed, inside the cleanup boundary. Early PostgreSQL
   // shutdown needs no container environment; rejected graph configuration must
   // still release every resource allocated before this point.
@@ -239,7 +375,7 @@ try {
   if (process.env.ZASP_COMBINED_E2E_RED_TEAM_RUNTIME === "true") {
     const architecture = await redTeamRuntimeProof.prepare();
     const binary = path.join(temporaryRoot, "red-team-worker.test");
-    await command("go", ["test", "-c", "-o", binary, "./agentsec-worker"], { cwd: platform, timeout: 120_000, env: { ...process.env, CGO_ENABLED: "0", GOOS: "linux", GOARCH: architecture } });
+    await command("go", ["test", "-c", "-o", binary, "./agentsec-worker"], { cwd: platform, timeout: 120_000, env: { ...auditBrowserEnvironment(process.env), CGO_ENABLED: "0", GOOS: "linux", GOARCH: architecture } });
     redTeamRuntimeConfiguration = { binary, runner: path.join(root, "workers/redteam-node/runner.mjs"), dsn, awsEndpoint: runtimeAWSEndpoint };
   }
   const preciseRuntimeProof = process.env.ZASP_COMBINED_E2E_RUNTIME_PRECISION === "true";
@@ -247,7 +383,7 @@ try {
   const runRuntimePipeline = () => command(workerE2EBinary, ["-test.run", "^TestProductionCombinedE2ERuntimeQueueIndex$", "-test.v", "-test.timeout", preciseRuntimeProof ? "450s" : "240s"], {
     timeout: preciseRuntimeProof ? 460_000 : 250_000,
     onStarted: child => { runtimePipelineChild = child; },
-    env: { ...process.env, ZASP_COMBINED_E2E_RUNTIME_PRECISION_BROWSER_ENDPOINT: precisionBrowserCheckpoint?.endpoint ?? "", ZASP_COMBINED_E2E_RUNTIME_PRECISION_BROWSER_TOKEN: precisionBrowserCheckpoint?.token ?? "", ZASP_COMBINED_E2E_RUNTIME_PIPELINE_DSN: dsn, ZASP_COMBINED_E2E_RUNTIME_AWS_ENDPOINT: runtimeAWSEndpoint, ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT: runtimeSearchEndpoint, ZASP_COMBINED_E2E_RUNTIME_GRAPH_URI: runtimeGraph.uri, ZASP_COMBINED_E2E_RUNTIME_GRAPH_PASSWORD: runtimeGraph.password, ZASP_COMBINED_E2E_RUNTIME_GRAPH_CA_PEM: runtimeGraph.certificate, GODEBUG: "x509usefallbackroots=1" },
+    env: { ...auditBrowserEnvironment(process.env), ZASP_COMBINED_E2E_RUNTIME_PRECISION_BROWSER_ENDPOINT: precisionBrowserCheckpoint?.endpoint ?? "", ZASP_COMBINED_E2E_RUNTIME_PRECISION_BROWSER_TOKEN: precisionBrowserCheckpoint?.token ?? "", ZASP_COMBINED_E2E_RUNTIME_PIPELINE_DSN: dsn, ZASP_COMBINED_E2E_RUNTIME_AWS_ENDPOINT: runtimeAWSEndpoint, ZASP_COMBINED_E2E_RUNTIME_SEARCH_ENDPOINT: runtimeSearchEndpoint, ZASP_COMBINED_E2E_RUNTIME_GRAPH_URI: runtimeGraph.uri, ZASP_COMBINED_E2E_RUNTIME_GRAPH_PASSWORD: runtimeGraph.password, ZASP_COMBINED_E2E_RUNTIME_GRAPH_CA_PEM: runtimeGraph.certificate, GODEBUG: "x509usefallbackroots=1" },
   });
   const verifyRuntimePipelineResult = runtimePipelineResult => {
   assert.match(runtimePipelineResult.stdout, /runtime pipeline proof passed:/);
@@ -293,6 +429,7 @@ try {
   }
 
   if (process.env.ZASP_COMBINED_E2E_RUNTIME_PIPELINE_ONLY !== "true") {
+  await prepareAutomaticLifecycleRelease({ migrate, migrationEnvironment, dsn });
   const publicOrigin = `https://${productHostname}:${proxyPort}`;
   identity = await startIdentityServer(identityPort, publicOrigin);
   policyHistory = await startPolicyHistoryServer(policyHistoryPort, runtimeSearchEndpoint);
@@ -794,10 +931,6 @@ try {
 
   await navigateBrowser(browser.cdp, `${publicOrigin}/protect/security-agents`);
   await waitForBrowserText(browser.cdp, /Tenant-scoped response definitions/);
-  await clickBrowserText(browser.cdp, "Create Security Agent");
-  await clickBrowserText(browser.cdp, "Save Security Agent definition");
-  await waitForBrowserText(browser.cdp, /Bounded response definition/);
-  assert.equal(await browserHasInteractiveText(browser.cdp, /^(?:Simulate plan|Start supervised run|Approve|Reject|Cancel run)$/i), false);
 	await exerciseSecurityAgentAutomaticLifecycle(browser.cdp, workerE2EBinary, gatewayE2EBinary, apiBinary, apiEnvironment, healthPort, postgresPort, dsn, publicOrigin, actionPrivateKey);
 	console.log("combined E2E: full-document receipt recovery, local integration, and automatic Security Agent authority proven");
 	await exerciseTypedInventoryRetention(publicOrigin, dsn, postgresPort, workerE2EBinary, patHeaders.authorization);
@@ -1033,13 +1166,26 @@ try {
   assert.match(auditLog, /Audit exports unavailable/);
   assert.equal(await browserHasInteractiveText(browser.cdp, /^Export$/i), false);
   await navigateBrowser(browser.cdp, `${publicOrigin}/compliance/evidence`);
-  const compliance = await waitForBrowserText(browser.cdp, /evidence-membership/);
+  const compliance = await waitForBrowserText(browser.cdp, /Legacy evidence \(current freshness unavailable\)/);
   assert.match(compliance, /SOC 2/);
-  assert.match(compliance, /Evidence exports unavailable/);
+  console.log("combined E2E: release48 legacy disabled-service compatibility only; release56 acceptance runs in compliance mode");
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/data-retention`);
   const dataControls = await waitForBrowserText(browser.cdp, /production controls/);
   assert.match(dataControls, /metadata only/);
   assert.match(dataControls, /Data deletion unavailable/);
+  if (auditBrowserMode) {
+    const before = await browserFetchJSON(browser.cdp, "/api/v1/settings/data-controls", { "X-Zasp-Expected-Scope": "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003" });
+    assert.equal(before.status, 200);
+    const changedDays = before.body.retention_days === 31 ? 32 : 31;
+    await fillBrowserLabel(browser.cdp, "Retention days", String(changedDays));
+    await clickBrowserText(browser.cdp, "Save data controls");
+    await waitForBrowserText(browser.cdp, /Data controls updated/);
+    const after = await browserFetchJSON(browser.cdp, "/api/v1/settings/data-controls", { "X-Zasp-Expected-Scope": "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003" });
+    assert.equal(after.status, 200);
+    assert.equal(after.body.retention_days, changedDays); assert.equal(after.body.version, before.body.version + 1);
+    assert.equal(after.body.collection_mode, before.body.collection_mode); assert.equal(after.body.deletion_enabled, before.body.deletion_enabled);
+    await exerciseAuditBrowserAcceptance(browser.cdp, dsn, publicOrigin);
+  }
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/external-data-flows`);
   const externalFlows = await waitForBrowserText(browser.cdp, /identity-provider/);
   assert.match(externalFlows, /degraded/);
@@ -1101,7 +1247,7 @@ try {
   await navigateBrowser(browser.cdp, `${publicOrigin}/administration/audit-log`);
   assert.match(await waitForBrowserText(browser.cdp, /session\.revoke/), /api_token\.rotate/);
   await navigateBrowser(browser.cdp, `${publicOrigin}/compliance/evidence`);
-  assert.match(await waitForBrowserText(browser.cdp, /evidence-membership/), /Evidence exports unavailable/);
+  await waitForBrowserText(browser.cdp, /Legacy evidence \(current freshness unavailable\)/);
   console.log("combined E2E: API restart, browser reload, and durable local workflows proven");
 
   const denied = await browserFetchJSON(browser.cdp, "/api/v1/agents/pid_90000001-0000-4000-8000-000000000001", {
@@ -1179,14 +1325,1616 @@ try {
 
   console.log("production combined E2E passed: callback/cookie/bootstrap, risk pagination/recovery, administration, PAT/receipt recovery, responsive keyboard focus, durable restart/reload, tenant denial");
   }
+  }
 } finally {
 	await cleanupController.run();
 	cleanupController.dispose();
 }
 
+async function exerciseSecurityAgentSimulationBrowser(configuration) {
+  const { dsn, apiDSN, apiBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort } = configuration;
+  const publicOrigin = `https://${productHostname}:${proxyPort}`;
+  const scope = "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+  const [organizationID, workspaceID, environmentID] = scope.split("/");
+  const evidenceID = "pid_30000102-0000-4000-8000-000000000102";
+  const predicate = `organization_id='${organizationID}' AND workspace_id='${workspaceID}' AND environment_id='${environmentID}'`;
+  const sql = async statement => (await command(path.join(postgresBin, "psql"), [dsn, "-X", "-v", "ON_ERROR_STOP=1", "-At", "-c", statement])).stdout.trim();
+  const digest = query => `(SELECT json_build_object('count',count(*),'digest',encode(digest(COALESCE(jsonb_agg(to_jsonb(row) ORDER BY to_jsonb(row)::text),'[]'::jsonb)::text,'sha256'),'hex')) FROM (${query}) row)`;
+  const snapshot = async () => JSON.parse(await sql(`SELECT json_build_object(
+    'raw_steps',(SELECT COALESCE(jsonb_agg(jsonb_build_object('run_id',step.run_id,'step_id',step.step_id,'digest',encode(digest(to_jsonb(step)::text,'sha256'),'hex')) ORDER BY step.run_id,step.step_id),'[]'::jsonb) FROM zasp_security_agent_steps step WHERE ${predicate}),
+    'execution_runs',${digest(`SELECT * FROM zasp_security_agent_runs WHERE ${predicate} AND state<>'simulated'`)},
+    'execution_steps',${digest(`SELECT step.* FROM zasp_security_agent_steps step WHERE ${predicate} AND NOT EXISTS(SELECT 1 FROM zasp_security_agent_runs run WHERE (run.organization_id,run.workspace_id,run.environment_id,run.run_id)=(step.organization_id,step.workspace_id,step.environment_id,step.run_id) AND run.state='simulated')`)},
+    'approvals',${digest(`SELECT * FROM zasp_security_agent_approvals WHERE ${predicate}`)},
+    'effects',${digest(`SELECT * FROM zasp_security_agent_effects WHERE ${predicate}`)},
+    'target',${digest(`SELECT status,version FROM zasp_risk_findings WHERE ${predicate} AND id='${evidenceID}'`)})`));
+  const executionCounts = value => ({ steps: value.execution_steps.count, approvals: value.approvals.count, effects: value.effects.count });
+  identity = await startIdentityServer(identityPort, publicOrigin);
+  policyHistory = await startPolicyHistoryServer(policyHistoryPort);
+  api = startChild(apiBinary, [], { env: combinedAPIEnvironment({ apiDSN, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, publicOrigin }) });
+  try { await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`, 200); }
+  catch (error) { throw new Error(`simulation API startup failed: ${error.message}; ${api.output()}`, { cause: error }); }
+  web = startChild(path.join(root, "node_modules", ".bin", "vinext"), ["start", "--port", String(webPort), "--hostname", "127.0.0.1"], { cwd: root });
+  await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`, 200);
+  const key = path.join(temporaryRoot, "simulation-tls.key"), certificate = path.join(temporaryRoot, "simulation-tls.crt");
+  await command("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj", `/CN=${productHostname}`, "-addext", `subjectAltName=DNS:${productHostname},DNS:${recoveryHostname}`, "-keyout", key, "-out", certificate]);
+  proxy = await startProxy(proxyPort, apiPort, webPort, key, certificate, dsn);
+  await waitForHTTP(`${publicOrigin}/sign-in`, 200, true);
+  browser = await startBrowser(path.join(temporaryRoot, "simulation-chrome-profile"), chromePort, "about:blank");
+  const cdp = browser.cdp;
+  await navigateBrowser(cdp, `${publicOrigin}/api/v1/session/start?return_to=%2Fprotect%2Fsecurity-agents`);
+  await waitForBrowserScope(cdp, scope);
+  await waitForBrowserText(cdp, /Tenant-scoped response definitions/);
+  assert.equal(observedSessionCookie, true, "simulation browser did not receive callback cookie");
+  await clickBrowserText(cdp, "Create Security Agent");
+  await clickBrowserText(cdp, "Save Security Agent definition");
+  await waitForBrowserText(cdp, /Bounded response definition/);
+  await clickBrowserAria(cdp, "Open Bounded response definition");
+  await clickBrowserText(cdp, "Validate definition");
+  await waitForBrowserText(cdp, /Resource version 2/);
+  const definitionID = await sql(`SELECT definition_id FROM zasp_security_agent_definitions WHERE ${predicate} AND body->>'name'='Bounded response definition' AND activation='validated' AND deleted_at IS NULL`);
+  assert.match(definitionID, /^pid_[0-9a-f-]{36}$/);
+  await fillBrowserLabel(cdp, "Evidence ID", evidenceID);
+  const simulationPath = `/api/v1/security-agents/${definitionID}/simulate`;
+  let response, responseFailure;
+  const responseIDs = new Map();
+  await cdp.send("Network.enable");
+  cdp.on("Network.responseReceived", event => {
+    if (new URL(event.response.url).pathname === simulationPath) responseIDs.set(event.requestId, event.response.status);
+  });
+  cdp.on("Network.loadingFinished", event => {
+    if (!responseIDs.has(event.requestId)) return;
+    void cdp.send("Network.getResponseBody", { requestId: event.requestId }).then(value => {
+      assert.equal(response, undefined, "multiple simulation responses received");
+      const text = value.base64Encoded ? Buffer.from(value.body, "base64").toString("utf8") : value.body;
+      assert.ok(Buffer.byteLength(text) <= 65536, "simulation response exceeded bound");
+      response = { status: responseIDs.get(event.requestId), body: JSON.parse(text) };
+    }).catch(error => { responseFailure = error; });
+  });
+  const before = await snapshot();
+  const requestStart = productAPIRequests.length;
+  await clickBrowserText(cdp, "Simulate plan");
+  await waitForScopeOverlap(() => response !== undefined || responseFailure !== undefined, "actual simulation response missing");
+  if (responseFailure) throw responseFailure;
+  assert.equal(response.status, 200, `simulation API failed: ${JSON.stringify(response)}`);
+  await waitForBrowserText(cdp, /Simulation only\. This does not execute the proposed steps\./);
+  const projection = await cdp.send("Runtime.evaluate", { expression: `(() => {
+    const result = document.querySelector('section[aria-label="Simulation result"]');
+    if (!result) return null;
+    const paragraphs = [...result.children].filter(node => node.tagName === 'P');
+    return { evidence: [...result.querySelectorAll('ul[aria-label="Matched evidence"] > li')].map(node => node.textContent),
+      steps: [...result.querySelectorAll('ol[aria-label="Proposed steps"] > li')].map(node => ({ action: node.children[0]?.textContent, authorization: node.children[1]?.textContent, approval: node.children[2]?.textContent, order: node.value })),
+      notice: paragraphs[0]?.textContent, summary: paragraphs[1]?.textContent, metadata: paragraphs[2]?.textContent,
+      controls: result.querySelectorAll('button, input, select, textarea, a, [role="button"]').length };
+  })()`, returnByValue: true });
+  const displayed = projection.result?.value;
+  const after = await snapshot();
+  const requests = productAPIRequests.slice(requestStart).map(({ method, path }) => ({ method, path }));
+  console.log(`Security Agent simulation browser evidence: ${JSON.stringify({ scope, response, displayed, before, after, requests })}`);
+  assertSecurityAgentSimulationProof({ response, displayed, before: executionCounts(before), after: executionCounts(after), requests, simulationPath });
+  assert.deepEqual(response.body.matched_evidence_ids, [evidenceID], "simulation evidence authority changed");
+  assert.equal(response.body.definition_id, definitionID);
+  assert.match(response.body.run_id, /^pid_[0-9a-f-]{36}$/);
+  const simulationSnapshot = async () => JSON.parse(await sql(`SELECT json_build_object(
+    'run',(SELECT json_build_object('run_id',run_id,'definition_id',definition_id,'definition_version',definition_version,'state',state,'attempt',attempt,'has_lease',lease_owner IS NOT NULL OR lease_token IS NOT NULL OR lease_expires_at IS NOT NULL,'completed',completed_at IS NOT NULL) FROM zasp_security_agent_runs WHERE ${predicate} AND run_id='${response.body.run_id}'),
+    'steps',(SELECT COALESCE(jsonb_agg(jsonb_build_object('run_id',run_id,'step_id',step_id,'index',step_index,'action',action_key,'authorization',authorization_result) ORDER BY step_index),'[]'::jsonb) FROM zasp_security_agent_steps WHERE ${predicate} AND run_id='${response.body.run_id}'))`));
+  const simulation = await simulationSnapshot();
+  const workerDSN = `postgres://zasp_e2e_security_agent_worker@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
+  const claim = JSON.parse((await command(path.join(postgresBin, "psql"), [workerDSN, "-X", "-v", "ON_ERROR_STOP=1", "-At", "-c", "SELECT json_build_object('principal',current_user,'ready',zasp_security_agent_principal_ready('zasp_security_agent_worker'),'result',zasp_security_agent_claim_runs_v23('simulation-browser-proof','simulation-browser-proof-lease',30,1))"])).stdout.trim());
+  const afterClaim = await snapshot();
+  const afterClaimSimulation = await simulationSnapshot();
+  console.log(`Security Agent simulation no-execution evidence: ${JSON.stringify({ raw_step_counts: { before: before.raw_steps.length, after: after.raw_steps.length, after_claim: afterClaim.raw_steps.length }, simulation, claim, afterClaim, afterClaimSimulation })}`);
+  assertSecurityAgentSimulationDurability({ before, after, afterClaim, simulation, afterClaimSimulation, body: response.body, claim });
+  if (securityAgentRunContextMode) {
+    await exerciseSecurityAgentRunContextBrowser({ cdp, sql, scope, runID: response.body.run_id, evidenceID, snapshot, chromePort, publicOrigin });
+  }
+  assert.equal(policyHistoryRequests.some(request => request.path.startsWith("/zasp-runtime-sessions-")), false, "simulation mode attempted runtime search forwarding");
+  assert.deepEqual(browserConsoleErrors, [], "simulation browser console errors");
+  assert.equal(proxyFailure, undefined, `simulation proxy failed: ${proxyFailure}`);
+  console.log("Security Agent simulation selected browser/API passed; live providers and production readiness NOT RUN");
+}
+
+async function exerciseSecurityAgentRunContextBrowser({ cdp, sql, scope, runID: simulationRunID, evidenceID, snapshot, chromePort, publicOrigin }) {
+  // Real UI/API simulation supplies the plan/steps. Simulations are deliberately
+  // excluded from execution reads, so seed a separate stopped display fixture.
+  // Run, trigger, bound action arguments and receipt are owner-seeded, not a
+  // paid planner execution. Simulation plans do not contain executable IDs/args.
+  const [organizationID, workspaceID, environmentID] = scope.split("/");
+  const artifacts = await mkdtemp(path.join(os.tmpdir(), "zasp-run-context-browser-"));
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+  const runID = "pid_78000088-0000-4000-8000-000000000088";
+  const source = `organization_id='${organizationID}' AND workspace_id='${workspaceID}' AND environment_id='${environmentID}' AND run_id='${simulationRunID}'`;
+  await sql(`INSERT INTO zasp_security_agent_runs SELECT (jsonb_populate_record(NULL::zasp_security_agent_runs,to_jsonb(r)||jsonb_build_object('run_id','${runID}','trigger_id','${evidenceID}','state','needs_human','attempt',1))).* FROM zasp_security_agent_runs r WHERE ${source};
+WITH fixture AS (
+ SELECT p.*,p.plan||jsonb_build_object('goal','Owned run-context display acceptance fixture','steps',(
+  SELECT jsonb_agg(raw||jsonb_build_object('step_id',s.step_id,'target_id','${evidenceID}','expected_version',1,'target_status','under_review','password','owned-action-argument-secret') ORDER BY s.step_index)
+  FROM jsonb_array_elements(p.plan->'steps') raw JOIN zasp_security_agent_steps s
+  ON (s.organization_id,s.workspace_id,s.environment_id,s.run_id,s.step_index)=(p.organization_id,p.workspace_id,p.environment_id,p.run_id,(raw->>'index')::integer)
+ )) display_plan FROM zasp_security_agent_plans p WHERE ${source}
+)
+INSERT INTO zasp_security_agent_plans(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_digest,catalog_version,plan,plan_hash,expires_at)
+SELECT organization_id,workspace_id,environment_id,'${runID}',definition_id,definition_version,trigger_digest,catalog_version,
+display_plan,digest(convert_to(display_plan::text,'UTF8'),'sha256'),expires_at FROM fixture;
+INSERT INTO zasp_security_agent_steps SELECT (jsonb_populate_record(NULL::zasp_security_agent_steps,to_jsonb(s)||jsonb_build_object('run_id','${runID}'))).* FROM zasp_security_agent_steps s WHERE ${source};
+UPDATE zasp_security_agent_runs r SET plan_hash=p.plan_hash FROM zasp_security_agent_plans p WHERE (r.organization_id,r.workspace_id,r.environment_id,r.run_id)=(p.organization_id,p.workspace_id,p.environment_id,p.run_id) AND r.organization_id='${organizationID}' AND r.workspace_id='${workspaceID}' AND r.environment_id='${environmentID}' AND r.run_id='${runID}'`);
+  const predicate = `organization_id='${organizationID}' AND workspace_id='${workspaceID}' AND environment_id='${environmentID}' AND run_id='${runID}'`;
+  await sql(`INSERT INTO zasp_security_agent_trigger_receipts(organization_id,workspace_id,environment_id,definition_id,trigger_id,trigger_kind,trigger_version,trigger_digest,run_id)
+SELECT organization_id,workspace_id,environment_id,definition_id,trigger_id,'finding',1,decode(repeat('c',64),'hex'),run_id FROM zasp_security_agent_runs WHERE ${predicate};
+INSERT INTO zasp_security_agent_planner_receipts(organization_id,workspace_id,environment_id,run_id,attempt,input_digest,output_digest,outcome,model,policy_version,response)
+SELECT organization_id,workspace_id,environment_id,run_id,1,decode(repeat('c',64),'hex'),decode(repeat('d',64),'hex'),'accepted','fixture-model','fixture-policy',jsonb_build_object('run_id',run_id,'plan_hash','sha256:'||encode(plan_hash,'hex'),'planner_summary','Review password=owned-fixture-secret before acting.') FROM zasp_security_agent_runs WHERE ${predicate}`);
+  const detailPath = `/api/v1/security-agent-runs/${runID}`;
+  let response, failure;
+  const ids = new Map();
+  cdp.on("Network.responseReceived", event => {
+    if (new URL(event.response.url).pathname === detailPath) ids.set(event.requestId, event.response.status);
+  });
+  cdp.on("Network.loadingFinished", event => {
+    if (!ids.has(event.requestId)) return;
+    void cdp.send("Network.getResponseBody", { requestId: event.requestId }).then(value => {
+      const text = value.base64Encoded ? Buffer.from(value.body, "base64").toString("utf8") : value.body;
+      assert.ok(Buffer.byteLength(text) <= 65536, "run detail exceeded acceptance bound");
+      assert.equal(text.includes("owned-fixture-secret"), false, "raw rationale credential leaked over HTTP");
+      response = { status: ids.get(event.requestId), body: JSON.parse(text) };
+    }).catch(error => { failure = error; });
+  });
+  const before = await snapshot();
+  const start = productAPIRequests.length;
+  for (const state of ["available", "withheld", "missing"]) {
+    if (state === "withheld") await sql(`UPDATE zasp_security_agent_planner_receipts SET response=jsonb_set(response,'{planner_summary}',to_jsonb(repeat('x',501))) WHERE ${predicate}`);
+    if (state === "missing") await sql(`DELETE FROM zasp_security_agent_planner_receipts WHERE ${predicate}`);
+    response = undefined; failure = undefined;
+    await reloadBrowserPage(cdp);
+    await waitForBrowserScope(cdp, scope);
+    await waitForBrowserText(cdp, new RegExp(runID));
+    const navigation = await cdp.send("Runtime.evaluate", { expression: `(() => {
+      const nav = document.querySelector('nav[aria-label="Main navigation"]');
+      return [...nav.querySelectorAll('a')].map(link => {
+        const box = link.getBoundingClientRect(), style = getComputedStyle(link);
+        return { path: link.getAttribute('href'), current: link.getAttribute('aria-current'), top: box.top, bottom: box.bottom, height: box.height, background: style.backgroundColor };
+      });
+    })()`, returnByValue: true });
+    const links = navigation.result?.value;
+    assert.ok(Array.isArray(links) && links.length > 1, "production navigation is missing");
+    for (let index = 0; index < links.length; index++) {
+      assert.ok(links[index].height >= 36, "production navigation links lack full-height click targets");
+      if (index) assert.ok(links[index].top >= links[index - 1].bottom, "production navigation links overlap or run together");
+    }
+    const current = links.filter(link => link.current === "page");
+    assert.equal(current.length, 1);
+    assert.equal(current[0].path, "/protect/security-agents");
+    assert.notEqual(current[0].background, links.find(link => !link.current).background, "current production route has no visual selection");
+    await clickBrowserAria(cdp, `Open run ${runID}`);
+    await waitForScopeOverlap(() => response !== undefined || failure !== undefined, "run-context detail response missing");
+    if (failure) throw failure;
+    assert.equal(response.status, 200);
+    assert.equal(response.body.action_details?.length, 1);
+    assert.deepEqual(response.body.action_details[0].arguments, { target_id: evidenceID, expected_version: 1, target_status: "under_review" });
+    assert.equal(response.body.action_details[0].result, null);
+    assert.deepEqual(response.body.action_details[0].verification, { state: "unavailable", source: "none" });
+    assert.equal(JSON.stringify(response.body).includes("owned-action-argument-secret"), false);
+    const context = response.body.run_context;
+    assert.equal(context?.trigger?.kind, "finding");
+    assert.equal(context.trigger.version, 1);
+    assert.ok(response.body.evidence_ids.includes(evidenceID));
+    const summary = state === "available" ? "Review password=[REDACTED] before acting." : state === "withheld" ? "AI rationale was withheld by the redaction policy." : "No AI rationale is available for this run.";
+    if (state === "missing") assert.equal(context.rationale, null);
+    else {
+      assert.equal(context.rationale.state, state);
+      if (state === "available") assert.equal(context.rationale.summary, summary);
+    }
+    await waitForBrowserText(cdp, new RegExp(summary.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    await waitForBrowserAction(cdp, `(() => {
+      const dialog = document.querySelector('[role="dialog"]');
+      return !!dialog && getComputedStyle(dialog).opacity === '1'
+        && dialog.getAnimations().every(animation => animation.playState === 'finished');
+    })()`);
+    const projection = await cdp.send("Runtime.evaluate", { expression: `(() => {
+      const section = document.querySelector('section[aria-label="AI rationale"]');
+      if (!section) return null;
+      const root = section.parentElement, style = getComputedStyle(section);
+      const heading = text => [...root.querySelectorAll('h3')].find(x => x.textContent === text);
+      return { headings: [...root.querySelectorAll('h3')].map(x => x.textContent), rationale: section.querySelector('p:last-child')?.textContent,
+        trigger: heading('Trigger')?.nextElementSibling?.textContent,
+        evidence: [...(heading('Evidence')?.nextElementSibling?.querySelectorAll('li') ?? [])].map(x => x.textContent),
+        disclaimer: section.querySelector('.security-agent-rationale__disclaimer')?.textContent,
+        steps: [...root.querySelectorAll('ol > li')].map(x => x.textContent),
+        background: style.backgroundColor, border: style.borderLeftWidth, text: root.textContent };
+    })()`, returnByValue: true });
+    const displayed = projection.result?.value;
+    assert.deepEqual(displayed?.headings, ["Trigger", "Evidence", "AI rationale", "Plan", "Authorization and execution"]);
+    assert.equal(displayed.rationale, summary);
+    assert.equal(displayed.trigger, `${context.trigger.kind} · ${context.trigger.id} · version ${context.trigger.version}`);
+    assert.deepEqual(displayed.evidence, response.body.evidence_ids);
+    assert.equal(displayed.disclaimer, "AI-generated explanation. This does not authorize any action.");
+    assert.deepEqual(displayed.steps, response.body.plan.steps.map(step => `${step.action} · ${step.authorization} · ${step.state}`));
+    assert.equal(displayed.text.includes("owned-fixture-secret"), false);
+    assert.equal(displayed.text.includes("owned-action-argument-secret"), false);
+    assert.ok(displayed.text.includes(`Target: ${evidenceID}`));
+    assert.ok(displayed.text.includes("Expected version: 1"));
+    assert.ok(displayed.text.includes("Application verification unavailable"));
+    assert.ok(displayed.background !== "rgba(0, 0, 0, 0)" || parseFloat(displayed.border) > 0, "rationale has no visual separation");
+    const capture = await cdp.send("Page.captureScreenshot", { format: "png" });
+    const screenshot = path.join(artifacts, `run-context-${state}.png`);
+    await writeFile(screenshot, Buffer.from(capture.data, "base64"));
+    console.log(`Run-context mounted browser: ${JSON.stringify({ state, runID, context, headings: displayed.headings, steps: displayed.steps, screenshot })}`);
+    if (state === "available") {
+      // Catch missing mounted links, wrong exact IDs/scope, and writes caused by
+      // read-only navigation. Both directions use the actual API and database.
+      const activityStart = productAPIRequests.length;
+      for (const [label, route, entity] of [
+        [`Open finding ${evidenceID}`, "/violations", evidenceID],
+        [`Open run ${runID}`, "/protect/security-agents", runID],
+        [`Open finding ${evidenceID}`, "/violations", evidenceID],
+      ]) {
+        await waitForBrowserAction(cdp, `[...document.querySelectorAll('button')].some(button => button.textContent.trim() === ${JSON.stringify(label)} && !button.disabled)`);
+        await clickBrowserText(cdp, label);
+        await waitForBrowserAction(cdp, `location.pathname === ${JSON.stringify(route)} && new URLSearchParams(location.search).get('entity_id') === ${JSON.stringify(entity)}`);
+        const location = await cdp.send("Runtime.evaluate", { expression: `({path:location.pathname,query:Object.fromEntries(new URLSearchParams(location.search))})`, returnByValue: true });
+        assert.deepEqual(location.result?.value, { path: route, query: { entity_id: entity, organization_id: organizationID, workspace_id: workspaceID, environment_id: environmentID } });
+        await waitForBrowserScope(cdp, scope);
+      }
+      await waitForBrowserAction(cdp, `[...document.querySelectorAll('button')].some(button => button.textContent.trim() === ${JSON.stringify(`Open run ${runID}`)} && !button.disabled)`);
+      const activityRequests = productAPIRequests.slice(activityStart);
+      for (const required of [
+        `/api/v1/findings/${evidenceID}`,
+        `/api/v1/security-agent-activity/finding/${evidenceID}/runs`,
+        `/api/v1/security-agent-runs/${runID}`,
+        `/api/v1/security-agent-runs/${runID}/activity/finding`,
+      ]) assert.ok(activityRequests.some(request => request.method === "GET" && request.path === required), `missing mounted activity read ${required}`);
+      assert.ok(activityRequests.every(request => ["GET", "HEAD", "OPTIONS"].includes(request.method)), "activity links emitted a mutation");
+      assert.deepEqual(await snapshot(), before, "activity links changed execution authority");
+      const activityCapture = await cdp.send("Page.captureScreenshot", { format: "png" });
+      const activityScreenshot = path.join(artifacts, "activity-finding-roundtrip.png");
+      await writeFile(activityScreenshot, Buffer.from(activityCapture.data, "base64"));
+      console.log(`Activity finding mounted roundtrip: ${JSON.stringify({ runID, evidenceID, scope, requests: activityRequests, screenshot: activityScreenshot, seededPrerequisites: true, providerExecution: false })}`);
+      // Keep this CDP target: detail-response listeners belong to it and are
+      // needed by the remaining rationale/approval checks in this same batch.
+      await clickBrowserText(cdp, "Security agents");
+      await waitForBrowserAction(cdp, `location.pathname === '/protect/security-agents' && location.search === ''`);
+      await waitForBrowserScope(cdp, scope);
+    }
+  }
+  assert.deepEqual(await snapshot(), before, "run-context reads changed execution authority");
+  assert.ok(productAPIRequests.slice(start).every(request => ["GET", "HEAD", "OPTIONS"].includes(request.method)), "run-context display emitted a mutation");
+
+  // Owner-seeded recorded outcomes and partial cleanup, not provider execution.
+  // Complete the other two typed relation surfaces with explicit stopped-run
+  // fixtures. No worker/provider execution or guessed generic evidence links.
+  const linkedPath = (await sql(`SELECT path_id FROM zasp_risk_findings WHERE organization_id='${organizationID}' AND workspace_id='${workspaceID}' AND environment_id='${environmentID}' AND id='${evidenceID}'`)).trim();
+  assert.match(linkedPath, /^pid_[0-9a-f-]{36}$/);
+  const linkedSession = "pid_78000288-0000-4000-8000-000000000288";
+  await sql(`INSERT INTO zasp_runtime_session_events(organization_id,workspace_id,environment_id,event_id,session_id,agent_id,confidence,source,event_class,action,title,evidence_id,event_time)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','pid_78000289-0000-4000-8000-000000000289','${linkedSession}','pid_78000290-0000-4000-8000-000000000290','exact','otlp','tool','invoke','Owned activity session fixture','pid_78000291-0000-4000-8000-000000000291',clock_timestamp())`);
+  for (const [kind, triggerKind, entity, label, route, detailPath, linkedRun] of [
+    ["attack_path", "attack_path", linkedPath, "attack path", "/exposure/attack-paths", `/api/v1/attack-paths/${linkedPath}`, "pid_78000292-0000-4000-8000-000000000292"],
+    ["session", "runtime_decision", linkedSession, "session", "/investigate/sessions", `/api/v1/sessions/${linkedSession}`, "pid_78000293-0000-4000-8000-000000000293"],
+  ]) {
+    await sql(`INSERT INTO zasp_security_agent_runs SELECT (jsonb_populate_record(NULL::zasp_security_agent_runs,to_jsonb(r)||jsonb_build_object('run_id','${linkedRun}','trigger_id','${entity}','state','needs_human','plan_hash',NULL,'attempt',0))).* FROM zasp_security_agent_runs r WHERE ${source};
+INSERT INTO zasp_security_agent_trigger_receipts(organization_id,workspace_id,environment_id,definition_id,trigger_id,trigger_kind,trigger_version,trigger_digest,run_id)
+SELECT organization_id,workspace_id,environment_id,definition_id,trigger_id,'${triggerKind}',1,decode(repeat('a',64),'hex'),run_id FROM zasp_security_agent_runs WHERE organization_id='${organizationID}' AND workspace_id='${workspaceID}' AND environment_id='${environmentID}' AND run_id='${linkedRun}'`);
+    const olderRuns = Array.from({ length: 20 }, (_, index) => `pid_780003${String(index).padStart(2, "0")}-0000-4000-8000-0000000003${String(index).padStart(2, "0")}`);
+    if (kind === "session") {
+      for (const [index, olderRun] of olderRuns.entries()) await sql(`INSERT INTO zasp_security_agent_runs SELECT (jsonb_populate_record(NULL::zasp_security_agent_runs,to_jsonb(r)||jsonb_build_object('run_id','${olderRun}','trigger_id','${entity}','state','needs_human','plan_hash',NULL,'attempt',0,'created_at','2000-01-01T00:00:00Z'))).* FROM zasp_security_agent_runs r WHERE ${source};
+INSERT INTO zasp_security_agent_trigger_receipts(organization_id,workspace_id,environment_id,definition_id,trigger_id,trigger_kind,trigger_version,trigger_digest,run_id)
+SELECT organization_id,workspace_id,environment_id,definition_id,trigger_id,'runtime_decision',${index + 2},decode(repeat('a',64),'hex'),run_id FROM zasp_security_agent_runs WHERE organization_id='${organizationID}' AND workspace_id='${workspaceID}' AND environment_id='${environmentID}' AND run_id='${olderRun}'`);
+    }
+    const relationSnapshot = async () => ({ execution: await snapshot(), runtime: JSON.parse(await sql(`SELECT jsonb_build_object('events',(SELECT jsonb_agg(to_jsonb(e) ORDER BY event_id) FROM zasp_runtime_session_events e WHERE organization_id='${organizationID}' AND workspace_id='${workspaceID}' AND environment_id='${environmentID}'),'summaries',(SELECT jsonb_agg(to_jsonb(s) ORDER BY id) FROM zasp_runtime_session_summaries s WHERE organization_id='${organizationID}' AND workspace_id='${workspaceID}' AND environment_id='${environmentID}'))`)) });
+    const relationBefore = await relationSnapshot();
+    const relationStart = productAPIRequests.length;
+    await clickBrowserText(cdp, "Security agents");
+    await reloadBrowserPage(cdp);
+    await waitForBrowserScope(cdp, scope);
+    await clickBrowserAria(cdp, `Open run ${linkedRun}`);
+    for (const [button, expectedPath, expectedID] of [
+      [`Open ${label} ${entity}`, route, entity],
+      [`Open run ${linkedRun}`, "/protect/security-agents", linkedRun],
+      [`Open ${label} ${entity}`, route, entity],
+    ]) {
+      await clickBrowserText(cdp, button);
+      await waitForBrowserAction(cdp, `location.pathname === ${JSON.stringify(expectedPath)} && new URLSearchParams(location.search).get('entity_id') === ${JSON.stringify(expectedID)}`);
+      const location = await cdp.send("Runtime.evaluate", { expression: "Object.fromEntries(new URLSearchParams(location.search))", returnByValue: true });
+      assert.deepEqual(location.result?.value, { entity_id: expectedID, organization_id: organizationID, workspace_id: workspaceID, environment_id: environmentID });
+      await waitForBrowserScope(cdp, scope);
+    }
+    await waitForBrowserAction(cdp, `[...document.querySelectorAll('button')].some(button => button.textContent.trim() === ${JSON.stringify(`Open run ${linkedRun}`)} && !button.disabled)`);
+    const requests = productAPIRequests.slice(relationStart);
+    for (const required of [detailPath, `/api/v1/security-agent-runs/${linkedRun}`, ...(kind === "session" ? [`/api/v1/sessions/${entity}/events`] : []), `/api/v1/security-agent-activity/${kind}/${entity}/runs`, `/api/v1/security-agent-runs/${linkedRun}/activity/${kind}`]) {
+      assert.ok(requests.some(request => request.method === "GET" && request.path === required), `missing mounted ${kind} read ${required}`);
+    }
+    assert.ok(requests.every(request => ["GET", "HEAD", "OPTIONS"].includes(request.method)), `${kind} navigation emitted a mutation`);
+    assert.deepEqual(await relationSnapshot(), relationBefore, `${kind} navigation changed execution/runtime authority`);
+    const capture = await cdp.send("Page.captureScreenshot", { format: "png" });
+    const screenshot = path.join(artifacts, `activity-${kind}-roundtrip.png`);
+    await writeFile(screenshot, Buffer.from(capture.data, "base64"));
+    console.log(`Activity ${kind} mounted roundtrip: ${JSON.stringify({ runID: linkedRun, entity, scope, requests, screenshot, seededPrerequisites: true, providerExecution: false })}`);
+    if (kind === "session") {
+      const pageExpression = `[...document.querySelectorAll('.security-agent-activity__list button')].map(button => button.textContent.trim().replace(/^Open run /, ''))`;
+      const firstPage = [linkedRun, ...olderRuns.slice(1).reverse()];
+      await waitForBrowserAction(cdp, `JSON.stringify(${pageExpression}) === ${JSON.stringify(JSON.stringify(firstPage))}`);
+      await clickBrowserText(cdp, "Next related page");
+      await waitForBrowserAction(cdp, `JSON.stringify(${pageExpression}) === ${JSON.stringify(JSON.stringify([olderRuns[0]]))}`);
+      await waitForBrowserAction(cdp, `[...document.querySelectorAll('button')].some(button => button.textContent.trim() === 'Next related page' && button.disabled)`);
+      await clickBrowserText(cdp, "Previous related page");
+      await waitForBrowserAction(cdp, `JSON.stringify(${pageExpression}) === ${JSON.stringify(JSON.stringify(firstPage))}`);
+      const validLocation = await browserCurrentURL(cdp);
+      const wrongScopeStart = productAPIRequests.length;
+      await cdp.send("Runtime.evaluate", { expression: `(() => { const url=new URL(location.href);url.searchParams.set('environment_id','pid_90000003-0000-4000-8000-000000000003');history.pushState({},'',url);dispatchEvent(new PopStateEvent('popstate')); })()` });
+      await waitForBrowserText(cdp, /This activity link belongs to a different organization/);
+      assert.equal((await browserBodyText(cdp)).includes(linkedRun), false, "wrong-scope location retained run data");
+      assert.equal(productAPIRequests.slice(wrongScopeStart).some(request => request.path.startsWith('/api/v1/security-agent-activity/') || request.path.startsWith('/api/v1/sessions/')), false, "wrong-scope location issued an entity read");
+      await cdp.send("Runtime.evaluate", { expression: "history.back()" });
+      await waitForBrowserAction(cdp, `location.href === ${JSON.stringify(validLocation)}`);
+      await waitForBrowserAction(cdp, `JSON.stringify(${pageExpression}) === ${JSON.stringify(JSON.stringify(firstPage))}`);
+      const memberPredicate = `organization_id='${organizationID}' AND principal_id='pid_10000004-0000-4000-8000-000000000004'`;
+      const membership = JSON.parse(await sql(`SELECT jsonb_build_object('role',role,'version',version) FROM zasp_identity_memberships WHERE ${memberPredicate}`));
+      try {
+        await sql(`UPDATE zasp_identity_memberships SET role='read_only_viewer',version=version+1 WHERE ${memberPredicate}`);
+        const denied = await browserFetchJSON(cdp, `/api/v1/security-agent-activity/session/${entity}/runs?limit=20`, { "X-Zasp-Expected-Scope": scope });
+        assert.equal(denied.status, 403, "revoked investigator retained relation access");
+        assert.equal(JSON.stringify(denied.body).includes(linkedRun), false, "revoked relation disclosed a run");
+        await reloadBrowserPage(cdp);
+        await waitForBrowserScope(cdp, scope);
+        await waitForBrowserAction(cdp, `(() => { const nav=document.querySelector('nav[aria-label="Main navigation"]');return !!nav && location.pathname==='/' && !!nav.querySelector('a[href="/"][aria-current="page"]') && !nav.querySelector('a[href="/investigate/sessions"]'); })()`);
+        const revokedText = await browserBodyText(cdp);
+        for (const id of [linkedRun, ...olderRuns]) assert.equal(revokedText.includes(id), false, "revoked UI retained a run link");
+      } finally {
+        await sql(`UPDATE zasp_identity_memberships SET role='${membership.role}',version=${membership.version} WHERE ${memberPredicate}`);
+      }
+      await reloadBrowserPage(cdp);
+      await waitForBrowserScope(cdp, scope);
+      assert.equal((await browserFetchJSON(cdp, `/api/v1/security-agent-activity/session/${entity}/runs?limit=20`, { "X-Zasp-Expected-Scope": scope })).status, 200, "restored relation access failed");
+      assert.deepEqual(await relationSnapshot(), relationBefore, "paging/scope/revocation changed execution/runtime authority");
+      console.log("Activity session boundary checks: exact20+1 paging and previous, wrong-scope URL refusal without entity reads, current membership403, refreshed UI link removal, restored200; fixture-only");
+    }
+  }
+  await clickBrowserText(cdp, "Security agents");
+  await waitForBrowserScope(cdp, scope);
+  // Snapshot after each deliberate seed so only the subsequent read is checked.
+  const outcomeID = "pid_78000089-0000-4000-8000-000000000089";
+  const resultDigest = `sha256:${"e".repeat(64)}`;
+  const actionSnapshot = async () => ({ ...await snapshot(), displayAuthority: JSON.parse(await sql(`SELECT jsonb_build_object(
+    'plans',(SELECT COALESCE(jsonb_agg(to_jsonb(p) ORDER BY run_id),'[]'::jsonb) FROM zasp_security_agent_plans p WHERE ${predicate}),
+    'controls',(SELECT COALESCE(jsonb_agg(to_jsonb(c) ORDER BY control_id),'[]'::jsonb) FROM zasp_security_agent_controls c WHERE ${predicate}))`)) });
+  for (const effectState of ["known_failure", "unknown_outcome", "cleanup_pending"]) {
+    if (effectState === "cleanup_pending") {
+      await sql(`UPDATE zasp_security_agent_plans SET plan=jsonb_set(plan,'{steps,0}',(plan->'steps'->0)||jsonb_build_object('action','create_temporary_policy','target_id','${environmentID}','scope','${environmentID}','mode','block','ttl_seconds',120)) WHERE ${predicate};
+UPDATE zasp_security_agent_plans SET plan_hash=digest(convert_to(plan::text,'UTF8'),'sha256') WHERE ${predicate};
+UPDATE zasp_security_agent_runs SET plan_hash=(SELECT plan_hash FROM zasp_security_agent_plans WHERE ${predicate}) WHERE ${predicate};
+UPDATE zasp_security_agent_steps SET action_key='create_temporary_policy',input_digest=(SELECT plan_hash FROM zasp_security_agent_plans WHERE ${predicate}) WHERE ${predicate};
+INSERT INTO zasp_security_agent_controls(organization_id,workspace_id,environment_id,control_id,run_id,step_id,action_key,target_id,state,expires_at)
+SELECT organization_id,workspace_id,environment_id,'pid_78000090-0000-4000-8000-000000000090',run_id,step_id,action_key,'${environmentID}','active','2030-01-02T03:04:05Z' FROM zasp_security_agent_steps WHERE ${predicate}`);
+    }
+    await sql(`DELETE FROM zasp_security_agent_effects WHERE ${predicate};
+INSERT INTO zasp_security_agent_effects(organization_id,workspace_id,environment_id,run_id,step_id,action_key,input_digest,state,outcome_id,result_digest)
+SELECT organization_id,workspace_id,environment_id,run_id,step_id,action_key,input_digest,'${effectState}',${effectState === "known_failure" ? `'${outcomeID}',decode(repeat('e',64),'hex')` : "NULL,NULL"} FROM zasp_security_agent_steps WHERE ${predicate}`);
+    const seeded = await actionSnapshot();
+    const readStart = productAPIRequests.length;
+    response = undefined; failure = undefined;
+    await reloadBrowserPage(cdp);
+    await waitForBrowserScope(cdp, scope);
+    await waitForBrowserText(cdp, new RegExp(runID));
+    await clickBrowserAria(cdp, `Open run ${runID}`);
+    await waitForScopeOverlap(() => response !== undefined || failure !== undefined, "recorded action response missing");
+    if (failure) throw failure;
+    assert.equal(response.status, 200);
+    assert.equal(response.body.action_details?.length, 1);
+    const action = response.body.action_details[0];
+    assert.equal(action.result?.state, effectState);
+    assert.equal(JSON.stringify(response.body).includes("owned-action-argument-secret"), false);
+    const verification = effectState === "known_failure" ? "failed" : effectState === "unknown_outcome" ? "inconclusive" : "unavailable";
+    assert.equal(action.verification.state, verification);
+    if (effectState === "known_failure") {
+      assert.equal(action.result.outcome_id, outcomeID);
+      assert.equal(action.result.result_digest, resultDigest);
+    } else {
+      assert.equal(action.result.outcome_id, undefined);
+      assert.equal(action.result.result_digest, undefined);
+    }
+    if (effectState === "cleanup_pending") {
+      assert.equal(action.ttl_seconds, 120);
+      assert.equal(action.control_expires_at, "2030-01-02T03:04:05Z");
+      assert.equal(action.rollback.support, "automatic");
+      assert.equal(action.rollback.state, "pending");
+      assert.equal(action.rollback.verification.state, "unavailable");
+    }
+    await waitForBrowserText(cdp, new RegExp(`Effect state: ${effectState}`));
+    const rendered = await cdp.send("Runtime.evaluate", { expression: `(async () => {
+      const dialog = document.querySelector('[role="dialog"]');
+      await Promise.allSettled(dialog.getAnimations({subtree:true}).map(animation => animation.finished));
+      return dialog.querySelector('section[aria-label^="Action details "]')?.textContent;
+    })()`, awaitPromise: true, returnByValue: true });
+    const text = rendered.result?.value;
+    assert.equal(typeof text, "string");
+    assert.ok(text.includes(`Application verification ${verification}`));
+    assert.ok(text.includes("Recorded evidence, not a new live provider check."));
+    assert.equal(text.includes("owned-action-argument-secret"), false);
+    if (effectState === "known_failure") {
+      assert.ok(text.includes(`Recorded outcome: ${outcomeID}`));
+      assert.ok(text.includes(`Result digest: ${resultDigest}`));
+    } else assert.equal(text.includes("Recorded outcome:"), false);
+    if (effectState === "cleanup_pending") {
+      for (const label of ["TTL: 120 seconds", "Control expires: 2030-01-02T03:04:05Z", "Automatic cleanup", "Rollback: pending", "Cleanup verification unavailable"]) assert.ok(text.includes(label), `missing ${label}`);
+    }
+    const capture = await cdp.send("Page.captureScreenshot", { format: "png" });
+    const screenshot = path.join(artifacts, `action-details-${effectState}.png`);
+    await writeFile(screenshot, Buffer.from(capture.data, "base64"));
+    assert.deepEqual(await actionSnapshot(), seeded, "action display changed seeded execution authority");
+    assert.ok(productAPIRequests.slice(readStart).every(request => ["GET", "HEAD", "OPTIONS"].includes(request.method)), "action display emitted a mutation");
+    console.log(`Recorded action display browser: ${JSON.stringify({ effectState, action, screenshot, fixture: true })}`);
+  }
+  // Owner-seeded approval history verifies real list/detail projection and UI,
+  // not actual approval execution or a live provider effect.
+  const approvalID = "pid_78000091-0000-4000-8000-000000000091";
+  await sql(`UPDATE zasp_security_agent_steps SET authorization_result='approval_required' WHERE ${predicate};
+INSERT INTO zasp_security_agent_approvals(organization_id,workspace_id,environment_id,approval_id,run_id,step_id,plan_hash,state,requester_id,expires_at)
+SELECT s.organization_id,s.workspace_id,s.environment_id,'${approvalID}',s.run_id,s.step_id,p.plan_hash,'pending','${evidenceID}',p.expires_at
+FROM zasp_security_agent_steps s JOIN zasp_security_agent_plans p USING(organization_id,workspace_id,environment_id,run_id) WHERE s.organization_id='${organizationID}' AND s.workspace_id='${workspaceID}' AND s.environment_id='${environmentID}' AND s.run_id='${runID}'`);
+  const approvalPath = `/api/v1/security-agent-approvals/${approvalID}`;
+  const approvalResponses = new Map();
+  let approvalResponse, approvalFailure;
+  cdp.on("Network.responseReceived", event => {
+    if (new URL(event.response.url).pathname === approvalPath) approvalResponses.set(event.requestId, event.response.status);
+  });
+  cdp.on("Network.loadingFinished", event => {
+    if (!approvalResponses.has(event.requestId)) return;
+    void cdp.send("Network.getResponseBody", { requestId: event.requestId }).then(value => {
+      const text = value.base64Encoded ? Buffer.from(value.body, "base64").toString("utf8") : value.body;
+      assert.ok(Buffer.byteLength(text) <= 65536);
+      assert.equal(text.includes("owned-approval-secret"), false);
+      approvalResponse = { status: approvalResponses.get(event.requestId), body: JSON.parse(text) };
+    }).catch(error => { approvalFailure = error; });
+  });
+  const approvalSnapshot = async () => ({ ...await actionSnapshot(), receipts: JSON.parse(await sql(`SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY attempt),'[]'::jsonb) FROM zasp_security_agent_planner_receipts r WHERE ${predicate}`)), audits: JSON.parse(await sql(`SELECT COALESCE(jsonb_agg(to_jsonb(a) ORDER BY audit_id),'[]'::jsonb) FROM zasp_security_agent_audit a WHERE ${predicate}`)) });
+  for (const rationaleState of ["available", "withheld", "missing"]) {
+    const requesterState = rationaleState === "available" ? "available" : "withheld";
+    if (requesterState === "withheld") await sql(`UPDATE zasp_security_agent_approvals SET requester_id='password=owned-approval-secret',state='rejected' WHERE ${predicate} AND approval_id='${approvalID}'`);
+    if (rationaleState === "available") await sql(`INSERT INTO zasp_security_agent_planner_receipts(organization_id,workspace_id,environment_id,run_id,attempt,input_digest,output_digest,outcome,model,policy_version,response)
+SELECT organization_id,workspace_id,environment_id,run_id,1,decode(repeat('c',64),'hex'),decode(repeat('d',64),'hex'),'accepted','fixture-model','fixture-policy',jsonb_build_object('run_id',run_id,'plan_hash','sha256:'||encode(plan_hash,'hex'),'planner_summary','Review password=owned-approval-secret before acting.') FROM zasp_security_agent_runs WHERE ${predicate}`);
+    if (rationaleState === "withheld") await sql(`UPDATE zasp_security_agent_planner_receipts SET response=jsonb_set(response,'{planner_summary}',to_jsonb(repeat('x',501))) WHERE ${predicate}`);
+    if (rationaleState === "missing") await sql(`DELETE FROM zasp_security_agent_planner_receipts WHERE ${predicate}`);
+    const seeded = await approvalSnapshot();
+    const readStart = productAPIRequests.length;
+    approvalResponse = undefined; approvalFailure = undefined;
+    await reloadBrowserPage(cdp);
+    await waitForBrowserScope(cdp, scope);
+    await waitForBrowserText(cdp, /Requester:/);
+    const row = await cdp.send("Runtime.evaluate", { expression: `(() => {
+      const button=document.querySelector('button[aria-label="Open approval ${approvalID}"]');
+      return { text:button?.textContent, description:document.getElementById(button?.getAttribute('aria-describedby'))?.textContent };
+    })()`, returnByValue: true });
+    assert.ok(row.result?.value?.text?.includes(`Target: ${environmentID}`));
+    assert.ok(row.result.value.description.includes(`Requester: ${requesterState === "available" ? evidenceID : "withheld"}`));
+    assert.equal(row.result.value.text.includes("owned-approval-secret"), false);
+    await clickBrowserAria(cdp, `Open approval ${approvalID}`);
+    await waitForScopeOverlap(() => approvalResponse !== undefined || approvalFailure !== undefined, "approval context response missing");
+    if (approvalFailure) throw approvalFailure;
+    assert.equal(approvalResponse.status, 200);
+    assert.equal(approvalResponse.body.state, requesterState === "available" ? "pending" : "rejected");
+    const context = approvalResponse.body.approval_context;
+    assert.equal(context.action, "create_temporary_policy");
+    assert.equal(context.target_id, environmentID);
+    assert.equal(context.requester.state, requesterState);
+    assert.equal(context.requester.id, requesterState === "available" ? evidenceID : null);
+    if (rationaleState === "missing") assert.equal(context.rationale, null);
+    else assert.deepEqual(context.rationale, { state: rationaleState, summary: rationaleState === "available" ? "Review password=[REDACTED] before acting." : "" });
+    await waitForBrowserText(cdp, /Risk: containment \(action catalog\)/);
+    const rendered = await cdp.send("Runtime.evaluate", { expression: `(async () => {
+      const dialog=document.querySelector('[role="dialog"]');
+      await Promise.allSettled(dialog.getAnimations({subtree:true}).map(animation=>animation.finished));
+      return dialog.querySelector('section[aria-label="Persisted approval context"]')?.textContent;
+    })()`, awaitPromise: true, returnByValue: true });
+    assert.ok(rendered.result?.value?.includes("This persisted plan step requires operator approval."));
+    assert.ok(rendered.result.value.includes(rationaleState === "available" ? "Review password=[REDACTED] before acting." : rationaleState === "withheld" ? "AI rationale was withheld by the redaction policy." : "No AI rationale is available for this approval."));
+    assert.equal(rendered.result.value.includes("owned-approval-secret"), false);
+    const capture = await cdp.send("Page.captureScreenshot", { format: "png" });
+    const screenshot = path.join(artifacts, `approval-context-${rationaleState}.png`);
+    await writeFile(screenshot, Buffer.from(capture.data, "base64"));
+    assert.deepEqual(await approvalSnapshot(), seeded, "approval context reads changed execution authority");
+    assert.ok(productAPIRequests.slice(readStart).every(request => ["GET", "HEAD", "OPTIONS"].includes(request.method)), "approval display emitted a mutation");
+    console.log(`Approval context browser: ${JSON.stringify({ requesterState, rationaleState, screenshot, fixture: true })}`);
+  }
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 812, deviceScaleFactor: 1, mobile: true });
+  const mobile = await cdp.send("Runtime.evaluate", { expression: `(async () => {
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const dialog=document.querySelector('[role="dialog"]');
+    const body=dialog.querySelector('.drawer__body');
+    const header=dialog.querySelector('.drawer__header');
+    const bounds=dialog.getBoundingClientRect();
+    return { width:innerWidth, dialog:bounds.width, left:bounds.left, right:bounds.right, bodyClient:body.clientWidth, bodyScroll:body.scrollWidth, headerClient:header.clientWidth, headerScroll:header.scrollWidth };
+  })()`, awaitPromise: true, returnByValue: true });
+  const mobileCapture = await cdp.send("Page.captureScreenshot", { format: "png" });
+  const mobileScreenshot = path.join(artifacts,"approval-context-mobile.png");
+  await writeFile(mobileScreenshot,Buffer.from(mobileCapture.data,"base64"));
+  console.log(`Approval mobile layout: ${JSON.stringify({ ...mobile.result.value, screenshot:mobileScreenshot })}`);
+  assert.equal(mobile.result.value.width,375,"mobile viewport was not applied");
+  assert.ok(mobile.result.value.left >= -1 && mobile.result.value.right <= 376,"approval drawer extends beyond mobile viewport");
+  assert.ok(mobile.result.value.bodyScroll <= mobile.result.value.bodyClient + 1,"approval drawer body overflows mobile viewport");
+  assert.ok(mobile.result.value.headerScroll <= mobile.result.value.headerClient + 1,"approval drawer header overflows mobile viewport");
+  // Reset only this owned display fixture into a pending decision. The browser
+  // must commit cancellation through the product API; no action worker runs.
+  await cdp.send("Emulation.clearDeviceMetricsOverride");
+  await sql(`DELETE FROM zasp_security_agent_effects WHERE ${predicate};
+DELETE FROM zasp_security_agent_controls WHERE ${predicate};
+UPDATE zasp_security_agent_runs SET state='waiting_approval',completed_at=NULL WHERE ${predicate};
+UPDATE zasp_security_agent_steps SET state='waiting_approval' WHERE ${predicate};
+UPDATE zasp_security_agent_approvals SET state='pending',requester_id='${evidenceID}' WHERE ${predicate} AND approval_id='${approvalID}'`);
+  await reloadBrowserPage(cdp);
+  await waitForBrowserScope(cdp, scope);
+  await waitForBrowserText(cdp, /Requester:/);
+  await clickBrowserAria(cdp, `Open approval ${approvalID}`);
+  await waitForBrowserText(cdp, /Risk: containment \(action catalog\)/);
+  const decisionStart = productAPIRequests.length;
+  await clickBrowserText(cdp, "Cancel approval");
+  await waitForBrowserText(cdp, /cancelled Version 2/);
+  const committedDecision = JSON.parse(await sql(`SELECT jsonb_build_object(
+    'approval',(SELECT jsonb_build_object('state',state,'version',version) FROM zasp_security_agent_approvals WHERE ${predicate} AND approval_id='${approvalID}'),
+    'run',(SELECT state FROM zasp_security_agent_runs WHERE ${predicate}),
+    'steps',(SELECT jsonb_agg(state) FROM zasp_security_agent_steps WHERE ${predicate}),
+    'audits',(SELECT count(*) FROM zasp_security_agent_audit WHERE ${predicate} AND approval_id='${approvalID}' AND event_kind='approval_decided'),
+    'receipts',(SELECT count(*) FROM zasp_security_agent_request_receipts WHERE organization_id='${organizationID}' AND workspace_id='${workspaceID}' AND environment_id='${environmentID}' AND resource_id='${approvalID}' AND operation='decideSecurityAgentApproval'),
+    'effects',(SELECT count(*) FROM zasp_security_agent_effects WHERE ${predicate}))`));
+  assert.deepEqual(committedDecision, { approval:{state:"cancelled",version:2},run:"cancelled",steps:["cancelled"],audits:1,receipts:1,effects:0 });
+  const mutations = productAPIRequests.slice(decisionStart).filter(request => !["GET","HEAD","OPTIONS"].includes(request.method));
+  assert.equal(mutations.length,1,"cancellation emitted multiple mutations");
+  assert.equal(mutations[0].method,"POST");
+  assert.equal(mutations[0].path,`${approvalPath}/decision`);
+  const committedSnapshot = await approvalSnapshot();
+  const refreshStart = productAPIRequests.length;
+  await clickBrowserText(cdp,"Refresh approval context");
+  await waitForBrowserText(cdp,/Risk: containment \(action catalog\)/);
+  assert.deepEqual(await approvalSnapshot(),committedSnapshot,"context refresh changed committed cancellation");
+  assert.ok(productAPIRequests.slice(refreshStart).every(request => ["GET","HEAD","OPTIONS"].includes(request.method)),"context refresh retried a decision");
+  const decisionCapture = await cdp.send("Page.captureScreenshot",{format:"png"});
+  const decisionScreenshot = path.join(artifacts,"approval-cancelled-committed.png");
+  await writeFile(decisionScreenshot,Buffer.from(decisionCapture.data,"base64"));
+  console.log(`Approval browser committed cancellation: ${JSON.stringify({committedDecision,mutations,screenshot:decisionScreenshot,seededPrerequisites:true,providerExecution:false})}`);
+  await cdp.send("Emulation.setDeviceMetricsOverride",{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  // This record was written by the preceding real product cancellation, not
+  // inserted for the link check. Its approval/run prerequisites remain fixtures.
+  const auditID = (await sql(`SELECT audit_id FROM zasp_security_agent_audit WHERE ${predicate} AND approval_id='${approvalID}' AND event_kind='approval_decided'`)).trim();
+  assert.match(auditID, /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  const auditReadStart = productAPIRequests.length;
+  await clickBrowserText(cdp, "Security agents");
+  await waitForBrowserScope(cdp, scope);
+  await clickBrowserAria(cdp, `Open run ${runID}`);
+  for (const [label, route, entity] of [
+    [`Open audit record ${auditID}`, "/administration/audit-log", auditID],
+    [`Open run ${runID}`, "/protect/security-agents", runID],
+    [`Open audit record ${auditID}`, "/administration/audit-log", auditID],
+  ]) {
+    await clickBrowserText(cdp, label);
+    await waitForBrowserAction(cdp, `location.pathname === ${JSON.stringify(route)} && new URLSearchParams(location.search).get('entity_id') === ${JSON.stringify(entity)}`);
+    const location = await cdp.send("Runtime.evaluate", { expression: `({path:location.pathname,query:Object.fromEntries(new URLSearchParams(location.search))})`, returnByValue: true });
+    assert.deepEqual(location.result?.value, { path: route, query: { entity_id: entity, organization_id: organizationID, workspace_id: workspaceID, environment_id: environmentID } });
+    await waitForBrowserScope(cdp, scope);
+  }
+  // Settle the initial detail before establishing the reload response boundary.
+  await waitForBrowserAction(cdp, `[...document.querySelectorAll('button')].some(button => button.textContent.trim() === ${JSON.stringify(`Open run ${runID}`)} && !button.disabled)`);
+  let auditReloadResponse, auditReloadFailure;
+  const auditReloadIDs = new Map();
+  cdp.on("Network.responseReceived", event => {
+    if (new URL(event.response.url).pathname === `/api/v1/security-agent-audit-events/${auditID}`) auditReloadIDs.set(event.requestId, event.response.status);
+  });
+  cdp.on("Network.loadingFinished", event => {
+    if (!auditReloadIDs.has(event.requestId)) return;
+    void cdp.send("Network.getResponseBody", { requestId: event.requestId }).then(value => {
+      const text = value.base64Encoded ? Buffer.from(value.body, "base64").toString("utf8") : value.body;
+      auditReloadResponse = { status: auditReloadIDs.get(event.requestId), body: JSON.parse(text) };
+    }).catch(error => { auditReloadFailure = error; });
+  });
+  await clickBrowserText(cdp, "Reload audit record");
+  await waitForScopeOverlap(() => auditReloadResponse !== undefined || auditReloadFailure !== undefined, "audit reload response missing");
+  if (auditReloadFailure) throw auditReloadFailure;
+  assert.equal(auditReloadResponse.status, 200);
+  assert.equal(auditReloadResponse.body.id, auditID);
+  assert.equal(auditReloadResponse.body.run_id, runID);
+  await waitForBrowserText(cdp, /approval_decided/);
+  await waitForBrowserAction(cdp, `[...document.querySelectorAll('button')].some(button => button.textContent.trim() === ${JSON.stringify(`Open run ${runID}`)} && !button.disabled)`);
+  await cdp.send("Runtime.evaluate", { expression: "history.back()" });
+  await waitForBrowserAction(cdp, `location.pathname === '/protect/security-agents' && new URLSearchParams(location.search).get('entity_id') === ${JSON.stringify(runID)}`);
+  const backScope = await cdp.send("Runtime.evaluate", { expression: "Object.fromEntries(new URLSearchParams(location.search))", returnByValue: true });
+  assert.deepEqual(backScope.result?.value, { entity_id: runID, organization_id: organizationID, workspace_id: workspaceID, environment_id: environmentID });
+  await waitForBrowserAction(cdp, `[...document.querySelectorAll('button')].some(button => button.textContent.trim() === ${JSON.stringify(`Open audit record ${auditID}`)} && !button.disabled)`);
+  await cdp.send("Runtime.evaluate", { expression: "history.forward()" });
+  await waitForBrowserAction(cdp, `location.pathname === '/administration/audit-log' && new URLSearchParams(location.search).get('entity_id') === ${JSON.stringify(auditID)}`);
+  const forwardScope = await cdp.send("Runtime.evaluate", { expression: "Object.fromEntries(new URLSearchParams(location.search))", returnByValue: true });
+  assert.deepEqual(forwardScope.result?.value, { entity_id: auditID, organization_id: organizationID, workspace_id: workspaceID, environment_id: environmentID });
+  await waitForBrowserText(cdp, /approval_decided/);
+  await waitForBrowserAction(cdp, `[...document.querySelectorAll('button')].some(button => button.textContent.trim() === ${JSON.stringify(`Open run ${runID}`)} && !button.disabled)`);
+  const auditRequests = productAPIRequests.slice(auditReadStart);
+  for (const required of [
+    `/api/v1/security-agent-audit-events/${auditID}`,
+    `/api/v1/security-agent-activity/audit/${auditID}/runs`,
+    `/api/v1/security-agent-runs/${runID}/activity/audit`,
+  ]) assert.ok(auditRequests.some(request => request.method === "GET" && request.path === required), `missing mounted audit read ${required}`);
+  assert.ok(auditRequests.every(request => ["GET", "HEAD", "OPTIONS"].includes(request.method)), "audit links emitted a mutation");
+  assert.deepEqual(await approvalSnapshot(), committedSnapshot, "audit navigation changed committed approval authority");
+  const auditCapture = await cdp.send("Page.captureScreenshot", { format: "png" });
+  const auditScreenshot = path.join(artifacts, "activity-audit-roundtrip.png");
+  await writeFile(auditScreenshot, Buffer.from(auditCapture.data, "base64"));
+  console.log(`Activity audit mounted roundtrip: ${JSON.stringify({ runID, auditID, scope, requests: auditRequests, screenshot: auditScreenshot, historyAndReload: true, seededPrerequisites: true, providerExecution: false })}`);
+  // Additional owner-seeded audit rows exercise forward cursor boundaries; the
+  // original committed cancellation row stays untouched and remains included.
+  const additionalAudits = Array.from({ length: 20 }, (_, index) => `pid_790003${String(index).padStart(2, "0")}-0000-4000-8000-0000000003${String(index).padStart(2, "0")}`);
+  for (const id of additionalAudits) await sql(`INSERT INTO zasp_security_agent_audit SELECT (jsonb_populate_record(NULL::zasp_security_agent_audit,to_jsonb(a)||jsonb_build_object('audit_id','${id}','correlation_id','${id}'))).* FROM zasp_security_agent_audit a WHERE ${predicate} AND audit_id='${auditID}'`);
+  const allAudits = [auditID, ...additionalAudits].sort();
+  const beforeAuditPaging = await approvalSnapshot();
+  const auditPagingStart = productAPIRequests.length;
+  await clickBrowserText(cdp, `Open run ${runID}`);
+  const auditCardExpression = `[...document.querySelectorAll('section.card')].find(card => card.querySelector('.card__title')?.textContent === 'Related audit records')`;
+  const auditPageExpression = `(() => {const card=${auditCardExpression};return [...(card?.querySelectorAll('.security-agent-activity__list button') ?? [])].map(button=>button.textContent.trim().replace(/^Open audit record /,''));})()`;
+  await waitForBrowserAction(cdp, `JSON.stringify(${auditPageExpression}) === ${JSON.stringify(JSON.stringify(allAudits.slice(0, 20)))}`);
+  await waitForBrowserAction(cdp, `(() => {const card=${auditCardExpression};const button=[...(card?.querySelectorAll('button') ?? [])].find(button=>button.textContent.trim()==='Next related page');if(!button || button.disabled)return false;button.click();return true;})()`);
+  await waitForBrowserAction(cdp, `JSON.stringify(${auditPageExpression}) === ${JSON.stringify(JSON.stringify(allAudits.slice(20)))}`);
+  await waitForBrowserAction(cdp, `(() => {const card=${auditCardExpression};return [...(card?.querySelectorAll('button') ?? [])].some(button=>button.textContent.trim()==='Next related page' && button.disabled);})()`);
+  await waitForBrowserAction(cdp, `(() => {const card=${auditCardExpression};const button=[...(card?.querySelectorAll('button') ?? [])].find(button=>button.textContent.trim()==='Previous related page');if(!button || button.disabled)return false;button.click();return true;})()`);
+  await waitForBrowserAction(cdp, `JSON.stringify(${auditPageExpression}) === ${JSON.stringify(JSON.stringify(allAudits.slice(0, 20)))}`);
+  const relationReads = [
+    ...["finding", "attack_path", "session", "audit"].map(kind => `/api/v1/security-agent-runs/${runID}/activity/${kind}?limit=20`),
+    `/api/v1/security-agent-activity/finding/${evidenceID}/runs?limit=20`,
+    `/api/v1/security-agent-activity/attack_path/${linkedPath}/runs?limit=20`,
+    `/api/v1/security-agent-activity/session/${linkedSession}/runs?limit=20`,
+    `/api/v1/security-agent-activity/audit/${auditID}/runs?limit=20`,
+    `/api/v1/security-agent-audit-events/${auditID}`,
+  ];
+  for (const target of relationReads) {
+    assert.equal((await browserFetchJSON(cdp, target, { "X-Zasp-Expected-Scope": scope })).status, 200, `positive relation control failed ${target}`);
+    for (let dimension = 0; dimension < 3; dimension++) {
+      const wrong = scope.split('/'); wrong[dimension] = 'pid_90000999-0000-4000-8000-000000000999';
+      const denied = await browserFetchJSON(cdp, target, { "X-Zasp-Expected-Scope": wrong.join('/') });
+      assert.equal(denied.status, 409, `scope dimension${dimension} was accepted ${target}`);
+      assert.equal(denied.body.code, "scope_stale");
+      for (const id of [runID, auditID, evidenceID, linkedPath, linkedSession]) assert.equal(JSON.stringify(denied.body).includes(id), false, "scope refusal leaked entity data");
+    }
+  }
+  const relationMembership = `organization_id='${organizationID}' AND principal_id='pid_10000004-0000-4000-8000-000000000004'`;
+  assert.equal(await sql(`SELECT active::text FROM zasp_identity_memberships WHERE ${relationMembership}`), "true");
+  try {
+    await sql(`UPDATE zasp_identity_memberships SET active=false WHERE ${relationMembership}`);
+    for (const target of relationReads) {
+      const denied = await browserFetchJSON(cdp, target, { "X-Zasp-Expected-Scope": scope });
+      assert.equal(denied.status, 401, `inactive membership read relation ${target}`);
+      assert.equal(denied.body.code, "authentication_required");
+      for (const id of [runID, auditID, evidenceID, linkedPath, linkedSession]) assert.equal(JSON.stringify(denied.body).includes(id), false, "inactive membership refusal leaked entity data");
+    }
+  } finally {
+    await sql(`UPDATE zasp_identity_memberships SET active=true WHERE ${relationMembership}`);
+  }
+  for (const target of relationReads) assert.equal((await browserFetchJSON(cdp, target, { "X-Zasp-Expected-Scope": scope })).status, 200, "restored relation positive control failed");
+  assert.deepEqual(await approvalSnapshot(), beforeAuditPaging, "forward paging/relation denials changed approval or audit authority");
+  assert.ok(productAPIRequests.slice(auditPagingStart).every(request => ["GET", "HEAD", "OPTIONS"].includes(request.method)), "forward paging/relation checks emitted a mutation");
+  console.log("Activity forward/boundary checks: exact20+1 audit pages and Previous, all nine reads positive200, each expected-scope dimension409, inactive membership401 and restored200; owned fixtures, not provider proof");
+  await clickBrowserText(cdp, "Approvals");
+  await waitForBrowserScope(cdp, scope);
+  for (const [index,decision] of ["approved","rejected"].entries()) {
+    const decisionRun = `pid_7800010${index}-0000-4000-8000-00000000010${index}`;
+    const decisionScope = `organization_id='${organizationID}' AND workspace_id='${workspaceID}' AND environment_id='${environmentID}'`;
+    const decisionPredicate = `${decisionScope} AND run_id='${decisionRun}'`;
+    // Separate seeded prerequisites per case. Never reset a committed decision.
+    await sql(`INSERT INTO zasp_security_agent_runs SELECT (jsonb_populate_record(NULL::zasp_security_agent_runs,to_jsonb(r)||jsonb_build_object('run_id','${decisionRun}','state','waiting_approval','version',1,'completed_at',NULL))).* FROM zasp_security_agent_runs r WHERE ${predicate};
+INSERT INTO zasp_security_agent_plans SELECT (jsonb_populate_record(NULL::zasp_security_agent_plans,to_jsonb(p)||jsonb_build_object('run_id','${decisionRun}','plan',body,'plan_hash',digest(convert_to(body::text,'UTF8'),'sha256')))).* FROM zasp_security_agent_plans p CROSS JOIN LATERAL (SELECT p.plan||jsonb_build_object('goal','Owned ${decision} browser fixture') body) fixture WHERE ${predicate};
+INSERT INTO zasp_security_agent_steps SELECT (jsonb_populate_record(NULL::zasp_security_agent_steps,to_jsonb(s)||jsonb_build_object('run_id','${decisionRun}','state','waiting_approval','version',1))).* FROM zasp_security_agent_steps s WHERE ${predicate};
+INSERT INTO zasp_security_agent_approvals SELECT (jsonb_populate_record(NULL::zasp_security_agent_approvals,to_jsonb(a)||jsonb_build_object('run_id','${decisionRun}','approval_id','${decisionRun}','state','pending','version',1,'approver_id',NULL,'fresh_auth_at',NULL,'decided_at',NULL))).* FROM zasp_security_agent_approvals a WHERE ${predicate} AND approval_id='${approvalID}';
+INSERT INTO zasp_security_agent_trigger_receipts SELECT (jsonb_populate_record(NULL::zasp_security_agent_trigger_receipts,to_jsonb(t)||jsonb_build_object('run_id','${decisionRun}','trigger_version',${101+index}))).* FROM zasp_security_agent_trigger_receipts t WHERE ${predicate};
+UPDATE zasp_security_agent_runs SET plan_hash=(SELECT plan_hash FROM zasp_security_agent_plans WHERE ${decisionPredicate}) WHERE ${decisionPredicate};
+UPDATE zasp_security_agent_steps SET input_digest=(SELECT plan_hash FROM zasp_security_agent_plans WHERE ${decisionPredicate}) WHERE ${decisionPredicate};
+UPDATE zasp_security_agent_approvals SET plan_hash=(SELECT plan_hash FROM zasp_security_agent_plans WHERE ${decisionPredicate}) WHERE ${decisionPredicate}`);
+    if (decision === "approved") await sql(`UPDATE zasp_product_sessions SET authenticated_at=transaction_timestamp()-interval '10 minutes' WHERE organization_id='${organizationID}' AND principal_id='pid_10000004-0000-4000-8000-000000000004' AND revoked_at IS NULL`);
+    await reloadBrowserPage(cdp);
+    await waitForBrowserScope(cdp,scope);
+    await waitForBrowserText(cdp,new RegExp(decisionRun));
+    await clickBrowserAria(cdp,`Open approval ${decisionRun}`);
+    await waitForBrowserText(cdp,/Risk: containment \(action catalog\)/);
+    if (decision === "approved") {
+      await waitForBrowserText(cdp,/Reauthenticate to decide/);
+      for (const label of [/^Approve$/i,/^Reject$/i,/^Cancel approval$/i]) assert.equal(await browserHasInteractiveText(cdp,label),false,"stale session exposed a decision control");
+      const pendingAuthority = async () => JSON.parse(await sql(`SELECT jsonb_build_object('approval',(SELECT to_jsonb(a) FROM zasp_security_agent_approvals a WHERE ${decisionPredicate}),'run',(SELECT to_jsonb(r) FROM zasp_security_agent_runs r WHERE ${decisionPredicate}),'steps',(SELECT jsonb_agg(to_jsonb(s) ORDER BY step_index) FROM zasp_security_agent_steps s WHERE ${decisionPredicate}),'audit_count',(SELECT count(*) FROM zasp_security_agent_audit WHERE ${decisionPredicate}),'receipt_count',(SELECT count(*) FROM zasp_security_agent_request_receipts WHERE ${decisionScope} AND resource_id='${decisionRun}'))`));
+      const pending = await pendingAuthority();
+      const denied = await cdp.send("Runtime.evaluate",{expression:`(async()=>{
+        const bootstrap=await fetch('/api/v1/session/bootstrap',{cache:'no-store'}).then(r=>r.json());
+        const response=await fetch('/api/v1/security-agent-approvals/${decisionRun}/decision',{method:'POST',headers:{'content-type':'application/json','Idempotency-Key':'approval-stale-auth-browser-0001','If-Match':'"1"','X-Zasp-Fresh-Auth':'confirmed','X-CSRF-Token':bootstrap.csrf_token,'X-Zasp-Expected-Scope':${JSON.stringify(scope)}},body:JSON.stringify({decision:'approved'})});
+        return {status:response.status,body:await response.json()};
+      })()`,awaitPromise:true,returnByValue:true});
+      assert.equal(denied.result?.value?.status,403);
+      assert.equal(denied.result.value.body.code,"fresh_auth_required");
+      assert.deepEqual(await pendingAuthority(),pending,"stale-auth request changed approval authority");
+      const starts=identityOAuthStarts;
+      const returnURL=await browserCurrentURL(cdp);
+      await clickBrowserText(cdp,"Reauthenticate to decide");
+      await waitForBrowserText(cdp,/Continue through the configured identity provider/);
+      const marker=`approval-reauth-${decisionRun}`;
+      await cdp.send("Runtime.evaluate",{expression:`globalThis.__approvalReauthMarker=${JSON.stringify(marker)}`});
+      await clickBrowserText(cdp,"Continue to sign in");
+      await waitForBrowserAction(cdp,`globalThis.__approvalReauthMarker!==${JSON.stringify(marker)} && location.href===${JSON.stringify(returnURL)} && document.readyState!=='loading'`);
+      await waitForBrowserScope(cdp,scope);
+      await waitForBrowserText(cdp,new RegExp(decisionRun));
+      assert.equal(identityOAuthStarts,starts+1,"approval did not use exactly one reauthentication flow");
+      assert.deepEqual(await pendingAuthority(),pending,"reauthentication itself decided the approval");
+      await clickBrowserAria(cdp,`Open approval ${decisionRun}`);
+      await waitForBrowserText(cdp,/Risk: containment \(action catalog\)/);
+      assert.equal(await browserHasInteractiveText(cdp,/^Approve$/i),true);
+      console.log("Approval fresh-auth browser: stale controls absent, direct POST refused403 fresh_auth_required, unchanged authority, one owned identity callback, fresh decision enabled");
+    }
+    const startDecision = productAPIRequests.length;
+    await clickBrowserText(cdp,decision === "approved" ? "Approve" : "Reject");
+    await waitForBrowserText(cdp,new RegExp(`${decision} Version 2`));
+    const durable = JSON.parse(await sql(`SELECT jsonb_build_object(
+      'approval',(SELECT jsonb_build_object('state',state,'version',version) FROM zasp_security_agent_approvals WHERE ${decisionPredicate}),
+      'run',(SELECT state FROM zasp_security_agent_runs WHERE ${decisionPredicate}),
+      'steps',(SELECT jsonb_agg(state) FROM zasp_security_agent_steps WHERE ${decisionPredicate}),
+      'audits',(SELECT count(*) FROM zasp_security_agent_audit WHERE ${decisionPredicate} AND approval_id='${decisionRun}' AND event_kind='approval_decided'),
+      'receipts',(SELECT count(*) FROM zasp_security_agent_request_receipts WHERE ${decisionScope} AND resource_id='${decisionRun}' AND operation='decideSecurityAgentApproval'),
+      'effects',(SELECT count(*) FROM zasp_security_agent_effects WHERE ${decisionPredicate}))`));
+    assert.deepEqual(durable,{approval:{state:decision,version:2},run:decision === "approved" ? "queued" : "needs_human",steps:[decision === "approved" ? "authorized" : "cancelled"],audits:1,receipts:1,effects:0});
+    const writes = productAPIRequests.slice(startDecision).filter(request=>!["GET","HEAD","OPTIONS"].includes(request.method));
+    assert.deepEqual(writes.map(({method,path})=>({method,path})),[{method:"POST",path:`/api/v1/security-agent-approvals/${decisionRun}/decision`}]);
+    await cdp.send("Runtime.evaluate",{expression:`(async()=>{const dialog=document.querySelector('[role="dialog"]');await Promise.allSettled(dialog.getAnimations({subtree:true}).map(animation=>animation.finished));dialog.querySelector('.drawer__body').scrollTop=0;})()`,awaitPromise:true});
+    const capture=await cdp.send("Page.captureScreenshot",{format:"png"});
+    const screenshot=path.join(artifacts,`approval-${decision}-committed.png`);
+    await writeFile(screenshot,Buffer.from(capture.data,"base64"));
+    console.log(`Approval browser committed decision: ${JSON.stringify({decision,durable,screenshot,seededPrerequisites:true,providerExecution:false})}`);
+  }
+  const approvalReads = ["/api/v1/security-agent-approvals",approvalPath];
+  const headers = {"X-Zasp-Expected-Scope":scope,"X-Zasp-Approval-Context":"v1"};
+  const assertDeniedApproval = (response,status,code,requestedID=approvalID) => {
+    assert.equal(response.status,status);
+    assert.equal(response.body?.code,code);
+    assert.deepEqual(Object.keys(response.body).sort(),["code","correlation_id","message","retryable"]);
+    assert.equal(JSON.stringify(response.body).includes(requestedID),false,"denial leaked approval identity");
+    assert.equal(JSON.stringify(response.body).includes("approval_context"),false,"denial leaked approval context");
+  };
+  for (const target of approvalReads) {
+    assert.equal((await browserFetchJSON(cdp,target,headers)).status,200,"positive approval read control failed");
+    assertDeniedApproval(await browserFetchJSON(cdp,target,{...headers,"X-Zasp-Expected-Scope":"pid_90000001-0000-4000-8000-000000000001/pid_90000002-0000-4000-8000-000000000002/pid_90000003-0000-4000-8000-000000000003"}),409,"scope_stale");
+  }
+  // Every supported active role includes view. Disable this owned membership
+  // instead of changing legacy scope permissions, which are not the authority.
+  const membershipPredicate=`organization_id='${organizationID}' AND principal_id='pid_10000004-0000-4000-8000-000000000004'`;
+  assert.equal(await sql(`SELECT active::text FROM zasp_identity_memberships WHERE ${membershipPredicate}`),"true","owned active membership fixture missing");
+  const beforeDenied = await approvalSnapshot();
+  try {
+    await sql(`UPDATE zasp_identity_memberships SET active=false WHERE ${membershipPredicate}`);
+    for (const target of approvalReads) assertDeniedApproval(await browserFetchJSON(cdp,target,headers),401,"authentication_required");
+    assert.deepEqual(await approvalSnapshot(),beforeDenied,"denied reads changed approval authority");
+  } finally {
+    await sql(`UPDATE zasp_identity_memberships SET active=true WHERE ${membershipPredicate}`);
+  }
+  for (const target of approvalReads) assert.equal((await browserFetchJSON(cdp,target,headers)).status,200,"restored approval permission failed");
+  await clickBrowserAria(cdp,"Close");
+  await clickBrowserText(cdp,"Sign out");
+  await waitForBrowserText(cdp,/Sign in to Zasp/);
+  for (const target of approvalReads) assertDeniedApproval(await browserFetchJSON(cdp,target,headers),401,"authentication_required");
+  const signedOutText=await browserBodyText(cdp);
+  for (const id of [approvalID,"pid_78000100-0000-4000-8000-000000000100","pid_78000101-0000-4000-8000-000000000101"]) assert.equal(signedOutText.includes(id),false,"signed-out UI retained approval data");
+  assert.deepEqual(await approvalSnapshot(),beforeDenied,"sign-out/read denial changed approval authority");
+  console.log("Approval authorization browser: positive200, foreign expected scope409, inactive membership401, restored200, signed-out401; strict non-disclosing errors and unchanged approval authority");
+  // Independently authenticated foreign scope, not a mismatched header on the
+  // original session. Only the identity/session setup is owner-seeded here.
+  const foreignOrg="pid_90000001-0000-4000-8000-000000000001",foreignWorkspace="pid_90000002-0000-4000-8000-000000000002",foreignEnvironment="pid_90000003-0000-4000-8000-000000000003";
+  const foreignPrincipal="pid_79000901-0000-4000-8000-000000000901";
+  const foreignScope=`${foreignOrg}/${foreignWorkspace}/${foreignEnvironment}`;
+  const foreignSession="session-approval-cross-tenant-browser-fixture";
+  const foreignToken=randomBytes(32).toString("hex"),foreignDigest=createHash("sha256").update(foreignToken).digest("hex"),foreignCSRF=randomBytes(32).toString("hex");
+  assert.equal(await sql(`SELECT count(*) FROM zasp_identity_memberships WHERE principal_id='${foreignPrincipal}'`),"0","foreign approval principal is not owned");
+  let foreignBrowser;
+  try {
+    await sql(`BEGIN;
+INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role) VALUES('${foreignPrincipal}','${foreignOrg}','organization-approval-foreign-fixture','member-approval-foreign-fixture','read_only_viewer');
+INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES('${foreignPrincipal}','${foreignOrg}','${foreignWorkspace}','${foreignEnvironment}','Foreign approval fixture','["view"]',true);
+INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at) VALUES(decode('${foreignDigest}','hex'),'${foreignCSRF}','${foreignSession}','${foreignPrincipal}','${foreignOrg}','${foreignWorkspace}','${foreignEnvironment}','["view"]',transaction_timestamp()+interval '1 hour');
+COMMIT;`);
+    foreignBrowser=await startBrowserTab(chromePort,`${publicOrigin}/protect/approvals`,{name:"__Host-zasp_session",value:foreignToken,sameSite:"Lax"});
+    await waitForBrowserScope(foreignBrowser,foreignScope);
+    const foreignHeaders={"X-Zasp-Expected-Scope":foreignScope,"X-Zasp-Approval-Context":"v1"};
+    const ownList=await browserFetchJSON(foreignBrowser,"/api/v1/security-agent-approvals",foreignHeaders);
+    assert.equal(ownList.status,200,"foreign session is not independently authorized");
+    assert.deepEqual(ownList.body.items,[],"foreign list exposed primary approvals");
+    await waitForBrowserText(foreignBrowser,/No pending approvals/);
+    for (const id of [approvalID,"pid_78000100-0000-4000-8000-000000000100","pid_78000101-0000-4000-8000-000000000101"]) {
+      assertDeniedApproval(await browserFetchJSON(foreignBrowser,`/api/v1/security-agent-approvals/${id}`,foreignHeaders),404,"not_found",id);
+      assert.equal((await browserBodyText(foreignBrowser)).includes(id),false,"foreign UI exposed primary approval");
+    }
+    assert.deepEqual(await approvalSnapshot(),beforeDenied,"foreign approval reads changed authority");
+    console.log("Approval foreign-tenant browser: isolated authenticated session, own scoped list200 empty, three primary approval details404 with safe errors, no primary IDs rendered; identity setup is fixture-only");
+    // Give this independent owned tenant all relation-read permissions, so
+    // denial cannot be explained merely by the read-only viewer role above.
+    await sql(`UPDATE zasp_identity_memberships SET role='security_admin',version=version+1 WHERE principal_id='${foreignPrincipal}' AND organization_id='${foreignOrg}'`);
+    await reloadBrowserPage(foreignBrowser);
+    await waitForBrowserScope(foreignBrowser, foreignScope);
+    const relationHeaders = { "X-Zasp-Expected-Scope": foreignScope };
+    const foreignRelationStart = productAPIRequests.length;
+    assert.equal((await browserFetchJSON(foreignBrowser, "/api/v1/audit-events?limit=20", relationHeaders)).status, 200, "foreign audit reader is not independently authorized");
+    for (const [kind, entity] of [["finding", evidenceID], ["attack_path", linkedPath], ["session", linkedSession], ["audit", auditID]]) {
+      const empty = await browserFetchJSON(foreignBrowser, `/api/v1/security-agent-activity/${kind}/${entity}/runs?limit=20`, relationHeaders);
+      if (kind === "audit") {
+        // Audit reverse lookup first authorizes the exact audit row. A missing
+        // foreign row is404, never a fabricated successful empty audit lookup.
+        assert.equal(empty.status, 404);
+        assert.equal(empty.body.code, "not_found");
+        for (const id of [runID, auditID, evidenceID, linkedPath, linkedSession]) assert.equal(JSON.stringify(empty.body).includes(id), false, "foreign audit relation error disclosed primary data");
+      } else {
+        assert.equal(empty.status, 200, `foreign ${kind} relation reader is not independently authorized`);
+        assert.deepEqual(empty.body, { items: [], coverage: "complete" }, `foreign ${kind} reverse read exposed a primary relation`);
+      }
+      const denied = await browserFetchJSON(foreignBrowser, `/api/v1/security-agent-runs/${runID}/activity/${kind}?limit=20`, relationHeaders);
+      assert.equal(denied.status, 404, `foreign ${kind} forward read exposed a primary run`);
+      assert.equal(denied.body.code, "not_found");
+      for (const id of [runID, auditID, evidenceID, linkedPath, linkedSession]) assert.equal(JSON.stringify(denied.body).includes(id), false, "foreign relation error disclosed primary data");
+    }
+    const foreignAudit = await browserFetchJSON(foreignBrowser, `/api/v1/security-agent-audit-events/${auditID}`, relationHeaders);
+    assert.equal(foreignAudit.status, 404);
+    assert.equal(foreignAudit.body.code, "not_found");
+    for (const id of [runID, auditID, evidenceID, linkedPath, linkedSession]) assert.equal(JSON.stringify(foreignAudit.body).includes(id), false, "foreign audit error disclosed primary data");
+    const foreignAuditLocation = `/administration/audit-log?${new URLSearchParams({ entity_id: auditID, organization_id: foreignOrg, workspace_id: foreignWorkspace, environment_id: foreignEnvironment })}`;
+    await foreignBrowser.send("Runtime.evaluate", { expression: `history.pushState({},'',${JSON.stringify(foreignAuditLocation)});dispatchEvent(new PopStateEvent('popstate'));` });
+    await waitForBrowserText(foreignBrowser, /Audit record not found in this scope/);
+    const foreignText = await browserBodyText(foreignBrowser);
+    for (const id of [runID, auditID, evidenceID, linkedPath, linkedSession]) assert.equal(foreignText.includes(id), false, "foreign audit UI rendered primary data");
+    assert.deepEqual(await approvalSnapshot(), beforeDenied, "foreign relation reads changed primary authority");
+    assert.ok(productAPIRequests.slice(foreignRelationStart).every(request => ["GET", "HEAD", "OPTIONS"].includes(request.method)), "foreign relation reads emitted a mutation");
+    const foreignCapture = await foreignBrowser.send("Page.captureScreenshot", { format: "png" });
+    const foreignScreenshot = path.join(artifacts, "activity-foreign-audit-denied.png");
+    await writeFile(foreignScreenshot, Buffer.from(foreignCapture.data, "base64"));
+    console.log(`Activity independent foreign tenant: authorized non-audit reverse reads200 empty, own audit list200, primary audit reverse404, primary run forward reads404 and exact audit404, mounted audit refusal with no primary data; ${JSON.stringify({ screenshot: foreignScreenshot, seededIdentity: true, providerExecution: false })}`);
+  } finally {
+    try { await foreignBrowser?.dispose(); } finally {
+      await sql(`BEGIN;
+DELETE FROM zasp_product_sessions WHERE principal_id='${foreignPrincipal}' AND organization_id='${foreignOrg}' AND session_id='${foreignSession}';
+DELETE FROM zasp_authorized_scopes WHERE principal_id='${foreignPrincipal}' AND organization_id='${foreignOrg}' AND workspace_id='${foreignWorkspace}' AND environment_id='${foreignEnvironment}';
+DELETE FROM zasp_identity_memberships WHERE principal_id='${foreignPrincipal}' AND organization_id='${foreignOrg}';
+COMMIT;`);
+    }
+  }
+}
+
+async function exerciseComplianceBrowser(configuration) {
+  const {dsn,apiBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
+  const sql=async statement=>(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
+  const org="pid_10000001-0000-4000-8000-000000000001",workspace="pid_10000022-0000-4000-8000-000000000022",environment="pid_10000023-0000-4000-8000-000000000023",actor="pid_10000004-0000-4000-8000-000000000004";
+  const selectedScope=`${org}/${workspace}/${environment}`;
+  const pagingPrefix="policy-"+"a".repeat(118);
+  const pagingLast=pagingPrefix+"101";
+  assert.equal(await sql("SELECT max(version) FROM zasp_schema_versions"),"56");
+  await sql(`CREATE ROLE compliance_executor LOGIN INHERIT; CREATE ROLE compliance_cleanup LOGIN INHERIT;
+SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanup',(SELECT checksum FROM zasp_schema_versions WHERE version=56),(SELECT value FROM zasp_schema_metadata WHERE key='production_compliance_fingerprint'));
+UPDATE zasp_authorized_scopes SET permissions=permissions || '["view_audit","view_compliance"]'::jsonb WHERE principal_id='${actor}';
+INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) VALUES('${org}','${workspace}','${environment}','policy','policy-compliance-browser',7,'{"raw_prompt":"NEVER_EXPORT_BROWSER"}','2020-01-01');
+INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) SELECT '${org}','${workspace}','${environment}','policy','${pagingPrefix}'||lpad(n::text,3,'0'),7,'{}','2020-01-01' FROM generate_series(1,101) n;`);
+  const storage=await mkdtemp("/tmp/zasp-compliance-browser-");
+  const object=path.join(storage,"object.json"),downloads=path.join(storage,"downloads");
+  // Retained local evidence: downloaded files and exact controlled-provider bytes.
+  console.log(`compliance browser evidence: ${storage}`);
+  const publicOrigin=`https://${productHostname}:${proxyPort}`;
+  identity=await startIdentityServer(identityPort,publicOrigin); policyHistory=await startPolicyHistoryServer(policyHistoryPort);
+  const apiEnvironment={...combinedAPIEnvironment({...configuration,publicOrigin}), ZASP_COMPLIANCE_BROWSER_API:"true", ZASP_COMPLIANCE_BROWSER_PG_PORT:String(postgresPort), ZASP_COMPLIANCE_BROWSER_OBJECT:object,ZASP_COMPLIANCE_BROWSER_DEADLINE:new Date(Date.now()+20*60_000).toISOString(),
+    ZASP_COMPLIANCE_EXPORT_BUCKET:"zasp-compliance-exports", ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER:"123456789012",ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN:"arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111",ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN:"arn:aws:iam::123456789012:role/compliance-api-reader",ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE:"/var/run/secrets/eks.amazonaws.com/serviceaccount/token"};
+  const startAPI=async(enabled=true)=>{const environment={...apiEnvironment};if(!enabled){for(const key of Object.keys(environment))if(key.startsWith("ZASP_COMPLIANCE_EXPORT_"))delete environment[key];environment.ZASP_COMPLIANCE_BROWSER_LEGACY="true";}api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:environment});try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(e){throw new Error(`${e.message}; ${api.output()}`);}};
+  await startAPI(false);
+  web=startChild(path.join(root,"node_modules/.bin/vinext"),["start","--port",String(webPort),"--hostname","127.0.0.1"],{cwd:root});
+  await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`,200);
+  const key=path.join(temporaryRoot,"compliance-tls.key"),certificate=path.join(temporaryRoot,"compliance-tls.crt");
+  await command("openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","1","-subj",`/CN=${productHostname}`,"-addext",`subjectAltName=DNS:${productHostname}`,"-keyout",key,"-out",certificate]);
+  proxy=await startProxy(proxyPort,apiPort,webPort,key,certificate,dsn);
+  browser=await startBrowser(path.join(temporaryRoot,"compliance-profile"),chromePort,`${publicOrigin}/api/v1/session/start?return_to=%2Fcompliance%2Fevidence`);
+  const cdp=browser.cdp;
+  const continuityCheckpoints=[];
+  let previousTraceCount=0;
+  const continuity = async (label, scope, mounted = false) => {
+    const evaluated = await cdp.send("Runtime.evaluate", {
+      expression: `(async()=>{const r=await fetch('/api/v1/session/bootstrap',{cache:'no-store'});const b=await r.json();return {status:r.status,code:typeof b.code==='string'?b.code:null,principal:b.principal?.id??null,scope:b.organization_id?[b.organization_id,b.workspace_id,b.environment_id].join('/'):null,finalURL:location.origin+location.pathname,signIn:document.body.innerText.includes('Sign in to Zasp'),controls:!!document.querySelector('select[aria-label="Framework"]'),exportAction:[...document.querySelectorAll('button')].some(e=>e.textContent==='Create evidence export')};})()`,
+      awaitPromise:true,returnByValue:true,
+    });
+    const state=evaluated.result.value;
+    const checkpoint={label,...state,consoleKinds:browserConsoleErrors.map(value=>value.kind)};
+    continuityCheckpoints.push(checkpoint);
+    await writeFile(path.join(storage,"continuity.json"),JSON.stringify({checkpoints:continuityCheckpoints,responses:complianceResponseTrace},null,2));
+    console.log("compliance continuity: "+JSON.stringify({...checkpoint,responses:complianceResponseTrace.slice(previousTraceCount)}));
+    previousTraceCount=complianceResponseTrace.length;
+    assert.equal(state.status,200,label+" bootstrap");
+    assert.equal(state.principal,actor,label+" principal");
+    assert.equal(state.scope,scope,label+" scope");
+    assert.equal(state.signIn,false,label+" unexpectedly signed out");
+    if (mounted) {
+      assert.equal(state.controls,true,label+" controls not mounted");
+      assert.equal(state.exportAction,true,label+" export action not mounted");
+    }
+  };
+  const legacyText=await waitForBrowserText(cdp,/evidence-membership/).catch(async error=>{await writeFile(path.join(storage,"legacy-failure-trace.json"),JSON.stringify(complianceResponseTrace,null,2));console.log("legacy failure trace: "+JSON.stringify(complianceResponseTrace));throw error;});
+  assert.match(legacyText,/Legacy evidence \(current freshness unavailable\)/);
+  assert.match(legacyText,/product-membership/);
+  assert.doesNotMatch(legacyText,/Create evidence export/);
+  const legacyRequests=complianceResponseTrace.filter(entry=>entry.path==="/api/v1/compliance/evidence");
+  assert.ok(legacyRequests.length>0,"retained legacy evidence was not read");
+  assert.ok(legacyRequests.every(entry=>!entry.framework&&entry.status===200),"legacy adapter sent unsupported framework filters");
+  const legacyScope=`${org}/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003`;
+  const legacyWire=await browserFetchJSON(cdp,"/api/v1/compliance/evidence?limit=100",{"X-Zasp-Expected-Scope":legacyScope});
+  assert.equal(legacyWire.status,200);assert.match(legacyWire.body.items[0].evidence[0].at,/[+-]\d{2}:\d{2}$/);
+  const legacyFiltered=await browserFetchJSON(cdp,"/api/v1/compliance/evidence?limit=100&framework=soc2_security",{"X-Zasp-Expected-Scope":legacyScope});
+  assert.equal(legacyFiltered.status,400,"legacy query allowlist must remain strict");
+  const legacyCapture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-legacy.png"),Buffer.from(legacyCapture.data,"base64"));
+  await continuity("legacy disabled service readable",legacyScope);
+  await stopChild(api);await startAPI();
+  await reloadBrowser(cdp);
+  await waitForBrowserText(cdp,/Create evidence export/);
+  await selectBrowserOption(cdp,"Authorized scope","Staging");
+  await waitForBrowserScope(cdp,selectedScope);
+  // Both mounted chains must traverse an actual >512-character SQL/HTTP cursor.
+  // These owned paging records are removed before export, whose 100-record cap
+  // and original single-record byte assertions stay unchanged.
+  await waitForBrowserText(cdp,new RegExp(pagingLast));
+  const pagingLinks=await cdp.send("Runtime.evaluate",{expression:`[...document.querySelectorAll('a')].filter(e=>e.getAttribute('aria-label')==='Open policy ${pagingLast} version 7').length`,returnByValue:true});
+  assert.equal(pagingLinks.result.value,2,"all frameworks must include the last maximum-ID policy");
+  for(const framework of ["soc2_security","hipaa"]) assert.ok(complianceResponseTrace.some(entry=>entry.path==="/api/v1/compliance/evidence"&&entry.scope===selectedScope&&entry.framework===framework&&entry.cursorLength>512&&entry.status===200),framework+" mounted long-cursor continuation missing");
+  await selectBrowserOption(cdp,"Framework","HIPAA");
+  await selectBrowserOption(cdp,"Control","Policy definitions");
+  await clickBrowserAria(cdp,`Open policy ${pagingLast} version 7`);
+  assert.match(await waitForBrowserText(cdp,/Evidence source/),/2020-01-01T00:00:00(?:\.0+)?Z[\s\S]*stale/);
+  const hipaaURL=new URL(await browserCurrentURL(cdp));
+  assert.equal(hipaaURL.searchParams.get("source_id"),pagingLast);assert.equal(hipaaURL.searchParams.get("source_version"),"7");
+  const hipaaCapture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-hipaa-detail.png"),Buffer.from(hipaaCapture.data,"base64"));
+  await sql(`DELETE FROM zasp_workflow_records WHERE (organization_id,workspace_id,environment_id,kind)=('${org}','${workspace}','${environment}','policy') AND id IN(SELECT '${pagingPrefix}'||lpad(n::text,3,'0') FROM generate_series(1,101) n)`);
+  await navigateBrowser(cdp,`${publicOrigin}/compliance/evidence`);
+  await selectBrowserOption(cdp,"Framework","SOC 2 Security");
+  const sourceLocation=`/compliance/evidence?source_kind=policy&source_id=policy-compliance-browser&source_version=7&organization_id=${org}&workspace_id=${workspace}&environment_id=${environment}`;
+  await clickBrowserAria(cdp,"Open policy policy-compliance-browser version 7");
+  assert.match(await waitForBrowserText(cdp,/Evidence source/),/2020-01-01T00:00:00(?:\.0+)?Z[\s\S]*stale/);
+  assert.equal(new URL(await browserCurrentURL(cdp)).pathname+new URL(await browserCurrentURL(cdp)).search,sourceLocation);
+  await navigateBrowser(cdp,`${publicOrigin}/compliance/evidence`);
+  await selectBrowserOption(cdp,"Framework","SOC 2 Security");
+  await selectBrowserOption(cdp,"Control","Policy definitions");
+  await clickBrowserText(cdp,"Create evidence export");
+  await waitForBrowserText(cdp,/Export queued/);
+  const jobID=await sql("SELECT export_id FROM zasp_compliance_export_jobs ORDER BY created_at DESC LIMIT 1");assert.match(jobID,/^pid_[a-f0-9-]{36}$/);
+  const worker=async phase=>{const result=await command(workerE2EBinary,["-test.run=^TestComplianceRuntimeProcess$","-test.v","-test.timeout=20s"],{timeout:25_000,env:{...auditBrowserEnvironment(process.env),ZASP_COMPLIANCE_RUNTIME_DSN:dsn,ZASP_COMPLIANCE_RUNTIME_PHASE:phase,ZASP_COMPLIANCE_RUNTIME_OBJECT:object}});console.log(result.stdout);};
+  await worker("interrupt");
+  assert.equal(await sql(`SELECT state||'|'||storage_state FROM zasp_compliance_export_jobs WHERE export_id='${jobID}'`),"pending|unknown");
+  const pinned=await sql(`SELECT encode(digest(package,'sha256'),'hex') FROM zasp_compliance_export_jobs WHERE export_id='${jobID}'`);
+  await sql(`UPDATE zasp_workflow_records SET version=8,updated_at=clock_timestamp() WHERE id='policy-compliance-browser'; UPDATE zasp_compliance_export_jobs SET next_attempt_at=clock_timestamp() WHERE export_id='${jobID}'`);
+  await worker("resume");
+  assert.equal(await sql(`SELECT state||'|'||storage_state||'|'||encode(digest(package,'sha256'),'hex') FROM zasp_compliance_export_jobs WHERE export_id='${jobID}'`),`completed|verified|${pinned}`);
+  await clickBrowserText(cdp,"Refresh export status"); await waitForBrowserText(cdp,/Export completed/);
+  // Navigation replaces the inspected target; configure the current download session.
+  await cdp.send("Browser.setDownloadBehavior",{behavior:"allow",downloadPath:downloads,eventsEnabled:true});
+  const downloadEvents=[];
+  cdp.on("Browser.downloadWillBegin",event=>downloadEvents.push({filename:event.suggestedFilename}));
+  cdp.on("Browser.downloadProgress",event=>downloadEvents.push({state:event.state,bytes:event.receivedBytes}));
+  await clickBrowserText(cdp,"Download JSON");
+  await waitForBrowserText(cdp,/Download handed to your browser/);
+  let saved;
+  for(let attempt=0;attempt<100;attempt++){try{saved=await readFile(path.join(downloads,`compliance-${jobID}.json`));break;}catch{await delay(100);}}
+  assert.ok(saved,`native browser download missing: ${JSON.stringify(downloadEvents)}`);
+  const stored=JSON.parse(await readFile(object,"utf8")),envelope=JSON.parse(Buffer.from(stored.Body,"base64").toString());
+  assert.deepEqual(saved,storedComplianceJSON(Buffer.from(stored.Body,"base64")),"download differs from exact persisted JSON bytes");
+  assert.equal(envelope.json.length,1);
+  assert.deepEqual(envelope.json[0].evidence.map(record=>record.target),[{source_kind:"policy",source_id:"policy-compliance-browser",source_version:7}]);
+  for(const text of [saved.toString(),envelope.csv,envelope.human]) assert.doesNotMatch(text,/certified|certification achieved|compliance (?:passed|certified)|HIPAA compliant|SOC 2 compliant/i);
+  assert.match(envelope.human,/does not attest compliance/);
+  assert.match(saved.toString(),/policy-compliance-browser/);assert.match(saved.toString(),/"source_version":7/);assert.doesNotMatch(saved.toString(),/NEVER_EXPORT_BROWSER/);
+  // Stay in the user's tab so sessionStorage reload recovery is genuinely exercised.
+  await cdp.send("Page.navigate",{url:`${publicOrigin}${sourceLocation}`}); await waitForBrowserText(cdp,/Source changed/);
+  // API restart and page reload resolve the durable job, without in-memory worker state.
+  await stopChild(api); await startAPI();
+  await cdp.send("Page.navigate",{url:`${publicOrigin}/compliance/evidence`});
+  await waitForBrowserText(cdp,/Export completed/);
+  const beforeReload=await cdp.send("Runtime.evaluate",{expression:"performance.timeOrigin",returnByValue:true});
+  await reloadBrowser(cdp);
+  await waitForBrowserAction(cdp,`performance.timeOrigin !== ${beforeReload.result.value} && document.readyState === 'complete'`);
+  await waitForBrowserText(cdp,/Export completed/);
+  await cdp.send("Browser.setDownloadBehavior",{behavior:"allow",downloadPath:downloads,eventsEnabled:true});
+  await clickBrowserText(cdp,"Download readable");await waitForBrowserText(cdp,/Download handed to your browser/);
+  let readable;
+  for(let attempt=0;attempt<100;attempt++){try{readable=await readFile(path.join(downloads,`compliance-${jobID}.txt`),"utf8");break;}catch{await delay(100);}}
+  assert.equal(readable,envelope.human,"restart changed persisted readable format");
+  await clickBrowserText(cdp,"Download CSV");await waitForBrowserText(cdp,/Download handed to your browser/);
+  let csv;
+  for(let attempt=0;attempt<100;attempt++){try{csv=await readFile(path.join(downloads,`compliance-${jobID}.csv`),"utf8");break;}catch{await delay(100);}}
+  assert.equal(csv,envelope.csv,"native CSV differs from persisted format");
+  const replay=await cdp.send("Runtime.evaluate",{expression:`(async()=>{const b=await fetch('/api/v1/session/bootstrap').then(r=>r.json());const headers={'Content-Type':'application/json','X-CSRF-Token':b.csrf_token,'X-Zasp-Expected-Scope':${JSON.stringify(selectedScope)}};const g=await fetch('/api/v1/compliance/exports/${jobID}/download-grants',{method:'POST',headers,body:JSON.stringify({format:'csv'})}).then(r=>r.json());const body=JSON.stringify({format:'csv',token:g.token});const first=await fetch('/api/v1/compliance/exports/${jobID}/download',{method:'POST',headers,body});const bytes=await first.text();const again=await fetch('/api/v1/compliance/exports/${jobID}/download',{method:'POST',headers,body});return {first:first.status,again:again.status,bytes};})()`,awaitPromise:true,returnByValue:true});
+  assert.equal(replay.result.value.first,200);assert.notEqual(replay.result.value.again,200);assert.equal(replay.result.value.bytes,envelope.csv);
+  const foreignLocation=sourceLocation.replace(workspace,"pid_10000002-0000-4000-8000-000000000002");
+  await navigateBrowser(cdp,`${publicOrigin}${foreignLocation}`);await waitForBrowserText(cdp,/different organization, workspace or environment/);await waitForBrowserScope(cdp,selectedScope);
+  await navigateBrowser(cdp,`${publicOrigin}/compliance/evidence`);
+  await selectBrowserOption(cdp,"Authorized scope","Production");
+  const siblingScope=`${org}/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003`;
+  await waitForBrowserScope(cdp,siblingScope);
+  await continuity("sibling selected",siblingScope);
+  for(const route of [`/api/v1/compliance/exports/${jobID}`,"/api/v1/compliance/evidence/policy/policy-compliance-browser?source_version=8"]){const result=await browserFetchJSON(cdp,route,{"X-Zasp-Expected-Scope":siblingScope});assert.equal(result.status,404);await continuity("after sibling denial "+route.split("?")[0],siblingScope);}
+  // Independent authenticated foreign-tenant session, created only in this owned fixture.
+  await sql(`INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at,authenticated_at) VALUES(digest('compliance-foreign-browser','sha256'),repeat('c',32),'session-compliance-foreign-browser','pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','["view","view_audit","view_compliance"]',clock_timestamp()+interval '1 hour',clock_timestamp());UPDATE zasp_authorized_scopes SET permissions=permissions||'["view_audit","view_compliance"]'::jsonb WHERE principal_id='pid_90000004-0000-4000-8000-000000000004';`);
+  const denied=await requestHTTPSJSON(`${publicOrigin}/api/v1/compliance/exports/${jobID}`,{method:"GET",headers:{cookie:"__Host-zasp_session=compliance-foreign-browser","X-Zasp-Expected-Scope":"pid_90000001-0000-4000-8000-000000000001/pid_90000002-0000-4000-8000-000000000002/pid_90000003-0000-4000-8000-000000000003"}});assert.equal(denied.status,404);
+  await continuity("after foreign denial",siblingScope);
+  const authorized=await browserFetchJSON(cdp,"/api/v1/compliance/evidence?limit=1",{"X-Zasp-Expected-Scope":siblingScope});
+  assert.equal(authorized.status,200,"authorized sibling evidence after denials");
+  await waitForBrowserText(cdp,/Create evidence export/);
+  await continuity("authorized sibling evidence readable",siblingScope,true);
+  await selectBrowserOption(cdp,"Authorized scope","Staging");
+  await waitForBrowserScope(cdp,selectedScope);
+  await waitForBrowserText(cdp,/Create evidence export/);
+  const currentEvidence=await browserFetchJSON(cdp,"/api/v1/compliance/evidence/policy/policy-compliance-browser?source_version=8",{"X-Zasp-Expected-Scope":selectedScope});
+  assert.equal(currentEvidence.status,200,"authorized primary evidence after denials");
+  await selectBrowserOption(cdp,"Framework","SOC 2 Security");
+  await selectBrowserOption(cdp,"Control","Policy definitions");
+  await cdp.send("Emulation.setDeviceMetricsOverride",{width:1200,height:900,deviceScaleFactor:1,mobile:false});
+  await continuity("final mounted primary",selectedScope,true);
+  const visibleExport=await cdp.send("Runtime.evaluate",{expression:"(()=>{const button=[...document.querySelectorAll('button')].find(e=>e.textContent==='Create evidence export');const box=button?.getBoundingClientRect();return !!box&&box.top>=0&&box.bottom<=innerHeight;})()",returnByValue:true});
+  assert.equal(visibleExport.result.value,true,"final screenshot must include the export action");
+  assert.doesNotMatch(await browserStorageAndHistoryText(cdp),/compliance-process-v1|NEVER_EXPORT_BROWSER|"token"|arn:aws/);
+  const capture=await cdp.send("Page.captureScreenshot",{format:"png"});await writeFile(path.join(storage,"compliance-final.png"),Buffer.from(capture.data,"base64"));
+  await writeFile(path.join(storage,"summary.json"),JSON.stringify({jobID,packageSHA256:pinned,nativeJSONBytes:saved.length,restartReadableBytes:Buffer.byteLength(readable),legacyDisabledReads:true,legacyStrictQuery:true,disabledToEnabledReload:true,hipaaSourceDetail:true,maximumIDPaging:true,pagingRecordsRemovedBeforeExport:101,grantReplayRefused:true,siblingDenied:true,foreignDenied:true,sourceChanged:true,provider:"controlled local SDK transport, NOT AWS"},null,2));
+  assert.equal(proxyFailure,undefined);
+  console.log("compliance release56 browser acceptance: real session/API/worker/versioned artifact; source change, exact JSON/CSV/readable, worker/API restart, scope denial and grant replay passed; live AWS NOT RUN");
+}
+
+function assertAutomaticDiscoveryInventory(before,after,name,existingID) {
+  const targets=after.filter(item=>item.name===name);
+  assert.equal(targets.length,1,"collected target absent or duplicated");
+  const target=targets[0];
+  if(existingID)assert.equal(target.id,existingID,"scheduled collection changed identity");
+  else assert.equal(before.some(item=>item.id===target.id||item.name===name),false,"target predates public collection");
+  const unchanged=items=>items.filter(item=>item.id!==target.id).sort((a,b)=>a.id.localeCompare(b.id));
+  assert.deepEqual(unchanged(after),unchanged(before),"unrelated authorized inventory changed");
+  return target.id;
+}
+
+async function hashAutomaticDiscoveryInputs(binaries = {}) {
+  const files = ["package.json", "package-lock.json"];
+  const visit = async directory => {
+    for (const entry of (await readdir(path.join(root,directory),{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))) {
+      const file=path.join(directory,entry.name);
+      if (entry.isDirectory() && !["node_modules",".git"].includes(entry.name)) await visit(file);
+      else if (entry.isFile() && (/\.(?:go|sql|mjs|js|css|json|html|wasm)$/.test(entry.name) || ["go.mod","go.sum"].includes(entry.name))) files.push(file);
+    }
+  };
+  for (const directory of ["services/platform","services/runtime-gateway","cmd/agentsecctl","scripts","dist"]) await visit(directory);
+  const hashes={};
+  for (const file of files) hashes[file]=createHash("sha256").update(await readFile(path.join(root,file))).digest("hex");
+  for (const [name,file] of Object.entries(binaries)) hashes[name]=createHash("sha256").update(await readFile(file)).digest("hex");
+  return hashes;
+}
+
+async function exerciseAutomaticDiscoveryBrowser(configuration) {
+  const {dsn,apiBinary,workerBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
+  const evidence=await mkdtemp(path.join(os.tmpdir(),"zasp-automatic-discovery-evidence-"));
+  automaticDiscoveryEvidenceDirectory=evidence;
+  console.log(`automatic discovery evidence directory: ${evidence}`);
+  const publicOrigin=`https://${productHostname}:${proxyPort}`;
+  const authorization="Bearer production-e2e-product-token-with-at-least-32-bytes";
+  const scope="pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+  const requests=[], lifetimes=[], checkpoints=[];
+  const collectorBinary=path.join(temporaryRoot,"automatic-discovery-collector.test");
+  const collectorContainerPath="/zasp-automatic-discovery-collector.test";
+  const binaryPaths={apiBinary,workerBinary,workerE2EBinary,collectorBinary,migrationBinary:path.join(temporaryRoot,"agentsec-migrate"),relayBinary:path.join(temporaryRoot,"postgres-relay"),gatewayE2EBinary:path.join(temporaryRoot,"runtime-gateway-e2e"),agentsecctlBinary:path.join(temporaryRoot,"agentsecctl")};
+  const sql=async statement=>{
+    assert.match(statement,/^SELECT /,"automatic proof owner SQL is read-only after initial fixture seed");
+    return (await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
+  };
+  const id=value=>{assert.match(value,/^pid_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);return value;};
+  const primaryPredicate="organization_id='pid_10000001-0000-4000-8000-000000000001' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003'";
+  const read=async(route,token=authorization)=>{
+    const response=await requestHTTPSJSON(publicOrigin+route,{method:"GET",headers:{authorization:token}});
+    requests.push({method:"GET",route,status:response.status,at:new Date().toISOString()});return response;
+  };
+  const mutate=async(method,route,version,body,key)=>{
+    const response=await requestHTTPSJSON(publicOrigin+route,{method,headers:{authorization,"content-type":"application/json","idempotency-key":key,"if-match":`"${version}"`}},body===undefined?undefined:JSON.stringify(body));
+    requests.push({method,route,status:response.status,at:new Date().toISOString(),version,receipt:response.headers["x-mutation-receipt-id"]??null});
+    assert.equal(response.headers["x-mutation-receipt-id"],undefined,"PAT created browser receipt");return response;
+  };
+  const owned=(binary,args,env,label)=>{
+    const processOwner=spawnOwnedCommand(binary,args,{cwd:platform,env});children.push(processOwner.child);ownedCommands.set(processOwner.child,processOwner);
+    let output="";processOwner.child.stdout.on("data",chunk=>{output+=chunk;});processOwner.child.stderr.on("data",chunk=>{output+=chunk;});
+    const record={label,pid:processOwner.child.pid,started:new Date().toISOString(),completed:false};lifetimes.push(record);
+    const joined=processOwner.completed.then(result=>{Object.assign(record,{completed:true,status:result.status,signal:result.signal,ended:new Date().toISOString(),outputSHA256:createHash("sha256").update(result.stdout+result.stderr).digest("hex")});return result;});
+    void joined.catch(()=>{});
+    return {...processOwner,completed:joined,output:()=>output};
+  };
+  const join=async processOwner=>{await processOwner.stop();const result=await processOwner.completed;assert.equal(result.status,0,`owned process failed: ${result.stdout} ${result.stderr}`);assert.equal(result.signal,null);};
+  const waitUntil=async(deadline,condition,label)=>{
+    while(Date.now()<deadline){if(await condition())return;await delay(250);}throw new Error(`automatic discovery timed out: ${label}`);
+  };
+  const collect=async(syncID,scenario)=>{
+    id(syncID);
+    const jobID=id(await sql(`SELECT id FROM zasp_discovery_jobs WHERE ${primaryPredicate} AND authority_id='${syncID}' AND kind='discovery'`));
+    const owner=owned("docker",["exec","-e","ZASP_AUTOMATIC_DISCOVERY_DSN=postgres://zasp_e2e_discovery@127.0.0.1:5432/postgres?sslmode=disable","-e",`ZASP_AUTOMATIC_DISCOVERY_JOB=${jobID}`,"-e",`ZASP_AUTOMATIC_DISCOVERY_SCENARIO=${scenario}`,postgres.containerID,collectorContainerPath,"-test.run=^TestAutomaticDiscoveryCollectionProcess$","-test.v","-test.timeout=60s"],auditBrowserEnvironment(process.env),`collection-${scenario}`);
+    const result=await owner.completed;
+    await writeFile(path.join(evidence,`provider-${scenario}.log`),result.stdout+result.stderr);
+    assert.equal(result.status,0,result.stdout+result.stderr);assert.equal(result.signal,null);assert.match(result.stdout,/AUTOMATIC_COLLECTION_COMPLETED/);
+    const outcome=await read(`/api/v1/integrations/${task5KubernetesAIntegrationID}/syncs/${syncID}`);assert.equal(outcome.status,200);
+    await writeFile(path.join(evidence,`sync-${scenario}.json`),JSON.stringify(outcome.body,null,2));
+    assert.equal(outcome.body.status,scenario==="failed"?"failed":scenario==="partial"?"queued":"succeeded",`public sync outcome: ${JSON.stringify(outcome.body)}`);
+    return jobID;
+  };
+  const capture=async name=>{const shot=await browser.cdp.send("Page.captureScreenshot",{format:"png",captureBeyondViewport:false});await writeFile(path.join(evidence,`${name}.png`),Buffer.from(shot.data,"base64"));};
+  let passed=false, stage="startup", first, second, apiOwner, failure, hashes;
+  try {
+    hashes=await hashAutomaticDiscoveryInputs(binaryPaths);
+    if (automaticDiscoverySourceHashes) for (const [file,hash] of Object.entries(automaticDiscoverySourceHashes)) assert.equal(hashes[file],hash,`automatic discovery build input changed: ${file}`);
+    const release=JSON.parse(await sql(`SELECT jsonb_build_object('version',v.version,'checksum',v.checksum,'fingerprint',m.value,'liveFingerprint',zasp_discovery_schedule_replay_live_fingerprint(),'ready',zasp_discovery_schedule_replay_readiness('${automaticDiscoveryRelease.checksum}','${automaticDiscoveryRelease.fingerprint}'),'maxVersion',(SELECT max(version) FROM zasp_schema_versions)) FROM zasp_schema_versions v,zasp_schema_metadata m WHERE v.version=60 AND m.key='production_discovery_schedule_replay_fingerprint'`));
+    assert.deepEqual(release,{...automaticDiscoveryRelease,liveFingerprint:automaticDiscoveryRelease.fingerprint,ready:true,maxVersion:60},"automatic discovery requires exact release60 readiness before API or scheduler startup");
+    checkpoints.push({stage:"release60",at:new Date().toISOString(),release});
+    assert.match(postgres.containerID,/^[0-9a-f]{64}$/,"collector requires the exact owned PostgreSQL container");
+    await command("docker",["exec",postgres.containerID,"test","-x",collectorContainerPath]);
+    const collectorMode=await command("docker",["exec",postgres.containerID,"stat","-c","%a %u %g",collectorContainerPath]);
+    checkpoints.push({stage:"collector-executable-readonly-mount",mode:collectorMode.stdout.trim()});
+    identity=await startIdentityServer(identityPort,publicOrigin);policyHistory=await startPolicyHistoryServer(policyHistoryPort);
+    apiOwner=owned(apiBinary,[],{...combinedAPIEnvironment({...configuration,publicOrigin}),ZASP_EXPECTED_SCHEMA_VERSION:"60"},"api");api=apiOwner.child;
+    await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);
+    web=startChild(path.join(root,"node_modules/.bin/vinext"),["start","--port",String(webPort),"--hostname","127.0.0.1"],{cwd:root});await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`,200);
+    const key=path.join(temporaryRoot,"automatic-tls.key"),certificate=path.join(temporaryRoot,"automatic-tls.crt");
+    await command("openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","1","-subj",`/CN=${productHostname}`,"-addext",`subjectAltName=DNS:${productHostname}`,"-keyout",key,"-out",certificate]);
+    proxy=await startProxy(proxyPort,apiPort,webPort,key,certificate,dsn);
+    stage="baseline";
+    const before=await read("/api/v1/agents?limit=100");assert.equal(before.status,200);
+    await writeFile(path.join(evidence,"inventory-before.json"),JSON.stringify(before.body,null,2));
+    const baseline=await requestManualDiscoverySync(publicOrigin,authorization,task5KubernetesAIntegrationID,"automatic-baseline-sync-0001");
+    await collect(baseline.id,"complete");
+    const initial=await read("/api/v1/agents?limit=100");assert.equal(initial.status,200);
+    const agentID=id(assertAutomaticDiscoveryInventory(before.body.items,initial.body.items,"zasp/scheduled-agent"));
+    browser=await startBrowser(path.join(temporaryRoot,"automatic-browser"),chromePort,`${publicOrigin}/api/v1/session/start?return_to=%2Fdiscovery%2Fassets`);
+    await waitForBrowserText(browser.cdp,/zasp\/scheduled-agent/);await capture("initial-inventory");assert.equal(observedSessionCookie,true);
+    stage="public-schedules";
+    const schedulePath=`/api/v1/integrations/${task5KubernetesAIntegrationID}/schedule`;
+    const deletePath=`/api/v1/integrations/${task5KubernetesBIntegrationID}/schedule`;
+    const scheduledAt=Date.now();
+    const saved=await mutate("PUT",schedulePath,0,{cadence_seconds:300,state:"enabled"},"automatic-schedule-create-0001");assert.equal(saved.status,200);
+    assert.ok(Date.parse(saved.body.next_run_at)-scheduledAt>=299_000,"public schedule did not preserve real cadence");
+    const replay=await mutate("PUT",schedulePath,0,{cadence_seconds:300,state:"enabled"},"automatic-schedule-create-0001");assert.equal(replay.status,200);assert.deepEqual(replay.body,saved.body);
+    const deletion=await mutate("PUT",deletePath,0,{cadence_seconds:300,state:"enabled"},"automatic-delete-schedule-create");assert.equal(deletion.status,200);
+    const deleted=await mutate("DELETE",deletePath,1,undefined,"automatic-delete-schedule-0001");assert.equal(deleted.status,204);
+    const deletedReplay=await mutate("DELETE",deletePath,1,undefined,"automatic-delete-schedule-0001");assert.equal(deletedReplay.status,204);
+    const deletedRead=await read(deletePath);assert.equal(deletedRead.status,404);
+    const foreign="Bearer production-e2e-foreign-recovery-token-with-at-least-32-bytes";
+    const foreignSchedule=await read(schedulePath,foreign);assert.equal(foreignSchedule.status,404);
+    const foreignAgent=await read(`/api/v1/agents/${agentID}`,foreign);assert.equal(foreignAgent.status,404);
+    const foreignAgents=await read("/api/v1/agents?limit=100",foreign);assert.equal(foreignAgents.status,200);assert.deepEqual(foreignAgents.body.items,[]);
+    first=owned(workerE2EBinary,["-test.run=^TestAutomaticDiscoverySchedulerProcess$","-test.v","-test.timeout=13m"],{...auditBrowserEnvironment(process.env),ZASP_AUTOMATIC_SCHEDULER_DSN:`postgres://zasp_e2e_scheduler@127.0.0.1:${postgresPort}/postgres?sslmode=disable`},"scheduler-before-restart");
+    await waitUntil(Date.now()+20_000,async()=>{assert.equal(first.child.exitCode,null,first.output());return first.output().includes("AUTOMATIC_SCHEDULER_READY");},"scheduler readiness");
+    stage="real-cadence";console.log(`automatic discovery: waiting for real due time ${saved.body.next_run_at}`);
+    await waitUntil(Date.parse(saved.body.next_run_at)+30_000,async()=>{assert.equal(first.child.exitCode,null,first.output());return first.output().includes("AUTOMATIC_ADMISSION_COMMITTED");},"committed scheduled admission");
+    assert.ok(Date.now()-scheduledAt>=300_000,"scheduler admitted before actual five-minute cadence");
+    const syncs=await read(`/api/v1/integrations/${task5KubernetesAIntegrationID}/syncs?limit=100`);assert.equal(syncs.status,200);
+    const scheduled=syncs.body.items.filter(value=>value.trigger_kind==="schedule");assert.equal(scheduled.length,1);const syncID=id(scheduled[0].id);
+    checkpoints.push({stage:"admission-committed-before-advance",at:new Date().toISOString(),syncID,scheduledAt:new Date(scheduledAt).toISOString(),due:saved.body.next_run_at});
+    await join(first);
+    stage="restart";
+    second=owned(workerBinary,[],{...auditBrowserEnvironment(process.env),ZASP_WORKER_MODE:"scheduler",ZASP_POSTGRES_DSN:`postgres://zasp_e2e_scheduler@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,ZASP_DATABASE_AUTHORITY:"zasp_discovery_scheduler",ZASP_WORKER_ID:"automatic-discovery-scheduler-restarted",ZASP_POLL_INTERVAL:"100ms",ZASP_LEASE_DURATION:"5s",ZASP_BATCH_SIZE:"1",ZASP_SHUTDOWN_TIMEOUT:"1s",ZASP_DISCOVERY_PARSER_VERSION:"inventory-parser-2026.08.20",ZASP_DISCOVERY_TOOL_VERSION:"collector-tool-2026.08.20"},"scheduler-after-restart");
+    let advanced;
+    await waitUntil(Date.now()+30_000,async()=>{assert.equal(second.child.exitCode,null,second.output());advanced=await read(schedulePath);return advanced.status===200&&Date.parse(advanced.body.next_run_at)>Date.parse(saved.body.next_run_at);},"scheduler lease expiry, retry and advance");
+    const durable=JSON.parse(await sql(`SELECT jsonb_build_object('syncs',(SELECT count(*) FROM zasp_discovery_syncs WHERE ${primaryPredicate} AND integration_id='${task5KubernetesAIntegrationID}' AND trigger_kind='schedule'),'jobs',(SELECT count(*) FROM zasp_discovery_jobs WHERE ${primaryPredicate} AND authority_id='${syncID}' AND kind='discovery'),'outbox',(SELECT count(*) FROM zasp_discovery_outbox WHERE ${primaryPredicate} AND deterministic_key='sync:${syncID}'),'deleted_syncs',(SELECT count(*) FROM zasp_discovery_syncs WHERE ${primaryPredicate} AND integration_id='${task5KubernetesBIntegrationID}' AND trigger_kind='schedule'))`));
+    assert.deepEqual(durable,{syncs:1,jobs:1,outbox:1,deleted_syncs:0});
+    assert.equal(saved.body.integration_id,task5KubernetesAIntegrationID);assert.equal(advanced.body.integration_id,task5KubernetesAIntegrationID);
+    const occurrences=JSON.parse(await sql(`SELECT COALESCE(jsonb_agg(to_jsonb(r)||jsonb_build_object('integration_id',s.integration_id,'completion_digest',encode(r.completion_digest,'hex'),'outbox_id',o.id)),'[]') FROM zasp_discovery_schedule_runs r JOIN zasp_discovery_schedules s ON (s.organization_id,s.workspace_id,s.environment_id,s.id)=(r.organization_id,r.workspace_id,r.environment_id,r.schedule_id) JOIN zasp_discovery_outbox o ON (o.organization_id,o.workspace_id,o.environment_id,o.deterministic_key)=(r.organization_id,r.workspace_id,r.environment_id,'sync:'||r.sync_id) WHERE r.organization_id='pid_10000001-0000-4000-8000-000000000001' AND r.workspace_id='pid_10000002-0000-4000-8000-000000000002' AND r.environment_id='pid_10000003-0000-4000-8000-000000000003' AND s.integration_id='${task5KubernetesAIntegrationID}' AND r.scheduled_for='${saved.body.next_run_at}'::timestamptz`));
+    assert.equal(occurrences.length,1,"scheduled occurrence absent or duplicated");
+    const occurrence=occurrences[0];
+    assert.equal(occurrence.integration_id,task5KubernetesAIntegrationID);assert.equal(occurrence.sync_id,syncID);
+    assert.ok(occurrence.job_id&&occurrence.outbox_id,"occurrence missing job or outbox");
+    assert.equal(Date.parse(occurrence.scheduled_for),Date.parse(saved.body.next_run_at));
+    assert.ok(Number.isSafeInteger(occurrence.rebind_generation)&&occurrence.rebind_generation>0,"replacement did not rebind occurrence");
+    assert.equal(occurrence.lease_owner,"automatic-discovery-scheduler-restarted");
+    assert.ok(Number.isFinite(Date.parse(occurrence.completed_at)),"occurrence completion missing");
+    assert.match(occurrence.completion_digest,/^[0-9a-f]{64}$/);
+    assert.equal(occurrence.completion_result.id,occurrence.schedule_id);assert.equal(occurrence.completion_result.state,"enabled");
+    assert.equal(occurrence.completion_result.version,advanced.body.version);
+    assert.equal(Date.parse(occurrence.completion_result.next_run_at),Date.parse(advanced.body.next_run_at));
+    checkpoints.push({stage:"scheduler-replayed-and-advanced",at:new Date().toISOString(),nextDue:advanced.body.next_run_at,durable,occurrence});
+    const disable=await mutate("PUT",schedulePath,advanced.body.version,{cadence_seconds:300,state:"disabled"},"automatic-disable-schedule-0001");assert.equal(disable.status,200);assert.equal(disable.body.state,"disabled");
+    stage="scheduled-collection";await collect(syncID,"changed");
+    const after=await read("/api/v1/agents?limit=100");assert.equal(after.status,200);assertAutomaticDiscoveryInventory(initial.body.items,after.body.items,"zasp/scheduled-agent-updated",agentID);
+    await reloadBrowserPage(browser.cdp);await waitForBrowserText(browser.cdp,/zasp\/scheduled-agent-updated/);await capture("scheduled-inventory-reloaded");
+    const lastGood=await read(`/api/v1/integrations/${task5KubernetesAIntegrationID}/freshness`);assert.equal(lastGood.status,200);assert.ok(lastGood.body.last_good);
+    stage="retention";
+    for(const scenario of ["failed","partial"]){
+      const sync=await requestManualDiscoverySync(publicOrigin,authorization,task5KubernetesAIntegrationID,`automatic-retention-${scenario}-0001`);await collect(sync.id,scenario);
+      const detail=await read(`/api/v1/integrations/${task5KubernetesAIntegrationID}/syncs/${sync.id}`);assert.equal(detail.status,200);assert.equal(detail.body.status,scenario==="failed"?"failed":"queued");
+      const fresh=await read(`/api/v1/integrations/${task5KubernetesAIntegrationID}/freshness`);assert.equal(fresh.status,200);assert.deepEqual(fresh.body.last_good,lastGood.body.last_good);
+      const retained=await read("/api/v1/agents?limit=100");assert.equal(retained.status,200);assert.deepEqual(retained.body.items,after.body.items);
+      checkpoints.push({stage:`retained-after-${scenario}`,syncID:sync.id,lastGood:fresh.body.last_good});
+    }
+    await reloadBrowserPage(browser.cdp);await waitForBrowserText(browser.cdp,/zasp\/scheduled-agent-updated/);await capture("retained-inventory-reloaded");
+    stage="disabled-real-due-window";
+    assert.equal(disable.body.next_run_at,null);
+    const withdrawalSchedule=JSON.parse(await sql(`SELECT jsonb_build_object('integration_id',integration_id,'state',state,'version',version,'next_run_at',to_char(next_run_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) FROM zasp_discovery_schedules WHERE ${primaryPredicate} AND integration_id='${task5KubernetesAIntegrationID}' AND version=${disable.body.version} AND state='disabled'`));
+    assert.ok(withdrawalSchedule,"disabled schedule row missing");assert.equal(withdrawalSchedule.integration_id,task5KubernetesAIntegrationID);assert.equal(withdrawalSchedule.state,disable.body.state);assert.equal(withdrawalSchedule.version,disable.body.version);
+    assert.equal(typeof withdrawalSchedule.next_run_at,"string");assert.ok(Number.isFinite(Date.parse(withdrawalSchedule.next_run_at)),"disabled stored due missing");
+    console.log(`automatic discovery: observing disabled schedule through ${withdrawalSchedule.next_run_at}`);
+    await waitUntil(Date.parse(withdrawalSchedule.next_run_at)+10_000,async()=>{assert.equal(second.child.exitCode,null,second.output());return Date.now()>=Date.parse(withdrawalSchedule.next_run_at)+1_000;},"disabled schedule due window");
+    const finalCounts=await sql(`SELECT count(*) FROM zasp_discovery_syncs WHERE ${primaryPredicate} AND integration_id IN ('${task5KubernetesAIntegrationID}','${task5KubernetesBIntegrationID}') AND trigger_kind='schedule'`);assert.equal(finalCounts,"1");
+    checkpoints.push({stage:"disabled-and-deleted-no-admission",at:new Date().toISOString(),observedBeyond:withdrawalSchedule.next_run_at,withdrawalSchedule,scheduledSyncs:1});
+    await join(second);await join(apiOwner);
+    assert.deepEqual(browserConsoleErrors,[]);assert.equal(proxyFailure,undefined);passed=true;
+  } catch(error) {
+    failure=error;
+  } finally {
+    const joinErrors=[];
+    for(const processOwner of [first,second,apiOwner])if(processOwner)try{await join(processOwner);}catch(error){joinErrors.push(error);}
+    const finalHashes=await hashAutomaticDiscoveryInputs(binaryPaths);
+    const inputsUnchanged=JSON.stringify(hashes)===JSON.stringify(finalHashes);
+    await writeFile(path.join(evidence,"manifest.json"),JSON.stringify({completed:passed&&joinErrors.length===0&&inputsUnchanged,stage,scope,release:automaticDiscoveryRelease,failure:failure?{stage,name:failure.name,message:failure.message}:null,limits:["Controlled IdP, Kubernetes HTTPS/DNS, queue delivery, credentials and in-memory artifact storage; live AWS and customer cluster NOT RUN","Collection runs under the registered discovery login in the owned Linux PostgreSQL container; native host port443 is privileged","Initial identity and authorized connector configuration seeded; schedules, syncs, jobs and typed inventory never seeded or backdated","Manual baseline and failure/partial probes are separate from the sole automatic changed-inventory sync"],hashes,finalHashes,inputsUnchanged,binaryPaths,container:{id:postgres.containerID,name:postgres.name},lifetimes,requests,checkpoints,cleanup:"cleanup.json",joinErrors:joinErrors.map(error=>({name:error.name,message:error.message}))},null,2));
+    if(!inputsUnchanged)joinErrors.push(new Error("automatic discovery source or binary inputs changed during the run"));
+    if(joinErrors.length)failure=new AggregateError([...(failure?[failure]:[]),...joinErrors],"automatic discovery process joins failed");
+  }
+  if(failure)throw failure;
+  console.log("automatic discovery: real cadence, scheduler restart replay, Kubernetes collection, mounted reload, retention and public withdrawal passed; live providers NOT RUN");
+}
+
+async function stopExportBrowserAPI(owned) {
+  let shutdown = exportBrowserAPIShutdowns.get(owned);
+  if (!shutdown) {
+    shutdown = (async () => {
+      const started = Date.now();
+      let joined;
+      try {
+        await owned.stop();
+        joined = await owned.completed;
+        return joined;
+      } finally {
+        const digest = value => ({ bytes: Buffer.byteLength(value), sha256: createHash("sha256").update(value).digest("hex") });
+        const stdout = joined?.stdout ?? "", stderr = joined?.stderr ?? "";
+        const lifecycleStopped = stdout.split("\n").some(line => {
+          try { const event = JSON.parse(line); return event?.event === "runtime_stopped" && event?.service === "agentsec-api"; } catch { return false; }
+        });
+        const evidence = { completed: !!joined, status: joined?.status ?? null, signal: joined?.signal ?? null,
+          shutdownElapsedMs: Date.now() - started, lifecycleStopped, stdout: digest(stdout), stderr: digest(stderr) };
+        await writeFile(path.join(exportBrowserEvidenceDirectory, `api-lifetime-${exportBrowserAPILifetimes.indexOf(owned) + 1}.json`), JSON.stringify(evidence, null, 2));
+      }
+    })();
+    exportBrowserAPIShutdowns.set(owned, shutdown);
+  }
+  const joined = await shutdown;
+  assert.equal(joined.status, 0, "export API did not exit successfully");
+  assert.equal(joined.signal, null, "export API terminated by signal");
+}
+
+async function exerciseSecurityAgentExportMountedBrowser(configuration) {
+  const {dsn,apiBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
+  const sql=async statement=>(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
+  const workerPort=await reservePort(), publicOrigin=`https://${productHostname}:${proxyPort}`, deadline=new Date(Date.now()+25*60_000).toISOString();
+  const storeDirectory=path.join(temporaryRoot,"export-store");
+  const evidence=await mkdtemp(path.join(os.tmpdir(),"zasp-security-agent-export-evidence-")),downloads=path.join(evidence,"downloads");
+  exportBrowserEvidenceDirectory=evidence;
+  await mkdir(downloads,{mode:0o700});
+  console.log(`export browser evidence directory: ${evidence}`);
+  const shared={ZASP_SA_EXPORT_BROWSER_PG_PORT:String(postgresPort),ZASP_SA_EXPORT_BROWSER_WORKER_PORT:String(workerPort),ZASP_SA_EXPORT_BROWSER_OBJECT:storeDirectory,ZASP_SA_EXPORT_BROWSER_DEADLINE:deadline};
+  const startOwned=(binary,args,env)=>{const owned=spawnOwnedCommand(binary,args,{cwd:root,env});children.push(owned.child);ownedCommands.set(owned.child,owned);return owned;};
+  let worker, apiOwned;
+  const startWorker=async()=>{
+    worker=startOwned(workerE2EBinary,["-test.run=^TestSecurityAgentExportBrowserWorkerProcess$","-test.v","-test.timeout=27m"],{...auditBrowserEnvironment(process.env),...shared,ZASP_SA_EXPORT_BROWSER_WORKER:"true",ZASP_SA_EXPORT_BROWSER_DSN:`postgres://zasp_e2e_security_agent_worker@127.0.0.1:${postgresPort}/postgres?sslmode=disable`});
+    try{await waitForHTTP(`http://127.0.0.1:${workerPort}/readyz`,200);}catch(error){await worker.stop();throw new Error(`${error.message}; ${JSON.stringify(await worker.completed)}`);}
+  };
+  const startAPI=async()=>{
+    const owned=startOwned(apiBinary,["-test.run=^TestSecurityAgentExportBrowserAPIProcess$","-test.v","-test.timeout=27m"],{...combinedAPIEnvironment({...configuration,publicOrigin}),...shared,
+      ZASP_EXPECTED_SCHEMA_VERSION:"58",ZASP_SA_EXPORT_BROWSER_API:"true",ZASP_SECURITY_AGENT_EVIDENCE_EXPORT_WORKFLOW:"enabled",ZASP_SHUTDOWN_TIMEOUT:"1s",
+      ZASP_COMPLIANCE_EXPORT_BUCKET:"zasp-compliance-exports",ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER:"123456789012",ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN:"arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111",ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN:"arn:aws:iam::123456789012:role/compliance-api-reader",ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE:"/var/run/secrets/eks.amazonaws.com/serviceaccount/token"});
+    api=owned.child;
+    apiOwned=owned;exportBrowserAPILifetimes.push(owned);
+    try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(error){await owned.stop();throw new Error(`${error.message}; ${JSON.stringify(await owned.completed)}`);}
+  };
+  mountedRuntimeProofs.push({close:async()=>{if(worker){await worker.stop();const joined=await worker.completed;assert.equal(joined.status,0,"export worker did not join cleanly");}}});
+  await startWorker();
+  identity=await startIdentityServer(identityPort,publicOrigin);policyHistory=await startPolicyHistoryServer(policyHistoryPort);
+  await startAPI();
+  web=startChild(path.join(root,"node_modules/.bin/vinext"),["start","--port",String(webPort),"--hostname","127.0.0.1"],{cwd:root});await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`,200);
+  const key=path.join(temporaryRoot,"export-tls.key"),certificate=path.join(temporaryRoot,"export-tls.crt");
+  await command("openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","1","-subj",`/CN=${productHostname}`,"-addext",`subjectAltName=DNS:${productHostname}`,"-keyout",key,"-out",certificate]);
+  proxy=await startProxy(proxyPort,apiPort,webPort,key,certificate,dsn);
+  browser=await startBrowser(path.join(temporaryRoot,"export-author-profile"),chromePort,"about:blank");
+  const identities=[];
+  const login=async(name,existing,target)=>{
+    const expected=exportBrowserIdentity(name);
+    const profile=existing??await startBrowser(path.join(temporaryRoot,`export-${name}-profile`),await reservePort(),"about:blank");
+    if(!existing)exportBrowserProfiles.push(profile);
+    nextIdentityLogin=name;
+    const starts=identityOAuthStarts;
+    await navigateBrowser(profile.cdp,`${publicOrigin}/api/v1/session/start?return_to=${encodeURIComponent(target)}`);
+    await waitForBrowserScope(profile.cdp,name==="foreign"?exportBrowserForeignScope:exportBrowserScope);
+    const bootstrap=await browserFetchJSON(profile.cdp,"/api/v1/session/bootstrap",{});
+    assert.equal(bootstrap.status,200);assert.equal(bootstrap.body.principal.id,expected.principal);
+    assert.equal(identityOAuthStarts,starts+1,"identity did not traverse OAuth callback");
+    identities.push({name,principal:expected.principal,scope:name==="foreign"?exportBrowserForeignScope:exportBrowserScope,profile:profile.identity.profile,pid:profile.identity.pid,callback:true});
+    return profile;
+  };
+  const record=async(name,cdp,value)=>{
+    assert.match(name,/^[a-z-]+$/);
+    const capture=await cdp.send("Page.captureScreenshot",{format:"png",captureBeyondViewport:false});
+    await writeFile(path.join(evidence,`${name}.png`),Buffer.from(capture.data,"base64"));
+    await writeFile(path.join(evidence,`${name}.json`),JSON.stringify(value,null,2));
+  };
+  const step=async name=>{
+    assert.ok(["plan","dispatch","capture","settle"].includes(name));
+    const response=await fetch(`http://127.0.0.1:${workerPort}/${name}`,{method:"POST",signal:AbortSignal.timeout(15_000)});
+    const result=await response.json();assert.equal(response.status,200,JSON.stringify(result));assert.equal(result.ok,true);return result;
+  };
+  const restart=async()=>{
+    await stopExportBrowserAPI(apiOwned);await worker.stop();assert.equal((await worker.completed).status,0,"worker failed to join");await startWorker();await startAPI();
+  };
+  let result, failure, acceptancePassed=false, acceptanceStage="browser-flow";
+  try {
+    result=await runSecurityAgentExportMountedBrowser({sql,author:browser,login,publicOrigin,step,restart,storeDirectory,downloads,record,ui:{navigateBrowser,waitForBrowserText,waitForBrowserScope,selectBrowserOption,clickBrowserText,clickBrowserAria,fillBrowserLabel,browserFetchJSON,waitForBrowserAction}});
+    acceptanceStage="session-cookie";assert.equal(observedSessionCookie,true);
+    acceptanceStage="browser-console";assert.deepEqual(browserConsoleErrors,[]);
+    acceptanceStage="proxy";assert.equal(proxyFailure,undefined);
+    const mutations=exportBrowserTrace.filter(value=>["POST","PUT","PATCH"].includes(value.method)&&!value.path.includes("/export/")&&value.status>=200&&value.status<300);
+    acceptanceStage="lifecycle-mutations";
+    assert.equal(mutations.length,8,"public lifecycle mutation/receipt evidence incomplete");
+    acceptanceStage="lifecycle-receipts";
+    for(const value of mutations){assert.equal(value.expectedScope,exportBrowserScope);assert.equal(value.origin,publicOrigin);assert.equal(value.csrfPresent,true);assert.match(value.idempotencyHash,/^[a-f0-9]{64}$/);assert.match(value.receiptID,/^pid_[a-f0-9-]{36}$/);assert.match(value.auditID,/^pid_[a-f0-9-]{36}$/);}
+    acceptancePassed=true;
+  } catch(error) {
+    // Record the failing stage without copying assertion values, provider
+    // responses or other potentially sensitive data into retained evidence.
+    failure={stage:acceptanceStage};
+    throw error;
+  } finally {
+    const hashes={};
+    for(const file of ["scripts/production-combined-e2e.mjs","scripts/security-agent-export-mounted-browser.mjs","services/platform/agentsec-api/security_agent_export_browser_process_test.go","services/platform/agentsec-worker/security_agent_export_browser_process_test.go","services/platform/internal/exportfixture/store.go","services/platform/migrations/security_agent_exports_release.go","app/features/securityagents/SecurityAgentsView.tsx","dist/server/index.js"]){hashes[file]=createHash("sha256").update(await readFile(path.join(root,file))).digest("hex");}
+    hashes.apiBinary=createHash("sha256").update(await readFile(apiBinary)).digest("hex");hashes.workerBinary=createHash("sha256").update(await readFile(workerE2EBinary)).digest("hex");
+    await writeFile(path.join(evidence,"manifest.json"),JSON.stringify({completed:acceptancePassed,failure,cleanup:{status:"pending",evidence:"cleanup.json"},release:exportBrowserRelease,ports:{postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort,workerPort},identities,hashes,requests:exportBrowserTrace,result},null,2));
+  }
+  console.log("Security Agent release58 controlled browser: public setup, callback-authenticated approval, composed export and native saved JSON/CSV/readable bytes passed; live providers NOT RUN");
+}
+
+async function exerciseAttackLabMountedBrowser(configuration) {
+  const {dsn,apiBinary,workerE2EBinary,migrate,migrationEnvironment,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
+  const sql=async statement=>(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
+  const workerPort=await reservePort(),deadline=new Date(Date.now()+25*60_000).toISOString();
+  const publicOrigin=`https://${productHostname}:${proxyPort}`;
+  const state=path.join(temporaryRoot,"attack-lab-provider.json");
+  let worker;
+  const startWorker=async()=>{
+    const owned=spawnOwnedCommand(workerE2EBinary,["-test.run=^TestAttackLabBrowserWorkerProcess$","-test.v","-test.timeout=27m"],{cwd:root,env:{...auditBrowserEnvironment(process.env),ZASP_ATTACK_LAB_BROWSER_WORKER:"true",ZASP_ATTACK_LAB_BROWSER_DSN:`postgres://zasp_e2e_security_agent_worker@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,ZASP_ATTACK_LAB_BROWSER_WORKER_PORT:String(workerPort),ZASP_ATTACK_LAB_BROWSER_STATE:state,ZASP_ATTACK_LAB_BROWSER_DEADLINE:deadline}});
+    worker=owned;children.push(owned.child);ownedCommands.set(owned.child,owned);
+    try{await waitForHTTP(`http://127.0.0.1:${workerPort}/readyz`,200);}catch(error){await owned.stop();throw new Error(`${error.message}; ${JSON.stringify(await owned.completed)}`);}
+  };
+  await startWorker();
+  identity=await startIdentityServer(identityPort,publicOrigin);policyHistory=await startPolicyHistoryServer(policyHistoryPort);
+  const startAPI=async(version="57")=>{
+    const owned=spawnOwnedCommand(apiBinary,["-test.run=^TestAttackLabBrowserAPIProcess$","-test.v","-test.timeout=27m"],{cwd:root,env:{...combinedAPIEnvironment({...configuration,publicOrigin}),ZASP_EXPECTED_SCHEMA_VERSION:version,ZASP_SECURITY_AGENT_ATTACK_LAB_WORKFLOW:"enabled",ZASP_ATTACK_LAB_BROWSER_API:"true",ZASP_ATTACK_LAB_BROWSER_PG_PORT:String(postgresPort),ZASP_ATTACK_LAB_BROWSER_WORKER_PORT:String(workerPort),ZASP_ATTACK_LAB_BROWSER_DEADLINE:deadline}});
+    api=owned.child;children.push(api);ownedCommands.set(api,owned);
+    try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(error){await owned.stop();throw new Error(`${error.message}; ${JSON.stringify(await owned.completed)}`);}
+  };
+  await startAPI();
+  web=startChild(path.join(root,"node_modules/.bin/vinext"),["start","--port",String(webPort),"--hostname","127.0.0.1"],{cwd:root});
+  await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`,200);
+  const key=path.join(temporaryRoot,"attack-lab-tls.key"),certificate=path.join(temporaryRoot,"attack-lab-tls.crt");
+  await command("openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","1","-subj",`/CN=${productHostname}`,"-addext",`subjectAltName=DNS:${productHostname},DNS:${recoveryHostname}`,"-keyout",key,"-out",certificate]);
+  proxy=await startProxy(proxyPort,apiPort,webPort,key,certificate,dsn);
+  browser=await startBrowser(path.join(temporaryRoot,"attack-lab-profile"),chromePort,"about:blank");
+  const evidenceDirectory=await mkdtemp(path.join(os.tmpdir(),"zasp-attack-lab-browser-evidence-"));
+  console.log(`mounted Attack Lab browser evidence directory: ${evidenceDirectory}`);
+  const step=async(name,status=200)=>{
+    assert.ok(["source","plan","outbox","execute","reconcile","arm-verified","arm-not-reproduced"].includes(name));
+    const result=await fetch(`http://127.0.0.1:${workerPort}/${name}`,{method:"POST",signal:AbortSignal.timeout(12_000)});
+    const body=await result.json();assert.equal(result.status,status,JSON.stringify(body));return body;
+  };
+  try { await runAttackLabMountedBrowser({sql,cdp:browser.cdp,publicOrigin,chromePort,step,
+    onlyUnavailable:process.env.ZASP_COMBINED_E2E_ATTACK_LAB_NO_SOURCE_ONLY==="true",
+    providerSnapshot:async()=>{const value=JSON.parse(await readFile(state,"utf8"));return {calls:value.Calls,posts:value.Posts,deletes:value.Deletes};},
+    withCapability:async(mode,check)=>{
+      if(mode==="absent") {
+        await stopChild(api);await worker.stop();const joined=await worker.completed;assert.equal(joined.status,0,joined.stdout+joined.stderr);
+        await command(migrate,["down-from-57"],{env:migrationEnvironment});assert.equal(await sql("SELECT max(version) FROM zasp_schema_versions"),"56");
+        try {await startAPI("56");await check();} finally {
+          await stopChild(api);await command(migrate,["up-to-57"],{env:migrationEnvironment});
+          await command(migrate,["register-security-agent-attack-lab-reconciler"],{env:{...migrationEnvironment,ZASP_SECURITY_AGENT_ATTACK_LAB_RECONCILER_DB_PRINCIPAL:"e2e_attack_lab_reconciler"}});
+          assert.equal(await sql("SELECT zasp_sa_attack_lab_live_fingerprint()"),"f44bc966ef77ab523a80ace71b59defbe709c1fdbefd69ccfc40cacaf16d7ba8");await startWorker();await startAPI();
+        }
+      } else if(mode==="unready") {
+        await worker.stop();assert.equal((await worker.completed).status,0);try {await check();} finally {await startWorker();}
+      } else if(mode==="corrupt") {
+        const checksum=await sql("SELECT value FROM zasp_schema_metadata WHERE key='production_security_agent_attack_lab_checksum'");assert.match(checksum,/^[a-f0-9]{64}$/);
+        await sql("UPDATE zasp_schema_metadata SET value=repeat('0',64) WHERE key='production_security_agent_attack_lab_checksum'");
+        try {await check();} finally {await sql(`UPDATE zasp_schema_metadata SET value='${checksum}' WHERE key='production_security_agent_attack_lab_checksum'`);}
+      } else throw new Error("unsupported owned capability fixture");
+    },
+    restartWorker:async()=>{await worker.stop();const joined=await worker.completed;assert.equal(joined.status,0,joined.stdout+joined.stderr);await startWorker();},
+    restartAPI:async()=>{await stopChild(api);await startAPI();},
+    ui:{navigateBrowser,waitForBrowserText,waitForBrowserScope,selectBrowserOption,clickBrowserText,clickBrowserAria,fillBrowserLabel,reloadBrowser,browserFetchJSON,browserBodyText,waitForBrowserAction,startBrowserTab},
+    record:async(runID,cdp,evidence)=>{await cdp.send("Runtime.evaluate",{expression:`document.querySelector('section[aria-label="Recorded Attack Lab evidence"]')?.scrollIntoView({block:'start'})`});const capture=await cdp.send("Page.captureScreenshot",{format:"png",captureBeyondViewport:false});await writeFile(path.join(evidenceDirectory,`${runID}.png`),Buffer.from(capture.data,"base64"));await writeFile(path.join(evidenceDirectory,`${runID}.json`),JSON.stringify(evidence,null,2));},
+  }); } catch(error) {
+    console.log("mounted Attack Lab decision responses",JSON.stringify(securityAgentApprovalResponses));
+    console.log("mounted Attack Lab durable approval states",await sql("SELECT coalesce(jsonb_agg(jsonb_build_object('state',state,'version',version)),'[]') FROM zasp_security_agent_approvals"));
+    throw error;
+  }
+  assert.deepEqual(browserConsoleErrors,[],"Attack Lab browser console errors");assert.equal(proxyFailure,undefined);
+}
+
+async function exerciseExistingTestMountedBrowser(configuration) {
+  const {dsn,apiBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
+  const sql=async statement=>(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
+  const architecture=await redTeamRuntimeProof.prepare();
+  await command("docker",["image","inspect","localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c"]);
+  const awsEndpoint=await runtimePipelineDependencies.start("aws");
+  await waitForHTTP(`${awsEndpoint}/_localstack/health`,200);
+  const binary=path.join(temporaryRoot,"mounted-worker.test"),adapterBinary=path.join(temporaryRoot,"mounted-adapter.test");
+  for(const [output,source]of [[binary,"./agentsec-worker"],[adapterBinary,"./redteamadapter"]]) await command("go",["test","-c","-o",output,source],{cwd:platform,timeout:120_000,env:{...auditBrowserEnvironment(process.env),CGO_ENABLED:"0",GOOS:"linux",GOARCH:architecture}});
+  const publicOrigin=`https://${productHostname}:${proxyPort}`;
+  identity=await startIdentityServer(identityPort,publicOrigin);policyHistory=await startPolicyHistoryServer(policyHistoryPort);
+  api=startChild(apiBinary,[],{env:combinedAPIEnvironment({...configuration,publicOrigin})});
+  try { await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200); } catch(error){throw new Error(`${error.message}; ${api.output()}`);}
+  web=startChild(path.join(root,"node_modules/.bin/vinext"),["start","--port",String(webPort),"--hostname","127.0.0.1"],{cwd:root});
+  await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`,200);
+  const key=path.join(temporaryRoot,"mounted-tls.key"),certificate=path.join(temporaryRoot,"mounted-tls.crt");
+  await command("openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","1","-subj",`/CN=${productHostname}`,"-addext",`subjectAltName=DNS:${productHostname},DNS:${recoveryHostname}`,"-keyout",key,"-out",certificate]);
+  proxy=await startProxy(proxyPort,apiPort,webPort,key,certificate,dsn);
+  browser=await startBrowser(path.join(temporaryRoot,"mounted-profile"),chromePort,"about:blank");
+  const evidenceDirectory=await mkdtemp(path.join(os.tmpdir(),"zasp-existing-test-browser-evidence-"));
+  console.log(`mounted browser evidence directory: ${evidenceDirectory}`);
+  await runExistingTestMountedBrowser({sql,cdp:browser.cdp,publicOrigin,chromePort,
+    ui:{navigateBrowser,waitForBrowserText,waitForBrowserScope,selectBrowserOption,clickBrowserText,clickBrowserAria,fillBrowserLabel,reloadBrowser,browserFetchJSON,browserBodyText,waitForBrowserAction,startBrowserTab},
+    plan:async()=>{const result=await command(workerE2EBinary,["-test.run=^TestMountedExistingTestPlannerWorker$","-test.v","-test.timeout=25s"],{timeout:30_000,env:{...auditBrowserEnvironment(process.env),ZASP_EXISTING_TEST_MOUNTED:"true",ZASP_COMBINED_E2E_SECURITY_AGENT_DSN:`postgres://zasp_e2e_security_agent_worker@127.0.0.1:${postgresPort}/postgres?sslmode=disable`}});console.log(result.stdout);},
+    execute:async(runID,response)=>{const proof=createRedTeamRuntimeProof(command);mountedRuntimeProofs.push(proof);try{const result=await proof.run({binary,runner:path.join(root,"workers/redteam-node/runner.mjs"),dsn,awsEndpoint,runID,linked:{adapterBinary,response}});console.log(result.stdout);assert.match(result.stdout,/mounted linked runtime passed/);}finally{await proof.close();}},
+    record:async(runID,cdp,evidence)=>{assert.match(runID,/^pid_[0-9a-f-]{36}$/);await cdp.send("Runtime.evaluate",{expression:`document.querySelector('section[aria-label="Recorded test evidence"]')?.scrollIntoView({block:'start'})`});const capture=await cdp.send("Page.captureScreenshot",{format:"png",captureBeyondViewport:false});await writeFile(path.join(evidenceDirectory,`${runID}.png`),Buffer.from(capture.data,"base64"));await writeFile(path.join(evidenceDirectory,`${runID}.json`),JSON.stringify(evidence,null,2));},
+  });
+  assert.deepEqual(browserConsoleErrors,[],"mounted browser console errors");
+  assert.equal(proxyFailure,undefined);
+}
+
+async function exerciseAuditExportNativeBrowser(configuration) {
+  const {dsn, apiBinary, migrate, migrationEnvironment, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort}=configuration;
+  const sql=async statement=>(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
+  // Owned discovery prerequisites only. Definition, queued run and audit rows
+  // below must be produced by the real authenticated browser mutations.
+  const organizationID="pid_10000001-0000-4000-8000-000000000001", workspaceID="pid_10000022-0000-4000-8000-000000000022", environmentID="pid_10000023-0000-4000-8000-000000000023", actorID="pid_10000004-0000-4000-8000-000000000004";
+  const integrationID="pid_7f300010-0000-4000-8000-000000000010",syncID="pid_7f300011-0000-4000-8000-000000000011",snapshotID="pid_7f300012-0000-4000-8000-000000000012",evidenceID="pid_7f300013-0000-4000-8000-000000000013";
+  await sql(`UPDATE zasp_authorized_scopes SET permissions=permissions || '["run_tests"]'::jsonb WHERE principal_id='${actorID}' AND organization_id='${organizationID}' AND workspace_id='${workspaceID}' AND environment_id='${environmentID}';
+INSERT INTO zasp_inventory_entities(organization_id,workspace_id,environment_id,id,kind,display_name,state,first_seen_at,last_seen_at,product_kind,observed_at,fresh_until,winning_attributes)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${attackLabTargetID}','agent_endpoint','Native audit fixture agent','active',transaction_timestamp(),transaction_timestamp(),'agent',transaction_timestamp(),transaction_timestamp()+interval '1 hour','{"red_team":{"enabled":true,"endpoint":"https://adapter.customer.example/v1/evaluate","credential_reference":"ref:red-team/target_e2e_0001","target_kinds":["agent_endpoint"]}}'::jsonb);
+INSERT INTO zasp_integrations(organization_id,workspace_id,environment_id,id,kind,connector_version,display_name,configuration,state)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${integrationID}','kubernetes','1.0.0','Native audit fixture','{}','active');
+INSERT INTO zasp_discovery_syncs(organization_id,workspace_id,environment_id,id,integration_id,idempotency_key,request_digest,trigger_kind,principal_id,parser_version,tool_version)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${syncID}','${integrationID}','native-audit-fixture',decode(repeat('ab',32),'hex'),'manual','${actorID}','parser_v1','tool_v1');
+INSERT INTO zasp_discovery_snapshots(organization_id,workspace_id,environment_id,id,integration_id,sync_id,generation,source,manifest_reference,manifest_checksum,state,candidate_digest,apply_result,complete,is_last_good,collected_at,committed_at)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${snapshotID}','${integrationID}','${syncID}',1,'kubernetes','s3://zasp-production-e2e-evidence/red-team/manifest.json',decode(repeat('ab',32),'hex'),'complete',decode(repeat('ab',32),'hex'),'{}',true,true,transaction_timestamp(),transaction_timestamp());
+UPDATE zasp_inventory_entities SET confidence_basis_points=9500,winning_evidence_id='${evidenceID}',winning_snapshot_id='${snapshotID}',winning_generation=1,projection_version=1,winning_integration_id='${integrationID}',winning_provider='kubernetes',winning_source='kubernetes',winning_source_native_id='native-audit-agent',winning_identity_rule=1,winning_source_projection=1 WHERE (organization_id,workspace_id,environment_id,id)=('${organizationID}','${workspaceID}','${environmentID}','${attackLabTargetID}');
+INSERT INTO zasp_inventory_evidence(organization_id,workspace_id,environment_id,id,integration_id,snapshot_id,entity_id,object_reference,checksum,media_type,schema_version,parser_version,collected_at,source,generation,artifact_reference,artifact_key,artifact_version_id,size_bytes,tool_version)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${evidenceID}','${integrationID}','${snapshotID}','${attackLabTargetID}','s3://zasp-production-e2e-evidence/red-team/page.json',decode(repeat('ab',32),'hex'),'application/json','raw_v1','parser_v1',transaction_timestamp(),'kubernetes',1,'pid_7f300014-0000-4000-8000-000000000014','red-team/page.json','version-1',128,'tool_v1');
+INSERT INTO zasp_inventory_source_observations(organization_id,workspace_id,environment_id,integration_id,source,entity_id,source_native_id,snapshot_id,source_state,attributes,first_seen_at,last_seen_at,provider,source_kind,display_name,stable_fields,identity_namespace,product_kind,generation,content_digest,evidence_id,confidence_basis_points,observed_at,fresh_until,identity_rule_version,identity_priority,source_projection_version)
+VALUES('${organizationID}','${workspaceID}','${environmentID}','${integrationID}','kubernetes','${attackLabTargetID}','native-audit-agent','${snapshotID}','present','{}',transaction_timestamp(),transaction_timestamp(),'kubernetes','kubernetes_agent','Native audit fixture agent','{}','kubernetes_agent','agent',1,decode(repeat('ab',32),'hex'),'${evidenceID}',9500,transaction_timestamp(),transaction_timestamp()+interval '1 hour',1,80,1);`);
+  await sql(`SELECT zasp_attack_lab_register_credential_binding('${organizationID}','${workspaceID}','${environmentID}','${attackLabBindingID}','${attackLabTargetID}','ref:red-team/target_e2e_0001','read_only',1,digest(convert_to('owned-native-audit-credential','UTF8'),'sha256'),transaction_timestamp()+interval '1 hour')`);
+  assert.equal(await sql(`SELECT zasp_red_team_safety_authorized('${organizationID}','${workspaceID}','${environmentID}','${attackLabTargetID}','agent_endpoint','{"environment":"staging","credential_class":"read_only","expected_side_effects":["bounded evaluation"]}'::jsonb)`),"t","owned test fixture did not meet production safety prerequisites");
+  await sql("CREATE ROLE audit_export_worker_fixture LOGIN; CREATE ROLE audit_export_outbox_fixture LOGIN;");
+  await command(migrate,["register-audit-export-workers"],{env:{...migrationEnvironment,ZASP_AUDIT_EXPORT_WORKER_DB_PRINCIPAL:"audit_export_worker_fixture",ZASP_AUDIT_EXPORT_OUTBOX_DB_PRINCIPAL:"audit_export_outbox_fixture"}});
+  const providerBinary=path.join(temporaryRoot,"audit-browser-provider.test"), workerBinary=path.join(temporaryRoot,"audit-browser-worker.test");
+  await command("go",["test","-c","-o",providerBinary,"./apiserver"],{cwd:platform,timeout:120_000});
+  await command("go",["test","-c","-o",workerBinary,"./agentsec-worker"],{cwd:platform,timeout:120_000});
+  const providerRoot=await mkdtemp(path.join(os.tmpdir(),"zasp-ab-provider-"));
+  const destinationRoot=await mkdtemp(path.join(os.tmpdir(),"zasp-ab-saved-"));
+  const deadline=new Date(Date.now()+30*60_000).toISOString();
+  const providerEnvironment={...auditBrowserEnvironment(process.env),ZASP_AUDIT_BROWSER_PROVIDER:"true",ZASP_AUDIT_BROWSER_PROVIDER_ROOT:providerRoot,ZASP_AUDIT_BROWSER_DESTINATION_ROOT:destinationRoot,ZASP_AUDIT_BROWSER_PROVIDER_DSN:dsn,ZASP_AUDIT_BROWSER_PG_PORT:String(postgresPort),ZASP_AUDIT_BROWSER_DEADLINE:deadline};
+  auditExportProvider=spawnOwnedCommand(providerBinary,["-test.run=^TestAuditBrowserProviderProcess$","-test.v","-test.timeout=32m"],{cwd:root,env:providerEnvironment});
+  children.push(auditExportProvider.child);ownedCommands.set(auditExportProvider.child,auditExportProvider);
+  let ready;
+  for(let attempt=0;attempt<200;attempt++) {
+    if(auditExportProvider.child.exitCode!==null) throw new Error(`provider exited: ${JSON.stringify(await auditExportProvider.completed)}`);
+    try {ready=parseAuditExportProviderReady(await readFile(path.join(providerRoot,"ready.json"),"utf8"),auditExportProvider.child.pid,providerRoot);break;} catch(error) {if(error.code!=="ENOENT")throw error;}
+    await delay(50);
+  }
+  assert.ok(ready,"owned provider readiness absent");
+  console.log(`audit native provider ready: ${JSON.stringify({pid:ready.pid,address:ready.address,providerRoot,destinationRoot})}`);
+  const publicOrigin=`https://${productHostname}:${proxyPort}`;
+  identity=await startIdentityServer(identityPort,publicOrigin);policyHistory=await startPolicyHistoryServer(policyHistoryPort);
+  const apiOwned=spawnOwnedCommand(apiBinary,["-test.run=^TestAuditBrowserAPIProcess$","-test.v","-test.timeout=32m"],{cwd:root,env:{...combinedAPIEnvironment({...configuration,publicOrigin}),ZASP_AUDIT_BROWSER_API:"true",ZASP_AUDIT_BROWSER_PG_PORT:String(postgresPort),ZASP_AUDIT_BROWSER_DEADLINE:deadline,ZASP_AUDIT_BROWSER_PROVIDER_ADDRESS:ready.address,ZASP_AUDIT_BROWSER_PROVIDER_CA:ready.ca,ZASP_AUDIT_BROWSER_PROVIDER_TOKEN:ready.token}});
+  api=apiOwned.child;children.push(api);ownedCommands.set(api,apiOwned);
+  try {await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);} catch(error){await apiOwned.stop();throw new Error(`${error.message}; ${JSON.stringify(await apiOwned.completed)}`);}
+  web=startChild(path.join(root,"node_modules/.bin/vinext"),["start","--port",String(webPort),"--hostname","127.0.0.1"],{cwd:root});
+  await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`,200);
+  const key=path.join(temporaryRoot,"audit-tls.key"), certificate=path.join(temporaryRoot,"audit-tls.crt");
+  await command("openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","1","-subj",`/CN=${productHostname}`,"-addext",`subjectAltName=DNS:${productHostname},DNS:${recoveryHostname}`,"-keyout",key,"-out",certificate]);
+  proxy=await startProxy(proxyPort,apiPort,webPort,key,certificate,dsn);
+  browser=await startBrowser(path.join(temporaryRoot,"audit-native-profile"),chromePort,"about:blank",true);
+  const cdp=browser.cdp, scope="pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003";
+  await navigateBrowser(cdp,`${publicOrigin}/api/v1/session/start?return_to=%2Fpolicies`);await waitForBrowserScope(cdp,scope);
+  assert.equal(observedSessionCookie,true);
+  await waitForBrowserText(cdp,/Durable scoped runtime controls/);
+  console.log(`audit policy create readiness: ${JSON.stringify({disabled:await browserTextControlDisabled(cdp,"Create policy")})}`);
+  await clickBrowserText(cdp,"Create policy");
+  try { await waitForBrowserText(cdp,/Production runtime policy/); }
+  catch(error) {
+    try { console.log(`audit policy create failure state: ${JSON.stringify({disabled:await browserTextControlDisabled(cdp,"Create policy"),mutationWitnesses:auditMutationWitnesses.read().filter(witness=>witness.family==="policy").length})}`); }
+    catch { console.error("audit policy create failure diagnostics unavailable"); }
+    throw error;
+  }
+  assert.equal(await sql("SELECT count(*) FROM zasp_workflow_receipts WHERE operation='createPolicy' AND resource_id='policy-production'"),"1");
+  await navigateBrowser(cdp,`${publicOrigin}/administration/identity-access`);await waitForBrowserText(cdp,/Corporate SAML/);
+  await fillBrowserLabel(cdp,"SSO display name","E2E SSO");await clickBrowserText(cdp,"Add SSO connection");await waitForBrowserText(cdp,/SSO connection created/);
+  await navigateBrowser(cdp,`${publicOrigin}/administration/data-retention`);await waitForBrowserText(cdp,/production controls/);
+  await fillBrowserLabel(cdp,"Retention days","31");await clickBrowserText(cdp,"Save data controls");await waitForBrowserText(cdp,/Data controls updated/);
+  await navigateBrowser(cdp,`${publicOrigin}/red-team/results`);await waitForBrowserText(cdp,/No Red Team tests in this scope/);
+  await selectBrowserOption(cdp,"Authorized scope","Staging");await waitForBrowserScope(cdp,`${organizationID}/${workspaceID}/${environmentID}`);await waitForBrowserText(cdp,/No Red Team tests in this scope/);
+  await clickBrowserText(cdp,"Create test");await fillBrowserLabel(cdp,"Test name","Native audit proof");await selectBrowserOption(cdp,"Fresh discovered target","Native audit fixture agent");await clickBrowserText(cdp,"Save test");
+  await waitForBrowserAction(cdp,`document.querySelector('[aria-label="Run Native audit proof"]')?.disabled === false`);
+  await clickBrowserAria(cdp,"Run Native audit proof");
+  await waitForBrowserAction(cdp,`document.querySelector('[aria-label="Run Native audit proof"]')?.disabled === false`);
+  const runID=await sql("SELECT run_id FROM zasp_red_team_runs WHERE definition_id=(SELECT definition_id FROM zasp_red_team_definitions WHERE name='Native audit proof') ORDER BY queued_at DESC LIMIT 1");assert.match(runID,/^pid_[0-9a-f-]{36}$/);
+  await clickBrowserAria(cdp,`Open run ${runID}`);await clickBrowserText(cdp,"Cancel run");await waitForBrowserText(cdp,/cancelled/);
+  await selectBrowserOption(cdp,"Authorized scope","Production");await waitForBrowserScope(cdp,scope);
+  console.log(`audit native four product mutations: ${JSON.stringify(auditMutationWitnesses.read())}`);
+  assert.equal(proxyFailure,undefined);
+  const witnesses=auditMutationWitnesses.read();
+  assert.deepEqual([...new Set(witnesses.map(w=>w.family))].sort(),["configuration","policy","sso","test"]);
+  for(const witness of witnesses) {
+    assert.match(witness.id,/^pid_[0-9a-f-]{36}$/);
+    const table=witness.family==="policy"?"zasp_workflow_audit":witness.family==="test"?"zasp_red_team_audit":"zasp_admin_audit";
+    const column=table==="zasp_admin_audit"?"id":"audit_id",actor=table==="zasp_workflow_audit"?"principal_id":"actor_id";
+    const raw=JSON.parse(await sql(`SELECT json_build_object('id',${column},'scope',organization_id||'/'||workspace_id||'/'||environment_id,'actor',${actor},'target',${table==="zasp_admin_audit"?"target_id":"resource_id"}) FROM ${table} WHERE organization_id='${organizationID}' AND ${column}='${witness.id}'`));
+    assert.equal(raw.id,witness.id);assert.equal(raw.scope,witness.scope);assert.equal(raw.actor,actorID);assert.equal(raw.target,witness.target_id);
+    console.log(`audit native raw producer witness: ${JSON.stringify({family:witness.family,...raw})}`);
+  }
+  if (auditExportLargeMode) {
+    await sql(`INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata,occurred_at)
+      SELECT '${organizationID}','${workspaceID}','${environmentID}','pid_53000000-0000-4000-8000-'||lpad(n::text,12,'0'),'${actorID}','integration.webhook','large-owned-browser-fixture','succeeded','${JSON.stringify(auditExportVolumeMetadata())}'::jsonb||jsonb_build_object('counter',n),'2026-09-15T00:00:00Z'::timestamptz FROM generate_series(1,100001)n`);
+  }
+  await navigateBrowser(cdp,`${publicOrigin}/administration/audit-log`);await waitForBrowserText(cdp,/Export organization audit log/);
+  await waitForBrowserAction(cdp,`(${JSON.stringify(witnesses)}).every(w=>{const row=document.getElementById('audit-event-'+w.id);return row&&row.innerText.includes(w.action)&&row.innerText.includes(w.target_id)&&row.innerText.includes(${JSON.stringify(actorID)});})`);
+  await fillBrowserLabel(cdp,"Action (exact)","policy.create");await clickBrowserText(cdp,"Apply filters");await waitForBrowserText(cdp,/Applied filters: action=policy.create/);
+  await clickBrowserText(cdp,"Create export");
+  await waitForBrowserAction(cdp,`[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Retry create export'&&!b.disabled)`);
+  assert.equal(auditExportCreateRequests.length,1);assert.equal(auditExportCreateRequests[0].status,201);
+  assert.equal(await sql("SELECT count(*) FROM zasp_audit_export_jobs"),"1","lost create never committed exactly one job");
+  await reloadBrowser(cdp);await waitForBrowserText(cdp,/Retry create export/);await clickBrowserText(cdp,"Retry create export");await waitForBrowserText(cdp,/Queued/);
+  assert.equal(auditExportCreateRequests.length,2);assert.equal(auditExportCreateRequests[0].keyHash,auditExportCreateRequests[1].keyHash);assert.ok(auditExportCreateRequests.every(r=>r.body==="{}"&&r.status===201));
+  assert.equal(await sql("SELECT count(*) FROM zasp_audit_export_jobs"),"1","actual reload/replay duplicated job");
+  console.log(`audit native lost-create actual reload/replay: ${JSON.stringify(auditExportCreateRequests)}`);
+  const exportID=await sql("SELECT id FROM zasp_audit_export_jobs WHERE organization_id='pid_10000001-0000-4000-8000-000000000001' AND workspace_id='pid_10000002-0000-4000-8000-000000000002' AND environment_id='pid_10000003-0000-4000-8000-000000000003' ORDER BY requested_at DESC LIMIT 1");assert.match(exportID,/^pid_[0-9a-f-]{36}$/);
+  await auditExportProviderCommand(ready,{action:"bind",export_id:exportID});
+  for(const mode of ["audit-export-outbox","audit-export"]) {
+    const workerDeadline=new Date(Date.now()+11*60_000).toISOString();
+    const login=mode==="audit-export"?"audit_export_worker_fixture":"audit_export_outbox_fixture";
+    const result=await command(workerBinary,["-test.run=^TestAuditExportProcessWorkerPostgres$","-test.v","-test.timeout=12m"],{timeout:12*60_000,env:{...auditBrowserEnvironment(process.env),ZASP_AUDIT_EXPORT_PROCESS_DSN:`postgres://${login}@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,ZASP_AUDIT_EXPORT_PROCESS_MODE:mode,ZASP_AUDIT_EXPORT_PROCESS_ADDRESS:ready.address,ZASP_AUDIT_EXPORT_PROCESS_CA:ready.ca,ZASP_AUDIT_EXPORT_PROCESS_TOKEN:ready.token,ZASP_AUDIT_EXPORT_PROCESS_SELECTION:"audit-browser",ZASP_AUDIT_EXPORT_PROCESS_POLICY:auditBrowserAPISettings().ZASP_AUDIT_EXPORT_POLICIES_JSON,ZASP_AUDIT_EXPORT_PROCESS_DEADLINE:workerDeadline}});
+    assert.match(result.stdout,/registered parent-provider process completed/);console.log(result.stdout);
+  }
+  await clickBrowserText(cdp,"Check status");await waitForBrowserText(cdp,/Save complete export/);
+  const destination=destinationRoot;
+  await cdp.send("Runtime.evaluate",{expression:`[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Save complete export')?.scrollIntoView({block:'center',behavior:'instant'})`});
+  const button=await cdp.send("Runtime.evaluate",{expression:`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Save complete export');if(!b||b.disabled||!isSecureContext||typeof showDirectoryPicker!=='function')return null;const r=b.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;if(x<0||y<0||x>=innerWidth||y>=innerHeight||!b.contains(document.elementFromPoint(x,y)))return null;return {x,y};})()`,returnByValue:true});assert.ok(button.result?.value);
+  await cdp.send("Performance.enable");
+  const memory={samples:0,firstHeapBytes:0,peakHeapBytes:0,firstRendererRSSBytes:0,peakRendererRSSBytes:0,peakProviderRSSBytes:0};
+  const sampleMemory=async()=>{
+    const metrics=await cdp.send("Performance.getMetrics"),heap=metrics.metrics.find(m=>m.name==="JSHeapUsedSize")?.value;assert.ok(heap>0);
+    const processes=await browser.processInfo(),renderers=processes.processInfo.filter(p=>p.type==="renderer").map(p=>p.id);assert.ok(renderers.length>0&&renderers.every(p=>Number.isSafeInteger(p)&&p>1));
+    const rows=execFileSync("ps",["-o","pid=,rss=","-p",[...renderers,ready.pid].join(",")],{encoding:"utf8",timeout:2000,maxBuffer:8192}).trim().split("\n").map(line=>line.trim().split(/\s+/).map(Number));
+    const rendererRSS=rows.filter(([pid])=>renderers.includes(pid)).reduce((sum,[,rss])=>sum+rss*1024,0),providerRSS=rows.find(([pid])=>pid===ready.pid)?.[1]*1024;assert.ok(rendererRSS>0&&providerRSS>0);
+    if(memory.samples++===0){memory.firstHeapBytes=heap;memory.firstRendererRSSBytes=rendererRSS;}
+    memory.peakHeapBytes=Math.max(memory.peakHeapBytes,heap);memory.peakRendererRSSBytes=Math.max(memory.peakRendererRSSBytes,rendererRSS);memory.peakProviderRSSBytes=Math.max(memory.peakProviderRSSBytes,providerRSS);
+  };
+  await sampleMemory();
+  if (auditExportPrepareMode) {
+    // This reads authenticated API pages without invoking the native writer. It is not saved-file acceptance.
+    let cursor=null,pages=0,events=0,declaredBytes=0,declaredEvents=0;
+    do {
+      const result=await cdp.send("Runtime.evaluate",{expression:`(async()=>{
+        const response=await fetch('/api/v1/audit-exports/'+${JSON.stringify(exportID)}+(${JSON.stringify(cursor)}?'?cursor='+encodeURIComponent(${JSON.stringify(cursor)}):''),{credentials:'same-origin',headers:{'X-Zasp-Expected-Scope':${JSON.stringify(scope)}},signal:AbortSignal.timeout(15000)});
+        if(response.status!==200)throw new Error('Preparation read status '+response.status);
+        const reader=response.body.getReader(),parts=[];let size=0;
+        try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>1064960)throw new Error('Preparation envelope exceeded bound');parts.push(value);}}finally{await reader.cancel();reader.releaseLock();}
+        const bytes=new Uint8Array(size);let offset=0;for(const part of parts){bytes.set(part,offset);offset+=part.length;}
+        const page=JSON.parse(new TextDecoder().decode(bytes)),contents=page.contents;
+        if(page.export.id!==${JSON.stringify(exportID)}||page.export.status!=='ready'||!contents||contents.chunk.ordinal!==${pages+1}||contents.chunk.first_event!==${events+1}||contents.chunk.event_count!==contents.chunk.events.length)throw new Error('Preparation page binding/order failed');
+        const next=contents.page_info.next_cursor;if(contents.page_info.has_more!==Boolean(next)||next!==null&&(!/^[A-Za-z0-9_-]{1,1024}$/.test(next)||next===${JSON.stringify(cursor)}))throw new Error('Preparation cursor failed');
+        return {next,events:contents.chunk.event_count,chunkBytes:contents.manifest.chunk_bytes,eventCount:contents.manifest.event_count};
+      })()`,awaitPromise:true,returnByValue:true});
+      assert.equal(result.exceptionDetails,undefined,JSON.stringify(result.exceptionDetails));
+      const page=result.result.value;cursor=page.next;events+=page.events;declaredBytes=page.chunkBytes;declaredEvents=page.eventCount;pages++;assert.ok(pages<=2048);await sampleMemory();
+    } while(cursor!==null);
+    assert.equal(events,declaredEvents);assert.equal((await readdir(destinationRoot)).length,0);
+    console.log(`AUDIT_EXPORT_PREPARATION_ONLY ${JSON.stringify({nativePickerInvoked:false,nativeSavedBytesVerified:false,pages,events,declaredBytes,memory,reads:auditExportReadTotals,large:auditExportLargeMode,browser:{...browser.identity,targetID:cdp.targetID(),url:await browserCurrentURL(cdp)}})}`);
+    if(auditExportLargeMode)assertAuditExportVolume({events,chunkBytes:declaredBytes,maximumEnvelopeBytes:auditExportReadTotals.maximumEnvelopeBytes});
+    await auditExportProviderCommand(ready,{action:"stop"});console.log(await joinAuditExportProvider(auditExportProvider));return;
+  }
+  console.log(`NATIVE_PICKER_HANDOFF ${JSON.stringify({...browser.identity,targetID:cdp.targetID(),url:await browserCurrentURL(cdp),destination,enabledSave:true})}`);
+  await cdp.send("Input.dispatchMouseEvent",{type:"mousePressed",...button.result.value,button:"left",clickCount:1});await cdp.send("Input.dispatchMouseEvent",{type:"mouseReleased",...button.result.value,button:"left",clickCount:1});
+  let saved=false;
+  for(let attempt=0;attempt<1200;attempt++){await sampleMemory();if(/Export bundle saved/.test(await browserBodyText(cdp))){saved=true;break;}await delay(500);}
+  assert.ok(saved,"native directory selection/save did not complete within ten minutes");
+  const directories=await readdir(destinationRoot);assert.equal(directories.length,1);assert.ok(directories[0].startsWith(`audit-export-${exportID}-`));
+  const verified=await auditExportProviderCommand(ready,{action:"verify",directory:directories[0]});
+  console.log(`audit native independent saved comparison: ${JSON.stringify({directory:path.join(destinationRoot,directories[0]),...verified,memory,reads:auditExportReadTotals,large:auditExportLargeMode})}`);
+  if(auditExportLargeMode)assertAuditExportVolume({events:verified.Events,chunkBytes:verified.ChunkBytes,maximumEnvelopeBytes:auditExportReadTotals.maximumEnvelopeBytes});
+  await auditExportProviderCommand(ready,{action:"stop"});console.log(await joinAuditExportProvider(auditExportProvider));
+}
+
 function combinedAPIEnvironment({ apiDSN, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, publicOrigin }) {
   return {
-    ...process.env,
+    ...auditBrowserEnvironment(process.env),
+    ...(auditBrowserMode ? auditBrowserAPISettings() : {}),
     HOSTNAME: "agentsec-api-production-e2e",
     ZASP_ENVIRONMENT: "test",
     ZASP_DEPLOYMENT_MODE: "saas",
@@ -1422,11 +3170,16 @@ async function cleanupOwnedResources() {
     try { await operation(); } catch (error) { cleanupErrors.push(error); }
   };
   await attempt(() => precisionBrowserCheckpoint?.close());
+  for(const proof of mountedRuntimeProofs) await attempt(()=>proof.close());
   if (runtimePipelineChild) await attempt(() => stopChild(runtimePipelineChild));
   await attempt(() => runtimeGraphDependency?.close());
   await attempt(() => redTeamRuntimeProof.close());
   await attempt(() => runtimePipelineDependencies.close());
   console.log("combined E2E: cleanup browser");
+  for (const profile of exportBrowserProfiles) {
+    await attempt(() => profile.cdp.close());
+    await attempt(() => stopChild(profile.child));
+  }
   if (secondBrowserTab) await attempt(() => secondBrowserTab.dispose());
   if (browser) {
     await attempt(() => browser.cdp.close());
@@ -1436,7 +3189,11 @@ async function cleanupOwnedResources() {
   for (const worker of task4Workers.reverse()) await attempt(() => stopChild(worker));
   task4Workers.length = 0;
   console.log("combined E2E: cleanup api");
-  if (api) await attempt(() => stopChild(api));
+  if (exportBrowserAPILifetimes.length) {
+    // Keep prior lifetimes too: retrying cleanup must not erase a failed
+    // restart join just because the owned stop operation itself resolved.
+    for (const owned of exportBrowserAPILifetimes) await attempt(() => stopExportBrowserAPI(owned));
+  } else if (api) await attempt(() => stopChild(api));
   console.log("combined E2E: cleanup proxy");
   if (proxy) await attempt(() => closeServer(proxy));
   console.log("combined E2E: cleanup identity");
@@ -1446,9 +3203,12 @@ async function cleanupOwnedResources() {
   console.log("combined E2E: cleanup web");
   if (web) await attempt(() => stopChild(web));
   console.log("combined E2E: cleanup postgres");
+  if (auditExportProvider) await attempt(() => auditExportProvider.stop());
   if (postgres) await attempt(() => stopPostgres(postgres));
   console.log("combined E2E: cleanup remaining processes");
   for (const child of children.reverse()) await attempt(() => stopChild(child));
+  if(exportBrowserEvidenceDirectory) await attempt(()=>writeFile(path.join(exportBrowserEvidenceDirectory,"cleanup.json"),JSON.stringify({joined:cleanupErrors.length===0,errors:cleanupErrors.map(error=>error instanceof Error?error.message:String(error)),temporaryRootRetained:cleanupErrors.length>0},null,2)));
+  if(automaticDiscoveryEvidenceDirectory) await attempt(()=>writeFile(path.join(automaticDiscoveryEvidenceDirectory,"cleanup.json"),JSON.stringify({joined:cleanupErrors.length===0,errorCount:cleanupErrors.length,temporaryRootRetained:cleanupErrors.length>0},null,2)));
   // A failed join can leave a process using these files. Keep the owned root
   // and every original error, even if a later cleanup attempt succeeded.
   if (cleanupErrors.length) throw new AggregateError(cleanupErrors, `owned resource cleanup failed; temporary root retained: ${temporaryRoot}`);
@@ -1463,21 +3223,26 @@ async function generateHarnessGitHubAppPrivateKey(target) {
 }
 
 async function startPostgres(port) {
-  const data = path.join(temporaryRoot, "postgres-data");
-  await command(path.join(postgresBin, "initdb"), ["--no-locale", "--encoding=UTF8", "--auth-local=trust", "--auth-host=trust", "--username=zasp_e2e", "-D", data]);
-  const instrumentation = process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1" ? ["-c", "track_functions=pl"] : [];
-  const child = startChild(path.join(postgresBin, "postgres"), ["-D", data, "-h", "127.0.0.1", "-p", String(port), "-k", "", ...instrumentation]);
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const ready = await command(path.join(postgresBin, "pg_isready"), ["-h", "127.0.0.1", "-p", String(port), "-U", "zasp_e2e", "-d", "postgres"], { reject: false });
-    if (ready.status === 0) return { child, data };
-    await delay(25);
+  let isolatedRelay, discoveryCollectorBinary;
+  if (attackLabMountedMode || securityAgentExportMode || automaticDiscoveryMode) {
+    const image = "postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba";
+    const architecture = (await command("docker", ["image", "inspect", "--format", "{{.Architecture}}", image])).stdout.trim();
+    assert.ok(["arm64", "amd64"].includes(architecture));
+    isolatedRelay = path.join(temporaryRoot, "postgres-relay");
+    await command("go", ["build", "-o", isolatedRelay, "./internal/ownedpgrelay"], { cwd: platform, env: {...auditBrowserEnvironment(process.env), GOOS:"linux", GOARCH:architecture, CGO_ENABLED:"0"}, timeout:120_000 });
+    if (automaticDiscoveryMode) {
+      discoveryCollectorBinary=path.join(temporaryRoot,"automatic-discovery-collector.test");
+      await command("go",["test","-c","-o",discoveryCollectorBinary,"./agentsec-worker"],{cwd:platform,timeout:120_000,env:{...auditBrowserEnvironment(process.env),GOOS:"linux",GOARCH:architecture,CGO_ENABLED:"0"}});
+      await chmod(discoveryCollectorBinary,0o755);
+    }
   }
-  throw new Error(`disposable PostgreSQL did not become ready: ${child.output()}`);
+  postgres = createOwnedBrowserPostgres({ port, isolatedRelay, ...(discoveryCollectorBinary ? {discoveryCollectorBinary} : {}), trackFunctions: process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1" });
+  await postgres.start();
+  return postgres;
 }
 
 async function stopPostgres(value) {
-  await command(path.join(postgresBin, "pg_ctl"), ["-D", value.data, "-m", "fast", "-w", "stop"], { reject: false, timeout: 10_000 });
-  await stopChild(value.child);
+  await value.stop();
 }
 
 async function provisionPostgresPrincipals(dsn) {
@@ -1512,6 +3277,37 @@ CREATE ROLE zasp_e2e_recovery LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE 
 CREATE ROLE zasp_e2e_recovery_outbox LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 `;
   await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
+}
+
+function productionAttackPathFixtures() {
+  // All paths remain valid pagination evidence. Only the canonical detail path
+  // is verified input for this bounded automatic scenario, from initial seed.
+  return Array.from({ length: 102 }, (_, index) => ({ ordinal: index + 1, state: index === 0 ? "verified" : "observed" }));
+}
+
+async function verifyProductionAttackPathFixtures(dsn) {
+  const result = await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-v", "ON_ERROR_STOP=1", "-c", `
+SELECT jsonb_agg(jsonb_build_object('id',p.id,'state',p.state,'version',p.version,'visible',zasp_risk_attack_path_valid(p),
+ 'nodes',(SELECT jsonb_agg(node_id ORDER BY position) FROM zasp_risk_attack_path_nodes n WHERE (n.organization_id,n.workspace_id,n.environment_id,n.path_id)=(p.organization_id,p.workspace_id,p.environment_id,p.id)),
+ 'evidence',(SELECT jsonb_agg(evidence_id ORDER BY position) FROM zasp_risk_attack_path_evidence e WHERE (e.organization_id,e.workspace_id,e.environment_id,e.path_id)=(p.organization_id,p.workspace_id,p.environment_id,p.id)),
+ 'break_options',(SELECT jsonb_agg(jsonb_build_array(rank,target_id,evidence_id,kind) ORDER BY rank) FROM zasp_risk_break_options b WHERE (b.organization_id,b.workspace_id,b.environment_id,b.path_id)=(p.organization_id,p.workspace_id,p.environment_id,p.id))) ORDER BY p.id)
+FROM zasp_risk_attack_paths p WHERE (p.organization_id,p.workspace_id,p.environment_id)=('pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003');`]);
+  const rows = JSON.parse(result.stdout.trim());
+  assert.equal(rows.length, 102, "pagination fixture lost or gained a scoped path");
+  assert.equal(rows.filter(row => row.visible).length, 102, "pagination fixture concealed a path");
+  assert.equal(rows.filter(row => row.state === "verified").length, 1, "verified trigger population changed");
+  assert.equal(rows.filter(row => row.state === "observed").length, 101, "observed pagination population changed");
+  for (let index = 0; index < 102; index += 1) {
+    const row = rows[index], ordinal = index + 1;
+    const suffix = `-0000-4000-8000-${String(ordinal).padStart(12, "0")}`;
+    const entry = `pid_${50000000 + ordinal}${suffix}`, evidence = `pid_${70000000 + ordinal}${suffix}`;
+    assert.equal(row.id, `pid_${40000000 + ordinal}${suffix}`, "pagination fixture ID changed or duplicated");
+    assert.equal(row.state, ordinal === 1 ? "verified" : "observed", "canonical verified trigger changed");
+    assert.equal(row.version, 1, "pagination fixture was reclassified after seeding");
+    assert.equal(JSON.stringify(row.nodes), JSON.stringify([entry, `pid_${60000000 + ordinal}${suffix}`]));
+    assert.equal(JSON.stringify(row.evidence), JSON.stringify([evidence]));
+    assert.equal(JSON.stringify(row.break_options), JSON.stringify([[1, entry, evidence, "remove_node"]]));
+  }
 }
 
 async function seedPostgres(dsn) {
@@ -1593,8 +3389,8 @@ SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-0
   'pid_' || (40000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),
   'pid_' || (50000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),
   'pid_' || (60000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'),
-  'verified',-1,'2026-08-18T09:00:00Z','2026-08-18T10:00:00Z'
-FROM generate_series(1,102) AS ordinal;
+  fixture.state,-1,'2026-08-18T09:00:00Z','2026-08-18T10:00:00Z'
+FROM jsonb_to_recordset('${JSON.stringify(productionAttackPathFixtures())}'::jsonb) AS fixture(ordinal integer,state text);
 INSERT INTO zasp_risk_attack_path_nodes (organization_id,workspace_id,environment_id,path_id,position,node_id)
 SELECT 'pid_10000001-0000-4000-8000-000000000001','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003',
   'pid_' || (40000000+ordinal)::text || '-0000-4000-8000-' || lpad(ordinal::text,12,'0'), position,
@@ -1674,6 +3470,7 @@ SELECT zasp_inventory_backfill_scope('pid_10000001-0000-4000-8000-000000000001',
 SELECT zasp_inventory_cutover_scope('pid_10000001-0000-4000-8000-000000000001','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023');
 `;
   await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: sql });
+  await verifyProductionAttackPathFixtures(dsn);
 }
 
 async function exercisePublicDiscoveryLifecycle(publicOrigin, dsn, authorization) {
@@ -1946,7 +3743,7 @@ async function runDeterministicLocalDiscovery(workerE2EBinary, postgresPort, dsn
     cwd: platform,
     timeout: 60_000,
     env: {
-      ...process.env,
+      ...auditBrowserEnvironment(process.env),
       ZASP_COMBINED_E2E_WORKER_DSN: `postgres://zasp_e2e_discovery@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
       ZASP_COMBINED_E2E_JOB_ID: jobID,
       ZASP_COMBINED_E2E_SCENARIO: scenario,
@@ -1970,7 +3767,7 @@ async function assertTypedInventoryPage(publicOrigin, headers, pathValue, expect
 async function exerciseTask4ProductionWorkerBoundaries(workerBinary, postgresPort, dsn) {
   await assertPortAvailable(8081);
   const workerEnvironment = (mode, principal, authority) => ({
-    ...process.env,
+    ...auditBrowserEnvironment(process.env),
     ZASP_WORKER_MODE: mode,
     ZASP_POSTGRES_DSN: `postgres://zasp_e2e_${principal}@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
     ZASP_DATABASE_AUTHORITY: authority,
@@ -2081,19 +3878,129 @@ async function exerciseTask4ProductionWorkerBoundaries(workerBinary, postgresPor
   console.log("combined E2E: real launched discovery and per-kind projection worker boundaries proven; scheduler/risk ready and managed dependencies fail closed");
 }
 
+async function prepareAutomaticLifecycleRelease({ migrate, migrationEnvironment, dsn }) {
+  // The real schema48 backlog and48-to49 replay proof has already joined.
+  await command(migrate, ["up-to-55"], { env: migrationEnvironment });
+  const release = await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-v", "ON_ERROR_STOP=1", "-c", "SELECT max(version) FROM zasp_schema_versions"]);
+  assert.equal(release.stdout.trim(), "55", "broad automatic lifecycle requires registered compiled55");
+}
+
+function automaticLifecycleConcurrency(inventory, expected) {
+  assert.deepEqual(inventory, expected, "automatic fixture eligible trigger inventory changed");
+  const count = Object.entries(inventory).filter(([kind]) => kind !== "foreign").reduce((total, [, ids]) => total + ids.length, 0);
+  assert.ok(Number.isSafeInteger(count) && count >= 1 && count <= 10, "automatic fixture exceeds bounded concurrency");
+  return count;
+}
+
+async function createAutomaticLifecycleDefinition(request, definition, autonomy = "supervised") {
+  assert.equal(definition.enabled, false);
+  assert.equal(definition.autonomy, "supervised");
+  assert.ok(Number.isSafeInteger(definition.max_ai_cost_nano_credits) && definition.max_ai_cost_nano_credits > 0);
+  const frozenDefinition = JSON.parse(JSON.stringify(definition));
+  const created = await request("/api/v1/security-agents", "POST", frozenDefinition);
+  assert.equal(created.status, 201, JSON.stringify(created));
+  assert.equal(created.headers.etag, '"1"');
+  const id = created.body.id;
+  assert.match(id, /^pid_[0-9a-f-]{36}$/);
+  const expectedResult = { ...frozenDefinition, id };
+  assert.deepEqual(created.body, expectedResult);
+  const receiptID = created.headers["x-mutation-receipt-id"], auditID = created.headers["x-audit-id"];
+  for (const value of [receiptID, auditID]) assert.match(value, /^pid_[0-9a-f-]{36}$/);
+  const receiptPath = "/api/v1/workflow-mutation-receipts?limit=50";
+  const before = await request(receiptPath);
+  assert.equal(before.status, 200, JSON.stringify(before));
+  assert.ok(Array.isArray(before.body.items) && before.body.items.length <= 50);
+  const owned = before.body.items.filter(receipt => receipt.id === receiptID);
+  assert.equal(owned.length, 1, "created workflow receipt missing or duplicated in captured scope");
+  const receipt = owned[0];
+  assert.equal(receipt.operation, "createSecurityAgent");
+  assert.equal(receipt.resource_kind, "security_agent");
+  assert.equal(receipt.resource_id, id);
+  assert.equal(receipt.resource_version, 1);
+  assert.equal(receipt.audit_id, auditID);
+  assert.deepEqual(receipt.intent, { resource_id: "", expected_version: 0, body: frozenDefinition });
+  assert.deepEqual(receipt.result, expectedResult);
+  // Match the real client's exact-version reconciliation before activation
+  // advances v1. ACK only this create receipt; preserve all other recovery.
+  const authoritative = await request(`/api/v1/security-agents/${id}`);
+  assert.equal(authoritative.status, 200, JSON.stringify(authoritative));
+  assert.equal(authoritative.headers.etag, '"1"');
+  assert.deepEqual(authoritative.body, expectedResult);
+  const acknowledged = await request(`/api/v1/workflow-mutation-receipts/${receiptID}/acknowledge`, "POST", {});
+  assert.equal(acknowledged.status, 204, JSON.stringify(acknowledged));
+  const after = await request(receiptPath);
+  assert.equal(after.status, 200, JSON.stringify(after));
+  assert.deepEqual(after.body.items, before.body.items.filter(item => item.id !== receiptID), "ACK must remove only the owned pending receipt");
+  let version = 1;
+  for (const activation of ["validated", "supervised", ...(autonomy === "autonomous" ? ["autonomous"] : [])]) {
+    const response = await request(`/api/v1/security-agents/${id}/activation`, "POST", { activation }, version);
+    assert.equal(response.status, 200, JSON.stringify(response));
+    assert.equal(response.body.id, id);
+    assert.equal(response.body.activation, activation);
+    assert.equal(response.body.enabled, activation !== "validated");
+    assert.equal(response.body.version, ++version);
+    assert.equal(response.headers.etag, `"${version}"`);
+  }
+  return id;
+}
+
+async function configureAutomaticLifecycleControls(request, actions) {
+  const target = "/api/v1/security-agent-execution-controls";
+  const before = await request(target);
+  assert.equal(before.status, 200, JSON.stringify(before));
+  assert.equal(before.body.global.enabled, true, "platform authority must already permit this owned proof");
+  for (const control of [before.body.environment, ...actions.map(action => before.body.actions.find(row => row.action_key === action))]) {
+    assert.ok(control && ["environment", "action"].includes(control.target));
+    assert.equal(control.enabled, false, "fixture control was already enabled outside public setup");
+    const response = await request(target, "PUT", { target: control.target, action_key: control.action_key, enabled: true }, control.version);
+    assert.equal(response.status, 200, JSON.stringify(response));
+    assert.equal(response.body.version, control.version + 1);
+    assert.equal(response.headers.etag, `"${control.version + 1}"`);
+    assert.equal(response.body.enabled, true);
+  }
+  const after = await request(target);
+  assert.equal(after.status, 200);
+  assert.deepEqual(after.body.global, before.body.global, "tenant setup changed global authority");
+  assert.equal(after.body.environment.enabled, true);
+  for (const action of actions) assert.equal(after.body.actions.find(row => row.action_key === action)?.enabled, true);
+}
+
+async function automaticLifecycleRequest(publicOrigin, cookie, scope, receipts = []) {
+  const headers = { cookie: `__Host-zasp_session=${cookie}`, origin: publicOrigin, "X-Zasp-Expected-Scope": scope, "X-Zasp-Budget-Details": "v1" };
+  const bootstrap = await requestHTTPSJSON(`${publicOrigin}/api/v1/session/bootstrap`, { method: "GET", headers });
+  assert.equal(bootstrap.status, 200, JSON.stringify(bootstrap));
+  assert.equal([bootstrap.body.organization_id, bootstrap.body.workspace_id, bootstrap.body.environment_id].join("/"), scope);
+  assert.ok(bootstrap.body.csrf_token.length >= 16);
+  return async (target, method = "GET", body, version) => {
+    const mutation = method !== "GET";
+    const receiptAcknowledgement = method === "POST" && /^\/api\/v1\/workflow-mutation-receipts\/pid_[0-9a-f-]{36}\/acknowledge$/.test(target);
+    if (receiptAcknowledgement) {
+      assert.deepEqual(body, {});
+      assert.equal(version, undefined);
+    }
+    const response = await requestHTTPSJSON(publicOrigin + target, { method, headers: { ...headers,
+      ...(mutation ? { "content-type": "application/json", "X-CSRF-Token": bootstrap.body.csrf_token, "X-Zasp-Fresh-Auth": "confirmed", "Idempotency-Key": `automatic-${randomBytes(16).toString("hex")}`, ...(version === undefined ? {} : { "If-Match": `"${version}"` }) } : {}),
+    } }, body === undefined ? undefined : JSON.stringify(body));
+    if (receiptAcknowledgement) {
+      assert.equal(response.status, 204, JSON.stringify(response));
+      assert.equal(response.body, null);
+    } else if (mutation && response.status >= 200 && response.status < 300) {
+      for (const name of ["x-audit-id", "x-mutation-receipt-id"]) assert.match(response.headers[name], /^pid_[0-9a-f-]{36}$/);
+      receipts.push([response.headers["x-mutation-receipt-id"], response.headers["x-audit-id"], ...scope.split("/")]);
+    }
+    return response;
+  };
+}
+
 async function exerciseSecurityAgentAutomaticLifecycle(cdp, workerE2EBinary, gatewayE2EBinary, apiBinary, apiEnvironment, healthPort, postgresPort, dsn, publicOrigin, actionPrivateKey) {
 	const primaryOrganization = "pid_10000001-0000-4000-8000-000000000001";
 	const primaryWorkspace = "pid_10000002-0000-4000-8000-000000000002";
 	const primaryEnvironment = "pid_10000003-0000-4000-8000-000000000003";
 	const primaryFinding = "pid_30000102-0000-4000-8000-000000000102";
 	const temporaryFinding = "pid_30000101-0000-4000-8000-000000000101";
-	const temporaryDefinition = "pid_78000010-0000-4000-8000-000000000010";
-	const attackPathDefinition = "pid_78000011-0000-4000-8000-000000000011";
 	const verifiedAttackPath = "pid_40000001-0000-4000-8000-000000000001";
 	const connectorFinding = "pid_30000103-0000-4000-8000-000000000103";
 	const connectorEvidence = "pid_77000001-0000-4000-8000-000000000001";
-	const connectorDefinition = "pid_78000020-0000-4000-8000-000000000020";
-	const sessionDefinition = "pid_78000030-0000-4000-8000-000000000030";
 	const isolatedSession = "pid_79000010-0000-4000-8000-000000000010";
 	const unrelatedSession = "pid_79000011-0000-4000-8000-000000000011";
 	const dailyOpsRun = "pid_7a000001-0000-4000-8000-000000000001";
@@ -2108,36 +4015,14 @@ async function exerciseSecurityAgentAutomaticLifecycle(cdp, workerE2EBinary, gat
 	const foreignOrganization = "pid_90000001-0000-4000-8000-000000000001";
 	const foreignWorkspace = "pid_90000002-0000-4000-8000-000000000002";
 	const foreignEnvironment = "pid_90000003-0000-4000-8000-000000000003";
-	const foreignDefinition = "pid_90000008-0000-4000-8000-000000000008";
 	const foreignFinding = "pid_90000007-0000-4000-8000-000000000007";
 	const foreignGatewayDevice = "pid_90000020-0000-4000-8000-000000000020";
 	const foreignGatewayEnrollment = "pid_90000021-0000-4000-8000-000000000021";
 	const foreignGatewayCredential = "pid_90000022-0000-4000-8000-000000000022";
 
-	await clickBrowserAria(cdp, "Open Bounded response definition");
-	await clickBrowserText(cdp, "Validate definition");
-	await waitForBrowserText(cdp, /Resource version 2/);
-	await clickBrowserText(cdp, "Enable supervised execution");
-	await waitForBrowserText(cdp, /Resource version 3/);
-	await waitForBrowserText(cdp, /Start supervised run/);
-	await clickBrowserAria(cdp, "Close");
-
-	const primaryDefinition = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT definition_id FROM zasp_security_agent_definitions WHERE (organization_id,workspace_id,environment_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}') AND body->>'name'='Bounded response definition' AND activation='supervised' AND body->>'autonomy'='supervised' AND deleted_at IS NULL;`])).stdout.trim();
-	assert.match(primaryDefinition, /^pid_[0-9a-f-]{36}$/, "browser activation did not persist exact supervised definition authority");
 	const seed = `
 UPDATE zasp_risk_findings SET rule=CASE id WHEN '${primaryFinding}' THEN 'credential' ELSE 'temporary_policy' END WHERE (organization_id,workspace_id,environment_id,status)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','open') AND id IN('${primaryFinding}','${temporaryFinding}');
-INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
-VALUES('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignDefinition}','autonomous',1,1,
-jsonb_build_object('id','${foreignDefinition}','name','Foreign autonomous response','trigger_kind','finding','trigger_source','posture','environment_ids',jsonb_build_array('${foreignEnvironment}'),'autonomy','autonomous','max_steps',1,'max_duration_seconds',300,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('update_finding_response'),'verification_kind','finding_state','definition_version',1,'enabled',true),'security-agent-actions-v1');
-INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
-VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${temporaryDefinition}','supervised',1,1,
-jsonb_build_object('id','${temporaryDefinition}','name','Temporary containment response','trigger_kind','finding','trigger_source','temporary_policy','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',900,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('create_temporary_policy'),'verification_kind','policy_state','definition_version',1,'enabled',true),'security-agent-actions-v1');
-INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
-VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${attackPathDefinition}','supervised',1,1,
-jsonb_build_object('id','${attackPathDefinition}','name','Verified attack path containment','trigger_kind','attack_path','trigger_source','verified','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',900,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('create_temporary_policy'),'verification_kind','policy_state','definition_version',1,'enabled',true),'security-agent-actions-v1');
-INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
-VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${sessionDefinition}','supervised',1,1,
-jsonb_build_object('id','${sessionDefinition}','name','Compromised runtime session','trigger_kind','runtime_decision','trigger_source','gateway','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',900,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('isolate_session'),'verification_kind','gateway_decision','definition_version',1,'enabled',true),'security-agent-actions-v1');
+
 INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,body)
 VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','integration','${task5GitHubIntegrationID}',jsonb_build_object('id','${task5GitHubIntegrationID}','connector_key','github','name','Harness GitHub inventory','configuration',jsonb_build_object('installation_id','424242'),'status','active','created_at','2026-08-19T00:00:00Z','updated_at','2026-08-19T00:00:00Z'));
 INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,source,rule,title,severity,status)
@@ -2147,13 +4032,7 @@ VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','$
 INSERT INTO zasp_inventory_evidence(organization_id,workspace_id,environment_id,id,integration_id,snapshot_id,finding_id,object_reference,checksum,media_type,schema_version,parser_version,collected_at,artifact_reference,artifact_key,artifact_version_id,size_bytes,tool_version)
 SELECT '${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorEvidence}','${task5GitHubIntegrationID}',snapshot.id,'${connectorFinding}','s3://zasp-production-e2e/security-agent/connector-revocation.json',decode(repeat('7a',32),'hex'),'application/json','1','parser_v1',transaction_timestamp(),'${connectorEvidence}','security-agent/connector-revocation.json','version-e2e-1',128,'tool_v1'
 FROM zasp_discovery_snapshots snapshot WHERE (snapshot.organization_id,snapshot.workspace_id,snapshot.environment_id,snapshot.integration_id,snapshot.state,snapshot.complete,snapshot.is_last_good)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${task5GitHubIntegrationID}','complete',true,true) ORDER BY snapshot.generation DESC LIMIT 1;
-INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
-VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${connectorDefinition}','supervised',1,1,
-jsonb_build_object('id','${connectorDefinition}','name','Compromised connector response','trigger_kind','finding','trigger_source','connector_revocation','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',300,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('revoke_integration_connection'),'verification_kind','connection_state','definition_version',1,'enabled',true),'security-agent-actions-v1');
-INSERT INTO zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_id,requested_by,state,last_error_code,completed_at)
-VALUES
-('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${dailyOpsRun}','${primaryDefinition}',1,'pid_7a000003-0000-4000-8000-000000000003','pid_10000004-0000-4000-8000-000000000004','needs_human','manual_review_required',transaction_timestamp()),
-('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignDailyOpsRun}','${foreignDefinition}',1,'pid_9a000003-0000-4000-8000-000000000003','pid_90000004-0000-4000-8000-000000000004','needs_human','manual_review_required',transaction_timestamp());
+
 INSERT INTO zasp_sensors(organization_id,workspace_id,environment_id,id,name,kind,mode,state)
 VALUES
 ('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${dailyOpsSensor}','Daily ops stale sensor','tetragon','metadata_only','degraded'),
@@ -2162,15 +4041,6 @@ INSERT INTO zasp_sensor_tokens(organization_id,workspace_id,environment_id,id,se
 VALUES
 ('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${dailyOpsSensorToken}','${dailyOpsSensor}','event-ingest',decode(repeat('a1',32),'hex'),decode(repeat('a2',32),'hex'),transaction_timestamp()+interval '1 hour',1,decode(repeat('a3',32),'hex'),1,1,transaction_timestamp()),
 ('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignDailyOpsSensorToken}','${foreignDailyOpsSensor}','event-ingest',decode(repeat('b1',32),'hex'),decode(repeat('b2',32),'hex'),transaction_timestamp()+interval '1 hour',1,decode(repeat('b3',32),'hex'),1,1,transaction_timestamp());
-INSERT INTO zasp_security_agent_kill_switches(organization_id,workspace_id,environment_id,action_key,execution_enabled,updated_by) VALUES
-('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','*',true,'production-e2e-security-agent'),
-('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','update_finding_response',true,'production-e2e-security-agent'),
-('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','create_temporary_policy',true,'production-e2e-security-agent'),
-('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','isolate_session',true,'production-e2e-security-agent'),
-('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','revoke_integration_connection',true,'production-e2e-security-agent'),
-('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','*',true,'production-e2e-security-agent'),
-('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','update_finding_response',true,'production-e2e-security-agent')
-ON CONFLICT(organization_id,workspace_id,environment_id,action_key) DO UPDATE SET execution_enabled=EXCLUDED.execution_enabled,updated_by=EXCLUDED.updated_by,updated_at=transaction_timestamp();
 INSERT INTO zasp_gateway_devices(organization_id,workspace_id,environment_id,id,name,state,replay_floor) VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}','Production E2E gateway','active',4);
 INSERT INTO zasp_gateway_enrollment_tokens(organization_id,workspace_id,environment_id,id,device_id,audience,salt,token_hash,expires_at) VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayEnrollment}','${gatewayDevice}','runtime-gateway-enroll',repeat(E'\\001',16)::bytea,repeat(E'\\002',32)::bytea,transaction_timestamp()+interval '1 hour');
 INSERT INTO zasp_gateway_credentials(organization_id,workspace_id,environment_id,id,device_id,enrollment_token_id,enrollment_digest,audience,key_reference,public_key,expires_at,format_version,credential_generation,key_id,algorithm,v15_issued_at) VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayCredential}','${gatewayDevice}','${gatewayEnrollment}',repeat(E'\\003',32)::bytea,'runtime-gateway','ref:gateway/public/production-e2e',repeat(E'\\004',32)::bytea,date_trunc('second',transaction_timestamp())+interval '1 hour',1,1,'gateway-device-key-01','Ed25519',date_trunc('second',transaction_timestamp()));
@@ -2187,9 +4057,94 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	const connectorSeed = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-v", "ON_ERROR_STOP=1", "-c", `SELECT concat_ws('|',count(*),max(workflow.body->>'status'),max(connection.state),max(credential.status)) FROM zasp_inventory_evidence evidence JOIN zasp_workflow_records workflow ON (workflow.organization_id,workflow.workspace_id,workflow.environment_id,workflow.kind,workflow.id)=(evidence.organization_id,evidence.workspace_id,evidence.environment_id,'integration',evidence.integration_id) JOIN zasp_integration_connections connection ON (connection.organization_id,connection.workspace_id,connection.environment_id,connection.integration_id)=(evidence.organization_id,evidence.workspace_id,evidence.environment_id,evidence.integration_id) JOIN zasp_connector_credentials credential ON (credential.organization_id,credential.workspace_id,credential.environment_id,credential.integration_id,credential.provider,credential.credential_reference)=(connection.organization_id,connection.workspace_id,connection.environment_id,connection.integration_id,connection.provider,connection.connection_reference) WHERE evidence.id='${connectorEvidence}';`])).stdout.trim();
 	assert.equal(connectorSeed, "1|active|verified|active", "connector response seed was not fully actionable");
 
+	// Discovered inputs above are fixtures. Definition activation and execution
+	// controls below are authorized, audited public mutations, never SQL seeds.
+	await verifyProductionAttackPathFixtures(dsn);
+	const expectedInventory = { finding: [primaryFinding], temporary: [temporaryFinding], connector: [connectorFinding], attackPath: [verifiedAttackPath], session: [isolatedSession], foreign: [foreignFinding] };
+	const readInventory = async () => JSON.parse((await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-v", "ON_ERROR_STOP=1", "-c", `
+WITH findings AS (SELECT id,COALESCE(rule,source) source FROM zasp_risk_findings WHERE (organization_id,workspace_id,environment_id,status)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','open')),
+sessions AS (
+ SELECT event.classification->>'session_id' id,event.device_id
+ FROM zasp_runtime_gateway_events event
+ JOIN zasp_gateway_devices device ON (device.organization_id,device.workspace_id,device.environment_id,device.id,device.state)=(event.organization_id,event.workspace_id,event.environment_id,event.device_id,'active')
+ JOIN zasp_gateway_credentials credential ON (credential.organization_id,credential.workspace_id,credential.environment_id,credential.device_id,credential.id)=(event.organization_id,event.workspace_id,event.environment_id,event.device_id,event.credential_id)
+ WHERE (event.organization_id,event.workspace_id,event.environment_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}')
+ AND event.decision='block' AND zasp_valid_product_id(event.classification->>'session_id') AND event.classification->>'outcome'='gateway' AND event.occurred_at>=transaction_timestamp()-interval '5 minutes'
+ AND credential.revoked_at IS NULL AND credential.expires_at>transaction_timestamp()
+ AND credential.id=(SELECT current_credential.id FROM zasp_gateway_credentials current_credential WHERE (current_credential.organization_id,current_credential.workspace_id,current_credential.environment_id,current_credential.device_id)=(event.organization_id,event.workspace_id,event.environment_id,event.device_id) AND current_credential.revoked_at IS NULL AND current_credential.expires_at>transaction_timestamp() ORDER BY current_credential.issued_at DESC,current_credential.id DESC LIMIT 1)
+ GROUP BY event.classification->>'session_id',event.device_id HAVING count(*)>=3)
+SELECT jsonb_build_object(
+ 'finding',ARRAY(SELECT id FROM findings WHERE source='credential' ORDER BY id),
+ 'temporary',ARRAY(SELECT id FROM findings WHERE source='temporary_policy' ORDER BY id),
+ 'connector',ARRAY(SELECT id FROM findings WHERE source='connector_revocation' ORDER BY id),
+ 'attackPath',ARRAY(SELECT id FROM zasp_risk_attack_paths path WHERE (organization_id,workspace_id,environment_id,state)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','verified') AND zasp_risk_attack_path_valid(path) ORDER BY id),
+ 'session',ARRAY(SELECT id FROM sessions ORDER BY id),
+ 'foreign',ARRAY(SELECT id FROM zasp_risk_findings WHERE (organization_id,workspace_id,environment_id,status)=('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','open') AND COALESCE(rule,source)='posture' ORDER BY id));`])).stdout.trim());
+	const concurrency = automaticLifecycleConcurrency(await readInventory(), expectedInventory);
+	const primaryScope = [primaryOrganization, primaryWorkspace, primaryEnvironment].join("/");
+	const publicReceipts = [];
+	const primaryRequest = await automaticLifecycleRequest(publicOrigin, (await getBrowserSessionCookie(cdp, publicOrigin)).value, primaryScope, publicReceipts);
+	await configureAutomaticLifecycleControls(primaryRequest, ["update_finding_response", "create_temporary_policy", "isolate_session", "revoke_integration_connection"]);
+	await clickBrowserText(cdp, "Create Security Agent");
+	await fillBrowserLabel(cdp, "Definition name", "Bounded response definition");
+	await fillBrowserLabel(cdp, "AI cost budget (nano OpenRouter credits)", "10000");
+	await fillBrowserLabel(cdp, "Concurrency", String(concurrency));
+	// These immutable limits are set before admission, including time spent in
+	// the original browser approval/reauthentication sequence. Never reset clocks.
+	await fillBrowserLabel(cdp, "Runtime seconds", "900");
+	await clickBrowserText(cdp, "Save Security Agent definition");
+	await waitForBrowserText(cdp, /Bounded response definition/);
+	assert.equal(await browserHasInteractiveText(cdp, /^(?:Simulate plan|Start supervised run|Approve|Reject|Cancel run)$/i), false);
+	await clickBrowserAria(cdp, "Open Bounded response definition");
+	await clickBrowserText(cdp, "Validate definition");
+	await waitForBrowserText(cdp, /Resource version 2/);
+	await clickBrowserText(cdp, "Enable supervised execution");
+	await waitForBrowserText(cdp, /Resource version 3/);
+	await waitForBrowserText(cdp, /Start supervised run/);
+	await clickBrowserAria(cdp, "Close");
+
+	const primaryDefinition = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT definition_id FROM zasp_security_agent_definitions WHERE (organization_id,workspace_id,environment_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}') AND body->>'name'='Bounded response definition' AND activation='supervised' AND body->>'autonomy'='supervised' AND deleted_at IS NULL;`])).stdout.trim();
+	assert.match(primaryDefinition, /^pid_[0-9a-f-]{36}$/, "browser activation did not persist exact supervised definition authority");
+	const savedPrimary = await primaryRequest(`/api/v1/security-agents/${primaryDefinition}`);
+	assert.equal(savedPrimary.status, 200);
+	assert.equal(savedPrimary.headers.etag, '"3"');
+	assert.equal(savedPrimary.body.max_ai_cost_nano_credits, 10000);
+	assert.equal(savedPrimary.body.concurrency_limit, concurrency);
+	assert.equal(savedPrimary.body.max_duration_seconds, 900);
+
+	const foreignToken = randomBytes(32).toString("hex"), foreignDigest = createHash("sha256").update(foreignToken).digest("hex"), foreignCSRF = randomBytes(32).toString("hex");
+	// A foreign identity/session is an authentication fixture, not run authority.
+	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `
+UPDATE zasp_authorized_scopes SET permissions='["view","manage_workflows","manage_findings","manage_identity"]'::jsonb WHERE principal_id='pid_90000004-0000-4000-8000-000000000004' AND (organization_id,workspace_id,environment_id)=('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}');
+INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,authenticated_at,expires_at) VALUES(decode('${foreignDigest}','hex'),'${foreignCSRF}','session-automatic-foreign-fixture','pid_90000004-0000-4000-8000-000000000004','${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','["view","manage_workflows","manage_findings","manage_identity"]'::jsonb,transaction_timestamp(),transaction_timestamp()+interval '1 hour');`]);
+	const foreignRequest = await automaticLifecycleRequest(publicOrigin, foreignToken, [foreignOrganization, foreignWorkspace, foreignEnvironment].join("/"), publicReceipts);
+	await configureAutomaticLifecycleControls(foreignRequest, ["update_finding_response"]);
+	const definition = (name, trigger_kind, trigger_source, action, verification_kind, environment = primaryEnvironment, capacity = concurrency) => ({ name, trigger_kind, trigger_source, environment_ids: [environment], autonomy: "supervised", max_steps: 1, max_duration_seconds: 900, temporary_policy_seconds: 600, ai_token_budget: 1000, max_ai_cost_nano_credits: 10000, concurrency_limit: capacity, allowed_actions: [action], verification_kind, definition_version: 1, enabled: false });
+	const foreignDefinition = await createAutomaticLifecycleDefinition(foreignRequest, definition("Foreign autonomous response", "finding", "posture", "update_finding_response", "finding_state", foreignEnvironment, 1), "autonomous");
+	const temporaryDefinition = await createAutomaticLifecycleDefinition(primaryRequest, definition("Temporary containment response", "finding", "temporary_policy", "create_temporary_policy", "policy_state"));
+	const attackPathDefinition = await createAutomaticLifecycleDefinition(primaryRequest, definition("Verified attack path containment", "attack_path", "verified", "create_temporary_policy", "policy_state"));
+	const sessionDefinition = await createAutomaticLifecycleDefinition(primaryRequest, definition("Compromised runtime session", "runtime_decision", "gateway", "isolate_session", "gateway_decision"));
+	const connectorDefinition = await createAutomaticLifecycleDefinition(primaryRequest, definition("Compromised connector response", "finding", "connector_revocation", "revoke_integration_connection", "connection_state"));
+	assert.deepEqual(await readInventory(), expectedInventory, "trigger eligibility changed during public fixture setup");
+	const assertPublicReceipts = async () => {
+		assert.ok(publicReceipts.length > 0);
+		const expected = publicReceipts.map(row => {
+			for (const value of row) assert.match(value, /^pid_[0-9a-f-]{36}$/);
+			return `(${row.map(value => `'${value}'`).join(",")})`;
+		}).join(",");
+		const durable = await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-v", "ON_ERROR_STOP=1", "-c", `WITH expected(receipt_id,audit_id,organization_id,workspace_id,environment_id) AS (VALUES ${expected}), receipts AS (SELECT receipt_id,audit_id,organization_id,workspace_id,environment_id FROM zasp_workflow_receipts UNION ALL SELECT receipt_id,audit_id,organization_id,workspace_id,environment_id FROM zasp_security_agent_request_receipts), audits AS (SELECT audit_id,organization_id,workspace_id,environment_id FROM zasp_workflow_audit UNION ALL SELECT audit_id,organization_id,workspace_id,environment_id FROM zasp_security_agent_audit) SELECT count(*) FROM expected JOIN receipts USING(receipt_id,audit_id,organization_id,workspace_id,environment_id) JOIN audits USING(audit_id,organization_id,workspace_id,environment_id);`]);
+		assert.equal(Number(durable.stdout.trim()), publicReceipts.length, "public activation/control mutations lost scoped receipts or audit authority");
+	};
+	await assertPublicReceipts();
+	// Synthetic terminal Home rows exercise routing only; none can execute.
+	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1"], { input: `INSERT INTO zasp_security_agent_runs(organization_id,workspace_id,environment_id,run_id,definition_id,definition_version,trigger_id,requested_by,state,last_error_code,completed_at)
+VALUES
+('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${dailyOpsRun}','${primaryDefinition}',1,'pid_7a000003-0000-4000-8000-000000000003','pid_10000004-0000-4000-8000-000000000004','needs_human','manual_review_required',transaction_timestamp()),
+('${foreignOrganization}','${foreignWorkspace}','${foreignEnvironment}','${foreignDailyOpsRun}','${foreignDefinition}',1,'pid_9a000003-0000-4000-8000-000000000003','pid_90000004-0000-4000-8000-000000000004','needs_human','manual_review_required',transaction_timestamp());` });
+
 	await assertPortAvailable(8081);
 	const securityAgentWorkerEnvironment = {
-		...process.env,
+		...auditBrowserEnvironment(process.env),
 		ZASP_WORKER_MODE: "security-agent",
 		ZASP_POSTGRES_DSN: `postgres://zasp_e2e_security_agent_worker@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 		ZASP_DATABASE_AUTHORITY: "zasp_security_agent_worker",
@@ -2228,6 +4183,16 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	await delay(250);
 	const attackPathReplay = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',(SELECT count(*) FROM zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,definition_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${attackPathDefinition}')),(SELECT count(*) FROM zasp_security_agent_trigger_receipts WHERE (organization_id,workspace_id,environment_id,definition_id,trigger_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${attackPathDefinition}','${verifiedAttackPath}')));`])).stdout.trim();
 	assert.equal(attackPathReplay, "1|1", "attack-path scheduler duplicated a durable run or receipt");
+	const admittedDefinitions = [primaryDefinition, temporaryDefinition, attackPathDefinition, sessionDefinition, connectorDefinition, foreignDefinition].map(id => `'${id}'`).join(",");
+	let admissionState = "";
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		admissionState = (await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-v", "ON_ERROR_STOP=1", "-c", `SELECT concat_ws('|',count(*),bool_and(budget.max_cost_nano_credits=10000 AND budget.deadline_at=budget.started_at+interval '900 seconds' AND budget.concurrency_limit=CASE WHEN budget.organization_id='${foreignOrganization}' THEN 1 ELSE ${concurrency} END AND budget.stop_reason IS NULL),bool_and(reservation.settled_at IS NOT NULL AND reservation.prompt_tokens=120 AND reservation.completion_tokens=40 AND reservation.total_tokens=160 AND reservation.cost_nano_credits=100 AND reservation.maximum_tokens=1000 AND reservation.maximum_cost_nano_credits=200),count(*) FILTER(WHERE run.organization_id='${primaryOrganization}' AND run.state='waiting_approval')) FROM zasp_security_agent_run_budgets budget JOIN zasp_security_agent_runs run USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_provider_reservations reservation USING(organization_id,workspace_id,environment_id,run_id) WHERE budget.definition_id IN(${admittedDefinitions});`])).stdout.trim();
+		if (admissionState === "6|t|t|5") break;
+		await delay(50);
+	}
+	assert.equal(admissionState, "6|t|t|5", "all five supervised families must coexist with exact immutable budgets and settled controlled usage");
+	const readAdmittedSnapshots = async () => (await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-v", "ON_ERROR_STOP=1", "-c", `SELECT jsonb_agg(to_jsonb(budget)-'stop_reason' ORDER BY run_id) FROM zasp_security_agent_run_budgets budget WHERE definition_id IN(${admittedDefinitions});`])).stdout.trim();
+	const admittedSnapshots = await readAdmittedSnapshots();
 	await exerciseHomeDailyOperations(cdp, publicOrigin, dsn, approvalID, dailyOpsRun, dailyOpsSensor);
 
 	await navigateBrowser(cdp, `${publicOrigin}/protect/approvals`);
@@ -2349,7 +4314,7 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	await stopChild(api);
 	api = undefined;
 
-	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "apply");
+	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "apply", { key: "create_temporary_policy", afterSequence: 0, runID: temporaryRunID });
 	const capabilityEdge = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-v", "ON_ERROR_STOP=1", "-c", `SELECT concat_ws('|',edge.target_id,edge.category,edge.outcome,array_length(edge.evidence_ids,1)) FROM zasp_inventory_agent_capability_edges('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','pid_21000001-0000-4000-8000-000000000001') edge WHERE (edge.target_id,edge.category,edge.outcome)=('pid_21000004-0000-4000-8000-000000000004','identity_assume','assume');`])).stdout.trim();
 	assert.match(capabilityEdge, /^pid_21000004-0000-4000-8000-000000000004\|identity_assume\|assume\|[1-9][0-9]*$/, "runtime capability reachability edge was absent before enforcement");
 	await runRuntimeGatewayProxyE2E(gatewayE2EBinary, postgresPort, actionPrivateKey, "apply");
@@ -2361,7 +4326,7 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	const applied = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,count(target.*)) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_temporary_policy_targets target USING(organization_id,workspace_id,environment_id,run_id,step_id) WHERE run.run_id='${temporaryRunID}' GROUP BY run.state,effect.state;`])).stdout.trim();
 	assert.equal(applied, "contained|cleanup_pending|2", "temporary containment was not durably applied to every active gateway before publication");
 	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_security_agent_effects SET updated_at=transaction_timestamp() WHERE run_id='${temporaryRunID}' AND action_key='create_temporary_policy' AND state='cleanup_pending';`]);
-	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "cleanup");
+	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "cleanup", { key: "create_temporary_policy", afterSequence: 1, runID: temporaryRunID });
 	await runRuntimeGatewayProxyE2E(gatewayE2EBinary, postgresPort, actionPrivateKey, "cleanup");
 	const cleaned = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,count(target.*),max(target.sequence)) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_temporary_policy_targets target USING(organization_id,workspace_id,environment_id,run_id,step_id) WHERE run.run_id='${temporaryRunID}' GROUP BY run.state,effect.state;`])).stdout.trim();
 	assert.equal(cleaned, "remediated|cleaned|4|3", "temporary containment cleanup did not durably restore every active gateway policy");
@@ -2400,11 +4365,11 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	await stopChild(worker);
 	await stopChild(api);
 	api = undefined;
-	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "apply", { key: "isolate_session", afterSequence: 2, sessionID: isolatedSession, otherSessionID: unrelatedSession });
+	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "apply", { key: "isolate_session", afterSequence: 2, runID: sessionRunID, sessionID: isolatedSession, otherSessionID: unrelatedSession });
 	const sessionApplied = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,count(target.*),max(target.sequence),(SELECT count(*) FROM zasp_security_agent_temporary_policy_targets foreign_target WHERE foreign_target.action_key='isolate_session' AND foreign_target.organization_id='${foreignOrganization}')) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_temporary_policy_targets target USING(organization_id,workspace_id,environment_id,run_id,step_id) WHERE run.run_id='${sessionRunID}' GROUP BY run.state,effect.state;`])).stdout.trim();
 	assert.equal(sessionApplied, "contained|cleanup_pending|1|3|0", "session isolation was not exact, durable, and tenant scoped");
 	await command(path.join(postgresBin, "psql"), [dsn, "-v", "ON_ERROR_STOP=1", "-c", `UPDATE zasp_security_agent_effects SET updated_at=transaction_timestamp() WHERE run_id='${sessionRunID}' AND action_key='isolate_session' AND state='cleanup_pending';`]);
-	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "cleanup", { key: "isolate_session", afterSequence: 3, sessionID: isolatedSession, otherSessionID: unrelatedSession });
+	await runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, "cleanup", { key: "isolate_session", afterSequence: 3, runID: sessionRunID, sessionID: isolatedSession, otherSessionID: unrelatedSession });
 	const sessionCleaned = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,effect.state,count(target.*),max(target.sequence)) FROM zasp_security_agent_runs run JOIN zasp_security_agent_effects effect USING(organization_id,workspace_id,environment_id,run_id) JOIN zasp_security_agent_temporary_policy_targets target USING(organization_id,workspace_id,environment_id,run_id,step_id) WHERE run.run_id='${sessionRunID}' GROUP BY run.state,effect.state;`])).stdout.trim();
 	assert.equal(sessionCleaned, "remediated|cleaned|2|4", "session isolation cleanup did not restore unrelated gateway activity");
 
@@ -2428,7 +4393,6 @@ INSERT INTO zasp_runtime_gateway_events(organization_id,workspace_id,environment
 	assert.match(history, /approved/);
 	assert.doesNotMatch(history, /Foreign autonomous response/);
 
-	const degradedDefinition = "pid_78000040-0000-4000-8000-000000000040";
 	const degradedFinding = "pid_30000140-0000-4000-8000-000000000140";
 	const degradedEvidence = "pid_31000140-0000-4000-8000-000000000140";
 	const policyBefore = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',sequence,encode(envelope_digest,'hex')) FROM zasp_runtime_gateway_policy_bundles WHERE (organization_id,workspace_id,environment_id,device_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}') ORDER BY sequence DESC LIMIT 1;`])).stdout.trim();
@@ -2437,27 +4401,39 @@ INSERT INTO zasp_risk_findings(organization_id,workspace_id,environment_id,id,so
 VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${degradedFinding}','posture','planner_degraded','Planner unavailable proof','critical','open');
 INSERT INTO zasp_risk_finding_evidence(organization_id,workspace_id,environment_id,finding_id,position,evidence_id)
 VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${degradedFinding}',1,'${degradedEvidence}');
-INSERT INTO zasp_security_agent_definitions(organization_id,workspace_id,environment_id,definition_id,activation,version,definition_version,body,plan_catalog_version)
-VALUES('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${degradedDefinition}','supervised',1,1,
-jsonb_build_object('id','${degradedDefinition}','name','Planner unavailable response','trigger_kind','finding','trigger_source','planner_degraded','environment_ids',jsonb_build_array('${primaryEnvironment}'),'autonomy','supervised','max_steps',1,'max_duration_seconds',300,'temporary_policy_seconds',600,'ai_token_budget',1000,'concurrency_limit',1,'allowed_actions',jsonb_build_array('update_finding_response'),'verification_kind','finding_state','definition_version',1,'enabled',true),'security-agent-actions-v1');`]);
+`]);
+	const degradedRequest = await automaticLifecycleRequest(publicOrigin, (await getBrowserSessionCookie(cdp, publicOrigin)).value, primaryScope, publicReceipts);
+	const degradedDefinition = await createAutomaticLifecycleDefinition(degradedRequest, definition("Planner unavailable response", "finding", "planner_degraded", "update_finding_response", "finding_state"));
+	await assertPublicReceipts();
 	const degraded = await command(workerE2EBinary, ["-test.run=^TestProductionCombinedE2ESecurityAgentWorker$", "-test.v", "-test.count=1"], {
 		timeout: 30_000,
-		env: { ...process.env, ZASP_COMBINED_E2E_SECURITY_AGENT_DSN: securityAgentWorkerEnvironment.ZASP_POSTGRES_DSN, ZASP_COMBINED_E2E_SECURITY_AGENT_PLANNER: "unavailable", ZASP_COMBINED_E2E_SECURITY_AGENT_ONCE: "true" },
+		env: { ...auditBrowserEnvironment(process.env), ZASP_COMBINED_E2E_SECURITY_AGENT_DSN: securityAgentWorkerEnvironment.ZASP_POSTGRES_DSN, ZASP_COMBINED_E2E_SECURITY_AGENT_PLANNER: "unavailable", ZASP_COMBINED_E2E_SECURITY_AGENT_ONCE: "true" },
 	});
-	assert.match(degraded.stdout, /composed security agent persisted planner-unavailable without an action/);
+	assert.match(degraded.stdout, /composed security agent retained unknown planner usage without an action or retry/);
 	const degradedState = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',run.state,run.last_error_code,
 		(SELECT count(*) FROM zasp_security_agent_plans plan WHERE (plan.organization_id,plan.workspace_id,plan.environment_id,plan.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id)),
 		(SELECT count(*) FROM zasp_security_agent_steps step WHERE (step.organization_id,step.workspace_id,step.environment_id,step.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id)),
 		(SELECT count(*) FROM zasp_security_agent_approvals approval WHERE (approval.organization_id,approval.workspace_id,approval.environment_id,approval.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id)),
 		(SELECT count(*) FROM zasp_security_agent_effects effect WHERE (effect.organization_id,effect.workspace_id,effect.environment_id,effect.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id)),
 		(SELECT count(*) FROM zasp_security_agent_planner_receipts receipt WHERE (receipt.organization_id,receipt.workspace_id,receipt.environment_id,receipt.run_id,receipt.outcome)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id,'planner_unavailable')),
-		(SELECT count(*) FROM zasp_security_agent_audit audit WHERE (audit.organization_id,audit.workspace_id,audit.environment_id,audit.run_id,audit.event_kind)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id,'planner_failed')))
+		(SELECT count(*) FROM zasp_security_agent_audit audit WHERE (audit.organization_id,audit.workspace_id,audit.environment_id,audit.run_id,audit.event_kind)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id,'planner_failed')),
+		(SELECT count(*) FROM zasp_security_agent_provider_reservations reservation WHERE (reservation.organization_id,reservation.workspace_id,reservation.environment_id,reservation.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id) AND reservation.settled_at IS NULL AND reservation.maximum_tokens=1000 AND reservation.maximum_cost_nano_credits=200),
+		(SELECT budget.stop_reason FROM zasp_security_agent_run_budgets budget WHERE (budget.organization_id,budget.workspace_id,budget.environment_id,budget.run_id)=(run.organization_id,run.workspace_id,run.environment_id,run.run_id)))
 		FROM zasp_security_agent_runs run WHERE (run.organization_id,run.workspace_id,run.environment_id,run.definition_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${degradedDefinition}');`])).stdout.trim();
-	assert.equal(degradedState, "failed|planner_unavailable|0|0|0|0|1|1", "planner outage created executable authority");
+	assert.equal(degradedState, "needs_human|budget_usage_unknown|0|0|0|0|0|0|1|budget_usage_unknown", "unknown planner usage did not retain its reservation without executable authority");
+	const degradedRun = (await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-v", "ON_ERROR_STOP=1", "-c", `SELECT run_id FROM zasp_security_agent_runs WHERE (organization_id,workspace_id,environment_id,definition_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${degradedDefinition}');`])).stdout.trim();
+	assert.match(degradedRun, /^pid_[0-9a-f-]{36}$/);
+	const degradedPublic = await degradedRequest(`/api/v1/security-agent-runs/${degradedRun}`);
+	assert.equal(degradedPublic.status, 200);
+	assert.equal(degradedPublic.body.run.state, "needs_human");
+	assert.equal(degradedPublic.body.budget_stop_reason, "budget_usage_unknown");
+	assert.equal(degradedPublic.body.plan, null);
+	assert.deepEqual(degradedPublic.body.approvals, []);
+	assert.equal(await readAdmittedSnapshots(), admittedSnapshots, "immutable admitted budget snapshots changed across approval, restart, action, or outage");
 	const policyAfter = (await command(path.join(postgresBin, "psql"), [dsn, "-At", "-c", `SELECT concat_ws('|',sequence,encode(envelope_digest,'hex')) FROM zasp_runtime_gateway_policy_bundles WHERE (organization_id,workspace_id,environment_id,device_id)=('${primaryOrganization}','${primaryWorkspace}','${primaryEnvironment}','${gatewayDevice}') ORDER BY sequence DESC LIMIT 1;`])).stdout.trim();
 	assert.equal(policyAfter, policyBefore, "planner outage changed the existing runtime policy authority");
 	console.log("combined E2E: multi-tenant supervised approval, autonomous response, exact-session isolation with unrelated allowance and cleanup, signed temporary policy apply/cleanup, and irreversible connector revocation proven through real production workers");
-	console.log("combined E2E: OpenRouter outage durably recorded planner unavailable, created zero action authority, and preserved the enforced runtime policy");
+	console.log("combined E2E: controlled OpenRouter503 retained unknown usage without retry or action authority and preserved the enforced runtime policy");
 }
 
 async function exerciseHomeDailyOperations(cdp, publicOrigin, dsn, approvalID, runID, sensorID) {
@@ -3012,7 +4988,7 @@ SELECT zasp_attack_lab_register_credential_binding('${organizationID}','${worksp
 		cwd: platform,
 		timeout: 60_000,
 		env: {
-			...process.env,
+			...auditBrowserEnvironment(process.env),
 			ZASP_COMBINED_E2E_ATTACK_LAB_CONTROLLER_DSN: `postgres://zasp_e2e_attack_lab_controller@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 			ZASP_COMBINED_E2E_ATTACK_LAB_OUTBOX_DSN: `postgres://zasp_e2e_attack_lab_outbox@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 			ZASP_COMBINED_E2E_ATTACK_LAB_PROXY_DSN: `postgres://zasp_e2e_attack_lab_proxy@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
@@ -3051,7 +5027,7 @@ SELECT zasp_attack_lab_register_credential_binding('${organizationID}','${worksp
 		cwd: platform,
 		timeout: 60_000,
 		env: {
-			...process.env,
+			...auditBrowserEnvironment(process.env),
 			ZASP_COMBINED_E2E_ATTACK_LAB_CONTROLLER_DSN: `postgres://zasp_e2e_attack_lab_controller@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 			ZASP_COMBINED_E2E_ATTACK_LAB_OUTBOX_DSN: `postgres://zasp_e2e_attack_lab_outbox@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 			ZASP_COMBINED_E2E_ATTACK_LAB_RUN_ID: rerunID,
@@ -3115,6 +5091,174 @@ async function exerciseRedTeamRuntime(cdp, dsn) {
   await waitForBrowserAction(cdp, `document.querySelector('[aria-label="Approve exact safety decision"]')?.checked === false && Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === 'Run Attack Lab')?.disabled === true`);
   assert.equal(await readAttackLabAuthority(), authorityBefore, "outcome navigation granted Attack Lab execution");
   console.log("combined E2E: real Red Team outbox/SQS, pinned engine, lease-bound Go adapter, KMS evidence and reloaded browser result proven; customer invocation fixture only");
+}
+
+async function exerciseAuditBrowserAcceptance(cdp, dsn, publicOrigin) {
+  const principalID = "pid_10000004-0000-4000-8000-000000000004";
+  const organizationID = "pid_10000001-0000-4000-8000-000000000001";
+  const workspaceID = "pid_10000002-0000-4000-8000-000000000002";
+  const environmentID = "pid_10000003-0000-4000-8000-000000000003";
+  const principalSession = createAuditBrowserPrincipalSession(cdp, publicOrigin);
+  const sql = async statement => {
+    if (proxyFailure) throw proxyFailure;
+    return (await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-v", "ON_ERROR_STOP=1", "-c", statement], { timeout: 10_000 })).stdout.trim();
+  };
+  const expectedEvents = [];
+  for (const response of auditMutationWitnesses.read()) {
+    assert.match(response.id, /^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    const source = JSON.parse(await sql(`SELECT COALESCE(jsonb_agg(value),'[]'::jsonb) FROM (
+      SELECT jsonb_build_object('id',s.id,'organization_id',s.organization_id,'workspace_id',s.workspace_id,'environment_id',s.environment_id,'actor_id',s.actor_id,'action',s.action,'target_id',s.target_id,'outcome',s.outcome,'source_kind',s.source_kind,'source_valid',s.source_valid,'metadata',s.metadata,
+        'occurred_at',to_char(s.occurred_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+        'before',to_char((s.occurred_at-interval '1 microsecond') AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+        'after',to_char((s.occurred_at+interval '1 microsecond') AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+        'receipt_id',CASE WHEN s.source_kind='workflow_policy' THEN (SELECT receipt_id FROM zasp_workflow_receipts r WHERE r.audit_id=s.id AND r.organization_id=s.organization_id AND r.principal_id=s.actor_id AND r.resource_id=s.target_id) ELSE s.metadata->>'receipt_id' END,
+        'correlation_id',s.metadata->>'correlation_id',
+        'committed',CASE WHEN s.action LIKE 'identity_provider.%' THEN EXISTS(SELECT 1 FROM zasp_identity_provider_mutations m WHERE m.audit_id=s.id AND m.organization_id=s.organization_id AND m.principal_id=s.actor_id AND m.state='completed' AND 'identity_provider.'||m.operation=s.action AND m.provider_reference=s.target_id)
+          WHEN s.source_kind='workflow_policy' THEN EXISTS(SELECT 1 FROM zasp_workflow_receipts r WHERE r.audit_id=s.id AND r.organization_id=s.organization_id AND r.workspace_id=s.workspace_id AND r.environment_id=s.environment_id AND r.principal_id=s.actor_id AND r.operation='createPolicy' AND r.resource_id='policy-production' AND r.correlation_id=s.metadata->>'correlation_id')
+          WHEN s.source_kind='red_team_mutation' THEN EXISTS(SELECT 1 FROM zasp_red_team_request_receipts r WHERE r.receipt_id=s.metadata->>'receipt_id' AND r.organization_id=s.organization_id AND r.resource_id=s.target_id)
+          ELSE s.action='data_controls.update' END) AS value
+      FROM zasp_audit_export_public_source_v1 s WHERE s.id='${response.id}' AND octet_length(s.metadata::text)<=4096 LIMIT 2
+    ) actual`));
+    assert.equal(source.length, 1, "actual response ID did not join exactly one bounded committed source row");
+    expectedEvents.push({ family: response.family, response, source: source[0] });
+  }
+  auditExpectedEvents = expectedEvents;
+  const pagingID = n => { assert.ok(Number.isInteger(n) && n >= 1 && n <= 2101); return `pid_7b100001-0000-4000-8000-${String(n).padStart(12, "0")}`; };
+  const crossScopeID = "pid_7b200001-0000-4000-8000-000000000001";
+  const foreignID = "pid_7b300001-0000-4000-8000-000000000001";
+  const ownedActor = "pid_7b400001-0000-4000-8000-000000000001";
+  let originalMembership;
+  const waitFor = async predicate => {
+    const deadline = Date.now() + 10_000;
+    do { if (proxyFailure) throw proxyFailure; const value = await predicate(); if (value) return value; await new Promise(resolve => setTimeout(resolve, 25)); } while (Date.now() < deadline);
+    throw new Error("audit browser action exceeded ten-second deadline");
+  };
+  const adapter = {
+    preparePrincipalReplacement: principalSession.prepare,
+    authenticatedPrincipal: principalSession.read,
+    replacePrincipal: principalSession.replace,
+    restorePrincipal: principalSession.restore,
+    navigate: url => navigateBrowser(cdp, url),
+    fillLabel: (label, value) => fillBrowserLabel(cdp, label, value),
+    selectOption: (label, value) => selectBrowserOption(cdp, label, value),
+    clickText: value => clickBrowserText(cdp, value),
+    waitForText: expression => waitForBrowserText(cdp, expression),
+    waitForRead: sequence => waitFor(() => { const record = auditRequestTrace.read().at(-1); return record?.sequence > sequence ? record : undefined; }),
+    waitForRows: ids => waitForBrowserAction(cdp, `!document.body.innerText.includes('Loading matching audit events') && JSON.stringify(Array.from(document.querySelectorAll('[id^="audit-event-pid_"]')).map(row=>row.id.slice(12)))===${JSON.stringify(JSON.stringify(ids))}`),
+    snapshot: async () => {
+      const result = await cdp.send("Runtime.evaluate", { expression: `({rows:Array.from(document.querySelectorAll('[id^="audit-event-pid_"]')).map(row=>({id:row.id.slice(12),text:row.innerText})),applied:document.querySelector('[aria-label="Applied audit filters"]')?.textContent??'',text:document.body.innerText,interactiveExport:Array.from(document.querySelectorAll('button,a')).some(item=>item.textContent.trim()==='Export'&&!item.disabled)})`, returnByValue: true });
+      assert.ok(result.result?.value, "audit DOM snapshot unavailable");
+      const snapshot = result.result.value;
+      assert.ok(snapshot.rows.length <= 50 && JSON.stringify(snapshot).length <= 100_000, "audit DOM projection exceeded bound");
+      return snapshot;
+    },
+  };
+  const fixtures = {
+    pagingID,
+    replacementPrincipalID: "pid_10000007-0000-4000-8000-000000000007",
+    seedPagingRows: async () => {
+      assert.equal(await sql(`SELECT count(*) FROM zasp_admin_audit WHERE id LIKE 'pid_7b100001-%' OR id IN('${crossScopeID}','${foreignID}')`), "0", "owned paging IDs were already occupied");
+      await sql(`INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata,occurred_at)
+        SELECT '${organizationID}','${workspaceID}','${environmentID}','pid_7b100001-0000-4000-8000-'||lpad(n::text,12,'0'),'${ownedActor}','audit.browser.paging','owned-paging-fixture','succeeded','{}'::jsonb,'2026-09-12T23:59:59.123456Z'::timestamptz FROM generate_series(1,2101) n;
+        INSERT INTO zasp_admin_audit(organization_id,workspace_id,environment_id,id,actor_id,action,target_id,outcome,metadata,occurred_at) VALUES
+        ('${organizationID}','pid_10000022-0000-4000-8000-000000000022','pid_10000023-0000-4000-8000-000000000023','${crossScopeID}','${ownedActor}','audit.browser.crossscope','owned-crossscope-fixture','succeeded','{}','2026-09-12T23:59:59.123456Z'),
+        ('pid_7b500001-0000-4000-8000-000000000001','${workspaceID}','${environmentID}','${foreignID}','${ownedActor}','audit.browser.foreign','owned-foreign-fixture','succeeded','{}','2026-09-12T23:59:59.123456Z');`);
+      const sha256 = await sql(`SELECT encode(digest(string_agg(id||E'\n','' ORDER BY occurred_at DESC,id COLLATE "C" DESC),'sha256'),'hex') FROM zasp_admin_audit WHERE organization_id='${organizationID}' AND action='audit.browser.paging'`);
+      return { count: 2101, idPrefix: "pid_7b100001-", sha256, crossScopeID, foreignID };
+    },
+    changeOwnedPagingRow: async () => { await sql(`UPDATE zasp_admin_audit SET target_id='owned-refresh-change' WHERE organization_id='${organizationID}' AND id='${pagingID(2101)}' AND actor_id='${ownedActor}' AND action='audit.browser.paging'`); },
+    failNext: () => { assert.equal(auditFailNext, false); auditFailNext = true; },
+    delayNext: () => { assert.equal(auditDelayNext, false); assert.equal(releaseAuditDelayed, undefined); auditDelayNext = true; },
+    waitDelayed: () => waitFor(() => releaseAuditDelayed),
+    releaseDelayed: async () => { assert.equal(typeof releaseAuditDelayed, "function"); releaseAuditDelayed(); releaseAuditDelayed = undefined; await cdp.send("Runtime.evaluate", { expression: "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))", awaitPromise: true }); },
+    revokeAuditAccess: async () => {
+      originalMembership = JSON.parse(await sql(`SELECT jsonb_build_object('role',role,'version',version,'groups',(SELECT count(*) FROM zasp_identity_member_groups WHERE principal_id='${principalID}' AND organization_id='${organizationID}')) FROM zasp_identity_memberships WHERE principal_id='${principalID}' AND organization_id='${organizationID}' AND active`));
+      assert.equal(originalMembership.role, "security_admin"); assert.equal(originalMembership.groups, 0);
+      await sql(`UPDATE zasp_identity_memberships SET role='security_engineer',version=version+1 WHERE principal_id='${principalID}' AND organization_id='${organizationID}' AND active`);
+    },
+    restoreAuditAccess: async () => {
+      if (!originalMembership) return;
+      assert.ok(Number.isSafeInteger(originalMembership.version) && originalMembership.version > 0);
+      await sql(`UPDATE zasp_identity_memberships SET role='security_admin',version=${originalMembership.version} WHERE principal_id='${principalID}' AND organization_id='${organizationID}' AND active`);
+    },
+  };
+  try {
+    const result = await runAuditLogBrowserProof({ expectedEvents, principalID, publicOrigin, browser: adapter, readAuditRequests: () => auditRequestTrace.read(), fixtures });
+    console.log(`combined E2E: audit mutation/browser proof ${JSON.stringify(result)}; controlled IdP responses and seeded test definition only, full export saving and live providers NOT RUN`);
+  } finally {
+    try {
+      if (releaseAuditDelayed) { releaseAuditDelayed(); releaseAuditDelayed = undefined; }
+      auditFailNext = false; auditDelayNext = false;
+      await fixtures.restoreAuditAccess();
+      await sql(`DELETE FROM zasp_admin_audit WHERE actor_id='${ownedActor}' AND (id LIKE 'pid_7b100001-%' OR id IN('${crossScopeID}','${foreignID}'))`);
+    } finally {
+      await principalSession.restore();
+    }
+  }
+}
+
+function createAuditBrowserPrincipalSession(cdp, publicOrigin) {
+  const adminID = "pid_10000004-0000-4000-8000-000000000004";
+  const readerID = "pid_10000007-0000-4000-8000-000000000007";
+  let replacementStarted = false;
+  const read = async () => {
+    // Project inside the browser. Session cookies, CSRF and provider material
+    // never enter this diagnostic result or its assertion messages.
+    const result = await cdp.send("Runtime.evaluate", {
+      expression: `(async()=>{const response=await fetch('/api/v1/session/bootstrap',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(response.status!==200)return {status:response.status};const value=await response.json();return {status:200,id:value.principal?.id,role:value.principal?.role,auditRead:value.capabilities?.includes('audit.read')};})()`,
+      awaitPromise: true, returnByValue: true,
+    });
+    const identity = result.result?.value;
+    assert.equal(identity?.status, 200, "audit principal bootstrap was not authenticated");
+    assert.ok(identity.id === adminID || identity.id === readerID, "audit principal bootstrap returned an unowned identity");
+    return identity;
+  };
+  const login = async kind => {
+    assert.ok(kind === "admin" || kind === "group");
+    nextIdentityLogin = kind;
+    try {
+      await navigateBrowser(cdp, `${publicOrigin}/sign-in?return_to=%2F`);
+      await waitForBrowserText(cdp, /Sign in to Zasp[\s\S]*Continue through the configured identity provider/);
+      await clickBrowserText(cdp, "Continue to sign in");
+      await waitForBrowserText(cdp, /Security overview/);
+      assert.equal((await read()).id, kind === "group" ? readerID : adminID, "public login did not establish the requested owned principal");
+    } finally {
+      nextIdentityLogin = "admin";
+    }
+  };
+  return {
+    read,
+    prepare: async () => {
+      assert.equal((await read()).id, adminID);
+      await navigateBrowser(cdp, `${publicOrigin}/administration/identity-access`);
+      const text = await waitForBrowserText(cdp, /member-group-e2e/);
+      if (/Fresh authentication expired/.test(text)) {
+        await clickBrowserText(cdp, "Reauthenticate");
+        await waitForBrowserText(cdp, /Continue through the configured identity provider/);
+        await clickBrowserText(cdp, "Continue to sign in");
+        await waitForBrowserText(cdp, /member-group-e2e/);
+      }
+      // The later group-login proof upserts this same mapping. Keep its exact
+      // role/scope and zero direct-scope requirement unchanged.
+      await fillBrowserLabel(cdp, "Stytch SCIM group ID", identityGroupReference);
+      await selectBrowserOption(cdp, "Mapped role", "read only viewer");
+      await fillBrowserLabel(cdp, "Workspace ID", "pid_10000002-0000-4000-8000-000000000002");
+      await fillBrowserLabel(cdp, "Environment ID", "pid_10000003-0000-4000-8000-000000000003");
+      await clickBrowserText(cdp, "Save group mapping");
+      await waitForBrowserText(cdp, /Group mapping saved; affected sessions revoked/);
+    },
+    replace: async () => { replacementStarted = true; await login("group"); },
+    restore: async () => {
+      if (!replacementStarted) return;
+      const identity = await read();
+      if (identity.id === readerID) {
+        await clickBrowserText(cdp, "Sign out");
+        await waitForBrowserText(cdp, /Sign in to Zasp/);
+      }
+      await login("admin");
+      replacementStarted = false;
+    },
+  };
 }
 
 async function exerciseRedTeamRetainedRun(cdp, dsn, publicOrigin) {
@@ -3197,7 +5341,7 @@ async function exerciseMeasuredAPILoad(agentsecctl, publicOrigin, certificate, c
 // queue rows exercise real migration triggers and the launched API's reconciler.
 // Their availability is in the future, so none can dispatch to a provider.
 async function exerciseConcurrentRetirementLoad(dsn, healthPort, agentsecctl, publicOrigin, certificate, credentialFile) {
-  assert.ok(postgres?.child && postgres.child.exitCode === null, "owned PostgreSQL is not running");
+  await postgres.assertRunning();
   const target = new URL(dsn);
   assert.equal(target.hostname, "127.0.0.1");
   assert.equal(target.username, "zasp_e2e");
@@ -3328,7 +5472,7 @@ async function runProductionRecoveryLifecycle(cdp, agentsecctl, workerE2EBinary,
 	console.log("combined E2E: committed recovery response loss replayed one backup, outbox, audit, and receipt");
 
 	const workerEnvironment = {
-		...process.env,
+		...auditBrowserEnvironment(process.env),
 		ZASP_COMBINED_E2E_RECOVERY_PHASE: "backup",
 		ZASP_COMBINED_E2E_RECOVERY_WORKER_DSN: `postgres://zasp_e2e_recovery@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 		ZASP_COMBINED_E2E_RECOVERY_OUTBOX_DSN: `postgres://zasp_e2e_recovery_outbox@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
@@ -3394,7 +5538,7 @@ async function runConnectorRevocationProviderWorker(workerE2EBinary, postgresPor
 		cwd: platform,
 		timeout: 60_000,
 		env: {
-			...process.env,
+			...auditBrowserEnvironment(process.env),
 			ZASP_COMBINED_E2E_CONNECTOR_DSN: `postgres://zasp_e2e_api@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 			ZASP_COMBINED_E2E_CONNECTOR_INTEGRATION_ID: integrationID,
 			ZASP_COMBINED_E2E_CONNECTOR_REFERENCE: reference,
@@ -3406,15 +5550,16 @@ async function runConnectorRevocationProviderWorker(workerE2EBinary, postgresPor
 async function runTemporaryPolicyActionWorker(workerE2EBinary, postgresPort, actionPrivateKey, phase, action = { key: "create_temporary_policy", afterSequence: phase === "cleanup" ? 1 : 0 }) {
 	const result = await command(workerE2EBinary, ["-test.run=^TestProductionCombinedE2ETemporaryPolicyActionWorker$", "-test.v", "-test.count=1"], {
 		cwd: platform,
-		timeout: 60_000,
+		timeout: 120_000,
 		env: {
-			...process.env,
+			...auditBrowserEnvironment(process.env),
 			ZASP_COMBINED_E2E_ACTION_DSN: `postgres://zasp_e2e_security_agent_action@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 			ZASP_COMBINED_E2E_POLICY_DEPLOYMENT_DSN: `postgres://zasp_e2e_policy_deployment@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 			ZASP_COMBINED_E2E_GATEWAY_DSN: `postgres://zasp_e2e_gateway_control@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 			ZASP_COMBINED_E2E_ACTION_PRIVATE_KEY: actionPrivateKey,
 			ZASP_COMBINED_E2E_ACTION_PHASE: phase,
 			ZASP_COMBINED_E2E_ACTION_KEY: action.key,
+			...(action.runID ? { ZASP_COMBINED_E2E_ACTION_RUN_ID: action.runID } : {}),
 			ZASP_COMBINED_E2E_AFTER_SEQUENCE: String(action.afterSequence),
 			...(action.sessionID ? { ZASP_COMBINED_E2E_ACTION_SESSION_ID: action.sessionID } : {}),
 			...(action.otherSessionID ? { ZASP_COMBINED_E2E_ACTION_OTHER_SESSION_ID: action.otherSessionID } : {}),
@@ -3430,7 +5575,7 @@ async function runRuntimeGatewayProxyE2E(gatewayE2EBinary, postgresPort, policyP
 		cwd: path.join(root, "services", "runtime-gateway"),
 		timeout: 60_000,
 		env: {
-			...process.env,
+			...auditBrowserEnvironment(process.env),
 			ZASP_COMBINED_E2E_GATEWAY_DSN: `postgres://zasp_e2e_gateway_control@127.0.0.1:${postgresPort}/postgres?sslmode=disable`,
 			ZASP_COMBINED_E2E_GATEWAY_POLICY_PRIVATE_KEY: policyPrivateKey,
 			ZASP_COMBINED_E2E_GATEWAY_PHASE: phase,
@@ -3625,7 +5770,7 @@ async function startIdentityServer(port, publicOrigin) {
       assert.equal(callback.pathname, "/auth/callback");
       assert.equal(target.searchParams.get("signup_redirect_url"), callback.toString());
       assert.ok((callback.searchParams.get("state") ?? "").length >= 32);
-      callback.searchParams.set("token", pendingIdentityLogin === "group" ? "group-only-oauth-token" : "local-oauth-token");
+      callback.searchParams.set("token", securityAgentExportMode ? exportBrowserIdentity(pendingIdentityLogin).token : pendingIdentityLogin === "group" ? "group-only-oauth-token" : "local-oauth-token");
       response.writeHead(302, { location: callback.toString() });
       response.end();
       return;
@@ -3633,14 +5778,15 @@ async function startIdentityServer(port, publicOrigin) {
     if (request.method === "POST" && target.pathname === "/v1/b2b/oauth/authenticate") {
       assert.equal(request.headers.authorization, `Basic ${Buffer.from("project-test-local:secret-test-local").toString("base64")}`);
       const groupLogin = pendingIdentityLogin === "group";
-      assert.deepEqual(JSON.parse(await readBody(request)), { oauth_token: groupLogin ? "group-only-oauth-token" : "local-oauth-token", session_duration_minutes: 60 });
+      const exportIdentity = securityAgentExportMode ? exportBrowserIdentity(pendingIdentityLogin) : null;
+      assert.deepEqual(JSON.parse(await readBody(request)), { oauth_token: exportIdentity?.token ?? (groupLogin ? "group-only-oauth-token" : "local-oauth-token"), session_duration_minutes: 60 });
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({
         status_code: 200,
         request_id: groupLogin ? "request-id-group-oauth" : "request-id-test-oauth",
-        member_id: groupLogin ? "member-group-e2e" : "member-test-local",
-        organization_id: "organization-test-local",
-        session_jwt: groupLogin ? "group.header.payload" : "header.payload.signature",
+        member_id: exportIdentity?.member ?? (groupLogin ? "member-group-e2e" : "member-test-local"),
+        organization_id: exportIdentity?.organization ?? "organization-test-local",
+        session_jwt: exportIdentity?.jwt ?? (groupLogin ? "group.header.payload" : "header.payload.signature"),
       }));
       return;
     }
@@ -3648,25 +5794,26 @@ async function startIdentityServer(port, publicOrigin) {
       assert.equal(request.headers.authorization, `Basic ${Buffer.from("project-test-local:secret-test-local").toString("base64")}`);
       const input = JSON.parse(await readBody(request));
       const groupLogin = input.session_jwt === "group.header.payload";
-      assert.ok(groupLogin || input.session_jwt === "header.payload.signature", "unexpected Stytch session JWT");
+      const exportIdentity = securityAgentExportMode ? ["author","approver","foreign"].map(exportBrowserIdentity).find(value=>value.jwt===input.session_jwt) : null;
+      assert.ok(securityAgentExportMode ? exportIdentity : groupLogin || input.session_jwt === "header.payload.signature", "unexpected Stytch session JWT");
       const now = new Date();
-      const memberReference = groupLogin ? "member-group-e2e" : "member-test-local";
+      const memberReference = exportIdentity?.member ?? (groupLogin ? "member-group-e2e" : "member-test-local");
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({
         status_code: 200,
         request_id: groupLogin ? "request-id-group-session" : "request-id-test-session",
         session_jwt: input.session_jwt,
         member_session: {
-          member_session_id: groupLogin ? "member-session-group-e2e" : "member-session-test-local",
+          member_session_id: exportIdentity ? `member-session-export-${exportIdentity.name}` : groupLogin ? "member-session-group-e2e" : "member-session-test-local",
           member_id: memberReference,
-          organization_id: "organization-test-local",
+          organization_id: exportIdentity?.organization ?? "organization-test-local",
           started_at: now.toISOString(),
           last_accessed_at: now.toISOString(),
           expires_at: new Date(now.getTime() + 3_600_000).toISOString(),
         },
         member: {
           member_id: memberReference,
-          organization_id: "organization-test-local",
+          organization_id: exportIdentity?.organization ?? "organization-test-local",
           scim_registration: { scim_attributes: { groups: groupLogin ? [{ value: identityGroupReference, display: "Production readers" }] : [] } },
         },
       }));
@@ -3745,6 +5892,11 @@ async function startPolicyHistoryServer(port, runtimeSearchEndpoint) {
       || target.search === "" && request.method === "GET" && ["/zasp-runtime-sessions-v2/_mapping", "/zasp-runtime-sessions-v2/_doc/_zasp_session_schema_v2"].includes(target.pathname)
       || preciseSearchQuery && request.method === "POST" && target.pathname === "/zasp-runtime-sessions-v2/_search";
     if (sessionRead) {
+      if (runtimeSearchEndpoint === undefined) {
+        response.writeHead(503, { "content-type": "application/json" });
+        response.end('{"error":"runtime search not configured in selected fixture"}');
+        return;
+      }
       if (failNextRuntimeSessionSearch && request.method === "POST") {
         failNextRuntimeSessionSearch = false;
         response.writeHead(503, { "content-type": "application/json" });
@@ -3790,12 +5942,13 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     // The production ingress applies this policy to every route, including middleware rejections.
     response.setHeader("Referrer-Policy", "no-referrer");
     const target = new URL(request.url ?? "/", "https://combined.invalid");
+    const auditStartedAt = performance.now();
     if (request.method === "GET" && target.pathname === "/connector-oauth-e2e-provider") {
       response.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
       response.end("<!doctype html><html><body><h1>Provider authorization harness</h1></body></html>");
       return;
     }
-    if (target.pathname.startsWith("/api/")) productAPIRequests.push({ method: request.method, path: target.pathname, host: String(request.headers.host ?? "") });
+    if (target.pathname.startsWith("/api/") && !(auditBrowserMode && target.pathname === "/api/v1/audit-events")) productAPIRequests.push({ method: request.method, path: target.pathname, host: String(request.headers.host ?? "") });
     const browserTab = String(request.headers["x-zasp-e2e-tab"] ?? "");
     const receiptAcknowledgement = request.method === "POST" && /^\/api\/v1\/workflow-mutation-receipts\/pid_[0-9a-f-]+\/acknowledge$/.test(target.pathname);
     const tokenCreate = request.method === "POST" && target.pathname === "/api/v1/admin/api-tokens";
@@ -3807,7 +5960,9 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     const integrationWebhookTest = request.method === "POST" && /^\/api\/v1\/integrations\/pid_[0-9a-f-]+\/test-delivery$/.test(target.pathname)
       ? { body: "", idempotencyKey: String(request.headers["idempotency-key"] ?? ""), ifMatch: String(request.headers["if-match"] ?? ""), csrf: String(request.headers["x-csrf-token"] ?? ""), status: 0, auditID: "" } : null;
     if (integrationWebhookTest) request.on("data", (chunk) => { if (integrationWebhookTest.body.length < 1024) integrationWebhookTest.body += chunk; });
-    const redTeamRunRequest = request.method === "POST" && target.pathname === `/api/v1/tests/${attackLabDefinitionID}/runs`
+    const auditExportCreate = auditExportBrowserMode && request.method==="POST" && target.pathname==="/api/v1/audit-exports" ? {body:"",keyHash:createHash("sha256").update(String(request.headers["idempotency-key"]??"")).digest("hex"),status:0} : null;
+    if(auditExportCreate) request.on("data",chunk=>{auditExportCreate.body+=chunk;assert.ok(Buffer.byteLength(auditExportCreate.body)<=2,"export POST must be bounded empty object");});
+    const redTeamRunRequest = request.method === "POST" && (target.pathname === `/api/v1/tests/${attackLabDefinitionID}/runs` || auditExportBrowserMode && /^\/api\/v1\/tests\/pid_[0-9a-f-]+\/runs$/.test(target.pathname))
       ? { body: "", idempotencyKey: String(request.headers["idempotency-key"] ?? ""), ifMatch: String(request.headers["if-match"] ?? ""), expectedScope: String(request.headers["x-zasp-expected-scope"] ?? ""), status: 0 } : null;
     if (redTeamRunRequest) request.on("data", (chunk) => { if (redTeamRunRequest.body.length < 4096) redTeamRunRequest.body += chunk; });
 		const recoveryBackupRequest = request.method === "POST" && target.pathname === "/api/v1/recovery/backups";
@@ -3894,6 +6049,42 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
     };
     delete upstreamHeaders["x-zasp-e2e-tab"];
 		const upstream = http.request({ hostname: "127.0.0.1", port: upstreamPort, method: request.method, path: request.url, headers: upstreamHeaders }, (upstreamResponse) => {
+      if (securityAgentExportMode && /^\/api\/v1\/security-agent/.test(target.pathname)) {
+        assert.ok(exportBrowserTrace.length<1000,"export browser trace bound exceeded");
+        const headerID=name=>{const value=String(upstreamResponse.headers[name]??"");return /^pid_[0-9a-f-]{36}$/.test(value)?value:null;};
+        const version=String(upstreamResponse.headers.etag??"");
+        exportBrowserTrace.push({method:request.method,path:target.pathname,status:upstreamResponse.statusCode,expectedScope:String(request.headers["x-zasp-expected-scope"]??""),origin:String(request.headers.origin??""),csrfPresent:typeof request.headers["x-csrf-token"]==="string",freshConfirmed:request.headers["x-zasp-fresh-auth"]==="confirmed",idempotencyHash:request.headers["idempotency-key"]?createHash("sha256").update(String(request.headers["idempotency-key"])).digest("hex"):null,receiptID:headerID("x-mutation-receipt-id"),auditID:headerID("x-audit-id"),correlationID:headerID("x-correlation-id"),etag:/^"[0-9]+"$/.test(version)?version:null});
+      }
+      if (complianceBrowserMode && target.pathname.startsWith("/api/v1/")) {
+        const expectedScope=String(request.headers["x-zasp-expected-scope"]??"");
+        const framework=target.searchParams.get("framework");
+        const entry={method:request.method,path:target.pathname,status:upstreamResponse.statusCode,cursor:target.searchParams.has("cursor"),cursorLength:(target.searchParams.get("cursor")??"").length,framework:["soc2_security","hipaa"].includes(framework)?framework:null,scope:/^pid_[a-f0-9-]+\/pid_[a-f0-9-]+\/pid_[a-f0-9-]+$/.test(expectedScope)?expectedScope:null,code:null};
+        complianceResponseTrace.push(entry);
+        // Only product error codes leave memory; never retain bodies, headers or tokens.
+        if (entry.status >= 400) {
+          let errorJSON="";
+          upstreamResponse.on("data",chunk=>{if(errorJSON.length<8192)errorJSON+=chunk.toString();});
+          upstreamResponse.once("end",()=>{try{const code=JSON.parse(errorJSON).code;if(typeof code==="string"&&/^[a-z_]+$/.test(code))entry.code=code;}catch{ /* Non-product errors retain status only, never raw content. */ }});
+        }
+      }
+      if(auditExportCreate){auditExportCreate.status=upstreamResponse.statusCode;assert.ok(auditExportCreateRequests.length<4);auditExportCreateRequests.push(auditExportCreate);if(loseAuditExportCreateResponse&&upstreamResponse.statusCode===201){loseAuditExportCreateResponse=false;truncateAuditExportCreateResponse(upstreamResponse,response);return;}}
+      if(auditExportBrowserMode&&request.method==="GET"&&/^\/api\/v1\/audit-exports\/pid_[0-9a-f-]+$/.test(target.pathname)){
+        let bytes=0;upstreamResponse.on("data",chunk=>{bytes+=chunk.length;});upstreamResponse.once("end",()=>{auditExportReadTotals.responses++;auditExportReadTotals.cursorResponses+=Number(target.searchParams.has("cursor"));auditExportReadTotals.bytes+=bytes;auditExportReadTotals.maximumEnvelopeBytes=Math.max(auditExportReadTotals.maximumEnvelopeBytes,bytes);});upstreamResponse.once("aborted",()=>auditExportReadTotals.incomplete++);
+      }
+      if (auditBrowserMode && !request.headers.authorization) {
+        const witnessTarget = target.pathname === "/api/v1/policies" ? "policy-production"
+          : redTeamRunRequest ? JSON.parse(redTeamRunRequest.body).run_id
+          : /^\/api\/v1\/test-runs\/pid_[0-9a-f-]+\/cancel$/.test(target.pathname) ? target.pathname.split("/").at(-2) : undefined;
+        void auditMutationWitnesses.observe({ method: request.method, path: target.pathname, scope: String(request.headers["x-zasp-expected-scope"] ?? ""), target: witnessTarget }, upstreamResponse).catch(error => { proxyFailure = error; });
+      }
+      if (auditBrowserMode && request.method === "GET" && target.pathname === "/api/v1/audit-events") {
+        const fail = auditFailNext && target.searchParams.has("cursor");
+        const delay = auditDelayNext && target.searchParams.has("cursor");
+        if (fail) auditFailNext = false;
+        if (delay) auditDelayNext = false;
+        void forwardAuditPage(upstreamResponse, response, target.search, auditRequestTrace, { fail, delay, startedAt: auditStartedAt, verifyWitness: page => assertAuditPublicWitnessProjection(page, auditExpectedEvents), onDelayed: release => { assert.equal(releaseAuditDelayed, undefined); releaseAuditDelayed = release; } }).catch(error => { proxyFailure = error; response.destroy(); });
+        return;
+      }
       if (redTeamRunRequest) {
         redTeamRunRequest.status = upstreamResponse.statusCode ?? 0;
         redTeamRunRequests.push(redTeamRunRequest);
@@ -4020,7 +6211,7 @@ async function startProxy(port, apiPort, webPort, keyPath, certificatePath, dsn)
         });
         return;
       }
-      if (request.method === "POST" && request.url === "/api/v1/policies" && !request.headers.authorization && lostPolicyResponseKeys.length < 2) {
+      if (!auditExportBrowserMode && request.method === "POST" && request.url === "/api/v1/policies" && !request.headers.authorization && lostPolicyResponseKeys.length < 2) {
         lostPolicyResponseKeys.push(String(request.headers["idempotency-key"] ?? ""));
         upstreamResponse.resume();
         upstreamResponse.once("end", () => {
@@ -4106,8 +6297,11 @@ function releaseRiskDetailResponse(kind, override = {}) {
   captured.response.end(override.body ?? captured.body);
 }
 
-async function startBrowser(profile, port, target) {
-  const child = startChild(chrome, ["--headless=new", "--no-first-run", "--disable-background-networking", "--disable-component-update", "--ignore-certificate-errors", `--host-resolver-rules=MAP ${productHostname} 127.0.0.1`, `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, target]);
+async function startBrowser(profile, port, target, headful = false) {
+  const args = [...(headful ? [] : ["--headless=new"]), "--no-first-run", "--disable-background-networking", "--disable-component-update", "--ignore-certificate-errors", `--host-resolver-rules=MAP ${productHostname} 127.0.0.1`, `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, target];
+  let child;
+  if (headful) { const owned=spawnOwnedCommand(chrome,args,{cwd:root,env:auditBrowserEnvironment(process.env)}); child=owned.child; child.output=()=>"owned headful browser"; children.push(child);ownedCommands.set(child,owned); }
+  else child=startChild(chrome,args);
   let page;
   for (let attempt = 0; attempt < 200; attempt += 1) {
     try {
@@ -4136,7 +6330,7 @@ async function startBrowser(profile, port, target) {
   cdp.on("Log.entryAdded", (parameters) => {
     if (parameters.entry?.level === "error" && parameters.entry?.source === "javascript") browserConsoleErrors.push({ kind: "log", text: parameters.entry.text });
   });
-  return { child, cdp };
+  return { child, cdp, processInfo:()=>browserCDP.send("SystemInfo.getProcessInfo"), identity: { pid:child.pid, processGroup:headful?child.pid:null, profile, targetID:page.id, url:page.url, version:await browserCDP.send("Browser.getVersion") } };
 }
 
 async function startBrowserTab(port, target, sessionCookie) {
@@ -4617,7 +6811,7 @@ async function dispatchBrowserKey(cdp, key, options = {}) {
 }
 
 async function clickBrowserText(cdp, text) {
-  await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,a')].find((candidate) => candidate.textContent?.trim() === value); if (!element) return false; element.focus(); element.click(); return true; })()`);
+  await waitForBrowserAction(cdp, `(() => { const value = ${JSON.stringify(text)}; const element = [...document.querySelectorAll('button,a')].find((candidate) => candidate.textContent?.trim() === value); if (!element || element.disabled) return false; element.focus(); element.click(); return true; })()`);
 }
 
 async function clickBrowserTextContains(cdp, text) {
@@ -4788,6 +6982,7 @@ async function attachToBrowserTarget(browserCDP, initialTargetId, browserContext
   let attached = await browserCDP.send("Target.attachToTarget", { targetId, flatten: true });
   assert.ok(attached.sessionId, "Chrome target session was not created");
   return {
+    targetID:()=>targetId,
     send(method, params = {}) { return browserCDP.send(method, params, attached.sessionId); },
     on(method, listener) { return browserCDP.on((message) => { if (message.method === method && message.sessionId === attached.sessionId) listener(message.params ?? {}); }); },
     async replaceTarget(url) {
@@ -4855,7 +7050,7 @@ async function connectCDP(target) {
 }
 
 function startChild(executable, args, options = {}) {
-  const child = spawn(executable, args, { cwd: options.cwd ?? root, env: options.env ?? process.env, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(executable, args, { cwd: options.cwd ?? root, env: options.env ?? auditBrowserEnvironment(process.env), stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   child.stdout.on("data", (value) => { output += value; });
   child.stderr.on("data", (value) => { output += value; });
@@ -4876,7 +7071,8 @@ async function stopChild(child) {
 }
 
 async function command(executable, args, options = {}) {
-  const environment = options.env ?? process.env;
+  if(existingTestMountedMode && executable === "docker" && (args[0] === "pull" || args[0] === "build")) throw new Error("mounted acceptance forbids image downloads and builds");
+  const environment = options.env ?? auditBrowserEnvironment(process.env);
   const owned = spawnOwnedCommand(executable, args, {
     cwd: options.cwd ?? root,
     env: executable === "go" ? { ...environment, GOTMPDIR: temporaryRoot } : environment,

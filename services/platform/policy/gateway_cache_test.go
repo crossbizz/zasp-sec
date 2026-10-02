@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
@@ -533,4 +534,20 @@ func gatewayRealTempDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+func TestGatewayPolicyKeysExposeOnlyValidatedExactMembership(t *testing.T) {
+	if (GatewayPolicyKeys{}).Valid() {
+		t.Fatal("empty key set reported ready")
+	}
+	private := ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize))
+	public := private.Public().(ed25519.PublicKey)
+	keys, err := NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"release61-component": public})
+	if err != nil || !keys.Valid() || !keys.Contains("release61-component", public) {
+		t.Fatal("validated key membership unavailable", err)
+	}
+	other := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{1}, ed25519.SeedSize)).Public().(ed25519.PublicKey)
+	if keys.Contains("release61-component", other) || keys.Contains("other", public) || keys.Contains("", public) || keys.Contains("release61-component", nil) {
+		t.Fatal("key membership accepted a missing or mismatched identity")
+	}
 }

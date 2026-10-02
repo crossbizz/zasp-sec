@@ -176,7 +176,7 @@ func (repository *RecoveryPublicRepository) StartBackup(ctx context.Context, ide
 	if !validRecoveryRepository(repository, ctx) || !validRecoveryMutationIdentity(identity, input.AuditID, input.CorrelationID, input.ReceiptID) || !validProductID(input.BackupID) || input.RetentionDays < 7 || input.RetentionDays > 90 || !validPublicIdempotency(input.IdempotencyKey) || !validRecoveryDigest(input.RequestDigest) {
 		return RecoveryBackupMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRecoveryStartBackupSQL,
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRecoveryStartBackupSQL, `SELECT zasp_authorization80.recovery_create_backup($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`),
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IdempotencyKey, input.BackupID, input.CorrelationID, input.RetentionDays, input.AuditID, input.ReceiptID, input.RequestDigest)
 	if err != nil {
 		return RecoveryBackupMutationResult{}, discoveryProviderError(err)
@@ -193,7 +193,7 @@ func (repository *RecoveryPublicRepository) GetBackup(ctx context.Context, ident
 	if !validRecoveryRepository(repository, ctx) || !validRequestIdentity(identity, false) || !validProductID(id) {
 		return RecoveryBackup{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRecoveryGetBackupSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), id)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRecoveryGetBackupSQL, `SELECT zasp_authorization80.recovery_get_backup($1,$2,$3,$4)`), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), id)
 	if err != nil {
 		return RecoveryBackup{}, discoveryProviderError(err)
 	}
@@ -217,7 +217,7 @@ func (repository *RecoveryPublicRepository) StartRestore(ctx context.Context, id
 	if err != nil {
 		return RecoveryRestoreMutationResult{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRecoveryStartRestoreSQL,
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRecoveryStartRestoreSQL, `SELECT zasp_authorization80.recovery_create_restore($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13)`),
 		identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), identity.PrincipalID.String(), input.IdempotencyKey, input.RestoreID, input.TargetEnvironment, input.CorrelationID, input.AuditID, input.ReceiptID, input.RequestDigest, json.RawMessage(manifest), digest)
 	if err != nil {
 		return RecoveryRestoreMutationResult{}, discoveryProviderError(err)
@@ -234,7 +234,7 @@ func (repository *RecoveryPublicRepository) GetRestore(ctx context.Context, iden
 	if !validRecoveryRepository(repository, ctx) || !validRequestIdentity(identity, false) || !validProductID(id) {
 		return RecoveryRestore{}, ErrRepositoryOperation
 	}
-	payload, err := repository.database.QueryJSON(ctx, postgresRecoveryGetRestoreSQL, identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), id)
+	payload, err := repository.database.QueryJSON(ctx, authorizationReadStatement(ctx, postgresRecoveryGetRestoreSQL, `SELECT zasp_authorization80.recovery_get_restore($1,$2,$3,$4)`), identity.Scope.OrganizationID().String(), identity.Scope.WorkspaceID().String(), identity.Scope.EnvironmentID().String(), id)
 	if err != nil {
 		return RecoveryRestore{}, discoveryProviderError(err)
 	}

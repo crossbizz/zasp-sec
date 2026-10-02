@@ -1,0 +1,17 @@
+TAP version 13
+# Subtest: real Go loaders consume enabled and disabled rendered compliance environments
+ok 1 - real Go loaders consume enabled and disabled rendered compliance environments
+  ---
+  duration_ms: 37095.054541
+  type: 'test'
+  ...
+# === RUN   TestComplianceDeploymentRenderedAPIConfig\\n=== RUN   TestComplianceDeploymentRenderedAPIConfig/enabled\\n    compliance_deployment_config_test.go:113: real API loader accepted untouched rendered env; synthetic CSI values only: enabled\\n=== RUN   TestComplianceDeploymentRenderedAPIConfig/disabled\\n    compliance_deployment_config_test.go:113: real API loader accepted untouched rendered env; synthetic CSI values only: disabled\\n--- PASS: TestComplianceDeploymentRenderedAPIConfig (0.05s)\\n    --- PASS: TestComplianceDeploymentRenderedAPIConfig/enabled (0.00s)\\n    --- PASS: TestComplianceDeploymentRenderedAPIConfig/disabled (0.00s)\\nPASS\\nok  \\tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-api\\t2.167s\\n=== RUN   TestComplianceDeploymentRenderedWorkerConfig\\n=== RUN   TestComplianceDeploymentRenderedWorkerConfig/zasp-compliance-export-worker\\n    compliance_deployment_config_test.go:89: real worker loader accepted untouched rendered env; synthetic DSN and metadata.name only\\n=== RUN   TestComplianceDeploymentRenderedWorkerConfig/zasp-compliance-cleanup-worker\\n    compliance_deployment_config_test.go:89: real worker loader accepted untouched rendered env; synthetic DSN and metadata.name only\\n--- PASS: TestComplianceDeploymentRenderedWorkerConfig (0.05s)\\n    --- PASS: TestComplianceDeploymentRenderedWorkerConfig/zasp-compliance-export-worker (0.00s)\\n    --- PASS: TestComplianceDeploymentRenderedWorkerConfig/zasp-compliance-cleanup-worker (0.00s)\\nPASS\\nok  \\tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-worker\\t2.264s\\n
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 37156.330583

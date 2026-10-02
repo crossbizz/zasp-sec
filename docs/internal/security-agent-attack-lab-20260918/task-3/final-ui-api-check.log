@@ -1,0 +1,9 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npm","run","ui-api:check"]
+
+> zasp-agent-security-console@0.1.0 ui-api:check
+> node scripts/check-ui-api-coverage.mjs
+
+UI/API coverage passed: planned=2 api_available=10 available=147 public=157 internal=0.
+
+Exit: 0 Signal: null

@@ -1,0 +1,13 @@
+Reference RED, session87869, exit1:
+--- FAIL: TestSecurityAgentAttackLabReferenceContract (0.00s)
+    --- FAIL: TestSecurityAgentAttackLabReferenceContract/attack_lab (0.00s)
+        security_agent_attack_lab_reference_test.go:30: valid=true body= error=repository operation rejected
+FAIL
+FAIL github.com/zasp-ai/zasp-sec/services/platform/apiserver 1.111s
+
+Owned PostgreSQL RED, session42694, exit1:
+=== RUN   TestSecurityAgentAttackLabAuthorityPostgres
+    security_agent_attack_lab_postgres_test.go:17: durable Attack Lab dispatch authority absent: installed=false error=<nil>
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentAttackLabAuthorityPostgres1542530887/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentAttackLabAuthorityPostgres (4.63s)
+FAIL

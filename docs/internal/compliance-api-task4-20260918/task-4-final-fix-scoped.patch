@@ -1,0 +1,670 @@
+diff --git a/services/platform/artifactstore/store.go b/services/platform/artifactstore/store.go
+index e3a80858a0c3f58a79ba7e7cbf83a5a717c0503f..54434b7933d136951b0797f810a0ab6220c66b23 100644
+--- a/services/platform/artifactstore/store.go
++++ b/services/platform/artifactstore/store.go
+@@ -22,8 +22,10 @@ var (
+ 	ErrArtifact      = errors.New("artifact rejected")
+ 	ErrPut           = errors.New("artifact put failed")
+ 	ErrGet           = errors.New("artifact get failed")
+-	ErrDelete        = errors.New("artifact delete failed")
+-	ErrReference     = errors.New("artifact reference failed")
++	// ErrIntegrity marks a successful read whose content violates its pinned contract.
++	ErrIntegrity = errors.New("artifact integrity rejected")
++	ErrDelete    = errors.New("artifact delete failed")
++	ErrReference = errors.New("artifact reference failed")
+ )
+ 
+ type Config struct {
+@@ -171,13 +173,25 @@ func (store *Store) Get(ctx context.Context, locator Locator) (artifact Artifact
+ 	operationCtx, cancel := context.WithTimeout(ctx, store.config.OperationTimeout)
+ 	defer cancel()
+ 	if operationCtx.Err() != nil {
+-		return Artifact{}, ErrGet
++		return Artifact{}, errors.Join(ErrGet, operationCtx.Err())
+ 	}
+ 	returned, err := getDriver(store.driver, operationCtx, expected)
+-	if err != nil || operationCtx.Err() != nil || !validDriverObject(returned, store.config.MaximumBytes) ||
+-		returned.DriverLocator != expected {
++	if operationCtx.Err() != nil {
++		return Artifact{}, errors.Join(ErrGet, operationCtx.Err())
++	}
++	if err != nil {
++		// Preserve only safe categories, never a driver's diagnostic text.
++		for _, category := range []error{context.Canceled, context.DeadlineExceeded, ErrIntegrity} {
++			if errors.Is(err, category) {
++				return Artifact{}, errors.Join(ErrGet, category)
++			}
++		}
+ 		return Artifact{}, ErrGet
+ 	}
++	if !validDriverObject(returned, store.config.MaximumBytes) ||
++		returned.DriverLocator != expected {
++		return Artifact{}, errors.Join(ErrGet, ErrIntegrity)
++	}
+ 	return artifactFromDriver(returned), nil
+ }
+ 
+diff --git a/services/platform/artifactstore/s3driver/driver.go b/services/platform/artifactstore/s3driver/driver.go
+index 8ddd1f7f4441f649cef3327637ac1857164a2ffe..f789e68933fc3ccd7a6d49a691da12e2b76a3366 100644
+--- a/services/platform/artifactstore/s3driver/driver.go
++++ b/services/platform/artifactstore/s3driver/driver.go
+@@ -112,7 +112,7 @@ func (driver *Driver) Put(ctx context.Context, object artifactstore.DriverObject
+ func (driver *Driver) Get(ctx context.Context, locator artifactstore.DriverLocator) (result artifactstore.DriverObject, resultErr error) {
+ 	defer containPanic(&result, &resultErr, ErrGet)
+ 	if !driver.ready(ctx) {
+-		return artifactstore.DriverObject{}, ErrGet
++		return artifactstore.DriverObject{}, safeReadError(ctx, nil)
+ 	}
+ 	if !driver.validLocator(locator) || !validVersion(locator.VersionID) {
+ 		return artifactstore.DriverObject{}, ErrArtifact
+@@ -150,28 +150,54 @@ func (driver *Driver) fetch(ctx context.Context, locator artifactstore.DriverLoc
+ 	head, err := driver.client.HeadObject(ctx, &s3.HeadObjectInput{
+ 		Bucket: aws.String(driver.config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(driver.config.ExpectedBucketOwner), ChecksumMode: s3types.ChecksumModeEnabled,
+ 	}, oneAttemptOption)
+-	if err != nil || ctx.Err() != nil || !validHead(head, driver.config) || aws.ToString(head.VersionId) != locator.VersionID {
+-		return artifactstore.DriverObject{}, ErrGet
++	if err != nil || ctx.Err() != nil {
++		return artifactstore.DriverObject{}, safeReadError(ctx, err)
++	}
++	if !validHead(head, driver.config) || aws.ToString(head.VersionId) != locator.VersionID {
++		return artifactstore.DriverObject{}, errors.Join(ErrGet, artifactstore.ErrIntegrity)
+ 	}
+ 	output, err := driver.client.GetObject(ctx, &s3.GetObjectInput{
+ 		Bucket: aws.String(driver.config.Bucket), Key: aws.String(locator.Key), VersionId: aws.String(locator.VersionID), ExpectedBucketOwner: aws.String(driver.config.ExpectedBucketOwner), ChecksumMode: s3types.ChecksumModeEnabled,
+ 	}, oneAttemptOption)
+-	if err != nil || ctx.Err() != nil || output == nil || output.Body == nil {
+-		return artifactstore.DriverObject{}, ErrGet
++	if err != nil || ctx.Err() != nil {
++		if output != nil && output.Body != nil {
++			_ = output.Body.Close()
++		}
++		return artifactstore.DriverObject{}, safeReadError(ctx, err)
++	}
++	if output == nil || output.Body == nil {
++		return artifactstore.DriverObject{}, errors.Join(ErrGet, artifactstore.ErrIntegrity)
+ 	}
+ 	body, readErr := io.ReadAll(io.LimitReader(output.Body, driver.config.MaximumBytes+1))
+ 	closeErr := output.Body.Close()
+-	if readErr != nil || closeErr != nil || ctx.Err() != nil || int64(len(body)) <= 0 || int64(len(body)) > driver.config.MaximumBytes {
+-		return artifactstore.DriverObject{}, ErrGet
++	if readErr != nil || closeErr != nil || ctx.Err() != nil {
++		return artifactstore.DriverObject{}, safeReadError(ctx, errors.Join(readErr, closeErr))
++	}
++	if int64(len(body)) <= 0 || int64(len(body)) > driver.config.MaximumBytes {
++		return artifactstore.DriverObject{}, errors.Join(ErrGet, artifactstore.ErrIntegrity)
+ 	}
+ 	digest := sha256.Sum256(body)
+ 	object := artifactstore.DriverObject{DriverLocator: locator, MediaType: aws.ToString(output.ContentType), Body: body, Size: int64(len(body)), SHA256: digest}
+ 	if !driver.validObject(object) || !validGet(output, head, object, driver.config) {
+-		return artifactstore.DriverObject{}, ErrGet
++		return artifactstore.DriverObject{}, errors.Join(ErrGet, artifactstore.ErrIntegrity)
+ 	}
+ 	return cloneObject(object), nil
+ }
+ 
++// Provider errors remain opaque. Cancellation is safe to classify, but does
++// not establish that any successfully read object violated its pinned contract.
++func safeReadError(ctx context.Context, err error) error {
++	if ctx != nil && ctx.Err() != nil {
++		return errors.Join(ErrGet, ctx.Err())
++	}
++	for _, category := range []error{context.Canceled, context.DeadlineExceeded} {
++		if errors.Is(err, category) {
++			return errors.Join(ErrGet, category)
++		}
++	}
++	return ErrGet
++}
++
+ func (driver *Driver) discover(ctx context.Context, locator artifactstore.DriverLocator) (artifactstore.DriverObject, error) {
+ 	if !driver.validLocator(locator) || locator.VersionID != "" {
+ 		return artifactstore.DriverObject{}, ErrGet
+diff --git a/services/platform/apiserver/compliance_download.go b/services/platform/apiserver/compliance_download.go
+index ba78f0e2a4d4db009bd5d10c5705ae84f68bff8e..2c9e0a765eb0c18d8aab2b6db53332f82a2e1229 100644
+--- a/services/platform/apiserver/compliance_download.go
++++ b/services/platform/apiserver/compliance_download.go
+@@ -6,6 +6,7 @@ import (
+ 	"crypto/sha256"
+ 	"encoding/hex"
+ 	"encoding/json"
++	"errors"
+ 	"strings"
+ 	"time"
+ 	"unicode/utf8"
+@@ -18,6 +19,8 @@ import (
+ const postgresComplianceExportGrantSQL = `SELECT public.zasp_compliance_export_grant($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
+ const compliancePackageMaximum = 8 << 20
+ 
++var errComplianceIntegrity = errors.Join(ErrRepositoryUnavailable, artifactstore.ErrIntegrity)
++
+ type complianceArtifactReader interface {
+ 	Get(context.Context, artifactstore.Locator) (artifactstore.Artifact, error)
+ }
+@@ -84,25 +87,34 @@ func readComplianceDownload(ctx context.Context, reader complianceArtifactReader
+ 	}
+ 	ref, err := domain.ParseEvidenceRef(pin.Reference)
+ 	if err != nil {
+-		return nil, ErrRepositoryUnavailable
++		return nil, errComplianceIntegrity
+ 	}
+ 	locator := artifactstore.Locator{Scope: identity.Scope, Reference: ref, VersionID: pin.Version}
+ 	artifact, err := reader.Get(ctx, locator)
+-	if err != nil || ctx.Err() != nil || artifact.Locator != locator || artifact.MediaType != "application/json" || artifact.Size != pin.Size || int64(len(artifact.Body)) != pin.Size || len(artifact.Body) > compliancePackageMaximum {
++	if ctx.Err() != nil {
+ 		return nil, ErrRepositoryUnavailable
+ 	}
++	if err != nil {
++		if errors.Is(err, artifactstore.ErrIntegrity) {
++			return nil, errComplianceIntegrity
++		}
++		return nil, ErrRepositoryUnavailable
++	}
++	if artifact.Locator != locator || artifact.MediaType != "application/json" || artifact.Size != pin.Size || int64(len(artifact.Body)) != pin.Size || len(artifact.Body) > compliancePackageMaximum {
++		return nil, errComplianceIntegrity
++	}
+ 	actual := sha256.Sum256(artifact.Body)
+ 	if actual != artifact.SHA256 || hex.EncodeToString(actual[:]) != pin.SHA256 {
+-		return nil, ErrRepositoryUnavailable
++		return nil, errComplianceIntegrity
+ 	}
+ 	envelope, err := auditExportClosedObject(artifact.Body, compliancePackageMaximum, "version", "id", "json", "csv", "human")
+ 	if err != nil {
+-		return nil, ErrRepositoryUnavailable
++		return nil, errComplianceIntegrity
+ 	}
+ 	var version int
+ 	var storedID, csv, human string
+ 	if json.Unmarshal(envelope["version"], &version) != nil || version != 1 || json.Unmarshal(envelope["id"], &storedID) != nil || storedID != id || json.Unmarshal(envelope["csv"], &csv) != nil || json.Unmarshal(envelope["human"], &human) != nil || csv == "" || human == "" || len(csv) > 4<<20 || len(human) > 4<<20 || !utf8.ValidString(csv) || !utf8.ValidString(human) || len(envelope["json"]) > 4<<20 || !validCompliancePersistedEvidence(envelope["json"], identity) {
+-		return nil, ErrRepositoryUnavailable
++		return nil, errComplianceIntegrity
+ 	}
+ 	switch format {
+ 	case "json":
+diff --git a/services/platform/apiserver/compliance_http.go b/services/platform/apiserver/compliance_http.go
+index cc4f1bd10d594190db7569a61d0fd3d71ef1daf3..f90b747b577d331e5364ffa4cd32fab316a96496 100644
+--- a/services/platform/apiserver/compliance_http.go
++++ b/services/platform/apiserver/compliance_http.go
+@@ -17,6 +17,7 @@ import (
+ 	"strings"
+ 	"time"
+ 
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
+ 	"github.com/zasp-ai/zasp-sec/services/platform/sessioncontrol"
+ )
+ 
+@@ -131,9 +132,11 @@ func (h *complianceHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
+ 		defer cancel()
+ 		bytes, err := readComplianceDownload(ctx, h.reader, identity, id, format, pin)
+ 		if err != nil {
+-			// Best effort under the existing request/deadline. A failure never grants
+-			// disclosure or extends the durable read lease.
+-			_, _ = h.exports.grantAction(ctx, identity, digest[:], id, token, sqlFormat, "integrity_failure")
++			// Only verified mismatches are corruption incidents. Provider failures
++			// retain the bounded read lease without a false integrity audit.
++			if errors.Is(err, artifactstore.ErrIntegrity) {
++				_, _ = h.exports.grantAction(ctx, identity, digest[:], id, token, sqlFormat, "integrity_failure")
++			}
+ 			writeComplianceError(w, r, ErrRepositoryUnavailable)
+ 			return
+ 		}
+diff --git a/services/platform/apiserver/compliance_http_test.go b/services/platform/apiserver/compliance_http_test.go
+index 4d5049d4c57debcba75798f6696e551542422ab9..2321dccbc58bb33216991fb521083ae7f894bdf9 100644
+--- a/services/platform/apiserver/compliance_http_test.go
++++ b/services/platform/apiserver/compliance_http_test.go
+@@ -71,7 +71,7 @@ func (d *complianceHTTPDatabase) QueryJSON(ctx context.Context, q string, a ...a
+ 		if op == "read" {
+ 			return json.Marshal(map[string]any{"reference": d.artifact.Reference.String(), "version": d.artifact.VersionID, "size": d.artifact.Size, "sha256": hex.EncodeToString(d.artifact.SHA256[:]), "renderer_revision": "compliance-envelope-v1", "read_expires_at": d.readDeadline})
+ 		}
+-		return json.Marshal(map[string]any{"expires_at": time.Now().Add(time.Minute).UTC(), "consumed": op == "consume"})
++		return json.Marshal(map[string]any{"expires_at": time.Now().Add(time.Minute).UTC(), "consumed": op == "consume" || op == "integrity_failure"})
+ 	case postgresComplianceReadSQL:
+ 		op := a[5].(string)
+ 		d.operations = append(d.operations, op)
+diff --git a/services/platform/agentsec-api/production_runtime.go b/services/platform/agentsec-api/production_runtime.go
+index 034fe47d5a34b050f0875c8edf29bb6b98899982..328c3ec8c8ff4f96902ee9c4251567b36078dc9b 100644
+--- a/services/platform/agentsec-api/production_runtime.go
++++ b/services/platform/agentsec-api/production_runtime.go
+@@ -122,11 +122,15 @@ func composeRuntimeDependenciesWithAuditExportStorage(ctx context.Context, confi
+ }
+ 
+ func composeRuntimeDependenciesWithStorage(ctx context.Context, config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider, factory auditExportStorageFactory, complianceFactory complianceStorageFactory) (RuntimeDependencies, error) {
+-	if ctx == nil || ctx.Err() != nil || factory == nil || complianceFactory == nil || !validRuntimeConfig(config) {
++	return composeRuntimeDependenciesWithTelemetry(ctx, config, database, securityAgentDatabase, provider, factory, complianceFactory, os.Stdout)
++}
++
++func composeRuntimeDependenciesWithTelemetry(ctx context.Context, config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, output io.Writer) (RuntimeDependencies, error) {
++	if ctx == nil || ctx.Err() != nil || factory == nil || complianceFactory == nil || invalidRuntimeValue(output) || !validRuntimeConfig(config) {
+ 		return RuntimeDependencies{}, errRuntimeUnavailable
+ 	}
+ 	metrics := newOperationalMetrics()
+-	exporter := newStructuredSpanExporter(os.Stdout)
++	exporter := newStructuredSpanExporter(output)
+ 	tracedDatabase := &tracedJSONDatabase{next: database, metrics: metrics, exporter: exporter}
+ 	var securityAgentRepository *apiserver.PostgresRepository
+ 	var approvalNotificationRepository *apiserver.PostgresRepository
+@@ -409,7 +413,7 @@ func composeRuntimeDependenciesWithStorage(ctx context.Context, config RuntimeCo
+ 	if err != nil {
+ 		return RuntimeDependencies{}, errRuntimeUnavailable
+ 	}
+-	operational, err := newOperationalMiddleware(os.Stdout, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, exporter, publicSurface)
++	operational, err := newOperationalMiddleware(output, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, exporter, publicSurface)
+ 	if err != nil {
+ 		return RuntimeDependencies{}, errRuntimeUnavailable
+ 	}
+diff --git a/services/platform/agentsec-api/compliance_composition_test.go b/services/platform/agentsec-api/compliance_composition_test.go
+index 140c6773e7ef86eaa713d989c338941085f8481d..223a8038e0a1a7bc4bca3cb522f00c628a94b86d 100644
+--- a/services/platform/agentsec-api/compliance_composition_test.go
++++ b/services/platform/agentsec-api/compliance_composition_test.go
+@@ -1,13 +1,32 @@
+ package main
+ 
+ import (
++	"bytes"
+ 	"context"
+ 	"encoding/json"
+ 	"net/http/httptest"
+ 	"strings"
++	"sync"
+ 	"testing"
+ )
+ 
++type complianceTelemetryCapture struct {
++	mu     sync.Mutex
++	buffer bytes.Buffer
++}
++
++func (c *complianceTelemetryCapture) Write(p []byte) (int, error) {
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	return c.buffer.Write(p)
++}
++
++func (c *complianceTelemetryCapture) String() string {
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	return c.buffer.String()
++}
++
+ type complianceRuntimeDatabase struct {
+ 	auditExportRuntimeDatabase
+ 	deny bool
+@@ -38,7 +57,16 @@ func TestComplianceAPIProductionComposition(t *testing.T) {
+ 				c.ComplianceExports = nil
+ 			}
+ 			db := &complianceRuntimeDatabase{auditExportRuntimeDatabase: auditExportRuntimeDatabase{gate: json.RawMessage(`true`), permissions: []string{"view", "view_audit", "view_compliance"}}, deny: mode == "unregistered"}
+-			deps, err := composeRuntimeDependenciesWithContext(context.Background(), c, db, db, auditFactoryProvider())
++			capture := &complianceTelemetryCapture{}
++			t.Cleanup(func() {
++				if t.Failed() {
++					t.Logf("composition telemetry:\n%s", capture.String())
++				}
++			})
++			deps, err := composeRuntimeDependenciesWithTelemetry(context.Background(), c, db, db, auditFactoryProvider(), newAuditExportStorageClients, newComplianceStorageResources, capture)
++			if capture.String() == "" {
++				t.Fatal("composition spans were not captured")
++			}
+ 			defer func() {
+ 				for _, closer := range deps.Closers {
+ 					_ = closer.Close()
+@@ -56,6 +84,9 @@ func TestComplianceAPIProductionComposition(t *testing.T) {
+ 			req := publicPageRuntimeRequest(c, "/api/v1/compliance/evidence/policy/policy-live?source_version=1")
+ 			w := httptest.NewRecorder()
+ 			deps.ProductHandler.ServeHTTP(w, req)
++			if !strings.Contains(capture.String(), `"event":"http_request"`) {
++				t.Fatal("request telemetry was not captured")
++			}
+ 			if mode == "disabled" {
+ 				if w.Code != 404 {
+ 					t.Fatalf("disabled route %d", w.Code)
+diff --git a/services/platform/apiserver/compliance_read_classification_test.go b/services/platform/apiserver/compliance_read_classification_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..61eb59ddc7adf3f7ce66bef35b33172e49059adf
+--- /dev/null
++++ b/services/platform/apiserver/compliance_read_classification_test.go
+@@ -0,0 +1,185 @@
++package apiserver
++
++import (
++	"context"
++	"crypto/sha256"
++	"encoding/base64"
++	"encoding/hex"
++	"errors"
++	"io"
++	"net/http"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/aws/aws-sdk-go-v2/aws"
++	"github.com/aws/aws-sdk-go-v2/service/s3"
++	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore/s3driver"
++	"github.com/zasp-ai/zasp-sec/services/platform/bucketlayout"
++)
++
++const classificationKMS = "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-4123-8123-123456789012"
++const classificationSecret = "provider-secret-bucket-diagnostic"
++
++var classificationModes = []string{"head-outage", "get-outage", "body-outage", "cancel", "deadline", "version", "metadata", "checksum", "body-mismatch", "envelope", "valid"}
++
++func classificationIntegrity(mode string) bool {
++	return mode == "version" || mode == "metadata" || mode == "checksum" || mode == "body-mismatch" || mode == "envelope"
++}
++
++type classificationProvider struct {
++	artifact artifactstore.Artifact
++	mode     string
++	cancel   context.CancelFunc
++	headHook func()
++}
++
++func (p *classificationProvider) PutObject(context.Context, *s3.PutObjectInput, ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
++	panic("read client must not write")
++}
++func (p *classificationProvider) HeadObject(context.Context, *s3.HeadObjectInput, ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
++	if p.headHook != nil {
++		p.headHook()
++	}
++	if p.mode == "head-outage" {
++		return nil, errors.New(classificationSecret)
++	}
++	version := p.artifact.VersionID
++	if p.mode == "version" {
++		version = "foreign-version"
++	}
++	checksum := base64.StdEncoding.EncodeToString(p.artifact.SHA256[:])
++	if p.mode == "checksum" {
++		checksum = base64.StdEncoding.EncodeToString(make([]byte, 32))
++	}
++	return &s3.HeadObjectOutput{ContentLength: aws.Int64(p.artifact.Size), ContentType: aws.String("application/json"), VersionId: aws.String(version), ChecksumSHA256: aws.String(checksum), ServerSideEncryption: s3types.ServerSideEncryptionAwsKms, SSEKMSKeyId: aws.String(classificationKMS), Metadata: p.metadata()}, nil
++}
++func (p *classificationProvider) metadata() map[string]string {
++	a := p.artifact
++	m := map[string]string{"organization_id": a.OrganizationID().String(), "workspace_id": a.WorkspaceID().String(), "environment_id": a.EnvironmentID().String(), "artifact_id": a.Reference.String(), "media_type": "application/json", "sha256": hex.EncodeToString(a.SHA256[:])}
++	if p.mode == "metadata" {
++		m["environment_id"] = "foreign"
++	}
++	return m
++}
++
++type classificationBrokenBody struct{}
++
++func (classificationBrokenBody) Read([]byte) (int, error) { return 0, errors.New(classificationSecret) }
++func (classificationBrokenBody) Close() error             { return nil }
++func (p *classificationProvider) GetObject(ctx context.Context, _ *s3.GetObjectInput, _ ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
++	if p.mode == "get-outage" {
++		return nil, errors.New(classificationSecret)
++	}
++	if p.mode == "cancel" {
++		p.cancel()
++		return nil, ctx.Err()
++	}
++	if p.mode == "deadline" {
++		return nil, context.DeadlineExceeded
++	}
++	body := string(p.artifact.Body)
++	if p.mode == "body-mismatch" {
++		body = "wrong bytes"
++	}
++	var reader io.ReadCloser = io.NopCloser(strings.NewReader(body))
++	if p.mode == "body-outage" {
++		reader = classificationBrokenBody{}
++	}
++	return &s3.GetObjectOutput{Body: reader, ContentLength: aws.Int64(p.artifact.Size), ContentType: aws.String("application/json"), VersionId: aws.String(p.artifact.VersionID), ChecksumSHA256: aws.String(base64.StdEncoding.EncodeToString(p.artifact.SHA256[:])), ServerSideEncryption: s3types.ServerSideEncryptionAwsKms, SSEKMSKeyId: aws.String(classificationKMS), Metadata: p.metadata()}, nil
++}
++func classificationStore(t *testing.T, a artifactstore.Artifact, mode string, cancel context.CancelFunc) (*artifactstore.Store, *s3driver.Driver, *classificationProvider) {
++	t.Helper()
++	p := &classificationProvider{artifact: a, mode: mode, cancel: cancel}
++	d, err := s3driver.NewExport(p, s3driver.Config{Bucket: "compliance-exports", ExpectedBucketOwner: "123456789012", KMSKeyARN: classificationKMS, MaximumBytes: compliancePackageMaximum})
++	if err != nil {
++		t.Fatal(err)
++	}
++	s, err := artifactstore.NewExport(d, artifactstore.Config{OperationTimeout: time.Second, MaximumBytes: compliancePackageMaximum})
++	if err != nil {
++		t.Fatal(err)
++	}
++	return s, d, p
++}
++
++func TestComplianceReadFailureClassification(t *testing.T) {
++	for _, mode := range classificationModes {
++		t.Run(mode, func(t *testing.T) {
++			_, db, _, identity := complianceHTTPFixture(t)
++			if mode == "envelope" {
++				db.artifact.Body = []byte(`{"version":2}`)
++				db.artifact.Size = int64(len(db.artifact.Body))
++				db.artifact.SHA256 = sha256.Sum256(db.artifact.Body)
++			}
++			for _, layer := range []string{"driver", "store", "http"} {
++				t.Run(layer, func(t *testing.T) {
++					ctx, cancel := context.WithCancel(context.Background())
++					defer cancel()
++					store, driver, _ := classificationStore(t, db.artifact, mode, cancel)
++					if layer != "http" {
++						var err error
++						if layer == "driver" {
++							key, _ := bucketlayout.ExportKey(db.artifact.Scope, db.artifact.Reference.ArtifactID())
++							_, err = driver.Get(ctx, artifactstore.DriverLocator{Key: key, Scope: db.artifact.Scope, Reference: db.artifact.Reference, VersionID: db.artifact.VersionID})
++						} else {
++							_, err = store.Get(ctx, db.artifact.Locator)
++						}
++						if mode == "valid" || mode == "envelope" {
++							if err != nil {
++								t.Fatal(err)
++							}
++							return
++						}
++						getError := artifactstore.ErrGet
++						if layer == "driver" {
++							getError = s3driver.ErrGet
++						}
++						if !errors.Is(err, getError) || errors.Is(err, artifactstore.ErrIntegrity) != classificationIntegrity(mode) || strings.Contains(err.Error(), classificationSecret) {
++							t.Fatalf("%s read category: %v", layer, err)
++						}
++						if mode == "cancel" && !errors.Is(err, context.Canceled) {
++							t.Fatal("cancellation category lost")
++						}
++						if mode == "deadline" && !errors.Is(err, context.DeadlineExceeded) {
++							t.Fatal("deadline category lost")
++						}
++						return
++					}
++					source, err := NewComplianceRepository(db)
++					if err != nil {
++						t.Fatal(err)
++					}
++					handler := &complianceHTTPHandler{source: source, exports: &ComplianceExportsRepository{source: source}, reader: store}
++					router, err := NewCompositionWithCompliance(auditExportCompositionDependencies(), nil, handler)
++					if err != nil {
++						t.Fatal(err)
++					}
++					mounted, err := NewProductMiddleware(ProductSecurity{PublicOrigin: "https://console.example.test", MaximumBodyBytes: 16384, GenerateCorrelationID: func() string { return testCorrelationID }, Authenticate: func(context.Context, Credential) (RequestIdentity, error) { return *identity, nil }}, router)
++					if err != nil {
++						t.Fatal(err)
++					}
++					db.operations = nil
++					w := complianceHTTPRequest(t, mounted, *identity, "POST", "/api/v1/compliance/exports/"+complianceHTTPJobID+"/download", `{"format":"human","token":"`+complianceHTTPToken+`"}`, func(r *http.Request) { *r = *r.WithContext(ctx) })
++					want := "read"
++					if mode == "valid" {
++						want += ",consume"
++					} else if classificationIntegrity(mode) {
++						want += ",integrity_failure"
++					}
++					if strings.Join(db.operations, ",") != want {
++						t.Fatalf("read effects %v want %s", db.operations, want)
++					}
++					if mode == "valid" {
++						if w.Code != 200 || !strings.Contains(w.Body.String(), "Persisted report") {
++							t.Fatalf("valid flow %d %s", w.Code, w.Body)
++						}
++					} else if w.Code != 503 || w.Header().Get("Content-Disposition") != "" || strings.Contains(w.Body.String(), classificationSecret) || strings.Contains(w.Body.String(), "Persisted report") {
++						t.Fatalf("failure disclosed %d %s", w.Code, w.Body)
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/services/platform/artifactstore/read_classification_test.go b/services/platform/artifactstore/read_classification_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..65fcd9c148d7f4802c6503a2d1cc9c66c1a7a67b
+--- /dev/null
++++ b/services/platform/artifactstore/read_classification_test.go
+@@ -0,0 +1,19 @@
++package artifactstore
++
++import (
++	"context"
++	"errors"
++	"testing"
++)
++
++func TestGetClassifiesReturnedObjectIntegrity(t *testing.T) {
++	request := validPutRequest(t)
++	store, err := New(&recordingDriver{get: func(context.Context, DriverLocator) (DriverObject, error) { return DriverObject{}, nil }}, validConfig())
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, err = store.Get(context.Background(), request.Locator)
++	if !errors.Is(err, ErrGet) || !errors.Is(err, ErrIntegrity) {
++		t.Fatalf("invalid successful object category: %v", err)
++	}
++}
+diff --git a/services/platform/apiserver/compliance_read_classification_postgres_test.go b/services/platform/apiserver/compliance_read_classification_postgres_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..0ea976f5d1ae0159119a70105cadf458113a373a
+--- /dev/null
++++ b/services/platform/apiserver/compliance_read_classification_postgres_test.go
+@@ -0,0 +1,130 @@
++package apiserver
++
++import (
++	"context"
++	"crypto/sha256"
++	"encoding/json"
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/zasp-ai/zasp-sec/services/platform/artifactstore"
++	"github.com/zasp-ai/zasp-sec/services/platform/domain"
++)
++
++// Provider transport is controlled, but the driver, Store, mounted session
++// middleware, read lease, terminal grant operation and audit commit are real.
++func TestComplianceHTTPPostgresReadClassification(t *testing.T) {
++	withComplianceFixFixture(t, func(f *complianceFixFixture) {
++		api := f.connect("security_agent_v33_discovery_api_login")
++		database, err := NewPostgresJSONDatabase(&integrationPostgresDriver{connection: api})
++		if err != nil {
++			t.Fatal(err)
++		}
++		sessions, err := NewPostgresRepository(database)
++		if err != nil {
++			t.Fatal(err)
++		}
++		source, err := NewComplianceRepository(database)
++		if err != nil {
++			t.Fatal(err)
++		}
++		identity, err := sessions.Authenticate(f.ctx, Credential{Kind: CredentialBrowserSession, Value: "compliance-fix-session"})
++		if err != nil {
++			t.Fatal(err)
++		}
++		handler := &complianceHTTPHandler{source: source, exports: &ComplianceExportsRepository{source: source}}
++		router, err := NewCompositionWithCompliance(auditExportCompositionDependencies(), nil, handler)
++		if err != nil {
++			t.Fatal(err)
++		}
++		mounted, err := NewProductMiddleware(ProductSecurity{PublicOrigin: "https://console.example.test", MaximumBodyBytes: 16384, Authenticate: sessions.Authenticate, GenerateCorrelationID: func() string { return testCorrelationID }}, router)
++		if err != nil {
++			t.Fatal(err)
++		}
++		invoke := func(ctx context.Context, path, body string) *httptest.ResponseRecorder {
++			return complianceHTTPRequest(t, mounted, identity, "POST", path, body, func(r *http.Request) {
++				r.Header.Set("Cookie", browserSessionCookie+"=compliance-fix-session")
++				*r = *r.WithContext(ctx)
++			})
++		}
++		for _, mode := range classificationModes {
++			t.Run(mode, func(t *testing.T) {
++				job := f.job(api, "read-classification-"+mode)
++				ref, _ := domain.ParseEvidenceRef(job)
++				body := []byte(`{"version":1,"id":"` + job + `","json":[],"csv":"header\n","human":"Frozen historical report"}`)
++				if mode == "envelope" {
++					body = []byte(strings.Replace(string(body), `"version":1`, `"version":2`, 1))
++				}
++				sum := sha256.Sum256(body)
++				artifact := artifactstore.Artifact{Locator: artifactstore.Locator{Scope: identity.Scope, Reference: ref, VersionID: "frozen-v1"}, MediaType: "application/json", Body: body, Size: int64(len(body)), SHA256: sum}
++				f.exec(`UPDATE zasp_compliance_export_jobs SET state='completed',phase='terminal',storage_state='verified',receipt_version='frozen-v1',artifact_reference=$1,artifact_size=$2,artifact_digest=$3,renderer_revision='compliance-envelope-v1',package=$4,format_sizes='{"json":2,"csv":7,"readable":24}' WHERE export_id=$1`, job, len(body), sum[:], body)
++				path := "/api/v1/compliance/exports/" + job
++				grant := invoke(f.ctx, path+"/download-grants", `{"format":"human"}`)
++				var issued struct {
++					Token string `json:"token"`
++				}
++				if grant.Code != 201 || json.Unmarshal(grant.Body.Bytes(), &issued) != nil || len(issued.Token) != 64 {
++					t.Fatalf("grant: %d %s", grant.Code, grant.Body)
++				}
++				ctx, cancel := context.WithCancel(f.ctx)
++				defer cancel()
++				store, _, provider := classificationStore(t, artifact, mode, cancel)
++				handler.reader = store
++				var originalLease time.Time
++				provider.headHook = func() {
++					if err := f.owner.QueryRow(f.ctx, `SELECT read_expires_at FROM zasp_compliance_export_grants WHERE grant_digest=digest($1,'sha256')`, issued.Token).Scan(&originalLease); err != nil || !originalLease.After(time.Now()) {
++						t.Fatalf("durable lease absent before provider: %v", err)
++					}
++				}
++				downloadBody := `{"format":"human","token":"` + issued.Token + `"}`
++				w := invoke(ctx, path+"/download", downloadBody)
++				if mode == "valid" {
++					if w.Code != 200 || w.Body.String() != "Frozen historical report" || w.Header().Get("Content-Disposition") == "" {
++						t.Fatalf("valid download %d %s", w.Code, w.Body)
++					}
++				} else if w.Code != 503 || w.Header().Get("Content-Disposition") != "" || strings.Contains(w.Body.String(), classificationSecret) || strings.Contains(w.Body.String(), "Frozen") {
++					t.Fatalf("failure disclosed %d %s", w.Code, w.Body)
++				}
++				checkState := func() {
++					t.Helper()
++					var used, lease *time.Time
++					if err := f.owner.QueryRow(f.ctx, `SELECT used_at,read_expires_at FROM zasp_compliance_export_grants WHERE grant_digest=digest($1,'sha256')`, issued.Token).Scan(&used, &lease); err != nil {
++						t.Fatal(err)
++					}
++					terminal := mode == "valid" || classificationIntegrity(mode)
++					if (used != nil) != terminal {
++						t.Fatalf("terminal grant state: used=%v mode=%s", used != nil, mode)
++					}
++					if terminal {
++						if lease != nil {
++							t.Fatal("terminal read lease retained")
++						}
++					} else if lease == nil || !lease.Equal(originalLease) {
++						t.Fatal("provider failure changed or extended read lease")
++					}
++					var count int
++					var safe bool
++					if err := f.owner.QueryRow(f.ctx, `SELECT count(*),coalesce(bool_and(metadata=jsonb_build_object('export_id',$1::text,'format','readable','reason','artifact_integrity')),true) FROM zasp_admin_audit WHERE action='compliance.export.integrity_failed' AND target_id=$1`, job).Scan(&count, &safe); err != nil {
++						t.Fatal(err)
++					}
++					expected := 0
++					if classificationIntegrity(mode) {
++						expected = 1
++					}
++					if count != expected || !safe {
++						t.Fatalf("durable safe integrity audit count=%d want=%d safe=%v", count, expected, safe)
++					}
++				}
++				checkState()
++				replay := invoke(f.ctx, path+"/download", downloadBody)
++				if replay.Code == 200 || replay.Header().Get("Content-Disposition") != "" {
++					t.Fatal("failed/single-use read replay disclosed")
++				}
++				checkState()
++			})
++		}
++	})
++}

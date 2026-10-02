@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/securityagent"
 )
 
 type findingTicketWebhook struct {
@@ -26,6 +28,7 @@ type ProductionFindingTicketWebhook interface {
 	FindingTicketWebhook
 	ApprovalNotificationWebhook
 	IntegrationWebhookTestWebhook
+	DeliverSecurityAgentResponse(context.Context, string, string, string, []byte, []byte) (securityagent.ResponseWebhookReceipt, error)
 }
 
 type findingTicketLookup func(context.Context, string) ([]net.IPAddr, error)

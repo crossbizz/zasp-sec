@@ -1,0 +1,9 @@
+/usr/local/bin/docker run --rm --name zasp-export-db-red-20260919 --pull=never --network none --read-only --user postgres --cpus 2 --memory 2g --pids-limit 512 --tmpfs /tmp:rw,exec,size=1400m --tmpfs /var/run/postgresql:rw --mount type=bind,src=/private/tmp/zasp-export-db-test-initial.test,dst=/export.test,readonly --mount type=bind,src=/Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917,dst=/workspace,readonly -w /workspace/services/platform/apiserver --entrypoint /export.test postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba -test.run '^TestSecurityAgentExportGroupScopePostgres$' -test.v -test.timeout 300s
+
+=== RUN   TestSecurityAgentExportGroupScopePostgres
+    security_agent_export_postgres_test.go:1449: current effective group scope rejected: ERROR: export source permission rejected (SQLSTATE 42501)
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestSecurityAgentExportGroupScopePostgres903269818/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestSecurityAgentExportGroupScopePostgres (5.21s)
+FAIL
+
+Container exit: 1

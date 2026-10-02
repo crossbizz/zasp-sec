@@ -1,0 +1,234 @@
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/empty
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/baseline
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/core
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/workflows
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/receipts
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/safety
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/provenance
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/administration
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/discovery
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/connector
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/reference
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/execution
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/typed_inventory
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_data_plane
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_gateway_reconciliation
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_ingest_reconciliation
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_execution
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/identity_administration
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_controls
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_autonomous
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_temporary_policy
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_connector_revocation
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_session_isolation
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/red_team_execution
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/attack_lab_execution
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_session_search
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_session_query
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_session_evidence
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_enrollment_pairing
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/reconciliation_lane_plan
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_candidate_authority
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_acceptance
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_correlation_routing
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_sandbox_binding
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_precision
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_budgets
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_run_context
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_existing_tests
+=== RUN   TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/drift
+    migrations_test.go:605: Version = (0, migration database failed), want (0, invalid migration state)
+--- FAIL: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift (0.27s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/empty (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/baseline (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/core (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/workflows (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/receipts (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/safety (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/provenance (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/administration (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/discovery (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/connector (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/reference (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/execution (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/typed_inventory (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_data_plane (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_gateway_reconciliation (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_ingest_reconciliation (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_execution (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/identity_administration (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_controls (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_autonomous (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_temporary_policy (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_connector_revocation (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_session_isolation (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/red_team_execution (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/attack_lab_execution (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_session_search (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_session_query (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_session_evidence (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_enrollment_pairing (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/reconciliation_lane_plan (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_candidate_authority (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_acceptance (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_correlation_routing (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_sandbox_binding (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/runtime_precision (0.00s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_budgets (0.01s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_run_context (0.02s)
+    --- PASS: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/security_agent_existing_tests (0.04s)
+    --- FAIL: TestRunnerVersionDistinguishesEmptyBaselineCoreWorkflowsReceiptsAndDrift/drift (0.09s)
+=== RUN   TestProductionAuditExportsRunnerVersion
+=== RUN   TestProductionAuditExportsRunnerVersion/healthy
+=== RUN   TestProductionAuditExportsRunnerVersion/wrong52name
+=== RUN   TestProductionAuditExportsRunnerVersion/wrong52checksum
+=== RUN   TestProductionAuditExportsRunnerVersion/wrong51checksum
+=== RUN   TestProductionAuditExportsRunnerVersion/gap
+=== RUN   TestProductionAuditExportsRunnerVersion/unknown53
+--- PASS: TestProductionAuditExportsRunnerVersion (0.04s)
+    --- PASS: TestProductionAuditExportsRunnerVersion/healthy (0.00s)
+    --- PASS: TestProductionAuditExportsRunnerVersion/wrong52name (0.00s)
+    --- PASS: TestProductionAuditExportsRunnerVersion/wrong52checksum (0.00s)
+    --- PASS: TestProductionAuditExportsRunnerVersion/wrong51checksum (0.00s)
+    --- PASS: TestProductionAuditExportsRunnerVersion/gap (0.00s)
+    --- PASS: TestProductionAuditExportsRunnerVersion/unknown53 (0.01s)
+=== RUN   TestComplianceRegistrationTransaction
+=== RUN   TestComplianceRegistrationTransaction/healthy
+    production_compliance_registration_test.go:70: healthy registration: migration database failed begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+=== RUN   TestComplianceRegistrationTransaction/lower-release
+    production_compliance_registration_test.go:81: refusal/rollback: migration database failed begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+=== RUN   TestComplianceRegistrationTransaction/future-release
+    production_compliance_registration_test.go:81: refusal/rollback: migration database failed begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+=== RUN   TestComplianceRegistrationTransaction/wrong-checksum
+    production_compliance_registration_test.go:81: refusal/rollback: migration database failed begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+=== RUN   TestComplianceRegistrationTransaction/initial-drift
+    production_compliance_registration_test.go:81: refusal/rollback: migration database failed begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+=== RUN   TestComplianceRegistrationTransaction/registration-false
+    production_compliance_registration_test.go:81: refusal/rollback: migration database failed begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+=== RUN   TestComplianceRegistrationTransaction/registration-error
+    production_compliance_registration_test.go:87: registration crossed preflight boundary: begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+=== RUN   TestComplianceRegistrationTransaction/final-drift
+    production_compliance_registration_test.go:81: refusal/rollback: migration database failed begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+=== RUN   TestComplianceRegistrationTransaction/final-error
+    production_compliance_registration_test.go:87: registration crossed preflight boundary: begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+=== RUN   TestComplianceRegistrationTransaction/commit-error
+    production_compliance_registration_test.go:87: registration crossed preflight boundary: begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+=== RUN   TestComplianceRegistrationTransaction/rollback-error
+    production_compliance_registration_test.go:87: registration crossed preflight boundary: begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+=== RUN   TestComplianceRegistrationTransaction/cancel-registration
+    production_compliance_registration_test.go:81: refusal/rollback: migration database failed begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+=== RUN   TestComplianceRegistrationTransaction/cancel-final
+    production_compliance_registration_test.go:81: refusal/rollback: migration database failed begin
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        query:SELECT count(*) FROM "public"."zasp_schema_versions"
+        args:none
+        rollback
+--- FAIL: TestComplianceRegistrationTransaction (2.56s)
+    --- FAIL: TestComplianceRegistrationTransaction/healthy (0.20s)
+    --- FAIL: TestComplianceRegistrationTransaction/lower-release (0.15s)
+    --- FAIL: TestComplianceRegistrationTransaction/future-release (0.23s)
+    --- FAIL: TestComplianceRegistrationTransaction/wrong-checksum (0.19s)
+    --- FAIL: TestComplianceRegistrationTransaction/initial-drift (0.20s)
+    --- FAIL: TestComplianceRegistrationTransaction/registration-false (0.20s)
+    --- FAIL: TestComplianceRegistrationTransaction/registration-error (0.20s)
+    --- FAIL: TestComplianceRegistrationTransaction/final-drift (0.22s)
+    --- FAIL: TestComplianceRegistrationTransaction/final-error (0.19s)
+    --- FAIL: TestComplianceRegistrationTransaction/commit-error (0.19s)
+    --- FAIL: TestComplianceRegistrationTransaction/rollback-error (0.21s)
+    --- FAIL: TestComplianceRegistrationTransaction/cancel-registration (0.19s)
+    --- FAIL: TestComplianceRegistrationTransaction/cancel-final (0.19s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/migrations	3.487s
+=== RUN   TestAttackLabExplicitReleaseCommands
+--- PASS: TestAttackLabExplicitReleaseCommands (0.00s)
+=== RUN   TestExistingTestsExplicitReleaseCommands
+--- PASS: TestExistingTestsExplicitReleaseCommands (0.00s)
+=== RUN   TestExistingTestsReleaseBoundaries
+--- PASS: TestExistingTestsReleaseBoundaries (0.00s)
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-51
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-52
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-53
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-54
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-55
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-56
+=== RUN   TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-57
+--- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals (0.25s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-51 (0.00s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-52 (0.00s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-53 (0.01s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-54 (0.01s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-55 (0.02s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-56 (0.04s)
+    --- PASS: TestRegisterForwardReleaseChecksExactSchemaAfterPrincipals/up-to-57 (0.04s)
+=== RUN   TestRegisterForwardReleaseStopsOnFailedAuthorityOrReadiness
+--- PASS: TestRegisterForwardReleaseStopsOnFailedAuthorityOrReadiness (0.05s)
+=== RUN   TestSecurityAgentExportsExplicitReleaseCommands
+--- PASS: TestSecurityAgentExportsExplicitReleaseCommands (0.00s)
+=== RUN   TestSecurityAgentExportsForwardReadiness
+--- PASS: TestSecurityAgentExportsForwardReadiness (0.18s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate	2.180s
+FAIL

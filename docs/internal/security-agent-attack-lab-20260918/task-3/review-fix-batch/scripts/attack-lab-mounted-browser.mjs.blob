@@ -1,0 +1,136 @@
+import assert from "node:assert/strict";
+import { randomBytes, randomUUID, createHash } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
+import { seedPrerequisites } from "./existing-test-mounted-browser.mjs";
+
+const org="pid_10000001-0000-4000-8000-000000000001", ws="pid_10000022-0000-4000-8000-000000000022", env="pid_10000023-0000-4000-8000-000000000023", actor="pid_10000004-0000-4000-8000-000000000004";
+const scope=`${org}/${ws}/${env}`, finding="pid_7f550001-0000-4000-8000-000000000001", approverID="pid_7f550002-0000-4000-8000-000000000002";
+const owned=`organization_id='${org}' AND workspace_id='${ws}' AND environment_id='${env}'`;
+const productID=/^pid_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+export async function seedAttackLabBrowserIdentity(sql) {
+  await sql(`INSERT INTO zasp_organizations(id,name,domain) VALUES('${org}','Owned browser organization','owned.example.test'),('pid_90000001-0000-4000-8000-000000000001','Foreign organization','foreign.example.test');
+INSERT INTO zasp_workspaces(id,organization_id,name) VALUES('${ws}','${org}','Staging Workspace'),('pid_10000002-0000-4000-8000-000000000002','${org}','Production Workspace'),('pid_90000002-0000-4000-8000-000000000002','pid_90000001-0000-4000-8000-000000000001','Foreign Workspace');
+INSERT INTO zasp_environments(id,organization_id,workspace_id,name,environment_class) VALUES('${env}','${org}','${ws}','Staging','staging'),('pid_10000003-0000-4000-8000-000000000003','${org}','pid_10000002-0000-4000-8000-000000000002','Production','production'),('pid_90000003-0000-4000-8000-000000000003','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','Foreign','test');
+INSERT INTO zasp_identity_memberships(principal_id,organization_id,organization_reference,member_reference,role) VALUES('${actor}','${org}','organization-test-local','member-test-local','security_admin'),('pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','organization-foreign-e2e','member-foreign-e2e','security_admin');
+INSERT INTO zasp_authorized_scopes(principal_id,organization_id,workspace_id,environment_id,label,permissions,is_default) VALUES('${actor}','${org}','${ws}','${env}','Staging','["view","manage_workflows","run_tests"]',false),('${actor}','${org}','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003','Production','["view","manage_workflows","run_tests"]',true),('pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','Foreign','["view","manage_workflows","run_tests"]',true);
+SELECT zasp_inventory_backfill_scope('${org}','${ws}','${env}');SELECT zasp_inventory_cutover_scope('${org}','${ws}','${env}');
+SELECT zasp_inventory_backfill_scope('${org}','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003');SELECT zasp_inventory_cutover_scope('${org}','pid_10000002-0000-4000-8000-000000000002','pid_10000003-0000-4000-8000-000000000003');`);
+}
+
+export async function runAttackLabMountedBrowser({sql,cdp,publicOrigin,chromePort,ui,step,providerSnapshot,withCapability,restartWorker,restartAPI,record}) {
+  await seedPrerequisites(sql);
+  await sql(`UPDATE zasp_authorized_scopes SET permissions=permissions||'["manage_identity"]'::jsonb WHERE principal_id='${actor}' AND ${owned}`);
+  const {navigateBrowser,waitForBrowserText,waitForBrowserScope,selectBrowserOption,clickBrowserText,clickBrowserAria,fillBrowserLabel,reloadBrowser,browserFetchJSON,browserBodyText,waitForBrowserAction,startBrowserTab}=ui;
+  const route=path=>navigateBrowser(cdp,publicOrigin+path);
+  const read=async path=>{const response=await browserFetchJSON(cdp,path,{"X-Zasp-Expected-Scope":scope,"X-Zasp-Action-Details":"v1","X-Zasp-Run-Context":"v1"});assert.equal(response.status,200,JSON.stringify(response));return response.body;};
+  const mutate=async(tab,path,method,body,version)=>{
+    const headers={"content-type":"application/json","Idempotency-Key":`attack-browser-${randomUUID()}`,"X-Zasp-Expected-Scope":scope,"X-Zasp-Fresh-Auth":"confirmed",...(version===undefined?{}:{"If-Match":`"${version}"`})};
+    const result=await tab.send("Runtime.evaluate",{expression:`(async()=>{const bootstrap=await fetch('/api/v1/session/bootstrap',{cache:'no-store'}).then(r=>r.json());const response=await fetch(${JSON.stringify(path)},{method:${JSON.stringify(method)},headers:{...${JSON.stringify(headers)},'X-CSRF-Token':bootstrap.csrf_token},body:${JSON.stringify(JSON.stringify(body))}});return {status:response.status,body:await response.json()};})()`,awaitPromise:true,returnByValue:true});return result.result.value;
+  };
+  const snapshot=async(include57=true)=>{
+    const tables=["zasp_security_agent_effects","zasp_attack_lab_runs","zasp_attack_lab_attempts","zasp_attack_lab_outbox","zasp_attack_lab_cleanup_checkpoints","zasp_red_team_runs","zasp_red_team_attempts","zasp_red_team_outbox",...(include57?["zasp_sa_attack_lab_links"]:[])];
+    return JSON.stringify({rows:await sql(`SELECT jsonb_build_array(${tables.map(table=>`(SELECT coalesce(jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text),'[]') FROM ${table} t WHERE ${owned})`).join(",")})::text`),provider:await providerSnapshot()});
+  };
+  await route("/api/v1/session/start?return_to=%2Fred-team%2Fresults");await waitForBrowserText(cdp,/No Red Team tests in this scope/);
+  await selectBrowserOption(cdp,"Authorized scope","Staging");await waitForBrowserScope(cdp,scope);
+  await clickBrowserText(cdp,"Create test");await fillBrowserLabel(cdp,"Test name","Attack Lab exact source");await selectBrowserOption(cdp,"Fresh discovered target","Mounted owned target");await clickBrowserText(cdp,"Save test");
+  await waitForBrowserAction(cdp,`document.querySelector('[aria-label="Run Attack Lab exact source"]')?.disabled === false`);
+  await clickBrowserAria(cdp,"Run Attack Lab exact source");await waitForBrowserAction(cdp,`document.querySelector('[aria-label="Run Attack Lab exact source"]')?.disabled === false`);
+  await step("source");
+  const sourceID=await sql(`SELECT run_id FROM zasp_red_team_runs WHERE ${owned} ORDER BY queued_at DESC LIMIT 1`);assert.match(sourceID,productID);
+  assert.equal(await sql(`SELECT state||'|'||verdict FROM zasp_red_team_runs WHERE run_id='${sourceID}'`),"complete|fail");
+  const testID=await sql(`SELECT definition_id FROM zasp_red_team_runs WHERE run_id='${sourceID}'`);assert.match(testID,productID);
+  const definition=await read(`/api/v1/tests/${testID}`);
+  const testBody=({name,target_id,target_kind,categories,safety,enabled})=>({name,target_id,target_kind,categories,safety,enabled});
+  const draft={name:"Unavailable Attack Lab draft",trigger_kind:"finding",trigger_source:"credential",environment_ids:[env],autonomy:"supervised",max_steps:1,max_duration_seconds:300,temporary_policy_seconds:600,ai_token_budget:1000,max_ai_cost_nano_credits:10000,concurrency_limit:1,allowed_actions:["start_attack_lab"],verification_kind:"attack_lab_run",definition_version:1,enabled:false,existing_test:{definition_id:testID,definition_version:1}};
+  for(const mode of ["absent","corrupt","unready"]) await withCapability(mode,async()=>{
+    const before=await snapshot(mode!=="absent");
+    for(const path of ["/api/v1/security-actions","/api/v1/security-agent-templates"]) {
+      const response=await browserFetchJSON(cdp,path,{"X-Zasp-Expected-Scope":scope});assert.equal(response.status,mode==="corrupt"?503:200,JSON.stringify(response));assert.equal(JSON.stringify(response.body).includes("start_attack_lab"),false);
+    }
+    if(mode!=="unready") {const refused=await mutate(cdp,"/api/v1/security-agents","POST",draft);assert.equal(refused.status,mode==="absent"?400:503,JSON.stringify(refused));}
+    assert.equal(await snapshot(mode!=="absent"),before,`${mode} capability wrote execution effects`);
+    console.log(`mounted Attack Lab ${mode} capability: actual API refusal, full effect rows unchanged`);
+  });
+  for(const safety of [{...definition.safety,environment:"production"},{...definition.safety,credential_class:"production_write"}]) {
+    const before=await snapshot();const refused=await mutate(cdp,`/api/v1/tests/${testID}`,"PATCH",{...testBody(definition),safety},definition.version);assert.equal(refused.status,400,JSON.stringify(refused));assert.equal(await snapshot(),before,"unsafe perimeter refusal changed effect rows");
+  }
+  console.log("mounted Attack Lab production/write perimeter refusal: full effect rows unchanged; no runtime safety drift claim");
+  await route("/protect/security-agents");
+  try { await waitForBrowserText(cdp,/Tenant-scoped response definitions/); }
+  catch(error) {
+    for(const path of ["/api/v1/security-agents","/api/v1/security-agent-templates","/api/v1/security-actions","/api/v1/security-agent-runs","/api/v1/security-agent-approvals","/api/v1/security-agent-execution-controls"]) console.log("mounted first-read diagnostic",path,JSON.stringify(await browserFetchJSON(cdp,path,{"X-Zasp-Expected-Scope":scope})));
+    throw error;
+  }
+  await clickBrowserText(cdp,"Enable environment automation");await waitForBrowserText(cdp,/Environment automation enabled/);
+  await clickBrowserText(cdp,"Enable start_attack_lab");await waitForBrowserText(cdp,/start_attack_lab enabled/);
+  const results=[];
+  for(const item of [{name:"Attack Lab supervised",autonomy:"supervised",verdict:"verified"},{name:"Attack Lab autonomous",autonomy:"autonomous",verdict:"not_reproduced"},{name:"Attack Lab stopped parent",autonomy:"supervised",verdict:"verified",stop:true},{name:"Attack Lab stale approval",autonomy:"supervised",verdict:"verified",drift:true}]) {
+    await step(item.verdict==="verified"?"arm-verified":"arm-not-reproduced");
+    await route("/protect/security-agents");await waitForBrowserText(cdp,/Tenant-scoped response definitions/);await clickBrowserText(cdp,"Create Security Agent");
+    await selectBrowserOption(cdp,"Definition template","Reproduce in Attack Lab");await selectBrowserOption(cdp,"Existing test definition","Attack Lab exact source · version 1");
+    await fillBrowserLabel(cdp,"Definition name",item.name);await fillBrowserLabel(cdp,"AI cost budget (nano OpenRouter credits)","10000");await fillBrowserLabel(cdp,"Step limit","1");
+    await clickBrowserText(cdp,"Save Security Agent definition");await waitForBrowserText(cdp,new RegExp(item.name));await clickBrowserAria(cdp,`Open ${item.name}`);
+    await clickBrowserText(cdp,"Validate definition");await waitForBrowserText(cdp,/Resource version 2/);await clickBrowserText(cdp,"Enable supervised execution");await waitForBrowserText(cdp,/Resource version 3/);
+    if(item.autonomy==="autonomous"){await clickBrowserText(cdp,"Enable autonomous execution");await waitForBrowserText(cdp,/Resource version 4/);}
+    await fillBrowserLabel(cdp,"Evidence ID",finding);await clickBrowserText(cdp,`Start ${item.autonomy} run`);await waitForBrowserAction(cdp,`document.querySelector('[aria-label="Close"]')?.disabled === false`);await clickBrowserAria(cdp,"Close");
+    await step("plan");
+    const runID=await sql(`SELECT r.run_id FROM zasp_security_agent_runs r JOIN zasp_security_agent_definitions d USING(organization_id,workspace_id,environment_id,definition_id) WHERE d.body->>'name'='${item.name}' AND r.state<>'simulated' ORDER BY r.created_at DESC LIMIT 1`);assert.match(runID,productID);
+    assert.equal(await sql(`SELECT state FROM zasp_security_agent_runs WHERE run_id='${runID}'`),"waiting_approval",`${item.autonomy} bypassed operator floor`);
+    assert.equal(await sql(`SELECT count(*) FROM zasp_sa_attack_lab_links WHERE run_id='${runID}'`),"0");
+    const approval=await sql(`SELECT approval_id FROM zasp_security_agent_approvals WHERE run_id='${runID}' AND state='pending'`);assert.match(approval,productID);
+    const token=randomBytes(32).toString("hex"),digest=createHash("sha256").update(token).digest("hex"),csrf=randomBytes(32).toString("hex");
+    await sql(`INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at,authenticated_at) VALUES(decode('${digest}','hex'),'${csrf}','session-attack-approval-${runID.slice(4)}','${approverID}','${org}','${ws}','${env}','["view","manage_workflows","run_tests"]',clock_timestamp()+interval '1 hour',clock_timestamp())`);
+    const approvalTab=await startBrowserTab(chromePort,publicOrigin+"/protect/approvals",{name:"__Host-zasp_session",value:token,sameSite:"Lax"});
+    try {
+      await waitForBrowserScope(approvalTab,scope);await clickBrowserAria(approvalTab,`Open approval ${approval}`);
+      try {await waitForBrowserText(approvalTab,new RegExp(sourceID));await waitForBrowserText(approvalTab,new RegExp(testID));}
+      catch(error){console.log("mounted approval diagnostic",JSON.stringify(await browserFetchJSON(approvalTab,`/api/v1/security-agent-approvals/${approval}`,{"X-Zasp-Expected-Scope":scope})),await browserBodyText(approvalTab));throw error;}
+      const text=await browserBodyText(approvalTab);assert.ok(text.includes(sourceID)&&text.includes(testID),text);assert.match(text,/staging/);assert.match(text,/adapter.customer.example/);assert.doesNotMatch(text,/ref:red-team|s3:\/\//);
+      if(item.drift) {
+        const changed=await mutate(cdp,`/api/v1/tests/${testID}`,"PATCH",{...testBody(definition),name:"Attack Lab source version two"},1);assert.equal(changed.status,200,JSON.stringify(changed));assert.equal(changed.body.version,2);
+        const before=await snapshot();const denied=await mutate(approvalTab,`/api/v1/security-agent-approvals/${approval}/decision`,"POST",{decision:"approved"},1);assert.equal(denied.status,404,JSON.stringify(denied));assert.equal(await snapshot(),before,"stale approved source created effects");
+        const stale=await browserFetchJSON(cdp,`/api/v1/attack-lab/preflight?source_run_id=${sourceID}`,{"X-Zasp-Expected-Scope":scope});assert.equal(stale.status,404,JSON.stringify(stale));
+        console.log("mounted Attack Lab legitimate source version drift refused approval and preflight; effect rows unchanged");
+      } else {await clickBrowserText(approvalTab,"Approve");await waitForBrowserText(approvalTab,/approved\s+Version 2/);}
+    }
+    finally { await approvalTab.dispose(); }
+    if(item.drift) continue;
+    await step("plan");
+    const executionID=await sql(`SELECT execution_id FROM zasp_sa_attack_lab_links WHERE run_id='${runID}'`);assert.match(executionID,productID);
+    await route("/protect/security-agents");await waitForBrowserText(cdp,new RegExp(runID));await clickBrowserAria(cdp,`Open run ${runID}`);await waitForBrowserText(cdp,/Sandbox cleanup pending/);
+    await step("outbox");const lost=await step("execute",503);assert.equal(lost.provider_calls,1);assert.equal(lost.job_posts,1);
+    const interrupted=await read(`/api/v1/security-agent-runs/${runID}`);assert.equal(interrupted.action_details[0].attack_lab.state,"running");assert.equal(interrupted.action_details[0].attack_lab.settlement,null);
+    if(item.stop) {
+      await reloadBrowser(cdp);await waitForBrowserText(cdp,new RegExp(runID));await clickBrowserAria(cdp,`Open run ${runID}`);await waitForBrowserText(cdp,/Sandbox cleanup pending/);await clickBrowserText(cdp,"Cancel run");
+      await waitForBrowserAction(cdp,`![...document.querySelectorAll('button')].some(button=>button.textContent==='Cancel run')`);
+      const stopping=await step("reconcile");assert.equal(stopping.settlement_calls,0);assert.equal(stopping.provider_calls,1);
+      await restartAPI();await reloadBrowser(cdp);await waitForBrowserText(cdp,new RegExp(runID));await clickBrowserAria(cdp,`Open run ${runID}`);await waitForBrowserText(cdp,/Sandbox cleanup pending/);
+      const stopped=await read(`/api/v1/security-agent-runs/${runID}`);assert.equal(stopped.run.state,"cancelled");assert.equal(stopped.action_details[0].attack_lab.execution_id,executionID);assert.equal(stopped.action_details[0].attack_lab.cleanup_complete,false);
+    }
+    await restartWorker();
+    // Real lease expiry. Never rewrite owner timestamps to manufacture recovery.
+    const waitUntil=Number(await sql(`SELECT ceil(extract(epoch from lease_expires_at)*1000) FROM zasp_attack_lab_runs WHERE run_id='${executionID}'`));
+    assert.ok(waitUntil-Date.now()<32_000);await delay(Math.max(0,waitUntil-Date.now()+100));
+    const recovered=await step("execute");assert.equal(recovered.provider_calls,1);assert.equal(recovered.job_posts,1);assert.ok(recovered.job_deletes>=1);
+    const settled=await step("reconcile");assert.equal(settled.provider_calls,1);assert.equal(settled.lost_settlement_reply,true);assert.equal(settled.settlement_calls,2);
+    const detail=await read(`/api/v1/security-agent-runs/${runID}`),proof=detail.action_details[0].attack_lab;
+    if(!item.stop)assert.equal(proof.verdict,item.verdict);assert.equal(proof.cleanup_complete,true);assert.equal(proof.settlement.outcome,item.stop?"cancelled":"needs_human");if(item.stop)assert.equal(detail.run.state,"cancelled");
+    await restartAPI();await reloadBrowser(cdp);await waitForBrowserText(cdp,new RegExp(runID));await clickBrowserAria(cdp,`Open run ${runID}`);await waitForBrowserText(cdp,item.stop?/Sandbox cleanup confirmed/:/Attack Lab outcome: Needs human/);
+    const rendered=await browserBodyText(cdp);assert.doesNotMatch(rendered,/Remediated|ref:red-team|s3:\/\/|lease_token/);assert.ok(rendered.includes(proof.settlement.proof_digest));
+    assert.deepEqual((await read(`/api/v1/security-agent-runs/${runID}`)).action_details[0].attack_lab,proof);
+    await record(runID,cdp,{...item,sourceID,testID,runID,executionID,proof,interrupted:interrupted.action_details[0].attack_lab,provider:recovered,settlement:settled,claim:"local controlled provider; NOT live EKS or hostile-code acceptance"});
+    await clickBrowserText(cdp,"Open linked Attack Lab execution");await waitForBrowserText(cdp,new RegExp(executionID));await reloadBrowser(cdp);await waitForBrowserText(cdp,new RegExp(executionID));
+    results.push({runID,executionID,proof});
+  }
+  const queuedID=`pid_${randomUUID()}`,queued=await mutate(cdp,`/api/v1/tests/${testID}/runs`,"POST",{run_id:queuedID},2);assert.equal(queued.status,202,JSON.stringify(queued));
+  const beforeQueued=await snapshot(),unreadySource=await browserFetchJSON(cdp,`/api/v1/attack-lab/preflight?source_run_id=${queuedID}`,{"X-Zasp-Expected-Scope":scope});assert.equal(unreadySource.status,404,JSON.stringify(unreadySource));assert.equal(await snapshot(),beforeQueued);
+  const foreignScope="pid_90000001-0000-4000-8000-000000000001/pid_90000002-0000-4000-8000-000000000002/pid_90000003-0000-4000-8000-000000000003";
+  const token=randomBytes(32).toString("hex"),digest=createHash("sha256").update(token).digest("hex");
+  await sql(`INSERT INTO zasp_product_sessions(token_digest,csrf_token,session_id,principal_id,organization_id,workspace_id,environment_id,permissions,expires_at,authenticated_at) VALUES(decode('${digest}','hex'),repeat('c',32),'session-attack-foreign','pid_90000004-0000-4000-8000-000000000004','pid_90000001-0000-4000-8000-000000000001','pid_90000002-0000-4000-8000-000000000002','pid_90000003-0000-4000-8000-000000000003','["view","manage_workflows","run_tests"]',clock_timestamp()+interval '1 hour',clock_timestamp())`);
+  const foreign=await startBrowserTab(chromePort,publicOrigin+"/protect/security-agents",{name:"__Host-zasp_session",value:token,sameSite:"Lax"});
+  try { await waitForBrowserScope(foreign,foreignScope);for(const item of results)for(const path of [`/api/v1/security-agent-runs/${item.runID}`,`/api/v1/attack-lab/runs/${item.executionID}`,`/api/v1/test-runs/${sourceID}`]){const denied=await browserFetchJSON(foreign,path,{"X-Zasp-Expected-Scope":foreignScope,"X-Zasp-Action-Details":"v1"});assert.equal(denied.status,404,JSON.stringify(denied));assert.equal(JSON.stringify(denied.body).includes(item.runID),false);} }
+  finally { await foreign.dispose(); }
+  console.log(`LOCAL mounted Attack Lab browser passed: ${JSON.stringify(results.map(({runID,executionID,proof})=>({runID,executionID,outcome:proof.settlement.outcome,verdict:proof.verdict})))}`);
+}

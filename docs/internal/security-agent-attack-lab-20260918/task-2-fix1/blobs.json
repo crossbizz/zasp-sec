@@ -1,0 +1,27 @@
+[
+  {
+    "path": "deploy/staging/product/templates/attack-lab-reconciler.yaml",
+    "before": "efa4409531f8a33f6db953d17551597f1fa7df97",
+    "after": "672e88e5f54ce73434d2fa23d7ef82b6c351666c"
+  },
+  {
+    "path": "deploy/production/attack-lab-reconciler-rollout.mjs",
+    "before": "c624681068c06aa71819988506e28c72c49ee68a",
+    "after": "2829f98b13d39da8a6e825c133cf074901c507eb"
+  },
+  {
+    "path": "deploy/production/attack-lab-reconciler-rollout.test.mjs",
+    "before": "34945a112fcae9118eee9d8bfd416602d02c3756",
+    "after": "d9d9940ff1ebee5dea3b88473bd9b6703dc06273"
+  },
+  {
+    "path": "services/platform/agentsec-worker/security_agent_attack_lab_deployment_test.go",
+    "before": "d1c2ebcc8f068a8641d0bbf294d3ad30c9b4f29b",
+    "after": "e5ef3fd30258e42e641fcaddcdd32843bcc6b687"
+  },
+  {
+    "path": "deploy/production/attack-lab-reconciler-runtime.test.mjs",
+    "before": "b625b1d0b7dfd4f37804bea07382a0d4c02bd779",
+    "after": "115507dfb280fb98f64a38694dce23980a084306"
+  }
+]

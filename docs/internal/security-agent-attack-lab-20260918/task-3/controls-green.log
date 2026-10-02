@@ -1,0 +1,13 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npx","--no-install","vitest","run","app/features/securityagents/SecurityAgentsView.test.tsx","-t","seven registered57|lifecycle batch enables"]
+
+ RUN  v4.1.11 /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed | 69 skipped (73)
+   Start at  04:09:08
+   Duration  1.97s (transform 265ms, setup 269ms, import 413ms, tests 155ms, environment 934ms)
+
+
+Exit: 0 Signal: null

@@ -1,0 +1,9 @@
+0a2a0107428a37d051bfa025f3a59ac42657c96090446e311596bb3617bccd7c  /private/tmp/zasp-connector-rejection-red.test
+06a260529b0dd63fbe2c4c185f2bb347a6667c7027a3c3efb8215df4849edafc  services/platform/apiserver/connector_rejection_postgres_test.go
+TestConnectorRejectedAuthorityOverridesPostgres
+=== RUN   TestConnectorRejectedAuthorityOverridesPostgres
+    connector_rejection_postgres_test.go:64: registered API ACL observation: current_user=security_agent_v33_discovery_api_login audit-table INSERT privilege=true; product writes use real repository operations only
+    connector_rejection_postgres_test.go:127: positive generic-webhook destination_url control: 201 {"id": "pid_8ce22ee2-5244-461b-9dfa-1c7038fa9073", "name": "Safe webhook", "status": "configured", "created_at": "2026-09-19T04:11:04Z", "updated_at": "2026-09-19T04:11:04Z", "configuration": {"destination_url": "https://hooks.example.test/zasp", "signing_secret_reference": "secret_ref_connector_fixture"}, "connector_key": "generic-webhook"}
+    postgres_integration_test.go:1342: joined owned PostgreSQL pid=24 data=/tmp/TestConnectorRejectedAuthorityOverridesPostgres2681188084/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- FAIL: TestConnectorRejectedAuthorityOverridesPostgres (5.19s)
+FAIL

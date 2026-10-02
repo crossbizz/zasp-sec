@@ -24,7 +24,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
-          go-version: 1.25.6
+          go-version: 1.25.13
           cache: true
           cache-dependency-path: services/platform/go.sum
       - name: Pin npm
@@ -58,9 +58,32 @@ jobs:
         run: npm run implementation:status:check
       - name: Verify runnable UI
         run: npm run verify
+      - name: Provision isolated compliance browser prerequisites
+        timeout-minutes: 10
+        run: |
+          # This populates the exact cache entry consumed with --pull=never.
+          compliance_postgres_image=postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba
+          docker pull "$compliance_postgres_image"
+          docker image inspect "$compliance_postgres_image" --format '{{json .RepoDigests}}' | node --input-type=module -e 'import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; assert.ok(JSON.parse(readFileSync(0,"utf8")).includes(process.argv[1]), "pinned browser PostgreSQL digest absent");' "$compliance_postgres_image"
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+          import { appendFileSync } from "node:fs";
+          import { selectBrowserExecutable } from "./scripts/browser-prerequisites.mjs";
+          const chrome = selectBrowserExecutable();
+          console.log(`Hosted compliance browser: ${chrome}`);
+          console.log(execFileSync(chrome, ["--version"], { encoding: "utf8", timeout: 5000, killSignal: "SIGKILL" }).trim());
+          appendFileSync(process.env.GITHUB_ENV, `ZASP_COMBINED_E2E_CHROME=${chrome}\n`);
+          NODE
+      - name: Verify current compliance browser acceptance
+        timeout-minutes: 15
+        env:
+          ZASP_COMBINED_E2E_COMPLIANCE: "true"
+        run: |
+          node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs
+          node scripts/production-combined-e2e.mjs
       - name: Verify Red Team runtime and ledger regressions
         run: |
-          node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs
+          node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs
           go test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'
       - name: Verify production release sources
         run: npm run production:release:gate
@@ -73,14 +96,14 @@ jobs:
           unzip -q "$task_tf_dir/terraform.zip" -d "$task_tf_dir"
           export TF_DATA_DIR="$task_tf_dir/data"
           "$task_tf_dir/terraform" -chdir=deploy/staging init -backend=false -input=false -lockfile=readonly
-          "$task_tf_dir/terraform" -chdir=deploy/staging test -filter=tests/session_search_iam.tftest.hcl -var-file=release.tfvars -no-color
+          "$task_tf_dir/terraform" -chdir=deploy/staging test -filter=tests/session_search_iam.tftest.hcl -filter=tests/test_reconciler_iam.tftest.hcl -var-file=release.tfvars -no-color
       - name: Verify reconciliation maintenance alerts
         run: |
           task_prom_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-promtool.XXXXXX")
           curl --fail --location --retry 3 --max-time 120 --output "$task_prom_dir/prometheus.tar.gz" https://github.com/prometheus/prometheus/releases/download/v3.14.0/prometheus-3.14.0.linux-amd64.tar.gz
           printf '%s  %s\n' f665c6da19eb7ba399c915d30c7d9793c9b417bf8a749b504bc470678631478d "$task_prom_dir/prometheus.tar.gz" | sha256sum --check -
           tar -xzf "$task_prom_dir/prometheus.tar.gz" -C "$task_prom_dir" prometheus-3.14.0.linux-amd64/promtool
-          ZASP_PROMTOOL_BIN="$task_prom_dir/prometheus-3.14.0.linux-amd64/promtool" node --test deploy/production/reconciliation-maintenance-alerts.test.mjs
+          ZASP_PROMTOOL_BIN="$task_prom_dir/prometheus-3.14.0.linux-amd64/promtool" node --test deploy/production/reconciliation-maintenance-alerts.test.mjs deploy/production/audit-export-alerts.test.mjs deploy/production/test-reconciler-alerts.test.mjs
           ZASP_PROMTOOL_BIN="$task_prom_dir/prometheus-3.14.0.linux-amd64/promtool" go test -C services/platform -race -count=1 ./agentsec-api -run '^TestReconciliationMaintenancePrometheusExposition$'
       - name: Verify durable runtime sessions, enrollment pairing and candidate authority
         run: |
@@ -88,7 +111,121 @@ jobs:
           go test -C services/platform -race -count=1 ./agentsec-migrate ./migrations ./runtimeevent ./internal/testprocess ./internal/sandboxcutover
           go test -C services/platform -race -count=1 ./agentsec-api ./agentsec-worker
           go test -C services/platform -race -count=1 ./runtimemetadata ./runtimelineage ./sensoradapter ./sessionsearch ./runtimeprojection ./runtimecorrelation ./runtimeindex/...
-          go test -C services/platform -race -count=1 -timeout=30m ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority|CorrelationRouting|Sandbox|Precision)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes)'
+          task_reconciler_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-reconciler.XXXXXX")
+          go test -C services/platform -race -c -o "$task_reconciler_dir/worker-tests" ./agentsec-worker
+          export ZASP_RECONCILE_CLIENT_BINARY="$task_reconciler_dir/worker-tests"
+          go test -C services/platform -race -count=1 -timeout=30m ./apiserver -run '^(TestRuntime(Session|EnrollmentPairing|CandidateAuthority|CorrelationRouting|Sandbox|Precision)|TestSensor|TestReconciliationLanePlan|TestReconciliationMaintenance|TestConnectorAuthorizationPostgresReconciliationIndexes|Test.*SecurityAgent)'
+      - name: Require audit fixture toolchains and pinned LocalStack image
+        id: audit_prerequisites
+        timeout-minutes: 35
+        run: |
+          test "$(node --version)" = v22.23.1
+          test "$(go env GOVERSION)" = go1.25.13
+          export PATH="$(pg_config --bindir):$PATH"
+          for fixture_tool in initdb postgres pg_ctl pg_isready cc docker; do
+            command -v "$fixture_tool"
+          done
+          test "$(id -u)" -ne 0
+          cc --version
+          docker info --format '{{.ServerVersion}}'
+          docker pull localstack/localstack:4.7.0@sha256:12253acd9676770e9bd31cbfcf17c5ca6fd7fb5c0c62f3c46dd701f20304260c
+      - name: Verify audit codec, configuration and artifact stores
+        id: audit_packages
+        timeout-minutes: 35
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -timeout=30m ./audit ./auditexportconfig ./artifactstore/...
+      # Sequential bounds are failure deadlines, not hosted timing evidence.
+      - name: Verify audit PostgreSQL authority A-M
+        id: audit_a1
+        timeout-minutes: 35
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=30m ./apiserver -run '^TestAuditExportPostgres[A-M]'
+      - name: Verify audit PostgreSQL authority N-Z
+        id: audit_a2
+        timeout-minutes: 35
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=30m ./apiserver -run '^TestAuditExportPostgres[N-Z]'
+      - name: Verify audit public, worker and compatibility acceptance
+        id: audit_a3
+        timeout-minutes: 35
+        env:
+          ZASP_AUDIT_EXPORT_LOCALSTACK_REQUIRED: "true"
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=30m ./apiserver -run '^TestAuditExport(Public|Identity|Worker|RunContext|s)'
+      - name: Verify audit immutable retrieval and provider contracts
+        id: audit_a4
+        timeout-minutes: 35
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=30m ./apiserver -run '^TestAuditExport(Artifact|Composition|Contents|Cursor|Descriptor|HTTP(Create|Get|PostWorker|Rejects)|Localstack|LocalStack|Policy|Process|Production|Read|Recovery|Repository)'
+      - name: Verify audit HTTP memory, provider and lifetime helpers
+        id: audit_helpers
+        timeout-minutes: 35
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=30m ./apiserver -run '^(TestAuditHTTP(Size(Expected|Memory|Oracle|PostgresStop|Process(Inputs|Protocol|TerminalTail|PrivateFiles|Environment|StartFailure|BackgroundOwnership)|Provider|Shutdown)|Fixture)|TestDisposablePostgresCleanup)'
+      - name: Verify audit HTTP process composition and controlled zero source
+        id: audit_composition
+        timeout-minutes: 37
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=32m ./apiserver -run '^TestAuditHTTPSizeProcessCompositionPostgres$'
+      - name: Verify audit full-size functional race children
+        id: audit_race
+        timeout-minutes: 37
+        env:
+          ZASP_AUDIT_HTTP_SIZE_BUILD: "race"
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=32m ./apiserver -run '^TestAuditExportHTTPSizeProcessPostgres$'
+      - name: Verify both audit full-size memory sensitivity controls
+        id: audit_controls
+        timeout-minutes: 45
+        env:
+          ZASP_AUDIT_HTTP_SIZE_BUILD: ""
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=40m ./apiserver -run '^TestAuditExportHTTPSizeMemorySensitivityPostgres$'
+      - name: Verify three serial audit full-size normal memory pairs
+        id: audit_normal
+        timeout-minutes: 45
+        env:
+          ZASP_AUDIT_HTTP_SIZE_BUILD: ""
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=40m ./apiserver -run '^TestAuditExportHTTPSizeProcessPostgres$'
+      - name: Verify full-size orderly API restart with numeric children
+        id: audit_orderly
+        timeout-minutes: 25
+        env:
+          ZASP_AUDIT_HTTP_SIZE_BUILD: ""
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=20m ./apiserver -run '^TestAuditExportHTTPOrderlyRestartPostgres$'
+      - name: Verify full-size orderly API restart with race children
+        id: audit_orderly_race
+        timeout-minutes: 25
+        env:
+          ZASP_AUDIT_HTTP_SIZE_BUILD: "race"
+        run: |
+          export PATH="$(pg_config --bindir):$PATH"
+          test -x "$(pg_config --bindir)/initdb"
+          go test -C services/platform -race -count=1 -v -timeout=20m ./apiserver -run '^TestAuditExportHTTPOrderlyRestartPostgres$'
       - name: Verify sensor lineage and authenticated replay
         run: |
           export PATH="$(pg_config --bindir):$PATH"

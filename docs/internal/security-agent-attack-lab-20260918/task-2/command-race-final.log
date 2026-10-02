@@ -1,0 +1,10 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917/services/platform
+Command: ["env","GOTOOLCHAIN=local","GOPROXY=off","GOSUMDB=off","GOCACHE=/private/tmp/zasp-budget-go-cache","/opt/homebrew/bin/go","test","-race","./agentsec-migrate","-run","^TestAttackLab(RegistrationBinaryPreflight|ExplicitReleaseCommands)$","-count=1","-v"]
+=== RUN   TestAttackLabRegistrationBinaryPreflight
+--- PASS: TestAttackLabRegistrationBinaryPreflight (1.60s)
+=== RUN   TestAttackLabExplicitReleaseCommands
+--- PASS: TestAttackLabExplicitReleaseCommands (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-migrate	3.416s
+
+Exit: 0 Signal: null

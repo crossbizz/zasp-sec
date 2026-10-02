@@ -344,9 +344,10 @@ type PostgresDriver interface {
 }
 
 type PostgresJSONDatabase struct {
-	mu     sync.RWMutex
-	driver PostgresDriver
-	closed bool
+	currentAuthorization bool
+	mu                   sync.RWMutex
+	driver               PostgresDriver
+	closed               bool
 }
 
 func NewPostgresJSONDatabase(driver PostgresDriver) (*PostgresJSONDatabase, error) {
@@ -364,6 +365,9 @@ func (database *PostgresJSONDatabase) SchemaVersion(ctx context.Context) (string
 	defer database.mu.RUnlock()
 	if database.closed || nilInterface(database.driver) {
 		return "", ErrRepositoryUnavailable
+	}
+	if database.currentAuthorization {
+		return database.currentAuthorizationSchemaVersion(ctx)
 	}
 	var marker string
 	if err := database.driver.QueryRow(ctx, postgresSchemaMarkerSQL).Scan(&marker); err != nil {
@@ -459,6 +463,15 @@ func (database *PostgresJSONDatabase) QueryJSON(ctx context.Context, statement s
 	if database.closed || nilInterface(database.driver) {
 		return nil, ErrRepositoryUnavailable
 	}
+	if payload, metadata, err := database.authorizationMetadataQuery(ctx, statement, arguments); metadata {
+		return payload, err
+	}
+	if grant, ok := requestAuthorizationFromContext(ctx); ok {
+		return database.authorizedQueryJSON(ctx, grant, statement, arguments...)
+	}
+	if database.currentAuthorization && !authorizationIdentityStatement(statement) {
+		return nil, ErrAuthorizationDenied
+	}
 	var payload []byte
 	if err := database.driver.QueryRow(ctx, statement, arguments...).Scan(&payload); err != nil {
 		return nil, classifyPostgresError(err)
@@ -481,6 +494,9 @@ func (database *PostgresJSONDatabase) Exec(ctx context.Context, statement string
 	if database.closed || nilInterface(database.driver) {
 		return ErrRepositoryUnavailable
 	}
+	if database.currentAuthorization {
+		return ErrAuthorizationDenied
+	}
 	if err := database.driver.Exec(ctx, statement, arguments...); err != nil {
 		return classifyPostgresError(err)
 	}
@@ -493,6 +509,12 @@ func classifyPostgresError(err error) error {
 	}
 	var provider *pgconn.PgError
 	if errors.As(err, &provider) {
+		if provider.Code == "40001" && provider.Message == "compliance source_changed" {
+			return ErrComplianceSourceChanged
+		}
+		if provider.Code == "22023" && provider.Message == "security agent cost budget configuration required" {
+			return ErrRepositoryCostBudgetRequired
+		}
 		switch provider.Code {
 		case "22023", "22P02", "23514":
 			return ErrRepositoryOperation

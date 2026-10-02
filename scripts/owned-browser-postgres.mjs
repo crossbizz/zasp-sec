@@ -1,0 +1,153 @@
+import { randomBytes } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
+import { spawnOwnedCommand } from "./owned-command.mjs";
+import { createIsolatedPostgresBridge } from "./isolated-postgres-bridge.mjs";
+import { lstatSync } from "node:fs";
+
+const IMAGE = "postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba";
+const LABEL = "zasp.browser-postgres.owner";
+
+// Construct synchronously and register with the harness before awaiting start.
+// Docker CLI completion never stands in for container liveness or removal.
+export function createOwnedBrowserPostgres({ port, trackFunctions = false, spawnCommand = spawnOwnedCommand,
+  isolatedRelay, discoveryCollectorBinary, bridgeFactory = createIsolatedPostgresBridge,
+  commandTimeoutMs = 5000, readinessTimeoutMs = 30000, pollMs = 100 } = {}) {
+  if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw new TypeError("invalid PostgreSQL port");
+  for (const [value, maximum] of [[commandTimeoutMs, 5000], [readinessTimeoutMs, 30000], [pollMs, 1000]]) {
+    if (!Number.isSafeInteger(value) || value < 1 || value > maximum) throw new TypeError("invalid PostgreSQL lifecycle bound");
+  }
+  if (typeof trackFunctions !== "boolean" || typeof spawnCommand !== "function") throw new TypeError("invalid PostgreSQL lifecycle options");
+  if (isolatedRelay !== undefined && (typeof isolatedRelay !== "string" || !/^\/(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+$/.test(isolatedRelay) || isolatedRelay.split("/").includes(".."))) throw new TypeError("invalid isolated relay path");
+  if (discoveryCollectorBinary !== undefined) {
+    if (typeof discoveryCollectorBinary !== "string" || !/^\/(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+$/.test(discoveryCollectorBinary) || discoveryCollectorBinary.split("/").some(part=>part===".."||part===".")) throw new TypeError("invalid discovery collector path");
+    let stat;
+    try { stat=lstatSync(discoveryCollectorBinary); } catch { throw new TypeError("discovery collector file missing"); }
+    if (!stat.isFile() || stat.size < 1 || (stat.mode & 0o7777) !== 0o755) throw new TypeError("discovery collector must be a regular mode0755 file");
+  }
+  const name = `zasp-browser-postgres-${randomBytes(16).toString("hex")}`;
+  const active = new Set(), joinErrors = [];
+  let containerID, createAttempted = false, stopped = false, starting, stopping;
+  let bridge;
+  const checkpoint = () => { if (stopped) throw new Error("owned PostgreSQL stopped"); };
+
+  async function command(args, { reject = true, timeout = commandTimeoutMs } = {}) {
+    const owned = spawnCommand("docker", args, { graceMs: 1000, killMs: 1000 });
+    active.add(owned);
+    let timer, timeoutStop, timedOut = false;
+    const expired = new Promise((_, rejectDeadline) => {
+      timer = setTimeout(() => {
+        timedOut = true;
+        timeoutStop = owned.stop().catch(error => { joinErrors.push(error); });
+        void timeoutStop.finally(() => {
+          rejectDeadline(new Error(`owned PostgreSQL docker ${args[0]} exceeded its deadline`));
+        });
+      }, timeout);
+    });
+    try {
+      const result = await Promise.race([owned.completed, expired]);
+      if (timedOut) {
+        await timeoutStop;
+        throw new Error(`owned PostgreSQL docker ${args[0]} exceeded its deadline`);
+      }
+      if (reject && result.status !== 0) throw new Error(`owned PostgreSQL docker ${args[0]} failed: ${result.stderr || result.stdout}`);
+      return result;
+    } finally { clearTimeout(timer); active.delete(owned); }
+  }
+
+  function identity(result) {
+    const values = JSON.parse(result.stdout);
+    const value = values[0];
+    if (values.length !== 1 || !/^[a-f0-9]{64}$/.test(value?.Id ?? "") || value.Name !== `/${name}` ||
+      value.Config?.Image !== IMAGE || value.Config?.Labels?.[LABEL] !== name || (containerID && value.Id !== containerID)) {
+      throw new Error(`owned PostgreSQL container identity rejected: ${name}`);
+    }
+    return value;
+  }
+
+  async function assertRunning() {
+    checkpoint();
+    if (!containerID) throw new Error("owned PostgreSQL is not running");
+    const value = identity(await command(["inspect", containerID]));
+    checkpoint();
+    if (value.State?.Running !== true) throw new Error(`owned PostgreSQL is not running: ${containerID}`);
+  }
+
+  async function boot() {
+    checkpoint();
+    createAttempted = true;
+    const created = await command(["create", "--pull=never", "--name", name, "--label", `${LABEL}=${name}`,
+      "--user", "postgres", "--read-only", "--tmpfs", "/tmp:rw,nosuid,nodev,mode=1777",
+      "--tmpfs", "/var/lib/postgresql:rw,nosuid,nodev,mode=1777",
+      "--tmpfs", "/var/run/postgresql:rw,nosuid,nodev,mode=1777",
+      ...(isolatedRelay ? ["--network", "none", "--mount", `type=bind,src=${isolatedRelay},dst=/zasp-postgres-relay,readonly`] : ["--publish", `127.0.0.1:${port}:5432`]),
+      ...(discoveryCollectorBinary ? ["--mount", `type=bind,src=${discoveryCollectorBinary},dst=/zasp-automatic-discovery-collector.test,readonly`] : []),
+      "--env", "POSTGRES_USER=zasp_e2e", "--env", "POSTGRES_DB=postgres", "--env", "POSTGRES_HOST_AUTH_METHOD=trust",
+      "--env", "PGDATA=/tmp/pgdata", "--env", "POSTGRES_INITDB_ARGS=--no-locale --encoding=UTF8", IMAGE, "postgres",
+      ...(trackFunctions ? ["-c", "track_functions=pl"] : [])]);
+    const candidate = created.stdout.trim();
+    if (!/^[a-f0-9]{64}$/.test(candidate)) throw new Error("owned PostgreSQL create returned an invalid container ID");
+    containerID = candidate;
+    checkpoint();
+    await command(["start", containerID]);
+    checkpoint();
+    const deadline = Date.now() + readinessTimeoutMs;
+    while (Date.now() < deadline) {
+      await assertRunning();
+      const ready = await command(["exec", containerID, "pg_isready", "-h", "127.0.0.1", "-U", "zasp_e2e", "-d", "postgres"],
+        { reject: false, timeout: Math.max(1, Math.min(commandTimeoutMs, deadline - Date.now())) });
+      checkpoint();
+      if (ready.status === 0) {
+        await assertRunning();
+        if (isolatedRelay) { bridge = bridgeFactory({ containerID, port }); await bridge.start(); checkpoint(); }
+        return;
+      }
+      await delay(Math.min(pollMs, Math.max(1, deadline - Date.now())));
+    }
+    throw new Error("owned PostgreSQL did not become ready");
+  }
+
+  const stop = () => stopping ??= (async () => {
+    stopped = true;
+    const errors = [];
+    const attempt = async operation => { try { await operation(); } catch (error) { errors.push(error); } };
+    await Promise.all([...active].map(owned => attempt(() => owned.stop())));
+    await starting?.catch(() => {});
+    if (bridge) await attempt(() => bridge.stop());
+    if (createAttempted && !containerID) {
+      // A cancelled create may have reached the daemon before its CLI joined.
+      // Recover only this invocation's random name, verifying its label/image.
+      await attempt(async () => {
+        const inspected = await command(["inspect", name], { reject: false });
+        if (inspected.status === 0) containerID = identity(inspected).Id;
+        else {
+          const listed = await command(["container", "ls", "--all", "--no-trunc", "--filter", `name=^/${name}$`, "--format", "{{.ID}}"]);
+          if (listed.stdout.trim()) throw new Error(`owned PostgreSQL could not identify created container: ${name}`);
+        }
+      });
+    }
+    if (containerID) {
+      await attempt(() => command(["stop", "--time", "2", containerID]));
+      await attempt(() => command(["rm", "--force", "--volumes", containerID]));
+      await attempt(async () => {
+        const listed = await command(["container", "ls", "--all", "--no-trunc", "--filter", `id=${containerID}`, "--format", "{{.ID}}"]);
+        if (listed.stdout.trim()) throw new Error(`owned PostgreSQL container remains: ${containerID}`);
+      });
+    }
+    errors.push(...joinErrors);
+    if (errors.length) throw new AggregateError(errors, `owned PostgreSQL cleanup failed: ${containerID ?? name}`);
+  })();
+
+  return {
+    get containerID() { return containerID; },
+    start() {
+      if (stopped) return Promise.reject(new Error("owned PostgreSQL stopped"));
+      starting ??= boot();
+      return starting.catch(async error => {
+        try { await stop(); } catch (cleanupError) { throw new AggregateError([error, cleanupError], "owned PostgreSQL startup and cleanup failed"); }
+        throw error;
+      });
+    },
+    assertRunning,
+    stop,
+  };
+}

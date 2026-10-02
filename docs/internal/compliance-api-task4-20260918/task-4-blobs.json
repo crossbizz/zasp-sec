@@ -1,0 +1,171 @@
+{
+  "baseHead": "8733b16f8d939d38a8157dd2519e57fc6f630542",
+  "scope": "Task4 delta only; before hashes were captured from inherited working files, not HEAD. New paths have before:null.",
+  "files": [
+    {
+      "path": "services/platform/apiserver/compliance_repository.go",
+      "before": "c5de5b8caf584a00d6c37c64e9e70e6158b17ba3",
+      "after": "bd288fedf7395b9b3d87259ae3c03a47a72c9d62"
+    },
+    {
+      "path": "services/platform/apiserver/postgres_database.go",
+      "before": "1f904be9b6a6bee886a6f878925382b735587ebc",
+      "after": "56addb2aedbadf26f2251921b606a82274f31be1"
+    },
+    {
+      "path": "services/platform/apiserver/composition.go",
+      "before": "258419aabb3589adeeb93691540e3869c69f5e76",
+      "after": "241f3724f02ece91ddc6b806a045d031f3f50d08"
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime.go",
+      "before": "f0d39f71f831e4918229bd4262850bf18adb05c8",
+      "after": "05a6599818a8d1c0eececcad83f9fea05815f072"
+    },
+    {
+      "path": "services/platform/agentsec-api/production_runtime.go",
+      "before": "858acb99eba2d1f04cd8c7dd4fff0be1ed925197",
+      "after": "e9f89ecd2ef821e33f7b8c0045e6480524f813df"
+    },
+    {
+      "path": "services/platform/agentsec-api/audit_export_config.go",
+      "before": "eb0cae4a033e72b1e1d935f9bc8c61835a71a642",
+      "after": "086fa62bdc4476469a821aceaaa3433898b9d441"
+    },
+    {
+      "path": "services/platform/agentsec-api/connector_aws.go",
+      "before": "9553afbaf7502a78febc2a8aaa986a2a71ea544b",
+      "after": "1c9ec5fd9ef27a563fa3bf6be9e0bcea146c668a"
+    },
+    {
+      "path": "openapi/openapi.yaml",
+      "before": "80453eb58a1fbb3ccc31db7e4b0d376be3def5f8",
+      "after": "fceda80e2b5a0be7379e940e713541458ce7573f"
+    },
+    {
+      "path": "apps/web/api/generated.ts",
+      "before": "c868250cb9c9a8b641afc71818529054ac61a1a3",
+      "after": "c17e92d588efea9fd0116305babec5d96514caa2"
+    },
+    {
+      "path": "docs/product/ui-api-map.yaml",
+      "before": "39578556aa0882d81ff463273e2de79611f8b511",
+      "after": "66efa101cc54928624baa8dad8c9a783fbf79ae2"
+    },
+    {
+      "path": "services/platform/apiserver/router.go",
+      "before": "22d0aee39515c2158fc0bb99b1d022d6eeed54f9",
+      "after": "30bb1b4ec76379930ac2657dd5020ca72691e5d4"
+    },
+    {
+      "path": "services/platform/migrations/sql/fragments/compliance_jobs.sql",
+      "before": "56e3c9e429b0582effd5d0a60b80ce36f311cbdd",
+      "after": "a67e16edf00fa819fd8dbdfa78da85f125a202f7"
+    },
+    {
+      "path": "services/platform/migrations/compliance_release.go",
+      "before": "49e8bcaa0b11563df76760b27ca8e194f18fcb81",
+      "after": "e2acb634c5ddc67757a53a59a2e489a166db062f"
+    },
+    {
+      "path": "apps/web/api/administration-decoders.ts",
+      "before": "866db184fc09074fbee605bba1589d31842544f2",
+      "after": "e83c8a137b008e2518f0be6042d4f98a517e9f38"
+    },
+    {
+      "path": "apps/web/api/client.ts",
+      "before": "13b81c3401e60def878c0cddc441ac54109d980c",
+      "after": "4949add273eba4170b75e3a9ea2125125adcdcd7"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_exports_repository.go",
+      "before": "eca3a8dd76f6cac795bd141ebee5c5dfb5b90669",
+      "after": "37ef671cdab773eac9f79ccab12057842437f456"
+    },
+    {
+      "path": "openapi/openapi.test.mjs",
+      "before": "37f7646dc07db6603cbb84a7f11dc882f5e6b351",
+      "after": "2f844de41809a7ed637420ee4b94b1a526a71cf0"
+    },
+    {
+      "path": "scripts/check-ui-api-coverage.test.mjs",
+      "before": "20d09b15804a65db616a5b94d23d927ac00acfe4",
+      "after": "5aa64d8573674651307dce9817897a742b6b454d"
+    },
+    {
+      "path": "services/platform/apiserver/composition_test.go",
+      "before": "c368ed25ee85d2924afd43ed4b28167cbb90f6b6",
+      "after": "121e6eed537c16482988caad6d80c9dee1be51af"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_http.go",
+      "before": null,
+      "after": "ceab7e96ff9ae03e988a41c3fb0356f87eb22356"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_download.go",
+      "before": null,
+      "after": "ba78f0e2a4d4db009bd5d10c5705ae84f68bff8e"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_production.go",
+      "before": null,
+      "after": "5a85945f3ec857faf50ce216720b8f249906c0a5"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_conflict_test.go",
+      "before": null,
+      "after": "923f717ff510abbe3fe396c00ba0c92e77650682"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_http_test.go",
+      "before": null,
+      "after": "426d8e02e76500eedbf8c61abea9839ef07bab62"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_download_test.go",
+      "before": null,
+      "after": "71d75479f8535676aac49e653b5ba32818925e48"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_exports_binding_test.go",
+      "before": null,
+      "after": "30cd149871bac0110eef9d05ff28df804d30713b"
+    },
+    {
+      "path": "services/platform/apiserver/compliance_http_postgres_test.go",
+      "before": null,
+      "after": "234c94e0338ddee0439472f73f3ed01582e47386"
+    },
+    {
+      "path": "services/platform/agentsec-api/compliance_config.go",
+      "before": null,
+      "after": "796f3760e1e5a865b88a107c040ca0acf7413863"
+    },
+    {
+      "path": "services/platform/agentsec-api/compliance_config_test.go",
+      "before": null,
+      "after": "63f60504cd112c7156c0e4451f7e3f402af8c612"
+    },
+    {
+      "path": "services/platform/agentsec-api/compliance_composition_test.go",
+      "before": null,
+      "after": "00ec562e83ce55c102925d5518a37d5621d9975e"
+    },
+    {
+      "path": "apps/web/api/compliance-decoders.ts",
+      "before": null,
+      "after": "cdb06ae23884cadc9ec735a8ba383c0c16bb21ac"
+    },
+    {
+      "path": "apps/web/api/compliance-decoders.test.ts",
+      "before": null,
+      "after": "1dada655fc7a92a5e5421a358d6656cd5490d993"
+    },
+    {
+      "path": "apps/web/api/compliance-download.test.ts",
+      "before": null,
+      "after": "02fff420cd8da15de9b7d1f3bc55b845a4ffc65f"
+    }
+  ]
+}

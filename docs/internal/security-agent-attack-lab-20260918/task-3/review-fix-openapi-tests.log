@@ -1,0 +1,279 @@
+Workdir: /Users/manishmaheshwari/Projects/zasp-sec/.worktrees/cached-runtime-ship-20260917
+Command: ["npm","run","openapi:test"]
+
+> zasp-agent-security-console@0.1.0 openapi:test
+> node --test openapi/openapi.test.mjs openapi/internal-health.test.mjs openapi/generated-client.test.mjs openapi/identity-admin.test.mjs
+
+TAP version 13
+# Subtest: pins the official generator/runtime and wires exact local-only scripts into verify
+ok 1 - pins the official generator/runtime and wires exact local-only scripts into verify
+  ---
+  duration_ms: 24.597583
+  type: 'test'
+  ...
+# Subtest: reproduces the committed bytes and rejects changed or missing output without rewriting it
+ok 2 - reproduces the committed bytes and rejects changed or missing output without rewriting it
+  ---
+  duration_ms: 5403.030584
+  type: 'test'
+  ...
+# Subtest: exports the mounted Security Agent, red team, Attack Lab, and policy evidence APIs
+ok 3 - exports the mounted Security Agent, red team, Attack Lab, and policy evidence APIs
+  ---
+  duration_ms: 35.132833
+  type: 'test'
+  ...
+# Subtest: audit page filters validate exact values without changing browser authority
+ok 4 - audit page filters validate exact values without changing browser authority
+  ---
+  duration_ms: 50.760583
+  type: 'test'
+  ...
+# Subtest: retained identity actions preserve their exact public and export schema values
+ok 5 - retained identity actions preserve their exact public and export schema values
+  ---
+  duration_ms: 135.485834
+  type: 'test'
+  ...
+# Subtest: audit export descriptors model durable async state without partial ready metadata
+ok 6 - audit export descriptors model durable async state without partial ready metadata
+  ---
+  duration_ms: 39.014917
+  type: 'test'
+  ...
+# Subtest: audit export reads separate pending, failed, ready-empty and immutable chunk contents
+ok 7 - audit export reads separate pending, failed, ready-empty and immutable chunk contents
+  ---
+  duration_ms: 50.556208
+  type: 'test'
+  ...
+# Subtest: runtime session search publishes closed selectors and checkpoint freshness
+ok 8 - runtime session search publishes closed selectors and checkpoint freshness
+  ---
+  duration_ms: 15.584667
+  type: 'test'
+  ...
+# Subtest: runtime session reads preserve operation IDs and console-only revocation
+ok 9 - runtime session reads preserve operation IDs and console-only revocation
+  ---
+  duration_ms: 15.840083
+  type: 'test'
+  ...
+# Subtest: publishes the identity administration operations at their honest UI lifecycle
+ok 10 - publishes the identity administration operations at their honest UI lifecycle
+  ---
+  duration_ms: 13.902625
+  type: 'test'
+  ...
+# Subtest: uses strict product schemas and the shared stable error response
+ok 11 - uses strict product schemas and the shared stable error response
+  ---
+  duration_ms: 7.218125
+  type: 'test'
+  ...
+# Subtest: M1-28 internal service health contract
+    # Subtest: defines the exact self-contained internal OpenAPI contract
+    ok 1 - defines the exact self-contained internal OpenAPI contract
+      ---
+      duration_ms: 1.5115
+      type: 'test'
+      ...
+    # Subtest: registers exactly four commands with one shared lifecycle
+    ok 2 - registers exactly four commands with one shared lifecycle
+      ---
+      duration_ms: 0.225542
+      type: 'test'
+      ...
+    # Subtest: wires the exact root contract, lint, and verification commands
+    ok 3 - wires the exact root contract, lint, and verification commands
+      ---
+      duration_ms: 0.068084
+      type: 'test'
+      ...
+    # Subtest: rejects duplicate YAML keys before semantic validation
+    ok 4 - rejects duplicate YAML keys before semantic validation
+      ---
+      duration_ms: 1.879042
+      type: 'test'
+      ...
+    # Subtest: rejects hostile path, method, auth, response, and schema mutations
+    ok 5 - rejects hostile path, method, auth, response, and schema mutations
+      ---
+      duration_ms: 6.528292
+      type: 'test'
+      ...
+    # Subtest: rejects omitted, duplicated, or lifecycle-drifted service documentation
+    ok 6 - rejects omitted, duplicated, or lifecycle-drifted service documentation
+      ---
+      duration_ms: 1.689209
+      type: 'test'
+      ...
+    1..6
+ok 12 - M1-28 internal service health contract
+  ---
+  duration_ms: 20.461292
+  type: 'suite'
+  ...
+# Subtest: M1-23 strict OpenAPI root
+    # Subtest: defines the exact self-contained OpenAPI, auth, pagination, and error boundary
+    ok 1 - defines the exact self-contained OpenAPI, auth, pagination, and error boundary
+      ---
+      duration_ms: 8.313666
+      type: 'test'
+      ...
+    # Subtest: uses only the exact pinned local linter command and justified rule exception
+    ok 2 - uses only the exact pinned local linter command and justified rule exception
+      ---
+      duration_ms: 0.088417
+      type: 'test'
+      ...
+    # Subtest: rejects duplicate YAML keys before semantic validation
+    ok 3 - rejects duplicate YAML keys before semantic validation
+      ---
+      duration_ms: 12.861166
+      type: 'test'
+      ...
+    # Subtest: accepts only canonical unpadded base64url cursor encodings
+    ok 4 - accepts only canonical unpadded base64url cursor encodings
+      ---
+      duration_ms: 0.184625
+      type: 'test'
+      ...
+    # Subtest: rejects every product-error control-character class
+    ok 5 - rejects every product-error control-character class
+      ---
+      duration_ms: 0.131292
+      type: 'test'
+      ...
+    # Subtest: rejects hostile root, authentication, pagination, and error mutations
+    ok 6 - rejects hostile root, authentication, pagination, and error mutations
+      ---
+      duration_ms: 66.222292
+      type: 'test'
+      ...
+    1..6
+ok 13 - M1-23 strict OpenAPI root
+  ---
+  duration_ms: 110.276458
+  type: 'suite'
+  ...
+# Subtest: production workflow concurrency contract
+    # Subtest: publishes the exact replay-safe sensor management surface
+    ok 1 - publishes the exact replay-safe sensor management surface
+      ---
+      duration_ms: 0.360667
+      type: 'test'
+      ...
+    # Subtest: publishes the three retained DELETE operations with no request body
+    ok 2 - publishes the three retained DELETE operations with no request body
+      ---
+      duration_ms: 0.190875
+      type: 'test'
+      ...
+    # Subtest: reports asynchronous integration revocation without claiming early deletion
+    ok 3 - reports asynchronous integration revocation without claiming early deletion
+      ---
+      duration_ms: 0.204333
+      type: 'test'
+      ...
+    # Subtest: separates server-assigned security-agent identity from create input
+    ok 4 - separates server-assigned security-agent identity from create input
+      ---
+      duration_ms: 0.060083
+      type: 'test'
+      ...
+    # Subtest: types idempotency, versions, fresh auth, and durable mutation receipts
+    ok 5 - types idempotency, versions, fresh auth, and durable mutation receipts
+      ---
+      duration_ms: 0.269916
+      type: 'test'
+      ...
+    # Subtest: publishes bounded browser-only receipt reconciliation and acknowledgement
+    ok 6 - publishes bounded browser-only receipt reconciliation and acknowledgement
+      ---
+      duration_ms: 0.103125
+      type: 'test'
+      ...
+    # Subtest: requires the browser scope precondition on every scoped session operation
+    ok 7 - requires the browser scope precondition on every scoped session operation
+      ---
+      duration_ms: 0.047625
+      type: 'test'
+      ...
+    # Subtest: publishes exact receipt intent and authoritative result object shapes
+    ok 8 - publishes exact receipt intent and authoritative result object shapes
+      ---
+      duration_ms: 0.097875
+      type: 'test'
+      ...
+    # Subtest: publishes the strict Task 4 sync, schedule, and freshness contract without internal execution authority
+    ok 9 - publishes the strict Task 4 sync, schedule, and freshness contract without internal execution authority
+      ---
+      duration_ms: 0.2315
+      type: 'test'
+      ...
+    # Subtest: publishes bounded browser-only typed activity relations with explicit coverage
+    ok 10 - publishes bounded browser-only typed activity relations with explicit coverage
+      ---
+      duration_ms: 0.073708
+      type: 'test'
+      ...
+    # Subtest: publishes the mounted Security Agent activation, simulation, manual run, and approval surface without read overclaims
+    ok 11 - publishes the mounted Security Agent activation, simulation, manual run, and approval surface without read overclaims
+      ---
+      duration_ms: 1.024125
+      type: 'test'
+      ...
+    # Subtest: publishes strict browser-only integration authorization and OAuth callback contracts
+    ok 12 - publishes strict browser-only integration authorization and OAuth callback contracts
+      ---
+      duration_ms: 0.176459
+      type: 'test'
+      ...
+    # Subtest: publishes strict fresh browser-only reference authorization
+    ok 13 - publishes strict fresh browser-only reference authorization
+      ---
+      duration_ms: 0.057
+      type: 'test'
+      ...
+    # Subtest: binds risk reads and mutations to strict pagination, security, and recovery contracts
+    ok 14 - binds risk reads and mutations to strict pagination, security, and recovery contracts
+      ---
+      duration_ms: 0.135666
+      type: 'test'
+      ...
+    # Subtest: bounds Security Agent definition pagination with the shared opaque cursor contract
+    ok 15 - bounds Security Agent definition pagination with the shared opaque cursor contract
+      ---
+      duration_ms: 0.035333
+      type: 'test'
+      ...
+    # Subtest: bounds policy and integration pagination with the same exact cursor contract
+    ok 16 - bounds policy and integration pagination with the same exact cursor contract
+      ---
+      duration_ms: 0.041667
+      type: 'test'
+      ...
+    # Subtest: publishes typed discovery inventory pages, details, evidence, and freshness
+    ok 17 - publishes typed discovery inventory pages, details, evidence, and freshness
+      ---
+      duration_ms: 0.07575
+      type: 'test'
+      ...
+    1..17
+ok 14 - production workflow concurrency contract
+  ---
+  duration_ms: 3.522417
+  type: 'suite'
+  ...
+1..14
+# tests 40
+# suites 3
+# pass 40
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5569.286833
+
+Exit: 0 Signal: null
