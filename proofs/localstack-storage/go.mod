@@ -1,6 +1,6 @@
 module github.com/zasp-ai/zasp-sec/proofs/localstack-storage
 
-go 1.25.0
+go 1.25.4
 
 toolchain go1.26.5
 
@@ -25,3 +25,5 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.38 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.38 // indirect
 )
+
+replace github.com/zasp-ai/zasp-sec/services/health => ../../services/health

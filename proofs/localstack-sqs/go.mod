@@ -1,6 +1,6 @@
 module github.com/zasp-ai/zasp-sec/proofs/localstack-sqs
 
-go 1.25.0
+go 1.25.4
 
 toolchain go1.26.5
 
@@ -17,3 +17,5 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.38 // indirect
 	github.com/aws/smithy-go v1.27.8 // indirect
 )
+
+replace github.com/zasp-ai/zasp-sec/services/health => ../../services/health

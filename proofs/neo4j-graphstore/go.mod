@@ -8,3 +8,5 @@ require (
 )
 
 replace github.com/zasp-ai/zasp-sec/services/platform => ../../services/platform
+
+replace github.com/zasp-ai/zasp-sec/services/health => ../../services/health
