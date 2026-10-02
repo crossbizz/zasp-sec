@@ -840,3 +840,95 @@ func TestWorkerRegistrationReferencePG18CollationColumnBindings(t *testing.T) {
 		}
 	}
 }
+
+// Break caught: a collation refusal loses its observed-frame identity or leaks
+// native frame values through diagnostic formatting.
+func TestWorkerRegistrationReferenceCollationDiagnostic(t *testing.T) {
+	canary := "collation-diagnostic-secret-value"
+	base := registrationReferenceCollation{Name: "pg_catalog.default", Provider: "d", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
+	statement := "collation-diagnostic-statement-secret"
+	for _, tc := range []struct {
+		name    string
+		witness registrationReferenceCollationWitness
+	}{{"nested", registrationReferenceNestedCollationWitness}, {"outer", registrationReferenceOuterCollationWitness}} {
+		t.Run(tc.name, func(t *testing.T) {
+			changed := base
+			changed.Name = canary
+			changed.Locale = &canary
+			var err error
+			if tc.name == "nested" {
+				err = registrationReferenceAdmitParameterCollations(tc.witness, statement, base, base, changed, changed)
+			} else {
+				err = registrationReferenceAdmitParameterCollations(tc.witness, statement, base, base, base, changed)
+			}
+			if err == nil {
+				t.Fatal("collation inequality accepted")
+			}
+			sourceRaw, _ := json.Marshal(base)
+			parameterRaw, _ := json.Marshal(changed)
+			want := "original registration reference refused: witness=" + tc.name + "-parameter-collation statement_sha256=" + registrationReferenceSHA([]byte(statement)) + " source_frame_sha256=" + registrationReferenceSHA(sourceRaw) + " parameter_frame_sha256=" + registrationReferenceSHA(parameterRaw) + " differing_fields=name,locale"
+			if err.Error() != want {
+				t.Fatal("closed witness/hash/field diagnostic differs")
+			}
+			for _, format := range []string{"%v", "%+v", "%#v", "%+#v", "%s", "%q"} {
+				rendered := fmt.Sprintf(format, err)
+				if strings.Contains(rendered, canary) || strings.Contains(rendered, statement) || len(rendered) > 650 {
+					t.Fatal("unsafe or unbounded diagnostic formatting")
+				}
+			}
+			if errors.Unwrap(err) == nil || !strings.Contains(errors.Unwrap(err).Error(), "source/parameter expression collation differs") {
+				t.Fatal("original equality refusal lost")
+			}
+		})
+	}
+	if registrationReferenceAdmitParameterCollations(registrationReferenceNestedCollationWitness, statement, base, base, base, base) != nil {
+		t.Fatal("equal frames refused")
+	}
+	if registrationReferenceAdmitParameterCollations(registrationReferenceCollationWitness(99), statement, base, base, base, base) == nil {
+		t.Fatal("unknown witness accepted")
+	}
+}
+
+func TestWorkerRegistrationReferenceCollationDiagnosticFieldRoster(t *testing.T) {
+	fields := []string{"name", "provider", "deterministic", "locale", "rules", "recorded_version", "actual_version", "database_provider", "database_collate", "database_ctype", "database_locale", "database_recorded_version", "database_actual_version"}
+	base := registrationReferenceCollation{Name: "admitted", Deterministic: true}
+	value := "private-frame-value"
+	mutations := []func(*registrationReferenceCollation){func(x *registrationReferenceCollation) { x.Name = value }, func(x *registrationReferenceCollation) { x.Provider = value }, func(x *registrationReferenceCollation) { x.Deterministic = false }, func(x *registrationReferenceCollation) { x.Locale = &value }, func(x *registrationReferenceCollation) { x.Rules = &value }, func(x *registrationReferenceCollation) { x.RecordedVersion = &value }, func(x *registrationReferenceCollation) { x.ActualVersion = &value }, func(x *registrationReferenceCollation) { x.DatabaseProvider = value }, func(x *registrationReferenceCollation) { x.DatabaseCollate = value }, func(x *registrationReferenceCollation) { x.DatabaseCType = value }, func(x *registrationReferenceCollation) { x.DatabaseLocale = &value }, func(x *registrationReferenceCollation) { x.DatabaseRecordedVersion = &value }, func(x *registrationReferenceCollation) { x.DatabaseActualVersion = &value }}
+	for i, mutate := range mutations {
+		t.Run(fields[i], func(t *testing.T) {
+			changed := base
+			mutate(&changed)
+			err := registrationReferenceAdmitParameterCollations(registrationReferenceNestedCollationWitness, "fixed-witness", base, base, changed, changed)
+			if err == nil || !strings.HasSuffix(err.Error(), "differing_fields="+fields[i]) {
+				t.Fatal("closed differing-field roster incorrect")
+			}
+		})
+	}
+	all := base
+	for _, mutate := range mutations {
+		mutate(&all)
+	}
+	combined := registrationReferenceAdmitParameterCollations(registrationReferenceNestedCollationWitness, "fixed-witness", base, base, all, all)
+	if combined == nil || !strings.HasSuffix(combined.Error(), "differing_fields="+strings.Join(fields, ",")) || len(fmt.Sprintf("%+#v", combined)) > 650 {
+		t.Fatal("combined closed field ordering or diagnostic bound differs")
+	}
+	oversized := base
+	oversized.Name = strings.Repeat("private-oversized-frame", registrationReferenceMaxRowBytes/10)
+	bounded := registrationReferenceAdmitParameterCollations(registrationReferenceNestedCollationWitness, "fixed-witness", base, base, oversized, oversized)
+	if bounded == nil || bounded.Error() != "original registration reference refused: collation diagnostic frame byte limit" {
+		t.Fatal("diagnostic frame cap not enforced")
+	}
+	for _, format := range []string{"%#v", "%+#v"} {
+		if strings.Contains(fmt.Sprintf(format, bounded), "private-oversized-frame") {
+			t.Fatal("over-limit diagnostic frame leaked")
+		}
+	}
+
+	empty := ""
+	changed := base
+	changed.Locale = &empty
+	err := registrationReferenceAdmitParameterCollations(registrationReferenceNestedCollationWitness, "fixed-witness", base, base, changed, changed)
+	if err == nil || !strings.HasSuffix(err.Error(), "differing_fields=locale") {
+		t.Fatal("null versus empty field lost")
+	}
+}

@@ -1377,6 +1377,65 @@ func registrationReferenceAdmitSortKeyCollations(nested, outer, parameterNested,
 	return nil
 }
 
+type registrationReferenceCollationWitness uint8
+
+const (
+	registrationReferenceNestedCollationWitness registrationReferenceCollationWitness = iota + 1
+	registrationReferenceOuterCollationWitness
+)
+
+// This diagnostic retains only closed metadata and the original safe refusal.
+// Native frame strings and statement text are hashed before storage.
+type registrationReferenceCollationDiagnostic struct {
+	witness                               registrationReferenceCollationWitness
+	statementSHA, sourceSHA, parameterSHA string
+	fields                                []string
+	cause                                 error
+}
+
+func (e *registrationReferenceCollationDiagnostic) Error() string {
+	class := "nested-parameter-collation"
+	if e.witness == registrationReferenceOuterCollationWitness {
+		class = "outer-parameter-collation"
+	}
+	return "original registration reference refused: witness=" + class + " statement_sha256=" + e.statementSHA + " source_frame_sha256=" + e.sourceSHA + " parameter_frame_sha256=" + e.parameterSHA + " differing_fields=" + strings.Join(e.fields, ",")
+}
+func (e *registrationReferenceCollationDiagnostic) Unwrap() error { return e.cause }
+func (e *registrationReferenceCollationDiagnostic) Format(state fmt.State, _ rune) {
+	_, _ = io.WriteString(state, e.Error())
+}
+
+func registrationReferenceAdmitParameterCollations(witness registrationReferenceCollationWitness, statement string, nested, outer, parameterNested, parameterOuter registrationReferenceCollation) error {
+	if witness != registrationReferenceNestedCollationWitness && witness != registrationReferenceOuterCollationWitness {
+		return registrationReferenceRefuse("unknown collation witness")
+	}
+	cause := registrationReferenceAdmitSortKeyCollations(nested, outer, parameterNested, parameterOuter)
+	if cause == nil {
+		return nil
+	}
+	source, parameter := nested, parameterNested
+	if witness == registrationReferenceOuterCollationWitness {
+		source, parameter = outer, parameterOuter
+	}
+	sourceRaw, _ := json.Marshal(source)
+	parameterRaw, _ := json.Marshal(parameter)
+	if len(sourceRaw) > registrationReferenceMaxRowBytes || len(parameterRaw) > registrationReferenceMaxRowBytes {
+		return registrationReferenceRefuse("collation diagnostic frame byte limit")
+	}
+	names := []string{"name", "provider", "deterministic", "locale", "rules", "recorded_version", "actual_version", "database_provider", "database_collate", "database_ctype", "database_locale", "database_recorded_version", "database_actual_version"}
+	sourceFields, parameterFields := reflect.ValueOf(source), reflect.ValueOf(parameter)
+	fields := make([]string, 0, len(names))
+	for i, name := range names {
+		if !reflect.DeepEqual(sourceFields.Field(i).Interface(), parameterFields.Field(i).Interface()) {
+			fields = append(fields, name)
+		}
+	}
+	if len(fields) == 0 {
+		fields = append(fields, "none")
+	}
+	return &registrationReferenceCollationDiagnostic{witness: witness, statementSHA: registrationReferenceSHA([]byte(statement)), sourceSHA: registrationReferenceSHA(sourceRaw), parameterSHA: registrationReferenceSHA(parameterRaw), fields: fields, cause: cause}
+}
+
 type registrationReferenceDigestFrame struct {
 	Extension, Version, Schema, Owner, Source, Library string
 	Function                                           registrationReferenceFunctionFrame
@@ -1612,7 +1671,7 @@ func registrationReferenceCapture(ctx context.Context, owner *pgx.Conn, b regist
 		if e := registrationReferenceQueryJSON(ctx, tx, parameterCollationSQL, &packet.ParameterNestedCollation, nestedValues); e != nil {
 			return e
 		}
-		if e := registrationReferenceAdmitSortKeyCollations(packet.NestedCollation, packet.OuterCollation, packet.ParameterNestedCollation, packet.ParameterNestedCollation); e != nil {
+		if e := registrationReferenceAdmitParameterCollations(registrationReferenceNestedCollationWitness, parameterCollationSQL, packet.NestedCollation, packet.OuterCollation, packet.ParameterNestedCollation, packet.ParameterNestedCollation); e != nil {
 			return e
 		}
 		if tx.QueryRow(ctx, registrationReferenceParameterSQL, nestedValues).Scan(&packet.Native.ParameterNested) != nil {
@@ -1626,7 +1685,7 @@ func registrationReferenceCapture(ctx context.Context, owner *pgx.Conn, b regist
 		if e := registrationReferenceQueryJSON(ctx, tx, parameterCollationSQL, &packet.ParameterCollation, outerValues); e != nil {
 			return e
 		}
-		if e := registrationReferenceAdmitSortKeyCollations(packet.NestedCollation, packet.OuterCollation, packet.ParameterNestedCollation, packet.ParameterCollation); e != nil {
+		if e := registrationReferenceAdmitParameterCollations(registrationReferenceOuterCollationWitness, parameterCollationSQL, packet.NestedCollation, packet.OuterCollation, packet.ParameterNestedCollation, packet.ParameterCollation); e != nil {
 			return e
 		}
 		if tx.QueryRow(ctx, registrationReferenceParameterSQL, outerValues).Scan(&packet.Native.ParameterOuter) != nil || !reflect.DeepEqual(packet.Native.Nested, packet.Native.ParameterNested) || !reflect.DeepEqual(packet.Native.Outer, packet.Native.ParameterOuter) {
