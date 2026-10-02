@@ -122,3 +122,48 @@ No authoritative ledger row is promoted. The next independent work is a new
 reviewed Linux build and reference attempt, source copier/schema
 integration from the verified cloud A closure, and exact review of the remaining
 history findings. Connected production and final retirement gates remain open.
+
+## Reviewed offline cloud-native379 successor
+
+The four new cloud-v1 tools/tests consume the authenticated fixed copier's
+171inputs/eight outputs without changing historical builders or Go engines.
+The complete source roster remains379rules,565sites and0unclassified. Fresh
+10052facts include one reserved build row and eight exact private routines;
+historical Node10053/private7 and Go10089/private7 authorities remain unchanged.
+The packet retains all seven phases and finite limits. Its597controls include
+all original18 entry/frame controls plus eight independently targeted private
+body-drift/admission42501/restoration controls, one for each exact routine.
+Source-frame, NULL/bag/scalar, lazy-demand, first-error and restoration coverage
+remain bound to the unchanged semantic/coverage compilers.
+
+Fixed compiler and consumed-output hashes are checked before use. Self/test
+digests are provenance only and require external review/frozen hashes. The
+26336754-byte deterministic wire SHA256 is
+`36d31ad6042f47ed15f4d234d5a44de90bc23e8600b9f137de670f7fdb591d48`.
+NativeVerified, installable and captureAuthority remain false. This is an
+offline source-control packet, not native admission or production readiness.
+
+TDD retained missing-successor, private-eight and four-source-provenance REDs.
+Independent review approved the final four-file delta without findings. Its
+frozen repeat passed25/25 with zero skips; the coordinator independently
+reran the exact final bytes and passed25/25 in66.251s. Tests include real
+regeneration twice, consumed-read substitution before child spawn, missing/
+changed/symlink compiler inputs, source/frame/control corruption, duplicate/
+partial observations, historical-version refusal and all finite bounds.
+
+The earlier history-scan unresolved classifications above are historical.
+Subsequent independent review and exact435 fingerprint exceptions resolved
+those noncredential findings, preserving old evidence and synthetic new-commit/
+new-path detection. Fresh canonical verifyReleaseSources on026c164 passed12
+rollouts, nine container definitions,64npm SPDX packages,116Go SPDX packages
+and full-history Gitleaks. All110 external module license byte rosters matched
+their exact checksum-verified archives; source/tool hashes stayed unchanged.
+Frozen proof roster SHA256 is
+`9d24dd5eee0c403c072626303b0e403fc641789608c44723c9d489a50b54f69e`.
+Source checks do not supply final image/advisory acceptance.
+
+Separate reviewed Go cloud-native379 adoption and actual PostgreSQL execution
+remain required. The new original-registration reference candidate is under
+independent review; installed worker/effect gates, cross-platform/older-major
+portability, deployed identity/provider verification and verified retirement
+remain open. No728 ledger row changes or acceptance reductions occurred.
