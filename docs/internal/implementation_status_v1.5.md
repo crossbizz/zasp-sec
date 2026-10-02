@@ -1,5 +1,19 @@
 # Agent Security Platform Implementation Status
 
+## Latest verified cloud batch, October 2, 2026
+Fresh GitHub and existing Stytch Test-project API access passed from merged main
+`e13ccb95`. Live JWT and application active/tampered/revoked session checks passed.
+The exact licensed Nexus successor and companion import closure have independent
+review, grouped evidence and pushed commits `6eeea16a`/`92b8a0ac` in PR50.
+Test-only registration diagnostics also passed grouped race/security review.
+The specific missing-secret/access and Nexus license blockers are resolved for
+those tested operations. The unchanged full-history scan failed538unclassified
+findings; new commits/diagnostic files scan clean. Current source-only/native,
+full advisory, deployed endpoints/authority and retirement gates remain open.
+No immutable reference, runtime guard or availability row was promoted.
+The validator retains728rows and523/144/61/0missing categories. See the
+[fresh cloud verification and blocker distinctions](cloud-verification-2026-10-02.md).
+
 ## Latest verified state, October 1, 2026
 October 1 existing-work reconciliation candidate: current main changes and the
 root checkpoint are preserved together, with conflicting historical root

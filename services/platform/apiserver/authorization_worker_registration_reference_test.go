@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const (
@@ -1235,17 +1236,98 @@ type registrationReferencePacket struct {
 	ControlStatements        map[string]string                    `json:"control_statements"`
 }
 
+// Native query diagnostics identify exact statement bytes without retaining
+// SQL or arguments in the printable error. Only internal failure locations
+// select phases; driver text remains available solely through Unwrap.
+type registrationReferenceQueryPhase uint8
+
+const (
+	registrationReferenceQueryScan registrationReferenceQueryPhase = iota
+	registrationReferenceQueryRowLimit
+	registrationReferenceQueryDecode
+)
+
+type registrationReferenceQueryDiagnostic struct {
+	phase           registrationReferenceQueryPhase
+	statementSHA256 string
+	classification  string
+	cause           error
+}
+
+func (e *registrationReferenceQueryDiagnostic) Error() string {
+	phase := "query-row-scan"
+	switch e.phase {
+	case registrationReferenceQueryRowLimit:
+		phase = "row-byte-limit"
+	case registrationReferenceQueryDecode:
+		phase = "json-decode"
+	}
+	return "original registration reference refused: phase=" + phase + " statement_sha256=" + e.statementSHA256 + " " + e.classification
+}
+func (e *registrationReferenceQueryDiagnostic) Unwrap() error { return e.cause }
+
+// Go's %#v otherwise formats struct fields, bypassing Error and exposing the
+// wrapped driver error. Keep every formatting verb on the same bounded text.
+func (e *registrationReferenceQueryDiagnostic) Format(state fmt.State, _ rune) {
+	_, _ = io.WriteString(state, e.Error())
+}
+
+func registrationReferenceQueryFailure(statement string, phase registrationReferenceQueryPhase, cause error) error {
+	classification := "class=unknown"
+	switch phase {
+	case registrationReferenceQueryRowLimit:
+		classification = "class=row-byte-limit"
+	case registrationReferenceQueryDecode:
+		classification = "class=json-decode"
+	default:
+		var native *pgconn.PgError
+		switch {
+		case errors.Is(cause, context.Canceled):
+			classification = "class=context-canceled"
+		case errors.Is(cause, context.DeadlineExceeded):
+			classification = "class=context-deadline"
+		case errors.Is(cause, pgx.ErrNoRows):
+			classification = "class=no-rows"
+		case errors.As(cause, &native) && native != nil:
+			classification = "class=pg-error"
+			valid := len(native.Code) == 5
+			for i := 0; valid && i < len(native.Code); i++ {
+				c := native.Code[i]
+				if !(c >= '0' && c <= '9' || c >= 'A' && c <= 'Z') {
+					valid = false
+					break
+				}
+			}
+			if valid {
+				classification = "sqlstate=" + native.Code
+			}
+		}
+	}
+	return &registrationReferenceQueryDiagnostic{phase: phase, statementSHA256: registrationReferenceSHA([]byte(statement)), classification: classification, cause: cause}
+}
+
 func registrationReferenceQueryJSON(ctx context.Context, q interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }, statement string, target any, args ...any) error {
 	var raw []byte
-	if q.QueryRow(ctx, statement, args...).Scan(&raw) != nil {
-		return registrationReferenceRefuse("native catalog query/cast/permission/RLS error")
+	if err := q.QueryRow(ctx, statement, args...).Scan(&raw); err != nil {
+		return registrationReferenceQueryFailure(statement, registrationReferenceQueryScan, err)
 	}
 	if len(raw) > registrationReferenceMaxRowBytes {
-		return registrationReferenceRefuse("native control row byte limit")
+		return registrationReferenceQueryFailure(statement, registrationReferenceQueryRowLimit, registrationReferenceRefuse("native control row byte limit"))
 	}
-	return registrationReferenceJSON(raw, target)
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return registrationReferenceQueryFailure(statement, registrationReferenceQueryDecode, err)
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		if err == nil {
+			err = registrationReferenceRefuse("packet trailing data")
+		}
+		return registrationReferenceQueryFailure(statement, registrationReferenceQueryDecode, err)
+	}
+	return nil
 }
 
 func registrationReferenceCollationSQL(scalar string) string {

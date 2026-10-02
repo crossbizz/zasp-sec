@@ -1,8 +1,14 @@
 package apiserver
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -10,6 +16,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // These are unit controls, not a captured catalog or native acceptance claim.
@@ -494,5 +503,143 @@ func TestWorkerRegistrationReferenceLine2AndRuntimeProvenance(t *testing.T) {
 	}
 	if registrationReferenceAdmitRuntimeRow([]byte(`{"singleton":false,"checksum":"current","fingerprint":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`), "current") == nil {
 		t.Fatal("wrong runtime singleton")
+	}
+}
+
+// These fakes exercise the real query/decode/refusal boundary without a
+// database. QueryRow records its inputs; only Scan returns controlled data.
+type registrationDiagnosticRow struct {
+	raw []byte
+	err error
+}
+
+func (r registrationDiagnosticRow) Scan(dest ...any) error {
+	if r.err != nil {
+		return r.err
+	}
+	if len(dest) != 1 {
+		panic("unexpected scan destination count")
+	}
+	*dest[0].(*[]byte) = r.raw
+	return nil
+}
+
+type registrationDiagnosticQuery struct {
+	row       pgx.Row
+	statement string
+	args      []any
+}
+
+func (q *registrationDiagnosticQuery) QueryRow(_ context.Context, statement string, args ...any) pgx.Row {
+	q.statement = statement
+	q.args = args
+	return q.row
+}
+
+// Break caught: catalog scan failures must preserve their original cause but
+// diagnostics must never render driver messages, SQL, arguments or secrets.
+func TestWorkerRegistrationReferenceQueryDiagnostics(t *testing.T) {
+	const canary = "postgres://diagnostic-secret:password@private-host/database"
+	statement := "SELECT '" + canary + "' /* untrusted phase=secret */"
+	sum := sha256.Sum256([]byte(statement))
+	digest := hex.EncodeToString(sum[:])
+	contaminated := func(code string) *pgconn.PgError {
+		return &pgconn.PgError{Code: code, Message: canary, Detail: canary, Hint: canary, Where: canary, SchemaName: canary, TableName: canary, ColumnName: canary, DataTypeName: canary, ConstraintName: canary, File: canary, Routine: canary}
+	}
+	for _, tc := range []struct {
+		name           string
+		cause          error
+		classification string
+	}{
+		{"native state", contaminated("42501"), "sqlstate=42501"},
+		{"wrapped native state", fmt.Errorf("%s: %w", canary, contaminated("XX000")), "sqlstate=XX000"},
+		{"invalid state", contaminated(canary), "class=pg-error"},
+		{"lowercase state", contaminated("42p01"), "class=pg-error"},
+		{"empty state", contaminated(""), "class=pg-error"},
+		{"short state", contaminated("42P0"), "class=pg-error"},
+		{"long state", contaminated("42P010"), "class=pg-error"},
+		{"nonascii state", contaminated("42Pé"), "class=pg-error"},
+		{"state newline", contaminated("42P01\n"), "class=pg-error"},
+		{"canceled", fmt.Errorf("%s: %w", canary, context.Canceled), "class=context-canceled"},
+		{"deadline", fmt.Errorf("%s: %w", canary, context.DeadlineExceeded), "class=context-deadline"},
+		{"no rows", fmt.Errorf("%s: %w", canary, pgx.ErrNoRows), "class=no-rows"},
+		{"unknown", errors.New(canary), "class=unknown"},
+		{"typed nil native error", (*pgconn.PgError)(nil), "class=unknown"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			query := &registrationDiagnosticQuery{row: registrationDiagnosticRow{err: tc.cause}}
+			var target map[string]any
+			err := registrationReferenceQueryJSON(context.Background(), query, statement, &target, canary)
+			if err == nil {
+				t.Fatal("native failure accepted")
+			}
+			want := "original registration reference refused: phase=query-row-scan statement_sha256=" + digest + " " + tc.classification
+			if err.Error() != want {
+				t.Fatalf("safe diagnostic mismatch: %q", err.Error())
+			}
+			if errors.Unwrap(err) != tc.cause || !errors.Is(err, tc.cause) {
+				t.Fatal("original cause discarded")
+			}
+			for _, format := range []string{"%v", "%+v", "%#v", "%+#v", "%s", "%q"} {
+				rendered := fmt.Sprintf(format, err)
+				if strings.Contains(rendered, canary) || strings.Contains(rendered, statement) || len(rendered) > 220 {
+					t.Fatal("unbounded or contaminated diagnostic rendering")
+				}
+			}
+			if query.statement != statement || !reflect.DeepEqual(query.args, []any{canary}) {
+				t.Fatal("diagnostic changed query execution inputs")
+			}
+		})
+	}
+}
+
+// Break caught: row limits and strict JSON refusals retain the same caps and
+// do not expose payloads while identifying their closed operation phase.
+func TestWorkerRegistrationReferenceQueryDiagnosticDecodeAndBounds(t *testing.T) {
+	const statement = "SELECT $1::jsonb"
+	sum := sha256.Sum256([]byte(statement))
+	digest := hex.EncodeToString(sum[:])
+	for _, tc := range []struct {
+		name         string
+		raw          []byte
+		phase, class string
+	}{
+		{"row byte limit", bytes.Repeat([]byte{'x'}, registrationReferenceMaxRowBytes+1), "row-byte-limit", "row-byte-limit"},
+		{"malformed JSON", []byte(`{"secret":"diagnostic-secret"`), "json-decode", "json-decode"},
+		{"unknown JSON field", []byte(`{"secret":"diagnostic-secret"}`), "json-decode", "json-decode"},
+		{"trailing JSON", []byte(`{"value":1} {"secret":"diagnostic-secret"}`), "json-decode", "json-decode"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			query := &registrationDiagnosticQuery{row: registrationDiagnosticRow{raw: tc.raw}}
+			var target struct {
+				Value int `json:"value"`
+			}
+			err := registrationReferenceQueryJSON(context.Background(), query, statement, &target)
+			if err == nil {
+				t.Fatal("malformed/over-limit native row accepted")
+			}
+			want := "original registration reference refused: phase=" + tc.phase + " statement_sha256=" + digest + " class=" + tc.class
+			if err.Error() != want {
+				t.Fatalf("safe refusal mismatch: %q", err.Error())
+			}
+			if errors.Unwrap(err) == nil {
+				t.Fatal("refusal cause discarded")
+			}
+			if tc.name == "malformed JSON" && !errors.Is(err, io.ErrUnexpectedEOF) {
+				t.Fatal("original JSON decoder cause discarded")
+			}
+			if strings.Contains(fmt.Sprintf("%+v %#v", err, err), "diagnostic-secret") {
+				t.Fatal("JSON payload leaked")
+			}
+		})
+	}
+	for _, raw := range [][]byte{[]byte(`{"value":1}`), append([]byte(`{"value":1}`), bytes.Repeat([]byte{' '}, registrationReferenceMaxRowBytes-len(`{"value":1}`))...)} {
+		query := &registrationDiagnosticQuery{row: registrationDiagnosticRow{raw: raw}}
+		var target struct {
+			Value int `json:"value"`
+		}
+		if err := registrationReferenceQueryJSON(context.Background(), query, statement, &target); err != nil || target.Value != 1 {
+			t.Fatal("valid JSON row at or below existing byte cap refused")
+		}
 	}
 }
