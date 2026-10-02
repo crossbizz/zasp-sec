@@ -336,10 +336,11 @@ purge failures. Independent fresh read-only review found no Critical findings
 and two Important findings: missing parents returned503 instead of403, and
 session SQL omitted completed scoped cutover. Both were fixed with RED/GREEN
 checks. Final real PostgreSQL18.3 application integration passes all ten groups
-in63.36s; the owned server exits normally. Adjacent authorization/router/closed
+in63.36s; the owned server exits normally.
 OpenFGA Check responses in this native fixture are controlled; PostgreSQL roles,
 credentials, metadata, revisions, rows, mutations and deadlines are real.
-statement checks pass18.147s/0.131s. Full affected API race checks pass6.606s;
+Adjacent authorization/router/closed statement checks pass18.147s/0.131s.
+Full affected API race checks pass6.606s;
 new migration installer race checks pass3.316s and affected migrator race checks
 pass95.082s. UI/query tests pass21tests, the related home group passes4tests,
 and changed UI lint, typecheck, production build and compiled graph checks pass
@@ -396,3 +397,71 @@ runtime. Failed observations remain retained alongside passing runs.
 | `nexus-exact-release-license-recheck.json` | `3e4c5546aa2be641f27f4ecb2c5bae938ddcbed4a20bedaf2d2ad51d88e516d1` |
 | `inventory-profile-red.log` | `f9470756625dcb540a7854597151bd8de3a7e0c696331bdf6d08686503673971` |
 | `inventory-profile-fix-group-green.log` | `15a2624f245c451cbac2bf80ad2a6119117c372733a327b86fdcbd494262d3ce` |
+
+
+## Reviewed batch: real local OSS application integrations
+
+Inventory batch8f88e030779e08707b48e4bf5cfc1d9078a41d99 was normally pushed;
+remote branch SHA matched. No main merge or PR receipt is claimed.
+
+Official module/sumdb-verified OpenFGA1.21.0 (commitab557c5592670c899de35297e7aa067015f06502)
+and Temporal1.32.0 (commitd94e34a1ebba5410a2e7d07119a76896909591aa) were built
+outside the checkout with isolated Go1.26.8; application checks still use pinned
+Go1.25.13. Owned PostgreSQL18.3 supplies pgcrypto1.4 and btree_gin from the same
+verified source. Actual Temporal GetSystemInfo reports1.32.0 on127.0.0.1:7233;
+owned zasp-dev namespace registration succeeds. OpenFGA authenticated health is
+SERVING on127.0.0.1:8088 and the checked-in eight-type model is published.
+These are source-built local artifacts, not acceptance of the pinned Docker
+image digests. Existing Docker pull failure remains part of the record.
+
+The two existing application OpenFGA integration tests previously failed
+because their real Docker-inspection credential fixture was unavailable.
+A shared test-only helper now permits an explicit absolute private regular
+file selector and literal-loopback HTTP endpoint; malformed explicit selection
+fails without fallback. Missing selectors retain real Docker inspection, with
+a bounded five-second inspection. Token values and SDK errors are not printed.
+The production code, model and runtime configuration are unchanged.
+
+Grouped RED/GREEN preserves the actual existing model assertion bodies and
+fresh owned store/model pinning. Real OpenFGA checks pass93application
+permissions and25organization/identity checker decisions, plus machine/model
+denials and role/membership revocation. Three selector refusal/default tests
+pass. The complete authorization race suite with both real-model opt-ins passes
+once in6.797s. Fresh read-only independent review reports no Critical,
+Important or Minor findings; no unchanged expensive suites were repeated.
+
+Final review rulings:
+- Digest equivalence/deployed acceptance remain outside this native fixture;
+  treating a source build as a deployed receipt would erase the release guard.
+- Runtime version enforcement belongs to the observed build/service receipt,
+  not the test credential selector. The receipt pins the actual exercised
+  source/binary versions; a later caller must supply fresh provenance or its
+  run establishes only behavior at that endpoint.
+- Other production prerequisites and vendor internals were outside review;
+  their original completion gates remain in force.
+- Live Docker success was unavailable. Its default behavior is preserved by
+  inspection and selector controls, with no live-Docker success claim.
+
+The existing TestSingleTestLiveCleanupContinuation also passes against real
+Temporal in3.55s: cleanup continues after64pending observations, live and
+terminal duplicate-starts verify continued history, and business execution is
+not reentered. Product cleanup proof is controlled in this test; this is local
+workflow/history integration evidence, not PostgreSQL/provider cleanup or
+recorded pre-change history replay acceptance. No vendor internals were tested.
+
+Fresh production:release:gate still rejects the exact-release Nexus license
+before later gates. No allowlist, immutable reference, authority checksum or
+activation guard was relaxed. Required actual Stytch/provider credentials,
+approved remote network access, fresh advisories, native379/current worker
+registration and deployed end-to-end acceptance remain prerequisites. All728
+rows and523/144/61 historical categories remain intact. Original goal completion
+and obsolete legacy-role retirement are not claimed.
+
+| New local evidence | SHA-256 |
+| --- | --- |
+| `openfga-native-fixture-red-green.txt` | `7b27f8353b0b7d56ca704e540fd9b01641b1b98594090dbceadcbc1688c11df1` |
+| `native-source-runtime-acceptance-receipt.json` | `4a1e057d7e1a7454c9e718def213aff9e03341001cab393822a18d874367e437` |
+| `native-temporal-local-setup.json` | `0fae65c8e7ed07828e4b4b4f4ce2da178b59ee95eef1f5cdeb499345fbb6f94e` |
+| `native-openfga-product-model.json` | `856ca058923d0a0aacf845794a313a2fd49958cff9f662f1d3c88b1baf71d0fd` |
+| `ordered-cleanup-real-temporal.log` | `8dfeaaf460c0049a4cebc834f06540dcc52cf0e82d2ff6a19d643603a83adcd7` |
+| `inventory-release-gate-final.log` | `185749672c531e8e2231b0c79143ca94dd3c272efacc20a66a9638e4734c0e67` |

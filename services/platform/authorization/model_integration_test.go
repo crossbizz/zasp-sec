@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"os/exec"
-	"strings"
 	"testing"
 	"time"
 
@@ -28,29 +26,11 @@ func TestLocalPermissionModel(t *testing.T) {
 	if err := json.Unmarshal(modelBytes, &model); err != nil {
 		t.Fatal(err)
 	}
-	// The credential is read in memory from the already inspected local container.
-	// Never print its environment, command output, SDK errors, or token.
-	data, err := exec.Command("docker", "inspect", "zasp-runtime-services-openfga-1").Output()
-	if err != nil {
-		t.Fatal("retained OpenFGA container unavailable")
-	}
-	var containers []struct{ Config struct{ Env []string } }
-	if json.Unmarshal(data, &containers) != nil || len(containers) != 1 {
-		t.Fatal("local service inspection failed")
-	}
-	token := ""
-	for _, entry := range containers[0].Config.Env {
-		if strings.HasPrefix(entry, "OPENFGA_AUTHN_PRESHARED_KEYS=") {
-			token = strings.TrimPrefix(entry, "OPENFGA_AUTHN_PRESHARED_KEYS=")
-		}
-	}
-	if token == "" || strings.Contains(token, ",") {
-		t.Fatal("local service credential not found or ambiguous")
-	}
+	endpoint, token := localOpenFGAConnection(t)
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
 	defer transport.CloseIdleConnections()
-	client, err := fga.NewSdkClient(&fga.ClientConfiguration{ApiUrl: "http://127.0.0.1:8088", Credentials: &credentials.Credentials{Method: credentials.CredentialsMethodApiToken, Config: &credentials.Config{ApiToken: token}}, HTTPClient: &http.Client{Transport: transport, Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}})
+	client, err := fga.NewSdkClient(&fga.ClientConfiguration{ApiUrl: endpoint, Credentials: &credentials.Credentials{Method: credentials.CredentialsMethodApiToken, Config: &credentials.Config{ApiToken: token}}, HTTPClient: &http.Client{Transport: transport, Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}})
 	if err != nil {
 		t.Fatal("SDK configuration failed")
 	}
@@ -67,7 +47,7 @@ func TestLocalPermissionModel(t *testing.T) {
 	if err != nil {
 		t.Fatal("product model publication rejected")
 	}
-	config := testConfig("http://127.0.0.1:8088")
+	config := testConfig(endpoint)
 	config.StoreID = store.Id
 	config.ModelID = written.AuthorizationModelId
 	config.Timeout = 5 * time.Second

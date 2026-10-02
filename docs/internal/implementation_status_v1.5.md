@@ -35,6 +35,13 @@ These are local application integration/component checks. Retained discovery
 role grants, native379/worker activation, real Stytch/providers and deployed
 acceptance remain open; no original requirement is promoted from this packet.
 
+Exact-source owned Temporal1.32.0/OpenFGA1.21.0 services now pass local
+application integration: real cleanup continuation/history checks,93permission
+checks,25organization identity decisions and authorization race regression.
+The reviewed test-only fixture supports private-file/loopback opt-in while
+retaining Docker inspection by default. This does not establish digest-image
+or deployed acceptance. Fresh release checks still reject Nexus license terms.
+
 ## Latest verified state, October 1, 2026
 October 1 existing-work reconciliation candidate: current main changes and the
 root checkpoint are preserved together, with conflicting historical root
