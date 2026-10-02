@@ -162,3 +162,126 @@ provider responses. No historical immutable evidence is rewritten.
 | `runner-pinned.log` | `ed5b888f94eec326fde28e9e7891761a9d7356e60905edd329762528923f11c4` |
 
 Original milestone rows: M0=27, M1=68, M1A=10, M2=72, M3=75, M4=82, M5=42, M6=36, M7=62, M7A=113, M8=141.
+
+
+## Connected ordered-cleanup recovery checkpoint
+
+This extends the approved Temporal/OpenFGA execution plan P3, particularly
+original M7A-49 ordered execution and M7A-59 cancellation/cleanup. It is
+component-only verification. Existing ledger categories, immutable generated
+references, database authority profiles and runtime refusal guards remain
+unchanged; no original requirement is promoted by this packet.
+
+The ordered Security Agent workflow now retains its admitted scope, original
+business deadline and terminal reason/outcome through a cleanup-only
+continuation. Transient dependency failures and cleanup-pending observations
+retry in bounded histories; permanent authority refusals still fail closed.
+Resumed cleanup cannot plan, apply, advance or test another action. An SDK
+version marker retains the existing finite compensation path for old histories.
+The registered worker includes the cleanup workflow. Duplicate outbox starts
+validate immutable root and predecessor continuation events, queue, run IDs
+and exact input before acknowledging an already-started cleanup execution.
+Mutable workflow metadata is not admission evidence.
+
+Grouped TDD observed the cleanup-recovery and continued-start failures before
+implementation. Tests cover original outcomes/deadline, cleanup-only resume,
+standalone refusal, transient batch exhaustion, untrusted hints/cancellation,
+and foreign scope, deadline, reason, queue, root and predecessor rejection.
+Independent review approved the component scope. Its historical-compatibility
+check exercises the SDK's mocked DefaultVersion branch; no recorded pre-change
+history replay or live Temporal acceptance is claimed.
+
+Two baseline fixture repairs accompany this packet. Linux dependency tests
+now distinguish unreaped dead Z/X process-group members from live servers;
+missing metadata, absent membership and changing snapshots remain conservative.
+The reviewer found an initial fail-open snapshot race, which was repaired and
+independently reviewed before publishing. Actual esbuild/drizzle regressions
+and membership/error controls pass10/10 with no skips. A planner credential
+fixture explicitly sets0444 because inherited cloud umask0077 otherwise
+produces0400. Production exact-mode validation and the0400 rejection remain.
+
+Fresh orchestration and authorization race packages pass. The full UI suite
+passes2535 tests across246 files with the pinned runtime and prepared Helm;
+the original two failing UI observations above are retained as history.
+The corrected full worker package passes. The broader API baseline remains
+failed: native database fixtures report migration2 failures, and the suite
+reached its default10-minute timeout while building a budget process-loss
+worker. That failed run is retained; it is not an API acceptance receipt.
+
+Runtime preparation added sumdb-verified Helm3.19, locked OPA1.17 downloaded
+through the approved goproxy.io mirror with matching repository checksums,
+PostgreSQL17.11 and exact PostgreSQL18.3 core smoke tests, and a Chromium
+headless smoke. Core PostgreSQL smoke does not verify all extension/migration
+requirements or qualify the pinned Darwin/ARM64 native379 authority lane.
+The current cloud policy reports enforced package-manager networking and
+ready generic runtime variables, but no secret bindings or outbound identities.
+The required actual ZASP_DATABASE_URL, ZASP_RUNTIME_SERVICES_ENABLED,
+ZASP_ENVIRONMENT, ZASP_TEMPORAL_*, ZASP_OPENFGA_* and ZASP_STYTCH_* application
+inputs checked here are absent. Generic names are not application configuration.
+Digest-pinned local Temporal/OpenFGA container pulls failed at Docker Hub's
+unauthenticated rate limit; no live cluster or provider mutation followed.
+
+A fresh production release gate rejects the unresolved exact-release Nexus
+proto-annotations license evidence before later stages. The approved fresh
+advisory evidence gate also remains open. Main integration cannot proceed
+through these guards. The reviewed component branch is the deliverable;
+production activation and original728 completion are not claimed.
+
+The next connected implementation batch is current-authority inventory API
+coverage: detail/update operations and capability/relationship collections
+need explicit current SQL contracts and secondary-resource authorization
+before pagination. Legacy sessions returning an empty collection are not
+verified session history. This requires an additive current profile and
+actual installer/native authority verification; do not edit frozen predecessor
+artifacts, loosen statement whitelists or infer readiness from component tests.
+Ordered provider artifact settlement, native379/current registration, real
+Stytch/provider acceptance and all original external gates remain tracked.
+
+
+## Final runtime and verification observations for this packet
+
+The missing pgcrypto extension in the first PostgreSQL18 core preparation
+was confirmed. The same SHA-verified official PostgreSQL18.3 source was
+rebuilt in a separate prefix with OpenSSL and zlib, and contrib/pgcrypto was
+installed. An owned database passed CREATE EXTENSION pgcrypto, exact
+server_version_num180003/extension1.4 and digest/HMAC/crypt controls, then
+stopped cleanly. One previously failing real-PostgreSQL API authority control,
+TestProductionSecurityAgentAutonomousResponsePostgresInstallsExactAuthority,
+now passes. The earlier broad API run has489 top-level failure entries and a
+timeout; it was not repeated or converted to a pass by this one control.
+
+Fresh npm verify now passes dependency10/10 and progresses through health,
+API health, the full worker race suite399.671s and event-ingest race checks.
+It then fails the runtime-gateway unsafe-file fixture: umask0077 masked its
+intended0640 mode to0600. The fixture now explicitly sets0640; production
+permissions remain unchanged. Targeted RED and the complete corrected
+runtime-gateway race suite passed in3.726s. Later npm verify stages were not
+reached; this packet does not claim full verification. Independent review of
+both umask fixture repairs found no blocking issue.
+
+The reviewed batch is prepared on codex/cloud-continuation-20261002. Normal
+branch publication preserves main and existing security/release guards.
+GitHub API access remains denied in this cloud policy, so no PR creation or
+merge receipt is claimed. Main remains at the recorded starting checkpoint.
+
+Final local evidence hashes (same local-only retention limitation as above):
+
+| Log | SHA-256 |
+| --- | --- |
+| `ordered-cleanup-red.log` | `77b17860bfe220a8ebb18ba4140e4eb4c86846e92155daf83c90862bc7617581` |
+| `ordered-cleanup-green1.log` | `b398c3ba07bf6c0ea630135ffe710776ffb9ceafeb653dbde21b06437d989a64` |
+| `ordered-start-red.log` | `e321358fd49776c21a3f881ec4a44db0ee8fc3f0a088d9c73cc616bbfc10b9ab` |
+| `ordered-cleanup-integrated-green.log` | `02642ec60f8b64017e30bbddb1182f50cc5371dd91939ab9e557ca90dfb22aa3` |
+| `ordered-race-authorization.log` | `603637e4ba70f56ed7b2188140d8242ee389ad3979ecc862698eba9e26f44b85` |
+| `ordered-worker-api-group.log` | `f9ec141bfbeb94b48ef9feba009c95bb003fc2c32fa87029b642bc025dc322c1` |
+| `ordered-worker-fixture-green.log` | `39fb287ea68e269b48382458bad9b088975eb96da350f7c76f535e89c127931d` |
+| `ui-runtime-prepared.log` | `63b7fa2825175212e4e45ce9f86e7bf2b2fee37a0be28052a84f2ffcce84c0d1` |
+| `verify-runtime-prepared.log` | `2f14df3d2e48677b2d72a045d5bd5140a1948ac2ed844629da360374223c590b` |
+| `release-gate-current.log` | `185749672c531e8e2231b0c79143ca94dd3c272efacc20a66a9638e4734c0e67` |
+| `planner-fixture-umask-red-green.txt` | `816b01e8ae0c896b3cf09ec1318c08cf935ec08786c513aec47091ad0775f784` |
+| `gateway-fixture-umask-red-green.txt` | `406b2e5c73ce7745b679d16a383bb2ea4a7a418a2bbc862627b72cf5bf0bcdfc` |
+| `api-pgcrypto-control.log` | `d0aeb0ff1eda018b5a60e0497a3adcd9a98b5922419454758bb2073032145942` |
+| `runtime-preparation-summary.json` | `ec7cf6e7b236134b927509840e81dcede4e86d0025f1d9f1508de66fe0d2745a` |
+| `runtime-readiness-observation.json` | `7582f996e8f8db19f6abdfb0563091df31bf141b47ccb13a380db77b3031e6a6` |
+| `application-runtime-config-presence.json` | `f6a14befa449cf0ee9946e30ddd156465a5f31ed5b27f384a6a4e708fb85cae9` |
+| `postgres18-pgcrypto-runtime-smoke.json` | `e68b3b531514755d304bd7719ed5d79d66b0a5f2e1d329079adf978de622963c` |

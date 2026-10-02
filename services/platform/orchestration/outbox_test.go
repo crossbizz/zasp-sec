@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
+	commonpb "go.temporal.io/api/common/v1"
 	enumspb "go.temporal.io/api/enums/v1"
 	historypb "go.temporal.io/api/history/v1"
 	"go.temporal.io/api/serviceerror"
+	taskqueuepb "go.temporal.io/api/taskqueue/v1"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/converter"
 )
@@ -43,7 +45,8 @@ func (c *boundaryClient) SignalWorkflow(ctx context.Context, id, run, signal str
 }
 func (c *boundaryClient) GetWorkflowHistory(ctx context.Context, id, run string, long bool, filter enumspb.HistoryEventFilterType) client.HistoryEventIterator {
 	p, _ := converter.GetDefaultDataConverter().ToPayloads(c.original)
-	return &oneEvent{event: &historypb.HistoryEvent{Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{WorkflowExecutionStartedEventAttributes: &historypb.WorkflowExecutionStartedEventAttributes{Input: p}}}}
+	queue := c.starts[len(c.starts)-1].TaskQueue
+	return &oneEvent{event: &historypb.HistoryEvent{Attributes: &historypb.HistoryEvent_WorkflowExecutionStartedEventAttributes{WorkflowExecutionStartedEventAttributes: &historypb.WorkflowExecutionStartedEventAttributes{Input: p, WorkflowType: &commonpb.WorkflowType{Name: "SecurityAgentWorkflow"}, TaskQueue: &taskqueuepb.TaskQueue{Name: queue}, OriginalExecutionRunId: run, FirstExecutionRunId: run}}}}
 }
 
 type oneEvent struct{ event *historypb.HistoryEvent }

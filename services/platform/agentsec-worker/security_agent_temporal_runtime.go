@@ -58,6 +58,7 @@ func newTemporalSecurityAgentWorker(c client.Client, queue string, p *temporalSe
 	activities := &orchestration.Activities{Product: p}
 	w := worker.New(c, queue, worker.Options{WorkerStopTimeout: timeout, MaxConcurrentActivityExecutionSize: concurrency, MaxConcurrentWorkflowTaskExecutionSize: concurrency})
 	w.RegisterWorkflow(orchestration.SecurityAgentWorkflow)
+	w.RegisterWorkflow(orchestration.SecurityAgentCleanupWorkflow)
 	for name, handler := range map[string]any{"Observe": activities.Observe, "Plan": activities.Plan, "Apply": activities.Apply, "Advance": activities.Advance, "Test": activities.Test, "Cleanup": activities.Cleanup} {
 		w.RegisterActivityWithOptions(handler, activity.RegisterOptions{Name: name})
 	}

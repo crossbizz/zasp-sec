@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { dirname } from "node:path";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { ownedProcessGroupAlive } from "./fixtures/owned-process-group.mjs";
 
 const childPath = fileURLToPath(new URL("./fixtures/dependency-esbuild-regression-child.mjs", import.meta.url));
 
@@ -49,8 +52,7 @@ async function runOwnedChild(mode) {
     // Normal helper cleanup disposes the context and stops the native service.
     // Check the group too, so a returned JSON object can't hide a live server.
     for (let attempt = 0; child.pid && attempt < 20; attempt++) {
-      try { process.kill(-child.pid, 0); } catch (error) {
-        if (error.code === "ESRCH") break;
+      try { if (!await ownedProcessGroupAlive(child.pid)) break; } catch (error) {
         failure ??= `cannot inspect owned process group: ${error.message}`;
         killOwned();
         break;
@@ -95,4 +97,55 @@ test("real drizzle-kit generation retains the nonempty D1 notes schema and defau
   assert.match(result.sql, /`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL/);
   assert.match(result.sql, /`content` text DEFAULT '' NOT NULL/);
   assert.match(result.sql, /`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL/);
+});
+
+test("owned group inspection distinguishes dead members from every live state", async () => {
+  const root = await mkdtemp(join(tmpdir(), "zasp-owned-proc-"));
+  try {
+    const member = async (pid, group, state, name = "esbuild") => {
+      await mkdir(join(root, String(pid)), { recursive: true });
+      await writeFile(join(root, String(pid), "stat"), `${pid} (${name}) ${state} 1 ${group} 0\n`);
+    };
+    const options = { platform: "linux", procRoot: root, probe: () => true };
+    await member(101, 100, "Z", "native (service) name)");
+    await member(102, 100, "X");
+    await member(201, 200, "R");
+    assert.equal(await ownedProcessGroupAlive(100, options), false);
+    assert.equal(await ownedProcessGroupAlive(300, options), true, "positive probe without visible membership is uncertain");
+    for (const state of ["R", "S", "D", "T", "t", "I"]) {
+      await member(103, 100, state);
+      assert.equal(await ownedProcessGroupAlive(100, options), true, `live state ${state}`);
+    }
+    await rm(join(root, "103"), { recursive: true });
+    await writeFile(join(root, "102", "stat"), "malformed metadata");
+    await assert.rejects(ownedProcessGroupAlive(100, options), /process metadata/);
+    await rm(join(root, "102", "stat"));
+    assert.equal(await ownedProcessGroupAlive(100, options), true, "vanished metadata cannot prove deadness");
+    await mkdir(join(root, "102", "stat"));
+    await assert.rejects(ownedProcessGroupAlive(100, options), /EISDIR/);
+    await rm(join(root, "102"), { recursive: true });
+    let entered = false;
+    assert.equal(await ownedProcessGroupAlive(100, { ...options, readStat: async (path) => {
+      const stat = await readFile(path, "utf8");
+      if (!entered) { entered = true; await member(104, 100, "S"); }
+      return stat;
+    } }), true, "a child entering after enumeration prevents deadness proof");
+    await rm(join(root, "104"), { recursive: true });
+    let changed = false;
+    assert.equal(await ownedProcessGroupAlive(100, { ...options, readStat: async (path) => {
+      const stat = await readFile(path, "utf8");
+      if (!changed && path === join(root, "101", "stat")) {
+        changed = true; await member(101, 200, "Z");
+      }
+      return stat;
+    } }), true, "changed group membership prevents deadness proof");
+    await member(101, 100, "Z");
+    assert.equal(await ownedProcessGroupAlive(100, { ...options, platform: "darwin" }), true);
+    assert.equal(await ownedProcessGroupAlive(100, { ...options, probe: () => { throw Object.assign(new Error("gone"), { code: "ESRCH" }); } }), false);
+    await assert.rejects(ownedProcessGroupAlive(100, { ...options, probe: () => { throw Object.assign(new Error("denied"), { code: "EPERM" }); } }), /denied/);
+    await assert.rejects(ownedProcessGroupAlive(100, { ...options, procRoot: join(root, "missing") }), /ENOENT/);
+    await assert.rejects(ownedProcessGroupAlive(0, options), /invalid owned process group/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

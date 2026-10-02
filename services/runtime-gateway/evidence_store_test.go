@@ -130,7 +130,11 @@ func TestGatewayEvidenceDiskStoreRejectsUnsafeExistingFilesBeforeRecovery(t *tes
 			return os.WriteFile(filepath.Join(path, "unexpected"), []byte("unsafe"), 0o600)
 		}},
 		{name: "group readable database file", setup: func(path, _ string) error {
-			return os.WriteFile(filepath.Join(path, "000001.sst"), []byte("unsafe"), 0o640)
+			file := filepath.Join(path, "000001.sst")
+			if err := os.WriteFile(file, []byte("unsafe"), 0o640); err != nil {
+				return err
+			}
+			return os.Chmod(file, 0o640)
 		}},
 		{name: "database symlink", setup: func(path, target string) error { return os.Symlink(target, filepath.Join(path, "000001.sst")) }},
 	} {

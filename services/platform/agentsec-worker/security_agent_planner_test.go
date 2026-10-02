@@ -19,6 +19,9 @@ func TestProductionSecurityAgentPlannerLoadsOnlyPinnedCredentialFile(t *testing.
 	if err := os.WriteFile(path, []byte("sk-or-v1-test-token-1234567890"), 0o444); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Chmod(path, 0o444); err != nil {
+		t.Fatal(err)
+	}
 	config := validSecurityAgentRuntimeConfig()
 	config.SecurityAgentPlannerToken = path
 	planner, err := newSecurityAgentPlannerFromFile(config)

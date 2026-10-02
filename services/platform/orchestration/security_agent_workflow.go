@@ -18,17 +18,27 @@ func SecurityAgentWorkflow(ctx workflow.Context, request StartRequest) (result e
 		HeartbeatTimeout: 30 * time.Second, WaitForCancellation: true,
 		RetryPolicy: &temporal.RetryPolicy{InitialInterval: time.Second, BackoffCoefficient: 2, MaximumInterval: time.Minute, MaximumAttempts: 5},
 	})
+	deadline := workflow.Now(ctx).Add(24 * time.Hour)
 	reason := "workflow_failed"
 	defer func() {
+		outcome := "completed"
+		if result != nil {
+			outcome = "failed"
+		}
 		if ctx.Err() != nil || temporal.IsCanceledError(result) {
 			reason = "workflow_cancelled"
+			outcome = "cancelled"
 		}
-		cleanupErr := compensate(ctx, request, reason)
+		var cleanupErr error
+		if workflow.GetVersion(ctx, "ordered-cleanup-continuation", workflow.DefaultVersion, 1) == workflow.DefaultVersion {
+			cleanupErr = compensate(ctx, request, reason)
+		} else {
+			cleanupErr = securityAgentCleanupLoop(ctx, SecurityAgentCleanupContinuation{Start: request, BusinessDeadline: deadline, Reason: reason, Outcome: outcome})
+		}
 		if cleanupErr != nil {
 			result = cleanupErr
 		}
 	}()
-	deadline := workflow.Now(ctx).Add(24 * time.Hour)
 	signals := workflow.GetSignalChannel(ctx, "product-decision")
 	lastActionPhase := ""
 	for workflow.Now(ctx).Before(deadline) {

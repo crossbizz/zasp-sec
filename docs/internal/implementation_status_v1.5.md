@@ -3,20 +3,24 @@
 ## Cloud continuation, October 2, 2026
 
 Fetched main at `e13ccb95451b03107681ccb59b3fc6fe175a228f`; the required
-checkpoint is present as the starting tip. Superpowers source skills are
-installed locally, and pinned Node/npm/Go tools and locked npm dependencies
-are prepared. A bounded companion-snapshot repair passed grouped TDD and
-independent review: the owned source snapshot now includes the descriptor
-imported by its worker source replay test. This is component evidence only;
-no frozen artifacts, runtime pins or availability rows were changed.
+checkpoint is present as the starting tip. Official Superpowers source skills
+are installed locally and applied. Pinned Node/npm/Go and locked dependencies
+are prepared. The companion snapshot repair and connected ordered-cleanup
+continuation, immutable duplicate-start binding and worker registration batch
+passed grouped TDD and independent component review. Frozen artifacts,
+runtime refusal guards and all728 availability rows remain unchanged.
 
-Fresh UI typecheck/build and compiled imports passed, but the full UI suite
-has two failures, the migration group has63 failures/50skips, and `npm run
-verify` stops at two dependency process-cleanup regressions. Missing historical
-archives/tools, denied dependency/GitHub API networking, unconfigured OpenFGA,
-unknown provider readiness and all existing native/deployed gates remain open.
-Main integration remains gated. All728 original rows and523/144/61 evidence
-categories are retained. Exact checks, review scope and local log hashes:
+Fresh UI2535/246-file tests, typecheck/build and compiled imports passed.
+Orchestration and authorization race packages passed; corrected worker tests
+passed. Linux zombie-group inspection and cloud-umask credential fixtures now
+retain their guards with portable verification. The broad API baseline failed
+native migrations and timed out; migration baseline63failures/50skips and
+release/license/advisory gates remain open. Core PostgreSQL preparation is
+not installer or native379 acceptance. Required actual ZASP_* application
+connections and identity inputs are absent, local Temporal/OpenFGA pulls hit
+a registry rate limit, and historical authority archives were not transferred.
+Main integration remains gated. All728 rows and523/144/61 evidence categories
+are retained. Exact checks, review scope, prerequisites and local log hashes:
 [cloud continuation evidence](cloud-continuation-evidence-2026-10-02.md).
 
 ## Latest verified state, October 1, 2026
