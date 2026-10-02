@@ -95,7 +95,7 @@ scanner pipeline. The fail-closed release-advisory guard remains unchanged.
 | GitHub and Stytch credentials/connectivity | Resolved for the tested repository and existing Test-project APIs; do not repeat a missing-secret blocker. |
 | Nexus exact-release license | Resolved by the verified licensed successor; the old tag remains historically unlicensed. |
 | Full-history secret scan | Independent review classified538 baseline and two later documentation findings as noncredential data. Candidate435 exact fingerprints preserve existing exception bytes and pass synthetic new-commit/new-path detection controls. Full-history rescan passed1416commits/322.27MB/zero findings; subsequent source-copier/collation-fix range also passed. See reviewed-secret-scan evidence. |
-| Release advisory acceptance | Incomplete implementation/evidence: npm production lookup works, but Go/image scan acceptance and exact-input pipeline remain open. Keep the guard. |
+| Release advisory acceptance | Incomplete implementation/evidence: npm production lookup and an unchanged official Go database generated from its full authoritative Git history work. Actual Go findings are under bounded remediation; unresolved crypto advisories, unknown severity, final image scans and exact-input acceptance remain open. Keep the guard. |
 | API, app, Forgejo, artifact, Redis and Temporal services | Configured local endpoints refuse connections. Start the configured services or provide reachable deployed endpoints; injection readiness is not service health. |
 | Flexprice | Denied access: HTTPS proxy CONNECT to `api.flexprice.io` returns403. Add this host through supported environment network configuration before its live check. |
 | Database | Configured DSN exists, but no remote TCP grant is configured. Grant the configured database host/port through the supported environment workflow before testing credentials/TLS. No direct remote bypass was attempted. |
@@ -159,3 +159,33 @@ independent review and the coordinator grouped race rerun (18tests/40subtests). 
 was published; normal owned server shutdown and join passed, with no new PG
 survivors. Two defunct processes from an earlier detached runtime smoke are
 preserved as a historical cleanup limitation. No728 ledger row changes.
+
+## Fresh registration diagnosis and dependency verification
+
+The reviewed parameter ordering correction is pushed as `60d33079`. Exact
+v4 frame reconstruction identified source C versus parameter default collation.
+The parameter aggregate and its witness now bind the same fixed C expression;
+original source SQL, scalar authority, equality refusal and dispatch pins remain
+unchanged. Coordinator race verification passed24tests/55subtests. A new frozen
+actual PostgreSQL retry is still required; v1-v4 logs and artifacts remain intact.
+See [the PG18 witness evidence](2026-10-02-pg18-collation-witness.md).
+
+The coordinator independently checked all seven pending security module roots:
+normal checksum verification and readonly resolution passed for every root.
+The exact dependency-policy correction passed94validator tests and the actual
+13-manifest/42-dependency inventory. Full dependencies:check passed9regressions
+with Linux child-subreaper ownership; the raw unsupervised failure showed an
+owned esbuild zombie reparented to this container's PID1. Lifecycle guards and
+tested source stayed unchanged. This local runtime prerequisite does not explain
+hosted CI failures without hosted logs. Final security scope review precedes
+its commit; no release clearance follows from these checks.
+
+Hosted `08bc8d5c` checks failed at Verify runnable UI; hosted `cace013f` checks
+failed at Verify current compliance browser acceptance. The newer pushed head's
+checks remain pending. Log access is still denied by the environment proxy, so
+no underlying cause is asserted from step names. Main remains
+`e13ccb95451b03107681ccb59b3fc6fe175a228f`; current branch connectivity and
+existing Stytch Test-project organization search again returned HTTP200 without
+printing credentials or identity data. The full ledger validator again passed
+728rows with523production-available categories,144component-only,61blocked/
+external and0missing. No category promotion occurred.
