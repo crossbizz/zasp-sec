@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -768,5 +769,74 @@ func TestWorkerRegistrationReferenceDispatchInputRefusal(t *testing.T) {
 	})
 	if err := registrationReferenceCheckDispatchInputs(build); err != nil {
 		t.Fatal("restored dispatch inputs refused", err)
+	}
+}
+
+// Break caught: a control witness must select real PG18 catalog columns while
+// preserving its nullable rules key and exact original fingerprint scalar.
+// These independent field rosters come from the byte-reviewed PG18.3 bootstrap
+// catalog (SHA256 ba43fc265c5e477644ac7c28b1771e42d020ee76520cb80bf9a82074a9e90756).
+func TestWorkerRegistrationReferencePG18CollationColumnBindings(t *testing.T) {
+	schema := map[string]string{
+		"c": "oid collname collnamespace collowner collprovider collisdeterministic collencoding collcollate collctype colllocale collicurules collversion",
+		"d": "oid datname datdba encoding datlocprovider datistemplate datallowconn dathasloginevt datconnlimit datfrozenxid datminmxid dattablespace datcollate datctype datlocale daticurules datcollversion datacl",
+	}
+	columns := map[string]map[string]bool{}
+	for alias, roster := range schema {
+		columns[alias] = map[string]bool{}
+		for _, name := range strings.Fields(roster) {
+			columns[alias][name] = true
+		}
+	}
+	plan, err := registrationReferencePlan(registrationReferenceTestSource(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.CatalogSHA256 != "28bc26660db8eae036fd2f36bc215fcf2e27c1aba6d2c7c42d5d6a58e73c5016" {
+		t.Fatal("original source authority changed")
+	}
+	outer, nested, parameter, err := registrationReferenceSortKeyCollationQueries(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	references := regexp.MustCompile(`\b([cd])\.([a-z][a-z0-9_]*)`)
+	rulesBinding := regexp.MustCompile(`'rules',c\.([a-z][a-z0-9_]*)`)
+	for _, witness := range []struct{ name, query string }{{"outer", outer}, {"nested", nested}, {"parameter", parameter}} {
+		t.Run(witness.name, func(t *testing.T) {
+			// Only the outer witness projection uses aliases c/d for these catalogs;
+			// the original scalar has its own unrelated aliases and remains unmodified.
+			const boundary = ") AS oid) SELECT jsonb_build_object("
+			index := strings.LastIndex(witness.query, boundary)
+			if index < 0 {
+				t.Fatal("catalog witness projection framing")
+			}
+			projection := witness.query[index+len(boundary):]
+			valid := true
+			for _, reference := range references.FindAllStringSubmatch(projection, -1) {
+				if !columns[reference[1]][reference[2]] {
+					t.Errorf("unresolved PG18 control-witness column: alias=%s column=%s", reference[1], reference[2])
+					valid = false
+				}
+			}
+			if !valid {
+				return
+			}
+			binding := rulesBinding.FindStringSubmatch(projection)
+			if len(binding) != 2 || binding[1] != "collicurules" {
+				t.Fatal("rules key is not bound to nullable ICU rules catalog field")
+			}
+		})
+	}
+	for _, fixture := range []struct {
+		raw  string
+		want *string
+	}{{`{"rules":null}`, nil}, {`{"rules":"reviewed-icu-rules"}`, registrationReferenceString("reviewed-icu-rules")}} {
+		var frame registrationReferenceCollation
+		if err := registrationReferenceJSON([]byte(fixture.raw), &frame); err != nil {
+			t.Fatal("rules result schema refused", err)
+		}
+		if !reflect.DeepEqual(frame.Rules, fixture.want) {
+			t.Fatal("rules null/text result semantics changed")
+		}
 	}
 }
