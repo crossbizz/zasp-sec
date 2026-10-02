@@ -34,3 +34,34 @@ no blocking issue. A fresh frozen diagnostic capture remains required before
 claiming the mismatch's cause or choosing a semantic correction. No equality
 relaxation, collation workaround, native adoption or728 promotion is justified
 by source inspection alone. V1/v2/v3 evidence remains intact.
+
+## Fresh v4 diagnosis and parameter ordering correction
+
+The independently reviewed frozen v4 attempt ran for133.11s and refused
+`nested-parameter-collation`. Statement SHA256 was
+`27a09709c58cd5173ccfbeefc4e1d827ae8e32457ee0679d33c83b3271696778`;
+source frame SHA256 was
+`9dafbce30531cc09feaab043595aecc725933d7535afdebe59bd593ca6771b86`,
+and parameter frame SHA256 was
+`d1ef14544a5a577cb089d365166b4c49a684cef38a4b828838505d8d862d7923`.
+Only name and provider differed. Exact-frame reconstruction from the verified
+PG18 bootstrap and fixed initdb controls uniquely matched source C collation
+and parameter default collation. The retained reconstruction proof SHA256 is
+`fb801ebc1ee670a6645a8b74646e03e9be846f0c3c27418c256c77e106affe34`.
+No output was published; sidecar pre/post checks and normal owned PID109330
+stop/join passed. Attempt log SHA256 is
+`8d755a95a494bd9475028901397470ac290c42065d9a804f256b9cfb38caf9f2`.
+
+The fixed parameter-only sort key is now `v COLLATE pg_catalog."C"`. Both
+parameter aggregate ordering and its control witness consume that same closed
+expression. Original source queries, scalar authority digest, equality guard,
+dispatch pins, typed text-array bag handling, NULL/empty behavior and byte
+limits remain unchanged. Default, arbitrary, nondeterministic and incompatible
+version witnesses still refuse. There is no caller-configurable collation.
+
+TDD reproduced the missing binding before correction. Independent review
+approved the two-file delta without findings; the coordinator's fresh count1
+race run passed24 top-level tests and55 subtests. These are source controls,
+not native capture acceptance. A new frozen v5 build and actual PostgreSQL
+retry are required. V1 through v4 evidence remains intact; no728 ledger
+row changes or native/production completion claims follow from this fix.

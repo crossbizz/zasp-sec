@@ -333,7 +333,7 @@ func TestWorkerRegistrationReferenceActualSortKeyCollation(t *testing.T) {
 			t.Fatal("nested source selector lost", site.Line)
 		}
 	}
-	if !strings.Contains(parameter, "SELECT v FROM unnest($1::text[]) AS facts(v) LIMIT 0))) AS oid") || strings.Contains(parameter, "ARRAY[") {
+	if !strings.Contains(parameter, `SELECT v COLLATE pg_catalog."C" FROM unnest($1::text[]) AS facts(v) LIMIT 0))) AS oid`) || strings.Contains(parameter, "ARRAY[") {
 		t.Fatal("parameter witness did not use exact actual parameter expression")
 	}
 	c := registrationReferenceCollation{Name: "pg_catalog.default", Provider: "d", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
@@ -930,5 +930,79 @@ func TestWorkerRegistrationReferenceCollationDiagnosticFieldRoster(t *testing.T)
 	err := registrationReferenceAdmitParameterCollations(registrationReferenceNestedCollationWitness, "fixed-witness", base, base, changed, changed)
 	if err == nil || !strings.HasSuffix(err.Error(), "differing_fields=locale") {
 		t.Fatal("null versus empty field lost")
+	}
+}
+
+// Break caught: parameter replay orders under database default while the
+// untouched original source selects the fixed bootstrap C sort-key identity.
+func TestWorkerRegistrationReferenceParameterSortKeyBinding(t *testing.T) {
+	source := registrationReferenceTestSource(t)
+	if registrationReferenceSHA([]byte(source)) != registrationReferenceCatalogSHA {
+		t.Fatal("original catalog authority changed")
+	}
+	plan, err := registrationReferencePlan(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outer, nested, parameter, err := registrationReferenceSortKeyCollationQueries(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const expected = `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY v COLLATE pg_catalog."C"),'UTF8'),'sha256'),'hex') FROM unnest($1::text[]) AS facts(v)`
+	if registrationReferenceParameterSQL != expected {
+		t.Fatal("parameter ORDER BY lacks exact fixed source C binding or changed aggregate values")
+	}
+	if !strings.Contains(parameter, `SELECT v COLLATE pg_catalog."C" FROM unnest($1::text[]) AS facts(v) LIMIT 0`) {
+		t.Fatal("parameter witness is not the actual explicitly bound ordering expression")
+	}
+	if strings.Contains(outer, "COLLATE") || strings.Contains(nested, "COLLATE") {
+		t.Fatal("original source ordering expression was rewritten")
+	}
+	for _, site := range plan.Sites {
+		if !strings.Contains(outer, site.Selector) {
+			t.Fatal("original source selector changed")
+		}
+	}
+}
+
+func TestWorkerRegistrationReferenceParameterSortKeyIdentityAndTypedBags(t *testing.T) {
+	c := registrationReferenceCollation{Name: `"C"`, Provider: "c", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
+	originalDefault := c
+	originalDefault.Name = `"default"`
+	originalDefault.Provider = "d"
+	raw, _ := json.Marshal(c)
+	defaultRaw, _ := json.Marshal(originalDefault)
+	if registrationReferenceSHA(raw) != "9dafbce30531cc09feaab043595aecc725933d7535afdebe59bd593ca6771b86" || registrationReferenceSHA(defaultRaw) != "d1ef14544a5a577cb089d365166b4c49a684cef38a4b828838505d8d862d7923" {
+		t.Fatal("reviewed bootstrap frame identities changed")
+	}
+	if registrationReferenceAdmitSortKeyCollations(c, c, c, c) != nil {
+		t.Fatal("exact C replay source frame refused")
+	}
+	if registrationReferenceAdmitSortKeyCollations(originalDefault, originalDefault, c, c) == nil {
+		t.Fatal("nonmatching original default source admitted by fixed C replay")
+	}
+
+	for _, change := range []func(*registrationReferenceCollation){func(x *registrationReferenceCollation) { *x = originalDefault }, func(x *registrationReferenceCollation) { x.Name = "arbitrary-collation" }, func(x *registrationReferenceCollation) { x.Deterministic = false }, func(x *registrationReferenceCollation) { v := "changed-version"; x.RecordedVersion = &v }} {
+		q := c
+		change(&q)
+		if registrationReferenceAdmitSortKeyCollations(c, c, q, q) == nil {
+			t.Fatal("different/default/nondeterministic/version replay admitted")
+		}
+	}
+	plan, err := registrationReferencePlan(registrationReferenceTestSource(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, witness, err := registrationReferenceSortKeyCollationQueries(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value := "typed-value"
+	for _, bag := range [][]*string{nil, {}, {nil, &value, &value}} {
+		query := &registrationDiagnosticQuery{row: registrationDiagnosticRow{raw: raw}}
+		var observed registrationReferenceCollation
+		if registrationReferenceQueryJSON(context.Background(), query, witness, &observed, bag) != nil || !reflect.DeepEqual(query.args, []any{bag}) || !reflect.DeepEqual(observed, c) {
+			t.Fatal("typed null/empty/duplicate bag witness context changed")
+		}
 	}
 }

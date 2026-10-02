@@ -1364,10 +1364,11 @@ func registrationReferenceSortKeyCollationQueries(p registrationReferenceStateme
 	if err != nil {
 		return "", "", "", err
 	}
-	if !strings.HasPrefix(registrationReferenceParameterSQL, aggregateProjection) || strings.TrimPrefix(registrationReferenceParameterSQL, aggregateProjection) != "unnest($1::text[]) AS facts(v)" {
+	const parameterProjection = `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY ` + registrationReferenceParameterSortKey + `),'UTF8'),'sha256'),'hex') FROM `
+	if !strings.HasPrefix(registrationReferenceParameterSQL, parameterProjection) || strings.TrimPrefix(registrationReferenceParameterSQL, parameterProjection) != "unnest($1::text[]) AS facts(v)" {
 		return "", "", "", registrationReferenceRefuse("actual parameter ORDER BY v expression")
 	}
-	parameter := registrationReferenceCollationSQL("SELECT v FROM " + strings.TrimPrefix(registrationReferenceParameterSQL, aggregateProjection) + " LIMIT 0")
+	parameter := registrationReferenceCollationSQL("SELECT " + registrationReferenceParameterSortKey + " FROM " + strings.TrimPrefix(registrationReferenceParameterSQL, parameterProjection) + " LIMIT 0")
 	return outer, nested, parameter, nil
 }
 func registrationReferenceAdmitSortKeyCollations(nested, outer, parameterNested, parameterOuter registrationReferenceCollation) error {
@@ -1557,7 +1558,10 @@ func registrationReferenceReadBag(ctx context.Context, tx pgx.Tx, s registration
 
 // The parameter aggregate is a separate validation of the type-output bridge.
 // It cannot replace the exact native original nested/outer query or source bag.
-const registrationReferenceParameterSQL = `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY v),'UTF8'),'sha256'),'hex') FROM unnest($1::text[]) AS facts(v)`
+// Fixed replay key follows the independently reconstructed original source
+// bootstrap C identity. The unchanged full-frame guard must still admit it.
+const registrationReferenceParameterSortKey = `v COLLATE pg_catalog."C"`
+const registrationReferenceParameterSQL = `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY ` + registrationReferenceParameterSortKey + `),'UTF8'),'sha256'),'hex') FROM unnest($1::text[]) AS facts(v)`
 
 const registrationReferenceWorkerInsertSQL = `INSERT INTO zasp_authorization80_worker.registration(checksum,fingerprint) VALUES($1,zasp_authorization80_worker.fingerprint())`
 
