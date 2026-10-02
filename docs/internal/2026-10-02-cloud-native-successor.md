@@ -87,6 +87,17 @@ comparison; native admission caught it. Next is a real-source consistency RED,
 the narrowly reviewed live-pin correction, then a new frozen build. Preserve
 the failed bundle, old pin evidence and historical snapshots.
 
+The subsequent live-pin correction now has grouped source-only RED/GREEN and
+independent approval. A consistency test checks all seven real regular source
+files; RED identified exactly the mismatch above. Only that live digest changed.
+The existing binder checks were extracted into a private checker at the same
+call position without changing logic, order or refusal messages. Disposable
+controls exercise missing/changed files for every dispatch input and closed
+path/pin refusals. The affected race/count1 run passed19 tests and37 subcases,
+including the diagnostic constant test. All seven current hashes now match.
+The old frozen bundle and failed attempt are retained. A fresh reviewed build
+and capture remain required; the stale live pin is no longer an open blocker.
+
 ## History scan and hosted checks
 
 A private mode0600 redacted JSON history scan covered1414 commits/322.20MB and
@@ -107,7 +118,7 @@ test failure has not been diagnosed from hosted logs. The separate PR check
 also failed after20m37s. Do not infer a cause from local failures or merge around
 the required check.
 
-No authoritative ledger row is promoted. The next independent work is the live
-dispatch consistency fix and new Linux reference attempt, source copier/schema
+No authoritative ledger row is promoted. The next independent work is a new
+reviewed Linux build and reference attempt, source copier/schema
 integration from the verified cloud A closure, and exact review of the remaining
 history findings. Connected production and final retirement gates remain open.

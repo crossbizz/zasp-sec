@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -641,5 +642,131 @@ func TestWorkerRegistrationReferenceQueryDiagnosticDecodeAndBounds(t *testing.T)
 		if err := registrationReferenceQueryJSON(context.Background(), query, statement, &target); err != nil || target.Value != 1 {
 			t.Fatal("valid JSON row at or below existing byte cap refused")
 		}
+	}
+}
+
+// Break caught: a reviewed live source successor cannot retain a historical
+// dispatch pin. This binds all seven actual regular files, without execution.
+func TestWorkerRegistrationReferenceDispatchSourceConsistency(t *testing.T) {
+	expected := []string{
+		"apiserver/authorization_worker_effect_postgres_test.go",
+		"apiserver/authorization_worker_ordered_policy_postgres_test.go",
+		"apiserver/postgres_integration_test.go",
+		"apiserver/security_agent_temporal_executor_postgres_test.go",
+		"migrations/production_authorization_runtime_profile.go",
+		"migrations/production_authorization_worker_profile.go",
+		"migrations/production_authorization_worker_runtime.go",
+	}
+	paths := make([]string, 0, len(registrationReferenceDispatchPins))
+	for relative := range registrationReferenceDispatchPins {
+		paths = append(paths, relative)
+	}
+	sort.Strings(paths)
+	if !reflect.DeepEqual(paths, expected) {
+		t.Fatal("closed seven-file dispatch roster differs")
+	}
+	for _, relative := range expected {
+		filename := filepath.Join("..", relative)
+		info, err := os.Lstat(filename)
+		if err != nil || !info.Mode().IsRegular() {
+			t.Fatalf("dispatch source is not a regular file: %s", relative)
+		}
+		raw, err := os.ReadFile(filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		digest := sha256.Sum256(raw)
+		got := hex.EncodeToString(digest[:])
+		if want := registrationReferenceDispatchPins[relative]; got != want {
+			t.Errorf("dispatch source pin mismatch: %s got=%s want=%s", relative, got, want)
+		}
+	}
+}
+
+// Break caught: updating a reviewed live digest must not bypass the actual
+// binder's exact source checks for any of the seven dispatch inputs.
+func TestWorkerRegistrationReferenceDispatchInputRefusal(t *testing.T) {
+	directory := t.TempDir()
+	pins := make(map[string]string, len(registrationReferenceDispatchPins))
+	for relative, digest := range registrationReferenceDispatchPins {
+		raw, err := os.ReadFile(filepath.Join("..", relative))
+		if err != nil {
+			t.Fatal(err)
+		}
+		filename := filepath.Join(directory, relative)
+		if err := os.MkdirAll(filepath.Dir(filename), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filename, raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+		pins[relative] = digest
+	}
+	build := registrationReferenceBuild{Platform: directory, DispatchPins: pins}
+	if err := registrationReferenceCheckDispatchInputs(build); err != nil {
+		t.Fatal("complete reviewed dispatch inputs refused", err)
+	}
+	paths := make([]string, 0, len(pins))
+	for relative := range pins {
+		paths = append(paths, relative)
+	}
+	sort.Strings(paths)
+	for _, relative := range paths {
+		for _, mode := range []string{"missing", "changed"} {
+			t.Run(relative+"/"+mode, func(t *testing.T) {
+				filename := filepath.Join(directory, relative)
+				raw, err := os.ReadFile(filename)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer func() {
+					if err := os.WriteFile(filename, raw, 0600); err != nil {
+						t.Error(err)
+					}
+				}()
+				if mode == "missing" {
+					if err := os.Remove(filename); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					if err := os.WriteFile(filename, append(append([]byte(nil), raw...), '\n'), 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := registrationReferenceCheckDispatchInputs(build); err == nil || !strings.Contains(err.Error(), "dispatch source input differs") {
+					t.Fatal("unreviewed dispatch bytes accepted", err)
+				}
+			})
+		}
+	}
+	for _, relative := range []string{filepath.Join(directory, "outside.go"), "../outside.go", "apiserver/../outside.go"} {
+		t.Run("closed path/"+relative, func(t *testing.T) {
+			pins[relative] = strings.Repeat("0", 64)
+			defer delete(pins, relative)
+			if err := registrationReferenceCheckDispatchInputs(build); err == nil || !strings.Contains(err.Error(), "dispatch source path") {
+				t.Fatal("unclosed dispatch path accepted", err)
+			}
+		})
+	}
+	t.Run("missing declared pin", func(t *testing.T) {
+		relative := paths[0]
+		digest := pins[relative]
+		delete(pins, relative)
+		defer func() { pins[relative] = digest }()
+		if err := registrationReferenceCheckDispatchInputs(build); err == nil || !strings.Contains(err.Error(), "source-bound dispatch pins absent") {
+			t.Fatal("incomplete dispatch authority accepted", err)
+		}
+	})
+	t.Run("caller changed declared pin", func(t *testing.T) {
+		relative := paths[0]
+		digest := pins[relative]
+		pins[relative] = strings.Repeat("0", 64)
+		defer func() { pins[relative] = digest }()
+		if err := registrationReferenceCheckDispatchInputs(build); err == nil || !strings.Contains(err.Error(), "original compiler dispatch changed") {
+			t.Fatal("caller dispatch authority accepted", err)
+		}
+	})
+	if err := registrationReferenceCheckDispatchInputs(build); err != nil {
+		t.Fatal("restored dispatch inputs refused", err)
 	}
 }

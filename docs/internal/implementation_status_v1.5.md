@@ -7,12 +7,21 @@ The exact licensed Nexus successor and companion import closure have independent
 review, grouped evidence and pushed commits `6eeea16a`/`92b8a0ac` in PR50.
 Test-only registration diagnostics also passed grouped race/security review.
 The specific missing-secret/access and Nexus license blockers are resolved for
-those tested operations. The unchanged full-history scan failed538unclassified
-findings; new commits/diagnostic files scan clean. Current source-only/native,
+those tested operations. The new cloud A/B source-only successor passed26tests
+and independent review, then actual deterministic A/B publication checks. The
+latest full local UI run passed2535tests/246files. History scan findings have
+private metadata:347artifact-digest matches and5Git-reference matches are
+classified;186remain unresolved. New commits/diagnostic files scan clean.
+Current native,
 full advisory, deployed endpoints/authority and retirement gates remain open.
 No immutable reference, runtime guard or availability row was promoted.
 The validator retains728rows and523/144/61/0missing categories. See the
 [fresh cloud verification and blocker distinctions](cloud-verification-2026-10-02.md).
+The [cloud successor and Linux attempt](2026-10-02-cloud-native-successor.md)
+records runtime prerequisites, the safely refused stale dispatch pin and the
+independently reviewed live-pin correction (19race tests/37subcases). A fresh
+frozen registration build/capture and source copier integration are next.
+Required hosted checks failed; PR50 remains unmerged.
 
 ## Latest verified state, October 1, 2026
 October 1 existing-work reconciliation candidate: current main changes and the
