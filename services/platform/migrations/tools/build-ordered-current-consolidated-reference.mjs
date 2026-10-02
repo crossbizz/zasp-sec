@@ -35,6 +35,11 @@ const producerPaths=[
 const excludedPinsPath='services/platform/apiserver/authorization_worker_consolidated_reference_pins_test.go';
 const extraSourcePaths=[
  'services/platform/migrations/tools/build-ordered-current-consolidated-reference.test.mjs',
+ 'services/platform/migrations/tools/build-ordered-current-companion-snapshot.test.mjs',
+ // The source-replay companion consumes this adapter even though the runtime
+ // producer does not. Keep it in the owned test graph, under the same strict
+ // topology and byte binding as the other explicit companion inputs.
+ 'services/platform/migrations/tools/ordered-current-worker-source-descriptor-v1.mjs',
  'services/platform/migrations/tools/ordered-current-consolidated-reference.mjs',
  'services/platform/migrations/tools/ordered-current-consolidated-reference.test.mjs',
  'services/platform/migrations/sql/0080_authorization_worker_ordered_current_integrity.sql'

@@ -1,5 +1,24 @@
 # Agent Security Platform Implementation Status
 
+## Cloud continuation, October 2, 2026
+
+Fetched main at `e13ccb95451b03107681ccb59b3fc6fe175a228f`; the required
+checkpoint is present as the starting tip. Superpowers source skills are
+installed locally, and pinned Node/npm/Go tools and locked npm dependencies
+are prepared. A bounded companion-snapshot repair passed grouped TDD and
+independent review: the owned source snapshot now includes the descriptor
+imported by its worker source replay test. This is component evidence only;
+no frozen artifacts, runtime pins or availability rows were changed.
+
+Fresh UI typecheck/build and compiled imports passed, but the full UI suite
+has two failures, the migration group has63 failures/50skips, and `npm run
+verify` stops at two dependency process-cleanup regressions. Missing historical
+archives/tools, denied dependency/GitHub API networking, unconfigured OpenFGA,
+unknown provider readiness and all existing native/deployed gates remain open.
+Main integration remains gated. All728 original rows and523/144/61 evidence
+categories are retained. Exact checks, review scope and local log hashes:
+[cloud continuation evidence](cloud-continuation-evidence-2026-10-02.md).
+
 ## Latest verified state, October 1, 2026
 October 1 existing-work reconciliation candidate: current main changes and the
 root checkpoint are preserved together, with conflicting historical root
