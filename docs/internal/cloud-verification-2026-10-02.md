@@ -94,7 +94,7 @@ scanner pipeline. The fail-closed release-advisory guard remains unchanged.
 | --- | --- |
 | GitHub and Stytch credentials/connectivity | Resolved for the tested repository and existing Test-project APIs; do not repeat a missing-secret blocker. |
 | Nexus exact-release license | Resolved by the verified licensed successor; the old tag remains historically unlicensed. |
-| Full-history secret scan | Failed check:538unclassified inherited findings. Next scan must retain redacted JSON metadata for private classification; new committed batches and diagnostic files scan clean. Do not rewrite history or blanket-exempt findings. |
+| Full-history secret scan | Independent review classified538 baseline and two later documentation findings as noncredential data. Candidate435 exact fingerprints preserve existing exception bytes and pass synthetic new-commit/new-path detection controls. Full-history rescan passed1416commits/322.27MB/zero findings; subsequent source-copier/collation-fix range also passed. See reviewed-secret-scan evidence. |
 | Release advisory acceptance | Incomplete implementation/evidence: npm production lookup works, but Go/image scan acceptance and exact-input pipeline remain open. Keep the guard. |
 | API, app, Forgejo, artifact, Redis and Temporal services | Configured local endpoints refuse connections. Start the configured services or provide reachable deployed endpoints; injection readiness is not service health. |
 | Flexprice | Denied access: HTTPS proxy CONNECT to `api.flexprice.io` returns403. Add this host through supported environment network configuration before its live check. |
@@ -127,3 +127,35 @@ reviewed successor A/B and a Linux-bound registration bundle using the new safe
 diagnostics, then retry native/connected acceptance with actual prerequisites.
 The overall goal remains in progress; these remaining gates are not a claim that
 all independent work is blocked or that all728conditions have passed.
+
+## Later reviewed cloud batches and current receipts
+
+The latest full local UI run passed2535/2535 tests across246files, superseding
+the earlier failed full runs without erasing them. PR50 remains open; hosted
+checks on the live-dispatch correction failed at Verify runnable UI. Its hosted
+logs remain inaccessible through the environment proxy, so the step result is
+not attributed to a specific local failure without evidence.
+
+The [fixed cloud source copier](2026-10-02-cloud-source-regeneration.md) passed
+89/89 on an independent coordinator rerun. Exactly171 inputs produce eight
+deterministic source-only outputs;10052 source facts differ from the unchanged
+historical10053 native expectation. Native adoption remains unaccepted.
+
+Independent historical-blob review adjudicated538 baseline and two later
+documentation scanner matches as noncredential data. The exact435 unique
+commit/path/rule/line exceptions preserve all old bytes and scanner rules.
+Synthetic canaries demonstrate detection for new commits and paths. The full
+rescan passed1416commits with zero findings, followed by a clean bounded scan
+of the two later batches; see [reviewed scan scope](2026-10-02-reviewed-secret-scan-findings.md).
+
+The second immutable Linux original-registration attempt passed all seven
+dispatch pins, sidecar pre/post verification and actual PG18.3 startup. It
+failed SQLSTATE42703 at statement SHA256
+`e61fd5bc920a9960e4586d0eb2a66d624cf02579899cd84a5ac37d800f9d92fc`.
+Source-only query generation and the independently pinned PG18 bootstrap schema
+identify the collation control witness's nonexistent collrules field; the real
+field is collicurules. The [bounded correction](2026-10-02-pg18-collation-witness.md) passed RED/GREEN,
+independent review and the coordinator grouped race rerun (18tests/40subtests). No reference output
+was published; normal owned server shutdown and join passed, with no new PG
+survivors. Two defunct processes from an earlier detached runtime smoke are
+preserved as a historical cleanup limitation. No728 ledger row changes.

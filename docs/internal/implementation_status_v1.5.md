@@ -22,7 +22,8 @@ and independent review, then actual deterministic A/B publication checks. The
 latest full local UI run passed2535tests/246files. Independent review classified538 baseline and two later documentation matches
 as noncredential data. Exact435 commit/path/rule/line exceptions have scope
 review and synthetic new-commit/new-path detection checks; full-history
-verification is running and the scanner gate is not yet cleared.
+verification passed1416commits with zero findings, followed by a clean bounded
+scan of the source-copier and collation-fix batches.
 Current native,
 full advisory, deployed endpoints/authority and retirement gates remain open.
 No immutable reference, runtime guard or availability row was promoted.
@@ -30,7 +31,8 @@ The validator retains728rows and523/144/61/0missing categories. See the
 [fresh cloud verification and blocker distinctions](cloud-verification-2026-10-02.md).
 The [cloud successor and Linux attempt](2026-10-02-cloud-native-successor.md)
 records runtime prerequisites, the safely refused stale dispatch pin and the
-independently reviewed live-pin correction (19race tests/37subcases). A bounded PG18 collation mapping correction is under TDD before another
+independently reviewed live-pin correction (19race tests/37subcases). The bounded PG18 collation mapping correction passed independent review and
+grouped race checks before another
 immutable frozen registration build/capture. Native source copier adoption
 requires separate fact-drift validation.
 Required hosted checks failed; PR50 remains unmerged.
