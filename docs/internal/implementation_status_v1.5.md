@@ -1,6 +1,16 @@
 # Agent Security Platform Implementation Status
 
 ## Latest verified cloud batch, October 2, 2026
+
+The separately versioned [cloud source copier](2026-10-02-cloud-source-regeneration.md)
+passes89 focused checks and authenticates171 fixed inputs for eight deterministic
+source-only outputs. Fresh10052 facts differ from legacy10053; native adoption
+remains unaccepted and all historical/native pins remain unchanged. No728 row
+is promoted. The second frozen Linux original-registration attempt passed the
+dispatch preflight and reached PostgreSQL, then failed SQLSTATE42703 in the
+collation witness. Its safe statement digest identified a PG18 catalog mapping
+bug; no reference output was published. Owned server shutdown and join passed.
+
 Fresh GitHub and existing Stytch Test-project API access passed from merged main
 `e13ccb95`. Live JWT and application active/tampered/revoked session checks passed.
 The exact licensed Nexus successor and companion import closure have independent
@@ -9,9 +19,10 @@ Test-only registration diagnostics also passed grouped race/security review.
 The specific missing-secret/access and Nexus license blockers are resolved for
 those tested operations. The new cloud A/B source-only successor passed26tests
 and independent review, then actual deterministic A/B publication checks. The
-latest full local UI run passed2535tests/246files. History scan findings have
-private metadata:347artifact-digest matches and5Git-reference matches are
-classified;186remain unresolved. New commits/diagnostic files scan clean.
+latest full local UI run passed2535tests/246files. Independent review classified538 baseline and two later documentation matches
+as noncredential data. Exact435 commit/path/rule/line exceptions have scope
+review and synthetic new-commit/new-path detection checks; full-history
+verification is running and the scanner gate is not yet cleared.
 Current native,
 full advisory, deployed endpoints/authority and retirement gates remain open.
 No immutable reference, runtime guard or availability row was promoted.
@@ -19,8 +30,9 @@ The validator retains728rows and523/144/61/0missing categories. See the
 [fresh cloud verification and blocker distinctions](cloud-verification-2026-10-02.md).
 The [cloud successor and Linux attempt](2026-10-02-cloud-native-successor.md)
 records runtime prerequisites, the safely refused stale dispatch pin and the
-independently reviewed live-pin correction (19race tests/37subcases). A fresh
-frozen registration build/capture and source copier integration are next.
+independently reviewed live-pin correction (19race tests/37subcases). A bounded PG18 collation mapping correction is under TDD before another
+immutable frozen registration build/capture. Native source copier adoption
+requires separate fact-drift validation.
 Required hosted checks failed; PR50 remains unmerged.
 
 ## Latest verified state, October 1, 2026
