@@ -23,7 +23,7 @@
     "raw-fetch:test": "node --test eslint-rules/no-raw-fetch.test.mjs",
     "implementation:status:check": "node scripts/implementation-status-check.mjs",
     "health:test": "go test -C services/health -race -count=1 ./...",
-    "health:contract:test": "node --test openapi/internal-health.test.mjs && go test -C services/health -race -count=1 ./... && go test -C services/platform -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker && go test -C services/event-ingest -race -count=1 ./... && go test -C services/runtime-gateway -race -count=1 ./...",
+    "health:contract:test": "node --test openapi/internal-health.test.mjs && go test -C services/health -race -count=1 ./... && go test -C services/platform -p=1 -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker && go test -C services/event-ingest -race -count=1 ./... && go test -C services/runtime-gateway -race -count=1 ./...",
     "platform:health:test": "go test -C services/platform -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker",
     "event-ingest:health:test": "go test -C services/event-ingest -race -count=1 ./...",
     "runtime-gateway:health:test": "go test -C services/runtime-gateway -race -count=1 ./...",
