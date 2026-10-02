@@ -3,10 +3,12 @@ package apiserver
 import (
 	"context"
 	"encoding/json"
-	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
-	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	"net/url"
 	"slices"
+
+	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
+	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 const postgresAuthorizationResolveSQL = `SELECT zasp_authorization80.resolve($1,$2,$3,$4,NULLIF($5,''),NULLIF($6,''))`
@@ -72,6 +74,18 @@ func (r *PostgresAuthorizationResolver) ResolveAuthorization(ctx context.Context
 			id = identity.Scope.EnvironmentID().String()
 		}
 	}
+	if inventoryResourceOperation(route.OperationID) {
+		database := r.database
+		if database.currentAuthorization {
+			// Current inventory never borrows discovery's retained source14
+			// SQL privileges. Its existing separate API login owns this profile.
+			if r.securityAgentDatabase == nil || r.securityAgentDatabase == database || !r.securityAgentDatabase.currentAuthorization {
+				return AuthorizationTargets{}, authorization.ErrUnavailable
+			}
+			database = r.securityAgentDatabase
+		}
+		return resolveAuthorizationDatabase(ctx, database, identity, route, policy, id)
+	}
 	if r.securityAgentDatabase == nil {
 		return resolveAuthorizationDatabase(ctx, r.database, identity, route, policy, id)
 	}
@@ -119,6 +133,11 @@ func resolveAuthorizationDatabase(ctx context.Context, database *PostgresJSONDat
 	}
 	var payload []byte
 	var err error
+	if inventoryResourceOperation(route.OperationID) && database.currentAuthorization {
+		if err := database.inventoryAuthorizationSourceReady(ctx); err != nil {
+			return AuthorizationTargets{}, authorization.ErrUnavailable
+		}
+	}
 	workspace := identity.Scope.WorkspaceID().String()
 	if route.OperationID == "listEnvironments" {
 		workspace, err = authorizationWorkspaceSelector(ctx, identity)
@@ -126,7 +145,13 @@ func resolveAuthorizationDatabase(ctx context.Context, database *PostgresJSONDat
 			return AuthorizationTargets{}, err
 		}
 	}
-	if err = database.driver.QueryRow(ctx, postgresAuthorizationResolveSQL, identity.Scope.OrganizationID().String(), workspace, identity.Scope.EnvironmentID().String(), policy.Kind, id, route.PathParameters["sourceKind"]).Scan(&payload); err != nil {
+	query := postgresAuthorizationResolveSQL
+	arguments := []any{identity.Scope.OrganizationID().String(), workspace, identity.Scope.EnvironmentID().String(), policy.Kind, id, route.PathParameters["sourceKind"]}
+	if policy.Mode == "inventory_collection" {
+		query = postgresCurrentInventoryResolveSQL
+		arguments = []any{identity.Scope.OrganizationID().String(), workspace, identity.Scope.EnvironmentID().String(), route.OperationID, id, migrations.AuthorizationInventoryProfileChecksum()}
+	}
+	if err = database.driver.QueryRow(ctx, query, arguments...).Scan(&payload); err != nil {
 		return AuthorizationTargets{}, classifyPostgresError(err)
 	}
 	var rows []struct {
@@ -141,18 +166,23 @@ func resolveAuthorizationDatabase(ctx context.Context, database *PostgresJSONDat
 	if json.Unmarshal(payload, &rows) != nil || rows == nil || len(rows) > 10000 {
 		return AuthorizationTargets{}, authorization.ErrUnavailable
 	}
-	result := AuthorizationTargets{Collection: policy.Mode == "collection", Complete: true, Targets: make([]AuthorizationTarget, 0, len(rows))}
+	result := AuthorizationTargets{Collection: policy.Mode == "collection" || policy.Mode == "inventory_collection", Complete: true, Targets: make([]AuthorizationTarget, 0, len(rows))}
 	for _, row := range rows {
 		o, err1 := domain.ParseProductID(row.Organization)
 		w, err2 := domain.ParseProductID(row.Workspace)
 		e, err3 := domain.ParseProductID(row.Environment)
 		scope, err4 := domain.NewScope(o, w, e)
-		parentPolicy := slices.Contains([]string{"*", "workflow_receipt", "security_agent_audit", "audit_event", "audit_export", "compliance_export", "compliance_control", "compliance_evidence"}, policy.Kind)
+		parentPolicy := policy.Mode == "inventory_collection" || slices.Contains([]string{"*", "workflow_receipt", "security_agent_audit", "audit_event", "audit_export", "compliance_export", "compliance_control", "compliance_evidence"}, policy.Kind)
 		kindMatches := row.Kind == policy.Kind || parentPolicy && slices.Contains([]string{"environment", "workspace", "agent", "tool", "identity", "runtime", "asset", "finding", "attack_path", "policy", "integration", "sensor", "security_agent", "security_agent_run", "security_agent_approval", "test", "test_run", "attack_lab_run", "recovery_backup", "recovery_restore", "session", "product_session", "discovery_sync", "discovery_schedule"}, row.Kind)
 		if err1 != nil || err2 != nil || err3 != nil || err4 != nil || o != identity.Scope.OrganizationID() || !kindMatches || row.Version < 0 {
 			return AuthorizationTargets{}, authorization.ErrInvalid
 		}
 		result.Targets = append(result.Targets, AuthorizationTarget{Scope: scope, Kind: row.Kind, ID: row.ID, Version: row.Version, SourceID: row.SourceID})
+	}
+	if policy.Mode == "inventory_collection" {
+		if err := validateInventoryCollection(identity, route, result); err != nil {
+			return AuthorizationTargets{}, err
+		}
 	}
 	return result, nil
 }

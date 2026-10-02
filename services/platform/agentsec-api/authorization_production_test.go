@@ -41,6 +41,11 @@ func TestP7ProductionCompositionRejectsMissingEnforcement(t *testing.T) {
 type p7CurrentRuntimeDatabase struct{ apiserver.JSONDatabase }
 
 func (*p7CurrentRuntimeDatabase) CurrentAuthorizationRequired() bool { return true }
+// This routing-only fixture models an admitted inventory profile. Native role
+// separation and catalog integrity are exercised by the PostgreSQL acceptance.
+func (*p7CurrentRuntimeDatabase) CurrentAuthorizationInventoryReady(context.Context) error {
+	return nil
+}
 // This router/authorization fixture has no installed cleanup-recovery profile.
 // Report that absence explicitly rather than omitting the required capability.
 func (*p7CurrentRuntimeDatabase) SingleTestRecoveryAvailable(context.Context) (bool, error) {

@@ -653,6 +653,19 @@ func (database *tracedJSONDatabase) CurrentAuthorizationRequired() bool {
 	return ok && current.CurrentAuthorizationRequired()
 }
 
+func (database *tracedJSONDatabase) CurrentAuthorizationInventoryReady(ctx context.Context) error {
+	if database == nil || invalidRuntimeValue(database.next) || ctx == nil || ctx.Err() != nil || !database.CurrentAuthorizationRequired() {
+		return apiserver.ErrRepositoryUnavailable
+	}
+	current, ok := database.next.(interface {
+		CurrentAuthorizationInventoryReady(context.Context) error
+	})
+	if !ok {
+		return apiserver.ErrRepositoryUnavailable
+	}
+	return current.CurrentAuthorizationInventoryReady(ctx)
+}
+
 func (database *tracedJSONDatabase) ActivateCurrentTemporalTestDefinition(ctx context.Context, args ...any) (json.RawMessage, error) {
 	if database == nil || invalidRuntimeValue(database.next) {
 		return nil, apiserver.ErrRepositoryUnavailable

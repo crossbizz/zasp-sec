@@ -285,3 +285,114 @@ Final local evidence hashes (same local-only retention limitation as above):
 | `runtime-readiness-observation.json` | `7582f996e8f8db19f6abdfb0563091df31bf141b47ccb13a380db77b3031e6a6` |
 | `application-runtime-config-presence.json` | `f6a14befa449cf0ee9946e30ddd156465a5f31ed5b27f384a6a4e708fb85cae9` |
 | `postgres18-pgcrypto-runtime-smoke.json` | `e68b3b531514755d304bd7719ed5d79d66b0a5f2e1d329079adf978de622963c` |
+
+
+## Reviewed batch: current-authority inventory
+
+Base: `c93c986b9261a62113db930b70cb2bacb5dbf92f`. Fresh origin/main remains
+`e13ccb95451b03107681ccb59b3fc6fe175a228f`; the required ancestry check passes.
+The official Superpowers file installation was reverified before continuing.
+Cloud revision44 reports current observations, enforced package-manager-only
+networking and ready generic runtime variables, but no secret bindings or
+outbound identities. This does not establish actual ZASP_* application or
+provider access.
+
+Task mapping is retained in the existing728-row availability ledger:
+M4-03 throughM4-15 cover current inventory lists/details, updates and the three
+agent collections; M4-51/51c/51e cover connected detail/capability/session UI.
+Only current_evidence was appended for these rows. Historical classifications,
+IDs and owners remain unchanged:523production-available,144component-only,
+61blocked/external, zero missing. This batch supplies local component and
+application integration evidence; it does not requalify deployed availability.
+
+The additive source14/canonical61 inventory profile preserves registered
+61/79/80 predecessors and verifies their fingerprints before and after install.
+It is installed idempotently through the registered migration operator, with
+compiled catalog/readiness/owner/ACL checks. Current production wiring uses
+its existing separate zasp_security_agent_api database for inventory, with no
+fallback to the discovery database. The separate login cannot directly invoke
+old public detail/update/capability/relationship/session shortcuts. Constructor,
+resolver and each inventory effect transaction check compiled profile readiness;
+the effect guard runs in that transaction before the existing signed fence.
+No positive readiness answer is cached.
+
+Detail supports all five stored kinds. Secondary-resource permission filtering
+runs before keyset limit/lookahead. Sessions derive from stored runtime events
+and summaries, require completed scoped cutover and bind exact/strong events to
+the requested agent; earlier events for another agent do not change its start.
+Parent permission is mandatory. Mutation scope, actor, kind, version, exact
+replay, browser/PAT authority and revocation remain fenced. Cursor proofs bind
+operation, credential and revision. Malformed statements remain refused.
+
+Connected UI updates retain exact interrupted request/version/idempotency state
+per agent. Definitive403/404 clears only that agent's pending request; network
+and503 failures retain replay state. The shared query hook recognizes the actual
+APIProductError shape and purges protected data on403, preventing a subsequent
+network error from restoring the old data.
+
+Grouped RED observations are retained, including parent response, current list
+argument type, session cutover/version, UI request ownership and actual403 data
+purge failures. Independent fresh read-only review found no Critical findings
+and two Important findings: missing parents returned503 instead of403, and
+session SQL omitted completed scoped cutover. Both were fixed with RED/GREEN
+checks. Final real PostgreSQL18.3 application integration passes all ten groups
+in63.36s; the owned server exits normally. Adjacent authorization/router/closed
+OpenFGA Check responses in this native fixture are controlled; PostgreSQL roles,
+credentials, metadata, revisions, rows, mutations and deadlines are real.
+statement checks pass18.147s/0.131s. Full affected API race checks pass6.606s;
+new migration installer race checks pass3.316s and affected migrator race checks
+pass95.082s. UI/query tests pass21tests, the related home group passes4tests,
+and changed UI lint, typecheck, production build and compiled graph checks pass
+(client7/server8 chunks). No Temporal/OpenFGA internals were tested.
+
+Final review rulings:
+- Retain legacy source14 discovery-role grants because changing registered
+  predecessor bodies/ACLs would invalidate the preserved authority chain.
+  Current inventory exclusively uses the separate checked login. Unmigrated
+  legacy roles remain open work; the cost of treating this as global retirement
+  would be an unverified authorization boundary, so that claim is refused.
+- The reviewer declined completed native fixtures while they were being authored.
+  The final real PostgreSQL run now covers the stated current inventory boundary;
+  it does not supply pinned native379/worker activation evidence.
+- External deployment/release acceptance and unrelated existing P7/vendor code
+  were outside review. Those gates remain open; broader completion is refused.
+No minor findings were deferred.
+
+Original failed baselines and frozen evidence remain unchanged. Exact-release
+Nexusv0.1.0 was independently matched to official tage558d6ed across all eight
+module files; no license terms occur in that release. Current-main MIT terms
+alone do not establish that pinned release's license. An official attestation
+covering that release, or a reviewed successor, is still required by the guard.
+Fresh advisories, actual Stytch/provider flows, native379/current workers and
+production deployed E2E remain open. No obsolete implementation is retired
+without equivalent behavior evidence. Main merge and GitHub API access remain
+gated; normal verified branch publication is authorized.
+
+Evidence below is newly produced local evidence, not a transferred historical
+archive. Full logs remain outside git in /workspace/continuation-evidence;
+these hashes identify observed bytes but do not guarantee transfer to another
+runtime. Failed observations remain retained alongside passing runs.
+
+| Log | SHA-256 |
+| --- | --- |
+| `inventory-ui-red.log` | `889f6c1b28616a116bbb2bcb410794a563ecd61dd2a7845e44013a3c75a845db` |
+| `inventory-ui-green.log` | `bd684ed70eb6ab0af6c3ed952a58ebf0cba9df1ac0bb6dbf22cb6240b567e079` |
+| `inventory-query-red.log` | `c5810ed6a58b6593ea7e7d55e4fbbeb4bc1bf1fe244c12cdd9103bb1a11e4c6e` |
+| `inventory-query-green.log` | `fe9e303915365f93de41584de8ffd66a9d13ea3ad9c55d603723b3ae06a0eb3a` |
+| `inventory-empty-parent-red.log` | `295cdf859df61112ac7c03b4b2aae70be9c21a6eca771de5e30dc656609d6acb` |
+| `inventory-native-red.log` | `64ad084146afd874307a968b5ff7d6a6996c875f90fa75cbbe464d3e02fcbaad` |
+| `inventory-native-complete.log` | `e123e9ef1a0dfa35ccf560fb2a6a6c9a2d414f8205f0dca688af99d07ca0b6df` |
+| `inventory-native-final-guard.log` | `74d52f8cf209da554a7433a7e7c5dc152b16e893b0362ba05ba959d8b4ec40d9` |
+| `inventory-transaction-acceptance.log` | `dfc386e6f4ce42858cc1dbc21fe95e0e7fee228fa23b3ba46a97eab9d40b56b6` |
+| `inventory-api-race-final.log` | `33f32dfb1efd05826a1e98535fe440c387bdaed71dadaf46654f04200741345f` |
+| `inventory-migration-race-final.log` | `fb6a51664914ed3e7c98758aeb156b4cc68ded16a23f4326a401dbf55a570848` |
+| `inventory-migrator-race-final.log` | `fd12e9b34bf58a739e80bc93f67a7c1f29df3bbbba1a56bc6945886a9b12947f` |
+| `inventory-ui-query-regression.log` | `cf71b8e3fec424b063c16d4ec875d80a3c6c9d0d80a80bfd600f86ed3e189592` |
+| `inventory-ui-home-regression.log` | `d474936bde1db290d789b1e3c83368d1f61f14dcf02acfcb092d0ab154b0dde1` |
+| `inventory-ui-lint.log` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `inventory-typecheck-final.log` | `f48bd1876f5408ffc0d939a2b0d826961d6115e6598a272fea04d98ac0431816` |
+| `inventory-build.log` | `b9fd875ab446a85eb8bd82e1472ff0d6ddb707ad6ba89985f7748c62bc4b4f1c` |
+| `inventory-compiled-imports.log` | `8bd395004fcdf411bb9cb003d142cd797802f025847a6c996ecf8e7cbd7b7926` |
+| `nexus-exact-release-license-recheck.json` | `3e4c5546aa2be641f27f4ecb2c5bae938ddcbed4a20bedaf2d2ad51d88e516d1` |
+| `inventory-profile-red.log` | `f9470756625dcb540a7854597151bd8de3a7e0c696331bdf6d08686503673971` |
+| `inventory-profile-fix-group-green.log` | `15a2624f245c451cbac2bf80ad2a6119117c372733a327b86fdcbd494262d3ce` |

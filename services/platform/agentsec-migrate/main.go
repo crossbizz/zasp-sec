@@ -385,6 +385,9 @@ func registerForwardRelease(ctx context.Context, queryer principalQueryer, regis
 	if !isForwardMigration(arguments) {
 		return errInvalidMigrationCommand
 	}
+	if arguments[0] == "up-authorization-inventory-profile" {
+		return registerAuthorizationInventoryProfile(ctx, queryer, registration)
+	}
 	if arguments[0] == "up-authorization-identity-profile" || arguments[0] == "up-authorization-temporal-identity-profile" {
 		var ready bool
 		mode := "canonical61-authorization79-80-v1"
@@ -783,6 +786,15 @@ func runReleaseMigration(ctx context.Context, runner releaseMigrationRunner, arg
 			return migrations.ErrInvalidState
 		}
 		return extension.UpProductionAuthorizationWorkerProfile(ctx)
+	case "up-authorization-inventory-profile":
+		if version != 61 {
+			return migrations.ErrInvalidState
+		}
+		extension, ok := runner.(interface{ UpProductionAuthorizationInventoryProfile(context.Context) error })
+		if !ok {
+			return migrations.ErrInvalidState
+		}
+		return extension.UpProductionAuthorizationInventoryProfile(ctx)
 	case "up-authorization-identity-profile":
 		if version != 61 {
 			return migrations.ErrInvalidState

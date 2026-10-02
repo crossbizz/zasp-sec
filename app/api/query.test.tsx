@@ -2,10 +2,37 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { APIProductError, requireAPIData } from "../../apps/web/api/client";
+
 import { APIProvider, useAPI } from "./APIProvider";
 import { useAPIMutation, useAPIQuery } from "./query";
 
 describe("API query state machine", () => {
+  it.each(["initial", "refresh"])("clears protected data for a real client authorization rejection during %s", async (phase) => {
+    let rejection: unknown;
+    try {
+      requireAPIData({
+        error: { code: "authorization_rejected", message: "Authorization rejected", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: false },
+        response: new Response(null, { status: 403 }),
+      });
+    } catch (error) { rejection = error; }
+    expect(rejection).toBeInstanceOf(APIProductError);
+    const query = vi.fn<() => Promise<readonly string[]>>();
+    if (phase === "refresh") query.mockResolvedValueOnce(["protected-agent"]);
+    query.mockRejectedValueOnce(rejection).mockRejectedValueOnce(new Error("provider unavailable"));
+    const wrapper = ({ children }: { children: ReactNode }) => <APIProvider>{children}</APIProvider>;
+    const { result } = renderHook(() => useAPIQuery("inventory", query), { wrapper });
+    if (phase === "refresh") {
+      await waitFor(() => expect(result.current).toMatchObject({ status: "success", data: ["protected-agent"] }));
+      await act(async () => result.current.retry());
+    }
+    await waitFor(() => expect(result.current.status).toBe("forbidden"));
+    expect(result.current.data).toBeUndefined();
+    await act(async () => result.current.retry());
+    expect(result.current.status).toBe("error");
+    expect(result.current.data).toBeUndefined();
+  });
+
   it("moves through loading, empty, success, forbidden, and retryable error", async () => {
     let resolve: (value: readonly string[]) => void = () => undefined;
     const query = vi.fn(() => new Promise<readonly string[]>((done) => { resolve = done; }));

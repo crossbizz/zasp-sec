@@ -95,6 +95,11 @@ func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdent
 	if !targets.Complete || len(targets.Targets) > 10000 {
 		return RequestAuthorization{}, authorization.ErrUnavailable
 	}
+	if inventorySubresourceOperation(route.OperationID) {
+		if err := validateInventoryCollection(identity, route, targets); err != nil {
+			return RequestAuthorization{}, err
+		}
+	}
 	if !targets.Collection && len(targets.Targets) == 0 {
 		return RequestAuthorization{}, authorizationTargetDenied(route.OperationID)
 	}
@@ -129,7 +134,7 @@ func (a *OpenFGAAuthorizer) Authorize(ctx context.Context, identity RequestIdent
 		}
 		if allowed {
 			grant.Allowed = append(grant.Allowed, target)
-		} else if !targets.Collection {
+		} else if !targets.Collection || inventorySubresourceOperation(route.OperationID) && target.Kind == "agent" && target.ID == route.PathParameters["id"] {
 			return RequestAuthorization{}, authorizationTargetDenied(route.OperationID)
 		}
 	}

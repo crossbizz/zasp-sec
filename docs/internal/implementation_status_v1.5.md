@@ -23,6 +23,18 @@ Main integration remains gated. All728 rows and523/144/61 evidence categories
 are retained. Exact checks, review scope, prerequisites and local log hashes:
 [cloud continuation evidence](cloud-continuation-evidence-2026-10-02.md).
 
+Current-authority inventory now uses the existing separate security-agent API
+database for lists, five detail kinds, capabilities, relationships, stored
+runtime sessions and ownership updates. An additive installer/profile pins
+compiled readiness and checks it inside every inventory effect transaction.
+Fresh PostgreSQL integration passes all ten groups, including direct legacy
+shortcut denial, hidden-resource pagination, session cutover, cursor binding,
+idempotency, revocation and bounded deadlines. Connected UI changes preserve
+interrupted updates per agent and purge protected data after actual API403.
+These are local application integration/component checks. Retained discovery
+role grants, native379/worker activation, real Stytch/providers and deployed
+acceptance remain open; no original requirement is promoted from this packet.
+
 ## Latest verified state, October 1, 2026
 October 1 existing-work reconciliation candidate: current main changes and the
 root checkpoint are preserved together, with conflicting historical root

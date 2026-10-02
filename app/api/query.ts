@@ -109,9 +109,10 @@ function isEmpty(value: unknown): boolean {
 
 function isForbidden(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
-  const response = (error as { response?: { status?: unknown } }).response;
-  const product = (error as { error?: { code?: unknown } }).error;
-  return response?.status === 403 || product?.code === "authorization_rejected";
+  const response = (error as { response?: { status?: unknown }; status?: unknown }).response;
+  const status = response?.status ?? (error as { status?: unknown }).status;
+  const product = (error as { error?: { code?: unknown }; product?: { code?: unknown } }).error ?? (error as { product?: { code?: unknown } }).product;
+  return status === 403 || product?.code === "authorization_rejected";
 }
 
 function isProtectedFailure(error: unknown): boolean {

@@ -215,7 +215,22 @@ func newProductionHandlers(repository, securityAgentRepository *PostgresReposito
 	}
 	inventorySurface := http.Handler(&coreHTTPHandler{repository: repository, boundary: inventoryDependency})
 	if isTypedInventorySchema(repository.schema) {
-		inventoryRepository, inventoryErr := NewPostgresInventoryRepository(repository.database)
+		inventoryDatabase := repository.database
+		if repository.currentAuthorization {
+
+			if securityAgentRepository == nil || !securityAgentRepository.currentAuthorization || !inventoryDatabasesDistinct(repository.database, securityAgentRepository.database) {
+				return Dependencies{}, nil, ErrRepositoryConfiguration
+			}
+			primary, primaryErr := repository.nativeIdentityDatabase()
+			secondary, secondaryErr := securityAgentRepository.nativeIdentityDatabase()
+			if inventoryNativeDatabaseAdapter(repository.database) {
+				if primaryErr != nil || secondaryErr != nil || primary == secondary {
+					return Dependencies{}, nil, ErrRepositoryConfiguration
+				}
+			}
+			inventoryDatabase = securityAgentRepository.database
+		}
+		inventoryRepository, inventoryErr := NewPostgresInventoryRepository(inventoryDatabase)
 		if inventoryErr != nil {
 			return Dependencies{}, nil, ErrRepositoryConfiguration
 		}

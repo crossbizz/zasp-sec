@@ -14,6 +14,9 @@ func checkAuthorizationRuntimeReady(ctx context.Context, database, securityAgent
 	if err := securityAgentDatabase.CurrentAuthorizationRuntimeReady(ctx, "zasp_security_agent_api", keyVersion); err != nil {
 		return errRuntimeUnavailable
 	}
+	if err := securityAgentDatabase.CurrentAuthorizationInventoryReady(ctx); err != nil {
+		return errRuntimeUnavailable
+	}
 	return nil
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
+	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
 )
 
 // AuthorizationTransactionDriver is additive to the existing JSONDatabase and
@@ -61,6 +62,7 @@ func (database *PostgresJSONDatabase) authorizedQueryJSON(ctx context.Context, g
 	if !authorizationStatementAllowed(grant, statement, arguments) {
 		return nil, ErrAuthorizationDenied
 	}
+
 	driver, ok := database.driver.(AuthorizationTransactionDriver)
 	if !ok {
 		return nil, ErrRepositoryUnavailable
@@ -78,6 +80,15 @@ func (database *PostgresJSONDatabase) authorizedQueryJSON(ctx context.Context, g
 		defer cancel()
 		_ = tx.Rollback(cleanup)
 	}()
+	if inventoryResourceOperation(grant.OperationID) {
+		var ready bool
+		if !database.currentAuthorization {
+			return nil, ErrRepositoryUnavailable
+		}
+		if err := tx.QueryRow(ctx, migrations.AuthorizationInventoryReadySourceSQL()).Scan(&ready); err != nil || !ready {
+			return nil, ErrRepositoryUnavailable
+		}
+	}
 	if _, err = tx.Exec(ctx, `SELECT zasp_authorization80.fence($1::text)`, string(proof)); err != nil {
 		return nil, classifyPostgresError(err)
 	}

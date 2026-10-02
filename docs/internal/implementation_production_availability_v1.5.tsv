@@ -259,19 +259,19 @@ M4	M4-01e	Complete	production-available	T05-inventory-cutover	v14 complete-snaps
 M4	M4-01f	Complete	production-available	T05-inventory-cutover	v14 complete-snapshot E2E proves canonical relationship projection with exact source and evidence bindings
 M4	M4-01	Complete	production-available	T05-inventory-cutover	v14 cutover gate proves public typed inventory is derived only from authoritative complete snapshots
 M4	M4-02	Complete	production-available	T05-inventory-cutover	audited shipped composition: tenant-scoped Agent ownership, team, and canonical tags
-M4	M4-03	Complete	production-available	PROD-current-composition	audited shipped composition: API listAgents
-M4	M4-04	Complete	production-available	PROD-current-composition	audited shipped composition: API getAgent
-M4	M4-05	Complete	production-available	T05-inventory-cutover	audited shipped composition: API updateAgent
-M4	M4-06	Complete	production-available	PROD-current-composition	audited shipped composition: API getAgentCapabilities
-M4	M4-07	Complete	production-available	PROD-current-composition	audited shipped composition: API getAgentRelationships
-M4	M4-08	Complete	production-available	PROD-current-composition	audited shipped composition: API listAgentSessions
-M4	M4-09	Complete	production-available	PROD-current-composition	audited shipped composition: API listTools
-M4	M4-10	Complete	production-available	PROD-current-composition	audited shipped composition: API getTool
-M4	M4-11	Complete	production-available	PROD-current-composition	audited shipped composition: API listIdentities
-M4	M4-12	Complete	production-available	PROD-current-composition	audited shipped composition: API getIdentity
-M4	M4-13	Complete	production-available	PROD-current-composition	audited shipped composition: API listRuntimes
-M4	M4-14	Complete	production-available	PROD-current-composition	audited shipped composition: API getRuntime
-M4	M4-15	Complete	production-available	PROD-current-composition	audited shipped composition: API getAsset
+M4	M4-03	Complete	production-available	PROD-current-composition	audited shipped composition: API listAgents; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-04	Complete	production-available	PROD-current-composition	audited shipped composition: API getAgent; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-05	Complete	production-available	T05-inventory-cutover	audited shipped composition: API updateAgent; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-06	Complete	production-available	PROD-current-composition	audited shipped composition: API getAgentCapabilities; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-07	Complete	production-available	PROD-current-composition	audited shipped composition: API getAgentRelationships; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-08	Complete	production-available	PROD-current-composition	audited shipped composition: API listAgentSessions; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-09	Complete	production-available	PROD-current-composition	audited shipped composition: API listTools; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-10	Complete	production-available	PROD-current-composition	audited shipped composition: API getTool; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-11	Complete	production-available	PROD-current-composition	audited shipped composition: API listIdentities; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-12	Complete	production-available	PROD-current-composition	audited shipped composition: API getIdentity; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-13	Complete	production-available	PROD-current-composition	audited shipped composition: API listRuntimes; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-14	Complete	production-available	PROD-current-composition	audited shipped composition: API getRuntime; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-15	Complete	production-available	PROD-current-composition	audited shipped composition: API getAsset; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
 M4	M4-16	Complete	production-available	T05-inventory-cutover	production evidence: six-category Kubernetes RBAC rules derive from canonical tenant-scoped inventory and fail closed on malformed provider authority
 M4	M4-17	Complete	production-available	T05-inventory-cutover	production evidence: API-role keyset graph query traverses Agent identity, binding, and role authority with foreign-tenant denial
 M4	M4-18	Complete	production-available	T05-inventory-cutover	production evidence: canonical provider observations upgrade reachable capabilities to observed while retaining sorted evidence authority
@@ -316,10 +316,10 @@ M4	M4-51a	Complete	production-available	PROD-current-composition	audited shipped
 M4	M4-51b1	Complete	production-available	PROD-current-composition	audited shipped composition: Agent identity section
 M4	M4-51b2	Complete	production-available	PROD-current-composition	audited shipped composition: Agent tools section
 M4	M4-51b3	Complete	production-available	PROD-current-composition	audited shipped composition: Agent runtime section
-M4	M4-51c	Complete	production-available	PROD-current-composition	audited shipped composition: Agent capability section
+M4	M4-51c	Complete	production-available	PROD-current-composition	audited shipped composition: Agent capability section; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
 M4	M4-51d	Complete	production-available	PROD-current-composition	audited shipped composition: Agent exposure section
-M4	M4-51e	Complete	production-available	PROD-current-composition	audited shipped composition: Agent sessions/policies section
-M4	M4-51	Complete	production-available	PROD-current-composition	audited shipped composition: Agent detail UI
+M4	M4-51e	Complete	production-available	PROD-current-composition	audited shipped composition: Agent sessions/policies section; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
+M4	M4-51	Complete	production-available	PROD-current-composition	audited shipped composition: Agent detail UI; October2 current-authority local component/native integration checkpoint: cloud-continuation-evidence-2026-10-02.md (deployed acceptance still open)
 M4	M4-52	Complete	production-available	PROD-current-composition	audited shipped composition: Tools UI
 M4	M4-53	Complete	production-available	PROD-current-composition	audited shipped composition: Identities UI
 M4	M4-54	Complete	production-available	PROD-current-composition	audited shipped composition: Runtimes UI

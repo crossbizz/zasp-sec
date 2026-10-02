@@ -6,7 +6,7 @@ import (
 )
 
 func authorizationProfileCommand(command string) bool {
-	return command == "up-authorization-worker-profile" || command == "up-authorization-temporal-profile" || command == "up-authorization-audit-profile" || command == "up-authorization-temporal-audit-profile" || command == "up-authorization-identity-profile" || command == "up-authorization-temporal-identity-profile"
+	return command == "up-authorization-worker-profile" || command == "up-authorization-temporal-profile" || command == "up-authorization-audit-profile" || command == "up-authorization-temporal-audit-profile" || command == "up-authorization-identity-profile" || command == "up-authorization-temporal-identity-profile" || command == "up-authorization-inventory-profile"
 }
 func (r *registeredReleaseMigrationRunner) auditProfilePrincipal(ctx context.Context) error {
 	if r == nil || r.releaseMigrationRunner == nil || r.queryer == nil || ctx == nil || ctx.Err() != nil {
