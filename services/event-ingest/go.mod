@@ -1,6 +1,6 @@
 module github.com/zasp-ai/zasp-sec/services/event-ingest
 
-go 1.25.4
+go 1.26.0
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.43.7

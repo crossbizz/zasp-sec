@@ -1,8 +1,8 @@
 module github.com/zasp-ai/zasp-sec/proofs/localstack-storage
 
-go 1.25.4
+go 1.26.0
 
-toolchain go1.26.5
+toolchain go1.26.8
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.43.7

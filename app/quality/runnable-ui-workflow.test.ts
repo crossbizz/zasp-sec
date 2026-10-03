@@ -94,7 +94,7 @@ test -x "$(pg_config --bindir)/initdb"
 go test -C services/platform -race -count=1 -timeout=30m ./audit ./auditexportconfig ./artifactstore/...
 `;
 const auditPrerequisitesCommand = `test "$(node --version)" = v22.23.1
-test "$(go env GOVERSION)" = go1.25.13
+test "$(go env GOVERSION)" = go1.26.8
 export PATH="$(pg_config --bindir):$PATH"
 for fixture_tool in initdb postgres pg_ctl pg_isready cc docker; do
   command -v "$fixture_tool"
@@ -216,7 +216,7 @@ function assertRunnableUiWorkflow(
   expect(verificationJob.if).toBeUndefined();
   expect(verificationJob["runs-on"]).toBe("ubuntu-24.04");
   expect(verificationJob["continue-on-error"]).toBeUndefined();
-  expect(verificationJob.env).toBeUndefined();
+  expect(verificationJob.env).toEqual({ GOTOOLCHAIN: "local" });
   expect(verificationJob.defaults).toBeUndefined();
   expect(verificationJob["timeout-minutes"]).toBeUndefined();
 
@@ -249,7 +249,7 @@ function assertRunnableUiWorkflow(
     cache: "npm",
   });
   expect(verificationSteps[2]?.with).toMatchObject({
-    "go-version": "1.25.13",
+    "go-version": "1.26.8",
     cache: true,
     "cache-dependency-path": "services/platform/go.sum",
   });
@@ -279,13 +279,14 @@ function validWorkflow(): Workflow {
     jobs: {
       verify: {
         "runs-on": "ubuntu-24.04",
+        env: { GOTOOLCHAIN: "local" },
         steps: [
           { uses: checkoutAction, with: { "fetch-depth": 0 } },
           {
             uses: setupNodeAction,
             with: { "node-version": "22.23.1", cache: "npm" },
           },
-          { uses: setupGoAction, with: { "go-version": "1.25.13", cache: true, "cache-dependency-path": "services/platform/go.sum" } },
+          { uses: setupGoAction, with: { "go-version": "1.26.8", cache: true, "cache-dependency-path": "services/platform/go.sum" } },
           { run: "npm install --global npm@10.9.8" },
           { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
           { run: postgresFixtureCommand },
@@ -526,6 +527,13 @@ describe("runnable UI GitHub Actions gate", () => {
     if (condition === "unbounded") delete step["timeout-minutes"];
     if (condition === "allowed-failure") step["continue-on-error"] = true;
     const manifest = await readPackageManifest();
+    expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
+  });
+  it.each([undefined, { GOTOOLCHAIN: "auto" }, { GOTOOLCHAIN: "go1.26.8" }, { GOTOOLCHAIN: "local", NODE_OPTIONS: "--require unapproved" }])("refuses missing or altered local-toolchain job authority %j", async env => {
+    const workflow = await readWorkflow();
+    const manifest = await readPackageManifest();
+    assertRunnableUiWorkflow(workflow, manifest);
+    workflow.jobs!.verify.env = env;
     expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
   });
   it("accepts the baseline before testing hostile workflow mutations", async () => {

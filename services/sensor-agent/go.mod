@@ -1,6 +1,6 @@
 module github.com/zasp-ai/zasp-sec/services/sensor-agent
 
-go 1.25.4
+go 1.26.0
 
 // The official API module references an unpublished root version used only by
 // upstream code-generation helpers. We import its generated v1/tetragon package,

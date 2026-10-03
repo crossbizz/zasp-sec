@@ -1,8 +1,8 @@
 module github.com/zasp-ai/zasp-sec/proofs/neon-pooled
 
-go 1.25.4
+go 1.26.0
 
-toolchain go1.26.5
+toolchain go1.26.8
 
 require github.com/jackc/pgx/v5 v5.10.0
 

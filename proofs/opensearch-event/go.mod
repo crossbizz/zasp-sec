@@ -1,8 +1,8 @@
 module github.com/zasp-ai/zasp-sec/proofs/opensearch-event
 
-go 1.25.4
+go 1.26.0
 
-toolchain go1.26.5
+toolchain go1.26.8
 
 require github.com/zasp-ai/zasp-sec/services/platform v0.0.0
 
