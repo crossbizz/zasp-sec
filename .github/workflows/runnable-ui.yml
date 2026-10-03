@@ -79,8 +79,8 @@ jobs:
         env:
           ZASP_COMBINED_E2E_COMPLIANCE: "true"
         run: |
-          node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs
-          node scripts/production-combined-e2e.mjs
+          node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs || { status=$?; printf '::error::Compliance browser unit prerequisites failed (exit %s)\n' "$status"; exit "$status"; }
+          node scripts/production-combined-e2e.mjs || { status=$?; printf '::error::Compliance browser runtime acceptance failed (exit %s)\n' "$status"; exit "$status"; }
       - name: Verify Red Team runtime and ledger regressions
         run: |
           node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs

@@ -1,4 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { JSON_SCHEMA, load } from "js-yaml";
 import { describe, expect, it } from "vitest";
@@ -59,7 +61,7 @@ console.log(execFileSync(chrome, ["--version"], { encoding: "utf8", timeout: 500
 appendFileSync(process.env.GITHUB_ENV, \`ZASP_COMBINED_E2E_CHROME=\${chrome}\\n\`);
 NODE
 `;
-const complianceAcceptanceCommand = "node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs\nnode scripts/production-combined-e2e.mjs\n";
+const complianceAcceptanceCommand = "node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs || { status=$?; printf '::error::Compliance browser unit prerequisites failed (exit %s)\\n' \"$status\"; exit \"$status\"; }\nnode scripts/production-combined-e2e.mjs || { status=$?; printf '::error::Compliance browser runtime acceptance failed (exit %s)\\n' \"$status\"; exit \"$status\"; }\n";
 const complianceSteps: WorkflowStep[] = [
   { name: "Provision isolated compliance browser prerequisites", "timeout-minutes": 10, run: compliancePrerequisitesCommand },
   { name: "Verify current compliance browser acceptance", "timeout-minutes": 15, env: { ZASP_COMBINED_E2E_COMPLIANCE: "true" }, run: complianceAcceptanceCommand },
@@ -677,5 +679,57 @@ describe("runnable UI GitHub Actions gate", () => {
     const manifest = await readPackageManifest();
     expect(manifest.scripts?.verify).toContain("npm run production:release:test");
     expect(manifest.scripts?.["production:release:test"]?.split(/\s+/)).toContain("deploy/production/sandbox-query-observation.test.mjs");
+  });
+});
+
+
+describe("compliance browser workflow failure attribution", () => {
+  it.each([
+    { units: 17, runtime: 0, expected: 17, phase: "unit prerequisites", calls: 1 },
+    { units: 143, runtime: 0, expected: 143, phase: "unit prerequisites", calls: 1 },
+    { units: 0, runtime: 23, expected: 23, phase: "runtime acceptance", calls: 2 },
+    { units: 0, runtime: 1, expected: 1, phase: "runtime acceptance", calls: 2 },
+    { units: 0, runtime: 0, expected: 0, phase: null, calls: 2 },
+  ])("preserves exits and attribution for units=$units runtime=$runtime", async ({ units, runtime, expected, phase, calls }) => {
+    const workflow = await readWorkflow();
+    const step = workflow.jobs?.verify?.steps?.find(value => value.name === "Verify current compliance browser acceptance");
+    expect(step?.["timeout-minutes"]).toBe(15);
+    expect(step?.env).toEqual({ ZASP_COMBINED_E2E_COMPLIANCE: "true" });
+    expect(step?.["continue-on-error"]).toBeUndefined();
+    expect(step?.if).toBeUndefined();
+    if (!step?.run) throw new Error("compliance acceptance command is missing");
+    const directory = await mkdtemp(resolve(tmpdir(), "zasp-compliance-phase-test-"));
+    try {
+      const node = resolve(directory, "node"), trace = resolve(directory, "calls");
+      await writeFile(node, `#!/bin/sh
+printf '%s\n' "$*" >> "$TEST_CALLS"
+case "$1" in
+  --test) printf 'unit child output\n'; exit "$TEST_UNITS_EXIT" ;;
+  scripts/production-combined-e2e.mjs) printf 'runtime child output\n'; exit "$TEST_RUNTIME_EXIT" ;;
+  *) exit 99 ;;
+esac
+`);
+      await chmod(node, 0o700);
+      const result = spawnSync("/bin/bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", "-c", step.run], {
+        env: { PATH: directory, TEST_CALLS: trace, TEST_UNITS_EXIT: String(units), TEST_RUNTIME_EXIT: String(runtime) },
+        encoding: "utf8", timeout: 5000, maxBuffer: 16384,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.signal).toBeNull();
+      expect(result.status).toBe(expected);
+      expect(result.stderr).toBe("");
+      const invoked = (await readFile(trace, "utf8")).trim().split("\n");
+      expect(invoked).toEqual([
+        "--test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs",
+        ...(calls === 2 ? ["scripts/production-combined-e2e.mjs"] : []),
+      ]);
+      const annotations = result.stdout.split("\n").filter(line => line.startsWith("::error::"));
+      expect(annotations).toEqual(phase ? [`::error::Compliance browser ${phase} failed (exit ${expected})`] : []);
+      expect(result.stdout).toContain("unit child output\n");
+      expect(result.stdout.includes("runtime child output\n")).toBe(calls === 2);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+    await expect(readFile(resolve(directory, "node"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 });
