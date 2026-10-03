@@ -120,6 +120,10 @@ jobs:
           export TF_DATA_DIR="$task_tf_dir/data"
           "$task_tf_dir/terraform" -chdir=deploy/staging init -backend=false -input=false -lockfile=readonly
           "$task_tf_dir/terraform" -chdir=deploy/staging test -filter=tests/session_search_iam.tftest.hcl -filter=tests/test_reconciler_iam.tftest.hcl -var-file=release.tfvars -no-color
+          node --test deploy/staging/iam-policy-union-v1.test.mjs
+          "$task_tf_dir/terraform" -chdir=deploy/staging test -filter=tests/iam_policy_union.tftest.hcl -json -verbose -no-color > "$task_tf_dir/iam-policy-union.jsonl"
+          node --max-old-space-size=512 deploy/staging/iam-policy-union-v1.test.mjs --plan "$task_tf_dir/iam-policy-union.jsonl"
+          node deploy/staging/iam-policy-union-v1.mjs --plan "$task_tf_dir/iam-policy-union.jsonl"
       - name: Verify reconciliation maintenance alerts
         run: |
           task_prom_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-promtool.XXXXXX")
