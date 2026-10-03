@@ -1,3 +1,4 @@
+import './browser-command-failure.test.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { storedComplianceJSON } from "./compliance-browser-bytes.mjs";

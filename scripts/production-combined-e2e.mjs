@@ -1,3 +1,4 @@
+import { browserCommandFailureAnnotation } from "./browser-command-failure.mjs";
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, createHmac, generateKeyPairSync, randomBytes } from "node:crypto";
@@ -7088,9 +7089,15 @@ async function command(executable, args, options = {}) {
   let result;
   try { result = await Promise.race([owned.completed, failedShutdown]); }
   finally { clearTimeout(deadline); }
-  if (timedOut) throw new Error(`${path.basename(executable)} exceeded its deadline`);
+  if (timedOut) {
+    console.error(browserCommandFailureAnnotation(executable,args,"deadline"));
+    throw new Error(`${path.basename(executable)} exceeded its deadline`);
+  }
   const { status, signal, stdout, stderr } = result;
-	if (status !== 0 && options.reject !== false) throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
+	if (status !== 0 && options.reject !== false) {
+    console.error(browserCommandFailureAnnotation(executable,args,"nonzero-exit"));
+    throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
+  }
   return result;
 }
 
