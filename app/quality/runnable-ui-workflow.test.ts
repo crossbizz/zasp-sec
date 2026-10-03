@@ -711,7 +711,8 @@ esac
 `);
       await chmod(node, 0o700);
       const result = spawnSync("/bin/bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", "-c", step.run], {
-        env: { PATH: directory, TEST_CALLS: trace, TEST_UNITS_EXIT: String(units), TEST_RUNTIME_EXIT: String(runtime) },
+        // Framework ambient types require NODE_ENV even for this isolated shell fixture.
+        env: { NODE_ENV: "test", PATH: directory, TEST_CALLS: trace, TEST_UNITS_EXIT: String(units), TEST_RUNTIME_EXIT: String(runtime) },
         encoding: "utf8", timeout: 5000, maxBuffer: 16384,
       });
       expect(result.error).toBeUndefined();
