@@ -1,0 +1,13 @@
+# Official advisory generator cold-build measurement — 2026-10-03
+
+A fresh, isolated host build of the fixed official generator source completed in 47.69 seconds. The following normal Go build-info query completed in 0.03 seconds. Both commands exited 0, retained empty stderr, and joined their owned children. The generator binary was never executed.
+
+The build used pinned Go 1.26.8, Linux amd64, CGO disabled, local toolchain selection, offline read-only module resolution, one build worker, trimpath, and disabled VCS stamping. HOME, build cache, GOPATH, and temporary files used a new private namespace. All 11,079 source files, 28 current Git metadata files, and selected input bytes remained unchanged. The current Git observation does not substitute for the separately captured 22-file history roster.
+
+The resulting 30,337,080-byte binary has SHA256 `d0379fad6694ec6aecd67990d64013ed7b3d38040e0477aa560c00ca860f15b6`. Independent review verified its retained build-info output contains exactly the 62 selected external module/version/checksum tuples, each matching the original source sums. All four output-stream bindings and the source and selected-file hashes were independently checked.
+
+Resource samples observed 338,063,360 bytes of allocated build cache, 355,598,336 bytes of allocated temporary files, and 30,339,072 bytes of allocated binary storage. The largest sampled combined allocation was 696,188,928 bytes; independent maxima need not occur in the same sample. Minimum observed free space was 3,782,541,312 bytes, above the 2.5 GiB reserve. Samples observed at most two concurrent owned processes, 363 cumulative process-start identities, and 501,653,504 bytes of aggregate owned resident memory. These are sampled observations, not continuous peak measurements.
+
+Evidence: `/workspace/scratch/official-vulndb-generator-cold-compile-measurement-v1/receipt.json`, SHA256 `5225df74d90a4188f4678fa574855b2d72c1782bf2a043a6d4c145e2e9a91b72`. The reviewed enabled diagnostic recipe is SHA256 `4ff48c73d578b2e8a7912870366b5eb17d4edacfc54f7e581a466ae06bcfc554`; the selected-input diagnostic receipt is SHA256 `e8bffeb9ca56c0259cb3a2b0b4cd91d81d002fa7e311c4f28be33437a5f137f2`.
+
+This establishes a host cold-build capacity diagnostic. It does not admit this binary for protected generation, prove protected runtime or source authority, or establish official database production. No generator execution, database generation, protected input copies, whole-database admission, full-MVS clearance, severity policy, release acceptance, native acceptance, or promotion of the original 728 requirements is claimed. Earlier failed preparations and diagnostics remain preserved.

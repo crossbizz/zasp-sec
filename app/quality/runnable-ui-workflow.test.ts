@@ -221,7 +221,7 @@ function assertRunnableUiWorkflow(
   expect(verificationJob["timeout-minutes"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(32);
+  expect(verificationSteps).toHaveLength(33);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
@@ -231,6 +231,7 @@ function assertRunnableUiWorkflow(
     postgresFixtureCommand,
     "go install github.com/zricethezav/gitleaks/v8@v8.30.1",
     "npm run implementation:status:check",
+    platformMetadataCommand,
     verifyDiagnosticRun,
     ...complianceSteps.map(step => step.run),
     "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n",
@@ -243,6 +244,7 @@ function assertRunnableUiWorkflow(
     daemonReplayCommand,
     "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n",
   ]);
+  expect(verificationSteps.find(step => step.name === platformMetadataName)).toEqual({ name: platformMetadataName, run: platformMetadataCommand, "timeout-minutes": 5 });
   expect(verificationSteps[0]?.with).toEqual({ "fetch-depth": 0 });
   expect(verificationSteps[1]?.with).toMatchObject({
     "node-version": "22.23.1",
@@ -292,6 +294,7 @@ function validWorkflow(): Workflow {
           { run: postgresFixtureCommand },
           { run: "go install github.com/zricethezav/gitleaks/v8@v8.30.1" },
           { run: "npm run implementation:status:check" },
+          { name: platformMetadataName, run: platformMetadataCommand, "timeout-minutes": 5 },
           { run: verifyDiagnosticRun },
           ...structuredClone(complianceSteps),
           { run: "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n" },
@@ -309,9 +312,33 @@ function validWorkflow(): Workflow {
   };
 }
 
+const platformMetadataCommand = "GOENV=off GOWORK=off GOFLAGS= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -C services/platform -mod=readonly -m all >/dev/null";
+const platformMetadataName = "Prime platform full-MVS metadata for offline release contracts";
+
 const verifyDiagnosticRun = "task_verify_log=$(mktemp \"${RUNNER_TEMP}/zasp-npm-verify.XXXXXX\")\nset +e\nnpm run verify 2>&1 | tee \"$task_verify_log\"\ntask_verify_status=${PIPESTATUS[0]}\nset -e\nif [ \"$task_verify_status\" -ne 0 ]; then\n  node scripts/annotate-verify-failure.mjs \"$task_verify_log\" || printf '%s\\n' '::error title=npm verify failed::Verification failed; phase unavailable.'\nfi\nrm -f -- \"$task_verify_log\" || true\nexit \"$task_verify_status\"";
 
 describe("runnable UI GitHub Actions gate", () => {
+  it("requires bounded platform full-MVS metadata priming in the actual workflow", async () => {
+    assertRunnableUiWorkflow(await readWorkflow(), await readPackageManifest());
+  });
+  it.each(["omitted", "skipped", "allowed failure", "timeout", "command", "network", "mutable locks", "environment", "order"])("rejects %s platform full-MVS metadata priming", async condition => {
+    const workflow = validWorkflow();
+    const manifest = await readPackageManifest();
+    assertRunnableUiWorkflow(workflow, manifest);
+    const steps = workflow.jobs!.verify.steps!;
+    const step = steps.find(value => value.name === platformMetadataName)!;
+    if (condition === "omitted") steps.splice(steps.indexOf(step), 1);
+    if (condition === "skipped") step.if = false;
+    if (condition === "allowed failure") step["continue-on-error"] = true;
+    if (condition === "timeout") step["timeout-minutes"] = 6;
+    if (condition === "command") step.run = "go mod download";
+    if (condition === "network") step.run = step.run!.replace("https://proxy.golang.org", "https://unapproved.example");
+    if (condition === "mutable locks") step.run = step.run!.replace("-mod=readonly", "-mod=mod");
+    if (condition === "environment") step.env = { GOPROXY: "direct" };
+    if (condition === "order") steps.push(steps.splice(steps.indexOf(step), 1)[0]);
+    expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
+  });
+
   it.each(complianceSteps.flatMap(step => ["omitted", "skipped", "allowed failure", "timeout", "command", "environment", "order"].map(condition => [step.name!, condition] as const)))("rejects compliance step %s with %s", async (name, condition) => {
     const workflow = await readWorkflow();
     const manifest = await readPackageManifest();
