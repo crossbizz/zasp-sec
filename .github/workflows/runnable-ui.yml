@@ -59,7 +59,17 @@ jobs:
       - name: Verify implementation status ledger
         run: npm run implementation:status:check
       - name: Verify runnable UI
-        run: npm run verify
+        run: |-
+          task_verify_log=$(mktemp "${RUNNER_TEMP}/zasp-npm-verify.XXXXXX")
+          set +e
+          npm run verify 2>&1 | tee "$task_verify_log"
+          task_verify_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$task_verify_status" -ne 0 ]; then
+            node scripts/annotate-verify-failure.mjs "$task_verify_log" || printf '%s\n' '::error title=npm verify failed::Verification failed; phase unavailable.'
+          fi
+          rm -f -- "$task_verify_log" || true
+          exit "$task_verify_status"
       - name: Provision isolated compliance browser prerequisites
         timeout-minutes: 10
         run: |
