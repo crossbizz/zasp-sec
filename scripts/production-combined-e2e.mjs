@@ -2206,25 +2206,35 @@ async function prepareOwnedCurrentComplianceRuntime(configuration,complianceFixt
   const {migrate,migrationEnvironment,proxyPort}=configuration;
   const archiveRoot=process.env.ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT,rawRoot=process.env.ZASP_BROWSER_RUNTIME_RAW_ROOT;
   assert.ok(typeof archiveRoot==='string'&&typeof rawRoot==='string','owned pinned runtime archive/raw inputs required');
+  if (complianceBrowserMode) compliancePhase = 'compliance-runtime-services';
   currentComplianceStateRoot=await mkdtemp('/tmp/zasp-browser-current-runtime-');
   currentComplianceServices=await startRetainedOwnedRuntimeLifetime({stateRoot:currentComplianceStateRoot,archiveRoot,rawRoot,run:randomBytes(8).toString('hex')});
   void currentComplianceServices.completed.then(()=>{if(!currentComplianceClosing){currentComplianceFailure=new Error('owned runtime service exited');void cleanupController.run().catch(()=>{process.exitCode=1;});}},()=>{if(!currentComplianceClosing){currentComplianceFailure=new Error('owned runtime resource refused');void cleanupController.run().catch(()=>{process.exitCode=1;});}});
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-postgres';
   const port=await reservePort(),dsn=`postgres://zasp_e2e@127.0.0.1:${port}/postgres?sslmode=disable`;
   currentCompliancePostgres=createOwnedBrowserPostgres({port});await currentCompliancePostgres.start();
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-principals';
   await provisionPostgresPrincipals(dsn);
   await command(path.join(postgresBin,'psql'),[dsn,'-X','-v','ON_ERROR_STOP=1','-c','CREATE ROLE zasp_e2e_temporal_executor LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS; CREATE ROLE zasp_e2e_temporal_compensation LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;']);
   const migration={...closedOwnedAmbientEnvironment(migrationEnvironment),...Object.fromEntries(Object.entries(migrationEnvironment).filter(([key])=>key.endsWith('_DB_PRINCIPAL'))),ZASP_POSTGRES_DSN:dsn,ZASP_MIGRATION_TIMEOUT:'5m'};
-  await command(migrate,['up-to-56'],{env:migration,timeout:300000});await seedPostgres(dsn);
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-schema';
+  await command(migrate,['up-to-56'],{env:migration,timeout:300000});
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-fixture';
+  await seedPostgres(dsn);
   await command(path.join(postgresBin,'psql'),[dsn,'-X','-v','ON_ERROR_STOP=1','-c',complianceFixtureSQL]);
   const publicOrigin=`https://${productHostname}:${proxyPort}`,apiDSN=`postgres://zasp_e2e_api@127.0.0.1:${port}/postgres?sslmode=disable`;
   const currentConfiguration={...configuration,dsn,apiDSN,postgresPort:port};
   const identityEnvironment=combinedAPIEnvironment({...currentConfiguration,publicOrigin,ownedAmbient:closedOwnedAmbientEnvironment(process.env)});
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-keys';
   const forward=path.join(currentComplianceStateRoot,'forward.seed'),compensation=path.join(currentComplianceStateRoot,'compensation.seed');
   await writeFile(forward,randomBytes(32),{flag:'wx',mode:0o400});await writeFile(compensation,randomBytes(32),{flag:'wx',mode:0o400});
+  if (complianceBrowserMode) compliancePhase = 'compliance-reconcile-build';
   const reconcile=path.join(temporaryRoot,'zasp-authorization-reconcile');await command('go',['build','-o',reconcile,'./cmd/zasp-authorization-reconcile'],{cwd:platform,timeout:120000});
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-profile';
   const projection=await installOwnedCurrent80({command,migrate,reconcile,psql:path.join(postgresBin,'psql'),port,organization:'pid_10000001-0000-4000-8000-000000000001',identityEnvironment,runtimeEnvironment:currentComplianceServices.environment,keyFiles:{forward,compensation}});
   currentComplianceProjectionController=new AbortController();
   currentComplianceProjectionLoop=runOwnedProjectionLoop(projection,currentComplianceProjectionController.signal,()=>{currentComplianceFailure=new Error('owned authorization projection refused');void cleanupController.run().catch(()=>{process.exitCode=1;});});void currentComplianceProjectionLoop.catch(()=>{});
+  if (complianceBrowserMode) compliancePhase = 'compliance-fixture-provisioning';
   return {configuration:{...currentConfiguration,currentRuntimeEnvironment:projection.environment},projection};
 }
 

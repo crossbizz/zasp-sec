@@ -19,14 +19,15 @@ const mounted=tree.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text=
 const stop=mounted.body.statements.find(n=>n.getText(tree)==='const continuityCheckpoints=[];');
 assert.ok(main.catchClause&&main.finallyBlock&&start>0&&end>start&&stop);
 const mountedPrefix=source.slice(mounted.getStart(tree),stop.getStart(tree))+'\n}';
-const labels={postgres:'postgres-startup',instrument:'postgres-instrumentation',principals:'postgres-principal-provisioning','sql-schema':'compliance-fixture-provisioning','sql-fixture':'compliance-fixture-provisioning',storage:'compliance-fixture-provisioning',identity:'controlled-identity-startup',history:'policy-history-startup','api-environment':'api-startup','api-spawn':'api-startup','api-ready':'api-ready','web-spawn':'web-startup','web-ready':'web-ready',tls:'tls-provisioning',proxy:'proxy-startup',browser:'browser-startup'};
-const mountedOrder=['sql-schema','sql-fixture','storage','identity','history','api-environment','api-spawn','api-ready','web-spawn','web-ready','tls','proxy','browser'];
+const labels={postgres:'postgres-startup',instrument:'postgres-instrumentation',principals:'postgres-principal-provisioning','sql-schema':'compliance-fixture-provisioning','sql-fixture':'compliance-fixture-provisioning','current-runtime':'compliance-fixture-provisioning',storage:'compliance-fixture-provisioning',identity:'controlled-identity-startup',history:'policy-history-startup','api-environment':'api-startup','api-spawn':'api-startup','api-ready':'api-ready','web-spawn':'web-startup','web-ready':'web-ready',tls:'tls-provisioning',proxy:'proxy-startup',browser:'browser-startup'};
+const mountedOrder=['sql-schema','sql-fixture','current-runtime','storage','identity','history','api-environment','api-spawn','api-ready','web-spawn','web-ready','tls','proxy','browser'];
 function harness({kind='mounted',fail,mode=true,emitterFails=false}={}){
  const calls=[],annotations=[],wrappers=[],owned=Error('CANARY_SECRET_ENV_URL_TENANT');let sqlCalls=0;
  const call=(name,args)=>{calls.push({name,args});if(name===fail)throw owned;};
  const cleanupController={run:async()=>{call('cleanup',[]);},dispose:()=>{call('dispose',[]);}};
  const configuration={dsn:'CANARY_DSN',apiBinary:'/owned/api',workerE2EBinary:'/owned/worker',postgresPort:10,identityPort:11,policyHistoryPort:12,apiPort:13,healthPort:14,webPort:15,proxyPort:16,chromePort:17};
  const deps={assert,path,configuration,complianceBrowserMode:mode,cleanupController,emitComplianceBrowserPhaseFailure,emitComplianceAPIChildFailure,
+ prepareOwnedCurrentComplianceRuntime:async value=>{assert.equal(value,configuration);call('current-runtime',[]);return {configuration:{...value,currentRuntimeEnvironment:{}},projection:{refresh:async()=>{}}};},closedOwnedAmbientEnvironment:()=>({}),
  console:{log:()=>{},error:x=>{if(emitterFails)throw Error('CANARY_EMITTER');annotations.push(x);}},process:{env:{ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC:'1'}},postgresBin:'/owned/pg',postgresPort:10,dsn:'CANARY_DSN',temporaryRoot:'/owned/tmp',root:'/repo',productHostname:'CANARY_HOST',
  startPostgres:async(...args)=>{call('postgres',args);return {owned:true};},provisionPostgresPrincipals:async(...args)=>{call('principals',args);},
  command:async(...args)=>{const name=args[0]==='openssl'?'tls':kind==='initial'?'instrument':++sqlCalls===1?'sql-schema':'sql-fixture';call(name,args);return {stdout:name==='instrument'?'pl':name==='sql-schema'?'56':''};},

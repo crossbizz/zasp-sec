@@ -8,6 +8,8 @@ import './held-custody.test.mjs';
 import './owned-current80-composition.test.mjs';
 import './current80-runner-consumption.test.mjs';
 import './browser-command-failure.test.mjs';
+import './browser-startup-phase.test.mjs';
+import './browser-provisioning-subphase.test.mjs';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { storedComplianceJSON } from "./compliance-browser-bytes.mjs";
