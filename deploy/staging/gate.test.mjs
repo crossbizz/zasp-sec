@@ -13,7 +13,7 @@ test("legacy migration release has explicit phases and rejects unconfigured forw
   // chart's rollout contract. Pin the known source inventory, then prove every
   // schema beyond60 is refused without its required named profile.
   // Default49 remains deliberate: compatible pods precede the50 hook.
-  assert.equal(latest, 80, "new migration sources need an explicit rollout review");
+  assert.equal(latest, 81, "new migration sources need an explicit rollout review");
   for (let schemaVersion = 61; schemaVersion <= latest; schemaVersion++) {
     await assert.rejects(renderRelease(productionReleaseFixture, {
       schemaVersion, sessionSearchPhase: "precision-intake", discoveryScheduleReplayPhase: "active",
