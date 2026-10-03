@@ -8,6 +8,7 @@
   },
   "packageManager": "npm@10.9.8",
   "scripts": {
+    "api:start": "node scripts/api-start.mjs",
     "audit:emitter:test": "go test -C services/platform -race -count=1 ./audit",
     "aws:client:test": "go test -C services/platform -race -count=1 ./awsclient",
     "featureflags:test": "go test -C services/platform -race -count=1 ./featureflags",
