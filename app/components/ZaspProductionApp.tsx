@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { APIClient } from "../../apps/web/api/client";
 import { APIProvider, useAPI } from "../api/APIProvider";
@@ -114,6 +114,31 @@ function ProductionScopeSelector() {
   return <><select aria-label="Authorized scope" value={selectedScope} disabled={mutationLocked || session.scopeSwitch.status === "pending"} onChange={(event) => { const scope = session.scopes.find((item) => `${item.workspace_id}/${item.environment_id}` === event.target.value); if (scope) void session.switchScope(scope.workspace_id, scope.environment_id); }}>{session.scopes.map((scope) => <option key={`${scope.workspace_id}/${scope.environment_id}`} value={`${scope.workspace_id}/${scope.environment_id}`}>{scope.label}</option>)}</select>{session.scopeSwitch.status === "pending" && <span role="status">Switching scope…</span>}{session.scopeSwitch.status === "error" && <span role="alert">Scope switch failed <Button onClick={() => void session.scopeSwitch.retry()}>Retry</Button></span>}</>;
 }
 
+function ProductionSignOutControl() {
+  const session = useSession();
+  const [state, setState] = useState<"idle" | "pending" | "error">("idle");
+  const inFlight = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  const signOut = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setState("pending");
+    try {
+      await session.signOut();
+      if (mounted.current) setState("idle");
+    } catch {
+      if (mounted.current) setState("error");
+    } finally {
+      inFlight.current = false;
+    }
+  };
+  return <><Button disabled={state === "pending"} onClick={() => void signOut()}>{state === "pending" ? "Signing out…" : "Sign out"}</Button>{state === "error" && <p role="alert">Sign out failed. Please try again.</p>}</>;
+}
+
 function ProductionAppContent() {
   const session = useSession();
   const { client } = useAPI();
@@ -140,12 +165,12 @@ function ProductionAppContent() {
   if (session.status === "error") return <main className="page"><h1>{session.authorizationStatus === "pending" ? "Authorization pending" : "Session unavailable"}</h1>{session.authorizationStatus === "pending" && <p role="status">Current access is being applied. Retry to load your permissions.</p>}{session.scopeSwitch.status === "error" ? <><p role="alert">{session.scopeSwitch.error?.message ?? "Scope reconciliation failed"}</p><Button onClick={() => void session.scopeSwitch.retry()}>Retry scope reconciliation</Button></> : <Button onClick={() => void session.retry()}>Retry</Button>}</main>;
   if (session.status !== "authenticated") return null;
   const routes = productionRoutes.filter((route) => hasProductionCapability(session, route.capability));
-  if (routes.length === 0) return <main className="page"><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><Button onClick={() => void session.signOut()}>Sign out</Button></main>;
+  if (routes.length === 0) return <main className="page"><h1>No product capabilities</h1><p>Your account has no enabled product routes in this scope.</p><ProductionScopeSelector /><ProductionSignOutControl /></main>;
   const visiblePath = routes.some((route) => route.path === path) ? path : routes[0].path;
   const navigate = (nextLocation: string) => { const nextPath = nextLocation.split(/[?#]/, 1)[0]; if (!routes.some((route) => route.path === nextPath)) return; window.history.pushState({}, "", nextLocation); setLocation(nextLocation); };
   const workflowScopeKey = `${session.principal.id}/${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
   const expectedScope = `${session.organizationID}/${session.workspaceID}/${session.environmentID}`;
-  return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}><div className="app-shell production-app"><header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><ProductionScopeSelector /><ProductionGlobalSearch key={expectedScope} client={client} onNavigate={navigate} /><Button onClick={() => void session.signOut()}>Sign out</Button></header><aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside><main className="main-content">{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main></div></ProductionWorkflowMutationProvider>;
+  return <ProductionWorkflowMutationProvider scopeKey={workflowScopeKey} expectedScope={expectedScope}><div className="app-shell production-app"><header className="topbar"><button className="brand" onClick={() => navigate("/")} aria-label="Zasp overview">Zasp</button><span>Agent Security</span><ProductionScopeSelector /><ProductionGlobalSearch key={expectedScope} client={client} onNavigate={navigate} /><ProductionSignOutControl /></header><aside className="sidebar"><nav aria-label="Main navigation">{routes.map((route) => <a key={route.path} href={route.path} aria-label={route.label} aria-current={visiblePath === route.path ? "page" : undefined} onClick={(event) => { event.preventDefault(); navigate(route.path); }}>{route.label}</a>)}</nav></aside><main className="main-content">{session.scopeSwitch.status === "pending" ? <LoadingState label="Switching authorized scope…" /> : <ProductionRouteSurface key={`${session.organizationID}/${session.workspaceID}/${session.environmentID}`} path={visiblePath} location={visiblePath === path ? location : visiblePath} navigate={navigate} />}</main></div></ProductionWorkflowMutationProvider>;
 }
 
 function hasProductionCapability(session: SessionContextValue, capability: string): boolean {

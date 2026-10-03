@@ -1,11 +1,89 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAPIClient } from "../../apps/web/api/client";
 import { ZaspApp } from "./ZaspApp";
 import { ZaspDemoApp } from "./ZaspDemoApp";
 
 describe("Zasp application", () => {
+  it.each([
+    ["header", 503], ["header", 200], ["header", 205],
+    ["no capabilities", 503], ["no capabilities", 200], ["no capabilities", 205],
+  ] as const)("production logout on %s shows safe failure for status %i and permits acknowledged retry", async (surface, status) => {
+    let attempts = 0;
+    const secured: Array<{ csrf: string | null; scope: string | null }> = [];
+    const privateDiagnostic = "Private provider diagnostic not intended for user display";
+    const fetch = vi.fn(async (request: Request) => {
+      const pathname = new URL(request.url).pathname;
+      expect(request.credentials).toBe("same-origin");
+      expect(request.redirect).toBe("error");
+      if (pathname === "/api/v1/session/bootstrap") return apiJSON(logoutFeedbackBootstrap(surface));
+      if (pathname === "/api/v1/home/summary") return apiJSON(logoutFeedbackSummary());
+      if (pathname === "/api/v1/workflow-mutation-receipts") return apiJSON({ items: [] });
+      if (pathname === "/api/v1/session/sign-out") {
+        secured.push({ csrf: request.headers.get("X-CSRF-Token"), scope: request.headers.get("X-Zasp-Expected-Scope") });
+        attempts++;
+        if (attempts > 1) return new Response(null, { status: 204 });
+        if (status === 503) return apiJSON({ code: "provider_unavailable", message: privateDiagnostic, correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true }, 503);
+        return status === 200 ? apiJSON({}) : new Response(null, { status });
+      }
+      throw new Error("Unexpected production logout feedback request");
+    });
+    vi.stubGlobal("fetch", fetch);
+    const rendered = render(<ZaspApp />);
+    try {
+      await screen.findByRole("heading", { name: surface === "header" ? "Security overview" : "No product capabilities" });
+      await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent("Sign out failed. Please try again.");
+      expect(alert).not.toHaveTextContent(privateDiagnostic);
+      expect(alert).not.toHaveTextContent(/204|503|API did not acknowledge|correlation_id/);
+      expect(screen.getByRole("heading", { name: surface === "header" ? "Security overview" : "No product capabilities" })).toBeVisible();
+      expect(screen.queryByRole("heading", { name: "Sign in to Zasp" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Sign out" })).toBeEnabled();
+      await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+      expect(await screen.findByRole("heading", { name: "Sign in to Zasp" })).toBeVisible();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(attempts).toBe(2);
+      expect(secured).toEqual(Array(2).fill({ csrf: "cccccccccccccccccccccccccccccccc", scope: "pid_10000001-0000-4000-8000-000000000001/pid_10000002-0000-4000-8000-000000000002/pid_10000003-0000-4000-8000-000000000003" }));
+    } finally { rendered.unmount(); vi.unstubAllGlobals(); }
+  });
+
+  it.each(["header", "no capabilities"] as const)("production logout on %s stays pending, refuses duplicate activation and waits for the real acknowledgement", async surface => {
+    let acknowledge: (response: Response) => void = () => undefined;
+    const response = new Promise<Response>(resolve => { acknowledge = resolve; });
+    let attempts = 0;
+    const fetch = vi.fn(async (request: Request) => {
+      const pathname = new URL(request.url).pathname;
+      if (pathname === "/api/v1/session/bootstrap") return apiJSON(logoutFeedbackBootstrap(surface));
+      if (pathname === "/api/v1/home/summary") return apiJSON(logoutFeedbackSummary());
+      if (pathname === "/api/v1/workflow-mutation-receipts") return apiJSON({ items: [] });
+      if (pathname === "/api/v1/session/sign-out") { attempts++; return response; }
+      throw new Error("Unexpected production pending logout request");
+    });
+    vi.stubGlobal("fetch", fetch);
+    const rendered = render(<ZaspApp />);
+    try {
+      await screen.findByRole("heading", { name: surface === "header" ? "Security overview" : "No product capabilities" });
+      const button = screen.getByRole("button", { name: "Sign out" });
+      act(() => {
+        button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      });
+      await waitFor(() => expect(attempts).toBeGreaterThan(0));
+      expect(attempts).toBe(1);
+      expect(screen.getByRole("button", { name: "Signing out…" })).toBeDisabled();
+      expect(screen.getByRole("heading", { name: surface === "header" ? "Security overview" : "No product capabilities" })).toBeVisible();
+      expect(screen.queryByRole("heading", { name: "Sign in to Zasp" })).not.toBeInTheDocument();
+      await act(async () => { acknowledge(new Response(null, { status: 204 })); await response; });
+      expect(await screen.findByRole("heading", { name: "Sign in to Zasp" })).toBeVisible();
+      expect(screen.queryByRole("button", { name: "Signing out…" })).not.toBeInTheDocument();
+    } finally {
+      await act(async () => { acknowledge(new Response(null, { status: 204 })); await response; });
+      rendered.unmount(); vi.unstubAllGlobals();
+    }
+  });
+
   beforeEach(() => {
     window.localStorage.clear();
     window.history.replaceState({}, "", "/");
@@ -463,4 +541,16 @@ describe("Zasp application", () => {
 
 function apiJSON(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
+}
+
+function logoutFeedbackBootstrap(surface: "header" | "no capabilities") {
+  return {
+    principal: { id: "pid_10000004-0000-4000-8000-000000000004", organization_id: "pid_10000001-0000-4000-8000-000000000001", organization_reference: "organization-live", member_reference: "member-live", role: "security_admin", active: true },
+    organization_id: "pid_10000001-0000-4000-8000-000000000001", workspace_id: "pid_10000002-0000-4000-8000-000000000002", environment_id: "pid_10000003-0000-4000-8000-000000000003",
+    permissions: ["view"], capabilities: surface === "header" ? ["inventory.read"] : [], csrf_token: "cccccccccccccccccccccccccccccccc", fresh_auth_expires_at: new Date(Date.now() + 60_000).toISOString(), correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+  };
+}
+
+function logoutFeedbackSummary() {
+  return { agent_count: 0, high_risk_paths: 0, verified_changes: 0, blocked_changes: 0, pending_approvals: 0, oldest_approval_age_seconds: 0, needs_human_runs: 0, failed_runs: 0, inconclusive_runs: 0, recent_contained: 0, recent_remediated: 0, healthy: true, attention_required: false };
 }
