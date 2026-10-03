@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+	"github.com/zasp-ai/zasp-sec/services/platform/securityagent"
 )
 
 const (
@@ -36,18 +37,19 @@ type TemporaryPolicyTarget struct {
 }
 
 type TemporaryPolicyEffectClaim struct {
-	OrganizationID string                  `json:"organization_id"`
-	WorkspaceID    string                  `json:"workspace_id"`
-	EnvironmentID  string                  `json:"environment_id"`
-	RunID          string                  `json:"run_id"`
-	StepID         string                  `json:"step_id"`
-	ActionKey      string                  `json:"action_key,omitempty"`
-	SessionID      string                  `json:"session_id,omitempty"`
-	Phase          string                  `json:"phase"`
-	InputDigest    string                  `json:"input_digest"`
-	TTLSeconds     int                     `json:"ttl_seconds"`
-	LeaseExpiresAt time.Time               `json:"lease_expires_at"`
-	Targets        []TemporaryPolicyTarget `json:"targets"`
+	Mode           securityagent.TemporaryPolicyMode `json:"mode,omitempty"`
+	OrganizationID string                            `json:"organization_id"`
+	WorkspaceID    string                            `json:"workspace_id"`
+	EnvironmentID  string                            `json:"environment_id"`
+	RunID          string                            `json:"run_id"`
+	StepID         string                            `json:"step_id"`
+	ActionKey      string                            `json:"action_key,omitempty"`
+	SessionID      string                            `json:"session_id,omitempty"`
+	Phase          string                            `json:"phase"`
+	InputDigest    string                            `json:"input_digest"`
+	TTLSeconds     int                               `json:"ttl_seconds"`
+	LeaseExpiresAt time.Time                         `json:"lease_expires_at"`
+	Targets        []TemporaryPolicyTarget           `json:"targets"`
 }
 
 type TemporaryPolicyTargetEnvelope struct {
@@ -65,12 +67,14 @@ type TemporaryPolicyTargetEnvelope struct {
 }
 
 type TemporaryPolicyFinishResult struct {
-	RunID        string `json:"run_id"`
-	StepID       string `json:"step_id"`
-	Phase        string `json:"phase"`
-	EffectState  string `json:"effect_state"`
-	OutcomeID    string `json:"outcome_id"`
-	ResultDigest string `json:"result_digest"`
+	Mode         securityagent.TemporaryPolicyMode `json:"mode,omitempty"`
+	RunState     securityagent.RunState            `json:"run_state,omitempty"`
+	RunID        string                            `json:"run_id"`
+	StepID       string                            `json:"step_id"`
+	Phase        string                            `json:"phase"`
+	EffectState  string                            `json:"effect_state"`
+	OutcomeID    string                            `json:"outcome_id"`
+	ResultDigest string                            `json:"result_digest"`
 }
 
 type SecurityAgentActionAuthority interface {
@@ -91,6 +95,7 @@ type SecurityAgentActionRepository struct {
 	readySQL, checksum, fingerprint, reconcileSQL        string
 	claimSQL, heartbeatSQL, storeSQL, readSQL, finishSQL string
 	sessionIsolation                                     bool
+	temporaryPolicyModes                                 bool
 }
 
 func NewSecurityAgentActionRepository(database JSONDatabase) (*SecurityAgentActionRepository, error) {
@@ -178,6 +183,11 @@ func (repository *SecurityAgentActionRepository) ClaimTemporaryPolicyEffects(ctx
 		fieldsValid := exactJSONFields(raw, "environment_id", "input_digest", "lease_expires_at", "organization_id", "phase", "run_id", "step_id", "targets", "ttl_seconds", "workspace_id")
 		if repository.sessionIsolation {
 			fieldsValid = exactJSONFields(raw, "action_key", "environment_id", "input_digest", "lease_expires_at", "organization_id", "phase", "run_id", "session_id", "step_id", "targets", "ttl_seconds", "workspace_id")
+		}
+		if repository.temporaryPolicyModes {
+			fields := []string{"environment_id", "input_digest", "lease_expires_at", "organization_id", "phase", "run_id", "step_id", "targets", "ttl_seconds", "workspace_id", "mode"}
+			_, closedErr := auditExportClosedObject(raw, 65536, fields...)
+			fieldsValid = closedErr == nil && exactJSONFields(raw, fields...)
 		}
 		if !fieldsValid || decodeStrictDiscovery(raw, &claims[index]) != nil || !validTemporaryPolicyEffectClaim(claims[index]) {
 			return nil, ErrRepositoryUnavailable
@@ -314,8 +324,26 @@ func (repository *SecurityAgentActionRepository) FinishTemporaryPolicyEffect(ctx
 		return TemporaryPolicyFinishResult{}, discoveryProviderError(err)
 	}
 	var result TemporaryPolicyFinishResult
-	if !exactJSONFields(payload, "effect_state", "outcome_id", "phase", "result_digest", "run_id", "step_id") || decodeStrictDiscovery(payload, &result) != nil || result.RunID != claim.RunID || result.StepID != claim.StepID || result.Phase != claim.Phase || !validProductID(result.OutcomeID) || result.ResultDigest != resultDigest || claim.Phase == "apply" && result.EffectState != "cleanup_pending" || claim.Phase == "cleanup" && result.EffectState != "cleaned" {
+	fieldsValid := exactJSONFields(payload, "effect_state", "outcome_id", "phase", "result_digest", "run_id", "step_id")
+	if repository.temporaryPolicyModes {
+		fields := []string{"effect_state", "outcome_id", "phase", "result_digest", "run_id", "step_id", "mode", "run_state"}
+		_, closedErr := auditExportClosedObject(payload, 4096, fields...)
+		fieldsValid = closedErr == nil && exactJSONFields(payload, fields...)
+	}
+	if !fieldsValid || decodeStrictDiscovery(payload, &result) != nil || result.RunID != claim.RunID || result.StepID != claim.StepID || result.Phase != claim.Phase || !validProductID(result.OutcomeID) || result.ResultDigest != resultDigest || claim.Phase == "apply" && result.EffectState != "cleanup_pending" || claim.Phase == "cleanup" && result.EffectState != "cleaned" {
 		return TemporaryPolicyFinishResult{}, ErrRepositoryUnavailable
+	}
+	if repository.temporaryPolicyModes {
+		expectedState := securityagent.RunContained
+		if claim.Phase == "cleanup" {
+			expectedState = securityagent.RunRemediated
+		}
+		if claim.Mode.Effective() == securityagent.TemporaryPolicyMonitor {
+			expectedState = securityagent.RunNeedsHuman
+		}
+		if result.Mode != claim.Mode || result.RunState != expectedState {
+			return TemporaryPolicyFinishResult{}, ErrRepositoryUnavailable
+		}
 	}
 	return result, nil
 }
@@ -326,7 +354,7 @@ func validTemporaryPolicyEffectClaim(claim TemporaryPolicyEffectClaim) bool {
 	if actionKey == "" {
 		actionKey = "create_temporary_policy"
 	}
-	if !validProductID(claim.OrganizationID) || !validProductID(claim.WorkspaceID) || !validProductID(claim.EnvironmentID) || !validProductID(claim.RunID) || !validProductID(claim.StepID) || claim.Phase != "apply" && claim.Phase != "cleanup" || claim.TTLSeconds < 60 || claim.TTLSeconds > 3600 || claim.LeaseExpiresAt.IsZero() || claim.LeaseExpiresAt.Location() != time.UTC || !digestOK || len(claim.Targets) < 1 || len(claim.Targets) > 1000 || actionKey != "create_temporary_policy" && actionKey != "isolate_session" || actionKey == "create_temporary_policy" && claim.SessionID != "" || actionKey == "isolate_session" && !validProductID(claim.SessionID) {
+	if !claim.Mode.Valid() || actionKey == "isolate_session" && claim.Mode.Effective() != securityagent.TemporaryPolicyBlock || !validProductID(claim.OrganizationID) || !validProductID(claim.WorkspaceID) || !validProductID(claim.EnvironmentID) || !validProductID(claim.RunID) || !validProductID(claim.StepID) || claim.Phase != "apply" && claim.Phase != "cleanup" || claim.TTLSeconds < 60 || claim.TTLSeconds > 3600 || claim.LeaseExpiresAt.IsZero() || claim.LeaseExpiresAt.Location() != time.UTC || !digestOK || len(claim.Targets) < 1 || len(claim.Targets) > 1000 || actionKey != "create_temporary_policy" && actionKey != "isolate_session" || actionKey == "create_temporary_policy" && claim.SessionID != "" || actionKey == "isolate_session" && !validProductID(claim.SessionID) {
 		return false
 	}
 	seen := make(map[string]struct{}, len(claim.Targets))

@@ -226,6 +226,7 @@ func TestTemporaryPolicyResultDigestBindsRawInputAndDatabaseTargetOrder(t *testi
 }
 
 type temporaryPolicyAuthorityFixture struct {
+	finishRunState          string
 	mu                      sync.Mutex
 	claims                  []apiserver.TemporaryPolicyEffectClaim
 	stored                  []apiserver.TemporaryPolicyTargetEnvelope
@@ -289,7 +290,19 @@ func (fixture *temporaryPolicyAuthorityFixture) FinishTemporaryPolicyEffect(_ co
 	if claim.Phase == "cleanup" {
 		state = "cleaned"
 	}
-	return apiserver.TemporaryPolicyFinishResult{RunID: claim.RunID, StepID: claim.StepID, Phase: claim.Phase, EffectState: state, OutcomeID: "pid_78000007-0000-4000-8000-000000000007", ResultDigest: resultDigest}, nil
+	result := apiserver.TemporaryPolicyFinishResult{RunID: claim.RunID, StepID: claim.StepID, Phase: claim.Phase, EffectState: state, OutcomeID: "pid_78000007-0000-4000-8000-000000000007", ResultDigest: resultDigest}
+	if claim.Mode != "" {
+		runState := "needs_human"
+		if fixture.finishRunState != "" {
+			runState = fixture.finishRunState
+		}
+		raw, _ := json.Marshal(result)
+		raw = append(raw[:len(raw)-1], []byte(`,"mode":"`+string(claim.Mode)+`","run_state":"`+runState+`"}`)...)
+		if err := json.Unmarshal(raw, &result); err != nil {
+			return apiserver.TemporaryPolicyFinishResult{}, err
+		}
+	}
+	return result, nil
 }
 
 func sequentialActionProductIDs() func() (string, error) {
@@ -305,4 +318,123 @@ func sequentialActionProductIDs() func() (string, error) {
 func gatewayEnvelopeFromStored(t *testing.T, claim apiserver.TemporaryPolicyEffectClaim, stored apiserver.TemporaryPolicyTargetEnvelope, compiled []policy.CompiledPolicy) policy.GatewayPolicyEnvelope {
 	t.Helper()
 	return policy.GatewayPolicyEnvelope{ContractVersion: 1, KeyID: stored.KeyID, Algorithm: "Ed25519", Audience: "runtime-gateway-policy", OrganizationID: claim.OrganizationID, WorkspaceID: claim.WorkspaceID, EnvironmentID: claim.EnvironmentID, DeviceID: stored.Target.DeviceID, Sequence: uint64(stored.Target.Sequence), PolicyVersion: uint64(stored.Target.PolicyVersion), IssuedAt: stored.IssuedAt, ExpiresAt: stored.ExpiresAt, FailureMode: stored.FailureMode, PayloadDigest: stored.PayloadDigest[len("sha256:"):], Policies: compiled, Signature: base64.RawURLEncoding.EncodeToString(stored.Signature)}
+}
+
+func TestTemporaryPolicyMonitorPublishesTenantBoundSignedNonBlockingPolicy(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	publicKey, privateKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim := apiserver.TemporaryPolicyEffectClaim{
+		OrganizationID: "pid_70000001-0000-4000-8000-000000000001", WorkspaceID: "pid_70000002-0000-4000-8000-000000000002", EnvironmentID: "pid_70000003-0000-4000-8000-000000000003",
+		RunID: "pid_78000001-0000-4000-8000-000000000001", StepID: "pid_78000002-0000-4000-8000-000000000002", Phase: "apply", InputDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		TTLSeconds: 600, LeaseExpiresAt: now.Add(time.Minute), Targets: []apiserver.TemporaryPolicyTarget{{DeviceID: "pid_78000003-0000-4000-8000-000000000003", CredentialID: "pid_78000004-0000-4000-8000-000000000004", Sequence: 2, PolicyVersion: 2}},
+	}
+	rawClaim, err := json.Marshal(claim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawClaim = append(rawClaim[:len(rawClaim)-1], []byte(`,"mode":"monitor"}`)...)
+	if err := json.Unmarshal(rawClaim, &claim); err != nil {
+		t.Fatal(err)
+	}
+	authority := &temporaryPolicyAuthorityFixture{claims: []apiserver.TemporaryPolicyEffectClaim{claim}}
+	processor, err := newSecurityAgentActionProcessor(securityAgentActionProcessorConfig{
+		Authority: authority, WorkerID: "security-agent-action-1", LeaseSeconds: 60, BatchSize: 10, HeartbeatInterval: 10 * time.Millisecond,
+		KeyID: "gateway-key-01", PrivateKey: privateKey, Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil }, NewProductID: sequentialActionProductIDs(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer processor.Close()
+	if err := processor.RunOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(authority.stored) != 1 || len(authority.finished) != 1 || authority.finished[0].Phase != "apply" {
+		t.Fatalf("stored=%#v finished=%#v", authority.stored, authority.finished)
+	}
+	stored := authority.stored[0]
+	var compiled []policy.CompiledPolicy
+	if err := json.Unmarshal(stored.Policies, &compiled); err != nil || len(compiled) != 2 {
+		t.Fatalf("compiled=%#v err=%v", compiled, err)
+	}
+	keys, err := policy.NewGatewayPolicyKeys(map[string]ed25519.PublicKey{"gateway-key-01": publicKey})
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := gatewayEnvelopeFromStored(t, claim, stored, compiled)
+	if _, err := policy.VerifyGatewayPolicyEnvelope(envelope, keys, policy.GatewayPolicyBinding{OrganizationID: claim.OrganizationID, WorkspaceID: claim.WorkspaceID, EnvironmentID: claim.EnvironmentID, DeviceID: claim.Targets[0].DeviceID}, now); err != nil {
+		t.Fatalf("verify apply: %v", err)
+	}
+	wrongMode := claim
+	wrongMode.Mode = "block"
+	if err := processor.verifyReadback(wrongMode, stored, now); err == nil {
+		t.Fatal("signed Monitor bundle accepted against a Block claim")
+	}
+	if _, err := policy.VerifyGatewayPolicyEnvelope(envelope, keys, policy.GatewayPolicyBinding{OrganizationID: "pid_70000001-0000-4000-8000-000000000009", WorkspaceID: claim.WorkspaceID, EnvironmentID: claim.EnvironmentID, DeviceID: claim.Targets[0].DeviceID}, now); err == nil {
+		t.Fatal("cross-tenant Monitor signature accepted")
+	}
+	if _, err := policy.VerifyGatewayPolicyEnvelope(envelope, keys, policy.GatewayPolicyBinding{OrganizationID: claim.OrganizationID, WorkspaceID: claim.WorkspaceID, EnvironmentID: claim.EnvironmentID, DeviceID: claim.Targets[0].DeviceID}, stored.ExpiresAt.Add(time.Second)); err == nil {
+		t.Fatal("expired Monitor signature accepted")
+	}
+	for _, compiledPolicy := range compiled {
+		input := map[string]string{"http.method": "POST", "tool.name": "shell"}
+		decision, err := policy.Evaluate(context.Background(), compiledPolicy, input)
+		if err != nil || decision.Action != policy.ActionMonitor || !decision.Matched {
+			t.Fatalf("Monitor execution=%#v err=%v", decision, err)
+		}
+	}
+	if compiled[0].Action != policy.ActionMonitor || compiled[1].Action != policy.ActionMonitor {
+		t.Fatalf("actions=%#v", compiled)
+	}
+
+	cleanup := claim
+	cleanup.Phase = "cleanup"
+	cleanup.LeaseExpiresAt = now.Add(11 * time.Minute)
+	cleanup.Targets[0].Sequence++
+	cleanup.Targets[0].PolicyVersion++
+	authority.claims = []apiserver.TemporaryPolicyEffectClaim{cleanup}
+	if err := processor.RunOnce(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(authority.stored) != 2 || len(authority.finished) != 2 || authority.finished[1].Phase != "cleanup" {
+		t.Fatalf("stored=%#v finished=%#v", authority.stored, authority.finished)
+	}
+	if string(authority.stored[1].Policies) != "[]" {
+		t.Fatalf("cleanup policies=%s", authority.stored[1].Policies)
+	}
+}
+
+func TestTemporaryPolicyMonitorRejectsUntruthfulContainmentSettlement(t *testing.T) {
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	_, privateKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim := apiserver.TemporaryPolicyEffectClaim{
+		OrganizationID: "pid_70000001-0000-4000-8000-000000000001", WorkspaceID: "pid_70000002-0000-4000-8000-000000000002", EnvironmentID: "pid_70000003-0000-4000-8000-000000000003",
+		RunID: "pid_78000001-0000-4000-8000-000000000001", StepID: "pid_78000002-0000-4000-8000-000000000002", Phase: "apply", InputDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		TTLSeconds: 600, LeaseExpiresAt: now.Add(time.Minute), Targets: []apiserver.TemporaryPolicyTarget{{DeviceID: "pid_78000003-0000-4000-8000-000000000003", CredentialID: "pid_78000004-0000-4000-8000-000000000004", Sequence: 2, PolicyVersion: 2}},
+	}
+	rawClaim, err := json.Marshal(claim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawClaim = append(rawClaim[:len(rawClaim)-1], []byte(`,"mode":"monitor"}`)...)
+	if err := json.Unmarshal(rawClaim, &claim); err != nil {
+		t.Fatal(err)
+	}
+	authority := &temporaryPolicyAuthorityFixture{claims: []apiserver.TemporaryPolicyEffectClaim{claim}, finishRunState: "contained"}
+	processor, err := newSecurityAgentActionProcessor(securityAgentActionProcessorConfig{
+		Authority: authority, WorkerID: "security-agent-action-1", LeaseSeconds: 60, BatchSize: 10, HeartbeatInterval: 10 * time.Millisecond,
+		KeyID: "gateway-key-01", PrivateKey: privateKey, Now: func() time.Time { return now }, NewLeaseToken: func() (string, error) { return "lease-token-000000000001", nil }, NewProductID: sequentialActionProductIDs(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer processor.Close()
+	if err := processor.RunOnce(context.Background()); err == nil {
+		t.Fatal("Monitor accepted containment settlement")
+	}
 }

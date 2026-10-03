@@ -3716,6 +3716,18 @@ components:
       type: object
       additionalProperties: false
       required: [id, name, trigger_kind, trigger_source, environment_ids, autonomy, max_steps, max_duration_seconds, temporary_policy_seconds, ai_token_budget, concurrency_limit, allowed_actions, verification_kind, definition_version, enabled]
+      allOf:
+        - if:
+            required: [temporary_policy_mode]
+            properties:
+              temporary_policy_mode: { const: monitor }
+          then:
+            properties:
+              autonomy: { const: supervised }
+              max_steps: { const: 1 }
+              temporary_policy_seconds: { type: integer, minimum: 60, maximum: 3600 }
+              allowed_actions: { type: array, minItems: 1, maxItems: 1, items: { const: create_temporary_policy } }
+              verification_kind: { const: policy_state }
       properties:
         trigger_rules: { $ref: '#/components/schemas/SecurityAgentTriggerRules' }
         id: { $ref: '#/components/schemas/ProductID' }
@@ -3729,6 +3741,10 @@ components:
         max_steps: { type: integer, minimum: 1, maximum: 100 }
         max_duration_seconds: { type: integer, minimum: 1, maximum: 86400 }
         temporary_policy_seconds: { type: integer, minimum: 1, maximum: 86400 }
+        temporary_policy_mode:
+          type: string
+          enum: [monitor, block]
+          description: Persisted temporary policy intent. Legacy omission retains Block. Monitor is a supervised single-action observation and never claims containment or remediation.
         ai_token_budget: { type: integer, minimum: 1, maximum: 12000 }
         concurrency_limit: { type: integer, minimum: 1, maximum: 10 }
         allowed_actions: { type: array, minItems: 1, maxItems: 32, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 128 } }
@@ -3791,6 +3807,18 @@ components:
       type: object
       additionalProperties: false
       required: [name, trigger_kind, trigger_source, environment_ids, autonomy, max_steps, max_duration_seconds, temporary_policy_seconds, ai_token_budget, concurrency_limit, allowed_actions, verification_kind, definition_version, enabled]
+      allOf:
+        - if:
+            required: [temporary_policy_mode]
+            properties:
+              temporary_policy_mode: { const: monitor }
+          then:
+            properties:
+              autonomy: { const: supervised }
+              max_steps: { const: 1 }
+              temporary_policy_seconds: { type: integer, minimum: 60, maximum: 3600 }
+              allowed_actions: { type: array, minItems: 1, maxItems: 1, items: { const: create_temporary_policy } }
+              verification_kind: { const: policy_state }
       properties:
         trigger_rules: { $ref: '#/components/schemas/SecurityAgentTriggerRules' }
         max_ai_cost_nano_credits: { $ref: '#/components/schemas/SecurityAgentCostAllowance' }
@@ -3803,6 +3831,10 @@ components:
         max_steps: { type: integer, minimum: 1, maximum: 100 }
         max_duration_seconds: { type: integer, minimum: 1, maximum: 86400 }
         temporary_policy_seconds: { type: integer, minimum: 1, maximum: 86400 }
+        temporary_policy_mode:
+          type: string
+          enum: [monitor, block]
+          description: Persisted temporary policy intent. Legacy omission retains Block. Monitor is a supervised single-action observation and never claims containment or remediation.
         ai_token_budget: { type: integer, minimum: 1, maximum: 12000 }
         concurrency_limit: { type: integer, minimum: 1, maximum: 10 }
         allowed_actions: { type: array, minItems: 1, maxItems: 32, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 128 } }
@@ -4200,7 +4232,7 @@ components:
           required: [target_id, mode, scope, ttl_seconds]
           properties:
             target_id: { $ref: '#/components/schemas/ProductID' }
-            mode: { type: string, const: block }
+            mode: { type: string, enum: [monitor, block] }
             scope: { $ref: '#/components/schemas/ProductID' }
             ttl_seconds: { type: integer, minimum: 60, maximum: 3600 }
         - type: object
@@ -4476,6 +4508,8 @@ components:
       additionalProperties: false
       required: [id, run_id, step_id, state, expires_at, version, expected_effect, reversible, ttl_seconds, evidence_summary]
       allOf:
+        - if: { required: [expected_effect], properties: { expected_effect: { const: Apply temporary monitoring policy } } }
+          then: { properties: { ttl_seconds: { minimum: 60, maximum: 3600 }, reversible: { const: true } } }
         - if: { required: [manual_trigger], properties: { manual_trigger: {} } }
           then: { properties: { evidence_summary: { maxItems: 0 } } }
           else: { properties: { evidence_summary: { minItems: 1 } } }
@@ -4500,7 +4534,7 @@ components:
         state: { type: string, enum: [pending, approved, rejected, cancelled, expired] }
         expires_at: { type: string, format: date-time }
         version: { type: integer, minimum: 1 }
-        expected_effect: { type: string, enum: [Move finding to under review, Assign investigator and update finding response, Apply temporary containment policy, Isolate runtime session, Revoke integration connection, Run existing test, Rerun existing test, Run a bounded Attack Lab reproduction; human interpretation required, Create run-scoped evidence export] }
+        expected_effect: { type: string, enum: [Move finding to under review, Assign investigator and update finding response, Apply temporary containment policy, Apply temporary monitoring policy, Isolate runtime session, Revoke integration connection, Run existing test, Rerun existing test, Run a bounded Attack Lab reproduction; human interpretation required, Create run-scoped evidence export] }
         reversible: { type: boolean }
         ttl_seconds: { type: integer, minimum: 0, maximum: 3600 }
         evidence_summary: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/ProductID' } }

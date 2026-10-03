@@ -227,24 +227,25 @@ func (repository *PostgresRepository) GetSecurityAgentActivation(ctx context.Con
 		UpdatedAt         time.Time       `json:"updated_at"`
 	}
 	var body struct {
-		TriggerRules           json.RawMessage `json:"trigger_rules"`
-		ExistingTest           json.RawMessage `json:"existing_test"`
-		MaxAICostNanoCredits   json.RawMessage `json:"max_ai_cost_nano_credits"`
-		ID                     string          `json:"id"`
-		Name                   string          `json:"name"`
-		TriggerKind            string          `json:"trigger_kind"`
-		TriggerSource          string          `json:"trigger_source"`
-		EnvironmentIDs         []string        `json:"environment_ids"`
-		Autonomy               string          `json:"autonomy"`
-		MaxSteps               int             `json:"max_steps"`
-		MaxDurationSeconds     int             `json:"max_duration_seconds"`
-		TemporaryPolicySeconds int             `json:"temporary_policy_seconds"`
-		AITokenBudget          int             `json:"ai_token_budget"`
-		ConcurrencyLimit       int             `json:"concurrency_limit"`
-		AllowedActions         []string        `json:"allowed_actions"`
-		VerificationKind       string          `json:"verification_kind"`
-		DefinitionVersion      int             `json:"definition_version"`
-		Enabled                bool            `json:"enabled"`
+		TriggerRules           json.RawMessage                   `json:"trigger_rules"`
+		ExistingTest           json.RawMessage                   `json:"existing_test"`
+		MaxAICostNanoCredits   json.RawMessage                   `json:"max_ai_cost_nano_credits"`
+		ID                     string                            `json:"id"`
+		Name                   string                            `json:"name"`
+		TriggerKind            string                            `json:"trigger_kind"`
+		TriggerSource          string                            `json:"trigger_source"`
+		EnvironmentIDs         []string                          `json:"environment_ids"`
+		Autonomy               string                            `json:"autonomy"`
+		MaxSteps               int                               `json:"max_steps"`
+		MaxDurationSeconds     int                               `json:"max_duration_seconds"`
+		TemporaryPolicySeconds int                               `json:"temporary_policy_seconds"`
+		TemporaryPolicyMode    securityagent.TemporaryPolicyMode `json:"temporary_policy_mode,omitempty"`
+		AITokenBudget          int                               `json:"ai_token_budget"`
+		ConcurrencyLimit       int                               `json:"concurrency_limit"`
+		AllowedActions         []string                          `json:"allowed_actions"`
+		VerificationKind       string                            `json:"verification_kind"`
+		DefinitionVersion      int                               `json:"definition_version"`
+		Enabled                bool                              `json:"enabled"`
 	}
 	if !exactJSONFields(payload, "activation", "body", "definition_id", "definition_version", "environment_id", "organization_id", "updated_at", "version", "workspace_id") || decodeStrictDiscovery(payload, &wire) != nil || !securityAgentDefinitionFields(wire.Body) || decodeStrictDiscovery(wire.Body, &body) != nil || wire.OrganizationID != identity.Scope.OrganizationID().String() || wire.WorkspaceID != identity.Scope.WorkspaceID().String() || wire.EnvironmentID != identity.Scope.EnvironmentID().String() || wire.DefinitionID != definitionID || body.ID != definitionID || int64(body.DefinitionVersion) != wire.DefinitionVersion || !stringIn(wire.Activation, "draft", "validated", "supervised", "autonomous") || body.Enabled != (wire.Activation == "supervised" || wire.Activation == "autonomous") || wire.Version < 1 || wire.Version > 1000000 || wire.DefinitionVersion < 1 || wire.DefinitionVersion > 1000000 || wire.UpdatedAt.IsZero() || wire.UpdatedAt.Location() != time.UTC {
 		return SecurityAgentActivationState{}, ErrRepositoryUnavailable
@@ -258,7 +259,7 @@ func (repository *PostgresRepository) GetSecurityAgentActivation(ctx context.Con
 	if _, err := securityagent.DecodeTriggerRules(body.TriggerRules, body.TriggerKind, body.TriggerSource); err != nil {
 		return SecurityAgentActivationState{}, ErrRepositoryUnavailable
 	}
-	definition := securityagent.SecurityAgent{ID: body.ID, OrganizationID: wire.OrganizationID, Name: body.Name, Trigger: securityagent.Trigger{Kind: body.TriggerKind, Source: body.TriggerSource}, Scope: securityagent.Scope{OrganizationID: wire.OrganizationID, EnvironmentIDs: body.EnvironmentIDs}, Autonomy: securityagent.Autonomy(body.Autonomy), Limits: securityagent.RunLimits{MaxSteps: body.MaxSteps, MaxDuration: time.Duration(body.MaxDurationSeconds) * time.Second, TemporaryPolicyTTL: time.Duration(body.TemporaryPolicySeconds) * time.Second, MaxAITokens: body.AITokenBudget, MaxConcurrent: body.ConcurrencyLimit}, AllowedActions: body.AllowedActions, Verification: securityagent.Verification{Kind: body.VerificationKind}, DefinitionVersion: body.DefinitionVersion, Enabled: body.Enabled}
+	definition := securityagent.SecurityAgent{TemporaryPolicyMode: body.TemporaryPolicyMode, ID: body.ID, OrganizationID: wire.OrganizationID, Name: body.Name, Trigger: securityagent.Trigger{Kind: body.TriggerKind, Source: body.TriggerSource}, Scope: securityagent.Scope{OrganizationID: wire.OrganizationID, EnvironmentIDs: body.EnvironmentIDs}, Autonomy: securityagent.Autonomy(body.Autonomy), Limits: securityagent.RunLimits{MaxSteps: body.MaxSteps, MaxDuration: time.Duration(body.MaxDurationSeconds) * time.Second, TemporaryPolicyTTL: time.Duration(body.TemporaryPolicySeconds) * time.Second, MaxAITokens: body.AITokenBudget, MaxConcurrent: body.ConcurrencyLimit}, AllowedActions: body.AllowedActions, Verification: securityagent.Verification{Kind: body.VerificationKind}, DefinitionVersion: body.DefinitionVersion, Enabled: body.Enabled}
 	actionsReadable := servedWorkflowActionsAtAutonomyWithCapabilities(body.AllowedActions, body.Autonomy, repository.SecurityAgentConnectorRevocationAvailable(), repository.SecurityAgentSessionIsolationAvailable())
 	if len(body.AllowedActions) == 1 && body.AllowedActions[0] == "create_evidence_export" {
 		// Saved export state remains readable when connected workers are down.
@@ -769,7 +770,7 @@ func validSecurityAgentApproval(value SecurityAgentApproval) bool {
 // A private envelope validates identity before its bound context is decoded.
 // Public callers must use validSecurityAgentApproval, which also requires it.
 func validSecurityAgentApprovalShape(value SecurityAgentApproval) bool {
-	validEffect := stringIn(value.ExpectedEffect, "Move finding to under review", findingResponseApprovalEffect) && value.TTLSeconds == 0 && value.Reversible || value.ExpectedEffect == "Apply temporary containment policy" && value.TTLSeconds >= 60 && value.TTLSeconds <= 3600 && value.Reversible || value.ExpectedEffect == "Isolate runtime session" && value.TTLSeconds >= 60 && value.TTLSeconds <= 3600 && value.Reversible || value.ExpectedEffect == "Revoke integration connection" && value.TTLSeconds == 0 && !value.Reversible || stringIn(value.ExpectedEffect, "Run existing test", "Rerun existing test") && value.TTLSeconds == 0 && !value.Reversible
+	validEffect := stringIn(value.ExpectedEffect, "Move finding to under review", findingResponseApprovalEffect) && value.TTLSeconds == 0 && value.Reversible || stringIn(value.ExpectedEffect, "Apply temporary containment policy", "Apply temporary monitoring policy") && value.TTLSeconds >= 60 && value.TTLSeconds <= 3600 && value.Reversible || value.ExpectedEffect == "Isolate runtime session" && value.TTLSeconds >= 60 && value.TTLSeconds <= 3600 && value.Reversible || value.ExpectedEffect == "Revoke integration connection" && value.TTLSeconds == 0 && !value.Reversible || stringIn(value.ExpectedEffect, "Run existing test", "Rerun existing test") && value.TTLSeconds == 0 && !value.Reversible
 	if value.ExpectedEffect == "Create run-scoped evidence export" {
 		validEffect = value.TTLSeconds == 0 && value.Reversible
 	}
@@ -837,7 +838,7 @@ func validSecurityAgentRunDetail(value SecurityAgentRunDetail, runID string) boo
 			}
 			continue
 		}
-		if !ok || action == "update_finding_response" && (!stringIn(approval.ExpectedEffect, "Move finding to under review", findingResponseApprovalEffect) || approval.TTLSeconds != 0 || !approval.Reversible) || action == "create_temporary_policy" && (approval.ExpectedEffect != "Apply temporary containment policy" || approval.TTLSeconds < 60 || approval.TTLSeconds > 3600 || !approval.Reversible) || action == "isolate_session" && (approval.ExpectedEffect != "Isolate runtime session" || approval.TTLSeconds < 60 || approval.TTLSeconds > 3600 || !approval.Reversible) || action == "revoke_integration_connection" && (approval.ExpectedEffect != "Revoke integration connection" || approval.TTLSeconds != 0 || approval.Reversible) || action == "run_test" && approval.ExpectedEffect != "Run existing test" || action == "rerun_test" && approval.ExpectedEffect != "Rerun existing test" || !stringIn(action, "update_finding_response", "create_temporary_policy", "isolate_session", "revoke_integration_connection", "run_test", "rerun_test") {
+		if !ok || action == "update_finding_response" && (!stringIn(approval.ExpectedEffect, "Move finding to under review", findingResponseApprovalEffect) || approval.TTLSeconds != 0 || !approval.Reversible) || action == "create_temporary_policy" && (!stringIn(approval.ExpectedEffect, "Apply temporary containment policy", "Apply temporary monitoring policy") || approval.TTLSeconds < 60 || approval.TTLSeconds > 3600 || !approval.Reversible) || action == "isolate_session" && (approval.ExpectedEffect != "Isolate runtime session" || approval.TTLSeconds < 60 || approval.TTLSeconds > 3600 || !approval.Reversible) || action == "revoke_integration_connection" && (approval.ExpectedEffect != "Revoke integration connection" || approval.TTLSeconds != 0 || approval.Reversible) || action == "run_test" && approval.ExpectedEffect != "Run existing test" || action == "rerun_test" && approval.ExpectedEffect != "Rerun existing test" || !stringIn(action, "update_finding_response", "create_temporary_policy", "isolate_session", "revoke_integration_connection", "run_test", "rerun_test") {
 			return false
 		}
 	}

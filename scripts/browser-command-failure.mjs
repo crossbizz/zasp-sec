@@ -14,3 +14,11 @@ export function browserCommandFailureAnnotation(executable,args,kind){
  }
  return `::error title=Compliance browser command failed::Observed command class: ${label}; failure: ${kind}.`;
 }
+
+const PHASE_ANNOTATIONS=new Map(['services','command-builds','schema-bootstrap','browser-assertions'].map(phase=>[phase,`::error title=Compliance browser phase failed::Observed phase: ${phase}.`]));
+export function emitComplianceBrowserPhaseFailure(phase,emit){
+ try{emit(PHASE_ANNOTATIONS.get(phase)??'::error title=Compliance browser phase failed::Observed phase: unavailable.');}catch{/* Diagnostics must not replace the original failure. */}
+}
+export function emitComplianceMigrationFailure(emit){
+ try{emit('::error title=Compliance browser schema bootstrap failed::Observed branch: up-to-48 migration returned nonzero.');}catch{/* Preserve the existing handled-command failure. */}
+}
