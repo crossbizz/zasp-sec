@@ -372,7 +372,7 @@ describe("Zasp application", () => {
 		expect(await screen.findByRole("heading", { name: "Runtime sensors" })).toBeVisible();
 		expect(window.location.pathname).toBe("/integrations/sensors");
 		expect(screen.getByRole("link", { name: "Sensors" })).toHaveAttribute("aria-current", "page");
-		expect(requests).toContain("/api/v1/sensors");
+		await waitFor(() => expect(requests).toContain("/api/v1/sensors"));
 	});
 
 	it("clears visible workflow state while switching scopes and remounts on the exact new scope", async () => {
