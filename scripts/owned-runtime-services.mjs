@@ -62,25 +62,26 @@ export async function startOwnedRuntimeServices(config,adapters=defaultAdapters,
  };
  try{
   const token=adapters.token();if(typeof token!=='string'||!/^[a-f0-9]{64}$/.test(token))fail();await adapters.writeToken(root,token);
-  const temporalPort=await adapters.reservePort(),fgaPort=await adapters.reservePort();if(![temporalPort,fgaPort].every(v=>Number.isSafeInteger(v)&&v>=1024&&v<=65535)||temporalPort===fgaPort)fail();
+  const temporalPort=await adapters.reservePort(),fgaPort=await adapters.reservePort(),grpcPort=await adapters.reservePort();if(![temporalPort,fgaPort,grpcPort].every(v=>Number.isSafeInteger(v)&&v>=1024&&v<=65535)||new Set([temporalPort,fgaPort,grpcPort]).size!==3)fail();
   const temporalAddress='127.0.0.1:'+temporalPort,fgaURL='http://127.0.0.1:'+fgaPort;
   const env={PATH:'/usr/bin:/bin',HOME:path.join(root,'home'),TMPDIR:root,LANG:'C',LC_ALL:'C'};
   if(aborted)fail();owners.push(await adapters.start('temporal',['server','start-dev','--ip','127.0.0.1','--port',String(temporalPort),'--headless','--db-filename',path.join(root,'temporal.sqlite'),'--namespace',namespace],{tool:config.tools.temporal,cwd:root,env}));
-  if(aborted)fail();owners.push(await adapters.start('openfga',['run'],{tool:config.tools.openfga,cwd:root,env:{...env,OPENFGA_HTTP_ADDR:'127.0.0.1:'+fgaPort,OPENFGA_GRPC_ADDR:'127.0.0.1:0',OPENFGA_DATASTORE_ENGINE:'memory',OPENFGA_AUTHN_METHOD:'preshared',OPENFGA_AUTHN_PRESHARED_KEYS:token,OPENFGA_PLAYGROUND_ENABLED:'false',OPENFGA_METRICS_ENABLED:'false',OPENFGA_LOG_LEVEL:'warn'}}));
+  if(aborted)fail();owners.push(await adapters.start('openfga',['run'],{tool:config.tools.openfga,cwd:root,env:{...env,OPENFGA_HTTP_ADDR:'127.0.0.1:'+fgaPort,OPENFGA_GRPC_ADDR:'127.0.0.1:'+grpcPort,OPENFGA_DATASTORE_ENGINE:'memory',OPENFGA_AUTHN_METHOD:'preshared',OPENFGA_AUTHN_PRESHARED_KEYS:token,OPENFGA_PLAYGROUND_ENABLED:'false',OPENFGA_METRICS_ENABLED:'false',OPENFGA_LOG_LEVEL:'warn'}}));
   for(const owner of owners)void owner.completed.then(()=>{exited=true;},()=>{exited=true;});
   // Poll only read-only namespace describe; no existing namespace is modified.
   const deadline=adapters.now()+45000;let described;
   for(;;){try{described=await guard(signal=>adapters.command(config.tools.temporal,['operator','namespace','describe','--namespace',namespace,'--address',temporalAddress,'--output','json'],{cwd:root,env,signal}));if(described?.namespaceInfo?.name===namespace)break;}catch{if(exited||aborted||incompleteOperation)fail();}if(adapters.now()>=deadline)fail();await adapters.wait(100);}
-  for(const [name,owner,port]of [['temporal',owners[0],temporalPort],['openfga',owners[1],fgaPort]]){let matched=false;while(adapters.now()<deadline){try{await guard(signal=>adapters.listener(name,owner,port,signal));matched=true;break;}catch{if(exited||aborted||incompleteOperation)fail();}await adapters.wait(100);}if(!matched)fail();}
-  const post=async(url,body)=>{await guard(signal=>adapters.listener('openfga',owners[1],fgaPort,signal));const result=await guard(signal=>adapters.request(url,{method:'POST',redirect:'error',signal,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)}));await guard(signal=>adapters.listener('openfga',owners[1],fgaPort,signal));return result;};
+  for(const [name,owner,port]of [['temporal',owners[0],temporalPort],['openfga',owners[1],fgaPort],['openfga',owners[1],grpcPort]]){let matched=false;while(adapters.now()<deadline){try{await guard(signal=>adapters.listener(name,owner,port,signal));matched=true;break;}catch{if(exited||aborted||incompleteOperation)fail();}await adapters.wait(100);}if(!matched)fail();}
+  const fgaListeners=async signal=>{await adapters.listener('openfga',owners[1],fgaPort,signal);await adapters.listener('openfga',owners[1],grpcPort,signal);};
+  const post=async(url,body)=>{await guard(fgaListeners);const result=await guard(signal=>adapters.request(url,{method:'POST',redirect:'error',signal,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)}));await guard(fgaListeners);return result;};
   // Service startup may still be pending; repeated CreateStore is NOT used as a health probe.
-  if(adapters.health){let healthy=false;while(adapters.now()<deadline){try{await guard(signal=>adapters.listener('openfga',owners[1],fgaPort,signal));healthy=await guard(signal=>adapters.health(fgaURL+'/healthz',signal));if(healthy)break;}catch{if(exited||aborted||incompleteOperation)fail();}await adapters.wait(100);}if(!healthy)fail();}
+  if(adapters.health){let healthy=false;while(adapters.now()<deadline){try{await guard(fgaListeners);const ready=await guard(signal=>adapters.health(fgaURL+'/healthz',signal));await guard(fgaListeners);healthy=ready;if(healthy)break;}catch{if(exited||aborted||incompleteOperation)fail();}await adapters.wait(100);}if(!healthy)fail();}
   const store=await post(fgaURL+'/stores',{name:'zasp-browser-'+config.run});if(!ulid(store?.id))fail();
   const published=await post(fgaURL+'/stores/'+store.id+'/authorization-models',JSON.parse(model));if(!ulid(published?.authorization_model_id))fail();
-  await guard(signal=>adapters.listener('openfga',owners[1],fgaPort,signal));
+  await guard(fgaListeners);
   const readback=await guard(signal=>adapters.request(fgaURL+'/stores/'+store.id+'/authorization-models/'+published.authorization_model_id,{method:'GET',redirect:'error',signal,headers:{Authorization:'Bearer '+token}}));
   if(!exactModel(JSON.parse(model),readback?.authorization_model,published.authorization_model_id))fail();
-  await guard(signal=>adapters.listener('openfga',owners[1],fgaPort,signal));
+  await guard(fgaListeners);
   const environment=Object.freeze({ZASP_RUNTIME_SERVICES_ENABLED:'true',ZASP_ENVIRONMENT:'test',ZASP_RUNTIME_SERVICES_TIMEOUT:'5s',ZASP_TEMPORAL_ADDRESS:temporalAddress,ZASP_TEMPORAL_NAMESPACE:namespace,ZASP_TEMPORAL_TASK_QUEUE:'zasp-browser-main-'+config.run,ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE:'zasp-browser-discovery-'+config.run,ZASP_OPENFGA_URL:fgaURL,ZASP_OPENFGA_STORE_ID:store.id,ZASP_OPENFGA_MODEL_ID:published.authorization_model_id,ZASP_OPENFGA_TOKEN_FILE:path.join(root,'openfga.token')});
   const completed=Promise.race(owners.map(owner=>owner.completed));void completed.catch(()=>{});
   return Object.freeze({environment,root,close,completed,projection:'pending',acceptance:false,native:false,production:false,upgradeInstalled:false,deployed:false,ledger:false});
