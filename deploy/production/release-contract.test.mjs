@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { watch } from "node:fs";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -11,6 +11,8 @@ import { load } from "js-yaml";
 import { inspectContainerBuilds, renderCustomerEdgeRelease, renderRelease, validateRenderedRelease } from "./release-contract.mjs";
 import { customerEdgeReleaseFixture as edgeRelease, productionReleaseFixture as release } from "./release-fixture.mjs";
 import { auditExportReleaseFixture } from "./audit-export-release-fixture.mjs";
+
+import { goTestRuntime, requireGoTestVersion } from "./go-test-runtime.mjs";
 
 const exec = promisify(execFile);
 
@@ -2080,3 +2082,54 @@ function one(resources, kind, name) {
 function envOf(workload) {
   return Object.fromEntries(workload.spec.template.spec.containers[0].env.map(({ name, value, valueFrom }) => [name, value ?? "fieldRef:" + valueFrom?.fieldRef?.fieldPath]));
 }
+
+
+test("API build dependency stage resolves its copied local health module", async () => {
+  const launch = goTestRuntime();
+  const env = { ...launch.env, GOWORK: "off" };
+  const version = await exec(launch.executable, ["env", "GOVERSION"], { env, timeout: 10000, maxBuffer: 4096 });
+  requireGoTestVersion(version.stdout);
+  assert.equal(version.stderr, "");
+  const repository = new URL("../../", import.meta.url);
+  const dockerfile = await readFile(new URL("./api.Dockerfile", import.meta.url), "utf8");
+  const directory = await mkdtemp(path.join(tmpdir(), "zasp-api-module-layout-"));
+  let workdir;
+  try {
+    // Materialize the actual pre-download COPY instructions, without building an image.
+    for (const line of dockerfile.split("\n")) {
+      if (line.startsWith("RUN ")) {
+        assert.equal(line, "RUN go mod download");
+        break;
+      }
+      if (line.startsWith("WORKDIR ")) {
+        const containerPath = line.slice("WORKDIR ".length);
+        assert.ok(["/src", "/src/platform"].includes(containerPath));
+        workdir = path.join(directory, containerPath);
+        await mkdir(workdir, { recursive: true });
+      }
+      if (line.startsWith("COPY ")) {
+        assert.ok(workdir);
+        const fields = line.slice("COPY ".length).split(" ");
+        const destination = fields.pop();
+        const target = destination.startsWith("/") ? path.join(directory, destination) : path.join(workdir, destination);
+        assert.ok(target.startsWith(directory + path.sep));
+        await mkdir(target, { recursive: true });
+        for (const source of fields) {
+          assert.ok(["services/platform/go.mod", "services/platform/go.sum", "services/health"].includes(source));
+          const input = new URL(source, repository);
+          await cp(input, source === "services/health" ? target : path.join(target, path.basename(source)), { recursive: source === "services/health" });
+        }
+      }
+    }
+    const before = await Promise.all(["go.mod", "go.sum"].map((name) => readFile(path.join(workdir, name))));
+    const { stdout } = await exec(launch.executable, ["list", "-mod=readonly", "-m", "-f", "{{.Path}} {{if .Replace}}{{.Replace.Dir}}{{end}}", "all"], {
+      cwd: workdir, env, timeout: 30000,
+    });
+    const health = stdout.split("\n").filter((line) => line.startsWith("github.com/zasp-ai/zasp-sec/services/health "));
+    assert.deepEqual(health, [`github.com/zasp-ai/zasp-sec/services/health ${path.join(directory, "src/health")}`]);
+    assert.deepEqual(await readFile(path.join(directory, "src/health/go.mod")), await readFile(new URL("services/health/go.mod", repository)));
+    assert.deepEqual(await Promise.all(["go.mod", "go.sum"].map((name) => readFile(path.join(workdir, name)))), before);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

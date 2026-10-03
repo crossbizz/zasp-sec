@@ -1,6 +1,7 @@
 FROM golang:1.25.13-alpine3.23@sha256:42fc3368d1c50170a452f2bf4a1dfd292a065870c3f258d799aad4316671cb69 AS build
 ARG VERSION
-WORKDIR /src
+WORKDIR /src/platform
+COPY services/health /src/health
 COPY services/platform/go.mod services/platform/go.sum ./
 RUN go mod download
 COPY services/platform ./
