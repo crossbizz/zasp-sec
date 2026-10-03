@@ -23,6 +23,7 @@ type loginRoutingDriver struct {
 	queryCalls, execCalls, beginCalls int
 	stateDigest                       [32]byte
 	returnPath                        string
+	native                            *loginRoutingTransaction
 }
 
 type loginRoutingRow func(...any) error
@@ -88,10 +89,65 @@ func (d *loginRoutingDriver) Exec(_ context.Context, query string, args ...any) 
 
 func (d *loginRoutingDriver) Begin(context.Context) (pgx.Tx, error) {
 	d.beginCalls++
-	return nil, errors.New("unexpected login characterization transaction")
+	if d.native == nil {
+		return nil, errors.New("controlled native transaction start refusal")
+	}
+	return d.native, nil
 }
 
 func (*loginRoutingDriver) Close() error { return nil }
+
+// A closed current-auth transaction fixture models only begin_login. Its
+// observations are component routing evidence, not PostgreSQL installation.
+type loginRoutingTransaction struct {
+	pgx.Tx
+	driver                         *loginRoutingDriver
+	mode                           string
+	query                          string
+	args                           []any
+	queryCalls, commits, rollbacks int
+	pendingState, pendingPath      string
+}
+
+func (tx *loginRoutingTransaction) QueryRow(_ context.Context, query string, args ...any) pgx.Row {
+	tx.queryCalls++
+	tx.query = query
+	tx.args = append([]any(nil), args...)
+	return loginRoutingRow(func(dest ...any) error {
+		if query != `SELECT to_jsonb(zasp_authorization80_identity.begin_login($1,$2))` || len(args) != 2 || len(dest) != 1 {
+			return errors.New("native begin query drifted")
+		}
+		state, stateOK := args[0].(string)
+		path, pathOK := args[1].(string)
+		decoded, err := base64.RawURLEncoding.DecodeString(state)
+		output, outputOK := dest[0].(*[]byte)
+		if !stateOK || !pathOK || err != nil || len(decoded) != 32 || path != "/discovery/assets" || !outputOK {
+			return errors.New("native begin arguments drifted")
+		}
+		tx.pendingState, tx.pendingPath = state, path
+		switch tx.mode {
+		case "query-failure":
+			return errors.New("controlled native query refusal")
+		case "false-output":
+			*output = []byte(`false`)
+		case "malformed-output":
+			*output = []byte(`{"ok":true}`)
+		default:
+			*output = []byte(`true`)
+		}
+		return nil
+	})
+}
+func (tx *loginRoutingTransaction) Commit(context.Context) error {
+	tx.commits++
+	if tx.mode == "commit-failure" {
+		return errors.New("controlled native commit refusal")
+	}
+	tx.driver.stateDigest = sha256.Sum256([]byte(tx.pendingState))
+	tx.driver.returnPath = tx.pendingPath
+	return nil
+}
+func (tx *loginRoutingTransaction) Rollback(context.Context) error { tx.rollbacks++; return nil }
 
 type loginRoutingAuthenticator struct{ calls int }
 
@@ -102,16 +158,20 @@ func (a *loginRoutingAuthenticator) Authenticate(context.Context, string) (platf
 
 func (*loginRoutingAuthenticator) Ready(context.Context) error { return nil }
 
-// Diagnostic of current behavior, not a desired-login regression test. A future
-// lifecycle repair must replace the denial expectation with its closed contract.
+// Exercise the installed source dispatcher across explicit transaction boundaries.
+// These controlled drivers do not prove provider or native PostgreSQL acceptance.
 func TestP7StytchLoginStartRoutingCharacterization(t *testing.T) {
-	for _, enforcing := range []bool{true, false} {
-		name := "current80-denies-before-state-insert"
+	for _, mode := range []string{"transaction-start-failure", "success", "query-failure", "false-output", "malformed-output", "commit-failure", "compatibility"} {
+		enforcing := mode != "compatibility"
+		name := "current80-" + mode
 		if !enforcing {
 			name = "explicit-non-enforcing-compatibility-control"
 		}
 		t.Run(name, func(t *testing.T) {
 			driver := &loginRoutingDriver{}
+			if enforcing && mode != "transaction-start-failure" {
+				driver.native = &loginRoutingTransaction{driver: driver, mode: mode}
+			}
 			database, err := NewPostgresJSONDatabase(driver)
 			if err != nil {
 				t.Fatal(err)
@@ -162,10 +222,27 @@ func TestP7StytchLoginStartRoutingCharacterization(t *testing.T) {
 			}
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
-			if response.Header().Get("Set-Cookie") != "" || driver.beginCalls != 0 || driver.queryCalls != 2 || authenticator.calls != 0 {
+			if response.Header().Get("Set-Cookie") != "" || driver.queryCalls != 2 || authenticator.calls != 0 {
 				t.Fatal("unexpected cookie, transaction, post-constructor query or provider authentication")
 			}
+			expectedBegin := 0
 			if enforcing {
+				expectedBegin = 1
+			}
+			if driver.beginCalls != expectedBegin {
+				t.Fatalf("transaction start count=%d want=%d", driver.beginCalls, expectedBegin)
+			}
+			if driver.native != nil {
+				tx := driver.native
+				wantCommits := 0
+				if mode == "success" || mode == "commit-failure" {
+					wantCommits = 1
+				}
+				if tx.queryCalls != 1 || tx.commits != wantCommits || tx.rollbacks != 1 || tx.query != `SELECT to_jsonb(zasp_authorization80_identity.begin_login($1,$2))` || len(tx.args) != 2 || driver.execCalls != 0 {
+					t.Fatalf("native transaction escaped closed query/commit/rollback: query=%s calls=%d commits=%d rollbacks=%d exec=%d", tx.query, tx.queryCalls, tx.commits, tx.rollbacks, driver.execCalls)
+				}
+			}
+			if enforcing && mode != "success" {
 				var body struct {
 					Code string `json:"code"`
 				}
@@ -174,7 +251,7 @@ func TestP7StytchLoginStartRoutingCharacterization(t *testing.T) {
 				}
 			} else {
 				target, parseErr := url.Parse(response.Header().Get("Location"))
-				if response.Code != http.StatusFound || parseErr != nil || target.Scheme != "https" || target.Host != "test.stytch.com" || target.Path != "/v1/b2b/public/oauth/google/start" || driver.execCalls != 1 || driver.returnPath != "/discovery/assets" {
+				if response.Code != http.StatusFound || parseErr != nil || target.Scheme != "https" || target.Host != "test.stytch.com" || target.Path != "/v1/b2b/public/oauth/google/start" || driver.execCalls != map[bool]int{true: 0, false: 1}[enforcing] || driver.returnPath != "/discovery/assets" {
 					t.Fatalf("expected compatibility redirect: status=%d exec=%d", response.Code, driver.execCalls)
 				}
 				query := target.Query()
