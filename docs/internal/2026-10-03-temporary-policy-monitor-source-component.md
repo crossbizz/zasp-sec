@@ -1,0 +1,18 @@
+# Temporary policy Monitor source component
+
+This batch connects typed temporary-policy modes through saved definitions, API/OpenAPI and UI, planning, signed worker bundles, approval context, and a durable source-only lifecycle. It implements one supervised action with a 60–3600-second TTL. It does not complete original M7A16–18 acceptance or change the original 728-task ledger.
+
+An absent mode preserves the existing Block serialization and behavior. Explicit null, empty, unknown, conflicting or unbound modes are refused. Monitor observes traffic and never reports containment or remediation. Planning binds the saved mode and TTL; signed readback must match the mode, action, phase and scoped policy. The durable source component uses the approved immutable definition version rather than a subsequently edited definition. Expiry and revocation require verified cleanup; missing credentials leave an explicit cleanup failure and NeedsHuman outcome instead of claiming successful cleanup.
+
+Monitor execution is currently unavailable. The UI saves a disabled one-action draft and offers no Monitor activation, simulation or run control. Common definition writes refuse enabled Monitor, and activation paths preserve closed readiness/family checks. SQL81 has no migration Runner registration, no public grants and Ready remains false. Its fixture-only installation is not production installation. Existing SQL22, SQL24, SQL61, SQL80 and native379 captures remain unchanged.
+
+Meaningful grouped RED cases preceded fixes for mode decoding, saved-mode escalation, signed Block/Monitor substitution, false settlement, immutable-version recovery, missing-credential cleanup, approval labeling and unavailable-mode admission. Final private component checks used pinned Go1.26.8 and Node22.23.1, a closed offline module environment, owned bounded process supervision and source/tool checks:
+
+- All 23 securityagent unit tests passed.
+- The disclosed affected API roster passed 68 of 69 top-level tests; the existing routing test failed five subcases. One complete ce391 platform/health baseline produced exactly the same five failures and the same passing simulate subcase. These are preexisting failed checks, still open for overall acceptance.
+- All 17 selected worker action/session/approval/policy tests passed.
+- One owned PostgreSQL18.3 lifecycle fixture passed in 10.780 seconds, including original Block comparison, immutable approved-version recovery, signed Monitor apply and cleanup, missing-credential failure, tenant separation, TTL and repeated-claim controls. The owned postmaster stopped normally and all processes joined.
+- Four UI/decoder files passed 183 tests; nonincremental typecheck and production build passed. OpenAPI checks passed 31 tests. Each completed final run retained unchanged source/tool hashes and joined owned processes.
+- Focused lint passed in 4.448 seconds after a reserve-restored retry. The preceding preflight refusal is retained in the chronology; no command launched and the reserve was not weakened.
+
+These checks are component evidence. The earlier full private three-package attempt failed under an incomplete private baseline and a bounded cold-cache resource profile; it is preserved as a failure. Mandatory PostgreSQL, cold CLI and native379 tests were not converted to skips or waived. A Stytch current80 characterization failure remains unresolved in that private check. No full-suite, deployed API, live provider, native, automatic execution, production or release acceptance is asserted. The original acceptance guards and public activation limits remain in force.

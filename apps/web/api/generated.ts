@@ -4035,8 +4035,8 @@ export type components = {
             /** @constant */
             readonly target_status: "under_review";
         } | {
-            /** @constant */
-            readonly mode: "block";
+            /** @enum {string} */
+            readonly mode: "monitor" | "block";
             readonly scope: components["schemas"]["ProductID"];
             readonly target_id: components["schemas"]["ProductID"];
             readonly ttl_seconds: number;
@@ -4128,7 +4128,7 @@ export type components = {
             readonly attack_lab?: components["schemas"]["SecurityAgentAttackLabApproval"];
             readonly evidence_summary: readonly components["schemas"]["ProductID"][];
             /** @enum {string} */
-            readonly expected_effect: "Move finding to under review" | "Assign investigator and update finding response" | "Apply temporary containment policy" | "Isolate runtime session" | "Revoke integration connection" | "Run existing test" | "Rerun existing test" | "Run a bounded Attack Lab reproduction; human interpretation required" | "Create run-scoped evidence export";
+            readonly expected_effect: "Move finding to under review" | "Assign investigator and update finding response" | "Apply temporary containment policy" | "Apply temporary monitoring policy" | "Isolate runtime session" | "Revoke integration connection" | "Run existing test" | "Rerun existing test" | "Run a bounded Attack Lab reproduction; human interpretation required" | "Create run-scoped evidence export";
             /** Format: date-time */
             readonly expires_at: string;
             readonly id: components["schemas"]["ProductID"];
@@ -4140,7 +4140,7 @@ export type components = {
             readonly step_id: components["schemas"]["ProductID"];
             readonly ttl_seconds: number;
             readonly version: number;
-        } & (unknown & unknown);
+        } & (unknown & unknown & unknown);
         /** @description Persisted selected-step context. Validated enriched finding-response approvals always include the complete bound context; legacy contexts require exact X-Zasp-Approval-Context v1 opt-in. Catalog risk is not a provider assessment; rationale never authorizes a decision. */
         readonly SecurityAgentApprovalContext: {
             /** @enum {string} */
@@ -4283,13 +4283,18 @@ export type components = {
             readonly max_duration_seconds: number;
             readonly max_steps: number;
             readonly name: string;
+            /**
+             * @description Persisted temporary policy intent. Legacy omission retains Block. Monitor is a supervised single-action observation and never claims containment or remediation.
+             * @enum {string}
+             */
+            readonly temporary_policy_mode?: "monitor" | "block";
             readonly temporary_policy_seconds: number;
             /** @enum {string} */
             readonly trigger_kind: "finding" | "attack_path" | "runtime_decision";
             readonly trigger_rules?: components["schemas"]["SecurityAgentTriggerRules"];
             readonly trigger_source: string;
             readonly verification_kind: string;
-        };
+        } & unknown;
         readonly SecurityAgentExecutionControl: {
             /** @enum {string} */
             readonly action_key: "*" | "create_evidence_export" | "create_temporary_policy" | "isolate_session" | "rerun_test" | "revoke_integration_connection" | "run_test" | "start_attack_lab" | "update_finding_response";
@@ -4403,13 +4408,18 @@ export type components = {
             readonly max_duration_seconds: number;
             readonly max_steps: number;
             readonly name: string;
+            /**
+             * @description Persisted temporary policy intent. Legacy omission retains Block. Monitor is a supervised single-action observation and never claims containment or remediation.
+             * @enum {string}
+             */
+            readonly temporary_policy_mode?: "monitor" | "block";
             readonly temporary_policy_seconds: number;
             /** @enum {string} */
             readonly trigger_kind: "finding" | "attack_path" | "runtime_decision";
             readonly trigger_rules?: components["schemas"]["SecurityAgentTriggerRules"];
             readonly trigger_source: string;
             readonly verification_kind: string;
-        };
+        } & unknown;
         /** @description Start the current activated definition. Omit both trigger fields for a server-derived manual intent, or supply both for an explicit scoped source. Caller-supplied manual digests are not accepted. */
         readonly SecurityAgentLegacyTriggerInput: {
             readonly environment_id: components["schemas"]["ProductID"];

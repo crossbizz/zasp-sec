@@ -1,3 +1,4 @@
+import { browserCommandFailureAnnotation, emitComplianceBrowserPhaseFailure, emitComplianceAPIChildFailure, emitComplianceMigrationFailure } from "./browser-command-failure.mjs";
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, createHmac, generateKeyPairSync, randomBytes } from "node:crypto";
@@ -197,6 +198,7 @@ let loseNextRecoveryBackupResponse = true;
 const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
 if (auditExportBrowserMode) installAuditBrowserFatalCleanup(()=>cleanupController.run());
 
+let compliancePhase = "services";
 try {
   if (automaticDiscoveryMode) automaticDiscoverySourceHashes = await hashAutomaticDiscoveryInputs();
   const ports = await Promise.all(Array.from({ length: 8 }, reservePort));
@@ -208,11 +210,14 @@ try {
   const actionPrivateKey = Buffer.concat([Buffer.from(actionPrivateJWK.d, "base64url"), Buffer.from(actionPrivateJWK.x, "base64url")]).toString("base64url");
   const dsn = `postgres://zasp_e2e@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
   const apiDSN = `postgres://zasp_e2e_api@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
+  if (complianceBrowserMode) compliancePhase = "postgres-startup";
   postgres = await startPostgres(postgresPort);
   if (process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1") {
+    if (complianceBrowserMode) compliancePhase = "postgres-instrumentation";
     const instrumentation = await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-c", "SELECT current_setting('track_functions')"]);
     assert.equal(instrumentation.stdout.trim(), "pl", "concurrent-load diagnostic requires actual claim-function call accounting in its owned database");
   }
+  if (complianceBrowserMode) compliancePhase = "postgres-principal-provisioning";
   await provisionPostgresPrincipals(dsn);
   console.log("combined E2E: disposable PostgreSQL ready");
 
@@ -222,6 +227,7 @@ try {
   const workerE2EBinary = path.join(temporaryRoot, "agentsec-worker-e2e");
 	const gatewayE2EBinary = path.join(temporaryRoot, "runtime-gateway-e2e");
 	const agentsecctl = path.join(temporaryRoot, "agentsecctl");
+  if (complianceBrowserMode) compliancePhase = "command-builds";
   await command("go", ["build", "-o", migrate, "./agentsec-migrate"], { cwd: platform });
   await command("go", [auditExportBrowserMode || complianceBrowserMode || attackLabMountedMode || securityAgentExportMode ? "test" : "build", ...(auditExportBrowserMode || complianceBrowserMode || attackLabMountedMode || securityAgentExportMode ? ["-c"] : []), "-o", apiBinary, "./agentsec-api"], { cwd: platform, timeout: 120_000 });
   if (!auditExportBrowserMode) {
@@ -264,8 +270,10 @@ try {
 		ZASP_RECOVERY_WORKER_DB_PRINCIPAL: "zasp_e2e_recovery",
 		ZASP_RECOVERY_OUTBOX_DB_PRINCIPAL: "zasp_e2e_recovery_outbox",
   };
+  if (complianceBrowserMode) compliancePhase = "schema-bootstrap";
   const migrationResult = await command(migrate, ["up-to-48"], { reject: false, env: migrationEnvironment });
 	if (migrationResult.status !== 0) {
+    if (complianceBrowserMode) emitComplianceMigrationFailure(message=>console.error(message));
 		if(existingTestMountedMode && postgres.containerID) {
 			const diagnostic=await command("docker",["logs","--tail","250",postgres.containerID],{reject:false,timeout:5000});
 			console.error("owned migration diagnostic:",((diagnostic.stderr??"")+"\n"+(diagnostic.stdout??"")).split("\n").filter(line=>/ERROR:|DETAIL:|CONTEXT:|FATAL:/.test(line)).slice(-20).join("\n"));
@@ -1326,6 +1334,9 @@ try {
   console.log("production combined E2E passed: callback/cookie/bootstrap, risk pagination/recovery, administration, PAT/receipt recovery, responsive keyboard focus, durable restart/reload, tenant denial");
   }
   }
+} catch (error) {
+  if (complianceBrowserMode) emitComplianceBrowserPhaseFailure(compliancePhase,message=>console.error(message));
+  throw error;
 } finally {
 	await cleanupController.run();
 	cleanupController.dispose();
@@ -2188,6 +2199,7 @@ COMMIT;`);
 
 async function exerciseComplianceBrowser(configuration) {
   const {dsn,apiBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
+  if (complianceBrowserMode) compliancePhase = "compliance-fixture-provisioning";
   const sql=async statement=>(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
   const org="pid_10000001-0000-4000-8000-000000000001",workspace="pid_10000022-0000-4000-8000-000000000022",environment="pid_10000023-0000-4000-8000-000000000023",actor="pid_10000004-0000-4000-8000-000000000004";
   const selectedScope=`${org}/${workspace}/${environment}`;
@@ -2204,18 +2216,28 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
   // Retained local evidence: downloaded files and exact controlled-provider bytes.
   console.log(`compliance browser evidence: ${storage}`);
   const publicOrigin=`https://${productHostname}:${proxyPort}`;
-  identity=await startIdentityServer(identityPort,publicOrigin); policyHistory=await startPolicyHistoryServer(policyHistoryPort);
+  if (complianceBrowserMode) compliancePhase = "controlled-identity-startup";
+  identity=await startIdentityServer(identityPort,publicOrigin);
+  if (complianceBrowserMode) compliancePhase = "policy-history-startup";
+  policyHistory=await startPolicyHistoryServer(policyHistoryPort);
+  if (complianceBrowserMode) compliancePhase = "api-startup";
   const apiEnvironment={...combinedAPIEnvironment({...configuration,publicOrigin}), ZASP_COMPLIANCE_BROWSER_API:"true", ZASP_COMPLIANCE_BROWSER_PG_PORT:String(postgresPort), ZASP_COMPLIANCE_BROWSER_OBJECT:object,ZASP_COMPLIANCE_BROWSER_DEADLINE:new Date(Date.now()+20*60_000).toISOString(),
     ZASP_COMPLIANCE_EXPORT_BUCKET:"zasp-compliance-exports", ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER:"123456789012",ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN:"arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111",ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN:"arn:aws:iam::123456789012:role/compliance-api-reader",ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE:"/var/run/secrets/eks.amazonaws.com/serviceaccount/token"};
-  const startAPI=async(enabled=true)=>{const environment={...apiEnvironment};if(!enabled){for(const key of Object.keys(environment))if(key.startsWith("ZASP_COMPLIANCE_EXPORT_"))delete environment[key];environment.ZASP_COMPLIANCE_BROWSER_LEGACY="true";}api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:environment});try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(e){throw new Error(`${e.message}; ${api.output()}`);}};
+  const startAPI=async(enabled=true)=>{const previousCompliancePhase=compliancePhase;const environment={...apiEnvironment};if(!enabled){for(const key of Object.keys(environment))if(key.startsWith("ZASP_COMPLIANCE_EXPORT_"))delete environment[key];environment.ZASP_COMPLIANCE_BROWSER_LEGACY="true";}if(complianceBrowserMode)compliancePhase="api-startup";api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:environment});if(complianceBrowserMode)compliancePhase="api-ready";try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(e){if(complianceBrowserMode)emitComplianceAPIChildFailure(api.output(),message=>console.error(message));throw new Error(`${e.message}; ${api.output()}`);}if(complianceBrowserMode)compliancePhase=previousCompliancePhase;};
   await startAPI(false);
+  if (complianceBrowserMode) compliancePhase = "web-startup";
   web=startChild(path.join(root,"node_modules/.bin/vinext"),["start","--port",String(webPort),"--hostname","127.0.0.1"],{cwd:root});
+  if (complianceBrowserMode) compliancePhase = "web-ready";
   await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`,200);
   const key=path.join(temporaryRoot,"compliance-tls.key"),certificate=path.join(temporaryRoot,"compliance-tls.crt");
+  if (complianceBrowserMode) compliancePhase = "tls-provisioning";
   await command("openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","1","-subj",`/CN=${productHostname}`,"-addext",`subjectAltName=DNS:${productHostname}`,"-keyout",key,"-out",certificate]);
+  if (complianceBrowserMode) compliancePhase = "proxy-startup";
   proxy=await startProxy(proxyPort,apiPort,webPort,key,certificate,dsn);
+  if (complianceBrowserMode) compliancePhase = "browser-startup";
   browser=await startBrowser(path.join(temporaryRoot,"compliance-profile"),chromePort,`${publicOrigin}/api/v1/session/start?return_to=%2Fcompliance%2Fevidence`);
   const cdp=browser.cdp;
+  if (complianceBrowserMode) compliancePhase = "browser-assertions";
   const continuityCheckpoints=[];
   let previousTraceCount=0;
   const continuity = async (label, scope, mounted = false) => {
@@ -7088,9 +7110,15 @@ async function command(executable, args, options = {}) {
   let result;
   try { result = await Promise.race([owned.completed, failedShutdown]); }
   finally { clearTimeout(deadline); }
-  if (timedOut) throw new Error(`${path.basename(executable)} exceeded its deadline`);
+  if (timedOut) {
+    console.error(browserCommandFailureAnnotation(executable,args,"deadline"));
+    throw new Error(`${path.basename(executable)} exceeded its deadline`);
+  }
   const { status, signal, stdout, stderr } = result;
-	if (status !== 0 && options.reject !== false) throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
+	if (status !== 0 && options.reject !== false) {
+    console.error(browserCommandFailureAnnotation(executable,args,"nonzero-exit"));
+    throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
+  }
   return result;
 }
 

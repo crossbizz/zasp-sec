@@ -269,7 +269,7 @@ describe("M1-28 internal service health contract", () => {
   it("wires the exact root contract, lint, and verification commands", () => {
     assert.equal(
       packageJSON.scripts["health:contract:test"],
-      "node --test openapi/internal-health.test.mjs && go test -C services/health -race -count=1 ./... && go test -C services/platform -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker && go test -C services/event-ingest -race -count=1 ./... && go test -C services/runtime-gateway -race -count=1 ./...",
+      "node --test openapi/internal-health.test.mjs && go test -C services/health -race -count=1 ./... && go test -C services/platform -p=1 -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker && go test -C services/event-ingest -race -count=1 ./... && go test -C services/runtime-gateway -race -count=1 ./...",
     );
     assert.equal(
       packageJSON.scripts["openapi:test"],

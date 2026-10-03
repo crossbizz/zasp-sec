@@ -11,5 +11,5 @@ export function goTestRuntime(environment = process.env) {
 }
 
 export function requireGoTestVersion(output) {
-  if (output !== "go1.25.13\n" && output !== "go1.25.13\r\n") throw new Error("Go 1.25.13 is required for rendered runtime verification");
+  if (output !== "go1.26.8\n" && output !== "go1.26.8\r\n") throw new Error("Go 1.26.8 is required for rendered runtime verification");
 }

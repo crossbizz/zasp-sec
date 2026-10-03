@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { SecurityAction, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentDefinition, SecurityAgentExecutionControls, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentSimulation, SecurityAgentTemplate } from "../../../apps/web/api/generated";
+import type { SecurityAgentInput, SecurityAction, SecurityAgentActivationState, SecurityAgentApproval, SecurityAgentDefinition, SecurityAgentExecutionControls, SecurityAgentRun, SecurityAgentRunDetail, SecurityAgentSimulation, SecurityAgentTemplate } from "../../../apps/web/api/generated";
 import { decodeSecurityActionPage, decodeSecurityAgentActivationState, decodeSecurityAgentApprovalPage, decodeSecurityAgentExecutionControlResult, decodeSecurityAgentExecutionControls, decodeSecurityAgentRunDetail, decodeSecurityAgentRunPage, decodeSecurityAgentSimulation, decodeSecurityAgentPage } from "../../../apps/web/api/decoders";
 import { createSecurityAgentsAPI, SecurityAgentsView, type SecurityAgentsAPI } from "./SecurityAgentsView";
 import { APIProductError, APITransportError, createAPIClient } from "../../../apps/web/api/client";
@@ -1319,4 +1319,51 @@ describe("Security Agent definition surface", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Security Agent data is unavailable");
     expect(listSecurityAgents).toHaveBeenCalledTimes(100);
   });
+});
+
+it("saves an explicitly selected Monitor as a supervised single-action temporary draft", async () => {
+ const requests: unknown[]=[];
+ const actual=createSecurityAgentsAPI(createAPIClient({fetch:async request=>{
+  const body=await request.json() as Record<string,unknown>;requests.push(body);
+  return Response.json({...body,id:agentID},{headers:{ETag:'"1"',"X-Audit-ID":auditID,"X-Mutation-Receipt-ID":receiptID}});
+ }}));
+ const temporaryTemplate:SecurityAgentTemplate={...template,name:"Temporary policy",default_actions:["create_temporary_policy"],verification_condition:"policy_state"};
+ const temporaryAction:SecurityAction={key:"create_temporary_policy",risk_class:"containment",approval_floor:"operator",verification_kind:"policy_state",target_types:["environment"],reversible:true};
+ render(<SecurityAgentsView api={fixtureAPI({listSecurityAgentTemplates:async()=>[temporaryTemplate],listSecurityActions:async()=>[temporaryAction],createSecurityAgent:actual.createSecurityAgent})} environmentID={environmentID}/>);
+ await userEvent.click(await screen.findByRole("button",{name:"Create Security Agent"}));
+ await userEvent.selectOptions(screen.getByLabelText("Temporary policy mode"),"monitor");
+ expect(screen.getByLabelText("Step limit")).toHaveValue(1);
+ expect(screen.getByLabelText("Step limit")).toBeDisabled();
+ expect(screen.getByText(/Monitor observes traffic and never claims containment or remediation/)).toBeInTheDocument();
+ await userEvent.click(screen.getByRole("button",{name:"Save Security Agent definition"}));
+ await screen.findByRole("button",{name:"Open Bounded response definition"});
+ expect(requests).toHaveLength(1);
+ expect(requests[0]).toMatchObject({temporary_policy_mode:"monitor",autonomy:"supervised",max_steps:1,allowed_actions:["create_temporary_policy"],verification_kind:"policy_state",temporary_policy_seconds:3600,enabled:false});
+});
+
+it("keeps the legacy Block draft body unchanged until a temporary mode is explicitly selected", async()=>{
+ let saved:SecurityAgentInput|undefined;
+ const temporaryTemplate:SecurityAgentTemplate={...template,default_actions:["create_temporary_policy"],verification_condition:"policy_state"};
+ const temporaryAction:SecurityAction={key:"create_temporary_policy",risk_class:"containment",approval_floor:"operator",verification_kind:"policy_state",target_types:["environment"],reversible:true};
+ render(<SecurityAgentsView api={fixtureAPI({listSecurityAgentTemplates:async()=>[temporaryTemplate],listSecurityActions:async()=>[temporaryAction],createSecurityAgent:async value=>{saved=value;return {value:{...value,id:agentID},version:'"1"',auditID,receiptID};}})} environmentID={environmentID}/>);
+ await userEvent.click(await screen.findByRole("button",{name:"Create Security Agent"}));
+ expect(screen.getByLabelText("Temporary policy mode")).toHaveValue("block");
+ await userEvent.click(screen.getByRole("button",{name:"Save Security Agent definition"}));
+ await waitFor(()=>expect(saved).toBeDefined());
+ expect(saved).not.toHaveProperty("temporary_policy_mode");
+ expect(saved?.max_steps).toBe(10);
+});
+
+for (const state of ["draft", "validated", "supervised"] as const) it(`keeps unadmitted Monitor ${state} execution unavailable`, async () => {
+ const activateSecurityAgent=vi.fn(fixtureAPI().activateSecurityAgent);
+ const value:SecurityAgentDefinition={...created,temporary_policy_mode:"monitor",max_steps:1,max_ai_cost_nano_credits:1000,allowed_actions:["create_temporary_policy"],verification_kind:"policy_state",enabled:state==="supervised"};
+ const api=fixtureAPI({getSecurityAgent:async()=>({value,version:'"1"'}),getSecurityAgentActivation:async()=>({id:agentID,activation:state,enabled:state==="supervised",version:1}),activateSecurityAgent});
+ render(<SecurityAgentsView api={api} environmentID={environmentID} autoLoad={false} initialSnapshot={{agents:[value],templates:[template],actions:[temporaryPolicyAction]}} fresh/>);
+ await userEvent.click(screen.getByRole("button",{name:`Open ${value.name}`}));
+ expect(await screen.findByText("Monitor execution is currently unavailable.")).toBeInTheDocument();
+ expect(screen.queryByRole("button",{name:"Validate definition"})).not.toBeInTheDocument();
+ expect(screen.queryByRole("button",{name:"Enable supervised execution"})).not.toBeInTheDocument();
+ expect(screen.queryByRole("button",{name:"Run once"})).not.toBeInTheDocument();
+ expect(screen.queryByRole("button",{name:"Simulate plan"})).not.toBeInTheDocument();
+ expect(activateSecurityAgent).not.toHaveBeenCalled();
 });

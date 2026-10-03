@@ -37,11 +37,16 @@ async function localResponse(url,signal){
   return {status:reply.status,text:Buffer.concat(chunks).toString("utf8")};
 }
 
+function assertMacSmokeGoIdentity(goVersion, version) {
+  assert.ok(goVersion === "go1.26.8\n" || goVersion === "go1.26.8\r\n", "smoke Go identity refused");
+  assert.ok(version === "go version go1.26.8 darwin/arm64\n" || version === "go version go1.26.8 darwin/arm64\r\n", "smoke Go architecture refused");
+}
+
 export async function runLocalSmoke(environment=process.env){
   validateSmokeMode(environment);assert.equal(process.version,"v22.23.1");
   let temporary,stage="preflight",cleanupComplete=false;
   try{await runSmokeLifecycle(environment,async({base,signal,owner,cancel,isClosing})=>{
-  const go=path.join(base.HOME,"go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.13.darwin-arm64/bin/go");
+  const go=path.join(base.HOME,"go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.8.darwin-arm64/bin/go");
   base.PATH=path.dirname(process.execPath)+":"+path.dirname(go)+":"+base.PATH;
   const command=(exe,args,options={})=>runSmokeCommand(exe,args,{env:base,cwd:root,signal,...options});
   const child=(exe,args,options={})=>{
@@ -51,7 +56,7 @@ export async function runLocalSmoke(environment=process.env){
   };
     // Accepted exact-lock build must be staged locally by the run owner; no install/build UI fallback.
     await Promise.all([access(chrome),access(go),access(path.join(root,"node_modules/.bin/vinext")),access(path.join(root,"dist/server/index.js"))]);
-    assert.match((await command(go,["version"])).stdout,/go1\.25\.13 darwin\/arm64/);
+    assertMacSmokeGoIdentity((await command(go,["env","GOVERSION"])).stdout, (await command(go,["version"])).stdout);
     const pg=(await command("pg_config",["--bindir"])).stdout.trim();assert.ok(path.isAbsolute(pg)&&!/[\r\n\0]/.test(pg));
     temporary=await mkdtemp(path.join(os.tmpdir(),"zasp-local-ui-api-"));await chmod(temporary,0o700);base.TMPDIR=temporary;
     const migrate=path.join(temporary,"migrate"),apiBinary=path.join(temporary,"api");

@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {buildOrderedConsolidatedReference} from './build-ordered-current-consolidated-reference.mjs';
 
@@ -142,7 +145,7 @@ test('tracked authority replaces ignored predecessor snapshots with exact fixed 
 });
 
 test('checked-in packet and immutable snapshot match the closed deterministic build',()=>{
- const node='/Users/manishmaheshwari/.nvm/versions/node/v22.23.1/bin/node';
+ const node=process.execPath;
  const result=spawnSync(node,[new URL('./build-ordered-current-consolidated-reference.mjs',import.meta.url).pathname,'--check'],{encoding:'utf8'});
  assert.equal(result.status,0,result.stderr||result.stdout);
  const summary=JSON.parse(result.stdout);
@@ -151,4 +154,78 @@ test('checked-in packet and immutable snapshot match the closed deterministic bu
  assert.ok(summary.rules>500);
  assert.match(summary.manifestSHA256,/^[0-9a-f]{64}$/);
  assert.match(summary.contractSHA256,/^[0-9a-f]{64}$/);
+});
+
+const descriptorPath='services/platform/migrations/tools/ordered-current-worker-source-descriptor-v1.mjs';
+const replayPath='services/platform/migrations/tools/ordered-current-worker-source-replay-v1.mjs';
+const sourceRoot=fileURLToPath(new URL('../../../../',import.meta.url));
+
+// Break caught: companion imports must contribute exact bytes to all emitted
+// provenance, including the replay's own companion and descriptor dependency.
+test('companion dependency closure binds replay and descriptor bytes in packet and snapshot',()=>{
+ const built=buildOrderedConsolidatedReference(),manifest=JSON.parse(built.manifestRaw);
+ for(const relative of [replayPath,replayPath.replace(/\.mjs$/,'.test.mjs'),descriptorPath]){
+  const raw=fs.readFileSync(path.join(sourceRoot,relative));
+  assert.deepEqual(built.snapshotFiles[relative],raw,relative);
+  assert.equal(manifest.files[relative],sha(raw),relative);
+  assert.equal(JSON.parse(built.files[packetPrefix+'consolidated-capture-contract.json']).sourcePins[relative],sha(raw),relative);
+ }
+});
+
+function closureFixture(t){
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'zasp-companion-closure-'));
+ t.after(()=>fs.rmSync(directory,{recursive:true,force:true}));
+ for(const relative of ['services/platform/migrations/tools','services/platform/migrations/sql','services/platform/apiserver'])fs.cpSync(path.join(sourceRoot,relative),path.join(directory,relative),{recursive:true});
+ return directory;
+}
+function closureProbe(directory){
+ return spawnSync(process.execPath,['--input-type=module','-e',`import {buildOrderedConsolidatedReference as build} from './services/platform/migrations/tools/build-ordered-current-consolidated-reference.mjs'; const built=build(); console.log(JSON.stringify({manifest:JSON.parse(built.manifestRaw),contract:JSON.parse(built.files['services/platform/migrations/ordered_current/consolidated-capture-contract.json']),descriptor:built.snapshotFiles['services/platform/migrations/tools/ordered-current-worker-source-descriptor-v1.mjs']?.toString('base64')}));`],{cwd:directory,encoding:'utf8',env:{...process.env,NODE_OPTIONS:''},maxBuffer:4*1024*1024});
+}
+
+// Break caught: imported unpinned descriptor drift must be bound, while loss
+// or substituted topology and computed dependency authority must refuse.
+test('companion dependency mutations bind changed bytes and refuse open or substituted graphs',async t=>{
+ const directory=closureFixture(t),target=path.join(directory,descriptorPath),original=fs.readFileSync(target);
+ const positive=closureProbe(directory);
+ assert.equal(positive.status,0,positive.stderr);
+ await t.test('changed descriptor bytes are frozen in emitted provenance',()=>{
+  const changed=Buffer.from(original.toString('utf8').replace('changedRows:[]',"changedRows:['changed-descriptor-fixture']"));
+  assert.notDeepEqual(changed,original,'fixture changes descriptor behavior');
+  try{
+   fs.writeFileSync(target,changed);
+   const result=closureProbe(directory);assert.equal(result.status,0,result.stderr);
+   const built=JSON.parse(result.stdout);
+   assert.equal(built.descriptor,changed.toString('base64'));
+   assert.equal(built.manifest.files[descriptorPath],sha(changed));
+   assert.equal(built.contract.sourcePins[descriptorPath],sha(changed));
+  }finally{fs.writeFileSync(target,original);}
+ });
+ for(const mode of ['missing','symlink'])await t.test(mode+' imported descriptor refuses',()=>{
+  const outside=path.join(directory,'descriptor-copy.mjs');
+  try{
+   fs.unlinkSync(target);
+   if(mode==='symlink'){fs.writeFileSync(outside,original);fs.symlinkSync(outside,target);}
+   const result=closureProbe(directory);assert.notEqual(result.status,0);
+   assert.match(result.stderr,mode==='missing'?/ENOENT/:/nonregular|symlink/);
+   assert.ok(result.stderr.includes(descriptorPath));
+  }finally{fs.rmSync(target,{force:true});fs.writeFileSync(target,original);}
+ });
+ for(const [name,relative]of [['unknown companion',emitterPath.replace(/\.mjs$/,'.test.mjs')],['production dependency',descriptorPath],['reviewed companion drift','services/platform/migrations/tools/ordered-current-temporal77-transforms.test.mjs']])await t.test(name+' computed import refuses',()=>{
+  const filename=path.join(directory,relative),raw=fs.readFileSync(filename);
+  try{
+   fs.appendFileSync(filename,"\nconst unreviewed = () => im"+"port(new URL('./unreviewed.mjs', import.meta.url));\n");
+   const result=closureProbe(directory);assert.notEqual(result.status,0);
+   assert.match(result.stderr,/dynamic import|companion authority/);assert.ok(result.stderr.includes(relative));
+  }finally{fs.writeFileSync(filename,raw);}
+ });
+ await t.test('extra source test root traverses nested imports',()=>{
+  const filename=path.join(directory,'services/platform/migrations/tools/ordered-current-consolidated-reference.test.mjs'),raw=fs.readFileSync(filename);
+  const relative='services/platform/migrations/tools/closure-fixture-leaf.mjs',leaf=Buffer.from('export const fixture=1;\n');
+  try{
+   fs.writeFileSync(path.join(directory,relative),leaf);
+   fs.appendFileSync(filename,"\nimport './closure-fixture-leaf.mjs';\n");
+   const result=closureProbe(directory);assert.equal(result.status,0,result.stderr);
+   const built=JSON.parse(result.stdout);assert.equal(built.manifest.files[relative],sha(leaf));assert.equal(built.contract.sourcePins[relative],sha(leaf));
+  }finally{fs.writeFileSync(filename,raw);}
+ });
 });

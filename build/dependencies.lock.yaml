@@ -279,7 +279,7 @@ dependencies:
   - ecosystem: go
     manifest: services/platform/go.mod
     name: golang.org/x/sys
-    version: v0.45.0
+    version: v0.47.0
     license: BSD-3-Clause
     owner: platform-data
     scope: runtime
@@ -319,7 +319,7 @@ dependencies:
   - ecosystem: go
     manifest: services/sensor-agent/go.mod
     name: golang.org/x/sys
-    version: v0.45.0
+    version: v0.47.0
     license: BSD-3-Clause
     owner: platform-data
     scope: runtime
@@ -327,7 +327,7 @@ dependencies:
   - ecosystem: go
     manifest: services/sensor-agent/go.mod
     name: google.golang.org/grpc
-    version: v1.83.1
+    version: v1.83.2
     license: Apache-2.0
     owner: platform-data
     scope: runtime

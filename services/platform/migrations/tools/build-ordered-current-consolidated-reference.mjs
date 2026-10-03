@@ -79,8 +79,36 @@ function localImports(filename,source){
  for(const match of dynamic)found.push(match[2]);
  return found;
 }
+// Computed imports in these reviewed fixture harnesses select only the fixed
+// modules below (including imports embedded in child-process source strings).
+// Exact bytes and complete local rosters are authority; a test suffix is not.
+const reviewedCompanionImports=Object.freeze({
+ 'ordered-current-private-historical-v1.test.mjs':{
+  sha256:'83c89915be313c051869cd35869da6da35bfe1bb6726488bc77132053dec86dc',
+  dependencies:['./ordered-current-private-historical-v1.mjs']
+ },
+ 'ordered-current-precision-resolver-frame-v1.test.mjs':{
+  sha256:'7e9010550eb463f4023ff368ccf57de3e01ccf9e1d262091b637df26cc80e670',
+  dependencies:['./ordered-current-catalog.mjs','./ordered-current-private.mjs','./ordered-current-source-closure-v1.mjs','./ordered-current-temporal72.mjs','./build-ordered-current-integrity.mjs','./ordered-current-transform-compiler.mjs','./ordered-current-temporal-transforms.mjs','./ordered-current-public-function-transforms.mjs','./ordered-current-deparse-frame.mjs','./ordered-current-precision-resolver-frame-v1.mjs']
+ },
+ 'ordered-current-temporal77-transforms.test.mjs':{
+  sha256:'1b719b7ff5f9c6c2e94b44241a285534f75a32bdbc4898ecc4094572f1b85379',
+  dependencies:['./ordered-current-transform-compiler.mjs','./ordered-current-temporal77-transforms.mjs']
+ },
+ 'ordered-current-build-source-inventory-v1.test.mjs':{
+  sha256:'458c96c84e0707b6c57cd50c8ffcadcd2637c34ff904863258728946681c431c',
+  dependencies:['./ordered-current-build-source-inventory-v1.mjs','./build-ordered-current-development.mjs']
+ }
+});
+function companionImports(filename,source){
+ const relative=relativePath(filename),prefix='services/platform/migrations/tools/';
+ const reviewed=relative.startsWith(prefix)?reviewedCompanionImports[relative.slice(prefix.length)]:undefined;
+ if(!reviewed)return localImports(filename,source);
+ if(sha(Buffer.from(source))!==reviewed.sha256)throw Error('complete capture emitter companion authority '+relative);
+ return reviewed.dependencies;
+}
 function sourceInventory(currentInputs){
- const entry=fileURLToPath(import.meta.url),producer=fileURLToPath(new URL('./build-ordered-current-development.mjs',import.meta.url)),pending=[entry,producer],visited=new Set,files=new Set;
+ const entry=fileURLToPath(import.meta.url),producer=fileURLToPath(new URL('./build-ordered-current-development.mjs',import.meta.url)),pending=[entry,producer,...Object.keys(currentInputs).filter(relative=>relative.endsWith('.test.mjs')).map(relative=>path.join(root,relative)),...extraSourcePaths.filter(relative=>relative.endsWith('.mjs')).map(relative=>path.join(root,relative))],visited=new Set,files=new Set;
  while(pending.length){
   const filename=path.resolve(pending.pop());
   if(visited.has(filename))continue;
@@ -88,7 +116,7 @@ function sourceInventory(currentInputs){
   const relative=relativePath(filename),source=read(relative).toString('utf8');
   files.add(relative);
   const test=filename.replace(/\.mjs$/,'.test.mjs');
-  if(test!==filename&&fs.existsSync(test))files.add(relativePath(test));
+  if(test!==filename&&fs.existsSync(test))pending.push(test);
   // This one approved adapter has a fixed archived entry, verified by its
   // 32-file declared inventory. Account for that complete graph as data, not
   // by relaxing the general dynamic-import guard or ignoring dependencies.
@@ -97,7 +125,7 @@ function sourceInventory(currentInputs){
    for(const declared of Object.keys(currentInputs).filter(name=>name.startsWith('services/platform/migrations/tools/ordered-current-private-historical-v1/')))files.add(declared);
    continue;
   }
-  for(const specifier of localImports(filename,source))pending.push(fileURLToPath(new URL(specifier,pathToFileURL(filename))));
+  for(const specifier of (relative.endsWith('.test.mjs')?companionImports(filename,source):localImports(filename,source)))pending.push(fileURLToPath(new URL(specifier,pathToFileURL(filename))));
  }
  for(const relative of [...extraSourcePaths,...producerPaths]){
   if(!fs.existsSync(path.join(root,relative)))throw Error('complete capture emitter source absent '+relative);

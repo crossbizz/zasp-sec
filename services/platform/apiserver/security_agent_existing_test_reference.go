@@ -1,6 +1,9 @@
 package apiserver
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/zasp-ai/zasp-sec/services/platform/securityagent"
+)
 
 // Exact lowercase keys match PostgreSQL jsonb access. Struct decoding would let
 // an alternate-cased alias overwrite the actual action used by SQL.
@@ -25,13 +28,27 @@ func validateSecurityAgentDefinitionObject(raw json.RawMessage) error {
 		return ErrRepositoryOperation
 	}
 	keys := []string{"name", "trigger_kind", "trigger_source", "environment_ids", "autonomy", "max_steps", "max_duration_seconds", "temporary_policy_seconds", "ai_token_budget", "concurrency_limit", "allowed_actions", "verification_kind", "definition_version", "enabled"}
-	for _, optional := range []string{"id", "max_ai_cost_nano_credits", "existing_test", "response_webhook_destination", "trigger_rules"} {
+	for _, optional := range []string{"id", "temporary_policy_mode", "max_ai_cost_nano_credits", "existing_test", "response_webhook_destination", "trigger_rules"} {
 		if _, present := parsed[optional]; present {
 			keys = append(keys, optional)
 		}
 	}
 	if _, err := auditExportClosedObject(raw, 16*1024, keys...); err != nil {
 		return ErrRepositoryOperation
+	}
+	if rawMode, present := parsed["temporary_policy_mode"]; present {
+		var mode securityagent.TemporaryPolicyMode
+		if json.Unmarshal(rawMode, &mode) != nil {
+			return ErrRepositoryOperation
+		}
+		if mode == securityagent.TemporaryPolicyMonitor {
+			var autonomy, verification string
+			var steps, ttl int
+			var actions []string
+			if json.Unmarshal(parsed["autonomy"], &autonomy) != nil || json.Unmarshal(parsed["verification_kind"], &verification) != nil || json.Unmarshal(parsed["max_steps"], &steps) != nil || json.Unmarshal(parsed["temporary_policy_seconds"], &ttl) != nil || json.Unmarshal(parsed["allowed_actions"], &actions) != nil || autonomy != "supervised" || verification != "policy_state" || steps != 1 || ttl < 60 || ttl > 3600 || len(actions) != 1 || actions[0] != "create_temporary_policy" {
+				return ErrRepositoryOperation
+			}
+		}
 	}
 	if reference, present := parsed["existing_test"]; present {
 		if _, err := decodeSecurityAgentExistingTestReference(reference); err != nil {

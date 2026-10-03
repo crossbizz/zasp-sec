@@ -1,0 +1,11 @@
+# Hosted verification phase diagnostics — 2026-10-03
+
+Both required checks on `142a52bc` failed the original `Verify runnable UI` step with generic exit annotations. GitHub authentication and repository access return HTTP 200. Detailed logs redirect successfully, but the network proxy denies the redirected log hosts; the latest observation identifies `productionresultssa17.blob.core.windows.net` and `productionresultssa15.blob.core.windows.net`. The failing verification phase and its cause remain unknown.
+
+The workflow still invokes the single original `npm run verify`, with its unchanged command chain, environment, test deadlines and fail-fast behavior. The diagnostic wrapper retains `PIPESTATUS[0]`, keeps the normal CI log, and on failure emits fixed text plus an allowlisted latest observed npm phase. Missing or invalid phase evidence falls back to a fixed generic annotation. Diagnostic or cleanup failure cannot replace npm's status. Raw log content is not copied into annotation payloads.
+
+TDD preparation reproduced a missing helper and the parsed YAML terminal-newline mismatch before their fixes. Independent review caught private-only test paths and a baseline-only assertion; the additive portable successor reads the actual repository workflow. Root verification passes seven Node controls, 276 focused workflow/dependency contracts, targeted lint and type checking. Synthetic subprocess controls preserve exits 37 and 29, stop later commands in the unchanged chain, and preserve success 0. The package file remains byte-identical at SHA256 `68f43a179ac7f8f6685cd36dd61c3925f1f23373ea03d3f01c9959ca8a9ae079`.
+
+Separate fresh compiler checks passed the exact SaaS tenancy, Neo4j graph and tenant RLS npm phases in 13.8 seconds with joined children and unchanged tracked sources/compiler. Receipt: `/workspace/scratch/go268-current-canonical-remaining-go-phases-v1/receipt.json`; log SHA256 `2bc47985f78d1b609f2002fcf9d7305317ea6c340ca9a464429cdfc32a432601`. These checks do not establish a complete canonical run or explain the hosted failure.
+
+The original 728-row ledger remains valid with zero promotions. Hosted checks must pass before merge. Existing identity resources, immutable acceptance evidence and release/native/retirement guards are preserved.

@@ -88,7 +88,7 @@ func validApprovalContext(approval SecurityAgentApproval) bool {
 			}
 		}
 	case "create_temporary_policy":
-		if value.Risk.Class != "containment" || approval.ExpectedEffect != "Apply temporary containment policy" {
+		if value.Risk.Class != "containment" || !stringIn(approval.ExpectedEffect, "Apply temporary containment policy", "Apply temporary monitoring policy") {
 			return false
 		}
 	case "isolate_session":
@@ -162,6 +162,9 @@ func decodeSecurityAgentApprovalContext(raw json.RawMessage, approval SecurityAg
 		}
 	case "create_temporary_policy":
 		risk, effect = "containment", "Apply temporary containment policy"
+		if args != nil && args.Mode == "monitor" {
+			effect = "Apply temporary monitoring policy"
+		}
 	case "isolate_session":
 		risk, effect = "containment", "Isolate runtime session"
 	case "revoke_integration_connection":

@@ -15,6 +15,7 @@ import {
   runMain,
   successLine,
   validateDependencyState,
+  validateRepository,
 } from "./validate-dependencies.mjs";
 
 const manifests = [
@@ -103,7 +104,7 @@ const policyDependencies = [
 const platformDependencies = [
   ["github.com/jackc/pgx/v5", "v5.10.0", "MIT"],
   ["github.com/neo4j/neo4j-go-driver/v6", "v6.2.0", "Apache-2.0"],
-  ["golang.org/x/sys", "v0.44.0", "BSD-3-Clause"],
+  ["golang.org/x/sys", "v0.47.0", "BSD-3-Clause"],
   ["gopkg.in/yaml.v3", "v3.0.1", "MIT"],
 ].map(([name, version, license]) => ({
   ecosystem: "go",
@@ -390,13 +391,36 @@ test("binds exact hash-locked isolated Cartography and Prowler runtimes", async 
 
 test("binds the exact Linux supervisor syscall dependency", async (t) => {
   validate(lockFixture(), filesFixture());
-  for (const [field, value] of [["version", "v0.43.0"], ["license", "MIT"], ["owner", "web-platform"], ["scope", "development"]]) {
-    await t.test(field, () => {
+  for (const [field, value] of [["version", "v0.43.0"], ["version", "v0.45.0"], ["version", "v0.46.0"], ["version", "v0.48.0"], ["license", "MIT"], ["owner", "web-platform"], ["scope", "development"]]) {
+    await t.test(`${field}:${value}`, () => {
       const lock=lockFixture();
       lock.dependencies.find(entry=>entry.manifest==="services/platform/go.mod" && entry.name==="golang.org/x/sys")[field]=value;
       assert.throws(()=>validate(lock));
     });
   }
+});
+
+test("rejects coherent unreviewed syscall versions and manifest-only drift", async (t) => {
+  for (const version of ["v0.45.0", "v0.46.0", "v0.48.0"]) {
+    await t.test(`coherent lock and manifest ${version}`, () => {
+      const lock = lockFixture();
+      const files = filesFixture();
+      lock.dependencies.find(entry => entry.manifest === "services/platform/go.mod" && entry.name === "golang.org/x/sys").version = version;
+      files["services/platform/go.mod"] = files["services/platform/go.mod"].replace("golang.org/x/sys v0.47.0", `golang.org/x/sys ${version}`);
+      assert.throws(() => validate(lock, files));
+    });
+    await t.test(`manifest-only ${version}`, () => {
+      const files = filesFixture();
+      files["services/platform/go.mod"] = files["services/platform/go.mod"].replace("golang.org/x/sys v0.47.0", `golang.org/x/sys ${version}`);
+      assert.throws(() => validate(lockFixture(), files));
+    });
+  }
+});
+
+test("accepts the reviewed repository dependency inventory", async () => {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const result = await validateRepository(root);
+  assert.deepEqual(result, { manifests: 13, dependencies: 42 });
 });
 
 test("binds the exact ten AWS SDK product dependencies", async (t) => {

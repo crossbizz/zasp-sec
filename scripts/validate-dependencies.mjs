@@ -141,7 +141,7 @@ for (const [manifest, name, version] of [
   });
 }
 for (const [manifest, name, version, license] of [
-  ["services/platform/go.mod", "golang.org/x/sys", "v0.45.0", "BSD-3-Clause"],
+  ["services/platform/go.mod", "golang.org/x/sys", "v0.47.0", "BSD-3-Clause"],
   ["services/platform/go.mod", "go.temporal.io/sdk", "v1.48.0", "MIT"],
   ["services/platform/go.mod", "go.temporal.io/api", "v1.63.4", "MIT"],
   ["services/event-ingest/go.mod", "github.com/aws/aws-sdk-go-v2", "v1.43.7", "Apache-2.0"],

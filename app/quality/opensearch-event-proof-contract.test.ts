@@ -10,8 +10,8 @@ describe("OpenSearch event projection proof repository contract", () => {
   it("keeps the exact toolchain and official OpenSearch image pin", async () => {
     const goModule = await readFile(resolve(repositoryRoot, proofDirectory, "go.mod"), "utf8");
     const runner = await readFile(resolve(repositoryRoot, proofDirectory, "run.mjs"), "utf8");
-    expect(goModule).toMatch(/^go 1\.25\.0$/m);
-    expect(goModule).toMatch(/^toolchain go1\.26\.5$/m);
+    expect(goModule).toMatch(/^go 1\.26\.0$/m);
+    expect(goModule).toMatch(/^toolchain go1\.26\.8$/m);
     expect(runner).toMatch(/opensearchproject\/opensearch:3\.8\.0@sha256:[a-f0-9]{64}/);
   });
 

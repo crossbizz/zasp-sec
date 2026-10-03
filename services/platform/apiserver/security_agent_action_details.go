@@ -76,7 +76,7 @@ func decodeSecurityAgentActionArguments(action string, raw json.RawMessage) (*Se
 			}
 		}
 	}
-	if stringIn(action, "run_test", "rerun_test", "start_attack_lab", "update_finding_response") {
+	if stringIn(action, "run_test", "rerun_test", "start_attack_lab", "update_finding_response", "create_temporary_policy") {
 		if _, err := auditExportClosedObject(raw, 4096, fields...); err != nil {
 			return nil, ErrRepositoryUnavailable
 		}
@@ -98,7 +98,7 @@ func decodeSecurityAgentActionArguments(action string, raw json.RawMessage) (*Se
 				validFindingResponseNote(value.Note)
 		}
 	case "create_temporary_policy":
-		valid = value.Mode == "block" && value.Scope == value.TargetID && value.TTLSeconds >= 60 && value.TTLSeconds <= 3600
+		valid = (value.Mode == "block" || value.Mode == "monitor") && value.Scope == value.TargetID && value.TTLSeconds >= 60 && value.TTLSeconds <= 3600
 	case "isolate_session":
 		valid = value.SessionID == value.TargetID && validProductID(value.DeviceID) && validProductID(value.Scope) && value.TTLSeconds >= 60 && value.TTLSeconds <= 3600
 	case "revoke_integration_connection":

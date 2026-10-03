@@ -4,6 +4,8 @@ P1 installs dependency connections. It doesn't route a product run to Temporal o
 
 ## What is pinned
 
+Current compiler update (2026-10-03): platform and its consumers require Go 1.26.0 and use the pinned Go 1.26.8 compiler. The direct `golang.org/x/sys` pin is 0.47.0 and the indirect `golang.org/x/crypto` requirement is 0.56.0. The dependency and scan evidence below records the earlier P1 checkpoint; its historical versions and findings remain unchanged. Current compiler verification is recorded in `docs/internal/2026-10-03-go26-crypto-security-closure.md`. This update does not establish release advisory clearance or enable the runtime-service cutover.
+
 The platform requires Go 1.25.4 (verified with host 1.25.6). Direct SDKs are Temporal 1.48.0, Temporal API 1.63.4 and OpenFGA 0.8.2. Temporal's graph raises the existing direct `golang.org/x/sys` pin to 0.45.0. The exact dependency validator still applies. License files in the fetched modules identify Temporal SDK/API as MIT and OpenFGA SDK as Apache-2.0.
 
 The reviewed dependency fix pins indirect gRPC 1.83.1 and `golang.org/x/text` 0.39.0 in `go.mod`/`go.sum`, fixing [GO-2026-6348](https://pkg.go.dev/vuln/GO-2026-6348) and [GO-2026-5970](https://pkg.go.dev/vuln/GO-2026-5970). Both patched modules support Go 1.25; the resolved graph also updates genproto and x/sync to their required compatible versions. The direct-dependency lock policy is unchanged.

@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const (
@@ -682,7 +683,7 @@ var registrationReferenceDispatchPins = map[string]string{
 	"migrations/production_authorization_worker_profile.go":          "39929eafe70f2dfda1a1fa4d42b0d6f591badc728e7da0fe5245e5c048a057e0",
 	"migrations/production_authorization_worker_runtime.go":          "3f93b8bd2ae8b08e61eaf9ffccb0694d559b93f81b03e03df3d1cbe2faa874ab",
 	"migrations/production_authorization_runtime_profile.go":         "2e1505d973f621b97081cef217fa0f7f56f3d501ba77a15228a7b9bfb50a6c70",
-	"apiserver/authorization_worker_effect_postgres_test.go":         "96da59d58c7c741e1b3ea0372d375f8a5965e480c4743397df35303cb5ef9200",
+	"apiserver/authorization_worker_effect_postgres_test.go":         "4ca7a7b3b468e9b8a8602b486d0d781253b21f97c4b6d495628ef7327226d4b8",
 	"apiserver/postgres_integration_test.go":                         "0d908c53cdea021e4c60adc412a04d631fd58c0b0544e7cce723884ea4002a42",
 	"apiserver/authorization_worker_ordered_policy_postgres_test.go": "302037d9efd8e55515af71a3b367fb1069b5d9e880be3c3de56cef7420f8892d",
 	"apiserver/security_agent_temporal_executor_postgres_test.go":    "ba094a67bb90c1275dd75e1505d9a43e63900e5718c1092058b1f64489e29833",
@@ -894,6 +895,27 @@ func (w *registrationReferenceBoundWriter) Write(p []byte) (int, error) {
 	return w.Buffer.Write(p)
 }
 
+func registrationReferenceCheckDispatchInputs(b registrationReferenceBuild) error {
+	if len(b.DispatchPins) < len(registrationReferenceDispatchPins) {
+		return registrationReferenceRefuse("source-bound dispatch pins absent")
+	}
+	for p, h := range registrationReferenceDispatchPins {
+		if b.DispatchPins[p] != h {
+			return registrationReferenceRefuse("original compiler dispatch changed")
+		}
+	}
+	for p, h := range b.DispatchPins {
+		if filepath.IsAbs(p) || strings.Contains(p, "..") {
+			return registrationReferenceRefuse("dispatch source path")
+		}
+		got, e := registrationReferenceHashFile(filepath.Join(b.Platform, p))
+		if e != nil || got != h {
+			return registrationReferenceRefuse("dispatch source input differs")
+		}
+	}
+	return nil
+}
+
 func registrationReferenceBindBuild(ctx context.Context, path, expectedSHA string) (registrationReferenceBuild, error) {
 	var b registrationReferenceBuild
 	raw, err := registrationReferenceReadBound(path, 16*1024*1024)
@@ -926,22 +948,8 @@ func registrationReferenceBindBuild(ctx context.Context, path, expectedSHA strin
 			return b, registrationReferenceRefuse("executed binary/Go identity")
 		}
 	}
-	if len(b.DispatchPins) < len(registrationReferenceDispatchPins) {
-		return b, registrationReferenceRefuse("source-bound dispatch pins absent")
-	}
-	for p, h := range registrationReferenceDispatchPins {
-		if b.DispatchPins[p] != h {
-			return b, registrationReferenceRefuse("original compiler dispatch changed")
-		}
-	}
-	for p, h := range b.DispatchPins {
-		if filepath.IsAbs(p) || strings.Contains(p, "..") {
-			return b, registrationReferenceRefuse("dispatch source path")
-		}
-		got, e := registrationReferenceHashFile(filepath.Join(b.Platform, p))
-		if e != nil || got != h {
-			return b, registrationReferenceRefuse("dispatch source input differs")
-		}
+	if err := registrationReferenceCheckDispatchInputs(b); err != nil {
+		return b, err
 	}
 	// A frozen snapshot, not the writable development tree, is mandatory. Root
 	// builds its reviewed binaries there, then removes write bits before opt-in.
@@ -1235,21 +1243,102 @@ type registrationReferencePacket struct {
 	ControlStatements        map[string]string                    `json:"control_statements"`
 }
 
+// Native query diagnostics identify exact statement bytes without retaining
+// SQL or arguments in the printable error. Only internal failure locations
+// select phases; driver text remains available solely through Unwrap.
+type registrationReferenceQueryPhase uint8
+
+const (
+	registrationReferenceQueryScan registrationReferenceQueryPhase = iota
+	registrationReferenceQueryRowLimit
+	registrationReferenceQueryDecode
+)
+
+type registrationReferenceQueryDiagnostic struct {
+	phase           registrationReferenceQueryPhase
+	statementSHA256 string
+	classification  string
+	cause           error
+}
+
+func (e *registrationReferenceQueryDiagnostic) Error() string {
+	phase := "query-row-scan"
+	switch e.phase {
+	case registrationReferenceQueryRowLimit:
+		phase = "row-byte-limit"
+	case registrationReferenceQueryDecode:
+		phase = "json-decode"
+	}
+	return "original registration reference refused: phase=" + phase + " statement_sha256=" + e.statementSHA256 + " " + e.classification
+}
+func (e *registrationReferenceQueryDiagnostic) Unwrap() error { return e.cause }
+
+// Go's %#v otherwise formats struct fields, bypassing Error and exposing the
+// wrapped driver error. Keep every formatting verb on the same bounded text.
+func (e *registrationReferenceQueryDiagnostic) Format(state fmt.State, _ rune) {
+	_, _ = io.WriteString(state, e.Error())
+}
+
+func registrationReferenceQueryFailure(statement string, phase registrationReferenceQueryPhase, cause error) error {
+	classification := "class=unknown"
+	switch phase {
+	case registrationReferenceQueryRowLimit:
+		classification = "class=row-byte-limit"
+	case registrationReferenceQueryDecode:
+		classification = "class=json-decode"
+	default:
+		var native *pgconn.PgError
+		switch {
+		case errors.Is(cause, context.Canceled):
+			classification = "class=context-canceled"
+		case errors.Is(cause, context.DeadlineExceeded):
+			classification = "class=context-deadline"
+		case errors.Is(cause, pgx.ErrNoRows):
+			classification = "class=no-rows"
+		case errors.As(cause, &native) && native != nil:
+			classification = "class=pg-error"
+			valid := len(native.Code) == 5
+			for i := 0; valid && i < len(native.Code); i++ {
+				c := native.Code[i]
+				if !(c >= '0' && c <= '9' || c >= 'A' && c <= 'Z') {
+					valid = false
+					break
+				}
+			}
+			if valid {
+				classification = "sqlstate=" + native.Code
+			}
+		}
+	}
+	return &registrationReferenceQueryDiagnostic{phase: phase, statementSHA256: registrationReferenceSHA([]byte(statement)), classification: classification, cause: cause}
+}
+
 func registrationReferenceQueryJSON(ctx context.Context, q interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }, statement string, target any, args ...any) error {
 	var raw []byte
-	if q.QueryRow(ctx, statement, args...).Scan(&raw) != nil {
-		return registrationReferenceRefuse("native catalog query/cast/permission/RLS error")
+	if err := q.QueryRow(ctx, statement, args...).Scan(&raw); err != nil {
+		return registrationReferenceQueryFailure(statement, registrationReferenceQueryScan, err)
 	}
 	if len(raw) > registrationReferenceMaxRowBytes {
-		return registrationReferenceRefuse("native control row byte limit")
+		return registrationReferenceQueryFailure(statement, registrationReferenceQueryRowLimit, registrationReferenceRefuse("native control row byte limit"))
 	}
-	return registrationReferenceJSON(raw, target)
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return registrationReferenceQueryFailure(statement, registrationReferenceQueryDecode, err)
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		if err == nil {
+			err = registrationReferenceRefuse("packet trailing data")
+		}
+		return registrationReferenceQueryFailure(statement, registrationReferenceQueryDecode, err)
+	}
+	return nil
 }
 
 func registrationReferenceCollationSQL(scalar string) string {
-	return `WITH effective AS (SELECT to_regcollation(pg_collation_for((` + scalar + `))) AS oid) SELECT jsonb_build_object('name',c.oid::regcollation::text,'provider',c.collprovider,'deterministic',c.collisdeterministic,'locale',c.colllocale,'rules',c.collrules,'recorded_version',CASE WHEN c.collprovider='d' THEN d.datcollversion ELSE c.collversion END,'actual_version',CASE WHEN c.collprovider='d' THEN pg_database_collation_actual_version(d.oid) ELSE pg_collation_actual_version(c.oid) END,'database_provider',d.datlocprovider,'database_collate',d.datcollate,'database_ctype',d.datctype,'database_locale',d.datlocale,'database_recorded_version',d.datcollversion,'database_actual_version',pg_database_collation_actual_version(d.oid)) FROM effective e JOIN pg_collation c ON c.oid=e.oid JOIN pg_database d ON d.datname=current_database()`
+	return `WITH effective AS (SELECT to_regcollation(pg_collation_for((` + scalar + `))) AS oid) SELECT jsonb_build_object('name',c.oid::regcollation::text,'provider',c.collprovider,'deterministic',c.collisdeterministic,'locale',c.colllocale,'rules',c.collicurules,'recorded_version',CASE WHEN c.collprovider='d' THEN d.datcollversion ELSE c.collversion END,'actual_version',CASE WHEN c.collprovider='d' THEN pg_database_collation_actual_version(d.oid) ELSE pg_collation_actual_version(c.oid) END,'database_provider',d.datlocprovider,'database_collate',d.datcollate,'database_ctype',d.datctype,'database_locale',d.datlocale,'database_recorded_version',d.datcollversion,'database_actual_version',pg_database_collation_actual_version(d.oid)) FROM effective e JOIN pg_collation c ON c.oid=e.oid JOIN pg_database d ON d.datname=current_database()`
 }
 
 // Observe the actual ORDER BY v upstream of convert_to/digest. LIMIT 0 returns
@@ -1275,10 +1364,11 @@ func registrationReferenceSortKeyCollationQueries(p registrationReferenceStateme
 	if err != nil {
 		return "", "", "", err
 	}
-	if !strings.HasPrefix(registrationReferenceParameterSQL, aggregateProjection) || strings.TrimPrefix(registrationReferenceParameterSQL, aggregateProjection) != "unnest($1::text[]) AS facts(v)" {
+	const parameterProjection = `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY ` + registrationReferenceParameterSortKey + `),'UTF8'),'sha256'),'hex') FROM `
+	if !strings.HasPrefix(registrationReferenceParameterSQL, parameterProjection) || strings.TrimPrefix(registrationReferenceParameterSQL, parameterProjection) != "unnest($1::text[]) AS facts(v)" {
 		return "", "", "", registrationReferenceRefuse("actual parameter ORDER BY v expression")
 	}
-	parameter := registrationReferenceCollationSQL("SELECT v FROM " + strings.TrimPrefix(registrationReferenceParameterSQL, aggregateProjection) + " LIMIT 0")
+	parameter := registrationReferenceCollationSQL("SELECT " + registrationReferenceParameterSortKey + " FROM " + strings.TrimPrefix(registrationReferenceParameterSQL, parameterProjection) + " LIMIT 0")
 	return outer, nested, parameter, nil
 }
 func registrationReferenceAdmitSortKeyCollations(nested, outer, parameterNested, parameterOuter registrationReferenceCollation) error {
@@ -1286,6 +1376,65 @@ func registrationReferenceAdmitSortKeyCollations(nested, outer, parameterNested,
 		return registrationReferenceRefuse("source/parameter expression collation differs")
 	}
 	return nil
+}
+
+type registrationReferenceCollationWitness uint8
+
+const (
+	registrationReferenceNestedCollationWitness registrationReferenceCollationWitness = iota + 1
+	registrationReferenceOuterCollationWitness
+)
+
+// This diagnostic retains only closed metadata and the original safe refusal.
+// Native frame strings and statement text are hashed before storage.
+type registrationReferenceCollationDiagnostic struct {
+	witness                               registrationReferenceCollationWitness
+	statementSHA, sourceSHA, parameterSHA string
+	fields                                []string
+	cause                                 error
+}
+
+func (e *registrationReferenceCollationDiagnostic) Error() string {
+	class := "nested-parameter-collation"
+	if e.witness == registrationReferenceOuterCollationWitness {
+		class = "outer-parameter-collation"
+	}
+	return "original registration reference refused: witness=" + class + " statement_sha256=" + e.statementSHA + " source_frame_sha256=" + e.sourceSHA + " parameter_frame_sha256=" + e.parameterSHA + " differing_fields=" + strings.Join(e.fields, ",")
+}
+func (e *registrationReferenceCollationDiagnostic) Unwrap() error { return e.cause }
+func (e *registrationReferenceCollationDiagnostic) Format(state fmt.State, _ rune) {
+	_, _ = io.WriteString(state, e.Error())
+}
+
+func registrationReferenceAdmitParameterCollations(witness registrationReferenceCollationWitness, statement string, nested, outer, parameterNested, parameterOuter registrationReferenceCollation) error {
+	if witness != registrationReferenceNestedCollationWitness && witness != registrationReferenceOuterCollationWitness {
+		return registrationReferenceRefuse("unknown collation witness")
+	}
+	cause := registrationReferenceAdmitSortKeyCollations(nested, outer, parameterNested, parameterOuter)
+	if cause == nil {
+		return nil
+	}
+	source, parameter := nested, parameterNested
+	if witness == registrationReferenceOuterCollationWitness {
+		source, parameter = outer, parameterOuter
+	}
+	sourceRaw, _ := json.Marshal(source)
+	parameterRaw, _ := json.Marshal(parameter)
+	if len(sourceRaw) > registrationReferenceMaxRowBytes || len(parameterRaw) > registrationReferenceMaxRowBytes {
+		return registrationReferenceRefuse("collation diagnostic frame byte limit")
+	}
+	names := []string{"name", "provider", "deterministic", "locale", "rules", "recorded_version", "actual_version", "database_provider", "database_collate", "database_ctype", "database_locale", "database_recorded_version", "database_actual_version"}
+	sourceFields, parameterFields := reflect.ValueOf(source), reflect.ValueOf(parameter)
+	fields := make([]string, 0, len(names))
+	for i, name := range names {
+		if !reflect.DeepEqual(sourceFields.Field(i).Interface(), parameterFields.Field(i).Interface()) {
+			fields = append(fields, name)
+		}
+	}
+	if len(fields) == 0 {
+		fields = append(fields, "none")
+	}
+	return &registrationReferenceCollationDiagnostic{witness: witness, statementSHA: registrationReferenceSHA([]byte(statement)), sourceSHA: registrationReferenceSHA(sourceRaw), parameterSHA: registrationReferenceSHA(parameterRaw), fields: fields, cause: cause}
 }
 
 type registrationReferenceDigestFrame struct {
@@ -1409,7 +1558,10 @@ func registrationReferenceReadBag(ctx context.Context, tx pgx.Tx, s registration
 
 // The parameter aggregate is a separate validation of the type-output bridge.
 // It cannot replace the exact native original nested/outer query or source bag.
-const registrationReferenceParameterSQL = `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY v),'UTF8'),'sha256'),'hex') FROM unnest($1::text[]) AS facts(v)`
+// Fixed replay key follows the independently reconstructed original source
+// bootstrap C identity. The unchanged full-frame guard must still admit it.
+const registrationReferenceParameterSortKey = `v COLLATE pg_catalog."C"`
+const registrationReferenceParameterSQL = `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY ` + registrationReferenceParameterSortKey + `),'UTF8'),'sha256'),'hex') FROM unnest($1::text[]) AS facts(v)`
 
 const registrationReferenceWorkerInsertSQL = `INSERT INTO zasp_authorization80_worker.registration(checksum,fingerprint) VALUES($1,zasp_authorization80_worker.fingerprint())`
 
@@ -1523,7 +1675,7 @@ func registrationReferenceCapture(ctx context.Context, owner *pgx.Conn, b regist
 		if e := registrationReferenceQueryJSON(ctx, tx, parameterCollationSQL, &packet.ParameterNestedCollation, nestedValues); e != nil {
 			return e
 		}
-		if e := registrationReferenceAdmitSortKeyCollations(packet.NestedCollation, packet.OuterCollation, packet.ParameterNestedCollation, packet.ParameterNestedCollation); e != nil {
+		if e := registrationReferenceAdmitParameterCollations(registrationReferenceNestedCollationWitness, parameterCollationSQL, packet.NestedCollation, packet.OuterCollation, packet.ParameterNestedCollation, packet.ParameterNestedCollation); e != nil {
 			return e
 		}
 		if tx.QueryRow(ctx, registrationReferenceParameterSQL, nestedValues).Scan(&packet.Native.ParameterNested) != nil {
@@ -1537,7 +1689,7 @@ func registrationReferenceCapture(ctx context.Context, owner *pgx.Conn, b regist
 		if e := registrationReferenceQueryJSON(ctx, tx, parameterCollationSQL, &packet.ParameterCollation, outerValues); e != nil {
 			return e
 		}
-		if e := registrationReferenceAdmitSortKeyCollations(packet.NestedCollation, packet.OuterCollation, packet.ParameterNestedCollation, packet.ParameterCollation); e != nil {
+		if e := registrationReferenceAdmitParameterCollations(registrationReferenceOuterCollationWitness, parameterCollationSQL, packet.NestedCollation, packet.OuterCollation, packet.ParameterNestedCollation, packet.ParameterCollation); e != nil {
 			return e
 		}
 		if tx.QueryRow(ctx, registrationReferenceParameterSQL, outerValues).Scan(&packet.Native.ParameterOuter) != nil || !reflect.DeepEqual(packet.Native.Nested, packet.Native.ParameterNested) || !reflect.DeepEqual(packet.Native.Outer, packet.Native.ParameterOuter) {
