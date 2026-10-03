@@ -210,11 +210,14 @@ try {
   const actionPrivateKey = Buffer.concat([Buffer.from(actionPrivateJWK.d, "base64url"), Buffer.from(actionPrivateJWK.x, "base64url")]).toString("base64url");
   const dsn = `postgres://zasp_e2e@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
   const apiDSN = `postgres://zasp_e2e_api@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
+  if (complianceBrowserMode) compliancePhase = "postgres-startup";
   postgres = await startPostgres(postgresPort);
   if (process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1") {
+    if (complianceBrowserMode) compliancePhase = "postgres-instrumentation";
     const instrumentation = await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-c", "SELECT current_setting('track_functions')"]);
     assert.equal(instrumentation.stdout.trim(), "pl", "concurrent-load diagnostic requires actual claim-function call accounting in its owned database");
   }
+  if (complianceBrowserMode) compliancePhase = "postgres-principal-provisioning";
   await provisionPostgresPrincipals(dsn);
   console.log("combined E2E: disposable PostgreSQL ready");
 
@@ -2196,6 +2199,7 @@ COMMIT;`);
 
 async function exerciseComplianceBrowser(configuration) {
   const {dsn,apiBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
+  if (complianceBrowserMode) compliancePhase = "compliance-fixture-provisioning";
   const sql=async statement=>(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
   const org="pid_10000001-0000-4000-8000-000000000001",workspace="pid_10000022-0000-4000-8000-000000000022",environment="pid_10000023-0000-4000-8000-000000000023",actor="pid_10000004-0000-4000-8000-000000000004";
   const selectedScope=`${org}/${workspace}/${environment}`;
@@ -2212,17 +2216,25 @@ INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,ki
   // Retained local evidence: downloaded files and exact controlled-provider bytes.
   console.log(`compliance browser evidence: ${storage}`);
   const publicOrigin=`https://${productHostname}:${proxyPort}`;
-  if (complianceBrowserMode) compliancePhase = "services";
-  identity=await startIdentityServer(identityPort,publicOrigin); policyHistory=await startPolicyHistoryServer(policyHistoryPort);
+  if (complianceBrowserMode) compliancePhase = "controlled-identity-startup";
+  identity=await startIdentityServer(identityPort,publicOrigin);
+  if (complianceBrowserMode) compliancePhase = "policy-history-startup";
+  policyHistory=await startPolicyHistoryServer(policyHistoryPort);
+  if (complianceBrowserMode) compliancePhase = "api-startup";
   const apiEnvironment={...combinedAPIEnvironment({...configuration,publicOrigin}), ZASP_COMPLIANCE_BROWSER_API:"true", ZASP_COMPLIANCE_BROWSER_PG_PORT:String(postgresPort), ZASP_COMPLIANCE_BROWSER_OBJECT:object,ZASP_COMPLIANCE_BROWSER_DEADLINE:new Date(Date.now()+20*60_000).toISOString(),
     ZASP_COMPLIANCE_EXPORT_BUCKET:"zasp-compliance-exports", ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER:"123456789012",ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN:"arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111",ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN:"arn:aws:iam::123456789012:role/compliance-api-reader",ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE:"/var/run/secrets/eks.amazonaws.com/serviceaccount/token"};
-  const startAPI=async(enabled=true)=>{const environment={...apiEnvironment};if(!enabled){for(const key of Object.keys(environment))if(key.startsWith("ZASP_COMPLIANCE_EXPORT_"))delete environment[key];environment.ZASP_COMPLIANCE_BROWSER_LEGACY="true";}api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:environment});try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(e){throw new Error(`${e.message}; ${api.output()}`);}};
+  const startAPI=async(enabled=true)=>{const previousCompliancePhase=compliancePhase;const environment={...apiEnvironment};if(!enabled){for(const key of Object.keys(environment))if(key.startsWith("ZASP_COMPLIANCE_EXPORT_"))delete environment[key];environment.ZASP_COMPLIANCE_BROWSER_LEGACY="true";}if(complianceBrowserMode)compliancePhase="api-startup";api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:environment});if(complianceBrowserMode)compliancePhase="api-ready";try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(e){throw new Error(`${e.message}; ${api.output()}`);}if(complianceBrowserMode)compliancePhase=previousCompliancePhase;};
   await startAPI(false);
+  if (complianceBrowserMode) compliancePhase = "web-startup";
   web=startChild(path.join(root,"node_modules/.bin/vinext"),["start","--port",String(webPort),"--hostname","127.0.0.1"],{cwd:root});
+  if (complianceBrowserMode) compliancePhase = "web-ready";
   await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`,200);
   const key=path.join(temporaryRoot,"compliance-tls.key"),certificate=path.join(temporaryRoot,"compliance-tls.crt");
+  if (complianceBrowserMode) compliancePhase = "tls-provisioning";
   await command("openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","1","-subj",`/CN=${productHostname}`,"-addext",`subjectAltName=DNS:${productHostname}`,"-keyout",key,"-out",certificate]);
+  if (complianceBrowserMode) compliancePhase = "proxy-startup";
   proxy=await startProxy(proxyPort,apiPort,webPort,key,certificate,dsn);
+  if (complianceBrowserMode) compliancePhase = "browser-startup";
   browser=await startBrowser(path.join(temporaryRoot,"compliance-profile"),chromePort,`${publicOrigin}/api/v1/session/start?return_to=%2Fcompliance%2Fevidence`);
   const cdp=browser.cdp;
   if (complianceBrowserMode) compliancePhase = "browser-assertions";

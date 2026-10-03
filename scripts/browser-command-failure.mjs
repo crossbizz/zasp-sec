@@ -15,7 +15,7 @@ export function browserCommandFailureAnnotation(executable,args,kind){
  return `::error title=Compliance browser command failed::Observed command class: ${label}; failure: ${kind}.`;
 }
 
-const PHASE_ANNOTATIONS=new Map(['services','command-builds','schema-bootstrap','browser-assertions'].map(phase=>[phase,`::error title=Compliance browser phase failed::Observed phase: ${phase}.`]));
+const PHASE_ANNOTATIONS=new Map(['services', 'command-builds', 'schema-bootstrap', 'browser-assertions', 'postgres-startup', 'postgres-instrumentation', 'postgres-principal-provisioning', 'compliance-fixture-provisioning', 'controlled-identity-startup', 'policy-history-startup', 'api-startup', 'api-ready', 'web-startup', 'web-ready', 'tls-provisioning', 'proxy-startup', 'browser-startup'].map(phase=>[phase,`::error title=Compliance browser phase failed::Observed phase: ${phase}.`]));
 export function emitComplianceBrowserPhaseFailure(phase,emit){
  try{emit(PHASE_ANNOTATIONS.get(phase)??'::error title=Compliance browser phase failed::Observed phase: unavailable.');}catch{/* Diagnostics must not replace the original failure. */}
 }
