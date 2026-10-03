@@ -22,3 +22,18 @@ export function emitComplianceBrowserPhaseFailure(phase,emit){
 export function emitComplianceMigrationFailure(emit){
  try{emit('::error title=Compliance browser schema bootstrap failed::Observed branch: up-to-48 migration returned nonzero.');}catch{/* Preserve the existing handled-command failure. */}
 }
+
+const COMPLIANCE_API_CHILD_STAGES = new Set(['config-load', 'owned-inputs', 'storage-path', 'bounded-deadline', 'runtime-build', 'serve']);
+export function emitComplianceAPIChildFailure(output, emit) {
+ let stage = 'unavailable';
+ if (typeof output === 'string' && output.length < 16_384) {
+  const lines = output.split('\n');
+  const partial = lines.pop();
+  const witnesses = lines.filter(line => line.includes('ZASP_COMPLIANCE_API_FAILED_STAGE'));
+  if (witnesses.length === 1 && !partial.includes('ZASP_COMPLIANCE_API_FAILED_STAGE')) {
+   const value = witnesses[0].slice('ZASP_COMPLIANCE_API_FAILED_STAGE='.length);
+   if (COMPLIANCE_API_CHILD_STAGES.has(value) && witnesses[0] === `ZASP_COMPLIANCE_API_FAILED_STAGE=${value}`) stage = value;
+  }
+ }
+ try { emit(`::error title=Compliance API startup failed::Observed child stage: ${stage}.`); } catch { /* Preserve the original readiness error. */ }
+}

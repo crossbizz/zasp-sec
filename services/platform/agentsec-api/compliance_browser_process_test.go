@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
@@ -73,18 +74,22 @@ func TestComplianceBrowserAPIProcess(t *testing.T) {
 	}
 	config, err := loadRuntimeConfigFromEnvironment(os.LookupEnv)
 	if err != nil {
+		fmt.Fprintln(os.Stderr, complianceBrowserFailureMarker(complianceBrowserConfigLoad))
 		t.Fatal(err)
 	}
 	legacy := os.Getenv("ZASP_COMPLIANCE_BROWSER_LEGACY") == "true"
 	if auditBrowserProcessInputs(config, os.Getenv("ZASP_COMPLIANCE_BROWSER_PG_PORT")) != nil || (config.ComplianceExports == nil) != legacy {
+		fmt.Fprintln(os.Stderr, complianceBrowserFailureMarker(complianceBrowserOwnedInputs))
 		t.Fatal("owned database/config refused")
 	}
 	path := os.Getenv("ZASP_COMPLIANCE_BROWSER_OBJECT")
 	if !strings.HasPrefix(path, "/tmp/zasp-compliance-browser-") || strings.Contains(path, "..") {
+		fmt.Fprintln(os.Stderr, complianceBrowserFailureMarker(complianceBrowserStoragePath))
 		t.Fatal("owned storage path refused")
 	}
 	deadline, err := time.Parse(time.RFC3339Nano, os.Getenv("ZASP_COMPLIANCE_BROWSER_DEADLINE"))
 	if err != nil || time.Until(deadline) < time.Second || time.Until(deadline) > 30*time.Minute {
+		fmt.Fprintln(os.Stderr, complianceBrowserFailureMarker(complianceBrowserBoundedDeadline))
 		t.Fatal("bounded deadline required")
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -101,9 +106,41 @@ func TestComplianceBrowserAPIProcess(t *testing.T) {
 	}
 	deps, err := buildRuntimeDependenciesWithStorage(ctx, config, newAuditExportStorageClients, factory)
 	if err != nil {
+		fmt.Fprintln(os.Stderr, complianceBrowserFailureMarker(complianceBrowserRuntimeBuild))
 		t.Fatal("compliance browser runtime refused", err)
 	}
 	if err := serveRuntime(ctx, io.Discard, "compliance-browser", config, deps, net.Listen); err != nil {
+		fmt.Fprintln(os.Stderr, complianceBrowserFailureMarker(complianceBrowserServe))
 		t.Fatal(err)
+	}
+}
+
+type complianceBrowserFailureStage uint8
+
+const (
+	complianceBrowserConfigLoad complianceBrowserFailureStage = iota + 1
+	complianceBrowserOwnedInputs
+	complianceBrowserStoragePath
+	complianceBrowserBoundedDeadline
+	complianceBrowserRuntimeBuild
+	complianceBrowserServe
+)
+
+func complianceBrowserFailureMarker(stage complianceBrowserFailureStage) string {
+	switch stage {
+	case complianceBrowserConfigLoad:
+		return "ZASP_COMPLIANCE_API_FAILED_STAGE=config-load"
+	case complianceBrowserOwnedInputs:
+		return "ZASP_COMPLIANCE_API_FAILED_STAGE=owned-inputs"
+	case complianceBrowserStoragePath:
+		return "ZASP_COMPLIANCE_API_FAILED_STAGE=storage-path"
+	case complianceBrowserBoundedDeadline:
+		return "ZASP_COMPLIANCE_API_FAILED_STAGE=bounded-deadline"
+	case complianceBrowserRuntimeBuild:
+		return "ZASP_COMPLIANCE_API_FAILED_STAGE=runtime-build"
+	case complianceBrowserServe:
+		return "ZASP_COMPLIANCE_API_FAILED_STAGE=serve"
+	default:
+		return "ZASP_COMPLIANCE_API_FAILED_STAGE=unavailable"
 	}
 }

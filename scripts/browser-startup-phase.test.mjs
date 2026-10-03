@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
-import {emitComplianceBrowserPhaseFailure} from './browser-command-failure.mjs';
+import {emitComplianceBrowserPhaseFailure,emitComplianceAPIChildFailure} from './browser-command-failure.mjs';
 const source=fs.readFileSync(new URL('./production-combined-e2e.mjs',import.meta.url),'utf8');
 const tree=ts.createSourceFile('published-runner.mjs',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
 assert.equal(tree.parseDiagnostics.length,0);
@@ -26,7 +26,7 @@ function harness({kind='mounted',fail,mode=true,emitterFails=false}={}){
  const call=(name,args)=>{calls.push({name,args});if(name===fail)throw owned;};
  const cleanupController={run:async()=>{call('cleanup',[]);},dispose:()=>{call('dispose',[]);}};
  const configuration={dsn:'CANARY_DSN',apiBinary:'/owned/api',workerE2EBinary:'/owned/worker',postgresPort:10,identityPort:11,policyHistoryPort:12,apiPort:13,healthPort:14,webPort:15,proxyPort:16,chromePort:17};
- const deps={assert,path,configuration,complianceBrowserMode:mode,cleanupController,emitComplianceBrowserPhaseFailure,
+ const deps={assert,path,configuration,complianceBrowserMode:mode,cleanupController,emitComplianceBrowserPhaseFailure,emitComplianceAPIChildFailure,
  console:{log:()=>{},error:x=>{if(emitterFails)throw Error('CANARY_EMITTER');annotations.push(x);}},process:{env:{ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC:'1'}},postgresBin:'/owned/pg',postgresPort:10,dsn:'CANARY_DSN',temporaryRoot:'/owned/tmp',root:'/repo',productHostname:'CANARY_HOST',
  startPostgres:async(...args)=>{call('postgres',args);return {owned:true};},provisionPostgresPrincipals:async(...args)=>{call('principals',args);},
  command:async(...args)=>{const name=args[0]==='openssl'?'tls':kind==='initial'?'instrument':++sqlCalls===1?'sql-schema':'sql-fixture';call(name,args);return {stdout:name==='instrument'?'pl':name==='sql-schema'?'56':''};},
@@ -44,7 +44,7 @@ test('parsed initial PG startup branches retain Error identity, call prefix and 
 });
 test('parsed mounted startup failures distinguish each owned operation without changing wrapper or cleanup',async()=>{
  for(const fail of mountedOrder){
-  const h=harness({fail});await assert.rejects(h.run(),e=>e===(fail==='api-ready'?h.wrappers[0]:h.owned));assert.deepEqual(h.calls.map(x=>x.name),[...mountedOrder.slice(0,mountedOrder.indexOf(fail)+1),'cleanup','dispose']);assert.equal(h.wrappers.length,fail==='api-ready'?1:0);assert.deepEqual(h.annotations,[`::error title=Compliance browser phase failed::Observed phase: ${labels[fail]}.`]);assert.doesNotMatch(h.annotations.join(''),/CANARY|SECRET|URL|TENANT|owned/);
+  const h=harness({fail});await assert.rejects(h.run(),e=>e===(fail==='api-ready'?h.wrappers[0]:h.owned));assert.deepEqual(h.calls.map(x=>x.name),[...mountedOrder.slice(0,mountedOrder.indexOf(fail)+1),'cleanup','dispose']);assert.equal(h.wrappers.length,fail==='api-ready'?1:0);assert.deepEqual(h.annotations,[...(fail==='api-ready'?['::error title=Compliance API startup failed::Observed child stage: unavailable.']:[]),`::error title=Compliance browser phase failed::Observed phase: ${labels[fail]}.`]);assert.doesNotMatch(h.annotations.join(''),/CANARY|SECRET|URL|TENANT|owned/);
  }
 });
 test('parsed success keeps original startup arguments, API deadlines, legacy environment and assertion phase',async()=>{
@@ -63,7 +63,7 @@ test('parsed API restart restores browser assertion phase only after readiness s
  const declaration=mounted.body.statements.find(n=>n.getText(tree).startsWith('const startAPI=async(')).getText(tree);
  for(const fail of [null,'spawn','ready']){
   const calls=[],owned=Error('CANARY_RESTART'),wrappers=[];
-  const run=new Function('complianceBrowserMode','apiEnvironment','apiBinary','healthPort','startChild','waitForHTTP','Error',`return(async()=>{let compliancePhase='browser-assertions',api;${declaration}try{await startAPI();return {phase:compliancePhase};}catch(error){return {phase:compliancePhase,error};}})();`);
+  const run=new Function('complianceBrowserMode','apiEnvironment','apiBinary','healthPort','startChild','waitForHTTP','Error',`const emitComplianceAPIChildFailure=()=>{};const console={error:()=>{}};return(async()=>{let compliancePhase='browser-assertions',api;${declaration}try{await startAPI();return {phase:compliancePhase};}catch(error){return {phase:compliancePhase,error};}})();`);
   const result=await run(true,{KEEP:'fixed'},'/owned/api',14,()=>{calls.push('spawn');if(fail==='spawn')throw owned;return {output:()=> 'CANARY_OUTPUT'};},async()=>{calls.push('ready');if(fail==='ready')throw owned;},function(message){const error=Error(message);wrappers.push(error);return error;});
   assert.deepEqual(calls,fail==='spawn'?['spawn']:['spawn','ready']);assert.equal(result.phase,fail==='spawn'?'api-startup':fail==='ready'?'api-ready':'browser-assertions');assert.equal(result.error,fail==='spawn'?owned:fail==='ready'?wrappers[0]:undefined);
  }
