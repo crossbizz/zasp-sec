@@ -109,6 +109,28 @@ function SessionInvalidationConsumer({ query }: { query?: (signal?: AbortSignal)
 	</div>;
 }
 
+function LogoutOwnershipConsumer({ onFailure }: { onFailure?: (error: unknown) => void }) {
+  const session = useSession();
+  const { client, queryScopeKey } = useAPI();
+  const [logout, setLogout] = useState("idle");
+  return <div>
+    <span>logout session {session.status}</span>
+    <span>logout capability {session.hasCapability("inventory.read") ? "visible" : "hidden"}</span>
+    <span>logout query scope {queryScopeKey ?? "none"}</span>
+    <span>logout scope attempt {session.scopeSwitch.status}</span>
+    <span>logout acknowledgement {logout}</span>
+    <button disabled={session.status !== "authenticated"} onClick={() => {
+      setLogout("pending");
+      void session.signOut().then(() => setLogout("complete"), error => { onFailure?.(error); setLogout("failed"); });
+    }}>Start owned logout</button>
+    <button onClick={() => void client.GET("/api/v1/home/summary")}>Trigger logout scope stale</button>
+    <button disabled={session.status !== "authenticated"} onClick={() => {
+      if (session.status === "authenticated") void session.switchScope(session.scopes[1].workspace_id, session.scopes[1].environment_id);
+    }}>Start logout scope mutation</button>
+    <button onClick={() => void client.POST("/api/v1/session/sign-out", { params: { header: { "X-CSRF-Token": "" } } })}>Probe post-logout security</button>
+  </div>;
+}
+
 type Deferred<T> = {
 	promise: Promise<T>;
 	resolve(value: T): void;
@@ -131,6 +153,152 @@ function wrapper(fetch: (request: Request) => Promise<Response>) {
 }
 
 describe("SessionProvider", () => {
+  it.each([
+    ["bootstrap", "success"], ["bootstrap", "failure"],
+    ["scope list", "success"], ["scope list", "failure"],
+  ] as const)("acknowledged logout retires delayed %s %s and keeps visible state unauthenticated", async (phase, completion) => {
+    const oldRecovery = deferred<Response>();
+    const logoutResponse = deferred<Response>();
+    let recoverySignal: AbortSignal | undefined;
+    let bootstrapCalls = 0;
+    let scopeCalls = 0;
+    let logoutCalls = 0;
+    const security: Array<{ csrf: string | null; scope: string | null }> = [];
+    const fetch = vi.fn(async (request: Request) => {
+      const pathname = new URL(request.url).pathname;
+      expect(request.credentials).toBe("same-origin");
+      expect(request.redirect).toBe("error");
+      if (pathname === "/api/v1/session/bootstrap") {
+        bootstrapCalls++;
+        if (bootstrapCalls === 2 && phase === "bootstrap") {
+          recoverySignal = request.signal; return oldRecovery.promise;
+        }
+        return jsonResponse(sessionBootstrap());
+      }
+      if (pathname === "/api/v1/session/scopes") {
+        scopeCalls++;
+        if (scopeCalls === 2 && phase === "scope list") {
+          recoverySignal = request.signal; return oldRecovery.promise;
+        }
+        return jsonResponse(sessionScopes());
+      }
+      if (pathname === "/api/v1/home/summary") return scopeStaleResponse();
+      if (pathname === "/api/v1/session/sign-out") {
+        security.push({ csrf: request.headers.get("X-CSRF-Token"), scope: request.headers.get("X-Zasp-Expected-Scope") });
+        logoutCalls++; return logoutCalls === 1 ? logoutResponse.promise : new Response(null, { status: 204 });
+      }
+      throw new Error("Unexpected logout test request");
+    });
+    vi.stubGlobal("fetch", fetch);
+    const rendered = render(<APIProvider><SessionProvider><LogoutOwnershipConsumer /></SessionProvider></APIProvider>);
+    try {
+      await screen.findByText("logout session authenticated");
+      await userEvent.click(screen.getByRole("button", { name: "Start owned logout" }));
+      await waitFor(() => expect(logoutCalls).toBe(1));
+      await userEvent.click(screen.getByRole("button", { name: "Trigger logout scope stale" }));
+      await waitFor(() => expect(recoverySignal).toBeDefined());
+      await act(async () => { logoutResponse.resolve(new Response(null, { status: 204 })); });
+      await screen.findByText("logout acknowledgement complete");
+      const visibleAtAcknowledgement = screen.getByText(/^logout session /).textContent;
+      const abortedAtAcknowledgement = recoverySignal?.aborted;
+      await act(async () => {
+        if (completion === "failure") oldRecovery.reject(new Error("Old session recovery failed"));
+        else oldRecovery.resolve(jsonResponse(phase === "bootstrap" ? sessionBootstrap(true) : sessionScopes()));
+        await oldRecovery.promise.catch(() => undefined);
+      });
+      expect(screen.getByText("logout session unauthenticated")).toBeVisible();
+      expect(visibleAtAcknowledgement).toBe("logout session unauthenticated");
+      expect(abortedAtAcknowledgement).toBe(true);
+      expect(screen.getByText("logout capability hidden")).toBeVisible();
+      expect(screen.getByText("logout query scope none")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Probe post-logout security" }));
+      await waitFor(() => expect(logoutCalls).toBe(2));
+      expect(security[0]?.csrf).toBe("cccccccccccccccccccccccccccccccc");
+      expect(security[1]).toEqual({ csrf: "", scope: null });
+    } finally {
+      await act(async () => {
+        logoutResponse.resolve(new Response(null, { status: 204 }));
+        oldRecovery.resolve(jsonResponse(phase === "bootstrap" ? sessionBootstrap(true) : sessionScopes()));
+        await oldRecovery.promise.catch(() => undefined);
+      });
+      rendered.unmount(); vi.unstubAllGlobals();
+    }
+  });
+
+  it("acknowledged logout retires an outstanding scope mutation before it can restart recovery", async () => {
+    const mutation = deferred<Response>();
+    let bootstrapCalls = 0;
+    let mutations = 0;
+    const fetch = vi.fn(async (request: Request) => {
+      const pathname = new URL(request.url).pathname;
+      if (pathname === "/api/v1/session/bootstrap") { bootstrapCalls++; return jsonResponse(sessionBootstrap()); }
+      if (pathname === "/api/v1/session/scopes") return jsonResponse(sessionScopes());
+      if (pathname === "/api/v1/session/scope") { mutations++; return mutation.promise; }
+      if (pathname === "/api/v1/session/sign-out") return new Response(null, { status: 204 });
+      throw new Error("Unexpected logout mutation test request");
+    });
+    vi.stubGlobal("fetch", fetch);
+    const rendered = render(<APIProvider><SessionProvider><LogoutOwnershipConsumer /></SessionProvider></APIProvider>);
+    try {
+      await screen.findByText("logout session authenticated");
+      await userEvent.click(screen.getByRole("button", { name: "Start logout scope mutation" }));
+      await waitFor(() => expect(mutations).toBe(1));
+      await userEvent.click(screen.getByRole("button", { name: "Start owned logout" }));
+      await screen.findByText("logout acknowledgement complete");
+      await act(async () => { mutation.resolve(new Response(null, { status: 204 })); await mutation.promise; });
+      expect(bootstrapCalls).toBe(1);
+      expect(screen.getByText("logout session unauthenticated")).toBeVisible();
+      expect(screen.getByText("logout scope attempt idle")).toBeVisible();
+    } finally {
+      await act(async () => { mutation.resolve(new Response(null, { status: 204 })); await mutation.promise; });
+      rendered.unmount(); vi.unstubAllGlobals();
+    }
+  });
+
+  it.each([200, 205])("does not acknowledge a non-contract logout success status %i", async status => {
+    const failures: unknown[] = [];
+    const fetch = vi.fn(async (request: Request) => {
+      const pathname = new URL(request.url).pathname;
+      if (pathname === "/api/v1/session/bootstrap") return jsonResponse(sessionBootstrap());
+      if (pathname === "/api/v1/session/scopes") return jsonResponse(sessionScopes());
+      if (pathname === "/api/v1/session/sign-out") return status === 200 ? jsonResponse({}) : new Response(null, { status });
+      throw new Error("Unexpected logout status test request");
+    });
+    vi.stubGlobal("fetch", fetch);
+    const rendered = render(<APIProvider><SessionProvider><LogoutOwnershipConsumer onFailure={error => failures.push(error)} /></SessionProvider></APIProvider>);
+    try {
+      await screen.findByText("logout session authenticated");
+      await userEvent.click(screen.getByRole("button", { name: "Start owned logout" }));
+      await screen.findByText("logout acknowledgement failed");
+      expect(failures).toHaveLength(1);
+      expect(failures[0]).toMatchObject({ name: "APITransportError", kind: "invalid_response" });
+      expect(screen.getByText("logout session authenticated")).toBeVisible();
+      expect(screen.getByText("logout capability visible")).toBeVisible();
+    } finally { rendered.unmount(); vi.unstubAllGlobals(); }
+  });
+
+  it("preserves a genuine failed logout product error without claiming revocation", async () => {
+    const failures: unknown[] = [];
+    const product = { code: "provider_unavailable", message: "Provider unavailable", correlation_id: "pid_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", retryable: true };
+    const fetch = vi.fn(async (request: Request) => {
+      const pathname = new URL(request.url).pathname;
+      if (pathname === "/api/v1/session/bootstrap") return jsonResponse(sessionBootstrap());
+      if (pathname === "/api/v1/session/scopes") return jsonResponse(sessionScopes());
+      if (pathname === "/api/v1/session/sign-out") return jsonResponse(product, 503);
+      throw new Error("Unexpected failed logout test request");
+    });
+    vi.stubGlobal("fetch", fetch);
+    const rendered = render(<APIProvider><SessionProvider><LogoutOwnershipConsumer onFailure={error => failures.push(error)} /></SessionProvider></APIProvider>);
+    try {
+      await screen.findByText("logout session authenticated");
+      await userEvent.click(screen.getByRole("button", { name: "Start owned logout" }));
+      await screen.findByText("logout acknowledgement failed");
+      expect(failures).toEqual([product]);
+      expect(screen.getByText("logout session authenticated")).toBeVisible();
+      expect(screen.getByText("logout capability visible")).toBeVisible();
+    } finally { rendered.unmount(); vi.unstubAllGlobals(); }
+  });
+
 	it("lets the server authorize a newly created scope that is absent from the cached scope list", async () => {
 		let switched = false;
 		let scopeListCalls = 0;
