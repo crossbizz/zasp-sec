@@ -96,6 +96,9 @@ describe("M1-02 dependency lock contract", () => {
     expect(workflow).toContain("run: |-\n" + verifyDiagnosticRun.split("\n").map(line => "          " + line).join("\n"));
     expect(workflow).toContain("      - name: Prime platform full-MVS metadata for offline release contracts\n        timeout-minutes: 5\n        run: GOENV=off GOWORK=off GOFLAGS= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -C services/platform -mod=readonly -m all >/dev/null\n");
     expect(workflow.indexOf("      - name: Prime platform full-MVS metadata for offline release contracts")).toBeLessThan(workflow.indexOf("      - name: Verify runnable UI"));
+    expect(workflow).toContain("      - name: Prime native migration compilation cache for compliance browser\n        timeout-minutes: 5\n        run: |\n");
+    expect(workflow.indexOf("      - name: Verify runnable UI")).toBeLessThan(workflow.indexOf("      - name: Prime native migration compilation cache for compliance browser"));
+    expect(workflow.indexOf("      - name: Prime native migration compilation cache for compliance browser")).toBeLessThan(workflow.indexOf("      - name: Verify current compliance browser acceptance"));
     expect(workflow).not.toContain("validate-dependencies.mjs");
   });
 });

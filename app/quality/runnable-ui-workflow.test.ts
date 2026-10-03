@@ -221,7 +221,7 @@ function assertRunnableUiWorkflow(
   expect(verificationJob["timeout-minutes"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(33);
+  expect(verificationSteps).toHaveLength(34);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
@@ -233,6 +233,7 @@ function assertRunnableUiWorkflow(
     "npm run implementation:status:check",
     platformMetadataCommand,
     verifyDiagnosticRun,
+    migrationCacheCommand,
     ...complianceSteps.map(step => step.run),
     "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n",
     "npm run production:release:gate",
@@ -245,6 +246,7 @@ function assertRunnableUiWorkflow(
     "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n",
   ]);
   expect(verificationSteps.find(step => step.name === platformMetadataName)).toEqual({ name: platformMetadataName, run: platformMetadataCommand, "timeout-minutes": 5 });
+  expect(verificationSteps.find(step => step.name === migrationCacheName)).toEqual({ name: migrationCacheName, run: migrationCacheCommand, "timeout-minutes": 5 });
   expect(verificationSteps[0]?.with).toEqual({ "fetch-depth": 0 });
   expect(verificationSteps[1]?.with).toMatchObject({
     "node-version": "22.23.1",
@@ -296,6 +298,7 @@ function validWorkflow(): Workflow {
           { run: "npm run implementation:status:check" },
           { name: platformMetadataName, run: platformMetadataCommand, "timeout-minutes": 5 },
           { run: verifyDiagnosticRun },
+          { name: migrationCacheName, run: migrationCacheCommand, "timeout-minutes": 5 },
           ...structuredClone(complianceSteps),
           { run: "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n" },
           { run: "npm run production:release:gate" },
@@ -311,6 +314,9 @@ function validWorkflow(): Workflow {
     },
   };
 }
+
+const migrationCacheName = "Prime native migration compilation cache for compliance browser";
+const migrationCacheCommand = "umask 077\ntask_migration_dir=$(mktemp -d \"${RUNNER_TEMP}/zasp-migration-cache.XXXXXX\")\ntrap 'rm -rf -- \"$task_migration_dir\"' EXIT\ncd services/platform\nGOENV=off GOWORK=off GOFLAGS= GOPRIVATE= GONOPROXY= GONOSUMDB= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go build -mod=readonly -o \"$task_migration_dir/agentsec-migrate\" ./agentsec-migrate\n";
 
 const platformMetadataCommand = "GOENV=off GOWORK=off GOFLAGS= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -C services/platform -mod=readonly -m all >/dev/null";
 const platformMetadataName = "Prime platform full-MVS metadata for offline release contracts";
@@ -769,5 +775,42 @@ esac
       await rm(directory, { recursive: true, force: true });
     }
     await expect(readFile(resolve(directory, "node"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+});
+
+
+describe("native migration cache preparation", () => {
+  it("requires exact bounded preparation before unchanged compliance acceptance", async () => {
+    assertRunnableUiWorkflow(await readWorkflow(), await readPackageManifest());
+  });
+  it.each(["omitted", "skip", "allowed failure", "timeout", "command", "environment", "order"])("refuses %s native migration cache preparation", async condition => {
+    const workflow = validWorkflow(); const manifest = await readPackageManifest();
+    assertRunnableUiWorkflow(workflow, manifest);
+    const steps = workflow.jobs!.verify.steps!; const step = steps.find(value => value.name === migrationCacheName)!;
+    if (condition === "omitted") steps.splice(steps.indexOf(step), 1);
+    if (condition === "skip") step.if = false;
+    if (condition === "allowed failure") step["continue-on-error"] = true;
+    if (condition === "timeout") step["timeout-minutes"] = 6;
+    if (condition === "command") step.run = step.run!.replace("-mod=readonly", "-mod=mod");
+    if (condition === "environment") step.env = { GOFLAGS: "-race" };
+    if (condition === "order") steps.push(steps.splice(steps.indexOf(step), 1)[0]);
+    expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
+  });
+  it.each([0, 37])("executes actual preparation with owned output and preserves status %s", async status => {
+    const workflow = await readWorkflow(); const step = workflow.jobs!.verify.steps!.find(value => value.name === migrationCacheName)!;
+    expect(step).toEqual({ name: migrationCacheName, run: migrationCacheCommand, "timeout-minutes": 5 });
+    const dir = await mkdtemp(resolve(tmpdir(), "migration-cache-control-"));
+    try {
+      const bin = resolve(dir, "go"), observation = resolve(dir, "observation.json");
+      await writeFile(bin, "#!/usr/bin/env node\n" + `const fs=require('node:fs'),path=require('node:path');const args=process.argv.slice(2);const output=args[args.indexOf('-o')+1];fs.writeFileSync(output,'#!/bin/sh\\nexit 99\\n');fs.writeFileSync(${JSON.stringify(observation)},JSON.stringify({args,cwd:process.cwd(),parentMode:fs.statSync(path.dirname(output)).mode&511,outputMode:fs.statSync(output).mode&511,env:Object.fromEntries(['GOENV','GOWORK','GOFLAGS','GOPRIVATE','GONOPROXY','GONOSUMDB','GOPROXY','GOSUMDB'].map(k=>[k,process.env[k]]))}));process.exit(${status});`);
+      await chmod(bin, 0o700);
+      const result = spawnSync("/bin/bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", "-c", step.run!], { cwd: repositoryRoot, env: { PATH: `${dir}:${resolve(process.execPath, "..") }:/usr/bin:/bin`, RUNNER_TEMP: dir, NODE_ENV: "test" }, timeout: 5000, encoding: "utf8" });
+      expect(result.error).toBeUndefined(); expect(result.signal).toBeNull(); expect(result.status).toBe(status);
+      const observed = JSON.parse(await readFile(observation, "utf8"));
+      expect(observed.args).toEqual(["build", "-mod=readonly", "-o", expect.stringMatching(new RegExp(`^${dir}/zasp-migration-cache\\.[^/]+/agentsec-migrate$`)), "./agentsec-migrate"]);
+      expect(observed.cwd).toBe(resolve(repositoryRoot, "services/platform")); expect(observed.parentMode).toBe(0o700); expect(observed.outputMode).toBe(0o600);
+      expect(observed.env).toEqual({ GOENV: "off", GOWORK: "off", GOFLAGS: "", GOPRIVATE: "", GONOPROXY: "", GONOSUMDB: "", GOPROXY: "https://proxy.golang.org", GOSUMDB: "sum.golang.org" });
+      await expect(readFile(observed.args[3])).rejects.toMatchObject({ code: "ENOENT" });
+    } finally { await rm(dir, { recursive: true, force: true }); }
   });
 });
