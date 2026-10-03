@@ -43,7 +43,13 @@ type PackageManifest = {
 };
 
 const repositoryRoot = process.cwd();
-const sessionIAMCommand = "task_tf_dir=$(mktemp -d \"${RUNNER_TEMP}/zasp-terraform.XXXXXX\")\ncurl --fail --location --retry 3 --max-time 120 --output \"$task_tf_dir/terraform.zip\" https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_linux_amd64.zip\nprintf '%s  %s\\n' d25ce7b6902013ad905db3d2eab0be4cd905887fe88b81a6171b8d5503c31f3d \"$task_tf_dir/terraform.zip\" | sha256sum --check -\nunzip -q \"$task_tf_dir/terraform.zip\" -d \"$task_tf_dir\"\nexport TF_DATA_DIR=\"$task_tf_dir/data\"\n\"$task_tf_dir/terraform\" -chdir=deploy/staging init -backend=false -input=false -lockfile=readonly\n\"$task_tf_dir/terraform\" -chdir=deploy/staging test -filter=tests/session_search_iam.tftest.hcl -filter=tests/test_reconciler_iam.tftest.hcl -var-file=release.tfvars -no-color\n";
+const iamUnionCommands = [
+  "node --test deploy/staging/iam-policy-union-v1.test.mjs",
+  "\"$task_tf_dir/terraform\" -chdir=deploy/staging test -filter=tests/iam_policy_union.tftest.hcl -json -verbose -no-color > \"$task_tf_dir/iam-policy-union.jsonl\"",
+  "node --max-old-space-size=512 deploy/staging/iam-policy-union-v1.test.mjs --plan \"$task_tf_dir/iam-policy-union.jsonl\"",
+  "node deploy/staging/iam-policy-union-v1.mjs --plan \"$task_tf_dir/iam-policy-union.jsonl\""
+];
+const sessionIAMCommand = "task_tf_dir=$(mktemp -d \"${RUNNER_TEMP}/zasp-terraform.XXXXXX\")\ncurl --fail --location --retry 3 --max-time 120 --output \"$task_tf_dir/terraform.zip\" https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_linux_amd64.zip\nprintf '%s  %s\\n' d25ce7b6902013ad905db3d2eab0be4cd905887fe88b81a6171b8d5503c31f3d \"$task_tf_dir/terraform.zip\" | sha256sum --check -\nunzip -q \"$task_tf_dir/terraform.zip\" -d \"$task_tf_dir\"\nexport TF_DATA_DIR=\"$task_tf_dir/data\"\n\"$task_tf_dir/terraform\" -chdir=deploy/staging init -backend=false -input=false -lockfile=readonly\n\"$task_tf_dir/terraform\" -chdir=deploy/staging test -filter=tests/session_search_iam.tftest.hcl -filter=tests/test_reconciler_iam.tftest.hcl -var-file=release.tfvars -no-color\nnode --test deploy/staging/iam-policy-union-v1.test.mjs\n\"$task_tf_dir/terraform\" -chdir=deploy/staging test -filter=tests/iam_policy_union.tftest.hcl -json -verbose -no-color > \"$task_tf_dir/iam-policy-union.jsonl\"\nnode --max-old-space-size=512 deploy/staging/iam-policy-union-v1.test.mjs --plan \"$task_tf_dir/iam-policy-union.jsonl\"\nnode deploy/staging/iam-policy-union-v1.mjs --plan \"$task_tf_dir/iam-policy-union.jsonl\"\n";
 const checkoutAction = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1";
 const setupNodeAction = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020";
 const setupGoAction = "actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16";
@@ -324,6 +330,22 @@ const platformMetadataName = "Prime platform full-MVS metadata for offline relea
 const verifyDiagnosticRun = "task_verify_log=$(mktemp \"${RUNNER_TEMP}/zasp-npm-verify.XXXXXX\")\nset +e\nnpm run verify 2>&1 | tee \"$task_verify_log\"\ntask_verify_status=${PIPESTATUS[0]}\nset -e\nif [ \"$task_verify_status\" -ne 0 ]; then\n  node scripts/annotate-verify-failure.mjs \"$task_verify_log\" || printf '%s\\n' '::error title=npm verify failed::Verification failed; phase unavailable.'\nfi\nrm -f -- \"$task_verify_log\" || true\nexit \"$task_verify_status\"";
 
 describe("runnable UI GitHub Actions gate", () => {
+  it.each(iamUnionCommands.flatMap(command => ["omitted", "reordered", "bypassed"].map(condition => [command, condition] as const)))("rejects IAM union command %s when %s", async (command, condition) => {
+    const workflow = validWorkflow();
+    const manifest = await readPackageManifest();
+    assertRunnableUiWorkflow(workflow, manifest);
+    const step = workflow.jobs!.verify.steps!.find(value => value.run === sessionIAMCommand)!;
+    const line = `${command}\n`;
+    if (condition === "omitted") step.run = step.run!.replace(line, "");
+    if (condition === "bypassed") step.run = step.run!.replace(line, `${command} || true\n`);
+    if (condition === "reordered") {
+      const index = iamUnionCommands.indexOf(command);
+      const neighbor = iamUnionCommands[index === 0 ? 1 : index - 1];
+      step.run = step.run!.replace(line, "").replace(`${neighbor}\n`, index === 0 ? `${neighbor}\n${line}` : `${line}${neighbor}\n`);
+    }
+    expect(step.run).not.toBe(sessionIAMCommand);
+    expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
+  });
   it("requires bounded platform full-MVS metadata priming in the actual workflow", async () => {
     assertRunnableUiWorkflow(await readWorkflow(), await readPackageManifest());
   });
