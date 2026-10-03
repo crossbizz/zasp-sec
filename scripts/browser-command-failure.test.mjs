@@ -16,7 +16,7 @@ function harness({deadline=false,status=0,signal=null}={}){
  const owned={child,completed,stop:async()=>{events.push('stop');settle({status:null,signal:'SIGTERM',stdout:'',stderr:''});}};
  const spawn=(executable,args,options)=>{events.push({executable,args,options});return owned;};
  const fakeSet=(cb,ms)=>{events.push({deadline:ms});if(deadline)queueMicrotask(cb);return 1;};
- const command=new Function('spawnOwnedCommand','auditBrowserEnvironment','children','ownedCommands','temporaryRoot','root','existingTestMountedMode','path','setTimeout','clearTimeout','browserCommandFailureAnnotation','console',commandSource+'\nreturn command;')(spawn,x=>x,children,ownedCommands,'/owned/tmp','/repo',false,path,fakeSet,()=>events.push('clear'),browserCommandFailureAnnotation,{error:x=>annotations.push(x)});
+ const command=new Function('spawnOwnedCommand','auditBrowserEnvironment','children','ownedCommands','temporaryRoot','root','existingTestMountedMode','path','setTimeout','clearTimeout','browserCommandFailureAnnotation','console','const currentComplianceFailure=undefined,currentComplianceClosing=false,currentComplianceServices=undefined;'+commandSource+'\nreturn command;')(spawn,x=>x,children,ownedCommands,'/owned/tmp','/repo',false,path,fakeSet,()=>events.push('clear'),browserCommandFailureAnnotation,{error:x=>annotations.push(x)});
  return {command,annotations,events,children,ownedCommands,child};
 }
 test('fixed command classes never include arguments, paths or unknown failure text',()=>{

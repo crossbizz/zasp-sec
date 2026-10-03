@@ -271,6 +271,7 @@ async function exportShutdownFixture({ restartExit, finalExit, assertionFailure 
   if (assertionFailure === "receipt") requests[0].receiptID = "missing";
   const context = {
     assert, path, os, Date, Buffer, createHash, process: { env: {} }, console: { log() {} }, AggregateError,
+    currentComplianceStateRoot: undefined, currentComplianceClosing: false, currentComplianceProjectionController: undefined, currentComplianceProjectionLoop: undefined, currentComplianceServices: undefined, currentCompliancePostgres: undefined,
     root: "/owned", postgresBin: "/owned/bin", temporaryRoot: "/owned/zasp-production-e2e-fixture", productHostname: "owned.test",
     children: [], ownedCommands: new WeakMap(), mountedRuntimeProofs: [], exportBrowserAPILifetimes: [], exportBrowserAPIShutdowns: new WeakMap(), exportBrowserProfiles: [],
     exportBrowserTrace: requests, exportBrowserEvidenceDirectory: null, automaticDiscoveryEvidenceDirectory: null,
@@ -883,7 +884,7 @@ test("Security Agent simulation selection bypasses broad dependencies and propag
         exerciseExistingTestMountedBrowser: proof("mounted", { workerE2EBinary: "owned-worker" }),
         exerciseSecurityAgentExportMountedBrowser: proof("agent export", { workerE2EBinary: "owned-worker" }),
         exerciseAttackLabMountedBrowser: proof("attack lab", { workerE2EBinary: "owned-worker", migrate: "owned-migrate", migrationEnvironment: { owner: "owned" } }),
-        exerciseComplianceBrowser: proof("compliance", { workerE2EBinary: "owned-worker" }),
+        exerciseComplianceBrowser: proof("compliance", { workerE2EBinary: "owned-worker", migrate: "owned-migrate", migrationEnvironment: { owner: "owned" } }),
         exerciseSecurityAgentSimulationBrowser: proof("simulation"),
         exerciseAuditExportNativeBrowser: proof("audit export", { migrate: "owned-migrate", migrationEnvironment: { owner: "owned" } }),
         createGraphFixtureDependency: () => { calls.push("graph owner"); return { start: () => call("graph start") }; },
@@ -1566,7 +1567,7 @@ test("mounted acceptance rejects Docker pull and build before allocating an owne
   const children = [], ownedCommands = new Map(), calls = [];
   const owner = { child: {}, completed: Promise.resolve({ status: 0, stdout: "owned", stderr: "" }) };
   const command = runInNewContext(`(${source.slice(start, end)})`, {
-    existingTestMountedMode: true, root: "/owned", temporaryRoot: "/owned/tmp", process: { env: {} }, path,
+    currentComplianceClosing: false, currentComplianceFailure: undefined, existingTestMountedMode: true, root: "/owned", temporaryRoot: "/owned/tmp", process: { env: {} }, path,
     auditBrowserEnvironment: () => ({ bounded: "true" }), children, ownedCommands, setTimeout, clearTimeout,
     spawnOwnedCommand: (...args) => { calls.push(args); return owner; },
   });
@@ -1610,6 +1611,7 @@ test("failed checkpoint or provider joins retain errors and files while other ow
     const events = [], expectedError = new Error(`${failureAt} cleanup rejected`);
     const close = async name => { events.push(name); if (name === failureAt) throw expectedError; };
     const cleanup = runInNewContext(`(${source.slice(start, end)})`, {
+      currentComplianceStateRoot: undefined, currentComplianceClosing: false, currentComplianceProjectionController: undefined, currentComplianceProjectionLoop: undefined, currentComplianceServices: undefined, currentCompliancePostgres: undefined,
       console: { log() {} }, AggregateError, temporaryRoot, exportBrowserProfiles: [], exportBrowserAPILifetimes: [], exportBrowserEvidenceDirectory: null, automaticDiscoveryEvidenceDirectory: null,
       precisionBrowserCheckpoint: { close: () => close("checkpoint") }, runtimePipelineChild: "provider",
       mountedRuntimeProofs: ["mounted first", "mounted second"].map(name => ({ close: () => close(name) })),
@@ -1810,3 +1812,75 @@ function rejectAfter(milliseconds, describe) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+// Run the published cleanup body with actual projection cancellation and finite
+// owned boundary doubles. No services, database, browser or provider are started.
+async function currentComplianceCleanupFixture({ failureAt, holdProjection = false } = {}) {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function cleanupOwnedResources() {");
+  const end = source.indexOf("\nasync function generateHarnessGitHubAppPrivateKey", start);
+  assert.ok(start > 0 && end > start);
+  const events = [], failure = new Error("owned current fixture close rejected");
+  const controller = new AbortController();
+  let settleProjection;
+  const loop = new Promise((resolve, reject) => {
+    settleProjection = () => {
+      events.push("projection joined");
+      if (failureAt === "projection") reject(failure); else resolve();
+    };
+  });
+  void loop.catch(() => {});
+  controller.signal.addEventListener("abort", () => {
+    events.push("projection canceled");
+    if (!holdProjection) settleProjection();
+  }, { once: true });
+  const close = async name => { events.push(name); if (failureAt === name) throw failure; };
+  let removed = false;
+  const context = {
+    console: { log() {} }, AggregateError, currentComplianceStateRoot: undefined, currentComplianceClosing: false,
+    currentComplianceProjectionController: controller, currentComplianceProjectionLoop: loop,
+    currentComplianceServices: { close: () => close("current services") },
+    currentCompliancePostgres: { stop: () => close("current postgres") },
+    temporaryRoot: "/unused-owned-current-root", exportBrowserProfiles: [], exportBrowserAPILifetimes: [],
+    exportBrowserEvidenceDirectory: null, automaticDiscoveryEvidenceDirectory: null,
+    precisionBrowserCheckpoint: undefined, mountedRuntimeProofs: [], runtimePipelineChild: undefined,
+    runtimeGraphDependency: undefined, redTeamRuntimeProof: { close: async () => {} },
+    runtimePipelineDependencies: { close: async () => {} }, secondBrowserTab: undefined,
+    browser: undefined, task4Workers: [], api: undefined, proxy: undefined, identity: undefined,
+    policyHistory: undefined, web: undefined, auditExportProvider: undefined,
+    postgres: "legacy postgres", stopPostgres: () => close("legacy postgres"), children: [],
+    rm: async () => { events.push("files"); removed = true; },
+  };
+  const cleanup = runInNewContext(`(${source.slice(start, end)})`, context);
+  return { cleanup, context, controller, events, failure, settleProjection, removed: () => removed };
+}
+
+test("current compliance cleanup cancels and joins projection before services and both PostgreSQL owners", async () => {
+  const fixture = await currentComplianceCleanupFixture({ holdProjection: true });
+  let completed = false;
+  const cleanup = fixture.cleanup().then(() => { completed = true; });
+  try {
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(fixture.controller.signal.aborted, true);
+    assert.equal(fixture.context.currentComplianceClosing, true);
+    assert.deepEqual(fixture.events, ["projection canceled"]);
+    assert.equal(completed, false, "cleanup declared closed before projection joined");
+    assert.equal(fixture.removed(), false);
+  } finally {
+    fixture.settleProjection();
+    await cleanup;
+  }
+  assert.deepEqual(fixture.events, ["projection canceled", "projection joined", "current services", "current postgres", "legacy postgres", "files"]);
+  assert.equal(fixture.removed(), true);
+});
+
+test("current compliance cleanup retains each original failure while joining later owners and retaining files", async () => {
+  for (const failureAt of ["projection", "current services", "current postgres"]) {
+    const fixture = await currentComplianceCleanupFixture({ failureAt });
+    await assert.rejects(fixture.cleanup(), error => error instanceof AggregateError && error.errors.includes(fixture.failure));
+    assert.equal(fixture.controller.signal.aborted, true);
+    assert.equal(fixture.context.currentComplianceClosing, true);
+    assert.deepEqual(fixture.events, ["projection canceled", "projection joined", "current services", "current postgres", "legacy postgres"]);
+    assert.equal(fixture.removed(), false, "failed current join deleted owned state");
+  }
+});

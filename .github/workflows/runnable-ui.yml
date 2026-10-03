@@ -97,6 +97,10 @@ jobs:
           console.log(execFileSync(chrome, ["--version"], { encoding: "utf8", timeout: 5000, killSignal: "SIGKILL" }).trim());
           appendFileSync(process.env.GITHUB_ENV, `ZASP_COMBINED_E2E_CHROME=${chrome}\n`);
           NODE
+      - name: Provision pinned owned authorization runtime tools
+        timeout-minutes: 5
+        run: |
+          node scripts/hosted-runtime-tool-intake.mjs
       - name: Verify current compliance browser acceptance
         timeout-minutes: 15
         env:

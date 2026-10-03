@@ -1,0 +1,28 @@
+{
+  "format": "approved-official-runtime-version-output-v1",
+  "actualIndependentReceiptSha256": "7e7b1cb54fba1e55b45703268d7344495fb33072d2fe051d747446b967e5471a",
+  "temporal": {
+    "stdoutBytes": 50,
+    "stdoutSHA256": "6251da9d8174d2c0c9211ea0aaad4d5afc5ad93c9824d0ee0222a1653ee6fcde",
+    "stdoutBase64": "dGVtcG9yYWwgdmVyc2lvbiAxLjkuMSAoU2VydmVyIDEuMzIuMCwgVUkgMi41NC4xKQo=",
+    "stderrBytes": 0,
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrBase64": "",
+    "sourceArtifactSha256": "463b7fce7e58bd3c3a7ba67fd7edc827c6f60e6ccbb291118818dd4fc83b59e8",
+    "exit": 0,
+    "signal": null,
+    "outputLimitExceeded": false
+  },
+  "openfga": {
+    "stdoutBytes": 0,
+    "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdoutBase64": "",
+    "stderrBytes": 127,
+    "stderrSHA256": "61f5d584fef241c4b61b73ef42a12654ecd9197e26a9650ec5384f8c8bc1b685",
+    "stderrBase64": "MjAyNi8xMC8wMyAxNjoxNDozMiBPcGVuRkdBIHZlcnNpb24gYHYxLjIxLjBgIGJ1aWxkIGZyb20gYGFiNTU3YzU1OTI2NzBjODk5ZGUzNTI5N2U3YWEwNjcwMTVmMDY1MDJgIG9uIGAyMDI2LTA5LTIwVDE2OjExOjE1WmAgCg==",
+    "sourceArtifactSha256": "4d76068c0798eccad15ac590d6a10c13a6f43c00ac27216d7ee0701ca123bb17",
+    "exit": 0,
+    "signal": null,
+    "outputLimitExceeded": false
+  }
+}
