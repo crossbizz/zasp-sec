@@ -7175,7 +7175,7 @@ async function command(executable, args, options = {}) {
   }
   const { status, signal, stdout, stderr } = result;
 	if (status !== 0 && options.reject !== false) {
-    console.error(browserCommandFailureAnnotation(executable,args,"nonzero-exit"));
+    console.error(browserCommandFailureAnnotation(executable,args,"nonzero-exit",stderr));
     throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
   }
   return result;

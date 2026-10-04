@@ -20,3 +20,5 @@ test("raw member comparison retains whitespace, escaped strings and record order
 });
 
 import './browser-current-profile-command.test.mjs';
+import './browser-current-profile-inner-marker.test.mjs';
+import './browser-current-profile-inner-command.test.mjs';
