@@ -647,3 +647,13 @@ e13ccb95451b03107681ccb59b3fc6fe175a228f:superpowers/sdd/2026-09-22-temporal-ope
 # documented with independently verified HMAC vectors. Ignore only its exact
 # introduction-commit finding; future or relocated findings remain active.
 a0f9c73dde0aae8bfb2a6bbd449e1f41b4a84964:services/platform/authorization/compliance_current_key_linux_test.go:generic-api-key:19
+
+# The six current-compliance MAC vectors contain public key-version digests
+# derived from the fixed test seed. Classify only these exact introduction
+# findings; no current-file, rule, wildcard, or future-commit exceptions.
+7bd4ff88208e5339346ee6b6dd9a0aea6b24d3fd:services/platform/authorization/compliance_current_frame_linux_test.go:generic-api-key:315
+7bd4ff88208e5339346ee6b6dd9a0aea6b24d3fd:services/platform/authorization/compliance_current_frame_linux_test.go:generic-api-key:317
+7bd4ff88208e5339346ee6b6dd9a0aea6b24d3fd:services/platform/authorization/compliance_current_frame_linux_test.go:generic-api-key:319
+7bd4ff88208e5339346ee6b6dd9a0aea6b24d3fd:services/platform/authorization/compliance_current_frame_linux_test.go:generic-api-key:321
+7bd4ff88208e5339346ee6b6dd9a0aea6b24d3fd:services/platform/authorization/compliance_current_frame_linux_test.go:generic-api-key:323
+7bd4ff88208e5339346ee6b6dd9a0aea6b24d3fd:services/platform/authorization/compliance_current_frame_linux_test.go:generic-api-key:325
