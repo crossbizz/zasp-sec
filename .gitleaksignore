@@ -642,3 +642,8 @@ e13ccb95451b03107681ccb59b3fc6fe175a228f:services/platform/redteamadapter/worker
 e13ccb95451b03107681ccb59b3fc6fe175a228f:services/platform/redteamadapter/worker_receipt_test.go:generic-api-key:10
 e13ccb95451b03107681ccb59b3fc6fe175a228f:services/platform/runtimeevent/production_current_profile_test.go:generic-api-key:45
 e13ccb95451b03107681ccb59b3fc6fe175a228f:superpowers/sdd/2026-09-22-temporal-openfga-execution-plan/p7-worker-enforcement/ordered-current-complete-capture-packet-A-native22-precision-final3/snapshot-manifest.json:generic-api-key:11
+
+# Current compliance key tests use the fixed public synthetic 32-byte seed
+# documented with independently verified HMAC vectors. Ignore only its exact
+# introduction-commit finding; future or relocated findings remain active.
+a0f9c73dde0aae8bfb2a6bbd449e1f41b4a84964:services/platform/authorization/compliance_current_key_linux_test.go:generic-api-key:19

@@ -16,7 +16,7 @@ import (
 // Public synthetic fixture, not a production credential. Vectors were checked
 // independently with HMAC and explicit SHA256 ipad/opad; no implementation is
 // imported into the tests to compute the expected derived key.
-const currentKeyFixtureSeed = "0123456789abcdef0123456789abcdef"
+const currentSyntheticSeed = "0123456789abcdef0123456789abcdef"
 
 var currentKeyVectors = []struct {
 	purpose           ComplianceCurrentPurpose
@@ -28,7 +28,7 @@ var currentKeyVectors = []struct {
 
 func currentKeyFixture(t *testing.T, purpose ComplianceCurrentPurpose) *ComplianceCurrentKey {
 	t.Helper()
-	k, err := NewComplianceCurrentKey(purpose, []byte(currentKeyFixtureSeed))
+	k, err := NewComplianceCurrentKey(purpose, []byte(currentSyntheticSeed))
 	if err != nil || k == nil {
 		t.Fatalf("valid current purpose/seed refused: error=%v", err)
 	}
@@ -63,7 +63,7 @@ func TestComplianceCurrentKeyLiteralVectors(t *testing.T) {
 }
 func TestComplianceCurrentKeyClosedPurposeAndSeedBounds(t *testing.T) {
 	for _, p := range []ComplianceCurrentPurpose{"", "worker-forward", "captured-compensation", "compliance-current-execution", "compliance-current-cleanup-v2", "unknown"} {
-		if k, err := NewComplianceCurrentKey(p, []byte(currentKeyFixtureSeed)); !errors.Is(err, ErrInvalid) || k != nil {
+		if k, err := NewComplianceCurrentKey(p, []byte(currentSyntheticSeed)); !errors.Is(err, ErrInvalid) || k != nil {
 			t.Fatal("unsupported purpose admitted")
 		}
 	}
@@ -79,7 +79,7 @@ func TestComplianceCurrentKeyClosedPurposeAndSeedBounds(t *testing.T) {
 	}
 }
 func TestComplianceCurrentKeyImmutableCopiesAndSafeFormatting(t *testing.T) {
-	seed := []byte(currentKeyFixtureSeed)
+	seed := []byte(currentSyntheticSeed)
 	k, err := NewComplianceCurrentKey(ComplianceCurrentExecution, seed)
 	if err != nil {
 		t.Fatal(err)
@@ -109,7 +109,7 @@ func currentKeyWriteFixture(t *testing.T) string {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, "seed")
-	if err := os.WriteFile(path, []byte(currentKeyFixtureSeed), 0400); err != nil {
+	if err := os.WriteFile(path, []byte(currentSyntheticSeed), 0400); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -185,7 +185,7 @@ func TestComplianceCurrentKeyFileLoaderRefusals(t *testing.T) {
 	}
 	_, err := LoadComplianceCurrentKeyFile(ComplianceCurrentExecution, path+"-missing")
 	for _, format := range []string{"%v", "%#v", "%+#v"} {
-		if text := fmt.Sprintf(format, err); strings.Contains(text, path) || strings.Contains(text, currentKeyFixtureSeed) {
+		if text := fmt.Sprintf(format, err); strings.Contains(text, path) || strings.Contains(text, currentSyntheticSeed) {
 			t.Fatal("file error exposed path or seed")
 		}
 	}

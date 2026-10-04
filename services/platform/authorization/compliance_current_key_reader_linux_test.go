@@ -46,7 +46,7 @@ func TestComplianceCurrentKeyHeldReaderNormalLifecycle(t *testing.T) {
 	h := currentKeyHeldFixture(t, currentKeyWriteFixture(t))
 	seed, err := h.readSeed()
 	defer clear(seed)
-	if err != nil || string(seed) != currentKeyFixtureSeed {
+	if err != nil || string(seed) != currentSyntheticSeed {
 		t.Fatal("normal held read refused or changed fixture")
 	}
 	if err = h.validateAndClose(); err != nil {
@@ -64,7 +64,7 @@ func TestComplianceCurrentKeyHeldAncestorReplacement(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(parent, "seed")
-	if err := os.WriteFile(path, []byte(currentKeyFixtureSeed), 0400); err != nil {
+	if err := os.WriteFile(path, []byte(currentSyntheticSeed), 0400); err != nil {
 		t.Fatal(err)
 	}
 	h := currentKeyHeldFixture(t, path)
@@ -74,7 +74,7 @@ func TestComplianceCurrentKeyHeldAncestorReplacement(t *testing.T) {
 	if err := os.Mkdir(parent, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(currentKeyFixtureSeed), 0400); err != nil {
+	if err := os.WriteFile(path, []byte(currentSyntheticSeed), 0400); err != nil {
 		t.Fatal(err)
 	}
 	currentKeyReadOrCloseMustRefuse(t, h)
@@ -85,7 +85,7 @@ func TestComplianceCurrentKeyLeafReplacementAfterOpen(t *testing.T) {
 	if err := os.Rename(path, path+"-held"); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(currentKeyFixtureSeed), 0400); err != nil {
+	if err := os.WriteFile(path, []byte(currentSyntheticSeed), 0400); err != nil {
 		t.Fatal(err)
 	}
 	currentKeyReadOrCloseMustRefuse(t, h)
