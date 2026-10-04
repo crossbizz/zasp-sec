@@ -1,3 +1,5 @@
+import {recordOwnedRuntimeStartupFailure,carryOwnedRuntimeStartupFailure} from './owned-runtime-startup-diagnostics.mjs';
+export {describeOwnedRuntimeStartupFailure} from './owned-runtime-startup-diagnostics.mjs';
 import { createHash, randomBytes } from 'node:crypto';
 import { readFile, lstat, realpath, mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import net from 'node:net';
@@ -45,11 +47,17 @@ const defaultAdapters={
 // register principals/verifiers, acknowledge projection, or grant acceptance.
 // Production tools are opaque capabilities minted from exact official archives and consumed members. Test adapters never mint production authority.
 export async function startOwnedRuntimeServices(config,adapters=defaultAdapters,signal){
+ let diagnosticPhase='service-input';
+ try{
  if((signal!==undefined&&!(signal instanceof AbortSignal))||!exact(config,['run','rootParent','tools'])||typeof config.run!=='string'||!/^[a-f0-9]{16}$/.test(config.run)||!exact(config.tools,['temporal','openfga'])||typeof config.rootParent!=='string'||!path.isAbsolute(config.rootParent)||path.normalize(config.rootParent)!==config.rootParent)fail();
+ diagnosticPhase='service-tool-capabilities';
  if(adapters===defaultAdapters){for(const name of ['temporal','openfga'])if(heldToolName(config.tools[name])!==name)fail();}
  else for(const name of ['temporal','openfga']){const t=config.tools[name];if(!exact(t,['path','archive','sha256'])||path.basename(t.path??'')!==name)fail();}
+ diagnosticPhase='service-model-bytes';
  const model=await readFile(new URL('./product-model.json',import.meta.url));if(hash(model)!==MODEL_SHA)fail();
+ diagnosticPhase='service-tool-verification';
  try{await adapters.verify(config.tools);}catch(error){if(adapters===defaultAdapters)await Promise.allSettled(Object.values(config.tools).map(closeHeldTool));throw error;}
+ diagnosticPhase='service-root-create';
  let root;try{root=await adapters.makeRoot(config.run,config.rootParent);}catch(error){if(adapters===defaultAdapters)await Promise.allSettled(Object.values(config.tools).map(closeHeldTool));throw error;}
  const owners=[],operations=new Set();let closePromise,exited=false,incompleteOperation=false,aborted=signal?.aborted??false;
  const abort=()=>{aborted=true;for(const op of operations)op.controller.abort();};signal?.addEventListener('abort',abort,{once:true});
@@ -66,29 +74,43 @@ export async function startOwnedRuntimeServices(config,adapters=defaultAdapters,
   if(incompleteOperation)throw new CleanupIncomplete();if(operationFailed)throw operationError;return result;
  };
  try{
-  const token=adapters.token();if(typeof token!=='string'||!/^[a-f0-9]{64}$/.test(token))fail();await adapters.writeToken(root,token);
+ diagnosticPhase='service-token-generate';
+  const token=adapters.token();if(typeof token!=='string'||!/^[a-f0-9]{64}$/.test(token))fail();diagnosticPhase='service-token-file';await adapters.writeToken(root,token);
+  diagnosticPhase='service-ports';
   const temporalPort=await adapters.reservePort(),fgaPort=await adapters.reservePort(),grpcPort=await adapters.reservePort();if(![temporalPort,fgaPort,grpcPort].every(v=>Number.isSafeInteger(v)&&v>=1024&&v<=65535)||new Set([temporalPort,fgaPort,grpcPort]).size!==3)fail();
   const temporalAddress='127.0.0.1:'+temporalPort,fgaURL='http://127.0.0.1:'+fgaPort;
   const env={PATH:'/usr/bin:/bin',HOME:path.join(root,'home'),TMPDIR:root,LANG:'C',LC_ALL:'C'};
+  diagnosticPhase='service-temporal-start';
   if(aborted)fail();owners.push(await adapters.start('temporal',['server','start-dev','--ip','127.0.0.1','--port',String(temporalPort),'--headless','--db-filename',path.join(root,'temporal.sqlite'),'--namespace',namespace],{tool:config.tools.temporal,cwd:root,env}));
+  diagnosticPhase='service-openfga-start';
   if(aborted)fail();owners.push(await adapters.start('openfga',['run'],{tool:config.tools.openfga,cwd:root,env:{...env,OPENFGA_HTTP_ADDR:'127.0.0.1:'+fgaPort,OPENFGA_GRPC_ADDR:'127.0.0.1:'+grpcPort,OPENFGA_DATASTORE_ENGINE:'memory',OPENFGA_AUTHN_METHOD:'preshared',OPENFGA_AUTHN_PRESHARED_KEYS:token,OPENFGA_PLAYGROUND_ENABLED:'false',OPENFGA_METRICS_ENABLED:'false',OPENFGA_LOG_LEVEL:'warn'}}));
   for(const owner of owners)void owner.completed.then(()=>{exited=true;},()=>{exited=true;});
   // Poll only read-only namespace describe; no existing namespace is modified.
+  diagnosticPhase='service-temporal-namespace';
   const deadline=adapters.now()+45000;let described;
   for(;;){try{described=await guard(signal=>adapters.command(config.tools.temporal,['operator','namespace','describe','--namespace',namespace,'--address',temporalAddress,'--output','json'],{cwd:root,env,signal}));if(described?.namespaceInfo?.name===namespace)break;}catch{if(exited||aborted||incompleteOperation)fail();}if(adapters.now()>=deadline)fail();await adapters.wait(100);}
-  for(const [name,owner,port]of [['temporal',owners[0],temporalPort],['openfga',owners[1],fgaPort],['openfga',owners[1],grpcPort]]){let matched=false;while(adapters.now()<deadline){try{await guard(signal=>adapters.listener(name,owner,port,signal));matched=true;break;}catch{if(exited||aborted||incompleteOperation)fail();}await adapters.wait(100);}if(!matched)fail();}
+  for(const [name,owner,port]of [['temporal',owners[0],temporalPort],['openfga',owners[1],fgaPort],['openfga',owners[1],grpcPort]]){diagnosticPhase=name==='temporal'?'service-temporal-listener':port===fgaPort?'service-openfga-http-listener':'service-openfga-grpc-listener';let matched=false;while(adapters.now()<deadline){try{await guard(signal=>adapters.listener(name,owner,port,signal));matched=true;break;}catch{if(exited||aborted||incompleteOperation)fail();}await adapters.wait(100);}if(!matched)fail();}
   const fgaListeners=async signal=>{await adapters.listener('openfga',owners[1],fgaPort,signal);await adapters.listener('openfga',owners[1],grpcPort,signal);};
-  const post=async(url,body)=>{await guard(fgaListeners);const result=await guard(signal=>adapters.request(url,{method:'POST',redirect:'error',signal,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)}));await guard(fgaListeners);return result;};
+  const post=async(url,body)=>{const requestPhase=diagnosticPhase;diagnosticPhase='service-openfga-listeners';await guard(fgaListeners);diagnosticPhase=requestPhase;const result=await guard(signal=>adapters.request(url,{method:'POST',redirect:'error',signal,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)}));diagnosticPhase='service-openfga-listeners';await guard(fgaListeners);diagnosticPhase=requestPhase;return result;};
   // Service startup may still be pending; repeated CreateStore is NOT used as a health probe.
+  diagnosticPhase='service-openfga-health';
   if(adapters.health){let healthy=false;while(adapters.now()<deadline){try{await guard(fgaListeners);const ready=await guard(signal=>adapters.health(fgaURL+'/healthz',signal));await guard(fgaListeners);healthy=ready;if(healthy)break;}catch{if(exited||aborted||incompleteOperation)fail();}await adapters.wait(100);}if(!healthy)fail();}
+  diagnosticPhase='service-openfga-store';
   const store=await post(fgaURL+'/stores',{name:'zasp-browser-'+config.run});if(!ulid(store?.id))fail();
+  diagnosticPhase='service-model-publish';
   const published=await post(fgaURL+'/stores/'+store.id+'/authorization-models',JSON.parse(model));if(!ulid(published?.authorization_model_id))fail();
+  diagnosticPhase='service-openfga-listeners';
   await guard(fgaListeners);
+  diagnosticPhase='service-model-readback';
   const readback=await guard(signal=>adapters.request(fgaURL+'/stores/'+store.id+'/authorization-models/'+published.authorization_model_id,{method:'GET',redirect:'error',signal,headers:{Authorization:'Bearer '+token}}));
+  diagnosticPhase='service-model-equality';
   if(!exactModel(JSON.parse(model),readback?.authorization_model,published.authorization_model_id))fail();
+  diagnosticPhase='service-openfga-listeners';
   await guard(fgaListeners);
   const environment=Object.freeze({ZASP_RUNTIME_SERVICES_ENABLED:'true',ZASP_ENVIRONMENT:'test',ZASP_RUNTIME_SERVICES_TIMEOUT:'5s',ZASP_TEMPORAL_ADDRESS:temporalAddress,ZASP_TEMPORAL_NAMESPACE:namespace,ZASP_TEMPORAL_TASK_QUEUE:'zasp-browser-main-'+config.run,ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE:'zasp-browser-discovery-'+config.run,ZASP_OPENFGA_URL:fgaURL,ZASP_OPENFGA_STORE_ID:store.id,ZASP_OPENFGA_MODEL_ID:published.authorization_model_id,ZASP_OPENFGA_TOKEN_FILE:path.join(root,'openfga.token')});
   const completed=Promise.race(owners.map(owner=>owner.completed));void completed.catch(()=>{});
   return Object.freeze({environment,root,close,completed,projection:'pending',acceptance:false,native:false,production:false,upgradeInstalled:false,deployed:false,ledger:false});
- }catch{try{await close();}catch{throw Error('owned runtime cleanup incomplete');}throw Error('owned runtime fixture unavailable');}
+ }catch(error){recordOwnedRuntimeStartupFailure(error,diagnosticPhase);try{await close();}catch(cleanupError){throw carryOwnedRuntimeStartupFailure(recordOwnedRuntimeStartupFailure(cleanupError,'service-startup-cleanup','cleanup-incomplete'),Error('owned runtime cleanup incomplete'));}throw carryOwnedRuntimeStartupFailure(error,Error('owned runtime fixture unavailable'));}
+
+ }catch(error){recordOwnedRuntimeStartupFailure(error,diagnosticPhase);throw error;}
 }

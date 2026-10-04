@@ -1,3 +1,4 @@
+import './owned-runtime-startup-diagnostics.test.mjs';
 import './hosted-runtime-tool-intake.test.mjs';
 import './owned-runtime-services.test.mjs';
 import './owned-listener.test.mjs';

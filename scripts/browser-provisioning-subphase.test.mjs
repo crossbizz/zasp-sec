@@ -1,4 +1,5 @@
 import {emitComplianceBrowserPhaseFailure} from './browser-command-failure.mjs';
+import {withOwnedRuntimeStartupDiagnostics,recordOwnedRuntimeStartupFailure} from './owned-runtime-startup-diagnostics.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {readFileSync} from 'node:fs';
@@ -11,10 +12,10 @@ assert.equal(ast.parseDiagnostics.length,0);
 assert.equal(declarations.length,1);
 const body=declarations[0].getText(ast);
 function fixture({fail,mode=true}={}){
- const events=[];const marker=new Error('owned finite adapter refusal');const pending=new Promise(()=>{});
+ const annotations=[];const events=[];const marker=new Error('owned finite adapter refusal');const pending=new Promise(()=>{});
  const record=(event)=>{events.push({event,phase:instance.phase()});if(event===fail)throw marker;};
  const config={migrate:'/fixed/agentsec-migrate',migrationEnvironment:{PATH:'/usr/bin',ZASP_MIGRATION_DB_PRINCIPAL:'owner'},proxyPort:8443};
- const dependencies={assert,path,Buffer,AbortController,complianceBrowserMode:mode,
+ const dependencies={assert,path,Buffer,AbortController,withOwnedRuntimeStartupDiagnostics:(action,enabled)=>withOwnedRuntimeStartupDiagnostics(action,enabled,text=>annotations.push(text)),recordOwnedRuntimeStartupFailure,complianceBrowserMode:mode,
   process:{env:{ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT:'/fixed/archives',ZASP_BROWSER_RUNTIME_RAW_ROOT:'/fixed/raw'}},
   temporaryRoot:'/fixed/tmp',root:'/fixed/repo',platform:'/fixed/repo/services/platform',postgresBin:'/fixed/pg',productHostname:'product.test',
   mkdtemp:async prefix=>{assert.equal(prefix,'/tmp/zasp-browser-current-runtime-');record('state');return '/tmp/zasp-browser-current-runtime-fixed';},

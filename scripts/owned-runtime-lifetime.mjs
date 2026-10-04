@@ -1,3 +1,5 @@
+import {recordOwnedRuntimeStartupFailure} from './owned-runtime-startup-diagnostics.mjs';
+export {describeOwnedRuntimeStartupFailure} from './owned-runtime-startup-diagnostics.mjs';
 import { lstat, readdir, realpath, statfs } from 'node:fs/promises';
 import path from 'node:path';
 import { loadOfficialHeldTool, reopenOfficialHeldTool, closeHeldTool } from './official-held-tools.mjs';
@@ -42,15 +44,22 @@ export async function observeRetainedAllocation(roots){
 }
 const retainedDefaults={...defaults,observe:observeRetainedAllocation,reopen:reopenOfficialHeldTool};
 export async function startRetainedOwnedRuntimeLifetime(config,adapters=retainedDefaults){
+ let diagnosticPhase='retained-input';
+ try{
  const keys=['stateRoot','archiveRoot','rawRoot','run'];if(!config||Object.getPrototypeOf(config)!==Object.prototype||Object.keys(config).length!==keys.length||!keys.every(key=>Object.hasOwn(config,key))||typeof config.run!=='string'||!/^[a-f0-9]{16}$/.test(config.run))fail();
+ diagnosticPhase='retained-roots';
  const roots=['stateRoot','archiveRoot','rawRoot'].map(key=>config[key]);if(!roots.every(root=>typeof root==='string'&&path.isAbsolute(root)&&path.normalize(root)===root)||roots.some((root,index)=>roots.some((other,otherIndex)=>index!==otherIndex&&(root===other||root.startsWith(other+'/')))))fail();
- const initial=await adapters.observe(roots);if(typeof initial.free!=='bigint'||typeof initial.allocated!=='bigint'||initial.allocated<0n||initial.allocated>BUDGET||initial.free<RESERVE+(BUDGET-initial.allocated)+MARGIN)fail();
+ diagnosticPhase='retained-allocation-observe';
+ const initial=await adapters.observe(roots);diagnosticPhase='retained-startup-budget';if(typeof initial.free!=='bigint'||typeof initial.allocated!=='bigint'||initial.allocated<0n||initial.allocated>BUDGET||initial.free<RESERVE+(BUDGET-initial.allocated)+MARGIN)fail();
  const controller=new AbortController(),tools={};let services,timer,sampling=Promise.resolve(),stopped=false,closePromise,rejectResource;
  const resourceFailure=new Promise((_,reject)=>{rejectResource=reject;});void resourceFailure.catch(()=>{});
- const close=()=>closePromise??=(async()=>{stopped=true;controller.abort();adapters.clearTimer(timer);await sampling;let failed=false;if(services){try{await services.close();}catch{failed=true;}}for(const tool of Object.values(tools)){try{await adapters.closeTool(tool);}catch{failed=true;}}if(failed)throw Error('owned runtime cleanup incomplete');})();
- const sample=()=>{if(stopped)return;sampling=(async()=>{try{const value=await adapters.observe(roots);if(typeof value.free!=='bigint'||typeof value.allocated!=='bigint'||value.free<RESERVE||value.allocated>BUDGET||value.allocated<0n)fail();}catch{controller.abort();rejectResource(Error('owned runtime sampled resource refusal'));}finally{if(!stopped&&!controller.signal.aborted)timer=adapters.setTimer(sample,100);}})();};
+ const close=()=>closePromise??=(async()=>{stopped=true;controller.abort();adapters.clearTimer(timer);await sampling;let failed=false;if(services){try{await services.close();}catch{failed=true;}}for(const tool of Object.values(tools)){try{await adapters.closeTool(tool);}catch{failed=true;}}if(failed)throw recordOwnedRuntimeStartupFailure(Error('owned runtime cleanup incomplete'),'retained-cleanup','cleanup-incomplete');})();
+ const sample=()=>{if(stopped)return;sampling=(async()=>{try{const value=await adapters.observe(roots);if(typeof value.free!=='bigint'||typeof value.allocated!=='bigint'||value.free<RESERVE||value.allocated>BUDGET||value.allocated<0n)fail();}catch{controller.abort();rejectResource(recordOwnedRuntimeStartupFailure(Error('owned runtime sampled resource refusal'),'retained-sampled-resource'));}finally{if(!stopped&&!controller.signal.aborted)timer=adapters.setTimer(sample,100);}})();};
+ diagnosticPhase='retained-sampler-start';
  timer=adapters.setTimer(sample,100);let loading=Promise.resolve();
- try{loading=(async()=>{for(const name of ['temporal','openfga']){if(controller.signal.aborted)fail();tools[name]=await adapters.reopen(name,path.join(config.archiveRoot,name+'.tar.gz'),path.join(config.rawRoot,name+'-held'));if(controller.signal.aborted)fail();}services=await adapters.start({run:config.run,rootParent:config.stateRoot,tools},undefined,controller.signal);return services;})();await Promise.race([loading,resourceFailure]);
+ try{loading=(async()=>{for(const name of ['temporal','openfga']){if(controller.signal.aborted)fail();diagnosticPhase=name==='temporal'?'retained-temporal-custody':'retained-openfga-custody';tools[name]=await adapters.reopen(name,path.join(config.archiveRoot,name+'.tar.gz'),path.join(config.rawRoot,name+'-held'));if(controller.signal.aborted)fail();}diagnosticPhase='retained-service-start';services=await adapters.start({run:config.run,rootParent:config.stateRoot,tools},undefined,controller.signal);return services;})();await Promise.race([loading,resourceFailure]);
   const completed=Promise.race([services.completed,resourceFailure]).then(async value=>{await close();return value;},async error=>{await close();throw error;});void completed.catch(()=>{});return Object.freeze({environment:services.environment,completed,close,root:config.stateRoot,acceptance:false,native:false,production:false,deployed:false,upgradeInstalled:false,ledger:false});
  }catch(error){controller.abort();try{await loading;}catch{/* Preserve the original failure after joining the losing startup operation. */}await close();throw error;}
+
+ }catch(error){recordOwnedRuntimeStartupFailure(error,diagnosticPhase);throw error;}
 }

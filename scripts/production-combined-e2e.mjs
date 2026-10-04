@@ -1,6 +1,7 @@
 import { browserCommandFailureAnnotation, emitComplianceBrowserPhaseFailure, emitComplianceAPIChildFailure, emitComplianceMigrationFailure } from "./browser-command-failure.mjs";
 import {installOwnedCurrent80,closedOwnedAmbientEnvironment,runOwnedProjectionLoop,OwnedProjectionCleanupIncomplete} from "./owned-current80-composition.mjs";
 import {startRetainedOwnedRuntimeLifetime} from "./owned-runtime-lifetime.mjs";
+import {withOwnedRuntimeStartupDiagnostics,recordOwnedRuntimeStartupFailure} from "./owned-runtime-startup-diagnostics.mjs";
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, createHmac, generateKeyPairSync, randomBytes } from "node:crypto";
@@ -2207,8 +2208,8 @@ async function prepareOwnedCurrentComplianceRuntime(configuration,complianceFixt
   const archiveRoot=process.env.ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT,rawRoot=process.env.ZASP_BROWSER_RUNTIME_RAW_ROOT;
   assert.ok(typeof archiveRoot==='string'&&typeof rawRoot==='string','owned pinned runtime archive/raw inputs required');
   if (complianceBrowserMode) compliancePhase = 'compliance-runtime-services';
-  currentComplianceStateRoot=await mkdtemp('/tmp/zasp-browser-current-runtime-');
-  currentComplianceServices=await startRetainedOwnedRuntimeLifetime({stateRoot:currentComplianceStateRoot,archiveRoot,rawRoot,run:randomBytes(8).toString('hex')});
+  currentComplianceStateRoot=await withOwnedRuntimeStartupDiagnostics(async()=>{try{return await mkdtemp('/tmp/zasp-browser-current-runtime-');}catch(error){throw recordOwnedRuntimeStartupFailure(error,'state-allocation');}},complianceBrowserMode);
+  currentComplianceServices=await withOwnedRuntimeStartupDiagnostics(()=>startRetainedOwnedRuntimeLifetime({stateRoot:currentComplianceStateRoot,archiveRoot,rawRoot,run:randomBytes(8).toString('hex')}),complianceBrowserMode);
   void currentComplianceServices.completed.then(()=>{if(!currentComplianceClosing){currentComplianceFailure=new Error('owned runtime service exited');void cleanupController.run().catch(()=>{process.exitCode=1;});}},()=>{if(!currentComplianceClosing){currentComplianceFailure=new Error('owned runtime resource refused');void cleanupController.run().catch(()=>{process.exitCode=1;});}});
   if (complianceBrowserMode) compliancePhase = 'compliance-current-postgres';
   const port=await reservePort(),dsn=`postgres://zasp_e2e@127.0.0.1:${port}/postgres?sslmode=disable`;
