@@ -69,6 +69,7 @@ NODE
 `;
 const complianceAcceptanceCommand = "node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs || { status=$?; printf '::error::Compliance browser unit prerequisites failed (exit %s)\\n' \"$status\"; exit \"$status\"; }\nnode scripts/production-combined-e2e.mjs || { status=$?; printf '::error::Compliance browser runtime acceptance failed (exit %s)\\n' \"$status\"; exit \"$status\"; }\n";
 const complianceSteps: WorkflowStep[] = [
+  { name: "Verify current runtime profile inner diagnostic tests", "timeout-minutes": 5, run: "node --test scripts/observe-current-profile-inner-diagnostics.test.mjs\nnode scripts/observe-current-profile-inner-diagnostics.mjs\n" },
   { name: "Provision isolated compliance browser prerequisites", "timeout-minutes": 10, run: compliancePrerequisitesCommand },
   { name: "Provision pinned owned authorization runtime tools", "timeout-minutes": 5, run: "node scripts/hosted-runtime-tool-intake.mjs\n" },
   { name: "Verify current compliance browser acceptance", "timeout-minutes": 15, env: { ZASP_COMBINED_E2E_COMPLIANCE: "true" }, run: complianceAcceptanceCommand },
@@ -228,7 +229,7 @@ function assertRunnableUiWorkflow(
   expect(verificationJob["timeout-minutes"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(35);
+  expect(verificationSteps).toHaveLength(36);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
