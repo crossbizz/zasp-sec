@@ -18,3 +18,5 @@ test("raw member comparison retains whitespace, escaped strings and record order
   assert.equal(storedComplianceJSON(Buffer.from(`{"version":1,"json":${raw},"csv":"x"}`)).toString(),raw);
   assert.throws(()=>storedComplianceJSON(Buffer.from('{"json":[')));
 });
+
+import './browser-current-profile-command.test.mjs';

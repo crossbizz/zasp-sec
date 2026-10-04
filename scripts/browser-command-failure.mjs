@@ -5,9 +5,20 @@ const CLASSES=new Map([
  ['build|./agentsec-worker','go-worker-build'],
  ['build|.','go-cli-build'],
 ]);
+const CURRENT_PROFILE_COMMANDS=new Map([
+ ['up-to-60','current-profile-up-to-60'],
+ ['up-authorization-runtime-profile','current-profile-up-authorization-runtime-profile'],
+ ['register-temporal-executor-principals','current-profile-register-temporal-executor-principals'],
+ ['register-authorization-verifier','current-profile-register-authorization-verifier'],
+ ['register-identity-session-verifier','current-profile-register-identity-session-verifier'],
+ ['register-identity-webhook-verifier','current-profile-register-identity-webhook-verifier'],
+ ['register-worker-authorization-verifier','current-profile-register-worker-authorization-verifier'],
+ ['register-compensation-authorization-verifier','current-profile-register-compensation-authorization-verifier'],
+]);
 export function browserCommandFailureAnnotation(executable,args,kind){
  if(kind!=='deadline'&&kind!=='nonzero-exit')return null;
  let label='other-command';
+ if(typeof executable==='string'&&executable.startsWith('/')&&executable.endsWith('/agentsec-migrate')&&Array.isArray(args)&&args.length===1&&typeof args[0]==='string')label=CURRENT_PROFILE_COMMANDS.get(args[0])??label;
  if(executable==='go'&&Array.isArray(args)){
   if(args.length===4&&args[0]==='build'&&args[1]==='-o'&&typeof args[2]==='string'&&typeof args[3]==='string')label=CLASSES.get('build|'+args[3])??label;
   if(args.length===5&&args[0]==='test'&&args[1]==='-c'&&args[2]==='-o'&&typeof args[3]==='string'&&typeof args[4]==='string')label=CLASSES.get('test|-c|'+args[4])??label;
