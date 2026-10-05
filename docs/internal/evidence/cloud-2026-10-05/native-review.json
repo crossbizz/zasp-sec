@@ -1,0 +1,509 @@
+{
+  "format": "independent-original33-native-review-v1",
+  "review_scope": "Fresh original33 native packet only; no A/B synchronization, native379, installed-worker or production acceptance.",
+  "source_head": "02a974e2472c11fc7347e0cdf30c54fbe9ff293d",
+  "packet": {
+    "path": "/tmp/zasp-registration-cloud-hz08qu_t/outputs/original33-reference.json",
+    "bytes": 16311004,
+    "sha256": "5ed07f15be204efc14ce171c528affd7cce1628224eb24d566bfad121f3eada0",
+    "mode": "0400"
+  },
+  "envelope_sha256": "5c1399b73fb1d53f235239d9b439eef3313fc01f0089c4b09707173a70b06f81",
+  "input_sha256": "024b02dee8cfa29faa63b9e57f102a5eaae71194688f4b1d36791f06b82ce071",
+  "inputs": 5785,
+  "resolved_modules": 74,
+  "checks": {
+    "packet_identity": true,
+    "exact_v2_build_envelope": true,
+    "assembly_build_identity": true,
+    "worker_assembly_hashes": true,
+    "runtime_assembly_hashes": true,
+    "catalog_plan_identity": true,
+    "upstream_token_closure": true,
+    "complete_33_source_bags": true,
+    "independent_nested_outer_digests": true,
+    "control_statement_hashes": true,
+    "exact_session_restoration": true,
+    "bounded_readonly_execution": true,
+    "exact_c_collation_bridge": true,
+    "worker_and_runtime_registration_guards": true,
+    "native_pgcrypto_1_4_authority": true,
+    "three_installed_original_assembly_crosschecks": true,
+    "normal_owned_cleanup_receipt": true,
+    "current_owned_process_and_temp_cleanup": true,
+    "post_capture_all_5785_input_hashes_and_immutable_path_closure": true,
+    "post_capture_binary_and_pg_bound_hashes": true,
+    "post_capture_pg_tree_manifest": true
+  },
+  "bag_review": {
+    "bags": 33,
+    "total_rows": 1467,
+    "total_null_arguments": 802,
+    "total_duplicate_values": 0,
+    "failed_lines": [],
+    "counts": [
+      {
+        "line": 4,
+        "label": "schema",
+        "rows": 1,
+        "null_arguments": [
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 5,
+        "label": "function",
+        "rows": 383,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 6,
+        "label": "table",
+        "rows": 41,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          41,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 7,
+        "label": "column",
+        "rows": 359,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          359,
+          356
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 8,
+        "label": "constraint",
+        "rows": 203,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 9,
+        "label": "policy",
+        "rows": 17,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 10,
+        "label": "trigger",
+        "rows": 27,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 11,
+        "label": "saved",
+        "rows": 168,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 12,
+        "label": "saved-view",
+        "rows": 3,
+        "null_arguments": [
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 15,
+        "label": "schema",
+        "rows": 1,
+        "null_arguments": [
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 16,
+        "label": "function",
+        "rows": 67,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 17,
+        "label": "table",
+        "rows": 4,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          4,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 18,
+        "label": "column",
+        "rows": 9,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          9,
+          8
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 19,
+        "label": "constraint",
+        "rows": 10,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 20,
+        "label": "index",
+        "rows": 2,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 21,
+        "label": "policy",
+        "rows": 2,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 22,
+        "label": "trigger",
+        "rows": 11,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 23,
+        "label": "stage-insert-trigger",
+        "rows": 1,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 24,
+        "label": "stage-table",
+        "rows": 1,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 25,
+        "label": "stage-column-acl",
+        "rows": 25,
+        "null_arguments": [
+          0,
+          0,
+          25
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 26,
+        "label": "stage-policy",
+        "rows": 1,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 27,
+        "label": "saved",
+        "rows": 52,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 31,
+        "label": "runtime-registration",
+        "rows": 1,
+        "null_arguments": [
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 32,
+        "label": "runtime-stage-insert-trigger",
+        "rows": 1,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 33,
+        "label": "runtime-source-trigger",
+        "rows": 12,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 34,
+        "label": "changed-view",
+        "rows": 3,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 35,
+        "label": "private-view",
+        "rows": 6,
+        "null_arguments": [
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 36,
+        "label": "run-capture-trigger",
+        "rows": 2,
+        "null_arguments": [
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 37,
+        "label": "source-capture-trigger",
+        "rows": 2,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 38,
+        "label": "target-capture-trigger",
+        "rows": 12,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 39,
+        "label": "discovery-capture-trigger",
+        "rows": 13,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 40,
+        "label": "ordered-capture-trigger",
+        "rows": 17,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      },
+      {
+        "line": 41,
+        "label": "ordered-execution-trigger",
+        "rows": 10,
+        "null_arguments": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "duplicate_values": 0
+      }
+    ]
+  },
+  "native": {
+    "nested_digest": "7e978346ea814077b4046c59f0a52ad09980543b2fdf62f77f68ad1e4b9645b5",
+    "outer_digest": "a409c00287ace824f34d51cde559142d5b6faa035016ff1c2d66215344098594",
+    "pg_server_version": "180003",
+    "pgcrypto_version": "1.4"
+  },
+  "cleanup": {
+    "available": true,
+    "pg_ctl_stopped": true,
+    "wait_joined": true,
+    "normal_exit": true,
+    "endpoint_checked": true,
+    "endpoint_sha256": "805be88d46a669c06b3c12dad4b75af0db964ea37a82374f194d15bd08fccd59",
+    "surviving_resources_checked": true,
+    "surviving_resources": 0
+  },
+  "current_owned_processes": [],
+  "findings": {
+    "critical": [],
+    "important": [],
+    "minor": []
+  },
+  "assessment": "REVIEW-PASS",
+  "limitations": [
+    "Fresh task-local capture; not a transferred historical native archive or receipt of remote artifact delivery.",
+    "Original fixture seeds are source inputs; no target observations were substituted for expected source truth.",
+    "The earlier source-only inventory run had no native capture; this packet is a separate successful native run.",
+    "Current process inspection and cleanup receipt cover this owned fixture; they do not establish global environment cleanliness.",
+    "A/B source synchronization, full native379, installed-worker permissions, runtime activation and deployed acceptance remain unverified."
+  ],
+  "evidence_log": {
+    "path": "/tmp/zasp-registration-cloud-hz08qu_t/outputs/native-original33.log",
+    "sha256": "42db836f1b5090b3b444b76f526d2af161e572e8f28c9a77324140349604e1cd"
+  }
+}

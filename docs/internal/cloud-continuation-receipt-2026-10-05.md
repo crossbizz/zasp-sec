@@ -151,3 +151,223 @@ network-error logs remain local because they include signed redirect URLs.
 | `verify-subreaper.log` | `bda9d98f7c245091bae871af2962a07dd0cb039d498b1e28324f47cedd310809` |
 | `merged-immutable-check.log` | `3381ecad1cd8d468c339809fb016c0fe652b4e2f370c5bf2476a6a6fd7745e2c` |
 | `merged-gitleaks.log` | `bda42ad311e6913eddbb64fea4439f5a0bfefb5143e007743c6ad154afd903b3` |
+
+
+## Continued main and restored cloud prerequisites
+
+The next fetch found main `d21f036eab610f28177267ca8f12fa86981e5ac3`,
+including the registration dispatch pin, PostgreSQL ICU catalog-column and
+finite admitted collation-replay repairs. A normal merge produced local
+`02a974e2472c11fc7347e0cdf30c54fbe9ff293d`. The earlier observations above
+remain historical failures; the following checks are fresh observations.
+
+Cloud runtime observations now report ready with enforced network policy.
+Prepared checksum-verified Node 22.23.1/npm 10.9.8, Go 1.25.13, Gitleaks
+8.30.1 and Tini 0.19.0. Helm 3.19.0 was built from official source commit
+`3d8990f0836691f0229297773f3524598f46bda6` with verified modules. Native
+PostgreSQL 18.3/pgcrypto 1.4 came from official Docker library image digest
+`sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba`.
+Owned tool paths and provenance are recorded in the private runtime receipt;
+these preparations do not install a product deployment.
+
+Denied Go module-storage redirects were resolved through official upstream
+source using command-scoped `GOPROXY=direct`, keeping the session proxy,
+TLS verification and existing checksums. Platform `go mod verify` passed.
+No lock, environment credential, vendor code or network policy was altered
+during cache preparation.
+
+The fresh registration group passed 21 top-level controls plus 65 child
+cases, zero failures/skips, including real disposable PostgreSQL collation
+and parameter witnesses. Authorization and orchestration race checks passed
+in 6.854s and 2.114s. UI typecheck, production build and compiled imports
+(7 client/8 server chunks) passed. The standalone UI served HTTP 200 and
+10,799 HTML bytes locally and was normally stopped. This is runnable UI
+verification; real API/identity/provider acceptance remains unverified.
+
+The fresh ledger validator again found 728 rows: 523 production-available
+categories, 144 component-only, 61 blocked/external, zero missing. Neither
+this preparation nor the dependency update promotes a task or milestone.
+
+## Licensed Nexus dependency successor
+
+The existing license gate rejected
+`github.com/nexus-rpc/nexus-proto-annotations@v0.1.0`. Updated only the
+platform indirect requirement and two sum entries to immutable successor
+`v0.1.1-0.20260629224316-835bd8d49cb4`, upstream commit
+`835bd8d49cb45c8efa22614164b90335f7e56918`.
+
+Two independent archive comparisons found all eight original files
+byte-identical and only the complete MIT `LICENSE` added. Archive SHA256:
+`8f433dbc3f675f7443554c5293524683016517b9b373fedbe495a88ce65ee6f1`;
+LICENSE SHA256:
+`06847bcc52e67fceae1691299bdd42dbfdff138c91e3ea89811a7aa2827988d6`.
+Module and go.mod hashes match checksum database record 56529890 and the
+committed sums. Temporal API 1.63.4 and SDK 1.48.0 remain unchanged.
+
+All ten readonly checks passed: module graph and shipping package closure
+for platform, event-ingest, gateway-control, runtime-gateway and sensor-agent.
+Each graph selects the licensed successor; no downstream sum updates were
+needed. The existing dependency lock validator passed. Independent code
+review found no actionable issues in the two-file update.
+
+The attempted complete source gate progressed beyond the Nexus license
+failure but exited 1 at the unchanged full-history Gitleaks check: 1,418
+commits, approximately 322.23 MB, 538 findings. Its redacted failure summary
+is retained. No finding is waived, no history rewritten and no secret-scan
+baseline added. This remains a release/merge gate requiring triage; this
+receipt does not claim source-gate clearance. Fresh exact-lock advisory,
+image/signature and deployed acceptance requirements also remain intact.
+
+
+The isolated unchanged production Go SBOM enumeration, document validator and
+license allowlist loop passed for 116 packages, with the successor classified
+MIT. Private SBOM functions were exposed only in memory for this scoped
+observation; repository release code is unchanged. This GREEN result does not
+turn the complete source-gate failure into a pass.
+
+## Restrictive-umask fixture repair and fresh baseline failures
+
+The fresh combined `npm run verify` passed dependency supervision and health
+contracts, then failed the worker credential fixture after 415.934s. Its
+synthetic file was created with requested mode `0444`, but actual cloud umask
+`0077` yielded `0400`. The production loader correctly requires exact `0444`.
+The existing focused test reproduced RED under explicit `077` in 0.111s.
+
+Added explicit `chmod(0444)` immediately after fixture creation. No product
+loader, security check, immutable pin or token behavior changed; the test's
+subsequent `0400` refusal remains. Grouped race checks covering pinned files,
+planner requests/cost/usage/cancellation/zeroization, credential/verifier/signer
+and worker authority behavior passed under both `077` and `022`: 19 top-level
+tests and 121 immediate subcases each, zero failures/skips (1.252s/1.408s).
+The historical combined failure remains recorded; no full verification pass
+is claimed from these scoped results.
+
+The earlier restored-tool release suite reported 283/285 passing and two
+failures: a rendered compliance child-process launch and a denied module
+storage redirect. After official module preparation and warm compilation,
+the same rendered API/worker compliance check passed (one top-level test,
+25.747s). Its launch still strips ambient product credentials and retains its
+120-second limit. The full source-gate secret-scan failure described above
+remains unresolved. No release-suite or live-provider clearance is implied.
+
+
+Fresh full UI verification passed all 246 files / 2,535 tests in 121.34s,
+including the previously Helm-blocked Nango deployment check. This is component
+verification and does not prove a connected deployment.
+
+## Original registration reference capture
+
+Built the original fixture, assembly test and CLI offline from exact frozen
+source `02a974e2472c11fc7347e0cdf30c54fbe9ff293d`, before the separately reviewed
+license and planner-fixture changes. All 2,938 copied platform/health files
+match that commit's Git blobs. The transparent immutable ModuleCache layout
+contains the owned platform and its unchanged sibling-health replacement.
+Actual input closure: 5,785 files / 74 modules; roster SHA256
+`024b02dee8cfa29faa63b9e57f102a5eaae71194688f4b1d36791f06b82ce071`.
+
+Independent review checked source/tool/module containment, static binaries,
+private 0700 build cache and immutable input hashes. A provisional envelope
+used the incorrect PostgreSQL JSON key; it was retained without execution.
+A new reviewed envelope corrected the key and additionally bound the wrapper
+shell interpreter. Final envelope SHA256:
+`5c1399b73fb1d53f235239d9b439eef3313fc01f0089c4b09707173a70b06f81`.
+It binds four PG wrapper hashes plus 52 actual executable, interpreter,
+loader, dynamic-library and original pgcrypto installation-chain hashes.
+The task-owned 1,659-file PostgreSQL tree is read-only and separately hashed.
+
+The original opt-in test ran with a clean environment, exact admitted PATH,
+`LC_ALL=C`, no provider credentials and one owned disposable PostgreSQL server.
+It passed in 201.10s and published 16,311,004 bytes exclusively as mode 0400,
+after normal pg_ctl stop (exit 0), server Wait (exit 0) and post-cleanup build
+revalidation. Original packet SHA256:
+`5ed07f15be204efc14ce171c528affd7cce1628224eb24d566bfad121f3eada0`.
+
+Independent evidence review verified all 33 source bags / 1,467 rows,
+802 NULL arguments, typed fields, source spans and bag hashes; recomputed
+nested/outer digests match native and parameter digests. Complete/restored
+flags and all cleanup observations pass with zero surviving owned resources.
+Post-capture input/binary/PG hashes remain unchanged. This accepts the bounded
+original-registration reference dependency only. A/B source synchronization,
+full native379, installed PostgreSQL/login/OID acceptance, full100 capacity,
+connected workers and real deployed/provider journeys remain separate gates.
+The production readiness guards remain closed.
+
+
+The exact packet scan reported two findings, independently traced to SHA-256
+provenance entries for Go cryptography source files, not credentials. Both
+hashes match the corresponding frozen input files. Preserve this disposition;
+no zero-finding scan is claimed. The publication review found no credential
+patterns or URLs and only masked password fields.
+
+Durable fresh evidence is checked in under
+[evidence/cloud-2026-10-05](evidence/cloud-2026-10-05/manifest.json): deterministic
+gzip copies of the unmodified packet/final envelope, native execution log and
+independent native/publication reviews. The manifest binds each compressed
+artifact separately; decompression reproduces the original packet/envelope
+hashes above. This stores fresh fixture evidence and does not reconstruct any
+missing historical archive. Binaries, full source/tool caches and previous
+local archives remain outside Git and have not been represented as transferred.
+
+## Next successor and external gates
+
+The current 53-input A provenance reader passes, and a new A successor can be
+derived twice in separate private snapshots without altering historical
+packets. Legacy B still requires its missing pinned historical A archive;
+new B must instead be separately bound to independently reviewed actual
+successor A members and exact producer substitutions. Legacy native379 pins a
+darwin/arm64 Node runtime and a stale source roster; a Linux successor requires
+complete migrations/apiserver import closure and separately reviewed native
+admission. No old runtime pin, packet, roster or Go trust anchor is rewritten
+by this batch. Production readiness remains `AND false`.
+
+Live deployment still needs approved TLS API/UI origins, distinct PostgreSQL
+API/worker authorities and installed authorization state, real private Temporal
+mTLS and OpenFGA store/model/projection configuration, signing/reveal keys,
+selected Stytch organizations/callbacks, and actual provider connections.
+Generic cloud credentials do not provide these deployment bindings. Restricted
+network policy lacks the required provider/service origins. Required current
+advisory/image/signature/cluster evidence is absent. The earlier authenticated
+Stytch read is not a browser, SSO, SCIM or cross-tenant journey.
+
+The current independent batches are reviewable on a normal branch. No merge
+or release security guard has been bypassed, and no 728-row availability or
+milestone classification has been changed.
+
+## Continued verification identities
+
+These log hashes bind fresh observations. Except for the durable original33
+bundle above, logs remain private local evidence and are not claimed transferred.
+
+| Evidence | SHA-256 |
+| --- | --- |
+| `continued-registration-group.jsonl` | `fdab906e7ca981a9a1aee998bd4fe73e420c15198c69d9d1c1e1fc9f9ebd3c09` |
+| `continued-typecheck.log` | `f48bd1876f5408ffc0d939a2b0d826961d6115e6598a272fea04d98ac0431816` |
+| `continued-build.log` | `faeb0db7b232a6afc3dcdfd6146eeb4a008a75c45018843d2be98f1c38a00822` |
+| `continued-imports.log` | `f819147b10ccdaab0ec2d7c8f00cd76e12cb14d5067329548bfac497fa95cae3` |
+| `continued-ledger.log` | `d3b4a09f1320384f46537574c5ed07e08faf03eea4f7ddd0c420e0089122e8c1` |
+| `continued-ui-full.log` | `f8b7869ca510b505ee0dd735a97b0d250e2ccb016a7bed48a664188f312696a6` |
+| `continued-authorization-orchestration.log` | `afa190f89b9095de88a742e0ec5ed401ed94eb691b5b12275f9b9b66651a7a81` |
+| `continued-full-verify.log` | `11d72808823f8acafaef872f59a80d41f6f528849a0afe4712bc6798915a8aac` |
+| `continued-compliance-rendered-recheck.log` | `63844f3bca294049b80d8bd5624d6881685dc83c33396581757eb115de25f53b` |
+| `planner-fixture-umask077-red.log` | `b54aaaca2d0747d1eeb81b80609ec9f2ab6d7f211685996df70aeba3276a91bd` |
+| `planner-fixture-umask077-green.log` | `f194ce8711914a96bb3034fe0571720cfd784af4eb4c7745195afa1be834b676` |
+| `planner-fixture-umask022-green.log` | `c079c3811d5705741c0ddb33310c51959d6e3ba16f50a49dfa4baf3a5848e1c9` |
+| `license-successor/validation-summary.json` | `5585d9a5cfbee75f788f169b08323a4a9dbd75069a7fec0517aaef90d5ce36e6` |
+| `license-successor/green-sbom-license.log` | `4429b3737ef6cb2d5c485f75ac4707229683850be85468b7b8bf56fd4a160884` |
+| `license-successor/green-source-gate.log` | `0d818b4bb0bce75b59d372d9682b44192adc544f3814f64b524b250e0cf20a8b` |
+| `runtime-continuation/prerequisite-receipt.md` | `80284754acc91c251336ed585acab47021ab3524992609e3a2740665a2e991f2` |
+
+
+Current A successor preparation has since emitted twice in separate frozen
+exact-`02a974e2` snapshots. All 165 files match byte-for-byte: seven packet
+files, 157 source members and one manifest (164 manifest members). Every source
+member matches its tracked Git blob. Manifest SHA256:
+`b3d03a9e7cd86daabbd80ead85cb30a5e98f856be35c08d15227fa710dd914fa`;
+contract SHA256:
+`ad51418075709c382661ef4b4cede63c399eae97f5c266314a28a0b90c1e7c01`.
+The contract has 1,862 rule descriptors; that count is not native379 acceptance.
+Existing grouped A/source-inventory controls passed 18/18, with the known
+historical immutable-packet test explicitly excluded. Independent successor
+review is pending. No historical packet, Go trust anchor or native runtime
+admission was changed. Separately named B and Linux native379 successors are
+being prepared behind their original review and acceptance gates.

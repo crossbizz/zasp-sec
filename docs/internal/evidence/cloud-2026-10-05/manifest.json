@@ -1,0 +1,29 @@
+{
+  "version": "cloud-original33-reference-evidence-v1",
+  "source_commit": "02a974e2472c11fc7347e0cdf30c54fbe9ff293d",
+  "packet_sha256": "5ed07f15be204efc14ce171c528affd7cce1628224eb24d566bfad121f3eada0",
+  "build_sha256": "5c1399b73fb1d53f235239d9b439eef3313fc01f0089c4b09707173a70b06f81",
+  "scope": "Original registration fixture dependency; not A/B, native379, installed or deployed acceptance",
+  "files": {
+    "build-envelope-native-v2.json.gz": {
+      "bytes": 293740,
+      "sha256": "61dd56b4c720cff2d0d98ce96dfaab9159923046366a7708607d9252539b60d4"
+    },
+    "native-original33.log": {
+      "bytes": 571,
+      "sha256": "42db836f1b5090b3b444b76f526d2af161e572e8f28c9a77324140349604e1cd"
+    },
+    "native-publication-review.json": {
+      "bytes": 2287,
+      "sha256": "6a0e6944072699e01fd11a1319ed83f1371f65eac1e63d5c411d0ebf466bdddf"
+    },
+    "native-review.json": {
+      "bytes": 10702,
+      "sha256": "50aa8f8c0710aeead1d4e020f712fffc356d8cdd64bf073a581b8a5a7f852473"
+    },
+    "original33-reference.json.gz": {
+      "bytes": 1283553,
+      "sha256": "e9b6cb6dcfac25bb2200de0aa38f6828b837264d3945732ceb8f77aafc5c0ec5"
+    }
+  }
+}

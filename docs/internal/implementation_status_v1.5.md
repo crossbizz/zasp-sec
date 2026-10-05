@@ -2,14 +2,21 @@
 
 ## Cloud runtime receipt, October 5, 2026
 
-Fresh cloud continuation started at `e13ccb95` and incorporated concurrent
-main `e7bb2d85` without duplicating its source repair. Merged capture components
-26/26, runner12, UI typecheck/build and compiled imports pass. Full verification
-stops on a denied OPA module download; native tools, Helm, runtime-service
-configuration, immutable-reference parity and deployed acceptance remain open.
-Read [the cloud receipt](cloud-continuation-receipt-2026-10-05.md) for actual
-access checks, retained failures and next prerequisites. All728 IDs and
-523/144/61 evidence categories remain unchanged; no task is promoted.
+Fresh cloud continuation started at `e13ccb95` and normally merged main
+`d21f036e`. Restored native tools and verified dependencies support a passing
+original 33-bag registration reference, independently reviewed after normal
+owned PostgreSQL cleanup. Registration controls, authorization/orchestration
+race checks and all 2,535 UI tests pass. A licensed code-identical Nexus
+successor clears its scoped license gate; a restrictive-umask credential
+fixture now preserves its exact-mode security assertions.
+
+Full verification retains its original fixture failure; the complete source
+gate remains blocked by 538 full-history secret-scan findings. A/B successor
+preparation, native379, installed acceptance and real-service deployment remain
+open. Read [the cloud receipt](cloud-continuation-receipt-2026-10-05.md) for
+exact source/build/packet identities, scoped checks and retained failures.
+All 728 IDs and 523/144/61 evidence categories remain unchanged; no task or
+milestone is promoted.
 
 ## Execution-gate batch, October 5, 2026
 
