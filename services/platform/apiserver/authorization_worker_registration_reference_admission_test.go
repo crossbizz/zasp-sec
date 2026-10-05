@@ -348,6 +348,48 @@ func TestWorkerRegistrationReferenceOrderingAuthorityAndBounds(t *testing.T) {
 	}
 }
 
+// This checks our generated witness against a real catalog, not PostgreSQL's
+// internals. A nonexistent catalog column must fail even for an empty sort bag.
+func TestWorkerRegistrationReferenceCollationWitnessPostgres(t *testing.T) {
+	if os.Getenv("ZASP_WORKER_REGISTRATION_COLLATION_WITNESS_POSTGRES") != "1" {
+		t.Skip("explicit local PostgreSQL collation-witness opt-in required")
+	}
+	t.Setenv("LC_ALL", "C")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	conn, err := pgx.Connect(ctx, startDisposablePostgresAs(t, "zasp_test"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		closeCtx, stop := context.WithTimeout(context.Background(), time.Second)
+		defer stop()
+		if err := conn.Close(closeCtx); err != nil {
+			t.Error("witness connection cleanup failed")
+		}
+	})
+	var defaultName, version string
+	if err := conn.QueryRow(ctx, "SELECT 'pg_catalog.default'::regcollation::text, current_setting('server_version_num')").Scan(&defaultName, &version); err != nil || version != "180003" {
+		t.Fatal("the admitted PostgreSQL18.3 witness runtime is required", err)
+	}
+	want := registrationReferenceCollation{Name: defaultName, Provider: "d", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
+	query := registrationReferenceCollationSQL("SELECT v FROM unnest($1::text[]) AS facts(v) LIMIT 0")
+	for _, values := range []struct {
+		name string
+		bag  []*string
+	}{{"empty", []*string{}}, {"null-array", nil}, {"mixed", []*string{registrationReferenceString("a"), nil, registrationReferenceString("z")}}} {
+		t.Run(values.name, func(t *testing.T) {
+			var frame registrationReferenceCollation
+			if err := registrationReferenceQueryJSON(ctx, conn, query, &frame, values.bag); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(frame, want) {
+				t.Fatal("typed sort expression lost the complete default collation frame")
+			}
+		})
+	}
+}
+
 func TestWorkerRegistrationReferenceDefaultCollationMapping(t *testing.T) {
 	s := registrationReferenceCollationSQL("SELECT NULL::text")
 	if !strings.Contains(s, "CASE WHEN c.collprovider='d' THEN d.datcollversion") || !strings.Contains(s, "CASE WHEN c.collprovider='d' THEN pg_database_collation_actual_version(d.oid)") {
