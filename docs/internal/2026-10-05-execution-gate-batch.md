@@ -100,3 +100,182 @@ does not disprove the user's existing cloud credentials: cloud runtime/access
 receipt is still unverified here. Real Stytch/provider browser journeys,
 cross-tenant/revocation checks, backups, advisory clearance and deployed recovery
 remain required. All 728 original requirements and milestones remain in scope.
+
+## Fresh registration build checkpoint
+
+The diagnostic/source-capture batch landed as main
+`e7bb2d85c89b993b3de37bb97c135f788b509711`. Separate local candidate
+`356b25d3f2c7c8209aca71d0441b126ef9983e88` repairs one stale dispatch pin and
+adds a seven-file actual-source control. The discrepancy was caused solely by
+the previously reviewed synthetic credential-string split in
+`authorization_worker_effect_postgres_test.go`. Independent byte comparison
+confirmed the runtime string and all other file bytes are unchanged. Independent
+pin review approved the exact two-file change. Historical SQL, installer behavior
+and reference facts are not replaced by this repair.
+
+Fresh compiler records in `/tmp/zasp-registration-build-20261005.JXnGEL`
+record both apiserver and migrations test builds exiting zero from frozen source
+at that candidate. The actual input inventory and independently reproduced
+roster agree on 5,759 inputs and 74 resolved module identities. The actual
+binary's 17 selected registration controls pass without skips; whole-module
+byte verification passes. Root inspected the selected-control log and
+independently hashed the report, envelope and both binaries. This is
+build/component evidence only. Independent actual-build review approved this
+exact envelope after independently reconstructing the full consumed closure,
+checking source/Git identity, immutable roots, actual binaries, PG files and
+admission controls. Root's one strict PostgreSQL execution completed as a
+failure; reference acceptance remains unproved.
+
+| Retained local artifact under that bundle | SHA-256 |
+| --- | --- |
+| `actual-build-report.md` | `6fd9849ffeb5d4c50c78748b0d98f6dce9a55dfae2e3d0c7d1acec0f6ce6b6a3` |
+| `build-envelope-v1.json` | `32d57199c8c2148e8405edcf6e74052ec0148969e1119f2cdb4d1af717b0b29c` |
+| `binaries/registration-apiserver.test` | `9fc6d4a1159f5e448cf5f55f48aea4528c0008d0687397c6e30d79d7e4455e49` |
+| `binaries/registration-migrations.test` | `de779ff1a17577b3936eaee39d14cf2fb6a110403963a578568542824d8af40a` |
+
+Optional offline `go list -mod=readonly -m -json all` exited one with 76
+lookup-disabled errors for uncompiled whole-graph metadata. Its failure is
+retained; it is not the successful consumed-package inventory or module-byte
+verification. No cache expansion or network retry hid it. The independent
+reviewer must assess the actual required closure, not infer whole-graph success.
+
+The owned run uses physical frozen apiserver CWD, `env -i`, the admitted PATH
+and envelope digest, `LC_ALL=C`, and a fresh exclusive output destination under
+`/tmp/zasp-registration-reference-20261005.6WAnPi`. There are no competing capture
+opt-ins or provider credentials in that environment. It exited one after
+65.75 seconds: `error_class=postgres`, SQLSTATE `42703`, statement SHA-256
+`e61fd5bc920a9960e4586d0eb2a66d624cf02579899cd84a5ac37d800f9d92fc`.
+The owned server PID 70084 was stopped by pg_ctl and joined by Wait, both
+exit zero with normal exit. A fresh filtered process inventory found no
+remaining PostgreSQL or fixture processes; the private destination directory
+contains only the execution log, no published reference packet. Log SHA-256:
+`ab0ac0e7eb7d828a9dd7e108603dbed3542667a5787c862ca4499225369a8ea3`.
+The new diagnostic changes the next action to tracing the exact undefined-column
+statement, not retrying an unchanged capture or relaxing authorization. Current
+native379, installed execution, real-provider/deployed flows and cloud runtime
+receipt remain open. Credentials already configured in cloud need not be
+re-entered or copied here. No availability row is promoted.
+
+## Collation witness repair and next native refusal
+
+The failed outer query was independently reconstructed from the exact original
+SQL embeds and harness generation; its hash matches `e61fd5bc...` above.
+PostgreSQL18.3's installed header, generated catalog attributes and bootstrap
+catalog declare `collicurules`, not the helper's `collrules`. Candidate
+`4756c24c1e6ab637cd433b56baa80c69e87b904f` changes only that shared test-helper
+column reference, preserving the nullable JSON `rules` field, and adds a real
+explicit-opt-in application-query regression. Original scalar/UNION bytes,
+catalog pins, production assembly, dispatch, authority/RLS, collation equality
+and publication guards are unchanged.
+
+The focused real-PG RED failed all three typed-array cases with SQLSTATE42703
+and normal owned cleanup. Grouped GREEN passed 18 top-level controls and 23
+child cases, zero failures/skips, in 2.064 seconds. Empty, null-array and mixed
+inputs return the independently expected complete default collation frame.
+This exercises our generated witness, not PostgreSQL internals. Retained logs:
+
+| Local evidence under `/tmp/zasp-collation-witness-20261005.XXVOvC` | SHA-256 |
+| --- | --- |
+| `red.log` | `fd0b844922932d8333db053222721dbce69e37822613e95567b0bccecdfa65fa` |
+| `green.log` | `f11ff22824c2db898490d15685491939774612e76049c3bb121224757a09e58f` |
+
+Independent source review approved the exact two-file +43/-1 repair. A new
+immutable source/build bundle `/tmp/zasp-registration-build-20261005.SppueM`
+binds that committed source, independently matching 5,759 inputs/74 modules,
+unchanged seven dispatch pins, both actual offline compiler exit-zero records
+and the whole immutable external-root identities. Independent actual-build
+review approved one original capture using envelope SHA-256
+`381719bc7bb70487aa7b584c01a29c52d410b325f613d6830e04190a38319698`;
+report SHA-256 `ab564f624709a83c69586dd7d3dcf975beeba47d6f377a7b0c9f58179c0778ba`.
+The known optional whole-graph failure was preserved, not retried or hidden.
+
+Root's original capture exited one after 62.51 seconds, now refusing
+`source/parameter expression collation differs`. The repaired queries no longer
+fail on the nonexistent column, but this different equality gate is not waived.
+The actual differing frame values were not logged; their cause remains under
+investigation. Owned PostgreSQL PID75793 stopped and joined normally with both
+exit statuses zero; no surviving fixture/server or published packet was found.
+Log `/tmp/zasp-registration-reference-collation-20261005.HUGJZD/execution.log`
+SHA-256 `292f7c82b2e21f3bfc5f2e318d723c4049667132a01e60db7cfb5ac9d5679378`.
+Use a focused actual-query diagnostic next, not another unchanged full capture.
+
+Fresh Node22 UI typecheck/production build exited zero. Standalone `/` and
+`/login` returned HTTP200; the owned server joined after SIGTERM. The initial
+temporary smoke driver incorrectly treated a signaled exit's null numeric code
+as a live process; the corrected bounded driver exited zero without application
+changes. This is local runnable-UI evidence, not backend/provider deployment.
+The linked cloud chat was read non-mutatively: it is idle and its recent turns
+report Superpowers installed. Those turns do not prove latest-main runtime/access
+readiness; no cloud message, credential transfer or cloud execution was started.
+All original728 task classifications and remaining launch gates are unchanged.
+
+## Bounded source/parameter ordering diagnosis
+
+The revised disposable overlay diagnostic exited zero in 2.134 seconds. It
+independently observed complete built-in `C` and `default` frames, then queried
+unchanged standalone original source arms and the actual generated typed-array
+witness. The worker's first schema arm retains `default`; the runtime's
+name-bearing schema arm retains `C`. Parameter empty, null-array and mixed bags
+all retain `default`. The unchanged strict sort admission accepts the former
+comparison and refuses the latter. This establishes a replay-context mismatch
+for those exact arms, not the actual full original capture's unlogged frames.
+
+The first disposable probe failed in its own OID JSON decoding before observing
+source frames. Its log remains preserved. The revised diagnostic reports the
+allowlisted `c_oid` string-to-uint32 decoding error before using an explicit
+diagnostic-only bigint projection; production decoding and guards are unchanged.
+Owned PostgreSQL PID78885 stopped and joined normally with both exit statuses
+zero, and a fresh filtered process inventory found no surviving server/fixture.
+
+Successful local diagnostic log:
+`/tmp/zasp-registration-type-collation-diagnostic-20261005.Noyew6/execution.log`,
+SHA-256 `a4a12d75db5cbea113045c0097cd0474be46b1027db6660cbcb1e4686464aef3`.
+These temporary artifacts are local evidence, not uploaded cloud inputs or
+deployed proof. A finite observed-source replay repair is under independent
+design review; no new implementation or full original rerun is accepted yet.
+The original SQL, full-frame comparisons and all728 classifications remain
+unchanged. Existing cloud credentials require access verification, not re-entry.
+
+## Finite parameter replay repair
+
+The real grouped RED used the existing replay helper and a controlled
+name-bearing source. Six default-source bags passed; all six C-source bags
+failed complete ordering identity, despite locally equal nullable digests.
+The owned server PID80899 stopped and joined normally. RED log SHA-256:
+`d080a3969e376e1c7ba35fe9b927f53727632dbe43e5d18146072202efa88742`.
+
+The reviewed repair independently observes fixed pg_catalog C/default rows
+inside the already admitted original snapshot, validates their complete literal
+PG18.3/C-initdb frames, and selects one fixed typed replay projection by full
+source-frame equality. Original nested/outer disagreement, unknown identities
+or any builtin/source frame drift refuse without usable SQL. Aggregate and
+actual key witness share the selected projection; the parameter-only C recipe
+preserves source ordering without rewriting any original SQL. Superseded fixed
+parameter SQL is removed. Existing full-frame equality, nullable native digest
+comparison, original guards, source pins and publication/cleanup gates remain
+unchanged. The packet records the selected executed SQL and its hashes.
+
+Live GREEN verifies both finite recipes over fourteen controlled bag cases,
+including null arrays/all-NULL values, empty strings, Unicode/newlines and
+reordered duplicates. A separately literal `a\na\nb` native digest checks
+duplicate/delimiter/order preservation. All thirteen frame fields are mutated
+for each recipe, checking altered source/builtin refusal. Grouped controls
+passed 12 top-level/53 child cases in 3.357 seconds; the nine remaining admission
+controls passed once in 16.669 seconds with twelve child cases. Combined:
+21 top-level/65 child passes, zero failures/skips. Owned servers PID81479/81506
+stopped and joined normally. These are focused component/fixture proofs, not
+the full original catalog capture or deployed acceptance.
+
+| Local evidence under `/tmp/zasp-registration-parameter-replay-proposal-20261005.1HF4qm` | SHA-256 |
+| --- | --- |
+| `green.log` | `7a0c71a8e27c9f5b875e83ff00ac26d2d293b7f75dca7bd2e3b3fc8e60bd673f` |
+| `remaining-controls.log` | `6b6de5ca35e931785019e61d756eae405b4a7670d972ea0189d73b75d6591928` |
+
+Independent review approved the exact two-Go-file +203/-20 repair for fresh
+source freeze. Fresh Node22 UI typecheck/build exited zero from repository root;
+an initial `apps/web` invocation lacked that package's typecheck script and was
+corrected to the actual script-owning root, not represented as an application
+failure or passing check. Ledger validation passed all728 rows with unchanged
+523/144/61 classifications and zero missing mappings. Fresh immutable build
+review and the full original root-owned native run are still required. No
+component result promotes installed or production readiness.

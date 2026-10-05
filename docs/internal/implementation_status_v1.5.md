@@ -29,6 +29,56 @@ native379 parity, installation and real deployed acceptance remain open. The
 All 728 original task IDs and 523/144/61 availability classifications remain
 unchanged. No refusal guard or runtime selector is promoted by this batch.
 
+Fresh registration-build checkpoint: the diagnostic batch is merged as
+`e7bb2d85`; local candidate `356b25d3` repairs the single dispatch pin made stale
+by the reviewed credential-fixture string split, with seven actual-source pin
+controls. The new frozen source and binaries have matching 5,759-input/74-module
+inventories and passing selected component controls. Independent actual-build
+review approved the exact new envelope for one strict root-owned PostgreSQL
+acceptance run. That run failed in 65.75 seconds with SQLSTATE `42703` and an
+exact statement digest. Owned PostgreSQL stop and Wait both exited zero; no
+server survived or reference packet was published. This identifies a concrete
+undefined-column diagnostic for investigation, not a passed acceptance gate.
+The optional offline whole-graph metadata lookup failed and is preserved, not
+counted as passing. See the fresh-build section of the same batch evidence.
+All 728 rows and their existing classifications are unchanged; no native,
+installed, cloud-transfer or production-readiness proof is implied.
+
+Collation-query repair checkpoint: candidate `4756c24c` corrects the confirmed
+PostgreSQL18.3 `collrules`/`collicurules` helper defect with real-PG RED/GREEN
+coverage (18 grouped controls, 23 child cases). Independent source and fresh
+actual-build reviews approved the bounded change and one original capture.
+That full run failed after 62.51 seconds at the separate source/parameter
+collation-equality guard, with normal owned cleanup and no reference packet.
+The differing frames require focused diagnosis; no equality/authority guard is
+relaxed and no native acceptance is claimed. Fresh UI typecheck/build and local
+HTTP200 smoke passed. See the connected repair section in the batch evidence.
+All728 mappings and523/144/61 classifications remain unchanged.
+
+Bounded ordering diagnosis checkpoint: merged main is `3ddabc7a`. A disposable
+actual-query diagnostic passed with normal owned PostgreSQL cleanup: an original
+name-bearing runtime arm has complete `C` collation, while our typed-array
+parameter witness has complete `default` collation on empty/null/mixed bags.
+The strict comparison correctly refuses this mismatch. This proves those
+standalone expressions, not the full original capture's unlogged frames.
+Finite source-context-preserving replay design and grouped behavioral coverage
+are being prepared; no new full native acceptance or production availability
+is claimed. Failed disposable metadata-probe evidence is preserved separately.
+See the bounded diagnosis section of the batch evidence; all728 classifications
+remain unchanged, and existing cloud credentials need no re-entry.
+
+Finite replay repair checkpoint: real behavioral RED rejected all six C-source
+bags against the prior default replay. The reviewed replacement selects only
+fixed C/default parameter projections after complete independent builtin and
+original source-frame admission; actual SQL/hashes replace stale fixed-query
+records. Original source/pins, strict collation/digest equality and publication
+guards remain intact. Grouped component GREEN passed21 controls/65 child cases
+with no failures/skips and normal owned PostgreSQL cleanup; fresh UI typecheck/
+build and728-row ledger validation passed. Fresh immutable build admission and
+the full original capture remain required before any native acceptance claim.
+See the finite replay repair section of the same batch evidence. All original
+availability classifications and deployed production gates remain unchanged.
+
 ## Latest verified state, October 1, 2026
 October 1 existing-work reconciliation candidate: current main changes and the
 root checkpoint are preserved together, with conflicting historical root

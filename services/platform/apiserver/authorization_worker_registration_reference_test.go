@@ -683,7 +683,7 @@ var registrationReferenceDispatchPins = map[string]string{
 	"migrations/production_authorization_worker_profile.go":          "39929eafe70f2dfda1a1fa4d42b0d6f591badc728e7da0fe5245e5c048a057e0",
 	"migrations/production_authorization_worker_runtime.go":          "3f93b8bd2ae8b08e61eaf9ffccb0694d559b93f81b03e03df3d1cbe2faa874ab",
 	"migrations/production_authorization_runtime_profile.go":         "2e1505d973f621b97081cef217fa0f7f56f3d501ba77a15228a7b9bfb50a6c70",
-	"apiserver/authorization_worker_effect_postgres_test.go":         "96da59d58c7c741e1b3ea0372d375f8a5965e480c4743397df35303cb5ef9200",
+	"apiserver/authorization_worker_effect_postgres_test.go":         "4ca7a7b3b468e9b8a8602b486d0d781253b21f97c4b6d495628ef7327226d4b8",
 	"apiserver/postgres_integration_test.go":                         "0d908c53cdea021e4c60adc412a04d631fd58c0b0544e7cce723884ea4002a42",
 	"apiserver/authorization_worker_ordered_policy_postgres_test.go": "302037d9efd8e55515af71a3b367fb1069b5d9e880be3c3de56cef7420f8892d",
 	"apiserver/security_agent_temporal_executor_postgres_test.go":    "ba094a67bb90c1275dd75e1505d9a43e63900e5718c1092058b1f64489e29833",
@@ -1269,7 +1269,7 @@ func registrationReferenceQueryJSON(ctx context.Context, q interface {
 }
 
 func registrationReferenceCollationSQL(scalar string) string {
-	return `WITH effective AS (SELECT to_regcollation(pg_collation_for((` + scalar + `))) AS oid) SELECT jsonb_build_object('name',c.oid::regcollation::text,'provider',c.collprovider,'deterministic',c.collisdeterministic,'locale',c.colllocale,'rules',c.collrules,'recorded_version',CASE WHEN c.collprovider='d' THEN d.datcollversion ELSE c.collversion END,'actual_version',CASE WHEN c.collprovider='d' THEN pg_database_collation_actual_version(d.oid) ELSE pg_collation_actual_version(c.oid) END,'database_provider',d.datlocprovider,'database_collate',d.datcollate,'database_ctype',d.datctype,'database_locale',d.datlocale,'database_recorded_version',d.datcollversion,'database_actual_version',pg_database_collation_actual_version(d.oid)) FROM effective e JOIN pg_collation c ON c.oid=e.oid JOIN pg_database d ON d.datname=current_database()`
+	return `WITH effective AS (SELECT to_regcollation(pg_collation_for((` + scalar + `))) AS oid) SELECT jsonb_build_object('name',c.oid::regcollation::text,'provider',c.collprovider,'deterministic',c.collisdeterministic,'locale',c.colllocale,'rules',c.collicurules,'recorded_version',CASE WHEN c.collprovider='d' THEN d.datcollversion ELSE c.collversion END,'actual_version',CASE WHEN c.collprovider='d' THEN pg_database_collation_actual_version(d.oid) ELSE pg_collation_actual_version(c.oid) END,'database_provider',d.datlocprovider,'database_collate',d.datcollate,'database_ctype',d.datctype,'database_locale',d.datlocale,'database_recorded_version',d.datcollversion,'database_actual_version',pg_database_collation_actual_version(d.oid)) FROM effective e JOIN pg_collation c ON c.oid=e.oid JOIN pg_database d ON d.datname=current_database()`
 }
 
 // Observe the actual ORDER BY v upstream of convert_to/digest. LIMIT 0 returns
@@ -1277,7 +1277,7 @@ func registrationReferenceCollationSQL(scalar string) string {
 // and collation remain those of the exact original UNION output even when no
 // source rows exist. Core pg_collation_for is non-strict, so it observes that
 // expression identity rather than requiring a value or a surrogate NULL::text.
-func registrationReferenceSortKeyCollationQueries(p registrationReferenceStatementPlan) (string, string, string, error) {
+func registrationReferenceSortKeyCollationQueries(p registrationReferenceStatementPlan) (string, string, error) {
 	const aggregateProjection = `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY v),'UTF8'),'sha256'),'hex') FROM `
 	fromSource := func(s string) (string, error) {
 		const fromFacts = aggregateProjection + "facts"
@@ -1289,17 +1289,42 @@ func registrationReferenceSortKeyCollationQueries(p registrationReferenceStateme
 	}
 	outer, err := fromSource(p.Fingerprint)
 	if err != nil {
-		return "", "", "", err
+		return "", "", err
 	}
 	nested, err := fromSource(p.RuntimeFingerprint)
 	if err != nil {
-		return "", "", "", err
+		return "", "", err
 	}
-	if !strings.HasPrefix(registrationReferenceParameterSQL, aggregateProjection) || strings.TrimPrefix(registrationReferenceParameterSQL, aggregateProjection) != "unnest($1::text[]) AS facts(v)" {
-		return "", "", "", registrationReferenceRefuse("actual parameter ORDER BY v expression")
+	return outer, nested, nil
+}
+
+// These independent observations resolve only fixed pg_catalog identities in
+// the already admitted PG18.3 snapshot. No caller-supplied SQL identifier is used.
+const registrationReferenceBuiltinCollationSQL = `SELECT jsonb_build_object('name',c.oid::regcollation::text,'provider',c.collprovider,'deterministic',c.collisdeterministic,'locale',c.colllocale,'rules',c.collicurules,'recorded_version',CASE WHEN c.collprovider='d' THEN d.datcollversion ELSE c.collversion END,'actual_version',CASE WHEN c.collprovider='d' THEN pg_database_collation_actual_version(d.oid) ELSE pg_collation_actual_version(c.oid) END,'database_provider',d.datlocprovider,'database_collate',d.datcollate,'database_ctype',d.datctype,'database_locale',d.datlocale,'database_recorded_version',d.datcollversion,'database_actual_version',pg_database_collation_actual_version(d.oid)) FROM pg_collation c JOIN pg_database d ON d.datname=current_database() WHERE c.oid=`
+
+const registrationReferenceBuiltinCSQL = registrationReferenceBuiltinCollationSQL + `'pg_catalog."C"'::regcollation`
+const registrationReferenceBuiltinDefaultSQL = registrationReferenceBuiltinCollationSQL + `'pg_catalog.default'::regcollation`
+
+// Reproduce the admitted source ordering on our typed replay only. Both queries
+// share one projected v expression; the original source is never rewritten.
+func registrationReferenceParameterReplayQueries(nested, outer, builtinC, builtinDefault registrationReferenceCollation) (string, string, error) {
+	wantC := registrationReferenceCollation{Name: `"C"`, Provider: "c", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
+	wantDefault := registrationReferenceCollation{Name: `"default"`, Provider: "d", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
+	if !reflect.DeepEqual(builtinC, wantC) || !reflect.DeepEqual(builtinDefault, wantDefault) || !reflect.DeepEqual(nested, outer) {
+		return "", "", registrationReferenceRefuse("finite replay builtin/source collation authority")
 	}
-	parameter := registrationReferenceCollationSQL("SELECT v FROM " + strings.TrimPrefix(registrationReferenceParameterSQL, aggregateProjection) + " LIMIT 0")
-	return outer, nested, parameter, nil
+	var relation string
+	switch {
+	case reflect.DeepEqual(nested, builtinDefault):
+		relation = `unnest($1::text[]) AS facts(v)`
+	case reflect.DeepEqual(nested, builtinC):
+		relation = `(SELECT v COLLATE pg_catalog."C" AS v FROM unnest($1::text[]) AS input(v)) AS facts`
+	default:
+		return "", "", registrationReferenceRefuse("source collation outside finite replay authority")
+	}
+	aggregate := `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY v),'UTF8'),'sha256'),'hex') FROM ` + relation
+	witness := registrationReferenceCollationSQL("SELECT v FROM " + relation + " LIMIT 0")
+	return aggregate, witness, nil
 }
 func registrationReferenceAdmitSortKeyCollations(nested, outer, parameterNested, parameterOuter registrationReferenceCollation) error {
 	if nested.Name == "" || !nested.Deterministic || !reflect.DeepEqual(nested, outer) || !reflect.DeepEqual(parameterNested, nested) || !reflect.DeepEqual(parameterOuter, outer) {
@@ -1427,10 +1452,6 @@ func registrationReferenceReadBag(ctx context.Context, tx pgx.Tx, s registration
 	return b, nil
 }
 
-// The parameter aggregate is a separate validation of the type-output bridge.
-// It cannot replace the exact native original nested/outer query or source bag.
-const registrationReferenceParameterSQL = `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY v),'UTF8'),'sha256'),'hex') FROM unnest($1::text[]) AS facts(v)`
-
 const registrationReferenceWorkerInsertSQL = `INSERT INTO zasp_authorization80_worker.registration(checksum,fingerprint) VALUES($1,zasp_authorization80_worker.fingerprint())`
 
 func registrationReferenceCapture(ctx context.Context, owner *pgx.Conn, b registrationReferenceBuild, a registrationReferenceAssembly, buildSHA string) (packet registrationReferencePacket, err error) {
@@ -1495,7 +1516,7 @@ func registrationReferenceCapture(ctx context.Context, owner *pgx.Conn, b regist
 			packet.StatementHashes["installed_assembly_frame"] = registrationReferenceSHA([]byte(q))
 			packet.ControlStatements["installed_assembly_frame"] = q
 		}
-		outerCollationSQL, nestedCollationSQL, parameterCollationSQL, e := registrationReferenceSortKeyCollationQueries(plan)
+		outerCollationSQL, nestedCollationSQL, e := registrationReferenceSortKeyCollationQueries(plan)
 		if e != nil {
 			return e
 		}
@@ -1508,6 +1529,21 @@ func registrationReferenceCapture(ctx context.Context, owner *pgx.Conn, b regist
 		if e := registrationReferenceAdmitExecution(packet.Execution, packet.NestedCollation, packet.OuterCollation); e != nil {
 			return e
 		}
+		var builtinC, builtinDefault registrationReferenceCollation
+		if e := registrationReferenceQueryJSON(ctx, tx, registrationReferenceBuiltinCSQL, &builtinC); e != nil {
+			return e
+		}
+		if e := registrationReferenceQueryJSON(ctx, tx, registrationReferenceBuiltinDefaultSQL, &builtinDefault); e != nil {
+			return e
+		}
+		parameterAggregateSQL, parameterCollationSQL, e := registrationReferenceParameterReplayQueries(packet.NestedCollation, packet.OuterCollation, builtinC, builtinDefault)
+		if e != nil {
+			return e
+		}
+		packet.ControlStatements["builtin_c_collation"] = registrationReferenceBuiltinCSQL
+		packet.ControlStatements["builtin_default_collation"] = registrationReferenceBuiltinDefaultSQL
+		packet.StatementHashes["builtin_c_collation"] = registrationReferenceSHA([]byte(registrationReferenceBuiltinCSQL))
+		packet.StatementHashes["builtin_default_collation"] = registrationReferenceSHA([]byte(registrationReferenceBuiltinDefaultSQL))
 		packet.StatementHashes["outer_collation"] = registrationReferenceSHA([]byte(outerCollationSQL))
 		packet.StatementHashes["nested_collation"] = registrationReferenceSHA([]byte(nestedCollationSQL))
 		packet.StatementHashes["parameter_collation"] = registrationReferenceSHA([]byte(parameterCollationSQL))
@@ -1546,7 +1582,7 @@ func registrationReferenceCapture(ctx context.Context, owner *pgx.Conn, b regist
 		if e := registrationReferenceAdmitSortKeyCollations(packet.NestedCollation, packet.OuterCollation, packet.ParameterNestedCollation, packet.ParameterNestedCollation); e != nil {
 			return e
 		}
-		if tx.QueryRow(ctx, registrationReferenceParameterSQL, nestedValues).Scan(&packet.Native.ParameterNested) != nil {
+		if tx.QueryRow(ctx, parameterAggregateSQL, nestedValues).Scan(&packet.Native.ParameterNested) != nil {
 			return registrationReferenceRefuse("native nested type-output bridge")
 		}
 		if packet.Native.ParameterNested != nil {
@@ -1560,7 +1596,7 @@ func registrationReferenceCapture(ctx context.Context, owner *pgx.Conn, b regist
 		if e := registrationReferenceAdmitSortKeyCollations(packet.NestedCollation, packet.OuterCollation, packet.ParameterNestedCollation, packet.ParameterCollation); e != nil {
 			return e
 		}
-		if tx.QueryRow(ctx, registrationReferenceParameterSQL, outerValues).Scan(&packet.Native.ParameterOuter) != nil || !reflect.DeepEqual(packet.Native.Nested, packet.Native.ParameterNested) || !reflect.DeepEqual(packet.Native.Outer, packet.Native.ParameterOuter) {
+		if tx.QueryRow(ctx, parameterAggregateSQL, outerValues).Scan(&packet.Native.ParameterOuter) != nil || !reflect.DeepEqual(packet.Native.Nested, packet.Native.ParameterNested) || !reflect.DeepEqual(packet.Native.Outer, packet.Native.ParameterOuter) {
 			return registrationReferenceRefuse("native original/type-output aggregate differs")
 		}
 		for _, v := range []struct {
@@ -1619,9 +1655,9 @@ func registrationReferenceCapture(ctx context.Context, owner *pgx.Conn, b regist
 		packet.StatementHashes["original_guard"] = registrationReferenceSHA([]byte(plan.Catalog))
 		packet.StatementHashes["original_nested"] = registrationReferenceSHA([]byte(plan.RuntimeFingerprint))
 		packet.StatementHashes["original_outer"] = registrationReferenceSHA([]byte(plan.Fingerprint))
-		packet.StatementHashes["parameter_aggregate"] = registrationReferenceSHA([]byte(registrationReferenceParameterSQL))
+		packet.StatementHashes["parameter_aggregate"] = registrationReferenceSHA([]byte(parameterAggregateSQL))
 		packet.StatementHashes["session"] = registrationReferenceSHA([]byte(registrationReferenceSessionSQL))
-		for name, statement := range map[string]string{"line2": guardSQL, "original_guard": plan.Catalog, "original_nested": plan.RuntimeFingerprint, "original_outer": plan.Fingerprint, "parameter_aggregate": registrationReferenceParameterSQL, "session": registrationReferenceSessionSQL, "source_proved_worker_registration_insert": registrationReferenceWorkerInsertSQL} {
+		for name, statement := range map[string]string{"line2": guardSQL, "original_guard": plan.Catalog, "original_nested": plan.RuntimeFingerprint, "original_outer": plan.Fingerprint, "parameter_aggregate": parameterAggregateSQL, "session": registrationReferenceSessionSQL, "source_proved_worker_registration_insert": registrationReferenceWorkerInsertSQL} {
 			packet.ControlStatements[name] = statement
 			packet.StatementHashes[name] = registrationReferenceSHA([]byte(statement))
 		}
