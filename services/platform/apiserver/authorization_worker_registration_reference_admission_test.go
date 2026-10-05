@@ -99,6 +99,36 @@ func TestWorkerRegistrationReferenceQueryJSONAdmission(t *testing.T) {
 	}
 }
 
+// A stale compiled pin must refuse the actual current dispatch source. This
+// checks the fixed seven-file roster without compiling or executing a fixture.
+func TestWorkerRegistrationReferenceCurrentDispatchSources(t *testing.T) {
+	paths := []string{
+		"migrations/production_authorization_worker_profile.go",
+		"migrations/production_authorization_worker_runtime.go",
+		"migrations/production_authorization_runtime_profile.go",
+		"apiserver/authorization_worker_effect_postgres_test.go",
+		"apiserver/postgres_integration_test.go",
+		"apiserver/authorization_worker_ordered_policy_postgres_test.go",
+		"apiserver/security_agent_temporal_executor_postgres_test.go",
+	}
+	if len(registrationReferenceDispatchPins) != len(paths) {
+		t.Fatal("current dispatch source roster is not closed")
+	}
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			file := filepath.Join("..", path)
+			info, err := os.Lstat(file)
+			if err != nil || !info.Mode().IsRegular() {
+				t.Fatal("current dispatch source is not a regular file")
+			}
+			digest, err := registrationReferenceHashFile(file)
+			if err != nil || digest != registrationReferenceDispatchPins[path] {
+				t.Fatal("actual current dispatch source refused by compiled pin", digest, err)
+			}
+		})
+	}
+}
+
 // These are unit controls, not a captured catalog or native acceptance claim.
 func registrationReferenceTestSource(t *testing.T) string {
 	t.Helper()

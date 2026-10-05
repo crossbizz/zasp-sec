@@ -683,7 +683,7 @@ var registrationReferenceDispatchPins = map[string]string{
 	"migrations/production_authorization_worker_profile.go":          "39929eafe70f2dfda1a1fa4d42b0d6f591badc728e7da0fe5245e5c048a057e0",
 	"migrations/production_authorization_worker_runtime.go":          "3f93b8bd2ae8b08e61eaf9ffccb0694d559b93f81b03e03df3d1cbe2faa874ab",
 	"migrations/production_authorization_runtime_profile.go":         "2e1505d973f621b97081cef217fa0f7f56f3d501ba77a15228a7b9bfb50a6c70",
-	"apiserver/authorization_worker_effect_postgres_test.go":         "96da59d58c7c741e1b3ea0372d375f8a5965e480c4743397df35303cb5ef9200",
+	"apiserver/authorization_worker_effect_postgres_test.go":         "4ca7a7b3b468e9b8a8602b486d0d781253b21f97c4b6d495628ef7327226d4b8",
 	"apiserver/postgres_integration_test.go":                         "0d908c53cdea021e4c60adc412a04d631fd58c0b0544e7cce723884ea4002a42",
 	"apiserver/authorization_worker_ordered_policy_postgres_test.go": "302037d9efd8e55515af71a3b367fb1069b5d9e880be3c3de56cef7420f8892d",
 	"apiserver/security_agent_temporal_executor_postgres_test.go":    "ba094a67bb90c1275dd75e1505d9a43e63900e5718c1092058b1f64489e29833",
