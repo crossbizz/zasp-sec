@@ -1,5 +1,16 @@
 # Agent Security Platform Implementation Status
 
+## Cloud runtime receipt, October 5, 2026
+
+Fresh cloud continuation started at `e13ccb95` and incorporated concurrent
+main `e7bb2d85` without duplicating its source repair. Merged capture components
+26/26, runner12, UI typecheck/build and compiled imports pass. Full verification
+stops on a denied OPA module download; native tools, Helm, runtime-service
+configuration, immutable-reference parity and deployed acceptance remain open.
+Read [the cloud receipt](cloud-continuation-receipt-2026-10-05.md) for actual
+access checks, retained failures and next prerequisites. All728 IDs and
+523/144/61 evidence categories remain unchanged; no task is promoted.
+
 ## Execution-gate batch, October 5, 2026
 
 The continuation from merged main `e13ccb95` repairs the variant-A capture
