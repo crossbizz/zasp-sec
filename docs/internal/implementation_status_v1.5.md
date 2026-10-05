@@ -1,5 +1,23 @@
 # Agent Security Platform Implementation Status
 
+## Execution-gate batch, October 5, 2026
+
+The continuation from merged main `e13ccb95` repairs the variant-A capture
+snapshot's omitted replay-companion descriptor and adds bounded, redacted
+registration-query diagnostics. Corrected snapshot execution explicitly ran
+eight replay cases; grouped source/development and registration controls passed.
+UI typecheck and production build passed. Combined independent security/spec
+review approved the exact four-file component change; main-push receipt remains
+separate. See [batch evidence](2026-10-05-execution-gate-batch.md).
+
+This is component progress toward P3/P7 execution and registration, not a
+completed product flow. The immutable A packet check still refuses the current
+contract; A/B synchronization, original registration PostgreSQL capture, full
+native379 parity, installation and real deployed acceptance remain open. The
+53-file fixed inventory pins and historical reference bytes were not changed.
+All 728 original task IDs and 523/144/61 availability classifications remain
+unchanged. No refusal guard or runtime selector is promoted by this batch.
+
 ## Latest verified state, October 1, 2026
 October 1 existing-work reconciliation candidate: current main changes and the
 root checkpoint are preserved together, with conflicting historical root

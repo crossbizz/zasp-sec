@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const (
@@ -1239,8 +1240,27 @@ func registrationReferenceQueryJSON(ctx context.Context, q interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }, statement string, target any, args ...any) error {
 	var raw []byte
-	if q.QueryRow(ctx, statement, args...).Scan(&raw) != nil {
-		return registrationReferenceRefuse("native catalog query/cast/permission/RLS error")
+	if err := q.QueryRow(ctx, statement, args...).Scan(&raw); err != nil {
+		// Never wrap or format the driver error: its message, detail, hint,
+		// object names and internal SQL may contain unbounded private data.
+		class, state := "untyped", "none"
+		var pgErr *pgconn.PgError
+		switch {
+		case errors.As(err, &pgErr) && pgErr != nil:
+			class = "postgres"
+			if len(pgErr.Code) == 5 && strings.IndexFunc(pgErr.Code, func(r rune) bool {
+				return !(r >= '0' && r <= '9' || r >= 'A' && r <= 'Z')
+			}) == -1 {
+				state = pgErr.Code
+			}
+		case errors.Is(err, pgx.ErrNoRows):
+			class = "no_rows"
+		case errors.Is(err, context.DeadlineExceeded):
+			class = "deadline_exceeded"
+		case errors.Is(err, context.Canceled):
+			class = "canceled"
+		}
+		return registrationReferenceRefuse(fmt.Sprintf("native catalog query failed: error_class=%s sqlstate=%s statement_sha256=%s", class, state, registrationReferenceSHA([]byte(statement))))
 	}
 	if len(raw) > registrationReferenceMaxRowBytes {
 		return registrationReferenceRefuse("native control row byte limit")

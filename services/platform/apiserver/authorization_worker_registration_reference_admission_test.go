@@ -3,6 +3,8 @@ package apiserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -10,7 +12,92 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
+
+// Only the external QueryRow/Scan boundary is replaced. These controls exercise
+// the real harness refusal and JSON admission; they cannot prove native capture.
+type registrationReferenceDiagnosticQuery struct {
+	raw []byte
+	err error
+}
+
+func (q registrationReferenceDiagnosticQuery) QueryRow(context.Context, string, ...any) pgx.Row {
+	return q
+}
+
+func (q registrationReferenceDiagnosticQuery) Scan(dest ...any) error {
+	if q.err != nil {
+		return q.err
+	}
+	*dest[0].(*[]byte) = q.raw
+	return nil
+}
+
+func TestWorkerRegistrationReferenceQueryDiagnostics(t *testing.T) {
+	// Dropping Scan errors loses the failure class; printing or wrapping the
+	// driver error would expose this fixture's hostile catalog and secret data.
+	private := "private-function-name password=seeded-secret " + strings.Repeat("x", 8192)
+	statement := "SELECT private_schema.private_function($1) /* " + private + " */"
+	hostile := &pgconn.PgError{Severity: private, SeverityUnlocalized: private, Code: "42501", Message: private, Detail: private, Hint: private, InternalQuery: private, Where: private, SchemaName: private, TableName: private, ColumnName: private, DataTypeName: private, ConstraintName: private, File: private, Routine: private}
+	for _, tc := range []struct {
+		name, class, state string
+		err                error
+	}{
+		{"permission", "postgres", "42501", hostile},
+		{"wrapped-cast", "postgres", "22P02", fmt.Errorf("%s: %w", private, &pgconn.PgError{Code: "22P02", Message: private})},
+		{"no-row", "no_rows", "none", pgx.ErrNoRows},
+		{"deadline", "deadline_exceeded", "none", fmt.Errorf("%s: %w", private, context.DeadlineExceeded)},
+		{"canceled", "canceled", "none", context.Canceled},
+		{"untyped", "untyped", "none", errors.New(private)},
+		{"invalid-state", "postgres", "none", &pgconn.PgError{Code: private, Message: private}},
+		{"lowercase-state", "postgres", "none", &pgconn.PgError{Code: "22p02", Message: private}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			target := struct{ Name string }{Name: "unchanged"}
+			err := registrationReferenceQueryJSON(context.Background(), registrationReferenceDiagnosticQuery{err: tc.err}, statement, &target, private)
+			if err == nil || target.Name != "unchanged" {
+				t.Fatal("failed native row was accepted or changed the target")
+			}
+			message := err.Error()
+			for _, want := range []string{"original registration reference refused:", "error_class=" + tc.class, "sqlstate=" + tc.state, "statement_sha256=3881a6e5adc60e1245ed1b8a859d05eaceab5a52b0e1334a8f93c1aa32697cc3"} {
+				if !strings.Contains(message, want) {
+					t.Errorf("bounded query diagnostic lost %q: %s", want, message)
+				}
+			}
+			if len(message) > 256 || strings.ContainsAny(message, "\r\n") || strings.Contains(message, "private") || strings.Contains(message, "seeded-secret") || errors.Unwrap(err) != nil {
+				t.Fatal("query diagnostic exposed driver/statement/argument data or exceeded its output bound")
+			}
+		})
+	}
+}
+
+func TestWorkerRegistrationReferenceQueryJSONAdmission(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		raw   []byte
+		valid bool
+	}{
+		{"success", []byte(`{"Name":"admitted"}`), true},
+		{"unknown-field", []byte(`{"Name":"admitted","private":"seeded-secret"}`), false},
+		{"trailing-json", []byte(`{"Name":"admitted"} {}`), false},
+		{"nil-row", nil, false},
+		{"oversized", []byte(strings.Repeat("x", registrationReferenceMaxRowBytes+1)), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var target struct{ Name string }
+			err := registrationReferenceQueryJSON(context.Background(), registrationReferenceDiagnosticQuery{raw: tc.raw}, "SELECT $1", &target, "seeded-secret")
+			if (err == nil) != tc.valid || (tc.valid && target.Name != "admitted") {
+				t.Fatal("native JSON admission changed", err)
+			}
+			if err != nil && (len(err.Error()) > 256 || strings.Contains(err.Error(), "seeded-secret")) {
+				t.Fatal("JSON admission exposed row data or exceeded its output bound")
+			}
+		})
+	}
+}
 
 // These are unit controls, not a captured catalog or native acceptance claim.
 func registrationReferenceTestSource(t *testing.T) string {
