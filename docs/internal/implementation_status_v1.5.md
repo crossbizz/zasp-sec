@@ -33,6 +33,17 @@ counted as passing. See the fresh-build section of the same batch evidence.
 All 728 rows and their existing classifications are unchanged; no native,
 installed, cloud-transfer or production-readiness proof is implied.
 
+Collation-query repair checkpoint: candidate `4756c24c` corrects the confirmed
+PostgreSQL18.3 `collrules`/`collicurules` helper defect with real-PG RED/GREEN
+coverage (18 grouped controls, 23 child cases). Independent source and fresh
+actual-build reviews approved the bounded change and one original capture.
+That full run failed after 62.51 seconds at the separate source/parameter
+collation-equality guard, with normal owned cleanup and no reference packet.
+The differing frames require focused diagnosis; no equality/authority guard is
+relaxed and no native acceptance is claimed. Fresh UI typecheck/build and local
+HTTP200 smoke passed. See the connected repair section in the batch evidence.
+All728 mappings and523/144/61 classifications remain unchanged.
+
 ## Latest verified state, October 1, 2026
 October 1 existing-work reconciliation candidate: current main changes and the
 root checkpoint are preserved together, with conflicting historical root

@@ -155,3 +155,56 @@ statement, not retrying an unchanged capture or relaxing authorization. Current
 native379, installed execution, real-provider/deployed flows and cloud runtime
 receipt remain open. Credentials already configured in cloud need not be
 re-entered or copied here. No availability row is promoted.
+
+## Collation witness repair and next native refusal
+
+The failed outer query was independently reconstructed from the exact original
+SQL embeds and harness generation; its hash matches `e61fd5bc...` above.
+PostgreSQL18.3's installed header, generated catalog attributes and bootstrap
+catalog declare `collicurules`, not the helper's `collrules`. Candidate
+`4756c24c1e6ab637cd433b56baa80c69e87b904f` changes only that shared test-helper
+column reference, preserving the nullable JSON `rules` field, and adds a real
+explicit-opt-in application-query regression. Original scalar/UNION bytes,
+catalog pins, production assembly, dispatch, authority/RLS, collation equality
+and publication guards are unchanged.
+
+The focused real-PG RED failed all three typed-array cases with SQLSTATE42703
+and normal owned cleanup. Grouped GREEN passed 18 top-level controls and 23
+child cases, zero failures/skips, in 2.064 seconds. Empty, null-array and mixed
+inputs return the independently expected complete default collation frame.
+This exercises our generated witness, not PostgreSQL internals. Retained logs:
+
+| Local evidence under `/tmp/zasp-collation-witness-20261005.XXVOvC` | SHA-256 |
+| --- | --- |
+| `red.log` | `fd0b844922932d8333db053222721dbce69e37822613e95567b0bccecdfa65fa` |
+| `green.log` | `f11ff22824c2db898490d15685491939774612e76049c3bb121224757a09e58f` |
+
+Independent source review approved the exact two-file +43/-1 repair. A new
+immutable source/build bundle `/tmp/zasp-registration-build-20261005.SppueM`
+binds that committed source, independently matching 5,759 inputs/74 modules,
+unchanged seven dispatch pins, both actual offline compiler exit-zero records
+and the whole immutable external-root identities. Independent actual-build
+review approved one original capture using envelope SHA-256
+`381719bc7bb70487aa7b584c01a29c52d410b325f613d6830e04190a38319698`;
+report SHA-256 `ab564f624709a83c69586dd7d3dcf975beeba47d6f377a7b0c9f58179c0778ba`.
+The known optional whole-graph failure was preserved, not retried or hidden.
+
+Root's original capture exited one after 62.51 seconds, now refusing
+`source/parameter expression collation differs`. The repaired queries no longer
+fail on the nonexistent column, but this different equality gate is not waived.
+The actual differing frame values were not logged; their cause remains under
+investigation. Owned PostgreSQL PID75793 stopped and joined normally with both
+exit statuses zero; no surviving fixture/server or published packet was found.
+Log `/tmp/zasp-registration-reference-collation-20261005.HUGJZD/execution.log`
+SHA-256 `292f7c82b2e21f3bfc5f2e318d723c4049667132a01e60db7cfb5ac9d5679378`.
+Use a focused actual-query diagnostic next, not another unchanged full capture.
+
+Fresh Node22 UI typecheck/production build exited zero. Standalone `/` and
+`/login` returned HTTP200; the owned server joined after SIGTERM. The initial
+temporary smoke driver incorrectly treated a signaled exit's null numeric code
+as a live process; the corrected bounded driver exited zero without application
+changes. This is local runnable-UI evidence, not backend/provider deployment.
+The linked cloud chat was read non-mutatively: it is idle and its recent turns
+report Superpowers installed. Those turns do not prove latest-main runtime/access
+readiness; no cloud message, credential transfer or cloud execution was started.
+All original728 task classifications and remaining launch gates are unchanged.
