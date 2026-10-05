@@ -11,9 +11,10 @@ successor clears its scoped license gate; a restrictive-umask credential
 fixture now preserves its exact-mode security assertions.
 
 Full verification retains its original fixture failure; the complete source
-gate remains blocked by 538 full-history secret-scan findings. A/B successor
-preparation, native379, installed acceptance and real-service deployment remain
-open. Read [the cloud receipt](cloud-continuation-receipt-2026-10-05.md) for
+gate remains blocked by 538 full-history secret-scan findings. Independently
+reviewed, durable A/B source successors preserve all historical pins and gates;
+A/B native equivalence, native379, installed acceptance and real-service
+deployment remain open. Read [the cloud receipt](cloud-continuation-receipt-2026-10-05.md) for
 exact source/build/packet identities, scoped checks and retained failures.
 All 728 IDs and 523/144/61 evidence categories remain unchanged; no task or
 milestone is promoted.

@@ -1,0 +1,32 @@
+{
+  "count": 538,
+  "categories": {
+    "prose-rule-match": 17,
+    "labeled-artifact-identifier-unverified": 1,
+    "labeled-artifact-hash": 4,
+    "labeled-git-object-unavailable": 4,
+    "verified-git-object-identifier": 1,
+    "labeled-source-inventory-hash": 177,
+    "test-signing-reveal-fixture": 24,
+    "test-business-identity": 34,
+    "test-lease-token": 3,
+    "verified-source-inventory-hash": 252,
+    "test-aws-request-access-key": 6,
+    "test-secret-version-metadata": 2,
+    "labeled-capture-hash": 13
+  },
+  "rules": {
+    "generic-api-key": 533,
+    "sourcegraph-access-token": 5
+  },
+  "gate": "FAIL",
+  "scanner": "8.30.1",
+  "scope": "Repository cwd, existing ignore file, --log-opts=HEAD; no ignore/config/history changes",
+  "no_provisioned_credential_evidence": "Triage found none; incomplete provenance is not scanner clearance",
+  "provenance_incomplete": true,
+  "private_evidence_sha256": {
+    "exact-gate-history-redacted.json": "dba7e26b1af279d5a82b4fcdd0c16af7e215b986c4cc2d955bf76e7937b11823",
+    "classification-redacted.json": "ed68f01d15d2eced1031ebea3dda19c19eff4e0d6eb3846f588f009156506d49",
+    "exact-gate-history-scan.log": "eb45cfefd38250a1456513d17ed1375edfe392646d80ec227ef3dc2a4985c9a4"
+  }
+}

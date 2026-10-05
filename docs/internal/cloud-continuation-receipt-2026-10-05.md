@@ -371,3 +371,71 @@ historical immutable-packet test explicitly excluded. Independent successor
 review is pending. No historical packet, Go trust anchor or native runtime
 admission was changed. Separately named B and Linux native379 successors are
 being prepared behind their original review and acceptance gates.
+
+
+## Reviewed current A/B source successors
+
+Independent A review passed for source-only use. The full 165-file actual A
+is retained as deterministic `current-A-successor-v1.tar.gz`, SHA256
+`b2a3a652bfa47e8b800421b791cb5f3ee6431c3241b6dfe38287d32586b6e9d3`.
+The new separately named B-successor-v1 builder hard-binds that reviewed
+manifest/contract/producer, verifies every A member and current source pin,
+and refuses changed/missing/extra/symlinked inputs and destination conflicts.
+It changes exactly two producer calls plus variant/session-owner metadata and
+two new builder/test source pins. All 1,862 descriptors, phases, frame-v1,
+10,000-row/16MiB limits, original provenance and noninstallation remain intact.
+
+Grouped RED preceded implementation. Independent review caught an ignored-seed
+test dependency; RED reproduced it in a private fresh-checkout fixture. The
+revised tests verify the durable A archive SHA before safe restoration into
+owned temporary fixtures, verify every member, and pass all four groups with
+the repository's ignored A directory absent. Production CLI seed authority
+remains fixed and requires separately restoring the approved archive.
+
+Two new B derivations contain 167 byte-identical files: seven packet files,
+159 source pins and 166 manifest members. Manifest SHA256:
+`2b56edf0f7a190d19aeb43ab2986727aa6df89ae897c4d552b066a7e6e5e35d5`;
+contract SHA256:
+`9edf289e6642bc4e9eb55ab79fdefefdb10f4e3bf8744b38553ae4bd9f131a18`.
+Earlier pre-repair candidates remain untouched and are not these identities.
+Independent final code/asset review passed. Root fixed-path publication and
+`--check` passed, then the new destination was frozen read-only. Its durable
+167-file archive SHA256 is
+`cd07338903fddaec3ce56e3164f20501810abfa7f3ac64e02fd99a094d2c1504`.
+The A/B manifests and independent reviews are retained alongside the archives.
+
+This closes source-only successor preparation, not A/B native equivalence.
+Historical A/B seed pins, packets and Go anchors remain untouched. Both
+successors retain historical Darwin PostgreSQL reference metadata; neither
+asserts Linux/native/installed readiness. Linux native379 and its separately
+versioned Go admission/build envelope remain in progress, with all original
+requirements and production refusal gates preserved.
+
+## Full-history security triage
+
+A faithful repeat from repository cwd used the same Gitleaks 8.30.1 as CI,
+existing exact ignores and `--log-opts=HEAD`. It still failed with 538 findings
+across 1,420 commits / approximately 322.26 MB. No scanner-version difference,
+ignore/configuration update or history rewrite is involved.
+
+Independent read-only triage verified 252 source hashes against repository
+bytes at the finding commit. Other findings include labeled snapshot/capture
+or artifact digests, Git identifiers, English prose and synthetic test values.
+No evidence of provisioned credentials was found, but 177 historical snapshot
+digests and several artifact/object identities lack complete independent
+provenance. This is not scanner clearance. The source gate remains failed.
+The durable aggregate `security-triage-summary.json` retains classifications
+and hashes of private redacted evidence without publishing credential values.
+
+Additional successor evidence identities:
+
+| Evidence | SHA-256 |
+| --- | --- |
+| `current-B-successor-v1/grouped-red.log` | `bebd691a0c58454415568b5aeb25d842cce9df7df96f1481bdb17d38dcbec49c` |
+| `current-B-successor-v1/grouped-green.log` | `24a9ccfaef58db02a1d684a99fd3403a328deb3ec73f312d7b8a73c51a58f7c9` |
+| `current-B-successor-v1/missing-root-seed-red.log` | `7ed587d9284c4e820e2492a78bcdf62a6f556586e75d7ca03b2785d205d59179` |
+| `current-B-successor-v1/missing-root-seed-green.log` | `42612af77208e03c67d49ac8dbb252aa825cc3260126199e5d9dc9f3e67bc4c3` |
+| `current-B-successor-v1/derived-candidates-v2.json` | `2fc5a04e044239dfe457198754e824ec1b22fab2db6a65dda7556993452c71d6` |
+| `current-B-successor-v1/root-publication.log` | `25a6fcdd48bc6b50601d84e39b81c3ecbf1ce02483293c5b89eedc82b3b46a68` |
+| `current-B-successor-v1/root-publication-check.log` | `25a6fcdd48bc6b50601d84e39b81c3ecbf1ce02483293c5b89eedc82b3b46a68` |
+| `current-B-successor-v1/independent-current-B-review.json` | `61b14c3e4af79fe67f086387399c6c0aa239e8d2bc18bc16f89a09ee1e6ad590` |

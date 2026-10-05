@@ -17,3 +17,22 @@ source/build review with actual paths and hashes.
 The packet scan's two provenance-hash false positives are explicitly recorded
 in the publication review. The separate full-history source gate's538 untriaged
 findings remain a release blocker; this bundle provides no waiver.
+
+
+## Separate source-only A/B successors
+
+The current A/B archives preserve every actual source and packet member with
+separate manifests/reviews. They retain Darwin reference provenance and grant
+no native or installed authority. Restore the approved A only into a new,
+empty `.superpowers/sdd/2026-10-05-reviewed-current-A-successor-v1` directory
+before using the fixed B CLI. Verify its archive SHA256 from
+`current-A-manifest.json` first, admit only the 165 regular safe relative
+members, reject preexisting/symlink/unlisted content, and verify all 164 members
+against the exact snapshot manifest. Never extract over historical snapshots
+or the development source tree. B tests restore their own verified private
+fixtures and do not require an ignored repository seed.
+
+The B CLI supports only `--write` and `--check` at its separately fixed
+successor destination. It preflights conflicts and creates missing files
+exclusively; it does not promise transactional publication after unrelated
+I/O failures. Its manifest and byte checks reject incomplete output.
