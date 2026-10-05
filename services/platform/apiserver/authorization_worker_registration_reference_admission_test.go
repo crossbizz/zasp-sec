@@ -400,6 +400,156 @@ func TestWorkerRegistrationReferenceDefaultCollationMapping(t *testing.T) {
 	}
 }
 
+// The replay must retain the native source's ordering identity, not merely
+// produce a coincidentally equal digest in a C-locale fixture database.
+func TestWorkerRegistrationReferenceParameterReplayPostgres(t *testing.T) {
+	if os.Getenv("ZASP_WORKER_REGISTRATION_COLLATION_WITNESS_POSTGRES") != "1" {
+		t.Skip("explicit local PostgreSQL collation-witness opt-in required")
+	}
+	t.Setenv("LC_ALL", "C")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	observation := &disposablePostgresCleanupObservation{}
+	t.Cleanup(func() {
+		if err := registrationReferenceAdmitPublication(true, true, observation.snapshot()); err != nil {
+			t.Error("replay fixture cleanup incomplete", err)
+		}
+	})
+	registerDisposablePostgresCleanupObservation(t, observation)
+	conn, err := pgx.Connect(ctx, startDisposablePostgresAs(t, "zasp_test"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		closeCtx, stop := context.WithTimeout(context.Background(), 2*time.Second)
+		defer stop()
+		if err := conn.Close(closeCtx); err != nil {
+			t.Error("replay connection cleanup failed")
+		}
+	})
+	if _, err := conn.Exec(ctx, "CREATE EXTENSION pgcrypto"); err != nil {
+		t.Fatal("owned replay extension setup failed")
+	}
+	var version, extension string
+	if err := conn.QueryRow(ctx, "SELECT current_setting('server_version_num'), extversion FROM pg_extension WHERE extname='pgcrypto'").Scan(&version, &extension); err != nil || version != "180003" || extension != "1.4" {
+		t.Fatal("admitted replay runtime required", err)
+	}
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		rollbackCtx, stop := context.WithTimeout(context.Background(), 2*time.Second)
+		defer stop()
+		if err := tx.Rollback(rollbackCtx); err != nil {
+			t.Error("replay snapshot rollback failed")
+		}
+	})
+	if _, err := tx.Exec(ctx, "SET LOCAL search_path=pg_catalog,public; SET LOCAL row_security=on; SET LOCAL statement_timeout='10000ms'; SET LOCAL lock_timeout='2000ms'"); err != nil {
+		t.Fatal("bounded replay snapshot failed")
+	}
+	var builtinC, builtinDefault registrationReferenceCollation
+	if err := registrationReferenceQueryJSON(ctx, tx, registrationReferenceBuiltinCSQL, &builtinC); err != nil {
+		t.Fatal(err)
+	}
+	if err := registrationReferenceQueryJSON(ctx, tx, registrationReferenceBuiltinDefaultSQL, &builtinDefault); err != nil {
+		t.Fatal(err)
+	}
+	// Independent fixed source fixtures, not the full original UNION/capture.
+	for _, source := range []struct {
+		name, relation string
+		frame          registrationReferenceCollation
+	}{
+		{"default", "(SELECT v FROM unnest($1::text[]) AS input(v)) AS facts", builtinDefault},
+		{"C_name", "(SELECT nspname::text AS v FROM unnest($1::name[]) AS input(nspname)) AS facts", builtinC},
+	} {
+		t.Run(source.name, func(t *testing.T) {
+			aggregate, witness, err := registrationReferenceParameterReplayQueries(source.frame, source.frame, builtinC, builtinDefault)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sourceWitness := registrationReferenceCollationSQL("SELECT v FROM " + source.relation + " LIMIT 0")
+			// Literal native oracle: never derive its aggregate from our builder.
+			sourceAggregate := `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY v),'UTF8'),'sha256'),'hex') FROM ` + source.relation
+			for _, values := range []struct {
+				name string
+				bag  []*string
+				null bool
+			}{
+				{"empty", []*string{}, true}, {"null_array", nil, true},
+				{"null_only", []*string{nil}, true}, {"all_null", []*string{nil, nil}, true},
+				{"empty_string", []*string{registrationReferenceString("")}, false},
+				{"unicode_duplicates_newline", []*string{registrationReferenceString("z"), nil, registrationReferenceString("a"), registrationReferenceString("é"), registrationReferenceString("e\u0301"), registrationReferenceString("Ω"), registrationReferenceString("😀"), registrationReferenceString("a"), registrationReferenceString(""), registrationReferenceString("line\nvalue")}, false},
+				{"reordered_duplicates", []*string{registrationReferenceString("b"), registrationReferenceString("a"), registrationReferenceString("a")}, false},
+			} {
+				t.Run(values.name, func(t *testing.T) {
+					var nativeFrame, replayFrame registrationReferenceCollation
+					if err := registrationReferenceQueryJSON(ctx, tx, sourceWitness, &nativeFrame, values.bag); err != nil {
+						t.Fatal(err)
+					}
+					if err := registrationReferenceQueryJSON(ctx, tx, witness, &replayFrame, values.bag); err != nil {
+						t.Fatal(err)
+					}
+					if !reflect.DeepEqual(nativeFrame, source.frame) || registrationReferenceAdmitSortKeyCollations(nativeFrame, nativeFrame, replayFrame, replayFrame) != nil {
+						t.Fatal("complete native/replay ordering identity differs")
+					}
+					var nativeDigest, replayDigest *string
+					if err := tx.QueryRow(ctx, sourceAggregate, values.bag).Scan(&nativeDigest); err != nil {
+						t.Fatal("native oracle failed")
+					}
+					if err := tx.QueryRow(ctx, aggregate, values.bag).Scan(&replayDigest); err != nil {
+						t.Fatal("actual replay failed")
+					}
+					if (nativeDigest == nil) != values.null || (replayDigest == nil) != values.null || !reflect.DeepEqual(nativeDigest, replayDigest) {
+						t.Fatal("nullable native/replay digest differs")
+					}
+					if values.name == "reordered_duplicates" {
+						var literalDigest string
+						if err := tx.QueryRow(ctx, `SELECT encode(digest(convert_to($1::text,'UTF8'),'sha256'),'hex')`, "a\na\nb").Scan(&literalDigest); err != nil || replayDigest == nil || *replayDigest != literalDigest {
+							t.Fatal("duplicate preservation/delimiter/order differs", err)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestWorkerRegistrationReferenceParameterReplayAuthority(t *testing.T) {
+	c := registrationReferenceCollation{Name: `"C"`, Provider: "c", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
+	d := registrationReferenceCollation{Name: `"default"`, Provider: "d", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
+	for _, source := range []registrationReferenceCollation{c, d} {
+		if aggregate, witness, err := registrationReferenceParameterReplayQueries(source, source, c, d); err != nil || aggregate == "" || witness == "" {
+			t.Fatal("complete finite source refused")
+		}
+		for index := 0; index < reflect.TypeOf(source).NumField(); index++ {
+			field := reflect.TypeOf(source).Field(index).Name
+			t.Run(source.Provider+"/"+field, func(t *testing.T) {
+				bad := source
+				value := reflect.ValueOf(&bad).Elem().Field(index)
+				switch value.Kind() {
+				case reflect.String:
+					value.SetString("unadmitted")
+				case reflect.Bool:
+					value.SetBool(false)
+				case reflect.Pointer:
+					value.Set(reflect.ValueOf(registrationReferenceString("unadmitted")))
+				default:
+					t.Fatal("new frame field needs a refusal mutation")
+				}
+				for _, frames := range [][4]registrationReferenceCollation{{bad, bad, c, d}, {source, bad, c, d}, {source, source, bad, d}, {source, source, c, bad}} {
+					if aggregate, witness, err := registrationReferenceParameterReplayQueries(frames[0], frames[1], frames[2], frames[3]); err == nil || aggregate != "" || witness != "" {
+						t.Fatal("altered source/builtin emitted usable replay")
+					}
+				}
+			})
+		}
+	}
+	if aggregate, witness, err := registrationReferenceParameterReplayQueries(c, d, c, d); err == nil || aggregate != "" || witness != "" {
+		t.Fatal("different original source frames accepted")
+	}
+}
+
 // These controls catch accepting the wrong original default install, omitting
 // consumed upgrade bytes, or observing the digest result rather than ORDER BY v.
 func TestWorkerRegistrationReferencePGCryptoInstallChain(t *testing.T) {
@@ -461,7 +611,7 @@ func TestWorkerRegistrationReferenceActualSortKeyCollation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	outer, nested, parameter, err := registrationReferenceSortKeyCollationQueries(plan)
+	outer, nested, err := registrationReferenceSortKeyCollationQueries(plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,9 +630,6 @@ func TestWorkerRegistrationReferenceActualSortKeyCollation(t *testing.T) {
 		if site.Line >= 15 && site.Line <= 27 && !strings.Contains(nested, site.Selector) {
 			t.Fatal("nested source selector lost", site.Line)
 		}
-	}
-	if !strings.Contains(parameter, "SELECT v FROM unnest($1::text[]) AS facts(v) LIMIT 0))) AS oid") || strings.Contains(parameter, "ARRAY[") {
-		t.Fatal("parameter witness did not use exact actual parameter expression")
 	}
 	c := registrationReferenceCollation{Name: "pg_catalog.default", Provider: "d", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
 	if registrationReferenceAdmitSortKeyCollations(c, c, c, c) != nil {

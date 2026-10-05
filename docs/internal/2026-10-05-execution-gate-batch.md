@@ -208,3 +208,74 @@ The linked cloud chat was read non-mutatively: it is idle and its recent turns
 report Superpowers installed. Those turns do not prove latest-main runtime/access
 readiness; no cloud message, credential transfer or cloud execution was started.
 All original728 task classifications and remaining launch gates are unchanged.
+
+## Bounded source/parameter ordering diagnosis
+
+The revised disposable overlay diagnostic exited zero in 2.134 seconds. It
+independently observed complete built-in `C` and `default` frames, then queried
+unchanged standalone original source arms and the actual generated typed-array
+witness. The worker's first schema arm retains `default`; the runtime's
+name-bearing schema arm retains `C`. Parameter empty, null-array and mixed bags
+all retain `default`. The unchanged strict sort admission accepts the former
+comparison and refuses the latter. This establishes a replay-context mismatch
+for those exact arms, not the actual full original capture's unlogged frames.
+
+The first disposable probe failed in its own OID JSON decoding before observing
+source frames. Its log remains preserved. The revised diagnostic reports the
+allowlisted `c_oid` string-to-uint32 decoding error before using an explicit
+diagnostic-only bigint projection; production decoding and guards are unchanged.
+Owned PostgreSQL PID78885 stopped and joined normally with both exit statuses
+zero, and a fresh filtered process inventory found no surviving server/fixture.
+
+Successful local diagnostic log:
+`/tmp/zasp-registration-type-collation-diagnostic-20261005.Noyew6/execution.log`,
+SHA-256 `a4a12d75db5cbea113045c0097cd0474be46b1027db6660cbcb1e4686464aef3`.
+These temporary artifacts are local evidence, not uploaded cloud inputs or
+deployed proof. A finite observed-source replay repair is under independent
+design review; no new implementation or full original rerun is accepted yet.
+The original SQL, full-frame comparisons and all728 classifications remain
+unchanged. Existing cloud credentials require access verification, not re-entry.
+
+## Finite parameter replay repair
+
+The real grouped RED used the existing replay helper and a controlled
+name-bearing source. Six default-source bags passed; all six C-source bags
+failed complete ordering identity, despite locally equal nullable digests.
+The owned server PID80899 stopped and joined normally. RED log SHA-256:
+`d080a3969e376e1c7ba35fe9b927f53727632dbe43e5d18146072202efa88742`.
+
+The reviewed repair independently observes fixed pg_catalog C/default rows
+inside the already admitted original snapshot, validates their complete literal
+PG18.3/C-initdb frames, and selects one fixed typed replay projection by full
+source-frame equality. Original nested/outer disagreement, unknown identities
+or any builtin/source frame drift refuse without usable SQL. Aggregate and
+actual key witness share the selected projection; the parameter-only C recipe
+preserves source ordering without rewriting any original SQL. Superseded fixed
+parameter SQL is removed. Existing full-frame equality, nullable native digest
+comparison, original guards, source pins and publication/cleanup gates remain
+unchanged. The packet records the selected executed SQL and its hashes.
+
+Live GREEN verifies both finite recipes over fourteen controlled bag cases,
+including null arrays/all-NULL values, empty strings, Unicode/newlines and
+reordered duplicates. A separately literal `a\na\nb` native digest checks
+duplicate/delimiter/order preservation. All thirteen frame fields are mutated
+for each recipe, checking altered source/builtin refusal. Grouped controls
+passed 12 top-level/53 child cases in 3.357 seconds; the nine remaining admission
+controls passed once in 16.669 seconds with twelve child cases. Combined:
+21 top-level/65 child passes, zero failures/skips. Owned servers PID81479/81506
+stopped and joined normally. These are focused component/fixture proofs, not
+the full original catalog capture or deployed acceptance.
+
+| Local evidence under `/tmp/zasp-registration-parameter-replay-proposal-20261005.1HF4qm` | SHA-256 |
+| --- | --- |
+| `green.log` | `7a0c71a8e27c9f5b875e83ff00ac26d2d293b7f75dca7bd2e3b3fc8e60bd673f` |
+| `remaining-controls.log` | `6b6de5ca35e931785019e61d756eae405b4a7670d972ea0189d73b75d6591928` |
+
+Independent review approved the exact two-Go-file +203/-20 repair for fresh
+source freeze. Fresh Node22 UI typecheck/build exited zero from repository root;
+an initial `apps/web` invocation lacked that package's typecheck script and was
+corrected to the actual script-owning root, not represented as an application
+failure or passing check. Ledger validation passed all728 rows with unchanged
+523/144/61 classifications and zero missing mappings. Fresh immutable build
+review and the full original root-owned native run are still required. No
+component result promotes installed or production readiness.

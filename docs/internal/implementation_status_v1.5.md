@@ -44,6 +44,30 @@ relaxed and no native acceptance is claimed. Fresh UI typecheck/build and local
 HTTP200 smoke passed. See the connected repair section in the batch evidence.
 All728 mappings and523/144/61 classifications remain unchanged.
 
+Bounded ordering diagnosis checkpoint: merged main is `3ddabc7a`. A disposable
+actual-query diagnostic passed with normal owned PostgreSQL cleanup: an original
+name-bearing runtime arm has complete `C` collation, while our typed-array
+parameter witness has complete `default` collation on empty/null/mixed bags.
+The strict comparison correctly refuses this mismatch. This proves those
+standalone expressions, not the full original capture's unlogged frames.
+Finite source-context-preserving replay design and grouped behavioral coverage
+are being prepared; no new full native acceptance or production availability
+is claimed. Failed disposable metadata-probe evidence is preserved separately.
+See the bounded diagnosis section of the batch evidence; all728 classifications
+remain unchanged, and existing cloud credentials need no re-entry.
+
+Finite replay repair checkpoint: real behavioral RED rejected all six C-source
+bags against the prior default replay. The reviewed replacement selects only
+fixed C/default parameter projections after complete independent builtin and
+original source-frame admission; actual SQL/hashes replace stale fixed-query
+records. Original source/pins, strict collation/digest equality and publication
+guards remain intact. Grouped component GREEN passed21 controls/65 child cases
+with no failures/skips and normal owned PostgreSQL cleanup; fresh UI typecheck/
+build and728-row ledger validation passed. Fresh immutable build admission and
+the full original capture remain required before any native acceptance claim.
+See the finite replay repair section of the same batch evidence. All original
+availability classifications and deployed production gates remain unchanged.
+
 ## Latest verified state, October 1, 2026
 October 1 existing-work reconciliation candidate: current main changes and the
 root checkpoint are preserved together, with conflicting historical root
