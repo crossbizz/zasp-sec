@@ -100,3 +100,58 @@ does not disprove the user's existing cloud credentials: cloud runtime/access
 receipt is still unverified here. Real Stytch/provider browser journeys,
 cross-tenant/revocation checks, backups, advisory clearance and deployed recovery
 remain required. All 728 original requirements and milestones remain in scope.
+
+## Fresh registration build checkpoint
+
+The diagnostic/source-capture batch landed as main
+`e7bb2d85c89b993b3de37bb97c135f788b509711`. Separate local candidate
+`356b25d3f2c7c8209aca71d0441b126ef9983e88` repairs one stale dispatch pin and
+adds a seven-file actual-source control. The discrepancy was caused solely by
+the previously reviewed synthetic credential-string split in
+`authorization_worker_effect_postgres_test.go`. Independent byte comparison
+confirmed the runtime string and all other file bytes are unchanged. Independent
+pin review approved the exact two-file change. Historical SQL, installer behavior
+and reference facts are not replaced by this repair.
+
+Fresh compiler records in `/tmp/zasp-registration-build-20261005.JXnGEL`
+record both apiserver and migrations test builds exiting zero from frozen source
+at that candidate. The actual input inventory and independently reproduced
+roster agree on 5,759 inputs and 74 resolved module identities. The actual
+binary's 17 selected registration controls pass without skips; whole-module
+byte verification passes. Root inspected the selected-control log and
+independently hashed the report, envelope and both binaries. This is
+build/component evidence only. Independent actual-build review approved this
+exact envelope after independently reconstructing the full consumed closure,
+checking source/Git identity, immutable roots, actual binaries, PG files and
+admission controls. Root's one strict PostgreSQL execution completed as a
+failure; reference acceptance remains unproved.
+
+| Retained local artifact under that bundle | SHA-256 |
+| --- | --- |
+| `actual-build-report.md` | `6fd9849ffeb5d4c50c78748b0d98f6dce9a55dfae2e3d0c7d1acec0f6ce6b6a3` |
+| `build-envelope-v1.json` | `32d57199c8c2148e8405edcf6e74052ec0148969e1119f2cdb4d1af717b0b29c` |
+| `binaries/registration-apiserver.test` | `9fc6d4a1159f5e448cf5f55f48aea4528c0008d0687397c6e30d79d7e4455e49` |
+| `binaries/registration-migrations.test` | `de779ff1a17577b3936eaee39d14cf2fb6a110403963a578568542824d8af40a` |
+
+Optional offline `go list -mod=readonly -m -json all` exited one with 76
+lookup-disabled errors for uncompiled whole-graph metadata. Its failure is
+retained; it is not the successful consumed-package inventory or module-byte
+verification. No cache expansion or network retry hid it. The independent
+reviewer must assess the actual required closure, not infer whole-graph success.
+
+The owned run uses physical frozen apiserver CWD, `env -i`, the admitted PATH
+and envelope digest, `LC_ALL=C`, and a fresh exclusive output destination under
+`/tmp/zasp-registration-reference-20261005.6WAnPi`. There are no competing capture
+opt-ins or provider credentials in that environment. It exited one after
+65.75 seconds: `error_class=postgres`, SQLSTATE `42703`, statement SHA-256
+`e61fd5bc920a9960e4586d0eb2a66d624cf02579899cd84a5ac37d800f9d92fc`.
+The owned server PID 70084 was stopped by pg_ctl and joined by Wait, both
+exit zero with normal exit. A fresh filtered process inventory found no
+remaining PostgreSQL or fixture processes; the private destination directory
+contains only the execution log, no published reference packet. Log SHA-256:
+`ab0ac0e7eb7d828a9dd7e108603dbed3542667a5787c862ca4499225369a8ea3`.
+The new diagnostic changes the next action to tracing the exact undefined-column
+statement, not retrying an unchanged capture or relaxing authorization. Current
+native379, installed execution, real-provider/deployed flows and cloud runtime
+receipt remain open. Credentials already configured in cloud need not be
+re-entered or copied here. No availability row is promoted.

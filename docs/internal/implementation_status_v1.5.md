@@ -18,6 +18,21 @@ native379 parity, installation and real deployed acceptance remain open. The
 All 728 original task IDs and 523/144/61 availability classifications remain
 unchanged. No refusal guard or runtime selector is promoted by this batch.
 
+Fresh registration-build checkpoint: the diagnostic batch is merged as
+`e7bb2d85`; local candidate `356b25d3` repairs the single dispatch pin made stale
+by the reviewed credential-fixture string split, with seven actual-source pin
+controls. The new frozen source and binaries have matching 5,759-input/74-module
+inventories and passing selected component controls. Independent actual-build
+review approved the exact new envelope for one strict root-owned PostgreSQL
+acceptance run. That run failed in 65.75 seconds with SQLSTATE `42703` and an
+exact statement digest. Owned PostgreSQL stop and Wait both exited zero; no
+server survived or reference packet was published. This identifies a concrete
+undefined-column diagnostic for investigation, not a passed acceptance gate.
+The optional offline whole-graph metadata lookup failed and is preserved, not
+counted as passing. See the fresh-build section of the same batch evidence.
+All 728 rows and their existing classifications are unchanged; no native,
+installed, cloud-transfer or production-readiness proof is implied.
+
 ## Latest verified state, October 1, 2026
 October 1 existing-work reconciliation candidate: current main changes and the
 root checkpoint are preserved together, with conflicting historical root
