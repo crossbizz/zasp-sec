@@ -25,6 +25,63 @@ const supportPins={
  'services/platform/migrations/sql/0014_typed_inventory_cutover.up.sql':'06ed7d1310bee92bfd80c92698b91c18e3932a573793dcb32344a3fea56831b8',
  'services/platform/migrations/sql/0027_production_recovery.up.sql':'0e4dcbaf987cc3b5f69cf4d415a028d643c2f95bf5160e827e1607e3f60dbc14'
 };
+const replayTestPath='services/platform/migrations/tools/ordered-current-worker-source-replay-v1.test.mjs';
+const descriptorPath='services/platform/migrations/tools/ordered-current-worker-source-descriptor-v1.mjs';
+
+function isolatedCaptureSource(t,built){
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'zasp-capture-companion-'));
+ t.after(()=>fs.rmSync(directory,{recursive:true,force:true}));
+ for(const [relative,raw]of Object.entries(built.snapshotFiles)){
+  const filename=path.join(directory,relative);
+  fs.mkdirSync(path.dirname(filename),{recursive:true});
+  fs.writeFileSync(filename,raw);
+ }
+ return directory;
+}
+function rebuildCapture(directory){
+ return spawnSync(process.execPath,['--input-type=module','-e',`import {buildOrderedConsolidatedReference as build} from './${emitterPath}'; build();`],{cwd:directory,encoding:'utf8',env:{...process.env,NODE_OPTIONS:''}});
+}
+
+// Break caught: an admitted replay companion cannot run from the actual owned
+// snapshot when its descriptor import was omitted from source discovery.
+test('A companion replay executes from captured source with its exact descriptor bytes',t=>{
+ const built=buildOrderedConsolidatedReference(),directory=isolatedCaptureSource(t,built);
+ const env={...process.env,NODE_OPTIONS:''};
+ // A nested Node test runner otherwise inherits child-v8 and can exit zero
+ // without executing this independently selected companion suite.
+ for(const key of Object.keys(env))if(key.startsWith('NODE_TEST_'))delete env[key];
+ const result=spawnSync(process.execPath,['--test',replayTestPath],{cwd:directory,encoding:'utf8',env});
+ assert.equal(result.status,0,result.stderr||result.stdout);
+ for(const summary of ['tests 8','pass 8','fail 0','cancelled 0','skipped 0'])assert.match(result.stdout,new RegExp('^# '+summary+'$','m'));
+ const digest='c06df5cdc10ac82f10ee8586718f39f775b8604953dd9fb3f57e2a56f1649356';
+ assert.equal(built.contract.sourcePins[descriptorPath],digest);
+ assert.equal(JSON.parse(built.manifestRaw).files[descriptorPath],digest);
+ assert.equal(sha(built.snapshotFiles[descriptorPath]),digest);
+ assert.equal(built.contract.installable,false);
+});
+
+// Break caught: the approved companion edge must not silently disappear,
+// acquire another local import, or resolve through a substituted source file.
+test('A companion closure refuses missing, substituted and unreviewed descriptor inputs',async t=>{
+ const built=buildOrderedConsolidatedReference();
+ for(const kind of ['missing','symlink','unreviewed','dynamic'])await t.test(kind,t=>{
+  const directory=isolatedCaptureSource(t,built),descriptor=path.join(directory,descriptorPath);
+  // Supply the original descriptor when exercising the pre-repair snapshot.
+  if(!fs.existsSync(descriptor))fs.copyFileSync(new URL('../../../../'+descriptorPath,import.meta.url),descriptor);
+  const baseline=rebuildCapture(directory);
+  assert.equal(baseline.status,0,baseline.stderr);
+  if(kind==='missing')fs.unlinkSync(descriptor);
+  if(kind==='symlink'){
+   fs.unlinkSync(descriptor);
+   fs.symlinkSync(new URL('../../../../'+descriptorPath,import.meta.url).pathname,descriptor);
+  }
+  if(kind==='unreviewed')fs.appendFileSync(path.join(directory,replayTestPath),"\nimport './unreviewed-companion.mjs';\n");
+  if(kind==='dynamic')fs.appendFileSync(path.join(directory,replayTestPath),'\nawait im'+'port(process.env.UNREVIEWED_COMPANION);\n');
+  const refused=rebuildCapture(directory);
+  assert.notEqual(refused.status,0,kind);
+  assert.match(refused.stderr,/source|companion|dynamic import|ENOENT/,kind);
+ });
+});
 
 test('emitted source maxima survive raw, demand and roster construction',()=>{
  const {contract}=buildOrderedConsolidatedReference();
@@ -156,7 +213,6 @@ test('checked-in packet and immutable snapshot match the closed deterministic bu
  assert.match(summary.contractSHA256,/^[0-9a-f]{64}$/);
 });
 
-const descriptorPath='services/platform/migrations/tools/ordered-current-worker-source-descriptor-v1.mjs';
 const replayPath='services/platform/migrations/tools/ordered-current-worker-source-replay-v1.mjs';
 const sourceRoot=fileURLToPath(new URL('../../../../',import.meta.url));
 

@@ -23,6 +23,122 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+// Only the external QueryRow/Scan boundary is replaced. These controls exercise
+// the real harness refusal and JSON admission; they cannot prove native capture.
+type registrationReferenceDiagnosticQuery struct {
+	raw []byte
+	err error
+}
+
+func (q registrationReferenceDiagnosticQuery) QueryRow(context.Context, string, ...any) pgx.Row {
+	return q
+}
+
+func (q registrationReferenceDiagnosticQuery) Scan(dest ...any) error {
+	if q.err != nil {
+		return q.err
+	}
+	*dest[0].(*[]byte) = q.raw
+	return nil
+}
+
+func TestWorkerRegistrationReferenceQueryDiagnosticsMainCases(t *testing.T) {
+	// Dropping Scan errors loses the failure class; printing or wrapping the
+	// driver error would expose this fixture's hostile catalog and secret data.
+	private := "private-function-name password=seeded-secret " + strings.Repeat("x", 8192)
+	statement := "SELECT private_schema.private_function($1) /* " + private + " */"
+	hostile := &pgconn.PgError{Severity: private, SeverityUnlocalized: private, Code: "42501", Message: private, Detail: private, Hint: private, InternalQuery: private, Where: private, SchemaName: private, TableName: private, ColumnName: private, DataTypeName: private, ConstraintName: private, File: private, Routine: private}
+	for _, tc := range []struct {
+		name, class, state string
+		err                error
+	}{
+		{"permission", "postgres", "42501", hostile},
+		{"wrapped-cast", "postgres", "22P02", fmt.Errorf("%s: %w", private, &pgconn.PgError{Code: "22P02", Message: private})},
+		{"no-row", "no_rows", "none", pgx.ErrNoRows},
+		{"deadline", "deadline_exceeded", "none", fmt.Errorf("%s: %w", private, context.DeadlineExceeded)},
+		{"canceled", "canceled", "none", context.Canceled},
+		{"untyped", "untyped", "none", errors.New(private)},
+		{"invalid-state", "postgres", "none", &pgconn.PgError{Code: private, Message: private}},
+		{"lowercase-state", "postgres", "none", &pgconn.PgError{Code: "22p02", Message: private}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			target := struct{ Name string }{Name: "unchanged"}
+			err := registrationReferenceQueryJSON(context.Background(), registrationReferenceDiagnosticQuery{err: tc.err}, statement, &target, private)
+			if err == nil || target.Name != "unchanged" {
+				t.Fatal("failed native row was accepted or changed the target")
+			}
+			message := err.Error()
+			classification := map[string]string{"postgres": "class=pg-error", "no_rows": "class=no-rows", "deadline_exceeded": "class=context-deadline", "canceled": "class=context-canceled", "untyped": "class=unknown"}[tc.class]
+			if tc.class == "postgres" && tc.state != "none" {
+				classification = "sqlstate=" + tc.state
+			}
+			for _, want := range []string{"original registration reference refused:", "phase=query-row-scan", classification, "statement_sha256=3881a6e5adc60e1245ed1b8a859d05eaceab5a52b0e1334a8f93c1aa32697cc3"} {
+				if !strings.Contains(message, want) {
+					t.Errorf("bounded query diagnostic lost %q: %s", want, message)
+				}
+			}
+			if len(message) > 256 || strings.ContainsAny(message, "\r\n") || strings.Contains(message, "private") || strings.Contains(message, "seeded-secret") || errors.Unwrap(err) != tc.err {
+				t.Fatal("query diagnostic exposed driver/statement/argument data, lost its cause or exceeded its output bound")
+			}
+		})
+	}
+}
+
+func TestWorkerRegistrationReferenceQueryJSONAdmission(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		raw   []byte
+		valid bool
+	}{
+		{"success", []byte(`{"Name":"admitted"}`), true},
+		{"unknown-field", []byte(`{"Name":"admitted","private":"seeded-secret"}`), false},
+		{"trailing-json", []byte(`{"Name":"admitted"} {}`), false},
+		{"nil-row", nil, false},
+		{"oversized", []byte(strings.Repeat("x", registrationReferenceMaxRowBytes+1)), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var target struct{ Name string }
+			err := registrationReferenceQueryJSON(context.Background(), registrationReferenceDiagnosticQuery{raw: tc.raw}, "SELECT $1", &target, "seeded-secret")
+			if (err == nil) != tc.valid || (tc.valid && target.Name != "admitted") {
+				t.Fatal("native JSON admission changed", err)
+			}
+			if err != nil && (len(err.Error()) > 256 || strings.Contains(err.Error(), "seeded-secret")) {
+				t.Fatal("JSON admission exposed row data or exceeded its output bound")
+			}
+		})
+	}
+}
+
+// A stale compiled pin must refuse the actual current dispatch source. This
+// checks the fixed seven-file roster without compiling or executing a fixture.
+func TestWorkerRegistrationReferenceCurrentDispatchSources(t *testing.T) {
+	paths := []string{
+		"migrations/production_authorization_worker_profile.go",
+		"migrations/production_authorization_worker_runtime.go",
+		"migrations/production_authorization_runtime_profile.go",
+		"apiserver/authorization_worker_effect_postgres_test.go",
+		"apiserver/postgres_integration_test.go",
+		"apiserver/authorization_worker_ordered_policy_postgres_test.go",
+		"apiserver/security_agent_temporal_executor_postgres_test.go",
+	}
+	if len(registrationReferenceDispatchPins) != len(paths) {
+		t.Fatal("current dispatch source roster is not closed")
+	}
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			file := filepath.Join("..", path)
+			info, err := os.Lstat(file)
+			if err != nil || !info.Mode().IsRegular() {
+				t.Fatal("current dispatch source is not a regular file")
+			}
+			digest, err := registrationReferenceHashFile(file)
+			if err != nil || digest != registrationReferenceDispatchPins[path] {
+				t.Fatal("actual current dispatch source refused by compiled pin", digest, err)
+			}
+		})
+	}
+}
+
 // These are unit controls, not a captured catalog or native acceptance claim.
 func registrationReferenceTestSource(t *testing.T) string {
 	t.Helper()
@@ -242,6 +358,48 @@ func TestWorkerRegistrationReferenceOrderingAuthorityAndBounds(t *testing.T) {
 	}
 }
 
+// This checks our generated witness against a real catalog, not PostgreSQL's
+// internals. A nonexistent catalog column must fail even for an empty sort bag.
+func TestWorkerRegistrationReferenceCollationWitnessPostgres(t *testing.T) {
+	if os.Getenv("ZASP_WORKER_REGISTRATION_COLLATION_WITNESS_POSTGRES") != "1" {
+		t.Skip("explicit local PostgreSQL collation-witness opt-in required")
+	}
+	t.Setenv("LC_ALL", "C")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	conn, err := pgx.Connect(ctx, startDisposablePostgresAs(t, "zasp_test"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		closeCtx, stop := context.WithTimeout(context.Background(), time.Second)
+		defer stop()
+		if err := conn.Close(closeCtx); err != nil {
+			t.Error("witness connection cleanup failed")
+		}
+	})
+	var defaultName, version string
+	if err := conn.QueryRow(ctx, "SELECT 'pg_catalog.default'::regcollation::text, current_setting('server_version_num')").Scan(&defaultName, &version); err != nil || version != "180003" {
+		t.Fatal("the admitted PostgreSQL18.3 witness runtime is required", err)
+	}
+	want := registrationReferenceCollation{Name: defaultName, Provider: "d", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
+	query := registrationReferenceCollationSQL("SELECT v FROM unnest($1::text[]) AS facts(v) LIMIT 0")
+	for _, values := range []struct {
+		name string
+		bag  []*string
+	}{{"empty", []*string{}}, {"null-array", nil}, {"mixed", []*string{registrationReferenceString("a"), nil, registrationReferenceString("z")}}} {
+		t.Run(values.name, func(t *testing.T) {
+			var frame registrationReferenceCollation
+			if err := registrationReferenceQueryJSON(ctx, conn, query, &frame, values.bag); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(frame, want) {
+				t.Fatal("typed sort expression lost the complete default collation frame")
+			}
+		})
+	}
+}
+
 func TestWorkerRegistrationReferenceDefaultCollationMapping(t *testing.T) {
 	s := registrationReferenceCollationSQL("SELECT NULL::text")
 	if !strings.Contains(s, "CASE WHEN c.collprovider='d' THEN d.datcollversion") || !strings.Contains(s, "CASE WHEN c.collprovider='d' THEN pg_database_collation_actual_version(d.oid)") {
@@ -249,6 +407,156 @@ func TestWorkerRegistrationReferenceDefaultCollationMapping(t *testing.T) {
 	}
 	if strings.Contains(s, "COLLATE") || strings.Contains(s, "ORDER BY") {
 		t.Fatal("mapping overrode source ordering")
+	}
+}
+
+// The replay must retain the native source's ordering identity, not merely
+// produce a coincidentally equal digest in a C-locale fixture database.
+func TestWorkerRegistrationReferenceParameterReplayPostgres(t *testing.T) {
+	if os.Getenv("ZASP_WORKER_REGISTRATION_COLLATION_WITNESS_POSTGRES") != "1" {
+		t.Skip("explicit local PostgreSQL collation-witness opt-in required")
+	}
+	t.Setenv("LC_ALL", "C")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	observation := &disposablePostgresCleanupObservation{}
+	t.Cleanup(func() {
+		if err := registrationReferenceAdmitPublication(true, true, observation.snapshot()); err != nil {
+			t.Error("replay fixture cleanup incomplete", err)
+		}
+	})
+	registerDisposablePostgresCleanupObservation(t, observation)
+	conn, err := pgx.Connect(ctx, startDisposablePostgresAs(t, "zasp_test"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		closeCtx, stop := context.WithTimeout(context.Background(), 2*time.Second)
+		defer stop()
+		if err := conn.Close(closeCtx); err != nil {
+			t.Error("replay connection cleanup failed")
+		}
+	})
+	if _, err := conn.Exec(ctx, "CREATE EXTENSION pgcrypto"); err != nil {
+		t.Fatal("owned replay extension setup failed")
+	}
+	var version, extension string
+	if err := conn.QueryRow(ctx, "SELECT current_setting('server_version_num'), extversion FROM pg_extension WHERE extname='pgcrypto'").Scan(&version, &extension); err != nil || version != "180003" || extension != "1.4" {
+		t.Fatal("admitted replay runtime required", err)
+	}
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		rollbackCtx, stop := context.WithTimeout(context.Background(), 2*time.Second)
+		defer stop()
+		if err := tx.Rollback(rollbackCtx); err != nil {
+			t.Error("replay snapshot rollback failed")
+		}
+	})
+	if _, err := tx.Exec(ctx, "SET LOCAL search_path=pg_catalog,public; SET LOCAL row_security=on; SET LOCAL statement_timeout='10000ms'; SET LOCAL lock_timeout='2000ms'"); err != nil {
+		t.Fatal("bounded replay snapshot failed")
+	}
+	var builtinC, builtinDefault registrationReferenceCollation
+	if err := registrationReferenceQueryJSON(ctx, tx, registrationReferenceBuiltinCSQL, &builtinC); err != nil {
+		t.Fatal(err)
+	}
+	if err := registrationReferenceQueryJSON(ctx, tx, registrationReferenceBuiltinDefaultSQL, &builtinDefault); err != nil {
+		t.Fatal(err)
+	}
+	// Independent fixed source fixtures, not the full original UNION/capture.
+	for _, source := range []struct {
+		name, relation string
+		frame          registrationReferenceCollation
+	}{
+		{"default", "(SELECT v FROM unnest($1::text[]) AS input(v)) AS facts", builtinDefault},
+		{"C_name", "(SELECT nspname::text AS v FROM unnest($1::name[]) AS input(nspname)) AS facts", builtinC},
+	} {
+		t.Run(source.name, func(t *testing.T) {
+			aggregate, witness, err := registrationReferenceParameterReplayQueries(source.frame, source.frame, builtinC, builtinDefault)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sourceWitness := registrationReferenceCollationSQL("SELECT v FROM " + source.relation + " LIMIT 0")
+			// Literal native oracle: never derive its aggregate from our builder.
+			sourceAggregate := `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY v),'UTF8'),'sha256'),'hex') FROM ` + source.relation
+			for _, values := range []struct {
+				name string
+				bag  []*string
+				null bool
+			}{
+				{"empty", []*string{}, true}, {"null_array", nil, true},
+				{"null_only", []*string{nil}, true}, {"all_null", []*string{nil, nil}, true},
+				{"empty_string", []*string{registrationReferenceString("")}, false},
+				{"unicode_duplicates_newline", []*string{registrationReferenceString("z"), nil, registrationReferenceString("a"), registrationReferenceString("é"), registrationReferenceString("e\u0301"), registrationReferenceString("Ω"), registrationReferenceString("😀"), registrationReferenceString("a"), registrationReferenceString(""), registrationReferenceString("line\nvalue")}, false},
+				{"reordered_duplicates", []*string{registrationReferenceString("b"), registrationReferenceString("a"), registrationReferenceString("a")}, false},
+			} {
+				t.Run(values.name, func(t *testing.T) {
+					var nativeFrame, replayFrame registrationReferenceCollation
+					if err := registrationReferenceQueryJSON(ctx, tx, sourceWitness, &nativeFrame, values.bag); err != nil {
+						t.Fatal(err)
+					}
+					if err := registrationReferenceQueryJSON(ctx, tx, witness, &replayFrame, values.bag); err != nil {
+						t.Fatal(err)
+					}
+					if !reflect.DeepEqual(nativeFrame, source.frame) || registrationReferenceAdmitSortKeyCollations(nativeFrame, nativeFrame, replayFrame, replayFrame) != nil {
+						t.Fatal("complete native/replay ordering identity differs")
+					}
+					var nativeDigest, replayDigest *string
+					if err := tx.QueryRow(ctx, sourceAggregate, values.bag).Scan(&nativeDigest); err != nil {
+						t.Fatal("native oracle failed")
+					}
+					if err := tx.QueryRow(ctx, aggregate, values.bag).Scan(&replayDigest); err != nil {
+						t.Fatal("actual replay failed")
+					}
+					if (nativeDigest == nil) != values.null || (replayDigest == nil) != values.null || !reflect.DeepEqual(nativeDigest, replayDigest) {
+						t.Fatal("nullable native/replay digest differs")
+					}
+					if values.name == "reordered_duplicates" {
+						var literalDigest string
+						if err := tx.QueryRow(ctx, `SELECT encode(digest(convert_to($1::text,'UTF8'),'sha256'),'hex')`, "a\na\nb").Scan(&literalDigest); err != nil || replayDigest == nil || *replayDigest != literalDigest {
+							t.Fatal("duplicate preservation/delimiter/order differs", err)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestWorkerRegistrationReferenceParameterReplayAuthority(t *testing.T) {
+	c := registrationReferenceCollation{Name: `"C"`, Provider: "c", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
+	d := registrationReferenceCollation{Name: `"default"`, Provider: "d", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
+	for _, source := range []registrationReferenceCollation{c, d} {
+		if aggregate, witness, err := registrationReferenceParameterReplayQueries(source, source, c, d); err != nil || aggregate == "" || witness == "" {
+			t.Fatal("complete finite source refused")
+		}
+		for index := 0; index < reflect.TypeOf(source).NumField(); index++ {
+			field := reflect.TypeOf(source).Field(index).Name
+			t.Run(source.Provider+"/"+field, func(t *testing.T) {
+				bad := source
+				value := reflect.ValueOf(&bad).Elem().Field(index)
+				switch value.Kind() {
+				case reflect.String:
+					value.SetString("unadmitted")
+				case reflect.Bool:
+					value.SetBool(false)
+				case reflect.Pointer:
+					value.Set(reflect.ValueOf(registrationReferenceString("unadmitted")))
+				default:
+					t.Fatal("new frame field needs a refusal mutation")
+				}
+				for _, frames := range [][4]registrationReferenceCollation{{bad, bad, c, d}, {source, bad, c, d}, {source, source, bad, d}, {source, source, c, bad}} {
+					if aggregate, witness, err := registrationReferenceParameterReplayQueries(frames[0], frames[1], frames[2], frames[3]); err == nil || aggregate != "" || witness != "" {
+						t.Fatal("altered source/builtin emitted usable replay")
+					}
+				}
+			})
+		}
+	}
+	if aggregate, witness, err := registrationReferenceParameterReplayQueries(c, d, c, d); err == nil || aggregate != "" || witness != "" {
+		t.Fatal("different original source frames accepted")
 	}
 }
 
@@ -313,7 +621,7 @@ func TestWorkerRegistrationReferenceActualSortKeyCollation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	outer, nested, parameter, err := registrationReferenceSortKeyCollationQueries(plan)
+	outer, nested, err := registrationReferenceSortKeyCollationQueries(plan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -332,9 +640,6 @@ func TestWorkerRegistrationReferenceActualSortKeyCollation(t *testing.T) {
 		if site.Line >= 15 && site.Line <= 27 && !strings.Contains(nested, site.Selector) {
 			t.Fatal("nested source selector lost", site.Line)
 		}
-	}
-	if !strings.Contains(parameter, `SELECT v COLLATE pg_catalog."C" FROM unnest($1::text[]) AS facts(v) LIMIT 0))) AS oid`) || strings.Contains(parameter, "ARRAY[") {
-		t.Fatal("parameter witness did not use exact actual parameter expression")
 	}
 	c := registrationReferenceCollation{Name: "pg_catalog.default", Provider: "d", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
 	if registrationReferenceAdmitSortKeyCollations(c, c, c, c) != nil {
@@ -795,13 +1100,24 @@ func TestWorkerRegistrationReferencePG18CollationColumnBindings(t *testing.T) {
 	if plan.CatalogSHA256 != "28bc26660db8eae036fd2f36bc215fcf2e27c1aba6d2c7c42d5d6a58e73c5016" {
 		t.Fatal("original source authority changed")
 	}
-	outer, nested, parameter, err := registrationReferenceSortKeyCollationQueries(plan)
+	outer, nested, err := registrationReferenceSortKeyCollationQueries(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := registrationReferenceCollation{Name: `"C"`, Provider: "c", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
+	d := c
+	d.Name, d.Provider = `"default"`, "d"
+	_, parameterC, err := registrationReferenceParameterReplayQueries(c, c, c, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, parameterDefault, err := registrationReferenceParameterReplayQueries(d, d, c, d)
 	if err != nil {
 		t.Fatal(err)
 	}
 	references := regexp.MustCompile(`\b([cd])\.([a-z][a-z0-9_]*)`)
 	rulesBinding := regexp.MustCompile(`'rules',c\.([a-z][a-z0-9_]*)`)
-	for _, witness := range []struct{ name, query string }{{"outer", outer}, {"nested", nested}, {"parameter", parameter}} {
+	for _, witness := range []struct{ name, query string }{{"outer", outer}, {"nested", nested}, {"parameter_C", parameterC}, {"parameter_default", parameterDefault}} {
 		t.Run(witness.name, func(t *testing.T) {
 			// Only the outer witness projection uses aliases c/d for these catalogs;
 			// the original scalar has its own unrelated aliases and remains unmodified.
@@ -933,8 +1249,8 @@ func TestWorkerRegistrationReferenceCollationDiagnosticFieldRoster(t *testing.T)
 	}
 }
 
-// Break caught: parameter replay orders under database default while the
-// untouched original source selects the fixed bootstrap C sort-key identity.
+// Break caught: aggregate and witness must consume the SAME admitted source
+// replay expression, without rewriting any original source selector.
 func TestWorkerRegistrationReferenceParameterSortKeyBinding(t *testing.T) {
 	source := registrationReferenceTestSource(t)
 	if registrationReferenceSHA([]byte(source)) != registrationReferenceCatalogSHA {
@@ -944,16 +1260,28 @@ func TestWorkerRegistrationReferenceParameterSortKeyBinding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	outer, nested, parameter, err := registrationReferenceSortKeyCollationQueries(plan)
+	outer, nested, err := registrationReferenceSortKeyCollationQueries(plan)
 	if err != nil {
 		t.Fatal(err)
 	}
-	const expected = `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY v COLLATE pg_catalog."C"),'UTF8'),'sha256'),'hex') FROM unnest($1::text[]) AS facts(v)`
-	if registrationReferenceParameterSQL != expected {
-		t.Fatal("parameter ORDER BY lacks exact fixed source C binding or changed aggregate values")
-	}
-	if !strings.Contains(parameter, `SELECT v COLLATE pg_catalog."C" FROM unnest($1::text[]) AS facts(v) LIMIT 0`) {
-		t.Fatal("parameter witness is not the actual explicitly bound ordering expression")
+	c := registrationReferenceCollation{Name: `"C"`, Provider: "c", Deterministic: true, DatabaseProvider: "c", DatabaseCollate: "C", DatabaseCType: "C"}
+	d := c
+	d.Name, d.Provider = `"default"`, "d"
+	for _, tc := range []struct {
+		frame    registrationReferenceCollation
+		relation string
+	}{
+		{c, `(SELECT v COLLATE pg_catalog."C" AS v FROM unnest($1::text[]) AS input(v)) AS facts`},
+		{d, `unnest($1::text[]) AS facts(v)`},
+	} {
+		aggregate, witness, err := registrationReferenceParameterReplayQueries(tc.frame, tc.frame, c, d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected := `SELECT encode(digest(convert_to(string_agg(v,E'\n' ORDER BY v),'UTF8'),'sha256'),'hex') FROM ` + tc.relation
+		if aggregate != expected || witness != registrationReferenceCollationSQL("SELECT v FROM "+tc.relation+" LIMIT 0") {
+			t.Fatal("aggregate/witness admitted sort key binding differs")
+		}
 	}
 	if strings.Contains(outer, "COLLATE") || strings.Contains(nested, "COLLATE") {
 		t.Fatal("original source ordering expression was rewritten")
@@ -989,11 +1317,7 @@ func TestWorkerRegistrationReferenceParameterSortKeyIdentityAndTypedBags(t *test
 			t.Fatal("different/default/nondeterministic/version replay admitted")
 		}
 	}
-	plan, err := registrationReferencePlan(registrationReferenceTestSource(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, _, witness, err := registrationReferenceSortKeyCollationQueries(plan)
+	_, witness, err := registrationReferenceParameterReplayQueries(c, c, c, originalDefault)
 	if err != nil {
 		t.Fatal(err)
 	}

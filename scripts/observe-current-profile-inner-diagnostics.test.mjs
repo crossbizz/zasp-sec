@@ -156,3 +156,14 @@ test('known actual fixture prerequisite assertions have only closed fixed reason
  for(const [message,reason]of cases){const rows=transcript();rows.find(row=>row.Output?.includes('closed inner')).Output=`    authorization_runtime_profile_inner_diagnostic_test.go:135: ${message}\n`;const input={stdout:encode(rows),stderr:'',exitCode:1,normalClose:true};assert.deepEqual(classifyInnerDiagnosticRun(input),{classification:'unclassified-refusal',topCount:0,subCount:0});assert.equal(describeInnerDiagnosticRefusal(input),reason);
  rows.find(row=>row.Output?.includes(message)).Output+='PRIVATE_CANARY';assert.equal(describeInnerDiagnosticRefusal({...input,stdout:encode(rows)}),'unknown-output');}
 });
+
+const unknownShapes=[['run','=== RUN   PRIVATE_OTHER\n','unknown-run-output'],['terminal','--- FAIL: PRIVATE_OTHER (0.00s)\n','unknown-terminal-output'],['assertion','    authorization_runtime_profile_inner_diagnostic_test.go:135: PRIVATE_ASSERTION\n','unknown-assertion-output'],['panic','panic: PRIVATE_PANIC\n','unknown-panic-output'],['malformed-diagnostic','authorization_runtime_profile_inner_diagnostic_test.go:149: closed inner step/stage diagnostic absent\n','unknown-assertion-output']];
+for(const [kind,Output,reason]of unknownShapes)test(`unknown ${kind} shape observes only fixed refusal label without disclosure or acceptance`,async()=>{
+ const rows=[{Time:'2026-10-05T00:00:00Z',Action:'start',Package:pkg},{Time:'2026-10-05T00:00:00Z',Action:'run',Package:pkg,Test:failure},{Time:'2026-10-05T00:00:00Z',Action:'output',Package:pkg,Test:failure,Output}];
+ const input={stdout:encode(rows),stderr:'',exitCode:1,normalClose:true};
+ assert.deepEqual(classifyInnerDiagnosticRun(input),{classification:'unclassified-refusal',topCount:0,subCount:0});assert.equal(describeInnerDiagnosticRefusal(input),reason);
+ const a=adapters({hold:true});const pending=runInnerDiagnosticObserver(a.deps);await tick();a.child.stdout.emit('data',Buffer.from(input.stdout));a.emitClose();assert.equal(await pending,1);assert.equal(a.timers.size,0);
+ assert.deepEqual(a.annotations,['::error::Current profile inner diagnostics: unclassified-refusal; tops=0; subtests=0.\n',`::error::Current profile inner diagnostic refusal: ${reason}.\n`]);
+ assert.equal(a.annotations.join('').includes('PRIVATE'),false);assert.equal(a.annotations.join('').includes(Output),false);
+ rows[2].Output+='extra caller data';assert.equal(describeInnerDiagnosticRefusal({...input,stdout:encode(rows)}),'unknown-output');
+});

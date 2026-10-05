@@ -39,6 +39,15 @@ const extraSourcePaths=[
  'services/platform/migrations/tools/ordered-current-consolidated-reference.test.mjs',
  'services/platform/migrations/sql/0080_authorization_worker_ordered_current_integrity.sql'
 ];
+// This reviewed companion consumes one source descriptor outside the producer
+// graph. Bind its complete local import roster; other tests contain intentional
+// dynamic negative probes and are not general dependency-discovery entries.
+const companionImportRosters=Object.freeze({
+ 'services/platform/migrations/tools/ordered-current-worker-source-replay-v1.test.mjs':Object.freeze([
+  './ordered-current-worker-source-descriptor-v1.mjs',
+  './ordered-current-worker-source-replay-v1.mjs'
+ ])
+});
 const json=value=>Buffer.from(JSON.stringify(value,null,2)+'\n');
 const utf8=(left,right)=>Buffer.compare(Buffer.from(left),Buffer.from(right));
 const sortedObject=entries=>Object.fromEntries([...entries].sort(([left],[right])=>utf8(left,right)));
@@ -116,7 +125,19 @@ function sourceInventory(currentInputs){
   const relative=relativePath(filename),source=read(relative).toString('utf8');
   files.add(relative);
   const test=filename.replace(/\.mjs$/,'.test.mjs');
-  if(test!==filename&&fs.existsSync(test))pending.push(test);
+  if(test!==filename&&fs.existsSync(test)){
+   const companion=relativePath(test);
+   files.add(companion);
+   // Traverse only the four exact reviewed fixture byte/roster authorities.
+   // Other discovered companions remain data, including intentional probes.
+   const companionPrefix='services/platform/migrations/tools/';
+   if(companion.startsWith(companionPrefix)&&Object.hasOwn(reviewedCompanionImports,companion.slice(companionPrefix.length)))pending.push(test);
+   if(Object.hasOwn(companionImportRosters,companion)){
+    const imports=localImports(test,read(companion).toString('utf8'));
+    if(imports.sort(utf8).join('\n')!==companionImportRosters[companion].join('\n'))throw Error('complete capture emitter companion import roster '+companion);
+    for(const specifier of imports)pending.push(fileURLToPath(new URL(specifier,pathToFileURL(test))));
+   }
+  }
   // This one approved adapter has a fixed archived entry, verified by its
   // 32-file declared inventory. Account for that complete graph as data, not
   // by relaxing the general dynamic-import guard or ignoring dependencies.

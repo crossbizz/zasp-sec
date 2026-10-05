@@ -72,12 +72,18 @@ export function classifyInnerDiagnosticRun({stdout,stderr,exitCode,normalClose},
 }
 function fixtureOutputRefusal(output){
  const match=/^[ \t]+authorization_runtime_profile_inner_diagnostic_test\.go:[0-9]+: (original terminal refusal identity lost|actual composite crossed or reordered a terminal boundary|diagnostic formatting disclosed a cause or nonclosed content|finite actual composite success refused|actual complete fourteen-step order changed)\n$/.exec(output);
- if(!match)return 'unknown-output';
+ if(!match){
+  if(/^=== RUN {3}[^\r\n]*\n$/.test(output))return 'unknown-run-output';
+  if(/^[ \t]*--- (?:PASS|FAIL|SKIP): [^\r\n]*\n$/.test(output))return 'unknown-terminal-output';
+  if(/^[ \t]*authorization_runtime_profile_inner_diagnostic_test\.go:[0-9]+: [^\r\n]*\n$/.test(output))return 'unknown-assertion-output';
+  if(/^panic: [^\r\n]*\n$/.test(output))return 'unknown-panic-output';
+  return 'unknown-output';
+ }
  const labels={'original terminal refusal identity lost':'prior-cause-identity','actual composite crossed or reordered a terminal boundary':'prior-dispatch-order','diagnostic formatting disclosed a cause or nonclosed content':'safe-formatting','finite actual composite success refused':'success-refused','actual complete fourteen-step order changed':'success-order'};
  return labels[match[1]];
 }
 export function describeInnerDiagnosticRefusal(input){let reason=null;classifyInnerDiagnosticRun(input,value=>{reason??=value;});return reason;}
-const REASONS=new Set(['source-before','source-after','spawn','deadline','stdout-bound','stderr-bound','stderr-present','abnormal-close','group-cleanup','trace-schema','trace-order','unknown-output','body-result','build-trace-refusal','trace-start','trace-terminal','prior-cause-identity','prior-dispatch-order','safe-formatting','success-refused','success-order']);
+const REASONS=new Set(['source-before','source-after','spawn','deadline','stdout-bound','stderr-bound','stderr-present','abnormal-close','group-cleanup','trace-schema','trace-order','unknown-output','unknown-run-output','unknown-terminal-output','unknown-assertion-output','unknown-panic-output','body-result','build-trace-refusal','trace-start','trace-terminal','prior-cause-identity','prior-dispatch-order','safe-formatting','success-refused','success-order']);
 function refusalSummary(reason){return `::error::Current profile inner diagnostic refusal: ${REASONS.has(reason)?reason:'trace-schema'}.\n`;}
 function summary(result){
  const severity=result.classification==='all-tests-pass'?'notice':'error';
