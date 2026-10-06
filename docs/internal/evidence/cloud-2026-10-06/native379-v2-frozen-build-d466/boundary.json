@@ -1,0 +1,28 @@
+{
+  "scope": "ACTUAL-FROZENBUILD-VERIFIED; NATIVE-ATTEMPT-IN-PROGRESS",
+  "sourceCommit": "d466887f7fa2dd44562489278d302e3aff9ed32f",
+  "currentBranchScope": "current3ccc adds CI/gateway fixture test outside original1544Node roster/consumed closure; whole current repository identity is not claimed",
+  "actualCounts": {
+    "GitBlobs": 6053,
+    "finishedSourceFiles": 6053,
+    "derivedVerified": 8,
+    "derivedChanged": 6,
+    "consumedGoInputs": 5787,
+    "resolvedModules": 74,
+    "NodeInputs": 1553,
+    "externalModuleToolMapFiles": 18916
+  },
+  "omittedLargeArtifacts": {
+    "rawCanonicalWire": "same approvedca7d, already durable gzip in native379-v2-assertion-integration",
+    "entireGitArchiveSHA256": "f33165e026bc14adcd65f3736c141b439400e2455309708aa2aecb5a953223b8",
+    "actualBinaries": "hashes in summary/envelopes; originals retained in owned immutable root"
+  },
+  "pending": [
+    "actual native outcomes and stop/join/aftercleanup binder",
+    "varied-login portability including escaped63byte overflow",
+    "production unchanged-limit capacity",
+    "installed/deployed acceptance",
+    "security546 findings"
+  ],
+  "nativeResult": "No result claimed; only root launches/runs attempt; this recorder launched no PG/native operation"
+}

@@ -1,0 +1,111 @@
+{
+  "status": "TOOL-AND-MODULE-FOUNDATION-ONLY; NOT a source/binary/envelope/native admission",
+  "root": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0",
+  "dependency_selection_source_commit": "7549131b324ffd72ae871ac5584c62337b9c5a31",
+  "selection_go_sum_sha256": "a99d2c9979401b020e8ce1c7818276f05c820dce5f43820566ba94121bf48825",
+  "original_recipe_root": "/tmp/zasp-registration-cloud-hz08qu_t",
+  "operations": [
+    {
+      "operation": "copy complete approved Go1.25.13 tree and verify every copied file",
+      "elapsed_seconds": 2.602,
+      "result": "PASS"
+    },
+    {
+      "operation": "Copy exact approved Node executable to ModuleCache/owned-tools; verify SHA256 and mode0500",
+      "result": "PASS"
+    },
+    {
+      "operation": "Retain283 lazy-graph .mod files from original read-only cache, compare exact copied SHA256; no product owned-source copied",
+      "result": "PASS"
+    },
+    {
+      "operation": "Curate73 selected external module packages and download .info/.mod/.zip/.ziphash; independently verify each archive h1 and mod h1 against committed platform/go.sum",
+      "result": "PASS"
+    },
+    {
+      "operation": "Verify every extracted package file and complete roster equals corresponding verified module archive before/after copying; reject symlink/nonregular input",
+      "result": "PASS"
+    },
+    {
+      "operation": "Verify MIT LICENSE of licensed Nexus immutable successor and omit old unlicensed package",
+      "result": "PASS"
+    },
+    {
+      "operation": "Leave fresh build-cache empty owner mode0700, bin empty, owned-source absent; preserve integration-writable ModuleCache root for parent final freeze",
+      "result": "PASS"
+    }
+  ],
+  "go": {
+    "version": "go1.25.13",
+    "platform": "linux",
+    "arch": "amd64",
+    "executable_sha256": "3fb44b0d47becc087cf9e6002366bfbf136d3e08460f12389dbd04687dcf0dd0",
+    "whole_tree_files": 14539,
+    "manifest_sha256": "c77a7fb1be6bb84df71bac58d8dedf0279cdc7393f25048313a497bf34c9bb59"
+  },
+  "node": {
+    "version": "v22.23.1",
+    "platform": "linux",
+    "arch": "x64",
+    "executable": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-tools/node/bin/node",
+    "sha256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068",
+    "placement": "below admitted ModuleCache root"
+  },
+  "modules": {
+    "verified_external_packages": 73,
+    "manifest_sha256": "81c75bff956863325adaa4b68bcb03bca0d44fb37c685e7eaf65efa7b1633a14",
+    "mod_metadata_files": 283,
+    "metadata_policy": "complete .mod metadata from original independently verified read-only cache retained for lazy graph; its filenames/content are independently bound. Extra metadata is not asserted to be consumed. Only73 selected package archives/directories copied; exact whole-module h1 +mod h1 verified against exact committed go.sum."
+  },
+  "licensed_nexus": {
+    "version": "v0.1.1-0.20260629224316-835bd8d49cb4",
+    "module_h1": "h1:wAa/+xHX86PvLA6srCRhGm5Mzqvla7wxCJs++3rVzb8=",
+    "go_mod_h1": "h1:n3UjF1bPCW8llR8tHvbxJ+27yPWrhpo8w/Yg1IOuY0Y=",
+    "license_sha256": "06847bcc52e67fceae1691299bdd42dbfdff138c91e3ea89811a7aa2827988d6",
+    "copyright": "2026 Temporal Technologies Inc.",
+    "license": "MIT",
+    "old_unlicensed_package_copied": false
+  },
+  "cache_policy": {
+    "build_cache": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/build-cache",
+    "mode": "0700",
+    "owner_uid": 1000,
+    "initial_contents": "EMPTY; no prior build outputs copied",
+    "future_admission_policy": "owned-trusted-go1.25.13 only after recorded builds",
+    "module_cache": "top remains writable for final owned-source integration; external package contents/toolchain read-only. Parent must complete immutable ancestor freeze before envelope admission."
+  },
+  "missing_prerequisites": [
+    "Independent final Node roster/Go admission/budget review",
+    "Exact reviewed source commit including separately approved companion binding",
+    "Fresh owned-source platform/health archive; not present",
+    "Fixed-path eight-output regeneration and reviewed canonical packet; not performed",
+    "Compilation and full actual Go source/module/test/companion inventory; not performed",
+    "Complete immutable roots and root-reviewed Go/native envelopes",
+    "Fresh PG identity binding and separate native run authorization"
+  ],
+  "prohibited_actions_performed": [],
+  "original_roots_modified": false,
+  "product_source_copied": false,
+  "network_requests": false,
+  "compilation_or_go_execution": false,
+  "pg_or_native_execution": false,
+  "legacy_synthesized_metadata": {
+    "modules": [
+      "github.com/davecgh/go-spew@v1.1.2-0.20180830191138-d8f796af33cc",
+      "github.com/facebookgo/clock@v0.0.0-20150410010913-600d898af40a",
+      "github.com/gobwas/glob@v0.2.3",
+      "github.com/pmezard/go-difflib@v1.0.1-0.20181226105442-5d4384ee4fb2",
+      "github.com/rcrowley/go-metrics@v0.0.0-20250401214520-65e299d6c5c9",
+      "github.com/robfig/cron@v1.2.0",
+      "github.com/xeipuuv/gojsonpointer@v0.0.0-20190905194746-02993c407bfb",
+      "github.com/xeipuuv/gojsonreference@v0.0.0-20180127040603-bd5ef7bd5415"
+    ],
+    "policy": "Legacy release archive has no go.mod. Separate proxy-generated .mod bytes are independently checked against committed go.mod h1; no go.mod or license is inserted into package archives/directories.",
+    "first_attempt": "Owned preparation initially stopped on this expected legacy topology, then resumed byte-checking every already-copied file. Both logs retained; original roots unchanged."
+  },
+  "preparation_artifacts": {
+    "script": "prepare-foundation.py",
+    "successful_log": "preparation.log",
+    "initial_topology_refusal_log": "preparation-attempt1.log"
+  }
+}

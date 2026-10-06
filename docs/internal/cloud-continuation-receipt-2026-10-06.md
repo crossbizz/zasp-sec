@@ -298,3 +298,98 @@ missing artifact provenance nor security clearance. The full-history 546-
 finding security gate, fresh full/UI verification, immutable build/native379
 acceptance and deployed authority remain open. All original task/category
 counts and release/merge/deployment guards are unchanged.
+
+
+## Actual frozen source/build verified; launch snapshot
+
+Actual preparation used exact anchored commit
+`d466887f7fa2dd44562489278d302e3aff9ed32f` in a new owned frozen tree.
+All 6,053 committed Git blobs and all 6,053 finished source files were checked.
+The eight fixed generated outputs were regenerated, checked and repeated;
+exactly six differ from their historical Git contents, with the complete
+Git-to-derived hash delta retained. Source/module bytes remained unchanged
+through the three actual binary builds and the subsequent frozen inventory.
+The consumed closure is 5,787 Go inputs, 74 resolved modules and 1,553 Node
+inputs; the independent external module/tool byte map has 18,916 entries.
+The excluded packet-derived Go companion is included in the consumed Go
+closure. This is actual build evidence, not reuse of historical counts.
+
+The actual frozen apiserver source-control run passed nine groups, zero
+failures/skips, in 52.359 seconds. All 11 preparation command records report
+exit zero, joined cleanup, no timeout and no unexpected surviving descendants.
+The reviewed c65 supervisor's three generic subprocess regressions separately
+prove ordinary normal completion, timeout group kill/join and refusal of a
+normal-parent exit leaving an owned child. They do not prove arbitrary escaped
+sessions, kernel-uninterruptible tasks or fixture-setup cancellation.
+
+Independent review reran the complete actual Go inventory and checked every
+Go/Node file, module checksum, tool/binary identity, ownership/topology,
+read-only input and closed schema. Static PG review binds four wrappers and
+52 executable/shell/library/extension files, including the authentic pgcrypto
+1.4 selection chain. The reviewer launched no PG executable and grants no
+native-result acceptance. Closed launch environment excludes inherited loader,
+provider and PG overrides; no product/provider authority is inferred.
+
+Actual reviewed identities:
+
+- Go envelope: `77090df431f31690b871934c3861ca8ec69cbc4d247f06a8cc0bcc27b9c6d88d`.
+- Native v2 envelope: `d51c984c25460c6856d04746d46e2a9c5ec16fbe902293777de74d63c14e0f23`.
+- Actual frozen-envelope review: `780c169da46d117077eff61574f9ddbdf54ffbc76bb5e312bd2a5ef95ff20792`.
+- Static PG review: `05c9c65a6fd5936b0c93988973f68db65961bef366bc30f1470b1bf0ab200bec`.
+- Preparation supervisor: `c65e28696fa24a8523e0ac2259db3b32295cb07da2e42c9abea114ac4b3eda20`.
+
+The new bounded immutable directory
+`evidence/cloud-2026-10-06/native379-v2-frozen-build-d466/` has 58 manifest
+members totaling 3,118,624 bytes, manifest SHA256
+`affe9b8143f3e19c8cd2475b6637697fde9b155398a15f3b8c62819d48150a78`.
+It retains compressed full inventories/envelopes/source maps, exact generation
+and build command records/logs, source controls, script checkpoints/repair
+diffs, supervision proofs, independent reviews and closed PG/launch metadata.
+Raw 25 MB wire, entire Git archive and binaries are retained in the owned
+root and not duplicated; the exact approved ca7d gzip is already durable.
+All earlier manifests, failure logs and review boundaries remain unchanged.
+
+At the frozen-build evidence snapshot, root’s separately authorized bounded
+native379 attempt was recorded **IN PROGRESS**; its subsequent failure is
+recorded below.
+Root alone launched and ran it; this evidence recorder launched no PG/native
+operation. At that launch snapshot no native outcome, actual row/byte/time
+result, stop/join/cleanup or after-cleanup rebind was claimed. The later failure
+and ordinary joined cleanup are retained separately below.
+
+The current branch's later CI/gateway fixture additions at `3ccc` are outside
+the frozen d466 source and original Node/consumed closure; the whole current
+repository is not claimed identical to this build. Varied-login/OID portability,
+escaped 63-byte byte overflow, unchanged-limit production capacity, installed
+workers and deployed acceptance remain pending. No 728-ledger/category or
+milestone promotion, security-546 clearance, merge/release or deployment
+approval follows from the verified frozen build or an in-progress attempt.
+
+
+## Actual root native379 attempt failed; collector cause unknown
+
+Root's actual bounded native379 test at exact d466 failed after 205.99 seconds;
+the owned PostgreSQL subtest ran 179.46 seconds. The supervisor records exit
+one after 206.075869 seconds, joined cleanup, no timeout and no unexpected
+surviving descendants. Owned PostgreSQL PID 85297 stopped normally with
+pg_ctl exit zero and server Wait exit zero. No acceptance artifact exists.
+
+The test stopped at pristine catalog collector stream refusal before native
+control execution. The complete diagnostic reports expected/live/missing/
+extra/changed/duplicates zero, overflow=true, “collector stream refused” and
+empty entries. These zero-valued refusal fields do not establish an empty
+catalog; overflow=true alone does not identify a row/byte/time limit breach.
+The underlying cause is **unknown** and read-only investigation is underway.
+No successful catalog equivalence, all-589 native execution, native acceptance,
+capacity, installed worker or production/deployed acceptance is claimed.
+
+The new separate immutable directory
+`evidence/cloud-2026-10-06/native379-v2-native-failure-d466/` preserves the full
+final actual log, command record, closed launch environment/binding and
+failure/cleanup summary. Its six-member manifest SHA256 is `124c425569863bce909161e533fc0dfa8e69931603cacea931fdd781edd15b94`.
+The preceding actual frozen build evidence, all prior source/packet manifests
+and original failures remain unchanged. Root alone launched the native
+attempt; the evidence recorder launched no PG/native operation. The 728 rows,
+523/144/61 categories, varied-login gate, security546 and release/deployment
+restrictions remain unchanged. A reviewed repair requires new evidence and
+cannot retroactively promote this failed attempt.

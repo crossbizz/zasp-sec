@@ -1,0 +1,42 @@
+{
+  "status": "ACTUAL-NATIVE-ATTEMPT-FAILED; NO ACCEPTANCE ARTIFACT",
+  "actor": "root only; evidence recorder launched no PG/native operation",
+  "sourceCommit": "d466887f7fa2dd44562489278d302e3aff9ed32f",
+  "GoEnvelopeSHA256": "77090df431f31690b871934c3861ca8ec69cbc4d247f06a8cc0bcc27b9c6d88d",
+  "V2EnvelopeSHA256": "d51c984c25460c6856d04746d46e2a9c5ec16fbe902293777de74d63c14e0f23",
+  "testSeconds": 205.99,
+  "ownedFixtureSeconds": 179.46,
+  "supervisorSeconds": 206.075869,
+  "exitCode": 1,
+  "failurePoint": "pristine catalog collector stream refused, before control execution",
+  "diagnostic": {
+    "expected": 0,
+    "live": 0,
+    "missing": 0,
+    "extra": 0,
+    "changed": 0,
+    "duplicates": 0,
+    "overflow": true,
+    "error": "collector stream refused",
+    "entries": []
+  },
+  "underlyingCause": "UNKNOWN; overflow marker alone does not establish actual row/byte/time capacity violation",
+  "ownedPGCleanup": {
+    "pid": 85297,
+    "pgCtlExit": 0,
+    "serverWaitExit": 0,
+    "normalExit": true,
+    "supervisorJoined": true,
+    "unexpectedDescendants": false,
+    "timedOut": false
+  },
+  "acceptanceArtifactExists": false,
+  "nativeControlsCompleted": "no all589 native execution claim; stopped at pristine phase",
+  "pending": [
+    "native parity/result/actual capacities",
+    "varied-login/OID portability",
+    "installed/deployed acceptance",
+    "security546 findings"
+  ],
+  "priorFrozenProof": "preserved unchanged as separate actual build evidence"
+}

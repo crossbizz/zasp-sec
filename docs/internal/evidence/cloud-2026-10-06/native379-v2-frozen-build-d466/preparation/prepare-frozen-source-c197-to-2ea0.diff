@@ -1,0 +1,64 @@
+--- /workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/anchor-plan-05f314/prepare-frozen-source-checkpoint-c197.py	2026-10-06 01:10:02.395978978 +0000
++++ /workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/anchor-plan-05f314/prepare-frozen-source.py	2026-10-06 01:09:41.695960534 +0000
+@@ -2,7 +2,7 @@
+ """Finite source-only preparation. Requires separately root-authorized exact commit.
+ Never starts PostgreSQL, invokes native tests, emits assembly, or captures receipts.
+ """
+-import argparse, hashlib, json, os, pathlib, re, stat, subprocess, tarfile, time
++import argparse, ctypes, hashlib, json, os, pathlib, re, signal, stat, subprocess, tarfile, time
+ P = pathlib.Path
+ FOUNDATION=P('/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0')
+ REPO=P('/workspace/zasp-sec')
+@@ -50,19 +50,35 @@
+  if any((FOUNDATION/'build-cache').iterdir()) or any((FOUNDATION/'bin').iterdir()):raise RuntimeError('foundation cache/bin must be fresh empty')
+  evidence=FOUNDATION/'outputs/frozen-source-preparation';evidence.mkdir(mode=0o700)
+  tmp=FOUNDATION/'tmp';tmp.mkdir(mode=0o700)
++ if sha(PLAN/'frozen-build-plan.json')!='462ab863b9e25e5ac4cc72f28ce06757d6da667cc3a674ef875776b887993253':raise RuntimeError('reviewed plan hash differs')
++ for tool,pin in [(FOUNDATION/'go/bin/go','3fb44b0d47becc087cf9e6002366bfbf136d3e08460f12389dbd04687dcf0dd0'),(FOUNDATION/'module-cache/owned-tools/node/bin/node','93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068')]:
++  check_file(tool)
++  if sha(tool)!=pin:raise RuntimeError('reviewed tool executable differs')
++ if args.reviewed_pg_binding and sha(args.reviewed_pg_binding)!='40f499a12a8b69daa2f2e6bf527d74e01a7fdd4110b18b025b9ea6887275a500':raise RuntimeError('root-reviewed PG metadata hash differs')
++ # Linux subreaper lets this process join killed owned compiler descendants.
++ if ctypes.CDLL(None,use_errno=True).prctl(36,1,0,0,0)!=0:raise RuntimeError('owned-process subreaper unavailable')
+  pplan=json.loads((PLAN/'frozen-build-plan.json').read_text());env=dict(pplan['environment'],HOME=os.environ['HOME'],TZ='UTC',LANG='C')
+  write(evidence/'environment.json',env)
+  records=[]
+- def run(label,argv,cwd,env_override=None,seconds=600):
+-  started=time.monotonic();log=evidence/(label+'.log')
++ def run(label,argv,cwd,env_override=None,seconds=600,output=None,discard_stderr=False):
++  started=time.monotonic();log=output or evidence/(label+'.log');timed_out=False
+   with log.open('xb') as f:
+-   result=subprocess.run(argv,cwd=cwd,env=dict(env,**(env_override or {})),stdout=f,stderr=subprocess.STDOUT,timeout=seconds)
+-  log.chmod(0o400);records.append({'label':label,'argv':argv,'cwd':str(cwd),'exit_code':result.returncode,'seconds':round(time.monotonic()-started,6),'log_sha256':sha(log)})
++   proc=subprocess.Popen(argv,cwd=cwd,env=dict(env,**(env_override or {})),stdout=f,stderr=subprocess.DEVNULL if discard_stderr else subprocess.STDOUT,start_new_session=True)
++   try:status=proc.wait(timeout=seconds)
++   except subprocess.TimeoutExpired:
++    timed_out=True
++    try:os.killpg(proc.pid,signal.SIGKILL)
++    except ProcessLookupError:pass
++    status=proc.wait(timeout=30)
++    # Adopted compiler descendants share this owned group. SIGKILL then reap all.
++    while True:
++     try:os.waitpid(-proc.pid,0)
++     except ChildProcessError:break
++  log.chmod(0o400);records.append({'label':label,'argv':argv,'cwd':str(cwd),'exit_code':status,'timed_out':timed_out,'seconds':round(time.monotonic()-started,6),'log_sha256':sha(log)})
+   write(evidence/(label+'-record.json'),records[-1])
+-  if result.returncode:raise RuntimeError('source preparation failed; see owned log '+label)
++  if timed_out or status:raise RuntimeError('source preparation failed; see owned log '+label)
+  archive=evidence/'exact-source.tar'
+- with archive.open('xb') as f:subprocess.run(['git','archive','--format=tar',commit],cwd=REPO,stdout=f,check=True,timeout=60)
+- archive.chmod(0o400);source.mkdir(mode=0o700)
++ run('archive-source',['/usr/bin/git','archive','--format=tar',commit],REPO,seconds=60,output=archive,discard_stderr=True);source.mkdir(mode=0o700)
+  with tarfile.open(archive) as t:
+   for member in t:
+    rel=P(member.name)
+@@ -100,8 +116,7 @@
+  if repeated!=finished or any(sha(output_dir/n)!=pin for n,pin in pins.items()):raise RuntimeError('repeat generation changed exact output/source bytes')
+  write(evidence/'repeat-generation-proof.json',{'all_eight_sha256':pins,'complete_source_file_count':len(repeated),'complete_source_manifest_equal':True})
+  wire=evidence/'reproduced-wire.json'
+- with wire.open('xb') as f:subprocess.run([node,str(tools/'ordered-current-native379-packet-v2.mjs'),'--json'],cwd=source,env=env,stdout=f,stderr=subprocess.DEVNULL,check=True,timeout=120)
+- wire.chmod(0o400)
++ run('reproduce-packet',[node,str(tools/'ordered-current-native379-packet-v2.mjs'),'--json'],source,seconds=120,output=wire,discard_stderr=True)
+  if sha(wire)!=EXPECTED_WIRE:raise RuntimeError('exact reviewed packet reproduction differs')
+  module_before={str(p.relative_to(FOUNDATION/'module-cache')):sha(p) for p in sorted((FOUNDATION/'module-cache').rglob('*')) if p.is_file() and not p.is_relative_to(source)}
+  write(evidence/'before-build-module-tool-file-manifest.json',module_before)

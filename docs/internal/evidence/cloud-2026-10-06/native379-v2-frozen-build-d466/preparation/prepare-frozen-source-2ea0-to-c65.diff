@@ -1,0 +1,67 @@
+--- checkpoint-2ea0
++++ reviewed-c65
+@@ -43,7 +43,7 @@
+  ap.add_argument('--reviewed-pg-binding',type=P)
+  args=ap.parse_args();commit=args.authorized_source_commit
+  if not re.fullmatch('[0-9a-f]{40}',commit):raise RuntimeError('exact root-authorized commit required')
+- actual=subprocess.check_output(['git','rev-parse',commit+'^{commit}'],cwd=REPO,text=True,timeout=10).strip()
++ actual=subprocess.check_output(['/usr/bin/git','rev-parse',commit+'^{commit}'],cwd=REPO,text=True,timeout=10).strip()
+  if actual!=commit:raise RuntimeError('commit identity')
+  source=FOUNDATION/'module-cache/owned-source';platform=source/'services/platform'
+  if source.exists():raise RuntimeError('owned-source already exists; never resume or overwrite')
+@@ -61,22 +61,40 @@
+  write(evidence/'environment.json',env)
+  records=[]
+  def run(label,argv,cwd,env_override=None,seconds=600,output=None,discard_stderr=False):
+-  started=time.monotonic();log=output or evidence/(label+'.log');timed_out=False
+-  with log.open('xb') as f:
+-   proc=subprocess.Popen(argv,cwd=cwd,env=dict(env,**(env_override or {})),stdout=f,stderr=subprocess.DEVNULL if discard_stderr else subprocess.STDOUT,start_new_session=True)
+-   try:status=proc.wait(timeout=seconds)
+-   except subprocess.TimeoutExpired:
+-    timed_out=True
+-    try:os.killpg(proc.pid,signal.SIGKILL)
+-    except ProcessLookupError:pass
+-    status=proc.wait(timeout=30)
+-    # Adopted compiler descendants share this owned group. SIGKILL then reap all.
++  started=time.monotonic();log=output or evidence/(label+'.log')
++  timed_out=False;status=None;failure_kind=None;unexpected_descendants=False;joined=True
++  proc=None
++  try:
++   with log.open('xb') as f:
++    proc=subprocess.Popen(argv,cwd=cwd,env=dict(env,**(env_override or {})),stdout=f,stderr=subprocess.DEVNULL if discard_stderr else subprocess.STDOUT,start_new_session=True)
++    try:status=proc.wait(timeout=seconds)
++    except subprocess.TimeoutExpired:timed_out=True
++    def group_alive():
++     try:os.killpg(proc.pid,0);return True
++     except ProcessLookupError:return False
++    unexpected_descendants=not timed_out and group_alive()
++    if timed_out or unexpected_descendants:
++     try:os.killpg(proc.pid,signal.SIGKILL)
++     except ProcessLookupError:pass
++    # Poll and reap with an absolute deadline; never block waiting for a child.
++    deadline=time.monotonic()+30
+     while True:
+-     try:os.waitpid(-proc.pid,0)
+-     except ChildProcessError:break
+-  log.chmod(0o400);records.append({'label':label,'argv':argv,'cwd':str(cwd),'exit_code':status,'timed_out':timed_out,'seconds':round(time.monotonic()-started,6),'log_sha256':sha(log)})
+-  write(evidence/(label+'-record.json'),records[-1])
+-  if timed_out or status:raise RuntimeError('source preparation failed; see owned log '+label)
++     status=proc.poll()
++     if status is not None:
++      while True:
++       try:pid,_=os.waitpid(-proc.pid,os.WNOHANG)
++       except ChildProcessError:break
++       if pid==0:break
++     if status is not None and not group_alive():break
++     if time.monotonic()>=deadline:
++      joined=False;break
++     time.sleep(0.01)
++  except Exception as error:failure_kind=type(error).__name__
++  finally:
++   if log.exists():log.chmod(0o400)
++   record={'label':label,'argv':argv,'cwd':str(cwd),'exit_code':status,'timed_out':timed_out,'cleanup_joined':joined,'unexpected_descendants':unexpected_descendants,'failure_kind':failure_kind,'seconds':round(time.monotonic()-started,6),'log_sha256':sha(log) if log.exists() else None}
++   records.append(record);write(evidence/(label+'-record.json'),record)
++  if failure_kind or timed_out or unexpected_descendants or not joined or status:raise RuntimeError('source preparation failed; see owned log '+label)
+  archive=evidence/'exact-source.tar'
+  run('archive-source',['/usr/bin/git','archive','--format=tar',commit],REPO,seconds=60,output=archive,discard_stderr=True);source.mkdir(mode=0o700)
+  with tarfile.open(archive) as t:

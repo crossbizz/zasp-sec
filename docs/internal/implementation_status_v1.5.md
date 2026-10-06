@@ -9,12 +9,15 @@ role receipts; source-declared poison/error recovery requires fresh assertions.
 Final source-only tests pass six Node groups and nine Go groups; independent
 rerun passes nine groups. Original physical-budget and canonical RED evidence
 and prior refusal manifests remain retained. Seven companion literals now bind
-the reviewed packet; the actual immutable build envelope and native379
-PostgreSQL acceptance remain pending. No readiness promotion occurred.
+the reviewed packet. The actual frozen d466 build/envelopes have now passed
+independent closure review. Root’s actual native379 attempt FAILED at pristine
+catalog collector stream refusal (205.99sec; cause unknown), before controls.
+Owned PG stopped/joined normally; no acceptance artifact or readiness promotion.
 
 The fixed scripted ledger fits unchanged limits, but a legal escaped 63-byte
-login exceeds the forged-entry byte cap. Varied-login portability, new full
-frozen/derived build closure, native parity and deployed acceptance remain open.
+login exceeds the forged-entry byte cap. Actual d466 frozen/derived build
+closure is verified (6,053 source files, 5,787 Go inputs/74 modules, 1,553 Node
+inputs); native parity, varied-login capacity and deployed acceptance remain open.
 Fresh runtime inventory found all 162 inspected ZASP loader bindings absent.
 The full-history security scan still fails with 546 findings; merge/release
 readiness remains blocked. See [the October 6 receipt](cloud-continuation-receipt-2026-10-06.md).

@@ -1,0 +1,46 @@
+{
+  "format": "independent-native379-v2-source-preparation-script-review-v1",
+  "assessment": "PASS-BOUNDED-SOURCE-ONLY-PREPARATION-SCRIPT",
+  "reviewer": "review_capture_dependency",
+  "script_path": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/anchor-plan-05f314/prepare-frozen-source.py",
+  "script_sha256": "c65e28696fa24a8523e0ac2259db3b32295cb07da2e42c9abea114ac4b3eda20",
+  "reviewed_plan_sha256": "462ab863b9e25e5ac4cc72f28ce06757d6da667cc3a674ef875776b887993253",
+  "findings": {
+    "Critical": [],
+    "Important": [],
+    "Minor": []
+  },
+  "verified": {
+    "authorization": "Requires separately root-authorized full40hexcommit; absoluteGitresolve; refuses any existing owned-source or nonempty cache/bin. Archived snapshot must contain exact05f implementation andae732 companion, exactselectedgo.mod/go.sum andca7d reviewed wire.",
+    "early_bindings": "Before generation/build, exactplan462,Go3fb44,Node93956 and optionalreviewedPGmetadata40f499 hashes checked; explicitoffline environment from reviewedplan only, plusHOME/TZ/LANG.",
+    "source_order": "Archive exclusive controlledsnapshot with regularfile/directory-only tar topology; generate8 then exactpins + noother source/member mutation; --check and repeat--write must retain entirefinishedsource bytes; reproduce exactca7d. VerifyGo modules/build3 actualbinaries, rejectsource/module-tool mutations, then freezeGoRoot/entireModuleCache before actualGo inventory.",
+    "processes": "All generation/archive/packet/Go/inventory/source-control commands launchnew owned session. Linuxsubreaper. Timeoutor normalleftover group is SIGKILLed; proc.poll+waitpidWNOHANG finite30sec cleanup, no blocking wait. finally records and0400freezes logs including timeout/error/unjoined status; failures/unexpectedchildren/unjoinedcleanup refused.",
+    "schemas": "Actual inventory emits originalregistrationReferenceBuild fields; typedGo input digest preserved across canonicalPython outerJSON. BuildCommands truthfully records3actualbuilds; unchangedschema does not requireexact2. V2 envelope usesexactregistrationReferenceInput fields(path,sha256,kind,package) and exact1553member union.",
+    "closure": "Platform/health sibling replacement honestly underModuleCache/owned-source; actualinput hashes/regularfiles/readonly roots/ancestors verified. Binaries/cache/output/TMPDIR separate; no historicalcounts reused. Derivedcompanion included actualGo enumeration while explicitly excluded Node source to avoidcycle.",
+    "PG_scope": "Optionalmetadata exacthash +closedpg_binary_sha256/pg_extension_files maps; verifiesactualwrapper/runtime/extension hashes only. NoPGversion/tool/server command invoked in preparation. MissingPGmetadata leavesonly unadmittedcandidate requiringfuturebinding/review.",
+    "source_tests": "Only inventory utility and^TestNative379V2 source-control group; nativeTestP7 opt-in neverselected and environment containsno nativeopts. No assembly emitter execution, SQLinstall orcapturereceipts.",
+    "review_gates": "Finalsummary explicitSOURCE-ONLY-CANDIDATES-REQUIRE-INDEPENDENT-ROOT-REVIEW; actualGo/V2 envelopes/binaries/rosters/runtimeclosure must be separately inspected beforeanynative authority."
+  },
+  "guard_regression_evidence": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/anchor-plan-05f314/process-supervision-test-c65/supervision-proof.json",
+    "sha256": "c43972e56e4f51da5ce029d973d63a57c11e1cd24095007a6b8b8d7637bba93e",
+    "source": "Author AST-extracted exactrun helper; genericPython-only subprocesses, noactualGo/Node/PG/preparation.",
+    "observed_report": {
+      "script_sha256": "c65e28696fa24a8523e0ac2259db3b32295cb07da2e42c9abea114ac4b3eda20",
+      "timeout_killed_joined_recorded": true,
+      "normal_orphan_killed_joined_refused": true,
+      "normal_completion_passed": true,
+      "no_owned_children": true,
+      "generic_python_only_no_go_node_pg": true
+    },
+    "limits": "Reviewer inspectedcode+recordedevidence; didnotexecuteactualsourcepreparation. Tests coverordinaryforkedchildren and successful/surviving-child completion, not kerneluninterruptible-process simulation; cleanup deadline explicitlyrefusesunjoinedcases."
+  },
+  "repairs": "Priorplan/toolhashguard and processgroup/timeoutrecord concerns repaired; previous2ea blockingwait checkpoint retained, currentc65 boundedcleanup reviewed.",
+  "boundaries": [
+    "No actualgeneration/build/inventory/frozenenvelope produced or approved by thisreview.",
+    "No native/PostgreSQL fixture/server/execution/receipt approval.",
+    "Root must separately bind exactscriptSHA and authorizedanchoredcommit beforeexecution; scriptpassingreview doesnot supplycommit authorization.",
+    "ActualfutureGo/module/tool/binary closure andfreshPGbinding/rootenvelopedigests remain mandatory.",
+    "Variedlogin escaped63byte boundary and nativecapacity/installed/deployment acceptance remainpending."
+  ]
+}
