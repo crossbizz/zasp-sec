@@ -1,0 +1,87 @@
+{
+  "ROOTReportedPostFreeBytes": {
+    "tmp": 315686912,
+    "workspace": 1538080768
+  },
+  "ROOTTerminalScope": "Parent observed session86759/chunksf21ab7\u2192156d33 normalexit0; canonical tooljoin transcription pending, not invented kernel trace.",
+  "all53ControlSourceToolPinsUnchanged": true,
+  "baseActualReviewSHA256": "30b968cb024df8d76bd502a26967b8bf5742e730d0b7c95041981d18dca2266e",
+  "capacityScope": "Raw156328098B removed, retained45MB archive unchanged/no newpayload. Free observations are point-in-time; no exact causal recovery amount from concurrent metadata invented.",
+  "custodyScope": "Original430099 path absent and identity historical only; full original raw remains recoverable losslessly from retained09a exacttemporal member SHA7122. No current CLI binary/service/provider/readiness claim.",
+  "freshnessEvidence": {
+    "ageAtFinalizeStageStartSeconds": 1.536778724999749,
+    "ageThroughWholeJoinedFinalizeStageUpperBoundSeconds": 3.2614087249997494,
+    "conservativeObserveStartNs": 79315706207763,
+    "strict5SecondSourceGateImmediatelyBeforeUnlink": "Unchanged reviewed9322 source root_fresh/live after hashes/durableintent, admitted joinedexit0. Entire joinedstage upperbound under5s corroborates, no synthetic exact syscall timestamp claimed."
+  },
+  "mirroredFiveProofFiles": {
+    "custody.json": {
+      "bytes": 1758,
+      "sha256": "ed69ab45bb13655fe9ed80a10016bbcd9d86e45c3692c69580e5156c0f83d916"
+    },
+    "finalize-reserved.jsonl": {
+      "bytes": 65536,
+      "sha256": "d5c23d2b33484ce3b0aa2402b931bc17c6032ffc9dfb171f4cffe6157a03384f"
+    },
+    "prepare-reserved.jsonl": {
+      "bytes": 65536,
+      "sha256": "ad8d815f71c48b1ca8a5c94670eb1004980a53adb1bc73f992f6dfc3311951d1"
+    },
+    "prepared.json": {
+      "bytes": 1757,
+      "sha256": "ed67363af3418af6205e33f927b5a1c96c1ec3ddc621b7e37559fcbc31cb12df"
+    },
+    "unlink-intent.json": {
+      "bytes": 1234,
+      "sha256": "32063bfdf7b70cabb54dabdecbd3505eff6bd31ff0a6cc511a56aea0e6460587"
+    }
+  },
+  "outerJournalRows": [
+    {
+      "rootExitRequired": true,
+      "state": "UNVERIFIED"
+    },
+    {
+      "configKind": "CLI-fresh-observe-final-exact-one-retained-archive-unlink",
+      "environmentNames": [
+        "LC_ALL",
+        "PATH",
+        "PYTHONDONTWRITEBYTECODE",
+        "TMPDIR"
+      ],
+      "status": "UNVERIFIED-PRECHILD"
+    },
+    {
+      "ROOTJoinAddendumSHA256": "112fce50830de876a92d2a00769975a1c8740e7adc4fa6e660480f4f0d77cba6",
+      "addendumSHA256": "e987a3b7c55dd208e533810795b64f192796f1e80eeea9e61e9b57583f6331c5",
+      "admissionSHA256": "22cce4e9c9367fa2371fbd204220d554801f55739132ee0c13f262cd6ca7857e",
+      "preparedSHA256": "ed67363af3418af6205e33f927b5a1c96c1ec3ddc621b7e37559fcbc31cb12df",
+      "reviewSHA256": "2452bbe7bb668d221ec353618463674d16215f3dd02345603d2275984e36dd3e",
+      "status": "CLOSED-INDEPENDENT-PREPARE-ADMISSION"
+    },
+    {
+      "conservativeStartMonotonicNs": 79315706207763,
+      "inactivity": {
+        "privilegedExactRootProofSHA256": "e3592839d5b0c4e5ab75f762375ec785f17a291c46b84bf225f782dbd7a24535",
+        "snapshotNotLifetimeClaim": true,
+        "unknownOrActive": false,
+        "visibleNonZombieProcessesInspected": 10
+      },
+      "proofSHA256": "e3592839d5b0c4e5ab75f762375ec785f17a291c46b84bf225f782dbd7a24535",
+      "rawUnlinkPermitted": true,
+      "status": "ACTUAL-CLOSED-FRESH-PROOF-DERIVED"
+    },
+    {
+      "completedAtWrite": true,
+      "failureClass": null,
+      "status": "UNVERIFIED-AWAITING-ROOT-JOIN"
+    }
+  ],
+  "outerJournalSHA256": "fe9190ccaedec5429bc1047f1e5034e833869648d63f712c3208788a1ef0be4d",
+  "reviewerPointInTimeFreeBytes": {
+    "/tmp": 315580416,
+    "/workspace": 1538080768
+  },
+  "status": "PASS",
+  "supersedesBaseGenericLimitation": "Base reused review future-unlink sentence is generic only: this reviewed actual has exactly one unlink completed. No further unlink is authorized."
+}

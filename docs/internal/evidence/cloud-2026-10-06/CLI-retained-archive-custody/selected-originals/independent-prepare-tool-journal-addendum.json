@@ -1,0 +1,72 @@
+{
+  "ROOTJoinScope": "ROOT parent reports session28146 joined exit0; additive canonical tool transcription pending.",
+  "baseReviewSHA256": "2452bbe7bb668d221ec353618463674d16215f3dd02345603d2275984e36dd3e",
+  "conservativeSnapshotAgeAtPrepareStageStartNanoseconds": 1477090758.0,
+  "current28Pins": {
+    "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-final-source-boundary-7lztsxwk/final-source-boundary.json": "968a07af202ee0cc5bfba2ae757e0dfe633020e07bc3c4739cfe73040e5225d3",
+    "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-kybq_a5v/custody.py": "2d2d6368de714ed469051d038dea84053221fc49087b3f18518d9e4ee184038a",
+    "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/README.md": "24f5c2e8a7e817afe42f154d10d91a90a79928bd817febb10addc45aaf4415cd",
+    "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/custody.py": "9322555dccc035e21c2e4595d4f26a067a7080928d1bf5d7c0d8f6a7fe578ec8",
+    "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/manifest.json": "5abd775263d384ab5dd7cd270283e02bb8156e8834e899532eb82e3df7c5f00d",
+    "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/plan.json": "ee723f92dc23aa1ced3309487aed3f6ec7ad2682cf2c9890d070b4b7721e1dcf",
+    "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/source-admission.json": "eb2a2b4fa8db433285da987f015a5d352d42330f6f345efb8edde74d6fdb1a48",
+    "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/source.diff": "31c5e02f472a17e7ecd9ecfed08b7b4b0484c7d66a63bd00efdb522e2ec4dccd",
+    "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-tests-fgy104af/custody-controls.test.py": "fed90bb4429180154d2592fd336a7570f8c2a86d342127c99284502bc21a7885",
+    "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-tests-fgy104af/source-test-record.json": "d2214bfbae32d7110e900781f4d44d406d7bd40e6aabfbd1b374e48b4fffdb99",
+    "/tmp/zasp-cloud-evidence/CLI-tar-prepare-observer-source-jks_rrzo/SOURCE-BOUNDARY.json": "74f9fdcb69ec2984cdde047c9809c57f54a95ca56ccb481bd8e75f16e20eb95b",
+    "/tmp/zasp-cloud-evidence/CLI-tar-prepare-observer-source-jks_rrzo/fresh-observer-owner-v3.py": "886a2668f18e73a0585a0f1e7fc282be7985b41a10930d3746f587bae4f00a73",
+    "/tmp/zasp-cloud-evidence/CLI-tar-prepare-observer-source-jks_rrzo/independent-docker-28.4.0-adapter-grounding-v2.json": "87c5fa1e76f9d7919beb84852acde22253d381608e2209b7ae076c126dc88d91",
+    "/tmp/zasp-cloud-evidence/CLI-tar-prepare-observer-source-jks_rrzo/independent-observer-static-review-v5.json": "c21d1354162cd555406a6a14c0f6771d55fbe6d352100afdee94e12d46dfac01",
+    "/tmp/zasp-cloud-evidence/CLI-tar-prepare-observer-source-jks_rrzo/manifest.json": "11bd0b2e864a924645bcafc3f8bf8fe83050669f979e4b4f280bcbe7c78a0f4b",
+    "/tmp/zasp-cloud-evidence/CLI-tar-prepare-observer-source-jks_rrzo/observe-exact-root-services-v5.sh": "199c37b3592969ba12385684410215732d00cd7b63f23adcbc6d11a570a2b7f8",
+    "/tmp/zasp-cloud-evidence/CLI-tar-prepare-observer-source-jks_rrzo/payload-target-inventory.json": "a15ae08713afb09da043f45322039617ed47aba2bff154d6fe542e6cb3d99531",
+    "/tmp/zasp-cloud-evidence/CLI-tar-prepare-observer-source-jks_rrzo/root-service-observer-plan-v5.json": "af80747a43a5d48cbca02e7687354885da93332157e615a8fc937427c70bd24c",
+    "/tmp/zasp-cloud-evidence/CLI-tar-prepare-observer-source-jks_rrzo/run-readonly-observer-v7.py": "7d505ff7b2efcae1955c007047661252809ffb33b72305cb78ca2dcaf77c9559",
+    "/tmp/zasp-cloud-evidence/independent-CLI-retained-archive-R10-source-algorithm-review.json": "ef08c1f0cbabc3508202b6ad2bd2609c14513ffac11c622028ab67d207dbde23",
+    "/tmp/zasp-cloud-evidence/independent-actual-CLI-nine-retained-archive-control-review.json": "16d088381bf5424c0fb5d8ff83af96dae64379abb75fa19c7ed7369a6070f24a",
+    "/tmp/zasp-cloud-evidence/native-OSS-component-installer-reserved-szzxq191/prepare-native-OSS-tools.py": "8626764eab509958ca3eb00a2a5a526cb0fdd9b4c62521c636a9599b4ae8412a",
+    "/tmp/zasp-cloud-evidence/runtime-continuation/pg-build-identity-plan/owned_supervisor_v2.py": "57d6558874e1788472b97546149f0dd273e9f94818af6fe40e6966c8a360703d",
+    "/tmp/zasp-cloud-tools/bin/tini": "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c",
+    "/usr/bin/env": "eb1c64bbc9908afcdf8cb48524f17112d8dd76a249f80dee2f01da14747b3b6e",
+    "/usr/bin/python3.13": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1",
+    "/workspace/.zasp-cloud-owned/CLI-custody-TDD-owner-2e038a6028a145f3a39870ecce5fc834/result.json": "0aca50806a5b91992e91250abfeb1b3c9524731ca7a9e4bdceaa565ca1a89eba"
+  },
+  "executionScope": "PREPARE ONLY",
+  "outerJournalRows": [
+    {
+      "rootExitRequired": true,
+      "state": "UNVERIFIED"
+    },
+    {
+      "configKind": "CLI-observe-derive-retained-archive-prepare",
+      "environmentNames": [
+        "LC_ALL",
+        "PATH",
+        "PYTHONDONTWRITEBYTECODE",
+        "TMPDIR"
+      ],
+      "status": "UNVERIFIED-PRECHILD"
+    },
+    {
+      "conservativeStartMonotonicNs": 78455181741408,
+      "inactivity": {
+        "privilegedExactRootProofSHA256": "06594c64b07c5735a1de808df597f73033cda0646b9e31a54e271acc455f66fd",
+        "snapshotNotLifetimeClaim": true,
+        "unknownOrActive": false,
+        "visibleNonZombieProcessesInspected": 10
+      },
+      "proofSHA256": "06594c64b07c5735a1de808df597f73033cda0646b9e31a54e271acc455f66fd",
+      "rawUnlinkPermitted": false,
+      "status": "ACTUAL-CLOSED-FRESH-PROOF-DERIVED"
+    },
+    {
+      "completedAtWrite": true,
+      "failureClass": null,
+      "status": "UNVERIFIED-AWAITING-ROOT-JOIN"
+    }
+  ],
+  "outerJournalSHA256": "81ddaf6f0d6709fe788d607505ec1a9d01c2102d0b251acb59bf75362e235046",
+  "status": "PASS",
+  "timingScope": "Calculated from recorded effective stage deadline minus declared125 cap and conservative observation START; no unlink occurred. Child actual \u22645s gate successful by joined prepare source/record."
+}

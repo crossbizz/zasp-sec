@@ -1,0 +1,16 @@
+{
+  "actualSeconds": 0.26648580700566527,
+  "limitations": [
+    "Synthetic tiny fixtures only; no actual09a archive/raw replay, observer, compression, unlink or service",
+    "Prepare package0tn/qds separately BLOCKED source-root prefix substitution; corrected successor review mandatory",
+    "No raw removal/SDK/FGA/Temporal/native readiness acceptance",
+    "No reviewer tests/runtime"
+  ],
+  "outcome": "PASS_ACTUAL_CLI_NINE_SYNTHETIC_CONTROLS_ONLY",
+  "ownerSHA256": "87457db2c160ebc4ad604f1aaa8d47c7da44ced6c19ad5e6ca46bac7a83425b0",
+  "recipeSHA256": "4fc00b9060a5911e483c1607a021f461bba7648be982bf06407b41f0b526a636",
+  "resultPath": "/workspace/.zasp-cloud-owned/CLI-custody-TDD-owner-2e038a6028a145f3a39870ecce5fc834/result.json",
+  "resultSHA256": "0aca50806a5b91992e91250abfeb1b3c9524731ca7a9e4bdceaa565ca1a89eba",
+  "rootOuterToolJoin": "ROOT tool-observed62a06f normal0/.25827s; not fabricated independent kernel outerwait.",
+  "verified": "Genuine old existing source_checks admitted modified declared admission: same named expected RuntimeError assertion failed once/exit1. New candidate all9 exact named methods OK/exit0. Full log SHA, both normal joined records/no timeout/force/signal/unexpected descendants/survivors, groups empty, fixed65536 journal coherent awaitingROOT/noFAILED, all25 current configured source hashes match."
+}
