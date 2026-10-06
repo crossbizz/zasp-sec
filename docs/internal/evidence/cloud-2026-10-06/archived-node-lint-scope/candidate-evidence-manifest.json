@@ -1,0 +1,62 @@
+{
+  "format": "private-lint-exact-two-file-candidate-manifest-v1",
+  "files": {
+    "candidate/eslint.config.mjs": {
+      "bytes": 2962,
+      "sha256": "beca078abf9b64f6496b91f66cc8e28c6ff89276f5cf1176fff073a81477edc8"
+    },
+    "candidate/scripts/eslint-scope.test.mjs": {
+      "bytes": 4314,
+      "sha256": "e1333f167b013280a868976f624763b49f736a90a8d9ba98696dfcd15d38fbc6"
+    },
+    "evidence/baseline-archive-lint.json": {
+      "bytes": 51232,
+      "sha256": "e8195e135a1f5035f2aae8f3452b215f04ed9739c9c63129945865d559596534"
+    },
+    "evidence/baseline-archive-lint.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "evidence/baseline-eslint.config.mjs": {
+      "bytes": 2602,
+      "sha256": "884c76cb7c525c1eaeb5253610628c9e818b780430b8465c0fca6d71d35a644b"
+    },
+    "evidence/baseline-pins.json": {
+      "bytes": 991,
+      "sha256": "277692dbf2a618cfd52ceca4d1d57c84bb9557a048004d2c9fe347e9cf65986c"
+    },
+    "evidence/candidate-four-file-lint.json": {
+      "bytes": 1253,
+      "sha256": "9b246f4eda572d2b30082ceb94085c3b0e5218400574a9a4f3205a8f0b94fcf3"
+    },
+    "evidence/candidate-four-file-lint.stderr": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "evidence/candidate.patch": {
+      "bytes": 3631,
+      "sha256": "aa8a7d9ce119541d0509f042cd28de7927537cad9ccb11fee5b58980228eb00f"
+    },
+    "evidence/config-rule-scope-comparison.json": {
+      "bytes": 1694,
+      "sha256": "7dee3445341614c6a237041827d830224db76fc73e6f3a4fffdad8e60b2783d0"
+    },
+    "evidence/grouped-green.log": {
+      "bytes": 1651,
+      "sha256": "4597f8741f4f785583f2d964600e5904a1f6369a669ea864f85e077476e9256f"
+    },
+    "evidence/grouped-red.log": {
+      "bytes": 3118,
+      "sha256": "2e0bd9bffac36aece39be9ac09453a701f2e76b0e552d2de8a5e9c5367cc21e8"
+    },
+    "evidence/scope-comparison.mjs": {
+      "bytes": 1865,
+      "sha256": "4341a23f4e02d458de40cef9044c0ecf048603de7dd82dc5cf59f764f4860037"
+    },
+    "evidence/validation-summary.json": {
+      "bytes": 4058,
+      "sha256": "d4bf425e0c5971481228bc6294a2d2a728434537d72297c44a7ee8d854c7bd1a"
+    }
+  },
+  "scope": "Private candidate+actual RED/GREEN/CLI/config-scope evidence; no broadlint/fullnpm/native clearance"
+}

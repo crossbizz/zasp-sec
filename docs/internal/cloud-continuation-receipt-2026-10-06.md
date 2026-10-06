@@ -621,3 +621,8 @@ Root's bounded attempt failed after 224.45 seconds (owned PostgreSQL fixture: 18
 Owned PostgreSQL PID 127711 stopped and joined normally with pg_ctl and Wait returning zero. Endpoint and surviving-resource checks recorded zero survivors. The supervisor reported no timeout or unexpected descendants, and no acceptance artifact exists. Exact final logs, command and environment records, bindings, root launcher 63fa and its static review b4dd are retained separately. The new frozen-build proof and original d466 failure remain unchanged. The publication scan retains one verified public binary-hash finding; provenance review does not confer scanner clearance. No native success, deployed acceptance, release or all-728 milestone promotion is claimed.
 
 Durable packet member manifest: `82484bec888b44ebd69efa3d30ea709dbb6c0d2d17221ff4898e72cdaa61385e` (17 members).
+
+
+## Hosted archive lint failure characterized and corrected
+
+Both hosted512 check annotations identify exactly two archived Node files failing the Next module-variable rule. Their original bytes remain unchanged. The existing Node-tool setting now applies to exactly these two filenames; no global ignore or other lint/security rule changed. Genuine baseline CLI failures and grouped RED are preserved; seven scope checks and actual four-file lint pass independently. Web module/raw-fetch, other archive filenames and control-regex guards remain active. Evidence is retained under `evidence/cloud-2026-10-06/archived-node-lint-scope/`; no full verification or ledger promotion is claimed.

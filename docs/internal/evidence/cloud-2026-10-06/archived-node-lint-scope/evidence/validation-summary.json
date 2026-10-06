@@ -1,0 +1,77 @@
+{
+  "format": "exact-two-archived-node-lint-scope-review-v1",
+  "assessment": "PASS private exacttwo-path override +grouped RED/GREEN scope; pending independentreview/root integration",
+  "baseline_commit": "6af016b47c13980465aa4598c193b0693e1a2233",
+  "source_pins": {
+    "eslint.config.mjs": {
+      "baseline_sha256": "884c76cb7c525c1eaeb5253610628c9e818b780430b8465c0fca6d71d35a644b",
+      "candidate_sha256": "beca078abf9b64f6496b91f66cc8e28c6ff89276f5cf1176fff073a81477edc8"
+    },
+    "scripts/eslint-scope.test.mjs": {
+      "baseline_sha256": "3f163b67cb9c0c6fc8c314ba6e799f6248d4b7f017ee68b7f66029fbf496c6a8",
+      "candidate_sha256": "e1333f167b013280a868976f624763b49f736a90a8d9ba98696dfcd15d38fbc6"
+    }
+  },
+  "archived_evidence_unchanged": {
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-safe-diagnostics/evidence/ordered-current-native379-packet-v2.mjs": {
+      "sha256": "368ba50a83b52d07649b23eaa28814a4a1ccad71acd7b91716669c0c86c56927",
+      "exact_baseline_bytes_preserved": true
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-safe-diagnostics/evidence/ordered-current-native379-packet-v2.test.mjs": {
+      "sha256": "4a08ca625405c60a1f1feb086fdd8431155e42fce70808e2eecd977d0d66530b",
+      "exact_baseline_bytes_preserved": true
+    }
+  },
+  "baseline_actual_lint": {
+    "exit": 1,
+    "errors": 2,
+    "rule": "@next/next/no-assign-module-variable",
+    "source_lines": [
+      226,
+      9
+    ],
+    "report_sha256": "e8195e135a1f5035f2aae8f3452b215f04ed9739c9c63129945865d559596534"
+  },
+  "grouped_red": {
+    "exit": 1,
+    "tests": 7,
+    "pass": 5,
+    "fail": 2,
+    "log_sha256": "2e0bd9bffac36aece39be9ac09453a701f2e76b0e552d2de8a5e9c5367cc21e8",
+    "reason": "Originalconfig rejects realarchive module declarations and fails expectedNextoff assertion; controls passed including web rawfetch, neighbor/futuredate and controlregex activity."
+  },
+  "grouped_green": {
+    "exit": 0,
+    "tests": 7,
+    "pass": 7,
+    "fail": 0,
+    "reported_milliseconds": 2891.931513,
+    "log_sha256": "4597f8741f4f785583f2d964600e5904a1f6369a669ea864f85e077476e9256f"
+  },
+  "candidate_actual_four_file_lint": {
+    "exit": 0,
+    "files": 4,
+    "errors": 0,
+    "report_sha256": "9b246f4eda572d2b30082ceb94085c3b0e5218400574a9a4f3205a8f0b94fcf3"
+  },
+  "normalized_scope_comparison": {
+    "path": "config-rule-scope-comparison.json",
+    "sha256": "7dee3445341614c6a237041827d830224db76fc73e6f3a4fffdad8e60b2783d0",
+    "paths": 8,
+    "result": "ExactlyNextmodule rule2\u21920 only at the two exactarchive paths; everyother rule/languageOptions/settings/plugin keys unchanged across all8representative paths."
+  },
+  "config_change": "Append only two exact literal archive filenames to existing Node-toolfiles selector; inherited off rule reused. No globalignore/newrule/config blanket/pathwildcard changes. All global/securitylint rules remain; ordinaryweb/no-raw-fetch still rejects.",
+  "commands": {
+    "node": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+    "cwd": "/workspace/.zasp-cloud-owned/lint-archive-scope-t6kgpszp/source",
+    "grouped": "node --test scripts/eslint-scope.test.mjs",
+    "baseline_cli": "node node_modules/eslint/bin/eslint.js [exact2archivepaths] --format json",
+    "green_cli": "node node_modules/eslint/bin/eslint.js eslint.config.mjs scripts/eslint-scope.test.mjs [exact2archivepaths] --format json",
+    "scope_compare": "node scope-comparison.mjs (retained evidence script and exact originalconfig; copied temporarily into source cwd for module resolution)"
+  },
+  "node_binary_sha256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068",
+  "dependency_resolution": "Read-only shared pinned installed node_modules via private symlink; package.json copied exactbaseline. No npm install/provider/network/sourcegeneration/archiveexecution.",
+  "current_full6af_verification_not_interrupted": true,
+  "shared_files_archived_bytes_security_ignores_rules_native_anchors_unchanged": true,
+  "native_or_realprovider_or_commit": false
+}
