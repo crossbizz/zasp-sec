@@ -128,3 +128,26 @@ final source-only review SHA256 is
 `e67ea95c97a659f2afd6dbc905d3f252aab05e9d55eb21b884c583f175c0b872`.
 The component binary's mutable source/tool roots are not a frozen native
 build envelope.
+
+## Security gate after source publication
+
+Reviewed source-only commit `3c123ef46fc9982c503384d44a93045984a3ec89`
+was pushed normally. The faithful full-history scan used repository cwd,
+Gitleaks 8.30.1, existing ignores and `--log-opts=HEAD`; it failed with
+546 findings in 82.976 seconds. Set reconciliation proves all previous
+538 findings remain and the only eight additions exactly match the new
+source commit scan. Independent review verifies each new finding is a
+SHA-256 literal equal to its referenced regular tracked Git-blob bytes at
+that exact commit. All 1,544 current source-file hashes were also verified
+against actual bytes. No provisioned credential value was identified in
+the eight additions; the scanner still fails.
+
+The detailed private redacted classification SHA256 is
+`a87724bf69006f8ecab707a9965c0b625b87471dd7c4f00b17ac607d11b48980`;
+full redacted report SHA256 is
+`8d9c54d8fc4987a6799b0e52a6004f5fd88561564cc593459360c07617b87b33`.
+The durable aggregate is `native379-v2/security-gate-reconciliation.json`.
+Historical provenance limitations are unchanged. No scanner, ignore,
+configuration, security/release guard or history change cleared this gate.
+The branch remains a draft PR; merge/release readiness is blocked, not
+claimed from repository push permission or scoped component tests.

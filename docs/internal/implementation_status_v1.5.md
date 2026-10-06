@@ -14,7 +14,8 @@ anchors remain empty. This is verified refusal, not native readiness.
 
 Fresh runtime inventory found all 162 inspected ZASP loader bindings absent;
 generic credentials do not establish an approved product deployment. Full
-history security scan remains failed, and real deployed acceptance remains
+history security scan remains failed with 546 findings (538 retained plus
+eight independently verified source digests), and deployed acceptance remains
 blocked. See [the October 6 receipt](cloud-continuation-receipt-2026-10-06.md).
 All 728 IDs and 523/144/61 evidence categories remain unchanged.
 
