@@ -167,3 +167,14 @@ for(const [kind,Output,reason]of unknownShapes)test(`unknown ${kind} shape obser
  assert.equal(a.annotations.join('').includes('PRIVATE'),false);assert.equal(a.annotations.join('').includes(Output),false);
  rows[2].Output+='extra caller data';assert.equal(describeInnerDiagnosticRefusal({...input,stdout:encode(rows)}),'unknown-output');
 });
+
+// A timeout is observational only; it can never admit an incomplete Go trace.
+test('exact current Go deadline panic remains refused with a closed timeout label',async()=>{
+ const rows=[{Time:'2026-10-06T00:00:00Z',Action:'start',Package:pkg},{Time:'2026-10-06T00:00:00Z',Action:'run',Package:pkg,Test:failure},{Time:'2026-10-06T00:00:00Z',Action:'output',Package:pkg,Test:failure,Output:'panic: test timed out after 2m0s\n'}];
+ const input={stdout:encode(rows),stderr:'',exitCode:1,normalClose:true};
+ assert.deepEqual(classifyInnerDiagnosticRun(input),{classification:'unclassified-refusal',topCount:0,subCount:0});
+ assert.equal(describeInnerDiagnosticRefusal(input),'test-timeout-2m');
+ const a=adapters({hold:true});const pending=runInnerDiagnosticObserver(a.deps);await tick();a.child.stdout.emit('data',Buffer.from(input.stdout));a.emitClose();assert.equal(await pending,1);assert.equal(a.timers.size,0);
+ assert.deepEqual(a.annotations,['::error::Current profile inner diagnostics: unclassified-refusal; tops=0; subtests=0.\n','::error::Current profile inner diagnostic refusal: test-timeout-2m.\n']);
+ for(const Output of ['panic: test timed out after 1m0s\n','panic: test timed out after 2m0s PRIVATE_CANARY\n','panic: test timed out after 2m0s\nPRIVATE_CANARY']){rows[2].Output=Output;assert.equal(describeInnerDiagnosticRefusal({...input,stdout:encode(rows)}),Output.endsWith('\n')?'unknown-panic-output':'unknown-output');}
+});
