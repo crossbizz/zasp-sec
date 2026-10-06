@@ -27,7 +27,7 @@ func (d *PostgresJSONDatabase) SecurityAgentCompatibilityAvailable(ctx context.C
 	if !present {
 		return false, nil
 	}
-	if err := d.driver.QueryRow(ctx, `SELECT zasp_temporal70.client_ready($1,$2)`, migrations.ProductionTemporalCompatibility().Checksum(), migrations.TemporalCompatibilityFingerprint()).Scan(&ready); err != nil || !ready || ctx.Err() != nil {
+	if err := d.driver.QueryRow(ctx, `SELECT zasp_temporal70.client_ready($1,$2)`, migrations.TemporalCompatibilityChecksum(), migrations.TemporalCompatibilityFingerprint()).Scan(&ready); err != nil || !ready || ctx.Err() != nil {
 		return false, ErrRepositoryUnavailable
 	}
 	return true, nil
@@ -36,7 +36,7 @@ func (d *PostgresJSONDatabase) SecurityAgentCompatibilityAvailable(ctx context.C
 type securityAgentCompatibilityDatabase struct{ JSONDatabase }
 
 func (d *securityAgentCompatibilityDatabase) available(ctx context.Context) (bool, error) {
-	raw, err := d.JSONDatabase.QueryJSON(ctx, `SELECT to_jsonb(zasp_temporal70.client_ready($1,$2))`, migrations.ProductionTemporalCompatibility().Checksum(), migrations.TemporalCompatibilityFingerprint())
+	raw, err := d.JSONDatabase.QueryJSON(ctx, `SELECT to_jsonb(zasp_temporal70.client_ready($1,$2))`, migrations.TemporalCompatibilityChecksum(), migrations.TemporalCompatibilityFingerprint())
 	if err != nil || !bytes.Equal(bytes.TrimSpace(raw), []byte("true")) {
 		return false, ErrRepositoryUnavailable
 	}

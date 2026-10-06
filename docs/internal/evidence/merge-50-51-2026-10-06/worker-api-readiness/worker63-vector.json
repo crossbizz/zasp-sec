@@ -1,0 +1,18 @@
+{
+  "scope": "Independent Python original rawUp+NUL+rawDown checksum; no Go/native admission",
+  "sourceCommit": "18d80f9bfbb88059891eedc4592e81ff0e0ea05c",
+  "checksum": "206fedba804bf0862daa656e3a835fc3dc294682a7bd18eda5608d22b7943eb1",
+  "digestInputBytes": 35701,
+  "rows": [
+    {
+      "path": "services/platform/migrations/sql/0063_production_security_agent_worker.up.sql",
+      "bytes": 34870,
+      "sha256": "274e805917264b98a432a7b4431ed40c3460cadd4a3ab9cb8b7e5ad294d3959c"
+    },
+    {
+      "path": "services/platform/migrations/sql/0063_production_security_agent_worker.down.sql",
+      "bytes": 830,
+      "sha256": "2d054c1408be6cfacc63e52a367afcdde15022ffffb5279f8723f198318de797"
+    }
+  ]
+}

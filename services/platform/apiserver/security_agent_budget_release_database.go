@@ -90,7 +90,7 @@ func (database *PostgresJSONDatabase) securityAgentExistingTestsAvailableLocked(
 	}
 	if testAuthority {
 		var ready bool
-		if err := database.driver.QueryRow(ctx, `SELECT zasp_temporal74.api_ready($1,$2)`, migrations.ProductionTemporalTestExecutor().Checksum(), migrations.TemporalTestExecutorFingerprint()).Scan(&ready); err != nil || !ready || ctx.Err() != nil {
+		if err := database.driver.QueryRow(ctx, `SELECT zasp_temporal74.api_ready($1,$2)`, migrations.TemporalTestExecutorChecksum(), migrations.TemporalTestExecutorFingerprint()).Scan(&ready); err != nil || !ready || ctx.Err() != nil {
 			return false, ErrRepositoryUnavailable
 		}
 		return true, nil

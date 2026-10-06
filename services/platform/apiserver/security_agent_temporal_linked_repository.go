@@ -51,7 +51,7 @@ func (repository *securityAgentMultistepAdmissionRepository) temporalReady(ctx c
 	if repository == nil || nilInterface(repository.database) || ctx == nil || ctx.Err() != nil {
 		return ErrRepositoryOperation
 	}
-	raw, err := repository.database.QueryJSON(ctx, `SELECT to_jsonb(zasp_temporal68.ready($1,$2))`, migrations.ProductionTemporalExecutor().Checksum(), migrations.TemporalExecutorFingerprint())
+	raw, err := repository.database.QueryJSON(ctx, `SELECT to_jsonb(zasp_temporal68.ready($1,$2))`, migrations.TemporalExecutorChecksum(), migrations.TemporalExecutorFingerprint())
 	if err != nil || !bytes.Equal(bytes.TrimSpace(raw), []byte("true")) {
 		return ErrRepositoryUnavailable
 	}

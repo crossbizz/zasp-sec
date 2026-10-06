@@ -21,6 +21,13 @@ func SecurityAgentWorkerFingerprint() string {
 	return "c81c4cb4cb799894ab9bf69b16815341ac53665e967fd0405b32009898510239"
 }
 
+// SecurityAgentWorkerChecksum hashes the original unbound sources per call.
+// Readiness does not need to render public62 or release61 migration SQL.
+func SecurityAgentWorkerChecksum() string {
+	digest := sha256.Sum256([]byte(securityAgentWorkerUpSQL + "\x00" + securityAgentWorkerDownSQL))
+	return hex.EncodeToString(digest[:])
+}
+
 func ProductionSecurityAgentWorker() Metadata {
 	digest := sha256.Sum256([]byte(securityAgentWorkerUpSQL + "\x00" + securityAgentWorkerDownSQL))
 	checksum := hex.EncodeToString(digest[:])

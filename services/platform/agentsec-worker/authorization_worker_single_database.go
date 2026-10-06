@@ -29,7 +29,7 @@ func (d *workerSingleTestDatabase) QueryJSON(ctx context.Context, statement stri
 		return nil, authorization.ErrInvalid
 	}
 	if statement == `SELECT to_jsonb(zasp_temporal74.client_ready($1,$2))` {
-		if len(args) != 2 || args[0] != migrations.ProductionTemporalTestExecutor().Checksum() || args[1] != migrations.TemporalTestExecutorFingerprint() || d.base == nil {
+		if len(args) != 2 || args[0] != migrations.TemporalTestExecutorChecksum() || args[1] != migrations.TemporalTestExecutorFingerprint() || d.base == nil {
 			return nil, authorization.ErrInvalid
 		}
 		return d.base.QueryJSON(ctx, statement, args...)

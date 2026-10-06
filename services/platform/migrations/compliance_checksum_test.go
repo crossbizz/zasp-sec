@@ -50,3 +50,24 @@ func TestComplianceChecksumObservesLiveSources(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkerReadinessChecksumObservesLiveSources(t *testing.T) {
+	const expected = "206fedba804bf0862daa656e3a835fc3dc294682a7bd18eda5608d22b7943eb1"
+	if SecurityAgentWorkerChecksum() != expected || ProductionSecurityAgentWorker().Checksum() != expected {
+		t.Fatal("original worker63 identity changed")
+	}
+	for _, source := range []*string{&securityAgentWorkerUpSQL, &securityAgentWorkerDownSQL} {
+		original := *source
+		func() {
+			defer func() { *source = original }()
+			*source = original + "\n-- changed source observation\n"
+			changed := SecurityAgentWorkerChecksum()
+			if changed == expected || changed != ProductionSecurityAgentWorker().Checksum() {
+				t.Fatal("worker checksum failed exact live source recomputation")
+			}
+		}()
+		if SecurityAgentWorkerChecksum() != expected {
+			t.Fatal("worker checksum did not restore")
+		}
+	}
+}

@@ -1,0 +1,24 @@
+{
+  "assessment": "Corrected test-literal review: source mappings remain approved; mistaken prior fingerprint expectation explicitly superseded",
+  "originalReceipt": "/workspace/scratch/worker-readiness-checksum-source-review-20261006/api-review.json",
+  "originalReceiptSHA256": "78013e754d7bcf73cc4331edb55f94d71b09c31a4ba2af9f381e34af67451f0f",
+  "authorError": "I selected TemporalExecutorDomainFingerprint rather than the actual TemporalExecutorFingerprint called by unchanged production; prior test-identity approval was incorrect.",
+  "correctFingerprint": {
+    "function": "TemporalExecutorFingerprint",
+    "value": "437c678da9969a5935fe7efaa27f593fc58eaeac4e74ff434a5ed44eab2b75eb"
+  },
+  "incorrectPriorFingerprint": {
+    "function": "TemporalExecutorDomainFingerprint",
+    "value": "499b011078b1a124e95e44454ae1bcbe1e5eda8dbb99d59d156dfd1bd19c0dbf"
+  },
+  "productionGuardChange": false,
+  "testOnlyCorrection": true,
+  "testPath": "/workspace/scratch/root-merge50-51-20261006/services/platform/apiserver/temporal_readiness_cost_test.go",
+  "updatedTestSHA256": "54e55763942ea8ac708f5807d4d2eb3edc6c88107d9a4ab61265f202336c9988",
+  "updatedTestBytes": 1273,
+  "fingerprintSourcePath": "/workspace/scratch/root-merge50-51-20261006/services/platform/migrations/production_temporal_executor.go",
+  "fingerprintSourceSHA256": "3429ad89fe4a808e3cc2fac2e9af1d35bb6fb0fd1fcad58235e13310c9f03982",
+  "independent68ChecksumUnchanged": "bf5f2b8a2578c8d3c43b8edd0590c55a5eb7c48b178cca310e0ebadfc90e8eed",
+  "bodyREDQualification": "Original allocation body RED744124904>4MiB remains Root-reported valid; subsequent failed fixed-identity assertion was wrong test expectation, not changed production identity.",
+  "noReviewerGoExecution": true
+}

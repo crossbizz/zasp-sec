@@ -165,7 +165,7 @@ func (r *orderedDispatchRepository) query(ctx context.Context, q any) (json.RawM
 	}
 	bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	response, err := r.database.QueryJSON(bounded, `SELECT zasp_ordered_worker63.worker($1,$2,$3::jsonb)`, migrations.ProductionSecurityAgentWorker().Checksum(), migrations.SecurityAgentWorkerFingerprint(), json.RawMessage(raw))
+	response, err := r.database.QueryJSON(bounded, `SELECT zasp_ordered_worker63.worker($1,$2,$3::jsonb)`, migrations.SecurityAgentWorkerChecksum(), migrations.SecurityAgentWorkerFingerprint(), json.RawMessage(raw))
 	if err != nil || bounded.Err() != nil {
 		return nil, apiserver.ErrRepositoryUnavailable
 	}

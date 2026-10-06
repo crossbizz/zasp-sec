@@ -35,3 +35,24 @@ func TestComplianceAuthorityDoesNotRebuildChecksumAncestors(t *testing.T) {
 		t.Fatalf("checksum-only compliance query rebuilt ancestors: %d allocated bytes exceed 32 MiB", allocated)
 	}
 }
+
+func TestOrderedWorkerReadinessDoesNotRenderMigrationSQL(t *testing.T) {
+	db := &complianceChecksumCostDB{}
+	repository := &orderedDispatchRepository{database: db}
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	_, err := repository.query(context.Background(), struct {
+		Operation string `json:"operation"`
+	}{"ready"})
+	runtime.ReadMemStats(&after)
+	if err != nil || db.calls != 1 || len(db.arguments) != 3 {
+		t.Fatalf("bounded worker readiness failed before usable SQL response: %v", err)
+	}
+	if db.arguments[0] != "206fedba804bf0862daa656e3a835fc3dc294682a7bd18eda5608d22b7943eb1" || db.arguments[1] != "c81c4cb4cb799894ab9bf69b16815341ac53665e967fd0405b32009898510239" {
+		t.Fatal("worker readiness identity changed")
+	}
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 32<<20 {
+		t.Fatalf("checksum-only worker readiness rendered migration SQL: %d bytes exceed 32 MiB", allocated)
+	}
+}

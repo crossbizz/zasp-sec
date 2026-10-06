@@ -37,7 +37,7 @@ func (database *PostgresJSONDatabase) CurrentAuthorizationSourceReady(ctx contex
 			return true, ErrRepositoryUnavailable
 		}
 		if installed {
-			if err := database.driver.QueryRow(ctx, `SELECT zasp_temporal74.api_ready($1,$2)`, migrations.ProductionTemporalTestExecutor().Checksum(), migrations.TemporalTestExecutorFingerprint()).Scan(&ready); err != nil || !ready {
+			if err := database.driver.QueryRow(ctx, `SELECT zasp_temporal74.api_ready($1,$2)`, migrations.TemporalTestExecutorChecksum(), migrations.TemporalTestExecutorFingerprint()).Scan(&ready); err != nil || !ready {
 				return true, ErrRepositoryUnavailable
 			}
 		}

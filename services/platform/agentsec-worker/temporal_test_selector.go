@@ -122,7 +122,7 @@ func testSelectorAvailable(ctx context.Context, db apiserver.JSONDatabase) (bool
 	if !present {
 		return false, nil
 	}
-	raw, err = db.QueryJSON(ctx, `SELECT to_jsonb(zasp_temporal75.ready($1,$2))`, migrations.ProductionTemporalTestSelector().Checksum(), migrations.TemporalTestSelectorFingerprint())
+	raw, err = db.QueryJSON(ctx, `SELECT to_jsonb(zasp_temporal75.ready($1,$2))`, migrations.TemporalTestSelectorChecksum(), migrations.TemporalTestSelectorFingerprint())
 	var ready bool
 	if err != nil || json.Unmarshal(raw, &ready) != nil || !ready {
 		return false, errWorkerExecution
