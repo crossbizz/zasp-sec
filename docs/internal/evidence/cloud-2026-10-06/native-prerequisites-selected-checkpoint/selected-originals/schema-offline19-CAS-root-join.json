@@ -1,0 +1,14 @@
+{
+  "allToolSourceAndPlanPinsChecked": true,
+  "environment": "closed4-base-only-no-proxy-secrets-network",
+  "normalWaitReturn": 0,
+  "ownerDirectory": "/tmp/zasp-cloud-evidence/temporal132-schema-tests-owner-noswm34r",
+  "preparationSHA256": "f50e2943ce3602cfb6d91755d04f7cd7f54b6c4de8097700d3edf5a49c5074ae",
+  "scope": "OFFLINE-OWN-CAS-TESTS-NO-HISTORICAL-RED-CLAIM",
+  "staticReviewSHA256": "2813b950971d07b2baa03afdfe89c7b2b4662ade115681e77a4b52cf7c2d31ab",
+  "tmpFreeBefore": 274833408,
+  "toolChunk": "e862ac",
+  "toolExit": 0,
+  "toolWallSeconds": 0.088043544,
+  "workspaceFreeBefore": 1545101312
+}

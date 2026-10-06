@@ -1,0 +1,6 @@
+test_wait_joins_capture_before_result (__main__.LifecycleCases.test_wait_joins_capture_before_result) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.151s
+
+OK

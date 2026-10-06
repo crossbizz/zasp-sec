@@ -1,0 +1,142 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 2507,
+      "mode": 256,
+      "sha256": "69c356651824490bd7a4eeb4e9eef5c42e8a50c7e3c9e6a40483b6d160cc597f"
+    },
+    "publication-plan.json": {
+      "bytes": 24466,
+      "mode": 256,
+      "sha256": "c2ec6e9e1c1c076be0d8f22d9583573a730d136d600f1f70658832d03a025782"
+    },
+    "selected-originals/FGA-corrected-nine-after.json": {
+      "bytes": 2275,
+      "mode": 256,
+      "sha256": "ffbc638bf2b97f1f9d60cf60b84555e643ffaf7ae3a3e78c1a4f36f1adee1c48"
+    },
+    "selected-originals/FGA-corrected-nine-before.json": {
+      "bytes": 2275,
+      "mode": 256,
+      "sha256": "ffbc638bf2b97f1f9d60cf60b84555e643ffaf7ae3a3e78c1a4f36f1adee1c48"
+    },
+    "selected-originals/FGA-corrected-nine-result.json": {
+      "bytes": 820,
+      "mode": 256,
+      "sha256": "966a51ff2104f7b0e7b0cc6d0ce97735f4dc7c4f096ed6134ee0ad0a492ca557"
+    },
+    "selected-originals/FGA-corrected-nine-review.json": {
+      "bytes": 1592,
+      "mode": 256,
+      "sha256": "1b02586aae0b415988132b8aff7d1285b38812223b87f730ddfdbe8f22885a7e"
+    },
+    "selected-originals/FGA-old-failure-current-CWD-point-observation.json": {
+      "bytes": 185,
+      "mode": 256,
+      "sha256": "de76dbd2ca1b75414861c7790acb166249f6514291b3134c6a7ddf61b1066a50"
+    },
+    "selected-originals/FGA-original-failed-tiny-0.stderr": {
+      "bytes": 925,
+      "mode": 256,
+      "sha256": "0bdcdce246da373efb4574ebcadf6c9406317aa9a921727ac830612ecaccc721"
+    },
+    "selected-originals/FGA-original-failed-tiny-1.stderr": {
+      "bytes": 206,
+      "mode": 256,
+      "sha256": "9a4bd728ffad62e46a0f512996456a669ffad687d1ede481c95ba59e893dad67"
+    },
+    "selected-originals/FGA-original-failed-tiny-2.stderr": {
+      "bytes": 3610,
+      "mode": 256,
+      "sha256": "5ae3a0a68bf2b2a76dee15bba00ae667517e3b9cdda95bcfef03bc2819ec4b80"
+    },
+    "selected-originals/FGA-original-failed-tiny-before.json": {
+      "bytes": 2265,
+      "mode": 256,
+      "sha256": "fe4f7500bf31ac7e5ce749a6d657eb55d8266d0810284f0d8e917d8df49fef0d"
+    },
+    "selected-originals/PG-owned18-guards-result.json": {
+      "bytes": 595,
+      "mode": 256,
+      "sha256": "6b2d6fa96f0591d1ff51863212f0af64ddfce80b264b84c0e7629af87c863012"
+    },
+    "selected-originals/PG-owned18-guards-review.json": {
+      "bytes": 1751,
+      "mode": 256,
+      "sha256": "ce95b74e1c50a80d973aaf29abac4d9a81711d93c7eb4a02d9ddf8e319be163a"
+    },
+    "selected-originals/real-FGA-race-compile-only-artifact-review.json": {
+      "bytes": 2906,
+      "mode": 256,
+      "sha256": "0cf1ce29e077f65693e372ba102d684a7892691d7aa174683c809f70225a96f5"
+    },
+    "selected-originals/real-FGA-race-compile-only-result.json": {
+      "bytes": 9650,
+      "mode": 256,
+      "sha256": "3997db38598ad8b2cc33975dbbe13225407eb44df17df4cdae72ebfedc4dd2ec"
+    },
+    "selected-originals/real-FGA-race-compile-only-root-join.json": {
+      "bytes": 578,
+      "mode": 256,
+      "sha256": "c180f9caae13cc25da6bf19624e4da8902a11f0c3b4cf914a0f4988f0a948279"
+    },
+    "selected-originals/schema-exact83-custody-manifest.json": {
+      "bytes": 25004,
+      "mode": 256,
+      "sha256": "5e6e45a7b0c845a90b9820d1144276d46b7eed90ff0ae472db3f7395f4ea6ad0"
+    },
+    "selected-originals/schema-exact83-custody-review.json": {
+      "bytes": 1641,
+      "mode": 256,
+      "sha256": "6ed51840ab9783d6c0532962a31e8eb4b0ac5bac1a1a4c349743d122b3395658"
+    },
+    "selected-originals/schema-exact83-fetch-result.json": {
+      "bytes": 603,
+      "mode": 256,
+      "sha256": "d39168dfd182bfa0b020c9ed3aa7b65c0a764f5f2776a090cdb3158f5c05001f"
+    },
+    "selected-originals/schema-exact83-reserved-ledger.jsonl": {
+      "bytes": 131072,
+      "mode": 256,
+      "sha256": "c61ad4f9e26edd047407847a6826dbc470784f9e0088c5226cf69793c275ad72"
+    },
+    "selected-originals/schema-exact83-root-join.json": {
+      "bytes": 726,
+      "mode": 256,
+      "sha256": "15c13a62bb69b0f46033cdee3ecf8ecac2899a4a9858e45b80faf41237239b71"
+    },
+    "selected-originals/schema-offline19-CAS-result.json": {
+      "bytes": 564,
+      "mode": 256,
+      "sha256": "e0e69150398d0fd9fadff94800dd902cb103324759b6f517cb45b7c8591400fb"
+    },
+    "selected-originals/schema-offline19-CAS-review.json": {
+      "bytes": 1311,
+      "mode": 256,
+      "sha256": "621e78f1d93a3f18b67a483aaffdfb308ebfa9615dcf48d63e2233ed79a1923e"
+    },
+    "selected-originals/schema-offline19-CAS-root-join.json": {
+      "bytes": 608,
+      "mode": 256,
+      "sha256": "69c88c79b4823f1d4b84fda63926e2e63d4d1aaeebcbf749e036c6ded75fb90f"
+    },
+    "selected-originals/temporal-six-version-help-result.json": {
+      "bytes": 6819,
+      "mode": 256,
+      "sha256": "c904d112233c6028644aa4756d976492291d1068864534fca7d5e2ec37d6c1e7"
+    },
+    "selected-originals/temporal-six-version-help-review.json": {
+      "bytes": 10308,
+      "mode": 256,
+      "sha256": "ce7d232b056792f28efe55fbbccd57ad743f76d2e04f8441bed4b85290f4ee98"
+    },
+    "selected-originals/temporal-six-version-help-root-join.json": {
+      "bytes": 493,
+      "mode": 256,
+      "sha256": "0468910952dc8604c1f60ac9f6e494de89b3850169b7e098a43c292739ae85c9"
+    }
+  },
+  "format": "selected-native-prerequisites-member-manifest-v2",
+  "memberCountWithoutManifest": 27,
+  "originalCount": 25
+}

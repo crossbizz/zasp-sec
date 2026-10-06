@@ -1,0 +1,18 @@
+{
+  "actualChildReturncode": 0,
+  "cleanupErrors": [],
+  "completed": true,
+  "elapsedSeconds": 0.1332230419939151,
+  "exceptionClass": null,
+  "forcedCleanup": false,
+  "joined": true,
+  "parentToolOuterJoinNotInvented": true,
+  "phase": "tests",
+  "postToolAndSourceVerified": true,
+  "scope": "Own guard tests only; no network",
+  "signals": [],
+  "stderrSHA256": "29284642779e3728be42ce01f1f54603c608e34a6cb24755e73b293c98c4bad8",
+  "stdoutSHA256": "376a3d41af2a46445fd7576fea9b392eb2dbf25998d8de8400b63f24353c6799",
+  "survivors": false,
+  "timeout": false
+}

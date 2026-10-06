@@ -1,0 +1,15 @@
+test_wait_joins_capture_before_result (__main__.LifecycleCases.test_wait_joins_capture_before_result) ... FAIL
+
+======================================================================
+FAIL: test_wait_joins_capture_before_result (__main__.LifecycleCases.test_wait_joins_capture_before_result)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authorization80-real-fga-lifecycle-cases-r4-_8vhbgt2/lifecycle_cases.py", line 46, in test_wait_joins_capture_before_result
+    self.assertTrue(observed.is_set(),'result returned before its captured stream completed')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : result returned before its captured stream completed
+
+----------------------------------------------------------------------
+Ran 1 test in 0.151s
+
+FAILED (failures=1)
