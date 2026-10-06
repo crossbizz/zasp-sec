@@ -1,0 +1,19 @@
+{
+  "scanner": "gitleaks8.30.1",
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "dir",
+    "/workspace/.zasp-cloud-owned/native379-v2-85321-reconciliation-publication-14a1t5jo/evidence",
+    "--no-banner",
+    "--redact=100",
+    "--report-format=json",
+    "--gitleaks-ignore-path=/workspace/.zasp-cloud-owned/native379-v2-postcommit-reconciliation-mp6l37dy/baseline.gitleaksignore",
+    "--report-path=/workspace/.zasp-cloud-owned/native379-v2-85321-reconciliation-publication-14a1t5jo/publication-scan-redacted.json"
+  ],
+  "cwd": "/workspace/zasp-sec",
+  "exitCode": 0,
+  "findingCount": 0,
+  "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "logSHA256": "36c786436135791bdb015d18f2a5773f80cbaa1459b89180d4e3be6c454e9e04",
+  "boundary": "Plain published metadata/default directory scan only. Encoded gzip payloads retain independently reviewed original findings; no compressed-payload or current full-history clearance."
+}

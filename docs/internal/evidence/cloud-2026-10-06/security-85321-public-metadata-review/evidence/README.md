@@ -1,0 +1,9 @@
+# Exact publication-commit scanner reconciliation
+
+Commit 85321bb8fc72ec0748cff5e70e2fb24c253416fa failed its original exact-commit scan with five findings. Every finding is a verified public SHA256 of the actual frozen apiserver binary or an approved PostgreSQL runtime library. The committed blobs equal the sealed publication bytes. Exact machine-to-redacted finding equality and actual byte hashes were independently reviewed; zero findings remain unknown.
+
+The five findings share four immutable fingerprints because two library hashes occur on the same line. The candidate preserves the complete 8ab2 baseline byte prefix and appends only those four actual commit:path:rule:line coordinates. Its exact historical-commit scan passes with zero findings. Genuine canaries retain all five detections at the same paths in a different commit and all five at new paths. Independent review c34e passed. No rule, path, content, prefix or future-commit exception was added.
+
+This bounded archive retains the original FAIL5, candidate PASS0 and canary FAIL10 redacted reports, logs and actual command records; public semantic proof; exact baseline and candidate bytes; scripts; and independent review. Every gzip member has deterministic encoding and verified decoded byte count/hash. The original private manifest 4a7 is preserved unchanged; its two machine-literal resolution inputs are intentionally omitted from publication, with original hashes disclosed. The private canary Git repository is retained at its original location rather than copied.
+
+The original failed scan is not rewritten. Compression is data encoding, not password or scanner clearance. These are reviewed historical-coordinate exceptions; current full-history clearance requires its separate actual scan, and future commits still undergo scanning. No shared write, native success, release or all-728 promotion is claimed by this archive.
