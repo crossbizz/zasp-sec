@@ -1,0 +1,14 @@
+{
+  "originalManifestSHA256": "906da79335a1dd36b9c22fe56ef27ace8fee3fd34b74006f45aaac2d466cc846",
+  "separateReviews": {
+    "independent-full-verify-9970bcbd-publication-review.json": {
+      "decodedSHA256": "15882804ec9f9e103a245e602210c39c88e5b9a76c1e3e22d033626478bc38ed",
+      "encodedSHA256": "696a9ebf0235fcfddcc9dcbdfc9127052c008d1f63d11d0492e2dedacb6b20da"
+    },
+    "independent-full997-publication-review.json": {
+      "decodedSHA256": "af4324668e30a873071783d47da497927f428311d7b143f13a5ebeca55f7a6cf",
+      "encodedSHA256": "8f967fbf44bd2338a108790b4072c0869e46bed258d5f6810eab84ebab4b3613"
+    }
+  },
+  "limits": "Original private-state manifest and bytes retained; separate review permits publication only, not full/native/deployed acceptance."
+}

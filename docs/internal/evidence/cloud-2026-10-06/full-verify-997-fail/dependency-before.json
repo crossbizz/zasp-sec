@@ -1,0 +1,13 @@
+{
+  "detached_source_commit": "9970bcbd04227e32d3161e921838371a3c14642c",
+  "worktree": "/workspace/.zasp-cloud-owned/full-verify-9970bcbd-vExzs0",
+  "node_modules_symlink": "/workspace/.zasp-cloud-owned/full-verify-9970bcbd-vExzs0/node_modules",
+  "node_modules_realpath": "/workspace/zasp-sec/node_modules",
+  "shared_dependency_input": "Existing /workspace/zasp-sec/node_modules shared via symlink; no install or copied/frozen module closure. Root changes may affect checkout source but not dependency bytes by agreed scope.",
+  "package_files": {
+    "package.json": "43a2e7504ebbb0fdf78c58075077ce041dd77547b4cb9938efe68b10b1c4af00",
+    "package-lock.json": "d34f213a3222a5fd3cecea449bb4242ebe725bdb8a3c73a08d2eb3a66d687b01"
+  },
+  "node_modules_lock_sha256": "eae4b9ec86f69caf26eb6b6bf82c9eab8d3c4413df39ca28f05c1abd3d669faa",
+  "no_install": true
+}

@@ -1,0 +1,31 @@
+{
+  "source": "docs/internal/2026-09-22-temporal-openfga-crosswalk.tsv",
+  "source_commit": "9970bcbd04227e32d3161e921838371a3c14642c",
+  "source_sha256": "6c0f4432ee18b260d194b47fe89774d5377441e38b77715ba9298e3dc51381ce",
+  "linked_rows": [
+    {
+      "original_id": "M1-28",
+      "requirement": "service health endpoints. Deliverable: Register common health endpoint contract in OpenAPI/internal service docs.",
+      "packet": "P1,P10",
+      "production_class_unchanged": "production-available",
+      "observation": "Actual health-contract phaseFAIL from API runtime-readiness healthy callback; worker race packagePASS451.861s; sharedhealth/healthserverPASS.",
+      "limits": "Relevant command/gate evidence only. No health endpoint defect inferred, category/task promotion or installed/deployed authority."
+    },
+    {
+      "original_id": "M1-28b",
+      "requirement": "platform health wiring. Deliverable: Wire shared health handlers into platform API and worker commands.",
+      "packet": "P1,P10",
+      "production_class_unchanged": "production-available",
+      "observation": "Actual health-contract phaseFAIL from API runtime-readiness healthy callback; worker race packagePASS451.861s; sharedhealth/healthserverPASS.",
+      "limits": "Relevant command/gate evidence only. No health endpoint defect inferred, category/task promotion or installed/deployed authority."
+    }
+  ],
+  "all_original_728_rows_and_categories_unchanged": true,
+  "counts": {
+    "rows": 728,
+    "production_available_categories": 523,
+    "component_only_categories": 144,
+    "blocked_external_categories": 61
+  },
+  "counts_limits": "Existing categories retained from authoritative ledger, not a new check or deployment proof. No additional IDs inferred."
+}

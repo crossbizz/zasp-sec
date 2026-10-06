@@ -1,0 +1,9 @@
+{
+  "original_full512": "FAIL302s/three failures; original packet140bbe unchanged",
+  "original_full6af": "FAIL478s/workerPASS439.046/API original characterization solefailure; packet287dd unchanged",
+  "original_native_d466": "FAILED205.99s; docs/internal/evidence/cloud-2026-10-06/native379-v2-native-failure-d466 preserved",
+  "original_native512": "FAILED approximately224s; docs/internal/evidence/cloud-2026-10-06/native379-v2-native-failure-512 preserved",
+  "current997": "FAIL510s/workerPASS451.861/API callback solefailure; original characterization failure absent; no native outcome tied to this fullrun",
+  "historical3cccUI": "246files/2535tests PASS is historical separate733s securitygateFAIL, not current997 evidence",
+  "prior_evidence_modified": false
+}
