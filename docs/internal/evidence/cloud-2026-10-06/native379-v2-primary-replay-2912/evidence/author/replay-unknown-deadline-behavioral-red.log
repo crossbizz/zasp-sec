@@ -1,0 +1,8 @@
+=== RUN   TestNative379V2ReplayBorrowedQueryMetadataRefused
+=== RUN   TestNative379V2ReplayBorrowedQueryMetadataRefused/unknown-attempt-exceeds-SQL-child-deadline
+    authorization_worker_ordered_current_native379_v2_test.go:5375: impossible unknown-query deadline admitted despite complete forgedledger
+--- FAIL: TestNative379V2ReplayBorrowedQueryMetadataRefused (0.09s)
+    --- FAIL: TestNative379V2ReplayBorrowedQueryMetadataRefused/unknown-attempt-exceeds-SQL-child-deadline (0.06s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.121s
+FAIL

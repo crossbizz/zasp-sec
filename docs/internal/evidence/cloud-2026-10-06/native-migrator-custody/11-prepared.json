@@ -1,0 +1,47 @@
+{
+  "copies": {
+    "agentsec-migrate": {
+      "ctime_ns": 1791301124671311502,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 432372,
+      "kind": "file",
+      "mode": 33216,
+      "mtime_ns": 1791266323190066283,
+      "nlink": 1,
+      "sha256": "cba69ee00bbc20939e50d1954c6243e1f347ccd9c6b36971f0d68abb05952d38",
+      "size": 44126392,
+      "uid": 1000
+    }
+  },
+  "destinationChildDirectories": {},
+  "destinationRootStableIdentity": {
+    "dev": 34,
+    "gid": 1000,
+    "ino": 432371,
+    "mode": 16832,
+    "nlink": 2,
+    "uid": 1000
+  },
+  "inactivityAfter": {
+    "privilegedExactRootProofSHA256": "cb1a5399a08817acc10ef6b985d782c2703fc45fd9de7820bb158b0018ab8215",
+    "snapshotNotLifetimeClaim": true,
+    "unknownOrActive": false,
+    "visibleNonZombieProcessesInspected": 10
+  },
+  "inactivityBefore": {
+    "privilegedExactRootProofSHA256": "cb1a5399a08817acc10ef6b985d782c2703fc45fd9de7820bb158b0018ab8215",
+    "snapshotNotLifetimeClaim": true,
+    "unknownOrActive": false,
+    "visibleNonZombieProcessesInspected": 10
+  },
+  "independentAdmissionRequiredBeforeUnlink": true,
+  "originalInventorySHA256": "62228a2fa12acb33602d944ecb5ab0807d21b55202369cb590fda3264ff65263",
+  "originalPathsPresent": true,
+  "planSHA256": "5a1688d07bbdcf1915feb81516ddd96f57636cf94dc4e3299b1a67e3d7c7c707",
+  "runtimeFloorUnchanged": 1500000000,
+  "scriptSHA256": "787fa4dbcac0a8f3d72ab2ef231bb7c69628cb85f86cdf14ca9f9320b5605b95",
+  "status": "COPY-VERIFIED-NO-SOURCE-UNLINK",
+  "tmpFreeAfter": 569061376,
+  "workspaceFreeObservedOnly": 1502797824
+}

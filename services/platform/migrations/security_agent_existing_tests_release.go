@@ -59,8 +59,8 @@ func SecurityAgentExistingTestsFingerprint() string {
 	return "2c324e78917f97feee14f915b397efbb92a183d47afd7473139dd0691cf0bb04"
 }
 
-func ProductionSecurityAgentExistingTests() Metadata {
-	sql := strings.Replace(securityAgentExistingTestsUpSQL, "-- existing test candidate fragments", SecurityAgentExistingTestEnqueueCandidateSQL(), 1)
+func securityAgentExistingTestsTemplate(budget, context string) string {
+	sql := strings.Replace(securityAgentExistingTestsUpSQL, "-- existing test candidate fragments", securityAgentExistingTestEnqueueWithPredecessor(context), 1)
 	sql += "\n" + securityAgentExistingTestPlannerSQL
 	sql += "\n" + securityAgentExistingTestApprovalsSQL
 	sql += "\n" + securityAgentExistingTestReadsSQL
@@ -76,11 +76,16 @@ func ProductionSecurityAgentExistingTests() Metadata {
 	sql += "\n" + securityAgentExistingTestPublicSQL
 	sql += "\n" + securityAgentExistingTestGlobalControlSQL
 	sql = strings.NewReplacer(
-		"-- existing tests budget checksum", ProductionSecurityAgentBudgets().Checksum(),
+		"-- existing tests budget checksum", budget,
 		"-- existing tests budget fingerprint", SecurityAgentBudgetCandidateFingerprint(),
-		"-- existing tests context checksum", ProductionSecurityAgentRunContext().Checksum(),
+		"-- existing tests context checksum", context,
 		"-- existing tests context fingerprint", SecurityAgentRunContextFingerprint(),
 	).Replace(sql)
+	return sql
+}
+
+func ProductionSecurityAgentExistingTests() Metadata {
+	sql := securityAgentExistingTestsTemplate(ProductionSecurityAgentBudgets().Checksum(), ProductionSecurityAgentRunContext().Checksum())
 	digest := sha256.Sum256([]byte(sql + "\x00" + securityAgentExistingTestsDownSQL))
 	checksum := hex.EncodeToString(digest[:])
 	sql = strings.ReplaceAll(sql, "-- compiled existing tests checksum", checksum)

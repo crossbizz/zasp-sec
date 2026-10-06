@@ -1,0 +1,98 @@
+{
+  "schema": "bounded-publication-proof-manifest-v1",
+  "members": {
+    "evidence/README.md": {
+      "bytes": 1908,
+      "sha256": "be7cc0ea63d6a7f68d13ffbf8ae77bf1a2c8b8e5b44c4f5531a1ee5f8ab18bd6"
+    },
+    "evidence/baseline.gitleaksignore.gz": {
+      "bytes": 7444,
+      "sha256": "ccc3c3081ad3f1298ec90309acea1a195f40e4f6553195c6353dcfddf13d7bb5"
+    },
+    "evidence/boundary.json": {
+      "bytes": 1725,
+      "sha256": "be5979fed84ce545b39db4359d495916fc162d9340cacf991b0528fe19b230a1"
+    },
+    "evidence/candidate-actual-commit-record.json.gz": {
+      "bytes": 479,
+      "sha256": "eec884ad6a0c0ec0ffd3ebfcf3bbc9fc82be96a1707cbd813eee7593343616c5"
+    },
+    "evidence/candidate-actual-commit-redacted.json.gz": {
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "evidence/candidate-actual-commit.log.gz": {
+      "bytes": 105,
+      "sha256": "46bc8d84c53315a73a85ef46af3313e4e29f7884a3ebd894f1fb5ca6a783237e"
+    },
+    "evidence/candidate-canary-proof.json.gz": {
+      "bytes": 892,
+      "sha256": "be0d89432ca56607281d408607cca96b6973e22713218ebc4ca46243c94a7ac0"
+    },
+    "evidence/candidate-detection-canaries-record.json.gz": {
+      "bytes": 485,
+      "sha256": "76cceba9380eeb1f4527c8fcbe453b6001f45271669376240c6d5f6832b19b2c"
+    },
+    "evidence/candidate-detection-canaries-redacted.json.gz": {
+      "bytes": 824,
+      "sha256": "6ef51e69bdfa152e861bb434ef4ea425e77322d27025f962ff6be5c35f2c4740"
+    },
+    "evidence/candidate-detection-canaries.log.gz": {
+      "bytes": 109,
+      "sha256": "c1df195e910c93a65c1a9d2313cf034a1f17a29da1b7997492f1be3762cc7e35"
+    },
+    "evidence/candidate.gitleaksignore.gz": {
+      "bytes": 7598,
+      "sha256": "aa9deff1496139b334459053ff7b41dcceb4a95eea8a85d95fa1c76a1fda561d"
+    },
+    "evidence/compression-provenance.json": {
+      "bytes": 8597,
+      "sha256": "09cbed3544ad1700e1604259c1a850db85532a014f6ce0b240ffb59deb83c99d"
+    },
+    "evidence/independent-provider-85321-exact-four-review.json.gz": {
+      "bytes": 1016,
+      "sha256": "31a841332c385b0de0879b661b6cd84a98406b37f62809b97cb80e66dc330fc9"
+    },
+    "evidence/reconciliation-manifest.json.gz": {
+      "bytes": 1295,
+      "sha256": "4b8c2046d7387913ee2dc15651f9c8d119ad414c4943c9fa4b8d584d6b0e3ab4"
+    },
+    "evidence/reconciliation-proof.json.gz": {
+      "bytes": 1660,
+      "sha256": "d8c3d1c8a26afcad22a7725207c6020860479cb35153df9fda718218058f4673"
+    },
+    "evidence/run-candidate-and-canaries.py.gz": {
+      "bytes": 1556,
+      "sha256": "b7c7a391ba35936ab7ee664e05bac6c634a92c1fce65b6bc76660620af12ded1"
+    },
+    "evidence/scan-exact-commit.py.gz": {
+      "bytes": 1025,
+      "sha256": "e2fd530ac1a8dc3d79b3c7edec806e332bffa508ac58ddc12c26c868808ad66a"
+    },
+    "evidence/scan-record.json.gz": {
+      "bytes": 575,
+      "sha256": "8f31cd79113ce63bcc80464288181a0c31af0ba0c7fab90644be834790c6d14c"
+    },
+    "evidence/scan-redacted.json.gz": {
+      "bytes": 813,
+      "sha256": "e8a0366f66629517f5fbaa5d2a04da5b31ae6aed367654215445da71ae061f18"
+    },
+    "evidence/scan.log.gz": {
+      "bytes": 109,
+      "sha256": "710a64ac8a6f5bfa91107a84618e6e67654d0a2cfa54356e1d84ff447abe59c3"
+    },
+    "publication-scan-record.json": {
+      "bytes": 975,
+      "sha256": "9092de5a0b942f04c9bcc52cf1dbba1aac8a12f87c5e50e9d4f42eeb9f539490"
+    },
+    "publication-scan-redacted.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "publication-scan.log": {
+      "bytes": 79,
+      "sha256": "36c786436135791bdb015d18f2a5773f80cbaa1459b89180d4e3be6c454e9e04"
+    }
+  },
+  "boundary": "Manifest excludes itself; all17 compressed originals roundtrip byte-exact; original private manifest unchanged. No shared write or current full-history clearance."
+}

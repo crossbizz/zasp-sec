@@ -1,0 +1,58 @@
+{
+  "format": "durable-semantic-evidence-publication-manifest-v1",
+  "files": {
+    "README.md": {
+      "bytes": 2329,
+      "sha256": "00a000f43db5fc2fed652c721fb31b1e5b6e1d9b56a7fd479a055380c619448d"
+    },
+    "additional-scanner-evidence-receipt.json": {
+      "bytes": 2030,
+      "sha256": "6eb489cd1775313199704044d0d8ab6f910d5b95afc92c6f7ebd405eb8108d61"
+    },
+    "archive-receipt.json": {
+      "bytes": 1213,
+      "sha256": "25e8a3fb661e5ed74993a254fa8509dbddb573e324f8c33cce810c40b078bf14"
+    },
+    "fresh-full-history-precommit-summary.json": {
+      "bytes": 421,
+      "sha256": "dc0ae41c0f9fec8bb86909c15a93322e3f4bac485de9ccae438c7f756dae8de7"
+    },
+    "full-history-precommit-pass-report.json.gz": {
+      "bytes": 23,
+      "sha256": "abc129be8d26e8d4afe9ce45f9d5a73c8ed9aa62810ca24ee789fe4581dc4a80"
+    },
+    "full-history-precommit-pass.log.gz": {
+      "bytes": 114,
+      "sha256": "c9c8b8a44a2616bbf026d13db34a9d830fbe95a4ae247ac2bcc9dbe3c7b0feb7"
+    },
+    "independent-provider-review.json": {
+      "bytes": 4383,
+      "sha256": "400d7617f3e626801a66c0020a94a6bd0666f3ea085fcd13697d792ca212b0ce"
+    },
+    "original-directory-fail-180-redacted-report.json.gz": {
+      "bytes": 2291,
+      "sha256": "2d5e12e0699a31f839883dbbd3da679db822474a6608a1e234179e3d84b8072a"
+    },
+    "original-directory-fail-180-summary.json": {
+      "bytes": 1105,
+      "sha256": "a33a331913628b99806b81edc2b93482484fd91f7d0149c48ec69179ad345207"
+    },
+    "original-packet-manifest.json": {
+      "bytes": 5420,
+      "sha256": "213c95e66777b72a348fc9e691761a0f1aba6c7315e22ca1f47a569fbd5105cf"
+    },
+    "original-sixteen-files.tar.gz": {
+      "bytes": 30343,
+      "sha256": "f3e446bd4ec2ff342bba7881f021ce3b5356ec77ca28b4464b903920165e57cb"
+    },
+    "public-git-reference-180-classification.json": {
+      "bytes": 134048,
+      "sha256": "ec57ab68a3034c8df9c362f38705a7c6dcacfd0cdba7e9649b8d36de719a70d0"
+    },
+    "independent-provider-archive-review.json": {
+      "bytes": 2461,
+      "sha256": "a1a64a2e6595b231c0e346a598c6378d7a5d82afa4a4cc6ecdb055843ebf7c22"
+    }
+  },
+  "publication_status": "PRIVATE stable publication closure; original16 archive unchanged; independent archive/180 review PASS; actual precommit evidence separate; postcommit scan required"
+}

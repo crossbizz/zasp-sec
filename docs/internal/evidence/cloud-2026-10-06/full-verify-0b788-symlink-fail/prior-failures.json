@@ -1,0 +1,13 @@
+{
+  "preserved": [
+    "full512FAIL302s",
+    "full6afFAIL478s",
+    "full997FAIL510s",
+    "native_d466FAIL205.99s",
+    "native512FAILapproximately224s",
+    "historical3cccFAIL733s with2535UIpass"
+  ],
+  "current": "full0bFAIL755s atSBOMguard afterhealth/UI/typecheck/lint/imports/stagingPASS",
+  "original_failure_packets_edited": false,
+  "hosted997_failure_cause": "unknown; local results do not establish hosted cause"
+}

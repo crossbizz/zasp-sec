@@ -1,0 +1,146 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 1505,
+      "mode": 256,
+      "sha256": "9b2a5706db1de7038297732e66a86d23914ae84e59b29fa495f986ef431958ff"
+    },
+    "publication-plan.json": {
+      "bytes": 24790,
+      "mode": 256,
+      "sha256": "b604589e0c8d1fafc0759e5b9436c81bfd7ef6367aa6049043ab8569a63f8de4"
+    },
+    "selected-originals/diagnostic-owner-result.json": {
+      "bytes": 1804,
+      "mode": 256,
+      "sha256": "ec6b9ed74b8d61b0ed079e8a5dce229a332726af1d2d0b982c70022bcb8094e2"
+    },
+    "selected-originals/diagnostic-review.json": {
+      "bytes": 3969,
+      "mode": 256,
+      "sha256": "1b794537cfb377688741ee7610c16e27c8a9727d61024c6eecceeeec6b5d9e9f"
+    },
+    "selected-originals/diagnostic-root-join.json": {
+      "bytes": 843,
+      "mode": 256,
+      "sha256": "6b5a68d085c04eb42a1ef946681e7d11dc33ceab12babc7531bd0b3f8646cf8a"
+    },
+    "selected-originals/diagnostic-worker-refusal.json": {
+      "bytes": 706,
+      "mode": 256,
+      "sha256": "7111c0b5de6bf20637f7486169247aaa309d1b183880ceb4f8b7efc738012e28"
+    },
+    "selected-originals/fullmetadata-owner-result.json": {
+      "bytes": 1756,
+      "mode": 256,
+      "sha256": "6b74766b15e34955ee71cc1cdca61223468a479e42d998c3426d83dca668401e"
+    },
+    "selected-originals/fullmetadata-review.json": {
+      "bytes": 10146,
+      "mode": 256,
+      "sha256": "fe8ad7a50b4777b6433fd432bb69b414670b3b62b2c83862bc1d5fbd5322c74f"
+    },
+    "selected-originals/fullmetadata-root-join.json": {
+      "bytes": 814,
+      "mode": 256,
+      "sha256": "55750ded7da35bcce88a012d842ba78b70e90034faab3c566327ee1d91b8dbb4"
+    },
+    "selected-originals/fullmetadata-source-static-review.json": {
+      "bytes": 2071,
+      "mode": 256,
+      "sha256": "e1dc3b59bb0c5504dec9efc554a18d6658e9c452a633d2abb6fba8b91c0d316b"
+    },
+    "selected-originals/fullmetadata-worker-result.json": {
+      "bytes": 6773,
+      "mode": 256,
+      "sha256": "5ec3d4953d3a53040be9ab51019a9eca6deeccfe41a5514d1a7be19f87554d7e"
+    },
+    "selected-originals/selected-TDD-join-addendum.json": {
+      "bytes": 573,
+      "mode": 256,
+      "sha256": "1b0739ae6dc08f3c7d2cc0abbb6e5c09fcf24ee6a8093df736b441722bf3449d"
+    },
+    "selected-originals/selected-TDD-owner-result.json": {
+      "bytes": 2349,
+      "mode": 256,
+      "sha256": "7f701cba3484d19aafc6f8688bdd44a00f0aeace271ba0aef1d0d8584100e540"
+    },
+    "selected-originals/selected-TDD-review.json": {
+      "bytes": 3446,
+      "mode": 256,
+      "sha256": "6b90924ca9722b8d957e08ba1da26774b42663c82834c1925686d7b2cb94283b"
+    },
+    "selected-originals/selected-TDD-root-join.json": {
+      "bytes": 500,
+      "mode": 256,
+      "sha256": "2468d05a6038fb2ac0ed763bd12737e6d9516efaa2a7bb874e4b5b9ccb77f9f0"
+    },
+    "selected-originals/selected-TDD-source-static-review.json": {
+      "bytes": 2100,
+      "mode": 256,
+      "sha256": "4a1d09a6754c69cd9d561edffbd7f80a81181568297f59f1fdeea79ec061342b"
+    },
+    "selected-originals/selected-install-actual-tools.json": {
+      "bytes": 9046,
+      "mode": 256,
+      "sha256": "8c54770e3cce45a476a660279cb93e50624edd025855f17e99db73eef0765abc"
+    },
+    "selected-originals/selected-install-byte-review.json": {
+      "bytes": 6768,
+      "mode": 256,
+      "sha256": "7f796c9aad25005b83850454258191f51434cca7b7ca1ed1407b5c50b8aa1548"
+    },
+    "selected-originals/selected-install-download-extract-record.json": {
+      "bytes": 1101,
+      "mode": 256,
+      "sha256": "69bfeca9dd32e07266efa543d8c331aff9352899c7f9ce230573abd3391fb090"
+    },
+    "selected-originals/selected-install-final-owner-static-review.json": {
+      "bytes": 1693,
+      "mode": 256,
+      "sha256": "7286c1caad3142f7803bd3524bfd2d773a784ff3d0965c17d08ea1377b4acb8a"
+    },
+    "selected-originals/selected-install-initial.json": {
+      "bytes": 239,
+      "mode": 256,
+      "sha256": "37693d15b8250f09175d78136fe7fd31d1e602d7bf4c5aa7ce69a42bfe7c769c"
+    },
+    "selected-originals/selected-install-owner-result.json": {
+      "bytes": 1949,
+      "mode": 256,
+      "sha256": "6c75c1c4a12631a16b9f8d0870f02cc82eec5c962799c9ec2e6edc12fe91f60e"
+    },
+    "selected-originals/selected-install-root-join.json": {
+      "bytes": 664,
+      "mode": 256,
+      "sha256": "e47377c5f123c9ced19e91c4bd3f8ae3325eabcb6f8dd450dd71e0ae4191602c"
+    },
+    "selected-originals/selected-install-source-boundary.json": {
+      "bytes": 1606,
+      "mode": 256,
+      "sha256": "024f963a5116c1cc1de05a34adedbe86a035b1ae7960f7108db1d1bb85c6b306"
+    },
+    "selected-originals/selected-install-source-head-after.json": {
+      "bytes": 888,
+      "mode": 256,
+      "sha256": "61fec8ccad6b26f20972506363f974063e60e81920ee77b827bd77c6572c4e75"
+    },
+    "selected-originals/selected-install-source-head-before.json": {
+      "bytes": 889,
+      "mode": 256,
+      "sha256": "3759075b31f074313eb9eb0a93342c148d3ad7c386970c706fbab335a493fd78"
+    },
+    "selected-originals/selected-install-source-manifest.json": {
+      "bytes": 1207,
+      "mode": 256,
+      "sha256": "1051b329c1d80558c001bc2a4a8093e329113b326e862d6c933828d17c410f41"
+    },
+    "selected-originals/selected-install-worker-result.json": {
+      "bytes": 1260,
+      "mode": 256,
+      "sha256": "e681b7b75782ee51144adc969429501b2eb0498568da0276f3a13ac4b22edd6c"
+    }
+  },
+  "format": "Temporal132-selected-evidence-candidate-member-manifest-v1",
+  "selectedOriginalCount": 26
+}

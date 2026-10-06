@@ -22,7 +22,15 @@ func TestP7OrderedReadinessRoutingCharacterization(t *testing.T) {
 			name = "current typed release without actor proof"
 		}
 		t.Run(name, func(t *testing.T) {
-			driver := &orderedRoutingCharacterizationDriver{t: t, current: current}
+			// Compute independent expected pins before the caller deadline starts.
+			driver := &orderedRoutingCharacterizationDriver{
+				t: t, current: current,
+				expectedPublicChecksum:    migrations.ProductionSecurityAgentPublic().Checksum(),
+				expectedPublicFingerprint: migrations.SecurityAgentPublicFingerprint(),
+			}
+			if current {
+				driver.expectedAuthorizationChecksum = migrations.ProductionAuthorizationEnforcement().Checksum()
+			}
 			database, err := apiserver.NewPostgresJSONDatabase(driver)
 			if err != nil {
 				t.Fatal(err)
@@ -57,9 +65,12 @@ func TestP7OrderedReadinessRoutingCharacterization(t *testing.T) {
 }
 
 type orderedRoutingCharacterizationDriver struct {
-	t                      *testing.T
-	current                bool
-	queries, begins, execs int
+	t                             *testing.T
+	current                       bool
+	queries, begins, execs        int
+	expectedAuthorizationChecksum string
+	expectedPublicChecksum        string
+	expectedPublicFingerprint     string
 }
 
 var _ apiserver.AuthorizationTransactionDriver = (*orderedRoutingCharacterizationDriver)(nil)
@@ -67,7 +78,7 @@ var _ apiserver.AuthorizationTransactionDriver = (*orderedRoutingCharacterizatio
 func (d *orderedRoutingCharacterizationDriver) QueryRow(ctx context.Context, statement string, args ...any) apiserver.PostgresRow {
 	d.queries++
 	if d.current {
-		if statement != `SELECT zasp_authorization80.ready($1), zasp_ordered_public62.api($2,$3,'{"operation":"deployment_ready"}'::jsonb)` || len(args) != 3 || args[0] != migrations.ProductionAuthorizationEnforcement().Checksum() || args[1] != migrations.ProductionSecurityAgentPublic().Checksum() || args[2] != migrations.SecurityAgentPublicFingerprint() {
+		if statement != `SELECT zasp_authorization80.ready($1), zasp_ordered_public62.api($2,$3,'{"operation":"deployment_ready"}'::jsonb)` || len(args) != 3 || args[0] != d.expectedAuthorizationChecksum || args[1] != d.expectedPublicChecksum || args[2] != d.expectedPublicFingerprint {
 			d.t.Error("wrong closed current release statement or compiled pins")
 			return orderedRoutingCharacterizationRow{err: errors.New("unexpected current release binding")}
 		}
@@ -81,7 +92,7 @@ func (d *orderedRoutingCharacterizationDriver) QueryRow(ctx context.Context, sta
 		return orderedRoutingCharacterizationRow{err: errors.New("unexpected statement")}
 	}
 	body, ok := args[2].(json.RawMessage)
-	if args[0] != migrations.ProductionSecurityAgentPublic().Checksum() || args[1] != migrations.SecurityAgentPublicFingerprint() || !ok || string(body) != `{"operation":"deployment_ready"}` {
+	if args[0] != d.expectedPublicChecksum || args[1] != d.expectedPublicFingerprint || !ok || string(body) != `{"operation":"deployment_ready"}` {
 		d.t.Error("wrong compiled release pins or closed deployment request")
 		return orderedRoutingCharacterizationRow{err: errors.New("unexpected release binding")}
 	}

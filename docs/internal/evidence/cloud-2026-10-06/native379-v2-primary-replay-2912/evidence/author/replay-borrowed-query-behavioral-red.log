@@ -1,0 +1,14 @@
+=== RUN   TestNative379V2ReplayBorrowedQueryMetadataRefused
+=== RUN   TestNative379V2ReplayBorrowedQueryMetadataRefused/context-borrowed-valid-SHA
+    authorization_worker_ordered_current_native379_v2_test.go:5363: borrowed query metadata admitted despite complete forgedledger
+=== RUN   TestNative379V2ReplayBorrowedQueryMetadataRefused/context-wrong-closed-stage
+    authorization_worker_ordered_current_native379_v2_test.go:5363: borrowed query metadata admitted despite complete forgedledger
+=== RUN   TestNative379V2ReplayBorrowedQueryMetadataRefused/failure-borrowed-valid-SHA
+    authorization_worker_ordered_current_native379_v2_test.go:5367: borrowed failure query SHA admitted
+--- FAIL: TestNative379V2ReplayBorrowedQueryMetadataRefused (0.14s)
+    --- FAIL: TestNative379V2ReplayBorrowedQueryMetadataRefused/context-borrowed-valid-SHA (0.03s)
+    --- FAIL: TestNative379V2ReplayBorrowedQueryMetadataRefused/context-wrong-closed-stage (0.01s)
+    --- FAIL: TestNative379V2ReplayBorrowedQueryMetadataRefused/failure-borrowed-valid-SHA (0.06s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.161s
+FAIL

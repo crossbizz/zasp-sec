@@ -1,0 +1,59 @@
+{
+  "actual_identity": {
+    "binary_sha256": {
+      "agentsec-migrate": "2fbd43439cd684848f6510e43d95f0a57d9457871cdd55cd8bbb51d200928418",
+      "apiserver.test": "2f2d85ac203f610d1f5f7d52dee2f3e88e092594b3ed8fcca37b24fc4508c9f4",
+      "migrations.test": "3b92ff902556a3877f3299989f6790ee50541ebf59331af5f46ff20d54308a94"
+    },
+    "companion_sha256": "468734a003d41cad8ce4a5ffe31963ba37f49838ae8c5f5744c5ce6d5638850a",
+    "foundation": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r",
+    "go_envelope_path": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/frozen-source-preparation/go-build-envelope-candidate.json",
+    "go_envelope_sha256": "816fe4fb0b7be143cb3715e6b9ae3be934f34c78d753657b7922f7862e86b9e4",
+    "implementation_sha256": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e",
+    "input_sha256": "f4d659824558dbe6d4098f9e89754e5cb16e9ebb302b1ca0ac31564691bfe77f",
+    "source_commit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+    "source_inventory_sha256": "02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989",
+    "summary_sha256": "c3322059dd2c019a7bf3bf2d6850a543965f895d4affbce8b40110743c664748",
+    "v2_envelope_path": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/frozen-source-preparation/native379-v2-envelope-candidate.json",
+    "v2_envelope_sha256": "000076387b815beb30c8f02818e0ef8fd9e3d3eb269fdd4280eaff2f08978aef",
+    "wire_bytes": 25160408,
+    "wire_sha256": "5d18ca5f38c6f86c7cccda46fde1fb43008f6491b3c2a8319515592f7279a25a"
+  },
+  "assessment": "PASS-EXACT-NEW-FROZEN-SOURCE-BUILD-ENVELOPES-FOR-SEPARATE-ROOT-BOUNDED-ATTEMPT",
+  "declined_to_judge": [
+    "ActualPGversion/server/catalog behavior ornewnativeexecution; reviewerexecutednone.",
+    "Nativefull379/589 outcome success, installed/deployed/product/release acceptance orproductionauthority.",
+    "Causeofoldnativefailure, recoverabilityoflostmetadata, futurechangedsource/tools/envelopes/binaries.",
+    "Arbitraryescaped-session/interruption/adversarialsameUIDcleanuprobustness."
+  ],
+  "findings": {
+    "Critical": [],
+    "Important": [],
+    "Minor": []
+  },
+  "format": "independent-native379-v2-actual-diagnostic-frozen-envelope-review-v1",
+  "independent_rerun_evidence": {
+    "inventory_path": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-frozen-inputs-512beb.json",
+    "inventory_sha256": "478883205be66410c8574c1cc31222e9651dd73c1c53934ee330170375916a0c",
+    "log_path": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-frozen-inputs-512beb.log",
+    "log_sha256": "9af81a85d3dea4f2889a1169369f015047d97663816e34b4590dcbd27c0728d8"
+  },
+  "independent_verification": {
+    "binaries": "Threefresh actual0500ownedbinaries hashesmatchsummary/envelope/records; offlinego version-m confirmsGo1.25.13. Newpaths/hashes differfromoldroot; source/companion512 exact; actualnewGo inputdigest includesnewrootpaths.",
+    "go_inventory": "Independent frozennewapiserver binary source-only inventory rerun exit0: all5787 inputobjects/74moduleobjects exactlyequal envelope; digestf4d659\u2026 exact. Utility independently enumerates nestedCLI/import/embed/native/tool inputclosure, compares h1 identities to frozen go.sum, and runs offlinewholemodule go modverify.",
+    "node_inventory": "Actual1553Node closure equals1544 reviewedsource-manifest members plus9executable/compiler/generated/artifact members. Allunique5964Go/Node actualhashes match. New468734companion includedGo/excludedNode; all7 compiledsourceanchors matchapprovedwire/artifacts.",
+    "pg": "Fourwrappers+52uniquebasename runtime/extension hashesmatchactualbytes. Readelfonly verifiesallDT_NEEDEDnames inmap; /bin/sh resolvesbounddash. Actual1659frozenPGtree stillexact full43b9b77\u2026manifest, no writebits; hostlibs hashbound. NoPGexecutable/version/server invoked. Runtimeversion checks remainmandatory inoriginalbinder during futureattempt.",
+    "process_and_maps": "Inspectedall11actualfinitecommandrecords:exit0/cleanup_joinedtrue/no timeout/no unexpecteddescendants. Exactreviewed196e processhelperordinarygroup scope unchanged. Fullpostcompile andpostsourcecontrols source/module/tool equality andconsumedhash/modeproofmatch independentactualtree verification.",
+    "roots": "Allactualinput regularfiles, ownedUID1000, no writebits; completeGoRoot+ModuleCache traversal no symlinks/writebits/foreignUID. SourcePlatform and honesttrackedavailablehealth sibling withinnewModuleCache; no claimofconsumedhealthmodule. Cache/tmp700owned, noforeignUID/symlinkentries.",
+    "source": "All6239 actualcommitted Gitblobs independently verified against512beb archive; committedmap matchesarchive; actualfinishedmap matchesfrozen source. Exactlysix approvedgeneratedoutputs differ. All8 actualpins matchreviewedartifact and unchangedtwocontract/selectGitbytes. Counts measuredfresh, notcopiedfromd466.",
+    "source_controls": "Author actualnewbinary source13PASS/0FAIL/0SKIP57.914895seconds log75dc716\u2026. Prior independent6d02component13PASS8bd32d\u2026 preserved. No redundantnew13 rerun; independentlyreranactualnewbinaryinventory utility. All589recordedoutcome/6348stepvalidations andsevenselectedscriptedexecutions retainoriginalcaps/NULLbooleanerrorlazy/frame/restoration semantics; no actualPGexecution.",
+    "strict_schema": "ActualGo/V2 closedkeysets matchstrictcompiledstructs. V2 binds actualnewGoEnvelope SHA/path, allreviewedpins andNodeLinux93956 hash. Dispatchsourcepins matchactualsource. ExactcontrolledPATH/newGoRoot/newModuleCache/platformcwd required byoriginalbinder; no selfreportednonce/label substitutes for rootdigest."
+  },
+  "reviewer": "review_capture_dependency",
+  "safe_attempt_scope": {
+    "action": "Technicallysupports separately rootauthorized singleboundeddisposable nativev2 attempt ONLY using theseexactnewenvelopes/freshbinary. Rootmust bind fullactualGo816fe\u2026/V2000076\u2026 SHA256 andbinary2f2d85\u2026 beforelaunch. Existingold d466 roots/binary/envelopes/failure stayhistorical; neverreauthorized.",
+    "capacity_and_cause": "Previousprimarycatalogfalse remainsopaque; improveddiagnosticsclassifysecondarycollectoronly. Actualcatalogparity/native379 outcomes andnonzerotiming/metadata capacity remainunproven. Legal63-byteescapedlogin byteboundary remainsdocumented; fixedzasp_testscriptmodel is notgeneralcapacityproof.",
+    "launch": "env-i exactrecordedenvironment plusLC_ALL=C andthreev2native optins; exactnewfrozen platform/apiservercwd; exact ^TestP7OrderedCurrentIntegrityNativeV2$ filter; freshabsolute nonexistent exclusiveoutput anddurablelog/finiteprocessrecord. OmitambientLD_PRELOAD/LD_LIBRARY_PATH/PG/provider env. Originalstrictbinder re-enumerates/verifiesGo+Node/PGversion beforefixture andaftercleanup.",
+    "refusal": "Originaldeclaredphase/globaltime/row/bytecaps andall589 controls unchanged. Retainactualfailure/safesecondarydiagnostic+actualcleanup evidence; do notpublishsuccess orfinalizeonunresolvedownedresources."
+  }
+}

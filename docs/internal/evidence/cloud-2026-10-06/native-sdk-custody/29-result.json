@@ -1,0 +1,29 @@
+{
+  "status": "PASS-INSTALLER-ONLY",
+  "sourceHead": "32244b6e7757c08822a60f3f7ab2046df01c8365",
+  "failureClass": null,
+  "signals": [],
+  "versions": [
+    {
+      "id": "openfga",
+      "binarySHA256": "1071466abb2f9f71ecc4a047ff6537215756940edd404feb1e3ce0d4f854fd5a",
+      "versionStdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "versionStderrSHA256": "16f48490c788966d949b226508120421f9c8795a8ff22bea9c66775ecde0ffa1"
+    },
+    {
+      "id": "temporal",
+      "binarySHA256": "712217694cac9f786a72d4b6c876cd15f3dcf1bf31434d9fed6af25242a327a0",
+      "versionStdoutSHA256": "6251da9d8174d2c0c9211ea0aaad4d5afc5ad93c9824d0ee0222a1653ee6fcde",
+      "versionStderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "groups": {
+    "293509": [],
+    "293510": [],
+    "293515": [],
+    "293522": [],
+    "293530": []
+  },
+  "noServiceStartup": true,
+  "actualRuntimeSchemaReadiness": "NOT_CHECKED"
+}

@@ -1,0 +1,14 @@
+{
+  "version": "reviewed-current-A-source-successor-v1",
+  "source_commit": "02a974e2472c11fc7347e0cdf30c54fbe9ff293d",
+  "archive": "current-A-successor-v1.tar.gz",
+  "archive_sha256": "b2a3a652bfa47e8b800421b791cb5f3ee6431c3241b6dfe38287d32586b6e9d3",
+  "archive_bytes": 5394407,
+  "files": 165,
+  "manifest_members": 164,
+  "source_pins": 157,
+  "capture_descriptors": 1862,
+  "seed_manifest_sha256": "b3d03a9e7cd86daabbd80ead85cb30a5e98f856be35c08d15227fa710dd914fa",
+  "scope": "SOURCE ONLY; historical reference PostgreSQL identity retained; no Go/native authority",
+  "review_sha256": "7dd3a7e3533c1a01f9bb2fe511a6dec65a03bf721d705fe7913c3e84688df416"
+}

@@ -1,0 +1,94 @@
+{
+  "schema": "actual-joined-full0b-publication-manifest-v1",
+  "members": {
+    "README.md": {
+      "bytes": 3106,
+      "sha256": "5b5124faef551d1de61264642e3f39813d5cf6882d24c2df26c2ccc02f563be8"
+    },
+    "archive/before.json.gz": {
+      "bytes": 570,
+      "sha256": "abe44f778355672cc020388ad692b9603baeecc853f2f3f46ef20b3196d6b6c4"
+    },
+    "archive/capture-summary.json.gz": {
+      "bytes": 500,
+      "sha256": "d83b9c2c4853f32239b39d01b47c7cb01c436e5a4fabecfe07dca1d084205db9"
+    },
+    "archive/dependency-postfull-closure.json.gz": {
+      "bytes": 887,
+      "sha256": "7c01e22ab2508d36332a3d225354f2cf2f8d967a7e409cee8f9c2119babcabbe"
+    },
+    "archive/joined-full-summary.json.gz": {
+      "bytes": 1395,
+      "sha256": "f50b1490857a094091a5274e4e4df1a91a1b0668a90b8e5d189b42287ef08862"
+    },
+    "archive/original-scan-record.json.gz": {
+      "bytes": 513,
+      "sha256": "5d3ac5dbed88eed7bb5a5c9325f29fdb249df7889e137b91d7d479817ef5bd6d"
+    },
+    "archive/original-scan-redacted.json.gz": {
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "archive/original-scan.log.gz": {
+      "bytes": 91,
+      "sha256": "c785826a08095613356898f1d91b27fbbd29faba0c7f178349f17f94d107a44e"
+    },
+    "archive/post-capture-tool-identities.json.gz": {
+      "bytes": 607,
+      "sha256": "e5a6448d2457c133cbbd22c529fc4fd122089980907339f996996d7d2d134d48"
+    },
+    "archive/post-command-closure-record.json.gz": {
+      "bytes": 611,
+      "sha256": "e63bb553bb6e592db9c7c3562973476819c8a92aa3d7592eeb07abc5e4adbdb4"
+    },
+    "archive/post-full-actual-build-manifest.json.gz": {
+      "bytes": 134417,
+      "sha256": "c703af4502d51befd580e60f04477d3bde4cea4142602cf41cc4f05c327c005a"
+    },
+    "archive/post-full-source-6674-manifest.json.gz": {
+      "bytes": 517694,
+      "sha256": "4f9f2573cc26239f37ce84fd24d65512ba44070b7158ba99b33b720946d0816e"
+    },
+    "archive/process-binding.json.gz": {
+      "bytes": 247,
+      "sha256": "750dd53e9653f90c0533bf31adc757bd3bc43997141b0a3440a98090d383b9cb"
+    },
+    "archive/result.json.gz": {
+      "bytes": 290,
+      "sha256": "25fbbc7ffd0c75589881256f2fc851db8df17b8e881105bb0231e9be3431d78b"
+    },
+    "archive/run-root-full-verify-0b-receipt.py.gz": {
+      "bytes": 1796,
+      "sha256": "d2e870ecfc7a964644d29e007ba0ccf68732699c39329c008c27d1c5856c1742"
+    },
+    "archive/source-tool-bindings.json.gz": {
+      "bytes": 994,
+      "sha256": "d0e232be0fbc42281fced3eb24da01b88d452df3ab79889ef172858c11303845"
+    },
+    "archive/topology-repair-receipt.json.gz": {
+      "bytes": 964,
+      "sha256": "e957fdbcc7b2f2ef21e71f76784830d2c66f8eed685101ec8fe34ac8e646d3aa"
+    },
+    "archive/verify.log.gz": {
+      "bytes": 18177,
+      "sha256": "89ea5e2e82cd7a047652cad462bea82d9daebd2a52ab0a26b1910715b0a8836b"
+    },
+    "compression-provenance.json": {
+      "bytes": 7718,
+      "sha256": "73a9af890a056ceae114c6f59b6a96005b0aeb5a450f6cf7890f6c42b05ffca7"
+    },
+    "security/publication-scan-record.json": {
+      "bytes": 820,
+      "sha256": "49dfaf3f49a4aa2e1775208a0d06da1b5610ff5b9beb8341a66743d8dd25bdc0"
+    },
+    "security/publication-scan-redacted.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "security/publication-scan.log": {
+      "bytes": 79,
+      "sha256": "dad913958b5e3c886899aae442516be28f1db31985fa1f55f36fc8e9c4f1135f"
+    }
+  },
+  "boundary": "Actualreceipt-bound822.023s npmverify PASS only. Postjoin source/build/dependency snapshot with exactknownVitestcache delta. Manifest excludes itself. No browser/native/provider/deployed/all728promotion."
+}

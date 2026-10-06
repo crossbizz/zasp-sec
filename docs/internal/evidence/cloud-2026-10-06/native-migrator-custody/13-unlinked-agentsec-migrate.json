@@ -1,0 +1,19 @@
+{
+  "destination": "/tmp/native-migrator-lossless-custody-13a1abf010034d63a169c3a2d2f00aab/agentsec-migrate",
+  "destinationBinding": {
+    "ctime_ns": 1791301124671311502,
+    "dev": 34,
+    "gid": 1000,
+    "ino": 432372,
+    "kind": "file",
+    "mode": 33216,
+    "mtime_ns": 1791266323190066283,
+    "nlink": 1,
+    "sha256": "cba69ee00bbc20939e50d1954c6243e1f347ccd9c6b36971f0d68abb05952d38",
+    "size": 44126392,
+    "uid": 1000
+  },
+  "original": "agentsec-migrate",
+  "originalPathAbsent": true,
+  "originalSHA256": "cba69ee00bbc20939e50d1954c6243e1f347ccd9c6b36971f0d68abb05952d38"
+}

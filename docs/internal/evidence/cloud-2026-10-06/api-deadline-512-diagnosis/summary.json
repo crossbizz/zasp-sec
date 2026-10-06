@@ -1,0 +1,18 @@
+{
+  "format": "private-api-deadline-diagnostic-v1",
+  "source_commit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "baseline": "genuine full verification API characterization FAIL; parent1s/production5s",
+  "instrumented_runs": {
+    "focused_race_count5": "PASS5 characterization runs",
+    "full_api_package_race_count3": "PASS3 package runs"
+  },
+  "deadline_expiry_reproduced": false,
+  "all_instrumented_query_entries_and_post_pin_checks_expired": false,
+  "production_pin_cost_observed": "approx296\u2013357ms in current route; metadata composed SQL materialization occurs before QueryRow",
+  "fake_pin_cost_observed": "approx295\u2013329ms extra duplicate metadata work after QueryRow entry",
+  "finding": "Fixture repeats expensive expected pin materialization inside1s caller deadline, but instrumentation did not reproduce expiry or prove baseline failure stage. Production correctly fails closed if actual caller expires; no demonstrated production defect.",
+  "fix_selected": false,
+  "no_cap_or_cache_changes": true,
+  "no_db_or_provider_calls": true,
+  "remaining": "A correction needs actual evidence tying expiry to fixture expected-pin evaluation or a separately reviewed requirement for removing fixture-only work; do not claim these passing runs are behavioral RED/GREEN."
+}

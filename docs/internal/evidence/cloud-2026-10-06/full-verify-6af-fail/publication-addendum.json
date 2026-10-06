@@ -1,0 +1,6 @@
+{
+  "format": "separate-full6af-publication-addendum-v1",
+  "originalManifestSHA256": "287dd14a043c199daa5e3409cfa5aa7ba5e46ad90bd2e21170ecbd8628794787",
+  "independentReviewDecodedSHA256": "5d00b33b8224a6e2ecc6179cc9e29a6a074e6f1322821194794a1fe12b478174",
+  "limits": "Original private-state manifest and all original bytes retained verbatim; review establishes publication identity and scope, not native/deployed/full verification success."
+}

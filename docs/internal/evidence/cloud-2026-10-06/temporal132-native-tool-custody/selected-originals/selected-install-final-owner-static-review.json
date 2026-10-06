@@ -1,0 +1,18 @@
+{
+  "actualTDDReviewSHA256": "6b90924ca9722b8d957e08ba1da26774b42663c82834c1925686d7b2cb94283b",
+  "checks": [
+    "All manifest members/configured immutable source/helper/Python/proof pins verified; fresh fixed roots absent",
+    "Complete ordered31member regular/link metadata equivalence, only2physical rootbinaries SHA/size500/UID/nlink1, archive100230267SHA0400 and exact installed proofs enforced",
+    "Inner journal allocation/failureheader/noFAILED/singlecompletefinalSHA must bind actual result; no cached PASS overrides late signal or forced cleanup",
+    "InstallerInvoked derives actually started ownedlabel; servicefalse/binaryexecutionfalse/versionpending remain explicit",
+    "305constructor=275capture+30cleanup; inner270=240+30, ROOT305+35; original floors and freshTMP422766271+WS1501048576 hardchecks retained"
+  ],
+  "findings": [],
+  "manifestSHA256": "6a6cf728724089e9595615dde016215025bdc19f9c389646680ba16c44aa0ce9",
+  "ownerSHA256": "3897330eb3f29d7d118db3ee33d7390d3a459fde9916cf59c29a1b9b317139ea",
+  "planSHA256": "3f41fd38c7071ac4f6f69b0fa39c1294d0bc7b63c37780d7c2fa39b7471c46c3",
+  "recipeSHA256": "0d421384336d8387fc16affa19ff0843e46963d3b33655c8cb4e65225dbd4a37",
+  "scope": "ROOT fixed selected-byte installer launch prerequisite only, contingent unchanged actualHEAD87 and freshly verified recipe tool pins/capacity/exclusive window. No reviewer launch/network/download/tool execution. Outcome must independently verify actual archive/binary bytes/roster/joins/journals. No versions/help/schema/SDK/service/native/provider readiness.",
+  "sourceSHA256": "939edc2d2ad24e9bdc42438177684fb552a93a551977bca875041b36e3880f3f",
+  "status": "SOURCE-STATIC-PASS"
+}

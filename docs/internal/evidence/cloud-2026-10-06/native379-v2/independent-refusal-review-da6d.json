@@ -1,0 +1,74 @@
+{
+  "format": "independent-native379-v2-source-refusal-review-v1",
+  "assessment": "PASS-SOURCE-ONLY-VERIFIED-REFUSAL; NATIVE-READINESS-BLOCKED",
+  "reviewer": "review_capture_dependency",
+  "identities": {
+    "go_implementation_sha256": "da6d2bf06c99b0e95ae5abf940bcf2da89b203e973fd4d39aea214070076b912",
+    "packet_sha256": "d949abc5a17374fa0024548ed40335b29ad89f46c4c1f50d0f2d4b6a8425b4de",
+    "source_manifest_sha256": "44898f917fa13db57ba2e2da79fdcfe03f3f522aa2aff2e61223c397776ec99c",
+    "component_binary_sha256": "4186b629d76fe20d41cbe369f56674867a46cf17cffd5ef997ca0af1ab108085",
+    "component_binary_scope": "Mutable checkout/tool/module roots; source-only tests, not a frozen native envelope"
+  },
+  "findings": {
+    "Critical": [],
+    "Important": [],
+    "Minor": []
+  },
+  "verified_refusal": {
+    "file": "/workspace/zasp-sec/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+    "derivation_line": 1519,
+    "refusal_line": 1544,
+    "native_call_line": 2391,
+    "named_regression_line": 2978,
+    "physical_required_rows": 6148,
+    "phase": "forged-entry",
+    "unchanged_max_rows": 2048,
+    "independent_lower_bound": 4613,
+    "controls_preserved": 589,
+    "timing": "Current empty compiled anchors refuse all tool boundaries. Physical feasibility check refuses admitted source packet before owned PostgreSQL fixture/native execution. Packet loading can invoke separately bound version/source-generation tools if anchors were populated; feasibility is not represented as preceding every such tool.",
+    "consequence": "Native success cannot be admitted under current unchanged caps and complete controls; preserve empty anchors and no native readiness claims."
+  },
+  "verified_exact_bytes": {
+    "source_members": 1544,
+    "source_hash_mismatches": 0,
+    "raw_bytes": 25160408,
+    "gzip_decompresses_exact_raw": true,
+    "difference_from_prior_4a19_packet": "ONLY authority/source-manifest digest; controls/phases/caps/facts/semantics exactly unchanged",
+    "archived_source_identity_matches": true,
+    "seven_compiled_anchors_empty": true
+  },
+  "tests": {
+    "independent_component": "Actual exit0,7PASS/0FAIL/0SKIP including named physical-row refusal; full-wire test34.26sec",
+    "independent_log": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-da6d-component-rerun.log",
+    "independent_log_sha256": "53b8b98378ed0e747d9a53241cc169ce2b58dc229e8d7b3b13859b6a6c4f2383",
+    "execution": "env-i exactNodePATH LANG=C LC_ALL=C TZ=UTC retained binary -test.run ^TestNative379V2 -test.count=1 -test.v -test.timeout=2m; no native or PostgreSQL opt-ins",
+    "Node": "Author final exact-source6PASS/0FAIL/0SKIP28.05sec log retained in da6d archive",
+    "source_validation_scope": "All589 source-derived recorded outcomes and6348 declared program steps checked plus raw/typed tether and forged evidence refusal. Selected restore:transaction scripted executor7steps/2Exec/5Query/6rolechecks/1identity. No actualSQL/PostgreSQL execution.",
+    "previous_red_preserved": {
+      "go_source_sha256": "4a19be4156245c2677ff399b74834b1e9f0a759f27d2ca5605289c0f5cb72025",
+      "actual_status": "6PASS/1FAIL25.883sec",
+      "log": "/tmp/zasp-native379-v2-final-4a19-source-wire-green.log",
+      "log_sha256": "607ed9d89628e385f52d34309e9a9901fd4967c77586a67b6c6050a44ee7d036",
+      "note": "Misleading filename does not turn original failure into pass. New named refusal proves inability to fit caps; it does not complete budget evidence or native acceptance."
+    }
+  },
+  "future_zero_row_assertion_assessment": {
+    "status": "PLAUSIBLE-SEPARATE-BATCH-ONLY; NO-IMPLEMENTATION-OR-AUTHORIZATION",
+    "row_arithmetic": "Keeping388 per-control session identity rows and1535 program output rows gives1923<2048 if4225 separate role assertions return zero rows.",
+    "proof_requirements": [
+      "Fixed server-side assertions must inspect actual current_user/session_user/backend PID and fail distinctly on mismatch before each protected step.",
+      "Preserve same owned connection, independent role checks, step timeout/phase/global budgets, after-recovery observation semantics, and only intended aborted-transaction poison skip.",
+      "Successful command assertion is evidence of equality, not permission to invent observed role values; define new result protocol and bind assertion SQL/source/preimages explicitly.",
+      "Keep all existing NULL/boolean/error/lazy evaluation/frame/restoration controls and unchanged caps; separately review generated source/wire/result admission.",
+      "Returned-row reduction does not establish execution time, server scanned-tuple work, native capacity, installed acceptance or deployment authority."
+    ]
+  },
+  "declined_to_judge": [
+    "Full consumed Go/tool/module/test-binary frozen envelope not supplied as completed artifact.",
+    "Actual native379 PostgreSQL run/result/cleanup.",
+    "Original fixture preparation cancellation: callback deadline and elapsed source refusal do not rewrite historical helper setup cancellation.",
+    "Actual native byte sizes, timing, server scanned tuples, unchanged-limit production capacity.",
+    "Portability, installed worker, provider/deployment or release authority."
+  ],
+  "readiness": "Publishable only as source-only verified refusal evidence with preserved RED and current blockers. No anchor activation or native readiness approval."
+}

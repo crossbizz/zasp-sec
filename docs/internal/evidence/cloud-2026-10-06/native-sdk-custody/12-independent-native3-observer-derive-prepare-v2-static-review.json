@@ -1,0 +1,43 @@
+{
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "290s",
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "--",
+    "/usr/bin/python3",
+    "/tmp/zasp-cloud-evidence/native3-observer-derive-prepare-root-recipe-v2-hx34568x/run-prepare.py"
+  ],
+  "bounds": "Aggregate270; observer child90+35 cleanup; prepare130+10 cleanup; ROOT fixed GNUtimeout TERM290/KILL+10 with pinned Tini. Conservative30s observation-start freshness remains enforced by relocation consumer.",
+  "findings": [],
+  "launchPrerequisites": [
+    "ROOT alone executes exact argv while source24 payload/proof identities and destination-absent custody remain unchanged; no payload/source/destination writers.",
+    "Actual tiny controls dd3ed/a59c and observerV4 c06e/static relocationV5 2524 prerequisites retained.",
+    "Original tmp100MB floor and projected payload+floor checks remain; recovery-only sequence can observe workspace below1.5GB but cannot authorize SDK/service/runtime below unchanged workspacefloor.",
+    "Both child receipts and ROOT actual normal terminal exit/join required; any timeout/signal/forced/error retains refusal and unknown resource disposition.",
+    "Actual prepared copies and originals must be independently reviewed before separate admission; separately reviewed fresh six-target observer required before any future finalize."
+  ],
+  "limitations": [
+    "Synchronous filesystem blockage relies on concrete outer finite timeout; abnormal detached cleanup is UNKNOWN, never accepted.",
+    "Producer result cannot substitute for ROOT actual terminal observation; partial copy/proof/output retained on refusal.",
+    "No real OSS startup, schema80, SDK policy, provider/native or production acceptance."
+  ],
+  "manifestSHA256": "e28c313f4c6040e5227cedac26d9756e7c82f28bee336ff68724bc2aa7f56a6b",
+  "preservedBlockedSource": "5fdbfe567c6395ed4a094af483e93ab73665581d495f24333f42f3c0452b26bf",
+  "preservedBlockerReportSHA256": "08a7998c9bb9b4cc0d1f74f2700d692d99033c18a8f8745c75da9d7d36758adc",
+  "recipeSHA256": "79a5a2b2576f2185f2c97b1aca8bf60332b1e14b11b6240dc8cb4b9f2912ff25",
+  "resolved": [
+    "Raw pinned bytes are compiled/executed directly in fresh ModuleType namespace with explicit __file__/__name__; no SourceFileLoader or timestamp .pyc consumption.",
+    "Live signal/deadline check runs after final stdout with handlers retained."
+  ],
+  "scope": "ROOT source-three observer -> exact14-reference proof derivation -> strict consumer V5 mechanical proof admission -> prepare only. No finalize/unlink; no reviewer candidate imports, processes, Docker, copies or runtime.",
+  "source": "/tmp/zasp-cloud-evidence/native3-observer-derive-prepare-root-recipe-v2-hx34568x/run-prepare.py",
+  "sourceSHA256": "dde24d7efec104e807eed02fb6665ff14bee7542ae85a2f8c2fd65f7fba19213",
+  "status": "SOURCE-STATIC-PASS",
+  "verified": "Exact two-change source diff, raw AST, both manifest members and all recipe source/tool byte identities/resolved paths."
+}

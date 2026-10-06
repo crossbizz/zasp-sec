@@ -1,0 +1,69 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "FGA-parser-tests",
+  "completedAtWrite": true,
+  "failureClass": null,
+  "signals": [],
+  "records": [
+    {
+      "label": "old-vendor-RED",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/native-OSS-component-installer-vendor-n8n1nedc/installer-components.test.py",
+        "InstallerComponents.test_actual_pinned_openfga_vendor_archive_binary_only",
+        "-v"
+      ],
+      "declared_cap_seconds": 10,
+      "effective_limit_seconds": 10,
+      "enclosing_deadline_monotonic": 62624.267749712,
+      "effective_deadline_monotonic": 62604.268594784,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 1,
+      "pid": 290917,
+      "seconds": 0.170049,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "30b20e65d37c05f40f633967683abb26334ee6081b512c9848d5b7c988c19a6b"
+    },
+    {
+      "label": "new-vendor-ten-GREEN",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/native-OSS-component-installer-vendor-n8n1nedc/installer-components.test.py",
+        "-v"
+      ],
+      "declared_cap_seconds": 20,
+      "effective_limit_seconds": 20,
+      "enclosing_deadline_monotonic": 62624.267749712,
+      "effective_deadline_monotonic": 62614.438878159,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 290918,
+      "seconds": 0.470352,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "2e333b66e9f6e0cec01052744bb773391abcd406fb1b385487a0512fe6dd9be5"
+    }
+  ],
+  "groups": {
+    "290917": [],
+    "290918": []
+  },
+  "seconds": 0.6764885349984979,
+  "expectedNetworkVariableNames": [],
+  "servicesStarted": false,
+  "installerInvoked": false,
+  "rootExternalNormalJoinRequired": true
+}

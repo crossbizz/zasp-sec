@@ -1,0 +1,17 @@
+{
+  "source_sha": "3e1597963a0dd28ff010934c948a27dc3fa9cc07",
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "git",
+    "--no-banner",
+    "--redact",
+    "--log-opts=HEAD",
+    "--report-format",
+    "json",
+    "--report-path",
+    "/tmp/zasp-cloud-evidence/doc3e-full-history-1791264043413549816/report.json"
+  ],
+  "ignore_sha256": "0ea55c26ab249af09129f0ee3d060373c9acdd079ba6d6cd363af0902f4d99d8",
+  "config_environment_names_present": [],
+  "root_toml_exists": false
+}

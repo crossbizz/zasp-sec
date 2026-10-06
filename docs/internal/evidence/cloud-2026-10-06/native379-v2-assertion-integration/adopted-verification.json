@@ -1,0 +1,25 @@
+{
+  "scope": "copied reviewed bytes and source-only admission; no native execution",
+  "checkedHere": {
+    "fourSourceFilesMatchPrivateReviewedSHA256": true,
+    "all1544SourceRosterHashesMatchActualFiles": true,
+    "gzipExpandsExactReviewedCanonicalSHA256": true,
+    "priorNative379ManifestUnchanged": true,
+    "sharedSourceAdmission": {
+      "status": "NATIVE-PARITY-PENDING",
+      "rules": 379,
+      "facts": 10052,
+      "controls": 589,
+      "bytes": 25160408,
+      "sha256": "ca7dd2ad47a4afcea9f0dfca48d10e5e4b8876c0daf6450c33a66776e830d5e9"
+    }
+  },
+  "reportedByRoot": {
+    "NodeGroupedTests": "6PASS/0FAIL/0SKIP26.211s, exactpinnedNode/bothv2tests",
+    "gitDiffCheck": "clean",
+    "ledger": "728IDs,523/144/61categories,0missing",
+    "originMain": "d21f036eab610f28177267ca8f12fa86981e5ac3;initiale13ancestorconfirmed"
+  },
+  "anchors": "seven empty companion25db unchanged",
+  "security": "546 findings unchanged; no clearance"
+}

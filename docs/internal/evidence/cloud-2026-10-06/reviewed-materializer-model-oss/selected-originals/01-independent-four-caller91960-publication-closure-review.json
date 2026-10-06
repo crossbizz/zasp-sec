@@ -1,0 +1,25 @@
+{
+  "status": "BOUNDED-FOUR-CALLER-PUBLICATION-CLOSURE-PASS",
+  "manifestSHA256": "91960c2ab0bbb69661a9f00acd0b07f4e88ec6b0f9fa552d8768a0b1e50e5cd8",
+  "payloadMembers": 33,
+  "payloadBytes": 146712,
+  "originalByteComparisons": 31,
+  "gzipExactRoundtrips": 6,
+  "omissionIdentitiesIndependentlyRehashed": 7,
+  "topology": "Closed33payload+manifest, regular0400 members; observed directory0700, gzipmtime0 where declared.",
+  "actualResultSHA256": "195f6d5badd7d8fe965672217aedd92a5d4f161c972856bdf91d8dc4b1a27e68",
+  "scopeChecks": [
+    "Compile joined0 plus four exact singleton PASS/zero failures/skips; source/cleanup/sourcecaps/currentEMPTY bounds preserved.",
+    "Three SCRIPTED raw-ledger models fit their checks; legal control63 typed cap refusal remains NOFIT after3phases. Four passing tests are not all-legal FIT.",
+    "Model2/modeled nil-empty failure and model3 deadline refusal reviews/results remain historical, not rewritten.",
+    "Full result metadata/owned producer/real589SQL/durablepublisher faults/adapter/native remain open.",
+    "ROOT session62122 join is labelled parent observation, not fabricated automatic receipt."
+  ],
+  "laterScannerSupplement": {
+    "recordSHA256": "6e7d2eb7aab0e371f13ea48fd70ef8fe5e6057ecbeb41cd455345c4d292bbd1f",
+    "recordedToolExit": 0,
+    "findings": 0,
+    "scope": "Encoded selected directory only; no decoded/omitted/history clearance. Original manifest NOT_RUN sealing statement retained with separate later record."
+  },
+  "reviewerActions": "Static metadata, byte comparisons, gzip decoding and finite streamed omitted-file hashes only. No tests/compiler/runtime/scanner rerun/source or packet mutations."
+}

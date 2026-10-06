@@ -3,6 +3,7 @@ import {installOwnedCurrent80,closedOwnedAmbientEnvironment,runOwnedProjectionLo
 import {startRetainedOwnedRuntimeLifetime} from "./owned-runtime-lifetime.mjs";
 import {withOwnedRuntimeStartupDiagnostics,recordOwnedRuntimeStartupFailure} from "./owned-runtime-startup-diagnostics.mjs";
 import assert from "node:assert/strict";
+import { complianceRuntimeBindings, complianceOwnedRuntimeInputs } from "./compliance-runtime-prerequisites.mjs";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, createHmac, generateKeyPairSync, randomBytes } from "node:crypto";
 import { once } from "node:events";
@@ -134,7 +135,10 @@ let policyHistory;
 let failNextRuntimeSessionSearch = false;
 let api;
 let postgres;
+let ownedResourceCleanupStarted = false;
 let currentCompliancePostgres, currentComplianceServices, currentComplianceStateRoot;
+let currentComplianceRuntimeStartup;
+let currentCompliancePreparation;
 let currentComplianceClosing=false, currentComplianceFailure;
 let currentComplianceProjectionLoop, currentComplianceProjectionController;
 let web;
@@ -206,6 +210,7 @@ if (auditExportBrowserMode) installAuditBrowserFatalCleanup(()=>cleanupControlle
 
 let compliancePhase = "services";
 try {
+  if (complianceBrowserMode) complianceOwnedRuntimeInputs(process.env);
   if (automaticDiscoveryMode) automaticDiscoverySourceHashes = await hashAutomaticDiscoveryInputs();
   const ports = await Promise.all(Array.from({ length: 8 }, reservePort));
   const [postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort] = ports;
@@ -2204,15 +2209,27 @@ COMMIT;`);
 }
 
 async function prepareOwnedCurrentComplianceRuntime(configuration,complianceFixtureSQL){
+  if (ownedResourceCleanupStarted || currentComplianceClosing) throw new Error("owned current runtime startup after cleanup refused");
+  let finishPreparation;
+  currentCompliancePreparation=new Promise(resolve=>{finishPreparation=resolve;});
+  try {
   const {migrate,migrationEnvironment,proxyPort}=configuration;
   const archiveRoot=process.env.ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT,rawRoot=process.env.ZASP_BROWSER_RUNTIME_RAW_ROOT;
   assert.ok(typeof archiveRoot==='string'&&typeof rawRoot==='string','owned pinned runtime archive/raw inputs required');
   if (complianceBrowserMode) compliancePhase = 'compliance-runtime-services';
   currentComplianceStateRoot=await withOwnedRuntimeStartupDiagnostics(async()=>{try{return await mkdtemp('/tmp/zasp-browser-current-runtime-');}catch(error){throw recordOwnedRuntimeStartupFailure(error,'state-allocation');}},complianceBrowserMode);
-  currentComplianceServices=await withOwnedRuntimeStartupDiagnostics(()=>startRetainedOwnedRuntimeLifetime({stateRoot:currentComplianceStateRoot,archiveRoot,rawRoot,run:randomBytes(8).toString('hex')}),complianceBrowserMode);
+  if (ownedResourceCleanupStarted || currentComplianceClosing) {
+    await rm(currentComplianceStateRoot,{recursive:true,force:true});
+    throw new Error("owned current runtime startup after cleanup refused");
+  }
+  currentComplianceRuntimeStartup=withOwnedRuntimeStartupDiagnostics(()=>startRetainedOwnedRuntimeLifetime({stateRoot:currentComplianceStateRoot,archiveRoot,rawRoot,run:randomBytes(8).toString('hex')}),complianceBrowserMode);
+  currentComplianceServices=await currentComplianceRuntimeStartup;
+  if (ownedResourceCleanupStarted || currentComplianceClosing) throw new Error("owned current runtime startup after cleanup refused");
+  complianceRuntimeBindings(currentComplianceServices.environment);
   void currentComplianceServices.completed.then(()=>{if(!currentComplianceClosing){currentComplianceFailure=new Error('owned runtime service exited');void cleanupController.run().catch(()=>{process.exitCode=1;});}},()=>{if(!currentComplianceClosing){currentComplianceFailure=new Error('owned runtime resource refused');void cleanupController.run().catch(()=>{process.exitCode=1;});}});
   if (complianceBrowserMode) compliancePhase = 'compliance-current-postgres';
   const port=await reservePort(),dsn=`postgres://zasp_e2e@127.0.0.1:${port}/postgres?sslmode=disable`;
+  if (ownedResourceCleanupStarted || currentComplianceClosing) throw new Error("owned current runtime startup after cleanup refused");
   currentCompliancePostgres=createOwnedBrowserPostgres({port});await currentCompliancePostgres.start();
   if (complianceBrowserMode) compliancePhase = 'compliance-current-principals';
   await provisionPostgresPrincipals(dsn);
@@ -2233,10 +2250,13 @@ async function prepareOwnedCurrentComplianceRuntime(configuration,complianceFixt
   const reconcile=path.join(temporaryRoot,'zasp-authorization-reconcile');await command('go',['build','-o',reconcile,'./cmd/zasp-authorization-reconcile'],{cwd:platform,timeout:120000});
   if (complianceBrowserMode) compliancePhase = 'compliance-current-profile';
   const projection=await installOwnedCurrent80({command,migrate,reconcile,psql:path.join(postgresBin,'psql'),port,organization:'pid_10000001-0000-4000-8000-000000000001',identityEnvironment,runtimeEnvironment:currentComplianceServices.environment,keyFiles:{forward,compensation}});
+  if (ownedResourceCleanupStarted || currentComplianceClosing) throw new Error("owned current runtime startup after cleanup refused");
+  complianceRuntimeBindings(projection.environment);
   currentComplianceProjectionController=new AbortController();
   currentComplianceProjectionLoop=runOwnedProjectionLoop(projection,currentComplianceProjectionController.signal,()=>{currentComplianceFailure=new Error('owned authorization projection refused');void cleanupController.run().catch(()=>{process.exitCode=1;});});void currentComplianceProjectionLoop.catch(()=>{});
   if (complianceBrowserMode) compliancePhase = 'compliance-fixture-provisioning';
   return {configuration:{...currentConfiguration,currentRuntimeEnvironment:projection.environment},projection};
+  } finally { finishPreparation(); }
 }
 
 async function exerciseComplianceBrowser(configuration) {
@@ -3234,12 +3254,16 @@ async function exercisePrecisionBrowserTenantDenial(metadata, sql, chromePort, o
 }
 
 async function cleanupOwnedResources() {
+  ownedResourceCleanupStarted = true;
   currentComplianceClosing=true;
   currentComplianceProjectionController?.abort();
   const cleanupErrors = [];
   const attempt = async operation => {
     try { await operation(); } catch (error) { cleanupErrors.push(error); }
   };
+  // Fence and cancel an in-flight PostgreSQL start before unrelated joins.
+  // Capture errors immediately and join this same stop at its cleanup slot.
+  const postgresCleanup = postgres ? attempt(() => stopPostgres(postgres)) : undefined;
   await attempt(() => precisionBrowserCheckpoint?.close());
   for(const proof of mountedRuntimeProofs) await attempt(()=>proof.close());
   if (runtimePipelineChild) await attempt(() => stopChild(runtimePipelineChild));
@@ -3275,10 +3299,12 @@ async function cleanupOwnedResources() {
   if (web) await attempt(() => stopChild(web));
   console.log("combined E2E: cleanup postgres");
   if (auditExportProvider) await attempt(() => auditExportProvider.stop());
+  if (currentCompliancePreparation) await attempt(()=>currentCompliancePreparation);
+  if (currentComplianceRuntimeStartup) await attempt(()=>currentComplianceRuntimeStartup);
   if(currentComplianceProjectionLoop)await attempt(()=>currentComplianceProjectionLoop);
   if (currentComplianceServices) await attempt(()=>currentComplianceServices.close());
   if (currentCompliancePostgres) await attempt(()=>currentCompliancePostgres.stop());
-  if (postgres) await attempt(() => stopPostgres(postgres));
+  if (postgresCleanup) await postgresCleanup;
   console.log("combined E2E: cleanup remaining processes");
   for (const child of children.reverse()) await attempt(() => stopChild(child));
   if(exportBrowserEvidenceDirectory) await attempt(()=>writeFile(path.join(exportBrowserEvidenceDirectory,"cleanup.json"),JSON.stringify({joined:cleanupErrors.length===0,errors:cleanupErrors.map(error=>error instanceof Error?error.message:String(error)),temporaryRootRetained:cleanupErrors.length>0},null,2)));
@@ -3298,6 +3324,7 @@ async function generateHarnessGitHubAppPrivateKey(target) {
 }
 
 async function startPostgres(port) {
+  if (ownedResourceCleanupStarted) throw new Error("owned PostgreSQL startup after cleanup refused");
   let isolatedRelay, discoveryCollectorBinary;
   if (attackLabMountedMode || securityAgentExportMode || automaticDiscoveryMode) {
     const image = "postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba";
@@ -3311,6 +3338,9 @@ async function startPostgres(port) {
       await chmod(discoveryCollectorBinary,0o755);
     }
   }
+  // Preparation can settle successfully after cleanup has begun. There is
+  // no await between this admission check and registering the owned fixture.
+  if (ownedResourceCleanupStarted) throw new Error("owned PostgreSQL startup after cleanup refused");
   postgres = createOwnedBrowserPostgres({ port, isolatedRelay, ...(discoveryCollectorBinary ? {discoveryCollectorBinary} : {}), trackFunctions: process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1" });
   await postgres.start();
   return postgres;

@@ -1,0 +1,27 @@
+{
+  "originalScanStatus": "FAIL2",
+  "rulesExceptions": false,
+  "findings": [
+    {
+      "file": "ordered-current-linux-provenance-v1.json",
+      "line": 45,
+      "rule": "generic-api-key",
+      "literalSHA256": "267fda0823979ed72420ae0539e5c3fd7029e27eacad5415d7bb1588622f1ae3",
+      "classification": "actual-computed-public-runtime-file-SHA256",
+      "actualRehashedPaths": [
+        "/lib/x86_64-linux-gnu/libgssapi_krb5.so.2"
+      ]
+    },
+    {
+      "file": "ordered-current-linux-provenance-v1.json",
+      "line": 49,
+      "rule": "generic-api-key",
+      "literalSHA256": "1c2cfdd271d816cbd9b351aef6d4a5d18b720b646edb4acf76f302f29badaf8c",
+      "classification": "actual-computed-public-runtime-file-SHA256",
+      "actualRehashedPaths": [
+        "/lib/x86_64-linux-gnu/libkeyutils.so.1"
+      ]
+    }
+  ],
+  "independentCaptureReviewSHA256": "1f7300596e3b9af7f566d1fd70e3e25cf949ec63ec6ab747374fc7fda52db138"
+}

@@ -1,0 +1,272 @@
+{
+  "ROOTToolJoinSHA256": "0468910952dc8604c1f60ac9f6e494de89b3850169b7e098a43c292739ae85c9",
+  "actualNormalJoinedStages": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-c",
+        "import os,resource,sys;resource.setrlimit(resource.RLIMIT_FSIZE,(1048576,1048576));os.execv(sys.argv[1],sys.argv[1:])",
+        "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/server132/temporal-server",
+        "--version"
+      ],
+      "cleanup_deadline_monotonic": null,
+      "declared_cap_seconds": 5,
+      "effective_deadline_monotonic": 73642.289882138,
+      "effective_limit_seconds": 5,
+      "enclosing_deadline_monotonic": 73667.288670264,
+      "exit": 0,
+      "forced_cleanup": false,
+      "interrupted": false,
+      "joined": true,
+      "label": "server-version",
+      "pid": 308923,
+      "seconds": 0.071265,
+      "started": true,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "d20473bd1b87d9e312611e8635ce9e434048ddc0648d5be3aa80bad05df271e9",
+      "survivors": [],
+      "timed_out": false,
+      "unexpected_descendants": false
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-c",
+        "import os,resource,sys;resource.setrlimit(resource.RLIMIT_FSIZE,(1048576,1048576));os.execv(sys.argv[1],sys.argv[1:])",
+        "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/server132/temporal-server",
+        "--help"
+      ],
+      "cleanup_deadline_monotonic": null,
+      "declared_cap_seconds": 5,
+      "effective_deadline_monotonic": 73642.361556541,
+      "effective_limit_seconds": 5,
+      "enclosing_deadline_monotonic": 73667.288670264,
+      "exit": 0,
+      "forced_cleanup": false,
+      "interrupted": false,
+      "joined": true,
+      "label": "server-root-help",
+      "pid": 308930,
+      "seconds": 0.070209,
+      "started": true,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "1b17ee3f539ac91073e29cf9e3724cb77376660a4b428a519826f7285e8d70f7",
+      "survivors": [],
+      "timed_out": false,
+      "unexpected_descendants": false
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-c",
+        "import os,resource,sys;resource.setrlimit(resource.RLIMIT_FSIZE,(1048576,1048576));os.execv(sys.argv[1],sys.argv[1:])",
+        "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/server132/temporal-sql-tool",
+        "--version"
+      ],
+      "cleanup_deadline_monotonic": null,
+      "declared_cap_seconds": 5,
+      "effective_deadline_monotonic": 73642.431964608,
+      "effective_limit_seconds": 5,
+      "enclosing_deadline_monotonic": 73667.288670264,
+      "exit": 0,
+      "forced_cleanup": false,
+      "interrupted": false,
+      "joined": true,
+      "label": "sql-version",
+      "pid": 308938,
+      "seconds": 0.038086,
+      "started": true,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "e2e6ee9ac535a7dd8532a77511a862fb5bbfdb0d488a0a102b04c0f976133f5a",
+      "survivors": [],
+      "timed_out": false,
+      "unexpected_descendants": false
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-c",
+        "import os,resource,sys;resource.setrlimit(resource.RLIMIT_FSIZE,(1048576,1048576));os.execv(sys.argv[1],sys.argv[1:])",
+        "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/server132/temporal-sql-tool",
+        "--help"
+      ],
+      "cleanup_deadline_monotonic": null,
+      "declared_cap_seconds": 5,
+      "effective_deadline_monotonic": 73642.470777573,
+      "effective_limit_seconds": 5,
+      "enclosing_deadline_monotonic": 73667.288670264,
+      "exit": 0,
+      "forced_cleanup": false,
+      "interrupted": false,
+      "joined": true,
+      "label": "sql-root-help",
+      "pid": 308946,
+      "seconds": 0.038184,
+      "started": true,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "50488c75650456e959276c73334564ee0ba5b6461e998640cdf9004a0715d312",
+      "survivors": [],
+      "timed_out": false,
+      "unexpected_descendants": false
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-c",
+        "import os,resource,sys;resource.setrlimit(resource.RLIMIT_FSIZE,(1048576,1048576));os.execv(sys.argv[1],sys.argv[1:])",
+        "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/server132/temporal-sql-tool",
+        "setup-schema",
+        "--help"
+      ],
+      "cleanup_deadline_monotonic": null,
+      "declared_cap_seconds": 5,
+      "effective_deadline_monotonic": 73642.508861301,
+      "effective_limit_seconds": 5,
+      "enclosing_deadline_monotonic": 73667.288670264,
+      "exit": 0,
+      "forced_cleanup": false,
+      "interrupted": false,
+      "joined": true,
+      "label": "sql-setup-schema-help",
+      "pid": 308953,
+      "seconds": 0.070637,
+      "started": true,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "b8925da71dbb4ee42130887f17a0db0757795246304588e306bc048154e92035",
+      "survivors": [],
+      "timed_out": false,
+      "unexpected_descendants": false
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-c",
+        "import os,resource,sys;resource.setrlimit(resource.RLIMIT_FSIZE,(1048576,1048576));os.execv(sys.argv[1],sys.argv[1:])",
+        "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/server132/temporal-sql-tool",
+        "update-schema",
+        "--help"
+      ],
+      "cleanup_deadline_monotonic": null,
+      "declared_cap_seconds": 5,
+      "effective_deadline_monotonic": 73642.579893687,
+      "effective_limit_seconds": 5,
+      "enclosing_deadline_monotonic": 73667.288670264,
+      "exit": 0,
+      "forced_cleanup": false,
+      "interrupted": false,
+      "joined": true,
+      "label": "sql-update-schema-help",
+      "pid": 308960,
+      "seconds": 0.037776,
+      "started": true,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "ab6341f5d1502ac8ea718c3cb2b4bc2caf4bed0f424d9e7dfc7b2c2ecb31f04b",
+      "survivors": [],
+      "timed_out": false,
+      "unexpected_descendants": false
+    }
+  ],
+  "checks": [
+    "Both full installedbinary bytehashes/currentmetadata and all bound upstream/helper/source pins freshly reverified",
+    "Actual two releaseversion1.32.0 matches and fourhelp Usage/nonemptyflags parsed from exactcapturedstdout/stderr hashes/64KiB cap",
+    "Six normalownedchildwaits0, no signals/forced/timeouts/unexpecteddescendants/survivors; reservedjournalprovisional reconciledROOT terminal0",
+    "Closedenvironment/HOME/TMP/cwd and only fixed version/help argv; aggregate16MiBproof bound verified"
+  ],
+  "commands": [
+    {
+      "bytes": 24,
+      "flags": [],
+      "label": "server-version",
+      "metadataKind": "version",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "d20473bd1b87d9e312611e8635ce9e434048ddc0648d5be3aa80bad05df271e9",
+      "versionMatched": "1.32.0"
+    },
+    {
+      "bytes": 1198,
+      "flags": [
+        "--allow-no-auth",
+        "--config",
+        "--config-file",
+        "--env",
+        "--help",
+        "--root",
+        "--version",
+        "--zone"
+      ],
+      "label": "server-root-help",
+      "metadataKind": "help",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "1b17ee3f539ac91073e29cf9e3724cb77376660a4b428a519826f7285e8d70f7",
+      "versionMatched": null
+    },
+    {
+      "bytes": 33,
+      "flags": [],
+      "label": "sql-version",
+      "metadataKind": "version",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "e2e6ee9ac535a7dd8532a77511a862fb5bbfdb0d488a0a102b04c0f976133f5a",
+      "versionMatched": "1.32.0"
+    },
+    {
+      "bytes": 2115,
+      "flags": [
+        "--connect-attributes",
+        "--database",
+        "--endpoint",
+        "--help",
+        "--password",
+        "--plugin",
+        "--port",
+        "--quiet",
+        "--tls",
+        "--tls-ca-file",
+        "--tls-cert-file",
+        "--tls-disable-host-verification",
+        "--tls-key-file",
+        "--tls-server-name",
+        "--user",
+        "--version"
+      ],
+      "label": "sql-root-help",
+      "metadataKind": "help",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "50488c75650456e959276c73334564ee0ba5b6461e998640cdf9004a0715d312",
+      "versionMatched": null
+    },
+    {
+      "bytes": 725,
+      "flags": [
+        "--disable-versioning",
+        "--overwrite",
+        "--schema-file",
+        "--schema-name",
+        "--version"
+      ],
+      "label": "sql-setup-schema-help",
+      "metadataKind": "help",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "b8925da71dbb4ee42130887f17a0db0757795246304588e306bc048154e92035",
+      "versionMatched": null
+    },
+    {
+      "bytes": 461,
+      "flags": [
+        "--schema-dir",
+        "--schema-name",
+        "--version"
+      ],
+      "label": "sql-update-schema-help",
+      "metadataKind": "help",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "ab6341f5d1502ac8ea718c3cb2b4bc2caf4bed0f424d9e7dfc7b2c2ecb31f04b",
+      "versionMatched": null
+    }
+  ],
+  "grammarSHA256": "90aff1979c66b3ff3922b3534e1e249173cb06625be2ea263fb6c4a02069f947",
+  "journalSHA256": "a930da9346248c3b7629cdca20404c3472d0965aa5dceef37d170441e6527bf5",
+  "resultSHA256": "c904d112233c6028644aa4756d976492291d1068864534fca7d5e2ec37d6c1e7",
+  "scope": "Observed native version/help grammar only. SQLroothelp defaultMySQL is not PostgreSQL selection/configuration/compatibility. No operationalSQL, DB connection, schema execution, service startup, SDK/native/provider readiness. Rootjoin is authoredtoolobservation not inventedROOTkerneltrace; fullbinarycurrentbyteequality not a futurelifetime binding.",
+  "status": "ACTUAL-NATIVE-VERSION-HELP-METADATA-PASS"
+}

@@ -1,0 +1,55 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "authenticated-census-retry",
+  "completedAtWrite": true,
+  "failureClass": null,
+  "signals": [],
+  "records": [
+    {
+      "label": "authenticated-CLI-census-retry",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/temporal-CLI-census-read-final-juyfs44x/stream-temporal-CLI-census.py",
+        "--source-sha256",
+        "0c341c3c6d95e979d12e6088c71554d0ff6589e2a683db14dda47e1a122fbddb",
+        "--output",
+        "/workspace/.zasp-cloud-owned/temporal-CLI-stream-census-eefc2ca2d22a4ace8598d4e59e1e0dd9"
+      ],
+      "declared_cap_seconds": 95,
+      "effective_limit_seconds": 95,
+      "enclosing_deadline_monotonic": 63058.302185414,
+      "effective_deadline_monotonic": 63053.304911181,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 291485,
+      "seconds": 1.534201,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "groups": {
+    "291485": []
+  },
+  "seconds": 1.5504791860003024,
+  "expectedNetworkVariableNames": [
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "REQUESTS_CA_BUNDLE"
+  ],
+  "servicesStarted": false,
+  "installerInvoked": false,
+  "rootExternalNormalJoinRequired": true
+}

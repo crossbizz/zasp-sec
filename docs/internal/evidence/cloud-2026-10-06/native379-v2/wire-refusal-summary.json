@@ -1,0 +1,14 @@
+{
+  "directory": "/workspace/.zasp-cloud-owned/native379-v2-refusal-da6d-jbrq5usu",
+  "wireSHA256": "d949abc5a17374fa0024548ed40335b29ad89f46c4c1f50d0f2d4b6a8425b4de",
+  "wireBytes": 25160408,
+  "gzipSHA256": "98d3264dce8b8993626975e99d1e5b0c7525a0c13651469a08871dea3295dfb7",
+  "gzipBytes": 1578277,
+  "status": "NATIVE-PARITY-PENDING",
+  "rules": 379,
+  "facts": 10052,
+  "controls": 589,
+  "sourceManifestSHA256": "44898f917fa13db57ba2e2da79fdcfe03f3f522aa2aff2e61223c397776ec99c",
+  "goImplementationSHA256": "da6d2bf06c99b0e95ae5abf940bcf2da89b203e973fd4d39aea214070076b912",
+  "nativeFeasibility": "BLOCKED: authenticated forged-entry physical query lower bound6148 exceeds unchanged phase cap2048; Go refuses before fixture"
+}

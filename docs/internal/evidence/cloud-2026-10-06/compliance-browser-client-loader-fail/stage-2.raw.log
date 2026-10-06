@@ -1,0 +1,21 @@
+combined E2E: cleanup browser
+combined E2E: cleanup Task4 workers
+combined E2E: cleanup api
+combined E2E: cleanup proxy
+combined E2E: cleanup identity
+combined E2E: cleanup policy history
+combined E2E: cleanup web
+combined E2E: cleanup postgres
+combined E2E: cleanup remaining processes
+combined E2E: cleanup files
+file:///workspace/.zasp-cloud-owned/sbom-0b-graph-diagnosis-pgt18jsv/candidate/scripts/production-combined-e2e.mjs:7093
+	if (status !== 0 && options.reject !== false) throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
+	                                                    ^
+
+Error: psql failed (127): /tmp/zasp-cloud-tools/postgres-18.3/usr/lib/postgresql/18/bin/psql: symbol lookup error: /tmp/zasp-cloud-tools/postgres-18.3/usr/lib/postgresql/18/bin/psql: undefined symbol: PQfullProtocolVersion
+
+    at command (file:///workspace/.zasp-cloud-owned/sbom-0b-graph-diagnosis-pgt18jsv/candidate/scripts/production-combined-e2e.mjs:7093:54)
+    at async provisionPostgresPrincipals (file:///workspace/.zasp-cloud-owned/sbom-0b-graph-diagnosis-pgt18jsv/candidate/scripts/production-combined-e2e.mjs:3279:3)
+    at async file:///workspace/.zasp-cloud-owned/sbom-0b-graph-diagnosis-pgt18jsv/candidate/scripts/production-combined-e2e.mjs:216:3
+
+Node.js v22.23.1

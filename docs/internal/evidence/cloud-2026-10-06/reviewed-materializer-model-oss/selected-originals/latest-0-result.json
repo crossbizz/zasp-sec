@@ -1,0 +1,69 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "read-contract-TDD",
+  "completedAtWrite": true,
+  "failureClass": null,
+  "signals": [],
+  "records": [
+    {
+      "label": "old-read-contract-RED",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/temporal-CLI-census-read-final-juyfs44x/read-contract.test.py",
+        "ReadContract.test_actual_gzip_read_contract",
+        "-v"
+      ],
+      "declared_cap_seconds": 10,
+      "effective_limit_seconds": 10,
+      "enclosing_deadline_monotonic": 62920.465364558,
+      "effective_deadline_monotonic": 62900.466433797,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 1,
+      "pid": 291339,
+      "seconds": 0.11984,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "b7d04e0280da04a92c266f238b7c081f02df8d03efb5c50cf0bab94f97ef31f8"
+    },
+    {
+      "label": "new-read-contract-four-GREEN",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/temporal-CLI-census-read-final-juyfs44x/read-contract.test.py",
+        "-v"
+      ],
+      "declared_cap_seconds": 20,
+      "effective_limit_seconds": 20,
+      "enclosing_deadline_monotonic": 62920.465364558,
+      "effective_deadline_monotonic": 62910.586305039,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 291340,
+      "seconds": 0.11978,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "1e34fbd34d6b059c7a031372af24e0710329c99b87a91c87c7fb0111388b806a"
+    }
+  ],
+  "groups": {
+    "291339": [],
+    "291340": []
+  },
+  "seconds": 0.26190358200256014,
+  "expectedNetworkVariableNames": [],
+  "servicesStarted": false,
+  "installerInvoked": false,
+  "rootExternalNormalJoinRequired": true
+}

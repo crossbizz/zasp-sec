@@ -1,0 +1,13 @@
+{
+  "boundary": "Opaque archive encoding does not rewritefailed reports or claim decodedpayload/security/history clearance.",
+  "classification": "All1494 actual findings resolve to verified public file digest identities or exact source-bound substrings; zero unknown.",
+  "currentFolderReport": {
+    "originalSHA256": "a449748a4561f0236fd6833ebf8d83bcf254487a37c9ff4713837107b90ebd5a",
+    "originalSource": "/tmp/zasp-cloud-evidence/new-proof-working-scan-20261006/native379-v2-frozen-build-0b788.json",
+    "path": "native379-v2-frozen-build-0b788.json.gz"
+  },
+  "identityProofSHA256": "1c708442f694a24563940eb5e79e25e556953b35df36cbb96e15ad38b67b18f2",
+  "originalCurrentFolderFindings": 1494,
+  "originalCurrentFolderOutcome": "FAIL",
+  "originalExpandedMetadataOutcome": "FAIL1492"
+}

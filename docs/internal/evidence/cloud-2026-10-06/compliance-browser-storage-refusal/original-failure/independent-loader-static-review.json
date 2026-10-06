@@ -1,0 +1,41 @@
+{
+  "baseline": {
+    "independent_static_review_sha256": "a8a3844f97911438b484bd222cf44e5ab126fb24178e2d72690805a6cc246bdb",
+    "original_failed_attempt": "Preserved separately; not rerun or changed by this review.",
+    "script_sha256": "3b59790b890b3610da2b7e3f1ba6be3fbe04a5bf4d9e9c68c5ec8a8356ae6eee"
+  },
+  "candidate": {
+    "all_selected_member_sha_sizes_checked": true,
+    "manifest_sha256": "efbbb86fdb5ea9caea8f2af728ebfd52d353477406fbdb1286ef0505a80c57b1",
+    "path": "/tmp/zasp-cloud-evidence/compliance-browser-0b-launcher-loader-v2-private/launch.py",
+    "sha256": "0acda6f6b57eafc232ca5ccba9abd40a932c886cddf10b28b34f8b649637a134"
+  },
+  "evidence": {
+    "actual_grouped_checks": 3,
+    "fail": 0,
+    "old_raw_closed_context_exit": 127,
+    "pass": 3,
+    "repaired_exact_library_context_exit": 0,
+    "scope": "Author executed raw client --version plus private signal/Git checks; no DB/browser. Reviewer inspected source/receipt/log only and did not execute version/checks/capture."
+  },
+  "findings": [],
+  "limits": [
+    "Root alone separately authorizes final exact recipe/newUUID and records actual result. No future mutable env/tool/source/build field or arbitrary LD directory admitted.",
+    "Global child library directory changes dynamic runtime resolution; preflight/tool-version refusal and later real workflow failures remain valid outcomes, not implied acceptance.",
+    "Docker containers/endpoints/owned resources need separate actual cleanup proof; normal processes alone insufficient.",
+    "No source/tool/harness/PGreference/cap/program/anchor edits; no native379/provider/deployed/hosted cause/all728 authority.",
+    "Prior original browserFAIL and native/full/unverified outcomes remain separate."
+  ],
+  "scoped_delta": {
+    "all60_actual_hash_modes_and_regular_resolved_files_rechecked": true,
+    "closed_child_environment": "Only exact LD_LIBRARY_PATH=/tmp/zasp-cloud-tools/postgres-18.3/deps added; parent Python env-i remains unchanged.",
+    "members": 60,
+    "original4plus52_from40f499_exact_hashes_retained": true,
+    "post_capture": "Same60 runtime hashes/modes must match before completed result.",
+    "raw_psql_preflight": "Exact raw18.3 executable --version under actual chosen child environment, five-second bound and exact expected version before any workflow stage. No DB connection.",
+    "runtime_pin_manifest_sha256": "50f4b59eae4b254cad89d6dbc316c52bab976c9c9dddb5059a92838ea2fe8020",
+    "shared_guards": "Fulljoined0b receipts/current6674source+3050build hashes, two exact commands, early fail, cancellation/source guards, same900deadline/30cleanup and storage reservations unchanged."
+  },
+  "status": "PASS_EXACT_STATIC_LOADER_RECIPE_PREREQUISITE",
+  "version": "independent-browser-loader-only-static-review-v1"
+}

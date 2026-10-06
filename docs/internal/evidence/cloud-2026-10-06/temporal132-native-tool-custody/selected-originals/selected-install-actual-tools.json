@@ -1,0 +1,255 @@
+{
+  "schema": "Temporal-server132-selected-actual-installation-v1",
+  "tools": [
+    {
+      "id": "server132",
+      "binaries": [
+        {
+          "path": "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/server132/temporal-server",
+          "sha256": "c054d42ddfd63c9358a7db15a05fa106e7f4ef52b06d08bd5566ac2ad400fb9e",
+          "bytes": 148754594
+        },
+        {
+          "path": "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/server132/temporal-sql-tool",
+          "sha256": "20e0a62ba2de523cd54c6a481d372d18acf3bafccabef3ee5ee7d4cdd5b1ef0c",
+          "bytes": 40226978
+        }
+      ],
+      "compressedBytes": 100230267,
+      "compressedSHA256": "ca1ccbb1d1545b68eb4523de463c51ffcd80f7e0bccd14a9b2c56fc7e389e792",
+      "members": [
+        {
+          "path": "config/development-cass-archival.yaml",
+          "type": "regular",
+          "bytes": 2278,
+          "sha256": "d88a40789af8f50818b62a687af3b34b0b0b3c6438f25488f19da2f2194ce798",
+          "extracted": false
+        },
+        {
+          "path": "config/development-cass-es-custom.yaml",
+          "type": "regular",
+          "bytes": 2640,
+          "sha256": "213ff2f459b9722314d4604530cd1c406ce41a3c3f726d24d5a2eba662c3e99d",
+          "extracted": false
+        },
+        {
+          "path": "config/development-cass-es-dual.yaml",
+          "type": "regular",
+          "bytes": 2602,
+          "sha256": "bd3b2ca3d1945757bfd3f921c63e9eded40d1ede8762468c6b6b258933a3312e",
+          "extracted": false
+        },
+        {
+          "path": "config/development-cass-es-fi.yaml",
+          "type": "regular",
+          "bytes": 3435,
+          "sha256": "7f2ee8a6f752726c0b1e1f7c2c351330dd4e9005f8ff49fdd82807b7681ddf37",
+          "extracted": false
+        },
+        {
+          "path": "config/development-cass-es.yaml",
+          "type": "regular",
+          "bytes": 2346,
+          "sha256": "e2f49b367b3e31d51125140551e26e502fcda95a02876efacb7fcc64252db2c7",
+          "extracted": false
+        },
+        {
+          "path": "config/development-cass-s3.yaml",
+          "type": "regular",
+          "bytes": 2144,
+          "sha256": "718bade157df5082ddee57e9aa3c07144e8428060151da726dc10e700fda0ded",
+          "extracted": false
+        },
+        {
+          "path": "config/development-cluster-a.yaml",
+          "type": "regular",
+          "bytes": 2809,
+          "sha256": "86cf6ff64ab369f5d6cad78874e020de5dc66699cc9410c9cdb21152adbb05d9",
+          "extracted": false
+        },
+        {
+          "path": "config/development-cluster-b.yaml",
+          "type": "regular",
+          "bytes": 2748,
+          "sha256": "42a30ebf50ce9eca23895937baeadf9889b360a9c4449afaab754e1724179d99",
+          "extracted": false
+        },
+        {
+          "path": "config/development-cluster-c.yaml",
+          "type": "regular",
+          "bytes": 2749,
+          "sha256": "c5b150b25b57480a93c4ab4495658188be3a559c56693688c412c16ed5cf2b74",
+          "extracted": false
+        },
+        {
+          "path": "config/development-jwt.yaml",
+          "type": "regular",
+          "bytes": 3291,
+          "sha256": "7ec0a4f888a3b8a45a99f6d3ae80e322aca96caeb085089db9c2066adba303ca",
+          "extracted": false
+        },
+        {
+          "path": "config/development-mysql-es.yaml",
+          "type": "regular",
+          "bytes": 2478,
+          "sha256": "dcd627216e6800d837c536d50c07cc63be005d722f24bfcbf1a3663479449416",
+          "extracted": false
+        },
+        {
+          "path": "config/development-mysql8.yaml",
+          "type": "regular",
+          "bytes": 2518,
+          "sha256": "8aea9ba4c749715c51d872415875efd83b6905fa700e9920524915a3a19e8284",
+          "extracted": false
+        },
+        {
+          "path": "config/development-postgres-es.yaml",
+          "type": "regular",
+          "bytes": 2550,
+          "sha256": "bc0f8d8632b3c0ab3edd935c5bfcdb9b5c017bf51f16e712c97c28c504e901d4",
+          "extracted": false
+        },
+        {
+          "path": "config/development-postgres12.yaml",
+          "type": "regular",
+          "bytes": 2538,
+          "sha256": "a1ff7c05cc7ff52dd683f4106fa1409389cd0dd7c683d8534451574d270fc301",
+          "extracted": false
+        },
+        {
+          "path": "config/development-sqlite-file.yaml",
+          "type": "regular",
+          "bytes": 3097,
+          "sha256": "ff4c9b55756f52a999f4802a4892156d8218a923c417386419fc5dd0212676c5",
+          "extracted": false
+        },
+        {
+          "path": "config/development-sqlite.yaml",
+          "type": "regular",
+          "bytes": 2997,
+          "sha256": "dbf440e477e5ba4a1789451f9dddba24e774fa7be3bee1f57452583cf23f373e",
+          "extracted": false
+        },
+        {
+          "path": "config/development.yaml",
+          "type": "symlink-metadata-only",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "headerSHA256": "06e0175de9040a7451c36cbb11889b2a23446f39d9e1d39fd33f1eca565002d4",
+          "nameSHA256": "1ac4cd1f9ffcef0624f83618d9c1ea877f2a35ec256e7973291d146dc920e746",
+          "targetSHA256": "1e0dd7a8fd216ad651199dbfe3205fbf1870a5b9acc9c58046862a5238214c23",
+          "targetBytes": 23,
+          "linkCreated": false,
+          "linkFollowed": false,
+          "extracted": false
+        },
+        {
+          "path": "config/docker.yaml",
+          "type": "regular",
+          "bytes": 16732,
+          "sha256": "81fde509f35f96ca16e3c04cb557c246fa0133816464ee40d88a041e3f5ea006",
+          "extracted": false
+        },
+        {
+          "path": "config/dynamicconfig/README.md",
+          "type": "regular",
+          "bytes": 1127,
+          "sha256": "b05e3994c461237530dabd2b0e918a8e789376be86b0c9c85491486df5ab835a",
+          "extracted": false
+        },
+        {
+          "path": "config/dynamicconfig/development-cass.yaml",
+          "type": "regular",
+          "bytes": 1383,
+          "sha256": "1d40e87085e8ebbeaa14db0bdf184cc13daade6524f401ebad85787481fe3044",
+          "extracted": false
+        },
+        {
+          "path": "config/dynamicconfig/development-sql.yaml",
+          "type": "regular",
+          "bytes": 2657,
+          "sha256": "7b5cebdf80907cf1c098201caabfd33b5e62618a255e8ab6c15f7485eea27af8",
+          "extracted": false
+        },
+        {
+          "path": "config/dynamicconfig/development-xdc.yaml",
+          "type": "regular",
+          "bytes": 1255,
+          "sha256": "5e6d1b8debf4999b6438fa132529e8e039727682868893ea1ebdc5c93b1ae022",
+          "extracted": false
+        },
+        {
+          "path": "config/dynamicconfig/docker.yaml",
+          "type": "regular",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "extracted": false
+        },
+        {
+          "path": "config/jwt/README.md",
+          "type": "regular",
+          "bytes": 1684,
+          "sha256": "17228447012310b8f92ba3e07c0fe276a3f37263100c40214f3c20b207eaabb5",
+          "extracted": false
+        },
+        {
+          "path": "config/jwt/generate-token.sh",
+          "type": "regular",
+          "bytes": 1994,
+          "sha256": "4887f9ccb6b83485d34f48b5bbb665941f37187cb3e247b566971a8533be9be6",
+          "extracted": false
+        },
+        {
+          "path": "config/jwt/setup-keys.sh",
+          "type": "regular",
+          "bytes": 1373,
+          "sha256": "02208ebd8473276372262ae554d427521b32c434370b45831968a192bdf1305a",
+          "extracted": false
+        },
+        {
+          "path": "temporal-server",
+          "type": "regular",
+          "bytes": 148754594,
+          "sha256": "c054d42ddfd63c9358a7db15a05fa106e7f4ef52b06d08bd5566ac2ad400fb9e",
+          "extracted": true
+        },
+        {
+          "path": "temporal-cassandra-tool",
+          "type": "regular",
+          "bytes": 32010402,
+          "sha256": "39dc663204c52ab959426fb07a541bf914ebd3745e8f418b3a94d89b9ea98f8f",
+          "extracted": false
+        },
+        {
+          "path": "temporal-sql-tool",
+          "type": "regular",
+          "bytes": 40226978,
+          "sha256": "20e0a62ba2de523cd54c6a481d372d18acf3bafccabef3ee5ee7d4cdd5b1ef0c",
+          "extracted": true
+        },
+        {
+          "path": "temporal-elasticsearch-tool",
+          "type": "regular",
+          "bytes": 35688610,
+          "sha256": "141979f56d67b8ea640458e592b4515c8eb65778f9690e52068cbdd383d783e0",
+          "extracted": false
+        },
+        {
+          "path": "tdbg",
+          "type": "regular",
+          "bytes": 76730530,
+          "sha256": "ad6602fbad64452e86c058ac9c27bbe4bd5517da256848061fdc327c84c00199",
+          "extracted": false
+        }
+      ],
+      "inflatedBytes": 333507072,
+      "regularFiles": 2,
+      "extractedBytes": 188981572,
+      "noLinksCreatedOrFollowed": true
+    }
+  ],
+  "totalExtractedBytes": 188981572,
+  "binaryExecution": false,
+  "serviceStartup": false,
+  "licenseSource": "separately-bound-official-tag-MIT"
+}

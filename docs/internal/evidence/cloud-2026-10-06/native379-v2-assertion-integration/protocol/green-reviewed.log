@@ -1,0 +1,39 @@
+=== RUN   TestZeroRowsAndCleanCompletion
+=== RUN   TestZeroRowsAndCleanCompletion/BEGIN
+=== RUN   TestZeroRowsAndCleanCompletion/BEGIN_READ_ONLY
+--- PASS: TestZeroRowsAndCleanCompletion (0.01s)
+    --- PASS: TestZeroRowsAndCleanCompletion/BEGIN (0.01s)
+    --- PASS: TestZeroRowsAndCleanCompletion/BEGIN_READ_ONLY (0.00s)
+=== RUN   TestWrongAndNullServerExpectations
+=== RUN   TestWrongAndNullServerExpectations/role
+=== RUN   TestWrongAndNullServerExpectations/session
+=== RUN   TestWrongAndNullServerExpectations/pid
+=== RUN   TestWrongAndNullServerExpectations/null-role
+=== RUN   TestWrongAndNullServerExpectations/null-session
+=== RUN   TestWrongAndNullServerExpectations/null-pid
+--- PASS: TestWrongAndNullServerExpectations (0.02s)
+    --- PASS: TestWrongAndNullServerExpectations/role (0.00s)
+    --- PASS: TestWrongAndNullServerExpectations/session (0.00s)
+    --- PASS: TestWrongAndNullServerExpectations/pid (0.00s)
+    --- PASS: TestWrongAndNullServerExpectations/null-role (0.00s)
+    --- PASS: TestWrongAndNullServerExpectations/null-session (0.00s)
+    --- PASS: TestWrongAndNullServerExpectations/null-pid (0.00s)
+=== RUN   TestInvalidClientInputsNoReceipt
+--- PASS: TestInvalidClientInputsNoReceipt (0.00s)
+=== RUN   TestRestrictedRoleHostilePath
+--- PASS: TestRestrictedRoleHostilePath (0.01s)
+=== RUN   TestPoisonRollbackRecovery
+--- PASS: TestPoisonRollbackRecovery (0.00s)
+=== RUN   TestTimeoutCancellationRecovery
+=== RUN   TestTimeoutCancellationRecovery/statement-timeout
+=== RUN   TestTimeoutCancellationRecovery/cancelled-context
+--- PASS: TestTimeoutCancellationRecovery (0.02s)
+    --- PASS: TestTimeoutCancellationRecovery/statement-timeout (0.01s)
+    --- PASS: TestTimeoutCancellationRecovery/cancelled-context (0.00s)
+=== RUN   TestReceiptBudgetRefusesWithoutBytes
+--- PASS: TestReceiptBudgetRefusesWithoutBytes (0.00s)
+=== RUN   TestCancelledSessionCannotBorrowFreshIdentity
+--- PASS: TestCancelledSessionCannotBorrowFreshIdentity (0.02s)
+PASS
+owned PostgreSQL normal stop and join completed
+ok  	github.com/zasp-ai/zasp-sec/services/platform	1.652s

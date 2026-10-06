@@ -1,0 +1,161 @@
+{
+  "scope": "actual bounded31member combinedsource publication dirscan; NOT zero/default16publicSHA findings retained/noexceptions",
+  "publicationManifestSHA256": "26f12090962866b44f9ca2c7a9c303bbd74ae6a3a4c6912ab29bd50d2f33a47a",
+  "actualExitCode": 1,
+  "actualFindings": 16,
+  "uniquePublicSourceHashValues": 8,
+  "duplicateSourceInventoryRepresentations": 2,
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "/usr/bin/timeout",
+    "-k",
+    "5s",
+    "120s",
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "dir",
+    "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/publication-combined-authority-u15_vlft",
+    "--max-archive-depth",
+    "2",
+    "--ignore-gitleaks-allow",
+    "--redact",
+    "--report-format",
+    "json",
+    "--report-path",
+    "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/combined-publication-gitleaks-report.json"
+  ],
+  "reportSHA256": "d61db1d0a66c17462df51631b7def4e6aae54ff82c218ac8616e538487367062",
+  "logSHA256": "9935ce42793f73c29da78c86a1209f6492340260bd612d01ae4775ab0609685b",
+  "toolSHA256": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509",
+  "findings": [
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/archive/source-inputs.json.gz",
+      "line": 15,
+      "sourcePath": "services/platform/apiserver/api_token_reveal.go",
+      "SHA256": "cde1d9bd8ff845ece87a5c6429b6afdedd65520322dbaa0823262da11b51d973",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/archive/source-inputs.json.gz",
+      "line": 16,
+      "sourcePath": "services/platform/apiserver/api_token_reveal_test.go",
+      "SHA256": "08b477e7e4ece5b90c508e0f30416aeadd43aca115a40e1768cca11d949ae364",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/archive/source-inputs.json.gz",
+      "line": 373,
+      "sourcePath": "services/platform/apiserver/oauth_secret_store.go",
+      "SHA256": "018707f94490b078f5d31b39ebdfabe5e21c34221fdb7c5b2b9ecabbd1a5e352",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/archive/source-inputs.json.gz",
+      "line": 374,
+      "sourcePath": "services/platform/apiserver/oauth_secret_store_test.go",
+      "SHA256": "b1f66c0c793fd8698e243b4512700b3745a205ef66dfa76b9a232ca0d505f763",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/combined-current-root-source-index-proof.json.gz",
+      "line": 21,
+      "sourcePath": "services/platform/apiserver/api_token_reveal.go",
+      "SHA256": "cde1d9bd8ff845ece87a5c6429b6afdedd65520322dbaa0823262da11b51d973",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/combined-current-root-source-index-proof.json.gz",
+      "line": 22,
+      "sourcePath": "services/platform/apiserver/api_token_reveal_test.go",
+      "SHA256": "08b477e7e4ece5b90c508e0f30416aeadd43aca115a40e1768cca11d949ae364",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/combined-current-root-source-index-proof.json.gz",
+      "line": 379,
+      "sourcePath": "services/platform/apiserver/oauth_secret_store.go",
+      "SHA256": "018707f94490b078f5d31b39ebdfabe5e21c34221fdb7c5b2b9ecabbd1a5e352",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/combined-current-root-source-index-proof.json.gz",
+      "line": 380,
+      "sourcePath": "services/platform/apiserver/oauth_secret_store_test.go",
+      "SHA256": "b1f66c0c793fd8698e243b4512700b3745a205ef66dfa76b9a232ca0d505f763",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/archive/source-inputs.json.gz",
+      "line": 883,
+      "sourcePath": "services/platform/apiserver/security_agent_trigger_key.go",
+      "SHA256": "7ba0e065c23b016196ed1d97d32d8c607a309a0dd5112041ee39ee67ee4b902f",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/archive/source-inputs.json.gz",
+      "line": 885,
+      "sourcePath": "services/platform/apiserver/security_agent_trigger_key_postgres_test.go",
+      "SHA256": "a5077e8ce690fb732e719251fc16b5a3889076375d4ff4dd88b2f8cf05858a2e",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/archive/source-inputs.json.gz",
+      "line": 886,
+      "sourcePath": "services/platform/apiserver/security_agent_trigger_key_test.go",
+      "SHA256": "238a8aaa7390500b19eaf087435f08e1305f33e54f1b00f0ccb181150db73262",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/archive/source-inputs.json.gz",
+      "line": 935,
+      "sourcePath": "services/platform/apiserver/stytch_authenticator.go",
+      "SHA256": "07e6215f287337cdccc0e5b375da520aefef12744a6fb9ee761554e6198b1a50",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/combined-current-root-source-index-proof.json.gz",
+      "line": 889,
+      "sourcePath": "services/platform/apiserver/security_agent_trigger_key.go",
+      "SHA256": "7ba0e065c23b016196ed1d97d32d8c607a309a0dd5112041ee39ee67ee4b902f",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/combined-current-root-source-index-proof.json.gz",
+      "line": 891,
+      "sourcePath": "services/platform/apiserver/security_agent_trigger_key_postgres_test.go",
+      "SHA256": "a5077e8ce690fb732e719251fc16b5a3889076375d4ff4dd88b2f8cf05858a2e",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/combined-current-root-source-index-proof.json.gz",
+      "line": 892,
+      "sourcePath": "services/platform/apiserver/security_agent_trigger_key_test.go",
+      "SHA256": "238a8aaa7390500b19eaf087435f08e1305f33e54f1b00f0ccb181150db73262",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    },
+    {
+      "RuleID": "generic-api-key",
+      "publishedMember": "evidence/combined-current-root-source-index-proof.json.gz",
+      "line": 941,
+      "sourcePath": "services/platform/apiserver/stytch_authenticator.go",
+      "SHA256": "07e6215f287337cdccc0e5b375da520aefef12744a6fb9ee761554e6198b1a50",
+      "disposition": "public tracked-source SHA; independent classification pending"
+    }
+  ]
+}

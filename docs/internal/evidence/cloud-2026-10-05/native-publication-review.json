@@ -1,0 +1,50 @@
+{
+  "format": "independent-original33-publication-review-v1",
+  "packet_sha256": "5ed07f15be204efc14ce171c528affd7cce1628224eb24d566bfad121f3eada0",
+  "manual_credential_review": {
+    "private_keys": 0,
+    "provider_key_patterns": 0,
+    "signed_url_parameters": 0,
+    "postgres_credential_uris": 0,
+    "http_urls": 0,
+    "password_fields": 3,
+    "password_field_values": "All masked ********; fixture role frames only."
+  },
+  "gitleaks": {
+    "version": "8.30.1",
+    "scope": "stdin: exact 16,311,004-byte original33-reference.json",
+    "exit_code": 1,
+    "finding_count": 2,
+    "raw_redacted_report": "/tmp/zasp-registration-cloud-hz08qu_t/outputs/native-publication-gitleaks.json",
+    "raw_redacted_report_sha256": "2a875cec16d4157762d1acb4e1b507ba4256ac7d16fb68069c3f5ec8d933aa7b",
+    "findings": [
+      {
+        "rule_id": "generic-api-key",
+        "columns": [
+          11957,
+          12043
+        ],
+        "inventory_path": "/tmp/zasp-registration-cloud-hz08qu_t/go/src/crypto/dsa/dsa.go",
+        "inventory_sha256": "18d1ece0cb5af0b5b4c003ed2b58a31906ab1ea4ce1404aa2faba3cd0d579d08",
+        "disposition": "Verified false positive: provenance SHA-256 matches admitted Go source file, not a credential."
+      },
+      {
+        "rule_id": "generic-api-key",
+        "columns": [
+          12387,
+          12470
+        ],
+        "inventory_path": "/tmp/zasp-registration-cloud-hz08qu_t/go/src/crypto/ecdh/nist.go",
+        "inventory_sha256": "bee0503769e3e8a77bcaff976a4eb5e51a05d82d4668fad8bd82e6b8d0ab4c78",
+        "disposition": "Verified false positive: provenance SHA-256 matches admitted Go source file, not a credential."
+      }
+    ]
+  },
+  "publication_assessment": "Suitable to retain as fresh, scoped fixture-source evidence with explicit scanner false-positive disposition. No production authority implied.",
+  "scope_limits": [
+    "Not a historical archive transfer, A/B parity receipt, native379 or installed-worker acceptance.",
+    "Compression must preserve the exact decompressed packet SHA-256; bind compressed SHA-256 separately.",
+    "Keep packet, final native v2 envelope, independent review, log identity, and source manifest tied to exact source HEAD.",
+    "No scanner rules changed or broad exclusions introduced."
+  ]
+}

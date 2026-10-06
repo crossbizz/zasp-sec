@@ -1,0 +1,39 @@
+{
+  "name": "caller-short",
+  "argv": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "tool",
+    "test2json",
+    "-p",
+    "github.com/zasp-ai/zasp-sec/services/platform/apiserver",
+    "-t",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test",
+    "-test.v",
+    "-test.count=1",
+    "-test.timeout=90s",
+    "-test.run=^TestNative379PhaseCodecSourceCallerShort$"
+  ],
+  "returncode": 0,
+  "elapsed_seconds": 40.9812283640058,
+  "refusal": null,
+  "free_after_stage": 1844793344,
+  "log_sha256": "9ceccd0413f7ea7e14c0291179314dd196707b54a576e6bed38d76fcdc420df5",
+  "overlay_sha256": "fc41fb8873cbdae6b2e7584da64bc3311ab43de3b84bf0f25bdb85704887e2fe",
+  "top_level_pass": [
+    "TestNative379PhaseCodecSourceCallerShort"
+  ],
+  "top_level_fail": [],
+  "subtests_fail": [],
+  "run_tests": [
+    "TestNative379PhaseCodecSourceCallerShort"
+  ],
+  "skips": [],
+  "survivors": [],
+  "cleanup": {
+    "pid": 289821,
+    "forced": false,
+    "joined": true,
+    "errors": [],
+    "survivors": []
+  }
+}

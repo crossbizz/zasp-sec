@@ -1,0 +1,90 @@
+{
+  "schema": "historical-physical-full-retry-unverified-publication-v1",
+  "sourceCommitBefore": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "fullOutcome": "UNVERIFIED",
+  "originalOwnerJoinResult": "ABSENT",
+  "originalPIDToSourceStartGroupBinding": "UNAVAILABLE",
+  "originalElapsedSeconds": null,
+  "originalCompletionTimestamp": null,
+  "observedSuccessfulStagesOnly": [
+    "verify",
+    "dependencies:check",
+    "health:contract:test",
+    "openapi:test",
+    "openapi:lint",
+    "openapi:check",
+    "ui-api:test",
+    "ui-api:check",
+    "raw-fetch:test",
+    "saas:tenancy:test",
+    "graph:neo4j:test",
+    "db:tenant-rls:test",
+    "test",
+    "typecheck",
+    "lint",
+    "production:imports:test",
+    "production:imports:source",
+    "staging:gate:test",
+    "production:release:test",
+    "build",
+    "production:imports:compiled",
+    "implementation:status:check"
+  ],
+  "rawLogSHA256": "2acbf7c75aebf0fcd9734a7cbcef29ef9b5c629df371f6621f3f8e4301694bd4",
+  "rawLogBytes": 95414,
+  "observedUI": {
+    "filesPassed": 246,
+    "testsPassed": 2535
+  },
+  "observedReleaseCounts": {
+    "tests": 285,
+    "pass": 285,
+    "fail": 0
+  },
+  "observedBuild": "standalone output and compiledimport checks observed; not fullrun outcome",
+  "observedLedger": "728 rows/523 available-category rows/144 component-only/61 external-blocked/0 missing; no category promotion",
+  "separateLaterSourceCapture": {
+    "recordSHA256": "a281b410a0f812df19d77aa4b932459ac211add6f3fb187fd67cd4234d3e5bfd",
+    "reportedTrackedMembers": 6674,
+    "sourceArchiveSHA256": "213f162f069e2f051fee2f4b5bed55f9c5d6dc04e86042a01d4b83ad3121a15a",
+    "decodedSourceArchiveSHA256": "afed809a1324ab8f3762f9df5bb93070c920ac818092655fe3631644ac20fa7d",
+    "sourceExactGitReported": true,
+    "scope": "Separate source snapshot after observed stages; not original owner afterjoin receipt"
+  },
+  "separateLaterDependencyCapture": {
+    "postRecordSHA256": "848a0cdd9ea018f45a64ae8cf8e1c639b353fdc29c76096c80ec6f2c6cd1a379",
+    "cacheClassificationSHA256": "75b253b6451972408d0ec58d1ad114e49cd8c9a3809b9ec42ee2ec196a74b973",
+    "immutableGoldenByteEquality": false,
+    "existingCacheFileChanged": 1,
+    "addedMembers": 0,
+    "missingMembers": 0,
+    "classification": "Existing Vitest results cache changed; complete capture reports no dependency code/package metadata changes. Future cache state differs and is not falsely called immutable."
+  },
+  "kernelObservation": {
+    "sha256": "3e5508416fe646b4f04023442d9f9ed0ce5b9df12ced3223c3efc278fdc847e4",
+    "scope": "Later orphan/zombie process status alone lacks original PID/source/startgroup association and owner wait/join. An npm zombie exit0 cannot prove full outcome."
+  },
+  "originalStartingAuthorityReceipt": {
+    "sha256": "65faa867ac2417275bf16a1959fabaa79950798077077b1fcdec10b406fd9d1c",
+    "scope": "Preserved before-run source/dependency authority only; not a PID ownership or exit receipt"
+  },
+  "missingOriginalFinalReceipts": [
+    "full-verify-0b788520-physical-2026-10-06-result.json",
+    "full-verify-0b788520-physical-2026-10-06-status-after.txt"
+  ],
+  "omittedLargeDependencyCapture": {
+    "name": "full-verify-0b788520-physical-node-modules-after.json.gz",
+    "bytes": 4789035,
+    "sha256": "63c538d3d7ce6e750f210a6790ff88ea97208ea7fc0bf58784ff271b4bbbd23f",
+    "decodedBytes": 27061701,
+    "decodedSHA256": "9384a70703aae5defb72da6267943cad2717273b58f252ccedf7671a6ae1d9f1",
+    "privateOriginalSource": "/tmp/zasp-cloud-evidence/full-verify-0b788520-physical-node-modules-after.json.gz",
+    "reason": "Bounded publication omits large post-observation dependency snapshot; its exact identity and recorded single existing Vitest-results cache change remain disclosed."
+  },
+  "actualPlainDirectoryScan": {
+    "exitCode": 0,
+    "findings": 0,
+    "scope": "Plain historical originals plus already-encoded source snapshot only; decoded/source/full/native clearance not implied"
+  },
+  "boundary": "Original earlier755FAIL retained separately. No PASS inferred from observations, zombie statuses or later source snapshots. Current root-supervised full92412 and native attempt are separate and untouched. No fresh execution or candidate/source/dependency/cache/process read/hash/mutation, full/build/deployed/native/category approval or future immutableclosure claim."
+}

@@ -1,0 +1,52 @@
+{
+  "binary": {
+    "binding": {
+      "bytes": 67555591,
+      "ctime_ns": 1791306781532734779,
+      "device": 34,
+      "gid": 1000,
+      "inode": 434056,
+      "links": 1,
+      "mode": 448,
+      "mtime_ns": 1791306781528286281,
+      "sha256": "9c13c49c93007d0f81da7a42ddcbc93676696349013226f62a45410d50a32f02",
+      "uid": 1000
+    },
+    "bytes": 67555591,
+    "goroot_tool_source_map_sha256": "496dcd651bd0192036c1b4062c375d2bbe3b2d36c39bc9416612151b7b695a72",
+    "mode": 448,
+    "path": "/tmp/authorization80-sdk-proof-reserved-attempt-ewzbsuzz/compiler-tmp/component.test",
+    "sha256": "9c13c49c93007d0f81da7a42ddcbc93676696349013226f62a45410d50a32f02",
+    "source_identity_equal": true,
+    "source_overlay_sha256": "22c303356c8275d55015577a0a23a0f42093111c81579217c4274b02e9eb1924",
+    "test2json_source_binding": "Go1.25 builtin cmd/test2json compiled by pinned go tool under same90s caller deadline"
+  },
+  "compiledComponentSHA256": "7885b2d2f39ed140e33e55ba3b0f5d7d4521745a6a31e888c4b10a9caec7e318",
+  "evidenceLimits": [
+    "ROOT join is authored transcription of actual tool normal terminal observation, not invented independent kernel trace",
+    "All19381 runtime input admissions and beforeafter map content independently reconciled; no redundant fullbody rehash of immutable module/tool inventory; fresh actual source/tool/artifact admission mandatory before real parent",
+    "Unchanged generic historical scope labels do not imply fakeHTTP test invocation; actualcompile_only true/tests_executed false/exactstageargv only Go -race -c, no test2json or native services"
+  ],
+  "resultSHA256": "3997db38598ad8b2cc33975dbbe13225407eb44df17df4cdae72ebfedc4dd2ec",
+  "rootJoinSHA256": "c180f9caae13cc25da6bf19624e4da8902a11f0c3b4cf914a0f4988f0a948279",
+  "scope": "Compiled candidate source/artifact only; no test/model/store/permissions/PG/Temporal/schema80/API/provider readiness, no capacity causality or other workload FIT claim. Original failures retained; real service parent remains separately gated.",
+  "sourceMapSHA256": "a01afd997cca33b77fe8d14194781bbc6a5e612fecf23d3442ec164f745c1484",
+  "status": "PASS-ACTUAL-OFFLINE-RACE-COMPILE-ONLY",
+  "verified": {
+    "allDeclaredExpectedPinsPresentAndEqual": 19381,
+    "cleanupRecords": 2,
+    "completeBeforeAfterMapRows": 26998,
+    "completeMapsByteIdentical": true,
+    "exactOneRaceCompileStage": true,
+    "noForcedSignalTimeoutSurvivorErrors": true,
+    "normalLeaderWaits": 1,
+    "original90_270_300AndFloorsPreserved": true,
+    "ownerSeconds": 11.831409400998382,
+    "reservedFinalProofsBeforeCompileSourcePathExecutedAndUnused4MiBAllocationRetained": true,
+    "reviewedRealEntry60046AndOverlay22c303Bound": true,
+    "sameFDFullBinarySHAAndSecurityMetadataCurrentMatch": true,
+    "sampledMinimumTmpFree": 132620288,
+    "sampledMinimumWorkspaceFree": 1539141632,
+    "stageSeconds": 5.125239895001869
+  }
+}

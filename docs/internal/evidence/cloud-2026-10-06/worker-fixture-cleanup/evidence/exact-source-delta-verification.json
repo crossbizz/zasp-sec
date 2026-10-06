@@ -1,0 +1,15 @@
+{
+  "baseline_commit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "tracked_blobs_checked": 6239,
+  "changed_paths": [
+    "services/platform/agentsec-worker/compliance_export_composition_test.go",
+    "services/platform/agentsec-worker/security_agent_temporal_runner_settlement_test.go"
+  ],
+  "production_source_modules_security_caps_anchors_unchanged": true,
+  "module_sha256": {
+    "services/platform/go.mod": "3d0176805b0c3fa8ce90b3984650e9dae08baaa13dc2dcbdc5528493326756b0",
+    "services/platform/go.sum": "a99d2c9979401b020e8ce1c7818276f05c820dce5f43820566ba94121bf48825",
+    "services/health/go.mod": "800feb2d307b99dc161ce73170609d4cbe535f840aedf013c7c8392977ba9737"
+  },
+  "verification": "Each private tracked source byte sequence independently hashed with Git blob SHA1 and compared exact baseline tree object ID; exactly2testchanges."
+}

@@ -1,0 +1,11 @@
+{
+  "source_commit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "source_files_before": {
+    "services/platform/agentsec-api/ordered_readiness_routing_characterization_test.go": "8949c228d278c857d2a542938a09878f1a03a42d5d1c8cf644cbc3f5318bac0b",
+    "services/platform/apiserver/security_agent_ordered_production.go": "dbb15de9b179960d9da9a083c0849e96d61404923164cefbf1d96c7d8b14e262"
+  },
+  "instrumented_source_files": {
+    "services/platform/agentsec-api/ordered_readiness_routing_characterization_test.go": "14656e6a5eee880edf473093c6adda234bc03efb301c94ad46ae1be478541900",
+    "services/platform/apiserver/security_agent_ordered_production.go": "d148bc8da041c61c1d17abed90458e86cb4b53b98fc884bb23e4dd6fa9cbb443"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "directory": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/candidate-6d02-dp9pgin8",
+  "wireSHA256": "5d18ca5f38c6f86c7cccda46fde1fb43008f6491b3c2a8319515592f7279a25a",
+  "wireBytes": 25160408,
+  "gzipSHA256": "01875bdcce5fa95f47ada2af278197232f2aa44cc48fc24e02bef7efd8b6e29b",
+  "gzipBytes": 1578273,
+  "status": "NATIVE-PARITY-PENDING",
+  "rules": 379,
+  "facts": 10052,
+  "controls": 589,
+  "sourceManifestSHA256": "02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989",
+  "goImplementationSHA256": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e",
+  "allPacketNonAuthorityFieldsIdenticalToApprovedCa7d": true,
+  "companionSHA256Unchanged": "ae73247dade4f3a2af08249da9634cab4cf5d3d214d83b13d1e1a3643969f6c8",
+  "scope": "PRIVATE-SOURCE-ONLY-DIAGNOSTIC; no native PG/probe or diagnosis of prior collector underlying cause"
+}

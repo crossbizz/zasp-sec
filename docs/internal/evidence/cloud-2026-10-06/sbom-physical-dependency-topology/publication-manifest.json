@@ -1,0 +1,143 @@
+{
+  "schema": "bounded-reviewed-sbom-topology-publication-manifest-v1",
+  "commit": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "members": {
+    "evidence/README.md": {
+      "bytes": 2138,
+      "sha256": "8c47a4146ee3749bdc4265b0b6344353e2e886de1c7b15494fcb20a03ded6e3e"
+    },
+    "evidence/candidate-evidence-manifest.json.gz": {
+      "bytes": 1601,
+      "sha256": "57201a9543cd12429d451575a9cdb9c990d116eabfb7db60932d8c07b51594dc"
+    },
+    "evidence/compression-provenance.json": {
+      "bytes": 16586,
+      "sha256": "6d30d6d35801324ab2d0b27ca85be8630747bf0caa678dedff5581cc99bbbdb8"
+    },
+    "evidence/evidence/arborist-actual-graph.json.gz": {
+      "bytes": 4710,
+      "sha256": "13d4edad6897381c8857e88a4b13ff43d8b5d1bd1b8b137e381d13d427da12ee"
+    },
+    "evidence/evidence/arborist-root-symlink-candidate-graph.json.gz": {
+      "bytes": 5057,
+      "sha256": "aaf151cc049788917da03022f394d38aa3046f480e73b8feb109e689c7867481"
+    },
+    "evidence/evidence/candidate-sbom-command-record.json.gz": {
+      "bytes": 437,
+      "sha256": "a0bc28d40e39376c5bae96c1230193720b78e7ecfb127af135c3344b30501261"
+    },
+    "evidence/evidence/candidate-stderr.log.gz": {
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "evidence/evidence/candidate-stdout.json.gz": {
+      "bytes": 12825,
+      "sha256": "b03dc6ab6de78de94b8485c25a41ecace562e84f76c21558727a46e971cac509"
+    },
+    "evidence/evidence/detached-symlink-stderr.log.gz": {
+      "bytes": 2443,
+      "sha256": "725589f8b072c29702e80645f3c5500bd068b54942fb30c88271aa532e255c4a"
+    },
+    "evidence/evidence/detached-symlink-stdout.json.gz": {
+      "bytes": 2386,
+      "sha256": "f75cfcd91fb33219e7f6f65f752c90f39e1c8587139cf13c55f29c317fe70f80"
+    },
+    "evidence/evidence/original-full-sbom-safe-errors.log.gz": {
+      "bytes": 2485,
+      "sha256": "1cdd46a07b81f77e7fc10f9aa49c96980e6af61087e08b813f8261fe51a6d037"
+    },
+    "evidence/evidence/original-full755-fail-summary.json.gz": {
+      "bytes": 1358,
+      "sha256": "155eefd5a1ffd0068fb5742fa531d3834dabc116a55275644b45629a7c1b6651"
+    },
+    "evidence/evidence/post-command-closure-record.json.gz": {
+      "bytes": 611,
+      "sha256": "e63bb553bb6e592db9c7c3562973476819c8a92aa3d7592eeb07abc5e4adbdb4"
+    },
+    "evidence/evidence/root-stderr.log.gz": {
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "evidence/evidence/root-stdout.json.gz": {
+      "bytes": 12823,
+      "sha256": "2bcde2ba92a7f6509dd399d1e05f7a6b5949f1faf520ccfbe4ecb54e31767027"
+    },
+    "evidence/evidence/root-vs-symlink-command-record.json.gz": {
+      "bytes": 490,
+      "sha256": "0bf4b82b60bb91890fcd5666ee04fadf9d15fcd73948cb17e3f6e538058ea5c5"
+    },
+    "evidence/evidence/source-tool-bindings.json.gz": {
+      "bytes": 994,
+      "sha256": "d0e232be0fbc42281fced3eb24da01b88d452df3ab79889ef172858c11303845"
+    },
+    "evidence/evidence/topology-repair-receipt.json.gz": {
+      "bytes": 964,
+      "sha256": "e957fdbcc7b2f2ef21e71f76784830d2c66f8eed685101ec8fe34ac8e646d3aa"
+    },
+    "evidence/evidence/unchanged-release-gate-green.log.gz": {
+      "bytes": 228,
+      "sha256": "6daf0460e00b735449d86b3dd0d866da238fd2d76ea4b1b9a727a6eb3c6f7ba2"
+    },
+    "evidence/evidence/unchanged-release-gate-record.json.gz": {
+      "bytes": 591,
+      "sha256": "8ff6d9521bd656148596c46135a2cd7b8da4ee61bd3b2dbf5a1651aa3f4a9dd9"
+    },
+    "evidence/evidence/validation-summary.json.gz": {
+      "bytes": 4076,
+      "sha256": "7284feae8ad07fbef19eba97b0371ac062d11706f8e894c1752ee504f160251a"
+    },
+    "evidence/independent-provider-final-physical-node-sbom-review.json.gz": {
+      "bytes": 1308,
+      "sha256": "66118bf9b54d4badedb71eb078ad6f00be88b45b031781fb5e3a6f884ab0faaa"
+    },
+    "evidence/independent-provider-physical-node-sbom-topology-review.json.gz": {
+      "bytes": 1134,
+      "sha256": "55ec0ca4eb19d0142b6f07c472d4ab50af2b97dd2945fc406ef3f5de7ffd1c34"
+    },
+    "evidence/inspect-arborist-candidate.cjs.gz": {
+      "bytes": 1000,
+      "sha256": "88fd04228377c21142536b009625154dc7cb19ac686457e0dc0f995882e009a5"
+    },
+    "evidence/inspect-arborist.cjs.gz": {
+      "bytes": 980,
+      "sha256": "7792eedb5d8f92b1990dac471b1c9f4471f96ddf5e2be7e118216f4cc3b1d3a5"
+    },
+    "evidence/plain-originals-scan/plain-originals-scan-record.json.gz": {
+      "bytes": 529,
+      "sha256": "09abd79652ef9d0053161998c2c06ab75c230678119c5c5c392f1b7cd03f47a9"
+    },
+    "evidence/plain-originals-scan/plain-originals-scan-redacted.json.gz": {
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "evidence/plain-originals-scan/plain-originals-scan.log.gz": {
+      "bytes": 93,
+      "sha256": "be9010ad4b0c0d9709d930941143362ea13a09f4f57ae1faab5d8496b5327092"
+    },
+    "evidence/prepare-private-actual-tree.py.gz": {
+      "bytes": 2487,
+      "sha256": "1e574477d83a1e5f1f209eaee164b7515ee27ad32da48c53fbec585fa772fdac"
+    },
+    "evidence/scope.json": {
+      "bytes": 3504,
+      "sha256": "6747346bc20ed047d171cf713df2650fe24d35c91c3e537c6889495eb70f6bd8"
+    },
+    "evidence/verify-post-command-closure.py.gz": {
+      "bytes": 1429,
+      "sha256": "aef80d42b8725b535934a61f0b15648e71011f5a0cfb8fc9a4fad9b2af1079a4"
+    },
+    "publication-scan-record.json": {
+      "bytes": 899,
+      "sha256": "a0b099e0dfc225a0791a739f93ac42d36c7c7e06cb29122a0e0a83d4a017b03f"
+    },
+    "publication-scan-redacted.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "publication-scan.log": {
+      "bytes": 79,
+      "sha256": "b0fea9202e6ae8bdf538761f6d029f483abf699e2f894ec55cc836b7fe32c441"
+    }
+  },
+  "boundary": "Manifest excludes itself;28exact-originalgzip+3scope/provenance/readme+3actualpublication scan members. Original23manifest retained unchanged;26MB rawnodeclosure omittedexplicitidentity. No activefreshretrycandidate reads/hashes or futureclosure claim."
+}

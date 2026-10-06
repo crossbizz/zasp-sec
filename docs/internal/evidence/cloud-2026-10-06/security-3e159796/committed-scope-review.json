@@ -1,0 +1,1555 @@
+{
+  "version": 1,
+  "status": "PASS",
+  "scope": "Exact committed doc3e delta and recorded existing commit-only scan correspondence; separate predecessor full-blob failure retained",
+  "reviewedAtUTC": "2026-10-06T05:22:22.608415+00:00",
+  "commit": "3e1597963a0dd28ff010934c948a27dc3fa9cc07",
+  "parent": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "checks": {
+    "changedFiles": 301,
+    "allChangesDocsOnly": true,
+    "everyCommittedChangedBlobEqualsPublishedWorkingBytes": true,
+    "noFiveLinuxSuccessorSourceFilesCommitted": true,
+    "commitScopedRecordedScannerExit": 0,
+    "commitScopedRecordedFindings": 0,
+    "recordedSeconds": 0.987,
+    "exactOneCommitRange": true,
+    "ignoreBytesUnchanged": true,
+    "ignoreSHA256": "0ea55c26ab249af09129f0ee3d060373c9acdd079ba6d6cd363af0902f4d99d8",
+    "configEnvironmentNamesPresent": [],
+    "rootTomlPresent": false,
+    "predecessorFullBlobSnapshotFiles": 219,
+    "predecessorSnapshotIdenticalCommittedFiles": 218,
+    "onePredecessorReceiptLaterUpdated": [
+      "docs/internal/cloud-continuation-receipt-2026-10-06.md"
+    ],
+    "predecessorFullBlobScannerExit": 1,
+    "predecessorFullBlobFindings": 4,
+    "historicalStatusOriginalLines": 15754,
+    "committedStatusLines": 15775,
+    "allHistoricalStatusPrefixBytesLineContentUnchanged": true,
+    "allFourFindingsIdenticalOriginal0bLines": true
+  },
+  "artifactSHA256": {
+    "before.json": "458a8e61827c77b00d652474b1df0d1d9b492a7dab8e868750ecaff445dd0ce2",
+    "record.json": "694081551bdcca8eadc819f06ae267ffb482a4f935196601efccdf837dd71a3a",
+    "report.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "scan.log": "167243fc3d1d5a405730d6f4cad29476314a3b3898df5943171c59f628fa24ed"
+  },
+  "committedChangedMembers": {
+    "docs/internal/cloud-continuation-receipt-2026-10-06.md": {
+      "change": "M",
+      "bytes": 58520,
+      "sha256": "c9a7cb8495779559698c17cb81ed7ccf4c82683b086d0f377b39371dd7847afd"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/README.md": {
+      "change": "A",
+      "bytes": 1508,
+      "sha256": "ce4538b4eaf0dd42d565dfa00188592122f8d016283219435821e895848f3fa7"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/diagnosis.json": {
+      "change": "A",
+      "bytes": 1962,
+      "sha256": "110bbd32b8cee0da7652dac1891663803c9ff083279d3f40d765fb25dfa8d30c"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/independent-review.json.gz": {
+      "change": "A",
+      "bytes": 1581,
+      "sha256": "ec13578a5a3f2847396ca573f80b837216e08871929ee04c7e38d81df94d0068"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/initial.json": {
+      "change": "A",
+      "bytes": 4805,
+      "sha256": "00becf2b10ae957ad6a0e366b4ae2cc4444293ee77d8bcd5dfe5cc033a720905"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/manifest.json": {
+      "change": "A",
+      "bytes": 2925,
+      "sha256": "6c4f1a4cdf6d5cf98105b30dbfad9020f5a708cef05b001037e6e2b1539be421"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/original-closed-library-context.stderr": {
+      "change": "A",
+      "bytes": 197,
+      "sha256": "235eff6e2105ce8ba5d79981249bf50869de2fd0a4bf2f08adfbcf102c5192d4"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/original-closed-library-context.stdout": {
+      "change": "A",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/original-independent-static-review.json": {
+      "change": "A",
+      "bytes": 4842,
+      "sha256": "a8a3844f97911438b484bd222cf44e5ab126fb24178e2d72690805a6cc246bdb"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/original-launcher-3b59.py": {
+      "change": "A",
+      "bytes": 16508,
+      "sha256": "3b59790b890b3610da2b7e3f1ba6be3fbe04a5bf4d9e9c68c5ec8a8356ae6eee"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/owned-containers-after.jsonl": {
+      "change": "A",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/pinned-library-context.stderr": {
+      "change": "A",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/pinned-library-context.stdout": {
+      "change": "A",
+      "bytes": 48,
+      "sha256": "05afa5ee51e657069c946bbce8434b1aa60c6b5a3912ca1d1833c858ac0120b0"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/result.json": {
+      "change": "A",
+      "bytes": 7543,
+      "sha256": "f3818cca28d64aa242eb20bde2f12e4f27aa58f9600653f0a9017e0a47827f8e"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/root-tool-join-receipt.json": {
+      "change": "A",
+      "bytes": 502,
+      "sha256": "a6f4ef487d5c77f60bb1c97768c2613e19bca3b324106f829bac62247adc1602"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/stage-1-start.json": {
+      "change": "A",
+      "bytes": 716,
+      "sha256": "635eeceddab56c83b4e9380dee7887b09a601401922d65f528eb35f211c50073"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/stage-1-wait.json": {
+      "change": "A",
+      "bytes": 771,
+      "sha256": "93dc9c625e85eef3ce9c3890034d9af5264786986e5e7ebce12b176f68c2a95a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/stage-1.raw.log": {
+      "change": "A",
+      "bytes": 8977,
+      "sha256": "47876020e66a79195d573f81ef812c32f0da807f95a15af65b6e344cc9ff2750"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/stage-2-start.json": {
+      "change": "A",
+      "bytes": 559,
+      "sha256": "ee41e62903a622a05aec57f6a5532c17cb015e15c7f872449eb3e78215486101"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/stage-2-wait.json": {
+      "change": "A",
+      "bytes": 614,
+      "sha256": "698d4def8c3e50a9db2a0260d386a836b36383f4b14a1fd579e236f134de5f0b"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/stage-2.raw.log": {
+      "change": "A",
+      "bytes": 1318,
+      "sha256": "db07c7d0174d319f87ec5c737742443d292386f289aeae28ab6802a232234685"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/compiler-phase-addendum/addendum.json": {
+      "change": "A",
+      "bytes": 1295,
+      "sha256": "0dfb1a051b4e9d5e5f9211fa5d543035251489e088c5d85630f65412441f461a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/compiler-phase-addendum/args1827948700": {
+      "change": "A",
+      "bytes": 67012,
+      "sha256": "147a783986f095eb11befae73cda85d1bc5afc8e81f68a80f0c9d30266082118"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/compiler-phase-addendum/manifest.json": {
+      "change": "A",
+      "bytes": 388,
+      "sha256": "5447b163717d509f2ec657c8281988b5ea32130ae2c6f0d0dd818ddd328c02be"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/independent-review.json.gz": {
+      "change": "A",
+      "bytes": 982,
+      "sha256": "a4152b88fa5214781780a50f980fad295f9c33803e7a6a354651e3cf68717ee6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/README.md": {
+      "change": "A",
+      "bytes": 1511,
+      "sha256": "9e4ee8e7444d624ac1457b6bc8da34e36ccac2d0f0514d82f0c136865beabc92"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/independent-loader-static-review.json": {
+      "change": "A",
+      "bytes": 2790,
+      "sha256": "79689bc67c7fd16944d7f89c6cd8cb85f17966f0bd7f6cf74f9b057503c37236"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/initial.json": {
+      "change": "A",
+      "bytes": 5106,
+      "sha256": "2908913814369ce6cadfa4b70085ac67a60945378c4ea3642abf1aecafefe4a6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/manifest.json": {
+      "change": "A",
+      "bytes": 2259,
+      "sha256": "0ff661080a34b627f526f091236760f22eda22a560f8927fe16da5bea2d8eef9"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/owned-containers-after.jsonl": {
+      "change": "A",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/pg-client-closure-pins.json": {
+      "change": "A",
+      "bytes": 10044,
+      "sha256": "50f4b59eae4b254cad89d6dbc316c52bab976c9c9dddb5059a92838ea2fe8020"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/result.json": {
+      "change": "A",
+      "bytes": 10652,
+      "sha256": "c474fe07edc8bad18a817c9a3533c2823ace46a837ebc40331469b927a6d9434"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/reviewed-loader-launcher.py": {
+      "change": "A",
+      "bytes": 17906,
+      "sha256": "0acda6f6b57eafc232ca5ccba9abd40a932c886cddf10b28b34f8b649637a134"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/root-tool-join-receipt.json": {
+      "change": "A",
+      "bytes": 422,
+      "sha256": "5b68b7fefe9e24f9e520588d79d786cf5e2a54df590aa83e3268450d55356ca3"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/stage-1-start.json": {
+      "change": "A",
+      "bytes": 714,
+      "sha256": "67aa59f8fd16c30930b8dba5516d239fa260bcbb5cf95cd6073d2026d8ae5b4d"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/stage-1-wait.json": {
+      "change": "A",
+      "bytes": 769,
+      "sha256": "b81d3623823088b57ef822151f68206df8d92c14b1acd580b48b32a024ab895f"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/stage-1.raw.log": {
+      "change": "A",
+      "bytes": 8978,
+      "sha256": "f70a54148469d19311231bfbbcdf103bd47b8ae3fa0b2155b88dce2570412248"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/stage-2-start.json": {
+      "change": "A",
+      "bytes": 559,
+      "sha256": "8ae287ed2e0ace9f4768bf1be282f37a583211a452d70e297be0f4bf0246d93b"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/stage-2.raw.log": {
+      "change": "A",
+      "bytes": 357,
+      "sha256": "bc4841849d20c56ba45bdde1d86d63eb8fbef913be0bd32513afdd5385105631"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/compliance-browser-storage-refusal/original-failure/summary.json": {
+      "change": "A",
+      "bytes": 2069,
+      "sha256": "907e9b5806a2f1adf6a417eb7fa487fe6d820fc4358e5c166ab7949787cc2db9"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/current-0b-receipt-review/README.md": {
+      "change": "A",
+      "bytes": 246,
+      "sha256": "f8b288db0cddb4886677c184197daf79823ffb2bdb19b2f56a31161b1aa63efd"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/current-0b-receipt-review/browser-addendum-review.json.gz": {
+      "change": "A",
+      "bytes": 1569,
+      "sha256": "bfd4b70202f249e2e465b84af67b7e7a79f598c4a6ac0614a1eb475a84102451"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/current-0b-receipt-review/review.json.gz": {
+      "change": "A",
+      "bytes": 1741,
+      "sha256": "4c97172cf8e3f7649f4359efddcacf7ef5057afc531b261306d885aada2c71b3"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/README.md": {
+      "change": "A",
+      "bytes": 3106,
+      "sha256": "5b5124faef551d1de61264642e3f39813d5cf6882d24c2df26c2ccc02f563be8"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/before.json.gz": {
+      "change": "A",
+      "bytes": 570,
+      "sha256": "abe44f778355672cc020388ad692b9603baeecc853f2f3f46ef20b3196d6b6c4"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/capture-summary.json.gz": {
+      "change": "A",
+      "bytes": 500,
+      "sha256": "d83b9c2c4853f32239b39d01b47c7cb01c436e5a4fabecfe07dca1d084205db9"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/dependency-postfull-closure.json.gz": {
+      "change": "A",
+      "bytes": 887,
+      "sha256": "7c01e22ab2508d36332a3d225354f2cf2f8d967a7e409cee8f9c2119babcabbe"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/joined-full-summary.json.gz": {
+      "change": "A",
+      "bytes": 1395,
+      "sha256": "f50b1490857a094091a5274e4e4df1a91a1b0668a90b8e5d189b42287ef08862"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/original-scan-record.json.gz": {
+      "change": "A",
+      "bytes": 513,
+      "sha256": "5d3ac5dbed88eed7bb5a5c9325f29fdb249df7889e137b91d7d479817ef5bd6d"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/original-scan-redacted.json.gz": {
+      "change": "A",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/original-scan.log.gz": {
+      "change": "A",
+      "bytes": 91,
+      "sha256": "c785826a08095613356898f1d91b27fbbd29faba0c7f178349f17f94d107a44e"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/post-capture-tool-identities.json.gz": {
+      "change": "A",
+      "bytes": 607,
+      "sha256": "e5a6448d2457c133cbbd22c529fc4fd122089980907339f996996d7d2d134d48"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/post-command-closure-record.json.gz": {
+      "change": "A",
+      "bytes": 611,
+      "sha256": "e63bb553bb6e592db9c7c3562973476819c8a92aa3d7592eeb07abc5e4adbdb4"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/post-full-actual-build-manifest.json.gz": {
+      "change": "A",
+      "bytes": 134417,
+      "sha256": "c703af4502d51befd580e60f04477d3bde4cea4142602cf41cc4f05c327c005a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/post-full-source-6674-manifest.json.gz": {
+      "change": "A",
+      "bytes": 517694,
+      "sha256": "4f9f2573cc26239f37ce84fd24d65512ba44070b7158ba99b33b720946d0816e"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/process-binding.json.gz": {
+      "change": "A",
+      "bytes": 247,
+      "sha256": "750dd53e9653f90c0533bf31adc757bd3bc43997141b0a3440a98090d383b9cb"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/result.json.gz": {
+      "change": "A",
+      "bytes": 290,
+      "sha256": "25fbbc7ffd0c75589881256f2fc851db8df17b8e881105bb0231e9be3431d78b"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/run-root-full-verify-0b-receipt.py.gz": {
+      "change": "A",
+      "bytes": 1796,
+      "sha256": "d2e870ecfc7a964644d29e007ba0ccf68732699c39329c008c27d1c5856c1742"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/source-tool-bindings.json.gz": {
+      "change": "A",
+      "bytes": 994,
+      "sha256": "d0e232be0fbc42281fced3eb24da01b88d452df3ab79889ef172858c11303845"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/topology-repair-receipt.json.gz": {
+      "change": "A",
+      "bytes": 964,
+      "sha256": "e957fdbcc7b2f2ef21e71f76784830d2c66f8eed685101ec8fe34ac8e646d3aa"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/archive/verify.log.gz": {
+      "change": "A",
+      "bytes": 18177,
+      "sha256": "89ea5e2e82cd7a047652cad462bea82d9daebd2a52ab0a26b1910715b0a8836b"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/compression-provenance.json": {
+      "change": "A",
+      "bytes": 7718,
+      "sha256": "73a9af890a056ceae114c6f59b6a96005b0aeb5a450f6cf7890f6c42b05ffca7"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/independent-review.json.gz": {
+      "change": "A",
+      "bytes": 2141,
+      "sha256": "7a1e993c4893b30910163b6fc0226e9d00a0d6b6ddf44fca8f0a033ef84a4508"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/manifest.json": {
+      "change": "A",
+      "bytes": 3698,
+      "sha256": "dcec7a88124a24865b469b8f5889694da720480097b13deaff76430cde4d43e1"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/security/publication-scan-record.json": {
+      "change": "A",
+      "bytes": 820,
+      "sha256": "49dfaf3f49a4aa2e1775208a0d06da1b5610ff5b9beb8341a66743d8dd25bdc0"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/security/publication-scan-redacted.json": {
+      "change": "A",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-joined-pass/security/publication-scan.log": {
+      "change": "A",
+      "bytes": 79,
+      "sha256": "dad913958b5e3c886899aae442516be28f1db31985fa1f55f36fc8e9c4f1135f"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/README.md": {
+      "change": "A",
+      "bytes": 2023,
+      "sha256": "a6d10befb9b0bda509d1963e04eb227a22e2addd0969447b01463eff3e0f2807"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/compression-provenance.json": {
+      "change": "A",
+      "bytes": 14265,
+      "sha256": "c9adea0c6a0e9de4add609f3d34c96e3aca2b607dc647e279fc6851619495afd"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-2026-10-06-command-metadata.json.gz": {
+      "change": "A",
+      "bytes": 346,
+      "sha256": "4e204eb8f82e0a73efdeb974b028d7a6e4b2e26ad7e7b418faf5e704fba1bfe5"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-2026-10-06-head-before.txt.gz": {
+      "change": "A",
+      "bytes": 59,
+      "sha256": "a8fac781adb3641b41252504128c494042e60310ce0d5c8cda8d9c88699eae5a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-2026-10-06-space-before.txt.gz": {
+      "change": "A",
+      "bytes": 122,
+      "sha256": "d43db86efa379605bda0d6d0f2b987f04f6c1a8225a0545a78b32dfd1429cefc"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-2026-10-06-status-before.txt.gz": {
+      "change": "A",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-2026-10-06-tools.txt.gz": {
+      "change": "A",
+      "bytes": 93,
+      "sha256": "1eb839f1663e60906afd97eff08aac90a76460b7d525b3ad578de60ab63f6b1e"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-2026-10-06-umask.txt.gz": {
+      "change": "A",
+      "bytes": 25,
+      "sha256": "ad0df815e54077a89afcbabc79afe12e710d3455a4713e2b8b62b7cdc58b2cf0"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-2026-10-06.raw.log.gz": {
+      "change": "A",
+      "bytes": 18154,
+      "sha256": "ace8fe8d6fadb622682d3599dc468522197914fc0484fe1f6d97eebca8f1802c"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-authority-before.json.gz": {
+      "change": "A",
+      "bytes": 711,
+      "sha256": "3f4907a1ef3c0b616745bd8a1817eb24f9c641b78a789f22a31d454de1535e40"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-cache-change-classification.json.gz": {
+      "change": "A",
+      "bytes": 602,
+      "sha256": "afb01fd12b51b086974d995faf93e3f741c730a5fbd64d3757e6e518b3f8d083"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-observed-unverified-summary.json.gz": {
+      "change": "A",
+      "bytes": 1252,
+      "sha256": "10fa1014c4d3d1761fd72fa97aa9d58c5219b38df2748777c3ebe476a186b07b"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-orphan-zombie-observation.json.gz": {
+      "change": "A",
+      "bytes": 553,
+      "sha256": "b3aa8e2f26c70f0919a7747d0701853900d75467a1bb6c6d2c28a19b8cfbb8a9"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-post-closure-record.json.gz": {
+      "change": "A",
+      "bytes": 675,
+      "sha256": "5afc9a5c1899f151406609ad975d6a240028027cb9ec8cf4e20cf47670dffd7d"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-runtime-paths.json.gz": {
+      "change": "A",
+      "bytes": 401,
+      "sha256": "ce40d3b6857bcf3f3a77b4ecfd4a3d64b2502597585396e30db8f324faa58252"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-tracked-source-after.json.gz": {
+      "change": "A",
+      "bytes": 552188,
+      "sha256": "213f162f069e2f051fee2f4b5bed55f9c5d6dc04e86042a01d4b83ad3121a15a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/full-verify-0b788520-physical-tracked-source-closure-record.json.gz": {
+      "change": "A",
+      "bytes": 420,
+      "sha256": "3636ee6a7591f497cb1d1820e66c6b419bb82959795875f584ba6a7ed302e36a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/plain-originals-scan/plain-originals-scan-record.json.gz": {
+      "change": "A",
+      "bytes": 524,
+      "sha256": "cd0d7e627a326db6e75fce753327322ec1c9aff8c826281baa609e3b6a1a63f6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/plain-originals-scan/plain-originals-scan-redacted.json.gz": {
+      "change": "A",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/plain-originals-scan/plain-originals-scan.log.gz": {
+      "change": "A",
+      "bytes": 91,
+      "sha256": "bd6278772e8bcc841c7a4794ed83fe9878968fcfc9e2248f0bba9a28a3854a08"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/private-originals-manifest.json.gz": {
+      "change": "A",
+      "bytes": 1605,
+      "sha256": "472b0e852ae89c790a5a449cfefee8963b4f6d0b78f2c050dd563b0dbe6c56ff"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/originals/run-full-verify-0b788520-physical-2026-10-06.sh.gz": {
+      "change": "A",
+      "bytes": 826,
+      "sha256": "fc55a6e7803a738da99d2326d2f3b7a52848d8ad2037a6469dca148ebdd8ab87"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/evidence/scope.json": {
+      "change": "A",
+      "bytes": 4346,
+      "sha256": "bb1d61d37a1453661652e17ac4d7267d7e2ef8dbf4e71049d6faa923c854d198"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/independent-review.json.gz": {
+      "change": "A",
+      "bytes": 1026,
+      "sha256": "0be412671b71d8b411e9782722b9eed8c6e33883db9d427550cd48ca3eaf3b94"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/publication-manifest.json": {
+      "change": "A",
+      "bytes": 5241,
+      "sha256": "7eb4d2e15d5760b80f7ff1d9f6fd0df26f19d4e55905fe844741c9c42cda277e"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/publication-scan-record.json": {
+      "change": "A",
+      "bytes": 880,
+      "sha256": "c2da6cd0a39e566000a8ede4be7669b7877fedcf7d1d4f86643380ed7bc05498"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/publication-scan-redacted.json": {
+      "change": "A",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-physical-unverified/publication-scan.log": {
+      "change": "A",
+      "bytes": 79,
+      "sha256": "c8734cf1c395913b1c1e4899ced0ae8e196c5c9758144849d9d7d2b5276ee08c"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/README.md": {
+      "change": "A",
+      "bytes": 1009,
+      "sha256": "017f1a471ace8f6c1fff780432bbd4a7d629ac799e9618f771cde2ac5cdc5522"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/bounded-task-crosswalk.json": {
+      "change": "A",
+      "bytes": 2670,
+      "sha256": "507cef0e1f3a7a4e64b4d945aec529f6467949eb32c0ace73e1854013deb68e6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/command-metadata.json": {
+      "change": "A",
+      "bytes": 561,
+      "sha256": "9d98adcd6759171d40da09316acd65302dfac1c7485dac5cbc8ba58dac37ba47"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/dependency-after.json": {
+      "change": "A",
+      "bytes": 688,
+      "sha256": "7d9dc9caab6c9944df353e118447de75ed74a5366b0c6c63da515e8d0f679afe"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/dependency-before.json": {
+      "change": "A",
+      "bytes": 890,
+      "sha256": "e90ea9143b10cd99867d15ef94cd6a0a656631ed6ae0e3de00db95fd6fb2bef7"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/full-verify-result.json": {
+      "change": "A",
+      "bytes": 92,
+      "sha256": "c712d4037694ac6fe19d2784c5eb99ee9019ef9b095b3e667f9857b417536ed9"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/full-verify-sanitized.log.gz": {
+      "change": "A",
+      "bytes": 20383,
+      "sha256": "fdd03133db38586d56095b4a2e52ef063a45232529cda0e6fb5b20421dbb37fa"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/full-verify-summary.json": {
+      "change": "A",
+      "bytes": 3847,
+      "sha256": "58a8cd852aa315ae0516394339c9130aa4d97419af39feebc7ea08ea29c10a01"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/head-after.txt": {
+      "change": "A",
+      "bytes": 41,
+      "sha256": "1c5a550fc863d198b972c537cc84e4bef67f7f12d80248cf6ee17dad15ee0d8f"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/head-before.txt": {
+      "change": "A",
+      "bytes": 41,
+      "sha256": "1c5a550fc863d198b972c537cc84e4bef67f7f12d80248cf6ee17dad15ee0d8f"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/independent-full-verify-0b788520-publication-review.json.gz": {
+      "change": "A",
+      "bytes": 1693,
+      "sha256": "a7e97c881d74c18fc5e3245cc7a852f7ad2b32b3c814df119f4caf6b9f128965"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/log-sanitization.json": {
+      "change": "A",
+      "bytes": 833,
+      "sha256": "6b1247932f267d2358bd86f15da1c88a65f6bb92558f551f7367f899e8bf3bfb"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/manifest.json": {
+      "change": "A",
+      "bytes": 4494,
+      "sha256": "4a623fdb4db5b77e56e158e701b346386796113c7b05e0b8649cf635d6a9c0d6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/prior-failures.json": {
+      "change": "A",
+      "bytes": 428,
+      "sha256": "5493a9f946cdc0320d8051f95ccb341b15557fc8e52f6b6f525003ecf940de05"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/publication-dirscan-redacted.json": {
+      "change": "A",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/publication-dirscan.log": {
+      "change": "A",
+      "bytes": 81,
+      "sha256": "c59d0708b3e46a0c4410a14559fd1726a9fe818908c3c38242e09a88fdf1ec21"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/raw-log-scan-redacted.json": {
+      "change": "A",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/raw-log-scan.log": {
+      "change": "A",
+      "bytes": 81,
+      "sha256": "c9f7f5cf6049877dfc6794753f9975c2120522a7448cf449f92745dc037ce9f1"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/receipt-append.md": {
+      "change": "A",
+      "bytes": 2228,
+      "sha256": "93b9a71f53735ff41409ff9a97f10f392c5372885b038711eda9d6558c6f6c46"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/run-command.sh": {
+      "change": "A",
+      "bytes": 2109,
+      "sha256": "d71f6ef753f472a029b2d34f826fa9f165f1df29c7da5d0899d7ccae9b1d3716"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/runtime-paths.json": {
+      "change": "A",
+      "bytes": 776,
+      "sha256": "a0d80f2b3fcdc4f0c7ee62e6f5536870af3b9695ddcca339a1ba68b8fd065678"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/sbom-safe-errors.log": {
+      "change": "A",
+      "bytes": 14993,
+      "sha256": "b0fbd79ddad553fd64a9dc1dba4144b1322722787e8c83ae9676ad55a4a1ed05"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/source-identity.json": {
+      "change": "A",
+      "bytes": 1461,
+      "sha256": "c1644a779fbe26170208d80865b5d324846d8c49a264d31ab707bb3651b9830e"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/status-append.md": {
+      "change": "A",
+      "bytes": 699,
+      "sha256": "bf1aa1e81065f6ea41b0bcdd65cf68c3c704cd4bd1abdc4d8d02ba00b73335ee"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/tools.txt": {
+      "change": "A",
+      "bytes": 83,
+      "sha256": "2b81ccaeed775e663ffab7be4c7a9cfed05812d7c1fcc49fa0814e4cdcc2a09f"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/umask.txt": {
+      "change": "A",
+      "bytes": 5,
+      "sha256": "5e02f5b89f7b74c02ca1a79b316850e8ca23e54c1c68da2bcbc386ec84e60d79"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/worktree-create.log": {
+      "change": "A",
+      "bytes": 147,
+      "sha256": "de363db660246f670d20902b5c948871aea31fa9ae092483c7e20be8ee6e1ac0"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/inactive-startup-cache-reclamation/README.md": {
+      "change": "A",
+      "bytes": 374,
+      "sha256": "52fc57625a5b7ad2ebeb9274124ebd47cc080fbf7bad5b819dfc3d7ad1fbff65"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/inactive-startup-cache-reclamation/cache-reclamation-members.json.gz": {
+      "change": "A",
+      "bytes": 785746,
+      "sha256": "9896c96ab7eecb068549eed28134db67a2070f0476b3502c5c3d4201beef59e9"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/inactive-startup-cache-reclamation/cache-reclamation-receipt.json.gz": {
+      "change": "A",
+      "bytes": 797,
+      "sha256": "46e823bf9d484dd2cc1991cf2e927aaa6908f90b3e5d26c102eef2095480591b"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/inactive-startup-cache-reclamation/manifest.json": {
+      "change": "A",
+      "bytes": 551,
+      "sha256": "0c7c0b4c810afbfaeec77cc9eb837d60b57239d42ad99855989bd3be70f69f86"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/README.md": {
+      "change": "A",
+      "bytes": 1411,
+      "sha256": "768219b193b0e8d51e3078f921cf8881e5a260572afdf1b1abd29897a808bce8"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/classify.py.gz": {
+      "change": "A",
+      "bytes": 1777,
+      "sha256": "4b777a8ba2493e365e043049b53b2e20f24c26ac4489f11ffc29ae4fbc685617"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/complete-original-frozen0b-packet.tar.gz": {
+      "change": "A",
+      "bytes": 6116847,
+      "sha256": "098916a04180b7fd9e0b274fa578ef5c300f4688ac1208881f68a79722d22073"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/decoded-original-file-inventory.json": {
+      "change": "A",
+      "bytes": 15013,
+      "sha256": "b8afcdea8c3eeea95ee11231f2f134a383d56099a6bb9986c3ef66d6e3c8e396"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/encoding-and-preservation.json": {
+      "change": "A",
+      "bytes": 604,
+      "sha256": "091e8a508223938dd2ba6f94001b16dc1f2d470f5ff65bb9006c7b4b31a06984"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/independent-wrapper-review.json.gz": {
+      "change": "A",
+      "bytes": 1121,
+      "sha256": "6fb23da0aa7b34a539bb626441c0611bea19d34fbdb4e4e33bd5cd4c9a8defa2"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/native379-v2-frozen-build-0b788.json.gz": {
+      "change": "A",
+      "bytes": 25134,
+      "sha256": "70c2b3475f6fc2ea035c12934db79675b15366d654484f23b98da62bffcd1f09"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/native379-v2-frozen-build-0b788.log.gz": {
+      "change": "A",
+      "bytes": 133,
+      "sha256": "a8f8ffe8d8e2d64103275672f3a9ca55112e66922a0a35d81dfbb8b9fc384b83"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/outer-scanner-original-provenance.json": {
+      "change": "A",
+      "bytes": 792,
+      "sha256": "854871efa656b64755337e488f41e71e040d011f0f5880f39250647af7eb71af"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/outer-scoped-scan-record.json": {
+      "change": "A",
+      "bytes": 802,
+      "sha256": "24efe3645711c8fc3d2168aca8478d1a3d011cea53e6af8ccf93f5d9aa96de69"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/outer-scoped-scan.json.gz": {
+      "change": "A",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/outer-scoped-scan.log.gz": {
+      "change": "A",
+      "bytes": 127,
+      "sha256": "906f9f227e385d7f482cd71d90016bbf398934db2241664f28e2d32463f493d3"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/public-digest-identity-proof.json.gz": {
+      "change": "A",
+      "bytes": 142698,
+      "sha256": "036722e0c3fa2468907d32783fb0b2b6b70f7e880e309a4d784a9bc2fcb902dc"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/publication-manifest.json": {
+      "change": "A",
+      "bytes": 2051,
+      "sha256": "a160d459786703bf120969d247118a83a11b1b28ad64d2dd3f1611874e66cf11"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/README.md": {
+      "change": "A",
+      "bytes": 3422,
+      "sha256": "f758890b407902bab1c05ce0baebbfb70c1292100b6551ea585b7c884d2105e7"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/actual-native379-record.json.gz": {
+      "change": "A",
+      "bytes": 368,
+      "sha256": "0649a94ad7d840dbfeff0426fed3a52dc7116bde8e5ed96dbf205bc8b93ebd66"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/actual-native379.log.gz": {
+      "change": "A",
+      "bytes": 4123,
+      "sha256": "8707fc00cdf3d4566d7f0b697f6f248f1a094080586ac2c84f020ace3671fa3f"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/closed-environment.json.gz": {
+      "change": "A",
+      "bytes": 534,
+      "sha256": "be360f1af29fe73b38cf8f8c97d1b26a1c0db1d47d519ab1dee01fe413e71991"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/failure-safe-summary.json.gz": {
+      "change": "A",
+      "bytes": 2808,
+      "sha256": "87f117ae7162258e935d372708bfab666dd61479e3e8ee0fb9f6b87cfdb0a710"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/frozen-source-timing-prefix-2604-2630.go.txt.gz": {
+      "change": "A",
+      "bytes": 664,
+      "sha256": "e358bdeaf13169640bb2a79002a79796c9e405a04afb146e79918f76560e31cc"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/independent-provider-fresh0b-PG-static-review.json.gz": {
+      "change": "A",
+      "bytes": 1682,
+      "sha256": "072d34e0b839de36f9f68c6819939cca8dc64acc6a2c3fe7bca86cff4a9e8cf5"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/independent-root-native379-v2-0b-launcher-static-review-b08c.json.gz": {
+      "change": "A",
+      "bytes": 1744,
+      "sha256": "e5580081fce5ca7a08d70dc34fd5c2970335cc20a29ec42003d6506fa004a4bd"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/independent-root-native379-v2-0b-launcher-static-review-d432.json.gz": {
+      "change": "A",
+      "bytes": 1924,
+      "sha256": "067774f320784563ff468ae3b1bbd9da5a2aa11bb1ee10475564908c917458b6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/native379-v2-independent-actual-combined-frozen-envelope-review.json.gz": {
+      "change": "A",
+      "bytes": 2926,
+      "sha256": "cf34c36d8a427173b92028e393f44fa40283292a9120f51715630867afd5eaf8"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/original-scan-record.json.gz": {
+      "change": "A",
+      "bytes": 639,
+      "sha256": "b444cac358c123ace1bac7cb164afe3b6e8f7582ee64a1bc124a8d467efc6b80"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/original-scan-redacted.json.gz": {
+      "change": "A",
+      "bytes": 578,
+      "sha256": "39ccbcaaab7e764967395f8272eeedb30e7b179f3897a2dbaf8cbe649da6cc7a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/original-scan.log.gz": {
+      "change": "A",
+      "bytes": 95,
+      "sha256": "f1ef7a019ebc3655373e6eab26b901de4d0621abd8abfd54ee8e0d7f2f8751cc"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/parsed-safe-diagnostic.json.gz": {
+      "change": "A",
+      "bytes": 3333,
+      "sha256": "40d5f96f930ae489548a1df3aed335509b7877051815766306d48f68d839736e"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/preparation-environment.json.gz": {
+      "change": "A",
+      "bytes": 336,
+      "sha256": "40a35b0f5a9be6abad63fcbb6daac9c67078b75c01793fce57e0c50c3ab631b3"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/preparation-input-bindings.json.gz": {
+      "change": "A",
+      "bytes": 1455,
+      "sha256": "ae126b42aba5192708b486d8e82ad5a5eca566299dfa5f0d897742601a85bf30"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/public-hash-classification.json.gz": {
+      "change": "A",
+      "bytes": 1120,
+      "sha256": "38b738f3806ef90c01e21507246f0e0dc8a669f6a9371e1cb71c26f53af6ee29"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/root-launch-authorization-supplement.json.gz": {
+      "change": "A",
+      "bytes": 451,
+      "sha256": "98da416917cd49cfd2a6f9d30256e12dfe61c2b5af42c9f26047c2c64c70d18c"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/root-launch-binding.json.gz": {
+      "change": "A",
+      "bytes": 433,
+      "sha256": "583fbcac5a83198e38fe11822fbb72ee96f0ef340f9b677a376e32b295bd766a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/root-native379-v2-0b-launcher-env-guard-red-green.json.gz": {
+      "change": "A",
+      "bytes": 635,
+      "sha256": "67d89673f2b8d0910f4aeedeac36943781176369f9be35760e62b112a77550c8"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/run-root-native379-v2-0b-combined-v2.py.gz": {
+      "change": "A",
+      "bytes": 1792,
+      "sha256": "e7ac6c4a2cf0f2f2defaa25e5d5cfc3181c1d3081f795fe2eb00299f2ef15366"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/run-root-native379-v2-0b-combined.py.gz": {
+      "change": "A",
+      "bytes": 1745,
+      "sha256": "22fa61c0d9f267f094ad71b769c77a4158ac5797eace84193a6c82321d7852fd"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/archive/scan-baseline.gitleaksignore.gz": {
+      "change": "A",
+      "bytes": 7598,
+      "sha256": "aa9deff1496139b334459053ff7b41dcceb4a95eea8a85d95fa1c76a1fda561d"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/boundary.json": {
+      "change": "A",
+      "bytes": 3399,
+      "sha256": "025f974c1f85c2b071320fa247812308e233310e313604b0a034cab9f5a7d6d6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/compression-provenance.json": {
+      "change": "A",
+      "bytes": 11333,
+      "sha256": "0890bb109951f4cf124521f537d39c736643ab72d5d83f409ddf54e993561405"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/independent-review.json.gz": {
+      "change": "A",
+      "bytes": 2292,
+      "sha256": "0bf4202ff1ade5e832f9a33d413add7f31dc6e95da9e1ca16bde370e1730b8f7"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/manifest.json": {
+      "change": "A",
+      "bytes": 5086,
+      "sha256": "51389ad13e1130152e0e67dfe394be4068d5b8d9d36ae2e72bddb70ede62d473"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/security/publication-scan-record.json": {
+      "change": "A",
+      "bytes": 1045,
+      "sha256": "a46b75aac90f552d11abcb46aef85f37a574e0f2d44b98c8040ea63b6d73ec46"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/security/publication-scan-redacted.json": {
+      "change": "A",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-original-0b-failure/security/publication-scan.log": {
+      "change": "A",
+      "bytes": 79,
+      "sha256": "3a8a9ed54b2b8261a0939e11d50ab85667da5efbb880b935a25c68ffd40a0c3e"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/README.md": {
+      "change": "A",
+      "bytes": 3218,
+      "sha256": "a435c266897d0b09fcd50575c973b9f13411e489e5a6a84afdd47a284514e679"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/compression-provenance.json": {
+      "change": "A",
+      "bytes": 41654,
+      "sha256": "75824714c264239116166385440fcd01829a6282558e7ed33b795324037f43e2"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/actual-build-identity.json.gz": {
+      "change": "A",
+      "bytes": 232,
+      "sha256": "5076db724b5fc6b4de28520d2a8c19f5688e0cd5f4f7c240f65fbe0ecad415d6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/initdb-record.json.gz": {
+      "change": "A",
+      "bytes": 510,
+      "sha256": "4d2235a4907012714dba2d5e34273584e44531089f0160d013c05236fd496da3"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/initdb.stderr.gz": {
+      "change": "A",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/initdb.stdout.gz": {
+      "change": "A",
+      "bytes": 508,
+      "sha256": "d9f197fae0e3c1733ee509918d5acb75b9ae7533c53cca5abda4328a8f81d841"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/normal-stop-record.json.gz": {
+      "change": "A",
+      "bytes": 472,
+      "sha256": "6ced08bd50098a61984f3dd88d11dfa01a4a9dd1a556b2dafd8cb2ede32b3b82"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/normal-stop.stderr.gz": {
+      "change": "A",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/normal-stop.stdout.gz": {
+      "change": "A",
+      "bytes": 68,
+      "sha256": "63d8895b19d71a7fa97fc710564d178ce1aabd70d5f18136bad6a2e87e0a0787"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/owned-empty-extension-record.json.gz": {
+      "change": "A",
+      "bytes": 561,
+      "sha256": "0fed043082d88fa5d65a962736c6500230943ff2a60f1c0dda740c4fbbed0045"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/owned-empty-extension.stderr.gz": {
+      "change": "A",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/owned-empty-extension.stdout.gz": {
+      "change": "A",
+      "bytes": 37,
+      "sha256": "26c3090c1ccb5f03d6c5965e00ee0a6ffe88f4d27b4b9f814cfb0924bb24789f"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/postgres-start-record.json.gz": {
+      "change": "A",
+      "bytes": 296,
+      "sha256": "4c8efb784c1f3457583c75df013e62ee39bca91a667999b38c5e363481b048be"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/postgres.log.gz": {
+      "change": "A",
+      "bytes": 632,
+      "sha256": "f241aa2ded9184b34480882de69849a268e0a7fc6421e3ec25332a9f8ae0db45"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/readonly-build-identity-record.json.gz": {
+      "change": "A",
+      "bytes": 724,
+      "sha256": "16e0902d73be64c7c4b47d940c6c4cf19ddee7cd8a75b7b88022d1f067fbddad"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/readonly-build-identity.stderr.gz": {
+      "change": "A",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/readonly-build-identity.stdout.gz": {
+      "change": "A",
+      "bytes": 229,
+      "sha256": "f904fb82901bfdd4fc360589c00b7b8738861333d2bc1b109dec21a6760cf19a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/ready-1-record.json.gz": {
+      "change": "A",
+      "bytes": 485,
+      "sha256": "427939015e30d2a10b8ed878715eb2c0caf68f08da2d8f444d571433ef561a9f"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/ready-1.stderr.gz": {
+      "change": "A",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/ready-1.stdout.gz": {
+      "change": "A",
+      "bytes": 103,
+      "sha256": "ec4e79edb1e8d32c4d71a9e2bc83fa57fb79bdf7526217c03c8149dcdbb84f9e"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/ready-2-record.json.gz": {
+      "change": "A",
+      "bytes": 484,
+      "sha256": "394505e86837598d41647e0a863c55fa94ce26a5c6e6d76dd5d5625892a8fea9"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/ready-2.stderr.gz": {
+      "change": "A",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/ready-2.stdout.gz": {
+      "change": "A",
+      "bytes": 109,
+      "sha256": "24a061813deb3add34ec46dee17da1a382eb517114542813938a3268c3357cd0"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/root-execution-receipt.json.gz": {
+      "change": "A",
+      "bytes": 799,
+      "sha256": "511b916cf84eef21c287674f8001ed0c5790deaf1bece432a0dcbaaf1eb971c3"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/actual/summary.json.gz": {
+      "change": "A",
+      "bytes": 2302,
+      "sha256": "a7b8ce35fb6c93dbc60919cb48edaf881d7fe15623efcf657a9105faebcbeb60"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/originals-index.json.gz": {
+      "change": "A",
+      "bytes": 3259,
+      "sha256": "138d47b11618b6f5cb01dd341ca5eb30728692d1968c26c05b3edffe3925526f"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/aa19-rejected-red-actual.log.gz": {
+      "change": "A",
+      "bytes": 528,
+      "sha256": "f7963ad308a85034f7fede086fa838e0e37e6e3966b142e60732ddab1fa481a6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-aa19-rejected/capture-root-pg-build-identity.py.gz": {
+      "change": "A",
+      "bytes": 3908,
+      "sha256": "ddd89ab4d2866b2b59588dd8b573df65e55ff1d549261caaf643c94e07e0177a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-aa19-rejected/independent-static-review-aa19.json.gz": {
+      "change": "A",
+      "bytes": 2092,
+      "sha256": "fb99ef25676eec2b50043babf83130295ed987c512d27302c9e2df62cde97902"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-aa19-rejected/plan.json.gz": {
+      "change": "A",
+      "bytes": 2451,
+      "sha256": "02cf50f5c63efc9157f160b8ca4fa376946f1c79d0054e37be951ff9dbf5d026"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-v2-42b/capture-root-pg-build-identity-v2.py.gz": {
+      "change": "A",
+      "bytes": 3648,
+      "sha256": "389a48e0a1429c942c8ab45746fe7db19d09dbd28668824abca96f5389d3701a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-v2-42b/owned-child-tdd-execution-v2.json.gz": {
+      "change": "A",
+      "bytes": 511,
+      "sha256": "c8de6e01b22c9582f2c6ed15596cd3c4ca1cda535743718412189a1ce46c20b0"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-v2-42b/owned_supervisor_v2.py.gz": {
+      "change": "A",
+      "bytes": 2007,
+      "sha256": "e46b3d9e815b4ed2f8170682ded097813fb09eea2e8ebcdcff2d2aa1245da3ad"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-v2-42b/owned_supervisor_v2_test.py.gz": {
+      "change": "A",
+      "bytes": 1937,
+      "sha256": "0a71535229dce08083c24cba2476b6d136e870e24fb846832e65e9238349371e"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-v2-42b/plan-v2.json.gz": {
+      "change": "A",
+      "bytes": 3260,
+      "sha256": "6386c83b2dd8ad1bf868837c69ed217af19424b56b2434cfee937fdf2e8df4e7"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-v2-6cd/capture-root-pg-build-identity-v2.py.gz": {
+      "change": "A",
+      "bytes": 3686,
+      "sha256": "9495bdbc94a0658eaec294b36fe697ecd61c085621c03a69c4b5db83f7e7ee29"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-v2-6cd/owned-child-sourcebound-execution-v2.json.gz": {
+      "change": "A",
+      "bytes": 667,
+      "sha256": "37a8e7d2d53f2b783bd997a9c0adac39fbdcf58d51784c21579efc2a1f1b7d7f"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-v2-6cd/owned_supervisor_v2.py.gz": {
+      "change": "A",
+      "bytes": 2118,
+      "sha256": "73b8693c733304a09af0d09497dc05a8a71c6e9de6d6fb39a271b8c549bd8a06"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-v2-6cd/owned_supervisor_v2_test.py.gz": {
+      "change": "A",
+      "bytes": 1908,
+      "sha256": "8f0a991cd847b4b6b264c268b8ce6adc30cea8096eef2f54e9e642901b1cda29"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-v2-6cd/plan-v2.json.gz": {
+      "change": "A",
+      "bytes": 3566,
+      "sha256": "45dec912c7577f99055151443b7cdd47acd830db8806ba85162bb0e5b9c2de5e"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-v2-6cd/sourcebound-aa19-red.log.gz": {
+      "change": "A",
+      "bytes": 528,
+      "sha256": "136e6f5beae0a3756b330037cec05a48c2c0f000a452eb629b3833e1caba14dc"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/checkpoint-v2-6cd/sourcebound-v2-green.log.gz": {
+      "change": "A",
+      "bytes": 203,
+      "sha256": "1008a59a28666ac251332934f8a802dfe094766e8142a781fa306dd76bb14189"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/independent-static-review-42b8.json.gz": {
+      "change": "A",
+      "bytes": 1213,
+      "sha256": "a230431b3c608221ce3435f6fdbccb15cf86253d40a1a0076d57640dc79bb408"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/preserved-checkpoints/v2-final-green-actual.log.gz": {
+      "change": "A",
+      "bytes": 202,
+      "sha256": "3f6c1badb0de50ccd31d35de15b35b7074cc8c6d7bbb88da52665420593196e4"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/provenance/independent-provider-fresh0b-PG-static-review.json.gz": {
+      "change": "A",
+      "bytes": 1682,
+      "sha256": "072d34e0b839de36f9f68c6819939cca8dc64acc6a2c3fe7bca86cff4a9e8cf5"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/provenance/native379-v2-root-reviewed-pg-binding.json.gz": {
+      "change": "A",
+      "bytes": 2784,
+      "sha256": "a78b8c7a42ee10371ef26843ab1b26cb5745ea47b70e0f7ef470b8ce9ba3b416"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/reviewed-recipe/capture-root-pg-build-identity-v2.py.gz": {
+      "change": "A",
+      "bytes": 3933,
+      "sha256": "6c22e9788ab8590ba05047b9d20a8072b6d6e78b312c0bd667b7aa33b51d87d1"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/reviewed-recipe/final-aa19-red.log.gz": {
+      "change": "A",
+      "bytes": 528,
+      "sha256": "c15abcd48e01bf7c1fb621827f2688275a753c76c782d8614979569de7a957a1"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/reviewed-recipe/final-v2-child-green.log.gz": {
+      "change": "A",
+      "bytes": 202,
+      "sha256": "583530a522ad683f7a74885fb0a19badbe965f6899849fe277e73754c4dcb557"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/reviewed-recipe/final-v2-summary-green.log.gz": {
+      "change": "A",
+      "bytes": 169,
+      "sha256": "dd672108481971cf936efbda22211bb59caa70558cb693b77fecf24591a6fbfe"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/reviewed-recipe/independent-actual-outcome-c1ab.json.gz": {
+      "change": "A",
+      "bytes": 4594,
+      "sha256": "94a011c8287911d24f2cd66d1fed1ed87f4488f7e7f09d622b55d60c9ba1fea3"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/reviewed-recipe/independent-static-review-c1ab-v2.json.gz": {
+      "change": "A",
+      "bytes": 2177,
+      "sha256": "39579f8f1c6aae24661abbc376b644e554ecfc69e818a24e388505cc901cd521"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/reviewed-recipe/independent-static-review-c1ab.json.gz": {
+      "change": "A",
+      "bytes": 2047,
+      "sha256": "d39ca3111dfcfaf71e7d3b15d99c0b55629f056cd0ea7279ee79dfac285be75d"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/reviewed-recipe/owned-child-final-execution-v2.json.gz": {
+      "change": "A",
+      "bytes": 797,
+      "sha256": "226bc344f22f425c488b15d4972a2dee044075098dd3e8fce9c6b346ebda948a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/reviewed-recipe/owned_supervisor_v2.py.gz": {
+      "change": "A",
+      "bytes": 2118,
+      "sha256": "73b8693c733304a09af0d09497dc05a8a71c6e9de6d6fb39a271b8c549bd8a06"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/reviewed-recipe/owned_supervisor_v2_test.py.gz": {
+      "change": "A",
+      "bytes": 1908,
+      "sha256": "8f0a991cd847b4b6b264c268b8ce6adc30cea8096eef2f54e9e642901b1cda29"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/reviewed-recipe/plan-v2.json.gz": {
+      "change": "A",
+      "bytes": 3882,
+      "sha256": "8647fa4cfa4a30bc7328bbfd6d1a682997ebed6e4a45b87640dec61687accc37"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/reviewed-recipe/summary_evidence_v2_test.py.gz": {
+      "change": "A",
+      "bytes": 754,
+      "sha256": "310d2f5481410ae972c1c9626efc4364f0504194263e2d1a6822b5a0f11ed6d7"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/security/originals-public-hash-classification.json.gz": {
+      "change": "A",
+      "bytes": 830,
+      "sha256": "4f37cbfcdb2309426f867d905681fb47dab4e4f69affbad2644657566fa9b8a2"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/security/originals-redacted.json.gz": {
+      "change": "A",
+      "bytes": 452,
+      "sha256": "c28843e23962880b1c3a133a491392d2945d6d568aef7b5bc60b7c6a8b6d21a2"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/security/originals-redacted.log.gz": {
+      "change": "A",
+      "bytes": 95,
+      "sha256": "b85575c6cfa54e1bca751124c5ac9b111824883952f64b6033141bb25d80a49c"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/security/originals-scan-record.json.gz": {
+      "change": "A",
+      "bytes": 485,
+      "sha256": "9c8741b9fbe91dbeb4c3066e7d0042bd690a2d94eb3e2d354802b6257e74acf5"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/security/publication-preseal-record.json.gz": {
+      "change": "A",
+      "bytes": 505,
+      "sha256": "b480f3baefd4efb93acbd09ca2c5fad7f5fb4c3262c0fe2e2bcc5fa8ea1b3cad"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/security/publication-preseal-redacted.json.gz": {
+      "change": "A",
+      "bytes": 452,
+      "sha256": "6fe2b1ea9c98114d1d1665e85867e763972dd231158160ca4d463ccf9c59b3a1"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/evidence/security/publication-preseal-redacted.log.gz": {
+      "change": "A",
+      "bytes": 95,
+      "sha256": "ecdb33f6d42d4f2e7339c1b14ba7583a68ae9680f2a598257de725b84f7f07d6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/independent-review.json.gz": {
+      "change": "A",
+      "bytes": 2144,
+      "sha256": "d298a8c0519b9eef7088579be00d0280e2fdca2428f700639f961de849bc6fb7"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/publication-manifest.json": {
+      "change": "A",
+      "bytes": 13900,
+      "sha256": "d84d266fb08e486c592b64f0876b265fbde7619c8ead7d9c3496269b005baab1"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/required-final-scan/publication-final-record.json.gz": {
+      "change": "A",
+      "bytes": 687,
+      "sha256": "56918b2cfe35bab591491e718301b8cd5f0ad828d29ba599423e9a42f3a6c5f8"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/required-final-scan/publication-final-redacted.json.gz": {
+      "change": "A",
+      "bytes": 452,
+      "sha256": "6fe2b1ea9c98114d1d1665e85867e763972dd231158160ca4d463ccf9c59b3a1"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/postgres-linux-build-identity/required-final-scan/publication-final.log.gz": {
+      "change": "A",
+      "bytes": 95,
+      "sha256": "ebf2189891818a022f90d12d3814a8bce71494af618e799e5d9b721f01900559"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/README.md": {
+      "change": "A",
+      "bytes": 2138,
+      "sha256": "8c47a4146ee3749bdc4265b0b6344353e2e886de1c7b15494fcb20a03ded6e3e"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/candidate-evidence-manifest.json.gz": {
+      "change": "A",
+      "bytes": 1601,
+      "sha256": "57201a9543cd12429d451575a9cdb9c990d116eabfb7db60932d8c07b51594dc"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/compression-provenance.json": {
+      "change": "A",
+      "bytes": 16586,
+      "sha256": "6d30d6d35801324ab2d0b27ca85be8630747bf0caa678dedff5581cc99bbbdb8"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/arborist-actual-graph.json.gz": {
+      "change": "A",
+      "bytes": 4710,
+      "sha256": "13d4edad6897381c8857e88a4b13ff43d8b5d1bd1b8b137e381d13d427da12ee"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/arborist-root-symlink-candidate-graph.json.gz": {
+      "change": "A",
+      "bytes": 5057,
+      "sha256": "aaf151cc049788917da03022f394d38aa3046f480e73b8feb109e689c7867481"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/candidate-sbom-command-record.json.gz": {
+      "change": "A",
+      "bytes": 437,
+      "sha256": "a0bc28d40e39376c5bae96c1230193720b78e7ecfb127af135c3344b30501261"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/candidate-stderr.log.gz": {
+      "change": "A",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/candidate-stdout.json.gz": {
+      "change": "A",
+      "bytes": 12825,
+      "sha256": "b03dc6ab6de78de94b8485c25a41ecace562e84f76c21558727a46e971cac509"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/detached-symlink-stderr.log.gz": {
+      "change": "A",
+      "bytes": 2443,
+      "sha256": "725589f8b072c29702e80645f3c5500bd068b54942fb30c88271aa532e255c4a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/detached-symlink-stdout.json.gz": {
+      "change": "A",
+      "bytes": 2386,
+      "sha256": "f75cfcd91fb33219e7f6f65f752c90f39e1c8587139cf13c55f29c317fe70f80"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/original-full-sbom-safe-errors.log.gz": {
+      "change": "A",
+      "bytes": 2485,
+      "sha256": "1cdd46a07b81f77e7fc10f9aa49c96980e6af61087e08b813f8261fe51a6d037"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/original-full755-fail-summary.json.gz": {
+      "change": "A",
+      "bytes": 1358,
+      "sha256": "155eefd5a1ffd0068fb5742fa531d3834dabc116a55275644b45629a7c1b6651"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/post-command-closure-record.json.gz": {
+      "change": "A",
+      "bytes": 611,
+      "sha256": "e63bb553bb6e592db9c7c3562973476819c8a92aa3d7592eeb07abc5e4adbdb4"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/root-stderr.log.gz": {
+      "change": "A",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/root-stdout.json.gz": {
+      "change": "A",
+      "bytes": 12823,
+      "sha256": "2bcde2ba92a7f6509dd399d1e05f7a6b5949f1faf520ccfbe4ecb54e31767027"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/root-vs-symlink-command-record.json.gz": {
+      "change": "A",
+      "bytes": 490,
+      "sha256": "0bf4b82b60bb91890fcd5666ee04fadf9d15fcd73948cb17e3f6e538058ea5c5"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/source-tool-bindings.json.gz": {
+      "change": "A",
+      "bytes": 994,
+      "sha256": "d0e232be0fbc42281fced3eb24da01b88d452df3ab79889ef172858c11303845"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/topology-repair-receipt.json.gz": {
+      "change": "A",
+      "bytes": 964,
+      "sha256": "e957fdbcc7b2f2ef21e71f76784830d2c66f8eed685101ec8fe34ac8e646d3aa"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/unchanged-release-gate-green.log.gz": {
+      "change": "A",
+      "bytes": 228,
+      "sha256": "6daf0460e00b735449d86b3dd0d866da238fd2d76ea4b1b9a727a6eb3c6f7ba2"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/unchanged-release-gate-record.json.gz": {
+      "change": "A",
+      "bytes": 591,
+      "sha256": "8ff6d9521bd656148596c46135a2cd7b8da4ee61bd3b2dbf5a1651aa3f4a9dd9"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/evidence/validation-summary.json.gz": {
+      "change": "A",
+      "bytes": 4076,
+      "sha256": "7284feae8ad07fbef19eba97b0371ac062d11706f8e894c1752ee504f160251a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/independent-provider-final-physical-node-sbom-review.json.gz": {
+      "change": "A",
+      "bytes": 1308,
+      "sha256": "66118bf9b54d4badedb71eb078ad6f00be88b45b031781fb5e3a6f884ab0faaa"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/independent-provider-physical-node-sbom-topology-review.json.gz": {
+      "change": "A",
+      "bytes": 1134,
+      "sha256": "55ec0ca4eb19d0142b6f07c472d4ab50af2b97dd2945fc406ef3f5de7ffd1c34"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/inspect-arborist-candidate.cjs.gz": {
+      "change": "A",
+      "bytes": 1000,
+      "sha256": "88fd04228377c21142536b009625154dc7cb19ac686457e0dc0f995882e009a5"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/inspect-arborist.cjs.gz": {
+      "change": "A",
+      "bytes": 980,
+      "sha256": "7792eedb5d8f92b1990dac471b1c9f4471f96ddf5e2be7e118216f4cc3b1d3a5"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/plain-originals-scan/plain-originals-scan-record.json.gz": {
+      "change": "A",
+      "bytes": 529,
+      "sha256": "09abd79652ef9d0053161998c2c06ab75c230678119c5c5c392f1b7cd03f47a9"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/plain-originals-scan/plain-originals-scan-redacted.json.gz": {
+      "change": "A",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/plain-originals-scan/plain-originals-scan.log.gz": {
+      "change": "A",
+      "bytes": 93,
+      "sha256": "be9010ad4b0c0d9709d930941143362ea13a09f4f57ae1faab5d8496b5327092"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/prepare-private-actual-tree.py.gz": {
+      "change": "A",
+      "bytes": 2487,
+      "sha256": "1e574477d83a1e5f1f209eaee164b7515ee27ad32da48c53fbec585fa772fdac"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/scope.json": {
+      "change": "A",
+      "bytes": 3504,
+      "sha256": "6747346bc20ed047d171cf713df2650fe24d35c91c3e537c6889495eb70f6bd8"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/evidence/verify-post-command-closure.py.gz": {
+      "change": "A",
+      "bytes": 1429,
+      "sha256": "aef80d42b8725b535934a61f0b15648e71011f5a0cfb8fc9a4fad9b2af1079a4"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/independent-provider-sbom-topology-publication-review.json.gz": {
+      "change": "A",
+      "bytes": 807,
+      "sha256": "7292a20ccdca37475a9fb23e0a7183eb8c5838fc694747d7ba3761d96ba7662c"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/publication-manifest.json": {
+      "change": "A",
+      "bytes": 6079,
+      "sha256": "0d35c9c5b812ddf8b793b4c5b0819392a52227392dbb0fce08547c84f8c71037"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/publication-scan-record.json": {
+      "change": "A",
+      "bytes": 899,
+      "sha256": "a0b099e0dfc225a0791a739f93ac42d36c7c7e06cb29122a0e0a83d4a017b03f"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/publication-scan-redacted.json": {
+      "change": "A",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/sbom-physical-dependency-topology/publication-scan.log": {
+      "change": "A",
+      "bytes": 79,
+      "sha256": "b0fea9202e6ae8bdf538761f6d029f483abf699e2f894ec55cc836b7fe32c441"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-full-history/evidence/README.md": {
+      "change": "A",
+      "bytes": 1387,
+      "sha256": "e2e1fda72d1c1800aee2ec89ae6222692cc0b550fa82f82e64cb6d1bee0233c1"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-full-history/evidence/compression-provenance.json": {
+      "change": "A",
+      "bytes": 1741,
+      "sha256": "5ba38e09b1c8883b8a704eb2470647e846a9f380f6af68b2dc08f3726da77ca5"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-full-history/evidence/full-history-0b788520-record.json.gz": {
+      "change": "A",
+      "bytes": 358,
+      "sha256": "2552c4f1957f9a1dfc3a3cd31a96dedec1ca796f2e7f6a441c2e92f4562c57ed"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-full-history/evidence/full-history-0b788520-report.json.gz": {
+      "change": "A",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-full-history/evidence/full-history-0b788520.log.gz": {
+      "change": "A",
+      "bytes": 149,
+      "sha256": "80a7f9fdbf0f731219f0ef95ccc8e71b0cc0da274a860f6f091d1e640763cdb5"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-full-history/evidence/independent-provider-0b788-publication-closures-review.json.gz": {
+      "change": "A",
+      "bytes": 916,
+      "sha256": "1b283e4c9507b0771b651bf8ee70e0aaa8900ac8339c6a7923ba60a54508dc40"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-full-history/publication-final-scan-redacted.json": {
+      "change": "A",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-full-history/publication-final-scan.log": {
+      "change": "A",
+      "bytes": 77,
+      "sha256": "0079eada4c52d140e96ef53ea16b82cd5fafce1d83a269293003108d611cb595"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-full-history/publication-manifest.json": {
+      "change": "A",
+      "bytes": 1969,
+      "sha256": "b2107b0fe3c8165ce8af6779e4617b5e4a1f2db6dac0a060d88c6dda149f981c"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-full-history/publication-scan-record.json": {
+      "change": "A",
+      "bytes": 884,
+      "sha256": "5f6f046b2e07355fc14cd34f29b6b6fb9e99e7f8b4948767ae85255b3ccfec29"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-full-history/publication-scan-redacted.json": {
+      "change": "A",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-full-history/publication-scan.log": {
+      "change": "A",
+      "bytes": 77,
+      "sha256": "7f235886b4681b507736eed0bbb5b6cbcf1cdcf736bc3345a059db8eed5350c1"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-scoped-scan/evidence/README.md": {
+      "change": "A",
+      "bytes": 1853,
+      "sha256": "280fb1cc7acfd2954b23ac5011c4894928c5ab74da0075a89de007b7cf9569d7"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-scoped-scan/evidence/baseline.gitleaksignore.gz": {
+      "change": "A",
+      "bytes": 7598,
+      "sha256": "aa9deff1496139b334459053ff7b41dcceb4a95eea8a85d95fa1c76a1fda561d"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-scoped-scan/evidence/compression-provenance.json": {
+      "change": "A",
+      "bytes": 2626,
+      "sha256": "7a1e539d2dbe7103c21dd75378285e172e1ebfbe2e9661ee48336adf3f216991"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-scoped-scan/evidence/independent-provider-0b788-scoped-review.json.gz": {
+      "change": "A",
+      "bytes": 848,
+      "sha256": "4ef248285b37a82c90f0e03d86655b99181626947a0d01ef17d025489e0bc5df"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-scoped-scan/evidence/scan-record.json.gz": {
+      "change": "A",
+      "bytes": 473,
+      "sha256": "cc1318078d5c91b5df46954d5bf0487251da3be6d75a7be054cdaddf08384b91"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-scoped-scan/evidence/scan-redacted.json.gz": {
+      "change": "A",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-scoped-scan/evidence/scan.log.gz": {
+      "change": "A",
+      "bytes": 105,
+      "sha256": "04f7cc0405ea6bd7a3ccf744e212062271324502e21858c258dc157fa96ddaeb"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-scoped-scan/evidence/scope-proof.json.gz": {
+      "change": "A",
+      "bytes": 8982,
+      "sha256": "67c51d5fcac870dab0afc7a3189bce8015c9439bc11ebb438a65da209a0e91e0"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-scoped-scan/publication-manifest.json": {
+      "change": "A",
+      "bytes": 1919,
+      "sha256": "9631b9b7c5be2bbe587e541cfbbbab13e42e945a2d5bbf7f05fc14f0c27c8e4a"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-scoped-scan/publication-scan-record.json": {
+      "change": "A",
+      "bytes": 861,
+      "sha256": "6c948407a4ecac9a97d17ab5ac3704591e4678bf97af714854d7dc45b9fc2f96"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-scoped-scan/publication-scan-redacted.json": {
+      "change": "A",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "docs/internal/evidence/cloud-2026-10-06/security-0b788-scoped-scan/publication-scan.log": {
+      "change": "A",
+      "bytes": 77,
+      "sha256": "5e193dcd439ac43bb62f6c22033b97360ad1fb97f66c4af39171ba4666dde156"
+    },
+    "docs/internal/implementation_status_v1.5.md": {
+      "change": "M",
+      "bytes": 1261253,
+      "sha256": "c336d1b848e90661584f88ec5bad87dc2a91427b6c5ba9d1f906044c733f3b97"
+    }
+  },
+  "findings": [],
+  "boundaries": [
+    "Git delta scope PASS0 does not clear full committed blobs or predecessor directory FAIL4.",
+    "The four historical status-line observations remain retained, untriaged and unchanged, not declared safe credentials.",
+    "No default-rule/ignore/baseline exception introduced by this commit.",
+    "Full-history terminal outcome is pending a separate exact joined record/attachment; this report grants no full-history clearance.",
+    "No native/runtime/provider/deployment approval."
+  ],
+  "execution": "Read-only Git object reads and local hashes; no scanner/test/full execution."
+}

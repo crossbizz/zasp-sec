@@ -1,0 +1,13 @@
+{
+  "allRecipePinsChecked": true,
+  "freshOutputAbsent": true,
+  "normalWaitReturn": 0,
+  "ownerResult": "/workspace/.zasp-cloud-owned/Temporal-server132-selected-TDD-owner-8ad71f0fad1b40d6a4fee5d56b8752f1/result.json",
+  "ownerResultSHA256": "7f701cba3484d19aafc6f8688bdd44a00f0aeace271ba0aef1d0d8584100e540",
+  "preflightTmpFree": 567226368,
+  "preflightWorkspaceFree": 1545822208,
+  "schema": "root-normal-tool-join-v1",
+  "toolChunk": "1c7625",
+  "toolExit": 0,
+  "toolWallSeconds": 0.24724923
+}

@@ -1,0 +1,4 @@
+=== RUN   TestNative379V2LegacyDeferredErrorDiagnosticPreservesSafeCause
+--- PASS: TestNative379V2LegacyDeferredErrorDiagnosticPreservesSafeCause (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.021s

@@ -1,0 +1,12 @@
+{
+  "scanner": "gitleaks 8.30.1",
+  "configuration": "Existing repository ignore file; no added configuration or bypass",
+  "evidenceOutcome": "FAIL",
+  "evidenceFindings": 4,
+  "exactOriginalFindingMultisetEqual": true,
+  "evidenceReportSHA256": "e7cc0171587fd4ae7dff86e16945beba1fb542186bbe331c3d481b1d7315df97",
+  "draftsOutcome": "PASS",
+  "draftsFindings": 0,
+  "draftsReportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "boundary": "Public hash provenance classification only; not whole-history or compressed-payload scanner clearance."
+}

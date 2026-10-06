@@ -1,0 +1,292 @@
+{
+  "status": "PASS-BOUNDED-INDEPENDENT-LINUX-SUCCESSOR-SOURCE-ONLY",
+  "scope": "Exact five source files, author source output/delta/witness evidence, independent pinned Node9 tests; no runtime admission/PG/Go/native execution",
+  "sourceSHA256": {
+    "build-ordered-current-linux-successor-v1.mjs": "b5a8d9dc9e11a52d07113b3d315ef9c04cc46774e452ebe7a80be366038f2249",
+    "ordered-current-linux-provenance-v1.mjs": "64b0d211765c03071d124d1443831d2d9c3f60393878eadcbaf6ac4635be80e0",
+    "ordered-current-linux-provenance-v1.json": "68425b6efc85e163c5028dadb4b8ff3ec219dfb5d7a8a2772c73a58a45dddfb5",
+    "build-ordered-current-linux-successor-v1.test.mjs": "94dea86cf72c42b687ec28909b76b7eb06d0292190684c1b9084271a522f70a1",
+    "ordered-current-linux-provenance-v1.test.mjs": "9e1658847bbc433dcc3755b7d75dfd792b66743153832f7dff37c0a819b60c38"
+  },
+  "checks": [
+    {
+      "check": "receipt hash",
+      "passed": true
+    },
+    {
+      "check": "summary hash",
+      "passed": true
+    },
+    {
+      "check": "shared exact source build-ordered-current-linux-successor-v1.mjs",
+      "passed": true
+    },
+    {
+      "check": "private assembly exact source build-ordered-current-linux-successor-v1.mjs",
+      "passed": true
+    },
+    {
+      "check": "shared exact source ordered-current-linux-provenance-v1.mjs",
+      "passed": true
+    },
+    {
+      "check": "private assembly exact source ordered-current-linux-provenance-v1.mjs",
+      "passed": true
+    },
+    {
+      "check": "shared exact source ordered-current-linux-provenance-v1.json",
+      "passed": true
+    },
+    {
+      "check": "private assembly exact source ordered-current-linux-provenance-v1.json",
+      "passed": true
+    },
+    {
+      "check": "shared exact source build-ordered-current-linux-successor-v1.test.mjs",
+      "passed": true
+    },
+    {
+      "check": "private assembly exact source build-ordered-current-linux-successor-v1.test.mjs",
+      "passed": true
+    },
+    {
+      "check": "shared exact source ordered-current-linux-provenance-v1.test.mjs",
+      "passed": true
+    },
+    {
+      "check": "private assembly exact source ordered-current-linux-provenance-v1.test.mjs",
+      "passed": true
+    },
+    {
+      "check": "baseline-eight actual log and record",
+      "passed": true
+    },
+    {
+      "check": "successor-eight actual log and record",
+      "passed": true
+    },
+    {
+      "check": "successor-check actual log and record",
+      "passed": true
+    },
+    {
+      "check": "successor-repeat actual log and record",
+      "passed": true
+    },
+    {
+      "check": "source-group actual log and record",
+      "passed": true
+    },
+    {
+      "check": "full-source-delta actual log and record",
+      "passed": true
+    },
+    {
+      "check": "independent witness hash",
+      "passed": true
+    },
+    {
+      "check": "actual capture summary.json",
+      "passed": true
+    },
+    {
+      "check": "actual capture actual-build-identity.json",
+      "passed": true
+    },
+    {
+      "check": "actual capture root-execution-receipt.json",
+      "passed": true
+    },
+    {
+      "check": "identity raw literal exact original bytes",
+      "passed": true
+    },
+    {
+      "check": "actual identity semantic",
+      "passed": true
+    },
+    {
+      "check": "runtime descriptor all60 exact witnessed bindings",
+      "passed": true
+    },
+    {
+      "check": "binding and static review from original summary",
+      "passed": true
+    },
+    {
+      "check": "actual cleanup",
+      "passed": true
+    },
+    {
+      "check": "baseline output effective-contract4.json",
+      "passed": true
+    },
+    {
+      "check": "baseline output development-manifest.json",
+      "passed": true
+    },
+    {
+      "check": "baseline output development-module.sql",
+      "passed": true
+    },
+    {
+      "check": "baseline output development-checkpoint.json",
+      "passed": true
+    },
+    {
+      "check": "baseline output development-collector.sql",
+      "passed": true
+    },
+    {
+      "check": "baseline output development-admission.sql",
+      "passed": true
+    },
+    {
+      "check": "baseline output consolidated-reference-contract.json",
+      "passed": true
+    },
+    {
+      "check": "baseline output consolidated-reference-select.sql",
+      "passed": true
+    },
+    {
+      "check": "new output development-module.sql",
+      "passed": true
+    },
+    {
+      "check": "new output development-admission.sql",
+      "passed": true
+    },
+    {
+      "check": "new output effective-contract4.json",
+      "passed": true
+    },
+    {
+      "check": "new output consolidated-reference-contract.json",
+      "passed": true
+    },
+    {
+      "check": "new output development-collector.sql",
+      "passed": true
+    },
+    {
+      "check": "new output development-manifest.json",
+      "passed": true
+    },
+    {
+      "check": "new output consolidated-reference-select.sql",
+      "passed": true
+    },
+    {
+      "check": "new output development-checkpoint.json",
+      "passed": true
+    },
+    {
+      "check": "actual10052 facts exact10051 functional unchanged",
+      "passed": true
+    },
+    {
+      "check": "noninstallable manifests no entries",
+      "passed": true
+    },
+    {
+      "check": "emitted actual module only2lines",
+      "passed": true
+    },
+    {
+      "check": "two approved lines",
+      "passed": true
+    },
+    {
+      "check": "actual common installation prefix exact359244",
+      "passed": true
+    },
+    {
+      "check": "eight private functions unchanged",
+      "passed": true
+    },
+    {
+      "check": "exact version guard preserved",
+      "passed": true
+    },
+    {
+      "check": "complete delta original hash",
+      "passed": true
+    },
+    {
+      "check": "exact fact ledger correspondence",
+      "passed": true
+    },
+    {
+      "check": "all589/6348 source programs",
+      "passed": true
+    },
+    {
+      "check": "manifest-only539 steps/520controls",
+      "passed": true
+    },
+    {
+      "check": "retained4MiB and38240 caps",
+      "passed": true
+    },
+    {
+      "check": "actual scannerFAIL2 unchanged",
+      "passed": true
+    },
+    {
+      "check": "classification hash",
+      "passed": true
+    },
+    {
+      "check": "exact scan source5",
+      "passed": true
+    },
+    {
+      "check": "exact redacted finding 45",
+      "passed": true
+    },
+    {
+      "check": "actual public binary digest /lib/x86_64-linux-gnu/libgssapi_krb5.so.2",
+      "passed": true
+    },
+    {
+      "check": "exact redacted finding 49",
+      "passed": true
+    },
+    {
+      "check": "actual public binary digest /lib/x86_64-linux-gnu/libkeyutils.so.1",
+      "passed": true
+    },
+    {
+      "check": "independent source9 actualPASS",
+      "passed": true
+    }
+  ],
+  "checkCount": 63,
+  "independentTests": {
+    "exit": 0,
+    "tests": 9,
+    "pass": 9,
+    "fail": 0,
+    "skip": 0,
+    "duration_ms": 30847.677665,
+    "log": "/tmp/zasp-cloud-evidence/linux-successor-independent-review-kPMJEiIG/source9.log",
+    "logSHA256": "726cda02cc049e6ae25a89fcd75604e27823a21aed9b1852d5df1cc453121662"
+  },
+  "security": {
+    "originalScanExit": 1,
+    "originalFindings": 2,
+    "classification": "Both exact computed public runtime binary digests independently verified against actual file bytes",
+    "unknown": 0,
+    "exceptionsAdded": 0,
+    "scannerClearance": false
+  },
+  "limits": [
+    "No observed SQL/native execution from this source batch",
+    "539 steps/520controls are exact manifest literal source proposals, not complete successor runtime compilation",
+    "Full separately versioned packet must recompile all metadata/preimages/control structures",
+    "No RR/frame/capacity/installed/production/deployed acceptance",
+    "Authentic historical failures and Darwin/reference originals preserved; full/source guard clearance not inferred"
+  ],
+  "issues": []
+}

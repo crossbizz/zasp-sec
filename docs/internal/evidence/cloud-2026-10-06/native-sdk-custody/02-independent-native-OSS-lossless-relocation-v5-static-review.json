@@ -1,0 +1,30 @@
+{
+  "findings": [],
+  "launchPrerequisites": [
+    "ROOT executes only exact prepare phase with fresh independently reviewed source-three observer proof, actual owner/controller normal joins and alias-aware visible-process checks; 30-second conservative observation-start age enforced.",
+    "Independently review actual prepared bytes and protected originals; author closed independent-admission.json binding actual prepared SHA before finalize.",
+    "Prepare a separately reviewed fresh six-target observer (three original + three actual prepared destination inodes) and exact proof chain before finalize; no borrowed source-three proof.",
+    "ROOT alone runs finalize exact three payloads after independent prepared-copy admission; actual normal exit/join and new custody review are required.",
+    "Each phase120s and unchanged100MB tmp floor; ROOT finite outer boundary required for blocking filesystem I/O. Workspace1.5GB runtime floor remains unchanged; this recovery does not authorize runtime below it."
+  ],
+  "limitations": [
+    "Process inspection is conservative point-in-time observation, not atomic lifetime inactivity.",
+    "Physical I/O failure cannot guarantee durable recording; any journal/receipt/close failure refuses success and retains prior intent/partial custody evidence.",
+    "Prior install/help records become historical old-path evidence after relocation; future execution requires new path/full-byte identity admission.",
+    "No measured recovery, SDK bootstrap, service readiness or production acceptance inferred."
+  ],
+  "planSHA256": "d09cce61eba63df3e14aa104c581c997d7027a54dcb357e8b802a7ac1de9b14a",
+  "preparationSHA256": "b3b02b1dd4138876f1e2d695158186dd2e28ac580a8883befc43d2cd9a5590e2",
+  "resolved": [
+    "Bounded canonical same-FD control reads with closed prepared/admission schemas.",
+    "Exact source/destination FD hashes and metadata, source parent FD binding, no generic unlink scope.",
+    "Preallocated mirrored journals; durable intent before mutation and mutation ledger before signal/deadline refusal; persistence errors refuse completion.",
+    "Privileged observer 14-original artifact chain, exact PID/namespace/target metadata, FD/cwd/mmap association, positive complete MAPEND counts.",
+    "Live root proof freshness after blocking hashes and durable intent immediately before unlink.",
+    "Live cancellation/deadline/persistence checks through terminal result and actual ROOT exit requirement."
+  ],
+  "scope": "Static review only. No copies, target process checker, observer/container, unlink, services, SDK or runtime performed by reviewer.",
+  "source": "/tmp/zasp-cloud-evidence/native-oss-lossless-relocation-v5-d1ldrxd_/relocate.py",
+  "sourceSHA256": "af4738f2d7272aa327e1f47bb4c23360d68d7cb8f5a674b253c73c8f8e709bce",
+  "status": "SOURCE-STATIC-PASS"
+}

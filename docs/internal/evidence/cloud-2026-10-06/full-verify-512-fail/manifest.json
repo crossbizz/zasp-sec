@@ -1,0 +1,90 @@
+{
+  "format": "private-fullverify512-failure-manifest-v1",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1292,
+      "sha256": "e0ef11e720635fa2ecccbeaf77347292cc61e84919fb19daabdc9f3de0cedb13"
+    },
+    {
+      "path": "command-metadata.json",
+      "bytes": 515,
+      "sha256": "254ae56a0e6e857fbd2cb0901759faf8b9544450530fd183b25ae0f7b89d8707"
+    },
+    {
+      "path": "full-verify-512beb18-log-scan-redacted.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "full-verify-512beb18-log-scan.log",
+      "bytes": 81,
+      "sha256": "77641e24b325eb85fce2555a4f409efba5598c7d88d7840215811d9eacfc1018"
+    },
+    {
+      "path": "full-verify-result.json",
+      "bytes": 92,
+      "sha256": "edf9f945e3226518f7c93c98a3ac54ae5bf16bb1eed230f15bdcb3d9ebd8dd31"
+    },
+    {
+      "path": "full-verify-sanitized.log.gz",
+      "bytes": 35747,
+      "sha256": "f778429e4a0446a1f45cfe97876235c27cfea49f10dab32b7bc113dbbc851411"
+    },
+    {
+      "path": "full-verify-summary.json",
+      "bytes": 2648,
+      "sha256": "d09c0ea3c3951ceb4abd77349bbbdb665a4853149ef48f96aab68d81ab10a0b3"
+    },
+    {
+      "path": "full-verify-tools.txt",
+      "bytes": 83,
+      "sha256": "2b81ccaeed775e663ffab7be4c7a9cfed05812d7c1fcc49fa0814e4cdcc2a09f"
+    },
+    {
+      "path": "full-verify-umask.txt",
+      "bytes": 5,
+      "sha256": "5e02f5b89f7b74c02ca1a79b316850e8ca23e54c1c68da2bcbc386ec84e60d79"
+    },
+    {
+      "path": "head-after.txt",
+      "bytes": 41,
+      "sha256": "265d8bb580418be3608830b8a43e028542152ba49905c998c7883d32285c8adf"
+    },
+    {
+      "path": "head-before.txt",
+      "bytes": 41,
+      "sha256": "265d8bb580418be3608830b8a43e028542152ba49905c998c7883d32285c8adf"
+    },
+    {
+      "path": "initial-api-only-summary.json",
+      "bytes": 1067,
+      "sha256": "2f6fcea45f61de31911ff002865d8c1be8de9a7a66853a499310aab488be0a81"
+    },
+    {
+      "path": "log-sanitization.json",
+      "bytes": 420,
+      "sha256": "a880fd8e755d3f40b88312b86942de7619c61ae97235d3b0dcbb3fb6d42f8f61"
+    },
+    {
+      "path": "run-command.sh",
+      "bytes": 1936,
+      "sha256": "db600ff3854990c42a1ea7b46fcc8f0401d141e827d0d1fa9ce8cc08f5521e7e"
+    },
+    {
+      "path": "separate-full-history-report-redacted.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "separate-full-history-scan.log",
+      "bytes": 118,
+      "sha256": "e8311cb7af5217a85bade4b305b16c7288dcb6772c5e31c70675febad6e49d3e"
+    },
+    {
+      "path": "separate-full-history-summary.json",
+      "bytes": 335,
+      "sha256": "18cddf3557d50972cc8dc1199ec5ef2d67e0921a23d751ca7e065ce567b1211b"
+    }
+  ]
+}

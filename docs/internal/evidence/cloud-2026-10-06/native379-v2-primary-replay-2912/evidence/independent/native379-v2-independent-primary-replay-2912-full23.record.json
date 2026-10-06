@@ -1,0 +1,38 @@
+{
+  "exit_code": 0,
+  "seconds": 63.59013716300251,
+  "top_level_pass": 23,
+  "top_level_fail": 0,
+  "top_level_skip": 0,
+  "argv": [
+    "/usr/bin/timeout",
+    "-k",
+    "5s",
+    "240s",
+    "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/component-review-2912/apiserver-source-review.test",
+    "-test.run=^TestNative379V2",
+    "-test.count=1",
+    "-test.v"
+  ],
+  "cwd": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/source/services/platform/apiserver",
+  "environment": {
+    "HOME": "/home/agent",
+    "PATH": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/go/bin:/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+    "TMPDIR": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/tmp",
+    "GOROOT": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/go",
+    "GOMODCACHE": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache",
+    "GOCACHE": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/build-cache",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOFLAGS": "-mod=readonly",
+    "CGO_ENABLED": "0",
+    "GOOS": "linux",
+    "GOARCH": "amd64",
+    "ZASP_NATIVE379_V2_REPLAY_SOURCE_MODULE": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-source/services/platform/migrations/ordered_current/development-module.sql"
+  },
+  "log_sha256": "781e6b15951ba97811f318dd96703e78b82fa03aaa86e79606f9379921907fff",
+  "binary_sha256": "c173341b141093f9777b9f97ed468b2053b67d081b86a729ef2b78942f59d952"
+}

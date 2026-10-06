@@ -1,0 +1,89 @@
+{
+  "status": "AUTHOR-RECONSTRUCTED-ACTUAL-INVOCATION-RECEIPT-FROM-RETAINED-TOOL-HISTORY-NOT-AUTOMATIC-LAUNCH-RECORD",
+  "environmentMode": "env with explicit overrides listed; other inherited session environment variables were not captured. This is not an env-i or native launch claim.",
+  "oldBaseCommit": "3ccc145510ea90c751a66306b6bb1d39812d5c51",
+  "testScaffoldSHA256": "eb7dc659567464b1e09382b37c960f7eee384ce38df30c75b78d1e15ac2d7e3f",
+  "collectorFixtureSHA256": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f",
+  "records": [
+    {
+      "source": "baseline",
+      "cwd": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/behavioral-legacy-api/baseline/services/platform",
+      "actualArgv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go/bin/go",
+        "test",
+        "-overlay=/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/behavioral-legacy-api/baseline-overlay.json",
+        "-mod=readonly",
+        "./apiserver",
+        "-run",
+        "^TestNative379V2LegacyDeferredErrorDiagnosticPreservesSafeCause$",
+        "-count=1",
+        "-v"
+      ],
+      "explicitEnvironmentOverrides": {
+        "PATH": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go/bin:/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+        "TMPDIR": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/tmp",
+        "GOROOT": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go",
+        "GOTOOLCHAIN": "local",
+        "GOENV": "off",
+        "GOWORK": "off",
+        "GOPROXY": "off",
+        "GOSUMDB": "off",
+        "GOFLAGS": "-mod=readonly",
+        "GOEXPERIMENT": "",
+        "GOOS": "linux",
+        "GOARCH": "amd64",
+        "CGO_ENABLED": "0",
+        "GOMODCACHE": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache",
+        "GOCACHE": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/build-cache",
+        "ZASP_DIAGNOSTIC_COLLECTOR_TEST_FIXTURE": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source/services/platform/migrations/ordered_current/development-collector.sql"
+      },
+      "stdoutStderr": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/evidence/diagnostic-legacy-api-behavioral-red.log",
+      "exitCode": 1,
+      "secondsReportedByGoTest": 0.021,
+      "logSHA256": "2aeeea560286c3e9746bb715767bafcc93d662f57724c257aafa0721ef93993d",
+      "overlaySourceSHA256": "eb2db3f71f8b5a63d791af502b48d53a5bb40bb5aefedd206d49514be6e22ef2",
+      "overlayJSONSHA256": "e11785c0cbbae135b336131c257cfec35827d689c9ad8f2d2fd8406203c8725e"
+    },
+    {
+      "source": "candidate",
+      "cwd": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/source/services/platform",
+      "actualArgv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go/bin/go",
+        "test",
+        "-overlay=/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/behavioral-legacy-api/candidate-overlay.json",
+        "-mod=readonly",
+        "./apiserver",
+        "-run",
+        "^TestNative379V2LegacyDeferredErrorDiagnosticPreservesSafeCause$",
+        "-count=1",
+        "-v"
+      ],
+      "explicitEnvironmentOverrides": {
+        "PATH": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go/bin:/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+        "TMPDIR": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/tmp",
+        "GOROOT": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go",
+        "GOTOOLCHAIN": "local",
+        "GOENV": "off",
+        "GOWORK": "off",
+        "GOPROXY": "off",
+        "GOSUMDB": "off",
+        "GOFLAGS": "-mod=readonly",
+        "GOEXPERIMENT": "",
+        "GOOS": "linux",
+        "GOARCH": "amd64",
+        "CGO_ENABLED": "0",
+        "GOMODCACHE": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache",
+        "GOCACHE": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/build-cache",
+        "ZASP_DIAGNOSTIC_COLLECTOR_TEST_FIXTURE": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source/services/platform/migrations/ordered_current/development-collector.sql"
+      },
+      "stdoutStderr": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/evidence/diagnostic-legacy-api-behavioral-green.log",
+      "exitCode": 0,
+      "secondsReportedByGoTest": 0.021,
+      "logSHA256": "ba1e9e5c1729cb1615a65b7edb70b1e4d0122a1d07eea6725a461aee1173842e",
+      "overlaySourceSHA256": "a001478fc7ccd4ed7017ee4b5453da945916e9c799f4a42cf4978e02aa54dac8",
+      "overlayJSONSHA256": "478183b5bb1bcb1ba9a852ae38d3cf72554588a899eb801ece2c3b889a9b6fb1"
+    }
+  ],
+  "SQLOrPGExecuted": false,
+  "scope": "Extra same-test overlay appended to exact original/new collector API production bodies; mocked Tx/Rows returns deferred42501. Old generic handler RED, new safe typed metadata GREEN; source-only component proof, separate from actualsource13 binary."
+}

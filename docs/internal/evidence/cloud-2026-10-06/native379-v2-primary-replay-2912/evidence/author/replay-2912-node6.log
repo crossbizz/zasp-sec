@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: runtime admission refuses wrong version platform architecture or executable before regeneration
+ok 1 - runtime admission refuses wrong version platform architecture or executable before regeneration
+  ---
+  duration_ms: 238.884436
+  type: 'test'
+  ...
+# Subtest: Linux v2 reconciles complete source-derived evaluator, facts and pending trust chain
+ok 2 - Linux v2 reconciles complete source-derived evaluator, facts and pending trust chain
+  ---
+  duration_ms: 18423.282771
+  type: 'test'
+  ...
+# Subtest: v2 packet refuses stale source, missing facts, control loss, platform changes and status promotion
+ok 3 - v2 packet refuses stale source, missing facts, control loss, platform changes and status promotion
+  ---
+  duration_ms: 17025.124091
+  type: 'test'
+  ...
+# Subtest: fixed v2 source schema includes actual migration importers and both apiserver authorities
+ok 4 - fixed v2 source schema includes actual migration importers and both apiserver authorities
+  ---
+  duration_ms: 1053.909371
+  type: 'test'
+  ...
+# Subtest: repo-relative source reader refuses unsafe paths and symlink ancestors or files
+ok 5 - repo-relative source reader refuses unsafe paths and symlink ancestors or files
+  ---
+  duration_ms: 2.835618
+  type: 'test'
+  ...
+# Subtest: fixed authority refuses a same-byte manifest or artifact ancestor reached through a symlink
+ok 6 - fixed authority refuses a same-byte manifest or artifact ancestor reached through a symlink
+  ---
+  duration_ms: 9.528181
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 35837.655318

@@ -1,0 +1,43 @@
+{
+  "scope": "PRIVATE-DIRECTORY-SCANS; not full Git-history/security clearance",
+  "tool": "Gitleaks8.30.1",
+  "toolPath": "/tmp/zasp-cloud-tools/bin/gitleaks",
+  "toolSHA256": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509",
+  "cwd": "/workspace/zasp-sec",
+  "commonFlags": [
+    "dir",
+    "--no-banner",
+    "--redact=100",
+    "--report-format=json",
+    "--gitleaks-ignore-path=/workspace/zasp-sec/.gitleaksignore"
+  ],
+  "ignoreSHA256": "eed1fd29226f178d71e6f0e77b1e2cbcc9101513d600e99fc5a081779f85082c",
+  "configOverrideNamesPresent": [],
+  "actualResults": [
+    {
+      "target": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/publication-6d02-aidsbz0r/evidence",
+      "report": "evidence-redacted.json",
+      "exitCode": 0,
+      "findings": 0,
+      "toolWallSeconds": 0.522986279
+    },
+    {
+      "target": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/publication-6d02-aidsbz0r/drafts",
+      "report": "drafts-redacted.json",
+      "exitCode": 0,
+      "findings": 0,
+      "toolWallSeconds": 0.451859176,
+      "status": "historical pre-normalization draft scan preserved"
+    },
+    {
+      "target": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/publication-6d02-aidsbz0r/drafts",
+      "report": "drafts-final-redacted.json",
+      "exitCode": 0,
+      "findings": 0,
+      "toolWallSeconds": 0.377057134,
+      "status": "actual final readable draft scan"
+    }
+  ],
+  "recordMethod": "recorded from actual tool results, not automatic wrapper launch record",
+  "noScannerConfigurationOrIgnoreMutationByRecorder": true
+}

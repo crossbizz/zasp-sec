@@ -1,0 +1,71 @@
+{
+  "format": "independent-private-role-session-assertion-protocol-review-v1",
+  "assessment": "PRIVATE-PROTOCOL-REVIEW-PASS; NATIVE-INTEGRATION-PENDING",
+  "candidate_sha256": "ae0eaf96feada3484f351b9d945f3f39185e04048555ab0a224768eaf384ed0a",
+  "test_sha256": "e3604aea64767cea7e5292a80d7760ef38fa32e10ae5018d98798d94456ff8ee",
+  "sql_sha256": "81e2b073cc50b21204754d51c4f7b3cadbbff5f21978d24ab566e9080acf4c87",
+  "evidence_summary_sha256": "a8f69e70893cbb300c90b576bbd64532c9241454a8867eead56efe103d5fc7df",
+  "verified": {
+    "all_manifest_hashes": true,
+    "parameterized_qualified_SQL": true,
+    "wrong_or_NULL_denial_22012": true,
+    "read_only_and_restricted_role_success_zero_rows": true,
+    "hostile_pg_catalog_after_granted_hostile_schema": true,
+    "unqualified_witness_functions_and_operators_win": true,
+    "poison_25P02_no_receipt_and_rollback_recovery": true,
+    "cancelled_context_and_actual_request_cancellation_refuse": true,
+    "fresh_connection_old_backend_binding_refuses": true,
+    "receipt_sql_parameter_hash_zero_rows_clean_SELECT0": true,
+    "receipt_bytes_and_success_elapsed_charged": true,
+    "normal_owned_server_stop_and_process_join": true
+  },
+  "test_evidence": {
+    "primary_protocol_RED": {
+      "sha256": "a5e2c0978e992e441c4a77cedd45988b36701c122b30f7428f4eb68d54f44963",
+      "top_level_pass": 2,
+      "top_level_fail": 5,
+      "immediate_subcase_pass": 0,
+      "immediate_subcase_fail": 10,
+      "skips": 0,
+      "normal_owned_cleanup": true
+    },
+    "shadow_RED": {
+      "sha256": "8fc8afce37b4d54210c4048444da98a900149d0f0642e9e998d20cfebeb86ba8",
+      "top_level_pass": 7,
+      "top_level_fail": 1,
+      "immediate_subcase_pass": 10,
+      "immediate_subcase_fail": 0,
+      "skips": 0,
+      "normal_owned_cleanup": true
+    },
+    "reviewed_GREEN": {
+      "sha256": "41acc6756e501e1d1ff6665c9441de959c47ea76c4819369590f590d60bf9e9c",
+      "top_level_pass": 8,
+      "top_level_fail": 0,
+      "immediate_subcase_pass": 10,
+      "immediate_subcase_fail": 0,
+      "skips": 0,
+      "normal_owned_cleanup": true,
+      "elapsed_seconds": 1.652
+    },
+    "arity_RED": "Retained separately; not primary zero-row protocol evidence.",
+    "superseded_shadow_test": "Earlier hostile,public path implicitly favored pg_catalog; strengthened test explicitly demonstrates genuine shadows."
+  },
+  "findings": {
+    "critical": [],
+    "important": [],
+    "minor": [],
+    "resolved": [
+      "Hostile-path test previously could not prove shadow resistance; explicit schema USAGE, pg_catalog-last path, malicious text/integer equality and division plus function witnesses now prove it."
+    ]
+  },
+  "integration_requirements": [
+    "Bootstrap session/PID authority must be internal to frozen owned executor; private Expectation is caller-provided only at harness boundary.",
+    "Integrate explicit asserted-role receipt schema and SQL/parameter/step/placement binding; never fabricate observedRole SELECT rows.",
+    "Replace row-producing observation accounting with charged zero-row receipt bytes/time, preserving all589 programs and declaredcaps.",
+    "Skip assertion inside deliberately aborted transaction; retain exact before-poison binding then assert after recovery.",
+    "Recompute full phase/aggregate rows/bytes/time and independently validate result preimages, source/Node/Go/binary/envelope pins.",
+    "Run complete actual native acceptance with owned cleanup and independent result review; do not infer it from private races."
+  ],
+  "limits": "Private disposable PostgreSQL protocol evidence only. Budget enforces receipt bytes and accumulates successful elapsed time; it does not implement native aggregate phase/time/buffer admission. No repository/anchor edits or native activation. Existing6148>2048 fail-closed source batch remains separate."
+}

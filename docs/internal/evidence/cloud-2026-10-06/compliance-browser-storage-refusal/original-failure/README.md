@@ -1,0 +1,7 @@
+# Actual joined local browser retry: storage FAIL
+
+The exact reviewed loader successor reached a successful raw18.3psql preflight and all60PostgreSQL pins matched before/after. Stage1 passed, while stage2 was terminated when observed available workspace fell below the unchanged1.5GB guard. Roottool session53879 and helper result bind the actual joined failure44.756277794seconds. Stage2exit143 is the normalTERM outcome of the supervisor's storage refusal; no product assertion failure was established and browser acceptance was not completed.
+
+Bothstageprocesses joined, no processsurvivors, no cleanup exception, source0b stayed trackedclean and compiledserverhash unchanged. Read-only labeled Docker container inventory afterward wasempty. Process and container cleanup observations are distinct. Remaining ownedattempttmp size73728bytes and defaultGocache size3181510656bytes were inspected; these sizes neither authorize deletion nor prove unused contents or exact growth. No file was deleted or cache/guard/source/tool changed. Any cache reclaim needs parent-authorized ownership/FD/authority proof, and any retry needs a newUUID with the same900+30/source/build/loader/reserve guards.
+
+This failure doesnot revoke or replace separately joined fullnpmverify822.023PASS, nor clear either priorbrowserFAIL, hostedcauseUNKNOWN, native/deployed/provider/728 readiness. RealStytch/AWS/deployed acceptance remains NOT RUN. Original3b59/a4414.327FAIL and0acd/b22944.756storageFAIL remain separately preserved.

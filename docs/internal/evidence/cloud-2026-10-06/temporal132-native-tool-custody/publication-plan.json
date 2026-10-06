@@ -1,0 +1,800 @@
+{
+  "format": "Temporal132-selected-evidence-publication-candidate-v1",
+  "omissions": {
+    "binaryFiles": "Omitted; actual-tools and independent byte review bind full SHA/size",
+    "rawLogsAndProcessMaps": "Omitted; original result/join/record hashes remain in curated originals",
+    "retainedVendorArchive": "Omitted; independent byte review binds full replay",
+    "sourceImplementationBodies": "Omitted; source manifest/boundary are references only"
+  },
+  "records": [
+    {
+      "bytes": 1804,
+      "copyIdentity": {
+        "ctime_ns": 1791304683049391660,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432792,
+        "mode": 33024,
+        "mtime_ns": 1791304683049391660,
+        "nlink": 1,
+        "size": 1804,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/diagnostic-owner-result.json",
+      "sha256": "ec6b9ed74b8d61b0ed079e8a5dce229a332726af1d2d0b982c70022bcb8094e2",
+      "sourceIdentity": {
+        "ctime_ns": 1791302499144447293,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1246210,
+        "mode": 33024,
+        "mtime_ns": 1791302499144447293,
+        "nlink": 1,
+        "size": 1804,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/workspace/.zasp-cloud-owned/Temporal-server132-authenticated-refusal-retry-owner-51017199e875404584c1fd6b7b5784b2/result.json"
+    },
+    {
+      "bytes": 706,
+      "copyIdentity": {
+        "ctime_ns": 1791304683049391660,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432793,
+        "mode": 33024,
+        "mtime_ns": 1791304683049391660,
+        "nlink": 1,
+        "size": 706,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/diagnostic-worker-refusal.json",
+      "sha256": "7111c0b5de6bf20637f7486169247aaa309d1b183880ceb4f8b7efc738012e28",
+      "sourceIdentity": {
+        "ctime_ns": 1791302499089020033,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1246207,
+        "mode": 33024,
+        "mtime_ns": 1791302499089020033,
+        "nlink": 1,
+        "size": 706,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/workspace/.zasp-cloud-owned/Temporal-server132-stream-census-a3f6d9daf04b4d8fb397facfabd1f12f/result.json"
+    },
+    {
+      "bytes": 3969,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432794,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 3969,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/diagnostic-review.json",
+      "sha256": "1b794537cfb377688741ee7610c16e27c8a9727d61024c6eecceeeec6b5d9e9f",
+      "sourceIdentity": {
+        "ctime_ns": 1791302737186299368,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432583,
+        "mode": 33024,
+        "mtime_ns": 1791302737186299368,
+        "nlink": 1,
+        "size": 3969,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-authenticated-refusal-diagnostic-review.json"
+    },
+    {
+      "bytes": 843,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432795,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 843,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/diagnostic-root-join.json",
+      "sha256": "6b5a68d085c04eb42a1ef946681e7d11dc33ceab12babc7531bd0b3f8646cf8a",
+      "sourceIdentity": {
+        "ctime_ns": 1791302666336241966,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432582,
+        "mode": 33152,
+        "mtime_ns": 1791302666336241966,
+        "nlink": 1,
+        "size": 843,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/temporal132-authenticated-diagnostic-root-actual-join.json"
+    },
+    {
+      "bytes": 1756,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432796,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 1756,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/fullmetadata-owner-result.json",
+      "sha256": "6b74766b15e34955ee71cc1cdca61223468a479e42d998c3426d83dca668401e",
+      "sourceIdentity": {
+        "ctime_ns": 1791303324615505312,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1246232,
+        "mode": 33024,
+        "mtime_ns": 1791303324615505312,
+        "nlink": 1,
+        "size": 1756,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/workspace/.zasp-cloud-owned/Temporal-server132-full-metadata-census-owner-70b62968ae6f4b32b84a157dfca357cc/result.json"
+    },
+    {
+      "bytes": 6773,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432797,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 6773,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/fullmetadata-worker-result.json",
+      "sha256": "5ec3d4953d3a53040be9ab51019a9eca6deeccfe41a5514d1a7be19f87554d7e",
+      "sourceIdentity": {
+        "ctime_ns": 1791303324566954400,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1246230,
+        "mode": 33024,
+        "mtime_ns": 1791303324566954400,
+        "nlink": 1,
+        "size": 6773,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/workspace/.zasp-cloud-owned/Temporal-server132-stream-census-74799a5934b742fb883328571d06d24b/result.json"
+    },
+    {
+      "bytes": 10146,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432798,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 10146,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/fullmetadata-review.json",
+      "sha256": "fe8ad7a50b4777b6433fd432bb69b414670b3b62b2c83862bc1d5fbd5322c74f",
+      "sourceIdentity": {
+        "ctime_ns": 1791303491736552277,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432612,
+        "mode": 33024,
+        "mtime_ns": 1791303491736552277,
+        "nlink": 1,
+        "size": 10146,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-full-metadata-census-review.json"
+    },
+    {
+      "bytes": 814,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432799,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 814,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/fullmetadata-root-join.json",
+      "sha256": "55750ded7da35bcce88a012d842ba78b70e90034faab3c566327ee1d91b8dbb4",
+      "sourceIdentity": {
+        "ctime_ns": 1791303423344807158,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432611,
+        "mode": 33152,
+        "mtime_ns": 1791303423344807158,
+        "nlink": 1,
+        "size": 814,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/temporal132-full-metadata-root-actual-join.json"
+    },
+    {
+      "bytes": 2071,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432800,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 2071,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/fullmetadata-source-static-review.json",
+      "sha256": "e1dc3b59bb0c5504dec9efc554a18d6658e9c452a633d2abb6fba8b91c0d316b",
+      "sourceIdentity": {
+        "ctime_ns": 1791303100095074816,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432603,
+        "mode": 33024,
+        "mtime_ns": 1791303100095074816,
+        "nlink": 1,
+        "size": 2071,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-Temporal132-full-metadata-census-source-static-review.json"
+    },
+    {
+      "bytes": 2349,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432801,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 2349,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-TDD-owner-result.json",
+      "sha256": "7f701cba3484d19aafc6f8688bdd44a00f0aeace271ba0aef1d0d8584100e540",
+      "sourceIdentity": {
+        "ctime_ns": 1791304151422600392,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1246710,
+        "mode": 33024,
+        "mtime_ns": 1791304151422600392,
+        "nlink": 1,
+        "size": 2349,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/workspace/.zasp-cloud-owned/Temporal-server132-selected-TDD-owner-8ad71f0fad1b40d6a4fee5d56b8752f1/result.json"
+    },
+    {
+      "bytes": 3446,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432802,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 3446,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-TDD-review.json",
+      "sha256": "6b90924ca9722b8d957e08ba1da26774b42663c82834c1925686d7b2cb94283b",
+      "sourceIdentity": {
+        "ctime_ns": 1791304195221590581,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432694,
+        "mode": 33024,
+        "mtime_ns": 1791304195221590581,
+        "nlink": 1,
+        "size": 3446,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-selected-installer-TDD-review.json"
+    },
+    {
+      "bytes": 500,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432803,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 500,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-TDD-root-join.json",
+      "sha256": "2468d05a6038fb2ac0ed763bd12737e6d9516efaa2a7bb874e4b5b9ccb77f9f0",
+      "sourceIdentity": {
+        "ctime_ns": 1791304181821266486,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432691,
+        "mode": 33152,
+        "mtime_ns": 1791304181821266486,
+        "nlink": 1,
+        "size": 500,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/selected-Temporal132-TDD-root-join.json"
+    },
+    {
+      "bytes": 573,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432804,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 573,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-TDD-join-addendum.json",
+      "sha256": "1b0739ae6dc08f3c7d2cc0abbb6e5c09fcf24ee6a8093df736b441722bf3449d",
+      "sourceIdentity": {
+        "ctime_ns": 1791304218062143484,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432695,
+        "mode": 33024,
+        "mtime_ns": 1791304218062143484,
+        "nlink": 1,
+        "size": 573,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-selected-Temporal132-TDD-root-join-addendum.json"
+    },
+    {
+      "bytes": 2100,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432805,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 2100,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-TDD-source-static-review.json",
+      "sha256": "4a1d09a6754c69cd9d561edffbd7f80a81181568297f59f1fdeea79ec061342b",
+      "sourceIdentity": {
+        "ctime_ns": 1791304028017541202,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432638,
+        "mode": 33024,
+        "mtime_ns": 1791304028017541202,
+        "nlink": 1,
+        "size": 2100,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-Temporal132-selected-installer-source-TDD-static-review.json"
+    },
+    {
+      "bytes": 1693,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432806,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 1693,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-install-final-owner-static-review.json",
+      "sha256": "7286c1caad3142f7803bd3524bfd2d773a784ff3d0965c17d08ea1377b4acb8a",
+      "sourceIdentity": {
+        "ctime_ns": 1791304398722512280,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432717,
+        "mode": 33024,
+        "mtime_ns": 1791304398722512280,
+        "nlink": 1,
+        "size": 1693,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-Temporal132-selected-install-final-owner-static-review.json"
+    },
+    {
+      "bytes": 1949,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432807,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 1949,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-install-owner-result.json",
+      "sha256": "6c75c1c4a12631a16b9f8d0870f02cc82eec5c962799c9ec2e6edc12fe91f60e",
+      "sourceIdentity": {
+        "ctime_ns": 1791304428409214862,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1246835,
+        "mode": 33024,
+        "mtime_ns": 1791304428409214862,
+        "nlink": 1,
+        "size": 1949,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/workspace/.zasp-cloud-owned/Temporal-server132-selected-install-owner-2e626a21b81c48afa5ef8bc48ba52a68/result.json"
+    },
+    {
+      "bytes": 664,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432808,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 664,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-install-root-join.json",
+      "sha256": "e47377c5f123c9ced19e91c4bd3f8ae3325eabcb6f8dd450dd71e0ae4191602c",
+      "sourceIdentity": {
+        "ctime_ns": 1791304458931966447,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432745,
+        "mode": 33152,
+        "mtime_ns": 1791304458931966447,
+        "nlink": 1,
+        "size": 664,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/selected-Temporal132-install-root-join.json"
+    },
+    {
+      "bytes": 1260,
+      "copyIdentity": {
+        "ctime_ns": 1791304683053391757,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432809,
+        "mode": 33024,
+        "mtime_ns": 1791304683053391757,
+        "nlink": 1,
+        "size": 1260,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-install-worker-result.json",
+      "sha256": "e681b7b75782ee51144adc969429501b2eb0498568da0276f3a13ac4b22edd6c",
+      "sourceIdentity": {
+        "ctime_ns": 1791304428131720439,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432740,
+        "mode": 33024,
+        "mtime_ns": 1791304428131720439,
+        "nlink": 1,
+        "size": 1260,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/result.json"
+    },
+    {
+      "bytes": 9046,
+      "copyIdentity": {
+        "ctime_ns": 1791304683057391854,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432810,
+        "mode": 33024,
+        "mtime_ns": 1791304683057391854,
+        "nlink": 1,
+        "size": 9046,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-install-actual-tools.json",
+      "sha256": "8c54770e3cce45a476a660279cb93e50624edd025855f17e99db73eef0765abc",
+      "sourceIdentity": {
+        "ctime_ns": 1791304427863854576,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432735,
+        "mode": 33024,
+        "mtime_ns": 1791304427863854576,
+        "nlink": 1,
+        "size": 9046,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/actual-tools.json"
+    },
+    {
+      "bytes": 239,
+      "copyIdentity": {
+        "ctime_ns": 1791304683057391854,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432811,
+        "mode": 33024,
+        "mtime_ns": 1791304683057391854,
+        "nlink": 1,
+        "size": 239,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-install-initial.json",
+      "sha256": "37693d15b8250f09175d78136fe7fd31d1e602d7bf4c5aa7ce69a42bfe7c769c",
+      "sourceIdentity": {
+        "ctime_ns": 1791304423537781660,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432728,
+        "mode": 33024,
+        "mtime_ns": 1791304423537781660,
+        "nlink": 1,
+        "size": 239,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/initial.json"
+    },
+    {
+      "bytes": 889,
+      "copyIdentity": {
+        "ctime_ns": 1791304683057391854,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432812,
+        "mode": 33024,
+        "mtime_ns": 1791304683057391854,
+        "nlink": 1,
+        "size": 889,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-install-source-head-before.json",
+      "sha256": "3759075b31f074313eb9eb0a93342c148d3ad7c386970c706fbab335a493fd78",
+      "sourceIdentity": {
+        "ctime_ns": 1791304423537602440,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432727,
+        "mode": 33152,
+        "mtime_ns": 1791304423537602440,
+        "nlink": 1,
+        "size": 889,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/source-head-before-record.json"
+    },
+    {
+      "bytes": 888,
+      "copyIdentity": {
+        "ctime_ns": 1791304683057391854,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432813,
+        "mode": 33024,
+        "mtime_ns": 1791304683057391854,
+        "nlink": 1,
+        "size": 888,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-install-source-head-after.json",
+      "sha256": "61fec8ccad6b26f20972506363f974063e60e81920ee77b827bd77c6572c4e75",
+      "sourceIdentity": {
+        "ctime_ns": 1791304428109666601,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432739,
+        "mode": 33152,
+        "mtime_ns": 1791304428109666601,
+        "nlink": 1,
+        "size": 888,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/source-head-after-record.json"
+    },
+    {
+      "bytes": 1101,
+      "copyIdentity": {
+        "ctime_ns": 1791304683057391854,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432814,
+        "mode": 33024,
+        "mtime_ns": 1791304683057391854,
+        "nlink": 1,
+        "size": 1101,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-install-download-extract-record.json",
+      "sha256": "69bfeca9dd32e07266efa543d8c331aff9352899c7f9ce230573abd3391fb090",
+      "sourceIdentity": {
+        "ctime_ns": 1791304427922367659,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432736,
+        "mode": 33152,
+        "mtime_ns": 1791304427922367659,
+        "nlink": 1,
+        "size": 1101,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/download-extract-record.json"
+    },
+    {
+      "bytes": 6768,
+      "copyIdentity": {
+        "ctime_ns": 1791304683057391854,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432815,
+        "mode": 33024,
+        "mtime_ns": 1791304683057391854,
+        "nlink": 1,
+        "size": 6768,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-install-byte-review.json",
+      "sha256": "7f796c9aad25005b83850454258191f51434cca7b7ca1ed1407b5c50b8aa1548",
+      "sourceIdentity": {
+        "ctime_ns": 1791304606747545039,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432774,
+        "mode": 33024,
+        "mtime_ns": 1791304606747545039,
+        "nlink": 1,
+        "size": 6768,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-selected-byte-installation-review.json"
+    },
+    {
+      "bytes": 1606,
+      "copyIdentity": {
+        "ctime_ns": 1791304683057391854,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432816,
+        "mode": 33024,
+        "mtime_ns": 1791304683057391854,
+        "nlink": 1,
+        "size": 1606,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-install-source-boundary.json",
+      "sha256": "024f963a5116c1cc1de05a34adedbe86a035b1ae7960f7108db1d1bb85c6b306",
+      "sourceIdentity": {
+        "ctime_ns": 1791303947858196519,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432626,
+        "mode": 33024,
+        "mtime_ns": 1791303947858196519,
+        "nlink": 1,
+        "size": 1606,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal-server132-selected-installer-4w3gor7i/SOURCE-BOUNDARY.json"
+    },
+    {
+      "bytes": 1207,
+      "copyIdentity": {
+        "ctime_ns": 1791304683057391854,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432817,
+        "mode": 33024,
+        "mtime_ns": 1791304683057391854,
+        "nlink": 1,
+        "size": 1207,
+        "uid": 1000
+      },
+      "originalBytesPreserved": true,
+      "path": "selected-originals/selected-install-source-manifest.json",
+      "sha256": "1051b329c1d80558c001bc2a4a8093e329113b326e862d6c933828d17c410f41",
+      "sourceIdentity": {
+        "ctime_ns": 1791303947858464022,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432633,
+        "mode": 33024,
+        "mtime_ns": 1791303947858464022,
+        "nlink": 1,
+        "size": 1207,
+        "uid": 1000
+      },
+      "sourceIdentityUnchangedAfterCopy": true,
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal-server132-selected-installer-4w3gor7i/manifest.json"
+    }
+  ],
+  "rootAdoption": "No shared writes/receipt/root Git edits; ROOT copy and actual scan followed by independent review required",
+  "scanner": {
+    "encodedPayloadSelection": [],
+    "executed": false,
+    "scope": "No actual scan result or clearance inferred; ROOT actual selected-directory scan pending"
+  },
+  "selectedOriginalBytes": 65160,
+  "selectedOriginalCount": 26,
+  "status": "PRIVATE-CANDIDATE-ROOT-SCAN-AND-INDEPENDENT-PUBLICATION-REVIEW-PENDING"
+}

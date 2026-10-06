@@ -1,0 +1,32 @@
+[
+  {
+    "member": "latest-0-result.json",
+    "source": "/workspace/.zasp-cloud-owned/temporal-CLI-read-contract-TDD-owner-fdd7431ad26d4bd5b9d0cd4a4938589c/result.json",
+    "sha256": "96b1dee5a8454c9c879ab5d9e0d5cee4d488e4795c207841116804660fe80663",
+    "bytes": 2209
+  },
+  {
+    "member": "latest-1-independent-actual-CLI-read-contract-TDD-review.json",
+    "source": "/tmp/zasp-cloud-evidence/independent-actual-CLI-read-contract-TDD-review.json",
+    "sha256": "9e336e7dc7dd35e51bff2098054a07ea62821a1c94285f9cb61b305970981b5a",
+    "bytes": 2910
+  },
+  {
+    "member": "latest-2-result.json",
+    "source": "/workspace/.zasp-cloud-owned/temporal-CLI-authenticated-census-retry-owner-a6d3263cd0c743f3a8c6ef036af6ea4d/result.json",
+    "sha256": "508278a4ff6e95f94549d47fb4343fd1452ce449d2eeb9982f411f3166f419eb",
+    "bytes": 1662
+  },
+  {
+    "member": "latest-3-independent-actual-authenticated-Temporal-CLI-census-review.json",
+    "source": "/tmp/zasp-cloud-evidence/independent-actual-authenticated-Temporal-CLI-census-review.json",
+    "sha256": "2dfcd20765e335c822d631ed43947ef87d2086d6e80bfe09b223e5dfbb61fa8d",
+    "bytes": 4283
+  },
+  {
+    "member": "latest-4-native-OSS-root-actual-joins-20261006.json",
+    "source": "/tmp/zasp-cloud-evidence/native-OSS-root-actual-joins-20261006.json",
+    "sha256": "ebe04ff4271bd309ba0797fe0c0c18c7cd4a494047fc3ea922c43eac55fdcf4f",
+    "bytes": 1270
+  }
+]

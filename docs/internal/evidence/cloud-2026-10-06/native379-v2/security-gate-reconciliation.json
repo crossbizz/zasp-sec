@@ -1,0 +1,15 @@
+{
+  "scope": "unchanged faithful full-history security gate",
+  "commit": "3c123ef46fc9982c503384d44a93045984a3ec89",
+  "exitCode": 1,
+  "findingCount": 546,
+  "priorFindingCount": 538,
+  "newFindings": 8,
+  "allPriorFindingsRetained": true,
+  "newFindingsExactlyReviewedCommit": true,
+  "newSourceDigestsIndependentlyVerified": 8,
+  "guardPassed": false,
+  "ignoreConfigHistoryChanged": false,
+  "fullRedactedReportSHA256": "8d9c54d8fc4987a6799b0e52a6004f5fd88561564cc593459360c07617b87b33",
+  "exactClassificationSHA256": "a87724bf69006f8ecab707a9965c0b625b87471dd7c4f00b17ac607d11b48980"
+}

@@ -1,0 +1,20 @@
+{
+  "label": "successor-eight",
+  "argv": [
+    "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin/node",
+    "services/platform/migrations/tools/build-ordered-current-linux-successor-v1.mjs",
+    "--write"
+  ],
+  "cwd": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-20ifx2ii/source",
+  "environment": {
+    "PATH": "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+    "TMPDIR": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-20ifx2ii/tmp",
+    "LANG": "C",
+    "TZ": "UTC"
+  },
+  "exit": 1,
+  "timedOut": false,
+  "directProcessJoined": true,
+  "seconds": 0.11423599900081172,
+  "logSHA256": "cd3c733220dee3c9561b406291d3a9664b511a95707ae32e30013c6a262a8af8"
+}

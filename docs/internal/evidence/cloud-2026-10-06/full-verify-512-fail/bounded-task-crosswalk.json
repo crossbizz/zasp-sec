@@ -1,0 +1,34 @@
+{
+  "format": "bounded-failure-original-task-crosswalk-v1",
+  "authoritative_source": "docs/internal/2026-09-22-temporal-openfga-crosswalk.tsv",
+  "authoritative_source_sha256": "6c0f4432ee18b260d194b47fe89774d5377441e38b77715ba9298e3dc51381ce",
+  "linked_rows": [
+    {
+      "original_id": "M1-28",
+      "original_requirement": "service health endpoints. Deliverable: Register common health endpoint contract in OpenAPI/internal service docs.",
+      "existing_packet_mapping": "P1,P10",
+      "existing_production_class_unchanged": "production-available",
+      "observation": "Fresh npm health:contract:test phase failed because platform API/worker package tests failed; shared health and healthserver packages passed.",
+      "scope_limit": "Root health-contract gate evidence; no demonstrated defect in health endpoint contract and no task promotion."
+    },
+    {
+      "original_id": "M1-28b",
+      "original_requirement": "platform health wiring. Deliverable: Wire shared health handlers into platform API and worker commands.",
+      "existing_packet_mapping": "P1,P10",
+      "existing_production_class_unchanged": "production-available",
+      "observation": "Platform API/worker packages failed in readiness-routing/compliance/settlement tests at exact512; three observed failures retained.",
+      "scope_limit": "Relevant command composition verification gate; passing/failed package status does not establish installed authority or revise availability."
+    },
+    {
+      "original_id": "M7-14",
+      "original_requirement": "compliance export artifact. Deliverable: Create JSON/CSV plus human-readable evidence package in S3.",
+      "existing_packet_mapping": "P4,P7,P8",
+      "existing_production_class_unchanged": "component-only",
+      "observation": "TestComplianceRuntimeComposedLifecycle/close failed upload-not-reached in compliance export runtime composition.",
+      "scope_limit": "Relevant local export lifecycle component failure; no claim about realS3 artifact acceptance or original task completion."
+    }
+  ],
+  "unmapped_diagnostics": "API routing and settlement fixtures are recorded under source refs/architecture packet scope; no additional original IDs inferred without an existing precise source mapping.",
+  "ledger_mutated": false,
+  "task_or_acceptance_promotions": false
+}

@@ -1,0 +1,85 @@
+{
+  "ROOTObservation": {
+    "GREEN": {
+      "chunk": "155be1",
+      "directTerminalExit": 0
+    },
+    "RED": {
+      "chunk": "057fe2",
+      "directTerminalExit": 1
+    },
+    "provenance": "Parent-supplied tool-observed direct terminal exits; no fabricated separate kernel ROOT PID/wait receipt."
+  },
+  "actualGreen": {
+    "baseline": false,
+    "cases": [
+      {
+        "case": "exact-target3-synthetic-and-nonmatching",
+        "hits": 3,
+        "nonmatchingHits": 0
+      },
+      {
+        "case": "map-printf-failure",
+        "refused": true
+      },
+      {
+        "case": "marker-printf-failure",
+        "refused": true
+      },
+      {
+        "case": "empty-maps",
+        "refused": true
+      },
+      {
+        "case": "invalid-maps",
+        "refused": true
+      },
+      {
+        "case": "missing-truncated-or-wrong-marker-count",
+        "refused": true,
+        "scope": "independent protocol challenge, not actual controller invocation"
+      },
+      {
+        "case": "source-extracted-owned32-byte-real-mmap",
+        "hits": 1,
+        "scope": "TESTLOCAL target DATA only; not root304/355 readiness"
+      }
+    ],
+    "format": "native3-mmap-source-control-v3",
+    "scope": "TESTLOCAL only; actual root observer/relocation admission separate",
+    "status": "PASS"
+  },
+  "assessment": [
+    "Authentic old scanner RED is the precise expected masked-upstream-printf assertion, not setup/tool/timeout error.",
+    "Seven GREEN controls match exact reviewed body, including one observed owned32-byte mmap alias and zero nonmatching hits.",
+    "Reviewed finite helper requires child communicate completion and absent owned group before accepted result; abnormal child/groups raise failure. Logs do not independently persist a per-child kernel wait ledger.",
+    "No timeout/forced-cleanup indication in retained logs; ROOT supplied normal direct terminal outcomes."
+  ],
+  "controlSHA256": "7d2dd3a4f262d5a279099f6e9fe45a4131e9f9fe6d59dd7e9b3f4661321e2a22",
+  "logs": {
+    "green-stderr": {
+      "bytes": 0,
+      "path": "/tmp/zasp-cloud-evidence/native3-mmap-root-green.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "green-stdout": {
+      "bytes": 720,
+      "path": "/tmp/zasp-cloud-evidence/native3-mmap-root-green.stdout.log",
+      "sha256": "1939c2ff8bd07c2380742cdedcee985ef5fa941b6e15c0c935dc0d706b198723"
+    },
+    "red-stderr": {
+      "bytes": 390,
+      "path": "/tmp/zasp-cloud-evidence/native3-mmap-root-red.stderr.log",
+      "sha256": "0099a2b5eadf426f9023fbf868eb74bb7e8244d47d48bbfb75c4baa545649098"
+    },
+    "red-stdout": {
+      "bytes": 0,
+      "path": "/tmp/zasp-cloud-evidence/native3-mmap-root-red.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "recipeSHA256": "a4a76713a2a14611c866ca26afc8c268b796bfe4a660bd37b098813bb02369ca",
+  "scope": "Source-extracted TESTLOCAL controls only. No privileged root304/355 inspection, source/destination custody, real OSS readiness, relocation deletion or native acceptance.",
+  "sourceToolsUnchanged": true,
+  "status": "ACTUAL-TINY-SOURCE-CONTROL-PASS"
+}

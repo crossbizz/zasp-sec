@@ -1,0 +1,40 @@
+{
+  "scope": "separate seven-anchor source candidate ONLY; not installed in privateGo/shared/source or any frozen/native envelope",
+  "oldCompanionSHA256": "468734a003d41cad8ce4a5ffe31963ba37f49838ae8c5f5744c5ce6d5638850a",
+  "candidateCompanionSHA256": "6578c51887f7a91765d660f2f7d833e1f82d08bff025dcecb632178f70427c7c",
+  "candidatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/combined-seven-anchor-candidate-facn98sx/authorization_worker_ordered_current_native379_v2_pins_test.go",
+  "changedLiterals": [
+    "orderedCurrentNative379V2PacketSHA256",
+    "orderedCurrentNative379V2SourceInventorySHA256"
+  ],
+  "unchangedLiterals": [
+    "orderedCurrentNative379V2ModuleSHA256",
+    "orderedCurrentNative379V2ManifestSHA256",
+    "orderedCurrentNative379V2CollectorSHA256",
+    "orderedCurrentNative379V2GeneratedIdentitiesSHA256",
+    "orderedCurrentNative379V2SourceFactDeltaSHA256"
+  ],
+  "oldValues": {
+    "orderedCurrentNative379V2PacketSHA256": "5d18ca5f38c6f86c7cccda46fde1fb43008f6491b3c2a8319515592f7279a25a",
+    "orderedCurrentNative379V2ModuleSHA256": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74",
+    "orderedCurrentNative379V2ManifestSHA256": "4820af14e63ea69b9285e5c69463436fe4ce01ef3a39111b7cbefc8adc2897f9",
+    "orderedCurrentNative379V2CollectorSHA256": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f",
+    "orderedCurrentNative379V2SourceInventorySHA256": "02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989",
+    "orderedCurrentNative379V2GeneratedIdentitiesSHA256": "9d1053e9310e27128404e45c2eeedce1dc6b42eaff004ecf0e0760c903b59f99",
+    "orderedCurrentNative379V2SourceFactDeltaSHA256": "90325bea8205ec4e3f8eaa1de3c1fb0d814981cc6fbfd91e3c3e4ad3e6a9cdab"
+  },
+  "actualNewValues": {
+    "orderedCurrentNative379V2PacketSHA256": "d7aaea0657e9bdb8e512a3c0a332e3cf91296a50e6c967233829ec95f45a01ce",
+    "orderedCurrentNative379V2ModuleSHA256": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74",
+    "orderedCurrentNative379V2ManifestSHA256": "4820af14e63ea69b9285e5c69463436fe4ce01ef3a39111b7cbefc8adc2897f9",
+    "orderedCurrentNative379V2CollectorSHA256": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f",
+    "orderedCurrentNative379V2SourceInventorySHA256": "d3f6fac0d38478208fe1feff2f521a8b132b373aa8516771c62005a762a11ea4",
+    "orderedCurrentNative379V2GeneratedIdentitiesSHA256": "9d1053e9310e27128404e45c2eeedce1dc6b42eaff004ecf0e0760c903b59f99",
+    "orderedCurrentNative379V2SourceFactDeltaSHA256": "90325bea8205ec4e3f8eaa1de3c1fb0d814981cc6fbfd91e3c3e4ad3e6a9cdab"
+  },
+  "allFiveUnchangedActualBytesOrIdentitiesVerified": true,
+  "excludedNodeFilenameUnchanged": "services/platform/apiserver/authorization_worker_ordered_current_native379_v2_pins_test.go",
+  "futureFullConsumedGoSourceModuleToolTestBinaryEnvelopeMustIncludeCandidate": true,
+  "combinedRootSourceWholeGitArchiveIdentityNotClaimed": true,
+  "rootCopiesOnlyAfterIndependentReview": true
+}

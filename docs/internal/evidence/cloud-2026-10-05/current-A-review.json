@@ -1,0 +1,97 @@
+{
+  "format": "independent-current-A-successor-source-review-v1",
+  "assessment": "REVIEW-PASS-SOURCE-ONLY",
+  "source_head": "02a974e2472c11fc7347e0cdf30c54fbe9ff293d",
+  "manifest_sha256": "b3d03a9e7cd86daabbd80ead85cb30a5e98f856be35c08d15227fa710dd914fa",
+  "contract_sha256": "ad51418075709c382661ef4b4cede63c399eae97f5c266314a28a0b90c1e7c01",
+  "coverage_sha256": "09d120b0e1e177fd00ed36232f00a202a699d3d64c7373add7eedbbae3b58387",
+  "source_pins": 157,
+  "snapshot_manifest_members": 164,
+  "files_including_manifest": 165,
+  "packet_files": 7,
+  "rule_descriptors": 1862,
+  "independent_derivations": 2,
+  "checks": {
+    "exact_member_roster": true,
+    "twice_derived_all_bytes_identical": true,
+    "manifest_all_member_sha256": true,
+    "candidate_readonly_regular_no_symlinks": true,
+    "advertised_identity": true,
+    "seven_packet157_source_separation": true,
+    "all157_sources_match_exactHEAD_both_frozen_inputs": true,
+    "producer_closure_without_Go_trust_anchor_cycle": true,
+    "contract_source_frame_flags_caps": true,
+    "53input_inventory_refusal_flags": true,
+    "phase_demand_sql_hash": true,
+    "phase_keys_sql_hash": true,
+    "phase_original_sql_hash": true,
+    "phase_resolution_sql_hash": true,
+    "phase_witness_sql_hash": true,
+    "1862_rule_descriptors_phasecoverage_and_caps": true,
+    "sensitive_source_maxima_preserved": true,
+    "coverage_digest_and_closed_roster": true,
+    "grouped18pass_explicit_historical_exclusion": true,
+    "recorded_Node_runtime_hash": true
+  },
+  "findings": {
+    "critical": [],
+    "important": [],
+    "minor": []
+  },
+  "producer_sha256": {
+    "services/platform/apiserver/authorization_worker_consolidated_reference_boundary_test.go": "de8c2e2f7121287e82b8120e8002eb9bd3f643bc344fea8da961fbd000347078",
+    "services/platform/apiserver/authorization_worker_consolidated_reference_controls_test.go": "ecbba06bcd58895f7b03dc52f414ccbc9e2ff28bfef7c37fa6eb3e9db1680547",
+    "services/platform/apiserver/authorization_worker_consolidated_reference_postgres_test.go": "a06ab7aa84d8005ca2990117d85203fb4949d47627cec56672f932f037dd8f28"
+  },
+  "evidence_logs": {
+    "grouped_controls": {
+      "sha256": "816cb39586fc9cf85feeb60482316d0a231afb313e86f4aab2b1ebf97a57b572",
+      "passes": 18,
+      "failures": 0,
+      "historical_immutable_case_explicitly_excluded": true
+    }
+  },
+  "successor_trust_binding_prerequisites": [
+    "Separate reviewed successor identities must bind manifest b3d03a9e\u2026 and contract ad514180\u2026 plus all164actual members and157source inputs, not caller-selected paths or self-reported digests.",
+    "Any Go loader/producer trust anchor update requires a separate exact source review and regression tests; excluded pins-test must remain outside the owned snapshot to avoid a hash cycle.",
+    "Keep legacy immutable A/B packets and their fixed pins unchanged; publish new named successor artifacts separately.",
+    "Source preparation is not a captured reference envelope: native role/path/RLS/row-limit/rollback/restoration/owned-cleanup evidence and exact runtime admission remain necessary."
+  ],
+  "legacy_B_hard_blockers": [
+    "The historical pinned A archive is absent.",
+    "Legacy builder expects100members, seedmanifest71dffc8ab32e112f92e94e4fb10eec52c399f5492a57111a311a1c3dc4065609 and seedcontract1162fbf060850000df19af6fcc8e990b4c03d2f55311bcaf56b5b1b1c1d78a9d, unlike current164member successor.",
+    "Legacy B also expects95sourcepins/102snapshotmembers; the157input successor graph must receive its own independently reviewed roster."
+  ],
+  "separately_named_B_requirements": [
+    "Bind the actual reviewed successorA seed and verify every source/member digest and containment before derivingB.",
+    "Require exact postgres producer source SHAa06ab7aa84d8005ca2990117d85203fb4949d47627cec56672f932f037dd8f28 and exactly two loadConsolidatedReference(directory) substitutions to loadConsolidatedReferenceVariantB(directory), with no unrelated producer changes.",
+    "Bind B-specific builder/test source bytes; reject unexpected collisions, omitted companion dependencies, symlinks and unlisted files.",
+    "Keep all phases/rules/caps/source-frame compiler identities equal to reviewedA except explicitly reviewed Bvariant/sessionUser/sourcePins/producer changes; require independent deterministic derivation and variant tests."
+  ],
+  "runtime_admission_blocker": {
+    "required_postgres": "PostgreSQL 18.3 (Homebrew) on aarch64-apple-darwin25.2.0, compiled by Apple clang version 17.0.0 (clang-1700.6.3.2), 64-bit",
+    "assessment": "Inherited Darwin/Homebrew fixed-reference runtime provenance; this Linux source derivation does not provide matching native capture. A Linux runtime successor requires separately reviewed runtime/evidence admission, without silently rewriting historical provenance."
+  },
+  "limitations": [
+    "No PostgreSQL or native capture was performed by this A derivation or this review.",
+    "No A/B equivalence, full native379, installed-worker permissions, runtime activation or production acceptance is established.",
+    "Grouped controls explicitly excluded the historical immutable-packet test; no claim that the historical gate passed.",
+    "Independent comparison proves byte equality of these preparations, not execution acceptance."
+  ],
+  "review_method_correction": {
+    "prior_report": "/tmp/zasp-current-A-successor-cloud-9qxpfqwy/outputs/independent-current-A-review.json",
+    "reason": "Initial review compared named closure artifact aliases to full paths without applying the unchanged emitter artifactNames mapping. After applying exact mapped paths, all10closure pins and the coverage digest match; no candidate defect exists.",
+    "closure_pin_resolved_paths": {
+      "ordered-current-effective-contract3.json": "services/platform/migrations/tools/ordered-current-worker-source-closure-v1-artifacts/effective-contract3.json",
+      "ordered-current-effective-catalog1.json": "services/platform/migrations/tools/ordered-current-worker-source-closure-v1-artifacts/effective-catalog1.json",
+      "ordered-current-inventory-compiled.json": "services/platform/migrations/tools/ordered-current-worker-source-closure-v1-artifacts/inventory-compiled.json",
+      "ordered-current-supplementary-reference1.json": "services/platform/migrations/tools/ordered-current-worker-source-closure-v1-artifacts/supplementary-reference1.json",
+      "ordered-current-remaining-reference1.json": "services/platform/migrations/tools/ordered-current-worker-source-closure-v1-artifacts/remaining-reference1.json",
+      "ordered-current-private-reference-alias1.json": "services/platform/migrations/tools/ordered-current-worker-source-closure-v1-artifacts/private-reference-alias1.json",
+      "services/platform/migrations/sql/0079_production_authorization_projection.up.sql": "services/platform/migrations/sql/0079_production_authorization_projection.up.sql",
+      "services/platform/migrations/sql/0080_authorization_hierarchy_create.sql": "services/platform/migrations/sql/0080_authorization_hierarchy_create.sql",
+      "services/platform/migrations/sql/0014_typed_inventory_cutover.up.sql": "services/platform/migrations/sql/0014_typed_inventory_cutover.up.sql",
+      "services/platform/migrations/sql/0027_production_recovery.up.sql": "services/platform/migrations/sql/0027_production_recovery.up.sql"
+    }
+  }
+}

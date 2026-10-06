@@ -1,0 +1,53 @@
+{
+  "format": "independent-native379-v2-seven-anchor-binding-plan-review-v1",
+  "assessment": "PASS-ANCHOR-BINDING-AND-FROZEN-BUILD-PLAN-ONLY",
+  "reviewer": "review_capture_dependency",
+  "candidate_companion_path": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/anchor-plan-05f314/authorization_worker_ordered_current_native379_v2_pins_test.go.candidate",
+  "candidate_companion_sha256": "ae73247dade4f3a2af08249da9634cab4cf5d3d214d83b13d1e1a3643969f6c8",
+  "plan_path": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/anchor-plan-05f314/frozen-build-plan.json",
+  "plan_sha256": "462ab863b9e25e5ac4cc72f28ce06757d6da667cc3a674ef875776b887993253",
+  "reviewed_go_source_sha256": "05f314d326b85a56f98370431dc8fb4d7088d9ac9ddf8c73eebf3261d2b4f3e8",
+  "pins": {
+    "orderedCurrentNative379V2PacketSHA256": "ca7dd2ad47a4afcea9f0dfca48d10e5e4b8876c0daf6450c33a66776e830d5e9",
+    "orderedCurrentNative379V2ModuleSHA256": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74",
+    "orderedCurrentNative379V2ManifestSHA256": "4820af14e63ea69b9285e5c69463436fe4ce01ef3a39111b7cbefc8adc2897f9",
+    "orderedCurrentNative379V2CollectorSHA256": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f",
+    "orderedCurrentNative379V2SourceInventorySHA256": "0bac52d45ea7aeb417561cab1481e35842b94f62d41caeacf4878df794aafa56",
+    "orderedCurrentNative379V2GeneratedIdentitiesSHA256": "9d1053e9310e27128404e45c2eeedce1dc6b42eaff004ecf0e0760c903b59f99",
+    "orderedCurrentNative379V2SourceFactDeltaSHA256": "90325bea8205ec4e3f8eaa1de3c1fb0d814981cc6fbfd91e3c3e4ad3e6a9cdab"
+  },
+  "findings": {
+    "Critical": [],
+    "Important": [],
+    "Minor": []
+  },
+  "verified_binding": {
+    "all_seven_exact": true,
+    "derivation": "Packet/sourceInventory/generatedIdentities/sourceDelta from actual approved05f archivebytes; module/manifest/collector SHA independently derived from retained independently regenerated10052source outputs and equal approved generated-identities/outputPins.",
+    "actual_generated_outputs_root": "/tmp/zasp-native379-independent-facts-pul_py55/services/platform/migrations/ordered_current",
+    "candidate_only_change": "Replacing the7 populated SHA literal values with empty strings yields exact current companion bytes; no other source/comment/logic change.",
+    "hashcycle": "Only companion excluded from Node source roster; Go implementation included. Companion still MUST enter full consumedGo source/module/test-binary frozen envelope. Go envelope is external to canonical packet, so binary/companion binding introduces no packet selfcycle.",
+    "Node_members": "Exact union1553:1544 fixedsourcefiles plusNodeExecutable,module,manifest,collector,sourceManifest,packet-v2.mjs,source-schema-v2.mjs,generated-identities,source-fact-delta. No overlap/extras; exact roster to be checked on actual final envelope.",
+    "generated8_vs_Git": "All8 outputs excluded from Node1544 source roster. Actual baseline3c123ef4 hash comparison yields6 changed outputbytes:consolidated-reference-contract,development-admission,development-checkpoint,development-collector,development-manifest,development-module. consolidated-reference-select andeffective-contract4 matchGit unchanged.",
+    "gates": "Populated anchors alone do not grant native authority: exact env-supplied V2 envelope rawSHA/schema identities then full independently reviewed frozenGo envelope/source/binary/module/runtime bind remains mandatory. Testlocal7-empty-pinset remains explicit and invalid envelope refuses before tool binder. Native test still requires separate exact opt-in/output/environment.",
+    "private_cache_plan": "Platform and siblinghealth replacement honestly beneath ModuleCache/owned-source; copiedNode underModuleCache/owned-tools; binaries/outputs/cache/TMPDIR outsideimmutable source/tool/module roots; owner0700 caches; fullactual inventory observed after read-only freeze rather than historic counts.",
+    "ControlledPATH": "CopiedGo/bin first, copiedNode/bin thenexistingPG18.3wrappers then/usr/bin:/bin; ensures offline wireLookPath uses exactNode and nestedfixture same boundGo environment.",
+    "foundation_source_checks": "Private source go.modSHA3d0176805b0c3fa8ce90b3984650e9dae08baaa13dc2dcbdc5528493326756b0 andgo.sumSHAa99d2c9979401b020e8ce1c7818276f05c820dce5f43820566ba94121bf48825 match plan stated selections. Actual future ownedcopy remains unreviewed."
+  },
+  "planned_requirements_not_evidence": [
+    "Root selects exact committed05f source and applies only byte-exact reviewed companion in separate owned snapshot/source batch.",
+    "Generate8/write/check/reproduceca7d beforefreeze,retain6Gitdelta ledger; no immutable historical checkoutwrites.",
+    "Build fresh actualapiserver/migrations binaries offline; observe fullGo/module/embed/nestedCLI/assembly inputs and actualhashes/counts; do not reuse component binaries.",
+    "Create owner0700 TMPDIR/cache and freeze entireGoRoot/ModuleCache topology before final inventory; actualreadonly modes/ownership/symlink refusal not yet reviewed.",
+    "Freshly bind exact PGwrappers,actualserver tools,interpreter,loader/all dynamicdependencies,pgcryptoSO/control/base/upgradeSQL andactual Linuxruntime identity; historicalDarwinPG metadata remains separate.",
+    "Build exact1553-member Node envelope and originalstrictGo envelope from actual finalfiles, root-review both exclusive rawdigests before anynative authorization."
+  ],
+  "boundaries": {
+    "future_envelope_review": "NOT performed; no futureGo/V2 envelope or finished build exists in reviewed plan artifact.",
+    "actual_build_or_inventory": "NOT performed by reviewer and not approved as completed.",
+    "native_execution_or_approval": "NONE; root alone must separately authorize after actual immutable closure/envelope review.",
+    "source_population": "This record attests byte-correct candidate and plan only; applying/committing candidate is a distinct root-authorized source action and does not imply native approval.",
+    "portability_capacity": "Variedlegal63-byte escapedusername boundary remains over4MiB; livecaps mustrefuse. No installed/provider/deployment/release acceptance.",
+    "shared_mutations": "No sharedsource/branch/index edits by reviewer; candidate remains separate at review time."
+  }
+}

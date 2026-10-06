@@ -1,0 +1,26 @@
+{
+  "source_commit": "9970bcbd04227e32d3161e921838371a3c14642c",
+  "files": [
+    {
+      "path": "services/platform/agentsec-api/authorization_runtime_readiness_test.go",
+      "bytes": 5020,
+      "sha256": "778143507e03add77dc0b7ff9c1bb52264ca62e4969ac9d0a14776e071eac026"
+    },
+    {
+      "path": "services/platform/agentsec-api/authorization_runtime_readiness.go",
+      "bytes": 1126,
+      "sha256": "b4140a7195722fe36b10e3d7d1a2bbeeef49679fb1e7611498ef9d98ff884e0a"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_runtime_readiness.go",
+      "bytes": 1541,
+      "sha256": "148a993cba12c9c868a993caf63850724b42bb2796345576ae0c6b264bde740d"
+    },
+    {
+      "path": "services/platform/agentsec-api/ordered_readiness_routing_characterization_test.go",
+      "bytes": 5390,
+      "sha256": "434498dbf72cb3464e534b199799ccfe5310e37fe7576875c1870c083874d464"
+    }
+  ],
+  "limits": "Hashes bind exact997 source observed by full run; no expiry cause or future production repair inferred."
+}

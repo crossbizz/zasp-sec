@@ -1,0 +1,47 @@
+{
+  "checks": [
+    "All exact eight members verified; owner/controller function AST identical to reviewed native1",
+    "Shell only adds actual prepared destination34:432372 and mmap0:34:432372 alongside original27:993154; positive MAPEND and all original refusal predicates unchanged",
+    "Correct fresh own readonly mount, both fixed root prefixes, alias count2, current prepared1f180 and plan5a168 chain",
+    "Inventory destination metadata equals independently admitted full same-FD copy; no prospective fabricated identity"
+  ],
+  "findings": [],
+  "manifestPath": "/tmp/zasp-cloud-evidence/native2-readonly-root-observer-source-v1-f4523_4x/manifest.json",
+  "manifestSHA256": "24fb6d56022af03d0181ec2ec7e9e7455ff4b2cda8d104db7aeeac56c7ee9214",
+  "scope": "Static two-target metadata observer prerequisite only. Historical SOURCE THREE/reviewGate prose remains nonoperative inherited wording; executable inventory binds exactly source1 plus actual copy1. No observer execution, lifetime inactivity grant, source removal, migrator/tool/service/native readiness. Final glue and fresh actual proof still required.",
+  "status": "SOURCE-STATIC-PASS",
+  "verifiedMembers": {
+    "README.md": {
+      "bytes": 305,
+      "sha256": "c33283533c912de3e1afa5b2f960751a64567f97bd10841565adeb90af871889"
+    },
+    "fresh-observer-owner-v3.py": {
+      "bytes": 6133,
+      "sha256": "27deab020ca13a7ac434328d5cd57b574c9f8e8cdf7cdcbbdb8ccd32551322ad"
+    },
+    "independent-docker-28.4.0-adapter-grounding-v2.json": {
+      "bytes": 6718,
+      "sha256": "87c5fa1e76f9d7919beb84852acde22253d381608e2209b7ae076c126dc88d91"
+    },
+    "independent-observer-static-review-v5.json": {
+      "bytes": 4573,
+      "sha256": "c21d1354162cd555406a6a14c0f6771d55fbe6d352100afdee94e12d46dfac01"
+    },
+    "observe-exact-root-services-v5.sh": {
+      "bytes": 5679,
+      "sha256": "d898b8bb7ac7fcde93bd0aa5d2b612152c338a5dd98bdaa8652c31ca1d64918a"
+    },
+    "payload-target-inventory.json": {
+      "bytes": 1286,
+      "sha256": "483b00fac6aa50f9202f40ca28d3c342b7369426e3919ce6720e069c352ab59d"
+    },
+    "root-service-observer-plan-v5.json": {
+      "bytes": 6202,
+      "sha256": "33167668e18846ba983de1bb06f86c2431bdbb4329597c0baf9fe1e19a6f4a40"
+    },
+    "run-readonly-observer-v7.py": {
+      "bytes": 21255,
+      "sha256": "026d10d5538a07c94fad3a660882576f86af432f2c119bd9d9b6020bf1a4948e"
+    }
+  }
+}

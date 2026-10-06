@@ -1,0 +1,18 @@
+{
+  "foundation-summary.json": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/foundation-summary.json",
+    "sha256": "4fb859d984026b2b312abeb5a2f85b5104484f779397e9bea193c266c844129e"
+  },
+  "go-tree-manifest.json": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/go-tree-manifest.json",
+    "sha256": "c77a7fb1be6bb84df71bac58d8dedf0279cdc7393f25048313a497bf34c9bb59"
+  },
+  "module-preparation-manifest.json": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/module-preparation-manifest.json",
+    "sha256": "81c75bff956863325adaa4b68bcb03bca0d44fb37c685e7eaf65efa7b1633a14"
+  },
+  "retained-mod-metadata-manifest.json": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/retained-mod-metadata-manifest.json",
+    "sha256": "7f59ce9b0c1f649a558774b907e7653886d64b4e27619d031f6fd5b91ff068d7"
+  }
+}

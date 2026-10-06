@@ -1,0 +1,8 @@
+{
+  "tool_session": 24118,
+  "observed_joined_exit": 1,
+  "root_verified_script_sha256": "3b59790b890b3610da2b7e3f1ba6be3fbe04a5bf4d9e9c68c5ec8a8356ae6eee",
+  "root_verified_static_review_sha256": "a8a3844f97911438b484bd222cf44e5ab126fb24178e2d72690805a6cc246bdb",
+  "result_sha256": "f3818cca28d64aa242eb20bde2f12e4f27aa58f9600653f0a9017e0a47827f8e",
+  "scope": "Separately authored root tool-join observation. Actual local controlled-provider browser attempt; no deployed/hosted-cause acceptance."
+}

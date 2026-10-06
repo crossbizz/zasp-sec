@@ -1,0 +1,6 @@
+=== RUN   TestNative379V2PristineRecorderRejectsUnsafeSQLState
+    authorization_worker_ordered_current_native379_v2_test.go:4396: unsafe SQLSTATE leaked into operation prefix
+--- FAIL: TestNative379V2PristineRecorderRejectsUnsafeSQLState (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.020s
+FAIL

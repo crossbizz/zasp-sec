@@ -48,7 +48,21 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["scripts/**/*.mjs", "services/platform/migrations/tools/**/*.mjs"],
+    files: [
+      // Exact immutable source-only replay snapshots keep every other rule.
+      "docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/source/build-ordered-current-linux-successor-v1.mjs",
+      "docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/source/ordered-current-linux-provenance-v1.test.mjs",
+    ],
+    rules: { "@typescript-eslint/no-unused-vars": "off" },
+  },
+  {
+    files: [
+      "scripts/**/*.mjs",
+      "services/platform/migrations/tools/**/*.mjs",
+      // Fixed immutable copies of the Node diagnostics retain all other rules.
+      "docs/internal/evidence/cloud-2026-10-06/native379-v2-safe-diagnostics/evidence/ordered-current-native379-packet-v2.mjs",
+      "docs/internal/evidence/cloud-2026-10-06/native379-v2-safe-diagnostics/evidence/ordered-current-native379-packet-v2.test.mjs",
+    ],
     rules: {
       // These are Node tools, not Next.js modules.
       "@next/next/no-assign-module-variable": "off",

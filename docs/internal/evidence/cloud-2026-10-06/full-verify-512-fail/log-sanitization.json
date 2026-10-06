@@ -1,0 +1,6 @@
+{
+  "original_sha256": "86466c84229f37adc8d83aa29077565d6f2dd5f4c0457d33f948834afec7fa2e",
+  "sanitized_sha256": "86466c84229f37adc8d83aa29077565d6f2dd5f4c0457d33f948834afec7fa2e",
+  "sanitization": "Remove ANSI and redact all HTTP(S) URLs; preserve actual failures and package statuses",
+  "raw_log_scan": "pinnedGitleaks8.30.1 dir exit0/zero findings; scoped log observation not provider/security/release authority"
+}

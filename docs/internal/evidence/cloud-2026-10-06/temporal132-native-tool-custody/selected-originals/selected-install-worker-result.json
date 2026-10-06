@@ -1,0 +1,35 @@
+{
+  "status": "PASS-INSTALLER-ONLY",
+  "sourceHead": "87f30744458fea2e5a9eec961d6c7eb77861591e",
+  "failureClass": null,
+  "signals": [],
+  "installedBinaryBytes": [
+    {
+      "path": "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/server132/temporal-server",
+      "sha256": "c054d42ddfd63c9358a7db15a05fa106e7f4ef52b06d08bd5566ac2ad400fb9e",
+      "bytes": 148754594,
+      "versionChecked": false
+    },
+    {
+      "path": "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60/server132/temporal-sql-tool",
+      "sha256": "20e0a62ba2de523cd54c6a481d372d18acf3bafccabef3ee5ee7d4cdd5b1ef0c",
+      "bytes": 40226978,
+      "versionChecked": false
+    }
+  ],
+  "binaryExecution": false,
+  "versionChecks": "PENDING-SEPARATE-REVIEW",
+  "licenseSource": {
+    "path": "/tmp/zasp-cloud-evidence/temporal132-immutable-LICENSE",
+    "sha256": "6aab9afd99ceb1dcaf6a0d91386b46baef9bce17ae4006044e0f231e31430b69",
+    "source": "official-temporalio-temporal-d94e34a1ebba5410a2e7d07119a76896909591aa-blob3349f76795f4409cba6ae18ea56adf9fbd8346f3",
+    "archiveMember": false
+  },
+  "groups": {
+    "308283": [],
+    "308284": [],
+    "308289": []
+  },
+  "noServiceStartup": true,
+  "actualRuntimeSchemaReadiness": "NOT_CHECKED"
+}

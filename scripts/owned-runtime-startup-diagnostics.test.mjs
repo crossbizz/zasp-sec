@@ -55,7 +55,7 @@ test('actual preparation state allocation refusal preserves original error, emit
  const start=source.indexOf('async function prepareOwnedCurrentComplianceRuntime(configuration,complianceFixtureSQL){');
  const end=source.indexOf('\nasync function exerciseComplianceBrowser(configuration)',start);assert.ok(start>=0&&end>start);
  const original=Error('private state directory data');let servicesStarted=0,allocations=0;const emitted=[];
- const context={assert,process:{env:{ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT:'/owned/archive',ZASP_BROWSER_RUNTIME_RAW_ROOT:'/owned/raw'}},complianceBrowserMode:true,compliancePhase:null,currentComplianceStateRoot:null,currentComplianceServices:null,
+ const context={ownedResourceCleanupStarted:false,currentComplianceClosing:false,currentCompliancePreparation:undefined,currentComplianceRuntimeStartup:undefined,assert,process:{env:{ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT:'/owned/archive',ZASP_BROWSER_RUNTIME_RAW_ROOT:'/owned/raw'}},complianceBrowserMode:true,compliancePhase:null,currentComplianceStateRoot:null,currentComplianceServices:null,
  mkdtemp:async prefix=>{assert.equal(prefix,'/tmp/zasp-browser-current-runtime-');allocations++;throw original;},startRetainedOwnedRuntimeLifetime:async()=>{servicesStarted++;throw Error('must not start');},recordOwnedRuntimeStartupFailure,
  withOwnedRuntimeStartupDiagnostics:(action,enabled)=>withOwnedRuntimeStartupDiagnostics(action,enabled,text=>emitted.push(text))};
  vm.createContext(context);vm.runInContext(`${source.slice(start,end)}\nglobalThis.prepare=prepareOwnedCurrentComplianceRuntime;`,context);

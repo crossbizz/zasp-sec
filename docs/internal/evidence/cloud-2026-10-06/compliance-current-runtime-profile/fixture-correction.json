@@ -1,0 +1,43 @@
+{
+  "afterSHA256": "ad55be65a8a480a3f9d89d2237a9e965573020895c49cf9b2b3b0d1836a6e56c",
+  "beforeSHA256": "7787d5f7c46b849f58627c18a1a0eee5f8c45308318f2572409a26e0fe22f28c",
+  "changes": [
+    "expectedcompliance configuration now explicitly includes realmigrate/migrationEnvironment, retaining exactwholeconfiguration equality and failurepropagation",
+    "audit-specific combinedAPIenvironment VM declares complianceBrowserMode:false, retaining auditmode/login/output assertions; nocomplianceguard replacement"
+  ],
+  "dockerFailureScope": "Test81 realrequiredDocker executable discovery failure underROOTclosedPATH; no test/applicationguard edit. ROOTnextPATH=/usr/local/bin:/usr/bin:/bin must bind actualtool.",
+  "files": {
+    "after-production-combined-e2e.test.mjs": {
+      "bytes": 158355,
+      "sha256": "ad55be65a8a480a3f9d89d2237a9e965573020895c49cf9b2b3b0d1836a6e56c"
+    },
+    "before-production-combined-e2e.test.mjs": {
+      "bytes": 158257,
+      "sha256": "7787d5f7c46b849f58627c18a1a0eee5f8c45308318f2572409a26e0fe22f28c"
+    },
+    "exact.diff": {
+      "bytes": 2218,
+      "sha256": "df84b763b699e0ca830486625d8f7e0c4fe79fdec7f2ac810964383f706502a2"
+    }
+  },
+  "format": "compliance-current-schema-authentic-fixture-correction-v1",
+  "limitations": "No tests/services executed; originalREDlogs/candidate frozen retained. NoSQL/profile/API/browser acceptance.",
+  "preexistingVMFailureProof": {
+    "baselineProductionSHA256": "b0e130ef7c475e3c3da22d8533525e9f93e89c505008f683343be2df6fa2d5d0",
+    "classification": "preexisting fixture referenceerror, not introduced by newprofile source",
+    "originalCommittedTestMatchesBefore": true,
+    "originalProductionContainsComplianceModeIdentifier": true,
+    "originalVMContextOmitsMode": true
+  },
+  "rootActualRed": {
+    "failedTests": [
+      41,
+      46,
+      81
+    ],
+    "stdoutPath": "/tmp/zasp-cloud-evidence/compliance-current-schema-adopted-tests/stdout.log",
+    "stdoutSHA256": "70fc3964ae192d7ada487c5babbf1cea228566a667c914804d31aefd8ab866e5"
+  },
+  "sharedTest": "/workspace/zasp-sec/scripts/production-combined-e2e.test.mjs",
+  "status": "SOURCE-ONLY-UNEXECUTED-REVIEW-REQUIRED"
+}

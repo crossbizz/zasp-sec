@@ -1,0 +1,154 @@
+{
+  "status": "READ-ONLY-DIAGNOSIS-NO-PG-EXECUTION-NO-SOURCE-MUTATION",
+  "sourceCommit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "retainedAttempt": {
+    "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/native379-v2-root-attempt-512-diagnostic-fcf00fe6e6b448dea9e453a496c1615d/actual-native379-record.json": "90b5291f5376193829618edba59adb406ed8c8c57f0f87b732ca0e5f7d7d9940",
+    "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/native379-v2-root-attempt-512-diagnostic-fcf00fe6e6b448dea9e453a496c1615d/actual-native379.log": "e7d9a8d738fd4c5f6acfcd172c1cda4023f42c137ea5667d2d585d8aa80e2ba6",
+    "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/native379-v2-root-attempt-512-diagnostic-fcf00fe6e6b448dea9e453a496c1615d/closed-environment.json": "d33b3aa92af3b7d24d25895e757ed8aed97074b4e4e8f9577f669b581e264c8f",
+    "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/native379-v2-root-attempt-512-diagnostic-fcf00fe6e6b448dea9e453a496c1615d/root-launch-binding.json": "956a51f4239d6b769d47321d4c1bbcf8efdbc6855bf20db6fcdff1fca76c6a5f"
+  },
+  "frozenSourceBindings": {
+    "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-source/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e",
+    "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-source/services/platform/migrations/ordered_current/development-module.sql": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74",
+    "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-source/services/platform/migrations/ordered_current/development-collector.sql": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f"
+  },
+  "actualSecondaryDiagnostic": {
+    "failure": {
+      "stage": "stream",
+      "errorClass": "context-deadline",
+      "contextState": "deadline",
+      "querySHA256": "36252e816108a8866c6c7ae350a8b1ccad1a439c02530125edb75c69a9ba1f84",
+      "scannedRows": 0,
+      "chargedRows": 0,
+      "chargedBytes": 0,
+      "elapsedNanoseconds": 37988123509,
+      "comparisonComplete": false,
+      "effectiveDeadline": {
+        "available": true,
+        "expired": true,
+        "remainingMilliseconds": -6
+      },
+      "phaseDeadline": {
+        "available": true,
+        "expired": true,
+        "remainingMilliseconds": -6
+      },
+      "enclosingDeadline": {
+        "available": true,
+        "expired": false,
+        "remainingMilliseconds": 468304
+      },
+      "budget": {
+        "available": true,
+        "phase": "pristine-truth",
+        "globalRows": 10057,
+        "globalBytes": 10068173,
+        "globalMaxRows": 38240,
+        "globalMaxBytes": 85983232,
+        "phaseRows": 10057,
+        "phaseBytes": 10068173,
+        "phaseMaxRows": 12000,
+        "phaseMaxBytes": 33554432,
+        "proposedRows": 0,
+        "proposedBytes": 0
+      }
+    },
+    "expected": 10052,
+    "live": 0,
+    "missing": 0,
+    "extra": 0,
+    "changed": 0,
+    "duplicates": 0,
+    "overflow": true,
+    "error": "collector stream refused",
+    "entries": []
+  },
+  "known": [
+    "Primary catalog QueryRow.Scan completed without observed error and returned false; caller charged false catalog observation then entered secondary collector.",
+    "Primary catalog PLpgSQL has no EXCEPTION handler; primary timeout/SQLSTATE was not observed.",
+    "Secondary row-stream error classified context-deadline; effective/pristine deadline expired, enclosing context still live; scanned and charged secondary rows were zero.",
+    "Budget before secondary failure10057rows/10068173bytes fits inherited pristine/global caps.",
+    "Cleanup booleans are actual available/stopped/joined/normal/endpointChecked/survivorsChecked0, not inferred acceptance.",
+    "No589control executed and no result published."
+  ],
+  "unknown": [
+    "First primary false branch and each preceding operation duration.",
+    "Whether primary reached live collector or returned earlier.",
+    "Actual primary canonical/normalization/collector costs and any secondary server SQLSTATE."
+  ],
+  "primaryBranches": [
+    {
+      "line": 123,
+      "id": "public-wrapper-admission"
+    },
+    {
+      "line": 147,
+      "id": "resolver-admission"
+    },
+    {
+      "line": 148,
+      "id": "caller-and-manifest"
+    },
+    {
+      "line": 149,
+      "id": "registration-count"
+    },
+    {
+      "line": 150,
+      "id": "registration-binding"
+    },
+    {
+      "line": 154,
+      "id": "expected-normalization-and-canonical-sha"
+    },
+    {
+      "line": 156,
+      "id": "historical-postgres-version-equality"
+    },
+    {
+      "line": 157,
+      "id": "profile-checksum"
+    },
+    {
+      "line": 169,
+      "id": "complete-private-routine-closure"
+    },
+    {
+      "line": 1050,
+      "id": "live-normalization-and-equality"
+    }
+  ],
+  "versionGate": {
+    "expectedHistorical": "PostgreSQL 18.3 (Homebrew) on aarch64-apple-darwin25.2.0, compiled by Apple clang version 17.0.0 (clang-1700.6.3.2), 64-bit",
+    "predicate": "provenance->>'postgres' IS DISTINCT FROM pg_catalog.version()",
+    "conclusion": "An exact runtime portability gate if reached; not established as first false branch of retained attempt."
+  },
+  "sourceCostsOnly": {
+    "collectorBytes": 341172,
+    "collectorMaterializedCTEs": 31,
+    "collectorUnionAll": 405,
+    "canonical": "Recursive PLpgSQL per JSON value; object/array string aggregation. Runtime cost unmeasured.",
+    "normalize": "Multiple full rows-array scans and finite entry-span loop; runtime cost unmeasured.",
+    "phaseDeadline": "fixtureStart+180000ms includes owned fixture preparation; secondary ran remaining37.988seconds. No per-operation timings retained."
+  },
+  "proposedNextBatch": {
+    "groupedTests": [
+      "Meaningful old recorder RED: successful false catalog currently leaves no bounded reason/timing prefix in failed return.",
+      "Clock-injected per-operation prefix timing; ordered immutable completion only, query error distinct from false boolean, no invented timeout or branch.",
+      "Version predicate diagnostic returns actual equality booleans and hashes of actual/expected version independently, never edits historical provenance.",
+      "Diagnostic replay ordered-stage classifier refuses skipped/duplicate/misordered stages and labels replay evidence separately from original catalog call.",
+      "Mock query/scan/deferred error/context/byte caps and secret-canary ensure no raw error, SQL, facts, versions, user/PID in logs.",
+      "Cleanup and all589 program/rule/fact/limit bytes exact-regression; original attempts remain immutable RED."
+    ],
+    "implementationScope": [
+      "Private new source hash chain only; retain existing production catalog body, original programs/expectations/caps unchanged.",
+      "Add bounded elapsed/deadline/budget snapshots at each existing pristine operation and safe failed-operation prefix before Fatal; no extra SQL required.",
+      "Design separately reviewed owned diagnostic-only prefix replay using exact source-bound predicates in the same repeatable-read snapshot; fixed stage IDs, actual booleans, SHA outputs, durations and safe SQLSTATE only. Never call it original observed branch.",
+      "At first observed refusal stop replay. Start with wrapper/registration/digest/version/profile predicates; do not run expensive collector blindly if an earlier gate refuses.",
+      "Only after cause proof, separately review bounded EXPLAIN diagnostic plan summary, optionally ANALYZE under unchanged10s statement/180s phase/row-byte budgets; return whitelist node metrics with capped output, no SQL/targetvalues.",
+      "All diagnostic SQL/hash/argv/parameters/placement/budget rows and bytes must be reviewed and charged explicitly, no deadline extension, no optimization until actual profile proof."
+    ],
+    "executionGate": "No PG/probes/relaunch authorized by this artifact; root separately approves exact reviewed diagnostic source/envelope/owned run."
+  },
+  "nativeExecutedByThisAgent": false
+}

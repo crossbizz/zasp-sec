@@ -1,0 +1,21 @@
+{
+  "status": "RECONCILED-ACTUAL-SDK-COMPILATION-STORAGE-REFUSAL-NOT-COMPONENT-PASS",
+  "resultSHA256": "0c394fc3f926de9c1f1c675e38ef7a5e37bbd46787e522799a2a8f6e1e1b3f14",
+  "rootObservation": {
+    "session": 72513,
+    "joinedExit": 1,
+    "provenance": "Parent ROOT supplied actual terminal observation"
+  },
+  "sourceMapSHA256": "8180f681d1485c0bf246a5cb354946dc8667f5e5acd6aff5ddc0c907bbdb95a5",
+  "sourceMapEntries": 26949,
+  "checks": [
+    "Initial/final persisted source maps hashes and objects exactly equal; admitted19332/source/helper/module identity guard preserved",
+    "Only compile stage ran: return-15,9.93349s, emptyhash/0B log and no tests/run/pass/fail/skip events; no admitted compiled artifact",
+    "Workspace sampled minimum/postjoin1498542080 below1500000000; final1487011840; tmp1093160960 remains above100MB",
+    "One direct leader joined-15 and four adopted kernel status15 waits retained; cleanup forced=true explicitly disclosed, bothcleanuprecords joined/noerror,0survivors",
+    "Overall14.38946s below270/300; no supervisor signals, no source drift; SDKtest stage unreached"
+  ],
+  "scope": "Capacity guard refusal during compilation, not compiler diagnostic/application/provider/model/policy failure. No causal attribution to exclusive globalcache growth or compiler phase absent evidence. Protected global GOCACHE and ownedTMP unchanged by reviewer; binaries/key/cert/TMP contents not inspected. All previous source-only/static/native limits remain.",
+  "executedByReviewer": false,
+  "findings": []
+}

@@ -1,0 +1,23 @@
+{
+  "status": "PASS-NARROW-RETAINED-FAILURE-DRAFT-SEVEN-RECORD-PUBLICATION",
+  "draftSHA256": "1cee43483928834bc97c6335509761c60e28de28a1686444de8ad6376ee17a78",
+  "manifestSHA256": "7c7b349dbff97f6f83730bc518c8ed54f61615f7ef37c22093a956be541af488",
+  "checks": {
+    "sevenClosedMembersByteExactOriginalGzipRoundTrips": true,
+    "gzipMtimeZero": true,
+    "twoOriginalRedactedReportsRetainFourFindingsEach": true,
+    "fourFindingSemanticsMatchesOwn2849ReviewNotWaiver": true,
+    "redactedSecretPlaceholderEqualityExplicitlyMeaningless": true,
+    "actualGitRecordsSeparateScopesAndOutcomes": true,
+    "parserFailureReviewUnreachedBehavioralStagesAndUnavailableConsumedGoEqualityPreserved": true,
+    "current81479ReceiptExactGit79Prefix": true,
+    "prefixSHA256": "1d9c3dc520ae8fbd13bd12e7a076c282b9972959b586805439e5d31a28343242",
+    "noApplicationOr728Promotion": true
+  },
+  "limits": [
+    "ROOT must append without changing exact81479-byte prefix; independent current bytecheck does not approve future mutations.",
+    "Seven selected records are not complete raw log/source/module/process replay closure; unavailable historical map equality remains unavailable.",
+    "Actual full-file FAILED4 each remains failed; separate exactGitdiff/available-ref scans0 do not clear these or grant universal/futurecommit clearance.",
+    "No reviewer scanner/tests/compiler/main/Go/Node/PG/Docker/network/sharedwrites or actual token/PEM access."
+  ]
+}

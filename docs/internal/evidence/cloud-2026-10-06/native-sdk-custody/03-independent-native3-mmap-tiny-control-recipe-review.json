@@ -1,0 +1,73 @@
+{
+  "actualAcceptance": [
+    "ROOT sequential exact recipe stages, source/control/tool beforeafter hashes and normal terminal joins required.",
+    "Baseline must exit1 with the specific GENUINE old upstream printf failure assertion, not timeout/setup failure.",
+    "Candidate must exit0 with all stated controls; abnormal detached cleanup is UNKNOWN and cannot pass.",
+    "Result does not prove root304/355 inactivity or authorize relocation; separately execute exact source-three observer after independent actual control review."
+  ],
+  "assessment": [
+    "Exact old/new scan_maps extraction preserves scanner logic; synthetic map path and owned real-mmap alias case are explicitly TESTLOCAL data substitutions.",
+    "Baseline valid synthetic rows inject failure into old final printf before successful sed/sort; expected failure assertion distinguishes genuine masked-output behavior from setup errors.",
+    "Candidate checks exact three aliases/nonmatch, per-row and marker printf failures, empty/malformed map refusal, TESTLOCAL missing/wrong count parser and real owned32-byte mmap.",
+    "Every shell child has2s timeout and262144-byte hard regular stdout/stderr cap; aggregate10s, ROOT GNUtimeout15+10/Tini. Signal failure or abnormal groups/timeouts refuse; no privileged metadata or target deletion."
+  ],
+  "controlSHA256": "7d2dd3a4f262d5a279099f6e9fe45a4131e9f9fe6d59dd7e9b3f4661321e2a22",
+  "findings": [],
+  "manifestSHA256": "21645beb7f71e78cdd9dd8bb1ca40b953d42e83af152253e2ed5ed9139d5d329",
+  "recipe": "/tmp/zasp-cloud-evidence/native3-mmap-finite-causal-control-source-v4-pg5rwlnj/recipe.json",
+  "recipeSHA256": "a4a76713a2a14611c866ca26afc8c268b796bfe4a660bd37b098813bb02369ca",
+  "scope": "Tiny source-extracted mmap controls only; reviewer performed raw source/AST/hash reads, no fixture/runtime execution.",
+  "status": "SOURCE-STATIC-PASS",
+  "verifiedSourceToolPins": {
+    "/bin/sh": {
+      "bytes": 129736,
+      "resolvedPath": "/usr/bin/dash",
+      "sha256": "a6f559e00b69a4aa4d8cb607be18d9386c5aee55c509e2c075549dcf00e00fc7"
+    },
+    "/tmp/zasp-cloud-evidence/native3-readonly-root-observer-source-v1-dh5pcn57/observe-exact-root-services-v5.sh": {
+      "bytes": 5645,
+      "resolvedPath": "/tmp/zasp-cloud-evidence/native3-readonly-root-observer-source-v1-dh5pcn57/observe-exact-root-services-v5.sh",
+      "sha256": "8c9ce5355b4c82d75537c85e8b39a14178aedd53a14530e5e8816203e7cadd5d"
+    },
+    "/tmp/zasp-cloud-evidence/native3-readonly-root-observer-source-v4-pn1ch41b/observe-exact-root-services-v5.sh": {
+      "bytes": 5759,
+      "resolvedPath": "/tmp/zasp-cloud-evidence/native3-readonly-root-observer-source-v4-pn1ch41b/observe-exact-root-services-v5.sh",
+      "sha256": "7e0fb68bad3a12c2c58abcc9d18c120453d72538f52c2f3476b98c81ba8cdd79"
+    },
+    "/tmp/zasp-cloud-tools/bin/tini": {
+      "bytes": 24064,
+      "resolvedPath": "/tmp/zasp-cloud-tools/bin/tini",
+      "sha256": "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c"
+    },
+    "/usr/bin/awk": {
+      "bytes": 170664,
+      "resolvedPath": "/usr/bin/mawk",
+      "sha256": "eff9f2b711eb5bee1b58d4d33b891e8da8f6534655d3854a45bd10217dbb28e6"
+    },
+    "/usr/bin/env": {
+      "bytes": 56144,
+      "resolvedPath": "/usr/bin/env",
+      "sha256": "eb1c64bbc9908afcdf8cb48524f17112d8dd76a249f80dee2f01da14747b3b6e"
+    },
+    "/usr/bin/python3": {
+      "bytes": 6812336,
+      "resolvedPath": "/usr/bin/python3.13",
+      "sha256": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
+    },
+    "/usr/bin/sed": {
+      "bytes": 130520,
+      "resolvedPath": "/usr/bin/sed",
+      "sha256": "69ff7292c0d081bdf5866bc84dde96d5a14f4a7deafeb9483739be68c48ac2b3"
+    },
+    "/usr/bin/sort": {
+      "bytes": 121552,
+      "resolvedPath": "/usr/bin/sort",
+      "sha256": "4bf4f14424fa481b1f40d28534b0c5c7a7d07affcb82c805b07255cc4c2034be"
+    },
+    "/usr/bin/timeout": {
+      "bytes": 47984,
+      "resolvedPath": "/usr/bin/timeout",
+      "sha256": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+    }
+  }
+}

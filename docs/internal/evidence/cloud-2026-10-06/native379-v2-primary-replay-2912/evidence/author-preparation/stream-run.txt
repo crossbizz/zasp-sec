@@ -1,0 +1,45 @@
+func native379V2RunPrimaryReplay(ctx context.Context,module []byte,manifest string,pid int32,user string,query func(context.Context,string,...any)(native379V2DiagnosticRows,error))native379V2PrimaryReplay{
+ receipt:=native379V2PrimaryReplay{Scope:"diagnostic-only-ordered-prefix-replay-not-original-trace",SourceSHA256:orderedCurrentNative379V2SHA256(module),Outcome:"unknown-refused",Steps:[]native379V2PrimaryReplayObservation{}}
+ started:=time.Now();plan,err:=native379V2BuildPrimaryReplayPlan(module);scanned,charged,chargedBytes:=0,0,0
+ failure:=func(actualCtx context.Context,stage string,err error,sqlSHA string,started time.Time,proposedRows,proposedBytes int){meta:=native379V2CollectorFailureMetadata(actualCtx,orderedCurrentNative379V2Packet{},stage,err,sqlSHA,started,scanned,charged,chargedBytes,proposedRows,proposedBytes);receipt.Failure=&meta}
+ budget,hasBudget:=ctx.Value(native379V2BudgetKey{}).(*native379V2Budget)
+ if err!=nil||!native379V2ValidSHA(manifest)||pid<=0||user==""||len(user)>63||query==nil||!hasBudget||budget==nil||budget.packet.Limits.SQLMilliseconds<=0||budget.packet.Limits.SQLMilliseconds>10000{failure(ctx,"source",errors.New("replay source or binding refused"),"",started,0,0);return receipt}
+ boundRaw,_:=orderedCurrentNative379V2CanonicalJSONFromValue([]any{pid,user,native379V2ReplayFrameSQL});binding:=orderedCurrentNative379V2SHA256(boundRaw)
+ for index,step:=range plan {
+  started=time.Now();sqlSHA:=orderedCurrentNative379V2SHA256([]byte(step.sql))
+  if err:=ctx.Err();err!=nil{failure(ctx,"query",err,sqlSHA,started,0,0);return receipt}
+  snapshot:=native379V2CollectorFailureMetadata(ctx,orderedCurrentNative379V2Packet{},"query",nil,sqlSHA,started,scanned,charged,chargedBytes,1,0).Budget
+  if !snapshot.Available||snapshot.GlobalRows>=snapshot.GlobalMaxRows||snapshot.PhaseRows>=snapshot.PhaseMaxRows{failure(ctx,"charge",native379V2RowByteBudgetError,sqlSHA,started,1,0);return receipt}
+  args:=[]any{};if index==0{args=[]any{pid,user}}else if step.usesManifest{args=[]any{manifest}}
+  params,_:=orderedCurrentNative379V2CanonicalJSONFromValue(args)
+  item:=native379V2PrimaryReplayObservation{Stage:step.id,SQLSHA256:sqlSHA,ParamsSHA256:orderedCurrentNative379V2SHA256(params),SourceSpanSHA256:step.sourceSpanSHA,PlacementSHA256:step.placementSHA,SessionBindingSHA256:binding}
+  queryCtx,cancel:=context.WithTimeout(ctx,time.Duration(budget.packet.Limits.SQLMilliseconds)*time.Millisecond)
+  value,streamErr,errorStage:=func()(value bool,streamErr error,errorStage string){
+   rows,queryErr:=query(queryCtx,step.sql,args...);if queryErr!=nil{return false,queryErr,"query"};if rows==nil{return false,errors.New("replay rows absent"),"query"};defer rows.Close()
+   if !rows.Next(){streamErr=rows.Err();if streamErr==nil{streamErr=pgx.ErrNoRows};return false,streamErr,"stream"}
+   receipt.ReceivedRows++
+   if scanErr:=rows.Scan(&value);scanErr!=nil{return false,scanErr,"scan"};scanned++
+   item.Value=&value
+   rawRow:=[]any{value};encoded,_:=orderedCurrentNative379V2CanonicalJSONFromValue(rawRow)
+   if chargeErr:=native379V2Charge(queryCtx,1,rawRow);chargeErr!=nil{return false,chargeErr,"charge"};charged++;chargedBytes+=len(encoded)
+   if rows.Next(){receipt.ReceivedRows++;return false,errors.New("replay scalar cardinality refused"),"stream"}
+   if streamErr:=rows.Err();streamErr!=nil{return false,streamErr,"stream"}
+   if queryErr:=queryCtx.Err();queryErr!=nil{return false,queryErr,"stream"}
+   item.StreamComplete=true;return value,nil,""
+  }()
+  item.ElapsedNanoseconds=time.Since(started).Nanoseconds()
+  meta:=native379V2CollectorFailureMetadata(queryCtx,orderedCurrentNative379V2Packet{},"query",streamErr,sqlSHA,started,scanned,charged,chargedBytes,0,0)
+  if streamErr==nil{meta.ErrorClass="none";meta.SQLState="00000"};item.Context=meta
+  receipt.Attempted=&item
+  if streamErr!=nil&&errorStage=="charge"{rawRow,_:=orderedCurrentNative379V2CanonicalJSONFromValue([]any{value});failure(queryCtx,errorStage,streamErr,sqlSHA,started,1,len(rawRow));cancel();return receipt}
+  // Error receipts describe actual partial streams. They never count as a
+  // completed predicate, and their safe metadata bytes also use the phase cap.
+  encoded,encodeErr:=orderedCurrentNative379V2CanonicalJSONFromValue(item)
+  if encodeErr!=nil{failure(queryCtx,"charge",encodeErr,sqlSHA,started,0,0);cancel();return receipt}
+  if chargeErr:=native379V2Charge(ctx,0,item);chargeErr!=nil{failure(queryCtx,"charge",chargeErr,sqlSHA,started,0,len(encoded));cancel();return receipt};chargedBytes+=len(encoded)
+  if streamErr!=nil{failure(queryCtx,errorStage,streamErr,sqlSHA,started,0,0);cancel();return receipt}
+  cancel();receipt.Attempted=nil;receipt.Steps=append(receipt.Steps,item)
+  if !value{if index==0{receipt.Outcome="replay-session-frame-refusal"}else{receipt.Outcome="observed-prefix-refusal";receipt.FirstRefusal=step.id};return receipt}
+ }
+ receipt.Outcome="prefix-passed-primary-still-false";return receipt
+}

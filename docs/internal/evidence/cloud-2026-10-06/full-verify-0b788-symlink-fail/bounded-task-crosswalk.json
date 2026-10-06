@@ -1,0 +1,47 @@
+{
+  "source": "docs/internal/2026-09-22-temporal-openfga-crosswalk.tsv",
+  "source_commit": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "source_sha256": "6c0f4432ee18b260d194b47fe89774d5377441e38b77715ba9298e3dc51381ce",
+  "linked_rows": [
+    {
+      "original_id": "M1-28",
+      "requirement": "service health endpoints. Deliverable: Register common health endpoint contract in OpenAPI/internal service docs.",
+      "packet": "P1,P10",
+      "production_class_unchanged": "production-available",
+      "observation": "Fresh health-contract phasePASS: API8.993s/worker387.221s, with original readiness guards retained; no installed/deployed authority.",
+      "limits": "Existing original task/gate link only. No category or acceptance promotion; no additional IDs inferred."
+    },
+    {
+      "original_id": "M1-28b",
+      "requirement": "platform health wiring. Deliverable: Wire shared health handlers into platform API and worker commands.",
+      "packet": "P1,P10",
+      "production_class_unchanged": "production-available",
+      "observation": "Fresh health-contract phasePASS: API8.993s/worker387.221s, with original readiness guards retained; no installed/deployed authority.",
+      "limits": "Existing original task/gate link only. No category or acceptance promotion; no additional IDs inferred."
+    },
+    {
+      "original_id": "M8-45",
+      "requirement": "SBOM generation. Deliverable: Generate SPDX/CycloneDX SBOM for every shipped image.",
+      "packet": "P1,P9,P10",
+      "production_class_unchanged": "blocked/external",
+      "observation": "Local npm SBOM source-gate command refused ESBOMPROBLEMS,207 missingrequirements; every-shipped-image SBOM acceptance not established.",
+      "limits": "Existing original task/gate link only. No category or acceptance promotion; no additional IDs inferred."
+    },
+    {
+      "original_id": "M8-54",
+      "requirement": "M8 release gate. Deliverable: Create release-readiness record containing results/exceptions from all M8 gates.",
+      "packet": "P7,P8,P10",
+      "production_class_unchanged": "blocked/external",
+      "observation": "Full actual verificationFAIL755s; release tests284pass/1fail; build/later gatesunreached; failure recorded without clearance.",
+      "limits": "Existing original task/gate link only. No category or acceptance promotion; no additional IDs inferred."
+    }
+  ],
+  "original_rows": 728,
+  "categories_unchanged": {
+    "production-available": 523,
+    "component-only": 144,
+    "blocked/external": 61
+  },
+  "counts_limits": "Existing authoritative categories retained; no new ledger check or deployed proof from this packet.",
+  "promotion": false
+}

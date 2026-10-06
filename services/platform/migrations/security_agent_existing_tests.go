@@ -24,7 +24,11 @@ var securityAgentExistingTestCandidateDown string
 // It must not be applied outside an owned test database until release55 pins,
 // rollback and all linked-invocation safeguards are implemented.
 func SecurityAgentExistingTestEnqueueCandidateSQL() string {
-	sql := strings.ReplaceAll(securityAgentExistingTestEnqueueSQL, "-- existing test predecessor checksum", ProductionSecurityAgentRunContext().Checksum())
+	return securityAgentExistingTestEnqueueWithPredecessor(ProductionSecurityAgentRunContext().Checksum())
+}
+
+func securityAgentExistingTestEnqueueWithPredecessor(predecessor string) string {
+	sql := strings.ReplaceAll(securityAgentExistingTestEnqueueSQL, "-- existing test predecessor checksum", predecessor)
 	return strings.ReplaceAll(sql, "-- existing test predecessor fingerprint", SecurityAgentRunContextFingerprint()) + "\n" + securityAgentExistingTestLinksSQL + "\n" + securityAgentExistingTestDispatchSQL + "\n" + securityAgentExistingTestDefinitionSQL
 }
 

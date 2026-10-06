@@ -1,0 +1,40 @@
+{
+  "format": "root-actual-tool-join-transcription-v1",
+  "logs": {
+    "native3-mmap-root-green.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native3-mmap-root-green.stdout.log": {
+      "bytes": 720,
+      "sha256": "1939c2ff8bd07c2380742cdedcee985ef5fa941b6e15c0c935dc0d706b198723"
+    },
+    "native3-mmap-root-red.stderr.log": {
+      "bytes": 390,
+      "sha256": "0099a2b5eadf426f9023fbf868eb74bb7e8244d47d48bbfb75c4baa545649098"
+    },
+    "native3-mmap-root-red.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "scope": "source-extracted recovery observer controls; not root resource readiness",
+  "stages": [
+    {
+      "actualExitCode": 1,
+      "expectedCause": "GENUINE old upstream printf failure is masked by successful sort; scanner returns zero",
+      "name": "RED",
+      "sessionIdReturned": false,
+      "toolChunkId": "057fe2",
+      "toolWallTimeSeconds": 2.2004e-05
+    },
+    {
+      "actualExitCode": 0,
+      "name": "GREEN",
+      "reportedCases": 7,
+      "sessionIdReturned": false,
+      "toolChunkId": "155be1",
+      "toolWallTimeSeconds": 2.5919e-05
+    }
+  ]
+}

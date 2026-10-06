@@ -1,0 +1,27 @@
+{
+  "custodyManifestSHA256": "5e6e45a7b0c845a90b9820d1144276d46b7eed90ff0ae472db3f7395f4ea6ad0",
+  "limitations": [
+    "Pinned tag/commit association is ROOT-observed; full commit-to-subtree ancestry object chain absent and not inferred",
+    "No SQL execution, PG12/18 compatibility, schema provisioning, Temporal service/namespace/runtime/API/provider readiness",
+    "No vendor internal tests/network rerun by reviewer; exact source byte custody only",
+    "Original native archive/binary/help history remains separate; schema source additions do not modify archive or imply license in vendor archive"
+  ],
+  "ownerResultSHA256": "d39168dfd182bfa0b020c9ed3aa7b65c0a764f5f2776a090cdb3158f5c05001f",
+  "provenance": "ROOT join is explicit authored transcription of tool-observed normal terminal wait; reviewer did not fabricate kernel join receipts. Owner source/tools postverification recorded; current exact pins independently rechecked.",
+  "rootJoinSHA256": "15c13a62bb69b0f46033cdee3ecf8ecac2899a4a9858e45b80faf41237239b71",
+  "status": "PASS-ACTUAL-EXACT83-SOURCE-CUSTODY-ONLY",
+  "verified": {
+    "all83SameFDPhysicalBodiesGitSHA1AndSHA256": true,
+    "allGitTreePreimagesRebuilt": true,
+    "allRawAPIBase64BodiesAndClosedIdentity": true,
+    "currentSourceToolPlanPinsMatch": true,
+    "declaredDirectories": 39,
+    "decodedBytes": 88278,
+    "exactCompleteDirectoryFileTopologyModesUIDNlink": true,
+    "files": 83,
+    "license1152BytesGitBlobAndSHA256": true,
+    "normalOwnerAndRootToolJoinsNoForceSignalTimeoutSurvivors": true,
+    "reservedJournal83Requests83FileRowsNormalCandidate": true,
+    "uniqueGitBlobs": 83
+  }
+}

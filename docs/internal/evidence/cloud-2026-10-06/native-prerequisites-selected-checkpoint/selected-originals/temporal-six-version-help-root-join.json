@@ -1,0 +1,13 @@
+{
+  "allRecipeSourceAndToolPinsChecked": true,
+  "freshOutputAbsent": true,
+  "normalWaitReturn": 0,
+  "preflightTmpFree": 275402752,
+  "preflightWorkspaceFree": 1545465856,
+  "resultPath": "/workspace/.zasp-cloud-owned/Temporal132-version-help-owner-b6b73d9c48564860845def155511484c/result.json",
+  "resultSHA256": "c904d112233c6028644aa4756d976492291d1068864534fca7d5e2ec37d6c1e7",
+  "scope": "VERSION-HELP-ONLY",
+  "toolChunk": "22668c",
+  "toolExit": 0,
+  "toolWallSeconds": 0.865760618
+}

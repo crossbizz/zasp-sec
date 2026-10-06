@@ -1,0 +1,30 @@
+{
+  "assessment": "PASS-STATIC-SOURCE-ONLY-PENDING-FINAL-WIRE-AND-COMPONENT-VERIFICATION",
+  "base_commit": "3ccc145510ea90c751a66306b6bb1d39812d5c51",
+  "findings": {
+    "Critical": [],
+    "Important": [],
+    "Minor": []
+  },
+  "format": "independent-native379-v2-safe-diagnostic-static-review-v1",
+  "pending": [
+    "Refreshed private Node manifest/wire authority-only delta review.",
+    "Retained authentic-wire source13component group and independent rerun."
+  ],
+  "scope_limits": [
+    "No PostgreSQL/server/probes/native execution performed by reviewer.",
+    "Prior failed native attempt cause remains unknown; this patch improves future failure provenance without claiming to recover lost evidence.",
+    "No native readiness/relaunch/frozen-root mutation/production authority approval."
+  ],
+  "source_path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/source/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+  "source_sha256": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e",
+  "verified": [
+    "Diff versus exact3ccc changes diagnostic failure metadata/helper and four source regressions only, plus named budget error identity and enclosing deadline value propagation; no SQL or original control/cap edits.",
+    "Source/query/scan/charge/stream stage and safe driver/Postgres/context/budget/canonical classes. SQLSTATE accepts only exactly5uppercase ASCII letters/digits; excludes message/detail/hint/raw SQL/facts/parameters.57014 does not imply a particular timeout cause.",
+    "Partial successful ScannedRows differs from retained/charged rows; bytes reflect exact canonical per-fact charges. Charge occurs before append. Read-only global/phase/deadline snapshots do not mutate budget evidence. Failure ComparisonComplete remainsfalse; incomplete stream never creates native success.",
+    "Consumer defersClose before every scan/canonical/budget/stream return. rows.Err checked after iteration. No missing close branch introduced.",
+    "Named sentinel preserves original budget error text and unchanged cap comparisons/accounting. Additional canonical calculation supplies proposed-byte metadata only.",
+    "Owned-subtest cleanup finishes before parent fail branch reads nil-safe mutex-protected actual snapshot. Logs only booleans/resource count; excludes endpoint/resource values. Unavailable cleanup remains unavailable, not success.",
+    "Tests use scripted rows/errors only and deliberately secret-bearing canaries to verify bounded redacted metadata; no SQL/PG observations fabricated."
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "format": "native379-v2-source-only-component-review-binary-v1",
+  "scope": "Component verification and independently repeatable source tests; mutable checkout/module tool roots, not a frozen native envelope or authorization. No PostgreSQL/native379 execution. All compiled anchors empty.",
+  "cwd": "/workspace/zasp-sec/services/platform",
+  "compileArgv": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "test",
+    "-c",
+    "-mod=readonly",
+    "-o",
+    "/workspace/.zasp-cloud-owned/native379-v2-source-review-da6d-yenN6U/apiserver-source-review.test",
+    "./apiserver"
+  ],
+  "explicitCompileEnvironment": {
+    "PATH": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin:/tmp/zasp-cloud-tools/go/bin:/usr/bin:/bin",
+    "TMPDIR": "/workspace/.zasp-cloud-owned/native379-v2-source-review-da6d-yenN6U/tmp",
+    "GOROOT": "/tmp/zasp-cloud-tools/go",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOFLAGS": "-mod=readonly",
+    "GOEXPERIMENT": "",
+    "GOOS": "linux",
+    "GOARCH": "amd64",
+    "CGO_ENABLED": "0",
+    "GOMODCACHE": "/home/agent/go/pkg/mod",
+    "GOCACHE": "/tmp/zasp-registration-cloud-hz08qu_t/build-cache"
+  },
+  "binary": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-source-review-da6d-yenN6U/apiserver-source-review.test",
+    "bytes": 117236780,
+    "sha256": "4186b629d76fe20d41cbe369f56674867a46cf17cffd5ef997ca0af1ab108085"
+  },
+  "go": {
+    "path": "/tmp/zasp-cloud-tools/go/bin/go",
+    "bytes": 14989108,
+    "sha256": "3fb44b0d47becc087cf9e6002366bfbf136d3e08460f12389dbd04687dcf0dd0"
+  },
+  "goVersion": "go1.25.13 linux/amd64",
+  "node": {
+    "path": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+    "bytes": 124835376,
+    "sha256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068"
+  },
+  "sources": [
+    {
+      "path": "/workspace/zasp-sec/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+      "bytes": 157332,
+      "sha256": "da6d2bf06c99b0e95ae5abf940bcf2da89b203e973fd4d39aea214070076b912"
+    },
+    {
+      "path": "/workspace/zasp-sec/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_pins_test.go",
+      "bytes": 741,
+      "sha256": "25db996134b0f804366b530ed129508f9b013168842a5bd367ad3c773fdac344"
+    }
+  ],
+  "authenticSourceWire": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-refusal-da6d-jbrq5usu/canonical-wire.json",
+    "bytes": 25160408,
+    "sha256": "d949abc5a17374fa0024548ed40335b29ad89f46c4c1f50d0f2d4b6a8425b4de"
+  },
+  "sourceManifestSHA256": "44898f917fa13db57ba2e2da79fdcfe03f3f522aa2aff2e61223c397776ec99c",
+  "verificationLog": {
+    "path": "/tmp/zasp-native379-v2-final-da6d-verified-refusal-green.log",
+    "bytes": 1451,
+    "sha256": "c588ddd3b2963760cfbc12e3b9be92e43fe9b05dbc6df636248145c4a1e95274"
+  },
+  "priorActualBudgetRed": {
+    "path": "/tmp/zasp-native379-v2-final-4a19-source-wire-green.log",
+    "bytes": 1116,
+    "sha256": "607ed9d89628e385f52d34309e9a9901fd4967c77586a67b6c6050a44ee7d036"
+  },
+  "verification": {
+    "groupsPassed": 7,
+    "groupsFailed": 0,
+    "groupsSkipped": 0,
+    "seconds": 34.423,
+    "namedPhysicalFeasibilityRefusal": {
+      "phase": "forged-entry",
+      "requiredPhysicalRows": 6148,
+      "unchangedMaxRows": 2048
+    },
+    "recordedSourceControlResultsValidated": 589,
+    "declaredProgramStepsValidated": 6348,
+    "recordedOutcomeScope": "All589 recorded results are constructed from source declared expectations for validator/forgery tests; they are not589 executor calls or SQL executions.",
+    "actualScriptedExecutorControls": [
+      "restore:transaction"
+    ],
+    "actualScriptedExecutorProgramSteps": 7,
+    "scriptedExecutorAPI": {
+      "SessionIdentity": 1,
+      "ObserveRole": 6,
+      "ExecStep": 2,
+      "QueryStep": 5
+    },
+    "nativeSQLExecutions": 0
+  },
+  "independentRerun": {
+    "argv": [
+      "/workspace/.zasp-cloud-owned/native379-v2-source-review-da6d-yenN6U/apiserver-source-review.test",
+      "-test.run",
+      "^TestNative379V2",
+      "-test.count=1",
+      "-test.v"
+    ],
+    "requiredEnvironment": {
+      "PATH": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin:/tmp/zasp-cloud-tools/go/bin:/usr/bin:/bin"
+    },
+    "cwd": "/workspace/zasp-sec/services/platform",
+    "note": "Filter excludes TestP7OrderedCurrentIntegrityNativeV2. Set no native opt-in environment variables."
+  }
+}

@@ -1,0 +1,435 @@
+{
+  "members": [
+    {
+      "bytes": 5225,
+      "encoding": "gzip-mtime0",
+      "member": "source-authorization_worker_ordered_current_native379_phase_codec_test.go.gz",
+      "original": {
+        "bytes": 19361,
+        "mode": 256,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/authorization_worker_ordered_current_native379_phase_codec_test.go",
+        "sha256": "8ba722729b2420248a7085d763af2699add4b9bc05cee0bde02e6cc82e70f5dc"
+      },
+      "sha256": "6b6f1c40e3d8ea58d0c6af9d70364db54168d8cb502b7dd13079615954f05efc"
+    },
+    {
+      "bytes": 8026,
+      "encoding": "gzip-mtime0",
+      "member": "source-authorization_worker_ordered_current_native379_phase_codec_cases_test.go.gz",
+      "original": {
+        "bytes": 28217,
+        "mode": 256,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/authorization_worker_ordered_current_native379_phase_codec_cases_test.go",
+        "sha256": "bbecdcce7dbf849ef581c99ef10961f86c45b5c81ed5f70058d033e2e38c67cc"
+      },
+      "sha256": "7ec119f569100d8932de123bdad1282c80d73687632057087ae5a3848ec4296e"
+    },
+    {
+      "bytes": 9475,
+      "encoding": "gzip-mtime0",
+      "member": "source-run-source-draft.py.gz",
+      "original": {
+        "bytes": 31363,
+        "mode": 256,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/run-source-draft.py",
+        "sha256": "8e5c5ef90a98b8ad25e9e81b044f336d362ac4bac7beae02e118f24608b60c5d"
+      },
+      "sha256": "94df95143f417bd5cd9c3b6b7b6ead395434a6fecac454f65a3523c17793def1"
+    },
+    {
+      "bytes": 1808,
+      "encoding": "identity",
+      "member": "source-preparation.json",
+      "original": {
+        "bytes": 1808,
+        "mode": 256,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/preparation.json",
+        "sha256": "231f086c8c0a4dfe286d773d7452c724bac548eff9f8c84292801eda63a942c1"
+      },
+      "sha256": "231f086c8c0a4dfe286d773d7452c724bac548eff9f8c84292801eda63a942c1"
+    },
+    {
+      "bytes": 1587,
+      "encoding": "identity",
+      "member": "source-source-overlay.json",
+      "original": {
+        "bytes": 1587,
+        "mode": 256,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/source-overlay.json",
+        "sha256": "fc41fb8873cbdae6b2e7584da64bc3311ab43de3b84bf0f25bdb85704887e2fe"
+      },
+      "sha256": "fc41fb8873cbdae6b2e7584da64bc3311ab43de3b84bf0f25bdb85704887e2fe"
+    },
+    {
+      "bytes": 6831,
+      "encoding": "gzip-mtime0",
+      "member": "source-run-source-draft.py.diff.gz",
+      "original": {
+        "bytes": 30692,
+        "mode": 256,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/run-source-draft.py.diff",
+        "sha256": "31e580a4040688bc4b6b38653677551c302e626bb6fe5f73c4c9554b871e8e30"
+      },
+      "sha256": "182d9ca04af73c0bf66092fa9324eb466ce1090ea70e8d1591a621e3ce0feed1"
+    },
+    {
+      "bytes": 2894,
+      "encoding": "identity",
+      "member": "source-authorization_worker_ordered_current_native379_phase_codec_cases_test.go.diff",
+      "original": {
+        "bytes": 2894,
+        "mode": 256,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/authorization_worker_ordered_current_native379_phase_codec_cases_test.go.diff",
+        "sha256": "946989ec5f2fb928ba8d20201877bcbefd32d548c1db30896c6e0ea5b62bce0d"
+      },
+      "sha256": "946989ec5f2fb928ba8d20201877bcbefd32d548c1db30896c6e0ea5b62bce0d"
+    },
+    {
+      "bytes": 10873,
+      "encoding": "identity",
+      "member": "actual-initial.json",
+      "original": {
+        "bytes": 10873,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/initial.json",
+        "sha256": "9d8f65e8cd34826e6ceb2c41425e3566104ff61beaff4e2bbe0d96fab1e9dd8e"
+      },
+      "sha256": "9d8f65e8cd34826e6ceb2c41425e3566104ff61beaff4e2bbe0d96fab1e9dd8e"
+    },
+    {
+      "bytes": 23655,
+      "encoding": "gzip-mtime0",
+      "member": "actual-result.json.gz",
+      "original": {
+        "bytes": 243696,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/result.json",
+        "sha256": "195f6d5badd7d8fe965672217aedd92a5d4f161c972856bdf91d8dc4b1a27e68"
+      },
+      "sha256": "edd6233603d004b3f555990ae2ecdb52b324a1a06184eaa18dc8d91186e01e18"
+    },
+    {
+      "bytes": 191,
+      "encoding": "gzip-mtime0",
+      "member": "actual-reserved-failure-result.json.gz",
+      "original": {
+        "bytes": 65536,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/reserved-failure-result.json",
+        "sha256": "f6c39d644029062ab4df4cbef1f14a8fe92fea2d765c4300810fddfd61d352c0"
+      },
+      "sha256": "df2d9f83f26330c29f084b3ae17c52541fd251dfd0915df5e7ba9baee05f911d"
+    },
+    {
+      "bytes": 948,
+      "encoding": "identity",
+      "member": "actual-compiled-component.json",
+      "original": {
+        "bytes": 948,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/compiled-component.json",
+        "sha256": "2e25a4ccf0c4f38720441f3bcbefc895b8a0c22932278df7c9b45b8ff3bedf6b"
+      },
+      "sha256": "2e25a4ccf0c4f38720441f3bcbefc895b8a0c22932278df7c9b45b8ff3bedf6b"
+    },
+    {
+      "bytes": 1474,
+      "encoding": "identity",
+      "member": "actual-component-compile-process-binding.json",
+      "original": {
+        "bytes": 1474,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component-compile-process-binding.json",
+        "sha256": "ea3a1caecd1f85de9ba15f2e6d423ad4e9306175235389f95d966f0e4753a0f7"
+      },
+      "sha256": "ea3a1caecd1f85de9ba15f2e6d423ad4e9306175235389f95d966f0e4753a0f7"
+    },
+    {
+      "bytes": 968,
+      "encoding": "identity",
+      "member": "actual-component-compile-result.json",
+      "original": {
+        "bytes": 968,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component-compile-result.json",
+        "sha256": "8b1de9989ad86cbb2c8c56c88211526a5274a11e73ac13e8e4db13ac5292747e"
+      },
+      "sha256": "8b1de9989ad86cbb2c8c56c88211526a5274a11e73ac13e8e4db13ac5292747e"
+    },
+    {
+      "bytes": 0,
+      "encoding": "identity",
+      "member": "actual-component-compile.jsonl",
+      "original": {
+        "bytes": 0,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component-compile.jsonl",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1522,
+      "encoding": "identity",
+      "member": "actual-caller-short-process-binding.json",
+      "original": {
+        "bytes": 1522,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/caller-short-process-binding.json",
+        "sha256": "7d83d2724de37ea4cdea66b08a160a4454f34978fa3c020a6ec1a2bb34ea2a67"
+      },
+      "sha256": "7d83d2724de37ea4cdea66b08a160a4454f34978fa3c020a6ec1a2bb34ea2a67"
+    },
+    {
+      "bytes": 1108,
+      "encoding": "identity",
+      "member": "actual-caller-short-result.json",
+      "original": {
+        "bytes": 1108,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/caller-short-result.json",
+        "sha256": "1d1896f9686f896ea76e196ff929bf29c37c2d24c3e29cb27536b6e95e7965a1"
+      },
+      "sha256": "1d1896f9686f896ea76e196ff929bf29c37c2d24c3e29cb27536b6e95e7965a1"
+    },
+    {
+      "bytes": 5111,
+      "encoding": "identity",
+      "member": "actual-caller-short.jsonl",
+      "original": {
+        "bytes": 5111,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/caller-short.jsonl",
+        "sha256": "9ceccd0413f7ea7e14c0291179314dd196707b54a576e6bed38d76fcdc420df5"
+      },
+      "sha256": "9ceccd0413f7ea7e14c0291179314dd196707b54a576e6bed38d76fcdc420df5"
+    },
+    {
+      "bytes": 1524,
+      "encoding": "identity",
+      "member": "actual-caller-ascii63-process-binding.json",
+      "original": {
+        "bytes": 1524,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/caller-ascii63-process-binding.json",
+        "sha256": "4d57089eb95ce925c504b4f5e80e377ae0f44ed51a1e33e7e6f222c84d299b60"
+      },
+      "sha256": "4d57089eb95ce925c504b4f5e80e377ae0f44ed51a1e33e7e6f222c84d299b60"
+    },
+    {
+      "bytes": 1117,
+      "encoding": "identity",
+      "member": "actual-caller-ascii63-result.json",
+      "original": {
+        "bytes": 1117,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/caller-ascii63-result.json",
+        "sha256": "1fe9d139ee1a0aade88bef91e4d2b6751079b95d35603537f6ed1acc907eae49"
+      },
+      "sha256": "1fe9d139ee1a0aade88bef91e4d2b6751079b95d35603537f6ed1acc907eae49"
+    },
+    {
+      "bytes": 5143,
+      "encoding": "identity",
+      "member": "actual-caller-ascii63.jsonl",
+      "original": {
+        "bytes": 5143,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/caller-ascii63.jsonl",
+        "sha256": "764250cf85c916960ebba0e48ed861827b490b39e5b657e09ff922a8d368a6a1"
+      },
+      "sha256": "764250cf85c916960ebba0e48ed861827b490b39e5b657e09ff922a8d368a6a1"
+    },
+    {
+      "bytes": 1526,
+      "encoding": "identity",
+      "member": "actual-caller-control63-process-binding.json",
+      "original": {
+        "bytes": 1526,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/caller-control63-process-binding.json",
+        "sha256": "a0c9de4b17fd45f22674cd0f0bf868cb8d1588b613917333efeda7cc976c352e"
+      },
+      "sha256": "a0c9de4b17fd45f22674cd0f0bf868cb8d1588b613917333efeda7cc976c352e"
+    },
+    {
+      "bytes": 1125,
+      "encoding": "identity",
+      "member": "actual-caller-control63-result.json",
+      "original": {
+        "bytes": 1125,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/caller-control63-result.json",
+        "sha256": "bd92cf5ccb5c6c139c604fe5187b84735c3451d9873509be462ef08b206668a9"
+      },
+      "sha256": "bd92cf5ccb5c6c139c604fe5187b84735c3451d9873509be462ef08b206668a9"
+    },
+    {
+      "bytes": 5210,
+      "encoding": "identity",
+      "member": "actual-caller-control63.jsonl",
+      "original": {
+        "bytes": 5210,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/caller-control63.jsonl",
+        "sha256": "32e77337f5573d99ec1c4115e66ea489f4f6bbc3dd5c751332643ce633c1022c"
+      },
+      "sha256": "32e77337f5573d99ec1c4115e66ea489f4f6bbc3dd5c751332643ce633c1022c"
+    },
+    {
+      "bytes": 1524,
+      "encoding": "identity",
+      "member": "actual-caller-utf8-63-process-binding.json",
+      "original": {
+        "bytes": 1524,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/caller-utf8-63-process-binding.json",
+        "sha256": "6a38b8849a1e779c3926533f8d513eed92ba77004f48e0be3acb7d649e4de9a6"
+      },
+      "sha256": "6a38b8849a1e779c3926533f8d513eed92ba77004f48e0be3acb7d649e4de9a6"
+    },
+    {
+      "bytes": 1117,
+      "encoding": "identity",
+      "member": "actual-caller-utf8-63-result.json",
+      "original": {
+        "bytes": 1117,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/caller-utf8-63-result.json",
+        "sha256": "31e1429675f79589493bb17d319a40b7553943cfedf20fd80e1a74a4bc39b1e4"
+      },
+      "sha256": "31e1429675f79589493bb17d319a40b7553943cfedf20fd80e1a74a4bc39b1e4"
+    },
+    {
+      "bytes": 5142,
+      "encoding": "identity",
+      "member": "actual-caller-utf8-63.jsonl",
+      "original": {
+        "bytes": 5142,
+        "mode": 384,
+        "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/caller-utf8-63.jsonl",
+        "sha256": "9d1a383c944738b4ad7d331909b0b8df7a8bcfd2790de05b9f8c61e3abccb2ad"
+      },
+      "sha256": "9d1a383c944738b4ad7d331909b0b8df7a8bcfd2790de05b9f8c61e3abccb2ad"
+    },
+    {
+      "bytes": 2924,
+      "encoding": "identity",
+      "member": "independent-four-caller8e5-source-recipe-static-review.json",
+      "original": {
+        "bytes": 2924,
+        "mode": 256,
+        "path": "/tmp/zasp-cloud-evidence/independent-four-caller8e5-source-recipe-static-review.json",
+        "sha256": "f8c486133730c04d845acd8dabc1cc31095e989a27c55b3afbae3ccc29fd65de"
+      },
+      "sha256": "f8c486133730c04d845acd8dabc1cc31095e989a27c55b3afbae3ccc29fd65de"
+    },
+    {
+      "bytes": 2216,
+      "encoding": "identity",
+      "member": "independent-phase-codec-four-caller-8e5-static-review.json",
+      "original": {
+        "bytes": 2216,
+        "mode": 256,
+        "path": "/tmp/zasp-cloud-evidence/independent-phase-codec-four-caller-8e5-static-review.json",
+        "sha256": "cce39960aa9f5c3f7bf99b92c9ce7a2a9ba027b6ddce73e528c00220c59bceb2"
+      },
+      "sha256": "cce39960aa9f5c3f7bf99b92c9ce7a2a9ba027b6ddce73e528c00220c59bceb2"
+    },
+    {
+      "bytes": 5469,
+      "encoding": "identity",
+      "member": "independent-actual-phase-codec-four-caller-review.json",
+      "original": {
+        "bytes": 5469,
+        "mode": 256,
+        "path": "/tmp/zasp-cloud-evidence/independent-actual-phase-codec-four-caller-review.json",
+        "sha256": "b1029b1078d415c42b84aac1ff2f1e7be1f6e38dd73f1ba88d9f58f7e1140f70"
+      },
+      "sha256": "b1029b1078d415c42b84aac1ff2f1e7be1f6e38dd73f1ba88d9f58f7e1140f70"
+    },
+    {
+      "bytes": 11422,
+      "encoding": "identity",
+      "member": "independent-actual-phase-codec-model3-deadline-failure-review.json",
+      "original": {
+        "bytes": 11422,
+        "mode": 256,
+        "path": "/tmp/zasp-cloud-evidence/independent-actual-phase-codec-model3-deadline-failure-review.json",
+        "sha256": "0a06a89c4393718ff831d44b1f966d8e14d802d4671e396081a4abae702daa43"
+      },
+      "sha256": "0a06a89c4393718ff831d44b1f966d8e14d802d4671e396081a4abae702daa43"
+    },
+    {
+      "bytes": 3327,
+      "encoding": "identity",
+      "member": "independent-actual-phase-codec-reconstructed-model-failure-review.json",
+      "original": {
+        "bytes": 3327,
+        "mode": 256,
+        "path": "/tmp/zasp-cloud-evidence/independent-actual-phase-codec-reconstructed-model-failure-review.json",
+        "sha256": "577e4a3c5dde0540f36a9b14c92c513e5235f7403088582031b2a6af28026abf"
+      },
+      "sha256": "577e4a3c5dde0540f36a9b14c92c513e5235f7403088582031b2a6af28026abf"
+    },
+    {
+      "bytes": 15390,
+      "encoding": "derived-exact-log-selection",
+      "member": "outcome-summary.json",
+      "sha256": "05101e2f7c444264ea65a53da00d874f9a5d1f46ecf5ceb84d9e5fc63db414d6"
+    },
+    {
+      "bytes": 840,
+      "encoding": "derived-scope",
+      "member": "README.txt",
+      "sha256": "4358c50e2e13105ea5b345df4b4b61e97f9d626089f56f3b2dc480333f86dc54"
+    }
+  ],
+  "omissions": [
+    {
+      "bytes": 2174514,
+      "mode": 256,
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/goroot-tool-source-map.json",
+      "sha256": "496dcd651bd0192036c1b4062c375d2bbe3b2d36c39bc9416612151b7b695a72"
+    },
+    {
+      "bytes": 3192624,
+      "mode": 384,
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/source-before.json",
+      "sha256": "d3e7db30122a5e72b5a2b1d4f845db363749c269552a4f72111746bff439bca4"
+    },
+    {
+      "bytes": 3192624,
+      "mode": 384,
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/source-after.json",
+      "sha256": "d3e7db30122a5e72b5a2b1d4f845db363749c269552a4f72111746bff439bca4"
+    },
+    {
+      "bytes": 153223894,
+      "mode": 448,
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test",
+      "sha256": "80b28abda3f0007cfbfcd6a3610431558c13bc5ebc181c82f182c2cebed7c438"
+    },
+    {
+      "bytes": 25230411,
+      "mode": 256,
+      "path": "/workspace/.zasp-cloud-owned/native379-v3-final81-0atrosfr/evidence/final-v3-canonical-wire.json",
+      "sha256": "41141f2ed08cfaee0bfea75dd11152c95d898a625a5f0d87f1f1b65be939d035"
+    },
+    {
+      "bytes": 243656,
+      "mode": 384,
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-empty-phase-revision-OspKF33a/actual-phase-codec-source-tests-df1ec49e1eeb4f22958846ac23c01512/result.json",
+      "sha256": "b89d7e8801722bba6621c0ac19cd3ba4be894a321405d50cb5de0401a99296da"
+    },
+    {
+      "bytes": 138934,
+      "mode": 384,
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-reconstructed-model-fzV8Fdge/actual-phase-codec-source-tests-bf69564abf8d42fd9c0d3090cba57006/result.json",
+      "sha256": "e2986cd217414ddc8d1114a77bcddfc59e557dbf9c53c09f2303f85b275f2738"
+    }
+  ],
+  "scannerStatus": "NOT RUN; later explicit supplement required",
+  "scope": "SOURCE MODEL CAPACITY EVIDENCE ONLY; actualcontrol63insufficiency retained",
+  "totalMemberBytes": 146712
+}

@@ -1,0 +1,14 @@
+{
+  "cwd": "/workspace/zasp-sec",
+  "command": "tini -s -- npm run verify",
+  "environment": {
+    "PATH": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin:/tmp/zasp-cloud-tools/go/bin:/tmp/zasp-cloud-tools/bin:/tmp/zasp-cloud-tools/postgres-18.3/bin:/usr/bin:/bin",
+    "GOROOT": "/tmp/zasp-cloud-tools/go",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "direct",
+    "GOFLAGS": "-mod=readonly",
+    "TMPDIR": "/workspace/.zasp-verify-tmp-512beb18"
+  },
+  "umask": "0077",
+  "providers_or_pg_optins_added": false
+}

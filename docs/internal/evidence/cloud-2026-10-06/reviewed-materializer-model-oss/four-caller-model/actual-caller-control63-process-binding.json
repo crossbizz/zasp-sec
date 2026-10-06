@@ -1,0 +1,43 @@
+{
+  "pid": 289966,
+  "state": "R",
+  "ppid": 289753,
+  "pgrp": 289966,
+  "startticks": 6013304,
+  "argv": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "tool",
+    "test2json",
+    "-p",
+    "github.com/zasp-ai/zasp-sec/services/platform/apiserver",
+    "-t",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test",
+    "-test.v",
+    "-test.count=1",
+    "-test.timeout=90s",
+    "-test.run=^TestNative379PhaseCodecSourceCallerControl63$"
+  ],
+  "environment": {
+    "HOME": "/home/agent",
+    "PATH": "/tmp/zasp-cloud-tools/go/bin:/usr/bin:/bin",
+    "GOROOT": "/tmp/zasp-cloud-tools/go",
+    "GOPATH": "/home/agent/go",
+    "GOCACHE": "/home/agent/.cache/go-build",
+    "GOMODCACHE": "/home/agent/go/pkg/mod",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOFLAGS": "-mod=readonly",
+    "CGO_ENABLED": "1",
+    "CC": "/usr/bin/gcc",
+    "TMPDIR": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/tmp",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "UTC",
+    "ZASP_NATIVE379_PHASE_CODEC_SOURCE_PACKET": "/workspace/.zasp-cloud-owned/native379-v3-final81-0atrosfr/evidence/final-v3-canonical-wire.json"
+  },
+  "monotonic_start": 60132.216248697,
+  "overlay_sha256": "fc41fb8873cbdae6b2e7584da64bc3311ab43de3b84bf0f25bdb85704887e2fe"
+}

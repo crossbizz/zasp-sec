@@ -1,0 +1,96 @@
+{
+  "format": "native379-v2-source-only-minimum-budget-audit",
+  "wireSHA256": "3f36899b4192ed77344696d233100d50f58e13114714715ee77a86e9693f1c4c",
+  "GoSourceSHA256": "4a19be4156245c2677ff399b74834b1e9f0a759f27d2ca5605289c0f5cb72025",
+  "scope": "Exact589 program baseline uses mock snapshot values and sourceexpected observations; includes all six fixed observations under the exact test-local mock frame/port. Actual native frames, port and snapshots remain unobserved. No native observations or execution. Physical role/session query overhead included.",
+  "totalRequiredMockRowsAndCanonicalBytes": {
+    "rows": 19255,
+    "bytes": 10628129
+  },
+  "phasesRequiredMockRowsAndCanonicalBytes": {
+    "pristine-truth": {
+      "rows": 10058,
+      "bytes": 10068231,
+      "charges": 10058
+    },
+    "drift": {
+      "rows": 1957,
+      "bytes": 114924,
+      "charges": 2826
+    },
+    "forged-entry": {
+      "rows": 6148,
+      "bytes": 367426,
+      "charges": 8838
+    },
+    "null-error-lazy-demand": {
+      "rows": 978,
+      "bytes": 69429,
+      "charges": 1470
+    },
+    "frame-restoration": {
+      "rows": 114,
+      "bytes": 8119,
+      "charges": 150
+    }
+  },
+  "limits": {
+    "preflight": {
+      "maxBytes": 1048576,
+      "maxMilliseconds": 60000,
+      "maxRows": 1024
+    },
+    "pristine-truth": {
+      "maxBytes": 33554432,
+      "maxMilliseconds": 180000,
+      "maxRows": 12000
+    },
+    "drift": {
+      "maxBytes": 33554432,
+      "maxMilliseconds": 240000,
+      "maxRows": 16000
+    },
+    "forged-entry": {
+      "maxBytes": 4194304,
+      "maxMilliseconds": 60000,
+      "maxRows": 2048
+    },
+    "null-error-lazy-demand": {
+      "maxBytes": 8388608,
+      "maxMilliseconds": 120000,
+      "maxRows": 4096
+    },
+    "frame-restoration": {
+      "maxBytes": 4194304,
+      "maxMilliseconds": 60000,
+      "maxRows": 2048
+    },
+    "cleanup-result": {
+      "maxBytes": 1048576,
+      "maxMilliseconds": 30000,
+      "maxRows": 1024
+    }
+  },
+  "firstOverflow": {
+    "phase": "forged-entry",
+    "where": "rule:temporal:74.owner66_fingerprint:index:owned-session",
+    "before": {
+      "rows": 2048,
+      "bytes": 121856,
+      "charges": 2944
+    },
+    "attemptRows": 1,
+    "attemptCanonicalBytes": 48,
+    "after": {
+      "rows": 2049,
+      "bytes": 121904,
+      "charges": 2945
+    },
+    "limits": {
+      "maxBytes": 4194304,
+      "maxMilliseconds": 60000,
+      "maxRows": 2048
+    }
+  },
+  "all589ControlCount": 589
+}

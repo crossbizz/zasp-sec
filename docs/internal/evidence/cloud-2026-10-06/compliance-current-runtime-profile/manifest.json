@@ -1,0 +1,280 @@
+{
+  "copyFailureRecordSHA256": "fe12f3fd623073841553623c2f7d05b23eac2716ee8bcac8e1a6aaf8c34dbb94",
+  "encodedPayloadSelection": [],
+  "originalFailuresRetained": true,
+  "publicationCopyFailureRecord": "original-copy-check-failure.json",
+  "records": {
+    "affected-complete-tools-result.json": {
+      "bytes": 1815,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "58c20d9122783b37d1492c0f8b1ec4db78204e45863e597b54c0d3aac934d102",
+      "sourceIdentity": {
+        "ctime_ns": 1791305394749479032,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432971,
+        "mode": 33152,
+        "mtime_ns": 1791305394749479032,
+        "nlink": 1,
+        "size": 1815,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/compliance-current-schema-adopted-tests-complete-tools/result.json"
+    },
+    "affected-complete-tools-review.json": {
+      "bytes": 9725,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "5830c451885903e54fa3b99fdd93628659756c2cf507c0b6089b8710d853633b",
+      "sourceIdentity": {
+        "ctime_ns": 1791305485576838695,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432994,
+        "mode": 33024,
+        "mtime_ns": 1791305485576838695,
+        "nlink": 1,
+        "size": 9725,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-compliance-affected131-complete-tools-review.json"
+    },
+    "affected-original-failure.json": {
+      "bytes": 837,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "4966455537a9960f0021b83d924248ff4356fa655049f6aba3645a47cdf0b1a1",
+      "sourceIdentity": {
+        "ctime_ns": 1791305075987344301,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432922,
+        "mode": 33152,
+        "mtime_ns": 1791305075987344301,
+        "nlink": 1,
+        "size": 837,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/compliance-current-schema-adopted-tests/result.json"
+    },
+    "affected-second-failure.json": {
+      "bytes": 1585,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "f45c5ce529afc38569205eda32fafac39e4d89b1e3978a5931e0c6ee53aedb67",
+      "sourceIdentity": {
+        "ctime_ns": 1791305322252704699,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432943,
+        "mode": 33152,
+        "mtime_ns": 1791305322252704699,
+        "nlink": 1,
+        "size": 1585,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/compliance-current-schema-adopted-tests-green/result.json"
+    },
+    "causal-green.stdout": {
+      "bytes": 813,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "d8e20c562882b99e7fb816def5ce273776ff59071d8f8aa59dc127f39c1296db",
+      "sourceIdentity": {
+        "ctime_ns": 1791304867856060200,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432889,
+        "mode": 33152,
+        "mtime_ns": 1791304867856060200,
+        "nlink": 1,
+        "size": 813,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/compliance-current-schema-root-actual-20261006/orchestration-and-failclosed-green.stdout"
+    },
+    "causal-red.stdout": {
+      "bytes": 1004,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "81ade902bb566a6010d9e1423e27660e485bec48eddc129630b9bfe8f042e686",
+      "sourceIdentity": {
+        "ctime_ns": 1791304867479468749,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432887,
+        "mode": 33152,
+        "mtime_ns": 1791304867479468749,
+        "nlink": 1,
+        "size": 1004,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/compliance-current-schema-root-actual-20261006/actualprefix-causal-red.stdout"
+    },
+    "causal-tdd-recipe.json": {
+      "bytes": 4738,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "4c0da29cd5c1b26a3a15b2a19c176348cbee65cd8bb52b0b8b50f55701a541b5",
+      "sourceIdentity": {
+        "ctime_ns": 1791304665986083060,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432788,
+        "mode": 33024,
+        "mtime_ns": 1791304665986083060,
+        "nlink": 1,
+        "size": 4738,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/compliance-current-schema-root-recipe-v1.json"
+    },
+    "causal-tdd-result.json": {
+      "bytes": 1799,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "852bcd5a4c8780281554c3529c2acf51fcdc9d0e5861f519de071911a1f1520f",
+      "sourceIdentity": {
+        "ctime_ns": 1791304867997905801,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432891,
+        "mode": 33152,
+        "mtime_ns": 1791304867997905801,
+        "nlink": 1,
+        "size": 1799,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/compliance-current-schema-root-actual-20261006/result.json"
+    },
+    "causal-tdd-review.json": {
+      "bytes": 2933,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "903700fafec2f38399bc9933656742e24b584499e033bfe0245f007cf7f02e18",
+      "sourceIdentity": {
+        "ctime_ns": 1791304918515090369,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432895,
+        "mode": 33024,
+        "mtime_ns": 1791304918515090369,
+        "nlink": 1,
+        "size": 2933,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-compliance-current-schema-TDD-review.json"
+    },
+    "fixture-correction-review.json": {
+      "bytes": 653,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "543c6738a9947413a07ea27bec8d74ccdec84fb02f3c964735a3541f19825b11",
+      "sourceIdentity": {
+        "ctime_ns": 1791305281228183565,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432929,
+        "mode": 33024,
+        "mtime_ns": 1791305281228183565,
+        "nlink": 1,
+        "size": 653,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-compliance-schema-two-fixture-correction-static-review.json"
+    },
+    "fixture-correction.json": {
+      "bytes": 2176,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "b20ef93f5123f8af40506aa89c497b6ce90fa4d7cac4737b84e290e4e224a79a",
+      "sourceIdentity": {
+        "ctime_ns": 1791305157660889768,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432928,
+        "mode": 33024,
+        "mtime_ns": 1791305157660889768,
+        "nlink": 1,
+        "size": 2176,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/compliance-schema-fixture-correction-p8n65xz5/manifest.json"
+    },
+    "original728-crosswalk.json": {
+      "bytes": 10885,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "9aef1c906dd2cf6f99ecf9b9b9d0ec2159c992bd09d32216ffa90753534a9756",
+      "sourceIdentity": {
+        "ctime_ns": 1791305585707582886,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433221,
+        "mode": 33024,
+        "mtime_ns": 1791305585707582886,
+        "nlink": 1,
+        "size": 10885,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/compliance-current-profile-original728-crosswalk.json"
+    },
+    "source-adoption-review.json": {
+      "bytes": 2063,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "9e4c2683478b1cda23b8136396d65a2922a3f36603c93bdcca19104007fcc108",
+      "sourceIdentity": {
+        "ctime_ns": 1791305031929830650,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432908,
+        "mode": 33024,
+        "mtime_ns": 1791305031929830650,
+        "nlink": 1,
+        "size": 2063,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-compliance-current-schema-source-adoption-review.json"
+    },
+    "source-adoption.json": {
+      "bytes": 3448,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "8f42a219360e2cd77e1c6136926d902e92eafb0156819c01eaf75806a368d2af",
+      "sourceIdentity": {
+        "ctime_ns": 1791304992341923569,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432901,
+        "mode": 33024,
+        "mtime_ns": 1791304992341923569,
+        "nlink": 1,
+        "size": 3448,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/compliance-current-schema-adoption-t0q0dmeu/manifest.json"
+    },
+    "source-static-review.json": {
+      "bytes": 3407,
+      "bytesPreserved": true,
+      "copyIdentityDistinct": true,
+      "sha256": "1e23bc7c182b93627ae5c283367e5586a63fcbf24076750fc85d70adc8d1734d",
+      "sourceIdentity": {
+        "ctime_ns": 1791304799092200073,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432879,
+        "mode": 33024,
+        "mtime_ns": 1791304799092200073,
+        "nlink": 1,
+        "size": 3407,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-compliance-current-schema-source-TDD-static-review.json"
+    }
+  },
+  "schema": "selected-compliance-profile-evidence-v1",
+  "scope": "Controlled orchestration and affected Node/owned PostgreSQL signal tests only; no authorization SQL/runtime/browser/provider acceptance"
+}

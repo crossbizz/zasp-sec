@@ -1,0 +1,9 @@
+{
+  "format": "private-fullverify512-publication-addendum-v1",
+  "original_failure_manifest_sha256": "140bbe54abdd55868bd22874eca2d68af51a734f8da39f1b86f48713926f1fff",
+  "original_manifest_untouched": true,
+  "api_diagnostic_manifest_path": "/tmp/zasp-cloud-evidence/api-deadline-512beb18-private/diagnostic-evidence/manifest.json",
+  "api_diagnostic_manifest_sha256": "8fb8c50adcb14afb2e545b20ddcfda4a44d7a790c468333cb42ca0587a58f3e7",
+  "publication_state": "PRIVATE only; no shareddocs/source mutation",
+  "native_outcome_at_snapshot": "root separate attempt in progress, no result claimed"
+}

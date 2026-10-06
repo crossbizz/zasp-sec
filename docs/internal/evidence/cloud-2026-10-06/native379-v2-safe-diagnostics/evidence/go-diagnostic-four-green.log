@@ -1,0 +1,30 @@
+=== RUN   TestNative379V2CollectorSafeFailureMetadata
+=== RUN   TestNative379V2CollectorSafeFailureMetadata/postgres
+=== RUN   TestNative379V2CollectorSafeFailureMetadata/wrapped-postgres
+=== RUN   TestNative379V2CollectorSafeFailureMetadata/invalid-state
+=== RUN   TestNative379V2CollectorSafeFailureMetadata/driver
+=== RUN   TestNative379V2CollectorSafeFailureMetadata/deadline
+=== RUN   TestNative379V2CollectorSafeFailureMetadata/cancel
+--- PASS: TestNative379V2CollectorSafeFailureMetadata (0.00s)
+    --- PASS: TestNative379V2CollectorSafeFailureMetadata/postgres (0.00s)
+    --- PASS: TestNative379V2CollectorSafeFailureMetadata/wrapped-postgres (0.00s)
+    --- PASS: TestNative379V2CollectorSafeFailureMetadata/invalid-state (0.00s)
+    --- PASS: TestNative379V2CollectorSafeFailureMetadata/driver (0.00s)
+    --- PASS: TestNative379V2CollectorSafeFailureMetadata/deadline (0.00s)
+    --- PASS: TestNative379V2CollectorSafeFailureMetadata/cancel (0.00s)
+=== RUN   TestNative379V2CollectorDeferredStreamAndPartialCounts
+=== RUN   TestNative379V2CollectorDeferredStreamAndPartialCounts/stream
+=== RUN   TestNative379V2CollectorDeferredStreamAndPartialCounts/scan
+=== RUN   TestNative379V2CollectorDeferredStreamAndPartialCounts/charge
+=== RUN   TestNative379V2CollectorDeferredStreamAndPartialCounts/encoding
+--- PASS: TestNative379V2CollectorDeferredStreamAndPartialCounts (0.00s)
+    --- PASS: TestNative379V2CollectorDeferredStreamAndPartialCounts/stream (0.00s)
+    --- PASS: TestNative379V2CollectorDeferredStreamAndPartialCounts/scan (0.00s)
+    --- PASS: TestNative379V2CollectorDeferredStreamAndPartialCounts/charge (0.00s)
+    --- PASS: TestNative379V2CollectorDeferredStreamAndPartialCounts/encoding (0.00s)
+=== RUN   TestNative379V2CollectorContextAndReadOnlyBudgetSnapshot
+--- PASS: TestNative379V2CollectorContextAndReadOnlyBudgetSnapshot (0.00s)
+=== RUN   TestNative379V2CleanupFailureLogUsesActualSnapshot
+--- PASS: TestNative379V2CleanupFailureLogUsesActualSnapshot (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.019s

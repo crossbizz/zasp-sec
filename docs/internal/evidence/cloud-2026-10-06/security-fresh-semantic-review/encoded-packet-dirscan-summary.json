@@ -1,0 +1,11 @@
+{
+  "publication": "/workspace/.zasp-cloud-owned/gitleaks-durable-publication-9e3gnfwm",
+  "scanner": "8.30.1",
+  "exit": 0,
+  "findings": 0,
+  "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "manifest_sha256": "c2d2df864a587f4ed35aa7757f16a9d3af1e4a276c69b1e9e59c7e767ab48511",
+  "original_archive_sha256": "f3e446bd4ec2ff342bba7881f021ce3b5356ec77ca28b4464b903920165e57cb",
+  "original_plain_directory_failed180_unchanged": true,
+  "scope": "Final complete durable14files; archiveproviderreview accurately binds earlier6file snapshot plus immutablearchive; separatelyadded evidence bytes SHA-bound; full precommit evidence distinct and no postcommit scanner/native/deployed/advisory claim."
+}

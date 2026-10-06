@@ -1,0 +1,9 @@
+{
+  "Replace": {
+    "/workspace/.zasp-cloud-owned/native379-v3-go-source21-initial-lem9djox/source/services/platform/apiserver/authorization_worker_ordered_current_native379_compact_receipt_test.go": "/workspace/.zasp-cloud-owned/native379-compact-overlay-recipe-e8843vpa/green-core-only.go.txt",
+    "/workspace/.zasp-cloud-owned/native379-v3-go-source21-initial-lem9djox/source/services/platform/apiserver/authorization_worker_ordered_current_native379_phase_codec_cases_test.go": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/authorization_worker_ordered_current_native379_phase_codec_cases_test.go",
+    "/workspace/.zasp-cloud-owned/native379-v3-go-source21-initial-lem9djox/source/services/platform/apiserver/authorization_worker_ordered_current_native379_phase_codec_test.go": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/authorization_worker_ordered_current_native379_phase_codec_test.go",
+    "/workspace/.zasp-cloud-owned/native379-v3-go-source21-initial-lem9djox/source/services/platform/apiserver/authorization_worker_ordered_current_native379_v3_pins_test.go": "/workspace/.zasp-cloud-owned/native379-compact-source-icyjmyf_/source/authorization_worker_ordered_current_native379_v3_pins_test.go",
+    "/workspace/.zasp-cloud-owned/native379-v3-go-source21-initial-lem9djox/source/services/platform/apiserver/authorization_worker_ordered_current_native379_v3_test.go": "/workspace/.zasp-cloud-owned/native379-compact-source-icyjmyf_/source/authorization_worker_ordered_current_native379_v3_test.go"
+  }
+}

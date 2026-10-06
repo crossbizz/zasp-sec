@@ -1,0 +1,135 @@
+{
+  "format": "private-fullverify0b-sbom-failure-manifest-v1",
+  "source_commit": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "outcome": "FAIL755s: SBOM ESBOMPROBLEMS207 missingrequirements; health/UI2535/typecheck/lint/imports/stagingPASS; release284pass1fail; buildlaterunreached",
+  "dependency_limits": "Sharednode_modules disclosed; observedpackage/lock/modulelock unchanged, not completeimmutableclosure. SBOM prerequisite cause not proven.",
+  "publication_state": "PRIVATE drafts requiring independent review before adoption",
+  "original_scope": "728 IDs/categories/original acceptances unchanged; prior full/nativeFAILs preserved",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1009,
+      "sha256": "017f1a471ace8f6c1fff780432bbd4a7d629ac799e9618f771cde2ac5cdc5522"
+    },
+    {
+      "path": "bounded-task-crosswalk.json",
+      "bytes": 2670,
+      "sha256": "507cef0e1f3a7a4e64b4d945aec529f6467949eb32c0ace73e1854013deb68e6"
+    },
+    {
+      "path": "command-metadata.json",
+      "bytes": 561,
+      "sha256": "9d98adcd6759171d40da09316acd65302dfac1c7485dac5cbc8ba58dac37ba47"
+    },
+    {
+      "path": "dependency-after.json",
+      "bytes": 688,
+      "sha256": "7d9dc9caab6c9944df353e118447de75ed74a5366b0c6c63da515e8d0f679afe"
+    },
+    {
+      "path": "dependency-before.json",
+      "bytes": 890,
+      "sha256": "e90ea9143b10cd99867d15ef94cd6a0a656631ed6ae0e3de00db95fd6fb2bef7"
+    },
+    {
+      "path": "full-verify-result.json",
+      "bytes": 92,
+      "sha256": "c712d4037694ac6fe19d2784c5eb99ee9019ef9b095b3e667f9857b417536ed9"
+    },
+    {
+      "path": "full-verify-sanitized.log.gz",
+      "bytes": 20383,
+      "sha256": "fdd03133db38586d56095b4a2e52ef063a45232529cda0e6fb5b20421dbb37fa"
+    },
+    {
+      "path": "full-verify-summary.json",
+      "bytes": 3847,
+      "sha256": "58a8cd852aa315ae0516394339c9130aa4d97419af39feebc7ea08ea29c10a01"
+    },
+    {
+      "path": "head-after.txt",
+      "bytes": 41,
+      "sha256": "1c5a550fc863d198b972c537cc84e4bef67f7f12d80248cf6ee17dad15ee0d8f"
+    },
+    {
+      "path": "head-before.txt",
+      "bytes": 41,
+      "sha256": "1c5a550fc863d198b972c537cc84e4bef67f7f12d80248cf6ee17dad15ee0d8f"
+    },
+    {
+      "path": "log-sanitization.json",
+      "bytes": 833,
+      "sha256": "6b1247932f267d2358bd86f15da1c88a65f6bb92558f551f7367f899e8bf3bfb"
+    },
+    {
+      "path": "prior-failures.json",
+      "bytes": 428,
+      "sha256": "5493a9f946cdc0320d8051f95ccb341b15557fc8e52f6b6f525003ecf940de05"
+    },
+    {
+      "path": "publication-dirscan-redacted.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "publication-dirscan.log",
+      "bytes": 81,
+      "sha256": "c59d0708b3e46a0c4410a14559fd1726a9fe818908c3c38242e09a88fdf1ec21"
+    },
+    {
+      "path": "raw-log-scan-redacted.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "raw-log-scan.log",
+      "bytes": 81,
+      "sha256": "c9f7f5cf6049877dfc6794753f9975c2120522a7448cf449f92745dc037ce9f1"
+    },
+    {
+      "path": "receipt-append.md",
+      "bytes": 2228,
+      "sha256": "93b9a71f53735ff41409ff9a97f10f392c5372885b038711eda9d6558c6f6c46"
+    },
+    {
+      "path": "run-command.sh",
+      "bytes": 2109,
+      "sha256": "d71f6ef753f472a029b2d34f826fa9f165f1df29c7da5d0899d7ccae9b1d3716"
+    },
+    {
+      "path": "runtime-paths.json",
+      "bytes": 776,
+      "sha256": "a0d80f2b3fcdc4f0c7ee62e6f5536870af3b9695ddcca339a1ba68b8fd065678"
+    },
+    {
+      "path": "sbom-safe-errors.log",
+      "bytes": 14993,
+      "sha256": "b0fbd79ddad553fd64a9dc1dba4144b1322722787e8c83ae9676ad55a4a1ed05"
+    },
+    {
+      "path": "source-identity.json",
+      "bytes": 1461,
+      "sha256": "c1644a779fbe26170208d80865b5d324846d8c49a264d31ab707bb3651b9830e"
+    },
+    {
+      "path": "status-append.md",
+      "bytes": 699,
+      "sha256": "bf1aa1e81065f6ea41b0bcdd65cf68c3c704cd4bd1abdc4d8d02ba00b73335ee"
+    },
+    {
+      "path": "tools.txt",
+      "bytes": 83,
+      "sha256": "2b81ccaeed775e663ffab7be4c7a9cfed05812d7c1fcc49fa0814e4cdcc2a09f"
+    },
+    {
+      "path": "umask.txt",
+      "bytes": 5,
+      "sha256": "5e02f5b89f7b74c02ca1a79b316850e8ca23e54c1c68da2bcbc386ec84e60d79"
+    },
+    {
+      "path": "worktree-create.log",
+      "bytes": 147,
+      "sha256": "de363db660246f670d20902b5c948871aea31fa9ae092483c7e20be8ee6e1ac0"
+    }
+  ]
+}

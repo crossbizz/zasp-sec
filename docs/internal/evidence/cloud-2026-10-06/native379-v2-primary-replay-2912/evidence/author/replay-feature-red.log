@@ -1,0 +1,14 @@
+# github.com/zasp-ai/zasp-sec/services/platform/apiserver [github.com/zasp-ai/zasp-sec/services/platform/apiserver.test]
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4410:15: undefined: native379V2BuildPrimaryReplayPlan
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4412:12: undefined: native379V2ValidatePrimaryReplayPlan
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4413:22: undefined: native379V2PrimaryReplayStep
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4415:5: undefined: native379V2ValidatePrimaryReplayPlan
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4416:21: undefined: native379V2PrimaryReplayStep
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4417:5: undefined: native379V2ValidatePrimaryReplayPlan
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4419:14: undefined: native379V2BuildPrimaryReplayPlan
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4431:11: undefined: native379V2RunPrimaryReplay
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4445:12: undefined: native379V2RunPrimaryReplay
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4454:12: undefined: native379V2NewPristineRecorder
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4454:12: too many errors
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver [build failed]
+FAIL

@@ -1,0 +1,30 @@
+{
+  "label": "source-head-after",
+  "argv": [
+    "/usr/bin/python3",
+    "-c",
+    "import os,resource,sys;resource.setrlimit(resource.RLIMIT_FSIZE,(1048576,1048576));os.execv(sys.argv[1],sys.argv[1:])",
+    "/usr/bin/git",
+    "-C",
+    "/workspace/zasp-sec",
+    "rev-parse",
+    "HEAD"
+  ],
+  "declared_cap_seconds": 5,
+  "effective_limit_seconds": 5,
+  "enclosing_deadline_monotonic": 73402.688658062,
+  "effective_deadline_monotonic": 73172.246843217,
+  "cleanup_deadline_monotonic": null,
+  "started": true,
+  "joined": true,
+  "timed_out": false,
+  "interrupted": false,
+  "forced_cleanup": false,
+  "unexpected_descendants": false,
+  "survivors": [],
+  "exit": 0,
+  "pid": 308289,
+  "seconds": 0.037414,
+  "stdout_sha256": "a13e30ead91ac19f5ec61478c6a22ff8d963d6cd116170e6448a896264cf5df9",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

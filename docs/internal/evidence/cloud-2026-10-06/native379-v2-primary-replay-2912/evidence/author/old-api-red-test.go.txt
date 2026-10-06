@@ -1,0 +1,10 @@
+
+func TestNative379V2PristineRecorderRejectsUnsafeSQLState(t *testing.T) {
+ const secret = "SECRET-CANARY-PRIMARY-ERROR"
+ recorder := &orderedCurrentNative379V2OperationRecorder{}
+ err := &pgconn.PgError{Code: secret, Message: secret, Detail: secret}
+ if recorder.observe("preflight-identity", err) != err { t.Fatal("actual error lost") }
+ raw, marshalErr := json.Marshal(recorder.operations)
+ if marshalErr != nil || bytes.Contains(raw, []byte(secret)) { t.Fatal("unsafe SQLSTATE leaked into operation prefix") }
+ if !recorder.invalid { t.Fatal("invalid SQLSTATE recorded as valid") }
+}

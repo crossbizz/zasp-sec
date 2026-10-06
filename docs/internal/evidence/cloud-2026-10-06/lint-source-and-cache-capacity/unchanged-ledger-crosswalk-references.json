@@ -1,0 +1,55 @@
+{
+  "scope": "Canonical unchanged original-task availability/ownership references only; no new direct mapping or readiness promotion",
+  "references": [
+    {
+      "repositoryPath": "docs/internal/implementation_production_availability_v1.5.tsv",
+      "absoluteWorkingPath": "/workspace/zasp-sec/docs/internal/implementation_production_availability_v1.5.tsv",
+      "bytes": 170206,
+      "sha256": "a162d9575349b6ce7e19c9dc5f6db62f5ef1951419e48efe627515d1fc09a0f1",
+      "unchangedAtSourceCommit": "1ea1bf15b8b3bea9d8d5537cec0bacb9c550e067"
+    },
+    {
+      "repositoryPath": "docs/internal/implementation_production_availability_owners_v1.5.tsv",
+      "absoluteWorkingPath": "/workspace/zasp-sec/docs/internal/implementation_production_availability_owners_v1.5.tsv",
+      "bytes": 20196,
+      "sha256": "b32873f73e38097f167f3075fbdacb216836c89a858cf47f3107a113cd41c125",
+      "unchangedAtSourceCommit": "1ea1bf15b8b3bea9d8d5537cec0bacb9c550e067"
+    }
+  ],
+  "originalLedgerCounts": {
+    "rows": 728,
+    "uniqueIDs": 728,
+    "uniqueOwnedIDs": 728,
+    "missingOwners": 0,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    }
+  },
+  "historicalQualification": "523existingproduction-available labels remain historical classifications, not fresh all-task acceptance from this packet",
+  "existingCommandGateReferences": [
+    {
+      "id": "M1-28",
+      "owningProductionTask": "PROD-current-composition",
+      "unchangedProductionClass": "production-available",
+      "use": "Existing receipt/ledger reference only; this batch does not redefine or newly satisfy this task"
+    },
+    {
+      "id": "M1-28b",
+      "owningProductionTask": "PROD-current-composition",
+      "unchangedProductionClass": "production-available",
+      "use": "Existing receipt/ledger reference only; this batch does not redefine or newly satisfy this task"
+    }
+  ],
+  "authorizationReadinessScope": {
+    "sourceReference": "services/platform/apiserver/authorization_transaction.go",
+    "receiptReference": "docs/internal/cloud-continuation-receipt-2026-10-06.md",
+    "scope": "Existing startup immutable-pin preparation and per-query authorization readiness guard evidence retain their original source/component and exact0b command scopes. This lint/cache packet does not rerun those gates, cache tenant authorization decisions, establish live provider readiness, or assign new original-task mappings."
+  },
+  "mappingLimits": [
+    "No new taskIDs invented",
+    "Canonical ledger/owner crosswalk remains sole current mapping reference; no additional direct implementation mapping asserted where unavailable",
+    "No sourceavailability, milestone, retirement, native, deployed or728-category promotion"
+  ]
+}

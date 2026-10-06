@@ -126,7 +126,7 @@ func (a *postgresComplianceExportAuthority) query(ctx context.Context, q string,
 	if a == nil || nilWorkerDependency(a.database) || ctx == nil || ctx.Err() != nil {
 		return nil, errWorkerExecution
 	}
-	args = append(args, migrations.ProductionCompliance().Checksum(), migrations.ComplianceFingerprint())
+	args = append(args, migrations.ComplianceChecksum(), migrations.ComplianceFingerprint())
 	raw, err := a.database.QueryJSON(ctx, q, args...)
 	if err != nil || ctx.Err() != nil || len(raw) == 0 || len(raw) > max || !utf8.Valid(raw) || !json.Valid(raw) {
 		return nil, errWorkerExecution

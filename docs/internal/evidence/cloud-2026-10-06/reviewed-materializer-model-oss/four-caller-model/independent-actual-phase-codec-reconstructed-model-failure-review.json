@@ -1,0 +1,65 @@
+{
+  "status": "ACTUAL-MODEL-V2-FAILURE-RECONCILIATION-PASS-NO-MODEL-ACCEPTANCE",
+  "resultSHA256": "e2986cd217414ddc8d1114a77bcddfc59e557dbf9c53c09f2303f85b275f2738",
+  "runnerSHA256": "0cf6d54ebe903241907c858adecbb92440a4292bf35186821265a9cf318a4162",
+  "casesSHA256": "b7f3742c767f9cea6281d549014afe788270371e87b22f1643a328cf6b67258a",
+  "stages": [
+    {
+      "name": "phase-codec-unit",
+      "returncode": 0,
+      "elapsed_seconds": 58.77757369599567,
+      "top_level_pass": [
+        "TestNative379PhaseCodecRoundtripAndExactCosts",
+        "TestNative379PhaseCodecClosedFraming",
+        "TestNative379PhaseCodecBudgetAndCancellation",
+        "TestNative379PhaseCodecOwnedPublication",
+        "TestNative379PhaseCodecValueBoundBeforeAllocation",
+        "TestNative379PhaseCodecCheckedOwnedTemporaryCleanup",
+        "TestNative379PhaseCodecLateHashCancellation",
+        "TestNative379PhaseCodecReconstructedParameterAssociations"
+      ],
+      "top_level_fail": [],
+      "log_sha256": "0ae2a042857fb521563e1cb658c468b7f0c1b0987dae4d08d223edf09aeea4e0"
+    },
+    {
+      "name": "phase-source-cost-model",
+      "returncode": 1,
+      "elapsed_seconds": 38.5623060220023,
+      "top_level_pass": [],
+      "top_level_fail": [
+        "TestNative379PhaseCodecFullSourceCostModel"
+      ],
+      "log_sha256": "faeda9710741a6cb626911e0bc3ff428dc75c091beb5a918ecd535f4ed0f0220"
+    }
+  ],
+  "preciseObservedFailure": [
+    "authorization_worker_ordered_current_native379_phase_codec_cases_test.go:176: SCRIPTED complete source raw-ledger model: userUTF8Bytes=9 controls=589 steps=6348 rows=12908 records=23342 canonicalBytes=14791769 expandedBytesWithRecordFraming=15815116; modelVersion=2 exact reconstructed parameters; optional duplicate arrays absent; no full-result metadata or native observations",
+    "authorization_worker_ordered_current_native379_phase_codec_cases_test.go:179: complete source preimage/cost conservation <nil>"
+  ],
+  "interpretation": "First short9-byte-caller model reaches combined decode/preimage/cost conservation assertion atline179 and fails with reported decoder error<nil>. The assertion also compares records,costs and encodedcap; existing log does not distinguish which comparison failed. No deadline/storage/capcause or encodedFIT inferred. Remaining three model variants are UNREACHED.",
+  "sourceBeforeAfterSHA256": "46d8b1e2b9059c4c3eb2369dcf574d482613d466f0cfbd415faad6eb4b1f1610",
+  "sourceMapsEqual": true,
+  "processWaits": [
+    {
+      "pid": 286595,
+      "returncode": 0,
+      "main_joined": true
+    },
+    {
+      "pid": 286703,
+      "returncode": 1,
+      "main_joined": true
+    }
+  ],
+  "noSignalsForcedCleanupSurvivorsErrors": true,
+  "minimumObservedFreeBytes": 2340470784,
+  "freeAfterCleanup": 2626322432,
+  "producerElapsedSeconds": 98.62345140399702,
+  "rootObservation": "Parent separately reports ROOT21293 actualjoined1/no timeout; not an invented kernel owner receipt",
+  "scope": [
+    "Eight unit tests pass; source cost model fails. Overall attemptFAILED/rosterrefusal correct",
+    "Original model7+1/fourNOFIT retained unchanged; revisedFIT unproved",
+    "Source-only scripted codec model, no actualadapter/native/SQL/provider or currentwrapperacceptance",
+    "Read-only evidence review; no runtime or diagnosis mutation by reviewer"
+  ]
+}

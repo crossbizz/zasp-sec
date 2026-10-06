@@ -1,0 +1,29 @@
+{
+  "scope": "actual root native attempt failure and ordinary joined cleanup; no native acceptance",
+  "files": {
+    "README.md": {
+      "bytes": 1058,
+      "sha256": "52a3c8ccde35f6c00abeca602529504d6ca4b1f254c80458fa0b128b73e66c36"
+    },
+    "actual-native379-record.json": {
+      "bytes": 549,
+      "sha256": "90f314f47c89b502bcc5b7d794bb9e3c9ca81bf897e282ade9af00effdd4c6d6"
+    },
+    "actual-native379.log": {
+      "bytes": 975,
+      "sha256": "aeb27a26823b44c9497409185f072c7b67eaa66fff7ee871119fe876088cff7e"
+    },
+    "closed-environment.json": {
+      "bytes": 1277,
+      "sha256": "551734aabd7c05939c3d22af7d330e3922a42e9b91848d379994b05900c5e147"
+    },
+    "failure-summary.json": {
+      "bytes": 1488,
+      "sha256": "2bdcbb2bdcad0d1a7e0af2c94ea73c5650a1fc51d99326e8c292875a7984f2b2"
+    },
+    "root-launch-binding.json": {
+      "bytes": 603,
+      "sha256": "ca028d123a665cca4c3e4e54c5f4d14dbfdacd467439d8699b8e9d2acb1788f0"
+    }
+  }
+}

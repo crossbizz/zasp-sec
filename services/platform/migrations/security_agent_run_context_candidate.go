@@ -21,8 +21,12 @@ func SecurityAgentRunContextFingerprint() string {
 }
 
 func securityAgentRunContextTemplate() string {
+	return securityAgentRunContextTemplateWithPredecessor(SecurityAgentBudgetCandidateChecksum())
+}
+
+func securityAgentRunContextTemplateWithPredecessor(predecessor string) string {
 	sql := strings.Replace(securityAgentRunContextUpSQL, "-- run context projection fragment", securityAgentRunContextProjectionSQL, 1)
-	sql = strings.ReplaceAll(sql, "-- run context predecessor checksum", SecurityAgentBudgetCandidateChecksum())
+	sql = strings.ReplaceAll(sql, "-- run context predecessor checksum", predecessor)
 	return strings.ReplaceAll(sql, "-- run context predecessor fingerprint", SecurityAgentBudgetCandidateFingerprint())
 }
 

@@ -1,0 +1,36 @@
+{
+  "started_utc": "2026-10-06T02:37:29Z",
+  "completed_utc": "2026-10-06T02:45:27Z",
+  "exit_code": 1,
+  "elapsed_seconds": 478,
+  "head_before": "6af016b47c13980465aa4598c193b0693e1a2233",
+  "head_after": "6af016b47c13980465aa4598c193b0693e1a2233",
+  "tools": [
+    "v22.23.1",
+    "10.9.8",
+    "go version go1.25.13 linux/amd64",
+    "tini version 0.19.0 - git.de40ad0"
+  ],
+  "command": "/tmp/zasp-cloud-tools/bin/tini -s -- npm run verify",
+  "command_metadata_file": "/tmp/zasp-cloud-evidence/full-verify-6af016b4-2026-10-06-command-metadata.json",
+  "raw_log_sha256": "fe8b77008acd6951b273b4fed5c4f4f8af478656d9a896ccf58dbbd48b7e4cb3",
+  "raw_log_bytes": 251406,
+  "failed_phase": "health:contract:test",
+  "failure_tests": [
+    "--- FAIL: TestP7OrderedReadinessRoutingCharacterization (1.74s)"
+  ],
+  "completed_phase": "dependencies:check",
+  "ui_reached": false,
+  "release_reached": false,
+  "build_reached": false,
+  "packages": [
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/health\t1.041s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/healthserver\t6.054s",
+    "FAIL\tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-api\t9.050s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-worker\t439.046s"
+  ],
+  "provider_or_native_actions": false,
+  "shared_source_edits": false,
+  "original512_failure_preserved": true,
+  "baseline_deadline_failure_cause": "not instrumented in this fullrun; no cause inferred"
+}

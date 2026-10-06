@@ -270,8 +270,8 @@ async function exportShutdownFixture({ restartExit, finalExit, assertionFailure 
   if (assertionFailure === "mutation") requests.pop();
   if (assertionFailure === "receipt") requests[0].receiptID = "missing";
   const context = {
-    assert, path, os, Date, Buffer, createHash, process: { env: {} }, console: { log() {} }, AggregateError,
-    currentComplianceStateRoot: undefined, currentComplianceClosing: false, currentComplianceProjectionController: undefined, currentComplianceProjectionLoop: undefined, currentComplianceServices: undefined, currentCompliancePostgres: undefined,
+    assert, path, os, Date, Buffer, createHash, process: { env: {} }, console: { log() {} }, AggregateError, ownedResourceCleanupStarted: false,
+    currentComplianceStateRoot: undefined, currentCompliancePreparation: undefined, currentComplianceRuntimeStartup: undefined, currentComplianceClosing: false, currentComplianceProjectionController: undefined, currentComplianceProjectionLoop: undefined, currentComplianceServices: undefined, currentCompliancePostgres: undefined,
     root: "/owned", postgresBin: "/owned/bin", temporaryRoot: "/owned/zasp-production-e2e-fixture", productHostname: "owned.test",
     children: [], ownedCommands: new WeakMap(), mountedRuntimeProofs: [], exportBrowserAPILifetimes: [], exportBrowserAPIShutdowns: new WeakMap(), exportBrowserProfiles: [],
     exportBrowserTrace: requests, exportBrowserEvidenceDirectory: null, automaticDiscoveryEvidenceDirectory: null,
@@ -1044,7 +1044,7 @@ test("actual combined API environment keeps separate logins and removes ambient 
   const start = source.indexOf("function combinedAPIEnvironment(");
   const end = source.indexOf("\nasync function beginPrecisionBrowserAcceptance(", start);
   for (const selected of [false, true]) {
-    const build = runInNewContext(`(${source.slice(start,end)})`, { process: { env: { PATH: "/owned", ZASP_AUDIT_EXPORT_UNKNOWN: "", ZASP_AUDIT_EXPORT_BUCKET: "ambient" } }, auditBrowserMode: selected, auditBrowserEnvironment, auditBrowserAPISettings, stytchWebhookSecret: "owned" });
+    const build = runInNewContext(`(${source.slice(start,end)})`, { process: { env: { PATH: "/owned", ZASP_AUDIT_EXPORT_UNKNOWN: "", ZASP_AUDIT_EXPORT_BUCKET: "ambient" } }, auditBrowserMode: selected, complianceBrowserMode: false, auditBrowserEnvironment, auditBrowserAPISettings, stytchWebhookSecret: "owned" });
     const result = build({ apiDSN: "postgres://zasp_e2e_api@127.0.0.1:54321/postgres?sslmode=disable", postgresPort: 54321 });
     assert.equal(result.ZASP_POSTGRES_DSN, "postgres://zasp_e2e_api@127.0.0.1:54321/postgres?sslmode=disable");
     assert.equal(result.ZASP_SECURITY_AGENT_POSTGRES_DSN, "postgres://zasp_e2e_security_agent_api@127.0.0.1:54321/postgres?sslmode=disable");
@@ -1611,8 +1611,8 @@ test("failed checkpoint or provider joins retain errors and files while other ow
     const events = [], expectedError = new Error(`${failureAt} cleanup rejected`);
     const close = async name => { events.push(name); if (name === failureAt) throw expectedError; };
     const cleanup = runInNewContext(`(${source.slice(start, end)})`, {
-      currentComplianceStateRoot: undefined, currentComplianceClosing: false, currentComplianceProjectionController: undefined, currentComplianceProjectionLoop: undefined, currentComplianceServices: undefined, currentCompliancePostgres: undefined,
-      console: { log() {} }, AggregateError, temporaryRoot, exportBrowserProfiles: [], exportBrowserAPILifetimes: [], exportBrowserEvidenceDirectory: null, automaticDiscoveryEvidenceDirectory: null,
+      currentComplianceStateRoot: undefined, currentCompliancePreparation: undefined, currentComplianceRuntimeStartup: undefined, currentComplianceClosing: false, currentComplianceProjectionController: undefined, currentComplianceProjectionLoop: undefined, currentComplianceServices: undefined, currentCompliancePostgres: undefined,
+      console: { log() {} }, AggregateError, ownedResourceCleanupStarted: false, temporaryRoot, exportBrowserProfiles: [], exportBrowserAPILifetimes: [], exportBrowserEvidenceDirectory: null, automaticDiscoveryEvidenceDirectory: null,
       precisionBrowserCheckpoint: { close: () => close("checkpoint") }, runtimePipelineChild: "provider",
       mountedRuntimeProofs: ["mounted first", "mounted second"].map(name => ({ close: () => close(name) })),
       runtimeGraphDependency: { close: () => close("graph") }, redTeamRuntimeProof: { close: () => close("redteam") }, runtimePipelineDependencies: { close: () => close("aws/search") },
@@ -1625,7 +1625,7 @@ test("failed checkpoint or provider joins retain errors and files while other ow
     try {
       let caught;
       try { await cleanup(); } catch (error) { caught = error; }
-      assert.deepEqual(events, ["checkpoint", "mounted first", "mounted second", "provider", "graph", "redteam", "aws/search", "second tab", "cdp", "browser", "task4", "api", "proxy", "identity", "policy history", "web", "audit provider", "postgres", "remaining child", ...(failureAt ? [] : ["files"])]);
+      assert.deepEqual(events, ["postgres", "checkpoint", "mounted first", "mounted second", "provider", "graph", "redteam", "aws/search", "second tab", "cdp", "browser", "task4", "api", "proxy", "identity", "policy history", "web", "audit provider", "remaining child", ...(failureAt ? [] : ["files"])]);
       if (failureAt) {
         assert.ok(caught instanceof AggregateError, "cleanup lost collected errors");
         assert.ok(caught.errors.includes(expectedError), "cleanup replaced original failure");
@@ -1648,7 +1648,7 @@ test("combined PostgreSQL startup registers its owner before readiness rejects",
   const end = source.indexOf("async function provisionPostgresPrincipals", start);
   const failure = new Error("owned readiness rejected");
   const owner = { start: async () => { throw failure; }, stop: async () => { owner.stopped = true; } };
-  const context = { process: { env: { ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC: "1" } }, postgres: undefined, automaticDiscoveryMode: false, attackLabMountedMode: false, securityAgentExportMode: false,
+  const context = { ownedResourceCleanupStarted: false, process: { env: { ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC: "1" } }, postgres: undefined, automaticDiscoveryMode: false, attackLabMountedMode: false, securityAgentExportMode: false,
     path, temporaryRoot: "/unused", postgresBin: "/unused", command: async () => { throw failure; },
     createOwnedBrowserPostgres: options => { assert.deepEqual(JSON.parse(JSON.stringify(options)), { port: 54321, trackFunctions: true }); return owner; } };
   const flow = runInNewContext(`(async () => { ${source.slice(start, end)} try { await startPostgres(54321); } catch (error) { if (postgres) await stopPostgres(postgres); throw error; } })`, context);
@@ -1837,7 +1837,7 @@ async function currentComplianceCleanupFixture({ failureAt, holdProjection = fal
   const close = async name => { events.push(name); if (failureAt === name) throw failure; };
   let removed = false;
   const context = {
-    console: { log() {} }, AggregateError, currentComplianceStateRoot: undefined, currentComplianceClosing: false,
+    console: { log() {} }, AggregateError, ownedResourceCleanupStarted: false, currentComplianceStateRoot: undefined, currentCompliancePreparation: undefined, currentComplianceRuntimeStartup: undefined, currentComplianceClosing: false,
     currentComplianceProjectionController: controller, currentComplianceProjectionLoop: loop,
     currentComplianceServices: { close: () => close("current services") },
     currentCompliancePostgres: { stop: () => close("current postgres") },
@@ -1855,7 +1855,7 @@ async function currentComplianceCleanupFixture({ failureAt, holdProjection = fal
   return { cleanup, context, controller, events, failure, settleProjection, removed: () => removed };
 }
 
-test("current compliance cleanup cancels and joins projection before services and both PostgreSQL owners", async () => {
+test("current compliance cleanup cancels legacy PostgreSQL and joins projection before current owners", async () => {
   const fixture = await currentComplianceCleanupFixture({ holdProjection: true });
   let completed = false;
   const cleanup = fixture.cleanup().then(() => { completed = true; });
@@ -1863,14 +1863,14 @@ test("current compliance cleanup cancels and joins projection before services an
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(fixture.controller.signal.aborted, true);
     assert.equal(fixture.context.currentComplianceClosing, true);
-    assert.deepEqual(fixture.events, ["projection canceled"]);
+    assert.deepEqual(fixture.events, ["projection canceled", "legacy postgres"]);
     assert.equal(completed, false, "cleanup declared closed before projection joined");
     assert.equal(fixture.removed(), false);
   } finally {
     fixture.settleProjection();
     await cleanup;
   }
-  assert.deepEqual(fixture.events, ["projection canceled", "projection joined", "current services", "current postgres", "legacy postgres", "files"]);
+  assert.deepEqual(fixture.events, ["projection canceled", "legacy postgres", "projection joined", "current services", "current postgres", "files"]);
   assert.equal(fixture.removed(), true);
 });
 
@@ -1880,7 +1880,179 @@ test("current compliance cleanup retains each original failure while joining lat
     await assert.rejects(fixture.cleanup(), error => error instanceof AggregateError && error.errors.includes(fixture.failure));
     assert.equal(fixture.controller.signal.aborted, true);
     assert.equal(fixture.context.currentComplianceClosing, true);
-    assert.deepEqual(fixture.events, ["projection canceled", "projection joined", "current services", "current postgres", "legacy postgres"]);
+    assert.deepEqual(fixture.events, ["projection canceled", "projection joined", "legacy postgres", "current services", "current postgres"]);
     assert.equal(fixture.removed(), false, "failed current join deleted owned state");
   }
 });
+
+// Exercise the actual orchestration functions; only process, server and file
+// boundaries are controlled. No Docker, Go or browser process is dispatched.
+async function postgresCleanupFlow(overrides = {}) {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const cleanupStart = source.indexOf("async function cleanupOwnedResources() {");
+  const cleanupEnd = source.indexOf("\nasync function generateHarnessGitHubAppPrivateKey", cleanupStart);
+  const startupStart = source.indexOf("async function startPostgres(port) {");
+  const startupEnd = source.indexOf("\nasync function provisionPostgresPrincipals", startupStart);
+  assert.ok(cleanupStart > 0 && cleanupEnd > cleanupStart && startupEnd > startupStart);
+  const events = [];
+  const context = {
+    currentComplianceClosing: false, currentComplianceProjectionController: undefined, currentComplianceProjectionLoop: undefined, currentComplianceServices: undefined, currentCompliancePostgres: undefined, currentComplianceStateRoot: undefined, currentCompliancePreparation: undefined, currentComplianceRuntimeStartup: undefined,
+    ownedResourceCleanupStarted: false, postgres: undefined,
+    precisionBrowserCheckpoint: null, mountedRuntimeProofs: [], runtimePipelineChild: null, runtimeGraphDependency: null,
+    redTeamRuntimeProof: { close: async () => { events.push("redteam closed"); } }, runtimePipelineDependencies: { close: async () => {} },
+    exportBrowserProfiles: [], secondBrowserTab: null, browser: null, task4Workers: [], exportBrowserAPILifetimes: [],
+    api: null, proxy: null, identity: null, policyHistory: null, web: null, auditExportProvider: null, children: [],
+    exportBrowserEvidenceDirectory: null, automaticDiscoveryEvidenceDirectory: null,
+    temporaryRoot: "/virtual-owned-root", platform: "/virtual-platform", attackLabMountedMode: true, securityAgentExportMode: false, automaticDiscoveryMode: false,
+    process: { env: {} }, console: { log() {} }, path, assert, AggregateError,
+    auditBrowserEnvironment: value => value, chmod: async () => {},
+    rm: async () => { events.push("files removed"); },
+    command: async () => { throw new Error("unexpected preparation dispatch"); },
+    createOwnedBrowserPostgres: () => { events.push("owner registered"); return { start: async () => { events.push("postgres started"); }, stop: async () => { events.push("postgres stopped"); } }; },
+    stopChild: async () => {}, closeServer: async () => {}, ...overrides,
+  };
+  const flow = runInNewContext(`(() => { ${source.slice(cleanupStart, cleanupEnd)}\n${source.slice(startupStart, startupEnd)}\nreturn { cleanupOwnedResources, startPostgres }; })()`, context);
+  return { ...flow, context, events };
+}
+
+function cleanupDeferred() {
+  let resolve;
+  const promise = new Promise(value => { resolve = value; });
+  return { promise, resolve };
+}
+
+test("PostgreSQL cleanup refuses owner registration after in-flight preparation completes", async () => {
+  const preparation = cleanupDeferred(), started = cleanupDeferred();
+  const flow = await postgresCleanupFlow({
+    children: ["preparation"],
+    command: async executable => {
+      if (executable === "docker") return { stdout: "amd64" };
+      started.resolve(); return preparation.promise;
+    },
+    stopChild: async () => { preparation.resolve({ status: 0 }); await new Promise(resolve => setImmediate(resolve)); },
+  });
+  // Capture rejection immediately: cancellation must not become an unhandled
+  // startup rejection while cleanup is still joining unrelated resources.
+  const boot = flow.startPostgres(54321).then(() => ({ accepted: true }), error => ({ error }));
+  await started.promise;
+  await flow.cleanupOwnedResources();
+  const result = await boot;
+  assert.equal(result.accepted, undefined, "cleanup admitted a late PostgreSQL owner");
+  assert.match(result.error?.message ?? "", /PostgreSQL startup after cleanup refused/);
+  assert.equal(flow.context.postgres, undefined);
+  assert.deepEqual(flow.events, ["redteam closed", "files removed"]);
+});
+
+test("PostgreSQL cleanup cancels a registered in-flight owner before unrelated joins", async () => {
+  const unrelated = cleanupDeferred(), entered = cleanupDeferred(), postgresJoin = cleanupDeferred();
+  const events = [];
+  const owner = { stop: () => { events.push("postgres stop began"); return postgresJoin.promise; } };
+  const flow = await postgresCleanupFlow({ postgres: owner, precisionBrowserCheckpoint: { close: () => { entered.resolve(); return unrelated.promise; } } });
+  const cleanup = flow.cleanupOwnedResources();
+  await entered.promise;
+  // Resolve barriers even on failed assertions, so a RED leaves no work pending.
+  try { assert.deepEqual([...events], ["postgres stop began"]); }
+  finally { unrelated.resolve(); postgresJoin.resolve(); await cleanup; }
+  assert.deepEqual(events, ["postgres stop began"], "owned PostgreSQL was stopped more than once");
+  assert.ok(flow.events.includes("files removed"));
+});
+
+test("PostgreSQL cleanup retains early stop failure while joining every other resource", async () => {
+  const unrelated = cleanupDeferred(), entered = cleanupDeferred(), events = [], unhandled = [];
+  const original = new Error("owned PostgreSQL join rejected");
+  const listener = error => { unhandled.push(error); };
+  process.on("unhandledRejection", listener);
+  const flow = await postgresCleanupFlow({ postgres: { stop: async () => { events.push("postgres stop began"); throw original; } },
+    precisionBrowserCheckpoint: { close: () => { entered.resolve(); return unrelated.promise; } },
+    children: ["remaining child"], stopChild: async () => { events.push("remaining child joined"); } });
+  const cleanup = flow.cleanupOwnedResources().then(() => ({ accepted: true }), error => ({ error }));
+  try {
+    try {
+    await entered.promise;
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual([...events], ["postgres stop began"]);
+    assert.deepEqual(unhandled, []);
+    } finally { unrelated.resolve(); }
+    const result = await cleanup;
+    assert.ok(result.error instanceof AggregateError);
+    assert.ok(result.error.errors.includes(original));
+    assert.deepEqual(events, ["postgres stop began", "remaining child joined"]);
+    assert.deepEqual(flow.events, ["redteam closed"]);
+    assert.deepEqual(unhandled, []);
+  } finally { unrelated.resolve(); await cleanup; process.off("unhandledRejection", listener); }
+});
+
+test("PostgreSQL cleanup refuses subsequent startup before preparation dispatch", async () => {
+  let commands = 0;
+  const flow = await postgresCleanupFlow({ command: async () => { commands += 1; return { stdout: "amd64" }; } });
+  await flow.cleanupOwnedResources();
+  await assert.rejects(flow.startPostgres(54321), /PostgreSQL startup after cleanup refused/);
+  assert.equal(commands, 0);
+  assert.equal(flow.context.postgres, undefined);
+});
+
+
+test("current runtime startup arriving during cleanup is joined before file removal and cannot create a database", async () => {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("async function prepareOwnedCurrentComplianceRuntime(");
+  const end = source.indexOf("\nasync function exerciseComplianceBrowser(", start);
+  const started = cleanupDeferred(), acquisition = cleanupDeferred(), closed = cleanupDeferred();
+  let removed = false, databases = 0, closes = 0;
+  const environment = { ZASP_RUNTIME_SERVICES_ENABLED:"true", ZASP_RUNTIME_SERVICES_TIMEOUT:"5s", ZASP_ENVIRONMENT:"test",
+    ZASP_TEMPORAL_ADDRESS:"127.0.0.1:17233", ZASP_TEMPORAL_NAMESPACE:"owned-test", ZASP_TEMPORAL_TASK_QUEUE:"owned-main", ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE:"owned-discovery",
+    ZASP_OPENFGA_URL:"http://127.0.0.1:18088", ZASP_OPENFGA_STORE_ID:"01ARZ3NDEKTSV4RRFFQ69G5FAV", ZASP_OPENFGA_MODEL_ID:"01ARZ3NDEKTSV4RRFFQ69G5FAW", ZASP_OPENFGA_TOKEN_FILE:"/tmp/owned-fixture-token" };
+  const owner = { environment, completed:closed.promise, close:async () => { closes++; closed.resolve(); } };
+  const flow = await postgresCleanupFlow({
+    currentCompliancePreparation: undefined, currentComplianceRuntimeStartup: undefined,
+    complianceBrowserMode:true, compliancePhase:"services",
+    process:{env:{ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT:"/owned/archives",ZASP_BROWSER_RUNTIME_RAW_ROOT:"/owned/raw"}},
+    withOwnedRuntimeStartupDiagnostics:async action=>action(),
+    mkdtemp:async()=>"/owned/state", randomBytes:()=>Buffer.alloc(8),
+    startRetainedOwnedRuntimeLifetime:async()=>{ started.resolve(); return acquisition.promise; },
+    complianceRuntimeBindings:value=>{ assert.equal(value,environment); return {environment:value}; },
+    reservePort:async()=>54321,
+    createOwnedBrowserPostgres:()=>{ databases++; throw new Error("late database allocation"); },
+    cleanupController:{run:async()=>{}},
+    rm:async()=>{ removed=true; },
+  });
+  const prepare = runInNewContext(`(${source.slice(start,end)})`,flow.context);
+  const boot = prepare({migrate:"/owned/migrate",migrationEnvironment:{},proxyPort:18089},"controlled SQL").then(()=>({accepted:true}),error=>({error}));
+  await started.promise;
+  const cleanup = flow.cleanupOwnedResources();
+  try {
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(removed,false,"cleanup deleted files while service acquisition remained active");
+  } finally {
+    acquisition.resolve(owner);
+    await Promise.allSettled([cleanup,boot]);
+  }
+  const result = await boot;
+  assert.equal(result.accepted,undefined);
+  assert.match(result.error?.message??"",/current runtime startup after cleanup refused/);
+  assert.equal(databases,0,"late runtime startup created an unowned database");
+  assert.equal(closes,1,"late acquired service was not closed exactly once");
+  assert.equal(removed,true);
+});
+
+ test("profile installation arriving during cleanup is joined and cannot start projection", async()=>{
+  const source=await readFile(new URL("./production-combined-e2e.mjs",import.meta.url),"utf8");
+  const start=source.indexOf("async function prepareOwnedCurrentComplianceRuntime("),end=source.indexOf("\nasync function exerciseComplianceBrowser(",start);
+  const installing=cleanupDeferred(),installed=cleanupDeferred(),closed=cleanupDeferred();
+  let removed=false,loops=0,closes=0;
+  const environment={};
+  const flow=await postgresCleanupFlow({currentCompliancePreparation:undefined,complianceBrowserMode:true,compliancePhase:"services",
+   process:{env:{ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT:"/owned/archive",ZASP_BROWSER_RUNTIME_RAW_ROOT:"/owned/raw"}},
+   path,Buffer,AbortController,postgresBin:"/owned/pg",temporaryRoot:"/owned/tmp",platform:"/owned/platform",productHostname:"owned.test",
+   withOwnedRuntimeStartupDiagnostics:async action=>action(),mkdtemp:async()=>"/owned/state",randomBytes:size=>Buffer.alloc(size),
+   startRetainedOwnedRuntimeLifetime:async()=>({environment,completed:closed.promise,close:async()=>{closes++;closed.resolve();}}),
+   complianceRuntimeBindings:()=>{},reservePort:async()=>15432,createOwnedBrowserPostgres:()=>({start:async()=>{},stop:async()=>{}}),
+   provisionPostgresPrincipals:async()=>{},command:async()=>({stdout:""}),closedOwnedAmbientEnvironment:()=>({}),seedPostgres:async()=>{},combinedAPIEnvironment:()=>({}),writeFile:async()=>{},
+   installOwnedCurrent80:async()=>{installing.resolve();await installed.promise;return {environment};},runOwnedProjectionLoop:()=>{loops++;return closed.promise;},cleanupController:{run:async()=>{}},rm:async()=>{removed=true;}});
+  const prepare=runInNewContext(`(${source.slice(start,end)})`,flow.context);
+  const boot=prepare({migrate:"/owned/migrate",migrationEnvironment:{},proxyPort:18089},"fixture").then(()=>({accepted:true}),error=>({error}));
+  await installing.promise;const cleanup=flow.cleanupOwnedResources();
+  try {await new Promise(resolve=>setImmediate(resolve));assert.equal(removed,false,"cleanup deleted files while profile installation remained active");}
+  finally {installed.resolve();await Promise.allSettled([cleanup,boot]);}
+  assert.equal(loops,0,"late installation started an unowned projection loop");assert.equal(closes,1);assert.equal(removed,true);
+  assert.match((await boot).error?.message??"",/current runtime startup after cleanup refused/);
+ });

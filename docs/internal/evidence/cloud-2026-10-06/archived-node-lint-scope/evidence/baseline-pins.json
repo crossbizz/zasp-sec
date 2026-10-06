@@ -1,0 +1,12 @@
+{
+  "commit": "6af016b47c13980465aa4598c193b0693e1a2233",
+  "files": {
+    "eslint.config.mjs": "884c76cb7c525c1eaeb5253610628c9e818b780430b8465c0fca6d71d35a644b",
+    "eslint-rules/no-raw-fetch.mjs": "89e46cfdd7ab5e8ae950ed5ef55badfba80fdb2e2d07752025542764e5b0ff2f",
+    "scripts/eslint-scope.test.mjs": "3f163b67cb9c0c6fc8c314ba6e799f6248d4b7f017ee68b7f66029fbf496c6a8",
+    "app/features/securityagents/SingleTestRecoveryPanel.tsx": "6e39090c7c178ff0992037d49762b39530d3514ff1ec81db1d59f084316223ba",
+    "package.json": "43a2e7504ebbb0fdf78c58075077ce041dd77547b4cb9938efe68b10b1c4af00",
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-safe-diagnostics/evidence/ordered-current-native379-packet-v2.mjs": "368ba50a83b52d07649b23eaa28814a4a1ccad71acd7b91716669c0c86c56927",
+    "docs/internal/evidence/cloud-2026-10-06/native379-v2-safe-diagnostics/evidence/ordered-current-native379-packet-v2.test.mjs": "4a08ca625405c60a1f1feb086fdd8431155e42fce70808e2eecd977d0d66530b"
+  }
+}

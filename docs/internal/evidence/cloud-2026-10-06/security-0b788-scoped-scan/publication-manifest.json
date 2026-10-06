@@ -1,0 +1,50 @@
+{
+  "schema": "bounded-actual-scoped-scan-publication-v1",
+  "members": {
+    "evidence/README.md": {
+      "bytes": 1853,
+      "sha256": "280fb1cc7acfd2954b23ac5011c4894928c5ab74da0075a89de007b7cf9569d7"
+    },
+    "evidence/baseline.gitleaksignore.gz": {
+      "bytes": 7598,
+      "sha256": "aa9deff1496139b334459053ff7b41dcceb4a95eea8a85d95fa1c76a1fda561d"
+    },
+    "evidence/compression-provenance.json": {
+      "bytes": 2626,
+      "sha256": "7a1e539d2dbe7103c21dd75378285e172e1ebfbe2e9661ee48336adf3f216991"
+    },
+    "evidence/independent-provider-0b788-scoped-review.json.gz": {
+      "bytes": 848,
+      "sha256": "4ef248285b37a82c90f0e03d86655b99181626947a0d01ef17d025489e0bc5df"
+    },
+    "evidence/scan-record.json.gz": {
+      "bytes": 473,
+      "sha256": "cc1318078d5c91b5df46954d5bf0487251da3be6d75a7be054cdaddf08384b91"
+    },
+    "evidence/scan-redacted.json.gz": {
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "evidence/scan.log.gz": {
+      "bytes": 105,
+      "sha256": "04f7cc0405ea6bd7a3ccf744e212062271324502e21858c258dc157fa96ddaeb"
+    },
+    "evidence/scope-proof.json.gz": {
+      "bytes": 8982,
+      "sha256": "67c51d5fcac870dab0afc7a3189bce8015c9439bc11ebb438a65da209a0e91e0"
+    },
+    "publication-scan-record.json": {
+      "bytes": 861,
+      "sha256": "6c948407a4ecac9a97d17ab5ac3704591e4678bf97af714854d7dc45b9fc2f96"
+    },
+    "publication-scan-redacted.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "publication-scan.log": {
+      "bytes": 77,
+      "sha256": "5e193dcd439ac43bb62f6c22033b97360ad1fb97f66c4af39171ba4666dde156"
+    }
+  },
+  "boundary": "Actual0b788 exactcommit PASS0; no new candidate/coordinate exceptions. Manifest excludes itself. Original source-packet failures and root fullhistory scope remain separate."
+}

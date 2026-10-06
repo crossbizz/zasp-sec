@@ -1,0 +1,1686 @@
+{
+  "completed": false,
+  "error": "RuntimeError: Exact complete projection feature roster not demonstrated",
+  "signals": [],
+  "stages": [
+    {
+      "name": "component-compile",
+      "argv": [
+        "/tmp/zasp-cloud-tools/go/bin/go",
+        "test",
+        "-race",
+        "-c",
+        "-o",
+        "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/compiler-tmp/component.test",
+        "-overlay",
+        "/tmp/authorization80-sdk-reserved-retry-2c7goqqq/source-overlay.json",
+        "./authorization"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 27.75698684899544,
+      "refusal": null,
+      "free_after_stage": 1502797824,
+      "tmp_free_after_stage": 643194880,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "overlay_sha256": "9f5cb2334d2b5582ca34370d8b2532205b8ce57baf99edf95c9ff825cd8d5703",
+      "top_level_pass": [],
+      "top_level_fail": [],
+      "subtests_fail": [],
+      "run_tests": [],
+      "skips": [],
+      "survivors": [],
+      "cleanup": {
+        "pid": 299625,
+        "forced": false,
+        "joined": true,
+        "errors": [],
+        "survivors": []
+      }
+    },
+    {
+      "name": "sdk-component-group",
+      "argv": [
+        "/tmp/zasp-cloud-tools/go/bin/go",
+        "tool",
+        "test2json",
+        "-p",
+        "github.com/zasp-ai/zasp-sec/services/platform/authorization",
+        "-t",
+        "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/compiler-tmp/component.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=90s",
+        "-test.run=^(TestOwnedFGABootstrapSourceAndEndpoint|TestOwnedFGABootstrapSDKContract|TestOwnedFGABootstrapPermissionSourceConservation)$"
+      ],
+      "returncode": 1,
+      "elapsed_seconds": 0.8343130180001026,
+      "refusal": null,
+      "free_after_stage": 1502797824,
+      "tmp_free_after_stage": 643178496,
+      "log_sha256": "81b05ee4c762a7aea8af68125469ea5bd9eec255442a7c52debe6e5976416e9b",
+      "overlay_sha256": "9f5cb2334d2b5582ca34370d8b2532205b8ce57baf99edf95c9ff825cd8d5703",
+      "top_level_pass": [],
+      "top_level_fail": [
+        "TestOwnedFGABootstrapSourceAndEndpoint",
+        "TestOwnedFGABootstrapSDKContract",
+        "TestOwnedFGABootstrapPermissionSourceConservation"
+      ],
+      "subtests_fail": [],
+      "run_tests": [
+        "TestOwnedFGABootstrapSourceAndEndpoint",
+        "TestOwnedFGABootstrapSDKContract",
+        "TestOwnedFGABootstrapPermissionSourceConservation"
+      ],
+      "skips": [],
+      "survivors": [],
+      "cleanup": {
+        "pid": 303010,
+        "forced": false,
+        "joined": true,
+        "errors": [],
+        "survivors": []
+      }
+    }
+  ],
+  "process_waits": [
+    {
+      "pid": 299625,
+      "returncode": 0,
+      "main_joined": true
+    },
+    {
+      "pid": 303010,
+      "returncode": 1,
+      "main_joined": true
+    }
+  ],
+  "cleanup_records": [
+    {
+      "pid": 299625,
+      "forced": false,
+      "joined": true,
+      "errors": [],
+      "survivors": []
+    },
+    {
+      "pid": 303010,
+      "forced": false,
+      "joined": true,
+      "errors": [],
+      "survivors": []
+    },
+    {
+      "pid": null,
+      "forced": false,
+      "joined": true,
+      "errors": [],
+      "survivors": []
+    }
+  ],
+  "teardown_errors": [],
+  "survivors": [],
+  "elapsed_seconds": 34.73621051899681,
+  "source_unchanged": true,
+  "source_before_sha256": "52bb29bcd77dc174e26dd5998190cc6ddddc85e51928a2d0798b9a142c2e46e3",
+  "source_after_sha256": "52bb29bcd77dc174e26dd5998190cc6ddddc85e51928a2d0798b9a142c2e46e3",
+  "space_observations": [
+    {
+      "stage": "component-compile",
+      "elapsed": 3.552602316995035,
+      "free_bytes": 1753198592,
+      "tmp_free_bytes": 710688768
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 3.659041603008518,
+      "free_bytes": 1753075712,
+      "tmp_free_bytes": 710594560
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 3.7645829370012507,
+      "free_bytes": 1753075712,
+      "tmp_free_bytes": 710492160
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 3.875025582005037,
+      "free_bytes": 1753075712,
+      "tmp_free_bytes": 709709824
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 3.9910390069999266,
+      "free_bytes": 1750691840,
+      "tmp_free_bytes": 708141056
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 4.101039872999536,
+      "free_bytes": 1750687744,
+      "tmp_free_bytes": 707575808
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 4.211174249998294,
+      "free_bytes": 1749245952,
+      "tmp_free_bytes": 706719744
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 4.316422261996195,
+      "free_bytes": 1748774912,
+      "tmp_free_bytes": 706265088
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 4.421178240008885,
+      "free_bytes": 1745465344,
+      "tmp_free_bytes": 703016960
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 4.530793609999819,
+      "free_bytes": 1744998400,
+      "tmp_free_bytes": 702566400
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 4.634202154004015,
+      "free_bytes": 1744998400,
+      "tmp_free_bytes": 701083648
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 4.742785417009145,
+      "free_bytes": 1742319616,
+      "tmp_free_bytes": 699916288
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 4.851054736005608,
+      "free_bytes": 1739591680,
+      "tmp_free_bytes": 697044992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 4.96140005000052,
+      "free_bytes": 1738563584,
+      "tmp_free_bytes": 696102912
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 5.065670202006004,
+      "free_bytes": 1737568256,
+      "tmp_free_bytes": 695320576
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 5.170649268999114,
+      "free_bytes": 1736396800,
+      "tmp_free_bytes": 694206464
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 5.2768562709970865,
+      "free_bytes": 1735565312,
+      "tmp_free_bytes": 692539392
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 5.388840480998624,
+      "free_bytes": 1733939200,
+      "tmp_free_bytes": 691830784
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 5.49936688800517,
+      "free_bytes": 1733058560,
+      "tmp_free_bytes": 690757632
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 5.603116840997245,
+      "free_bytes": 1731846144,
+      "tmp_free_bytes": 689795072
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 5.707423557003494,
+      "free_bytes": 1730908160,
+      "tmp_free_bytes": 688906240
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 5.823094346007565,
+      "free_bytes": 1729228800,
+      "tmp_free_bytes": 687288320
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 5.931680833004066,
+      "free_bytes": 1726349312,
+      "tmp_free_bytes": 684437504
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 6.042048211005749,
+      "free_bytes": 1725878272,
+      "tmp_free_bytes": 683569152
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 6.153440761001548,
+      "free_bytes": 1725386752,
+      "tmp_free_bytes": 683315200
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 6.259572113005561,
+      "free_bytes": 1725034496,
+      "tmp_free_bytes": 683155456
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 6.36933975800639,
+      "free_bytes": 1723654144,
+      "tmp_free_bytes": 681791488
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 6.478779929995653,
+      "free_bytes": 1723187200,
+      "tmp_free_bytes": 681381888
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 6.585491895995801,
+      "free_bytes": 1722941440,
+      "tmp_free_bytes": 681168896
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 6.70024462400761,
+      "free_bytes": 1722413056,
+      "tmp_free_bytes": 680673280
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 6.810855397008709,
+      "free_bytes": 1722290176,
+      "tmp_free_bytes": 680558592
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 6.9187839520018315,
+      "free_bytes": 1721679872,
+      "tmp_free_bytes": 679944192
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 7.026938427996356,
+      "free_bytes": 1721638912,
+      "tmp_free_bytes": 679940096
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 7.130225126995356,
+      "free_bytes": 1721638912,
+      "tmp_free_bytes": 679940096
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 7.238763892004499,
+      "free_bytes": 1720500224,
+      "tmp_free_bytes": 678809600
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 7.3476565279997885,
+      "free_bytes": 1720500224,
+      "tmp_free_bytes": 677412864
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 7.453867999007343,
+      "free_bytes": 1715494912,
+      "tmp_free_bytes": 673828864
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 7.56682237899804,
+      "free_bytes": 1715056640,
+      "tmp_free_bytes": 673406976
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 7.674805457005277,
+      "free_bytes": 1715056640,
+      "tmp_free_bytes": 673406976
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 7.783024310003384,
+      "free_bytes": 1714233344,
+      "tmp_free_bytes": 672600064
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 7.893786048996844,
+      "free_bytes": 1713577984,
+      "tmp_free_bytes": 669941760
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 8.002785577002214,
+      "free_bytes": 1705959424,
+      "tmp_free_bytes": 664367104
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 8.113402604009025,
+      "free_bytes": 1705377792,
+      "tmp_free_bytes": 663797760
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 8.222878412998398,
+      "free_bytes": 1703927808,
+      "tmp_free_bytes": 662392832
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 8.334921311005019,
+      "free_bytes": 1703297024,
+      "tmp_free_bytes": 661786624
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 8.440203865000512,
+      "free_bytes": 1701519360,
+      "tmp_free_bytes": 660041728
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 8.550764422005159,
+      "free_bytes": 1700737024,
+      "tmp_free_bytes": 659292160
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 8.65789114999643,
+      "free_bytes": 1699717120,
+      "tmp_free_bytes": 658284544
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 8.766131926007802,
+      "free_bytes": 1699311616,
+      "tmp_free_bytes": 657887232
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 8.872537554008886,
+      "free_bytes": 1699311616,
+      "tmp_free_bytes": 657887232
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 8.981609080001363,
+      "free_bytes": 1699311616,
+      "tmp_free_bytes": 657887232
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 9.099026095995214,
+      "free_bytes": 1699311616,
+      "tmp_free_bytes": 656220160
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 9.214900516002672,
+      "free_bytes": 1690718208,
+      "tmp_free_bytes": 649326592
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 9.318320556005347,
+      "free_bytes": 1690107904,
+      "tmp_free_bytes": 648732672
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 9.42325977300061,
+      "free_bytes": 1689387008,
+      "tmp_free_bytes": 645042176
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 9.534759914997267,
+      "free_bytes": 1686089728,
+      "tmp_free_bytes": 644755456
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 9.639180115002091,
+      "free_bytes": 1684512768,
+      "tmp_free_bytes": 643194880
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 9.75499421900895,
+      "free_bytes": 1684512768,
+      "tmp_free_bytes": 643194880
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 9.860997516996576,
+      "free_bytes": 1680912384,
+      "tmp_free_bytes": 639602688
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 9.966858906002017,
+      "free_bytes": 1680912384,
+      "tmp_free_bytes": 639602688
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 10.073052216001088,
+      "free_bytes": 1680912384,
+      "tmp_free_bytes": 638353408
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 10.176786829004413,
+      "free_bytes": 1679216640,
+      "tmp_free_bytes": 637112320
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 10.314506310998695,
+      "free_bytes": 1678086144,
+      "tmp_free_bytes": 636801024
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 10.431515183008742,
+      "free_bytes": 1677570048,
+      "tmp_free_bytes": 636293120
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 10.536519376997603,
+      "free_bytes": 1677570048,
+      "tmp_free_bytes": 635912192
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 10.64174156000081,
+      "free_bytes": 1676550144,
+      "tmp_free_bytes": 630845440
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 10.7497051179962,
+      "free_bytes": 1671118848,
+      "tmp_free_bytes": 629874688
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 10.862904562003678,
+      "free_bytes": 1669918720,
+      "tmp_free_bytes": 628674560
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 10.971786662004888,
+      "free_bytes": 1667866624,
+      "tmp_free_bytes": 618287104
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 11.078681052007596,
+      "free_bytes": 1662119936,
+      "tmp_free_bytes": 604786688
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 11.182346540997969,
+      "free_bytes": 1645359104,
+      "tmp_free_bytes": 604168192
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 11.292077830003109,
+      "free_bytes": 1641414656,
+      "tmp_free_bytes": 598155264
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 11.398933311007568,
+      "free_bytes": 1638567936,
+      "tmp_free_bytes": 597467136
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 11.505589741995209,
+      "free_bytes": 1637875712,
+      "tmp_free_bytes": 596799488
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 11.608892966003623,
+      "free_bytes": 1637875712,
+      "tmp_free_bytes": 596148224
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 11.716625727000064,
+      "free_bytes": 1634512896,
+      "tmp_free_bytes": 592961536
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 11.824527111995849,
+      "free_bytes": 1632591872,
+      "tmp_free_bytes": 591568896
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 11.928082847007317,
+      "free_bytes": 1631281152,
+      "tmp_free_bytes": 590274560
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 12.040345465007704,
+      "free_bytes": 1628602368,
+      "tmp_free_bytes": 586924032
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 12.148929657996632,
+      "free_bytes": 1626660864,
+      "tmp_free_bytes": 585687040
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 12.259695574000943,
+      "free_bytes": 1626660864,
+      "tmp_free_bytes": 585687040
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 12.36753920200863,
+      "free_bytes": 1622536192,
+      "tmp_free_bytes": 581578752
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 12.47250628999609,
+      "free_bytes": 1621716992,
+      "tmp_free_bytes": 580775936
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 12.578830276004737,
+      "free_bytes": 1621389312,
+      "tmp_free_bytes": 580456448
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 12.686631464996026,
+      "free_bytes": 1615736832,
+      "tmp_free_bytes": 574824448
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 12.795712656006799,
+      "free_bytes": 1613242368,
+      "tmp_free_bytes": 572354560
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 12.90035773999989,
+      "free_bytes": 1612226560,
+      "tmp_free_bytes": 571346944
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 13.004267557000276,
+      "free_bytes": 1611722752,
+      "tmp_free_bytes": 570851328
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 13.115195246995427,
+      "free_bytes": 1611722752,
+      "tmp_free_bytes": 570851328
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 13.238988800003426,
+      "free_bytes": 1611087872,
+      "tmp_free_bytes": 570224640
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 13.347731504996773,
+      "free_bytes": 1610256384,
+      "tmp_free_bytes": 566652928
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 13.454803432003246,
+      "free_bytes": 1607270400,
+      "tmp_free_bytes": 566431744
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 13.562727530996199,
+      "free_bytes": 1607270400,
+      "tmp_free_bytes": 566431744
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 13.67259780500899,
+      "free_bytes": 1607270400,
+      "tmp_free_bytes": 566431744
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 13.777613826998277,
+      "free_bytes": 1607270400,
+      "tmp_free_bytes": 565915648
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 13.881070511997677,
+      "free_bytes": 1605296128,
+      "tmp_free_bytes": 564473856
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 13.991952773008961,
+      "free_bytes": 1605296128,
+      "tmp_free_bytes": 564473856
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 14.102242933004163,
+      "free_bytes": 1604313088,
+      "tmp_free_bytes": 563499008
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 14.2119832449971,
+      "free_bytes": 1603923968,
+      "tmp_free_bytes": 563122176
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 14.317008412006544,
+      "free_bytes": 1601073152,
+      "tmp_free_bytes": 560300032
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 14.420360560005065,
+      "free_bytes": 1600634880,
+      "tmp_free_bytes": 559886336
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 14.534767065008054,
+      "free_bytes": 1599762432,
+      "tmp_free_bytes": 559017984
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 14.646970012996462,
+      "free_bytes": 1599250432,
+      "tmp_free_bytes": 558518272
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 14.752175015004468,
+      "free_bytes": 1598541824,
+      "tmp_free_bytes": 557826048
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 14.857670929995948,
+      "free_bytes": 1597816832,
+      "tmp_free_bytes": 554008576
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 14.975172695005313,
+      "free_bytes": 1585164288,
+      "tmp_free_bytes": 544501760
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 15.092074497006251,
+      "free_bytes": 1585164288,
+      "tmp_free_bytes": 544501760
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 15.19678412900248,
+      "free_bytes": 1584504832,
+      "tmp_free_bytes": 543846400
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 15.308380800997838,
+      "free_bytes": 1584496640,
+      "tmp_free_bytes": 543813632
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 15.419697217002977,
+      "free_bytes": 1583222784,
+      "tmp_free_bytes": 542539776
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 15.533051085003535,
+      "free_bytes": 1583194112,
+      "tmp_free_bytes": 542507008
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 15.639858763999655,
+      "free_bytes": 1583161344,
+      "tmp_free_bytes": 542466048
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 15.760164929000894,
+      "free_bytes": 1579778048,
+      "tmp_free_bytes": 539078656
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 15.864714420997188,
+      "free_bytes": 1579753472,
+      "tmp_free_bytes": 539029504
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 15.970571500001824,
+      "free_bytes": 1579732992,
+      "tmp_free_bytes": 539000832
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 16.079445109004155,
+      "free_bytes": 1579679744,
+      "tmp_free_bytes": 538935296
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 16.185160795008414,
+      "free_bytes": 1579630592,
+      "tmp_free_bytes": 538857472
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 16.29281934000028,
+      "free_bytes": 1579601920,
+      "tmp_free_bytes": 537931776
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 16.410953892002,
+      "free_bytes": 1577365504,
+      "tmp_free_bytes": 536514560
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 16.515022285006125,
+      "free_bytes": 1577336832,
+      "tmp_free_bytes": 536457216
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 16.62343170499662,
+      "free_bytes": 1577254912,
+      "tmp_free_bytes": 536322048
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 16.730916818996775,
+      "free_bytes": 1577197568,
+      "tmp_free_bytes": 536252416
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 16.847084766995977,
+      "free_bytes": 1577156608,
+      "tmp_free_bytes": 536186880
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 16.961858655995457,
+      "free_bytes": 1577127936,
+      "tmp_free_bytes": 536137728
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 17.067758164004772,
+      "free_bytes": 1577086976,
+      "tmp_free_bytes": 536014848
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 17.175206897998578,
+      "free_bytes": 1577058304,
+      "tmp_free_bytes": 535945216
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 17.27886664599646,
+      "free_bytes": 1577000960,
+      "tmp_free_bytes": 535842816
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 17.389143948006677,
+      "free_bytes": 1576935424,
+      "tmp_free_bytes": 535683072
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 17.495913580001798,
+      "free_bytes": 1576894464,
+      "tmp_free_bytes": 535625728
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 17.603702681008144,
+      "free_bytes": 1576837120,
+      "tmp_free_bytes": 535515136
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 17.712118687006296,
+      "free_bytes": 1576767488,
+      "tmp_free_bytes": 535363584
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 17.816828003997216,
+      "free_bytes": 1576730624,
+      "tmp_free_bytes": 535293952
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 17.929302933000145,
+      "free_bytes": 1576697856,
+      "tmp_free_bytes": 535212032
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 18.03451459200005,
+      "free_bytes": 1576665088,
+      "tmp_free_bytes": 535150592
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 18.143310594008653,
+      "free_bytes": 1576615936,
+      "tmp_free_bytes": 535068672
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 18.248767569995834,
+      "free_bytes": 1576529920,
+      "tmp_free_bytes": 534933504
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 18.355553617002442,
+      "free_bytes": 1576456192,
+      "tmp_free_bytes": 534831104
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 18.460144751006737,
+      "free_bytes": 1576431616,
+      "tmp_free_bytes": 534802432
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 18.564910572997178,
+      "free_bytes": 1576374272,
+      "tmp_free_bytes": 534700032
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 18.674923016005778,
+      "free_bytes": 1576337408,
+      "tmp_free_bytes": 534614016
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 18.780297659002827,
+      "free_bytes": 1576292352,
+      "tmp_free_bytes": 534503424
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 18.889264163008193,
+      "free_bytes": 1576267776,
+      "tmp_free_bytes": 534429696
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 18.99720371600415,
+      "free_bytes": 1576243200,
+      "tmp_free_bytes": 534355968
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 19.105953628997668,
+      "free_bytes": 1576210432,
+      "tmp_free_bytes": 534278144
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 19.21293140000489,
+      "free_bytes": 1576165376,
+      "tmp_free_bytes": 534163456
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 19.324396069001523,
+      "free_bytes": 1576140800,
+      "tmp_free_bytes": 534118400
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 19.429568462001043,
+      "free_bytes": 1576116224,
+      "tmp_free_bytes": 534061056
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 19.5371756710083,
+      "free_bytes": 1576083456,
+      "tmp_free_bytes": 533999616
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 19.648080736995325,
+      "free_bytes": 1576030208,
+      "tmp_free_bytes": 533917696
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 19.751859078009147,
+      "free_bytes": 1576030208,
+      "tmp_free_bytes": 533917696
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 19.855402283996227,
+      "free_bytes": 1576030208,
+      "tmp_free_bytes": 533917696
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 19.964733661996434,
+      "free_bytes": 1576030208,
+      "tmp_free_bytes": 533917696
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 20.068441235998762,
+      "free_bytes": 1576030208,
+      "tmp_free_bytes": 533917696
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 20.172325356004876,
+      "free_bytes": 1576030208,
+      "tmp_free_bytes": 533917696
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 20.275994862997322,
+      "free_bytes": 1576030208,
+      "tmp_free_bytes": 530382848
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 20.379266721007298,
+      "free_bytes": 1576030208,
+      "tmp_free_bytes": 517992448
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 20.48310350900283,
+      "free_bytes": 1576026112,
+      "tmp_free_bytes": 504782848
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 20.595381367005757,
+      "free_bytes": 1546878976,
+      "tmp_free_bytes": 504750080
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 20.69875142800447,
+      "free_bytes": 1546878976,
+      "tmp_free_bytes": 504750080
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 20.802512573005515,
+      "free_bytes": 1546878976,
+      "tmp_free_bytes": 504750080
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 20.90873932800605,
+      "free_bytes": 1546878976,
+      "tmp_free_bytes": 504750080
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 21.02125866500137,
+      "free_bytes": 1546878976,
+      "tmp_free_bytes": 504750080
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 21.126091903002816,
+      "free_bytes": 1546878976,
+      "tmp_free_bytes": 504750080
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 21.230017655005213,
+      "free_bytes": 1546874880,
+      "tmp_free_bytes": 504745984
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 21.33885213000758,
+      "free_bytes": 1546874880,
+      "tmp_free_bytes": 504745984
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 21.44458249899617,
+      "free_bytes": 1546874880,
+      "tmp_free_bytes": 504745984
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 21.54964816600841,
+      "free_bytes": 1541791744,
+      "tmp_free_bytes": 499372032
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 21.65337335699587,
+      "free_bytes": 1541492736,
+      "tmp_free_bytes": 499367936
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 21.7589363730076,
+      "free_bytes": 1541488640,
+      "tmp_free_bytes": 499359744
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 21.86405020400707,
+      "free_bytes": 1537286144,
+      "tmp_free_bytes": 495153152
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 21.969779610997648,
+      "free_bytes": 1536823296,
+      "tmp_free_bytes": 494690304
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 22.073030943996855,
+      "free_bytes": 1536823296,
+      "tmp_free_bytes": 494690304
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 22.177033134998055,
+      "free_bytes": 1535422464,
+      "tmp_free_bytes": 493273088
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 22.280950396001572,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 22.38485369400587,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 22.498690638007247,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 22.602315298005124,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 22.710939149998012,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 22.817531626002165,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 22.923781755001983,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 23.027535702000023,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 23.13213748000271,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 23.23704862399609,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 23.343122767997556,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 23.457157248005387,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 23.56083702700562,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 23.665401674996247,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 23.769564486996387,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 23.873659432007116,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 23.981168992002495,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 24.08579430100508,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 24.190663540997775,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 24.294702497005346,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 24.398169482999947,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 24.501710604003165,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 24.60549209799501,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 24.709061162007856,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 24.81238099600887,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 24.916033510002308,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 25.030120032999548,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 25.135537469002884,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 25.239021139001125,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 25.342292369998177,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 25.445943137005088,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 25.55015098200238,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 25.65385162300663,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 25.7573853089998,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 25.861002580000786,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 25.964378543998464,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 26.068248976007453,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 26.172390567007824,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 26.276898023003014,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493268992
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 26.38060665699595,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 493264896
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 26.484095951003837,
+      "free_bytes": 1535418368,
+      "tmp_free_bytes": 486236160
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 26.591311042007874,
+      "free_bytes": 1535414272,
+      "tmp_free_bytes": 470147072
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 26.694624316005502,
+      "free_bytes": 1512284160,
+      "tmp_free_bytes": 470097920
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 26.799785194001743,
+      "free_bytes": 1512284160,
+      "tmp_free_bytes": 470097920
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 26.90461835199676,
+      "free_bytes": 1510211584,
+      "tmp_free_bytes": 468033536
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 27.008754788999795,
+      "free_bytes": 1510211584,
+      "tmp_free_bytes": 468033536
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 27.113149786004215,
+      "free_bytes": 1508114432,
+      "tmp_free_bytes": 465932288
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 27.21663324200199,
+      "free_bytes": 1508110336,
+      "tmp_free_bytes": 465920000
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 27.32038373799878,
+      "free_bytes": 1508106240,
+      "tmp_free_bytes": 465915904
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 27.42539057599788,
+      "free_bytes": 1508106240,
+      "tmp_free_bytes": 465915904
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 27.53021634100878,
+      "free_bytes": 1508106240,
+      "tmp_free_bytes": 465915904
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 27.63518948800629,
+      "free_bytes": 1508106240,
+      "tmp_free_bytes": 465915904
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 27.73857869100175,
+      "free_bytes": 1508106240,
+      "tmp_free_bytes": 465915904
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 27.847856135995244,
+      "free_bytes": 1508106240,
+      "tmp_free_bytes": 465915904
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 27.951515355001902,
+      "free_bytes": 1508106240,
+      "tmp_free_bytes": 465915904
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 28.05537994399492,
+      "free_bytes": 1508106240,
+      "tmp_free_bytes": 465915904
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 28.164287462001084,
+      "free_bytes": 1508106240,
+      "tmp_free_bytes": 465915904
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 28.268079532004776,
+      "free_bytes": 1508106240,
+      "tmp_free_bytes": 465915904
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 28.379026825001347,
+      "free_bytes": 1508106240,
+      "tmp_free_bytes": 464273408
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 28.484161255008075,
+      "free_bytes": 1502806016,
+      "tmp_free_bytes": 460513280
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 28.58886416599853,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 28.692911478996393,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 28.79720132800867,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 28.90137423100532,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 29.005314152003848,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 29.108702434008592,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 29.213162448999356,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 29.31681607000064,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 29.420176169995102,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 29.524343654004042,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 29.62829132800107,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 29.73180673099705,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 29.83780665299855,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 29.954728954005986,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 30.05941181399976,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 30.16475799299951,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 30.27187336400675,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 460509184
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 30.386758709006244,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 398204928
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 30.490962427997147,
+      "free_bytes": 1502801920,
+      "tmp_free_bytes": 398204928
+    },
+    {
+      "stage": "component-compile",
+      "elapsed": 30.59456570299517,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 393015296
+    },
+    {
+      "stage": "sdk-component-group",
+      "elapsed": 32.816420210001525,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 643182592
+    }
+  ],
+  "free_after_cleanup": 1502797824,
+  "tmp_free_after_cleanup": 665190400,
+  "owned_tmp": "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/compiler-tmp",
+  "native_approval": false,
+  "full589_admission": false,
+  "representation_fit_claimed": false,
+  "source_component_only": true,
+  "owned_sdk_bootstrap_component_version": 1,
+  "genuine_historical_red_claimed": false,
+  "compiled_component": {
+    "path": "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/compiler-tmp/component.test",
+    "sha256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d",
+    "bytes": 67492916,
+    "mode": 448,
+    "source_identity_equal": true,
+    "source_overlay_sha256": "9f5cb2334d2b5582ca34370d8b2532205b8ce57baf99edf95c9ff825cd8d5703",
+    "binding": {
+      "device": 34,
+      "inode": 432210,
+      "mode": 448,
+      "uid": 1000,
+      "gid": 1000,
+      "links": 1,
+      "bytes": 67492916,
+      "mtime_ns": 1791300150171707439,
+      "ctime_ns": 1791300150176298171,
+      "sha256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d"
+    },
+    "test2json_source_binding": "Go1.25 builtin cmd/test2json compiled by pinned go tool under same90s caller deadline",
+    "goroot_tool_source_map_sha256": "496dcd651bd0192036c1b4062c375d2bbe3b2d36c39bc9416612151b7b695a72"
+  },
+  "real_provider_semantics_proven": false,
+  "owned_fake_http_boundary_only": true,
+  "anchors": "EMPTY"
+}

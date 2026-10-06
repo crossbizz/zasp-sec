@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "--",
+    "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+    "--test",
+    "scripts/browser-prerequisites.test.mjs",
+    "scripts/browser-e2e-helpers.test.mjs",
+    "scripts/owned-browser-postgres.test.mjs",
+    "scripts/compliance-browser-bytes.test.mjs"
+  ],
+  "cwd": "/workspace/.zasp-cloud-owned/sbom-0b-graph-diagnosis-pgt18jsv/candidate",
+  "source_head": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "pid": 239082,
+  "identity": {
+    "state": "S",
+    "ppid": 239024,
+    "group": 239082,
+    "start_ticks": 3175146
+  },
+  "joined": false,
+  "started_monotonic": 31751.467468732,
+  "capture_deadline_monotonic": 32651.463128992
+}

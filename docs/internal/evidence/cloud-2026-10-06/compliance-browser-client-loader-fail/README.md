@@ -1,0 +1,7 @@
+# Actual local browser attempt FAIL, preserved
+
+Source0b788520159170a825a925a3f639b0b1d63169f5, roottool session24118 actualjoinedexit1. Helper result4.327259799seconds records stage1exit0 andstage2exit1, both actualwaitjoined,0processsurvivors, clean trackedsource before/after, unchanged compiledserver hash. Original reviewed3b59launcher/staticreview preserved. Roottool receipt is an observedjoin receipt, not a newlyinvented initial PID binding.
+
+Stage2 failed before UI/browser acceptance: raw PostgreSQL18.3psql loaded systemlibpq without requiredPQfullProtocolVersion. Original closedcontext actualrawclient --version exit127; pinnedLD_LIBRARY_PATH context samecommand exit0 and exact18.3version. Tool/client/system and pinnedlibpq hashes are in diagnosis. This is a local launcher/runtime-library prerequisite defect, with no selected repository harness/application defect. Read-only Docker ownedbrowserlabel inventory afterward wasempty. Process disappearance and labelinventory are separately observed; no vendor/provider acceptance claim.
+
+No source/tool/guard file was changed by diagnosis. This attempt doesnot supersede actualrootfullnpmverifyPASS822.023seconds, earlier755FAIL, unjoined retry, previousAPI/worker failures, native failures or728task evidence limits. Hosted compliance-step failures remain causeUNKNOWN. RealStytch/AWS/deployment acceptance NOT RUN. A separatelyreviewed launcher-only librarycontext correction may justify a newUUID attempt; this originalFAIL stays unchanged.

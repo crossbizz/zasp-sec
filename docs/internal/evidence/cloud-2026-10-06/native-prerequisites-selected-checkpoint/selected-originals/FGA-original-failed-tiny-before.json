@@ -1,0 +1,86 @@
+{
+  "/tmp/authorization80-real-fga-lifecycle-cases-r4-_8vhbgt2/lifecycle_cases.py": {
+    "sha256": "03494ed50ae1e7e42c78296fecbe607aa736abc7f16514a0decce64cc0216cae",
+    "stat": {
+      "ctime_ns": 1791305711548128282,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 433230,
+      "mode": 33024,
+      "mtime_ns": 1791305711547860189,
+      "nlink": 1,
+      "size": 6184,
+      "uid": 1000
+    }
+  },
+  "/tmp/authorization80-real-fga-parent-r3-116o360m/owned_fga_pg_parent.py": {
+    "sha256": "5a1441a12b253dea95098b76c459509faf8d71d7e96347e9749ec88de79e3808",
+    "stat": {
+      "ctime_ns": 1791305018959909286,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 432905,
+      "mode": 33024,
+      "mtime_ns": 1791305018959733622,
+      "nlink": 1,
+      "size": 14843,
+      "uid": 1000
+    }
+  },
+  "/tmp/authorization80-real-fga-parent-r4-ozzh0v3q/owned_fga_pg_parent.py": {
+    "sha256": "97d4cfb3fec00737f9486b78b3d205a73155a079ad5ca4761cb44bfdb811f58f",
+    "stat": {
+      "ctime_ns": 1791305398438466124,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 432973,
+      "mode": 33024,
+      "mtime_ns": 1791305398438273314,
+      "nlink": 1,
+      "size": 19170,
+      "uid": 1000
+    }
+  },
+  "/tmp/zasp-cloud-tools/bin/tini": {
+    "sha256": "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c",
+    "stat": {
+      "ctime_ns": 1791231898182731132,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 39974,
+      "mode": 33261,
+      "mtime_ns": 1791231897608595786,
+      "nlink": 1,
+      "size": 24064,
+      "uid": 1000
+    }
+  },
+  "/usr/bin/python3": {
+    "sha256": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "stat": {
+      "ctime_ns": 1784147140000000000,
+      "dev": 27,
+      "gid": 0,
+      "ino": 9223372036855102736,
+      "mode": 33261,
+      "mtime_ns": 1784147140000000000,
+      "nlink": 1,
+      "size": 6812336,
+      "uid": 0
+    }
+  },
+  "/usr/bin/timeout": {
+    "sha256": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1",
+    "stat": {
+      "ctime_ns": 1749050045000000000,
+      "dev": 27,
+      "gid": 0,
+      "ino": 9223372036855100607,
+      "mode": 33261,
+      "mtime_ns": 1749050045000000000,
+      "nlink": 1,
+      "size": 47984,
+      "uid": 0
+    }
+  }
+}

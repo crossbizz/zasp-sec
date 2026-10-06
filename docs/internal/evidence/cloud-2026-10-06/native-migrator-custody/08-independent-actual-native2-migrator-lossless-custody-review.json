@@ -1,0 +1,126 @@
+{
+  "ROOTToolObservation": "Parent-supplied session39114/initial4d4c42/polldc6797 terminal0 is reconciled with canonical tool transcription/result/logs; no invented independent ROOT kernel PID receipt.",
+  "actualChildStages": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/native2-readonly-root-observer-source-v1-f4523_4x/fresh-observer-owner-v3.py",
+        "026d10d5538a07c94fad3a660882576f86af432f2c119bd9d9b6020bf1a4948e"
+      ],
+      "cleanupErrors": [],
+      "elapsed_seconds": 3.1274274619936477,
+      "exceptionClass": null,
+      "finishedMonotonicNanoseconds": 70289922595318,
+      "finishedUnixNanoseconds": 1791301550748189993,
+      "forced": false,
+      "joined": true,
+      "ownedResourceState": "unknown-unless-controller-normal-cleanup-validated",
+      "pid": 305014,
+      "returncode": 0,
+      "scope": "ROOT actual fresh observer owner wait only; forced/error/timeout implies no cache binding and possible owned Docker resources remain unknown",
+      "signals": [],
+      "timeout": false
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/native-migrator-lossless-relocation-source-r5ajrt_a/relocate.py",
+        "finalize",
+        "--root-proof-sha256",
+        "87be687625f898a973ba8585a6c07a79f364f3ca02bf4dc2d4bfc3cac60067f5",
+        "--admission-sha256",
+        "120883acaba6c8cecaf170bd4751c37dbc6caaa5009c17bbf864c7632b14a899"
+      ],
+      "cleanupErrors": [],
+      "elapsed_seconds": 0.2645311749947723,
+      "exceptionClass": null,
+      "finishedMonotonicNanoseconds": 70290190989867,
+      "finishedUnixNanoseconds": 1791301551016578934,
+      "forced": false,
+      "joined": true,
+      "ownedResourceState": "unknown-unless-controller-normal-cleanup-validated",
+      "pid": 306142,
+      "returncode": 0,
+      "scope": "ROOT actual fresh observer owner wait only; forced/error/timeout implies no cache binding and possible owned Docker resources remain unknown",
+      "signals": [],
+      "timeout": false
+    }
+  ],
+  "admissionSHA256": "120883acaba6c8cecaf170bd4751c37dbc6caaa5009c17bbf864c7632b14a899",
+  "capacityLimit": "Space fields are actual producer point-in-time observations, not exact causal physical savings or lifetime inactivity guarantee.",
+  "controllerRecordsNormalJoined": 14,
+  "custodySHA256": "11af8ea080a03178b7cc02e91f633cf1fbcdde700e79330b6bbf306958fe5ba7",
+  "fdRows": 48,
+  "finalizeFinishedAgeSecondsUpperBound": 1.856386471,
+  "inactivity": {
+    "after": {
+      "privilegedExactRootProofSHA256": "87be687625f898a973ba8585a6c07a79f364f3ca02bf4dc2d4bfc3cac60067f5",
+      "snapshotNotLifetimeClaim": true,
+      "unknownOrActive": false,
+      "visibleNonZombieProcessesInspected": 10
+    },
+    "before": {
+      "privilegedExactRootProofSHA256": "87be687625f898a973ba8585a6c07a79f364f3ca02bf4dc2d4bfc3cac60067f5",
+      "snapshotNotLifetimeClaim": true,
+      "unknownOrActive": false,
+      "visibleNonZombieProcessesInspected": 10
+    }
+  },
+  "journals": {
+    "/tmp/zasp-cloud-evidence/native-migrator-lossless-relocation-source-r5ajrt_a/finalize-reserved-fallback.jsonl": {
+      "sha256": "e909826174bdf0f8e4aab5bbbd8321bfb8f6b1083714e20c43e81229ed86e246",
+      "states": [
+        "UNVERIFIED-RESERVED",
+        "EXACT-UNLINK-INTENT",
+        "UNLINK-RETURNED",
+        "NORMAL-PHASE-CANDIDATE"
+      ]
+    },
+    "/tmp/zasp-cloud-evidence/native-migrator-lossless-relocation-source-r5ajrt_a/finalize-reserved-primary.jsonl": {
+      "sha256": "e909826174bdf0f8e4aab5bbbd8321bfb8f6b1083714e20c43e81229ed86e246",
+      "states": [
+        "UNVERIFIED-RESERVED",
+        "EXACT-UNLINK-INTENT",
+        "UNLINK-RETURNED",
+        "NORMAL-PHASE-CANDIDATE"
+      ]
+    }
+  },
+  "mechanicalAdmissionAgeSeconds": 1.591788286,
+  "mirroredLedgerExactEquality": true,
+  "mmapRowsPerPID": {
+    "304": 11,
+    "355": 4
+  },
+  "newBindings": {
+    "agentsec-migrate": {
+      "ctime_ns": 1791301124671311502,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 432372,
+      "kind": "file",
+      "mode": 33216,
+      "mtime_ns": 1791266323190066283,
+      "nlink": 1,
+      "sha256": "cba69ee00bbc20939e50d1954c6243e1f347ccd9c6b36971f0d68abb05952d38",
+      "size": 44126392,
+      "uid": 1000
+    }
+  },
+  "oldPayloadPathsAbsent": [
+    "agentsec-migrate"
+  ],
+  "originalRosterMembersBefore": 2,
+  "preparedSHA256": "1f18097a7f458f474160a48b6aac5a6e9dd6f2ca43e82f3044f54ca929778db7",
+  "producerMeasuredSpace": {
+    "tmpAfter": 568221696,
+    "workspaceAfter": 1546698752
+  },
+  "proofReferencesVerified": 14,
+  "proofSHA256": "87be687625f898a973ba8585a6c07a79f364f3ca02bf4dc2d4bfc3cac60067f5",
+  "protectedOriginalRosterMembersAfter": 1,
+  "rootToolJoinSHA256": "cdb2833252dab4a8f4457a2def625314f165dfd2c9303fd7f69fe721b479bbb0",
+  "scope": "Exact original migrator path absent; original receipt and three protected historical proofs retain full metadata/SHA. Complete44MB copied same-FD bytes/metadata unchanged from independent prepared admission. Original cached migration path is historical; new raw custody is not current migrator readiness. No other source/cache/tools/receipts removed or executed; no service/schema/SDK/native/production acceptance.",
+  "status": "ACTUAL-EXACT-ONE-LOSSLESS-RELOCATION-PASS",
+  "totalPayloadBytesPreserved": 44126392
+}

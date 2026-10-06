@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "dir",
+    "/workspace/.zasp-cloud-owned/frozen0b-opaque-publication-wrapper-ya7vfc6n/evidence",
+    "--redact",
+    "--report-format",
+    "json",
+    "--report-path",
+    "/workspace/.zasp-cloud-owned/frozen0b-opaque-publication-wrapper-ya7vfc6n/outer-scoped-scan.json"
+  ],
+  "cwd": "/workspace/zasp-sec",
+  "defaultConfig": true,
+  "findingCount": 0,
+  "ignoreSHA256": "0ea55c26ab249af09129f0ee3d060373c9acdd079ba6d6cd363af0902f4d99d8",
+  "noIgnoreChanges": true,
+  "originalScansRemainFAIL": [
+    1492,
+    1494
+  ],
+  "scope": "encoded outer wrapper metadata only, before addition of its own scan record/report/log and manifest",
+  "status": "PASS",
+  "toolSHA256": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509"
+}

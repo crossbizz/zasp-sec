@@ -1,0 +1,64 @@
+{
+  "format": "independent-final-effective-fingerprint-review-v1",
+  "reviewer": "provider_deployment_readiness",
+  "assessment": "PASS EXACT446 PRIVATE EXCEPTIONS; ROOT APPLICATION AND FRESH FULL-HISTORY SCAN REQUIRED",
+  "candidate_sha256": "eed1fd29226f178d71e6f0e77b1e2cbcc9101513d600e99fc5a081779f85082c",
+  "scope_review_sha256": "8be7780f42c782180269c712f4ee7a3cd0f3490f70cf8851d132d8230880b7eb",
+  "original_ignore_sha256": "5ecc6c3a2d7940de3f00e7da143c8d649eadb9a166a0ab4bc67f713ed77f799c",
+  "remote_ignore_sha256": "5c4bfea2ece4dd0b76e10747053818b9d08a751a4f2ff61d3e1418987e967647",
+  "exact_prefixes_independently_compared": true,
+  "scope": {
+    "appended_unique_coordinates": 446,
+    "duplicates": 0,
+    "all_appended_coordinate_grammar_exact": true,
+    "current_report_findings": 550,
+    "current_report_unique_coordinates": 444,
+    "current_report_sha256": "58dbcf0535a560cda054986e42d12627586ebc26604700af9079a03f8fdea1c3",
+    "uncovered_current_coordinates": 0,
+    "only_extra_coordinates": "Two exact1daf documentary lines48/95 independently rehashed with actual referenced commit objects",
+    "blanket_rule_path_content_changes": false
+  },
+  "semantic_evidence": {
+    "historical538_review_sha256": "b5baca76c13ddc583a81995eb1d68d8218ae0500c7fbc2a0c452240b943b041f",
+    "actual_historical_context_findings_rehashed": 538,
+    "actual_unique_Git_blobs_rehashed": 66,
+    "source_blob_and_line_hash_mismatches": 0,
+    "actual_historical_source_pin_content_hashes_independently_reverified": 252,
+    "new3c_source_pin_count": 8,
+    "new3c_source_pin_review_sha256": "a87724bf69006f8ecab707a9965c0b625b87471dd7c4f00b17ac607d11b48980",
+    "new3c_actual_content_hashes_reverified": true,
+    "c032_public_digest_findings": 4,
+    "c032_exact_coordinates": 3,
+    "c032_review_sha256": "b43b349afe7036dd0e7e8bbde1bbf587cb58d470797a39cffcb98d3294fd2644",
+    "c032_actual_Git_JSON_and_proof_file_hashes_reverified": true,
+    "c032_exact_rehashed_proof_files": [
+      "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/bin/apiserver.test",
+      "/lib/x86_64-linux-gnu/libgssapi_krb5.so.2",
+      "/lib/x86_64-linux-gnu/libkeyutils.so.1"
+    ],
+    "c032_system_library_boundary": "Resolved root-owned library bytes equal digest; session cannot write. Not a forever-frozen system-library claim.",
+    "fresh1daf_actual_blob_line_and_referenced_commit_objects_verified": true,
+    "unclassified_exception": false,
+    "credential_semantics": "Reviewed structural categories and representative context; all538 exact historical contexts rehashed against independently authored semantic adjudication. Prose, source/capture/artifact identity labels and explicit synthetic test fixtures remain distinct from provisioned credential material.",
+    "provenance_limit": "Labeled snapshot/capture/artifact/native identities still do not establish authentic historic native/advisory provenance. Old untransferred classifier/review documents unauthenticated; new exception support is fresh actual-source review."
+  },
+  "canary_controls": {
+    "original_metadata_only_summary_sha256": "f5ca5309308368d7430d46d6e466f8f74fc4db8e98954ed640df5e1f96097669",
+    "fresh_retained_replay_command_evidence_sha256": "a717caf466fbc18d257092c56493199f468ef456c9528928926fbdc70838ec56",
+    "retained_report_and_log_hash_mismatches": 0,
+    "scanner_version": "8.30.1",
+    "actual_scanner_sha256_reverified": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509",
+    "outcomes": [
+      "unlisted_same_production_path:exit1/findings1",
+      "exact_temporary_synthetic_coordinate:exit0/findings0",
+      "same_path_rule_line_new_commit:exit1/findings1",
+      "new_path:exit1/findings2"
+    ],
+    "newcommit_identity_differs_samepath_rule_line": true,
+    "reports_secret_and_match_REDACTED": true,
+    "scope": "Fresh author replay retained four redacted reports/logs and exactcommands/exits independently inspected; reviewer did not rerun scanner or reconstruct destroyed temporary repository."
+  },
+  "readiness": "Permission for exact reviewed ignore integration only. Fresh actual full-history scanner result still required; prior538/546/550 failures remain historical. No native/advisory/security-provenance/production/deployed/release/728 acceptance follows.",
+  "shared_edits_merge_or_scanner_execution_by_reviewer": false,
+  "findings": []
+}

@@ -1,0 +1,59 @@
+{
+  "actual_parent_bindings": {
+    "actual_build_members_bytes_modes_rechecked": 3050,
+    "actual_source_members_bytes_modes_rechecked": 6674,
+    "attestation_path": "/workspace/.zasp-cloud-owned/full-0b-joined-attestation-k7qib38a",
+    "build_manifest_sha256": "27de1aef879ac802f9459169dcc03b8df96433abf1db8e053218f28e4c1bb764",
+    "capture_summary_sha256": "4ceda8011b2767391df1cafb21f9e5c1cd36957d8fd3b1b8a390cb9da19d00e3",
+    "dependency_observation_sha256": "edeba3cdfd5af03313234e07dda2c23c6755b6a11f6fb1ddcbf28ceea1f07576",
+    "dependency_record_scope": "Hash binding verified now; complete dependency-tree content review belongs to separate full-publication review. Not an immutable cache/runtime consumed-module closure claim.",
+    "full_before_processbinding_result_literal_hashes_and_actual_semantics_checked": true,
+    "full_exit0_normal_join_no_timeout_no_surviving_children_source_before_after0b_clean": true,
+    "full_log_sha256": "756e85fc9d3fecff1cb81c7d7d1e9c2e8a3262c0ba15cc0e8184cbdc3c048ac7",
+    "source_commit": "0b788520159170a825a925a3f639b0b1d63169f5",
+    "source_manifest_sha256": "359d7008f324567b4b5e05e3df9c1bf90484eaff947fd39ec4a97f1855513ad4"
+  },
+  "approval_boundaries": [
+    "Exact reviewed3b59 recipe/root-owned new output only; not arbitrary future mutable source/build/recipe authority.",
+    "Root must run serially after joined full guard, preserve actual failures/raw output, inspect all owned Docker/container/process/endpoint cleanup and absence of survivors before any acceptance claim.",
+    "No generic PG/native379/reference SQL/caps/Goanchors or product-source changes; fullPASS and browser control outcomes remain separate.",
+    "No hosted failure-cause inference, real Stytch/AWS/provider, release/deployed/all728 promotion or future browser success presumed.",
+    "Hard kill/power loss/kernel-uninterruptible failures without final joined record remain UNVERIFIED."
+  ],
+  "candidate": {
+    "five_manifest_members_sha_sizes_checked": true,
+    "manifest_sha256": "b8e8cdd9452c3aa6f78a355bdb24cace6a954fe8c63698e742be7ab08e119cde",
+    "path": "/tmp/zasp-cloud-evidence/compliance-browser-0b-launcher-private/launch.py",
+    "sha256": "3b59790b890b3610da2b7e3f1ba6be3fbe04a5bf4d9e9c68c5ec8a8356ae6eee"
+  },
+  "findings": [],
+  "resolved_prior_review": {
+    "checkpoints": "Originalc6be and intermediate81cf retained; no original byte replacement.",
+    "cleanup_signals": "Nonthrowing signal recorder sets failed state while cleanup continues; successful_result requires no signal/failure.",
+    "interpreter": "Explicit env-i allowlisted /usr/bin/python3 recipe.",
+    "sha256": "648cbe048ccc2273e2c04b635b98c8659ab00913097ac6cba85297325d2fdc0d",
+    "source_after": "Bounded final tracked-clean Git status required with exact HEAD and unchanged compiled server hash."
+  },
+  "retained_checks": {
+    "actual_cleanup_self_SIGTERM_refusal": "PASS",
+    "checks_source_and_log_hashes_bound_to_current_manifest": true,
+    "group": "2PASS/0FAIL, no behavioralRED claimed",
+    "independent_execution": false,
+    "real_same_HEAD_Git_source_and_manifest_mutation_refusal": "PASS"
+  },
+  "scope": "Read-only static launcher/protocol/actual parent attestation and retained private repair checks. No launcher/browser/Docker/PG/build/test/version command executed by reviewer. Root owns separate serial execution authorization and outcomes.",
+  "static_recipe": {
+    "Go_cache": "Actual Goenv paths observed; shared existing Go cache/modules not represented as immutable closed inputs.",
+    "absolute_cleanup_seconds": 30,
+    "aggregate_command_deadline_seconds": 900,
+    "closed_child_env_and_explicit_parent_env_i": true,
+    "commands": "Exact four-file Node component command then exact production-combined-e2e.mjs; first nonzero or leftover children refuses next stage.",
+    "container_cleanup": "Harness-owned Docker removal separately required; process disappearance alone insufficient.",
+    "evidence": "Fresh nonexistent workspace directory0700/TMP0700/umask0077; immediate fsynced initial and each argv/PID/startticks/group/source start; actual waits/owned descendants/adopted joins/final durable result.",
+    "storage": "Observe workspace1.5GB/tmp100MB before launch and at <=2s wait intervals; refuse through ordinary TERM/KILL cleanup; same900deadline. No capacity/phase-cap increase.",
+    "subreaper_and_Tini": "Linuxsubreaper; Tini-s/new-session command groups; TERM then KILL final2s, all tracked Popen waits and adopted descendants.",
+    "tools": "Startup actual executable hashes/version receipts and Node22.23.1/Go1.25.13 refusal; these are observed identities, not a complete immutable tool/dynamic-dependency closure."
+  },
+  "status": "PASS_EXACT_STATIC_LAUNCH_RECIPE_PREREQUISITE",
+  "version": "independent-local-browser-launcher-static-review-v2"
+}

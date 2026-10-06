@@ -1,0 +1,32 @@
+--- /workspace/.zasp-cloud-owned/native379-phase-codec-empty-phase-revision-OspKF33a/authorization_worker_ordered_current_native379_phase_codec_cases_test.go
++++ /workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/authorization_worker_ordered_current_native379_phase_codec_cases_test.go
+@@ -151,7 +151,7 @@
+  }
+  return spec,records
+ }
+-func TestNative379PhaseCodecFullSourceCostModel(t *testing.T) {
++func native379PhaseCodecFullSourceCostModel(t *testing.T, users []string) {
+  path:=os.Getenv("ZASP_NATIVE379_PHASE_CODEC_SOURCE_PACKET")
+  if path=="" { t.Fatal("explicit source-only pinned packet path required for this selected cost group") }
+  info,statErr:=os.Lstat(path);if statErr!=nil || !info.Mode().IsRegular() || info.Size()>33554432 { t.Fatal("bounded regular source packet required") }
+@@ -161,7 +161,7 @@
+  admission,err:=native379V3AdmitReviewedRaw(raw,expectedSHA);if err!=nil { t.Fatal("pinned source packet refused",err) };packet:=admission.packet
+  steps:=0;for _,control:=range packet.Controls { steps+=len(control.Program.Steps) }
+  if len(packet.Controls)!=589 || steps!=6348 || len(packet.Rules)!=379 || len(packet.ExpectedFacts)!=10052 || len(packet.SourceInventory.Sites)!=565 { t.Fatal("complete original source census changed") }
+- for _,user:=range []string{"zasp_test",strings.Repeat("u",63),strings.Repeat("\x01",63),strings.Repeat("é",31)+"a"} {
++ for _,user:=range users {
+   if user!="zasp_test" && len([]byte(user))!=63 { t.Fatal("model caller is not an actual legal63-byte fixture") }
+   spec,records:=native379PhaseCodecModel(t,packet,expectedSHA,user,2147483647)
+   rows:=uint64(0);preimages:=0;canonicalBytes:=uint64(0);expandedBytes:=uint64(0)
+@@ -312,3 +312,11 @@
+  nilDecoded,nilReplay,err:=native379PhaseCodecDecode(spec,nilEncoded)
+  if err!=nil || !reflect.DeepEqual(records,nilDecoded) || !reflect.DeepEqual(cost,nilReplay) { t.Fatal("nil-input canonical empty projection differs",err) }
+ }
++
++// Original all-caller entry remains available; ROOT selects the exact four
++// individually named groups below to retain90s per process and shared270s.
++func TestNative379PhaseCodecFullSourceCostModel(t *testing.T) { native379PhaseCodecFullSourceCostModel(t,[]string{"zasp_test",strings.Repeat("u",63),strings.Repeat("\x01",63),strings.Repeat("é",31)+"a"}) }
++func TestNative379PhaseCodecSourceCallerShort(t *testing.T) { native379PhaseCodecFullSourceCostModel(t,[]string{"zasp_test"}) }
++func TestNative379PhaseCodecSourceCallerASCII63(t *testing.T) { native379PhaseCodecFullSourceCostModel(t,[]string{strings.Repeat("u",63)}) }
++func TestNative379PhaseCodecSourceCallerControl63(t *testing.T) { native379PhaseCodecFullSourceCostModel(t,[]string{strings.Repeat("\x01",63)}) }
++func TestNative379PhaseCodecSourceCallerUTF8_63(t *testing.T) { native379PhaseCodecFullSourceCostModel(t,[]string{strings.Repeat("é",31)+"a"}) }

@@ -1,0 +1,90 @@
+{
+  "actualControlledReview": {
+    "path": "/tmp/zasp-cloud-evidence/independent-actual-compliance-current-schema-TDD-review.json",
+    "sha256": "903700fafec2f38399bc9933656742e24b584499e033bfe0245f007cf7f02e18"
+  },
+  "after": {
+    "/workspace/zasp-sec/scripts/compliance-current-runtime.mjs": {
+      "bytes": 1453,
+      "device": 27,
+      "exists": true,
+      "inode": 995096,
+      "mode": 420,
+      "nlink": 1,
+      "sha256": "849087c235782785edb1909ee1e66f858fd7ecb4f1ff75790a58e426b5d50641"
+    },
+    "/workspace/zasp-sec/scripts/compliance-current-runtime.test.mjs": {
+      "bytes": 4304,
+      "device": 27,
+      "exists": true,
+      "inode": 995097,
+      "mode": 420,
+      "nlink": 1,
+      "sha256": "285ec4c0fea2dfcc710e90d6472c161832b001b26e5957df6a580f84733e3534"
+    },
+    "/workspace/zasp-sec/scripts/compliance-runtime-prerequisites.mjs": {
+      "bytes": 4183,
+      "device": 27,
+      "exists": true,
+      "inode": 994877,
+      "mode": 384,
+      "nlink": 1,
+      "sha256": "5284fa9c7f8c3a2fe761b06e8966956a136b6e120630c13aca48b05b6c865e62"
+    },
+    "/workspace/zasp-sec/scripts/production-combined-e2e.mjs": {
+      "bytes": 664857,
+      "device": 27,
+      "exists": true,
+      "inode": 995098,
+      "mode": 420,
+      "nlink": 1,
+      "sha256": "adc93ce62345fc627dc4686158c83ae0ff0a1dd9a153d0a10912fe2e34da4a26"
+    }
+  },
+  "before": {
+    "/workspace/zasp-sec/scripts/compliance-current-runtime.mjs": {
+      "exists": false
+    },
+    "/workspace/zasp-sec/scripts/compliance-current-runtime.test.mjs": {
+      "exists": false
+    },
+    "/workspace/zasp-sec/scripts/compliance-runtime-prerequisites.mjs": {
+      "bytes": 4183,
+      "device": 27,
+      "exists": true,
+      "inode": 994877,
+      "mode": 384,
+      "nlink": 1,
+      "sha256": "5284fa9c7f8c3a2fe761b06e8966956a136b6e120630c13aca48b05b6c865e62"
+    },
+    "/workspace/zasp-sec/scripts/production-combined-e2e.mjs": {
+      "bytes": 664292,
+      "device": 27,
+      "exists": true,
+      "inode": 788105,
+      "mode": 384,
+      "nlink": 1,
+      "sha256": "b0e130ef7c475e3c3da22d8533525e9f93e89c505008f683343be2df6fa2d5d0"
+    }
+  },
+  "format": "reviewed-compliance-schema-source-adoption-v1",
+  "scope": "Schema/profile orchestration only; controlled3tests notSQL/runtime/API/browser acceptance. Realownedservices/projector/currentSQLguards remain; unchanged10binding validator. Originalcandidate/baseline bytes retained at sourceCandidate namespace.",
+  "sourceCandidateManifestSHA256": "17fe385d45e0f31b74f34bd1b92fe61158c034a47f821d55d89c35ff7e6e4e01",
+  "sourceStaticReview": {
+    "path": "/tmp/zasp-cloud-evidence/independent-compliance-current-schema-source-TDD-static-review.json",
+    "sha256": "1e23bc7c182b93627ae5c283367e5586a63fcbf24076750fc85d70adc8d1734d"
+  },
+  "status": "ADOPTED-SOURCE-ONLY-NO-COMMIT-NO-RUNTIME",
+  "testDerivation": {
+    "changes": [
+      "one helper import path ./scripts\u2192./",
+      "append cases(actualproductionURL) same invocation as reviewedcandidate wrapper"
+    ],
+    "exactDiff": {
+      "path": "/tmp/zasp-cloud-evidence/compliance-current-schema-adoption-t0q0dmeu/test-relocation.diff",
+      "sha256": "0fef5e812ed6e3f2823fc8adbd3893f43f68d361123a8f1fdca640891e8a11e3"
+    },
+    "repositoryTestSHA256": "285ec4c0fea2dfcc710e90d6472c161832b001b26e5957df6a580f84733e3534",
+    "reviewedBodySHA256": "545f36e5eff8729a6c8841ae6cd47c104c3de0d8f0b46da5fce3a3f730d93819"
+  }
+}

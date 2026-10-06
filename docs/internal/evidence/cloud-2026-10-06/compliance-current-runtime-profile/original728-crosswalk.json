@@ -1,0 +1,227 @@
+{
+  "crosswalk": [
+    {
+      "evidenceLimit": "Current profile+verifier selection beforeAPI enables actualproductionreadiness preconditions; current SQL/liveAPI readiness not executed.",
+      "id": "M1-28",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M1-28 - service health endpoints",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1060,
+      "relation": "command-currentreadiness"
+    },
+    {
+      "evidenceLimit": "Current profile+verifier selection beforeAPI enables actualproductionreadiness preconditions; current SQL/liveAPI readiness not executed.",
+      "id": "M1-28b",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M1-28b - platform health wiring",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1042,
+      "relation": "command-currentreadiness"
+    },
+    {
+      "evidenceLimit": "BothAPI roles and runtime79/80 required; full liveFGA Check/revision and crossscope/tenant denial stillunexecuted.",
+      "id": "M2-06",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M2-06 - authorization middleware",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1358,
+      "relation": "currentauthorization-and-isolation"
+    },
+    {
+      "evidenceLimit": "BothAPI roles and runtime79/80 required; full liveFGA Check/revision and crossscope/tenant denial stillunexecuted.",
+      "id": "M2-47c",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M2-47c - M2 workspace authorization E2E",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1700,
+      "relation": "currentauthorization-and-isolation"
+    },
+    {
+      "evidenceLimit": "BothAPI roles and runtime79/80 required; full liveFGA Check/revision and crossscope/tenant denial stillunexecuted.",
+      "id": "M2-48",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M2-48 - cross-Organization API authorization",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1718,
+      "relation": "currentauthorization-and-isolation"
+    },
+    {
+      "evidenceLimit": "BothAPI roles and runtime79/80 required; full liveFGA Check/revision and crossscope/tenant denial stillunexecuted.",
+      "id": "M2-50",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M2-50 - SaaS Organization isolation E2E",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1730,
+      "relation": "currentauthorization-and-isolation"
+    },
+    {
+      "evidenceLimit": "Original compliance56 fixture/export/API/browser scenario assertions preserved; orchestration component tests do not prove endpoints, exports or mountedUI.",
+      "id": "M7-10",
+      "ledgerClassUnchanged": "component-only",
+      "originalRequirement": "M7-10 - API listComplianceControls",
+      "ownerUnchanged": "T14-data-workflows",
+      "planLine": 3234,
+      "relation": "compliance-api-export-ui"
+    },
+    {
+      "evidenceLimit": "Original compliance56 fixture/export/API/browser scenario assertions preserved; orchestration component tests do not prove endpoints, exports or mountedUI.",
+      "id": "M7-11",
+      "ledgerClassUnchanged": "component-only",
+      "originalRequirement": "M7-11 - API listComplianceEvidence",
+      "ownerUnchanged": "T14-data-workflows",
+      "planLine": 3240,
+      "relation": "compliance-api-export-ui"
+    },
+    {
+      "evidenceLimit": "Original compliance56 fixture/export/API/browser scenario assertions preserved; orchestration component tests do not prove endpoints, exports or mountedUI.",
+      "id": "M7-12",
+      "ledgerClassUnchanged": "component-only",
+      "originalRequirement": "M7-12 - API createComplianceExport",
+      "ownerUnchanged": "T14-data-workflows",
+      "planLine": 3246,
+      "relation": "compliance-api-export-ui"
+    },
+    {
+      "evidenceLimit": "Original compliance56 fixture/export/API/browser scenario assertions preserved; orchestration component tests do not prove endpoints, exports or mountedUI.",
+      "id": "M7-13",
+      "ledgerClassUnchanged": "component-only",
+      "originalRequirement": "M7-13 - API getComplianceExport",
+      "ownerUnchanged": "T14-data-workflows",
+      "planLine": 3252,
+      "relation": "compliance-api-export-ui"
+    },
+    {
+      "evidenceLimit": "Original compliance56 fixture/export/API/browser scenario assertions preserved; orchestration component tests do not prove endpoints, exports or mountedUI.",
+      "id": "M7-14",
+      "ledgerClassUnchanged": "component-only",
+      "originalRequirement": "M7-14 - compliance export artifact",
+      "ownerUnchanged": "T14-data-workflows",
+      "planLine": 3258,
+      "relation": "compliance-api-export-ui"
+    },
+    {
+      "evidenceLimit": "Original compliance56 fixture/export/API/browser scenario assertions preserved; orchestration component tests do not prove endpoints, exports or mountedUI.",
+      "id": "M7-15d",
+      "ledgerClassUnchanged": "component-only",
+      "originalRequirement": "M7-15d - Compliance export action",
+      "ownerUnchanged": "T14-data-workflows",
+      "planLine": 3282,
+      "relation": "compliance-api-export-ui"
+    },
+    {
+      "evidenceLimit": "Original compliance56 fixture/export/API/browser scenario assertions preserved; orchestration component tests do not prove endpoints, exports or mountedUI.",
+      "id": "M7-15",
+      "ledgerClassUnchanged": "component-only",
+      "originalRequirement": "M7-15 - Compliance Evidence UI",
+      "ownerUnchanged": "T14-data-workflows",
+      "planLine": 3288,
+      "relation": "compliance-api-export-ui"
+    },
+    {
+      "evidenceLimit": "Explicit remainingoriginalidentity/bootstrap requirements; localStytchidentityfixture doesnot prove liveproviderfirstAdmin sign-in.",
+      "id": "M0-02",
+      "ledgerClassUnchanged": "component-only",
+      "originalRequirement": "M0-02 - Stytch test config",
+      "ownerUnchanged": "T11-identity-admin",
+      "planLine": 680,
+      "relation": "externalidentity-and-bootstrap"
+    },
+    {
+      "evidenceLimit": "Explicit remainingoriginalidentity/bootstrap requirements; localStytchidentityfixture doesnot prove liveproviderfirstAdmin sign-in.",
+      "id": "M2-07d",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M2-07d - first-Admin bootstrap E2E",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1388,
+      "relation": "externalidentity-and-bootstrap"
+    }
+  ],
+  "format": "compliance-current-profile-original728-criticalpath-crosswalk-v1",
+  "ledgerCountsUnchanged": {
+    "blocked/external": 61,
+    "component-only": 144,
+    "missing": 0,
+    "production-available": 523
+  },
+  "ledgerSHA256": "a162d9575349b6ce7e19c9dc5f6db62f5ef1951419e48efe627515d1fc09a0f1",
+  "limits": [
+    "OnlylistedIDs identifiedfromexactoriginalheadings+existingledger; no guessedmicrotaskIDs/all728completion claim.",
+    "Privatecrosswalk only; no ledger/receipt/sharedsource mutation or compiler/runtime by reviewer.",
+    "Current hostedfailurecause remainsunknown; sourceprerequisite pathcannotlabel observedrootcause."
+  ],
+  "nextDependencyOrder": [
+    {
+      "requirement": "Actual pinnednativeTemporal/PostgreSQL persistence+OpenFGA authenticateddatastore/model bootstrap;10bindings populatedonlyobservedvalues. NativeSQL83/toolchain issuance separate, this CLIpath currentcanonical61/logical79/80 not83 acceptance.",
+      "step": 1
+    },
+    {
+      "requirement": "Run supported currentruntimeprofile on harnessPG with realregistered roles/key readiness. Verify transformation of seeded56identity/membership/grants into current79/80 profile and exactproductFGA model.",
+      "step": 2
+    },
+    {
+      "requirement": "Deliver authoritativeinitialdesired/appliedrevision+generation/store/model tuples, then adapt any legacyseed/mutation fixture through supportedcurrentidentity/session/permission contracts as necessary. Do not manuallysetapplied orre-enablelegacyunion authorizer.",
+      "step": 3
+    },
+    {
+      "requirement": "ActualproductionAPI readiness/core+securityrole contracts, realcurrentpermission checks/revocation/tenant isolation then unchangedcompliancebrowser+exports. Retainauthfailures until causeproven; sourcefixturePASS no substitute.",
+      "step": 4
+    },
+    {
+      "requirement": "RealStytchbootstrap/SSO/webhook tenantlifecycle and realstorageprovider IAM/STS/S3/KMS+deployment authority for originalproductionE2E; localidentity/controlledstorage cannotpromote these.",
+      "step": 5
+    }
+  ],
+  "originalScopeRows": 728,
+  "planSHA256": "2eea10a4f38be2bd76f4c1e734a2dae3d47e340fc36be42946d0762786afb102",
+  "remainingSeedSemantics": [
+    {
+      "line": 2203,
+      "path": "scripts/production-combined-e2e.mjs",
+      "risk": "legacy authorized_scopes permissionupdate precedes profile; actualprofileprojection conversion unverified"
+    },
+    {
+      "line": 2351,
+      "path": "scripts/production-combined-e2e.mjs",
+      "risk": "postprofile foreignfixture direct product_sessions insert+authorized_scopes update mayrequirecurrentidentity/projectioncontract; neither admittednor changed in this batch"
+    },
+    {
+      "line": 3325,
+      "path": "scripts/production-combined-e2e.mjs",
+      "risk": "seedPostgres legacyidentity/session/scope writes: currentprofile transformation/providersemantics mustbeactualvalidated"
+    }
+  ],
+  "sourceRefs": [
+    {
+      "behavior": "10bindingsvalidation+supportedCLIselection+samekeyverifier+canonical61refusal",
+      "line": 6,
+      "path": "scripts/compliance-current-runtime.mjs"
+    },
+    {
+      "behavior": "explicitmigrationinputs into selectedcompliance path",
+      "line": 362,
+      "path": "scripts/production-combined-e2e.mjs"
+    },
+    {
+      "behavior": "retain original56fixture thencurrentprofile beforeAPI",
+      "line": 2208,
+      "path": "scripts/production-combined-e2e.mjs"
+    },
+    {
+      "behavior": "realruntime/currentauth/roles/checker/readinessrequired",
+      "line": 45,
+      "path": "services/platform/agentsec-api/production_runtime.go"
+    },
+    {
+      "behavior": "core+securityAPI auth80auditready",
+      "line": 10,
+      "path": "services/platform/agentsec-api/authorization_runtime_readiness.go"
+    },
+    {
+      "behavior": "authoritative79revision/snapshot/stage/ack/revalidate",
+      "line": 29,
+      "path": "services/platform/authorization/projection_postgres.go"
+    }
+  ],
+  "status": "SOURCE-COMPONENT-CROSSWALK-NO-PROMOTION",
+  "verifiedBehavior": "ActualsourceprefixRED1noSkip\u2192candidate3PASS and ROOTaffected131total129PASS0FAIL2originaloptinSKIP verify orchestration/guard/fixture contracts only; currentaffectedactualindependentreviewpending, not livecurrentprofile/browserflow."
+}

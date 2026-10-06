@@ -1,0 +1,57 @@
+{
+  "completed": true,
+  "fullInputStatHashUnchangedAfterEach": true,
+  "recipeSHA256": "4c0da29cd5c1b26a3a15b2a19c176348cbee65cd8bb52b0b8b50f55701a541b5",
+  "records": [
+    {
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "30s",
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "--test-name-pattern",
+        "actual compliance startup",
+        "baseline-schema.test.mjs"
+      ],
+      "elapsedAggregateSeconds": 0.3866884970047977,
+      "exit": 1,
+      "name": "actualprefix-causal-red",
+      "normalWait": true,
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "81ade902bb566a6010d9e1423e27660e485bec48eddc129630b9bfe8f042e686"
+    },
+    {
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "30s",
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "candidate-schema.test.mjs"
+      ],
+      "elapsedAggregateSeconds": 0.766843195000547,
+      "exit": 0,
+      "name": "orchestration-and-failclosed-green",
+      "normalWait": true,
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "d8e20c562882b99e7fb816def5ce273776ff59071d8f8aa59dc127f39c1296db"
+    }
+  ],
+  "schema": "root-compliance-schema-causal-TDD-v1",
+  "sourceScope": "CONTROLLED-ORCHESTRATION-ONLY-NO-SQL-SERVICES-API-BROWSER"
+}

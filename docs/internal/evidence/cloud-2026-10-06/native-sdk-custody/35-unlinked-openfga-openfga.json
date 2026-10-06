@@ -1,0 +1,19 @@
+{
+  "destination": "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/openfga/openfga",
+  "destinationBinding": {
+    "ctime_ns": 1791299285646763932,
+    "dev": 34,
+    "gid": 1000,
+    "ino": 430098,
+    "kind": "file",
+    "mode": 33088,
+    "mtime_ns": 1791295562168681395,
+    "nlink": 1,
+    "sha256": "1071466abb2f9f71ecc4a047ff6537215756940edd404feb1e3ce0d4f854fd5a",
+    "size": 64577698,
+    "uid": 1000
+  },
+  "original": "openfga/openfga",
+  "originalPathAbsent": true,
+  "originalSHA256": "1071466abb2f9f71ecc4a047ff6537215756940edd404feb1e3ce0d4f854fd5a"
+}

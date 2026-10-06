@@ -1,0 +1,9 @@
+=== RUN   TestP7OrderedCurrentIntegrityNativeV2
+=== RUN   TestP7OrderedCurrentIntegrityNativeV2/owned-postgresql-18.3
+    authorization_worker_ordered_current_native379_v2_test.go:2689: native379 pristine catalog equality refused: diagnostic={"expected":0,"live":0,"missing":0,"extra":0,"changed":0,"duplicates":0,"overflow":true,"error":"collector stream refused","entries":[]}
+    postgres_integration_test.go:1409: joined owned PostgreSQL pid=85297 data=/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/tmp/TestP7OrderedCurrentIntegrityNativeV2owned-postgresql-18.33197312789/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== NAME  TestP7OrderedCurrentIntegrityNativeV2
+    authorization_worker_ordered_current_native379_v2_test.go:2698: ordered-current native379 owned fixture did not complete cleanly
+--- FAIL: TestP7OrderedCurrentIntegrityNativeV2 (205.99s)
+    --- FAIL: TestP7OrderedCurrentIntegrityNativeV2/owned-postgresql-18.3 (179.46s)
+FAIL

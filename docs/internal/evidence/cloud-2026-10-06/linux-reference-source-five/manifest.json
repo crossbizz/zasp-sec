@@ -1,0 +1,585 @@
+{
+  "format": "linux-source-five-publication-v1",
+  "scope": "source-only",
+  "members": [
+    {
+      "path": "source/build-ordered-current-linux-successor-v1.mjs",
+      "sha256": "b5a8d9dc9e11a52d07113b3d315ef9c04cc46774e452ebe7a80be366038f2249",
+      "bytes": 63596,
+      "originalPrivatePath": "/workspace/zasp-sec/services/platform/migrations/tools/build-ordered-current-linux-successor-v1.mjs",
+      "originalSHA256": "b5a8d9dc9e11a52d07113b3d315ef9c04cc46774e452ebe7a80be366038f2249",
+      "originalBytes": 63596,
+      "encoding": "identity"
+    },
+    {
+      "path": "source/ordered-current-linux-provenance-v1.mjs",
+      "sha256": "64b0d211765c03071d124d1443831d2d9c3f60393878eadcbaf6ac4635be80e0",
+      "bytes": 2804,
+      "originalPrivatePath": "/workspace/zasp-sec/services/platform/migrations/tools/ordered-current-linux-provenance-v1.mjs",
+      "originalSHA256": "64b0d211765c03071d124d1443831d2d9c3f60393878eadcbaf6ac4635be80e0",
+      "originalBytes": 2804,
+      "encoding": "identity"
+    },
+    {
+      "path": "source/ordered-current-linux-provenance-v1.json",
+      "sha256": "68425b6efc85e163c5028dadb4b8ff3ec219dfb5d7a8a2772c73a58a45dddfb5",
+      "bytes": 9497,
+      "originalPrivatePath": "/workspace/zasp-sec/services/platform/migrations/tools/ordered-current-linux-provenance-v1.json",
+      "originalSHA256": "68425b6efc85e163c5028dadb4b8ff3ec219dfb5d7a8a2772c73a58a45dddfb5",
+      "originalBytes": 9497,
+      "encoding": "identity"
+    },
+    {
+      "path": "source/build-ordered-current-linux-successor-v1.test.mjs",
+      "sha256": "94dea86cf72c42b687ec28909b76b7eb06d0292190684c1b9084271a522f70a1",
+      "bytes": 3762,
+      "originalPrivatePath": "/workspace/zasp-sec/services/platform/migrations/tools/build-ordered-current-linux-successor-v1.test.mjs",
+      "originalSHA256": "94dea86cf72c42b687ec28909b76b7eb06d0292190684c1b9084271a522f70a1",
+      "originalBytes": 3762,
+      "encoding": "identity"
+    },
+    {
+      "path": "source/ordered-current-linux-provenance-v1.test.mjs",
+      "sha256": "9e1658847bbc433dcc3755b7d75dfd792b66743153832f7dff37c0a819b60c38",
+      "bytes": 3490,
+      "originalPrivatePath": "/workspace/zasp-sec/services/platform/migrations/tools/ordered-current-linux-provenance-v1.test.mjs",
+      "originalSHA256": "9e1658847bbc433dcc3755b7d75dfd792b66743153832f7dff37c0a819b60c38",
+      "originalBytes": 3490,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/generator-feature-red.log",
+      "sha256": "2e540beaee6e963830b44ba0dbf083b0be08bf960099eea2cbf937a2a94f8920",
+      "bytes": 1682,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/generator-feature-red.log",
+      "originalSHA256": "2e540beaee6e963830b44ba0dbf083b0be08bf960099eea2cbf937a2a94f8920",
+      "originalBytes": 1682,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/generator-group-first.log",
+      "sha256": "07ad42522fc20e29d078690a26c73e210e64134773d53d443bf3c4c7a602f31d",
+      "bytes": 1998,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/generator-group-first.log",
+      "originalSHA256": "07ad42522fc20e29d078690a26c73e210e64134773d53d443bf3c4c7a602f31d",
+      "originalBytes": 1998,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/generator-group-second.log",
+      "sha256": "ae89f5a811271ba4ea42ae7a7247eea5f68da6f3eceba7cf4a6041b2ab3d95f4",
+      "bytes": 888,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/generator-group-second.log",
+      "originalSHA256": "ae89f5a811271ba4ea42ae7a7247eea5f68da6f3eceba7cf4a6041b2ab3d95f4",
+      "originalBytes": 888,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/historical-generator-source.sha256",
+      "sha256": "efa4918edc66f2237ac0b3d0552774654b247347a87d1045e8ae4f70e69fc645",
+      "bytes": 65,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/historical-generator-source.sha256",
+      "originalSHA256": "efa4918edc66f2237ac0b3d0552774654b247347a87d1045e8ae4f70e69fc645",
+      "originalBytes": 65,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/linux-successor-source-only-receipt.json",
+      "sha256": "d34f8d0707fb188824f0affde590f34b7452326219470188b505a04f0ec5f2f7",
+      "bytes": 3082,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-successor-source-only-receipt.json",
+      "originalSHA256": "d34f8d0707fb188824f0affde590f34b7452326219470188b505a04f0ec5f2f7",
+      "originalBytes": 3082,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/prepare-descriptor.py",
+      "sha256": "4cab494e4d03de1f017fda7c6d8efc9340786291da3943c31b81ab125753f2a0",
+      "bytes": 2342,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/prepare-descriptor.py",
+      "originalSHA256": "4cab494e4d03de1f017fda7c6d8efc9340786291da3943c31b81ab125753f2a0",
+      "originalBytes": 2342,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/prepare-generator.py",
+      "sha256": "e870806b01db7308777fa5830553c151a5d7dc63c991ad03c50f5a72d553f9bf",
+      "bytes": 8411,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/prepare-generator.py",
+      "originalSHA256": "e870806b01db7308777fa5830553c151a5d7dc63c991ad03c50f5a72d553f9bf",
+      "originalBytes": 8411,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/provenance-array-behavioral-red.log",
+      "sha256": "0f4e30568709cf50b33a4ed8b340440b48900f05efd2eb3ba740c075a229c74e",
+      "bytes": 2090,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/provenance-array-behavioral-red.log",
+      "originalSHA256": "0f4e30568709cf50b33a4ed8b340440b48900f05efd2eb3ba740c075a229c74e",
+      "originalBytes": 2090,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/provenance-array-green.log",
+      "sha256": "be35bd2cceeceffa4bbc01ceeb9f6dda99332973b3846f8797a7895e1711c510",
+      "bytes": 1304,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/provenance-array-green.log",
+      "originalSHA256": "be35bd2cceeceffa4bbc01ceeb9f6dda99332973b3846f8797a7895e1711c510",
+      "originalBytes": 1304,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/provenance-array-open-red.mjs",
+      "sha256": "3b03e88a3a917f3380e0648f13b6fcaf338f7642cac8af6a062529c440f5ccc2",
+      "bytes": 2382,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/provenance-array-open-red.mjs",
+      "originalSHA256": "3b03e88a3a917f3380e0648f13b6fcaf338f7642cac8af6a062529c440f5ccc2",
+      "originalBytes": 2382,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/provenance-behavioral-red.log",
+      "sha256": "67cfc74ea41fdfb041f61111f7090180f5728ee7867516dbc1aebaa141808379",
+      "bytes": 3440,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/provenance-behavioral-red.log",
+      "originalSHA256": "67cfc74ea41fdfb041f61111f7090180f5728ee7867516dbc1aebaa141808379",
+      "originalBytes": 3440,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/provenance-feature-red.log",
+      "sha256": "9dfa4723208007e961cb4318f081a71787d7fd052edb58813976cea557cfdf33",
+      "bytes": 1652,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/provenance-feature-red.log",
+      "originalSHA256": "9dfa4723208007e961cb4318f081a71787d7fd052edb58813976cea557cfdf33",
+      "originalBytes": 1652,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/provenance-green.log",
+      "sha256": "30baaa83055dde1d2644953234b3246663ef7467c65d10703ffb47c747e11224",
+      "bytes": 1080,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/provenance-green.log",
+      "originalSHA256": "30baaa83055dde1d2644953234b3246663ef7467c65d10703ffb47c747e11224",
+      "originalBytes": 1080,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/provenance-incomplete-draft-red.mjs",
+      "sha256": "4d768e7c11988841f0bb69aef8f0b09a216a3bf177cd845064b4cd7dd132359a",
+      "bytes": 287,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/provenance-incomplete-draft-red.mjs",
+      "originalSHA256": "4d768e7c11988841f0bb69aef8f0b09a216a3bf177cd845064b4cd7dd132359a",
+      "originalBytes": 287,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/retain-source-assembly-incomplete-roster.py",
+      "sha256": "a9f795836bffbd628e14b84b217caca9e1137bac6c92361d21ed2c658a7cba33",
+      "bytes": 5534,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/retain-source-assembly-incomplete-roster.py",
+      "originalSHA256": "a9f795836bffbd628e14b84b217caca9e1137bac6c92361d21ed2c658a7cba33",
+      "originalBytes": 5534,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/retain-source-assembly-stale-shared-outputs.py",
+      "sha256": "ca2e3bffda796ab8eec04f207c89b24048e18f013744511ae3b1399627d7067c",
+      "bytes": 5521,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/retain-source-assembly-stale-shared-outputs.py",
+      "originalSHA256": "ca2e3bffda796ab8eec04f207c89b24048e18f013744511ae3b1399627d7067c",
+      "originalBytes": 5521,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/retain-source-assembly.py",
+      "sha256": "c385d4c8020d45cfab96212594db6b33b90067a1777b01b127f48adf3f44e46a",
+      "bytes": 5670,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/retain-source-assembly.py",
+      "originalSHA256": "c385d4c8020d45cfab96212594db6b33b90067a1777b01b127f48adf3f44e46a",
+      "originalBytes": 5670,
+      "encoding": "identity"
+    },
+    {
+      "path": "author/source-group-current.log",
+      "sha256": "ea5bd7b5345781234f8da1fe40a49080d65ab1d35e1f287f2017c3ee75d0280f",
+      "bytes": 2336,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/source-group-current.log",
+      "originalSHA256": "ea5bd7b5345781234f8da1fe40a49080d65ab1d35e1f287f2017c3ee75d0280f",
+      "originalBytes": 2336,
+      "encoding": "identity"
+    },
+    {
+      "path": "assembly/baseline-eight-record.json",
+      "sha256": "7f8d9fa7ed19c8cbc5e45ba7b1579767a553d01e076086045f6334657cd4c9cc",
+      "bytes": 846,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/baseline-eight-record.json",
+      "originalSHA256": "7f8d9fa7ed19c8cbc5e45ba7b1579767a553d01e076086045f6334657cd4c9cc",
+      "originalBytes": 846,
+      "encoding": "identity"
+    },
+    {
+      "path": "assembly/baseline-eight.log.gz",
+      "sha256": "b4c1b271718227933c999be6d811127b273bb3596a122c570d1af299baf6f707",
+      "bytes": 83887,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/baseline-eight.log",
+      "originalSHA256": "d2dacb37b1f8e31d0142d1465f8d741433bcc707ee237b3be937c559624d58e4",
+      "originalBytes": 702165,
+      "encoding": "gzip"
+    },
+    {
+      "path": "assembly/full-source-delta-record.json",
+      "sha256": "f9f2ed9b7f9b493e60caabbd0fce5eb3f055fae4d6b5ede8db55aa596e618725",
+      "bytes": 1005,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/full-source-delta-record.json",
+      "originalSHA256": "f9f2ed9b7f9b493e60caabbd0fce5eb3f055fae4d6b5ede8db55aa596e618725",
+      "originalBytes": 1005,
+      "encoding": "identity"
+    },
+    {
+      "path": "assembly/full-source-delta.log.gz",
+      "sha256": "0deb2b7dba97689d24c16b47a87bda7383a07ca41bf4eae9a2b63e1492ed271d",
+      "bytes": 115492,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/full-source-delta.log",
+      "originalSHA256": "ef0897845df1fb8857591949c1e38867c7c7f411443e409d09d73b9b911f43cf",
+      "originalBytes": 2377469,
+      "encoding": "gzip"
+    },
+    {
+      "path": "assembly/independent-emitted-module-byte-audit.json",
+      "sha256": "80cbc9779d3257e4746fa2fd554260bf9b8cf9c2d0c696f16c64f9da6ecb62bd",
+      "bytes": 932,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/independent-emitted-module-byte-audit.json",
+      "originalSHA256": "80cbc9779d3257e4746fa2fd554260bf9b8cf9c2d0c696f16c64f9da6ecb62bd",
+      "originalBytes": 932,
+      "encoding": "identity"
+    },
+    {
+      "path": "assembly/source-group-record.json",
+      "sha256": "429288743eaf5685bbbe82d9b1394e43b1b0cda939855ddb5c3a6fb117d38d31",
+      "bytes": 942,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source-group-record.json",
+      "originalSHA256": "429288743eaf5685bbbe82d9b1394e43b1b0cda939855ddb5c3a6fb117d38d31",
+      "originalBytes": 942,
+      "encoding": "identity"
+    },
+    {
+      "path": "assembly/source-group.log",
+      "sha256": "eabdf563eca2d8bbf5e1788f94d3717ace0b8e732c7c9c057f8fd01fa6a33751",
+      "bytes": 2333,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source-group.log",
+      "originalSHA256": "eabdf563eca2d8bbf5e1788f94d3717ace0b8e732c7c9c057f8fd01fa6a33751",
+      "originalBytes": 2333,
+      "encoding": "identity"
+    },
+    {
+      "path": "assembly/successor-check-record.json",
+      "sha256": "8ea4e3ff9887e8692b274adbae1e5793c91c90ff09508ce8b4dd460330724246",
+      "bytes": 854,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/successor-check-record.json",
+      "originalSHA256": "8ea4e3ff9887e8692b274adbae1e5793c91c90ff09508ce8b4dd460330724246",
+      "originalBytes": 854,
+      "encoding": "identity"
+    },
+    {
+      "path": "assembly/successor-check.log.gz",
+      "sha256": "64162e59f47ad75b3885bb2130385b18557bf7f45e7e5d880e932759e1b4dc9a",
+      "bytes": 84222,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/successor-check.log",
+      "originalSHA256": "730b235fb51cc90aea4eafaebce59fde582ee37d26b531a274c5bbbfefc3f11b",
+      "originalBytes": 702802,
+      "encoding": "gzip"
+    },
+    {
+      "path": "assembly/successor-eight-record.json",
+      "sha256": "1a7cce115245f8113df9d9561196c5586df9fae6e4f519783fd0d110ea38f4ad",
+      "bytes": 854,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/successor-eight-record.json",
+      "originalSHA256": "1a7cce115245f8113df9d9561196c5586df9fae6e4f519783fd0d110ea38f4ad",
+      "originalBytes": 854,
+      "encoding": "identity"
+    },
+    {
+      "path": "assembly/successor-eight.log.gz",
+      "sha256": "64162e59f47ad75b3885bb2130385b18557bf7f45e7e5d880e932759e1b4dc9a",
+      "bytes": 84222,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/successor-eight.log",
+      "originalSHA256": "730b235fb51cc90aea4eafaebce59fde582ee37d26b531a274c5bbbfefc3f11b",
+      "originalBytes": 702802,
+      "encoding": "gzip"
+    },
+    {
+      "path": "assembly/successor-repeat-record.json",
+      "sha256": "879d11cf04de383083ad07d82b246a5f320218c29f08a3aa95edf468d848a356",
+      "bytes": 855,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/successor-repeat-record.json",
+      "originalSHA256": "879d11cf04de383083ad07d82b246a5f320218c29f08a3aa95edf468d848a356",
+      "originalBytes": 855,
+      "encoding": "identity"
+    },
+    {
+      "path": "assembly/successor-repeat.log.gz",
+      "sha256": "64162e59f47ad75b3885bb2130385b18557bf7f45e7e5d880e932759e1b4dc9a",
+      "bytes": 84222,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/successor-repeat.log",
+      "originalSHA256": "730b235fb51cc90aea4eafaebce59fde582ee37d26b531a274c5bbbfefc3f11b",
+      "originalBytes": 702802,
+      "encoding": "gzip"
+    },
+    {
+      "path": "assembly/summary.json",
+      "sha256": "e14439c6ed8987b83cbc6a617509301a518ddd6d6a1f70b94a9f48ce3bb8435b",
+      "bytes": 8962,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/summary.json",
+      "originalSHA256": "e14439c6ed8987b83cbc6a617509301a518ddd6d6a1f70b94a9f48ce3bb8435b",
+      "originalBytes": 8962,
+      "encoding": "identity"
+    },
+    {
+      "path": "mechanical/linux-source-assembly-20ifx2ii/baseline-eight-record.json",
+      "sha256": "c0b0130d7e27626986a02030c20cff3262eaf2c835f84c1ac2aba340c3216802",
+      "bytes": 846,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-20ifx2ii/baseline-eight-record.json",
+      "originalSHA256": "c0b0130d7e27626986a02030c20cff3262eaf2c835f84c1ac2aba340c3216802",
+      "originalBytes": 846,
+      "encoding": "identity"
+    },
+    {
+      "path": "mechanical/linux-source-assembly-20ifx2ii/baseline-eight.log.gz",
+      "sha256": "b4c1b271718227933c999be6d811127b273bb3596a122c570d1af299baf6f707",
+      "bytes": 83887,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-20ifx2ii/baseline-eight.log",
+      "originalSHA256": "d2dacb37b1f8e31d0142d1465f8d741433bcc707ee237b3be937c559624d58e4",
+      "originalBytes": 702165,
+      "encoding": "gzip"
+    },
+    {
+      "path": "mechanical/linux-source-assembly-20ifx2ii/successor-eight-record.json",
+      "sha256": "7d2a8f7a683128a8e34ab64beb86fad9c83752376108c2aafafe14391e588d21",
+      "bytes": 855,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-20ifx2ii/successor-eight-record.json",
+      "originalSHA256": "7d2a8f7a683128a8e34ab64beb86fad9c83752376108c2aafafe14391e588d21",
+      "originalBytes": 855,
+      "encoding": "identity"
+    },
+    {
+      "path": "mechanical/linux-source-assembly-20ifx2ii/successor-eight.log",
+      "sha256": "cd3c733220dee3c9561b406291d3a9664b511a95707ae32e30013c6a262a8af8",
+      "bytes": 1226,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-20ifx2ii/successor-eight.log",
+      "originalSHA256": "cd3c733220dee3c9561b406291d3a9664b511a95707ae32e30013c6a262a8af8",
+      "originalBytes": 1226,
+      "encoding": "identity"
+    },
+    {
+      "path": "independent/audit.py",
+      "sha256": "c2b8bbfaf5eddffbee5a4bc1755410f1ef86654975ebeea30caac087d708eeea",
+      "bytes": 8523,
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/linux-successor-independent-review-kPMJEiIG/audit.py",
+      "originalSHA256": "c2b8bbfaf5eddffbee5a4bc1755410f1ef86654975ebeea30caac087d708eeea",
+      "originalBytes": 8523,
+      "encoding": "identity"
+    },
+    {
+      "path": "independent/review.json",
+      "sha256": "4beae6dba780dbac68d7c487decd953e81db39f7b5816dee87c2201ef47e2e5a",
+      "bytes": 7873,
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/linux-successor-independent-review-kPMJEiIG/review.json",
+      "originalSHA256": "4beae6dba780dbac68d7c487decd953e81db39f7b5816dee87c2201ef47e2e5a",
+      "originalBytes": 7873,
+      "encoding": "identity"
+    },
+    {
+      "path": "independent/source9.log",
+      "sha256": "726cda02cc049e6ae25a89fcd75604e27823a21aed9b1852d5df1cc453121662",
+      "bytes": 2333,
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/linux-successor-independent-review-kPMJEiIG/source9.log",
+      "originalSHA256": "726cda02cc049e6ae25a89fcd75604e27823a21aed9b1852d5df1cc453121662",
+      "originalBytes": 2333,
+      "encoding": "identity"
+    },
+    {
+      "path": "original-source-scan/record.json",
+      "sha256": "8f7bd10df7c6c70b6d73195cc6c5152555964e6d6c34869a601ab0bfc187b682",
+      "bytes": 1117,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/source-five-scan-kykgb7ym/record.json",
+      "originalSHA256": "8f7bd10df7c6c70b6d73195cc6c5152555964e6d6c34869a601ab0bfc187b682",
+      "originalBytes": 1117,
+      "encoding": "identity"
+    },
+    {
+      "path": "original-source-scan/report.json",
+      "sha256": "16e3f888328d31fa9227417143c3ade56735096e77c1961aab23f306579455b3",
+      "bytes": 1741,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/source-five-scan-kykgb7ym/report.json",
+      "originalSHA256": "16e3f888328d31fa9227417143c3ade56735096e77c1961aab23f306579455b3",
+      "originalBytes": 1741,
+      "encoding": "identity"
+    },
+    {
+      "path": "original-source-scan/scan.log",
+      "sha256": "0786d3d851b12b8b3cf2ab2bb5625d2a24823ecd930d40a8a38a98f703fba974",
+      "bytes": 79,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/source-five-scan-kykgb7ym/scan.log",
+      "originalSHA256": "0786d3d851b12b8b3cf2ab2bb5625d2a24823ecd930d40a8a38a98f703fba974",
+      "originalBytes": 79,
+      "encoding": "identity"
+    },
+    {
+      "path": "original-source-scan/public-digest-classification.json",
+      "sha256": "c084905c53d87c365dcaa042204454cc86291f3d66f023a7602758c9af1dfec6",
+      "bytes": 933,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/source-five-scan-kykgb7ym/public-digest-classification.json",
+      "originalSHA256": "c084905c53d87c365dcaa042204454cc86291f3d66f023a7602758c9af1dfec6",
+      "originalBytes": 933,
+      "encoding": "identity"
+    },
+    {
+      "path": "witness/actual-build-identity.json",
+      "sha256": "f0a0c2453f34ca87c7f3b38a58462cc6476eef44f0d0d0c6c504bae8dbd794ac",
+      "bytes": 327,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/pgid-286d81eaa8cb43e396831b91880e4747/actual-build-identity.json",
+      "originalSHA256": "f0a0c2453f34ca87c7f3b38a58462cc6476eef44f0d0d0c6c504bae8dbd794ac",
+      "originalBytes": 327,
+      "encoding": "identity"
+    },
+    {
+      "path": "witness/summary.json",
+      "sha256": "8a2e56a0035c430ef67b46c0b3c27f06d350dc17127527552713438340e58fce",
+      "bytes": 10580,
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/pgid-286d81eaa8cb43e396831b91880e4747/summary.json",
+      "originalSHA256": "8a2e56a0035c430ef67b46c0b3c27f06d350dc17127527552713438340e58fce",
+      "originalBytes": 10580,
+      "encoding": "identity"
+    },
+    {
+      "path": "witness/independent-actual-outcome.json.gz",
+      "sha256": "94a011c8287911d24f2cd66d1fed1ed87f4488f7e7f09d622b55d60c9ba1fea3",
+      "bytes": 4594,
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/runtime-continuation/pg-build-identity-plan/independent-actual-outcome-c1ab.json",
+      "originalSHA256": "1f7300596e3b9af7f566d1fd70e3e25cf949ec63ec6ab747374fc7fda52db138",
+      "originalBytes": 20914,
+      "encoding": "gzip"
+    },
+    {
+      "path": "README.md",
+      "sha256": "b4058af45c984716f44f38b6009e04f4902e4453d45b2a7dc7fa1d3c11d8f46e",
+      "bytes": 1802,
+      "encoding": "identity"
+    }
+  ],
+  "omittedRawGeneratedOutputs": [
+    {
+      "namespace": "ordered_current",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/consolidated-reference-contract.json",
+      "sha256": "d7e2149d8be0d1e04bd1f18e571bf55ffe4458cbe380bc1f406d3ef49aae02ff",
+      "bytes": 1278073,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/consolidated-reference-select.sql",
+      "sha256": "23f8a023d001acbf0c257c653335603864eead2b9f963ebdbafc03e266577b57",
+      "bytes": 47653,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/development-admission.sql",
+      "sha256": "999db012258f1cd04880c8fd5451bd41d4317556bb00c9dec15d493b257ba3ef",
+      "bytes": 5914,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/development-checkpoint.json",
+      "sha256": "905664791351c9714bfa4769ab94a6c11c6f1744c11ff56c165536fc71d13705",
+      "bytes": 7962818,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/development-collector.sql",
+      "sha256": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f",
+      "bytes": 341172,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/development-manifest.json",
+      "sha256": "4820af14e63ea69b9285e5c69463436fe4ce01ef3a39111b7cbefc8adc2897f9",
+      "bytes": 20154797,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/development-module.sql",
+      "sha256": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74",
+      "bytes": 10359778,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/effective-contract4.json",
+      "sha256": "06210a2df2f96445b2e864812c83672a46a747c57ffc5b8c4ba380c23e1ab7b0",
+      "bytes": 10618112,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current/linux-successor-v1",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/linux-successor-v1/consolidated-reference-contract.json",
+      "sha256": "d7e2149d8be0d1e04bd1f18e571bf55ffe4458cbe380bc1f406d3ef49aae02ff",
+      "bytes": 1278073,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current/linux-successor-v1",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/linux-successor-v1/consolidated-reference-select.sql",
+      "sha256": "23f8a023d001acbf0c257c653335603864eead2b9f963ebdbafc03e266577b57",
+      "bytes": 47653,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current/linux-successor-v1",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/linux-successor-v1/development-admission.sql",
+      "sha256": "999db012258f1cd04880c8fd5451bd41d4317556bb00c9dec15d493b257ba3ef",
+      "bytes": 5914,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current/linux-successor-v1",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/linux-successor-v1/development-checkpoint.json",
+      "sha256": "c167d5a1a81f6646d57ac00cac3691d9896c84e91cddb1e7253f30303ed7e4eb",
+      "bytes": 7963516,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current/linux-successor-v1",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/linux-successor-v1/development-collector.sql",
+      "sha256": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f",
+      "bytes": 341172,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current/linux-successor-v1",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/linux-successor-v1/development-manifest.json",
+      "sha256": "98b3104b2511d05686dbf1e67341a0be359d8c7496516c5176c27a568dbeec0d",
+      "bytes": 20155225,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current/linux-successor-v1",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/linux-successor-v1/development-module.sql",
+      "sha256": "36e7652dfd0582ef872cd2a11d4d6514504736b835b688808a9712cb9c4d4ee6",
+      "bytes": 10359992,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    },
+    {
+      "namespace": "ordered_current/linux-successor-v1",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source/services/platform/migrations/ordered_current/linux-successor-v1/effective-contract4.json",
+      "sha256": "06210a2df2f96445b2e864812c83672a46a747c57ffc5b8c4ba380c23e1ab7b0",
+      "bytes": 10618112,
+      "reason": "Retained exact original private artifact; not copied into bounded source-only publication"
+    }
+  ]
+}

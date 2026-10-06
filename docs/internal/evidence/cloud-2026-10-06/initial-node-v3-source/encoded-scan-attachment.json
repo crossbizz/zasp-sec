@@ -1,0 +1,17 @@
+{
+  "publication-scans/encoded-scan.json.gz": {
+    "originalPath": "/workspace/.zasp-cloud-owned/initial-node-v3-source-publication-yovuy5nq/encoded-scan.json",
+    "decodedBytes": 3,
+    "decodedSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  },
+  "publication-scans/encoded-scan.log.gz": {
+    "originalPath": "/workspace/.zasp-cloud-owned/initial-node-v3-source-publication-yovuy5nq/encoded-scan.log",
+    "decodedBytes": 144,
+    "decodedSHA256": "b553d22993d055798f60cbe03e753c0145660876cdbe55faf163a65f50f80e1f"
+  },
+  "publication-scans/encoded-scan-record.json.gz": {
+    "originalPath": "/workspace/.zasp-cloud-owned/initial-node-v3-source-publication-yovuy5nq/encoded-scan-record.json",
+    "decodedBytes": 1158,
+    "decodedSHA256": "b6dcdb5ce757e4bf4ec4f98dfe71b14f28518619daca3e00cc893b430710417a"
+  }
+}

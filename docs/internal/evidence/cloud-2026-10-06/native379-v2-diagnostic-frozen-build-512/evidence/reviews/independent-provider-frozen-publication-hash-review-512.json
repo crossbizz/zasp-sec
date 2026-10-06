@@ -1,0 +1,37 @@
+{
+  "format": "independent-publichash-publication-provenance-review-v1",
+  "reviewer": "provider_deployment_readiness",
+  "assessment": "PASS EXACT1465 PUBLIC SHA256 CLASSIFICATION; ORIGINALSCANS FAILED AND FINAL PACKET CLOSURE PENDING",
+  "classifier_sha256": "c97be8d79606b7ae75bedb668f53af2dd7f89204aeeeae835af7827f43cc4434",
+  "source_commit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "independent_readonly_verification": {
+    "findings": 1465,
+    "original_metadata": 1461,
+    "bounded_plain_metadata": 4,
+    "exact_raw_and_standard_redacted_multiset_equality": true,
+    "complete64hex_findings": 1463,
+    "chunk_truncated_prefix_lengths": [
+      57,
+      52
+    ],
+    "prefix_proof": "Each actualliteral Match is substring of exactcompleteJSON key/full64hex digestassignment; fullfieldSHA equals independentlyderivedactualregularfileSHA. No column/prefix-only inference.",
+    "all_duplicate_same_digest_assignment_references_checked": true,
+    "unique_actual_regular_files_rehashed": 772,
+    "unique_actual_Git512_blobs_rehashed": 140,
+    "source_metadata_file_SHA_and_reference_resolution_mismatches": 0,
+    "unclassified": 0,
+    "session_uid": 1000,
+    "session_writable_bound_files": 0,
+    "host_runtime_symlink_scope": "OnlyapprovedPGmetadata/envelope /lib aliases allowed; resolvedactualregularroot-ownedhostlibrary bytes rehashed. Systemownerwritebits notrepresentedmodeimmutable.",
+    "algorithm": "Reviewer separate Python verifier readliteralreports withoutprintingvalues, matchedallassignments and derivedactualpaths from metadatafile/key conventions, rehashedactualfiles/Gitblobs and everyproofrecord; authorclassifier script notexecuted because it writesoriginalclassifier."
+  },
+  "prospective_drafts": "Frozenproofclaims only actual512sourcebuild/envelopes6239/5787/74/1553. Original1461+4scans explicitlyFAILED; deterministicgzip ordinaryverbatimencoding notscannerPASS. Actualrootnativeattempt/result separate; secondarycollector not originalcauseproof. Fullnpm512302FAIL/UIunreached separatedfromscanner0/historical3ccc2535UI/advisory/productiongates.",
+  "remaining": [
+    "Finalpublishermanifest/allmembercompressionroundtrips and originalscanreceipts closure",
+    "Normalnewcommit exactcoordinate review for4boundedplainpublichash findings, ifrequested",
+    "Freshfullhistoryscan ofnewactualcommit; no config/ignore clearance implied by classifier",
+    "Actualnative512FAILED224.45 evidence review separately; no success/capacity/portability/deployed/728promotion"
+  ],
+  "shared_edits_or_ignore_config_scan_PG_native_execution": false,
+  "findings": []
+}

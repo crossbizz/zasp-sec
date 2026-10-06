@@ -1,0 +1,51 @@
+{
+  "baselineCommit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "baselineSourceFiles": 6239,
+  "privateSourceFiles": 6239,
+  "changedPaths": [
+    {
+      "path": "services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+      "baselineGitBlobSHA256": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e",
+      "privateSHA256": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0"
+    },
+    {
+      "path": "services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json",
+      "baselineGitBlobSHA256": "02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989",
+      "privateSHA256": "605a85d721647a355adbf1e99f7ce722860765cca83d02ffbe814e7b91c29339"
+    },
+    {
+      "path": "services/platform/migrations/tools/ordered-current-native379-packet-v2.mjs",
+      "baselineGitBlobSHA256": "368ba50a83b52d07649b23eaa28814a4a1ccad71acd7b91716669c0c86c56927",
+      "privateSHA256": "71ca75091285774ae7e1dbbf815cdfa0be3f30830d9d232f016aaf083ceb2bec"
+    },
+    {
+      "path": "services/platform/migrations/tools/ordered-current-native379-source-schema-v2.mjs",
+      "baselineGitBlobSHA256": "82c955587e6c6f5e8c26dd3a0377d38887ed2711a8d26a50766c9882a8ae3a88",
+      "privateSHA256": "64a6f338e7e83aa1ad8efc4341d29240601ea092f9ea415c42ca65bb0f4cc1c0"
+    }
+  ],
+  "packetNonAuthorityExactEqualityToReviewed5d18": {
+    "buildRuntime": true,
+    "captureAuthority": true,
+    "controls": true,
+    "coverage": true,
+    "entry": true,
+    "expectedFacts": true,
+    "format": true,
+    "identity": true,
+    "installable": true,
+    "limits": true,
+    "nativeVerified": true,
+    "nextGates": true,
+    "pendingGates": true,
+    "phases": true,
+    "referenceProvenance": true,
+    "resultAuthority": true,
+    "rules": true,
+    "sourceFactDelta": true,
+    "sourceInventory": true,
+    "status": true
+  },
+  "historicalEmbeddedOutputsRewritten": false,
+  "companionUnchangedSHA256": "468734a003d41cad8ce4a5ffe31963ba37f49838ae8c5f5744c5ce6d5638850a"
+}

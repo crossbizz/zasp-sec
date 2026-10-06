@@ -1,0 +1,18 @@
+{
+  "actualChildReturncode": 0,
+  "cleanupErrors": [],
+  "completed": true,
+  "elapsedSeconds": 35.2465424050024,
+  "exceptionClass": null,
+  "forcedCleanup": false,
+  "joined": true,
+  "parentToolOuterJoinNotInvented": true,
+  "phase": "fetch",
+  "postToolAndSourceVerified": true,
+  "scope": "Source-schema custody only; database/schema/runtime readiness NOT_CHECKED",
+  "signals": [],
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdoutSHA256": "85608c3b0d68232b75e21d073627e165b0c36fb95f041a3bcb8446c8de96c7d1",
+  "survivors": false,
+  "timeout": false
+}

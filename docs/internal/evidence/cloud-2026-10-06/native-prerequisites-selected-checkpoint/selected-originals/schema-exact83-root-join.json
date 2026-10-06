@@ -1,0 +1,16 @@
+{
+  "allPreparationSourceToolPinsChecked": true,
+  "destinationAbsentBefore": true,
+  "environment": "closed4-base-plus-only-approved-existing-proxy-CA-selectors-values-not-recorded",
+  "normalWaitReturn": 0,
+  "offline19ActualReviewSHA256": "621e78f1d93a3f18b67a483aaffdfb308ebfa9615dcf48d63e2233ed79a1923e",
+  "ownerResultPath": "/tmp/zasp-cloud-evidence/temporal132-schema-fetch-owner-d33t81xr/result.json",
+  "ownerResultSHA256": "d39168dfd182bfa0b020c9ed3aa7b65c0a764f5f2776a090cdb3158f5c05001f",
+  "scope": "IMMUTABLE83-SOURCE-FETCH-NO-SQL-SERVICE",
+  "session": 68202,
+  "tmpFreeBefore": 274792448,
+  "toolCompletionChunk": "c5b210",
+  "toolExit": 0,
+  "toolStartChunk": "4e39c0",
+  "workspaceFreeBefore": 1545101312
+}

@@ -1,0 +1,61 @@
+{
+  "actual_identity": {
+    "binary_sha256": {
+      "agentsec-migrate": "4a97b05e45d9d190f7d1f94820847e6065ccf7a79f0038a490b0e181bec0f2df",
+      "apiserver.test": "3512031693160e5d0c6cf6d5f9894d567be4b84c11a751d651af2ced004ae332",
+      "migrations.test": "da3fe2e3842e939c51a093216652c32e53a560c27ac8288e23385d618425d4c3"
+    },
+    "companion_sha256": "ae73247dade4f3a2af08249da9634cab4cf5d3d214d83b13d1e1a3643969f6c8",
+    "go_envelope_path": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/frozen-source-preparation/go-build-envelope-candidate.json",
+    "go_envelope_sha256": "77090df431f31690b871934c3861ca8ec69cbc4d247f06a8cc0bcc27b9c6d88d",
+    "go_source_sha256": "05f314d326b85a56f98370431dc8fb4d7088d9ac9ddf8c73eebf3261d2b4f3e8",
+    "input_sha256": "2890b1bd6ff0a125f961c3b4e311e8097635e028bb1a9a4c8825dd3c6737a758",
+    "packet_bytes": 25160408,
+    "packet_sha256": "ca7dd2ad47a4afcea9f0dfca48d10e5e4b8876c0daf6450c33a66776e830d5e9",
+    "script_sha256": "c65e28696fa24a8523e0ac2259db3b32295cb07da2e42c9abea114ac4b3eda20",
+    "v2_envelope_path": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/frozen-source-preparation/native379-v2-envelope-candidate.json",
+    "v2_envelope_sha256": "d51c984c25460c6856d04746d46e2a9c5ec16fbe902293777de74d63c14e0f23"
+  },
+  "assessment": "PASS-EXACT-SOURCE-BUILD-ENVELOPES-FOR-SEPARATE-ROOT-OWNED-BOUNDED-ATTEMPT",
+  "declined_to_judge": [
+    "Actual PG18.3 runtime/version/server behavior; no PG invocation during this review.",
+    "Actual native379 control outcomes, Linux catalog equivalence, actual timing/byte capacity or successful native packet publication.",
+    "Installed/product/release/production authorization and outstanding pending gates.",
+    "Malicious same-UID concurrent mutation or arbitrary escaped-session/interrupt cleanup guarantees.",
+    "Historical Darwin reference metadata as Linux runtime evidence.",
+    "No automatic acceptance of future changed envelopes, rebuilt binaries, altered source or changed PG bytes."
+  ],
+  "findings": {
+    "Critical": [],
+    "Important": [],
+    "Minor": []
+  },
+  "format": "independent-native379-v2-actual-frozen-envelope-review-v1",
+  "independent_checks": {
+    "cache_and_binaries": "Build-cache/tmp roots mode0700 owner1000; no foreign-owned entries or symlinks. Fresh apiserver/migrations/agentsec-migrate binaries are owner1000/mode0500 with exact reported hashes. Read-only go version -m apiserver confirms Go1.25.13/linux/amd64/CGO0.",
+    "closed_schema": "Both JSON key sets exactly match compiled strict structs; V2 binds actual Go-envelope digest, exact reviewed packet, source-inventory, identities and source-delta.",
+    "fixture_environment": "Exact controlled PATH copiedGo/bin:copiedNode/bin:PGwrappers:/usr/bin:/bin; offline GOTOOLCHAINlocal/GOENVoff/GOWORKoff/GOPROXYoff/GOSUMDBoff/modreadonly/CGO0/privatecache. Native source sets the original frozen Go environment before fixture; nested fixture Go commands inherit it. Caller must launch env-i with only reviewed build environment, LC_ALL=C, and the three native v2 opt-ins, from exact frozen platform/apiserver. Do not inherit LD_LIBRARY_PATH/PG/provider environment.",
+    "go_inventory": "Independent source-only frozen binary inventory rerun passed: all 5787 input objects and 74 module objects exactly equal actual Go envelope; complete input SHA2890b1bd6ff0a125f961c3b4e311e8097635e028bb1a9a4c8825dd3c6737a758. This independently invokes offline Go enumeration, checks module h1 identities against frozen go.sum and runs whole-module go mod verify. No PG invoked.",
+    "node_inventory": "Exactly 1544 reviewed manifest members plus nine required nonoverlapping executable/compiler/artifact/generated members equals actual1553 roster. Every actual hash matches; implementation included. Companion excluded only from Node manifest to break cycle, included in full consumed Go inventory.",
+    "ownership_topology": "All5964 unique Go/Node inputs independently SHA256-verified regular files, no write bits, owned UID1000. Entire GoRoot and ModuleCache traversal has no symlinks/write bits/foreign UID. Owned-source platform and sibling health are transparently inside ModuleCache; source-health go.mod replace remains exact. Health is not reported among actual74 resolved/consumed modules. Every tracked sibling-health byte is independently Git-bound.",
+    "pg_binding": "All four controlled-PATH wrapper hashes and52 extra hashes independently match actual bytes. Unique52 basenames; wrappers exec bound actual PG executables, bound /bin/sh resolution is /usr/bin/dash, dependencies search task-owned deps. Readelf only: all49 ELF members DT_NEEDED names occur in bound map. Full1659 PG-file set and hashes independently still match retained43b9b77b0d2851326526c4ebfad604437390b27d54925e2f6269ac2d8479b131 tree manifest; task tree read-only/owner1000. Host dependency library bytes hash-bound, not permission-changed. pgcrypto actualso/control1.4/base1.3/upgrade present. No PG executable invoked.",
+    "process_evidence": "All11 actual preparation command records exit0, cleanup_joined true, timed_out false, unexpected_descendants false. Reviewed c65 bounded ordinary-session process cleanup and exact-helper generic tests retained; no assumption of escaped-session or arbitrary interruption resilience.",
+    "source_archive": "6053 exact Git blobs at d466 verified independently against archive contents and committed SHA256 map; actual finished source matches 6053-member finished map. Only six declared derived-output contents differ from commit. All eight generated hashes match approved repeat-generation proof; the other two are byte-identical to Git.",
+    "source_controls": "Actual author source-controls record exit0/52.359105 seconds; inspected log9PASS/0FAIL/0SKIP. Previous independent05f source-only9PASS retained.589 recorded outcome/program validations, seven scripted executor invocations of six selected controls, zero actual PostgreSQL executions. Exact ca7d wire/all589 programs/379rules/10052facts/caps remain approved unchanged."
+  },
+  "independent_rerun_evidence": {
+    "inventory_path": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-frozen-inputs-d466.json",
+    "inventory_sha256": "28eada05d52b00ca1302da3959bf3686b7923b946c9942467e38e7d7f104ccc5",
+    "log_path": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-frozen-inputs-d466.log",
+    "log_sha256": "6eb42b823768d108ddf2f570132188a2635c7c2f86cfd90dd3b1461c17f99814"
+  },
+  "reviewer": "review_capture_dependency",
+  "safe_attempt_scope": {
+    "capacity_limit": "Default fixed fixture login zasp_test source-model fits forged1923rows/3303847bytes; actual nonzero timing/metadata capacity is unproven. Prior legal63-byte escaped-login boundary can exceed4MiB and remains documented; runtime must refuse overflow, not claim general login capacity.",
+    "limits": "Unchanged all phase/global row/byte/time caps, all589 controls, NULL/boolean/error/lazy/frame/restoration semantics; no cap increases or control omission.",
+    "native_filter": "^TestP7OrderedCurrentIntegrityNativeV2$",
+    "output": "New absolute nonexistent exclusive output; no existing immutable evidence changes. Retain full result/log/failure and ordinary process cleanup evidence. Refuse final publication on unresolved owned cleanup.",
+    "root_action": "Root may separately bind these exact actual envelope hashes/binary and authorize one bounded owned disposable native379v2 attempt using original strict binder and exact test filter. This report supplies technical source/build readiness only, not user authorization or successful native admission. Runtime binder still must execute pinned PGversion checks and full fresh Go/Node closure verification before fixture and again after cleanup."
+  },
+  "source_commit": "d466887f7fa2dd44562489278d302e3aff9ed32f"
+}

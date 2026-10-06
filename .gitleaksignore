@@ -657,3 +657,37 @@ a0f9c73dde0aae8bfb2a6bbd449e1f41b4a84964:services/platform/authorization/complia
 7bd4ff88208e5339346ee6b6dd9a0aea6b24d3fd:services/platform/authorization/compliance_current_frame_linux_test.go:generic-api-key:321
 7bd4ff88208e5339346ee6b6dd9a0aea6b24d3fd:services/platform/authorization/compliance_current_frame_linux_test.go:generic-api-key:323
 7bd4ff88208e5339346ee6b6dd9a0aea6b24d3fd:services/platform/authorization/compliance_current_frame_linux_test.go:generic-api-key:325
+# Eight independently verified source-blob SHA256 detector matches.
+# Exact immutable commit:path:rule:line coordinates only; future commits scan.
+# Evidence: docs/internal/2026-10-06-reviewed-source-digest-findings.md.
+3c123ef46fc9982c503384d44a93045984a3ec89:services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json:generic-api-key:15
+3c123ef46fc9982c503384d44a93045984a3ec89:services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json:generic-api-key:16
+3c123ef46fc9982c503384d44a93045984a3ec89:services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json:generic-api-key:372
+3c123ef46fc9982c503384d44a93045984a3ec89:services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json:generic-api-key:373
+3c123ef46fc9982c503384d44a93045984a3ec89:services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json:generic-api-key:882
+3c123ef46fc9982c503384d44a93045984a3ec89:services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json:generic-api-key:884
+3c123ef46fc9982c503384d44a93045984a3ec89:services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json:generic-api-key:885
+3c123ef46fc9982c503384d44a93045984a3ec89:services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json:generic-api-key:934
+
+# Freshly independently verified frozen binary/approved PG-library SHA256 identities.
+# Exact immutable commit:path:rule:line coordinates; detection rules unchanged.
+c032e9ae608ef697a3d4bdb91c5ccae0f012b0cc:docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-d466/native379-v2-independent-actual-frozen-envelope-review-d466.json:generic-api-key:5
+c032e9ae608ef697a3d4bdb91c5ccae0f012b0cc:docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-d466/native379-v2-root-reviewed-pg-binding.json:generic-api-key:1
+c032e9ae608ef697a3d4bdb91c5ccae0f012b0cc:docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-d466/summary.json:generic-api-key:1
+
+# Freshly verified immutable API diagnosis manifest SHA256 identity.
+# Exact historical coordinate only; future commits remain subject to detection.
+9706df6732de608a1ffe24eb851df8b1baa6808d:docs/internal/evidence/cloud-2026-10-06/full-verify-512-fail/independent-review.json:generic-api-key:8
+
+# Exact publication 85321bb8 public frozen binary/library SHA256 findings.
+# Five actual findings share four immutable fingerprints; no future coordinates.
+85321bb8fc72ec0748cff5e70e2fb24c253416fa:docs/internal/evidence/cloud-2026-10-06/native379-v2-diagnostic-frozen-build-512/evidence/reviews/native379-v2-independent-actual-diagnostic-frozen-envelope-review-512beb.json:generic-api-key:5
+85321bb8fc72ec0748cff5e70e2fb24c253416fa:docs/internal/evidence/cloud-2026-10-06/native379-v2-diagnostic-frozen-build-512/evidence/reviews/native379-v2-root-reviewed-pg-binding.json:generic-api-key:1
+85321bb8fc72ec0748cff5e70e2fb24c253416fa:docs/internal/evidence/cloud-2026-10-06/native379-v2-diagnostic-frozen-build-512/evidence/summary.json:generic-api-key:1
+85321bb8fc72ec0748cff5e70e2fb24c253416fa:docs/internal/evidence/cloud-2026-10-06/native379-v2-native-failure-512/evidence/run-root-native379-v2-512-diagnostic.py:generic-api-key:14
+21b6c51c2c177a12c9eef083ff7e291b3da02155:docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/original-source-scan/report.json:generic-api-key:10
+21b6c51c2c177a12c9eef083ff7e291b3da02155:docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/original-source-scan/report.json:generic-api-key:30
+21b6c51c2c177a12c9eef083ff7e291b3da02155:docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/source/ordered-current-linux-provenance-v1.json:generic-api-key:45
+21b6c51c2c177a12c9eef083ff7e291b3da02155:docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/source/ordered-current-linux-provenance-v1.json:generic-api-key:49
+21b6c51c2c177a12c9eef083ff7e291b3da02155:services/platform/migrations/tools/ordered-current-linux-provenance-v1.json:generic-api-key:45
+21b6c51c2c177a12c9eef083ff7e291b3da02155:services/platform/migrations/tools/ordered-current-linux-provenance-v1.json:generic-api-key:49

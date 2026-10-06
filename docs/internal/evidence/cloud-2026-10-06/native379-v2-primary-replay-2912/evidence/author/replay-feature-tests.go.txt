@@ -1,0 +1,63 @@
+
+func native379V2ReplayModuleForTest(t *testing.T) []byte {
+ t.Helper()
+ path := os.Getenv("ZASP_NATIVE379_V2_REPLAY_SOURCE_MODULE")
+ if path == "" { path = filepath.Join(orderedCurrentNative379V2Root(), "services/platform/migrations/ordered_current/development-module.sql") }
+ raw, err := os.ReadFile(path)
+ if err != nil || orderedCurrentNative379V2SHA256(raw) != orderedCurrentNative379V2ModuleSHA256 { t.Fatal("reviewed replay module fixture refused") }
+ return raw
+}
+func TestNative379V2ReplaySourceAndClosedPlan(t *testing.T) {
+ module := native379V2ReplayModuleForTest(t)
+ plan, err := native379V2BuildPrimaryReplayPlan(module)
+ if err != nil || len(plan) != 10 { t.Fatal("complete source prefix refused", err) }
+ if err := native379V2ValidatePrimaryReplayPlan(module, plan); err != nil { t.Fatal(err) }
+ changed := append([]native379V2PrimaryReplayStep(nil), plan...)
+ changed[2].sql = "SELECT true"
+ if native379V2ValidatePrimaryReplayPlan(module, changed) == nil { t.Fatal("forged diagnostic SQL admitted") }
+ changed = append([]native379V2PrimaryReplayStep(nil), plan...); changed[1],changed[2] = changed[2],changed[1]
+ if native379V2ValidatePrimaryReplayPlan(module, changed) == nil { t.Fatal("misplaced source stage admitted") }
+ forged := append([]byte(nil),module...); forged[0] ^= 1
+ if _,err := native379V2BuildPrimaryReplayPlan(forged); err == nil { t.Fatal("wrong module source admitted") }
+ for _,step := range plan { if !native379V2ValidSHA(step.sourceSpanSHA) || !native379V2ValidSHA(step.placementSHA) { t.Fatal("source/placement provenance absent") } }
+}
+func native379V2ReplayTestContext(t *testing.T) (context.Context,*native379V2Budget) {
+ t.Helper();var packet orderedCurrentNative379V2Packet
+ packet.Limits.MaxRows,packet.Limits.MaxBytes,packet.Limits.SQLMilliseconds=12000,33554432,10000
+ if json.Unmarshal([]byte(`{"phases":[{"id":"pristine-truth","limits":{"maxRows":12000,"maxBytes":33554432,"maxMilliseconds":180000}}]}`),&packet)!=nil {t.Fatal("fixture")}
+ budget:=native379V2NewBudget(packet);ctx,cancel,err:=budget.phase(context.Background(),"pristine-truth");if err!=nil{t.Fatal(err)};t.Cleanup(cancel);return ctx,budget
+}
+func TestNative379V2ReplayEarliestFalseAndSafeEvidence(t *testing.T) {
+ module:=native379V2ReplayModuleForTest(t);ctx,budget:=native379V2ReplayTestContext(t)
+ calls:=0;query:=func(_ context.Context,_ string,_ ...any)(bool,error){calls++;return calls!=8,nil}
+ receipt:=native379V2RunPrimaryReplay(ctx,module,strings.Repeat("a",64),37980,"SECRET-CANARY-LOGIN",query)
+ if receipt.Scope!="diagnostic-only-ordered-prefix-replay-not-original-trace" || receipt.Outcome!="observed-prefix-refusal" || receipt.FirstRefusal!="postgres-provenance" || calls!=8 || len(receipt.Steps)!=8 {t.Fatal("earliest replay refusal not witnessed",receipt.Outcome,receipt.FirstRefusal,calls)}
+ if budget.rows!=8 || len(budget.charges)!=8 || budget.bytes<=8 {t.Fatal("query/receipt physical accounting absent")}
+ raw,err:=json.Marshal(receipt);if err!=nil || bytes.Contains(raw,[]byte("SECRET-CANARY")) || bytes.Contains(raw,[]byte("SELECT ")) || bytes.Contains(raw,[]byte("Homebrew")){t.Fatal("replay leaked parameters/source/version")}
+ for _,step:=range receipt.Steps {if !native379V2ValidSHA(step.SQLSHA256)||!native379V2ValidSHA(step.ParamsSHA256)||!native379V2ValidSHA(step.SessionBindingSHA256)||!native379V2ValidSHA(step.PlacementSHA256){t.Fatal("observed provenance absent")}}
+}
+func TestNative379V2ReplayCancelBudgetUnknownAndIdentity(t *testing.T) {
+ module:=native379V2ReplayModuleForTest(t)
+ for _,kind:=range []string{"cancel","row-budget","byte-budget","query-error","identity-false"}{t.Run(kind,func(t *testing.T){
+  ctx,budget:=native379V2ReplayTestContext(t);calls:=0
+  if kind=="cancel"{c,cancel:=context.WithCancel(ctx);cancel();ctx=c}
+  if kind=="row-budget"{budget.rows=budget.packet.Limits.MaxRows}
+  if kind=="byte-budget"{budget.bytes=budget.packet.Limits.MaxBytes}
+  query:=func(_ context.Context,_ string,_ ...any)(bool,error){calls++;if kind=="query-error"{return false,&pgconn.PgError{Code:"42501",Message:"SECRET-CANARY-PG",Detail:"SECRET-CANARY-PG"}};return kind!="identity-false",nil}
+  receipt:=native379V2RunPrimaryReplay(ctx,module,strings.Repeat("a",64),37980,"SECRET-CANARY-LOGIN",query)
+  if receipt.Outcome=="prefix-passed-primary-still-false" || calls>1 {t.Fatal("unknown/budget/cancel allowed continuation")}
+  if kind=="cancel"&&calls!=0{t.Fatal("cancelled replay executed SQL")}
+  raw,_:=json.Marshal(receipt);if bytes.Contains(raw,[]byte("SECRET-CANARY")){t.Fatal("secret escaped")}
+  if kind=="query-error"&&(receipt.Failure==nil||receipt.Failure.SQLState!="42501"||receipt.Failure.ErrorClass!="postgres"){t.Fatal("actual query failure classification lost")}
+ })}
+}
+func TestNative379V2PristineTimingPrefixSafeAndOrdered(t *testing.T){
+ ctx,_:=native379V2ReplayTestContext(t);start:=time.Unix(10,0);clock:=start
+ recorder:=native379V2NewPristineRecorder(ctx,orderedCurrentNative379V2Packet{},func()time.Time{return clock})
+ clock=clock.Add(2*time.Millisecond);if recorder.observe("preflight-identity",nil)!=nil{t.Fatal("observe")}
+ clock=clock.Add(3*time.Millisecond);canary:=&pgconn.PgError{Code:"42501",Message:"SECRET-CANARY-PG"};recorder.observe("dormant-module-install",canary)
+ prefix:=recorder.safePrefix();if len(prefix)!=2 || prefix[0].IntervalNanoseconds!=2000000 || prefix[1].IntervalNanoseconds!=3000000 || prefix[1].SQLState!="42501"{t.Fatal("actual bounded interval prefix lost")}
+ prefix[0].ID="changed";if recorder.safePrefix()[0].ID!="preflight-identity"{t.Fatal("prefix alias")}
+ raw,_:=json.Marshal(recorder.safePrefix());if bytes.Contains(raw,[]byte("SECRET-CANARY")){t.Fatal("timing leak")}
+ if recorder.observe("catalog",nil)==nil{t.Fatal("misordered operation admitted")}
+}

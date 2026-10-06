@@ -1,0 +1,21 @@
+{
+  "ROOTTerminalObservation": "Parent ROOT reports direct e2afd4 normalexit0/0.1026tool seconds; no separate outer join transcription was supplied at this review. Owner spawn/result joins are retained. Do not invent outer kernel receipt or elapsed causality.",
+  "intentSHA256": "b689d48a97964f2e2d523fa0be83fd96b164f5c704bd9dcede75964b4a32883f",
+  "limits": "No vendor/project tests/historical causal RED, real SQL/PG/service/runtime/API/provider compatibility/acceptance. Reviewer read-only no runtime.",
+  "openRealProvisionGates": [
+    "Registered PID/starttick revalidation before group signaling",
+    "Complete owned escaped-session descendants/adopted-child cleanup and actual wait provenance",
+    "Truthful64MiB database-file cap/retained-data resource assessment plus complete current source/tool/schema closure; actual PG18 compatibility still unknown"
+  ],
+  "preparationSHA256": "e6608db017d4087bfd40b740ca92a4b206ab3be6f0c45325c97d0f5a366cdbe5",
+  "provisionStatus": "HELD",
+  "resultSHA256": "6b2d6fa96f0591d1ff51863212f0af64ddfce80b264b84c0e7629af87c863012",
+  "spawnSHA256": "87d0ec362f9bb2f653557b165e915ee8678cc112b2868cb28bc1116c812b2206",
+  "status": "PASS-ACTUAL-OWN18-OFFLINE-GUARD-TESTS-ONLY",
+  "verified": [
+    "All18 exact named tests OK/zero failures/errors/skips, substantive negatives and post-log no-spawn guard",
+    "Actual normal child0/joined/no forced timeout signals cleanup errors survivors, source/tool postchecks reported",
+    "Exact pinned raw-source byte argv/Tini30s TERM/+10 fixed command and four-base env; all10current source members/current toolSHA+securitymetadata rechecked",
+    "No actual Popen/native SQL/PG network in test module; mocked own lifecycle/CAS/schema-row/config guards only"
+  ]
+}

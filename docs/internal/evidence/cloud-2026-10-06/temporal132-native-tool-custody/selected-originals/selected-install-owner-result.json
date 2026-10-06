@@ -1,0 +1,60 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "exact87-Temporal132-selected-install",
+  "completedAtWrite": true,
+  "failureClass": null,
+  "signals": [],
+  "records": [
+    {
+      "label": "selected-Temporal132-install",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/Temporal-server132-selected-installer-4w3gor7i/prepare-selected-Temporal-server132.py",
+        "--plan",
+        "/tmp/zasp-cloud-evidence/Temporal-server132-selected-installer-4w3gor7i/installer-plan.json",
+        "--plan-sha256",
+        "3f41fd38c7071ac4f6f69b0fa39c1294d0bc7b63c37780d7c2fa39b7471c46c3",
+        "--output",
+        "/tmp/zasp-Temporal-server132-tools-e1fa3b309bc54fa2a48c6504ab00bb60"
+      ],
+      "declared_cap_seconds": 275,
+      "effective_limit_seconds": 274.9983746400103,
+      "enclosing_deadline_monotonic": 73437.607234918,
+      "effective_deadline_monotonic": 73437.607234918,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 308282,
+      "seconds": 4.734998,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "groups": {
+    "308282": []
+  },
+  "seconds": 4.9753863850055495,
+  "expectedNetworkVariableNames": [
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "REQUESTS_CA_BUNDLE"
+  ],
+  "servicesStarted": false,
+  "installerInvoked": true,
+  "rootExternalNormalJoinRequired": true,
+  "binaryExecution": false,
+  "versionChecks": "PENDING-SEPARATE-REVIEW",
+  "admissionScope": "SELECTED-BYTE-INSTALLATION-ONLY-NO-SCHEMA-OR-SERVICE"
+}

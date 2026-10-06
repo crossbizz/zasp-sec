@@ -1,0 +1,54 @@
+test_actual_owned_output_bound (__main__.LifecycleCases.test_actual_owned_output_bound) ... ERROR
+test_actual_owned_permission_write_failure (__main__.LifecycleCases.test_actual_owned_permission_write_failure) ... ok
+test_cancel_at_immediate_spawn_boundary (__main__.LifecycleCases.test_cancel_at_immediate_spawn_boundary) ... ok
+test_cancel_before_spawn (__main__.LifecycleCases.test_cancel_before_spawn) ... ok
+test_owned_child_normal_join_and_safe_receipt (__main__.LifecycleCases.test_owned_child_normal_join_and_safe_receipt) ... ERROR
+test_signal_during_finalization_is_retained (__main__.LifecycleCases.test_signal_during_finalization_is_retained) ... ok
+test_source_hash_rejects_symlink (__main__.LifecycleCases.test_source_hash_rejects_symlink) ... ok
+test_storage_guard_does_not_create_child (__main__.LifecycleCases.test_storage_guard_does_not_create_child) ... ok
+test_wait_joins_capture_before_result (__main__.LifecycleCases.test_wait_joins_capture_before_result) ... ok
+
+======================================================================
+ERROR: test_actual_owned_output_bound (__main__.LifecycleCases.test_actual_owned_output_bound)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authorization80-real-fga-lifecycle-cases-r4-_8vhbgt2/lifecycle_cases.py", line 69, in test_actual_owned_output_bound
+    with self.assertRaises(RuntimeError):m.wait('large',proc,3)
+                                         ~~~~~~^^^^^^^^^^^^^^^^
+  File "/tmp/authorization80-real-fga-parent-r4-ozzh0v3q/owned_fga_pg_parent.py", line 122, in wait
+    check(deadline);time.sleep(.05)
+    ~~~~~^^^^^^^^^^
+  File "/tmp/authorization80-real-fga-parent-r4-ozzh0v3q/owned_fga_pg_parent.py", line 38, in check
+    if children:remember()
+                ~~~~~~~~^^
+  File "/tmp/authorization80-real-fga-parent-r4-ozzh0v3q/owned_fga_pg_parent.py", line 156, in remember
+    table = proc_table()
+  File "/tmp/authorization80-real-fga-parent-r4-ozzh0v3q/owned_fga_pg_parent.py", line 135, in proc_table
+    for p in pathlib.Path('/proc').iterdir():
+             ^^^^^^^
+NameError: name 'pathlib' is not defined. Did you mean: 'hashlib'? Or did you forget to import 'pathlib'?
+
+======================================================================
+ERROR: test_owned_child_normal_join_and_safe_receipt (__main__.LifecycleCases.test_owned_child_normal_join_and_safe_receipt)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/authorization80-real-fga-lifecycle-cases-r4-_8vhbgt2/lifecycle_cases.py", line 93, in test_owned_child_normal_join_and_safe_receipt
+    self.assertEqual(m.wait('ordinary',proc,3),0)
+                     ~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/tmp/authorization80-real-fga-parent-r4-ozzh0v3q/owned_fga_pg_parent.py", line 122, in wait
+    check(deadline);time.sleep(.05)
+    ~~~~~^^^^^^^^^^
+  File "/tmp/authorization80-real-fga-parent-r4-ozzh0v3q/owned_fga_pg_parent.py", line 38, in check
+    if children:remember()
+                ~~~~~~~~^^
+  File "/tmp/authorization80-real-fga-parent-r4-ozzh0v3q/owned_fga_pg_parent.py", line 156, in remember
+    table = proc_table()
+  File "/tmp/authorization80-real-fga-parent-r4-ozzh0v3q/owned_fga_pg_parent.py", line 135, in proc_table
+    for p in pathlib.Path('/proc').iterdir():
+             ^^^^^^^
+NameError: name 'pathlib' is not defined. Did you mean: 'hashlib'? Or did you forget to import 'pathlib'?
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.158s
+
+FAILED (errors=2)

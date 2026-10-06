@@ -1,0 +1,55 @@
+{
+  "assessment": "PASS-PRIVATE-SOURCE-ONLY-DIAGNOSTIC",
+  "boundaries": {
+    "authority": "Inherited compiledcompanion remains stale for new5d18 wire/source-inventory identities and is explicitly not reauthorized. No new native envelope/binary admission, anchor activation, frozen-root mutation or relaunch approval follows this source-only report. Separate exact sevenanchor/nativeenvelope/frozenbuild/root review would be required.",
+    "capacity": "Original actual-capacity uncertainty and legal63byte escaped-login byteboundary remain; originalcaps unchanged. Do not infer native success from scriptedmodel.",
+    "historical_evidence": "Old failed native attempt, frozenroot and actual4a19RED remain immutable; no historical output rewrite endorsed.",
+    "prior_failure": "Previously observed primary catalogbooleanfalse remains opaque. New helper diagnoses only secondary collector source/query/scan/charge/stream failure in future execution; it cannot recover lost prior SQLSTATE/context/partialcounts or explain original catalog mismatch.",
+    "production": "Nativeverified/installable/product/production/release pending gates remain unresolved."
+  },
+  "declined_to_judge": [
+    "Actual PostgreSQL runtime causes/outcomes or a new server/probe/relaunch.",
+    "Actual full379/589 native outcome execution, catalog parity or real elapsed/byte capacity.",
+    "Future anchors/frozen envelopes/builds/native packet publication.",
+    "Installed/product/production/release authorization."
+  ],
+  "findings": {
+    "Critical": [],
+    "Important": [],
+    "Minor": []
+  },
+  "format": "independent-native379-v2-safe-diagnostic-complete-source-review-v1",
+  "identity": {
+    "archive_manifest_sha256": "743e2a9a2d97fde2e116505b8647539a9929abce71011c5b40c601f3287c2f6d",
+    "base_commit": "3ccc145510ea90c751a66306b6bb1d39812d5c51",
+    "candidate_directory": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/candidate-6d02-dp9pgin8",
+    "companion_sha256_unchanged": "ae73247dade4f3a2af08249da9634cab4cf5d3d214d83b13d1e1a3643969f6c8",
+    "component_binary_sha256": "e6306ca979ffb25b38ebf062ece45cf46b498a8131e767297adcc251f3961655",
+    "component_identity_sha256": "83e29dc5d56ba41563a854919024f2119cae2f6c258ffc1d7ba37806463f6f5a",
+    "implementation_sha256": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e",
+    "source_manifest_sha256": "02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989",
+    "source_path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/source/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+    "wire_bytes": 25160408,
+    "wire_sha256": "5d18ca5f38c6f86c7cccda46fde1fb43008f6491b3c2a8319515592f7279a25a"
+  },
+  "reviewer": "review_capture_dependency",
+  "verification": {
+    "budget": "Named rowbyte budget sentinel preserves old message and comparisons/charges/caps exactly. Canonical preencoding adds no evidence charge; supplies proposed canonical byte count. Failed charge leaves prior actual counters intact. Metadata snapshots do not mutate canonical budget ledger.",
+    "cleanup": "Actual mutex-protected nil-safe cleanup snapshot observed after ownedsubtest cleanup before parent fatal; logged booleans/resource count only, no endpoint/resource values. Unavailable/joinfailed states are not inferred success.",
+    "failure_error_semantics": "Minimal Next/Scan/Err/Close consumer preserves unconditionaldeferClose, charge-beforeappend and rows.Err refusal. Failure metadata includes only fixed stage/class, validated5ASCII SQLSTATE, contextstate, source/query hashes, successfulscanned/charged counters, proposedcharge and read-only budgets/deadline snapshots. No rawSQL/facts/PGmessage/detail/hint/params on failure; entries empty. ComparisonComplete remainsfalse.57014 does not imply a specific timeout, and PostgreSQL state and observedcontextstate remain separate. No timeout-as-denial or fabricated catalog observations.",
+    "full_source": "Independently checked all6074 tracked Git blobs at3ccc against actual private bytes. Exactly four changed paths: Go diagnostic implementation, source-inputs JSON, source-schema manifest hash, packet-module schema hash. Two Node code diffs change pins only. No missing tracked source. Actual1544 source-manifest hashes all match.",
+    "independent_go_rerun": {
+      "environment": "env-i exact componentidentity environment plus LANG=C LC_ALL=C TZ=UTC; frozenGo/copiedNode:/usr/bin:/bin PATH; no nativePGoptins; exactprivateplatformcwd/filter^TestNative379V2/count1/v/timeout3m.",
+      "exit_code": 0,
+      "log_path": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-safe-diagnostic-6d02-rerun.log",
+      "log_sha256": "8bd32d195b26eaf89f3e4ae62cdf532e9e1d4c1e86a0fa5235cd824f2a5ab26a",
+      "top_level_fail": 0,
+      "top_level_pass": 13,
+      "top_level_skip": 0
+    },
+    "node_group": "Inspected final retained Node log6PASS/0FAIL/0SKIP; refreshed source-only pins/wire independently checked.",
+    "packet": "Independent JSON comparison to approvedca7d: only authority differs. Every other field, including all589 SQLprograms/10052facts/379rules/NULLbooleanerrorlazyframe/restoration/phase/global caps/pending gates, exactly equal. Gzip expands exact raw. Generated identities and source fact delta unchanged.",
+    "source_model_scope": "All589 recorded result/program validations and6348declaredsteps; source model unchanged12908rows/15035885bytes, forged1923rows/3303847bytes. Seven scripted executor invocations of six selected controls, not589 actual executions. No SQL/PostgreSQL execution.",
+    "tdd_evidence": "Inspected extra overlay-only behavioral regression using existing unmodified public collector API and scripted pgxRows: trueold3cccRED deferred42501 discarded, new6d02GREEN42501 retained and canary excluded. Feature compileRED and accidental type compileRED distinguished, stale-roster refusal retained; no PG/SQL."
+  }
+}

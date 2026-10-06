@@ -1,5 +1,66 @@
 # Agent Security Platform Implementation Status
 
+## Cloud source-only assertion receipt, October 6, 2026
+
+The reviewed Linux native379 zero-row assertion integration preserves all
+379 rules, 10,052 source facts, 589 complete programs and original caps.
+Actual bootstrap session user/PID and qualified parameterized assertions bind
+role receipts; source-declared poison/error recovery requires fresh assertions.
+Final source-only tests pass six Node groups and nine Go groups; independent
+rerun passes nine groups. Original physical-budget and canonical RED evidence
+and prior refusal manifests remain retained. Seven companion literals now bind
+the reviewed packet. The actual frozen d466 build/envelopes have now passed
+independent closure review. Root’s actual native379 attempt FAILED at pristine
+catalog collector stream refusal (205.99sec; cause unknown), before controls.
+Owned PG stopped/joined normally; no acceptance artifact or readiness promotion.
+
+The fixed scripted ledger fits unchanged limits, but a legal escaped 63-byte
+login exceeds the forged-entry byte cap. Actual d466 frozen/derived build
+closure is verified (6,053 source files, 5,787 Go inputs/74 modules, 1,553 Node
+inputs); native parity, varied-login capacity and deployed acceptance remain open.
+Fresh runtime inventory found all 162 inspected ZASP loader bindings absent.
+The fresh full-history security scan at c032 fails with 550 findings (546 prior
+plus four independently verified public file digests); merge/release
+readiness remains blocked. See [the October 6 receipt](cloud-continuation-receipt-2026-10-06.md).
+All 728 IDs and 523/144/61 evidence categories remain unchanged.
+
+Fresh full verification started at reviewed `8f537fec` and failed after 398
+seconds: the worker race package passed in 376.043 seconds, while the gateway's
+intended group-readable test fixture was masked to 0600 by host umask 0077.
+UI verification was not reached. A narrowly reviewed fixture correction now
+sets 0640 explicitly; the unchanged production exact-0600 guard and existing
+grouped tests pass under umasks 077 and 022. This component repair does not
+replace the retained full failure or establish a fresh full-suite pass.
+
+The later fresh full verification at unchanged `3ccc1455` passed all 2,535 UI
+tests, typecheck, lint, import and staging checks, then FAILED after 733 seconds
+at the historical 546-finding release security gate (284 release tests passed,
+one failed). Build, compiled imports and ledger checks were unreached in that
+full run; separate scoped checks at unchanged `c032e9ae` passed build, actual
+seven-client/eight-server compiled imports and the original 728-row ledger.
+These runs differ only in documentation, as corrected by a preserved provenance
+addendum. The current c032 scan remains 550 findings; neither scoped success
+nor historical UI success clears full verification, release or deployed gates.
+
+## Cloud runtime receipt, October 5, 2026
+
+Fresh cloud continuation started at `e13ccb95` and normally merged main
+`d21f036e`. Restored native tools and verified dependencies support a passing
+original 33-bag registration reference, independently reviewed after normal
+owned PostgreSQL cleanup. Registration controls, authorization/orchestration
+race checks and all 2,535 UI tests pass. A licensed code-identical Nexus
+successor clears its scoped license gate; a restrictive-umask credential
+fixture now preserves its exact-mode security assertions.
+
+Full verification retains its original fixture failure; the complete source
+gate remains blocked by 538 full-history secret-scan findings. Independently
+reviewed, durable A/B source successors preserve all historical pins and gates;
+A/B native equivalence, native379, installed acceptance and real-service
+deployment remain open. Read [the cloud receipt](cloud-continuation-receipt-2026-10-05.md) for
+exact source/build/packet identities, scoped checks and retained failures.
+All 728 IDs and 523/144/61 evidence categories remain unchanged; no task or
+milestone is promoted.
+
 ## Execution-gate batch, October 5, 2026
 
 The continuation from merged main `e13ccb95` repairs the variant-A capture
@@ -15659,3 +15720,93 @@ error, not a demonstrated74 activation defect. Preserve supervised approval
 controls and its version-bound grant; draft/validated remain disabled with no
 grant. The corrected full-chain test is pending; no production change is justified
 by that failed expectation.
+
+
+The reviewed source-only diagnostic batch 6d02/5d18 retains bounded secondary
+collector failure metadata and actual cleanup snapshots. Node six groups,
+author Go 13 and independent Go 13 pass. All 589 programs, 6,348 steps, rules,
+facts and caps remain unchanged. Meaningful old-API RED/GREEN evidence and the
+excluded compile/stale-roster failures are retained with truthful labels.
+
+The original d466 native failure remains; its primary catalog false cause is
+opaque. No new PostgreSQL probe, native attempt or readiness promotion occurred.
+The inherited ae732 companion is stale for 5d18; separate reviewed new anchors
+and frozen-Go closure remain required. Varied-login, security, installed/deployed
+acceptance and the 728 / 523 / 144 / 61 categories remain unchanged.
+Fresh full verification at unchanged `512beb18` FAILED after 302 seconds in
+the health-contract phase: API readiness deadline refusal plus compliance close
+and settlement/effect worker failures. UI/release were unreached. The earlier
+2,535 UI passes remain historical3ccc evidence. A separate faithful scanner
+run at512 passed0findings; approved-advisory availability and failed npm/native/
+deployed acceptance gates remain separate. Private API instrumentation passed
+five focused and three package runs without expiry reproduction; baseline cause
+remains unknown and no API fix is selected. Existing M1-28/M1-28b/M7-14 links
+identify relevant gate/component evidence only; all728 IDs/523/144/61 categories
+and original acceptance requirements remain unchanged.
+
+
+Fresh reviewed fingerprint configuration passed the full-history scan at source 512beb with zero findings; historical 546/550-finding failures remain preserved. Full npm verification at that source FAILED after 302 seconds in three fixture paths, with UI/release stages unreached. The new frozen native attempt also FAILED after 224.45 seconds: secondary collector deadline confirmed, primary normal-false cause unobserved, no acceptance artifact. Two worker fixture corrections pass focused and race groups without changing production logic, waits, permissions or caps. API diagnostics reproduce no expiry and select no fix. These results do not promote any original task or milestone; approved advisory evidence and real deployed Stytch/provider bindings remain unavailable.
+
+
+The actual new 512 frozen build is independently reviewed: 6,239 committed/finished
+source files, eight verified outputs with six declared changes, 5,787 Go inputs,
+74 modules (73 external + platform), 1,553 Node inputs and 13 source groups passing
+57.915 seconds. Tracked health is available but not consumed. All 11 preparation
+commands joined; original 589 programs/caps remain. This source/build proof grants
+no native acceptance. Original d466 failure and new 512 native outcome are separate.
+Raw metadata scans retain 1,461 + 4 public-file-hash findings with explicit provenance;
+compression is not clearance. Full npm verification at 512 failed after 302 seconds; separate history scan
+passed with zero findings. Full UI/release was not reached; no 728/category/deployed promotion.
+
+Durable packet member manifest: `5bdcc1668b1af612050f5c7882f2b263869c27453d026c04b58f3c3311fdf545` (70 members).
+
+
+The root-owned 512 native attempt failed after 224.45 seconds, before the 589 controls. A secondary collector stream deadline was observed; the primary catalog Boolean-false cause remains unknown. Row and byte counters were below caps, without a catalog-parity or capacity claim. Owned PostgreSQL stopped and joined normally; endpoint and surviving-resource checks recorded zero survivors. No acceptance artifact exists. The new frozen-build proof and original d466 failure remain unchanged.
+
+Durable packet member manifest: `82484bec888b44ebd69efa3d30ea709dbb6c0d2d17221ff4898e72cdaa61385e` (17 members).
+Fresh full verification at unchanged 6af016b4 FAILED after 478 seconds. Worker
+race package passed 439.046 seconds after reviewed fixture-only corrections;
+API readiness deadline characterization is the sole failure with unchanged
+1s caller/5s production bounds. UI/release/build were unreached. Original 512
+302s FAIL and historical 3ccc 2535 UI pass remain separate. Exact same 6af scanner
+0 findings92.417s and ledger728/523/144/61/0missing are separate checks, not full/
+release/native/deployed clearance. No API cause or fix is claimed; original
+health-command task links and all 728 acceptance requirements remain unchanged.
+Fresh detached full 997 verification FAILED510s at clean unchanged9970bcbd.
+Worker race package PASS451.861s; sole API healthy-readiness callback FAIL1.01s
+(API 11.042s). Earlier characterized fixture failure absent; callback expiry cause
+unknown. UI/release/build unreached. Existing shared node_modules symlink and
+observed package/lock/modulelock identities are disclosed, not a frozen complete
+closure. Separate exact 997 scanner 0/96.673s cannot clear full verification/advisory/
+native/deployed gates. Existing M1-28/M1-28b command gate links do not promote
+any of 728 original tasks or 523/144/61 categories. Earlier full/native FAILs remain.
+
+Reviewed startup immutable-pin materialization and primary-refusal diagnostic
+replay adopted as source-only work. Independent23 controls/startup PASS; combined
+1545-member authority d7aa with separately reviewed seven-anchor companion.
+Original31-member proof preserves FAIL16 public-hash observations and supplements;
+original2912 and startup evidence remain distinct. Fresh committed full guards,
+regenerated frozen envelopes and reviewed root native execution remain required.
+No 728 ledger/category or deployed/retirement acceptance promotion. Original
+205/224 native and302/478/510 full failures remain unchanged.
+
+
+Exact0b full verification FAILED755s at the actual SBOM release guard after
+UI2535 PASS. Independently reviewed source-identical physical dependency copy
+passes the unchanged SBOM command and focused release source closure174.752s;
+no source/package/lock/guard changes. Fresh frozen5788Go/74archives+1554Node
+inputs and1545-source roster independently verified. Actual root native0b
+FAILED152.884s, no accepted artifact/zero controls/normal joined PG cleanup;
+separate replay refused PostgreSQL provenance after seven true checks. Original
+expanded scans FAIL1492/FAIL5 remain retained alongside separate scoped results.
+Exact0b commit and full-history scans PASS0, no future/security/deployed waiver.
+Hosted current compliance browser acceptance fails; actual cause unknown and
+unchanged local reproduction pending. Strict PG version equality remains;
+separate Linux-reference work requires an actual witnessed identity. All728
+rows/523historical/144component/61external and original acceptance scope remain.
+
+Root-owned unchanged full0b npm verify PASS822.023s, actualexit0/mainwaitjoined,
+sourcebeforeafter0b/trackedclean/noTimeout/nosurvivors. Reviewed physicaldependency
+copy; noguard/source/lock/package relaxations. All earlier failures and unjoined
+attempt remain distinct. FullcommandPASS doesnot clear native0bFAIL, hosted
+compliancebrowserFAIL, advisoryrelease or real deployedStytch/provider acceptance.

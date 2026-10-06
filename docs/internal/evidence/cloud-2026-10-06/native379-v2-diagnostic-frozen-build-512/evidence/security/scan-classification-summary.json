@@ -1,0 +1,32 @@
+{
+  "scope": "ALL ACTUAL SCANNER FINDING LITERALS RESOLVED TO PUBLIC FILE/GIT SHA256; scans still FAILED, no ignore/config bypass or clearance",
+  "sourceCommit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "findingCount": 1465,
+  "originalMetadataFindings": 1461,
+  "boundedEvidenceFindings": 4,
+  "unresolvedFindings": 0,
+  "allMatchedValuesAreCompleteOrChunkTruncatedPublicSHA256References": true,
+  "completeSHA256Matches": 1463,
+  "chunkTruncatedSHA256PrefixMatches": 2,
+  "privateMachineLiteralReports": "Used only exact literal resolution; no values printed; finding sets exactly equal redacted originals after standard redaction",
+  "longLineColumns": "Scanner columns are chunk-relative on long lines. Exact Match/Secret assignment used; no offset/entropy inference or invented coordinates. All duplicate same-digest assignment references explicitly verified.",
+  "uniqueRegularFilesIndependentlyRehashed": 772,
+  "uniqueGitBlobsIndependentlyHashed": 140,
+  "reportHashes": {
+    "private-original-literal-resolution.json": "49342778499a1cdbdbb6ab32dd9b6d33f818141d04603eae362890750820733c",
+    "private-evidence-literal-resolution.json": "3b2163c4853a7eee12546fdf7e8080df00a5f3d9eb56f254c6d3063f1ea4402f"
+  },
+  "pending": "Whole publication closure review; no credential/security/native approval inferred",
+  "originalRedactedReportSHA256": {
+    "original-metadata-redacted.json": "d7dc65b236b95426b179b3d66a2c6aec4c33b035a0e4aa05bf776afe29695974",
+    "evidence-redacted.json": "3d2b8bd9ba492dbccf1246828de53699f017f96f4a288c15206d77c3169dbdeb"
+  },
+  "classificationSHA256": "c97be8d79606b7ae75bedb668f53af2dd7f89204aeeeae835af7827f43cc4434",
+  "dataEncodingBoundary": "Deterministicgzip preserves exact raw metadata/reports/classification. Beforecompression metadata scanFAIL1461 and plainboundedpublicationFAIL4 remain authentically FAILED; publicfilehash classification is not password/security clearance. No blanketignore/config bypass.",
+  "review": {
+    "status": "PASS",
+    "report": "reviews/independent-provider-frozen-publication-hash-review-512.json",
+    "SHA256": "e760478e42b509dfb7cb67454693b03d879e69a7673369bef4ce66ce5b9ff336",
+    "scope": "Exact 1465 public hash assignments, actual files/Git blobs and redacted finding-set equality; no scanner clearance"
+  }
+}

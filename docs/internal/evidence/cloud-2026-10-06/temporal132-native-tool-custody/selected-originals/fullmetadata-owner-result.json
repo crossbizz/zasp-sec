@@ -1,0 +1,56 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "full-metadata-census",
+  "completedAtWrite": true,
+  "failureClass": null,
+  "signals": [],
+  "records": [
+    {
+      "label": "authenticated-full-metadata-census",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/Temporal-server132-full-metadata-census-hw_dsy8f/stream-Temporal-server132-full-metadata-census.py",
+        "--source-sha256",
+        "309c7a2bbc194fc33e016f9758a76a41e69c6ecc2edc1d06e1c8922016c5cc26",
+        "--output",
+        "/workspace/.zasp-cloud-owned/Temporal-server132-stream-census-74799a5934b742fb883328571d06d24b"
+      ],
+      "declared_cap_seconds": 95,
+      "effective_limit_seconds": 95,
+      "enclosing_deadline_monotonic": 72160.294687066,
+      "effective_deadline_monotonic": 72155.295801253,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 307163,
+      "seconds": 3.481255,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "groups": {
+    "307163": []
+  },
+  "seconds": 3.4945649589935783,
+  "expectedNetworkVariableNames": [
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "REQUESTS_CA_BUNDLE"
+  ],
+  "servicesStarted": false,
+  "installerInvoked": false,
+  "admissionScope": "METADATA-ONLY-NO-INSTALLER-OR-SERVICE",
+  "rootExternalNormalJoinRequired": true
+}

@@ -1,0 +1,7 @@
+# github.com/zasp-ai/zasp-sec/services/platform/apiserver [github.com/zasp-ai/zasp-sec/services/platform/apiserver.test]
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:3494:13: undefined: native379V2SessionBinding
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:3495:13: undefined: native379V2AssertionReceiptFor
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:3496:12: undefined: native379V2ValidateAssertionReceipt
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:3527:6: undefined: native379V2ValidateAssertionReceipt
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver [build failed]
+FAIL

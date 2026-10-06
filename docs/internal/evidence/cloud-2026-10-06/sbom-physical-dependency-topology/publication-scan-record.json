@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "dir",
+    "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/publication/evidence",
+    "--no-banner",
+    "--redact=100",
+    "--report-format=json",
+    "--report-path=/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/publication/publication-scan-redacted.json"
+  ],
+  "cwd": "/workspace/zasp-sec",
+  "exitCode": 0,
+  "seconds": 0.41895996400126023,
+  "findingCount": 0,
+  "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "logSHA256": "b0fea9202e6ae8bdf538761f6d029f483abf699e2f894ec55cc836b7fe32c441",
+  "boundary": "Actual default published metadata directory scan only. Compressed payloads/omitted rawclosure/currentfuture fullsource/build/native are not cleared. Original preencoding actualscan and originalnpm207FAIL retained; no exceptions/config changes."
+}

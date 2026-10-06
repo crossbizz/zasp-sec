@@ -1,0 +1,75 @@
+{
+  "status": "ACTUAL-AUTHENTICATED-CLI-CENSUS-METADATA-PASS",
+  "files": {
+    "/workspace/.zasp-cloud-owned/temporal-CLI-authenticated-census-retry-owner-a6d3263cd0c743f3a8c6ef036af6ea4d/failure-journal.jsonl": {
+      "sha256": "a05033d87bb872bb1e3786bd3723237d2c30fe224fb42800a58e8b5634f19a71",
+      "bytes": 65536
+    },
+    "/workspace/.zasp-cloud-owned/temporal-CLI-authenticated-census-retry-owner-a6d3263cd0c743f3a8c6ef036af6ea4d/authenticated-CLI-census-retry.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "/workspace/.zasp-cloud-owned/temporal-CLI-authenticated-census-retry-owner-a6d3263cd0c743f3a8c6ef036af6ea4d/result.json": {
+      "sha256": "508278a4ff6e95f94549d47fb4343fd1452ce449d2eeb9982f411f3166f419eb",
+      "bytes": 1662
+    },
+    "/workspace/.zasp-cloud-owned/temporal-CLI-authenticated-census-retry-owner-a6d3263cd0c743f3a8c6ef036af6ea4d/authenticated-CLI-census-retry.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "/workspace/.zasp-cloud-owned/temporal-CLI-authenticated-census-retry-owner-a6d3263cd0c743f3a8c6ef036af6ea4d/authenticated-CLI-census-retry-record.json": {
+      "sha256": "1ee88486e5555cc1e92bb98c3981306b274a4380ad9b0239b1faee9c00998b15",
+      "bytes": 991
+    },
+    "/workspace/.zasp-cloud-owned/temporal-CLI-stream-census-eefc2ca2d22a4ace8598d4e59e1e0dd9/failure-journal.jsonl": {
+      "sha256": "53418603124e2f822d65db4f94107e7e204c283ed79cdee09f0ac824de607bda",
+      "bytes": 65536
+    },
+    "/workspace/.zasp-cloud-owned/temporal-CLI-stream-census-eefc2ca2d22a4ace8598d4e59e1e0dd9/result.json": {
+      "sha256": "0d48ca7034386d8196101a839e819be9029cb7f66928fa439f1b01cdadf9f132",
+      "bytes": 819
+    }
+  },
+  "memberCensus": {
+    "schema": "official-Temporal-CLI-authenticated-stream-census-v1",
+    "status": "AUTHENTICATED-METADATA-ONLY",
+    "compressedBytes": 45298806,
+    "compressedSHA256": "09a0326a51db84d02735e53542b9ebd8c4758daf47482a9ab0abce15844e60d5",
+    "inflatedBytes": 156332032,
+    "declaredPayloadBytes": 156329206,
+    "metadataHeaders": 0,
+    "members": [
+      {
+        "path": "LICENSE",
+        "type": "regular",
+        "bytes": 1108,
+        "sha256": "692992f9a78f825b332d03f9b98aeb6cd5823ae884572af02e79f17327aa0612"
+      },
+      {
+        "path": "temporal",
+        "type": "regular",
+        "bytes": 156328098,
+        "sha256": "712217694cac9f786a72d4b6c876cd15f3dcf1bf31434d9fed6af25242a327a0"
+      }
+    ],
+    "assetFileCreated": false,
+    "extraction": false,
+    "binaryExecution": false,
+    "serviceReadiness": false,
+    "diskFitClaim": false
+  },
+  "checks": [
+    "Reviewedsource0c34/owner9e825 exact currentpins/argv matched; actual workerexit0/1.534201s joined noforced/timeouts/signals/survivors; owner1.550479s groups empty.",
+    "Both reservedjournals contain no FAILED, owner completedAtWrite true and inner AUTHENTICATED-METADATA-ONLY.",
+    "Recorded full compressed official09a identity45298806B; source fullstream completeSHA gate executed before accepted result. Archive/binary body not retained, therefore reviewer did not independently hash downloaded bytes.",
+    "Two exact regularmembers LICENSE1108B SHA692992 and temporal156328098B SHA712217, no metadataheaders; declaredpayload156329206 and exact512-padding/header/tarterminator inflated156332032 reconcile.",
+    "No archive file or binary emitted/executed, no extraction or service start; consumed network values not recorded."
+  ],
+  "rootObservation": "ROOT session62379 supplied tool-observed normaljoinedexit0; no independent kernel roottrace fabricated.",
+  "gate": "Accepted authenticated metadata can ground prospective exact2member Temporal roster; installer retry still needs separately reviewed fullroster/parser/cache/capacity/actualversion recipe.",
+  "limits": [
+    "Reviewer performed only retainedmetadata/source hash inspection; no network/replay/parser/test/tool runtime.",
+    "Binary SHA is authenticated stream member receipt, not an independently installed physical executable identity.",
+    "No diskfit/install/version/schema/model/provider/browser/native/deployment clearance; prior opaque firstfailure preserved."
+  ]
+}

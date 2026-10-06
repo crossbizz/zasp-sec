@@ -1,0 +1,29 @@
+{
+  "format": "independent-fresh-frozen-PG-static-runtime-review-v1",
+  "reviewer": "provider_deployment_readiness",
+  "assessment": "PASS STATIC PREREQUISITES ONLY; NO NATIVE COMPLETION OR RUN APPROVAL",
+  "source_commit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "root": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r",
+  "GoEnvelopeSHA256": "816fe4fb0b7be143cb3715e6b9ae3be934f34c78d753657b7922f7862e86b9e4",
+  "V2EnvelopeSHA256": "000076387b815beb30c8f02818e0ef8fd9e3d3eb269fdd4280eaff2f08978aef",
+  "PGmetadataSHA256": "40f499a12a8b69daa2f2e6bf527d74e01a7fdd4110b18b025b9ea6887275a500",
+  "verified": {
+    "wrapper_count": 4,
+    "runtime_closure_count": 52,
+    "all_actual_bytes_rehashed_match_metadata_and_new_Go_envelope_maps": true,
+    "transitive_ELF_NEEDED_missing_bound_basenames": [],
+    "session_uid": 1000,
+    "session_writable_bound_PG_files": [],
+    "wrapper_text": "All4 exact reviewed /bin/sh wrappers prepend approveddeps and exec exact reviewed realinstall executable; no rewritten paths.",
+    "PG_identity": "Exact same approved18.3 realexecutable/library/extension bytes as retained actual18.3/pgcrypto1.4 identity and official image provenance. No version or PG execution by reviewer.",
+    "pgcrypto": "Exact original1.3base,1.3->1.4upgrade,default1.4/$libdir/pgcrypto control and realsharedlibrary hashes retained.",
+    "system_library_boundary": "Root-owned system libraries/shell have ownerwrite permission bits but UID1000 cannot write resolvedfiles. They are not represented as mode-immutable forever. CopiedGo/Node and PG-owned files/dirs readonly.",
+    "envelope_link": "V2actualSHA000076 linksactualGoSHA816fe4, both0400; versionsmatch expected binders. StaticGoPGmaps exactmetadata4+52. Full consumedGo/Node/inventory admission separately reviewed by capture_dependency.",
+    "controlled_PATH": "NEWroot/go/bin:NEWroot/module-cache/owned-tools/node/bin:/tmp/zasp-cloud-tools/postgres-18.3/bin:/usr/bin:/bin; buildenvironment.json matches.",
+    "closed_build_environment": "Explicit offline Go, exactTMPDIR/root bindings; no LD_PRELOAD/LD_LIBRARY_PATH/provider/PG override variables in actual environment.json."
+  },
+  "future_launch_condition": "Root-owned native launcher must use env-i explicit exact allowlisted variables; omit all inherited LD_PRELOAD/LD_LIBRARY_PATH/loader/provider/PG overrides. Existing wrappers append ambientLD_LIBRARY_PATH and disposablePG inherits processenvironment. Fresh bounded launcher nonce/control authorization to be independently reviewed separately beforelaunch.",
+  "failure_boundaries": "Existing actuald466 nativeFAIL205.99/causeunknown preserved. New512 source tests/compilation or staticPGproof do not prove nativeparity, budgets, variedloginportability, cleanup, aftercleanup rebind, production/advisory/deployed/728 acceptance. New collector diagnostic is secondaryrerun not original catalogcause.",
+  "commands_by_reviewer": "Read/hash/stat/ELFreadelf only; noGo/Node/PG/version/server/native/provider/network execution",
+  "findings": []
+}

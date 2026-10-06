@@ -1,0 +1,49 @@
+{
+  "format": "additional-durable-scanner-evidence-encoding-receipt-v1",
+  "artifacts": [
+    {
+      "artifact": "original-directory-fail-180-redacted-report.json.gz",
+      "compressed_bytes": 2291,
+      "compressed_sha256": "2d5e12e0699a31f839883dbbd3da679db822474a6608a1e234179e3d84b8072a",
+      "uncompressed_bytes": 115416,
+      "uncompressed_sha256": "97707f5d3649b1dc985c15474bbfca245495401022802106a5e6f12bf79bedbc",
+      "decompressed_exact_source_bytes": true,
+      "gzip_mtime": 0
+    },
+    {
+      "artifact": "full-history-precommit-pass.log.gz",
+      "compressed_bytes": 114,
+      "compressed_sha256": "c9c8b8a44a2616bbf026d13db34a9d830fbe95a4ae247ac2bcc9dbe3c7b0feb7",
+      "uncompressed_bytes": 118,
+      "uncompressed_sha256": "6f062f64a142fabaf563f3ed5081f6a923f6d761e3fd7bb66834fe057ad8f16b",
+      "decompressed_exact_source_bytes": true,
+      "gzip_mtime": 0
+    },
+    {
+      "artifact": "full-history-precommit-pass-report.json.gz",
+      "compressed_bytes": 23,
+      "compressed_sha256": "abc129be8d26e8d4afe9ce45f9d5a73c8ed9aa62810ca24ee789fe4581dc4a80",
+      "uncompressed_bytes": 3,
+      "uncompressed_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "decompressed_exact_source_bytes": true,
+      "gzip_mtime": 0
+    }
+  ],
+  "original_fail180_stdout_stderr_log": "Not retained originally. Existing authentic original aggregate/report are included verbatim; no reconstructed console log is claimed.",
+  "original_fail180_command": [
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "dir",
+    "--redact",
+    "--report-format",
+    "json",
+    "--report-path",
+    "[PRIVATE-REDACTED-REPORT]",
+    "--no-banner",
+    "[ORIGINAL-PRIVATE16-PACKET]"
+  ],
+  "original_fail180_exit": 1,
+  "original_fail180_findings": 180,
+  "full_history_pass_scope": "Exact observed precommit HEAD/candidate only. Actual log/report preserved; future security/source commits excluded.",
+  "raw_secret_scanner_report_published": false,
+  "original16_archive_unchanged": true
+}

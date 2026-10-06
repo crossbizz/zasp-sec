@@ -1,0 +1,47 @@
+{
+  "scope": "ORIGINAL-0B-ROOT-NATIVE-FAILURE-PROOF",
+  "sourceCommit": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "outcome": "FAIL",
+  "nativeControlsExecuted": 0,
+  "acceptedNativeArtifact": false,
+  "originalLogSHA256": "76c46f9da749c56c1945d285b1a9e130bdf1171be0977ac90733097d23b4477a",
+  "originalTestSeconds": 152.83,
+  "originalSupervisorSeconds": 152.883676,
+  "replayScope": "diagnostic-only-ordered-prefix-replay-not-original-trace",
+  "replayFirstRefusal": "postgres-provenance",
+  "replayPriorStepsTrue": 7,
+  "replayLastStepFalse": true,
+  "replayOriginalBranchTrace": false,
+  "actualReplaySQLStates": "00000/errorClassnone/live; no SQL failure or timeout inferred",
+  "timingPrefix": "Exact trailing ten source-bound existing-operation completion intervals; not a server profile. Deferred final snapshot class driver summarizes returned Go refusal, not an observed PostgreSQL SQL driver failure.",
+  "cleanup": "Actual owned snapshot pg_ctl stopped, normal Wait/join, endpoint checked, surviving resources checked and zero survivors; actual command exit1/no timeout/no unexpected descendants.",
+  "originalMetadataScan": "FAIL5; exact known actualnew0b binary publicSHA4aa1f24d in five metadata/source guard sites; zero unknown",
+  "privateLiteralInputsOmitted": {
+    "private-literal-resolution.json": {
+      "bytes": 4619,
+      "SHA256": "c6b6e177651b081d5aeb35b8409913d0be5dccf25034f306b45c9cba4d60ed72"
+    },
+    "private-literal-resolution.log": {
+      "bytes": 81,
+      "SHA256": "7dcc71c12f54e046795316403aa66d9900a03249ab3c482345e7a3ed72ce239e"
+    }
+  },
+  "largeInputsOmitted": {
+    "binary": "Actual regular frozen apiserver.test SHA4aa1f24d verified in public hash classification; never duplicated",
+    "module": {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-source/services/platform/migrations/ordered_current/development-module.sql",
+      "bytes": 10359778,
+      "SHA256": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74"
+    },
+    "fullGoSource": {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-source/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+      "SHA256": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0",
+      "excerpt": "Exact frozen source lines2604\u20132630 retained; fullsource equalsGit0b; no code changes"
+    },
+    "wire": "Approved d7aa sourcepacket remains separately retained; no duplicate25MBwire/Git archive/cache/moduletool tree"
+  },
+  "launcherReviewHistory": "Old b08c BLOCKED by Important564b because environment values not hashbound. Genuine extracted-block behavioral RED/GREEN fed proves finald432 rejects modified values and bc4d reviews exact correction. Initial NameError is setupfailure, not RED.",
+  "otherOutcomes": "Prior205/224 native failures and755/full failures preserved separately. Physical npm0/TiniSIGKILL9 run lacking initial launchbinding/join remains overallUNVERIFIED; active new receipt-bound rootfull run is separate with no outcome claimed.",
+  "mutations": "No shared root/source/foundation/native/PG/commit action by evidence recorder.",
+  "pending": "Independent publication review; strictLinux successor and fresh actualPG identity capture are separate PLANS, not acceptedsource/nativeauthority."
+}

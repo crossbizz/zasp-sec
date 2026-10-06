@@ -1,0 +1,22 @@
+{
+  "originalManifestSHA256": "e0532e5d228cd73c10902383025a931fbba82207a4d55eaa41fb78ae8969841f",
+  "privateOriginalModes": {
+    "manifest.json": "0o600",
+    "README.md": "0o600",
+    "prior-independent-44-blob-origin-review.json.gz": "0o600",
+    "independent-recorded-scan-review.json.gz": "0o600",
+    "reachable-history/report.json.gz": "0o600",
+    "reachable-history/before.json.gz": "0o600",
+    "reachable-history/scan.log.gz": "0o600",
+    "reachable-history/record.json.gz": "0o600",
+    "exact-commit/report.json.gz": "0o600",
+    "exact-commit/before.json.gz": "0o600",
+    "exact-commit/scan.log.gz": "0o600",
+    "exact-commit/record.json.gz": "0o600"
+  },
+  "repositoryCopiedModes": "0644 regular files; byte-exact original manifest retained, not a mode-immutability claim",
+  "externalReviewSHA256": "3684cdfef04ba99ac20bfebf0e02671fb36504f5bbf09c2b33437e4b0e265182",
+  "externalReviewBytes": 3201,
+  "externalEncodedReviewSHA256": "81e077605ef214008094c0b970b9c37c07390c8fc1c5bac091895a3eeecc21df",
+  "scope": "preserved actual d37 scan receipts only; no decoded archive or future scope clearance"
+}

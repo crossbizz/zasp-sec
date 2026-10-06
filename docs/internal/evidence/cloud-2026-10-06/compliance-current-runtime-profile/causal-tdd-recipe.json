@@ -1,0 +1,110 @@
+{
+  "absoluteAggregateSeconds": 90,
+  "format": "private-compliance-current-schema-root-recipe-v1",
+  "rootPrePostRequirement": "rootfullhash/stat allrecipe/source/tool inputs before andafter eachnormaljoinedstage; preserve logs/argv/actualwaitexit and refuse timeout/signal/setup/sourcechanges; no concurrentwriters",
+  "scope": "Controlled orchestration using source-extractedactualprefix. Existing10bindingvalidator importedrealunchangedmodule, configuration only. Nativeprofile SQL/fullAPI/browser/projection/service semantics notverified. No install orownedruntimebootstrap.",
+  "sourceInputs": {
+    "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg/CHANGE-PLAN.json": {
+      "bytes": 1261,
+      "sha256": "646b4958f4d773c587c2693b1bc6cad161b99b1d59a5006a29baf6ab4589e437"
+    },
+    "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg/baseline-production-combined-e2e.mjs": {
+      "bytes": 664292,
+      "sha256": "b0e130ef7c475e3c3da22d8533525e9f93e89c505008f683343be2df6fa2d5d0"
+    },
+    "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg/baseline-schema.test.mjs": {
+      "bytes": 132,
+      "sha256": "deec2a0818cab5f05af9a044c15d250db35aed881aad8622a892499735b84fa7"
+    },
+    "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg/candidate-schema.test.mjs": {
+      "bytes": 131,
+      "sha256": "3337c828dfab3b143d0829f29ecf0824cfab6aa63cb27ed1397a144251aaf163"
+    },
+    "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg/manifest.json": {
+      "bytes": 1952,
+      "sha256": "17fe385d45e0f31b74f34bd1b92fe61158c034a47f821d55d89c35ff7e6e4e01"
+    },
+    "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg/schema-orchestration-cases.mjs": {
+      "bytes": 4245,
+      "sha256": "545f36e5eff8729a6c8841ae6cd47c104c3de0d8f0b46da5fce3a3f730d93819"
+    },
+    "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg/scripts/compliance-current-runtime.mjs": {
+      "bytes": 1453,
+      "sha256": "849087c235782785edb1909ee1e66f858fd7ecb4f1ff75790a58e426b5d50641"
+    },
+    "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg/scripts/compliance-runtime-prerequisites.mjs": {
+      "bytes": 4183,
+      "sha256": "5284fa9c7f8c3a2fe761b06e8966956a136b6e120630c13aca48b05b6c865e62"
+    },
+    "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg/scripts/production-combined-e2e.mjs": {
+      "bytes": 664857,
+      "sha256": "adc93ce62345fc627dc4686158c83ae0ff0a1dd9a153d0a10912fe2e34da4a26"
+    }
+  },
+  "stages": [
+    {
+      "acceptance": "exact selected actualprefix firstcase fails missingcurrentprofile/verifier assertion; other2 originalnegativecases filtered/skipped explicitly, notbehavioralRED",
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "30s",
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "--test-name-pattern",
+        "actual compliance startup",
+        "baseline-schema.test.mjs"
+      ],
+      "cwd": "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg",
+      "expectedExit": 1,
+      "name": "actualprefix-causal-red"
+    },
+    {
+      "acceptance": "3topPASS/0fail/0skip/0cancel; noSQL/service/API execution",
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "30s",
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "candidate-schema.test.mjs"
+      ],
+      "cwd": "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg",
+      "expectedExit": 0,
+      "name": "orchestration-and-failclosed-green"
+    }
+  ],
+  "status": "UNEXECUTED-REVIEW-REQUIRED",
+  "tools": {
+    "/tmp/zasp-cloud-tools/bin/tini": {
+      "bytes": 24064,
+      "sha256": "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c"
+    },
+    "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node": {
+      "bytes": 124835376,
+      "sha256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068"
+    },
+    "/usr/bin/env": {
+      "bytes": 56144,
+      "sha256": "eb1c64bbc9908afcdf8cb48524f17112d8dd76a249f80dee2f01da14747b3b6e"
+    },
+    "/usr/bin/timeout": {
+      "bytes": 47984,
+      "sha256": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+    }
+  },
+  "workspaceReserveBytes": 1500000000
+}

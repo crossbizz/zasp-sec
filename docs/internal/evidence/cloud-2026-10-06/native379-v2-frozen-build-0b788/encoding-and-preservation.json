@@ -1,0 +1,19 @@
+{
+  "archiveSHA256": "098916a04180b7fd9e0b274fa578ef5c300f4688ac1208881f68a79722d22073",
+  "decodedDirectories": 8,
+  "decodedFiles": 74,
+  "roundtrips": [
+    {
+      "archive": "public-digest-identity-proof.json.gz",
+      "originalBytes": 1193036,
+      "originalSHA256": "1c708442f694a24563940eb5e79e25e556953b35df36cbb96e15ad38b67b18f2"
+    },
+    {
+      "archive": "classify.py.gz",
+      "originalBytes": 4435,
+      "originalSHA256": "40ecbba8f22669697a1422fcea9b70b9ce725c7076fe6d76e6091e9b7ad22588"
+    }
+  ],
+  "sourceFinalExactRosterBytesModes": true,
+  "sourceInnerFilesUnmodified": true
+}

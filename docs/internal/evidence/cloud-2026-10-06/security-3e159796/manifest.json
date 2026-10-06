@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "commit": "3e1597963a0dd28ff010934c948a27dc3fa9cc07",
+  "scope": "Separate actual original scan bytes and independent correspondence reviews",
+  "members": {
+    "commit-scope/before.json": {
+      "bytes": 560,
+      "sha256": "458a8e61827c77b00d652474b1df0d1d9b492a7dab8e868750ecaff445dd0ce2"
+    },
+    "commit-scope/record.json": {
+      "bytes": 940,
+      "sha256": "694081551bdcca8eadc819f06ae267ffb482a4f935196601efccdf837dd71a3a"
+    },
+    "commit-scope/report.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "commit-scope/scan.log": {
+      "bytes": 110,
+      "sha256": "167243fc3d1d5a405730d6f4cad29476314a3b3898df5943171c59f628fa24ed"
+    },
+    "committed-scope-review.json": {
+      "bytes": 78810,
+      "sha256": "0b6b283fba685941e3182011cccab9bf837f2ed7125e26dc7e01c9fd1a8c5e3d"
+    },
+    "full-history/before.json": {
+      "bytes": 487,
+      "sha256": "e4cebd6fed2502d0020b7bb6641b48e3e4bf5a611f814359dd0bc5e2013379ea"
+    },
+    "full-history/record.json": {
+      "bytes": 868,
+      "sha256": "6ee642b46f1b7111f74422e480e2506868b12a0b3dcb7e2ade64e1f3826ada72"
+    },
+    "full-history/report.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "full-history/scan.log": {
+      "bytes": 118,
+      "sha256": "623b74194244cd3db2ec283d6a206c2984549734248b9ffe0c13d81b0d381942"
+    },
+    "independent-scan-review.json": {
+      "bytes": 2020,
+      "sha256": "b4f8d4228856f8e5ed305000dcab3c854a596e13eea1bd53e4c2deac71380a7b"
+    }
+  }
+}

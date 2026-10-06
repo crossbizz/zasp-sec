@@ -1,0 +1,29 @@
+{
+  "files": {
+    "semantic-proof.json.gz": {
+      "bytes": 1246,
+      "sha256": "afeea13c4c0dc7332e86d5dadb2a3b254fde06846b0826f1babbcb03029a820e",
+      "decodedBytes": 2478,
+      "decodedSHA256": "81d3e0e19fa79d664da25524e454e481a137e171daf0020e53480e030d1e9950"
+    },
+    "independent-review.json.gz": {
+      "bytes": 898,
+      "sha256": "df5f0d9ef5c497d0540bbac4d7bcd9d13945e98f4d627224fb61d9f295958795",
+      "decodedBytes": 1467,
+      "decodedSHA256": "44781e65af3ec8e8457a23276bec2f6a6923a533986eb6a72cf94af9bf6a50f9"
+    },
+    "original-fail-one-redacted.json.gz": {
+      "bytes": 550,
+      "sha256": "26e5f3b54d0ef8582d4085fe717fb6f88eb3b21e3ffaabf69bed68c722321a35",
+      "decodedBytes": 1063,
+      "decodedSHA256": "03646295775608a20298de81fad752318968568122ed716a52c5e14162e65c7c"
+    },
+    "original-fail-one-summary.json": {
+      "bytes": 304,
+      "sha256": "421996b7d26ec83a32612e90f22b86331a6910d100deba30ce019f254cdacc53",
+      "decodedBytes": 304,
+      "decodedSHA256": "421996b7d26ec83a32612e90f22b86331a6910d100deba30ce019f254cdacc53"
+    }
+  },
+  "scope": "Verbatim semantic and independent review evidence; original commit FAIL1 preserved. New post-application scan required."
+}

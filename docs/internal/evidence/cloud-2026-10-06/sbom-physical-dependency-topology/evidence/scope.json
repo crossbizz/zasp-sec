@@ -1,0 +1,74 @@
+{
+  "schema": "bounded-reviewed-sbom-topology-publication-v1",
+  "commit": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "originalEvidenceManifestSHA256": "3edb42c7b9a83a666b01efbca340926c75aec2f81df567ec56e35019c7914ef4",
+  "originalValidationSummarySHA256": "10d28a6942856efe844f56de30bd646cf6700444e3db5871840f066dbba7d703",
+  "originalFullFailure": {
+    "exitCode": 1,
+    "seconds": 755,
+    "releasePass": 284,
+    "releaseFail": 1,
+    "sbomMissingErrors": 207,
+    "buildUnreached": true
+  },
+  "actualSamePinnedNpmSBOM": {
+    "wholeNodeModulesSymlink": "FAIL1/207missing",
+    "realProjectRoot": "PASS0/64packages",
+    "ownActualDirectory": "PASS0/64packages",
+    "packageVersionLicenseDownloadTuplesEqualRoot": true
+  },
+  "arboristDiagnosis": {
+    "symlinkOffendingEdges": 208,
+    "uniqueReportedMissingStrings": 207,
+    "errorTypeCounts": {
+      "dev": 200,
+      "peer": 6,
+      "prod": 2
+    },
+    "exactOriginalFull207ErrorSetEquality": true,
+    "rootAndActualDirectoryErrors": 0,
+    "cause": "Wholemodule symlink topology introduces upstream development edges and extraneous target selection; actual directory retains normal optionalpeer types. No optionalpeer waiver or missingpackage installation."
+  },
+  "preparationSnapshot": {
+    "regularFiles": 102084,
+    "directoriesIncludingRoot": 12484,
+    "relativeInternalSymlinks": 55,
+    "logicalBytes": 1137027640,
+    "byteModeTopologyEqualBeforeCopyAfter": true,
+    "observedSourceMetadataStableDuringCopy": true,
+    "ownRegularFilesNoHardlinks": true
+  },
+  "postGuardSnapshot": {
+    "recordSHA256": "b447d730470dfd7d44787898d193f3b16b4ff182993db337631865c6f154ed19",
+    "sourceAndCandidateBytesModesLinksEqualOriginalGolden": true,
+    "scope": "Sealed pre/postguard snapshots before freshfullretry; no current activecandidate measurement."
+  },
+  "originalUnchangedReleaseSourceTest": {
+    "exitCode": 0,
+    "testPass": 1,
+    "fail": 0,
+    "skip": 0,
+    "seconds": 174.75180920899948,
+    "logSHA256": "633933a54087726c7371b83a388eb29a6ce4ef34d85dc56c713e2cc69ce8b7d1",
+    "guards": "Actual2npmSBOM/license/GoSPDX/Helm/fullhistoryGitleaks unchanged"
+  },
+  "independentReviews": {
+    "physicalGraphAndActualSBOM": "11e0932a2c4be418c6380e462e8d49d2179273110e6f4f9d5ae989e27dd6afd5",
+    "finalReleaseAndFreshPostGuardClosure": "c46c4d2929c0007b44a0c2a98f8fcc9bf169d6edbb02455ff8d148819b526492"
+  },
+  "plainOriginalDefaultDirectoryScan": {
+    "exitCode": 0,
+    "findings": 0,
+    "unknownClassifications": 0,
+    "recordRetained": true,
+    "classification": "No detections returned; no artificial nonzero failure or waiver inferred. Original actual SBOMFAIL207 is a different genuine failed guard."
+  },
+  "omittedRawClosure": {
+    "originalMember": "evidence/node-modules-closure-manifest.json",
+    "bytes": 26040116,
+    "sha256": "a6302b77d77233a3853a25f852c643f669b45442294b59f1a56c49e59ba34209",
+    "privateOriginalRetained": true,
+    "reason": "Bounded publication retains exact original23manifest entry, snapshot count/byte identities and independently reviewed completeclosure proof; raw102k-member26MB map remains private unchanged."
+  },
+  "boundary": "No source/package/lock/guard/install/sharedmodule changes. No activefreshfullretry tree read/hash/mutation. Original755FAIL and207SBOMFAIL retained. Encoded data is normal evidence encoding, not secret-scanner or current/future full/build/native/deployed/advisory clearance. No current/future module immutability claim from past maps."
+}

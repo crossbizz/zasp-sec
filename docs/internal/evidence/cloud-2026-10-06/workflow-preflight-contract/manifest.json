@@ -1,0 +1,24 @@
+{
+  "members": {
+    "red.json": {
+      "bytes": 148824,
+      "sha256": "c133bccb006c16dd8ffef7eadffb148c196afc3216be044006b7f3434c469b39"
+    },
+    "green.json": {
+      "bytes": 79284,
+      "sha256": "f6c642578793a111f0291944910f2a56a4d094d49099d6c4cbc652b7dd00a3dd"
+    },
+    "actual-validation.json": {
+      "bytes": 825,
+      "sha256": "8d59aafd5a41d0b2e0d44bf5410c204cd04eccf8c5c4a4b707ff0e2151d26e81"
+    },
+    "hosted-annotations.jsonl": {
+      "bytes": 18087,
+      "sha256": "f518e99b170960cd111625b00848066aa19136a122bac5fb492e14a26a28d22e"
+    },
+    "source-review.json": {
+      "bytes": 813,
+      "sha256": "d093347cdcf348fbed46e85c450edafd25ba7eedb7db695bbceb2a660ad24183"
+    }
+  }
+}
