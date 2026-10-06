@@ -317,6 +317,12 @@ func main() {
 		log.Fatal("release migration database unavailable")
 	}
 	defer func() { _ = connection.Close(context.Background()) }()
+	if err := configureMigrationOptimizer(ctx, connection); err != nil {
+		closeCtx, closeCancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+		_ = connection.Close(closeCtx)
+		closeCancel()
+		log.Fatal("release migration optimizer configuration rejected")
+	}
 	runner, err := migrations.NewRunner(&migrationDatabase{connection: connection})
 	if err != nil {
 		log.Fatal("release migration failed")
