@@ -1,0 +1,20 @@
+{
+  "outcome": "PASS source-grounded documentation only",
+  "documentSHA256": "6b9f2648ff7798795913d7aba35dbb3ee2a240d3915762ed12f889a6361fe87c",
+  "baseMandatoryNames": 43,
+  "runtimeEnabledNames": 10,
+  "baseNamesExactlyMatchRemovalTests": true,
+  "brokenLinks": [],
+  "verified": [
+    "Actual native builder rejects RuntimeServices.Enabled=false before dependency setup",
+    "Conditional SaaS/singletenant organization and nonproduction loopback/all3 Temporal TLS match validators",
+    "Optional export/Nango bundles retain all-or-nothing reader/identity/secret-reference constraints",
+    "api:start aliases exactly3 Stytch names, not genericdatabase/runtime/AWS/signing aliases",
+    "No readiness from config presence; realTEST read-only observation separated from bootstrap/provider/deployment gates"
+  ],
+  "limits": [
+    "No documentation tests or services executed",
+    "53configuration names is conditional enabled runtime/fullcomposition, not universalallsettings count",
+    "Runtimeprivate/native credential handoff currentlymissing sourceproductionadapter; private testfixture not launchauthority"
+  ]
+}

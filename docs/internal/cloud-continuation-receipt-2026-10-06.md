@@ -1230,3 +1230,9 @@ The generated client requires same-origin `/api/v1` while the development server
 The discovery batch additionally preserves original M3-48b and M3-48c1/c2/c3 status, freshness, bounded-history and action criteria alongside M3-49/M3-52e. No fulfillment or category promotion follows from these component checks.
 
 Publication checks initially refused four digest metadata entries as generic API keys and original RED-log whitespace. The original failed scan and private review remain unchanged. Published hash maps use path/sha256 records, with the original review digest recorded; a directory-scoped attribute preserves the raw RED-log bytes as binary. No secret-scanner rule or ignore list changed. Final checks follow this remediation.
+
+### Full API launch configuration
+
+Published `docs/operations/cloud-launch-configuration.md`: 43 required base settings and 10 enabled native-service settings, conditional TLS/organization/export settings, three supported Stytch aliases and the unchanged full API entrypoint. Source-grounded independent review passed; this is an operator configuration guide, not provider or deployment acceptance. No reduced composition or fabricated reference was added.
+
+Both application batches are pushed in PR52 at `1fd02829f08c1e1957af578fc466961505e10200`. The full Vinext/Cloudflare UI reload returned HTTP200 for `/` and `/login` on loopback3050; API origin remains unset. Hosted checks are still running. Native PostgreSQL startup failures remain retained privately; no native acceptance follows from the successful compile or file-hash verification. All728 requirements and classifications remain unchanged.
