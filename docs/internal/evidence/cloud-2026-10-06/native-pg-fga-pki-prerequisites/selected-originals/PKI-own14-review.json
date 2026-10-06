@@ -1,0 +1,29 @@
+{
+  "actual14OK": true,
+  "full13CurrentPinsUnchanged": true,
+  "limits": [
+    "No private key generation or bodies inspected in this unit review.",
+    "No crypto/tool actualacceptance yet, no nativePG/mTLSserver/app/tenant/provider readiness.",
+    "Projected2MiB is planningrefusal allowance, not measured peakFIT."
+  ],
+  "prospectiveRealPKIGate": {
+    "bounds": "20fixedcommands cap\u226420s,180work+30cleanup,ROOTtimeout230/kill20,Tini-s;128KiBfile,64KiBlog/512KiBaggregate and12output\u226464KiB each;WS1.5GB/tmp100MB +2MiB planningrefusal",
+    "commandField": "prospectiveSeparateRootPKICommand in exact66fb preparation",
+    "mandatoryActualAcceptance": [
+      "ROOTfresh tool/source/hash/capacity guards and soleexclusivewindow.",
+      "All20actualnormalexit0/join/no signals/errors/forced/survivors, key\u2194certificate public-byte equality, chain/purpose/hostname/IP checks.",
+      "Complete12regularprivate600sameFD/fullSHA/fsync outputs and source/tool beforeafter metadata equality.",
+      "ROOTactualnormalterminal0 AND final reservedjournal absence of any signal/capture/terminal refusal/supersedingmarkers; inner cachedfacts alone notauthority.",
+      "No abnormaltimeout detachedprocess absence inferred; any abnormal outer must refuse and report cleanup unknown unless separately proved."
+    ],
+    "producerSHA256": "21715fd83ccfce28011ab8264bdd1f86157bd1e6ba46c72a50fe7a6fe6508fea",
+    "status": "SOURCE-STATIC-CONDITIONAL-PREREQUISITE-PASS-ROOT-ONLY"
+  },
+  "resultSHA256": "de086f3d5f13fa0af23a28eebf4363969a8fe77a68927ca57a371654bccfe2e1",
+  "scope": "ACTUAL-OWN14-MOCKED-PKI-GUARDS-ONLY",
+  "sourceStaticReviewSHA256": "b40755e67cf1e58916d653f819e5ccab9f760a5bb1092050bf35d7daf095fda7",
+  "status": "PASS",
+  "stderrSHA256": "23ca3921e4a7d64828e27067b3e5f8ab8ce1633e24eb14bf3a7aaaa08977d64d",
+  "stdoutSHA256": "ef0eba591681203c577d04fa3044fc450f92bb5e8d5b269a83dc29441debae75",
+  "terminalScope": "ROOT tool-observed da281d normalexit0; no invented individual kernel child traces. Unit code contains no subprocess/OpenSSL/service/crypto generation."
+}

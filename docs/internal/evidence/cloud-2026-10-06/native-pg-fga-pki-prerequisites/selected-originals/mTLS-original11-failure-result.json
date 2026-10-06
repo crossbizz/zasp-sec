@@ -1,0 +1,17 @@
+{
+  "exit": 1,
+  "normalOuterWait": true,
+  "elapsedSeconds": 0.07182139900396578,
+  "sourceToolsUnchanged": true,
+  "capacityBefore": {
+    "/tmp": 161447936,
+    "/workspace": 1538408448
+  },
+  "capacityAfter": {
+    "/tmp": 161423360,
+    "/workspace": 1538408448
+  },
+  "preparationSHA256": "6fd0db91a6907e3868abf09de2fa2cb32296b4f7fba5f32aab473297f73eeeb6",
+  "stderrSHA256": "c8747e68309fccaf7b48a344be7dd509bb12771da891607ef5252de5e695b131",
+  "scope": "11 own mocked config guards only; no native config parser, crypto, PG, mTLS services or tenant permissions"
+}

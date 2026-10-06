@@ -1,0 +1,140 @@
+{
+  "ROOTJoinScope": "ROOT parent reports session25830 chunks43a102\u21928e332d normal0; canonical transcription not fabricated.",
+  "actualCommands": [
+    {
+      "declared_cap_seconds": 60,
+      "exit": 0,
+      "joined": true,
+      "label": "initdb",
+      "seconds": 0.469434
+    },
+    {
+      "declared_cap_seconds": 3,
+      "exit": 1,
+      "joined": true,
+      "label": "ready-1",
+      "seconds": 0.026371
+    },
+    {
+      "declared_cap_seconds": 3,
+      "exit": 0,
+      "joined": true,
+      "label": "ready-2",
+      "seconds": 0.028035
+    },
+    {
+      "declared_cap_seconds": 10,
+      "exit": 0,
+      "joined": true,
+      "label": "owned-server-identity",
+      "seconds": 0.026364
+    },
+    {
+      "declared_cap_seconds": 10,
+      "exit": 0,
+      "joined": true,
+      "label": "create-temporal",
+      "seconds": 0.057633
+    },
+    {
+      "declared_cap_seconds": 60,
+      "exit": 0,
+      "joined": true,
+      "label": "temporal-setup-version-zero",
+      "seconds": 0.060607
+    },
+    {
+      "declared_cap_seconds": 60,
+      "exit": 0,
+      "joined": true,
+      "label": "temporal-update-immutable-pg12",
+      "seconds": 0.131685
+    },
+    {
+      "declared_cap_seconds": 10,
+      "exit": 0,
+      "joined": true,
+      "label": "temporal-actual-schema-version",
+      "seconds": 0.040018
+    },
+    {
+      "declared_cap_seconds": 10,
+      "exit": 0,
+      "joined": true,
+      "label": "create-visibility",
+      "seconds": 0.060912
+    },
+    {
+      "declared_cap_seconds": 60,
+      "exit": 0,
+      "joined": true,
+      "label": "visibility-setup-version-zero",
+      "seconds": 0.060188
+    },
+    {
+      "declared_cap_seconds": 60,
+      "exit": 0,
+      "joined": true,
+      "label": "visibility-update-immutable-pg12",
+      "seconds": 0.197899
+    },
+    {
+      "declared_cap_seconds": 10,
+      "exit": 0,
+      "joined": true,
+      "label": "visibility-actual-schema-version",
+      "seconds": 0.032428
+    },
+    {
+      "declared_cap_seconds": 20,
+      "exit": 0,
+      "joined": true,
+      "label": "normal-stop",
+      "seconds": 0.13418
+    }
+  ],
+  "actualPGVersionNum": "180003",
+  "currentSourceAndToolPinsVerified": {
+    "PG60AndNative2Tools": true,
+    "inputs4": true,
+    "schemaBodies83": true
+  },
+  "dataPolicy": "Owned stopped PG data retained. No deletion; descriptor historical stopped compatibility only.",
+  "endpointAbsenceScope": "Actual source checked own endpoint after normalstop; no new network operation by reviewer.",
+  "innerResultSHA256": "c29ab0e6018fb7572c37e409c91dcca748d24ac3999840603a4239cd655cb294",
+  "journalPhases": [
+    "exclusive-root-created",
+    "postmaster-started",
+    "schemas-verified",
+    "final-custody"
+  ],
+  "journalSHA256": "3f3011f6f3f9bf217e46111867bbcf1479fafbca1479f40a9b5aaa8288876773",
+  "limits": [
+    "No Temporal server launched, no application/API/native/provider/full-release acceptance.",
+    "No guessed elapsed-time/storage cause; floors/deadlines evidenced by actual owner/source guards.",
+    "Reviewer only reads/hashes; no SQL/PG/tool/process execution and no private log/body publication."
+  ],
+  "normalStopServerExit0Joined": true,
+  "ownedRegistryCount": 28,
+  "ownerResultSHA256": "1f5e97a762c548473c55de0d5de72efe15ba7aab15bc3e23b2504c26526af737",
+  "pidfileAbsent": true,
+  "privateCredentialMetadataVerifiedNoBodiesPublished": true,
+  "readinessPoll": "First ready-1 exit1 is authentic startup poll, then ready-2 exit0. Not blanket all commands0.",
+  "registeredResidualsEmpty": true,
+  "schemas": {
+    "temporal": {
+      "curr_version": "1.19",
+      "database": "temporal_temporal",
+      "min_compatible_version": "1.0"
+    },
+    "visibility": {
+      "curr_version": "1.14",
+      "database": "temporal_visibility",
+      "min_compatible_version": "0.1"
+    }
+  },
+  "scope": "ACTUAL-OWNED-PG18-NATIVE-POSTGRES12-SCHEMA-COMPATIBILITY-ONLY",
+  "sourceBeforeAfterScope": "Actual source implementation checks complete physical/hash map before and after; maps not separately persisted. Current fullSHA independently reconciled; do not invent durable historical maps.",
+  "status": "PASS",
+  "writerHMACVerifiedPrivately": true
+}

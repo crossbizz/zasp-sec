@@ -1,0 +1,67 @@
+{
+  "format": "native-prerequisite-existing-task-crosswalk-v1",
+  "ledgerCountsUnchanged": {
+    "blocked/external": 61,
+    "component-only": 144,
+    "missing": 0,
+    "production-available": 523
+  },
+  "rows": [
+    {
+      "evidenceLimit": "Prerequisite only: PG schema compatibility/config/PKI guards do not prove service health. Failed FGA model bootstrap leaves authorization and tenant-isolation acceptance unreached.",
+      "id": "M1-28",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M1-28 - service health endpoints",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1060,
+      "relation": "command-currentreadiness"
+    },
+    {
+      "evidenceLimit": "Prerequisite only: PG schema compatibility/config/PKI guards do not prove service health. Failed FGA model bootstrap leaves authorization and tenant-isolation acceptance unreached.",
+      "id": "M1-28b",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M1-28b - platform health wiring",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1042,
+      "relation": "command-currentreadiness"
+    },
+    {
+      "evidenceLimit": "Prerequisite only: PG schema compatibility/config/PKI guards do not prove service health. Failed FGA model bootstrap leaves authorization and tenant-isolation acceptance unreached.",
+      "id": "M2-06",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M2-06 - authorization middleware",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1358,
+      "relation": "currentauthorization-and-isolation"
+    },
+    {
+      "evidenceLimit": "Prerequisite only: PG schema compatibility/config/PKI guards do not prove service health. Failed FGA model bootstrap leaves authorization and tenant-isolation acceptance unreached.",
+      "id": "M2-47c",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M2-47c - M2 workspace authorization E2E",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1700,
+      "relation": "currentauthorization-and-isolation"
+    },
+    {
+      "evidenceLimit": "Prerequisite only: PG schema compatibility/config/PKI guards do not prove service health. Failed FGA model bootstrap leaves authorization and tenant-isolation acceptance unreached.",
+      "id": "M2-48",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M2-48 - cross-Organization API authorization",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1718,
+      "relation": "currentauthorization-and-isolation"
+    },
+    {
+      "evidenceLimit": "Prerequisite only: PG schema compatibility/config/PKI guards do not prove service health. Failed FGA model bootstrap leaves authorization and tenant-isolation acceptance unreached.",
+      "id": "M2-50",
+      "ledgerClassUnchanged": "production-available",
+      "originalRequirement": "M2-50 - SaaS Organization isolation E2E",
+      "ownerUnchanged": "PROD-current-composition",
+      "planLine": 1730,
+      "relation": "currentauthorization-and-isolation"
+    }
+  ],
+  "sourceCrosswalkPath": "/workspace/zasp-sec/docs/internal/evidence/cloud-2026-10-06/compliance-current-runtime-profile/original728-crosswalk.json",
+  "sourceCrosswalkSHA256": "9aef1c906dd2cf6f99ecf9b9b9d0ec2159c992bd09d32216ffa90753534a9756"
+}

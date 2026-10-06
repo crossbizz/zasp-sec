@@ -1,0 +1,674 @@
+{
+  "canonicalJoinInterpretationReference": {
+    "bytes": 810,
+    "path": "/tmp/zasp-cloud-evidence/independent-PG18-and-real-FGA-canonical-ROOT-joins-addendum.json",
+    "reason": "Additive independently reviewed private reference; fixed14 original selection unchanged",
+    "selected": false,
+    "sha256": "6f9f4a19450c2f60e19950beb42ec520a1f4ce63bba8d59f5c82848fe864d4ea"
+  },
+  "copyPolicy": "Physical0400 copies byte-exact; sourceIdentity and copyIdentity distinct. ROOT later shared copies must be distinct0600 and actualreceiptappend separately reviewed.",
+  "encodedPayloadSelection": [],
+  "format": "native-PG-FGA-PKI-bounded-selection-plan-v1",
+  "limits": [
+    "No application/provider/native589/Temporalcapacity/browser acceptance or task/ledger promotion.",
+    "Initial plan preparation encountered complete-stat assertion including atime; empty prior namespace preserved, no source or proof changes inferred. Current security fields explicitly exclude atime."
+  ],
+  "maximumOriginalCount": 16,
+  "omissions": [
+    "HMAC/password/token/key/config bodies",
+    "Full source/module/security maps",
+    "Raw log bodies",
+    "PG inner result/authenticated journals",
+    "PKI certificate/private-key outputs"
+  ],
+  "pending": [],
+  "receiptPrefix": {
+    "bytes": 111930,
+    "sha256": "4640a631efe83e0b658e59eabe5bde846af49d213c411a682e9a8d73395bfe2a"
+  },
+  "records": [
+    {
+      "bytes": 636,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439186",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "636",
+        "uid": "1000"
+      },
+      "path": "selected-originals/PG-native-owner-result.json",
+      "sha256": "1f5e97a762c548473c55de0d5de72efe15ba7aab15bc3e23b2504c26526af737",
+      "sourceIdentity": {
+        "ctime_ns": "1791310935976966053",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437283",
+        "mode": "33024",
+        "mtime_ns": "1791310935976966053",
+        "nlink": "1",
+        "size": "636",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal132-PG18-provision-owner-rby1zru_/result.json"
+    },
+    {
+      "bytes": 4186,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439187",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "4186",
+        "uid": "1000"
+      },
+      "path": "selected-originals/PG-native-schema-review.json",
+      "sha256": "42c3fa04bbcc4f585a15bd5524ace647deb545704a810d3c6cc43e10cc59d3ef",
+      "sourceIdentity": {
+        "ctime_ns": "1791311092908763595",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "438660",
+        "mode": "33024",
+        "mtime_ns": "1791311092908763595",
+        "nlink": "1",
+        "size": "4186",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-PG18-native-schema-provision-review.json"
+    },
+    {
+      "bytes": 779,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439188",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "779",
+        "uid": "1000"
+      },
+      "path": "selected-originals/PG-native-ROOT-tool-join.json",
+      "sha256": "da8ba38b527170e8f20ca81e4892d815c61f3a042160d510d4c95e23b4caf5aa",
+      "sourceIdentity": {
+        "ctime_ns": "1791312388824096995",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439001",
+        "mode": "33024",
+        "mtime_ns": "1791312388824096995",
+        "nlink": "1",
+        "size": "779",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/ROOT-Temporal132-PG18-native-schema-provision-tool-join.json"
+    },
+    {
+      "bytes": 2118,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439189",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "2118",
+        "uid": "1000"
+      },
+      "path": "selected-originals/FGA-bootstrap-failed-result.json",
+      "sha256": "90e0622e0f789990553431308454817c42474a83d728f8d6a50c955ca30037fb",
+      "sourceIdentity": {
+        "ctime_ns": "1791311066980136465",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "438657",
+        "mode": "33152",
+        "mtime_ns": "1791311066980136465",
+        "nlink": "1",
+        "size": "2118",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/authorization80-real-owned-rljagzq8/result.json"
+    },
+    {
+      "bytes": 2088,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439190",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "2088",
+        "uid": "1000"
+      },
+      "path": "selected-originals/FGA-bootstrap-failed-review.json",
+      "sha256": "f4fb3183a83facc46ce6f18158b42047d66dbff242c9286519ed804f532d2faa",
+      "sourceIdentity": {
+        "ctime_ns": "1791311268252977153",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "438663",
+        "mode": "33024",
+        "mtime_ns": "1791311268252977153",
+        "nlink": "1",
+        "size": "2088",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-real-FGA-R10-bootstrap-failure-review.json"
+    },
+    {
+      "bytes": 812,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439191",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "812",
+        "uid": "1000"
+      },
+      "path": "selected-originals/FGA-bootstrap-failed-ROOT-tool-join.json",
+      "sha256": "2be9e17ee4966395a952516199b2867d267917d418094b0a95588cd5a603acf0",
+      "sourceIdentity": {
+        "ctime_ns": "1791312388828097093",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439002",
+        "mode": "33024",
+        "mtime_ns": "1791312388828097093",
+        "nlink": "1",
+        "size": "812",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/ROOT-real-FGA-R10-bootstrap-failure-tool-join.json"
+    },
+    {
+      "bytes": 571,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439192",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "571",
+        "uid": "1000"
+      },
+      "path": "selected-originals/mTLS-original11-failure-result.json",
+      "sha256": "c2a18de18d861981a93b7e4c94e9270c9fbf3b5e82d20887b1cfa4860b498991",
+      "sourceIdentity": {
+        "ctime_ns": "1791309259448554269",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434562",
+        "mode": "33152",
+        "mtime_ns": "1791309259448554269",
+        "nlink": "1",
+        "size": "571",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal132-own-mTLS11-root-actual-vrvugipd/result.json"
+    },
+    {
+      "bytes": 1109,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439193",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "1109",
+        "uid": "1000"
+      },
+      "path": "selected-originals/mTLS-original11-failure-review.json",
+      "sha256": "ef4f7c538201834539d856c367bcca143d857819c1f9e056fbc0e31b6c7857bd",
+      "sourceIdentity": {
+        "ctime_ns": "1791309388489445012",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434583",
+        "mode": "33024",
+        "mtime_ns": "1791309388489445012",
+        "nlink": "1",
+        "size": "1109",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-own11-mode-fixture-failure-review.json"
+    },
+    {
+      "bytes": 612,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439194",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "612",
+        "uid": "1000"
+      },
+      "path": "selected-originals/mTLS-own12-result.json",
+      "sha256": "a7c327517afead67aa7ddc2f6b5423fabd0d93f553e14e14bf68254525d8ea9a",
+      "sourceIdentity": {
+        "ctime_ns": "1791309424313988134",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434602",
+        "mode": "33152",
+        "mtime_ns": "1791309424313988134",
+        "nlink": "1",
+        "size": "612",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal132-own-mTLS12-root-actual-_a3xsvxk/result.json"
+    },
+    {
+      "bytes": 1155,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439195",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "1155",
+        "uid": "1000"
+      },
+      "path": "selected-originals/mTLS-own12-review.json",
+      "sha256": "8f1eab0f37a9e58a2eb13f0be36a3540654255e139e3a3b8dc466debb361fd76",
+      "sourceIdentity": {
+        "ctime_ns": "1791309450814951180",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434603",
+        "mode": "33024",
+        "mtime_ns": "1791309450814951180",
+        "nlink": "1",
+        "size": "1155",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-own12-mode-symlink-config-review.json"
+    },
+    {
+      "bytes": 3000,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439196",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "3000",
+        "uid": "1000"
+      },
+      "path": "selected-originals/PKI-own14-result.json",
+      "sha256": "de086f3d5f13fa0af23a28eebf4363969a8fe77a68927ca57a371654bccfe2e1",
+      "sourceIdentity": {
+        "ctime_ns": "1791312082508143941",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "438812",
+        "mode": "33152",
+        "mtime_ns": "1791312082508143941",
+        "nlink": "1",
+        "size": "3000",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal132-own-PKI14-root-actual-yuyk8kh4/result.json"
+    },
+    {
+      "bytes": 2090,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439197",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "2090",
+        "uid": "1000"
+      },
+      "path": "selected-originals/PKI-own14-review.json",
+      "sha256": "279b741b9ad441a65d7c5d91c6693a0ec5556e93f8427dc77034ab0754633663",
+      "sourceIdentity": {
+        "ctime_ns": "1791312138138037128",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "438823",
+        "mode": "33024",
+        "mtime_ns": "1791312138138037128",
+        "nlink": "1",
+        "size": "2090",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-PKI-own14-and-prospective-bounded-producer-gate.json"
+    },
+    {
+      "bytes": 3074,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439198",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "3074",
+        "uid": "1000"
+      },
+      "path": "selected-originals/PKI-real20-result.json",
+      "sha256": "c75c043c5f84580100131c232cb0733228c49ef3f04bcc7f4167f3a66a41bc2d",
+      "sourceIdentity": {
+        "ctime_ns": "1791312166030711362",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "438909",
+        "mode": "33152",
+        "mtime_ns": "1791312166030711362",
+        "nlink": "1",
+        "size": "3074",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal132-real-PKI-root-actual-ll_o5rho/result.json"
+    },
+    {
+      "bytes": 1497,
+      "copyIdentity": {
+        "ctime_ns": "1791312789153787754",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439199",
+        "mode": "33024",
+        "mtime_ns": "1791312789153787754",
+        "nlink": "1",
+        "size": "1497",
+        "uid": "1000"
+      },
+      "path": "selected-originals/PKI-real20-curated-review.json",
+      "sha256": "0c60d96d1fbca56fc8b032851b3b2931a5498799aa2a77404e56df30caaeabfa",
+      "sourceIdentity": {
+        "ctime_ns": "1791312473122137122",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439013",
+        "mode": "33024",
+        "mtime_ns": "1791312473122137122",
+        "nlink": "1",
+        "size": "1497",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-disposable-PKI20-review.json"
+    }
+  ],
+  "scanner": "NOT_RUN",
+  "scope": {
+    "FGA": "Actual model bootstrap FAILED after health/wrong-auth passed; underlying cause opaque;93permissions/wrong-model/empty-store unreached. Recorded cleanup only.",
+    "PG": "OwnedPG18/postgresql12 schema compatibility: temporal1.19/min1.0,visibility1.14/min0.1. Stopped/joined; no Temporal server launched.",
+    "PKI14": "Own mocked guards only.",
+    "PKI20": "Actual disposable PKI:20 normal0 commands/joins, sourcepins, no late journalmarker,12private output hashes/metadata independently checked in-memory. No private body/map copies or mTLS/Temporal/FGA service acceptance.",
+    "mTLS12": "Own mocked config mode/symlink guards only; original11 failure retained."
+  },
+  "selectedExistingOriginals": [
+    {
+      "bytes": 636,
+      "publicationName": "PG-native-owner-result.json",
+      "sha256": "1f5e97a762c548473c55de0d5de72efe15ba7aab15bc3e23b2504c26526af737",
+      "sourceIdentity": {
+        "ctime_ns": "1791310935976966053",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437283",
+        "mode": "33024",
+        "mtime_ns": "1791310935976966053",
+        "nlink": "1",
+        "size": "636",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal132-PG18-provision-owner-rby1zru_/result.json"
+    },
+    {
+      "bytes": 4186,
+      "publicationName": "PG-native-schema-review.json",
+      "sha256": "42c3fa04bbcc4f585a15bd5524ace647deb545704a810d3c6cc43e10cc59d3ef",
+      "sourceIdentity": {
+        "ctime_ns": "1791311092908763595",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "438660",
+        "mode": "33024",
+        "mtime_ns": "1791311092908763595",
+        "nlink": "1",
+        "size": "4186",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-PG18-native-schema-provision-review.json"
+    },
+    {
+      "bytes": 779,
+      "publicationName": "PG-native-ROOT-tool-join.json",
+      "sha256": "da8ba38b527170e8f20ca81e4892d815c61f3a042160d510d4c95e23b4caf5aa",
+      "sourceIdentity": {
+        "ctime_ns": "1791312388824096995",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439001",
+        "mode": "33024",
+        "mtime_ns": "1791312388824096995",
+        "nlink": "1",
+        "size": "779",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/ROOT-Temporal132-PG18-native-schema-provision-tool-join.json"
+    },
+    {
+      "bytes": 2118,
+      "publicationName": "FGA-bootstrap-failed-result.json",
+      "sha256": "90e0622e0f789990553431308454817c42474a83d728f8d6a50c955ca30037fb",
+      "sourceIdentity": {
+        "ctime_ns": "1791311066980136465",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "438657",
+        "mode": "33152",
+        "mtime_ns": "1791311066980136465",
+        "nlink": "1",
+        "size": "2118",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/authorization80-real-owned-rljagzq8/result.json"
+    },
+    {
+      "bytes": 2088,
+      "publicationName": "FGA-bootstrap-failed-review.json",
+      "sha256": "f4fb3183a83facc46ce6f18158b42047d66dbff242c9286519ed804f532d2faa",
+      "sourceIdentity": {
+        "ctime_ns": "1791311268252977153",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "438663",
+        "mode": "33024",
+        "mtime_ns": "1791311268252977153",
+        "nlink": "1",
+        "size": "2088",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-real-FGA-R10-bootstrap-failure-review.json"
+    },
+    {
+      "bytes": 812,
+      "publicationName": "FGA-bootstrap-failed-ROOT-tool-join.json",
+      "sha256": "2be9e17ee4966395a952516199b2867d267917d418094b0a95588cd5a603acf0",
+      "sourceIdentity": {
+        "ctime_ns": "1791312388828097093",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439002",
+        "mode": "33024",
+        "mtime_ns": "1791312388828097093",
+        "nlink": "1",
+        "size": "812",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/ROOT-real-FGA-R10-bootstrap-failure-tool-join.json"
+    },
+    {
+      "bytes": 571,
+      "publicationName": "mTLS-original11-failure-result.json",
+      "sha256": "c2a18de18d861981a93b7e4c94e9270c9fbf3b5e82d20887b1cfa4860b498991",
+      "sourceIdentity": {
+        "ctime_ns": "1791309259448554269",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434562",
+        "mode": "33152",
+        "mtime_ns": "1791309259448554269",
+        "nlink": "1",
+        "size": "571",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal132-own-mTLS11-root-actual-vrvugipd/result.json"
+    },
+    {
+      "bytes": 1109,
+      "publicationName": "mTLS-original11-failure-review.json",
+      "sha256": "ef4f7c538201834539d856c367bcca143d857819c1f9e056fbc0e31b6c7857bd",
+      "sourceIdentity": {
+        "ctime_ns": "1791309388489445012",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434583",
+        "mode": "33024",
+        "mtime_ns": "1791309388489445012",
+        "nlink": "1",
+        "size": "1109",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-own11-mode-fixture-failure-review.json"
+    },
+    {
+      "bytes": 612,
+      "publicationName": "mTLS-own12-result.json",
+      "sha256": "a7c327517afead67aa7ddc2f6b5423fabd0d93f553e14e14bf68254525d8ea9a",
+      "sourceIdentity": {
+        "ctime_ns": "1791309424313988134",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434602",
+        "mode": "33152",
+        "mtime_ns": "1791309424313988134",
+        "nlink": "1",
+        "size": "612",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal132-own-mTLS12-root-actual-_a3xsvxk/result.json"
+    },
+    {
+      "bytes": 1155,
+      "publicationName": "mTLS-own12-review.json",
+      "sha256": "8f1eab0f37a9e58a2eb13f0be36a3540654255e139e3a3b8dc466debb361fd76",
+      "sourceIdentity": {
+        "ctime_ns": "1791309450814951180",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434603",
+        "mode": "33024",
+        "mtime_ns": "1791309450814951180",
+        "nlink": "1",
+        "size": "1155",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-own12-mode-symlink-config-review.json"
+    },
+    {
+      "bytes": 3000,
+      "publicationName": "PKI-own14-result.json",
+      "sha256": "de086f3d5f13fa0af23a28eebf4363969a8fe77a68927ca57a371654bccfe2e1",
+      "sourceIdentity": {
+        "ctime_ns": "1791312082508143941",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "438812",
+        "mode": "33152",
+        "mtime_ns": "1791312082508143941",
+        "nlink": "1",
+        "size": "3000",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal132-own-PKI14-root-actual-yuyk8kh4/result.json"
+    },
+    {
+      "bytes": 2090,
+      "publicationName": "PKI-own14-review.json",
+      "sha256": "279b741b9ad441a65d7c5d91c6693a0ec5556e93f8427dc77034ab0754633663",
+      "sourceIdentity": {
+        "ctime_ns": "1791312138138037128",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "438823",
+        "mode": "33024",
+        "mtime_ns": "1791312138138037128",
+        "nlink": "1",
+        "size": "2090",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-PKI-own14-and-prospective-bounded-producer-gate.json"
+    },
+    {
+      "bytes": 3074,
+      "publicationName": "PKI-real20-result.json",
+      "sha256": "c75c043c5f84580100131c232cb0733228c49ef3f04bcc7f4167f3a66a41bc2d",
+      "sourceIdentity": {
+        "ctime_ns": "1791312166030711362",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "438909",
+        "mode": "33152",
+        "mtime_ns": "1791312166030711362",
+        "nlink": "1",
+        "size": "3074",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal132-real-PKI-root-actual-ll_o5rho/result.json"
+    },
+    {
+      "bytes": 1497,
+      "publicationName": "PKI-real20-curated-review.json",
+      "sha256": "0c60d96d1fbca56fc8b032851b3b2931a5498799aa2a77404e56df30caaeabfa",
+      "sourceIdentity": {
+        "ctime_ns": "1791312473122137122",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "439013",
+        "mode": "33024",
+        "mtime_ns": "1791312473122137122",
+        "nlink": "1",
+        "size": "1497",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-disposable-PKI20-review.json"
+    }
+  ],
+  "sourcePlanSHA256": "30b3fd4d3cd1a98797bf00424c35cf440a4355a3a8e6ee20e9ad0bac5bf83048",
+  "status": "PRIVATE14-ORIGINAL-CANDIDATE-NOT-SCANNED-NOT-PUBLISHED",
+  "supersedesPrivatePlanSHA256": "e2ad337535ad74aa2c3e09222b198769a5fe782182fbff5ac63ae17c6c654076"
+}

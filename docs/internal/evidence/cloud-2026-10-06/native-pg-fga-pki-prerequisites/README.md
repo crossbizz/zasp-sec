@@ -1,0 +1,7 @@
+# Selected native PG, FGA failure and PKI evidence
+
+Exactly 14 original proof files retain their original bytes and separate source/copy identities. PG evidence proves owned PostgreSQL18 compatibility with the immutable Temporal postgresql12 schemas (temporal1.19/min1.0; visibility1.14/min0.1), followed by normal stop. It does not show a running Temporal service.
+
+The real FGA bootstrap attempt failed after authenticated health and wrong-authentication checks passed;93 permission checks and other downstream cases were not reached. The underlying bootstrap cause remains opaque. Original own11 config failure is retained beside own12 mocked config guards and own14 mocked PKI guards. Actual disposable PKI20 evidence covers20normal commands and privately verified output metadata; private key/certificate bodies and producer maps are omitted. These are prerequisites and scoped component observations, with no production/task/ledger promotion.
+
+The two ROOT joins are direct tool transcriptions, not invented kernel traces or elapsed observations. Their independently reviewed additive interpretation is referenced privately by exact hash without enlarging the fixed14 selection. Private credentials/HMAC/passwords/keys, raw logs, full maps and PG authenticated journals are not selected. No encoding or scanner execution occurred for this candidate; scanner NOT_RUN. ROOT owns publication/copy/receipt append; existing111930-byte receipt prefix4640 remains unchanged.

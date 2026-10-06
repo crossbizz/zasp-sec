@@ -1,0 +1,15 @@
+{
+  "checks": [
+    "20 exact record/stream bindings, normal exit0 joined children; no forced/interrupted/timeout/unexpected/survivors",
+    "Three cert-derived and private-derived PUBLIC key outputs byte-identical, chain/purpose/localhost/IP check commands normal0",
+    "12 output files exact roster, sameFD SHA/full security metadata before-after-path equality, UID1000/nlink1/0600/bounded; private bodies not emitted",
+    "Source/tool before-after maps equal; current13 ROOT pins and all record hashes reconcile; registered20 PID/start identities and empty residual closure",
+    "65536 reserved journal has20 joined command bindings and no signal/refusal marker; ROOT terminal observed0 separately retained"
+  ],
+  "producerResultPath": "/tmp/Temporal132-owned-service-37c4a297136790393f817a8d4b6c3e73/result.json",
+  "producerResultSHA256": "60c1648b5e4f743c0e7e53a2bb4b8174db370fc64cce21df330698ff9008fc07",
+  "rootResultPath": "/tmp/zasp-cloud-evidence/Temporal132-real-PKI-root-actual-ll_o5rho/result.json",
+  "rootResultSHA256": "c75c043c5f84580100131c232cb0733228c49ef3f04bcc7f4167f3a66a41bc2d",
+  "scope": "Actual disposable owned CA/server/client transport credentials only. No native service launch, live PG, native TLS parser/handshake, namespace RBAC, tenant authorization, application/provider/browser readiness. Reviewer did not run crypto or candidate source. ROOT exit is parent observation, not independent kernel trace.",
+  "status": "ACTUAL-DISPOSABLE-PKI-PRODUCER-PASS"
+}
