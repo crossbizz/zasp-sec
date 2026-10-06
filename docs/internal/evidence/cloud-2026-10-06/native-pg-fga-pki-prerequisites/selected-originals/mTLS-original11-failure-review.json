@@ -1,0 +1,13 @@
+{
+  "limitations": [
+    "No original global cleanup claim",
+    "No native parser/crypto/PG/mTLS/service/auth behavior demonstrated",
+    "No reviewer tests/runtime"
+  ],
+  "outcome": "RECONCILED_ACTUAL11_FAILURE_NO_PROMOTION",
+  "preservation": "Original leftover untouched, no generated config body read or deletion; original logs/result retained.",
+  "resultPath": "/tmp/zasp-cloud-evidence/Temporal132-own-mTLS11-root-actual-vrvugipd/result.json",
+  "resultSHA256": "c2a18de18d861981a93b7e4c94e9270c9fbf3b5e82d20887b1cfa4860b498991",
+  "sourceReason": "Original requested mkdir0755 is umask-filtered. Retained original leftover current directory mode0700 independently observed; helper permits private0700, so writer acceptance is consistent with actual mode. Original parent umask was not recorded in this review.",
+  "verified": "Actual normal outer exit1; ten named OK and one ERROR. Expected RuntimeError assertion did not fire; finally rmdir raised DirectoryNotEmpty and replaced assertion outcome with ERROR. Full beforeafter/current source/tool SHA+metadata maps equal; actual log SHA matches."
+}

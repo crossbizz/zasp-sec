@@ -1,0 +1,14 @@
+{
+  "actualSeconds": 0.07410577600239776,
+  "limitations": [
+    "Own constructed private config writer and mocked boundary tests, no native parser/PKI/PG/mTLS services/tenant permission/provider acceptance",
+    "No actual certificate generation or configuration runtime behavior inferred",
+    "No reviewer tests/runtime"
+  ],
+  "outcome": "PASS_ACTUAL12_OWN_CONFIG_FIXTURES_ONLY",
+  "preservation": "Original actual11 failurec2a full result unchanged and original leftoverdev34/inode434559/mode0700 unchanged; no original body read/delete.",
+  "resultPath": "/tmp/zasp-cloud-evidence/Temporal132-own-mTLS12-root-actual-_a3xsvxk/result.json",
+  "resultSHA256": "a7c327517afead67aa7ddc2f6b5423fabd0d93f553e14e14bf68254525d8ea9a",
+  "rootObservation": "ROOT reported normal99d417; not fabricated independent kernel trace",
+  "verification": "All12 exact named tests OK/zero errors/failures/skips including explicit actual0755 negative and owned symlink no-target-write check. Captured stderrSHA and all recorded source/tool beforeafter securitymetadata/hash maps equal and current matching; actual normal outer wait0 and both sampled floors preserved."
+}

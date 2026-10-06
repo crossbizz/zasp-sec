@@ -1,0 +1,17 @@
+{
+  "ROOTToolTranscription": {
+    "chunks": [
+      "028bff",
+      "fe9998"
+    ],
+    "normalExit": 0,
+    "path": "/tmp/zasp-cloud-evidence/ROOT-CLI-retained-archive-prepare-tool-join.json",
+    "schema": "ROOT-direct-tool-transcription-v1",
+    "session": 28146,
+    "sha256": "7befe4e333641f8fa5433edce8cf3cb1c314da008ba67721f9d450f8eb4e797e"
+  },
+  "actualReviewSHA256": "2452bbe7bb668d221ec353618463674d16215f3dd02345603d2275984e36dd3e",
+  "scope": "ROOT tool-observed normal join corroborates exact reviewed owner/result. Not an independently fabricated kernel trace, PID or whole-runtime measurement; no unlink.",
+  "status": "PASS",
+  "toolsJournalAddendumSHA256": "e987a3b7c55dd208e533810795b64f192796f1e80eeea9e61e9b57583f6331c5"
+}

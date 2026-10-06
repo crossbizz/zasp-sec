@@ -1,0 +1,523 @@
+{
+  "archiveStillPresent": true,
+  "controller14NormalRecords": [
+    "cleanup-CID-absence",
+    "cleanup-discover",
+    "cleanup-inspect",
+    "cleanup-label-check",
+    "cleanup-remove",
+    "create",
+    "created-inspect",
+    "daemon",
+    "image",
+    "image-volumes",
+    "observe",
+    "post-daemon",
+    "stopped-inspect",
+    "wait"
+  ],
+  "current13": {
+    "/tmp/authorization80-real-fga-compile-only-r2-tsvfr02h/run-compile-only.py": {
+      "ctime_ns": 1791305892121431274,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 433260,
+      "mode": 33024,
+      "mtime_ns": 1791305892112629487,
+      "nlink": 1,
+      "sha256": "1d167307a411920e75156067268e3792f1fe4cbd3bd2233b3cd277383a2a7ea5",
+      "size": 4544454,
+      "uid": 1000
+    },
+    "/tmp/authorization80-real-fga-first-slice-r5-wer2ocea/owned_fga_real_component_test.go": {
+      "ctime_ns": 1791304749899232487,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 432829,
+      "mode": 33024,
+      "mtime_ns": 1791304749898640686,
+      "nlink": 1,
+      "sha256": "60046e34ddc0a231679254b5ee61a5d3ed7d2dc6bfad8610d545266d103360f7",
+      "size": 6336,
+      "uid": 1000
+    },
+    "/tmp/authorization80-real-fga-parent-bound-r10-j0_3s4qm/ROOT-CANDIDATE-CONFIG.json": {
+      "ctime_ns": 1791308500024725721,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434330,
+      "mode": 33024,
+      "mtime_ns": 1791308500024725721,
+      "nlink": 1,
+      "sha256": "216e8f4c957d62ab247212832b8a3e6dffc3bbf4aad7db08942c17dd0c973393",
+      "size": 34239,
+      "uid": 1000
+    },
+    "/tmp/authorization80-real-fga-parent-bound-r10-j0_3s4qm/owned_fga_pg_parent.py": {
+      "ctime_ns": 1791308500017716781,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434329,
+      "mode": 33024,
+      "mtime_ns": 1791308500017716781,
+      "nlink": 1,
+      "sha256": "0ff9d8b77a50f6c7f85eb25bfbb5a5f0ef4e8c81f3acdddedd0f30f697e47017",
+      "size": 25913,
+      "uid": 1000
+    },
+    "/tmp/zasp-cloud-evidence/Temporal132-application-runtime-source-7uflhg15/preparation.json": {
+      "ctime_ns": 1791307948265241581,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434223,
+      "mode": 33024,
+      "mtime_ns": 1791307948265241581,
+      "nlink": 1,
+      "sha256": "927b7c79f7ba53ab6a2c0761a1d8f29562aa9ebc12a06aca9f7d4bca94b9657a",
+      "size": 724,
+      "uid": 1000
+    },
+    "/tmp/zasp-cloud-evidence/Temporal132-native-PG-mTLS-config-source-vrehmduf/certificate_recipe.py": {
+      "ctime_ns": 1791308797149125556,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434326,
+      "mode": 33024,
+      "mtime_ns": 1791308490391937948,
+      "nlink": 1,
+      "sha256": "199b2fc26586fe79e730e488e1000e8ebad44c8df2291fc496c3394d9415db38",
+      "size": 1965,
+      "uid": 1000
+    },
+    "/tmp/zasp-cloud-evidence/Temporal132-native-PG-mTLS-config-source-vrehmduf/config_boundary.py": {
+      "ctime_ns": 1791308797149125556,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434311,
+      "mode": 33024,
+      "mtime_ns": 1791308628727862725,
+      "nlink": 1,
+      "sha256": "c41ca8080ed1ca65ca6d4b9bc8542f344dc49bc788c3f3c6852f2fc6bc4099ce",
+      "size": 8236,
+      "uid": 1000
+    },
+    "/tmp/zasp-cloud-evidence/Temporal132-native-PG-mTLS-config-source-vrehmduf/preparation.json": {
+      "ctime_ns": 1791308797148548726,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434415,
+      "mode": 33024,
+      "mtime_ns": 1791308797148548726,
+      "nlink": 1,
+      "sha256": "6fd0db91a6907e3868abf09de2fa2cb32296b4f7fba5f32aab473297f73eeeb6",
+      "size": 3855,
+      "uid": 1000
+    },
+    "/tmp/zasp-cloud-evidence/temporal132-owned-pg-process-identity-successor-trzqhx2v/plan.json": {
+      "ctime_ns": 1791306711142587227,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 433378,
+      "mode": 33024,
+      "mtime_ns": 1791306711135139052,
+      "nlink": 1,
+      "sha256": "e815ff682da33cc5e175c21cb238e84e872e3813e066884904d1a3b39ad25261",
+      "size": 33309,
+      "uid": 1000
+    },
+    "/tmp/zasp-cloud-evidence/temporal132-owned-pg-process-identity-successor-trzqhx2v/preparation.json": {
+      "ctime_ns": 1791306711139993648,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 433388,
+      "mode": 33024,
+      "mtime_ns": 1791306711139993648,
+      "nlink": 1,
+      "sha256": "497a35d34ad8389a76b4e950a2430bd137782d7dc27b6ba668f9455e78ab2807",
+      "size": 3720,
+      "uid": 1000
+    },
+    "/tmp/zasp-cloud-evidence/temporal132-pg-schema-fetch-source-r573r8r9/fetch.py": {
+      "ctime_ns": 1791304295154641447,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 432639,
+      "mode": 33024,
+      "mtime_ns": 1791304295154553465,
+      "nlink": 1,
+      "sha256": "4f9a25c6c352df4fd72edceff852a593f02a24db2d4abef68c31be5726310fb5",
+      "size": 15093,
+      "uid": 1000
+    },
+    "/tmp/zasp-cloud-evidence/temporal132-schema-fetch-launch-source-lsiut6rb/run.py": {
+      "ctime_ns": 1791304727942033383,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 432789,
+      "mode": 33024,
+      "mtime_ns": 1791304727940352594,
+      "nlink": 1,
+      "sha256": "ad06c74bd356dfd1f64a77b11125c3b9bb415278b025382233ca1eddfcd32492",
+      "size": 7534,
+      "uid": 1000
+    },
+    "/tmp/zasp-cloud-evidence/temporal132-schema-launch-command-successor-v75pqhm3/preparation.json": {
+      "ctime_ns": 1791305345089776451,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 432946,
+      "mode": 33024,
+      "mtime_ns": 1791305345089776451,
+      "nlink": 1,
+      "sha256": "f50e2943ce3602cfb6d91755d04f7cd7f54b6c4de8097700d3edf5a49c5074ae",
+      "size": 2797,
+      "uid": 1000
+    }
+  },
+  "independentWholeArchiveAndRawReplay": {
+    "compressedBytes": 45298806,
+    "compressedSHA256": "09a0326a51db84d02735e53542b9ebd8c4758daf47482a9ab0abce15844e60d5",
+    "gzipCRCAndFullTarEOFValidated": true,
+    "inflatedBytes": 156332032,
+    "members": [
+      {
+        "bytes": 1108,
+        "path": "LICENSE",
+        "sha256": "692992f9a78f825b332d03f9b98aeb6cd5823ae884572af02e79f17327aa0612"
+      },
+      {
+        "bytes": 156328098,
+        "path": "temporal",
+        "sha256": "712217694cac9f786a72d4b6c876cd15f3dcf1bf31434d9fed6af25242a327a0"
+      }
+    ],
+    "noExtraction": true,
+    "priorIndependentRawEveryByteComparisonSHA256": "2452bbe7bb668d221ec353618463674d16215f3dd02345603d2275984e36dd3e",
+    "retainedMemberFullBytesSHAValidated": true
+  },
+  "journals": [
+    {
+      "ctime_ns": 1791310579744357603,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434861,
+      "mode": 33024,
+      "mtime_ns": 1791310579744357603,
+      "nlink": 1,
+      "sha256": "d5c23d2b33484ce3b0aa2402b931bc17c6032ffc9dfb171f4cffe6157a03384f",
+      "size": 65536,
+      "uid": 1000
+    },
+    {
+      "ctime_ns": 1791310579744357603,
+      "dev": 27,
+      "gid": 1000,
+      "ino": 1247018,
+      "mode": 33024,
+      "mtime_ns": 1791310579744357603,
+      "nlink": 1,
+      "sha256": "d5c23d2b33484ce3b0aa2402b931bc17c6032ffc9dfb171f4cffe6157a03384f",
+      "size": 65536,
+      "uid": 1000
+    }
+  ],
+  "mapsPerProcess": {
+    "304": 11,
+    "355": 4
+  },
+  "mirroredPreparedAndJournalsEqual": true,
+  "preparedSHA256": "ed67363af3418af6205e33f927b5a1c96c1ec3ddc621b7e37559fcbc31cb12df",
+  "protected8": {
+    "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/custody.json": {
+      "ctime_ns": 1791299984115688729,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 430252,
+      "mode": 33024,
+      "mtime_ns": 1791299984115688729,
+      "nlink": 1,
+      "sha256": "1bfbc8da9e8882ae1a5b5b5885add9fe6ab45cfa978f05e9b6ab745b9f361bd2",
+      "size": 2126,
+      "uid": 1000
+    },
+    "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/openfga/openfga": {
+      "ctime_ns": 1791299285646763932,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 430098,
+      "mode": 33088,
+      "mtime_ns": 1791295562168681395,
+      "nlink": 1,
+      "sha256": "1071466abb2f9f71ecc4a047ff6537215756940edd404feb1e3ce0d4f854fd5a",
+      "size": 64577698,
+      "uid": 1000
+    },
+    "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/prepared.json": {
+      "ctime_ns": 1791299286410782425,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 430101,
+      "mode": 33024,
+      "mtime_ns": 1791299286410782425,
+      "nlink": 1,
+      "sha256": "cd174ecba33402a9322d6ec982a452c4ed48ad75de2475520391a73c712242ec",
+      "size": 2741,
+      "uid": 1000
+    },
+    "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/temporal.tar.gz": {
+      "ctime_ns": 1791299285994772358,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 430100,
+      "mode": 33024,
+      "mtime_ns": 1791295564000725878,
+      "nlink": 1,
+      "sha256": "09a0326a51db84d02735e53542b9ebd8c4758daf47482a9ab0abce15844e60d5",
+      "size": 45298806,
+      "uid": 1000
+    },
+    "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/unlink-intent.json": {
+      "ctime_ns": 1791299983467673066,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 430248,
+      "mode": 33024,
+      "mtime_ns": 1791299983467673066,
+      "nlink": 1,
+      "sha256": "7f9f89f16fad273192304247534391d8ccebf985edcbd35d68da2310ecfbd9b0",
+      "size": 717,
+      "uid": 1000
+    },
+    "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/unlinked-openfga-openfga.json": {
+      "ctime_ns": 1791299983567675482,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 430249,
+      "mode": 33024,
+      "mtime_ns": 1791299983567675482,
+      "nlink": 1,
+      "sha256": "3cb7529b8746e65ca1ee35b00ce3b8d8a1af59869820bebb563d80c4f76cba1c",
+      "size": 587,
+      "uid": 1000
+    },
+    "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/unlinked-temporal-temporal.json": {
+      "ctime_ns": 1791299983815681477,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 430250,
+      "mode": 33024,
+      "mtime_ns": 1791299983815681477,
+      "nlink": 1,
+      "sha256": "bf0ee3b6dbaff627814c56413042a5229d61b5d853b873f9865d227cd08e03f9",
+      "size": 592,
+      "uid": 1000
+    },
+    "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/unlinked-temporal.tar.gz.json": {
+      "ctime_ns": 1791299983911683797,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 430251,
+      "mode": 33024,
+      "mtime_ns": 1791299983911683797,
+      "nlink": 1,
+      "sha256": "1e307c060f18844d8f1defb24d1a93e34c9bbfa22598ad378340eec4a5ac7def",
+      "size": 587,
+      "uid": 1000
+    }
+  },
+  "rawOriginalPathAbsent": true,
+  "reference14": {
+    "controller": {
+      "ctime_ns": 1791309949733529119,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434739,
+      "mode": 33024,
+      "mtime_ns": 1791309949732102662,
+      "nlink": 1,
+      "sha256": "c96e65f56759d229f44ae4ca544c0028b7dcca46edef122507167eaa51128e53",
+      "size": 21247,
+      "uid": 1000
+    },
+    "controllerIdentity": {
+      "ctime_ns": 1791310575309956207,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434787,
+      "mode": 33024,
+      "mtime_ns": 1791310575309956207,
+      "nlink": 1,
+      "sha256": "d05517ed7de71954caa0565efd4826a1ba7ccea29d4ac83876dbf139c28b40d6",
+      "size": 865,
+      "uid": 1000
+    },
+    "controllerSummary": {
+      "ctime_ns": 1791310578005233261,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434858,
+      "mode": 33024,
+      "mtime_ns": 1791310578005233261,
+      "nlink": 1,
+      "sha256": "b2e37bb5d065168b0ea08cd58f515e59f3729bb93b2cdfed433caddec0214431",
+      "size": 673,
+      "uid": 1000
+    },
+    "observeIntent": {
+      "ctime_ns": 1791310576531883910,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434814,
+      "mode": 33024,
+      "mtime_ns": 1791310576531883910,
+      "nlink": 1,
+      "sha256": "90ee18a197aef23392faa329ca196498c415592af6dd8f35ca2cfb499ab64ece",
+      "size": 729,
+      "uid": 1000
+    },
+    "observeRecord": {
+      "ctime_ns": 1791310577549884884,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434818,
+      "mode": 33024,
+      "mtime_ns": 1791310577549884884,
+      "nlink": 1,
+      "sha256": "5472957e2b928b34602d15ae3f14bc0b46111db383872f30e8667a5f6569b930",
+      "size": 575,
+      "uid": 1000
+    },
+    "observeStdout": {
+      "ctime_ns": 1791310577544304327,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434815,
+      "mode": 33024,
+      "mtime_ns": 1791310577504303358,
+      "nlink": 1,
+      "sha256": "dd0ae48239086bfce6371154d3cdcdd20df0632d2b5771236e95f0148b9ead7f",
+      "size": 5022,
+      "uid": 1000
+    },
+    "observerPlan": {
+      "ctime_ns": 1791309949733529119,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434736,
+      "mode": 33024,
+      "mtime_ns": 1791309949720513670,
+      "nlink": 1,
+      "sha256": "c3e64e617c768d0a4a2d8e797f965c9d8360219aeda960bb465a25c831670ffd",
+      "size": 6193,
+      "uid": 1000
+    },
+    "observerScript": {
+      "ctime_ns": 1791309949733529119,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434735,
+      "mode": 33024,
+      "mtime_ns": 1791309949720310725,
+      "nlink": 1,
+      "sha256": "199c37b3592969ba12385684410215732d00cd7b63f23adcbc6d11a570a2b7f8",
+      "size": 5587,
+      "uid": 1000
+    },
+    "ownedCID": {
+      "ctime_ns": 1791310576514031171,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434808,
+      "mode": 33024,
+      "mtime_ns": 1791310576514031171,
+      "nlink": 1,
+      "sha256": "c96627f24ed81257f87a1d81279aeb6bff765e90f61dd845fcf837df57fce91c",
+      "size": 271,
+      "uid": 1000
+    },
+    "owner": {
+      "ctime_ns": 1791309949733529119,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434740,
+      "mode": 33024,
+      "mtime_ns": 1791309949733405603,
+      "nlink": 1,
+      "sha256": "8b957bd33185920b9f67af38bee084c451dd1b5c99a23e2dec57e9bb3882bbe1",
+      "size": 6125,
+      "uid": 1000
+    },
+    "ownerIntent": {
+      "ctime_ns": 1791310575149402515,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434781,
+      "mode": 33024,
+      "mtime_ns": 1791310575149402515,
+      "nlink": 1,
+      "sha256": "3e401d0bce3ef7e466494284f69e162a5c3e163a4286b2a3a32d070b18bbe38a",
+      "size": 367,
+      "uid": 1000
+    },
+    "ownerReceipt": {
+      "ctime_ns": 1791310578024926160,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434859,
+      "mode": 33024,
+      "mtime_ns": 1791310578024926160,
+      "nlink": 1,
+      "sha256": "3983563268cf0c4cac1e8aaa3f594a1b22a2d1419e21797433faa4ff21dcb6bd",
+      "size": 835,
+      "uid": 1000
+    },
+    "ownerStdout": {
+      "ctime_ns": 1791310578005233261,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434782,
+      "mode": 33152,
+      "mtime_ns": 1791310578005233261,
+      "nlink": 1,
+      "sha256": "5c07db6e19cdbe4f7b51b99d17bc64b18b74a198ae1992a28287415ba6b4c932",
+      "size": 202,
+      "uid": 1000
+    },
+    "targetInventory": {
+      "ctime_ns": 1791309949733529119,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 434734,
+      "mode": 33024,
+      "mtime_ns": 1791309949720154420,
+      "nlink": 1,
+      "sha256": "d76bb72b04f39d4f5fef54979ee64afe3cf4ee1176b6d298a82174a1258a7d0f",
+      "size": 1237,
+      "uid": 1000
+    }
+  },
+  "removed": [
+    "temporal"
+  ],
+  "result": {
+    "ctime_ns": 1791310580465379637,
+    "dev": 27,
+    "gid": 1000,
+    "ino": 1247022,
+    "mode": 33024,
+    "mtime_ns": 1791310580465379637,
+    "nlink": 1,
+    "sha256": "6dbca90d65c817803b546cd3c6a12d4127c08f5b51dfc4a98acc8e41e101c560",
+    "size": 2781,
+    "uid": 1000
+  },
+  "rootProofSHA256": "e3592839d5b0c4e5ab75f762375ec785f17a291c46b84bf225f782dbd7a24535",
+  "scope": "ACTUAL-EXACT-ONE-CLI-RAW-LOSSLESS-CUSTODY",
+  "scopeLimits": [
+    "Inactivity is a snapshot, not lifetime proof.",
+    "Root reported tool normal exit0; no independently invented root kernel trace.",
+    "Exactly one raw duplicate unlinked; no services/schema/native/provider acceptance.",
+    "Any future unlink needs separately reviewed fresh target observer, admission and exact ROOT recipe."
+  ],
+  "status": "PASS"
+}

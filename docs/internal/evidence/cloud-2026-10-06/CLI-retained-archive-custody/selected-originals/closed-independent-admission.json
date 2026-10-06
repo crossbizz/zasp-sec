@@ -1,0 +1,19 @@
+{
+  "allowExactSourceUnlink": true,
+  "archiveBinding": {
+    "ctime_ns": 1791299285994772358,
+    "dev": 34,
+    "gid": 1000,
+    "ino": 430100,
+    "kind": "file",
+    "mode": 33024,
+    "mtime_ns": 1791295564000725878,
+    "nlink": 1,
+    "sha256": "09a0326a51db84d02735e53542b9ebd8c4758daf47482a9ab0abce15844e60d5",
+    "size": 45298806,
+    "uid": 1000
+  },
+  "planSHA256": "ee723f92dc23aa1ced3309487aed3f6ec7ad2682cf2c9890d070b4b7721e1dcf",
+  "preparedSHA256": "ed67363af3418af6205e33f927b5a1c96c1ec3ddc621b7e37559fcbc31cb12df",
+  "status": "INDEPENDENT-CLI-RETAINED-ARCHIVE-PREPARE-ADMISSION-PASS"
+}

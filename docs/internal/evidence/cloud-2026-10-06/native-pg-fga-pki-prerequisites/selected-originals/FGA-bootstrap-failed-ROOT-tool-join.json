@@ -1,0 +1,16 @@
+{
+  "scope": "direct transcription of observed ROOT tool normal failed join; not independent kernel trace",
+  "startToolChunk": "d0d77c",
+  "sessionID": 69304,
+  "terminalToolChunk": "ef0c24",
+  "observedNormalExit": 1,
+  "ownerResult": {
+    "path": "/tmp/authorization80-real-owned-rljagzq8/result.json",
+    "sha256": "90e0622e0f789990553431308454817c42474a83d728f8d6a50c955ca30037fb"
+  },
+  "independentActualReview": {
+    "path": "/tmp/zasp-cloud-evidence/independent-actual-real-FGA-R10-bootstrap-failure-review.json",
+    "sha256": "f4fb3183a83facc46ce6f18158b42047d66dbff242c9286519ed804f532d2faa"
+  },
+  "limits": "Health and wrong authentication passed; model bootstrap failed; 93 permission checks unreached. No underlying failure phase/status or unobserved parent PID/elapsed time reconstructed."
+}

@@ -1,0 +1,30 @@
+{
+  "actualPrepareReviewSHA256": "2452bbe7bb668d221ec353618463674d16215f3dd02345603d2275984e36dd3e",
+  "admissionSHA256": "22cce4e9c9367fa2371fbd204220d554801f55739132ee0c13f262cd6ca7857e",
+  "checks": [
+    "All53 control/source/tool pins exact; recipe CONFIG equals source literal and exact closed5field admission derives actual prepared bytes.",
+    "Finalobserver owner/controller function AST unchanged from actual prepare; shell byte-identical with both correct source and destination FD/cwd prefixes, raw+archive aliases34:430099/430100 and target-bound new mount.",
+    "Fresh actual14ref proof is validated by unchanged source9322 verify_observer_chain/inactive, then fixed finalize phase uses root_fresh <=5s from conservative START immediately before single parentFD unlink after full raw/archive hashes and durable mirrored intent.",
+    "Unchanged source enforces protected8/current13, no new payload, exact2member CRC/fullEOF, closedsameFD admission, mirrored intent/returned unlink/fsync/custody.",
+    "Corrected successor reports unknown mutation as null when finalstage started but no durable return marker; false only if never started. No rollback assumed.",
+    "Owner journal/handlers/normalgroup cleanup/live terminal refusal preserved; successful result provisional until ROOT normal terminal exit and independent actual review.",
+    "New owner output and root-proof-finalize absent at review; exact270+35 outer,275=245+30 owner/two125 stages, unchanged freshTMP104194304/WS1504194304 gates."
+  ],
+  "limits": [
+    "ROOT sole execution; reviewer performed no Docker/observer/unlink/archive extraction/runtime.",
+    "Action only removes exact historical raw duplicate after fresh target proof. Retained full official archive remains lossless custody, not installed CLI readiness.",
+    "Any signal/time/storage/unknown process/durability/closure refusal remains failure, even after unlink; actual partial custody must be reported.",
+    "Future actual review must verify all14 refs/normal cleanup, strict freshness, protected files/archive full bytes, mirrored ledger and source absence; current static PASS is not actual completion."
+  ],
+  "owner": {
+    "path": "/tmp/zasp-cloud-evidence/CLI-final-one-unlink-root-owner-reviewed-z09jfmij/run-fresh-observe-and-one-unlink.py",
+    "sha256": "3b3149285fe24bf826fc1e8e402cb8f296f691ba9393e5e7cd3d1f131388e7fe"
+  },
+  "preservedUnrunOwnerSHA256": "9db14fedf92019306ff456543e2da2761b4f79c37b480d15b85637bdfe7e3a6d",
+  "recipe": {
+    "path": "/tmp/zasp-cloud-evidence/CLI-final-one-unlink-root-owner-reviewed-z09jfmij/ROOT-RECIPE.json",
+    "sha256": "40e6aa75309a0310a68eec2cfa0068f9916295fe8bf67570849800641eef9aa3"
+  },
+  "scope": "SOURCE-STATIC-EXACT-ONE-HISTORICAL-CLI-RAW-UNLINK-RECIPE",
+  "status": "PASS"
+}
