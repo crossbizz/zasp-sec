@@ -1,0 +1,23 @@
+{
+  "status": "STATIC-SOURCE-AND-FOUR-CALLER-RECIPE-PASS",
+  "runnerSHA256": "8e5c5ef90a98b8ad25e9e81b044f336d362ac4bac7beae02e118f24608b60c5d",
+  "preparationSHA256": "231f086c8c0a4dfe286d773d7452c724bac548eff9f8c84292801eda63a942c1",
+  "codecSHA256": "8ba722729b2420248a7085d763af2699add4b9bc05cee0bde02e6cc82e70f5dc",
+  "casesSHA256": "bbecdcce7dbf849ef581c99ef10961f86c45b5c81ed5f70058d033e2e38c67cc",
+  "overlaySHA256": "fc41fb8873cbdae6b2e7584da64bc3311ab43de3b84bf0f25bdb85704887e2fe",
+  "priorReviewSHA256": "55fb77fbebba7331bc8a8fab279223eda2002ae5641e6aa99ef39d3171e7adb2",
+  "resolved": "Full compiled-artifact binding now O_NOFOLLOW open+streamSHA/prepost fstat/lstat exactdev/inode/mode/UID/GID/nlink/size/mtime/ctime. Bound immediately beforePopen, after eachcaller, and final. Duplicate summaryfields consistency required. Cancellation/stage/workdeadline rechecked afterprePopen artifacthash.",
+  "sourceChecks": [
+    "Prior50pins/modelbody/callers and completeGOROOTmap metadata review retained; finalcases/codec/map unchanged.",
+    "Compileonce90+4namedcaller90 shared270work/300final+1.5GBreserve preserved; no productphase/byte/row caps changed.",
+    "All originalmodelconservation/canonicalempty repair/rawrecord/cost/eightphase/historypublisherchecks retained; originalall4entry remains.",
+    "Exacttest2json live roster eachsinglePASS/noFAIL/SKIP; tools/source/binary fullbinding and normalactualcleanup/finaldurability required. No false claimed ASTunchanged for newstage/sourceguards."
+  ],
+  "findings": [],
+  "rootLaunchConditions": [
+    "Exact8e5 runner/prep231f byteverification and freshresourcewindow >=originalreserve.",
+    "Existing ROOT-owned finite outer<=300work with boundedjoin (e.g reviewed215/35 must be updated for300) plusTini andactualterminalexit/joinreceipt; no reviewerexecution.",
+    "Closed sourcefixtureenvironment/offline readonlymodules existingwarmcache only; no concurrent heavyworkflow."
+  ],
+  "scope": "Private source-model grouping only; no compiler/Go/tool/test/runtime/native executed byreviewer, no closedFIT/adapter/native/installed/deployed acceptance. Priorb89d interruptedfullmodel remainsFAILED; partialpercallerlogs not relabeledglobalPASS."
+}

@@ -1,0 +1,41 @@
+{
+  "inactivityBefore": {
+    "privilegedExactRootProofSHA256": "06794c807c6aacdc39257870bfb86916e2fb46b61b2a4c5bccce3cba9c128d6a",
+    "snapshotNotLifetimeClaim": true,
+    "unknownOrActive": false,
+    "visibleNonZombieProcessesInspected": 11
+  },
+  "independentAdmissionRequiredBeforeUnlink": true,
+  "planSHA256": "eec16b113da0eb393c5b78c008c65f4b544e00b00abccf447517dd3b352152f0",
+  "proof": {
+    "archiveBinding": {
+      "ctime_ns": 1791317197320482328,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 441601,
+      "kind": "file",
+      "mode": 33024,
+      "mtime_ns": 1791317197316345871,
+      "nlink": 1,
+      "sha256": "b9bae6186c5c2c539232ca7f1a8afb4e54599be8b2bec65d2dcfb28178a5d62e",
+      "size": 26860725,
+      "uid": 1000
+    },
+    "decodedBytes": 67555591,
+    "decodedSHA256": "9c13c49c93007d0f81da7a42ddcbc93676696349013226f62a45410d50a32f02",
+    "directArchiveAgainstOriginalRaw": {
+      "component.test": {
+        "bytes": 67555591,
+        "everyByteEqual": true,
+        "sha256": "9c13c49c93007d0f81da7a42ddcbc93676696349013226f62a45410d50a32f02",
+        "wholeGzipCRCAndEOFValidated": true
+      }
+    },
+    "format": "gzip",
+    "mtime": 0,
+    "originalPathsPresenceHistoricalAfterFinalize": true
+  },
+  "rootProofSHA256": "06794c807c6aacdc39257870bfb86916e2fb46b61b2a4c5bccce3cba9c128d6a",
+  "scriptSHA256": "fb6bfec1fd01c7e1a9de354deabb680699d3d50152a54908d7328ff71f090e25",
+  "status": "VERIFIED-GZIP-ORIGINAL-STILL-PRESENT"
+}

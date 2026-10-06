@@ -1,0 +1,183 @@
+{
+  "scope": "SOURCE-ONLY; no PG/native/control SQL/runtime packet admission",
+  "newSourceSHA256": {
+    "build-ordered-current-linux-successor-v1.mjs": "b5a8d9dc9e11a52d07113b3d315ef9c04cc46774e452ebe7a80be366038f2249",
+    "ordered-current-linux-provenance-v1.mjs": "64b0d211765c03071d124d1443831d2d9c3f60393878eadcbaf6ac4635be80e0",
+    "ordered-current-linux-provenance-v1.json": "68425b6efc85e163c5028dadb4b8ff3ec219dfb5d7a8a2772c73a58a45dddfb5",
+    "build-ordered-current-linux-successor-v1.test.mjs": "94dea86cf72c42b687ec28909b76b7eb06d0292190684c1b9084271a522f70a1",
+    "ordered-current-linux-provenance-v1.test.mjs": "9e1658847bbc433dcc3755b7d75dfd792b66743153832f7dff37c0a819b60c38"
+  },
+  "baselineEightPins": {
+    "effective-contract4.json": "06210a2df2f96445b2e864812c83672a46a747c57ffc5b8c4ba380c23e1ab7b0",
+    "development-manifest.json": "4820af14e63ea69b9285e5c69463436fe4ce01ef3a39111b7cbefc8adc2897f9",
+    "development-module.sql": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74",
+    "development-checkpoint.json": "905664791351c9714bfa4769ab94a6c11c6f1744c11ff56c165536fc71d13705",
+    "development-collector.sql": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f",
+    "development-admission.sql": "999db012258f1cd04880c8fd5451bd41d4317556bb00c9dec15d493b257ba3ef",
+    "consolidated-reference-contract.json": "d7e2149d8be0d1e04bd1f18e571bf55ffe4458cbe380bc1f406d3ef49aae02ff",
+    "consolidated-reference-select.sql": "23f8a023d001acbf0c257c653335603864eead2b9f963ebdbafc03e266577b57"
+  },
+  "newEight": {
+    "development-module.sql": {
+      "bytes": 10359992,
+      "sha256": "36e7652dfd0582ef872cd2a11d4d6514504736b835b688808a9712cb9c4d4ee6"
+    },
+    "development-admission.sql": {
+      "bytes": 5914,
+      "sha256": "999db012258f1cd04880c8fd5451bd41d4317556bb00c9dec15d493b257ba3ef"
+    },
+    "effective-contract4.json": {
+      "bytes": 10618112,
+      "sha256": "06210a2df2f96445b2e864812c83672a46a747c57ffc5b8c4ba380c23e1ab7b0"
+    },
+    "consolidated-reference-contract.json": {
+      "bytes": 1278073,
+      "sha256": "d7e2149d8be0d1e04bd1f18e571bf55ffe4458cbe380bc1f406d3ef49aae02ff"
+    },
+    "development-collector.sql": {
+      "bytes": 341172,
+      "sha256": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f"
+    },
+    "development-manifest.json": {
+      "bytes": 20155225,
+      "sha256": "98b3104b2511d05686dbf1e67341a0be359d8c7496516c5176c27a568dbeec0d"
+    },
+    "consolidated-reference-select.sql": {
+      "bytes": 47653,
+      "sha256": "23f8a023d001acbf0c257c653335603864eead2b9f963ebdbafc03e266577b57"
+    },
+    "development-checkpoint.json": {
+      "bytes": 7963516,
+      "sha256": "c167d5a1a81f6646d57ac00cac3691d9896c84e91cddb1e7253f30303ed7e4eb"
+    }
+  },
+  "baselineSharedSourceInputs": 1545,
+  "sourceEnvelopeUnion": 1553,
+  "oldPrivateEightUnmodifiedBySuccessor": true,
+  "generatedCheckRepeatExact": true,
+  "records": [
+    {
+      "label": "baseline-eight",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin/node",
+        "services/platform/migrations/tools/build-ordered-current-development.mjs",
+        "--write"
+      ],
+      "cwd": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source",
+      "environment": {
+        "PATH": "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+        "TMPDIR": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/tmp",
+        "LANG": "C",
+        "TZ": "UTC"
+      },
+      "exit": 0,
+      "timedOut": false,
+      "directProcessJoined": true,
+      "seconds": 12.011293794999801,
+      "logSHA256": "d2dacb37b1f8e31d0142d1465f8d741433bcc707ee237b3be937c559624d58e4"
+    },
+    {
+      "label": "successor-eight",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin/node",
+        "services/platform/migrations/tools/build-ordered-current-linux-successor-v1.mjs",
+        "--write"
+      ],
+      "cwd": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source",
+      "environment": {
+        "PATH": "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+        "TMPDIR": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/tmp",
+        "LANG": "C",
+        "TZ": "UTC"
+      },
+      "exit": 0,
+      "timedOut": false,
+      "directProcessJoined": true,
+      "seconds": 12.914860360000603,
+      "logSHA256": "730b235fb51cc90aea4eafaebce59fde582ee37d26b531a274c5bbbfefc3f11b"
+    },
+    {
+      "label": "successor-check",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin/node",
+        "services/platform/migrations/tools/build-ordered-current-linux-successor-v1.mjs",
+        "--check"
+      ],
+      "cwd": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source",
+      "environment": {
+        "PATH": "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+        "TMPDIR": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/tmp",
+        "LANG": "C",
+        "TZ": "UTC"
+      },
+      "exit": 0,
+      "timedOut": false,
+      "directProcessJoined": true,
+      "seconds": 14.078675200998987,
+      "logSHA256": "730b235fb51cc90aea4eafaebce59fde582ee37d26b531a274c5bbbfefc3f11b"
+    },
+    {
+      "label": "successor-repeat",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin/node",
+        "services/platform/migrations/tools/build-ordered-current-linux-successor-v1.mjs",
+        "--write"
+      ],
+      "cwd": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source",
+      "environment": {
+        "PATH": "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+        "TMPDIR": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/tmp",
+        "LANG": "C",
+        "TZ": "UTC"
+      },
+      "exit": 0,
+      "timedOut": false,
+      "directProcessJoined": true,
+      "seconds": 13.009626937997382,
+      "logSHA256": "730b235fb51cc90aea4eafaebce59fde582ee37d26b531a274c5bbbfefc3f11b"
+    },
+    {
+      "label": "source-group",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin/node",
+        "--test",
+        "services/platform/migrations/tools/ordered-current-linux-provenance-v1.test.mjs",
+        "services/platform/migrations/tools/build-ordered-current-linux-successor-v1.test.mjs"
+      ],
+      "cwd": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source",
+      "environment": {
+        "PATH": "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+        "TMPDIR": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/tmp",
+        "LANG": "C",
+        "TZ": "UTC"
+      },
+      "exit": 0,
+      "timedOut": false,
+      "directProcessJoined": true,
+      "seconds": 30.876667339998676,
+      "logSHA256": "eabdf563eca2d8bbf5e1788f94d3717ace0b8e732c7c9c057f8fd01fa6a33751"
+    },
+    {
+      "label": "full-source-delta",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin/node",
+        "--input-type=module",
+        "-e",
+        "import {analyzeOrderedCurrentLinuxSuccessorV1} from './services/platform/migrations/tools/build-ordered-current-linux-successor-v1.mjs'; console.log(JSON.stringify(analyzeOrderedCurrentLinuxSuccessorV1()));"
+      ],
+      "cwd": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source",
+      "environment": {
+        "PATH": "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+        "TMPDIR": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/tmp",
+        "LANG": "C",
+        "TZ": "UTC"
+      },
+      "exit": 0,
+      "timedOut": false,
+      "directProcessJoined": true,
+      "seconds": 29.133652280001115,
+      "logSHA256": "ef0897845df1fb8857591949c1e38867c7c7f411443e409d09d73b9b911f43cf"
+    }
+  ],
+  "pending": "Independent source/delta review; separately compiled successor runtime packet, frozen full envelope and root native launch remain required."
+}

@@ -1,0 +1,57 @@
+{
+  "assessment": "PASS",
+  "results": [
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-06/native379-v2-safe-diagnostics/evidence/ordered-current-native379-packet-v2.mjs",
+      "active_rule_count": 177,
+      "changed_rule_keys": [
+        "@next/next/no-assign-module-variable"
+      ],
+      "ignored": false
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-06/native379-v2-safe-diagnostics/evidence/ordered-current-native379-packet-v2.test.mjs",
+      "active_rule_count": 177,
+      "changed_rule_keys": [
+        "@next/next/no-assign-module-variable"
+      ],
+      "ignored": false
+    },
+    {
+      "path": "app/ordinary-web-module.mjs",
+      "active_rule_count": 178,
+      "changed_rule_keys": [],
+      "ignored": false
+    },
+    {
+      "path": "apps/web/ordinary-web-module.mjs",
+      "active_rule_count": 178,
+      "changed_rule_keys": [],
+      "ignored": false
+    },
+    {
+      "path": "scripts/ordinary-validation.mjs",
+      "active_rule_count": 177,
+      "changed_rule_keys": [],
+      "ignored": false
+    },
+    {
+      "path": "services/platform/migrations/tools/ordinary-tool.mjs",
+      "active_rule_count": 177,
+      "changed_rule_keys": [],
+      "ignored": false
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-06/native379-v2-safe-diagnostics/evidence/unreviewed-node-tool.mjs",
+      "active_rule_count": 177,
+      "changed_rule_keys": [],
+      "ignored": false
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native379-v2-safe-diagnostics/evidence/ordered-current-native379-packet-v2.mjs",
+      "active_rule_count": 177,
+      "changed_rule_keys": [],
+      "ignored": false
+    }
+  ]
+}

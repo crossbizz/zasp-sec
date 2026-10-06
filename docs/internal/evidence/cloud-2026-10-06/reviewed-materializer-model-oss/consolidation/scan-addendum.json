@@ -1,0 +1,22 @@
+{
+  "encodingIsNotDecodedClearance": true,
+  "fullScopeRecordArchive": "actual-selected-scan-proof.tar.gz",
+  "noIgnoreOrRuleChanges": true,
+  "scans": [
+    {
+      "actualReturncode": 0,
+      "findings": 0,
+      "logSHA256": "ccf241f87c8771b3cbdfc9e71eb60b9eade6350b40d5ca4116678775434f0756",
+      "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "scope": "decoded-selected"
+    },
+    {
+      "actualReturncode": 0,
+      "findings": 0,
+      "logSHA256": "6c88a4994929d8b4a81dd977b2549d627b1970dc7bc3058fc0312ccf9f4c420e",
+      "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "scope": "encoded-payload"
+    }
+  ],
+  "scansExcludeNewScanArchiveAddendumAndFinalManifest": true
+}

@@ -1,0 +1,85 @@
+{
+  "format": "fresh-secret-scan-review-publication-manifest-v1",
+  "publication_status": "PRIVATE prepared; independent finalcandidate review pending; fresh actual full-history scan required",
+  "files": {
+    "3c-source-pin-classification.json": {
+      "bytes": 20863,
+      "sha256": "a87724bf69006f8ecab707a9965c0b625b87471dd7c4f00b17ac607d11b48980"
+    },
+    "c032-public-digest-classification.json": {
+      "bytes": 5578,
+      "sha256": "b43b349afe7036dd0e7e8bbde1bbf587cb58d470797a39cffcb98d3294fd2644"
+    },
+    "final-effective-canary-controls.json": {
+      "bytes": 1254,
+      "sha256": "f5ca5309308368d7430d46d6e466f8f74fc4db8e98954ed640df5e1f96097669"
+    },
+    "final-effective-scope-review.json": {
+      "bytes": 6981,
+      "sha256": "8be7780f42c782180269c712f4ee7a3cd0f3490f70cf8851d132d8230880b7eb"
+    },
+    "fresh-retained-canary/command-exit-evidence.json": {
+      "bytes": 4576,
+      "sha256": "a717caf466fbc18d257092c56493199f468ef456c9528928926fbdc70838ec56"
+    },
+    "fresh-retained-canary/exact-synthetic-exception.redacted.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "fresh-retained-canary/exact-synthetic-exception.redacted.log": {
+      "bytes": 108,
+      "sha256": "3e69f13a2e3fa9dd0c944e29a17189a5d11b4ab817d5797334ce66f150d789da"
+    },
+    "fresh-retained-canary/new-path.redacted.json": {
+      "bytes": 1539,
+      "sha256": "d2f98d4c5bcc712121a074fd724c38eea716e891f0c3e5a1ab95a0cc27a226cb"
+    },
+    "fresh-retained-canary/new-path.redacted.log": {
+      "bytes": 108,
+      "sha256": "5566fe0fd4ef816596c59d54c0129e8af7156970b41893ab2be76e9b679ad870"
+    },
+    "fresh-retained-canary/same-path-new-commit.redacted.json": {
+      "bytes": 847,
+      "sha256": "de9f3311b2e9d3c16251aab78f51e30af9f21b472a625b34b5951bda019f2fd6"
+    },
+    "fresh-retained-canary/same-path-new-commit.redacted.log": {
+      "bytes": 108,
+      "sha256": "4f0482dcd26c453c4d0c239e05921c4343324924cf2a05fcabbe0101a3034d0a"
+    },
+    "fresh-retained-canary/unlisted-same-production-path.redacted.json": {
+      "bytes": 834,
+      "sha256": "1a38742eeef592833157ea1c22930bc781dc6ef5f1ff0fdad011a988439291ca"
+    },
+    "fresh-retained-canary/unlisted-same-production-path.redacted.log": {
+      "bytes": 108,
+      "sha256": "9b69ef4f87c9cacfac1ea4c5e24110772a03b1d907c4a1d975bb24c9e5b18539"
+    },
+    "fresh-review-scope.md": {
+      "bytes": 2735,
+      "sha256": "788ea6e92959d6511e05e6c95db8ce24533c2d929cd2bbd82a5cdb53e73d53f4"
+    },
+    "independent-semantic-review.json": {
+      "bytes": 386103,
+      "sha256": "b5baca76c13ddc583a81995eb1d68d8218ae0500c7fbc2a0c452240b943b041f"
+    }
+  },
+  "exact_copy_sources": {
+    "final-effective-scope-review.json": "/workspace/.zasp-cloud-owned/gitleaks-baseline-review-candidate/final-effective-scope-review.json",
+    "independent-semantic-review.json": "/workspace/.zasp-cloud-owned/gitleaks-baseline-review-candidate/independent-semantic-review.json",
+    "final-effective-canary-controls.json": "/workspace/.zasp-cloud-owned/gitleaks-baseline-review-candidate/final-effective-canary-controls.json",
+    "fresh-retained-canary/command-exit-evidence.json": "/workspace/.zasp-cloud-owned/gitleaks-baseline-review-candidate/final-effective-canary-evidence/command-exit-evidence.json",
+    "c032-public-digest-classification.json": "/tmp/zasp-cloud-evidence/runtime-continuation/frozen-failure-c032e9ae-gitleaks-classification-redacted.json",
+    "3c-source-pin-classification.json": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-commit-gitleaks-classification.json",
+    "fresh-retained-canary/same-path-new-commit.redacted.log": "/workspace/.zasp-cloud-owned/gitleaks-baseline-review-candidate/final-effective-canary-evidence/same-path-new-commit.redacted.log",
+    "fresh-retained-canary/exact-synthetic-exception.redacted.json": "/workspace/.zasp-cloud-owned/gitleaks-baseline-review-candidate/final-effective-canary-evidence/exact-synthetic-exception.redacted.json",
+    "fresh-retained-canary/exact-synthetic-exception.redacted.log": "/workspace/.zasp-cloud-owned/gitleaks-baseline-review-candidate/final-effective-canary-evidence/exact-synthetic-exception.redacted.log",
+    "fresh-retained-canary/new-path.redacted.log": "/workspace/.zasp-cloud-owned/gitleaks-baseline-review-candidate/final-effective-canary-evidence/new-path.redacted.log",
+    "fresh-retained-canary/unlisted-same-production-path.redacted.log": "/workspace/.zasp-cloud-owned/gitleaks-baseline-review-candidate/final-effective-canary-evidence/unlisted-same-production-path.redacted.log",
+    "fresh-retained-canary/same-path-new-commit.redacted.json": "/workspace/.zasp-cloud-owned/gitleaks-baseline-review-candidate/final-effective-canary-evidence/same-path-new-commit.redacted.json",
+    "fresh-retained-canary/new-path.redacted.json": "/workspace/.zasp-cloud-owned/gitleaks-baseline-review-candidate/final-effective-canary-evidence/new-path.redacted.json",
+    "fresh-retained-canary/unlisted-same-production-path.redacted.json": "/workspace/.zasp-cloud-owned/gitleaks-baseline-review-candidate/final-effective-canary-evidence/unlisted-same-production-path.redacted.json"
+  },
+  "candidate_sha256": "eed1fd29226f178d71e6f0e77b1e2cbcc9101513d600e99fc5a081779f85082c",
+  "candidate_published_in_packet": false,
+  "raw_scanner_reports_or_secret_values_copied": false
+}

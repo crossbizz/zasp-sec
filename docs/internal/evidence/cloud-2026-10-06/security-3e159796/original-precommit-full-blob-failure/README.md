@@ -1,0 +1,1 @@
+Original precommit full-blob scan FAIL4. All four findings are in unchanged historical implementation-status lines; this directory scan of 219 staged blobs is distinct from the committed Git-diff and default reachable-history scans. These gzip members preserve the original record, redacted report and log bytes. No failure is cleared by a different scan scope.

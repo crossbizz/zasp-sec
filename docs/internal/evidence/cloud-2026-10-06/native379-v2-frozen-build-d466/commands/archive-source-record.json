@@ -1,0 +1,1 @@
+{"argv":["/usr/bin/git","archive","--format=tar","d466887f7fa2dd44562489278d302e3aff9ed32f"],"cleanup_joined":true,"cwd":"/workspace/zasp-sec","exit_code":0,"failure_kind":null,"label":"archive-source","log_sha256":"f33165e026bc14adcd65f3736c141b439400e2455309708aa2aecb5a953223b8","seconds":0.817049,"timed_out":false,"unexpected_descendants":false}

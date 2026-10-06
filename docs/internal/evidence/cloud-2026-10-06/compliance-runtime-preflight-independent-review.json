@@ -1,0 +1,26 @@
+{
+  "status": "PASS-NARROW-PREFLIGHT-FOUR-SOURCE-ADOPTION-RECEIPT-AND-TWELVE-RECORD-PACKET",
+  "draftSHA256": "db6aaa7d39a3e90d7ca320b7e7d271018933ea9f32181924aacdba02962c82a3",
+  "publicationManifestSHA256": "20170e27209c2216eb7a8af68d61d40ecb241eabedc5664ca7e04d90b9039d56",
+  "checks": {
+    "allTwelveGzipMembersOriginalByteHashSizeRoundTrips": true,
+    "closedOuterRosterAndGzipMtimeZero": true,
+    "fourAdoptedSharedSourcesByteExactReviewedF603": true,
+    "currentReceiptStillExact78097Git2a9Prefix61bc": true,
+    "sourceMapPersistenceLimitationExplicit": true,
+    "actualIndependent51deScopeAndJoinsMatch": true,
+    "CIPrerequisiteTAP50PassZeroFailZeroSkip": true,
+    "targetedLintEmptyLogAndRootObserved97333ZeroExplicit": true,
+    "decodedAndEncodedReportsEmptyLogsNoLeaks": true,
+    "originalFailuresCodecFourNoFitRetained": true,
+    "noReadinessBrowserNativeProviderOr728Promotion": true
+  },
+  "limits": [
+    "ROOT must preserve exact78097-byte61bc receipt prefix when appending3382-byte draft.",
+    "12 selected original records/reviews and four Git implementation bodies are separate authorities; omitted private preparation/maps/logs remain hash references, no complete replay closure.",
+    "Owner before/after source maps were compared but not persisted; independently current sealed bytes checked, no reconstructed historical maps.",
+    "Adopted CI/lint joins and image-absence context remain ROOT parent observations, not newly invented automatic kernel receipts.",
+    "No reviewer scanner/runtime/tests/compiler/main/Go/Node/PG/Docker execution, TMP/PEM access, shared mutation or availability category promotion.",
+    "Recorded decoded/encoded no-findings observations are selected scopes, not allhistory/global/omitted clearance."
+  ]
+}

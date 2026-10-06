@@ -116,5 +116,7 @@ export function evaluateM1AGate(value) {
   createStagingEvidence(value.evidence);
   const ready = value.deploymentReady === true && value.privateEndpoints === true && value.perWorkloadIAM === true;
   if (!ready) throw new Error("staging gate rejected");
-  return Object.freeze({ ready: true, gate: "M1A", workloads: Object.freeze(expectedWorkloads.map(({ name }) => name)), privateEndpoints: true, perWorkloadIAM: true });
+  // Deployment shape and caller booleans do not establish the original pod
+  // dependency operations or observed OTLP reception. No collector is admitted.
+  throw new Error("staging gate rejected");
 }

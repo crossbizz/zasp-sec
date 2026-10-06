@@ -1,0 +1,18 @@
+test_actual_pinned_openfga_vendor_archive_binary_only (__main__.InstallerComponents.test_actual_pinned_openfga_vendor_archive_binary_only) ... ERROR
+
+======================================================================
+ERROR: test_actual_pinned_openfga_vendor_archive_binary_only (__main__.InstallerComponents.test_actual_pinned_openfga_vendor_archive_binary_only)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/zasp-cloud-evidence/native-OSS-component-installer-vendor-n8n1nedc/installer-components.test.py", line 83, in test_actual_pinned_openfga_vendor_archive_binary_only
+    binary,result=m.extract_regular_archive(archive_path,root,{'binary':'openfga','maxExtractedBytes':201326592,'maxInflatedBytes':205520896,'allowedMembers':roster},Capacity(),{'bytes':0})
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/zasp-cloud-evidence/native-OSS-component-installer-reserved-szzxq191/prepare-native-OSS-tools.py", line 165, in extract_regular_archive
+    if pp.name not in {asset['binary'],'LICENSE','LICENSE.txt','README.md'}:raise Refusal('unapproved archive member')
+                                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+native_installer_candidate.Refusal: unapproved archive member
+
+----------------------------------------------------------------------
+Ran 1 test in 0.018s
+
+FAILED (errors=1)

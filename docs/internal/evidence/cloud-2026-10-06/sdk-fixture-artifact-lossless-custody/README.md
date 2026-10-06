@@ -1,0 +1,3 @@
+This checkpoint preserves 20 original receipts for whole-byte custody of the older SDK component fixture artifact. It includes the failed prefix admission, successful source controls, prepare, exact one-unlink result, and independent reviews. Copies retain original bytes; original private receipts are unchanged. Binary journals are retained as binary files without rewriting their padding.
+
+The older raw component artifact is historical and absent. Its complete retained gzip was independently decoded and compared against every original byte before removal. This does not verify native OpenFGA, Temporal, Stytch sessions, deployed APIs, or any ledger promotion. The newer real-component artifact and failed native bootstrap remain separate evidence.

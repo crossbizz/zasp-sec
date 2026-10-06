@@ -1,0 +1,14 @@
+import pathlib,json,hashlib,shutil
+P=pathlib.Path;r=P(__file__).parent;s=r/'source';root=P('/workspace/zasp-sec');t=s/'services/platform/migrations/tools';h=lambda p:hashlib.sha256(p.read_bytes()).hexdigest();m=t/'ordered-current-native379-packet-v2-artifacts/source-inputs.json';old=json.loads(m.read_text());assert h(m)=='605a85d721647a355adbf1e99f7ce722860765cca83d02ffbe814e7b91c29339';assert len(old['files'])==1544
+warm={'services/platform/apiserver/authorization_transaction.go':'95a188b5d23de72a69a9f82c8719bf1b040295642710c1e87e1c617be65a6471','services/platform/apiserver/authorization_runtime_activation_test.go':'c3d02cc05aed023d6f5b84ae145ad3fe395ee0f5896142af25623d5172defaca'}
+for name,pin in old['files'].items():
+ assert h(s/name)==pin
+ if name not in warm:assert h(root/name)==pin
+for name,pin in warm.items():assert h(root/name)==pin
+for name,pin in warm.items():shutil.copyfile(root/name,s/name);assert h(s/name)==pin
+current=dict(old);current['files']=dict(sorted({**old['files'],**warm}.items()));assert len(current['files'])==1545;m.write_text(json.dumps(current,indent=2)+'\n');mh=h(m)
+schema=t/'ordered-current-native379-source-schema-v2.mjs';raw=schema.read_text();assert h(schema)=='64a6f338e7e83aa1ad8efc4341d29240601ea092f9ea415c42ca65bb0f4cc1c0';assert raw.count('605a85d721647a355adbf1e99f7ce722860765cca83d02ffbe814e7b91c29339')==1;assert raw.count('!==1544')==1;schema.write_text(raw.replace('605a85d721647a355adbf1e99f7ce722860765cca83d02ffbe814e7b91c29339',mh).replace('!==1544','!==1545'));sh=h(schema)
+packet=t/'ordered-current-native379-packet-v2.mjs';raw=packet.read_text();assert h(packet)=='71ca75091285774ae7e1dbbf815cdfa0be3f30830d9d232f016aaf083ceb2bec';assert raw.count('64a6f338e7e83aa1ad8efc4341d29240601ea092f9ea415c42ca65bb0f4cc1c0')==1;packet.write_text(raw.replace('64a6f338e7e83aa1ad8efc4341d29240601ea092f9ea415c42ca65bb0f4cc1c0',sh))
+impl=s/'services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go';assert h(impl)=='2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0'
+proof={'scope':'private combined reviewedwarm2 + unchanged replay2912; no wholecurrentRootGitarchive identity claim','warmDeliverables':warm,'actualPreviousSourceMembers':1544,'actualCurrentSourceMembers':1545,'sourceManifestSHA256':mh,'schemaSHA256':sh,'packetCompilerSHA256':h(packet),'unchangedReplaySHA256':h(impl),'oldMembersChangedSince2912':['services/platform/apiserver/authorization_transaction.go'],'newMembers':['services/platform/apiserver/authorization_runtime_activation_test.go'],'oldMembersUnchangedSince2912':1543,'consumedCurrentRootSourceSetExactMatchBeforeNodeAuthorityRefresh':True,'newSchemaDelta':'one exactmanifestSHA literal plus fixedcardinality1544->1545; noadmissionguard weakening','noPrivateDiagnosticHelperCopied':True}
+p=r/'combined-warm-source-binding-preflight.json';p.write_text(json.dumps(proof,indent=2)+'\n');p.chmod(0o400);print(json.dumps(proof))

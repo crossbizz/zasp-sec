@@ -1,0 +1,140 @@
+{
+  "ROOTToolJoin": {
+    "observation": "Session1952/joincfb824 terminal1; canonical tool transcription/result/logs reconciled, not a fabricated ROOT kernel PID trace.",
+    "path": "/tmp/zasp-cloud-evidence/owned-sdk-reserved-retry-root-actual-join.json",
+    "sha256": "6ec2b9fdbefc75d885cc2896b45037ad48cb84c406fabda412d33ef4cba67bad"
+  },
+  "actualFixtureFailures": [
+    "owned_fga_bootstrap_cases_test.go:5: exact product model fixture refused",
+    "owned_fga_bootstrap_cases_test.go:12: exact product model fixture refused",
+    "owned_fga_bootstrap_cases_test.go:38: exact product model fixture refused"
+  ],
+  "cleanupRecords": [
+    {
+      "errors": [],
+      "forced": false,
+      "joined": true,
+      "pid": 299625,
+      "survivors": []
+    },
+    {
+      "errors": [],
+      "forced": false,
+      "joined": true,
+      "pid": 303010,
+      "survivors": []
+    },
+    {
+      "errors": [],
+      "forced": false,
+      "joined": true,
+      "pid": null,
+      "survivors": []
+    }
+  ],
+  "compiledArtifact": {
+    "binding": {
+      "bytes": 67492916,
+      "ctime_ns": 1791300150176298171,
+      "device": 34,
+      "gid": 1000,
+      "inode": 432210,
+      "links": 1,
+      "mode": 448,
+      "mtime_ns": 1791300150171707439,
+      "sha256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d",
+      "uid": 1000
+    },
+    "bytes": 67492916,
+    "goroot_tool_source_map_sha256": "496dcd651bd0192036c1b4062c375d2bbe3b2d36c39bc9416612151b7b695a72",
+    "mode": 448,
+    "path": "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/compiler-tmp/component.test",
+    "sha256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d",
+    "source_identity_equal": true,
+    "source_overlay_sha256": "9f5cb2334d2b5582ca34370d8b2532205b8ce57baf99edf95c9ff825cd8d5703",
+    "test2json_source_binding": "Go1.25 builtin cmd/test2json compiled by pinned go tool under same90s caller deadline"
+  },
+  "completed": false,
+  "diagnosis": {
+    "actualLogFact": "Allthree tests fail at common fixture guard. Read-error and hash-error are deliberately combined by the logged message.",
+    "limit": "Source-grounded working-directory mismatch supports narrow runner repair. Actual original errno was not logged; no real component/policy/provider failure inferred.",
+    "sourceFact": "Reviewed Popen cwd=MODULE/services/platform while tests os.ReadFile relative model.json. Correct pinned product model is authorization/model.json; MODULE/model.json currently absent."
+  },
+  "expectedPinnedInputsVerified": 19375,
+  "fallbackFailureReceiptSHA256": "31388dcd7c45283603fc9de79ce8a79cd1b4749d843712468f1aaf6c6c42bc71",
+  "finalRecordedTmpFree": 665190400,
+  "finalRecordedWorkspaceFree": 1502797824,
+  "fullBeforeAfterMapEntries": 26992,
+  "minimumObservedTmpFree": 393015296,
+  "minimumObservedWorkspaceFree": 1502797824,
+  "normalWaits": [
+    {
+      "main_joined": true,
+      "pid": 299625,
+      "returncode": 0
+    },
+    {
+      "main_joined": true,
+      "pid": 303010,
+      "returncode": 1
+    }
+  ],
+  "proofFiles": {
+    "finalization-refusal.json": {
+      "allocatedBlocksBytes": 45056,
+      "bytes": 43539,
+      "declaredPreallocationBytes": 4194304,
+      "dev": 34,
+      "inode": 430265,
+      "sha256": "b1fbef4599f5980637fd573255e2905be29cc7996173bc8c7b0e6b7eafd0890a"
+    },
+    "result.json": {
+      "allocatedBlocksBytes": 45056,
+      "bytes": 43539,
+      "declaredPreallocationBytes": 4194304,
+      "dev": 34,
+      "inode": 430264,
+      "sha256": "b1fbef4599f5980637fd573255e2905be29cc7996173bc8c7b0e6b7eafd0890a"
+    },
+    "source-after.json": {
+      "allocatedBlocksBytes": 11538432,
+      "bytes": 11537611,
+      "declaredPreallocationBytes": 33554432,
+      "dev": 34,
+      "inode": 430263,
+      "sha256": "52bb29bcd77dc174e26dd5998190cc6ddddc85e51928a2d0798b9a142c2e46e3"
+    }
+  },
+  "reservationEvidence": "Allthree reserved proof destinations are bounded valid final JSON, no .reserved-allocation names remain; source enforces posix_fallocate/fsync before compile. No independent historical allocation/inode event receipt was persisted; current topology/source semantics are distinguished from kernel preallocation trace.",
+  "residue": "0 process survivors recorded;67MB compiled artifact and attempt proofs remain. No empty TMP/cache or no-file-residue claim; reviewer removed nothing.",
+  "resultPath": "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/result.json",
+  "resultSHA256": "b1fbef4599f5980637fd573255e2905be29cc7996173bc8c7b0e6b7eafd0890a",
+  "scope": "Pure/fakeHTTP owned SDK source-component failure only, EMPTY anchors. No real FGA policy/store/model, PG80, Temporal, provider/native/production acceptance. Storage/deadline refusal did not trigger; no exclusive cache-growth cause inferred.",
+  "sourceMapsByteSHAEqual": "52bb29bcd77dc174e26dd5998190cc6ddddc85e51928a2d0798b9a142c2e46e3",
+  "sourceUnchangedFieldName": "source_unchanged",
+  "stages": [
+    {
+      "elapsed_seconds": 27.75698684899544,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "component-compile",
+      "returncode": 0,
+      "skips": [],
+      "top_level_fail": [],
+      "top_level_pass": []
+    },
+    {
+      "elapsed_seconds": 0.8343130180001026,
+      "log_sha256": "81b05ee4c762a7aea8af68125469ea5bd9eec255442a7c52debe6e5976416e9b",
+      "name": "sdk-component-group",
+      "returncode": 1,
+      "skips": [],
+      "top_level_fail": [
+        "TestOwnedFGABootstrapSourceAndEndpoint",
+        "TestOwnedFGABootstrapSDKContract",
+        "TestOwnedFGABootstrapPermissionSourceConservation"
+      ],
+      "top_level_pass": []
+    }
+  ],
+  "status": "ACTUAL-FAILURE-RECONCILED"
+}

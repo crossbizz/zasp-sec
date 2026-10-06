@@ -1,0 +1,32 @@
+{
+  "format": "independent-frozen-PG-runtime-review-v1",
+  "reviewer": "provider_deployment_readiness",
+  "assessment": "PASS-STATIC-PG-RUNTIME-AND-ENVELOPE-BINDINGS; NOT NATIVE ACCEPTANCE",
+  "frozen_root": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0",
+  "GoEnvelopeSHA256": "77090df431f31690b871934c3861ca8ec69cbc4d247f06a8cc0bcc27b9c6d88d",
+  "V2EnvelopeSHA256": "d51c984c25460c6856d04746d46e2a9c5ec16fbe902293777de74d63c14e0f23",
+  "verified": {
+    "PG_wrapper_files": 4,
+    "PG_shell_real_executable_shared_library_extension_closure_files": 52,
+    "hash_mismatches": 0,
+    "maps_equal_previous_approved_freeze_plan": true,
+    "transitive_ELF_NEEDED_missing_bound_basenames": [],
+    "session_uid": 1000,
+    "session_writable_bound_PG_files": [],
+    "system_library_policy": "System libraries/shell have root owner write bits but are not session-writable; owned PG executables/extensions/deps and Go/Node directories are read-only. No claim that all system library mode write bits were removed.",
+    "provenance": "Retained library/postgres18.3-bookworm pull digest80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba; existing actual SQL identity log reports PostgreSQL18.3 Debian18.3-1.pgdg12+1 and pgcrypto1.4. Actual bytes match approved map; reviewer launched no PG executable.",
+    "extension": "Original control selects default1.4 and $libdir/pgcrypto; exact1.3base plus1.3->1.4upgrade and sharedlibrary retained, no downgraded or synthesized extension.",
+    "PATH": "Copied Go/bin then copied Node/bin then approved /tmp/zasp-cloud-tools/postgres-18.3/bin then /usr/bin:/bin; matches environment.json and Go controlled_path. Wrapper exec targets point to pinned real executable install.",
+    "envelopes": "Both0400, external wrapper hashes exact Go envelope; versions match compiled binder schemas; JSON has unique keys and no trailing content; binder DisallowUnknownFields and strict root authorizedSHA checks. Apiserver/assembly executable hashes match exact compiled binaries.",
+    "binder": "Checks actualPATH equality, cwd, binaries/Go, full consumed Go input/modules/cache,4PG PATHresolved hashes+18.3 versions, exact52file extension hash map and pgcrypto selectedchain; Nodebinder enforces exact complete1553union and repeats Go binding before/aftercleanup. FullGo/Node closure handled separately by other reviewer."
+  },
+  "attempt_condition": "Root must launch env-i with exact reviewed environment and no LD_PRELOAD/LD_LIBRARY_PATH or other loader override. Wrappers prepend approveddeps then append ambientLD_LIBRARY_PATH; disposablePG subprocesses inherit callerenvironment. Reviewed environment.json contains no LD variables. This condition is not yet a retained actual native invocation.",
+  "remaining_gates": [
+    "other independent fullGo/Node closure review",
+    "root explicit finite native attempt authorization",
+    "actual SQL identity/frame/control/results and bounded actualrowbyteelapsed evidence",
+    "actual owned process stop/join/cleanup and aftercleanup binding",
+    "varied-login portability and production/installed/deployed acceptance"
+  ],
+  "native_execution_by_reviewer": false
+}

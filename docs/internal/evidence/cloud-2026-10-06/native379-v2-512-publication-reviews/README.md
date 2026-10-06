@@ -1,0 +1,1 @@
+These independent publication reviews are separate from the sealed original packet manifests. Gzip expansion reproduces the exact original review bytes. Original scanner failures remain explicit; archive encoding does not confer security or native clearance. No original evidence is rewritten.

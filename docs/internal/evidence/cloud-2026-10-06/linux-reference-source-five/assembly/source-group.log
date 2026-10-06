@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: separate Linux source assembly retains all eight outputs and source-derived facts
+ok 1 - separate Linux source assembly retains all eight outputs and source-derived facts
+  ---
+  duration_ms: 204.932497
+  type: 'test'
+  ...
+# Subtest: source fact/SQL delta explains only reserved build mutation and unchanged private routine bodies
+ok 2 - source fact/SQL delta explains only reserved build mutation and unchanged private routine bodies
+  ---
+  duration_ms: 16124.922402
+  type: 'test'
+  ...
+# Subtest: outputs and facts are detached and deterministic; malformed caller baselines cannot assert delta
+ok 3 - outputs and facts are detached and deterministic; malformed caller baselines cannot assert delta
+  ---
+  duration_ms: 564.383877
+  type: 'test'
+  ...
+# Subtest: complete589/6348 source impact accounts every role/expectation/placement and preserves limits
+ok 4 - complete589/6348 source impact accounts every role/expectation/placement and preserves limits
+  ---
+  duration_ms: 892.08601
+  type: 'test'
+  ...
+# Subtest: actual Linux witness admission retains observed build identity and pending flags
+ok 5 - actual Linux witness admission retains observed build identity and pending flags
+  ---
+  duration_ms: 1.585296
+  type: 'test'
+  ...
+# Subtest: forged version/build/cleanup/source authority is refused even with recomputed inner digest
+ok 6 - forged version/build/cleanup/source authority is refused even with recomputed inner digest
+  ---
+  duration_ms: 9.854941
+  type: 'test'
+  ...
+# Subtest: unknown/duplicate/trailing/noncanonical/invalid UTF8 caller bytes never become capture authority
+ok 7 - unknown/duplicate/trailing/noncanonical/invalid UTF8 caller bytes never become capture authority
+  ---
+  duration_ms: 2.179109
+  type: 'test'
+  ...
+# Subtest: returned capture descriptor is detached; caller/env cannot select version
+ok 8 - returned capture descriptor is detached; caller/env cannot select version
+  ---
+  duration_ms: 0.598791
+  type: 'test'
+  ...
+# Subtest: borrowed array properties, holes and accessors cannot bypass closed admission
+ok 9 - borrowed array properties, holes and accessors cannot bypass closed admission
+  ---
+  duration_ms: 1.356772
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 30797.713514

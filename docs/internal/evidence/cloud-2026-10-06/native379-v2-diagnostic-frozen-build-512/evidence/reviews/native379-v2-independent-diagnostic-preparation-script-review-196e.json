@@ -1,0 +1,44 @@
+{
+  "assessment": "PASS-BOUNDED-OFFLINE-SOURCE-PREPARATION-ONLY",
+  "declined_to_judge": [
+    "Futureactualsourcecounts/modules/binaries/envelopes orpreparation outcome.",
+    "ActualPostgreSQL/native379 runtime/capacity/catalogparity orpreviousopaqueprimaryfailurecause.",
+    "Escapedsession/adversarialsameUID/arbitraryinterruption cleanupguarantees.",
+    "Production/installed/release/deploymentacceptance."
+  ],
+  "findings": {
+    "Critical": [],
+    "Important": [],
+    "Minor": []
+  },
+  "format": "independent-native379-v2-diagnostic-source-preparation-review-v1",
+  "identity": {
+    "companion_sha256": "468734a003d41cad8ce4a5ffe31963ba37f49838ae8c5f5744c5ce6d5638850a",
+    "foundation_summary_sha256": "43d6da35c39da44f17311062db466c8fb747bcbfe74f1e5be6ecc66a200d6f57",
+    "implementation_sha256": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e",
+    "plan_path": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/frozen-build-plan.json",
+    "plan_sha256": "b17886a422e6429a9594e30af2cd41cdaa4fec1462f44fde6ebc472fcec1cfb1",
+    "script_path": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/prepare-frozen-source.py",
+    "script_sha256": "196e853984d19fb892f2bf28729d0041dc1b5a38cac8b19e5513ac9379543f67",
+    "source_commit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+    "source_inventory_sha256": "02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989",
+    "wire_sha256": "5d18ca5f38c6f86c7cccda46fde1fb43008f6491b3c2a8319515592f7279a25a"
+  },
+  "required_followup": [
+    "Independently recompute actualnewcommitted/derivedsource, fullGo+1553Node inventories/moduleh1/rootmodes/ownership/binaries/PGmap/hash/envelopes and cleanup afterpreparation.",
+    "Rootmust review/bind resultingactualGo/V2 envelopeSHA andfreshbinary before separatelyauthorized boundednative attempt. Oldroot/binary/envelopes remain historicalfailedattempt evidence only."
+  ],
+  "reviewer": "review_capture_dependency",
+  "safe_scope": "Under existing rootauthorization author may execute this exactscript/plan with exactsource512beb and exactreviewedPGmetadata40f499 solely for fresharchive/offline8generation+check+repeat/threebinaries/freeze/liveinputinventory/source13tests. Reviewer performed no sourcepreparation/build/PG/native launch. Retain failures; do not resume partiallycompletednewroot.",
+  "verified": [
+    "Exactfinal script/plan actualhashes match authoridentity. Diff versus reviewedc65 limited to newfoundation/approvedwire+source+companion, exactcommitguard, exactnewplanSHA and freshTMP0700guard. No processhelper weakening. AST runhelper exactsame as reviewedc65; existing generic timeoutparent+child/orphanrefusal/cleancompletion proofs applicable to unchangedhelper within ordinaryownedgroups scope.",
+    "CLI refuses any sourcecommit except512beb; /usr/bin/git resolves exact40hex. Independent Gitblob SHA256 at512beb matches6d02implementation/468734companion/02efsourceinventory/82c9schema. Early exactplan/Go3fb44/Node93956/optionalPGmetadata40f499 hashgates precede sourcearchive/generation/compiler operations.",
+    "New foundation bin/build-cache/tmp are emptyowner1000mode0700, owned-source absent. Plan binds actualfreshfoundation summary43d6; no oldroot resume/reuse. Roots/topology sourcePlatform+siblinghealth+Node undernewModuleCache, no consumedhealthmodule claim.",
+    "Exclusive new tar/source/evidence outputs; archive refusesabsolute/traversal/nonregular/nondirectory members; verifies sourceimplementation/companion/go.mod/go.sum/wire beforegenerator.",
+    "Actualgenerated8 pins from reviewedartifact; firstwrite allows changesonly eightoutputs, --check, repeatwrite compares fullactualsource maps and allpins. Reproduce exact5d18 raw beforecompiler; no count/targetfabrication.",
+    "Three realoffline binaries compiled from newlyderivedsource. Fullsource and module/tool filemaps compared before/after; immutableGoRoot/ModuleCache freeze before liveGo inventory. ActualGo counts/modules/h1/digest from utility, not oldcounts. FullfutureGo must bind newlypopulatedcompanion. Nodeunion exact1553 with correctclosedsharedinputschema.",
+    "PGmetadata exact40f499 closedtwo-keymap, exactly4wrappernames; everywrapper and each52runtime/extensionmember hashrechecked beforeenvelope. Independently rehashed actual4+52 now:0mismatch. NoPGversion/server command in recipe. This metadata-read permission is not nativeauthority.",
+    "Finite owned sessions/subreaper, timeoutwholegroupSIGKILL, poll+WNOHANG cleanup30sec deadline, logs0400+exclusive failure records finally; anytimedout/unjoined/leftover/failedcommandsrefuse. No finalization on unresolvedcleanup.",
+    "Sourcecontrols filter^TestNative379V2 excludes nativeP7; no nativefixture/SQL/PG/assemblyemission/capture commands. Summaryexplicit SOURCE-ONLY-CANDIDATES-REQUIRE-INDEPENDENT-ROOT-REVIEW; lateractualenvelopes require separate review."
+  ]
+}

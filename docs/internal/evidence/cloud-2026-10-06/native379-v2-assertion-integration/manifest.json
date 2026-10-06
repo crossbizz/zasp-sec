@@ -1,0 +1,145 @@
+{
+  "scope": "reviewed source-only assertion integration; no native/capacity/deployed acceptance",
+  "files": {
+    "README.md": {
+      "bytes": 1171,
+      "sha256": "a3d9c70cabd25a6bda382354b3deeecf8ffd04dba412159bf2153cfbed8c4cbb"
+    },
+    "adopted-source-check.json": {
+      "bytes": 169,
+      "sha256": "2c5883450bb19c3319285e174dce37b9d00581db49ab5b331c7ed4185be2f3c4"
+    },
+    "adopted-source-delta.json": {
+      "bytes": 1813,
+      "sha256": "48bdf8d9b96c7dcf9d9282e4db029bb5d61d5cd0f625c931ef295a14a582cc50"
+    },
+    "adopted-verification.json": {
+      "bytes": 955,
+      "sha256": "1bf77bd1f42ac99291e8c5cf07aa02d7f067844d50ed339785f0b3082ec474a0"
+    },
+    "adoption-binding.json": {
+      "bytes": 756,
+      "sha256": "a2dd87eb489269bfeb52914b669e5b2a280b8fac4b42dd6b87fdba61d044fbd2"
+    },
+    "checkpoint-47444.tar.gz": {
+      "bytes": 144431,
+      "sha256": "8da205d1ce45af1d3444a1013f3a0235848535cec82859ef94536210e28ff47e"
+    },
+    "checkpoint-f252.tar.gz": {
+      "bytes": 142712,
+      "sha256": "86e09233132f555431c0bee51cc731b833f899deafe2766a9680c6735580517f"
+    },
+    "component-identity.json": {
+      "bytes": 3690,
+      "sha256": "351c11c184742a2724b4b2dcd909c856d289754edd8855793d9848a128cdc22c"
+    },
+    "go-authentic-47444-red.log": {
+      "bytes": 2431,
+      "sha256": "1fa287519c34c5d91ad72ac7bdf0323c7235a07858f1f6cb6a7517ddabfa93e7"
+    },
+    "go-integration-red-1.log": {
+      "bytes": 318,
+      "sha256": "7b0f23df23d00022c7a10f562173d82bb86b5c4d39993ceef2374b8830534de9"
+    },
+    "go-integration-red-2.log": {
+      "bytes": 682,
+      "sha256": "1a97e8b8aa780dab2ec76cbb03251f34fb6783e2936874311d9b94e4561aa861"
+    },
+    "go-nine-green.log": {
+      "bytes": 3232,
+      "sha256": "7950b79061787c30e94792680326a91ade0a05c82358f88c952bc6e92c5e721f"
+    },
+    "go-struct-canonical-red.log": {
+      "bytes": 571,
+      "sha256": "a5deda1b4e2437aa396a0c9a31d3035938f84f940c20b53c4833267445dc4483"
+    },
+    "independent-integration-review.json": {
+      "bytes": 6915,
+      "sha256": "2e927a6f417cbb96aabb8a1ce4c3e25738179b1229f867b93a1eb619d5c7867c"
+    },
+    "independent-nine-green.log": {
+      "bytes": 3163,
+      "sha256": "6241459948b4c89cdce08d5a56e2bfd4cd591a33b4b74622d0f96a1087b88071"
+    },
+    "node-six-green.log": {
+      "bytes": 1630,
+      "sha256": "6821e2d335156a9c0890e8c2c934b4d6dd03861ac34815580ae2abe65a7ef077"
+    },
+    "protocol/README.md": {
+      "bytes": 4735,
+      "sha256": "1b878d32b112641e659cdf25fb273b7f0e15779bc1fc1c2b456da0baa3733574"
+    },
+    "protocol/assertion-red.go.snapshot": {
+      "bytes": 2501,
+      "sha256": "991b1ae0828e8c0782252d4659f61c337aa009d4b38d6ff0422a9e741c17614f"
+    },
+    "protocol/assertion-shadow-red.go.snapshot": {
+      "bytes": 3063,
+      "sha256": "b7deace6fa4f2c1e6f179c0aedce2653f644432911fc55f82876c6a8c92f4e9c"
+    },
+    "protocol/assertion.go": {
+      "bytes": 3158,
+      "sha256": "ae0eaf96feada3484f351b9d945f3f39185e04048555ab0a224768eaf384ed0a"
+    },
+    "protocol/assertion_test.go": {
+      "bytes": 11475,
+      "sha256": "e3604aea64767cea7e5292a80d7760ef38fa32e10ae5018d98798d94456ff8ee"
+    },
+    "protocol/evidence-summary.json": {
+      "bytes": 2785,
+      "sha256": "a8f69e70893cbb300c90b576bbd64532c9241454a8867eead56efe103d5fc7df"
+    },
+    "protocol/green-reviewed.log": {
+      "bytes": 2083,
+      "sha256": "41acc6756e501e1d1ff6665c9441de959c47ea76c4819369590f590d60bf9e9c"
+    },
+    "protocol/independent-review.json": {
+      "bytes": 3835,
+      "sha256": "8f1083c03cb4fdb6d531fb98a782e1807b984a8c685633d185db783413f82194"
+    },
+    "protocol/pre-review/assertion-red.go.snapshot": {
+      "bytes": 2501,
+      "sha256": "991b1ae0828e8c0782252d4659f61c337aa009d4b38d6ff0422a9e741c17614f"
+    },
+    "protocol/pre-review/assertion.go": {
+      "bytes": 3158,
+      "sha256": "ae0eaf96feada3484f351b9d945f3f39185e04048555ab0a224768eaf384ed0a"
+    },
+    "protocol/pre-review/assertion_test.go": {
+      "bytes": 9163,
+      "sha256": "204dbbfdd921b75018e697293f409a7925eeab5df8a5a89d2032c5a34865a4e3"
+    },
+    "protocol/pre-review/red-observation-arity.log": {
+      "bytes": 2712,
+      "sha256": "5be35d7b3f71dcadd48a9dbfd290ae9e4a108f0675a5cf520d7334e2fe6e82d4"
+    },
+    "protocol/pre-review/red.log": {
+      "bytes": 2712,
+      "sha256": "a5e2c0978e992e441c4a77cedd45988b36701c122b30f7428f4eb68d54f44963"
+    },
+    "protocol/red.log": {
+      "bytes": 2712,
+      "sha256": "a5e2c0978e992e441c4a77cedd45988b36701c122b30f7428f4eb68d54f44963"
+    },
+    "protocol/shadow-red.log": {
+      "bytes": 2170,
+      "sha256": "8fc8afce37b4d54210c4048444da98a900149d0f0642e9e998d20cfebeb86ba8"
+    },
+    "source-sha256.txt": {
+      "bytes": 1249,
+      "sha256": "783777078a7a9de481efd55e86f2aec9d0145ebc54aea9a039af710384066710"
+    },
+    "varied-login-boundary.json": {
+      "bytes": 5731,
+      "sha256": "11152a810c11a602db69a8aa929aed890e6640f77267a08e2718ee7ca3fdf1e1"
+    },
+    "wire-assertion.json.gz": {
+      "bytes": 1578280,
+      "sha256": "86ad21413f985c8e73b3692190b81bb51a4af26d970ad71a93b838f102006510"
+    },
+    "wire-summary.json": {
+      "bytes": 677,
+      "sha256": "f4e074736160a83d3dc74d279faf6b85cab1a0da3f83187d785b72d28f6cfd3e"
+    }
+  }
+}

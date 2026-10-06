@@ -1,0 +1,9 @@
+# Fixed compliance command failure diagnostics
+
+Both hosted jobs at `0328de2d` pass the original npm verification and fail compliance runtime acceptance. The detailed log redirect is blocked by proxy CONNECT 403. The failing runtime command is not yet demonstrated.
+
+The combined runner now emits a bounded GitHub annotation at its existing deadline and rejected nonzero-exit branches. Exact known Go argument shapes map to fixed migration/API/worker/CLI command classes; other commands receive a fixed generic class. Annotations contain no executable path, output path, arguments, environment, stdout or stderr. Original exceptions, default 30-second and explicit deadlines, child ownership, stop/cleanup, environment, arguments and return behavior are preserved. No workflow or npm command changes.
+
+Behavioral tests execute the actual extracted command function with controlled owned-command completion and deadline callbacks. The original function passes two controls and fails the two missing-annotation controls; the successor passes all four. Tests also preserve original exception strings, timer clearing, shutdown, child registration, input, environment/cwd, startup callback and explicit nonreject behavior. A one-line, 45-byte import in the existing CI-reachable compliance prerequisite test adds these controls without changing its original assertions.
+
+Root independently passes the unchanged four-file prerequisite command with 49 tests (45 existing plus four new), zero failures/skips, and targeted lint. Private source freeze SHA256 `8b9b7c2a858a125181ebeab7bc1cd74a02d3d0775c4996d7ba4e895ed2860998`; original RED and successor evidence remain separate. This change supplies observed failure attribution, not a browser fix or acceptance promotion. Latest required hosted checks remain mandatory before merge.

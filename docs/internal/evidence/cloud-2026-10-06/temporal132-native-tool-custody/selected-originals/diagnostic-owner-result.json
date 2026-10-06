@@ -1,0 +1,57 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "authenticated-refusal-retry",
+  "completedAtWrite": true,
+  "failureClass": null,
+  "signals": [],
+  "records": [
+    {
+      "label": "authenticated-failed-parse-diagnostic",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/Temporal-server132-refusal-diagnostic-3wodz037/stream-Temporal-server132-refusal-diagnostic.py",
+        "--source-sha256",
+        "608244b44f699e337b78d4056439aa2d11c48643bed7fd466b44fce206a5a911",
+        "--output",
+        "/workspace/.zasp-cloud-owned/Temporal-server132-stream-census-a3f6d9daf04b4d8fb397facfabd1f12f"
+      ],
+      "declared_cap_seconds": 95,
+      "effective_limit_seconds": 95,
+      "enclosing_deadline_monotonic": 71333.070785385,
+      "effective_deadline_monotonic": 71328.071643446,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 1,
+      "pid": 306813,
+      "seconds": 5.234186,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "groups": {
+    "306813": []
+  },
+  "seconds": 5.247271225001896,
+  "expectedNetworkVariableNames": [
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "REQUESTS_CA_BUNDLE"
+  ],
+  "servicesStarted": false,
+  "installerInvoked": false,
+  "actualVendorParseAccepted": false,
+  "admissionScope": "AUTHENTICATED-FAILED-PARSE-DIAGNOSTIC-ONLY",
+  "rootExternalNormalJoinRequired": true
+}

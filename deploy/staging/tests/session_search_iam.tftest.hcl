@@ -258,6 +258,7 @@ run "audit_export_queue_is_dedicated_and_bounded" {
   command = plan
   assert {
     condition = { for name, contract in local.queue_contract : name => contract if name != "audit-exports" } == {
+      tests                 = { visibility = 900, max_receive = 5, schema = "agentsec.tests.v1" }
       background            = { visibility = 300, max_receive = 5, schema = "agentsec.background.v1" }
       discovery-jobs        = { visibility = 30, max_receive = 5, schema = "agentsec.discovery-jobs.v1" }
       runtime-events        = { visibility = 120, max_receive = 5, schema = "agentsec.runtime-events.v1" }
@@ -294,6 +295,7 @@ run "all_work_and_dead_letter_queues_keep_customer_keys" {
     condition = alltrue([
       for queues in [aws_sqs_queue.work, aws_sqs_queue.dead_letter] :
       { for name, queue in queues : name => queue.kms_master_key_id } == {
+        tests                 = "arn:aws:kms:us-west-2:000000000000:key/11111111-1111-4111-8111-111111111111"
         background            = "arn:aws:kms:us-west-2:000000000000:key/11111111-1111-4111-8111-111111111111"
         discovery-jobs        = "arn:aws:kms:us-west-2:000000000000:key/11111111-1111-4111-8111-111111111111"
         runtime-events        = "arn:aws:kms:us-west-2:000000000000:key/11111111-1111-4111-8111-111111111111"

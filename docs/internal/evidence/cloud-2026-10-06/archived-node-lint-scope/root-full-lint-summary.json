@@ -1,0 +1,11 @@
+{
+  "command": "npm run lint",
+  "exit": 0,
+  "baselineHEAD": "85321bb8fc72ec0748cff5e70e2fb24c253416fa",
+  "uncommittedSourceFiles": [
+    "eslint.config.mjs",
+    "scripts/eslint-scope.test.mjs"
+  ],
+  "logSHA256": "2c93a033f6a53991bb7deb3237fcb30ecdf84244d407e3c0f730582b24945bc6",
+  "scope": "Full root lint after reviewed exact-two-file correction; not full npm verification."
+}

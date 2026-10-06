@@ -1,0 +1,51 @@
+{
+  "archiveBinding": {
+    "ctime_ns": 1791317197320482328,
+    "dev": 34,
+    "gid": 1000,
+    "ino": 441601,
+    "mode": 33024,
+    "mtime_ns": 1791317197316345871,
+    "nlink": 1,
+    "sha256": "b9bae6186c5c2c539232ca7f1a8afb4e54599be8b2bec65d2dcfb28178a5d62e",
+    "size": 26860725,
+    "uid": 1000
+  },
+  "controller14NormalRecords": [
+    "cleanup-CID-absence",
+    "cleanup-discover",
+    "cleanup-inspect",
+    "cleanup-label-check",
+    "cleanup-remove",
+    "create",
+    "created-inspect",
+    "daemon",
+    "image",
+    "image-volumes",
+    "observe",
+    "post-daemon",
+    "stopped-inspect",
+    "wait"
+  ],
+  "current7AndOwner34PinsCurrent": true,
+  "decodedBytes": 67555591,
+  "decodedSHA256": "9c13c49c93007d0f81da7a42ddcbc93676696349013226f62a45410d50a32f02",
+  "encodedCapBytes": 52428800,
+  "exact14ReferenceHashesVerified": true,
+  "independentFullGzipCRCAndEveryRawByteEqual": true,
+  "leaseScope": "Strict five-second precompression snapshot only; actual9.957727s compression phase is not lifetime inactivity or unlink proof",
+  "mapsPerProcess": {
+    "304": 11,
+    "355": 4
+  },
+  "mirroredPreparedAndJournalsEqual": true,
+  "noUnlink": true,
+  "normalOwnedContainerRemovalAndAbsence": true,
+  "ownerResultSHA256": "3254abf019f02e481bdb9d33f403245cf5dac7e11bb62455c01fbde2d64cfbe7",
+  "preparedSHA256": "1e88c6785aebf40df661cfca89639b37ef46ec06cc1572fb53b2d9619ad317c1",
+  "protected11Unchanged": true,
+  "rootProofSHA256": "06794c807c6aacdc39257870bfb86916e2fb46b61b2a4c5bccce3cba9c128d6a",
+  "rootResultSHA256": "2a2b80e13429b71e66333354d50f01e7a74256552fae0852507e495893d90f7e",
+  "scope": "Prepare custody only. Full archive/CRC and retained raw byte equality independently replayed without extraction. Root reported outer normal0 separately, no invented kernel trace. Inactivity snapshot not lifetime; future fresh raw+gzip2alias proof/independent admission required before any unlink; no compiler/runtime readiness.",
+  "status": "ACTUAL-OLD-REAL9C13-GZIP50-PREPARE-PASS-RAW-STILL-PRESENT"
+}

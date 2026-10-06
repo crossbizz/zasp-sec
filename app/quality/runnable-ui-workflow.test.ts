@@ -1,4 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { JSON_SCHEMA, load } from "js-yaml";
 import { describe, expect, it } from "vitest";
@@ -41,7 +43,13 @@ type PackageManifest = {
 };
 
 const repositoryRoot = process.cwd();
-const sessionIAMCommand = "task_tf_dir=$(mktemp -d \"${RUNNER_TEMP}/zasp-terraform.XXXXXX\")\ncurl --fail --location --retry 3 --max-time 120 --output \"$task_tf_dir/terraform.zip\" https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_linux_amd64.zip\nprintf '%s  %s\\n' d25ce7b6902013ad905db3d2eab0be4cd905887fe88b81a6171b8d5503c31f3d \"$task_tf_dir/terraform.zip\" | sha256sum --check -\nunzip -q \"$task_tf_dir/terraform.zip\" -d \"$task_tf_dir\"\nexport TF_DATA_DIR=\"$task_tf_dir/data\"\n\"$task_tf_dir/terraform\" -chdir=deploy/staging init -backend=false -input=false -lockfile=readonly\n\"$task_tf_dir/terraform\" -chdir=deploy/staging test -filter=tests/session_search_iam.tftest.hcl -filter=tests/test_reconciler_iam.tftest.hcl -var-file=release.tfvars -no-color\n";
+const iamUnionCommands = [
+  "node --test deploy/staging/iam-policy-union-v1.test.mjs",
+  "\"$task_tf_dir/terraform\" -chdir=deploy/staging test -filter=tests/iam_policy_union.tftest.hcl -json -verbose -no-color > \"$task_tf_dir/iam-policy-union.jsonl\"",
+  "node --max-old-space-size=512 deploy/staging/iam-policy-union-v1.test.mjs --plan \"$task_tf_dir/iam-policy-union.jsonl\"",
+  "node deploy/staging/iam-policy-union-v1.mjs --plan \"$task_tf_dir/iam-policy-union.jsonl\""
+];
+const sessionIAMCommand = "task_tf_dir=$(mktemp -d \"${RUNNER_TEMP}/zasp-terraform.XXXXXX\")\ncurl --fail --location --retry 3 --max-time 120 --output \"$task_tf_dir/terraform.zip\" https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_linux_amd64.zip\nprintf '%s  %s\\n' d25ce7b6902013ad905db3d2eab0be4cd905887fe88b81a6171b8d5503c31f3d \"$task_tf_dir/terraform.zip\" | sha256sum --check -\nunzip -q \"$task_tf_dir/terraform.zip\" -d \"$task_tf_dir\"\nexport TF_DATA_DIR=\"$task_tf_dir/data\"\n\"$task_tf_dir/terraform\" -chdir=deploy/staging init -backend=false -input=false -lockfile=readonly\n\"$task_tf_dir/terraform\" -chdir=deploy/staging test -filter=tests/session_search_iam.tftest.hcl -filter=tests/test_reconciler_iam.tftest.hcl -var-file=release.tfvars -no-color\nnode --test deploy/staging/iam-policy-union-v1.test.mjs\n\"$task_tf_dir/terraform\" -chdir=deploy/staging test -filter=tests/iam_policy_union.tftest.hcl -json -verbose -no-color > \"$task_tf_dir/iam-policy-union.jsonl\"\nnode --max-old-space-size=512 deploy/staging/iam-policy-union-v1.test.mjs --plan \"$task_tf_dir/iam-policy-union.jsonl\"\nnode deploy/staging/iam-policy-union-v1.mjs --plan \"$task_tf_dir/iam-policy-union.jsonl\"\n";
 const checkoutAction = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1";
 const setupNodeAction = "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020";
 const setupGoAction = "actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16";
@@ -59,9 +67,11 @@ console.log(execFileSync(chrome, ["--version"], { encoding: "utf8", timeout: 500
 appendFileSync(process.env.GITHUB_ENV, \`ZASP_COMBINED_E2E_CHROME=\${chrome}\\n\`);
 NODE
 `;
-const complianceAcceptanceCommand = "node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs\nnode scripts/production-combined-e2e.mjs\n";
+const complianceAcceptanceCommand = "node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs || { status=$?; printf '::error::Compliance browser unit prerequisites failed (exit %s)\\n' \"$status\"; exit \"$status\"; }\nnode scripts/production-combined-e2e.mjs || { status=$?; printf '::error::Compliance browser runtime acceptance failed (exit %s)\\n' \"$status\"; exit \"$status\"; }\n";
 const complianceSteps: WorkflowStep[] = [
+  { name: "Verify current runtime profile inner diagnostic tests", "timeout-minutes": 5, run: "node --test scripts/observe-current-profile-inner-diagnostics.test.mjs\nnode scripts/observe-current-profile-inner-diagnostics.mjs\n" },
   { name: "Provision isolated compliance browser prerequisites", "timeout-minutes": 10, run: compliancePrerequisitesCommand },
+  { name: "Provision pinned owned authorization runtime tools", "timeout-minutes": 5, run: "node scripts/hosted-runtime-tool-intake.mjs\n" },
   { name: "Verify current compliance browser acceptance", "timeout-minutes": 15, env: { ZASP_COMBINED_E2E_COMPLIANCE: "true" }, run: complianceAcceptanceCommand },
 ];
 const postgresFixtureCommand = `fixture_pg_dir=$(mktemp -d "\${RUNNER_TEMP}/zasp-pgdg.XXXXXX")
@@ -92,7 +102,7 @@ test -x "$(pg_config --bindir)/initdb"
 go test -C services/platform -race -count=1 -timeout=30m ./audit ./auditexportconfig ./artifactstore/...
 `;
 const auditPrerequisitesCommand = `test "$(node --version)" = v22.23.1
-test "$(go env GOVERSION)" = go1.25.13
+test "$(go env GOVERSION)" = go1.26.8
 export PATH="$(pg_config --bindir):$PATH"
 for fixture_tool in initdb postgres pg_ctl pg_isready cc docker; do
   command -v "$fixture_tool"
@@ -204,7 +214,7 @@ function assertRunnableUiWorkflow(
   ]);
 
   const verificationJobs = Object.values(workflow.jobs ?? {}).filter((job) =>
-    job.steps?.some((step) => step.run === "npm run verify"),
+    job.steps?.some((step) => step.run === verifyDiagnosticRun),
   );
   expect(verificationJobs).toHaveLength(1);
 
@@ -214,12 +224,12 @@ function assertRunnableUiWorkflow(
   expect(verificationJob.if).toBeUndefined();
   expect(verificationJob["runs-on"]).toBe("ubuntu-24.04");
   expect(verificationJob["continue-on-error"]).toBeUndefined();
-  expect(verificationJob.env).toBeUndefined();
+  expect(verificationJob.env).toEqual({ GOTOOLCHAIN: "local" });
   expect(verificationJob.defaults).toBeUndefined();
   expect(verificationJob["timeout-minutes"]).toBeUndefined();
 
   const verificationSteps = verificationJob.steps ?? [];
-  expect(verificationSteps).toHaveLength(32);
+  expect(verificationSteps).toHaveLength(36);
   expect(verificationSteps.map((step) => step.uses ?? step.run)).toEqual([
     checkoutAction,
     setupNodeAction,
@@ -229,7 +239,9 @@ function assertRunnableUiWorkflow(
     postgresFixtureCommand,
     "go install github.com/zricethezav/gitleaks/v8@v8.30.1",
     "npm run implementation:status:check",
-    "npm run verify",
+    platformMetadataCommand,
+    verifyDiagnosticRun,
+    migrationCacheCommand,
     ...complianceSteps.map(step => step.run),
     "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n",
     "npm run production:release:gate",
@@ -241,13 +253,15 @@ function assertRunnableUiWorkflow(
     daemonReplayCommand,
     "go test -C proofs/attack-lab-egress -race -count=1 ./...\ngo test -C services/platform -race -count=1 ./attack-lab-runner ./attacklabrunner ./attack-lab-proxy ./attacklabproxy ./attacklab\nnode --test proofs/attack-lab-egress/run.test.mjs\nnode proofs/attack-lab-egress/run.mjs\nZASP_ATTACK_LAB_EGRESS_DOCKER=true node --test proofs/attack-lab-egress/interruption.test.mjs\n",
   ]);
+  expect(verificationSteps.find(step => step.name === platformMetadataName)).toEqual({ name: platformMetadataName, run: platformMetadataCommand, "timeout-minutes": 5 });
+  expect(verificationSteps.find(step => step.name === migrationCacheName)).toEqual({ name: migrationCacheName, run: migrationCacheCommand, "timeout-minutes": 5 });
   expect(verificationSteps[0]?.with).toEqual({ "fetch-depth": 0 });
   expect(verificationSteps[1]?.with).toMatchObject({
     "node-version": "22.23.1",
     cache: "npm",
   });
   expect(verificationSteps[2]?.with).toMatchObject({
-    "go-version": "1.25.13",
+    "go-version": "1.26.8",
     cache: true,
     "cache-dependency-path": "services/platform/go.sum",
   });
@@ -266,7 +280,7 @@ function assertRunnableUiWorkflow(
     expect(step["continue-on-error"]).toBeUndefined();
     expect(step.shell).toBeUndefined();
     expect(step["working-directory"]).toBeUndefined();
-    if (!step.id?.startsWith("audit_") && step.name !== complianceSteps[1].name) expect(step.env).toBeUndefined();
+    if (!step.id?.startsWith("audit_") && step.name !== "Verify current compliance browser acceptance") expect(step.env).toBeUndefined();
   }
 }
 
@@ -277,19 +291,22 @@ function validWorkflow(): Workflow {
     jobs: {
       verify: {
         "runs-on": "ubuntu-24.04",
+        env: { GOTOOLCHAIN: "local" },
         steps: [
           { uses: checkoutAction, with: { "fetch-depth": 0 } },
           {
             uses: setupNodeAction,
             with: { "node-version": "22.23.1", cache: "npm" },
           },
-          { uses: setupGoAction, with: { "go-version": "1.25.13", cache: true, "cache-dependency-path": "services/platform/go.sum" } },
+          { uses: setupGoAction, with: { "go-version": "1.26.8", cache: true, "cache-dependency-path": "services/platform/go.sum" } },
           { run: "npm install --global npm@10.9.8" },
           { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
           { run: postgresFixtureCommand },
           { run: "go install github.com/zricethezav/gitleaks/v8@v8.30.1" },
           { run: "npm run implementation:status:check" },
-          { run: "npm run verify" },
+          { name: platformMetadataName, run: platformMetadataCommand, "timeout-minutes": 5 },
+          { run: verifyDiagnosticRun },
+          { name: migrationCacheName, run: migrationCacheCommand, "timeout-minutes": 5 },
           ...structuredClone(complianceSteps),
           { run: "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n" },
           { run: "npm run production:release:gate" },
@@ -306,7 +323,52 @@ function validWorkflow(): Workflow {
   };
 }
 
+const migrationCacheName = "Prime native migration compilation cache for compliance browser";
+const migrationCacheCommand = "umask 077\ntask_migration_dir=$(mktemp -d \"${RUNNER_TEMP}/zasp-migration-cache.XXXXXX\")\ntrap 'rm -rf -- \"$task_migration_dir\"' EXIT\ncd services/platform\nGOENV=off GOWORK=off GOFLAGS= GOPRIVATE= GONOPROXY= GONOSUMDB= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go build -mod=readonly -o \"$task_migration_dir/agentsec-migrate\" ./agentsec-migrate\n";
+
+const platformMetadataCommand = "GOENV=off GOWORK=off GOFLAGS= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -C services/platform -mod=readonly -m all >/dev/null";
+const platformMetadataName = "Prime platform full-MVS metadata for offline release contracts";
+
+const verifyDiagnosticRun = "task_verify_log=$(mktemp \"${RUNNER_TEMP}/zasp-npm-verify.XXXXXX\")\nset +e\nnpm run verify 2>&1 | tee \"$task_verify_log\"\ntask_verify_status=${PIPESTATUS[0]}\nset -e\nif [ \"$task_verify_status\" -ne 0 ]; then\n  node scripts/annotate-verify-failure.mjs \"$task_verify_log\" || printf '%s\\n' '::error title=npm verify failed::Verification failed; phase unavailable.'\nfi\nrm -f -- \"$task_verify_log\" || true\nexit \"$task_verify_status\"";
+
 describe("runnable UI GitHub Actions gate", () => {
+  it.each(iamUnionCommands.flatMap(command => ["omitted", "reordered", "bypassed"].map(condition => [command, condition] as const)))("rejects IAM union command %s when %s", async (command, condition) => {
+    const workflow = validWorkflow();
+    const manifest = await readPackageManifest();
+    assertRunnableUiWorkflow(workflow, manifest);
+    const step = workflow.jobs!.verify.steps!.find(value => value.run === sessionIAMCommand)!;
+    const line = `${command}\n`;
+    if (condition === "omitted") step.run = step.run!.replace(line, "");
+    if (condition === "bypassed") step.run = step.run!.replace(line, `${command} || true\n`);
+    if (condition === "reordered") {
+      const index = iamUnionCommands.indexOf(command);
+      const neighbor = iamUnionCommands[index === 0 ? 1 : index - 1];
+      step.run = step.run!.replace(line, "").replace(`${neighbor}\n`, index === 0 ? `${neighbor}\n${line}` : `${line}${neighbor}\n`);
+    }
+    expect(step.run).not.toBe(sessionIAMCommand);
+    expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
+  });
+  it("requires bounded platform full-MVS metadata priming in the actual workflow", async () => {
+    assertRunnableUiWorkflow(await readWorkflow(), await readPackageManifest());
+  });
+  it.each(["omitted", "skipped", "allowed failure", "timeout", "command", "network", "mutable locks", "environment", "order"])("rejects %s platform full-MVS metadata priming", async condition => {
+    const workflow = validWorkflow();
+    const manifest = await readPackageManifest();
+    assertRunnableUiWorkflow(workflow, manifest);
+    const steps = workflow.jobs!.verify.steps!;
+    const step = steps.find(value => value.name === platformMetadataName)!;
+    if (condition === "omitted") steps.splice(steps.indexOf(step), 1);
+    if (condition === "skipped") step.if = false;
+    if (condition === "allowed failure") step["continue-on-error"] = true;
+    if (condition === "timeout") step["timeout-minutes"] = 6;
+    if (condition === "command") step.run = "go mod download";
+    if (condition === "network") step.run = step.run!.replace("https://proxy.golang.org", "https://unapproved.example");
+    if (condition === "mutable locks") step.run = step.run!.replace("-mod=readonly", "-mod=mod");
+    if (condition === "environment") step.env = { GOPROXY: "direct" };
+    if (condition === "order") steps.push(steps.splice(steps.indexOf(step), 1)[0]);
+    expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
+  });
+
   it.each(complianceSteps.flatMap(step => ["omitted", "skipped", "allowed failure", "timeout", "command", "environment", "order"].map(condition => [step.name!, condition] as const)))("rejects compliance step %s with %s", async (name, condition) => {
     const workflow = await readWorkflow();
     const manifest = await readPackageManifest();
@@ -526,6 +588,13 @@ describe("runnable UI GitHub Actions gate", () => {
     const manifest = await readPackageManifest();
     expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
   });
+  it.each([undefined, { GOTOOLCHAIN: "auto" }, { GOTOOLCHAIN: "go1.26.8" }, { GOTOOLCHAIN: "local", NODE_OPTIONS: "--require unapproved" }])("refuses missing or altered local-toolchain job authority %j", async env => {
+    const workflow = await readWorkflow();
+    const manifest = await readPackageManifest();
+    assertRunnableUiWorkflow(workflow, manifest);
+    workflow.jobs!.verify.env = env;
+    expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
+  });
   it("accepts the baseline before testing hostile workflow mutations", async () => {
     assertRunnableUiWorkflow(validWorkflow(), await readPackageManifest());
   });
@@ -555,7 +624,7 @@ describe("runnable UI GitHub Actions gate", () => {
           setup: {
             steps: validWorkflow().jobs?.verify?.steps?.slice(0, 4),
           },
-          verify: { steps: [{ run: "npm run verify" }] },
+          verify: { steps: [{ run: verifyDiagnosticRun }] },
         },
       },
     },
@@ -570,7 +639,7 @@ describe("runnable UI GitHub Actions gate", () => {
               { uses: checkoutAction, with: { "fetch-depth": 0 } },
               { run: "npm install --global npm@10.9.8" },
               { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
-              { run: "npm run verify" },
+              { run: verifyDiagnosticRun },
             ],
           },
         },
@@ -677,5 +746,95 @@ describe("runnable UI GitHub Actions gate", () => {
     const manifest = await readPackageManifest();
     expect(manifest.scripts?.verify).toContain("npm run production:release:test");
     expect(manifest.scripts?.["production:release:test"]?.split(/\s+/)).toContain("deploy/production/sandbox-query-observation.test.mjs");
+  });
+});
+
+
+describe("compliance browser workflow failure attribution", () => {
+  it.each([
+    { units: 17, runtime: 0, expected: 17, phase: "unit prerequisites", calls: 1 },
+    { units: 143, runtime: 0, expected: 143, phase: "unit prerequisites", calls: 1 },
+    { units: 0, runtime: 23, expected: 23, phase: "runtime acceptance", calls: 2 },
+    { units: 0, runtime: 1, expected: 1, phase: "runtime acceptance", calls: 2 },
+    { units: 0, runtime: 0, expected: 0, phase: null, calls: 2 },
+  ])("preserves exits and attribution for units=$units runtime=$runtime", async ({ units, runtime, expected, phase, calls }) => {
+    const workflow = await readWorkflow();
+    const step = workflow.jobs?.verify?.steps?.find(value => value.name === "Verify current compliance browser acceptance");
+    expect(step?.["timeout-minutes"]).toBe(15);
+    expect(step?.env).toEqual({ ZASP_COMBINED_E2E_COMPLIANCE: "true" });
+    expect(step?.["continue-on-error"]).toBeUndefined();
+    expect(step?.if).toBeUndefined();
+    if (!step?.run) throw new Error("compliance acceptance command is missing");
+    const directory = await mkdtemp(resolve(tmpdir(), "zasp-compliance-phase-test-"));
+    try {
+      const node = resolve(directory, "node"), trace = resolve(directory, "calls");
+      await writeFile(node, `#!/bin/sh
+printf '%s\n' "$*" >> "$TEST_CALLS"
+case "$1" in
+  --test) printf 'unit child output\n'; exit "$TEST_UNITS_EXIT" ;;
+  scripts/production-combined-e2e.mjs) printf 'runtime child output\n'; exit "$TEST_RUNTIME_EXIT" ;;
+  *) exit 99 ;;
+esac
+`);
+      await chmod(node, 0o700);
+      const result = spawnSync("/bin/bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", "-c", step.run], {
+        // Framework ambient types require NODE_ENV even for this isolated shell fixture.
+        env: { NODE_ENV: "test", PATH: directory, TEST_CALLS: trace, TEST_UNITS_EXIT: String(units), TEST_RUNTIME_EXIT: String(runtime) },
+        encoding: "utf8", timeout: 5000, maxBuffer: 16384,
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.signal).toBeNull();
+      expect(result.status).toBe(expected);
+      expect(result.stderr).toBe("");
+      const invoked = (await readFile(trace, "utf8")).trim().split("\n");
+      expect(invoked).toEqual([
+        "--test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs",
+        ...(calls === 2 ? ["scripts/production-combined-e2e.mjs"] : []),
+      ]);
+      const annotations = result.stdout.split("\n").filter(line => line.startsWith("::error::"));
+      expect(annotations).toEqual(phase ? [`::error::Compliance browser ${phase} failed (exit ${expected})`] : []);
+      expect(result.stdout).toContain("unit child output\n");
+      expect(result.stdout.includes("runtime child output\n")).toBe(calls === 2);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+    await expect(readFile(resolve(directory, "node"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+});
+
+
+describe("native migration cache preparation", () => {
+  it("requires exact bounded preparation before unchanged compliance acceptance", async () => {
+    assertRunnableUiWorkflow(await readWorkflow(), await readPackageManifest());
+  });
+  it.each(["omitted", "skip", "allowed failure", "timeout", "command", "environment", "order"])("refuses %s native migration cache preparation", async condition => {
+    const workflow = validWorkflow(); const manifest = await readPackageManifest();
+    assertRunnableUiWorkflow(workflow, manifest);
+    const steps = workflow.jobs!.verify.steps!; const step = steps.find(value => value.name === migrationCacheName)!;
+    if (condition === "omitted") steps.splice(steps.indexOf(step), 1);
+    if (condition === "skip") step.if = false;
+    if (condition === "allowed failure") step["continue-on-error"] = true;
+    if (condition === "timeout") step["timeout-minutes"] = 6;
+    if (condition === "command") step.run = step.run!.replace("-mod=readonly", "-mod=mod");
+    if (condition === "environment") step.env = { GOFLAGS: "-race" };
+    if (condition === "order") steps.push(steps.splice(steps.indexOf(step), 1)[0]);
+    expect(() => assertRunnableUiWorkflow(workflow, manifest)).toThrow();
+  });
+  it.each([0, 37])("executes actual preparation with owned output and preserves status %s", async status => {
+    const workflow = await readWorkflow(); const step = workflow.jobs!.verify.steps!.find(value => value.name === migrationCacheName)!;
+    expect(step).toEqual({ name: migrationCacheName, run: migrationCacheCommand, "timeout-minutes": 5 });
+    const dir = await mkdtemp(resolve(tmpdir(), "migration-cache-control-"));
+    try {
+      const bin = resolve(dir, "go"), observation = resolve(dir, "observation.json");
+      await writeFile(bin, "#!/usr/bin/env node\n" + `const fs=require('node:fs'),path=require('node:path');const args=process.argv.slice(2);const output=args[args.indexOf('-o')+1];fs.writeFileSync(output,'#!/bin/sh\\nexit 99\\n');fs.writeFileSync(${JSON.stringify(observation)},JSON.stringify({args,cwd:process.cwd(),parentMode:fs.statSync(path.dirname(output)).mode&511,outputMode:fs.statSync(output).mode&511,env:Object.fromEntries(['GOENV','GOWORK','GOFLAGS','GOPRIVATE','GONOPROXY','GONOSUMDB','GOPROXY','GOSUMDB'].map(k=>[k,process.env[k]]))}));process.exit(${status});`);
+      await chmod(bin, 0o700);
+      const result = spawnSync("/bin/bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", "-c", step.run!], { cwd: repositoryRoot, env: { PATH: `${dir}:${resolve(process.execPath, "..") }:/usr/bin:/bin`, RUNNER_TEMP: dir, NODE_ENV: "test" }, timeout: 5000, encoding: "utf8" });
+      expect(result.error).toBeUndefined(); expect(result.signal).toBeNull(); expect(result.status).toBe(status);
+      const observed = JSON.parse(await readFile(observation, "utf8"));
+      expect(observed.args).toEqual(["build", "-mod=readonly", "-o", expect.stringMatching(new RegExp(`^${dir}/zasp-migration-cache\\.[^/]+/agentsec-migrate$`)), "./agentsec-migrate"]);
+      expect(observed.cwd).toBe(resolve(repositoryRoot, "services/platform")); expect(observed.parentMode).toBe(0o700); expect(observed.outputMode).toBe(0o600);
+      expect(observed.env).toEqual({ GOENV: "off", GOWORK: "off", GOFLAGS: "", GOPRIVATE: "", GONOPROXY: "", GONOSUMDB: "", GOPROXY: "https://proxy.golang.org", GOSUMDB: "sum.golang.org" });
+      await expect(readFile(observed.args[3])).rejects.toMatchObject({ code: "ENOENT" });
+    } finally { await rm(dir, { recursive: true, force: true }); }
   });
 });

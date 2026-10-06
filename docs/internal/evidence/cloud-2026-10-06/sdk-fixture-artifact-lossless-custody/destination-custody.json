@@ -1,0 +1,34 @@
+{
+  "archivePath": "/tmp/SDK-component-gzip-R10-custody-09f4277d55454eb0a5f18da2e3ca3d8a/component.test.lossless-v1.gz",
+  "archiveProof": {
+    "archiveBinding": {
+      "ctime_ns": 1791312676991963340,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 439148,
+      "kind": "file",
+      "mode": 33024,
+      "mtime_ns": 1791312676987073822,
+      "nlink": 1,
+      "sha256": "ac6082e81551fc55f6e152599f4a9df5c955e76b1594f111760a67d200966518",
+      "size": 26836375,
+      "uid": 1000
+    },
+    "decodedBytes": 67492916,
+    "decodedSHA256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d",
+    "format": "gzip",
+    "mtime": 0,
+    "originalPathsPresenceHistoricalAfterFinalize": true
+  },
+  "compressionIsNotReadiness": true,
+  "originalPath": "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/compiler-tmp/component.test",
+  "originalPhysicalIdentityHistoricalOnly": true,
+  "originalRawBinaryNotCurrentInputToProspectiveRealCompile": true,
+  "planSHA256": "fcf33baaeb7fcd3d833675dfef0611f797d91423a125f4e1fe42ee3ca14c7498",
+  "priorReceiptsRewritten": false,
+  "protectedReceiptsUnchanged": true,
+  "removed": [
+    "component.test"
+  ],
+  "status": "EXACT-ONE-LOSSLESS-GZIP-CUSTODY-COMPLETED"
+}

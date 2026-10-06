@@ -1,0 +1,14 @@
+{
+  "encoding": "gzip mtime=0",
+  "roundTripVerified": true,
+  "members": [
+    {
+      "source": "/workspace/.zasp-cloud-owned/native379-v2-failure-publication-512-qwodunwb/security-scan/evidence-redacted.json",
+      "sourceBytes": 741,
+      "sourceSHA256": "a5e17b5b49b0002ec37d11902c231bc866fc37ea7b5b5c030a292fccb539c91f",
+      "member": "security/evidence-redacted.json.gz",
+      "compressedSHA256": "836fc87aa08899b75119ee89838f32a8b454f30e08768594c977e59232dce10f"
+    }
+  ],
+  "boundary": "Encoding does not clear original FAIL1 finding."
+}

@@ -1,0 +1,5 @@
+# github.com/zasp-ai/zasp-sec/services/platform/apiserver [github.com/zasp-ai/zasp-sec/services/platform/apiserver.test]
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:1133:29: cannot use native379V2ReplayRowsForTest(query) (value of type func("context".Context, string, ...any) (native379V2DiagnosticRows, error)) as string value in argument to tx.Query
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:1133:58: cannot use query (variable of type string) as func("context".Context, string, ...any) (bool, error) value in argument to native379V2ReplayRowsForTest
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver [build failed]
+FAIL

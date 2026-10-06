@@ -1,0 +1,12 @@
+{
+  "scope": "explicit provenance-only erratum to sealedmanifest; no payload or manifest byte mutation",
+  "sealedManifestSHA256": "5ef1bcb9bc8814808fc5b43ba135485eedacf85a746c2a72e51de1dfdd77ab2d",
+  "member": "evidence/query-placement-plan.json",
+  "declaredOriginalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/publication-primary2912-8t9eg25w/query-placement-plan.json",
+  "correctRetainedOriginalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/publication-primary2912-8t9eg25w/evidence/query-placement-plan.json",
+  "actualRetainedSHA256": "ac5d693936a7694a81e815d2ab7b14e6aef7914d3c0ac1967d2ed5195d527db7",
+  "actualRetainedBytes": 6014,
+  "publishedMemberSHA256": "ac5d693936a7694a81e815d2ab7b14e6aef7914d3c0ac1967d2ed5195d527db7",
+  "publishedMemberBytes": 6014,
+  "interpretation": "The provenance path accidentally omitted evidence/; exact retained/published bytes and derivation scope remain unchanged. Query plan is source transcription, not runtime observation."
+}

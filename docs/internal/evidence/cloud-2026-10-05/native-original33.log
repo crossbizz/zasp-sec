@@ -1,0 +1,5 @@
+=== RUN   TestWorkerRegistrationReferenceOriginalPostgres
+    postgres_integration_test.go:1409: joined owned PostgreSQL pid=50480 data=/tmp/TestWorkerRegistrationReferenceOriginalPostgres560360776/002/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+    authorization_worker_registration_reference_test.go:1763: complete original33 reference packet published after normal owned cleanup; independent review still required 16311004 5ed07f15be204efc14ce171c528affd7cce1628224eb24d566bfad121f3eada0
+--- PASS: TestWorkerRegistrationReferenceOriginalPostgres (201.10s)
+PASS

@@ -1,0 +1,164 @@
+{
+  "assessment": "Source approved exact fresh-checksum substitutions; no reviewer Go execution",
+  "sourceCommit": "18d80f9bfbb88059891eedc4592e81ff0e0ea05c",
+  "mappings": [
+    {
+      "path": "services/platform/agentsec-worker/authorization_worker_ordered_test_database.go",
+      "onlyExactChecksumReplacement": true,
+      "mappings": [
+        [
+          "ProductionTemporalExecutor().Checksum()",
+          "TemporalExecutorChecksum()"
+        ]
+      ]
+    },
+    {
+      "path": "services/platform/agentsec-worker/authorization_worker_single_database.go",
+      "onlyExactChecksumReplacement": true,
+      "mappings": [
+        [
+          "ProductionTemporalTestExecutor().Checksum()",
+          "TemporalTestExecutorChecksum()"
+        ]
+      ]
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_temporal_planning.go",
+      "onlyExactChecksumReplacement": true,
+      "mappings": [
+        [
+          "ProductionTemporalExecutor().Checksum()",
+          "TemporalExecutorChecksum()"
+        ],
+        [
+          "ProductionTemporalTestExecutor().Checksum()",
+          "TemporalTestExecutorChecksum()"
+        ]
+      ]
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_temporal_runner.go",
+      "onlyExactChecksumReplacement": true,
+      "mappings": [
+        [
+          "ProductionTemporalExecutor().Checksum()",
+          "TemporalExecutorChecksum()"
+        ]
+      ]
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_temporal_runtime.go",
+      "onlyExactChecksumReplacement": true,
+      "mappings": [
+        [
+          "ProductionTemporalWorkflow().Checksum()",
+          "TemporalWorkflowChecksum()"
+        ]
+      ]
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_temporal_single_availability.go",
+      "onlyExactChecksumReplacement": true,
+      "mappings": [
+        [
+          "ProductionTemporalTestExecutor().Checksum()",
+          "TemporalTestExecutorChecksum()"
+        ]
+      ]
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_worker63.go",
+      "onlyExactChecksumReplacement": true,
+      "mappings": [
+        [
+          "ProductionSecurityAgentWorker().Checksum()",
+          "SecurityAgentWorkerChecksum()"
+        ]
+      ]
+    },
+    {
+      "path": "services/platform/agentsec-worker/temporal_test_selector.go",
+      "onlyExactChecksumReplacement": true,
+      "mappings": [
+        [
+          "ProductionTemporalTestSelector().Checksum()",
+          "TemporalTestSelectorChecksum()"
+        ]
+      ]
+    }
+  ],
+  "metadataConstructorUnchanged": true,
+  "worker63VectorSHA256": "cb714f0964bf3f4de05c9c3e9c226f85791865f27556d19df86e943911ab490c",
+  "newTestsReview": "Real repository consumer checks fixed63checksum/fingerprint+32MiB; both raw63 sources serially mutated/restored and compared with unchanged Metadata. Existing temporal freshness suite remains unchanged.",
+  "rows": [
+    {
+      "path": "services/platform/agentsec-worker/authorization_worker_ordered_test_database.go",
+      "sha256": "c70f3983930672eed1348efc0a401ed45a61569ae105b0e25b1648c99a5b253e",
+      "bytes": 8413
+    },
+    {
+      "path": "services/platform/agentsec-worker/authorization_worker_single_database.go",
+      "sha256": "86f860ee62ebd05494aa6b4f9b585f164cd6243195736b84b086bd08339aa15c",
+      "bytes": 3776
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_temporal_planning.go",
+      "sha256": "8c4cb3d40135cf71c9d253acc83a11d8524036a8a53a0aafa69ff8a2e4502a9f",
+      "bytes": 24641
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_temporal_runner.go",
+      "sha256": "adc3f4305f5bdb173fcca672b8cc57ab2a4e4551acda81475032971edbb8a510",
+      "bytes": 9514
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_temporal_runtime.go",
+      "sha256": "fb3936758c00c89e109a08e0b86cdfe6da70df6e0d25bcc4be306d274c3956e3",
+      "bytes": 20518
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_temporal_single_availability.go",
+      "sha256": "3f22b890d2eacb5b46def853d18bca25b4c95a14ae3496851c0a49d88926e8da",
+      "bytes": 1268
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_worker63.go",
+      "sha256": "2e82f3b86974c220d1c072190669dd0a7c12a2c0b05b8cc4e490abd4b5b6d7fc",
+      "bytes": 11517
+    },
+    {
+      "path": "services/platform/agentsec-worker/temporal_test_selector.go",
+      "sha256": "b13a25f9e27560ae70760643c21176107390766aca4e5f3f91eb1b0dcd576ae5",
+      "bytes": 5102
+    },
+    {
+      "path": "services/platform/migrations/production_security_agent_worker.go",
+      "sha256": "36399821c191f610b2a9e52ecb9f35d90b91b52056f76fa6978b82e360ad397b",
+      "bytes": 4752
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_checksum_cost_test.go",
+      "sha256": "63780167dfda298ba25166d6f2b35acff47132e72dc83d4e7f353d17bc4931f3",
+      "bytes": 2252
+    },
+    {
+      "path": "services/platform/migrations/compliance_checksum_test.go",
+      "sha256": "e19172453ec17e5721cdf060b8cf515153f822f0c9b001579437bf1bb16cf5aa",
+      "bytes": 3296
+    },
+    {
+      "path": "services/platform/migrations/temporal_source_checksums.go",
+      "sha256": "1318b4a31393294667a521384c9ddfb3fc875d8f4493364e6f284cae80abae7d",
+      "bytes": 1672
+    },
+    {
+      "path": "services/platform/migrations/temporal_source_checksums_test.go",
+      "sha256": "054d7bf6389d49ba8495facb371db8aaf5f1db06a2124b76d2346ac8a7eddd9e",
+      "bytes": 1655
+    }
+  ],
+  "limitations": [
+    "Root-owned actual test result not independently executed",
+    "No native/provider/full728 admission inferred"
+  ]
+}

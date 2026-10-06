@@ -1,0 +1,16 @@
+{
+  "status": "PASS-EXACT-ONE-STRING-WORKFLOW-CONTRACT-FIXTURE-UPDATE",
+  "sourceFile": "app/quality/runnable-ui-workflow.test.ts",
+  "baselineSHA256": "6979a4aaef6775b1f2fd50c3c40b80495709ef47354a8244ba7ce60468c3353b",
+  "candidateSHA256": "81265f76cff95a0f49d025fd13b647da652f28e92ff848b7d9f938f551b59bf7",
+  "checks": {
+    "onlyExpectedCommandAppendsReviewedPreflightTest": true,
+    "allOtherSourceBytesIncludingStrict32StepAndFailureSkipGuardsUnchanged": true,
+    "actualWorkflowFifthTestAndOriginalFourCommandsPreserved": true
+  },
+  "limits": [
+    "Static source review only; actual264test GREEN still pending and original264 RED retained.",
+    "No workflow/sourceguard weakening or shared edits/runtime/testing by reviewer.",
+    "No current fullnpm/browser/native/deployed/availability claim."
+  ]
+}

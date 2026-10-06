@@ -1,0 +1,236 @@
+{
+  "checks": [
+    "All three original full stdout/stderr/result SHA checked; counts and failures derived from authentic TAP, no tests rerun",
+    "All six source SHA match current files and final/intermediate unchanged-input maps; source-adoption four records and fixture ad55 align",
+    "All assertions remain as static reviewed; no source/test skip or guard edit by reviewer",
+    "Full PATH/LD_LIBRARY_PATH changes are invocation prerequisites only, not permission guard relaxation"
+  ],
+  "classifications": {
+    "final": "131 tests129PASS0FAIL2SKIP, ROOT normal12.858213s/exit0, complete actual tool PATH/PG dynamic library dependency environment. Test81 passed actual owned PostgreSQL startup/SIGTERM/owned files+process cleanup assertions before broader fixture integration.",
+    "intermediate": "131 tests128PASS1FAIL2SKIP. Both fixtures corrected; #81 actual required pg_config discovery refused due incomplete invocation PATH. Filename green not success. Original FAILED remains FAILED.",
+    "original": "131 tests126PASS3FAIL2SKIP. #41 newcall expected configuration stale; #46 preexisting audit VM free variable missing; #81 required Docker absent from closed PATH. Original FAILED remains FAILED.",
+    "skips": "Two original opt-in real Docker runtime/Red Team SIGTERM cases #82/#83 stayed skipped. No acceptance credited for either."
+  },
+  "findings": [],
+  "format": "independent-actual-compliance-affected131-review-v1",
+  "limits": [
+    "No tests/services/Docker/PG/binary execution/source mutations by reviewer",
+    "No SQL authorization/native379/fullAPI/browser/OpenFGA/Temporal/Stytch/provider/deployment promotion",
+    "Current source SHA verification plus ROOT recorded unchanged-input claims does not invent independent full before/after kernel observation",
+    "No full npm/repository acceptance or two skipped opt-in proof completion inferred"
+  ],
+  "ownedPGSignalInterpretation": "Source test81 spawns actual unchanged harness, requires disposable PostgreSQL-ready output, live child, exact owned root, SIGTERM normal143, ownroot absence/unrelatedroot preservation/no process path matches. TAP PASS supports this existing scoped cleanup test; no fresh SQL authorization/profile/schema/application/browser result inferred.",
+  "preservedRounds": [
+    {
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=15s",
+        "90s",
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "scripts/compliance-current-runtime.test.mjs",
+        "scripts/compliance-runtime-prerequisites.test.mjs",
+        "scripts/production-combined-e2e.test.mjs",
+        "scripts/compliance-browser-bytes.test.mjs"
+      ],
+      "counts": {
+        "cancelled": 0,
+        "fail": 3,
+        "pass": 126,
+        "skipped": 2,
+        "tests": 131,
+        "todo": 0
+      },
+      "failedTests": [
+        41,
+        46,
+        81
+      ],
+      "name": "compliance-current-schema-adopted-tests",
+      "recordedNormalExit": 1,
+      "recordedSeconds": 9.546094731995254,
+      "resultSHA256": "4966455537a9960f0021b83d924248ff4356fa655049f6aba3645a47cdf0b1a1",
+      "skippedTests": [
+        "ok 82 - combined runtime proof removes owned containers and processes on real SIGTERM # SKIP",
+        "ok 83 - composed Red Team runtime removes its owned container on real SIGTERM # SKIP"
+      ],
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "70fc3964ae192d7ada487c5babbf1cea228566a667c914804d31aefd8ab866e5"
+    },
+    {
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/local/bin:/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=15s",
+        "90s",
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "scripts/compliance-current-runtime.test.mjs",
+        "scripts/compliance-runtime-prerequisites.test.mjs",
+        "scripts/production-combined-e2e.test.mjs",
+        "scripts/compliance-browser-bytes.test.mjs"
+      ],
+      "counts": {
+        "cancelled": 0,
+        "fail": 1,
+        "pass": 128,
+        "skipped": 2,
+        "tests": 131,
+        "todo": 0
+      },
+      "failedTests": [
+        81
+      ],
+      "name": "compliance-current-schema-adopted-tests-green",
+      "recordedNormalExit": 1,
+      "recordedSeconds": 9.41260984398832,
+      "resultSHA256": "f45c5ce529afc38569205eda32fafac39e4d89b1e3978a5931e0c6ee53aedb67",
+      "skippedTests": [
+        "ok 82 - combined runtime proof removes owned containers and processes on real SIGTERM # SKIP",
+        "ok 83 - composed Red Team runtime removes its owned container on real SIGTERM # SKIP"
+      ],
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "78117f2d7f13a1742c155206a272723fff1d932c10bc6ed56763db7c3748255a"
+    },
+    {
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin:/tmp/zasp-cloud-tools/go/bin:/tmp/zasp-cloud-tools/postgres-18.3/bin:/tmp/zasp-cloud-tools/bin:/usr/local/bin:/usr/bin:/bin",
+        "LD_LIBRARY_PATH=/tmp/zasp-cloud-tools/postgres-18.3/deps",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=15s",
+        "90s",
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "scripts/compliance-current-runtime.test.mjs",
+        "scripts/compliance-runtime-prerequisites.test.mjs",
+        "scripts/production-combined-e2e.test.mjs",
+        "scripts/compliance-browser-bytes.test.mjs"
+      ],
+      "counts": {
+        "cancelled": 0,
+        "fail": 0,
+        "pass": 129,
+        "skipped": 2,
+        "tests": 131,
+        "todo": 0
+      },
+      "failedTests": [],
+      "name": "compliance-current-schema-adopted-tests-complete-tools",
+      "recordedNormalExit": 0,
+      "recordedSeconds": 12.858213262996287,
+      "resultSHA256": "58c20d9122783b37d1492c0f8b1ec4db78204e45863e597b54c0d3aac934d102",
+      "skippedTests": [
+        "ok 82 - combined runtime proof removes owned containers and processes on real SIGTERM # SKIP",
+        "ok 83 - composed Red Team runtime removes its owned container on real SIGTERM # SKIP"
+      ],
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "844ce272e2cc668c8855a93d37c08b8a976934c234b000d52d241da7e006d69f"
+    }
+  ],
+  "rootActualJoin": {
+    "completionChunk": "d655990",
+    "initialChunk": "c75910",
+    "recordedNormalExit": 0,
+    "scope": "ROOT-authored result normalWait plus reported tool actualjoin, not invented independent kernel process trace",
+    "seconds": 12.858213262996287,
+    "session": 26164
+  },
+  "sixCurrentSourceIdentities": {
+    "scripts/compliance-browser-bytes.test.mjs": {
+      "bytes": 479,
+      "currentMetadata": {
+        "dev": 27,
+        "ino": 9223372036855914568,
+        "mode": 33152,
+        "nlink": 2
+      },
+      "sha256": "fa0dca126e80744efa432413d3f3fa53950335f6c1d1310793b8e28e53eb6836"
+    },
+    "scripts/compliance-current-runtime.mjs": {
+      "bytes": 1453,
+      "currentMetadata": {
+        "dev": 27,
+        "ino": 995096,
+        "mode": 33188,
+        "nlink": 1
+      },
+      "sha256": "849087c235782785edb1909ee1e66f858fd7ecb4f1ff75790a58e426b5d50641"
+    },
+    "scripts/compliance-current-runtime.test.mjs": {
+      "bytes": 4304,
+      "currentMetadata": {
+        "dev": 27,
+        "ino": 995097,
+        "mode": 33188,
+        "nlink": 1
+      },
+      "sha256": "285ec4c0fea2dfcc710e90d6472c161832b001b26e5957df6a580f84733e3534"
+    },
+    "scripts/compliance-runtime-prerequisites.test.mjs": {
+      "bytes": 6537,
+      "currentMetadata": {
+        "dev": 27,
+        "ino": 994876,
+        "mode": 33152,
+        "nlink": 1
+      },
+      "sha256": "cb680868505d56eb259f683126e2a51f1f51c5c7ab46eea4d627b0e0cc5c6d93"
+    },
+    "scripts/production-combined-e2e.mjs": {
+      "bytes": 664857,
+      "currentMetadata": {
+        "dev": 27,
+        "ino": 995098,
+        "mode": 33188,
+        "nlink": 1
+      },
+      "sha256": "adc93ce62345fc627dc4686158c83ae0ff0a1dd9a153d0a10912fe2e34da4a26"
+    },
+    "scripts/production-combined-e2e.test.mjs": {
+      "bytes": 158355,
+      "currentMetadata": {
+        "dev": 27,
+        "ino": 995099,
+        "mode": 33188,
+        "nlink": 1
+      },
+      "sha256": "ad55be65a8a480a3f9d89d2237a9e965573020895c49cf9b2b3b0d1836a6e56c"
+    }
+  },
+  "sixRecordedHashesSameAcrossSecondAndFinalRound": true,
+  "sourceStaticReferences": {
+    "fixtureCorrection": {
+      "path": "/tmp/zasp-cloud-evidence/independent-compliance-schema-two-fixture-correction-static-review.json",
+      "sha256": "543c6738a9947413a07ea27bec8d74ccdec84fb02f3c964735a3541f19825b11"
+    },
+    "independentOriginalTwoLineReview": {
+      "path": "/tmp/zasp-cloud-evidence/independent-compliance-two-line-fixture-correction-review.json",
+      "sha256": "f6e55f658c8ff9a95cf243e7d9890a2ce61148aeb8a6839112c72c087b2542fb"
+    },
+    "sourceAdoption": {
+      "path": "/tmp/zasp-cloud-evidence/independent-compliance-current-schema-source-adoption-review.json",
+      "sha256": "9e4c2683478b1cda23b8136396d65a2922a3f36603c93bdcca19104007fcc108"
+    }
+  },
+  "status": "ACTUAL-SCOPED-GREEN-WITH-TWO-EXPLICIT-OPTIN-SKIPS",
+  "timestampUTC": "2026-10-06T16:51:25.579008+00:00"
+}

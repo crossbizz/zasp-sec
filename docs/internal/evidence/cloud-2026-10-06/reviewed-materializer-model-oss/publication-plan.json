@@ -1,0 +1,171 @@
+{
+  "format": "private-additive-documentation-batch-plan-v1",
+  "baseReceipt": {
+    "path": "/workspace/zasp-sec/docs/internal/cloud-continuation-receipt-2026-10-06.md",
+    "bytes": 86566,
+    "sha256": "7acc7d5b1005b581a101a1ef64cb3a1274b5149f1d35b0f86f77c20d358b818d",
+    "policy": "Root must preserve this exact prefix during append; shared receipt untouched by reviewer."
+  },
+  "appendSHA256": "0bc89508ea6e4dbac9acd874798194c92cb5c553b94b3fb0ff36f998bb09329a",
+  "appendBytes": 3624,
+  "packets": [
+    {
+      "path": "/tmp/zasp-cloud-evidence/materializer-node-model3-consolidation-289ufs_d/publication",
+      "manifestSHA256": "0f1b953dd8f735a3c3147dbf06fc3bb6851d4f1c3d705162e038460f7d2b6d76",
+      "independentReviewSHA256": "bdf934b0af2eb45317b6efed43055957c41a80e9a84e451c2835ac772c27e167"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-publication-gs6TDuDF/publication",
+      "manifestSHA256": "91960c2ab0bbb69661a9f00acd0b07f4e88ec6b0f9fa552d8768a0b1e50e5cd8",
+      "independentReviewSHA256": "a35c28b5c4f810eaa0bba78bd70a0315fc8a89332c16dc426d64e7af63f73fac",
+      "custodyDelta": "Original binary omission identity is historical: pathname absent after lossless archival, new custody136892 supplements without rewriting old91960 manifest."
+    }
+  ],
+  "selectedSafeOriginals": [
+    {
+      "path": "/tmp/zasp-cloud-evidence/independent-materializer-node-model3-consolidation-publication-review.json",
+      "sha256": "bdf934b0af2eb45317b6efed43055957c41a80e9a84e451c2835ac772c27e167",
+      "bytes": 2724,
+      "selectedName": "00-independent-materializer-node-model3-consolidation-publication-review.json"
+    },
+    {
+      "path": "/tmp/zasp-cloud-evidence/independent-four-caller91960-publication-closure-review.json",
+      "sha256": "a35c28b5c4f810eaa0bba78bd70a0315fc8a89332c16dc426d64e7af63f73fac",
+      "bytes": 1677,
+      "selectedName": "01-independent-four-caller91960-publication-closure-review.json"
+    },
+    {
+      "path": "/tmp/zasp-cloud-evidence/independent-model4-lossless-binary-actual-archival-review.json",
+      "sha256": "a62ffdafdc68918c7fd7def50ff024259910dc21cc622b4c52641482aa7fec59",
+      "bytes": 3973,
+      "selectedName": "02-independent-model4-lossless-binary-actual-archival-review.json"
+    },
+    {
+      "path": "/tmp/zasp-cloud-evidence/independent-actual-FGA-vendor-parser-TDD-review.json",
+      "sha256": "938a4e7a31b346fa0afafd26f9e385d1ac1b8bacf98ab567f5c18046f106d425",
+      "bytes": 2701,
+      "selectedName": "03-independent-actual-FGA-vendor-parser-TDD-review.json"
+    },
+    {
+      "path": "/tmp/zasp-cloud-evidence/pr51-8828-actual-hosted-steps-curated.json",
+      "sha256": "653b5771844611eb91f3c1f436b64784cf184d67d79fd14a8c4cc7eeeb32d855",
+      "bytes": 4018,
+      "selectedName": "04-pr51-8828-actual-hosted-steps-curated.json"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test.lossless-v1.prepared.json",
+      "sha256": "ef99eff3b483bac546af25e6bdf565c4cba5186a5e475c02c4415a948c194b0c",
+      "bytes": 777,
+      "selectedName": "05-component.test.lossless-v1.prepared.json"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test.lossless-v1.unlink-intent.json",
+      "sha256": "49209b1b5b99a230556ae24d2962283fedcc6660680436dedc9bec3c4d45be76",
+      "bytes": 760,
+      "selectedName": "06-component.test.lossless-v1.unlink-intent.json"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test.lossless-v1.custody.json",
+      "sha256": "13689235d1534ea8adcf34475f0d97a0e27c54b199a3f9f98a59286bb6ecfd94",
+      "bytes": 1131,
+      "selectedName": "07-component.test.lossless-v1.custody.json"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native-OSS-FGA-parser-tests-owner-41ebe625f4c1439ea09914194d70fdf0/failure-journal.jsonl",
+      "sha256": "502d1fd0205c8ad47ae0bf2227941ea90bfc4745fc318ac6d9349d7152ef9526",
+      "bytes": 65536,
+      "selectedName": "08-failure-journal.jsonl"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native-OSS-FGA-parser-tests-owner-41ebe625f4c1439ea09914194d70fdf0/old-vendor-RED.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selectedName": "09-old-vendor-RED.stdout"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native-OSS-FGA-parser-tests-owner-41ebe625f4c1439ea09914194d70fdf0/old-vendor-RED-record.json",
+      "sha256": "4b42abd6e9411e9536206c4a4d0c0c626c1247569767ed42f4ca33a50b809892",
+      "bytes": 865,
+      "selectedName": "10-old-vendor-RED-record.json"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native-OSS-FGA-parser-tests-owner-41ebe625f4c1439ea09914194d70fdf0/new-vendor-ten-GREEN.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "selectedName": "11-new-vendor-ten-GREEN.stdout"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native-OSS-FGA-parser-tests-owner-41ebe625f4c1439ea09914194d70fdf0/new-vendor-ten-GREEN-record.json",
+      "sha256": "a82d049ea78de8d8cf1adcd9d0193e43e1450ff5fbe7611e8201e3a6a96aa86c",
+      "bytes": 790,
+      "selectedName": "12-new-vendor-ten-GREEN-record.json"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native-OSS-FGA-parser-tests-owner-41ebe625f4c1439ea09914194d70fdf0/result.json",
+      "sha256": "fe18012ec807a6a7848379ceafa5a2fa5aafc653da77afc1821d1122170c9824",
+      "bytes": 2252,
+      "selectedName": "13-result.json"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native-OSS-FGA-parser-tests-owner-41ebe625f4c1439ea09914194d70fdf0/new-vendor-ten-GREEN.stderr",
+      "sha256": "2e333b66e9f6e0cec01052744bb773391abcd406fb1b385487a0512fe6dd9be5",
+      "bytes": 1423,
+      "selectedName": "14-new-vendor-ten-GREEN.stderr"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native-OSS-FGA-parser-tests-owner-41ebe625f4c1439ea09914194d70fdf0/old-vendor-RED.stderr",
+      "sha256": "30b20e65d37c05f40f633967683abb26334ee6081b512c9848d5b7c988c19a6b",
+      "bytes": 1591,
+      "selectedName": "15-old-vendor-RED.stderr"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native-OSS-CLI-census-owner-41422f7c45754665858080c84056d6f5/result.json",
+      "sha256": "2f1a3aa54f104a2bfa847df1162a075309bb2d6af8190a02dfc99bdd1a9ed30b",
+      "bytes": 1652,
+      "selectedName": "16-result.json"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/temporal-CLI-stream-census-fa2209b0afc44d86968954b9a33b2d78/result.json",
+      "sha256": "24dded5cf8e8dd5b7bb5ba438c2c16441da62cd12cc586369875b6a62fa42b68",
+      "bytes": 178,
+      "selectedName": "17-result.json"
+    }
+  ],
+  "binaryOmission": {
+    "archivePath": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test.lossless-v1.gz",
+    "currentOriginalInodeUnchangedClaim": false,
+    "currentOriginalPathState": "ABSENT-AFTER-ARCHIVAL",
+    "decodedBytes": 153223894,
+    "decodedSHA256": "80b28abda3f0007cfbfcd6a3610431558c13bc5ebc181c82f182c2cebed7c438",
+    "gzipBytes": 58437354,
+    "gzipSHA256": "d18c6ee31c9b4612b3684c53e73b1fbceeb390459274ae6c98b4522bd50b2982",
+    "originalHistoricalIdentity": {
+      "st_ctime_ns": 1791291307743470498,
+      "st_dev": 27,
+      "st_ino": 1247955,
+      "st_mode": 33216,
+      "st_mtime_ns": 1791291307737782951,
+      "st_nlink": 1,
+      "st_size": 153223894,
+      "st_uid": 1000
+    },
+    "originalPath": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test",
+    "planSHA256": "1ad103bc86e92323f05e73ecc2cc41e371ff06bf8d0831bbdd50e187f17cf63f",
+    "priorReceiptsRewritten": false,
+    "status": "LOSSLESS-ARCHIVE-VERIFIED-ORIGINAL-PATH-ABSENT"
+  },
+  "taskMapping": {
+    "availabilityPath": "docs/internal/implementation_production_availability_v1.5.tsv",
+    "owners": "Existing owner ledger unchanged; no invented task IDs/direct mapping",
+    "counts": "728/523historical/144component/61external-blocked"
+  },
+  "adoptionRequirements": [
+    "Root copy selected originals byteexact or deterministic gzip with original identity mapping; do not rewrite original manifests/statuses.",
+    "Disclosure: materializer scans exclude later metadata and omissions; model4 scan encoded-selected only, no decoded clearance.",
+    "Run actual default selected decoded/encoded publication scans with redacted findings and bounded secret-safe logs; preserve nonzero outcomes and classify rather than waive.",
+    "Independently review exact copied tree/append before docs commit; retain exact receipt prefix.",
+    "Scan staged Git delta and recorded available refs separately; no universal object/future-commit waiver.",
+    "Normal docs-only commit/push; installer retry recipe must be rebuilt for fresh committed HEAD."
+  ],
+  "scope": "Private light documentation planning, not final published closure; original packets immutable. No shared/source/runtime/dependency/config/ignore/history mutations."
+}

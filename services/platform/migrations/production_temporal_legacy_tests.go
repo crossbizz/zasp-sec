@@ -18,7 +18,7 @@ func TemporalLegacyTestsFingerprint() string {
 func ProductionTemporalLegacyTests() Metadata {
 	sum := sha256.Sum256([]byte(temporalLegacyTestsSQL))
 	checksum := hex.EncodeToString(sum[:])
-	bound := strings.NewReplacer("-- legacy71 checksum", checksum, "-- legacy71 fingerprint", TemporalLegacyTestsFingerprint(), "-- compatibility70 checksum", ProductionTemporalCompatibility().Checksum(), "-- compatibility70 fingerprint", TemporalCompatibilityFingerprint()).Replace(temporalLegacyTestsSQL)
+	bound := strings.NewReplacer("-- legacy71 checksum", checksum, "-- legacy71 fingerprint", TemporalLegacyTestsFingerprint(), "-- compatibility70 checksum", TemporalCompatibilityChecksum(), "-- compatibility70 fingerprint", TemporalCompatibilityFingerprint()).Replace(temporalLegacyTestsSQL)
 	return Metadata{version: 71, name: "production_temporal_legacy_tests_extension", checksum: checksum, up: bound}
 }
 

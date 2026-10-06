@@ -1,0 +1,33 @@
+{
+  "status": "PRIVATE-PUBLICATION-PREPARED; root has copied four reviewed sourcefiles; this recorder made no shared writes",
+  "baseCommit": "3ccc145510ea90c751a66306b6bb1d39812d5c51",
+  "rootDocumentationCheckpoint": "2eef0d02a91ee452f77a4e4cf9aa7961aef236bb",
+  "rootCurrentHeadAtPreparation": "edb49706c4679684598386c4dc79351fff042c13",
+  "3cccTo2eef": "documentation-only verified",
+  "2eefToCurrent": "only .gitleaksignore/docs verified; separate normal security merge",
+  "rootWorktreeSourceAdoption": "exact four new reviewed SHAs verified, not claimed committed",
+  "reviewedChangedSourcePaths": [
+    {
+      "path": "services/platform/migrations/tools/ordered-current-native379-packet-v2.mjs",
+      "baselineGitBlobSHA256": "4d08b1c373e0c04497f8a43b37ded850e8a7fb43409a713c11fd20336cd18db3",
+      "privateSHA256": "368ba50a83b52d07649b23eaa28814a4a1ccad71acd7b91716669c0c86c56927"
+    },
+    {
+      "path": "services/platform/migrations/tools/ordered-current-native379-source-schema-v2.mjs",
+      "baselineGitBlobSHA256": "92b6601c374d86861f3eca9e2ea6d89754bec3633ad403cc26a9640ff76fa67b",
+      "privateSHA256": "82c955587e6c6f5e8c26dd3a0377d38887ed2711a8d26a50766c9882a8ae3a88"
+    },
+    {
+      "path": "services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json",
+      "baselineGitBlobSHA256": "0bac52d45ea7aeb417561cab1481e35842b94f62d41caeacf4878df794aafa56",
+      "privateSHA256": "02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+      "baselineGitBlobSHA256": "05f314d326b85a56f98370431dc8fb4d7088d9ac9ddf8c73eebf3261d2b4f3e8",
+      "privateSHA256": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e"
+    }
+  ],
+  "companion": "oldae732 unchanged/stale; no native authority for new5d18",
+  "futureGoEnvelope": "must include separately reviewed new packet-derived companion; Node1544 explicitly excludes only companion unchanged"
+}

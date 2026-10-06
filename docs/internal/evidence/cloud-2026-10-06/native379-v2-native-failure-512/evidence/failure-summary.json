@@ -1,0 +1,96 @@
+{
+  "scope": "ACTUAL ROOT-OWNED NEW512 NATIVE ATTEMPT FAILED; no acceptance artifact",
+  "sourceCommit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "actor": "root only; publication recorder ran noPG/native/probe",
+  "testSeconds": 224.45,
+  "ownedFixtureSeconds": 183.35,
+  "supervisorSeconds": 224.537191,
+  "exitCode": 1,
+  "primaryCatalogBooleanFalseCause": "UNKNOWN; retained safe diagnostic is only secondarycollector failure",
+  "secondaryDiagnostic": {
+    "failure": {
+      "stage": "stream",
+      "errorClass": "context-deadline",
+      "contextState": "deadline",
+      "querySHA256": "36252e816108a8866c6c7ae350a8b1ccad1a439c02530125edb75c69a9ba1f84",
+      "scannedRows": 0,
+      "chargedRows": 0,
+      "chargedBytes": 0,
+      "elapsedNanoseconds": 37988123509,
+      "comparisonComplete": false,
+      "effectiveDeadline": {
+        "available": true,
+        "expired": true,
+        "remainingMilliseconds": -6
+      },
+      "phaseDeadline": {
+        "available": true,
+        "expired": true,
+        "remainingMilliseconds": -6
+      },
+      "enclosingDeadline": {
+        "available": true,
+        "expired": false,
+        "remainingMilliseconds": 468304
+      },
+      "budget": {
+        "available": true,
+        "phase": "pristine-truth",
+        "globalRows": 10057,
+        "globalBytes": 10068173,
+        "globalMaxRows": 38240,
+        "globalMaxBytes": 85983232,
+        "phaseRows": 10057,
+        "phaseBytes": 10068173,
+        "phaseMaxRows": 12000,
+        "phaseMaxBytes": 33554432,
+        "proposedRows": 0,
+        "proposedBytes": 0
+      }
+    },
+    "expected": 10052,
+    "live": 0,
+    "missing": 0,
+    "extra": 0,
+    "changed": 0,
+    "duplicates": 0,
+    "overflow": true,
+    "error": "collector stream refused",
+    "entries": []
+  },
+  "interpretation": {
+    "context": "secondary stream context deadline after37.988123509seconds; effective/phase deadline expired6ms; enclosingdeadline live468304ms",
+    "counts": "secondary scanned/charged0 do not establish emptycatalog; expected10052 sourcefacts remain",
+    "budget": "observedglobal/phase10057rows10068173bytes below unchanged row/bytecaps at failure; not full589native capacity proof",
+    "sqlState": "no PostgreSQL SQLSTATE retained for this contextclass; do not fabricate57014 or deriveprimarycause",
+    "comparison": "incomplete, overflowrefusalmarkertrue, no truth/parity/captureauthority",
+    "controls": "stoppedbefore all589native controls, no acceptanceartifact"
+  },
+  "ownedPG": {
+    "pid": 127711,
+    "pgCtlExit": 0,
+    "serverWaitExit": 0,
+    "normalJoined": true,
+    "cleanupSnapshot": {
+      "available": true,
+      "pgCtlStopped": true,
+      "waitJoined": true,
+      "normalExit": true,
+      "endpointChecked": true,
+      "survivingResourcesChecked": true,
+      "survivingResources": 0
+    }
+  },
+  "supervision": {
+    "joined": true,
+    "timedOut": false,
+    "unexpectedDescendants": false
+  },
+  "oldD466Failure": "unchanged; newattempt is separate history",
+  "pending": [
+    "primary catalogcause/profilingplan",
+    "fullnative379 parity/result",
+    "varied-login/OID/actualcapacity",
+    "installed/deployed/728milestone/release acceptance"
+  ]
+}

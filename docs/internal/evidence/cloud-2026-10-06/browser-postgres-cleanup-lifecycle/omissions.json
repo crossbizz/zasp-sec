@@ -1,0 +1,48 @@
+{
+  "omissions": [
+    {
+      "path": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/source/scripts/production-combined-e2e.mjs",
+      "sha256": "125c66c369c87bd1e884bae095c694c09ff7ad694a340bc1dd617a3a95c60ea3",
+      "bytes": 664049,
+      "reason": "Retained private; bounded publication contains source diff/identities and final meaningful RED/GREEN logs instead of complete source bodies or superseded first RED log."
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/source/scripts/production-combined-e2e.test.mjs",
+      "sha256": "7787d5f7c46b849f58627c18a1a0eee5f8c45308318f2572409a26e0fe22f28c",
+      "bytes": 158257,
+      "reason": "Retained private; bounded publication contains source diff/identities and final meaningful RED/GREEN logs instead of complete source bodies or superseded first RED log."
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/evidence/before-production.mjs",
+      "sha256": "cb03b8cfe0720b6ad84379c17d040b928e4c3a57b89728634a69051dc277c0a8",
+      "bytes": 663408,
+      "reason": "Retained private; bounded publication contains source diff/identities and final meaningful RED/GREEN logs instead of complete source bodies or superseded first RED log."
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/evidence/before-test.mjs",
+      "sha256": "c11ffcdb89ea329af59588caa3fcccdba78f23d44b46ac6c7d40d70197f968b7",
+      "bytes": 151644,
+      "reason": "Retained private; bounded publication contains source diff/identities and final meaningful RED/GREEN logs instead of complete source bodies or superseded first RED log."
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/evidence/red-tests-only.mjs.txt",
+      "sha256": "34888fe9d87f93dae094ef78ab8a0f89493e131ec696047defb63753738736fb",
+      "bytes": 158221,
+      "reason": "Retained private; bounded publication contains source diff/identities and final meaningful RED/GREEN logs instead of complete source bodies or superseded first RED log."
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/evidence/new-lifecycle-tests.txt",
+      "sha256": "2dfc8579ce5e09e3d71529e1a6ce2f026073bf507b302ea7b8bd285fc7813f47",
+      "bytes": 6527,
+      "reason": "Retained private; bounded publication contains source diff/identities and final meaningful RED/GREEN logs instead of complete source bodies or superseded first RED log."
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/evidence/lifecycle-red.log",
+      "sha256": "5345a77d779284cbcd590d716dae8b6c62bdfcb023c67b04b5b2e85508d1860e",
+      "bytes": 3932,
+      "reason": "Retained private; bounded publication contains source diff/identities and final meaningful RED/GREEN logs instead of complete source bodies or superseded first RED log."
+    }
+  ],
+  "unchangedDependencies": "Seven copied immutable dependencies identified in source-origin.json are retained privately and omitted as source bodies.",
+  "noClaim": "No full suite, browser/native/PG execution, immutable build closure or original Browser3 cause established."
+}

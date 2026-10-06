@@ -1,0 +1,55 @@
+{
+  "format": "independent-native379-v2-private-assertion-integration-review-v1",
+  "assessment": "PASS-PRIVATE-SOURCE-ONLY-INTEGRATION; NATIVE-AUTHORITY-PENDING",
+  "reviewer": "review_capture_dependency",
+  "baseline": "3c123ef4",
+  "candidate_directory": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/candidate-05f314-t2l_d_0s",
+  "identities": {
+    "go_source_sha256": "05f314d326b85a56f98370431dc8fb4d7088d9ac9ddf8c73eebf3261d2b4f3e8",
+    "source_manifest_sha256": "0bac52d45ea7aeb417561cab1481e35842b94f62d41caeacf4878df794aafa56",
+    "packet_sha256": "ca7dd2ad47a4afcea9f0dfca48d10e5e4b8876c0daf6450c33a66776e830d5e9",
+    "binary_sha256": "18a01854c915d758a4b2a084a37c486b75916845b6d027c8719b2cc4ceea4b7b",
+    "assertion_sql_bytes": 390,
+    "assertion_sql_sha256": "81e2b073cc50b21204754d51c4f7b3cadbbff5f21978d24ab566e9080acf4c87"
+  },
+  "findings": {
+    "Critical": [],
+    "Important": [],
+    "Minor": []
+  },
+  "verified": {
+    "whole_source_tree": "All6008 baseline tracked Gitblobs present; exactly4 changed paths: actual Go assertion implementation, source manifest, schema manifest pin, packet schema pin. Node mjs diffs are hash rebindings only.",
+    "wire": "All1544 source manifest member bytes match actual private source; canonical raw25,160,408bytes; gzip expands exact raw; every nonauthority packet field equals retained d949 source-refusal packet including589 complete SQL programs,379 rules,10052facts,565sites,8routines,all NULL/boolean/error/lazy/frame/restoration controls and unchanged caps.",
+    "bootstrap": "SessionIdentity uses actual owned SELECT session_user,pg_backend_pid; matches connection Config.User/PgConn.PID. Every guard rechecks same connection binding.",
+    "guard_protocol": "Exact reviewed qualified390byteSQL parameterized with asserted role, actual bound user andPID. Exhausted zero-row stream, nilErr, livecontext and SELECT0 command completion required before success receipt. Explicit assertedRole label replaces observedRole; user/PID are actual bootstrap observations, not manufactured role observations.",
+    "guard_evidence": "Receipts bind exactSQLSHA, exactjson.Marshal parameter arraySHA, controlID, sourceStepID/SQLSHA, placementSHA and bootstrapSHA; independently reconstructed and compared. Row0 canonical receipt bytes charged before retention. Distinct mismatch/timeout/poison/nonzero-row/incomplete-tag/cancellation refusals tested.",
+    "poison_recovery": "Special carried guard only for actual source-matched22012 predecessor followed by25P02 probe; actual predecessor Matched/SQLSTATE and prior successful guard required. Recovery deferral only exact source-declared prior error plus actual matched sameSQLSTATE, real abortedE transaction and exact source rollback/savepoint bytes. RecoveryPredecessorSHA/SQLState independently replayed; fresh post-recovery assertion required. All6 source-declared recovery states covered in selected scripted tests.",
+    "budget": "Complete exact canonical charge ledger includes six fixed observations,10052 expected streamrows,actual per-control bootstrap rows,every successful zero-row assertion receipt and program/query/error outcomes; no omitted/recomputed/borrowed ledger accepted. Original row/byte/deadline caps unchanged. Source-model12908rows/15035885bytes;forged1923rows/3303847bytes.",
+    "timing": "Per-receipt elapsed0..10sec; safe bounded per-control phase time and remaining elapsed additions prevent positive-int64 overflow. Negative/MaxInt64 elapsed and MaxInt64control timing refusals tested.",
+    "canonical": "Struct receipts normalize through canonical decoded-map/UseNumber serialization. Struct/map/raw equivalence regression observed RED then GREEN; JS U+2028/U+2029 semantics retained.",
+    "authority": "Seven compiled anchors remain empty; existing empty-anchor gate refuses tool execution before activation; no native/installed/capture status promotion. Shared repository unchanged by reviewer or private candidate adoption."
+  },
+  "tests": {
+    "independent_execution": "Actual exit0;9PASS/0FAIL/0SKIP;full authentic source matrix51.98sec under env-i with exactNodePATH and3minute timeout; filter^TestNative379V2 excludes native opt-in.",
+    "independent_log": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-assertion-05f314-rerun.log",
+    "independent_log_sha256": "6241459948b4c89cdce08d5a56e2bfd4cd591a33b4b74622d0f96a1087b88071",
+    "scope": "All589 source-derived recorded outcomes/6348program steps validated and forged source/evidence mutations refused. Seven scripted executor invocations of six selected controls cover recovery families; no589executor calls and noSQL/PostgreSQL execution.",
+    "Node": "Author final exactsource6PASS26.129sec, readonly archive node-green.log inspected.",
+    "historical_failures_preserved": "Original4a19 authentic budget6PASS/1FAIL; private47444 integration8PASS/1FAIL budget-preimage mismatch; explicit struct/map canonical regression RED. None rewritten or described as passing."
+  },
+  "boundary_witness": {
+    "path": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-assertion-boundary-05f314.json",
+    "sha256": "11152a810c11a602db69a8aa929aed890e6640f77267a08e2718ee7ca3fdf1e1",
+    "exact_default_match": "Independent source model exactly matches actual12908/15035885 total and1923/3303847 forged ledger.",
+    "conservative_ascii": "63printableASCII-byte session user,10digit positivePID,11digit per-guard elapsed upper byte bound:3742185forgedbytes<4194304. Uniform10sec guard durations are a byte upper bound, not cumulatively timing-feasible execution.",
+    "legal_escaped_identifier": "63non-NUL control-byte quoted identifier,2147483647PID,positive1ns per guard:5875640forgedbytes>4194304 despite1923rows and timingfit. Current fixed zasp_test source proof therefore does not prove all legal PostgreSQL login names fit unchanged caps. Live byte cap must continue refusing overflow; varied-login portability gate stays pending."
+  },
+  "declined_to_judge": [
+    "Full consumed Go/module/tool/test-binary frozen native envelope; retained component binary uses mutable source/tool roots and grants no native authority.",
+    "Actual native PostgreSQL379 execution, cleanup or observed native row/byte/duration results.",
+    "Varied login/OID/collation/platform portability; legal escaped63byte login boundary is explicitly not satisfied by fixedfixture model.",
+    "Production unchanged-limit capacity, connected installed acceptance, provider/deployment/release approval.",
+    "Original fixture-preparation cancellation remains historical helper behavior; source callback deadlines do not prove earlier setup cancellation."
+  ],
+  "readiness": "Private source-only assertion integration is reviewable at exact05f/ca7d identities. No repository adoption performed, no anchors activated, no native readiness approval."
+}

@@ -29,7 +29,7 @@ func singleTestRuntimeAvailable(ctx context.Context, db apiserver.JSONDatabase, 
 	if delivery {
 		sql = `SELECT to_jsonb(zasp_temporal74.delivery_ready($1,$2))`
 	}
-	raw, err = db.QueryJSON(bounded, sql, migrations.ProductionTemporalTestExecutor().Checksum(), migrations.TemporalTestExecutorFingerprint())
+	raw, err = db.QueryJSON(bounded, sql, migrations.TemporalTestExecutorChecksum(), migrations.TemporalTestExecutorFingerprint())
 	if err != nil || !bytes.Equal(bytes.TrimSpace(raw), []byte("true")) {
 		return false, errRuntimeUnavailable
 	}

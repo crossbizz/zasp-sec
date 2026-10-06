@@ -1,0 +1,90 @@
+{
+  "schema": "private-publication-packet-v1",
+  "members": {
+    "drafts/receipt-append.md": {
+      "bytes": 1466,
+      "sha256": "cbd5b6a89782cc4788881c86a98fd684254f70f9083883fc310c2cf61a28ff6a"
+    },
+    "drafts/status-append.md": {
+      "bytes": 608,
+      "sha256": "3db026746456976663df57d6594cef36f8fbe6c951b0269559f97f4a2b49b858"
+    },
+    "evidence/README.md": {
+      "bytes": 1527,
+      "sha256": "18ae501312ff4e68720271b9d0970e675b553da5ad6b764b23ae8af060c30e55"
+    },
+    "evidence/actual-native379-record.json": {
+      "bytes": 571,
+      "sha256": "90b5291f5376193829618edba59adb406ed8c8c57f0f87b732ca0e5f7d7d9940"
+    },
+    "evidence/actual-native379.log": {
+      "bytes": 2034,
+      "sha256": "e7d9a8d738fd4c5f6acfcd172c1cda4023f42c137ea5667d2d585d8aa80e2ba6"
+    },
+    "evidence/closed-environment.json": {
+      "bytes": 1408,
+      "sha256": "d33b3aa92af3b7d24d25895e757ed8aed97074b4e4e8f9577f669b581e264c8f"
+    },
+    "evidence/failure-summary.json": {
+      "bytes": 3210,
+      "sha256": "7a32bd0257cbe30132a0d2be76da2711e17d30421b1b095d7b6ee3975a27cdf8"
+    },
+    "evidence/independent-provider-root-launch-review-512.json": {
+      "bytes": 2250,
+      "sha256": "b4dd813d5da577758f9ce8c9acac12d6d561d9bb5ebe216b958aaa73a32a1a7d"
+    },
+    "evidence/manifest.json": {
+      "bytes": 2798,
+      "sha256": "82484bec888b44ebd69efa3d30ea709dbb6c0d2d17221ff4898e72cdaa61385e"
+    },
+    "evidence/root-launch-binding.json": {
+      "bytes": 646,
+      "sha256": "956a51f4239d6b769d47321d4c1bbcf8efdbc6855bf20db6fcdff1fca76c6a5f"
+    },
+    "evidence/run-root-native379-v2-512-diagnostic.py": {
+      "bytes": 3672,
+      "sha256": "63fa5567c95ffaa2266642518be05b1b2774f2dd8e32b389bafa6a1c950a2619"
+    },
+    "evidence/security/compression-provenance.json": {
+      "bytes": 553,
+      "sha256": "198a74666281673b0c26822db1af276baa0278df89e9af768847b43daeb5d137"
+    },
+    "evidence/security/evidence-redacted.json.gz": {
+      "bytes": 396,
+      "sha256": "836fc87aa08899b75119ee89838f32a8b454f30e08768594c977e59232dce10f"
+    },
+    "evidence/security/evidence-scan.log": {
+      "bytes": 79,
+      "sha256": "8c5b1978c9308cb4e28375991068b9cbbe60582badf9e88bcc354a2d11435816"
+    },
+    "evidence/security/public-hash-classification.json": {
+      "bytes": 950,
+      "sha256": "120e69db7b99714858012f52eae0a19a441319d109b22d4da8bb8c42b1079652"
+    },
+    "evidence/security/publication-drafts-redacted.json.gz": {
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "evidence/security/publication-drafts-scan.log": {
+      "bytes": 77,
+      "sha256": "3ebc4f90081e7b9cebc43c7591ca37e6d7dc760546d7fe6f8876da23ddd65526"
+    },
+    "evidence/security/publication-evidence-redacted.json.gz": {
+      "bytes": 396,
+      "sha256": "836fc87aa08899b75119ee89838f32a8b454f30e08768594c977e59232dce10f"
+    },
+    "evidence/security/publication-evidence-scan.log": {
+      "bytes": 79,
+      "sha256": "03d1e679f5d15d70e9399d13bf2fe7a6f059d9c3ee3641f16787bd4a8ee7e847"
+    },
+    "evidence/security/publication-scan-summary.json": {
+      "bytes": 578,
+      "sha256": "513c30ae74be078619f700afc42f29dd603cc682fb67e6caa41860df28624205"
+    }
+  },
+  "excludedPrivateAssemblyDirectories": [
+    "security-scan",
+    "scan-original-metadata"
+  ],
+  "boundary": "Private assembly scanner staging and literal resolver reports are retained separately. Only evidence, readable draft appendices and preparation identity are publication members."
+}

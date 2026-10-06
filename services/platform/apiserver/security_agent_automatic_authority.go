@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/zasp-ai/zasp-sec/services/platform/migrations"
+	"github.com/zasp-ai/zasp-sec/services/platform/securityagent"
 )
 
 // Configured rules cannot be written through a rule-blind predecessor. This
@@ -13,6 +14,20 @@ func requireAutomaticDefinitionBody(ctx context.Context, db JSONDatabase, body j
 	fields, valid := budgetJSONObject(body)
 	if !valid {
 		return ErrRepositoryUnavailable
+	}
+	// Source81 is not admitted. A Monitor definition may be saved only as a
+	// disabled draft; no legacy executor can be selected by enabling it.
+	if rawMode, present := fields["temporary_policy_mode"]; present {
+		var mode securityagent.TemporaryPolicyMode
+		if json.Unmarshal(rawMode, &mode) != nil {
+			return ErrRepositoryOperation
+		}
+		if mode == securityagent.TemporaryPolicyMonitor {
+			var enabled bool
+			if json.Unmarshal(fields["enabled"], &enabled) != nil || enabled {
+				return ErrRepositoryUnavailable
+			}
+		}
 	}
 	if _, configured := fields["trigger_rules"]; !configured {
 		return nil
@@ -47,6 +62,19 @@ func requireAutomaticDefinitionActivation(ctx context.Context, db JSONDatabase, 
 	}
 	if json.Unmarshal(value.Body, &body) != nil || body.ID != definition {
 		return ErrRepositoryUnavailable
+	}
+	fields, valid := budgetJSONObject(value.Body)
+	if !valid {
+		return ErrRepositoryUnavailable
+	}
+	if rawMode, present := fields["temporary_policy_mode"]; present {
+		var mode securityagent.TemporaryPolicyMode
+		if json.Unmarshal(rawMode, &mode) != nil {
+			return ErrRepositoryUnavailable
+		}
+		if mode == securityagent.TemporaryPolicyMonitor {
+			return ErrRepositoryUnavailable
+		}
 	}
 	return requireAutomaticDefinitionBody(ctx, db, value.Body)
 }

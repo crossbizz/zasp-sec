@@ -1,0 +1,375 @@
+// Versioned Linux offline packet. Historical Darwin v1 is unchanged.
+// No connection, SQL execution, native-result admission or production routing.
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {buildNative379SemanticControls,native379SQLProgram} from './ordered-current-native379-semantics-v1.mjs';
+import {buildNative379CatalogCoverage} from './ordered-current-native379-coverage-v1.mjs';
+import {admitOrderedCurrentNative379SourceV2,readNative379RegularSourceV2,orderedCurrentNative379SourceManifestSHA256V2} from './ordered-current-native379-source-schema-v2.mjs';
+
+const fail=message=>{throw Error('ordered-current native379 '+message);};
+const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
+const canonical=value=>JSON.stringify(value,(_,v)=>{
+ if(['undefined','function','symbol','bigint'].includes(typeof v)||(typeof v==='number'&&!Number.isFinite(v)))fail('non-JSON authority value');
+ return v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v;
+});
+const same=(a,b)=>canonical(a)===canonical(b);
+const literal=value=>"'"+value.replaceAll("'","''")+"'";
+const repositoryRoot=path.resolve(fileURLToPath(new URL('../../../../',import.meta.url)));
+const identitiesRaw=readNative379RegularSourceV2(repositoryRoot,'services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/generated-identities.json','9d1053e9310e27128404e45c2eeedce1dc6b42eaff004ecf0e0760c903b59f99');
+const identities=JSON.parse(identitiesRaw);
+const deltaRaw=readNative379RegularSourceV2(repositoryRoot,'services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-fact-delta.json','90325bea8205ec4e3f8eaa1de3c1fb0d814981cc6fbfd91e3c3e4ad3e6a9cdab');
+const sourceFactDelta=JSON.parse(deltaRaw);
+const sourceInventorySHA256=orderedCurrentNative379SourceManifestSHA256V2;
+const packetModulePins={'ordered-current-native379-semantics-v1.mjs':'66778c48aa109b4dc8dcdcf0b45548584ba8c079107122784faa4ee319d471c9','ordered-current-native379-coverage-v1.mjs':'1e1ca6a042bc1b2ae3d2d3991340101bc5145ddb43e8b55f5f15f6f31433eea5','ordered-current-native379-source-schema-v2.mjs':'da5a78ad3d5d9a19f348d99e1b44b444fe188e54e373a7d46d3fb609c3cc71a0'};
+const outputPins=identities.outputPins;
+const taskPins=identities.taskPins;
+const phaseSpecs=[['preflight',1024,1048576,60000],['pristine-truth',12000,33554432,180000],['drift',16000,33554432,240000],['forged-entry',2048,4194304,60000],['null-error-lazy-demand',4096,8388608,120000],['frame-restoration',2048,4194304,60000],['cleanup-result',1024,1048576,30000]];
+const limits={maxRows:38240,maxBytes:85983232,maxMilliseconds:750000,maxPacketBytes:33554432,sqlMilliseconds:10000,lockMilliseconds:3000,cleanupMilliseconds:3000,overflow:'abort-and-publish-nothing'};
+const dimensions=['role','search_path','timezone','read_only','transaction','advisory_locks','schema_locks','catalog'];
+const buildRuntime={version:'v22.23.1',platform:'linux',arch:'x64',executableSHA256:'93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068',executablePolicy:'resolved-process-executable-regular-file-exact-sha256'};
+let admitted,admittedText;
+function assertBuildRuntime(){
+ const executable=fs.realpathSync(process.execPath),stat=fs.lstatSync(executable);
+ if(process.version!==buildRuntime.version||process.platform!==buildRuntime.platform||process.arch!==buildRuntime.arch||!stat.isFile()||sha(fs.readFileSync(executable))!==buildRuntime.executableSHA256)fail('Node runtime authority requires v22.23.1 linux x64 and approved executable SHA256');
+}
+
+// Read only fixed regular files; copy their verified bytes, never a workspace
+// generated directory. No caller paths, environment authority or git state.
+function sourceInputs(){
+ for(const [name,pin]of Object.entries(packetModulePins))readNative379RegularSourceV2(repositoryRoot,'services/platform/migrations/tools/'+name,pin);
+ const inventory=admitOrderedCurrentNative379SourceV2();
+ return Object.entries(inventory.files).map(([relative,pin])=>[relative,readNative379RegularSourceV2(repositoryRoot,relative,pin)]);
+}
+function regenerate(inputs){
+ const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'zasp-native379-v2-source-'));
+ try{
+  const migrations=path.join(temporary,'services/platform/migrations');
+  for(const [relative,raw]of inputs){const destination=path.join(temporary,relative);fs.mkdirSync(path.dirname(destination),{recursive:true});fs.writeFileSync(destination,raw,{flag:'wx',mode:0o600});}
+  const result=spawnSync(process.execPath,[path.join(migrations,'tools/build-ordered-current-development.mjs'),'--write'],{cwd:temporary,encoding:'utf8',timeout:60000,maxBuffer:33554432,env:{PATH:path.dirname(process.execPath),TZ:'UTC',LANG:'C'}});
+  if(result.error||result.signal||result.status!==0)fail('source regeneration refused: '+(result.error?.message??result.stderr));
+  const outputs={};
+  for(const [name,pin]of Object.entries(outputPins)){
+   const file=path.join(migrations,'ordered_current',name),stat=fs.lstatSync(file);
+   if(!stat.isFile()||stat.size>33554432)fail('generated size '+name);
+   const raw=fs.readFileSync(file);if(sha(raw)!==pin)fail('stale approved output '+name);outputs[name]=raw;
+  }
+  return outputs;
+ }finally{fs.rmSync(temporary,{recursive:true,force:true});}
+}
+const {buildOrderedCurrentNative379EntryFrameV1,assertOrderedCurrentNative379EntryFrameV1}=(()=>{
+// Offline control compiler. All authority is exact source-regenerated bytes;
+// this module performs no I/O and cannot admit a native observation.
+
+
+const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
+const fail=message=>{throw Error('ordered-current native379 entry-frame '+message);};
+const canonical=value=>JSON.stringify(value,(_,item)=>{
+ if(['undefined','function','symbol','bigint'].includes(typeof item)||(typeof item==='number'&&!Number.isFinite(item)))fail('non-JSON value');
+ return item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item;
+});
+const literal=value=>"'"+value.replaceAll("'","''")+"'";
+const schema='zasp_authorization80_ordered_current';
+const owner='zasp_discovery_authority',refused='zasp_security_agent_worker';
+const manifestHash=identities.manifestPayloadSHA256;
+const pins={contractRaw:outputPins['effective-contract4.json'],moduleRaw:outputPins['development-module.sql'],manifestRaw:outputPins['development-manifest.json'],admissionRaw:outputPins['development-admission.sql']};
+const dimensions=['role','search_path','timezone','read_only','transaction','advisory_locks','schema_locks','catalog','source-config'];
+const success={outcome:'command-complete',sqlState:null};
+const trueRow={outcome:'one-row',value:true,sqlState:null};
+const query=(id,sql,expected=success,role=owner)=>({id,role,sql,sqlSHA256:sha(sql),expected});
+const error=sqlState=>({outcome:'error',sqlState});
+
+function checked(input){
+ if(!input||Object.getPrototypeOf(input)!==Object.prototype)fail('fixed four-buffer source input required');
+ const keys=Reflect.ownKeys(input);
+ if(keys.some(key=>typeof key!=='string')||canonical(keys.sort())!==canonical(Object.keys(pins).sort()))fail('fixed four-buffer source input required');
+ const bytes={};
+ for(const [key,pin]of Object.entries(pins)){
+  const property=Object.getOwnPropertyDescriptor(input,key);
+  if(!property||!Object.hasOwn(property,'value')||!Buffer.isBuffer(property.value))fail('data-buffer authority '+key);
+  bytes[key]=Buffer.from(property.value);
+  if(sha(bytes[key])!==pin)fail('source bytes '+key);
+ }
+ const manifest=JSON.parse(bytes.manifestRaw),contract=JSON.parse(bytes.contractRaw);
+ if(manifest.payloadSHA256!==manifestHash||manifest.installable!==false||manifest.facts.length!==identities.expectedFactCount)fail('manifest authority');
+ return {manifest,contract,module:bytes.moduleRaw.toString('utf8'),admission:bytes.admissionRaw.toString('utf8').trim().replace(/;$/,'')};
+}
+
+function buildOrderedCurrentNative379EntryFrameV1(input){
+ if(arguments.length!==1)fail('caller-selected authority');
+ const {manifest,contract,module,admission}=checked(input),manifestLiteral=literal(manifestHash);
+ const privateFacts=manifest.facts.filter(row=>row.kind==='routine'&&JSON.parse(row.identity)[0]==='private-routines');
+ if(privateFacts.length!==identities.privateRoutineCount)fail('private routine closure');
+ const factsBySignature=new Map(privateFacts.map(row=>[JSON.parse(row.identity)[1],row]));
+ const compactFacts=privateFacts.map(row=>({...row,fact:{...row.fact,source:sha(row.fact.source)}}));
+ // Hash only source bytes, keeping all other typed fields and complete row-set
+ // comparison. The expression uses pg_catalog, never the candidate canonical.
+ const independentSQL=`WITH observed(rows) AS (${admission}) SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.jsonb_set(value,'{fact,source}',pg_catalog.to_jsonb(pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(value#>>'{fact,source}','UTF8')),'hex'))) ORDER BY value->>'identity' COLLATE "C"),'[]'::jsonb)=${literal(canonical(compactFacts))}::jsonb FROM observed CROSS JOIN LATERAL pg_catalog.jsonb_array_elements(rows) value`;
+ const framePredicate=readOnly=>`current_user=${literal(owner)} AND pg_catalog.current_setting('search_path')='pg_catalog' AND pg_catalog.current_setting('TimeZone')='UTC' AND pg_catalog.current_setting('transaction_read_only')='${readOnly?'on':'off'}' AND pg_catalog.current_setting('transaction_isolation')='repeatable read'`;
+ const sessionQuery="SELECT pg_catalog.jsonb_build_object('role',current_user,'session_user',session_user,'backend_pid',pg_catalog.pg_backend_pid(),'search_path',pg_catalog.current_setting('search_path'),'timezone',pg_catalog.current_setting('TimeZone'),'read_only',pg_catalog.current_setting('transaction_read_only'),'isolation',pg_catalog.current_setting('transaction_isolation'));";
+ const sessionValue={role:owner,session_user:{binding:'owned-session-user'},backend_pid:{binding:'owned-backend-pid'},search_path:'pg_catalog',timezone:'UTC',read_only:'off',isolation:'repeatable read'};
+ const sessionSetup=`RESET ROLE; SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE; SET SESSION search_path TO pg_catalog; SET SESSION TimeZone TO 'UTC'; SET ROLE ${owner};`;
+ const setupSQL=readOnly=>sessionSetup+` BEGIN ISOLATION LEVEL REPEATABLE READ READ ${readOnly?'ONLY':'WRITE'};`;
+ const restoreSQL=`ROLLBACK; ${sessionSetup}`;
+ const locksPredicate=`NOT EXISTS(SELECT 1 FROM pg_catalog.pg_locks WHERE pid=pg_catalog.pg_backend_pid() AND ((locktype='advisory' AND classid=379 AND objid=80 AND objsubid=2) OR (locktype='relation' AND relation='${schema}.expected'::pg_catalog.regclass AND mode='ShareLock')))`;
+ const catalogProbe=`SELECT ${schema}.catalog(${manifestLiteral});`;
+ const requireProbe=`SELECT ${schema}.require(${manifestLiteral});`;
+ const guardProbe=(value=manifestLiteral,readOnly=false)=>`DO $native379_protected$ BEGIN
+ IF (${framePredicate(readOnly)}) IS DISTINCT FROM true THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='native379 source frame refused'; END IF;
+ IF (${independentSQL}) IS DISTINCT FROM true THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='native379 independent admission refused'; END IF;
+ PERFORM ${schema}.require(${value});
+ PERFORM 1;
+END $native379_protected$;`;
+ const assertionSQL=`SELECT CASE WHEN current_user=${literal(owner)} AND pg_catalog.current_setting('search_path')='pg_catalog' AND pg_catalog.current_setting('TimeZone')='UTC' AND pg_catalog.current_setting('transaction_read_only')='off' AND pg_catalog.current_setting('transaction_isolation')='read committed' AND (${locksPredicate}) AND (${independentSQL}) THEN ${schema}.catalog(${manifestLiteral}) ELSE false END;`;
+ const sourceSite=signature=>{
+  const fact=factsBySignature.get(signature)?.fact;if(!fact)fail('function signature '+signature);
+  const name=signature.slice(0,signature.indexOf('(')),start=module.indexOf('CREATE FUNCTION '+name+'(');
+  if(start<0)fail('source declaration '+signature);
+  const delimiter=module.slice(start).match(/\sAS (\$[A-Za-z0-9_]*\$)/)?.[1];
+  if(!delimiter)fail('source delimiter '+signature);
+  const bodyStart=module.indexOf(delimiter,start)+delimiter.length,end=module.indexOf(delimiter+';',bodyStart)+delimiter.length+1;
+  if(end<=bodyStart||module.slice(bodyStart,end-delimiter.length-1)!==fact.source)fail('source body/frame '+signature);
+  return {sourceIdentity:signature,sourceSHA256:sha(module),definitionSHA256:sha(module.slice(start,end)),start,end,siteSHA256:sha(module.slice(start,end)),scope:'source-built-module-declaration',frame:{owner:fact.owner,acl:fact.acl,config:fact.config,securityDefiner:fact.security_definer,language:fact.language}};
+ };
+ const entry={evaluator:schema+'.catalog(text)',entry:schema+'.require(text)',manifest:manifestHash,manifestLiteral,manifestLiteralSHA256:sha(manifestLiteral),owner,allowedCallers:[owner],refusedCallers:[refused],privateRoutineFacts:compactFacts,independentAdmission:{sql:independentSQL,sqlSHA256:sha(independentSQL),expected:true},catalogProbe,requireProbe};
+ const controls=[];
+ function add({id,category,signature=entry.entry,mutationSQL='SELECT true;',operands,probeSQL=guardProbe(),expectedSQLState=null,errorStage='entry-require',probeExpected=success,role=owner,frame=null,preAdmit=false,mutateExpected=success,firstMutationError=false,accept=false,readOnly=false}){
+  const site=sourceSite(signature),row=factsBySignature.get(signature);
+  const errorSQL=firstMutationError?mutationSQL:probeSQL;
+  const firstError=expectedSQLState?{sourceIdentity:'native379-control:'+id,originalSourceIdentity:site.sourceIdentity,stage:errorStage,sqlState:firstMutationError?mutateExpected.sqlState:expectedSQLState,start:0,end:Buffer.byteLength(errorSQL),siteSHA256:sha(errorSQL),sql:errorSQL}:null;
+  const expected={outcome:expectedSQLState?'refuse':accept?'accept':'restored',sqlState:expectedSQLState,firstError};
+  const mutation={operation:'execute-fixed-sql',target:signature,operands,sql:mutationSQL,sqlSHA256:sha(mutationSQL)};
+  const beforeSession={...sessionValue,read_only:readOnly?'on':'off'};
+  const steps=[query('setup',setupSQL(readOnly),success,'fixture-owner'),query('snapshot',sessionQuery,{outcome:'one-json-row',value:beforeSession,sqlState:null})];
+  if(frame)steps.push(query('snapshot-frame',frame.before.query,{outcome:'one-row',value:frame.before.value,sqlState:null}));
+  if(preAdmit)steps.push(query('admit-before-mutation',guardProbe(manifestLiteral,readOnly)));
+  steps.push(query('mutate',mutationSQL,mutateExpected));
+  if(frame&&!firstMutationError)steps.push(query('observe-mutation',frame.mutated.query,{outcome:'one-row',value:frame.mutated.value,sqlState:null},role));
+  steps.push(query('probe',probeSQL,expectedSQLState?error(expectedSQLState):probeExpected,role),query('restore',restoreSQL,success,'fixture-owner'),query('assert-restored',assertionSQL,trueRow));
+  const restoration={operation:'rollback-and-assert-exact-source-state',dimensions,snapshotSQL:sessionQuery,snapshotExpected:beforeSession,restoreSQL,assertionSQL,assertionExpected:true,beforeNextProbe:true,timeoutIsDenial:false,expectedTransactionStatus:'I',connectionIdentity:{query:'SELECT session_user, pg_catalog.pg_backend_pid();',expected:[{binding:'owned-session-user'},{binding:'owned-backend-pid'}]},connectionReuse:'only-after-assert-restored-true-and-ready-for-query-I'};
+  controls.push({id,controlClass:'evaluator-rule',phase:id.startsWith('restore:')?'frame-restoration':'forged-entry',category,ruleIds:['private-routines'],facts:[{kind:row.kind,identity:row.identity,factSHA256:sha(canonical(row.fact))}],sourceSite:site,sourceFrameSHA256:sha(JSON.stringify(site.frame)),mutation,mutationSHA256:sha(canonical(mutation)),expected,restoration,program:{format:'native379-sql-program-v1',connection:'single-owned-session',evaluationFrame:{id:readOnly?'protected-evaluation':'mutation-envelope',isolation:'repeatable read',access:readOnly?'read-only':'read-write',purpose:readOnly?'pristine protected entry acceptance':'deliberate rollback-only mutation test; not pristine protected acceptance',visibility:'same-connection-uncommitted-mutation',commitForbidden:true},roleSemantics:'role is asserted current_user at probe; SQL contains every role transition; fixture-owner is the owned superuser session_user',errorContinuation:'after expected statement error execute only declared next steps, then mandatory ROLLBACK; unexpected error aborts control and still runs restoration',steps},...(frame?{frame:{...frame,sourceIdentity:site.sourceIdentity,sourceFrameSHA256:sha(JSON.stringify(site.frame)),protectedProbeSQL:probeSQL,restored:{query:assertionSQL,value:true}}}:{})});
+ }
+ add({id:'entry:actual-evaluator',category:'actual-evaluator',signature:entry.evaluator,operands:{signature:entry.evaluator,manifest:manifestHash},probeSQL:catalogProbe,probeExpected:trueRow,accept:true,preAdmit:true,readOnly:true});
+ add({id:'entry:actual-entry',category:'actual-entry',operands:{signature:entry.entry,manifest:manifestHash},probeSQL:guardProbe(manifestLiteral,true),accept:true,readOnly:true});
+ for(const [category,signature,name,result,body]of [
+  ['forged-evaluator',entry.evaluator,'catalog','boolean','BEGIN RETURN true; END'],
+  ['forged-entry',entry.entry,'require','void','BEGIN RETURN; END'],
+ ])add({id:'entry:'+category,category,signature,operands:{signature,resultType:result,body},mutationSQL:`CREATE OR REPLACE FUNCTION ${schema}.${name}(expected_manifest text) RETURNS ${result} LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET search_path=pg_catalog AS $native379_forged$${body}$native379_forged$;`,expectedSQLState:'42501',errorStage:'independent-private-admission'});
+ const wrongManifest='0'.repeat(64);
+ add({id:'entry:wrong-manifest',category:'wrong-manifest',operands:{signature:entry.entry,manifest:wrongManifest},probeSQL:guardProbe(literal(wrongManifest)),expectedSQLState:'42501'});
+ const missing=factsBySignature.get(schema+'.canonical(jsonb)');
+ add({id:'entry:missing-expected-row',category:'missing-expected-row',operands:{kind:missing.kind,identity:missing.identity},mutationSQL:`DELETE FROM ${schema}.expected WHERE kind=${literal(missing.kind)} AND identity=${literal(missing.identity)};`,expectedSQLState:'42501'});
+ const extraIdentity='["private-routines","native379_extra_expected_row()"]';
+ add({id:'entry:extra-expected-row',category:'extra-expected-row',operands:{kind:'routine',identity:extraIdentity,fact:{}},mutationSQL:`INSERT INTO ${schema}.expected(kind,identity,fact) VALUES('routine',${literal(extraIdentity)},'{}'::jsonb);`,expectedSQLState:'42501'});
+ add({id:'entry:wrong-caller',category:'wrong-caller',operands:{signature:entry.entry,caller:refused,manifest:manifestHash},mutationSQL:`SET LOCAL ROLE ${refused};`,probeSQL:requireProbe,role:refused,expectedSQLState:'42501',errorStage:'schema-usage-acl'});
+ const registrationMutation=`UPDATE ${schema}.registration SET manifest_sha256=${literal(wrongManifest)} WHERE singleton;`;
+ add({id:'entry:post-admission-drift',category:'post-admission-drift',operands:{relation:schema+'.registration',column:'manifest_sha256',before:manifestHash,after:wrongManifest},mutationSQL:registrationMutation,expectedSQLState:'42501',preAdmit:true});
+ const frameCase=(dimension,beforeQuery,beforeValue,mutationSQL,mutatedValue,options={})=>add({id:'restore:'+dimension,category:'frame',mutationSQL,operands:{dimension,before:beforeValue,after:mutatedValue},frame:{dimension,before:{query:beforeQuery,value:beforeValue},mutated:{query:beforeQuery,value:mutatedValue}},...options});
+ frameCase('role','SELECT current_user;',owner,`SET LOCAL ROLE ${refused};`,refused,{role:refused,probeSQL:requireProbe,expectedSQLState:'42501',errorStage:'schema-usage-acl'});
+ frameCase('search_path',"SELECT pg_catalog.current_setting('search_path');",'pg_catalog','SET LOCAL search_path TO pg_catalog, public;','pg_catalog, public',{expectedSQLState:'42501',errorStage:'source-frame-admission'});
+ frameCase('timezone',"SELECT pg_catalog.current_setting('TimeZone');",'UTC',"SET LOCAL TimeZone TO 'Pacific/Honolulu';",'Pacific/Honolulu',{expectedSQLState:'42501',errorStage:'source-frame-admission'});
+ frameCase('read_only',"SELECT pg_catalog.current_setting('transaction_read_only');",'off','SET TRANSACTION READ ONLY;','on',{probeSQL:guardProbe(manifestLiteral,true)});
+ frameCase('transaction','SELECT 1;',1,'SELECT 1/0;',{sqlState:'25P02',transactionStatus:'E'},{expectedSQLState:'25P02',errorStage:'transaction-poison-first-error',mutateExpected:error('22012'),firstMutationError:true});
+ const advisoryQuery="SELECT count(*)::integer FROM pg_catalog.pg_locks WHERE pid=pg_catalog.pg_backend_pid() AND locktype='advisory' AND classid=379 AND objid=80 AND objsubid=2;";
+ frameCase('advisory_locks',advisoryQuery,0,'DO $native379_lock$ BEGIN PERFORM pg_catalog.pg_advisory_xact_lock(379,80); END $native379_lock$;',1);
+ const schemaLockQuery=`SELECT count(*)::integer FROM pg_catalog.pg_locks WHERE pid=pg_catalog.pg_backend_pid() AND locktype='relation' AND relation='${schema}.expected'::pg_catalog.regclass AND mode='ShareLock';`;
+ frameCase('schema_locks',schemaLockQuery,0,`LOCK TABLE ${schema}.expected IN SHARE MODE;`,1);
+ frameCase('catalog',`SELECT manifest_sha256 FROM ${schema}.registration WHERE singleton;`,manifestHash,registrationMutation,wrongManifest,{expectedSQLState:'42501'});
+ const sourceSignature=schema+'.function_identity_public(oid)',sourceConfig=factsBySignature.get(sourceSignature).fact.config;
+ if(canonical(sourceConfig)!==canonical(['search_path=pg_catalog, public','TimeZone=UTC']))fail('public deparse source frame');
+ const original=contract.nodes.find(node=>node.identity==='zasp_authorization80_worker.catalog_ready()');
+ if(!original||sha(original.source)!==original.sourceSHA256||original.owner!==owner)fail('original owner/config frame');
+ frameCase('source-config',`SELECT proconfig FROM pg_catalog.pg_proc WHERE oid='${sourceSignature}'::pg_catalog.regprocedure;`,sourceConfig,`ALTER FUNCTION ${sourceSignature} SET TimeZone TO 'Pacific/Honolulu';`,['search_path=pg_catalog, public','TimeZone=Pacific/Honolulu'],{signature:sourceSignature,expectedSQLState:'42501',errorStage:'independent-private-admission'});
+ return {format:'ordered-current-native379-entry-frame-v2',status:'NATIVE-PARITY-PENDING',installable:false,nativeVerified:false,sourcePins:{...pins},entry,sourceBoundary:{identity:original.identity,sourceSHA256:original.sourceSHA256,definitionSHA256:original.definitionSHA256,frame:{owner:original.owner,config:original.config,securityDefiner:original.security_definer}},counts:{controls:18,entry:9,frame:9},controls};
+}
+
+function assertOrderedCurrentNative379EntryFrameV1(value,input){
+ if(arguments.length!==2)fail('assertion caller-selected authority');
+ if(canonical(value)!==canonical(buildOrderedCurrentNative379EntryFrameV1(input)))fail('closed controls/source/frame/restoration mismatch');
+}
+
+return {buildOrderedCurrentNative379EntryFrameV1,assertOrderedCurrentNative379EntryFrameV1};
+})();
+function wholeSource(contract,identity){
+ const node=contract.nodes.find(n=>n.identity===identity);if(!node)fail('source identity '+identity);
+ if(sha(node.source)!==node.sourceSHA256)fail('source body authority');
+ return {sourceIdentity:identity,sourceSHA256:node.sourceSHA256,definitionSHA256:node.definitionSHA256,start:0,end:Buffer.byteLength(node.source),siteSHA256:node.sourceSHA256,scope:'whole-original-source-boundary',frame:{owner:node.owner,acl:node.acl,config:node.config,securityDefiner:node.security_definer,language:node.language}};
+}
+function sourceForRule(rule,contract,module){
+ const [prefix,family]=rule.id.split(':');
+ if(rule.id.startsWith('private-')){
+  const marker='CREATE FUNCTION zasp_authorization80_ordered_current.catalog(expected_manifest text)',start=module.indexOf(marker),end=module.indexOf('$catalog$;',start)+10;
+  if(start<0||end<=start)fail('source-built catalog declaration');
+  return {sourceIdentity:'zasp_authorization80_ordered_current.catalog(text)',sourceSHA256:sha(module),definitionSHA256:sha(module.slice(start,end)),start,end,siteSHA256:sha(module.slice(start,end)),scope:'source-built-module-declaration',frame:{owner:'zasp_discovery_authority',searchPath:'pg_catalog'}};
+ }
+ let identity;
+ if(prefix==='worker'||prefix==='worker-edge')identity=`zasp_authorization80_worker.${family}()`;
+ else if(prefix==='runtime')identity=`public.zasp_production_runtime_${family}_live_fingerprint()`;
+ else if(prefix==='product')identity=`public.zasp_production_${family}_live_fingerprint()`;
+ else if(prefix==='temporal')identity=`zasp_temporal${family}()`;
+ else if(prefix==='public')identity=`public.zasp_${family}_live_fingerprint()`;
+ else if(prefix==='temporal72')identity=family==='precision-function'?'zasp_temporal72.retained_precision_fingerprint()':'zasp_temporal72.retained_execution_fingerprint()';
+ else if(prefix==='inventory-fields')identity='public.zasp_inventory_live_fingerprint()';
+ else if(prefix==='role-profile')identity='zasp_temporal68.ready(text,text)';
+ else if(rule.id==='native-memberships')identity='zasp_authorization80_worker.catalog_ready()';
+ else if(rule.id.startsWith('worker-line-'))identity='zasp_authorization80_worker.catalog_ready()';
+ else fail('unmapped rule family '+rule.id);
+ return wholeSource(contract,identity);
+}
+function build(outputs){
+ const entryFrameInput={contractRaw:outputs['effective-contract4.json'],moduleRaw:outputs['development-module.sql'],manifestRaw:outputs['development-manifest.json'],admissionRaw:outputs['development-admission.sql']};
+ const entryFrame=buildOrderedCurrentNative379EntryFrameV1(entryFrameInput);assertOrderedCurrentNative379EntryFrameV1(entryFrame,entryFrameInput);
+ const checkpoint=JSON.parse(outputs['development-checkpoint.json']),manifest=JSON.parse(outputs['development-manifest.json']);
+ const evaluator=checkpoint.dormantEvaluator,contract=JSON.parse(outputs['effective-contract4.json']),module=outputs['development-module.sql'].toString();
+ if(sha(canonical(evaluator))!==taskPins.task4||evaluator.sourceContracts.precision.packetSHA256!==taskPins.task1||evaluator.sourceContracts.worker.packetSHA256!==taskPins.task2||evaluator.sourceContracts.current.packetSHA256!==taskPins.task3)fail('Task1-4 authority');
+ if(evaluator.installable!==false||evaluator.nativeVerified!==false||manifest.installable!==false||manifest.facts.length!==identities.expectedFactCount||evaluator.rules.length!==379||new Set(evaluator.rules.map(r=>r.id)).size!==379||evaluator.sourceInventory.sites.length!==565||evaluator.sourceInventory.unclassified!==0)fail('dormant inventory');
+ if(evaluator.facts!==manifest.facts.length||evaluator.rules.reduce((total,r)=>total+r.expectedFacts,1)!==manifest.facts.length)fail('source-derived rule/fact accounting');
+ if(sourceFactDelta.format!=='ordered-current-native379-source-fact-delta-v2'||sourceFactDelta.perRule.length!==379||sourceFactDelta.historicalV1.expectedFacts!==10053||sourceFactDelta.currentSource.expectedFacts!==manifest.facts.length||sourceFactDelta.perRule.reduce((n,r)=>n+r.historicalV1ExpectedFacts,1)!==10053)fail('source transition accounting');
+ for(const [index,rule]of evaluator.rules.entries()){
+  const transition=sourceFactDelta.perRule[index];
+  if(transition.ruleId!==rule.id||transition.currentSourceExpectedFacts!==rule.expectedFacts||transition.currentSourceExpectedFacts-transition.historicalV1ExpectedFacts!==transition.delta)fail('per-rule source transition '+rule.id);
+ }
+ for(const addition of sourceFactDelta.additions){
+  const fact=manifest.facts.find(f=>f.kind===addition.kind&&f.identity===addition.identity);
+  if(!fact||sha(canonical(fact.fact))!==addition.factSHA256)fail('source addition identity');
+ }
+ for(const alias of sourceFactDelta.equalExisting){
+  const retained=manifest.facts.filter(f=>f.kind===alias.kind&&f.identity===alias.retainedCanonicalIdentity);
+  if(retained.length!==1||sha(canonical(retained[0].fact))!==alias.retainedFactSHA256||manifest.facts.some(f=>f.kind===alias.kind&&f.identity===alias.removedAliasIdentity))fail('source equalExisting identity');
+ }
+ if(sourceFactDelta.historicalV1.sourceManifestSHA256!=='bc6cdb5b0abe421e22c6592a69a31ef7ca9c9246c66d1fec1db6b2fb7eceabea'||sourceFactDelta.currentSource.sourceManifestSHA256!==outputPins['development-manifest.json']||sourceFactDelta.sharedPayloadChanges.length!==8)fail('historical/current source payload baseline');
+ for(const change of sourceFactDelta.sharedPayloadChanges){
+  const current=manifest.facts.filter(f=>f.kind===change.kind&&f.identity===change.identity);
+  if(current.length!==1||sha(canonical(current[0].fact))!==change.newFactSHA256||change.oldFactSHA256===change.newFactSHA256||!change.changedFields.length||!change.sourceDisposition)fail('shared source payload disposition');
+ }
+ const controls=[],facts=manifest.facts,byRule=new Map(evaluator.rules.map(r=>[r.id,facts.filter(f=>f.kind!=='build'&&JSON.parse(f.identity)[0]===r.id)]));
+ const restoration={operation:'rollback-and-compare-exact-pre-state',dimensions,beforeNextProbe:true,timeoutIsDenial:false};
+ function add(id,phase,category,rule,mutation,expected,sourceSite=sourceForRule(rule,contract,module)){
+  const rows=byRule.get(rule.id),fact=mutation.identity?rows.find(row=>row.identity===mutation.identity):rows[0];
+  controls.push({id,phase,category,ruleIds:[rule.id],facts:fact?[{kind:fact.kind,identity:fact.identity,factSHA256:sha(canonical(fact.fact))}]:[],sourceSite,mutation,mutationSHA256:sha(canonical(mutation)),expected:{...expected,firstError:expected.firstError??null},restoration:structuredClone(restoration)});
+ }
+ // Every descriptor gets an exact-key comparator challenge. These are expected
+ // storage tampering controls, not claims of catalog mutation/native parity.
+	 for(const rule of evaluator.rules){
+  const selected=byRule.get(rule.id);if(selected.length!==rule.expectedFacts)fail('rule fact cardinality '+rule.id);
+  const mutation=selected.length?{operation:'delete-expected-row',kind:selected[0].kind,identity:selected[0].identity,sql:`DELETE FROM zasp_authorization80_ordered_current.expected WHERE kind=${literal(selected[0].kind)} AND identity=${literal(selected[0].identity)}`}:{operation:'insert-extra-expected-row',kind:rule.kind,identity:canonical([rule.id,'native379-extra']),fact:{},sql:`INSERT INTO zasp_authorization80_ordered_current.expected(kind,identity,fact) VALUES(${literal(rule.kind)},${literal(canonical([rule.id,'native379-extra']))},'{}'::jsonb)`};
+  mutation.sqlSHA256=sha(mutation.sql);
+	  add('rule:'+rule.id,'forged-entry','expected-key-set',rule,mutation,{outcome:'refuse',boundary:'complete-key-set-equality',sqlState:null});
+	 }
+	 // The per-rule key-set challenges use an exact one-key snapshot instead of
+	 // repeatedly hashing the full 10,231-row expected table. Each challenge is
+	 // still one owned rollback transaction and must prove that its selected key
+	 // is byte-for-byte restored before the next control starts.
+	 for(const c of controls.filter(c=>c.category==='expected-key-set')){
+	  const kind=literal(c.mutation.kind),identity=literal(c.mutation.identity);
+	  const snapshot=`SELECT encode(sha256(convert_to(COALESCE((SELECT jsonb_agg(to_jsonb(r) ORDER BY r.kind COLLATE "C",r.identity COLLATE "C") FROM zasp_authorization80_ordered_current.expected r WHERE r.kind=${kind} AND r.identity=${identity}),'[]'::jsonb)::text,'UTF8')),'hex') AS snapshot`;
+	  const probe=`SELECT zasp_authorization80_ordered_current.catalog(${entryFrame.entry.manifestLiteral}) AS value`;
+	  const step=(id,role,sql,expected)=>({id,role,sql,sqlSHA256:sha(sql),expected});
+	  c.mutation.operands={kind:c.mutation.kind,identity:c.mutation.identity,operation:c.mutation.operation};
+	  c.program={format:'native379-sql-program-v1',transaction:'owned-read-write-rollback',connection:'same-owned-session',steps:[
+	   step('setup-session','zasp_test',"RESET ROLE; SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE; SET SESSION search_path TO pg_catalog,public; SET SESSION TimeZone TO 'UTC'",{outcome:'command-success'}),
+	   step('snapshot-before','zasp_test',snapshot,{outcome:'capture',key:'before'}),step('begin','zasp_test','BEGIN',{outcome:'command-success'}),
+	   step('mutate','zasp_test',c.mutation.sql,{outcome:'command-success'}),step('source-frame','zasp_test',"SET LOCAL ROLE zasp_discovery_authority; SET LOCAL search_path=pg_catalog; SET LOCAL TimeZone='UTC'",{outcome:'command-success'}),
+	   step('probe-savepoint','zasp_discovery_authority','SAVEPOINT native379_probe',{outcome:'command-success'}),step('admit-before-selector','zasp_discovery_authority',entryFrame.entry.independentAdmission.sql,{outcome:'rows',rows:[{admitted:true}],sqlState:null}),step('probe','zasp_discovery_authority',probe,{outcome:'rows',rows:[{value:false}],sqlState:null}),
+	   step('recover-probe','zasp_discovery_authority','ROLLBACK TO SAVEPOINT native379_probe',{outcome:'command-success'}),step('restore','zasp_discovery_authority','ROLLBACK',{outcome:'command-success'}),
+	   step('snapshot-after','zasp_test',snapshot,{outcome:'equal-captured',key:'before'}),
+	  ]};
+	  c.restoration={operation:'rollback-and-compare-exact-pre-state',dimensions,beforeNextProbe:true,timeoutIsDenial:false,snapshotSQL:snapshot,restoreSQL:'ROLLBACK',assertionSQL:snapshot,assertion:'exact-json-row-equality-to-snapshot-before',protocolTransactionStatusAfter:'I'};
+	  c.mutationSHA256=sha(canonical(c.mutation));
+	 }
+ const get=id=>{const rule=evaluator.rules.find(r=>r.id===id);if(!rule)fail('control rule '+id);return rule;};
+ // Fixed catalog DDL/DML. The fixture executes each SQL string in a separate
+ // owned rollback transaction and checks restoration before continuing.
+ const fieldCases=[
+  ['body','worker-line-5','definition'],['owner','worker-line-5','owner'],['acl','worker-line-5','acl'],
+  ['default-acl','worker-line-6','acl'],['config','runtime:acceptance:function','config_text_or_empty'],
+  ['rls','worker-line-6','row_security'],['constraint','worker-line-8','definition'],['index','worker-line-20','definition'],
+  ['trigger','worker-line-10','enabled'],['saved-definition','worker-line-11','definition'],['registration','worker-line-2','fingerprint'],
+ ];
+ for(const [category,id,field]of fieldCases){
+  const rule=get(id),fact=category==='rls'||category==='default-acl'?byRule.get(id).find(f=>f.fact.kind==='r'):byRule.get(id)[0];if(!fact||!Object.hasOwn(fact.fact,field))fail('field mutation '+id+':'+field);
+  const target=JSON.parse(fact.identity)[1],before=fact.fact[field];
+  const ddl={
+   body:()=>fact.fact.definition.replace('AS $function$\n','AS $function$\n-- native379-body-drift\n'),
+   owner:()=>`ALTER FUNCTION ${target} OWNER TO zasp_security_agent_worker`,
+   acl:()=>`GRANT EXECUTE ON FUNCTION ${target} TO PUBLIC`,
+   'default-acl':()=>`GRANT ALL ON TABLE ${target} TO zasp_discovery_authority`,
+   config:()=>`ALTER FUNCTION ${target} SET search_path TO pg_catalog`,
+   rls:()=>`ALTER TABLE ${target} ${before?'DISABLE':'ENABLE'} ROW LEVEL SECURITY`,
+   constraint:()=>{const [relation,name]=JSON.parse(target);return `ALTER TABLE ${relation} DROP CONSTRAINT ${name}`;},
+   index:()=>`ALTER INDEX ${target} RENAME TO native379_index_drift`,
+   trigger:()=>{const [relation,name]=JSON.parse(target);return `ALTER TABLE ${relation} DISABLE TRIGGER ${name}`;},
+   'saved-definition':()=>`ALTER TABLE zasp_authorization80_worker.predecessor_functions DISABLE TRIGGER USER; UPDATE zasp_authorization80_worker.predecessor_functions SET definition=definition||E'\\n-- native379-saved-drift' WHERE signature='zasp_attack_lab_execution_live_fingerprint()'`,
+   registration:()=>`ALTER TABLE zasp_authorization80_worker.registration DISABLE TRIGGER USER; UPDATE zasp_authorization80_worker.registration SET fingerprint=repeat('0',64) WHERE singleton`,
+  };
+  const sql=ddl[category]();
+  add('catalog:'+category,'drift',category,rule,{operation:'execute-fixed-catalog-sql',kind:fact.kind,identity:fact.identity,field,before,sql,sqlSHA256:sha(sql)},{outcome:'refuse',boundary:'fact-value-or-key-set-equality',sqlState:null});
+ }
+ for(const [category,operation]of [['addition','add-selected-catalog-object'],['missing-dependency','remove-selected-dependency']]){
+  const rule=get('worker-line-5'),fact=byRule.get(rule.id)[0],target=JSON.parse(fact.identity)[1];
+  const sql=category==='addition'?"CREATE FUNCTION zasp_authorization80_worker.native379_probe() RETURNS text LANGUAGE sql AS 'SELECT NULL::text'":`ALTER FUNCTION ${target} RENAME TO native379_missing_dependency`;
+  add('catalog:'+category,'drift',category,rule,{operation,kind:fact.kind,identity:fact.identity,sql,sqlSHA256:sha(sql),probeSQL:category==='missing-dependency'?`SELECT ${literal(target)}::regprocedure`:null},{outcome:category==='missing-dependency'?'error':'refuse',boundary:category==='missing-dependency'?'selected-regprocedure-binding':'complete-key-set-equality',sqlState:category==='missing-dependency'?'42883':null,firstError:category==='missing-dependency'?{sourceIdentity:target,stage:'selected-regprocedure-binding',sqlState:'42883'}:null});
+ }
+ for(const c of controls.filter(c=>c.phase==='drift')){
+  c.mutation.operands={ruleIds:c.ruleIds,facts:c.facts,field:c.mutation.field??null,before:c.mutation.before??null};
+  const probe=c.mutation.probeSQL??`SELECT CASE WHEN (${entryFrame.entry.independentAdmission.sql}) THEN zasp_authorization80_ordered_current.catalog(${entryFrame.entry.manifestLiteral}) ELSE false END AS value`;
+  native379SQLProgram(c,{setup:c.mutation.sql,probe,expected:c.expected.outcome==='error'?{outcome:'error',sqlState:c.expected.sqlState}:{outcome:'rows',rows:[{value:false}],sqlState:null},objects:{schemas:['public','zasp_authorization80_worker','zasp_authorization80_runtime']},searchPath:'pg_catalog'});
+  c.mutationSHA256=sha(canonical(c.mutation));
+ }
+ const catalogCoverage=buildNative379CatalogCoverage({rules:evaluator.rules,byRule,sourceForRule:rule=>sourceForRule(rule,contract,module),entry:entryFrame.entry});
+ controls.push(...catalogCoverage.controls,...entryFrame.controls);
+ controls.push(...buildNative379SemanticControls({contract,checkpoint}));
+ if(new Set(controls.map(c=>c.id)).size!==controls.length)fail('duplicate control');
+ const provenance=facts.find(f=>f.kind==='build').fact;
+ return {format:'ordered-current-native379-packet-v2',status:'NATIVE-PARITY-PENDING',installable:false,nativeVerified:false,captureAuthority:false,
+  authority:{...taskPins,sourceInventorySHA256,packetModules:packetModulePins,generated:outputPins,source:'fixed-repository-relative-v2-source-and-pinned-current-Task1-4-assembly',generatedIdentitiesSHA256:sha(identitiesRaw),sourceFactDeltaSHA256:sha(deltaRaw),goPacketAnchorPolicy:structuredClone(admitOrderedCurrentNative379SourceV2().goPacketAnchorPolicy)},sourceFactDelta:structuredClone(sourceFactDelta),
+  identity:structuredClone(identities.nativeRuntimeIdentity),referenceProvenance:structuredClone(provenance),pendingGates:admitOrderedCurrentNative379SourceV2().pendingGates,buildRuntime,rules:evaluator.rules,expectedFacts:facts,sourceInventory:evaluator.sourceInventory,
+  phases:phaseSpecs.map(([id,maxRows,maxBytes,maxMilliseconds])=>({id,limits:{maxRows,maxBytes,maxMilliseconds},controlIds:controls.filter(c=>c.phase===id).map(c=>c.id)})),controls,limits,coverage:catalogCoverage.coverage,entry:entryFrame.entry,
+  nextGates:evaluator.nextGates,resultAuthority:'none; packet and bounds validation do not accept native results'};
+}
+function fixed(){
+ assertBuildRuntime();
+ const inputs=sourceInputs(); // Recheck pins even when assembly is cached.
+ if(!admitted){admitted=build(regenerate(inputs));admittedText=canonical(admitted);if(Buffer.byteLength(admittedText)+1>limits.maxPacketBytes)fail('packet byte cap');}
+ return admitted;
+}
+export function admitOrderedCurrentNative379PacketV2(){if(arguments.length!==0)fail('caller-selected authority');return structuredClone(fixed());}
+export function assertOrderedCurrentNative379PacketV2(packet){
+ if(arguments.length!==1)fail('caller-selected authority');fixed();
+ try{if(canonical(packet)!==admittedText)fail('packet source/rule/fact/control/cap mismatch');}catch(error){fail(error.message);}
+}
+export function serializeOrderedCurrentNative379PacketV2(packet){
+ if(arguments.length!==1)fail('serializer caller authority');assertOrderedCurrentNative379PacketV2(packet);
+ const raw=Buffer.from(admittedText+'\n');return {raw,bytes:raw.length,sha256:sha(raw)};
+}
+export function parseOrderedCurrentNative379PacketV2(raw){
+ if(arguments.length!==1||!Buffer.isBuffer(raw)||raw.length>limits.maxPacketBytes)fail('wire byte cap or caller authority');
+ let value;try{value=JSON.parse(raw.toString('utf8'));}catch{fail('truncated or malformed wire');}
+ // Byte equality rejects duplicate keys, trailing bytes and alternate encodings.
+ assertOrderedCurrentNative379PacketV2(value);if(!raw.equals(Buffer.from(admittedText+'\n')))fail('noncanonical or duplicate wire');return value;
+}
+export function assertOrderedCurrentNative379ObservationBoundsV2(observation,packet){
+ if(arguments.length!==2)fail('observation caller authority');assertOrderedCurrentNative379PacketV2(packet);
+ const closed=(v,keys)=>v&&same(Object.keys(v).sort(),keys.sort());
+ if(!closed(observation,['truncated','phases','totalRows','totalBytes','totalMilliseconds'])||observation.truncated!==false||!Array.isArray(observation.phases)||observation.phases.length!==packet.phases.length)fail('observation envelope/truncation');
+ const total={rows:0,bytes:0,milliseconds:0};
+ for(let i=0;i<packet.phases.length;i++){
+  const got=observation.phases[i],want=packet.phases[i];
+  if(!closed(got,['id','rows','bytes','milliseconds','rules','controls'])||got.id!==want.id||!same(got.controls,want.controlIds))fail('phase/control ordering');
+  const rules=want.id==='pristine-truth'?packet.rules.map(r=>({id:r.id,rows:r.expectedFacts})):[];
+  if(!same(got.rules,rules))fail('missing/extra/duplicate rule accounting');
+  if(want.id==='pristine-truth'&&got.rows!==packet.expectedFacts.length)fail('pristine rule/build row accounting');
+  for(const [key,cap]of [['rows','maxRows'],['bytes','maxBytes'],['milliseconds','maxMilliseconds']]){
+   if(!Number.isSafeInteger(got[key])||got[key]<0||got[key]>want.limits[cap])fail('phase '+key+' overflow');total[key]+=got[key];
+  }
+ }
+ for(const [key,field,cap]of [['rows','totalRows','maxRows'],['bytes','totalBytes','maxBytes'],['milliseconds','totalMilliseconds','maxMilliseconds']])if(!Number.isSafeInteger(observation[field])||observation[field]!==total[key]||total[key]>packet.limits[cap])fail('total '+key+' overflow/accounting');
+}
+if(process.argv[1]&&fs.realpathSync(process.argv[1])===fs.realpathSync(fileURLToPath(import.meta.url))){
+ if(process.argv.length!==3||!['--check','--json'].includes(process.argv[2]))fail('use --check or --json; caller paths and hashes refused');
+ const packet=admitOrderedCurrentNative379PacketV2(),wire=serializeOrderedCurrentNative379PacketV2(packet);
+ process.stdout.write(process.argv[2]==='--json'?wire.raw:JSON.stringify({status:packet.status,rules:packet.rules.length,facts:packet.expectedFacts.length,controls:packet.controls.length,bytes:wire.bytes,sha256:wire.sha256})+'\n');
+}

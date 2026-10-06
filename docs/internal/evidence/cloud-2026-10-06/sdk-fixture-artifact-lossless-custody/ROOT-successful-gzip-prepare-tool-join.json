@@ -1,0 +1,12 @@
+{
+  "scope": "Direct transcription of observed ROOT normal tool join, not independent kernel trace",
+  "startToolChunk": "ab826f",
+  "sessionID": 21154,
+  "terminalToolChunk": "c8ce74",
+  "observedNormalExit": 0,
+  "recipePath": "/tmp/zasp-cloud-evidence/SDK-prefix-fixed-final48-root-owner-blrior5o/ROOT-RECIPE.json",
+  "recipeSHA256": "fc5ed1132195f340cadc806746918ecc23e980e29108afd8d745ec782d0b6019",
+  "ownerResultPath": "/workspace/.zasp-cloud-owned/SDK-prefix-fixed-final48-prepare-owner-a3308839d95b4f428753e8a641711a53/result.json",
+  "ownerResultSHA256": "024aa60d61db3511ff9b0d321874fa3c7185866870d9969c098fb4e1edd7375d",
+  "limits": "No external parent PID, precise compression peak or unobserved elapsed time reconstructed. Raw source retained; no unlink admission."
+}

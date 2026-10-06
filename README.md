@@ -1504,7 +1504,7 @@ the endpoint contract.
 
 ## Neon pooled proof
 
-The isolated proof module requires Go `1.26.5`. It reads only `DATABASE_URL`,
+The isolated proof module requires Go `1.26.8`. It reads only `DATABASE_URL`,
 validates a TLS-required Neon URL, and uses the corresponding pooled endpoint
 without changing the ignored `.env` value.
 

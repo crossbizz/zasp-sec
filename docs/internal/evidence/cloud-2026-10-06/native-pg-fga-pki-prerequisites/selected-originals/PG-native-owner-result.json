@@ -1,0 +1,18 @@
+{
+  "actualChildReturncode": 0,
+  "cleanupErrors": [],
+  "completed": true,
+  "elapsedSeconds": 143.82397747400682,
+  "exceptionClass": null,
+  "forcedCleanup": false,
+  "joined": true,
+  "parentToolOuterJoinNotInvented": true,
+  "phase": "provision",
+  "postToolAndSourceVerified": true,
+  "scope": "Owned PG18 and native SQL schema compatibility only; Temporal/runtime/provider readiness NOT_CHECKED",
+  "signals": [],
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdoutSHA256": "4906dfb798e67b433e54e012feae53584220fb0886e57e34f94af7d513fce7a5",
+  "survivors": false,
+  "timeout": false
+}

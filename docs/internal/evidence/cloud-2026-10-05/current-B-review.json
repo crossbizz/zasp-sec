@@ -1,0 +1,83 @@
+{
+  "format": "independent-current-B-source-successor-review-v1",
+  "assessment": "REVIEW-PASS",
+  "module_sha256": "0bc8be65a3375dc63a06ef6b4acbb0146c9af4f62d1f040c80fd0701426e047f",
+  "test_sha256": "d77093f9187ba30a6fea57941de8a2a25339443131381c06dd6896b3aa0bc1ea",
+  "seed_A_manifest_sha256": "b3d03a9e7cd86daabbd80ead85cb30a5e98f856be35c08d15227fa710dd914fa",
+  "B_manifest_sha256": "2b56edf0f7a190d19aeb43ab2986727aa6df89ae897c4d552b066a7e6e5e35d5",
+  "B_contract_sha256": "9edf289e6642bc4e9eb55ab79fdefefdb10f4e3bf8744b38553ae4bd9f131a18",
+  "archives": {
+    "A": {
+      "archive_sha256": "b2a3a652bfa47e8b800421b791cb5f3ee6431c3241b6dfe38287d32586b6e9d3",
+      "archive_bytes": 5394407,
+      "members": 165,
+      "manifest_sha256": "b3d03a9e7cd86daabbd80ead85cb30a5e98f856be35c08d15227fa710dd914fa",
+      "manifest_members": 164,
+      "source_pins": 157,
+      "deterministic_archive": true,
+      "all_member_hashes_and_root_bytes_match": true
+    },
+    "B": {
+      "archive_sha256": "cd07338903fddaec3ce56e3164f20501810abfa7f3ac64e02fd99a094d2c1504",
+      "archive_bytes": 5400139,
+      "members": 167,
+      "manifest_sha256": "2b56edf0f7a190d19aeb43ab2986727aa6df89ae897c4d552b066a7e6e5e35d5",
+      "manifest_members": 166,
+      "source_pins": 159,
+      "deterministic_archive": true,
+      "all_member_hashes_and_root_bytes_match": true
+    }
+  },
+  "reviewed_deltas": [
+    "exact two fixed producer call substitutions",
+    "variant B",
+    "sessionUser zasp_e2e",
+    "producer source pin",
+    "two new source pins"
+  ],
+  "preserved": {
+    "rules": 1862,
+    "phases_and_frame_and_caps": true,
+    "historical_Darwin_PostgreSQL_metadata": true,
+    "legacy_B_and_Go_anchors": true
+  },
+  "publication": {
+    "write_check_equal": true,
+    "summary": {
+      "variant": "B",
+      "files": 7,
+      "rules": 1862,
+      "sourcePins": 159,
+      "members": 167,
+      "manifestSHA256": "2b56edf0f7a190d19aeb43ab2986727aa6df89ae897c4d552b066a7e6e5e35d5",
+      "contractSHA256": "9edf289e6642bc4e9eb55ab79fdefefdb10f4e3bf8744b38553ae4bd9f131a18"
+    },
+    "fixed_root_matches_archive": true,
+    "conflict_validation_before_writes": true,
+    "transactional_IO_atomicity_claim": false
+  },
+  "tests": {
+    "logs": {
+      "grouped-green.log": {
+        "sha256": "24a9ccfaef58db02a1d684a99fd3403a328deb3ec73f312d7b8a73c51a58f7c9",
+        "four_pass_zero_fail_skip": true
+      },
+      "missing-root-seed-green.log": {
+        "sha256": "42612af77208e03c67d49ac8dbb252aa825cc3260126199e5d9dc9f3e67bc4c3",
+        "four_pass_zero_fail_skip": true
+      }
+    },
+    "freshclone": {
+      "directory": "/tmp/zasp-b-successor-no-root-seed-red-h58ku57q",
+      "rootSeedAbsentBefore": true,
+      "rootSeedAbsentAfter": true,
+      "exit": 0
+    }
+  },
+  "findings": {
+    "critical": [],
+    "important": [],
+    "minor": []
+  },
+  "scope": "SOURCE ONLY. Independently reviewed fixed-path B publication; no Go/native/installed/deployed or production readiness. Legacy anchors unchanged; actual native acceptance pending."
+}

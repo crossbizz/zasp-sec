@@ -1,0 +1,69 @@
+{
+  "anchors": "EMPTY",
+  "completed": false,
+  "derivedFrom": {
+    "bytes": 243656,
+    "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-empty-phase-revision-OspKF33a/actual-phase-codec-source-tests-df1ec49e1eeb4f22958846ac23c01512/result.json",
+    "reason": "Reference only; large result/complete source map omitted; no replay closure claim.",
+    "sha256": "b89d7e8801722bba6621c0ac19cd3ba4be894a321405d50cb5de0401a99296da"
+  },
+  "elapsedSeconds": 204.80313659200328,
+  "error": "RuntimeError: Bounded stage refused",
+  "format": "curated-model3-scalar-summary-v1",
+  "freeAfterCleanup": 2169016320,
+  "full589Admission": false,
+  "partialCheckpointInterpretation": {
+    "focusedGREEN": "Same named regression PASS/0fail/0skip;stage56.481544829s;test0.02s/package1.102s.",
+    "focusedRED": "Exactly expected empty-phase regression FAIL at explicit nonnil-empty-list assertion;0skips. Stage56.819338818s; GoJSON package0.072s.",
+    "fullModel": "FAIL-REFUSED: process-15 at90.326476384s, absolute_stage_or_aggregate_deadline. GoJSON test RUN but no final test/package PASS/FAIL event.",
+    "interpretation": "Two individual scripted raw-ledger roundtrip log checkpoints are partial model evidence only. No closed fullfourcaller model/FIT approval, complete-result metadata/adapter/native proof or publisher acceptance.",
+    "partialScriptedCallerEvidence": [
+      "Short9-byte caller reaches source line184 after encode, decode, fullrecords equality, replayedcost equality and encodedcap checks:2182909encoded/17998025charged.",
+      "ASCII63 caller reaches same line184:2184382encoded/18032492charged.",
+      "Control-character63 caller emits typed unchanged-cap refusal after3phases.",
+      "UTF8-63 caller rawledger construction completes logline176 but no line184/178 or terminal outcome before termination."
+    ]
+  },
+  "representationFitClaimed": false,
+  "scope": "Curated source-model failure summary, not verbatim full result or closed replay. Genuine focused regression RED/GREEN; full model deadline refused. No four-caller FIT/full-result/adapter/native approval.",
+  "sourceAfterSHA256": "7e29478b10d013aca9cb51705e3674161f5076e9d6b56b4907097a6f46f428b1",
+  "sourceBeforeSHA256": "7e29478b10d013aca9cb51705e3674161f5076e9d6b56b4907097a6f46f428b1",
+  "sourceUnchanged": true,
+  "stages": [
+    {
+      "elapsed_seconds": 56.81933881800069,
+      "log_sha256": "9805a505431215a46cde83bb9dfc88d6e21e1d5f394b8958e1e58244660c74b1",
+      "name": "empty-phase-model-red",
+      "refusal": null,
+      "returncode": 1,
+      "skips": [],
+      "top_level_fail": [
+        "TestNative379PhaseCodecEmptyPhaseModelRegression"
+      ],
+      "top_level_pass": []
+    },
+    {
+      "elapsed_seconds": 56.481544829002814,
+      "log_sha256": "ec639fe176aeb74b666790874c5ce947571cdc3fedef5e7b9de9a4588500d8dd",
+      "name": "empty-phase-model-green",
+      "refusal": null,
+      "returncode": 0,
+      "skips": [],
+      "top_level_fail": [],
+      "top_level_pass": [
+        "TestNative379PhaseCodecEmptyPhaseModelRegression"
+      ]
+    },
+    {
+      "elapsed_seconds": 90.32647638399794,
+      "log_sha256": "be97861e9774e34bfabe9d442c264949ad4a50f1f067eb582b7732e1dc99a234",
+      "name": "phase-source-cost-model",
+      "refusal": "absolute_stage_or_aggregate_deadline",
+      "returncode": -15,
+      "skips": [],
+      "top_level_fail": [],
+      "top_level_pass": []
+    }
+  ],
+  "survivors": []
+}

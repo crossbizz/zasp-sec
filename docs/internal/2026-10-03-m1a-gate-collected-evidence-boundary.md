@@ -1,0 +1,13 @@
+# M1A gate fails closed without collected dependency evidence
+
+The original M1A-08 requires one scoped S3, SQS and OpenSearch operation from a product pod, through IRSA, with OTLP health evidence. M1A-10 permits PASS only after the original staging deployment and reproducible deployment evidence establish access to all required dependencies through private endpoints.
+
+The staging gate previously returned `ready: true` from caller-provided deployment, private-endpoint and IAM booleans plus syntactically valid evidence coordinates. It did not collect those dependency operations or OTLP reception. The gate now rejects that input. Deployment construction, start/inspection interfaces, deterministic evidence preparation, all 32-workload/seven-job role and image checks, private-endpoint restrictions and vendor-dashboard refusal remain available; their outputs are partial preparation, not integrated M1A acceptance.
+
+No existing singular original-product-pod role chain has been demonstrated to authorize all three operations. API-connectors and discovery-worker use distinct projected-token subjects and policies; merging their observations or permissions would not establish the original singular-pod requirement. Customer-reference role assumptions do not establish scoped staging authority. This is an incomplete source/admission prerequisite, not evidence that approved cluster access was denied.
+
+A future consumed product-pod producer and owned collector must bind real deployment/pod/image/role/resource/operation/private-route observations and actual Collector reception to the same run and the same product pod. A Collector rendered with `nop`, a successful HTTP request or aggregate telemetry counters alone cannot provide that receipt. Existing telemetry privacy and IAM restrictions must remain. The gate has no synthetic collected-success path while these components and their authority are unadmitted.
+
+The private causal test first reproduced the old boolean-only PASS as a missing expected refusal. The corrected gate and the original full staging gate test file passed 5/5 with no skips. Existing positive evidence preparation now asserts gate refusal; the added causal regression exercises the real gate. Full project verification and any live staging run are separate checks, not claimed by this source preparation.
+
+No AWS/staging execution, deployment, role grant, collector activation or ledger promotion accompanies this correction. Original four-stub acceptance and the existing larger chart guard roster are both preserved. M1A-07/08/09/10 and all 728 acceptance remain open.

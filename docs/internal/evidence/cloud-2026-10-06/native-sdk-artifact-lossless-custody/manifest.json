@@ -1,0 +1,469 @@
+{
+  "members": [
+    {
+      "bytes": 1094,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791316993496360282,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441493,
+        "mode": 33152,
+        "mtime_ns": 1791316993496360282,
+        "nlink": 1,
+        "size": 1094,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/old-real9c13-eight-root-actual-9u2rttlr/result.json",
+      "path": "01-TDD-root-result.json",
+      "sha256": "1313c610471131938c3ee6d78033b14424c816d5dd129ec15a4c0bbec1f71abb"
+    },
+    {
+      "bytes": 2312,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791316993479417882,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1247938,
+        "mode": 33024,
+        "mtime_ns": 1791316993479417882,
+        "nlink": 1,
+        "size": 2312,
+        "uid": 1000
+      },
+      "originalPath": "/workspace/.zasp-cloud-owned/old-real9c13-gzip50-TDD-owner-44cd10d667494e6bbe3fd335bcd0af84/result.json",
+      "path": "02-TDD-owner-result.json",
+      "sha256": "d63f75f76d3e46366f89b7bfdcf8281431a3eb3721b79b586f310bcc7c5426dd"
+    },
+    {
+      "bytes": 2556,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317060121032695,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441497,
+        "mode": 33024,
+        "mtime_ns": 1791317060121032695,
+        "nlink": 1,
+        "size": 2556,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-old-real9c13-gzip50-eight-review.json",
+      "path": "03-TDD-independent-review.json",
+      "sha256": "a67eba324cc1016c6ccf845624773579f8090060e9fd3c9172c8799a9d03f852"
+    },
+    {
+      "bytes": 1055,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791316993262955711,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1247932,
+        "mode": 33152,
+        "mtime_ns": 1791316993262955711,
+        "nlink": 1,
+        "size": 1055,
+        "uid": 1000
+      },
+      "originalPath": "/workspace/.zasp-cloud-owned/old-real9c13-gzip50-TDD-owner-44cd10d667494e6bbe3fd335bcd0af84/old-postwrite-cap-RED.stderr",
+      "path": "04-old-defined-cap-RED.stderr",
+      "sha256": "9499063887be3063b12d146044f4437e3df52ec5141284220081446512119576"
+    },
+    {
+      "bytes": 1064,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791316993419667921,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1247935,
+        "mode": 33152,
+        "mtime_ns": 1791316993419667921,
+        "nlink": 1,
+        "size": 1064,
+        "uid": 1000
+      },
+      "originalPath": "/workspace/.zasp-cloud-owned/old-real9c13-gzip50-TDD-owner-44cd10d667494e6bbe3fd335bcd0af84/new-prewrite-hardcap-eight-GREEN.stderr",
+      "path": "05-new-eight-GREEN.stderr",
+      "sha256": "097a2e150d7fe7cf8287607a3d28e6d7b882731b9a492787a799607e470ac766"
+    },
+    {
+      "bytes": 1114,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317198611216142,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441603,
+        "mode": 33152,
+        "mtime_ns": 1791317198611216142,
+        "nlink": 1,
+        "size": 1114,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/old-real9c13-prepare-root-actual-cusljeaf/result.json",
+      "path": "06-prepare-root-result.json",
+      "sha256": "2a2b80e13429b71e66333354d50f01e7a74256552fae0852507e495893d90f7e"
+    },
+    {
+      "bytes": 2510,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317198600033517,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1247999,
+        "mode": 33024,
+        "mtime_ns": 1791317198600033517,
+        "nlink": 1,
+        "size": 2510,
+        "uid": 1000
+      },
+      "originalPath": "/workspace/.zasp-cloud-owned/old-real9c13-actual8-admitted-gzip-prepare-owner-1c012ba9cbc0409b9c7a3094cc7f73da/result.json",
+      "path": "07-prepare-owner-result.json",
+      "sha256": "3254abf019f02e481bdb9d33f403245cf5dac7e11bb62455c01fbde2d64cfbe7"
+    },
+    {
+      "bytes": 2025,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317247577553832,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441605,
+        "mode": 33024,
+        "mtime_ns": 1791317247577553832,
+        "nlink": 1,
+        "size": 2025,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-old-real9c13-gzip50-prepare-review.json",
+      "path": "08-prepare-independent-review.json",
+      "sha256": "ab62eab639ea04bc369d71afc945bd1b1eb80a8e5e4519f81b99e2e099b97abf"
+    },
+    {
+      "bytes": 1136,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317269942089336,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441606,
+        "mode": 33024,
+        "mtime_ns": 1791317269942089336,
+        "nlink": 1,
+        "size": 1136,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-old-real9c13-prepare-metadata-addendum.json",
+      "path": "09-prepare-metadata-join-addendum.json",
+      "sha256": "7da34f196e5f2973e70a7d228e7dd985a68b85d030771bab3739d1a3dc71b093"
+    },
+    {
+      "bytes": 1470,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317197944361037,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441602,
+        "mode": 33024,
+        "mtime_ns": 1791317197944361037,
+        "nlink": 1,
+        "size": 1470,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/old-real-component-gzip-custody-ca0947ef0c294bf0bfb0093cfbeca048/prepared.json",
+      "path": "10-actual-prepared.json",
+      "sha256": "1e88c6785aebf40df661cfca89639b37ef46ec06cc1572fb53b2d9619ad317c1"
+    },
+    {
+      "bytes": 65536,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317197944361037,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441600,
+        "mode": 33024,
+        "mtime_ns": 1791317197944361037,
+        "nlink": 1,
+        "size": 65536,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/old-real-component-gzip-custody-ca0947ef0c294bf0bfb0093cfbeca048/prepare-reserved.jsonl",
+      "path": "11-prepare-reserved-padded.jsonl",
+      "sha256": "da958aa1dfe4d781ed34719e8a8c1787e7c12f6342ff11dfb66e1bc0491acff1"
+    },
+    {
+      "bytes": 1099,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317606209373564,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441773,
+        "mode": 33152,
+        "mtime_ns": 1791317606209373564,
+        "nlink": 1,
+        "size": 1099,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/old-real9c13-final-root-actual-_o9hu1m4/result.json",
+      "path": "12-final-root-result.json",
+      "sha256": "cfe77289274014f3cf5b3d5210cf006d9b792f196f26ae170a4c5e4f7b9ed2e0"
+    },
+    {
+      "bytes": 2805,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317606197992345,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1248007,
+        "mode": 33024,
+        "mtime_ns": 1791317606197992345,
+        "nlink": 1,
+        "size": 2805,
+        "uid": 1000
+      },
+      "originalPath": "/workspace/.zasp-cloud-owned/old-real9c13-final-one-unlink-owner-7afd07102d40456d8c710f21d903c91f/result.json",
+      "path": "13-final-owner-result.json",
+      "sha256": "d2729b71e6a10c9baa3f044982770640019b5a451963095e3167f0d28cb324b5"
+    },
+    {
+      "bytes": 2680,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317670691782054,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441776,
+        "mode": 33024,
+        "mtime_ns": 1791317670691782054,
+        "nlink": 1,
+        "size": 2680,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-old-real9c13-final-one-unlink-custody-review.json",
+      "path": "14-final-independent-review.json",
+      "sha256": "68d4eb8f49ace643819ada12b68fbe1180ca39f1d6d45e1f3ecbbcd0d5bd0323"
+    },
+    {
+      "bytes": 1387,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317694972369734,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441777,
+        "mode": 33024,
+        "mtime_ns": 1791317694972369734,
+        "nlink": 1,
+        "size": 1387,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-old-real9c13-final-parent-join-addendum.json",
+      "path": "15-final-parent-join-addendum.json",
+      "sha256": "1622b387e2f9b203bfe3d0b97d385ad4fd9901bee77c973ae4e46a6169fd1848"
+    },
+    {
+      "bytes": 1508,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317605806210866,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441772,
+        "mode": 33024,
+        "mtime_ns": 1791317605806210866,
+        "nlink": 1,
+        "size": 1508,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/old-real-component-gzip-custody-ca0947ef0c294bf0bfb0093cfbeca048/custody.json",
+      "path": "16-actual-custody.json",
+      "sha256": "d6b325995e5822b9b0d951cf96f601ebaae4334ea949e1baab5cd19464865074"
+    },
+    {
+      "bytes": 65536,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317605806210866,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441770,
+        "mode": 33024,
+        "mtime_ns": 1791317605806210866,
+        "nlink": 1,
+        "size": 65536,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/old-real-component-gzip-custody-ca0947ef0c294bf0bfb0093cfbeca048/finalize-reserved.jsonl",
+      "path": "17-final-tmp-reserved-padded.jsonl",
+      "sha256": "e86ed0ec65ca711d580ee1f9d38a35c55abc9de50a6a03adf6b9e291eaa48cd6"
+    },
+    {
+      "bytes": 65536,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317605806210866,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1247950,
+        "mode": 33024,
+        "mtime_ns": 1791317605806210866,
+        "nlink": 1,
+        "size": 65536,
+        "uid": 1000
+      },
+      "originalPath": "/workspace/.zasp-cloud-owned/old-real-component-gzip-mirror-229eb82511574574ae49ce0165f09ae3/finalize-reserved.jsonl",
+      "path": "18-final-workspace-reserved-padded.jsonl",
+      "sha256": "e86ed0ec65ca711d580ee1f9d38a35c55abc9de50a6a03adf6b9e291eaa48cd6"
+    },
+    {
+      "bytes": 65536,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317606190220156,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1247944,
+        "mode": 33152,
+        "mtime_ns": 1791317606190220156,
+        "nlink": 1,
+        "size": 65536,
+        "uid": 1000
+      },
+      "originalPath": "/workspace/.zasp-cloud-owned/old-real9c13-final-one-unlink-owner-7afd07102d40456d8c710f21d903c91f/failure-journal.jsonl",
+      "path": "19-final-owner-reserved-padded.jsonl",
+      "sha256": "9eddbbeae1493f7184dac453316fd0abef8d6e56887f324ef031ff8339b07ebc"
+    },
+    {
+      "bytes": 1233,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317605454202351,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441771,
+        "mode": 33024,
+        "mtime_ns": 1791317605454202351,
+        "nlink": 1,
+        "size": 1233,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/old-real-component-gzip-custody-ca0947ef0c294bf0bfb0093cfbeca048/unlink-intent.json",
+      "path": "20-actual-unlink-intent.json",
+      "sha256": "090c29246b1f32f281f4a7ee9a1876e1c01e71dd5f4541f7e05753606f5bde51"
+    },
+    {
+      "bytes": 604,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317524014166613,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441660,
+        "mode": 33024,
+        "mtime_ns": 1791317524014166613,
+        "nlink": 1,
+        "size": 604,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/old-real9c13-final-described-source-envoz8na/independent-admission.json",
+      "path": "21-closed-five-field-admission.json",
+      "sha256": "9e13f3baaeb81e85e6d44857e038bd4de344caedbe9ffdf1c66d85baa5399423"
+    },
+    {
+      "bytes": 3093,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791318761911957321,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 442485,
+        "mode": 33024,
+        "mtime_ns": 1791318761911957321,
+        "nlink": 1,
+        "size": 3093,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/old-real9c13-custody-publication-selection-cqvmlt27/description-held-unrun-checkpoint.json",
+      "path": "22-description-held-unrun-checkpoint.json",
+      "sha256": "1d2c3bec41e98815ebe9bbccc4603f509dc2653e7ba332840713ef2760fb2426"
+    },
+    {
+      "bytes": 1704,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791316206572462302,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441334,
+        "mode": 33024,
+        "mtime_ns": 1791316206572462302,
+        "nlink": 1,
+        "size": 1704,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-old-real9c13-lossless-custody-planning-review.json",
+      "path": "23-initial-planning-review.json",
+      "sha256": "a702dc5ae6ea8b5d52afcec9d872835d977f0ea1a1691f8e0926457e25083bf0"
+    },
+    {
+      "bytes": 2415,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791317557617045524,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441673,
+        "mode": 33024,
+        "mtime_ns": 1791317557617045524,
+        "nlink": 1,
+        "size": 2415,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-old-real9c13-final-one-unlink-source-review.json",
+      "path": "24-final-source-static-review.json",
+      "sha256": "50a18c30f08e1b2cb91e3205f48cc23f7f45af1e4607ae5b5407b473e797dae1"
+    },
+    {
+      "bytes": 2272,
+      "mode": "0400",
+      "originalMetadata": {
+        "ctime_ns": 1791316425251504968,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441367,
+        "mode": 33024,
+        "mtime_ns": 1791316425245206990,
+        "nlink": 1,
+        "size": 2272,
+        "uid": 1000
+      },
+      "originalPath": "/tmp/zasp-cloud-evidence/old-real9c13-gzip50-prepare-source-j3na2nyr/current-source-admission.json",
+      "path": "25-current-seven-source-exclusion.json",
+      "sha256": "874465ebaf0bbfa245ab113a07a3987354515cc48e7559199a21408f007901cb"
+    },
+    {
+      "bytes": 2770,
+      "mode": "0400",
+      "path": "README.md",
+      "sha256": "9aa2845903d370acc56819b48e40771f5d25a6740c021b64270998c50f390f13"
+    },
+    {
+      "bytes": 21251,
+      "mode": "0400",
+      "path": "publication-selection.json",
+      "sha256": "9af5f38eaa5a06c3a203b2b65b52e0cd08520e2f3c13bde722dad56aa8813cca"
+    }
+  ],
+  "originalBytes": 299280,
+  "originalCount": 25,
+  "scope": "25 exactsmalloriginals+README+selection ONLY; SHM transient candidate, originalproofs remain private durable; no scanner or runtime authority"
+}

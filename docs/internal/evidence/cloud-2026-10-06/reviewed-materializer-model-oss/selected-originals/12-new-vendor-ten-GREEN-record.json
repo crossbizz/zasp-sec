@@ -1,0 +1,25 @@
+{
+  "label": "new-vendor-ten-GREEN",
+  "argv": [
+    "/usr/bin/python3",
+    "/tmp/zasp-cloud-evidence/native-OSS-component-installer-vendor-n8n1nedc/installer-components.test.py",
+    "-v"
+  ],
+  "declared_cap_seconds": 20,
+  "effective_limit_seconds": 20,
+  "enclosing_deadline_monotonic": 62624.267749712,
+  "effective_deadline_monotonic": 62614.438878159,
+  "cleanup_deadline_monotonic": null,
+  "started": true,
+  "joined": true,
+  "timed_out": false,
+  "interrupted": false,
+  "forced_cleanup": false,
+  "unexpected_descendants": false,
+  "survivors": [],
+  "exit": 0,
+  "pid": 290918,
+  "seconds": 0.470352,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "2e333b66e9f6e0cec01052744bb773391abcd406fb1b385487a0512fe6dd9be5"
+}

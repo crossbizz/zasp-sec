@@ -1,0 +1,197 @@
+{
+  "scope": "Independent Python source derivation, no Go execution/native acceptance",
+  "sourceCommit": "a9fbc1dcb7962673999272b4ecbac325f24c0320",
+  "predecessor52": {
+    "checksum": "1ccdb40d0ed2720ee372efe1c6af22f2fd69136f1360918529eeecad2a3b62c8",
+    "authority": "Frozen effective-contract4.json node98 definition/source; not freshly derived v52",
+    "artifactSHA256": "06210a2df2f96445b2e864812c83672a46a747c57ffc5b8c4ba380c23e1ab7b0"
+  },
+  "sourcePins": {
+    "services/platform/migrations/security_agent_budget_candidate.go": {
+      "sha256": "a6d83cb16250cf1b713bd28b40d0c38d143ae2f37c4c6dadf0d72b3ed1304ed2",
+      "bytes": 2236
+    },
+    "services/platform/migrations/security_agent_run_context_candidate.go": {
+      "sha256": "e8cac228a719e17caed89028c16fde9dd58cf8ac48aa54bcfce3c236c69233bb",
+      "bytes": 1515
+    },
+    "services/platform/migrations/security_agent_existing_tests.go": {
+      "sha256": "e42bf88d1aa70c0d1dd92249800f583b508b2d04fc993fa25396cf5f6a8f2e0b",
+      "bytes": 1591
+    },
+    "services/platform/migrations/security_agent_existing_tests_release.go": {
+      "sha256": "6933ea22f0b2a0b48207b6f89b75e1d201e1e4aad57919f54008933fa468431b",
+      "bytes": 3909
+    },
+    "services/platform/migrations/compliance_release.go": {
+      "sha256": "13e41e29484e82fe0a68321797ad942fff9a205605d59c784cc8246187b5341a",
+      "bytes": 1456
+    },
+    "services/platform/migrations/sql/fragments/security_agent_budget_admission.sql": {
+      "sha256": "cf46d6bd5ba4d2e5505c27431acd2ee236e5d177b801895c6652acabe27cab93",
+      "bytes": 22208
+    },
+    "services/platform/migrations/sql/fragments/security_agent_budget_starts.sql": {
+      "sha256": "29ddfb4ea786fd9e46de72e6f8ee327ff5b82e9b6aa74aca9febc5b031eaacf7",
+      "bytes": 58453
+    },
+    "services/platform/migrations/sql/fragments/security_agent_budget_release.sql": {
+      "sha256": "ae2bf13b0d71c40bba63caca3558aa183fcbcbee5ebb004cafd5b765593aa8ea",
+      "bytes": 13558
+    },
+    "services/platform/migrations/sql/0053_production_security_agent_budgets.up.sql": {
+      "sha256": "f74b32ef69ebc2b2178d508b753e144e6bee24a96484693df6db209bba30537d",
+      "bytes": 2298
+    },
+    "services/platform/migrations/sql/0053_production_security_agent_budgets.down.sql": {
+      "sha256": "59d4a6fa2c18f9ce0afd267faf3769d23284333a9f42416d9e8f7160c948bd49",
+      "bytes": 2150
+    },
+    "services/platform/migrations/sql/0054_production_security_agent_run_context.up.sql": {
+      "sha256": "44a5d18c00fafc2948456649e921a71ee46832cb4cd441e9de9cf1c960cd76c7",
+      "bytes": 11921
+    },
+    "services/platform/migrations/sql/0054_production_security_agent_run_context.down.sql": {
+      "sha256": "0c4aec03b26851a15a6ae16aba2b80a78e715def734c8126ac8d15e9a50cd6ae",
+      "bytes": 1502
+    },
+    "services/platform/migrations/sql/fragments/security_agent_run_context.sql": {
+      "sha256": "2556ad6f9ce9378959392033db9eff79551100462786ad95f30136c880fb61cc",
+      "bytes": 40852
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_enqueue.sql": {
+      "sha256": "b78a921f54582653dd63837d5d0e74a1b093109302f6200e7df6deb3f885ec06",
+      "bytes": 3082
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_links.sql": {
+      "sha256": "1d3103c3f0c14c3755cbaf5a412e202f4a05594ac451c61b1421a7b49e31faf5",
+      "bytes": 15944
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_dispatch.sql": {
+      "sha256": "95370f01e8ea7e19ed6403b47ca252505e529010a68701e70737eea550f0f46f",
+      "bytes": 11196
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_definition.sql": {
+      "sha256": "c103c651804fed8d2e771f41e9ce508baabf846fc202cac669a93d8c50dc7838",
+      "bytes": 2906
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_candidate_down.sql": {
+      "sha256": "0160c7a09554edf7674e353c888be9dd4cff6fef0e43bcaa1a23aed195ace392",
+      "bytes": 2288
+    },
+    "services/platform/migrations/sql/0055_production_security_agent_existing_tests.up.sql": {
+      "sha256": "c48cba7686171d02cd04eddadfbf6506dbf25983ba06c6c4a2da17c778b8710e",
+      "bytes": 18062
+    },
+    "services/platform/migrations/sql/0055_production_security_agent_existing_tests.down.sql": {
+      "sha256": "629e213841de57ca407f4974bbe0c121d9462b913b8fb37ba2f552634d08818e",
+      "bytes": 5465
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_planner.sql": {
+      "sha256": "35385dc5207905ad67acc5e9888740cff12c04c9b863766d91ab0c2163c6ad83",
+      "bytes": 39986
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_approvals.sql": {
+      "sha256": "9bb585b118b43ab97c928dea88f15dc0dadc02cd4cf6b9b4ea3d30fe9f70169e",
+      "bytes": 6798
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_reads.sql": {
+      "sha256": "e7459df065ddb6df90ef18cdeb90c083e8a2a542acf0442eab561b63c63744a1",
+      "bytes": 8415
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_lifecycle.sql": {
+      "sha256": "6df0b4a5b7598f15d182b267e16219eac83ebfb1f54a6dfa81491d6f9fbba362",
+      "bytes": 21956
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_controls.sql": {
+      "sha256": "aa6dfb889fe2235c0b3fdf2fbb067be1441cbe238675daf1721d5b9d713c5b74",
+      "bytes": 7100
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_admission.sql": {
+      "sha256": "d50944ff4dba3f301142adc292333447a2d15262ace8e5539617f2bbd1648265",
+      "bytes": 29723
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_invocation.sql": {
+      "sha256": "114a6ea6e728f9b31eb4dca4514b92a4b1cc90bc89c55dc64c990da6bdbec084",
+      "bytes": 3803
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_invocation_journal.sql": {
+      "sha256": "a0d23588e6fbdb40a222a6f108a71238737e87623ab8e3a3b88c4a2e8b0599b7",
+      "bytes": 73242
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_evidence.sql": {
+      "sha256": "4b24b32bb5e431dc68fafb84176f78d936e4ddfe9b3dd1a284a30fa6dc3155c0",
+      "bytes": 7930
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_reconcile.sql": {
+      "sha256": "c9fea4c074cb06d5bfc4fc7e8d7bc38d70b99c9145ffa982db19ca4df2b31cdb",
+      "bytes": 20593
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_settlement.sql": {
+      "sha256": "bb693c1ead7c5939876c13f3930de5a4f4dbaa23a370c23c3d888dfb7b9a3b43",
+      "bytes": 18378
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_execution.sql": {
+      "sha256": "0ff8aa8009a5c0e1074a320f7550fe13f05bcc91325383f23e7518ad7aecd710",
+      "bytes": 7461
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_public.sql": {
+      "sha256": "afa0b7cb7edcf9713963849902eb0980ad3d9db1cdcb63ff86bf054be6f7ebec",
+      "bytes": 9308
+    },
+    "services/platform/migrations/sql/fragments/security_agent_existing_test_global_control.sql": {
+      "sha256": "ead7ee8795ce3d0bf344c79ee9c4742f1f0561f6bbf03a0b14175f6faf8bd3b2",
+      "bytes": 25339
+    },
+    "services/platform/migrations/sql/0056_production_compliance.up.sql": {
+      "sha256": "3e464b2e30be26d9cfb4fae17c7874afe42f3c4659aa8803a6cb1517371a20d5",
+      "bytes": 30673
+    },
+    "services/platform/migrations/sql/0056_production_compliance.down.sql": {
+      "sha256": "66118735e31679f442cb7f04d53041823d0457831fd9aaf4caf76afc1025446e",
+      "bytes": 4013
+    },
+    "services/platform/migrations/sql/fragments/compliance_jobs.sql": {
+      "sha256": "b8d5367ff0c9175fe2a597bf0683b551c22752b49ed8ef1079b58bf8b8ac41e4",
+      "bytes": 54356
+    },
+    "services/platform/migrations/sql/0052_production_audit_exports.up.sql": {
+      "sha256": "145ee671eec8de08214c016ce0cb6e8650a63bce67698ef88e25228ffa0df712",
+      "bytes": 152980
+    }
+  },
+  "vectors": [
+    {
+      "version": 53,
+      "checksum": "7abc79563337471bed669f3366f3fce9c2dd6a11b79d9621ebd982835168699b",
+      "templateSHA256": "9d43746e70b498a459fe8e21e2e563d0aa57a5e79ba93ea0ad3807bfa15da049",
+      "templateBytes": 96537,
+      "boundUpSQLSHA256": "850c4b514824a94a56a54c9e8eb55524696bf3b42a4a41fa34cc22b99e0f9600",
+      "boundUpSQLBytes": 96608
+    },
+    {
+      "version": 54,
+      "checksum": "f968ed4c073cf05ee15af7f6b4c125b919c910f611bb433ca60f6e686e03158e",
+      "templateSHA256": "75e83f2d7f85c95fcaa1dcdc65a7c857261e3d63eb4df28a8f00c7e0fd5aba56",
+      "templateBytes": 52878,
+      "boundUpSQLSHA256": "42f127ad2e6e7de177935ef566343c531f4f36770d70d9bda02a430d3b75fba3",
+      "boundUpSQLBytes": 52939
+    },
+    {
+      "version": 55,
+      "checksum": "01920b296d2ebbc4b84c6e714edaf50d6265d630e577bd26297755a15289fa00",
+      "templateSHA256": "51fbae163f397ee80f6783eba1b7dfb03ebd3c316a4464607fddff4ea55c3dd8",
+      "templateBytes": 331431,
+      "boundUpSQLSHA256": "4b36212a103d0a3576b0161334e1e5da8d07fab41afec2d05f9e32a651e18c58",
+      "boundUpSQLBytes": 331486
+    },
+    {
+      "version": 56,
+      "checksum": "f5871c564709034eaf89f325fcb732a3f3314ecc0ff95f7a0ec99f6d674ddfc1",
+      "templateSHA256": "a1b9c4d369972f68e482314d478673d356dde356519181096ab8f10ebf90a98b",
+      "templateBytes": 85347,
+      "boundUpSQLSHA256": "cc660e450ae8253bddfaee6f7f0422388df1e81bfc5dc4cf65ffccc8083746b0",
+      "boundUpSQLBytes": 85410
+    }
+  ]
+}

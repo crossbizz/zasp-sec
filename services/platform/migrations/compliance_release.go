@@ -20,16 +20,34 @@ func ComplianceFingerprint() string {
 	return "8534cdcdce945aab8f85dce88d9bf8a01b100387490a7cefe5d51f2ae11d8ced"
 }
 
-func ProductionCompliance() Metadata {
+func complianceTemplate(budget, context, existing string) string {
 	sql := strings.NewReplacer(
 		"-- compliance jobs fragment", complianceJobsSQL,
-		"-- compliance budget checksum", ProductionSecurityAgentBudgets().Checksum(),
+		"-- compliance budget checksum", budget,
 		"-- compliance budget fingerprint", SecurityAgentBudgetCandidateFingerprint(),
-		"-- compliance context checksum", ProductionSecurityAgentRunContext().Checksum(),
+		"-- compliance context checksum", context,
 		"-- compliance context fingerprint", SecurityAgentRunContextFingerprint(),
-		"-- predecessor compliance checksum", ProductionSecurityAgentExistingTests().Checksum(),
+		"-- predecessor compliance checksum", existing,
 		"-- predecessor compliance fingerprint", SecurityAgentExistingTestsFingerprint(),
 	).Replace(complianceUpSQL)
+	return sql
+}
+
+// ComplianceChecksum recomputes the original dependency identities per call.
+// Shared predecessors are rendered once locally; no identity is cached.
+func ComplianceChecksum() string {
+	hash := func(up, down string) string {
+		sum := sha256.Sum256([]byte(up + "\x00" + down))
+		return hex.EncodeToString(sum[:])
+	}
+	budget := hash(securityAgentBudgetTemplateWithPredecessor(ProductionAuditExports().Checksum()), securityAgentBudgetDownSQL)
+	context := hash(securityAgentRunContextTemplateWithPredecessor(budget), securityAgentRunContextDownSQL)
+	existing := hash(securityAgentExistingTestsTemplate(budget, context), securityAgentExistingTestsDownSQL)
+	return hash(complianceTemplate(budget, context, existing), complianceDownSQL)
+}
+
+func ProductionCompliance() Metadata {
+	sql := complianceTemplate(ProductionSecurityAgentBudgets().Checksum(), ProductionSecurityAgentRunContext().Checksum(), ProductionSecurityAgentExistingTests().Checksum())
 	digest := sha256.Sum256([]byte(sql + "\x00" + complianceDownSQL))
 	checksum := hex.EncodeToString(digest[:])
 	sql = strings.NewReplacer("-- compiled compliance checksum", checksum, "-- compiled compliance fingerprint", ComplianceFingerprint()).Replace(sql)

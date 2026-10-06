@@ -58,7 +58,7 @@ func (d *PostgresJSONDatabase) queryTemporalTestDefinition(ctx context.Context, 
 	if !present {
 		return nil, false, nil
 	}
-	if err := d.driver.QueryRow(ctx, `SELECT zasp_temporal74.api_ready($1,$2)`, migrations.ProductionTemporalTestExecutor().Checksum(), migrations.TemporalTestExecutorFingerprint()).Scan(&ready); err != nil || !ready {
+	if err := d.driver.QueryRow(ctx, `SELECT zasp_temporal74.api_ready($1,$2)`, migrations.TemporalTestExecutorChecksum(), migrations.TemporalTestExecutorFingerprint()).Scan(&ready); err != nil || !ready {
 		return nil, true, ErrRepositoryUnavailable
 	}
 	var raw []byte

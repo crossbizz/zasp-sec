@@ -1,0 +1,99 @@
+{
+  "format": "gateway-permission-fixture-evidence-v1",
+  "base_commit": "d466887f7fa2dd44562489278d302e3aff9ed32f",
+  "scope": "single fixture permissions correction; no production guard changes",
+  "full_verification": "FAIL398s; workerPASS376.043s; UIunreached",
+  "security_status": "Historical full-history546 findings unresolved; local raw-log/evidence scans scoped only",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1704,
+      "sha256": "5baf90fe0411178b9c8db4398f1baebb2fe02e4b0af8cd25397c78f253e679b6"
+    },
+    {
+      "path": "execution-receipt.json",
+      "bytes": 1943,
+      "sha256": "016298c062b04308a287dcdeaeb2150d9f1008135ec37fa735d6f784d747c1ba"
+    },
+    {
+      "path": "focused-umask077-red.log",
+      "bytes": 1004,
+      "sha256": "ac5d282cde8f861c818a80f33623d3c9b7c3007a3017d7f1eaed36d793b407b1"
+    },
+    {
+      "path": "full-verify-failure-summary.json",
+      "bytes": 1472,
+      "sha256": "21383a4edbc8548c9baf06d9bac4e64aebdc595f02a0f1a8282d2e7fc0ce7c0a"
+    },
+    {
+      "path": "full-verify-failure.raw.log.gz",
+      "bytes": 1786,
+      "sha256": "e5359cfa3223f8139aa1118293f2c70e43e3c951c0c0aa14d254791df6f941d2"
+    },
+    {
+      "path": "full-verify-log-scan-redacted.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "full-verify-log-scan.log",
+      "bytes": 77,
+      "sha256": "675f7f2e155da26971972a5e3d249ff839304dda349b377823d1de6963ac0ec2"
+    },
+    {
+      "path": "full-verify-result.json",
+      "bytes": 92,
+      "sha256": "31fbba0988f496d85e9945aa6111db6bddd87f24e0e01aed088d9751251cbc89"
+    },
+    {
+      "path": "full-verify-tools.txt",
+      "bytes": 83,
+      "sha256": "2b81ccaeed775e663ffab7be4c7a9cfed05812d7c1fcc49fa0814e4cdcc2a09f"
+    },
+    {
+      "path": "full-verify-umask.txt",
+      "bytes": 5,
+      "sha256": "5e02f5b89f7b74c02ca1a79b316850e8ca23e54c1c68da2bcbc386ec84e60d79"
+    },
+    {
+      "path": "grouped-umask022-green.jsonl",
+      "bytes": 19650,
+      "sha256": "67e13fd93938e0ac41a33c8c5222918f2ffb50f8c6503159b24164d2df3a373d"
+    },
+    {
+      "path": "grouped-umask077-green.jsonl",
+      "bytes": 19649,
+      "sha256": "5034b0f85530d38106d5557504d33785d9b0aea7381b9bb33884db4497da4580"
+    },
+    {
+      "path": "historical-git-object-restoration-redacted.json",
+      "bytes": 3193,
+      "sha256": "1837a970c184394803b58300cd88038c31353554e7bd66584219ddd52e9d0b4a"
+    },
+    {
+      "path": "independent-review.json",
+      "bytes": 2354,
+      "sha256": "ae171521505746562e2d8916fc8ae905b362fedf164ce935718be6da4fc25cdc"
+    },
+    {
+      "path": "initial-wrong-cwd-setup-refusal.log",
+      "bytes": 119,
+      "sha256": "7e04f33337173fc79cc6328373f3e1b40244dd8c5ca5814b49c8f85c045b59b6"
+    },
+    {
+      "path": "log-publication-inspection.json",
+      "bytes": 467,
+      "sha256": "17378a558813f4ebfd3154378300d96bcd34b99fd8ceba918770ba63e6a71a49"
+    },
+    {
+      "path": "source-change.patch",
+      "bytes": 928,
+      "sha256": "0c0c86c751d3078ccd9e9972fe6a2a5344e01cf203660e973cfd9b347faabf98"
+    },
+    {
+      "path": "source-identity.json",
+      "bytes": 764,
+      "sha256": "02fdb23ad14ce7eda54ed6f4ddea7b427605e6dc3b33ce61af4605e60a855d58"
+    }
+  ]
+}

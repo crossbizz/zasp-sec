@@ -1,0 +1,30 @@
+{
+  "schema": "ROOT-tool-observed-normal-joins-v1",
+  "recordedAt": "2026-10-06T13:43:28.504800+00:00",
+  "evidenceKind": "Retrospective tool response transcription, not independent kernel trace",
+  "records": [
+    {
+      "kind": "FGA-parser-TDD",
+      "output": "/workspace/.zasp-cloud-owned/native-OSS-FGA-parser-tests-owner-41ebe625f4c1439ea09914194d70fdf0/result.json",
+      "rootOuterExit": 0,
+      "rootToolSeconds": 0.631464075,
+      "resultSHA256": "fe18012ec807a6a7848379ceafa5a2fa5aafc653da77afc1821d1122170c9824"
+    },
+    {
+      "kind": "Temporal-CLI-census-failed",
+      "output": "/workspace/.zasp-cloud-owned/native-OSS-CLI-census-owner-41422f7c45754665858080c84056d6f5/result.json",
+      "rootOuterExit": 1,
+      "rootToolSeconds": 0.475946237,
+      "resultSHA256": "2f1a3aa54f104a2bfa847df1162a075309bb2d6af8190a02dfc99bdd1a9ed30b"
+    },
+    {
+      "kind": "Temporal-CLI-read-TDD",
+      "output": "/workspace/.zasp-cloud-owned/temporal-CLI-read-contract-TDD-owner-fdd7431ad26d4bd5b9d0cd4a4938589c/result.json",
+      "rootOuterExit": 0,
+      "rootToolSeconds": 0.200229985,
+      "resultSHA256": "96b1dee5a8454c9c879ab5d9e0d5cee4d488e4795c207841116804660fe80663"
+    }
+  ],
+  "servicesStarted": false,
+  "installerRetryInvoked": false
+}

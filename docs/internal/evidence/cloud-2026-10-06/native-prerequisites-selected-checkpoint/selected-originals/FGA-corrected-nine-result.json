@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "20s",
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "--",
+    "/usr/bin/python3",
+    "-B",
+    "/tmp/authorization80-real-fga-lifecycle-import-fix-xaow0a6d/lifecycle_cases.py",
+    "/tmp/authorization80-real-fga-parent-import-fix-wivxy9qq/owned_fga_pg_parent.py",
+    "all"
+  ],
+  "elapsedSeconds": 0.39207017299486324,
+  "exit": 0,
+  "normalWait": true,
+  "recipeSHA256": "e1ab5131874ca40fa6fb53464a5804707b630b938fd8098560b1686178e1fe2e",
+  "scope": "TINY-OWNED-PYTHON-LIFECYCLE-ONLY-NO-SERVICES-COMPILER-SQL",
+  "sourceToolIdentityUnchanged": true,
+  "stderrSHA256": "0b4feaab05aa7beb28754d84d38da9cae6dabb348084d927cbbf6860cfc0ce4e",
+  "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: actual Linux witness admission retains observed build identity and pending flags
+ok 1 - actual Linux witness admission retains observed build identity and pending flags
+  ---
+  duration_ms: 1.744575
+  type: 'test'
+  ...
+# Subtest: forged version/build/cleanup/source authority is refused even with recomputed inner digest
+ok 2 - forged version/build/cleanup/source authority is refused even with recomputed inner digest
+  ---
+  duration_ms: 9.609591
+  type: 'test'
+  ...
+# Subtest: unknown/duplicate/trailing/noncanonical/invalid UTF8 caller bytes never become capture authority
+ok 3 - unknown/duplicate/trailing/noncanonical/invalid UTF8 caller bytes never become capture authority
+  ---
+  duration_ms: 2.084848
+  type: 'test'
+  ...
+# Subtest: returned capture descriptor is detached; caller/env cannot select version
+ok 4 - returned capture descriptor is detached; caller/env cannot select version
+  ---
+  duration_ms: 0.607444
+  type: 'test'
+  ...
+# Subtest: borrowed array properties, holes and accessors cannot bypass closed admission
+ok 5 - borrowed array properties, holes and accessors cannot bypass closed admission
+  ---
+  duration_ms: 1.26951
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 69.223826

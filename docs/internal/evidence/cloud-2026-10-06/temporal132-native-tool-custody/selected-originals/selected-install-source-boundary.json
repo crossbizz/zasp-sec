@@ -1,0 +1,35 @@
+{
+  "status": "SOURCE-ONLY-UNRUN",
+  "sourceBase": "/tmp/zasp-cloud-evidence/native-OSS-installer-exact-two-vendor-b1dsjb5z/prepare-native-OSS-tools.py",
+  "sourceBaseSHA256": "3d0f96854fdb035b64109f91ba77e6bf20a19c12c3b9d955884dac7ff6b52532",
+  "sourceSHA256": "939edc2d2ad24e9bdc42438177684fb552a93a551977bca875041b36e3880f3f",
+  "planSHA256": "3f41fd38c7071ac4f6f69b0fa39c1294d0bc7b63c37780d7c2fa39b7471c46c3",
+  "prospectiveHEAD": "87f30744458fea2e5a9eec961d6c7eb77861591e",
+  "counts": {
+    "observedMembers": 31,
+    "selectedRegularMembers": 2,
+    "inflatedBytes": 333507072,
+    "selectedBinaryBytes": 188981572,
+    "compressedBytes": 100230267
+  },
+  "limits": {
+    "tmpFloor": 100000000,
+    "workspaceFloor": 1500000000,
+    "tmpFreshReservation": 422766271,
+    "effectiveCaptureSeconds": 240,
+    "singleCleanupSeconds": 30,
+    "workerSeconds": 180,
+    "workerAddressSpaceBytes": 134217728
+  },
+  "tests": "EIGHT-PROPOSED-TINY-SOURCE-GROUPS-NOT-RUN",
+  "actualVersions": "NOT_CHECKED",
+  "schemaSources": "NOT_IN_ARCHIVE-PENDING-SEPARATE-AUTHORITY",
+  "serverStartup": false,
+  "testSourceSHA256": "0add319eb33599975d696a4381a4e84273b960883596ad56b3b7501edbf74da3",
+  "headBinding": "Exact87Prospective-Must-RebindIfROOTChangesHEADBeforeInstall",
+  "oldRED": "Planned same existing archive API refusing synthetic strict selected binaries/link; deliberate scope change, not original bug cause",
+  "noArchiveLICENSE": true,
+  "licenseGitCommit": "d94e34a1ebba5410a2e7d07119a76896909591aa",
+  "licenseGitBlob": "3349f76795f4409cba6ae18ea56adf9fbd8346f3",
+  "noActualNetworkOrTests": true
+}

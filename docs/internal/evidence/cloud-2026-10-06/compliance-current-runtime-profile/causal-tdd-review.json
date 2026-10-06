@@ -1,0 +1,75 @@
+{
+  "ROOTActualRecords": [
+    {
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "30s",
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "--test-name-pattern",
+        "actual compliance startup",
+        "baseline-schema.test.mjs"
+      ],
+      "elapsedAggregateSeconds": 0.3866884970047977,
+      "exit": 1,
+      "name": "actualprefix-causal-red",
+      "normalWait": true,
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "81ade902bb566a6010d9e1423e27660e485bec48eddc129630b9bfe8f042e686"
+    },
+    {
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "30s",
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "candidate-schema.test.mjs"
+      ],
+      "elapsedAggregateSeconds": 0.766843195000547,
+      "exit": 0,
+      "name": "orchestration-and-failclosed-green",
+      "normalWait": true,
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "d8e20c562882b99e7fb816def5ce273776ff59071d8f8aa59dc127f39c1296db"
+    }
+  ],
+  "actualGREEN": {
+    "fail": 0,
+    "pass": 3,
+    "skipped": 0,
+    "tests": 3
+  },
+  "actualRED": {
+    "fail": 1,
+    "pass": 0,
+    "reason": "actual compliance source reaches current profile and verifier before API construction",
+    "skipped": 0,
+    "tests": 1
+  },
+  "beforeInputMapSHA256": "e95d46098d0b33726e97861007a9d411dd23c9f91be2223d0de2224542d2c2d8",
+  "checks": [
+    "Exact normalwait argv/exit/rawTAP hashes reconciled; selectedRED actualzeroSKIP supersedes prospective filteredcases wording",
+    "Genuine actualprefix assertion fails old absentprofile/verifier, candidate3groups PASS controlled effects/negativeguards",
+    "All thirteen currently retained source/tool hashes/fullstat match persisted beforemap; ROOT producer asserts aftereach equality but separate perstage aftermaps not persisted"
+  ],
+  "resultSHA256": "852bcd5a4c8780281554c3529c2acf51fcdc9d0e5861f519de071911a1f1520f",
+  "scope": "Controlled source-orchestration component only; no migration SQL/catalog/native service/API/browser or deployedprovider/runtime acceptance. ROOTd8dd0a directterminal0/.802sec is parent tool observation; no invented kernel root trace or unpersisted aftermaps. Existing56fixture/current60\u2192profile80\u2192verifier61 choreography source checked, actual database behavior remains pending.",
+  "status": "ACTUAL-CONTROLLED-COMPLIANCE-SCHEMA-TDD-PASS",
+  "verifiedCurrentInputs": 13
+}

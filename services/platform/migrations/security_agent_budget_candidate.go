@@ -30,10 +30,14 @@ func SecurityAgentBudgetCandidateFingerprint() string {
 }
 
 func securityAgentBudgetCandidateTemplate() string {
+	return securityAgentBudgetTemplateWithPredecessor(ProductionAuditExports().Checksum())
+}
+
+func securityAgentBudgetTemplateWithPredecessor(predecessor string) string {
 	sql := strings.Replace(securityAgentBudgetUpSQL, "-- budget admission fragment", securityAgentBudgetAdmissionCandidate, 1)
 	sql = strings.Replace(sql, "-- budget starts fragment", securityAgentBudgetStartsCandidate, 1)
 	sql = strings.Replace(sql, "-- budget release fragment", securityAgentBudgetReleaseCandidate, 1)
-	sql = strings.ReplaceAll(sql, "-- budget predecessor checksum", ProductionAuditExports().Checksum())
+	sql = strings.ReplaceAll(sql, "-- budget predecessor checksum", predecessor)
 	return strings.ReplaceAll(sql, "-- budget predecessor fingerprint", ProductionAuditExportsSemanticFingerprint())
 }
 

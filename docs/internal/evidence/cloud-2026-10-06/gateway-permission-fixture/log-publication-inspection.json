@@ -1,0 +1,8 @@
+{
+  "raw_log_sha256": "f63805ed5ed853a355970d1037a1ef6f5a3685dbf5f17d181c92bb6e1018ab3f",
+  "raw_log_bytes": 6182,
+  "scanner": "Gitleaks8.30.1 dir, default rules, redacted report",
+  "scan_exit_code": 0,
+  "findings": 0,
+  "inspection": "Reviewed recorded npm/Go package status and failure context: no actual product credential or signed URL; failure prints fixed local fixture authority IDs. Scoped log review does not clear historical repository security gate."
+}

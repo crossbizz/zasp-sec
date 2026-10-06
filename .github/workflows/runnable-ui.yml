@@ -11,6 +11,8 @@ jobs:
   verify:
     name: Verify runnable UI
     runs-on: ubuntu-24.04
+    env:
+      GOTOOLCHAIN: local
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -24,7 +26,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
-          go-version: 1.25.13
+          go-version: 1.26.8
           cache: true
           cache-dependency-path: services/platform/go.sum
       - name: Pin npm
@@ -56,8 +58,34 @@ jobs:
         run: go install github.com/zricethezav/gitleaks/v8@v8.30.1
       - name: Verify implementation status ledger
         run: npm run implementation:status:check
+      - name: Prime platform full-MVS metadata for offline release contracts
+        timeout-minutes: 5
+        run: GOENV=off GOWORK=off GOFLAGS= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go list -C services/platform -mod=readonly -m all >/dev/null
       - name: Verify runnable UI
-        run: npm run verify
+        run: |-
+          task_verify_log=$(mktemp "${RUNNER_TEMP}/zasp-npm-verify.XXXXXX")
+          set +e
+          npm run verify 2>&1 | tee "$task_verify_log"
+          task_verify_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$task_verify_status" -ne 0 ]; then
+            node scripts/annotate-verify-failure.mjs "$task_verify_log" || printf '%s\n' '::error title=npm verify failed::Verification failed; phase unavailable.'
+          fi
+          rm -f -- "$task_verify_log" || true
+          exit "$task_verify_status"
+      - name: Prime native migration compilation cache for compliance browser
+        timeout-minutes: 5
+        run: |
+          umask 077
+          task_migration_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-migration-cache.XXXXXX")
+          trap 'rm -rf -- "$task_migration_dir"' EXIT
+          cd services/platform
+          GOENV=off GOWORK=off GOFLAGS= GOPRIVATE= GONOPROXY= GONOSUMDB= GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org go build -mod=readonly -o "$task_migration_dir/agentsec-migrate" ./agentsec-migrate
+      - name: Verify current runtime profile inner diagnostic tests
+        timeout-minutes: 5
+        run: |
+          node --test scripts/observe-current-profile-inner-diagnostics.test.mjs
+          node scripts/observe-current-profile-inner-diagnostics.mjs
       - name: Provision isolated compliance browser prerequisites
         timeout-minutes: 10
         run: |
@@ -74,13 +102,17 @@ jobs:
           console.log(execFileSync(chrome, ["--version"], { encoding: "utf8", timeout: 5000, killSignal: "SIGKILL" }).trim());
           appendFileSync(process.env.GITHUB_ENV, `ZASP_COMBINED_E2E_CHROME=${chrome}\n`);
           NODE
+      - name: Provision pinned owned authorization runtime tools
+        timeout-minutes: 5
+        run: |
+          node scripts/hosted-runtime-tool-intake.mjs
       - name: Verify current compliance browser acceptance
         timeout-minutes: 15
         env:
           ZASP_COMBINED_E2E_COMPLIANCE: "true"
         run: |
-          node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs
-          node scripts/production-combined-e2e.mjs
+          node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs || { status=$?; printf '::error::Compliance browser unit prerequisites failed (exit %s)\n' "$status"; exit "$status"; }
+          node scripts/production-combined-e2e.mjs || { status=$?; printf '::error::Compliance browser runtime acceptance failed (exit %s)\n' "$status"; exit "$status"; }
       - name: Verify Red Team runtime and ledger regressions
         run: |
           node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs
@@ -97,6 +129,10 @@ jobs:
           export TF_DATA_DIR="$task_tf_dir/data"
           "$task_tf_dir/terraform" -chdir=deploy/staging init -backend=false -input=false -lockfile=readonly
           "$task_tf_dir/terraform" -chdir=deploy/staging test -filter=tests/session_search_iam.tftest.hcl -filter=tests/test_reconciler_iam.tftest.hcl -var-file=release.tfvars -no-color
+          node --test deploy/staging/iam-policy-union-v1.test.mjs
+          "$task_tf_dir/terraform" -chdir=deploy/staging test -filter=tests/iam_policy_union.tftest.hcl -json -verbose -no-color > "$task_tf_dir/iam-policy-union.jsonl"
+          node --max-old-space-size=512 deploy/staging/iam-policy-union-v1.test.mjs --plan "$task_tf_dir/iam-policy-union.jsonl"
+          node deploy/staging/iam-policy-union-v1.mjs --plan "$task_tf_dir/iam-policy-union.jsonl"
       - name: Verify reconciliation maintenance alerts
         run: |
           task_prom_dir=$(mktemp -d "${RUNNER_TEMP}/zasp-promtool.XXXXXX")
@@ -120,7 +156,7 @@ jobs:
         timeout-minutes: 35
         run: |
           test "$(node --version)" = v22.23.1
-          test "$(go env GOVERSION)" = go1.25.13
+          test "$(go env GOVERSION)" = go1.26.8
           export PATH="$(pg_config --bindir):$PATH"
           for fixture_tool in initdb postgres pg_ctl pg_isready cc docker; do
             command -v "$fixture_tool"

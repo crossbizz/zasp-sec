@@ -1,0 +1,21 @@
+{
+  "original_failure_manifest_sha256": "0ff661080a34b627f526f091236760f22eda22a560f8927fe16da5bea2d8eef9",
+  "original_failure_packet_unchanged": true,
+  "response_file_sha256": "147a783986f095eb11befae73cda85d1bc5afc8e81f68a80f0c9d30266082118",
+  "response_file_bytes": 67012,
+  "response_file_mtime_ns": 1791263535962874783,
+  "observed_utc": "2026-10-06T05:15:30.876501+00:00",
+  "compiled_package_argument": "github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker",
+  "output_basename": "_pkg_.a",
+  "worker_source_file_inputs": 469,
+  "worker_test_file_inputs": 300,
+  "finding": "retained compiler response file establishes worker test-package compilation was reached; source commands sequentially build migrate then API test then worker test",
+  "limits": [
+    "This compiler -p argument specifies package name, not Go buildparallelism",
+    "No actual compiler PID/start/command-binding or perpath peak-size snapshot persisted",
+    "Temporary binaries/intermediates removed after joined cleanup; no compiledbinary hash authority reconstructed",
+    "Current Go cache size does not prove exactgrowth or unused/reclaimable files",
+    "No evidence establishes compilerparallelism asspacecause; no -p=2 selected",
+    "No file deleted or original guard/source/cache edited"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "format": "workflow-preflight-contract-actual-v1",
+  "sourceSHA256": "81265f76cff95a0f49d025fd13b647da652f28e92ff848b7d9f938f551b59bf7",
+  "red": {
+    "rootSession": 85516,
+    "actualJoinedExitCode": 1,
+    "total": 264,
+    "passed": 70,
+    "failed": 194,
+    "skipped": 0
+  },
+  "green": {
+    "rootSession": 48953,
+    "actualJoinedExitCode": 0,
+    "total": 264,
+    "passed": 264,
+    "failed": 0,
+    "skipped": 0,
+    "supervision": "env-i, GNU timeout TERM180/KILL+10, Tini subreaper"
+  },
+  "scope": "Workflow contract only; no full npm verify, browser, services, deployed integration or ledger promotion",
+  "hostedFailure": "Run37461260341 job112261123240 Verify runnable UI; annotations show expected prerequisite command omits newly appended test. Full logs403. No inference about later skipped steps."
+}

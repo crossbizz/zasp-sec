@@ -1,0 +1,15 @@
+{
+  "schema": "ROOT-direct-tool-transcription-v1",
+  "initialToolChunk": "028bff",
+  "initialSessionID": 28146,
+  "completionToolChunk": "fe9998",
+  "completionExit": 0,
+  "observedStdout": "actualOwnerOutput /workspace/.zasp-cloud-owned/CLI-custody-prepare-owner-a39a2c8fd6d54a97a270270efacea064 normalExit 0",
+  "normalOuterSubprocessRunReturned": true,
+  "recipeSHA256": "a5f310d33bad9a72022d23a59c7c171a5272f8ba73597ff07301f6aaa12be3f4",
+  "ownerSHA256": "2e821af72638260fab73594a9b893fcf96c5f89ae54a0c7f1ca7d11195f82c6f",
+  "ownerResultPath": "/workspace/.zasp-cloud-owned/CLI-custody-prepare-owner-a39a2c8fd6d54a97a270270efacea064/result.json",
+  "ownerResultSHA256": "039725a8a72d9e4441a960dcb16f74fe8b943cbbe4f4e80f0b31cc3bd777b9bf",
+  "ROOTPrechecksObserved": "Exact28CONFIGpins+4outertools+owner/recipe hash checked, output absent and actual fresh104194304TMP/1504194304WS gates checked; env-i child launched with closedPATH rootenv",
+  "scope": "Transcribes available direct ROOT tool observations. No fabricated rootPID/kernel receipt or aggregate runtime duration; no unlink. Initial yield and completion chunk timings are not whole runtime elapsed."
+}

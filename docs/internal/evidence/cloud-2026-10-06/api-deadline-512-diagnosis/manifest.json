@@ -1,0 +1,45 @@
+{
+  "format": "private-api-instrumentation-manifest-v1",
+  "files": [
+    {
+      "path": "agentsec-api-ordered_readiness_routing_characterization_test.go",
+      "bytes": 6020,
+      "sha256": "14656e6a5eee880edf473093c6adda234bc03efb301c94ad46ae1be478541900"
+    },
+    {
+      "path": "agentsec-api-ordered_readiness_routing_characterization_test.go.original",
+      "bytes": 5002,
+      "sha256": "8949c228d278c857d2a542938a09878f1a03a42d5d1c8cf644cbc3f5318bac0b"
+    },
+    {
+      "path": "apiserver-security_agent_ordered_production.go",
+      "bytes": 4114,
+      "sha256": "d148bc8da041c61c1d17abed90458e86cb4b53b98fc884bb23e4dd6fa9cbb443"
+    },
+    {
+      "path": "apiserver-security_agent_ordered_production.go.original",
+      "bytes": 3626,
+      "sha256": "dbb15de9b179960d9da9a083c0849e96d61404923164cefbf1d96c7d8b14e262"
+    },
+    {
+      "path": "instrumentation-identity.json",
+      "bytes": 728,
+      "sha256": "a7d293ccfab4469cb3f265845facdbe890e14cf6b2ec5e17590f2d9bc2eb6059"
+    },
+    {
+      "path": "instrumented-api-package-3.log",
+      "bytes": 928468,
+      "sha256": "87b08891c08250e2029fba90af15c9951f1d88d3d50f39fbdbce52199685bd95"
+    },
+    {
+      "path": "instrumented-focused-5.log",
+      "bytes": 10525,
+      "sha256": "7a4d4ec1c62a8b0ad0f83814486a0a95d39658cf5387bd7351f775bbe2ab7f3e"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 1296,
+      "sha256": "0b1ca72909b2ffa6e48a1c645a9bb0e23d53cdc6e5d720572ba9ec80c60f76cb"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "services/platform/migrations/tools/ordered-current-native379-packet-v2.mjs": "b0f2c1483d009f45f9660bbb05e62fd7f7dfbae643bcd0af50023456a7ccd9c3",
+  "services/platform/migrations/tools/ordered-current-native379-packet-v2.test.mjs": "4a08ca625405c60a1f1feb086fdd8431155e42fce70808e2eecd977d0d66530b",
+  "services/platform/migrations/tools/ordered-current-native379-source-schema-v2.mjs": "da5a78ad3d5d9a19f348d99e1b44b444fe188e54e373a7d46d3fb609c3cc71a0",
+  "services/platform/migrations/tools/ordered-current-native379-source-schema-v2.test.mjs": "531e9d8255222266efa76f77161b101d5d3452285d2bb7076d12278d14a8eaa3",
+  "services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json": "d3f6fac0d38478208fe1feff2f521a8b132b373aa8516771c62005a762a11ea4",
+  "services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/generated-identities.json": "9d1053e9310e27128404e45c2eeedce1dc6b42eaff004ecf0e0760c903b59f99",
+  "services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-fact-delta.json": "90325bea8205ec4e3f8eaa1de3c1fb0d814981cc6fbfd91e3c3e4ad3e6a9cdab",
+  "services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0",
+  "services/platform/apiserver/authorization_transaction.go": "95a188b5d23de72a69a9f82c8719bf1b040295642710c1e87e1c617be65a6471",
+  "services/platform/apiserver/authorization_runtime_activation_test.go": "c3d02cc05aed023d6f5b84ae145ad3fe395ee0f5896142af25623d5172defaca"
+}

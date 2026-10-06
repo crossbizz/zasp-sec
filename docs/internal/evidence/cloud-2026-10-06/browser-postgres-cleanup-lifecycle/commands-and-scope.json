@@ -1,0 +1,65 @@
+{
+  "recordProvenance": "Manually assembled from actual completed tool invocations and retained logs, not automatic before/process receipts.",
+  "environmentRecipe": "env -i",
+  "environment": {
+    "PATH": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin:/usr/bin:/bin",
+    "TMPDIR": "/tmp"
+  },
+  "runs": [
+    {
+      "log": "lifecycle-red-final-tests.log.gz",
+      "argv": [
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "--test-name-pattern=^PostgreSQL cleanup ",
+        "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/source/scripts/production-combined-e2e.test.mjs"
+      ],
+      "exitCode": 1
+    },
+    {
+      "log": "lifecycle-green.log.gz",
+      "argv": [
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "--test-name-pattern=^PostgreSQL cleanup ",
+        "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/source/scripts/production-combined-e2e.test.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "log": "combined-component-green.log.gz",
+      "argv": [
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "--test-name-pattern=^(PostgreSQL cleanup |owned cleanup is idempotent$|failed checkpoint or provider joins retain errors and files while other owned resources close$|combined PostgreSQL startup registers its owner before readiness rejects$|retirement diagnostic rejects dead owned container despite a live Docker CLI child$|export API leaves shutdown margin inside the owned five second grace$|export API persists clean slow shutdown and forced kill before acceptance checks$|export API shutdown rejects nonzero and signaled restart and final lifetimes$)",
+        "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/source/scripts/production-combined-e2e.test.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "log": "owned-postgres-component-green.log.gz",
+      "argv": [
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/source/scripts/owned-browser-postgres.test.mjs"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "passingCounts": "27 selected orchestration tests including subtests +16 owned-PG component tests =43; the four new GREEN tests are included in27 and are not43+4.",
+  "deferred": [
+    "combined production E2E removes owned processes and temp root on SIGTERM",
+    "combined runtime proof removes owned containers and processes on real SIGTERM",
+    "composed Red Team runtime removes its owned container on real SIGTERM"
+  ],
+  "scope": [
+    "Four genuine source-extracted lifecycle REDs before production edits; then four GREEN",
+    "Full owned-browser-postgres component file: 16 passing mock-boundary tests",
+    "Positively selected combined component groups: 11 top-level/27 including subtests passing; external Node child lifetime checks execute real small Node processes",
+    "No real Docker, Go, PostgreSQL, browser or full verification execution; no shared source edits",
+    "Original Browser3 causal attribution remains UNPROVEN",
+    "Real combined SIGTERM/owned-container integration tests and broader suite unchanged and unexecuted here",
+    "PG stop begins before unrelated cleanup; its same caught promise is joined once at prior slot; all other resource/error retention checks preserved"
+  ],
+  "scanClaim": "No scan was run or claimed for this new publication; root staged/commit scopes remain separate."
+}

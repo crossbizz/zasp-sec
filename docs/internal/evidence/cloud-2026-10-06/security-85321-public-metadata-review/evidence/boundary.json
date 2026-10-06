@@ -1,0 +1,31 @@
+{
+  "scope": "PUBLICATION-READY-EXACT-HISTORICAL-COORDINATE-PROOF",
+  "actualCommit": "85321bb8fc72ec0748cff5e70e2fb24c253416fa",
+  "originalScan": "FAIL5",
+  "candidateScan": "PASS0",
+  "candidateCanaries": "FAIL10",
+  "findingCount": 5,
+  "uniqueHistoricalFingerprints": 4,
+  "lineCollision": "Two distinct verified PostgreSQL-library digest findings share the same commit:path:rule:line fingerprint. No column or content waiver is added.",
+  "samePathNewCommitFindings": 5,
+  "differentPathFindings": 5,
+  "unknownFindings": 0,
+  "baselineSHA256": "8ab2ec6719e1642bba27fce4d3622242b77b994e23bc0a9ef39d794547e13d70",
+  "candidateSHA256": "0ea55c26ab249af09129f0ee3d060373c9acdd079ba6d6cd363af0902f4d99d8",
+  "independentReviewSHA256": "c34e26f97c9e0f7b55f5c4211223195623891411b9eb89d1b863db55c66432b2",
+  "originalPrivateManifestSHA256": "4a7fdc8780b7e90d589f18fe72add3d052c89499d6d4aac3fd1981f02fcc10f0",
+  "omittedPrivateLiteralResolutionMembers": {
+    "private-literal-resolution.json": {
+      "bytes": 6622,
+      "sha256": "8e649ef8237c4b364632ea3faaf485cca71c5928820b5cfa173126edeb22fc54"
+    },
+    "private-literal-resolution.log": {
+      "bytes": 110,
+      "sha256": "de5a3cbe11310d4c4836cfd5e2e632b8ed90033ca5699528cb7c74353f597d03"
+    }
+  },
+  "canaryRepositoryOmitted": "Full private Git repository is retained at original path; exact scripts, fixture path/source commit/source hashes, actual canary commit, argv and redacted reports are included. No raw repository copy.",
+  "unchangedOriginals": true,
+  "sharedWritesByThisAgent": false,
+  "pending": "Actual current full-history scan and future commit coordinate review remain separate; no full-current clearance or native/release promotion claimed."
+}

@@ -240,7 +240,7 @@ func NewSecurityAgentWorkerRepository(database JSONDatabase) (*SecurityAgentWork
 	for index := range configurations {
 		if compatibility {
 			configurations[index].readySQL = securityAgentCompatibilityReadySQL
-			configurations[index].checksum = migrations.ProductionTemporalCompatibility().Checksum()
+			configurations[index].checksum = migrations.TemporalCompatibilityChecksum()
 			configurations[index].fingerprint = migrations.TemporalCompatibilityFingerprint()
 		}
 		if configurations[index].Ready(ctx) == nil {

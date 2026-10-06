@@ -1,0 +1,698 @@
+{
+  "format": "native379-v2-foundation-readonly-review-v1",
+  "assessment": "PASS-TOOL-MODULE-FOUNDATION-ONLY; NOT frozen-build/native admission",
+  "review_independence": "Fresh read-only recomputation independent of preparation manifests, by the same assistant actor that prepared this foundation; not distinct-author approval.",
+  "root": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0",
+  "reviewed_summary_sha256": "4fb859d984026b2b312abeb5a2f85b5104484f779397e9bea193c266c844129e",
+  "candidate_binding": {
+    "go_implementation_sha256": "05f314d326b85a56f98370431dc8fb4d7088d9ac9ddf8c73eebf3261d2b4f3e8",
+    "packet_sha256": "ca7dd2ad47a4afcea9f0dfca48d10e5e4b8876c0daf6450c33a66776e830d5e9",
+    "source_manifest_sha256": "0bac52d45ea7aeb417561cab1481e35842b94f62d41caeacf4878df794aafa56",
+    "source_files": 1544,
+    "expected_node_union": 1553,
+    "rules": 379,
+    "facts": 10052,
+    "controls": 589,
+    "limits": {
+      "cleanupMilliseconds": 3000,
+      "lockMilliseconds": 3000,
+      "maxBytes": 85983232,
+      "maxMilliseconds": 750000,
+      "maxPacketBytes": 33554432,
+      "maxRows": 38240,
+      "overflow": "abort-and-publish-nothing",
+      "sqlMilliseconds": 10000
+    },
+    "installable": false,
+    "nativeVerified": false,
+    "captureAuthority": false
+  },
+  "tools": {
+    "go_release_archive_sha256": "39042a078ea9ceebe3ecda4a7188f0f5b96e14a071d27923ba7f40b456e85ae3",
+    "go_tree_all_files_match_verified_release_archive": true,
+    "go_tree_files": 14539,
+    "go_binary_sha256": "3fb44b0d47becc087cf9e6002366bfbf136d3e08460f12389dbd04687dcf0dd0",
+    "go_version_file": "go1.25.13",
+    "go_tree_readonly_no_symlinks": true,
+    "node_release_archive_sha256": "9749e988f437343b7fa832c69ded82a312e41a03116d766797ac14f6f9eee578",
+    "node_binary_sha256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068",
+    "node_binary_matches_verified_release_archive": true,
+    "node_admitted_root_placement": "ModuleCache/owned-tools/node/bin/node"
+  },
+  "modules": {
+    "selected_external_packages": 73,
+    "package_checks": [
+      {
+        "path": "github.com/agnivade/levenshtein",
+        "version": "v1.2.1",
+        "files": 9,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2",
+        "version": "v1.43.7",
+        "files": 225,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream",
+        "version": "v1.7.18",
+        "files": 39,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2/internal/configsources",
+        "version": "v1.4.38",
+        "files": 7,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2/internal/endpoints/v2",
+        "version": "v2.7.38",
+        "files": 8,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2/internal/v4a",
+        "version": "v1.4.38",
+        "files": 28,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding",
+        "version": "v1.13.17",
+        "files": 8,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2/service/internal/checksum",
+        "version": "v1.9.30",
+        "files": 19,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2/service/internal/presigned-url",
+        "version": "v1.13.38",
+        "files": 9,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2/service/internal/s3shared",
+        "version": "v1.19.38",
+        "files": 27,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2/service/kms",
+        "version": "v1.55.6",
+        "files": 188,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2/service/s3",
+        "version": "v1.107.2",
+        "files": 406,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2/service/secretsmanager",
+        "version": "v1.44.6",
+        "files": 95,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/aws-sdk-go-v2/service/sts",
+        "version": "v1.41.6",
+        "files": 46,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/aws/smithy-go",
+        "version": "v1.27.8",
+        "files": 671,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/cespare/xxhash/v2",
+        "version": "v2.3.0",
+        "files": 21,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/davecgh/go-spew",
+        "version": "v1.1.2-0.20180830191138-d8f796af33cc",
+        "files": 24,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": true
+      },
+      {
+        "path": "github.com/facebookgo/clock",
+        "version": "v0.0.0-20150410010913-600d898af40a",
+        "files": 4,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": true
+      },
+      {
+        "path": "github.com/go-logr/logr",
+        "version": "v1.4.3",
+        "files": 56,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/go-logr/stdr",
+        "version": "v1.2.2",
+        "files": 11,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/gobwas/glob",
+        "version": "v0.2.3",
+        "files": 64,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": true
+      },
+      {
+        "path": "github.com/gogo/protobuf",
+        "version": "v1.3.2",
+        "files": 770,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/golang/mock",
+        "version": "v1.6.0",
+        "files": 126,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/google/uuid",
+        "version": "v1.6.0",
+        "files": 31,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/grpc-ecosystem/go-grpc-middleware/v2",
+        "version": "v2.3.2",
+        "files": 107,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/grpc-ecosystem/grpc-gateway/v2",
+        "version": "v2.28.0",
+        "files": 557,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/jackc/pgpassfile",
+        "version": "v1.0.0",
+        "files": 7,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/jackc/pgservicefile",
+        "version": "v0.0.0-20240606120523-5a60cdf6a761",
+        "files": 7,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/jackc/pgx/v5",
+        "version": "v5.10.0",
+        "files": 347,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/jackc/puddle/v2",
+        "version": "v2.2.2",
+        "files": 19,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/lestrrat-go/blackmagic",
+        "version": "v1.0.4",
+        "files": 10,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/lestrrat-go/dsig",
+        "version": "v1.2.1",
+        "files": 34,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/lestrrat-go/httpcc",
+        "version": "v1.0.1",
+        "files": 10,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/lestrrat-go/httprc/v3",
+        "version": "v3.0.5",
+        "files": 38,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/lestrrat-go/jwx/v3",
+        "version": "v3.1.1",
+        "files": 374,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/lestrrat-go/option/v2",
+        "version": "v2.0.0",
+        "files": 10,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/nexus-rpc/nexus-proto-annotations",
+        "version": "v0.1.1-0.20260629224316-835bd8d49cb4",
+        "files": 9,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/nexus-rpc/sdk-go",
+        "version": "v0.7.0",
+        "files": 20,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/open-policy-agent/opa",
+        "version": "v1.17.0",
+        "files": 7459,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/openfga/go-sdk",
+        "version": "v0.8.2",
+        "files": 299,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/pmezard/go-difflib",
+        "version": "v1.0.1-0.20181226105442-5d4384ee4fb2",
+        "files": 4,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": true
+      },
+      {
+        "path": "github.com/rcrowley/go-metrics",
+        "version": "v0.0.0-20250401214520-65e299d6c5c9",
+        "files": 52,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": true
+      },
+      {
+        "path": "github.com/robfig/cron",
+        "version": "v1.2.0",
+        "files": 13,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": true
+      },
+      {
+        "path": "github.com/sirupsen/logrus",
+        "version": "v1.9.4",
+        "files": 60,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/sourcegraph/conc",
+        "version": "v0.3.1-0.20240121214520-5f936abd7ae8",
+        "files": 34,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/stretchr/objx",
+        "version": "v0.5.2",
+        "files": 37,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/stretchr/testify",
+        "version": "v1.11.1",
+        "files": 63,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/tchap/go-patricia/v2",
+        "version": "v2.3.3",
+        "files": 10,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/valyala/fastjson",
+        "version": "v1.6.10",
+        "files": 38,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/vektah/gqlparser/v2",
+        "version": "v2.5.33",
+        "files": 379,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "github.com/xeipuuv/gojsonpointer",
+        "version": "v0.0.0-20190905194746-02993c407bfb",
+        "files": 4,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": true
+      },
+      {
+        "path": "github.com/xeipuuv/gojsonreference",
+        "version": "v0.0.0-20180127040603-bd5ef7bd5415",
+        "files": 4,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": true
+      },
+      {
+        "path": "github.com/yashtewari/glob-intersection",
+        "version": "v0.2.0",
+        "files": 14,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "go.opentelemetry.io/auto/sdk",
+        "version": "v1.2.1",
+        "files": 34,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "go.opentelemetry.io/otel",
+        "version": "v1.44.0",
+        "files": 684,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "go.opentelemetry.io/otel/metric",
+        "version": "v1.44.0",
+        "files": 24,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "go.opentelemetry.io/otel/trace",
+        "version": "v1.44.0",
+        "files": 47,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "go.temporal.io/api",
+        "version": "v1.63.4",
+        "files": 259,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "go.temporal.io/sdk",
+        "version": "v1.48.0",
+        "files": 291,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "go.yaml.in/yaml/v2",
+        "version": "v2.4.4",
+        "files": 23,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "go.yaml.in/yaml/v3",
+        "version": "v3.0.4",
+        "files": 25,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "golang.org/x/crypto",
+        "version": "v0.51.0",
+        "files": 387,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "golang.org/x/net",
+        "version": "v0.55.0",
+        "files": 845,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "golang.org/x/sync",
+        "version": "v0.21.0",
+        "files": 19,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "golang.org/x/sys",
+        "version": "v0.45.0",
+        "files": 549,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "golang.org/x/text",
+        "version": "v0.39.0",
+        "files": 488,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "golang.org/x/time",
+        "version": "v0.15.0",
+        "files": 9,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "google.golang.org/genproto/googleapis/api",
+        "version": "v0.0.0-20260526163538-3dc84a4a5aaa",
+        "files": 47,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "google.golang.org/genproto/googleapis/rpc",
+        "version": "v0.0.0-20260526163538-3dc84a4a5aaa",
+        "files": 9,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "google.golang.org/grpc",
+        "version": "v1.83.1",
+        "files": 1071,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "google.golang.org/protobuf",
+        "version": "v1.36.11",
+        "files": 642,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "gopkg.in/yaml.v3",
+        "version": "v3.0.1",
+        "files": 24,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      },
+      {
+        "path": "sigs.k8s.io/yaml",
+        "version": "v1.6.0",
+        "files": 24,
+        "extracted_directory_h1_matches_zip_and_committed_go_sum": true,
+        "separate_mod_h1_matches_committed_go_sum": true,
+        "legacy_mod_not_inserted": false
+      }
+    ],
+    "legacy_separate_mod_metadata": [
+      "github.com/davecgh/go-spew@v1.1.2-0.20180830191138-d8f796af33cc",
+      "github.com/facebookgo/clock@v0.0.0-20150410010913-600d898af40a",
+      "github.com/gobwas/glob@v0.2.3",
+      "github.com/pmezard/go-difflib@v1.0.1-0.20181226105442-5d4384ee4fb2",
+      "github.com/rcrowley/go-metrics@v0.0.0-20250401214520-65e299d6c5c9",
+      "github.com/robfig/cron@v1.2.0",
+      "github.com/xeipuuv/gojsonpointer@v0.0.0-20190905194746-02993c407bfb",
+      "github.com/xeipuuv/gojsonreference@v0.0.0-20180127040603-bd5ef7bd5415"
+    ],
+    "metadata_mod_count": 283,
+    "exact_cache_file_topology_no_missing_or_extra": true,
+    "cache_file_count": 18916,
+    "legacy_policy": "Cached proxy-generated module metadata verified separately; absent go.mod remains absent in each legacy package and archive. No file or license inserted.",
+    "extra_lazy_graph_metadata": "The283 .mod set is separately hashed; extra metadata is not claimed consumed. Complete future offline Go graph/inventory and mod verify remain prerequisites."
+  },
+  "license": {
+    "module": "github.com/nexus-rpc/nexus-proto-annotations",
+    "version": "v0.1.1-0.20260629224316-835bd8d49cb4",
+    "license": "MIT",
+    "license_sha256": "06847bcc52e67fceae1691299bdd42dbfdff138c91e3ea89811a7aa2827988d6",
+    "old_unlicensed_package_present": false
+  },
+  "topology": {
+    "product_owned_source_absent": true,
+    "bin_empty": true,
+    "owned_build_cache_empty0700": true,
+    "module_cache_top_currently_writable_for_pending_source_integration": true,
+    "final_ancestor_freeze_still_required": true
+  },
+  "prefreeze_generated_output_delta": {
+    "operation": "Only after exact reviewed committed source: run copied build-ordered-current-development.mjs --write at fixed owned-root paths before compilation/freeze, --check, repeat --write and compare all8 bytes. packet-v2 CLI has --json/--check only.",
+    "generated_output_pins": {
+      "consolidated-reference-contract.json": "d7e2149d8be0d1e04bd1f18e571bf55ffe4458cbe380bc1f406d3ef49aae02ff",
+      "consolidated-reference-select.sql": "23f8a023d001acbf0c257c653335603864eead2b9f963ebdbafc03e266577b57",
+      "development-admission.sql": "999db012258f1cd04880c8fd5451bd41d4317556bb00c9dec15d493b257ba3ef",
+      "development-checkpoint.json": "905664791351c9714bfa4769ab94a6c11c6f1744c11ff56c165536fc71d13705",
+      "development-collector.sql": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f",
+      "development-manifest.json": "4820af14e63ea69b9285e5c69463436fe4ce01ef3a39111b7cbefc8adc2897f9",
+      "development-module.sql": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74",
+      "effective-contract4.json": "06210a2df2f96445b2e864812c83672a46a747c57ffc5b8c4ba380c23e1ab7b0"
+    },
+    "matches_dependency_source_commit": {
+      "consolidated-reference-contract.json": false,
+      "consolidated-reference-select.sql": true,
+      "development-admission.sql": false,
+      "development-checkpoint.json": false,
+      "development-collector.sql": false,
+      "development-manifest.json": false,
+      "development-module.sql": false,
+      "effective-contract4.json": true
+    },
+    "explicit_git_to_generated_delta_required": true,
+    "paths_excluded_from_node_source_roster": true
+  },
+  "future_go_inventory_requirements": [
+    "Final reviewed committed source platform+health with sibling local replacement, no prior frozen product source copy",
+    "Separately reviewed populated new companion MUST occur in complete Go TestGoFiles/input roster and fresh test executable; remains excluded from Node source manifest",
+    "Generate all8 fixed outputs BEFORE Go build/inventory so actual generated embeds are bound",
+    "Compile apiserver.test/assembly.test/CLI offline with fresh owned cache; retain exact commands/exit/hash",
+    "Freeze all Platform/GoRoot/ModuleCache ancestors and every consumed Node/source/generated file; include Node below admitted ModuleCache",
+    "Enumerate exact actual Go deps/test/embed/module/tool closure after final companion and generation; verify modules against exact final go.sum; no historical count reuse",
+    "Root reviews separate Go envelope then exact native379 v2 wrapper with complete Node union; neither external envelope digest belongs in companion, avoiding hash cycle",
+    "Budget proof must preserve current packet caps and close installed10052/stream10052/pristine row accounting before source integration"
+  ],
+  "compiler_source_or_native_execution": false,
+  "repo_or_foundation_modifications": false,
+  "elapsed_seconds": 13.972
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -316,6 +317,12 @@ func main() {
 		log.Fatal("release migration database unavailable")
 	}
 	defer func() { _ = connection.Close(context.Background()) }()
+	if err := configureMigrationOptimizer(ctx, connection); err != nil {
+		closeCtx, closeCancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+		_ = connection.Close(closeCtx)
+		closeCancel()
+		log.Fatal("release migration optimizer configuration rejected")
+	}
 	runner, err := migrations.NewRunner(&migrationDatabase{connection: connection})
 	if err != nil {
 		log.Fatal("release migration failed")
@@ -359,6 +366,12 @@ func main() {
 		err = runReleaseMigration(ctx, &registeredReleaseMigrationRunner{releaseMigrationRunner: runner, queryer: connection, registration: registration}, arguments)
 	}
 	if err != nil {
+		if marker := authorizationRuntimeProfileFailureMarker(err); marker != "" {
+			if _, writeErr := fmt.Fprint(os.Stderr, marker); writeErr != nil {
+				log.Fatal("release migration output failed")
+			}
+			os.Exit(1)
+		}
 		log.Fatal("release migration failed")
 	}
 	if isForwardMigration(arguments) {
@@ -474,70 +487,70 @@ func registerForwardRelease(ctx context.Context, queryer principalQueryer, regis
 	}
 	if arguments[0] == "up-temporal-human-admission" {
 		var ready bool
-		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal76.ready($2,$3)`, registration.migration, migrations.ProductionTemporalHumanAdmission().Checksum(), migrations.TemporalHumanAdmissionFingerprint()).Scan(&ready); err != nil || !ready {
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal76.ready($2,$3)`, registration.migration, migrations.TemporalHumanAdmissionChecksum(), migrations.TemporalHumanAdmissionFingerprint()).Scan(&ready); err != nil || !ready {
 			return errReleasePrincipalRegistration
 		}
 		return nil
 	}
 	if arguments[0] == "up-temporal-test-selector" {
 		var ready bool
-		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal75.ready($2,$3)`, registration.migration, migrations.ProductionTemporalTestSelector().Checksum(), migrations.TemporalTestSelectorFingerprint()).Scan(&ready); err != nil || !ready {
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal75.ready($2,$3)`, registration.migration, migrations.TemporalTestSelectorChecksum(), migrations.TemporalTestSelectorFingerprint()).Scan(&ready); err != nil || !ready {
 			return errReleasePrincipalRegistration
 		}
 		return nil
 	}
 	if arguments[0] == "up-temporal-test-executor" {
 		var ready bool
-		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal74.ready($2,$3)`, registration.migration, migrations.ProductionTemporalTestExecutor().Checksum(), migrations.TemporalTestExecutorFingerprint()).Scan(&ready); err != nil || !ready {
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal74.ready($2,$3)`, registration.migration, migrations.TemporalTestExecutorChecksum(), migrations.TemporalTestExecutorFingerprint()).Scan(&ready); err != nil || !ready {
 			return errReleasePrincipalRegistration
 		}
 		return nil
 	}
 	if arguments[0] == "up-temporal-admission" {
 		var ready bool
-		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal73.ready($2,$3)`, registration.migration, migrations.ProductionTemporalAdmission().Checksum(), migrations.TemporalAdmissionFingerprint()).Scan(&ready); err != nil || !ready {
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal73.ready($2,$3)`, registration.migration, migrations.TemporalAdmissionChecksum(), migrations.TemporalAdmissionFingerprint()).Scan(&ready); err != nil || !ready {
 			return errReleasePrincipalRegistration
 		}
 		return nil
 	}
 	if arguments[0] == "up-temporal-discovery" {
 		var ready bool
-		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal72.ready($2,$3)`, registration.migration, migrations.ProductionTemporalDiscovery().Checksum(), migrations.TemporalDiscoveryFingerprint()).Scan(&ready); err != nil || !ready {
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal72.ready($2,$3)`, registration.migration, migrations.TemporalDiscoveryChecksum(), migrations.TemporalDiscoveryFingerprint()).Scan(&ready); err != nil || !ready {
 			return errReleasePrincipalRegistration
 		}
 		return nil
 	}
 	if arguments[0] == "up-temporal-legacy-tests" {
 		var ready bool
-		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal71.ready($2,$3)`, registration.migration, migrations.ProductionTemporalLegacyTests().Checksum(), migrations.TemporalLegacyTestsFingerprint()).Scan(&ready); err != nil || !ready {
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal71.ready($2,$3)`, registration.migration, migrations.TemporalLegacyTestsChecksum(), migrations.TemporalLegacyTestsFingerprint()).Scan(&ready); err != nil || !ready {
 			return errReleasePrincipalRegistration
 		}
 		return nil
 	}
 	if arguments[0] == "up-temporal-compatibility" {
 		var ready bool
-		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal70.ready($2,$3)`, registration.migration, migrations.ProductionTemporalCompatibility().Checksum(), migrations.TemporalCompatibilityFingerprint()).Scan(&ready); err != nil || !ready {
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal70.ready($2,$3)`, registration.migration, migrations.TemporalCompatibilityChecksum(), migrations.TemporalCompatibilityFingerprint()).Scan(&ready); err != nil || !ready {
 			return errReleasePrincipalRegistration
 		}
 		return nil
 	}
 	if arguments[0] == "up-temporal-workflow" {
 		var ready bool
-		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal69.ready($2,$3)`, registration.migration, migrations.ProductionTemporalWorkflow().Checksum(), migrations.TemporalWorkflowFingerprint()).Scan(&ready); err != nil || !ready {
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal69.ready($2,$3)`, registration.migration, migrations.TemporalWorkflowChecksum(), migrations.TemporalWorkflowFingerprint()).Scan(&ready); err != nil || !ready {
 			return errReleasePrincipalRegistration
 		}
 		return nil
 	}
 	if arguments[0] == "up-temporal-executor" {
 		var ready bool
-		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal68.ready($2,$3)`, registration.migration, migrations.ProductionTemporalExecutor().Checksum(), migrations.TemporalExecutorFingerprint()).Scan(&ready); err != nil || !ready {
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal68.ready($2,$3)`, registration.migration, migrations.TemporalExecutorChecksum(), migrations.TemporalExecutorFingerprint()).Scan(&ready); err != nil || !ready {
 			return errReleasePrincipalRegistration
 		}
 		return nil
 	}
 	if arguments[0] == "up-temporal-domain" {
 		var ready bool
-		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal67.ready($2,$3)`, registration.migration, migrations.ProductionTemporalDomain().Checksum(), migrations.TemporalDomainFingerprint()).Scan(&ready); err != nil || !ready {
+		if err := queryer.QueryRow(ctx, `SELECT session_user=$1 AND zasp_temporal67.ready($2,$3)`, registration.migration, migrations.TemporalDomainChecksum(), migrations.TemporalDomainFingerprint()).Scan(&ready); err != nil || !ready {
 			return errReleasePrincipalRegistration
 		}
 		return nil

@@ -1,0 +1,70 @@
+{
+  "assessment": "Source approved checksum-only fresh per-call optimization; runtime validation Root-owned",
+  "checks": [
+    {
+      "path": "services/platform/migrations/security_agent_budget_candidate.go",
+      "control": "Exact original template-body reversal",
+      "pass": true
+    },
+    {
+      "path": "services/platform/migrations/security_agent_run_context_candidate.go",
+      "control": "Exact original template-body reversal",
+      "pass": true
+    },
+    {
+      "path": "services/platform/migrations/security_agent_existing_tests.go",
+      "control": "Exact original template-body reversal",
+      "pass": true
+    },
+    {
+      "path": "services/platform/migrations/security_agent_existing_tests_release.go",
+      "control": "Exact prehash original template reversal",
+      "pass": true
+    },
+    {
+      "path": "services/platform/migrations/compliance_release.go",
+      "control": "Exact original56 prehash template reversal; one52/call",
+      "pass": true
+    }
+  ],
+  "rows": [
+    {
+      "path": "services/platform/migrations/security_agent_budget_candidate.go",
+      "sha256": "ff45b997a64bb426700fba5d1f4ef10663fb7c126967cec3ff4b86b20954dd45",
+      "bytes": 2380
+    },
+    {
+      "path": "services/platform/migrations/security_agent_run_context_candidate.go",
+      "sha256": "0a3c680bc447c3030e466694ab683d044e57d234c95c4dba08cc7c150e818a44",
+      "bytes": 1667
+    },
+    {
+      "path": "services/platform/migrations/security_agent_existing_tests.go",
+      "sha256": "cc26243ed058c8ee0750bb1ef67437d65b0352f3c59d84ddb088b5b25b42c94d",
+      "bytes": 1745
+    },
+    {
+      "path": "services/platform/migrations/security_agent_existing_tests_release.go",
+      "sha256": "793bca5f6887b4eaa8920322379bce1522a30d63029e9fb2af78c2a5a586348b",
+      "bytes": 4067
+    },
+    {
+      "path": "services/platform/migrations/compliance_release.go",
+      "sha256": "08c3bb05457a4dd0d3ca829b1b71830c5e54bb5fc55dbf3f34d63fdcd4890f36",
+      "bytes": 2326
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_database.go",
+      "sha256": "d10b07e271e2cbb164daf5b00b699f5d88764a7eabeb92d8d2a0a1ed649a75b6",
+      "bytes": 15834
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_checksum_cost_test.go",
+      "sha256": "e1e6ce261981161cf9aba169ff6175ce107fcadf71660d46f3dd713014e63608",
+      "bytes": 1306
+    }
+  ],
+  "independentVectorReceiptSHA256": "bc4cd4bcae72c358a6ad9694627c65a59884787d854aa90335eb90a1bd7c67e8",
+  "noReviewerGo": true,
+  "finding": "No blocking source issue. Add exact query tail identity and source mutation/restoration tests before ship."
+}

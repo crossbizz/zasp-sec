@@ -1,0 +1,46 @@
+{
+  "format": "independent-public-reference-publication-archive-review-v1",
+  "reviewer": "provider_deployment_readiness",
+  "assessment": "PASS EXACT ARCHIVE PUBLICATION; NO COMPRESSION-BASED SCANNER CLEARANCE",
+  "original_packet": "/workspace/.zasp-cloud-owned/gitleaks-fresh-publication-mtucw7lx",
+  "original_files": 16,
+  "original_manifest_sha256": "213c95e66777b72a348fc9e691761a0f1aba6c7315e22ca1f47a569fbd5105cf",
+  "original_dirscan_exit": 1,
+  "original_dirscan_findings": 180,
+  "classification_sha256": "ec57ab68a3034c8df9c362f38705a7c6dcacfd0cdba7e9649b8d36de719a70d0",
+  "independent_classification_checks": {
+    "actual_findings": 180,
+    "actual_exact_JSON_keys": [
+      "commit",
+      "remote_commit",
+      "object"
+    ],
+    "all_actual_source_file_line_identifier_and_object_content_hashes_match": true,
+    "distinct_actual_commit_objects": 3,
+    "all_canonical_Git_commit_object_SHA1_recomputed": true,
+    "unknown": 0
+  },
+  "archive": {
+    "path": "/workspace/.zasp-cloud-owned/gitleaks-durable-publication-9e3gnfwm/original-sixteen-files.tar.gz",
+    "sha256": "f3e446bd4ec2ff342bba7881f021ce3b5356ec77ca28b4464b903920165e57cb",
+    "bytes": 30343,
+    "members": 16,
+    "unique_safe_regular_sorted_members": true,
+    "all_members_verbatim_original_bytes_and_full_roster_equal": true,
+    "no_links_absolute_or_traversal_paths": true,
+    "normalized_uid_gid_mtime": 0,
+    "uname_gname": "empty",
+    "mode": "0400",
+    "gzip_mtime": 0
+  },
+  "bundle_snapshot": {
+    "manifest_sha256": "16492a9ba532ab5b1dcc094250d9bf8c1872a28b18496f2a239eee4371de400c",
+    "members": 6,
+    "all_member_sizes_hashes_match": true,
+    "unlisted_members": 0,
+    "prior_publication_dirscan_manifest_sha256": "eded32f82eadff281a52d9b2faf480373e195d24e47d08b219f2758612856e66",
+    "boundary": "Prior dirscanPASS0 applies to priorfive-member bundle; freshfullhistoryprecommitaggregate was subsequently added. Final bundlepublication must bind refreshedmanifest/scopedscan if author claims laterbundlePASS."
+  },
+  "plain_receipt_review": "Clearly preserves originalDIRFAIL180 and historical546/550; explains ordinary durable encoding, freshcredentialsemantics separate from unauthenticatedoldreview/nativeartifactprovenance. Actualfullhistory0 aggregate explicitprecommit snapshot with reviewedignore applied; futurecommit scan stillrequired. No rule/config/sourceproofmasking or native/deployed/advisory/728promotion.",
+  "findings": []
+}

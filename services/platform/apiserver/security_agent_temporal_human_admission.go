@@ -24,7 +24,7 @@ func (d *PostgresJSONDatabase) temporalHumanAdmissionAvailable(ctx context.Conte
 	if !present {
 		return false, nil
 	}
-	if err := d.driver.QueryRow(ctx, `SELECT zasp_temporal76.api_ready($1,$2)`, migrations.ProductionTemporalHumanAdmission().Checksum(), migrations.TemporalHumanAdmissionFingerprint()).Scan(&ready); err != nil || !ready {
+	if err := d.driver.QueryRow(ctx, `SELECT zasp_temporal76.api_ready($1,$2)`, migrations.TemporalHumanAdmissionChecksum(), migrations.TemporalHumanAdmissionFingerprint()).Scan(&ready); err != nil || !ready {
 		return false, ErrRepositoryUnavailable
 	}
 	return true, nil

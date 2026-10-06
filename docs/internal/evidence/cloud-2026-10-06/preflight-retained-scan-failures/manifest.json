@@ -1,0 +1,56 @@
+{
+  "members": {
+    "committed19-blob-review.json.gz": {
+      "bytes": 2874,
+      "decodedBytes": 7894,
+      "decodedSHA256": "285c3382690d6386ba700cb652c58be09d7b6991e858a397bd69feb70f95523f",
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-preflight-79f3676b-committed-19-blob-review.json",
+      "sha256": "8f03acf9c9e63faec6ebc6cfdaf0db3eaa3fe01ce8e9ee5d9286c1d3ee46c1d3"
+    },
+    "failed-baseline-fullfile-report.json.gz": {
+      "bytes": 529,
+      "decodedBytes": 2937,
+      "decodedSHA256": "93548cd4aa35826859db842c61722bdf26ce26fb10a7b4a4c6606c612476121b",
+      "originalPath": "/tmp/zasp-cloud-evidence/preflight-preexisting-finding-comparison-1hhx49bu/baseline-report.json",
+      "sha256": "ecebcf37bb1747de5d2c98b94266d79fcbb2cac649e97bf5f22b550200e8f8e2"
+    },
+    "failed-staged-snapshot-report.json.gz": {
+      "bytes": 525,
+      "decodedBytes": 2825,
+      "decodedSHA256": "53a4bf06b1736f3593efd4f20e735d611a41f67a5d0dd22e44b24e94aa525e0b",
+      "originalPath": "/tmp/zasp-cloud-evidence/preflight-staged-scan-et77lrju/report.json",
+      "sha256": "2001fdf52a58d7ed5654f5148e2fca6675fbff748b8bdaf2346a266a7ae1ade5"
+    },
+    "git-diff-scan-records.json.gz": {
+      "bytes": 441,
+      "decodedBytes": 1229,
+      "decodedSHA256": "dd06655edd41bce9b2208a1f9a39af1f9e39403efa2a64363ff77ee656f02d48",
+      "originalPath": "/tmp/zasp-cloud-evidence/preflight-commit-scans-tjryxbfe/records.json",
+      "sha256": "25c30e7581a4e6b88fd2e51e9c2a6e367c08959287a63c669a670f1131cd7fdd"
+    },
+    "materializer-parser-failure-review.json.gz": {
+      "bytes": 1289,
+      "decodedBytes": 2329,
+      "decodedSHA256": "17afdd2fae89328277eb39d90c1594b15c9e37df1f13fe96f6d019e6baedc434",
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-historical-v2-materializer-parser-failure-review.json",
+      "sha256": "b3a2aa06a5f133e815ccc240167fb8d5c0180fd134b818b926296ce34c6c79c4"
+    },
+    "source-finding-semantic-review.json.gz": {
+      "bytes": 1656,
+      "decodedBytes": 3951,
+      "decodedSHA256": "28497bdb55f8cbc396f01b4ef03df43382b50670664eb52eef992acf30f4e011",
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-preflight79-four-source-finding-semantic-review.json",
+      "sha256": "af571e7e37be46df37c88fd722c6aa4dc688f6aef340a30388eed91ea9834cc5"
+    },
+    "source-line-comparison-addendum.json.gz": {
+      "bytes": 542,
+      "decodedBytes": 1379,
+      "decodedSHA256": "2a0606ffeb96037bd0850e2bb28415f35720e201f1524d2893b1e7198159f3c5",
+      "originalPath": "/tmp/zasp-cloud-evidence/preflight-preexisting-finding-comparison-1hhx49bu/source-line-comparison-addendum.json",
+      "sha256": "c5d751c1309562340a165695593e44797af789720cb7029e6dbae3767df74b08"
+    }
+  },
+  "schema": "zasp-preflight-retained-scan-failures-v1",
+  "scope": "Both full-file scans FAILED4 and remain failed. Independent finding-purpose classification is not a waiver or scanner clearance; separate exact-diff and available-reference Git scans passed0 with unchanged configuration. No ignore changes. The first Secret-field digest comparison was meaningless because of redaction; only exact original source-line and consumer inspection support classification. Selected materializer failure review references omitted raw logs/maps and does not claim consumed Go equality or behavioral/native acceptance.",
+  "sourceCommit": "79f3676b3dac50289c0e40e98a7951bf1241a746"
+}

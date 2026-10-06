@@ -1,0 +1,66 @@
+{
+  "format": "private-worker-fixture-candidate-evidence-manifest-v1",
+  "files": {
+    "candidate/compliance_export_composition_test.go": {
+      "bytes": 9212,
+      "sha256": "8b94357130fd22db44de3ed443ac975ec3cd2861d3fd8fd410f87e9286ff668a"
+    },
+    "candidate/security_agent_temporal_runner_settlement_test.go": {
+      "bytes": 10684,
+      "sha256": "49ea318bcbc38e4c4ce3d1260de415a1c80532dc98591fc5a90a3203b208e35a"
+    },
+    "evidence/README.md": {
+      "bytes": 1952,
+      "sha256": "1a407fa4f04f48b2e22b9212e437ecb0091aa7ca269e65671bf6c86f6888e64e"
+    },
+    "evidence/baseline-focused.log": {
+      "bytes": 75,
+      "sha256": "cc700e0a2056f85b9cd55469ea7286ae22b24ce1e4618d7f764ff423ed79143c"
+    },
+    "evidence/candidate-dirscan-redacted.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "evidence/candidate-dirscan-summary.json": {
+      "bytes": 242,
+      "sha256": "551fdcbe9d36005dc04b89add18139a369ad4d90b79881647bce41bbb47caecf"
+    },
+    "evidence/candidate-pins.json": {
+      "bytes": 547,
+      "sha256": "d0ff5d76951cf596a9a830b2c91fcf4c08f485cafe958b9e2797847b7fff88a5"
+    },
+    "evidence/candidate.patch": {
+      "bytes": 8744,
+      "sha256": "ce5f9056e551e2771a60cd80f8978aca3090bbc24a02b3db721b2582b1617d65"
+    },
+    "evidence/compliance-early-return-red.log": {
+      "bytes": 288,
+      "sha256": "d5dbe93a4048e5276744c2bb32e81886350f853c6b3b9df522ba323fbb44a7f8"
+    },
+    "evidence/exact-source-delta-verification.json": {
+      "bytes": 856,
+      "sha256": "3486d094655c7a4aff758c87056bc49caf152576b8e66edc8712e35217ff35ea"
+    },
+    "evidence/grouped-green.log": {
+      "bytes": 75,
+      "sha256": "a85a5d0e42b0d60d136fcdcf28a26c8735bd3ea90c2db3e3674528cd79c8a001"
+    },
+    "evidence/grouped-race-green.log": {
+      "bytes": 76,
+      "sha256": "563d4129b3629c132acfff0b8bef07a120488bb5ab6c7b73c2bfde9fd6336128"
+    },
+    "evidence/source-receipt.json": {
+      "bytes": 319,
+      "sha256": "50db1de5ad17ecac63dafe5b0e7343dfeed203097e19ebdb725e8330af0420ff"
+    },
+    "evidence/temporal-deterministic-red.log": {
+      "bytes": 3172,
+      "sha256": "c885eaff2a50aa9dba688e214416f2ec067f719511b7fdc8779df760584a8aa8"
+    },
+    "evidence/validation-summary.json": {
+      "bytes": 6469,
+      "sha256": "19fbad3478d04f29a13f061f81dd098f86f18c1047a2c7ddb002c906b1b3c3ff"
+    }
+  },
+  "scope": "Exact512 private fixture-onlycandidate and targetedRED/GREEN/race evidence; originalfullFAIL unchanged; no sharedintegration/nativeclearance"
+}

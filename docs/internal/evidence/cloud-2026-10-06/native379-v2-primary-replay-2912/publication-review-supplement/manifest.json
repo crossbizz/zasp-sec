@@ -1,0 +1,28 @@
+{
+  "format": "separate-primary2912-required-publication-supplement-v1",
+  "members": {
+    "manifest-provenance-erratum.json": {
+      "bytes": 1046,
+      "sha256": "5701591de58659507fadb5fb0466b102a3090adb233d0bc4fbdd5735f595e3e6"
+    },
+    "publication-reviewed-gitleaks-report.json": {
+      "bytes": 6428,
+      "sha256": "eccc8b2de6c45f3526b8ed55e2ffd440c8ee2affdf3604e9231eceb4c000221f"
+    },
+    "publication-reviewed-gitleaks.log": {
+      "bytes": 197,
+      "sha256": "b8e49e617be4fa79e4e42cab402e2a54bdfb77172614af0edf537b8897013bf2"
+    },
+    "scan-record.json": {
+      "bytes": 1218,
+      "sha256": "61c2cffc76b16507c5c8e789a59eb5a04faedb41549ec194541538fca016045b"
+    },
+    "native379-v2-independent-primary2912-publication-review.json.gz": {
+      "bytes": 1991,
+      "sha256": "f68775be652ac20d15033709e7eb0d542c91448a74e3ccfbb31c30b6db805ed9",
+      "decodedBytes": 3770,
+      "decodedSHA256": "79e390388f61c18bd58d82edda430304af77439c566e58a8a593b16f4f5e16a4"
+    }
+  },
+  "limits": "Required original scan evidence and explicit original-manifest provenance-path erratum retained; original manifest untouched. Scanner FAIL8 is not clearance; source approval does not prove future combined bindings, native or deployed acceptance."
+}

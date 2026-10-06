@@ -1,0 +1,15 @@
+{
+  "scope": "read-only originalstorageFAIL phase evidence addendum",
+  "members": [
+    {
+      "path": "addendum.json",
+      "bytes": 1295,
+      "sha256": "0dfb1a051b4e9d5e5f9211fa5d543035251489e088c5d85630f65412441f461a"
+    },
+    {
+      "path": "args1827948700",
+      "bytes": 67012,
+      "sha256": "147a783986f095eb11befae73cda85d1bc5afc8e81f68a80f0c9d30266082118"
+    }
+  ]
+}

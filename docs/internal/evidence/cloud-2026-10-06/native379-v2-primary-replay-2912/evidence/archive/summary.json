@@ -1,0 +1,17 @@
+{
+  "directory": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei",
+  "wireSHA256": "93a6a59469725b7357d0119245726b93c08066abc6afb81972df5ad9d1d4c6a7",
+  "wireBytes": 25160408,
+  "gzipSHA256": "8bdb61861140695d8a207e8d04564a735b084dc74586c73f82a328781f14fb20",
+  "gzipBytes": 1578274,
+  "sourceManifestSHA256": "605a85d721647a355adbf1e99f7ce722860765cca83d02ffbe814e7b91c29339",
+  "rules": 379,
+  "facts": 10052,
+  "sites": 565,
+  "controls": 589,
+  "steps": 6348,
+  "allNonAuthorityFieldsExact5d18": true,
+  "actualSourceFiles": 6239,
+  "actualChangedPaths": 4,
+  "scope": "PRIVATE-SOURCE-ONLY-PRIMARY-FALSE-REPLAY-DIAGNOSTIC; noPG/native; stalecompanion notnew executionauthorization"
+}

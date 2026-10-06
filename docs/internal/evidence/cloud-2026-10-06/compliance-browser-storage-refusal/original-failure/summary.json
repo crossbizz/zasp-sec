@@ -1,0 +1,49 @@
+{
+  "source": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "outcome": "actual joined local browser attempt FAIL due storage reserve observation/refusal",
+  "elapsed_seconds": 44.7562777940002,
+  "stage_exit_codes": [
+    0,
+    143
+  ],
+  "all_processes_joined": true,
+  "survivors": {},
+  "source_clean_after": true,
+  "compiled_server_hash_unchanged": true,
+  "workspace_first_observation_bytes": 3016794112,
+  "workspace_minimum_observation_bytes": 1427566592,
+  "minimum_workspace_guard_bytes": 1500000000,
+  "observations": 25,
+  "cleanup_failure_class": null,
+  "cleanup_signals": null,
+  "pg_client_before_after": {
+    "before": {
+      "manifest_sha256": "50f4b59eae4b254cad89d6dbc316c52bab976c9c9dddb5059a92838ea2fe8020",
+      "members_checked": 60
+    },
+    "after": {
+      "manifest_sha256": "50f4b59eae4b254cad89d6dbc316c52bab976c9c9dddb5059a92838ea2fe8020",
+      "members_checked": 60
+    }
+  },
+  "raw_client_version": "psql (PostgreSQL) 18.3 (Debian 18.3-1.pgdg12+1)",
+  "owned_browser_container_after_count": 0,
+  "post_inspection_utc": "2026-10-06T05:13:51.196113+00:00",
+  "workspace_available_at_inspection_bytes": 2688307200,
+  "tmp_available_at_inspection_bytes": 1305489408,
+  "remaining_attempt_tmp_disk_bytes_observed": 73728,
+  "default_go_cache_disk_bytes_observed": 3181510656,
+  "files_deleted": false,
+  "guard_or_source_changed": false,
+  "browser_acceptance_result": "NOT COMPLETED",
+  "product_assertion_failure": "none established by the actual log",
+  "hosted_failure_cause": "UNKNOWN",
+  "limits": [
+    "Guard maintained original1.5GB; no lower threshold or reset900deadline",
+    "Normal TERM produced143 and cleanup joined; no processsurvivors and emptyownedcontainerlabel inventory separately observed",
+    "Current cache size is observed size, not proof of exact growth or unused/reclaimable bytes",
+    "No deletion/cache reclamation authorized or performed",
+    "Local controlledprovider fixture does not prove liveStytch/AWS/deployed acceptance",
+    "All previous failures and728task classifications preserved"
+  ]
+}

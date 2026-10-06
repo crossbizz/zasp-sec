@@ -1,0 +1,161 @@
+{
+  "head": "882ebb72a5666de26013da6bd33b9603949a8be6",
+  "run": 37464305760,
+  "job": 112271347901,
+  "conclusion": "failure",
+  "steps": [
+    {
+      "name": "Set up job",
+      "conclusion": "success"
+    },
+    {
+      "name": "Check out repository",
+      "conclusion": "success"
+    },
+    {
+      "name": "Set up Node",
+      "conclusion": "success"
+    },
+    {
+      "name": "Set up Go",
+      "conclusion": "success"
+    },
+    {
+      "name": "Pin npm",
+      "conclusion": "success"
+    },
+    {
+      "name": "Install locked dependencies",
+      "conclusion": "success"
+    },
+    {
+      "name": "Install PostgreSQL 18 reference fixture tools",
+      "conclusion": "success"
+    },
+    {
+      "name": "Install pinned secret scanner",
+      "conclusion": "success"
+    },
+    {
+      "name": "Verify implementation status ledger",
+      "conclusion": "success"
+    },
+    {
+      "name": "Verify runnable UI",
+      "conclusion": "success"
+    },
+    {
+      "name": "Provision isolated compliance browser prerequisites",
+      "conclusion": "success"
+    },
+    {
+      "name": "Verify current compliance browser acceptance",
+      "conclusion": "failure"
+    },
+    {
+      "name": "Verify Red Team runtime and ledger regressions",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify production release sources",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify session search IAM policies",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify reconciliation maintenance alerts",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify durable runtime sessions, enrollment pairing and candidate authority",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Require audit fixture toolchains and pinned LocalStack image",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify audit codec, configuration and artifact stores",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify audit PostgreSQL authority A-M",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify audit PostgreSQL authority N-Z",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify audit public, worker and compatibility acceptance",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify audit immutable retrieval and provider contracts",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify audit HTTP memory, provider and lifetime helpers",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify audit HTTP process composition and controlled zero source",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify audit full-size functional race children",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify both audit full-size memory sensitivity controls",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify three serial audit full-size normal memory pairs",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify full-size orderly API restart with numeric children",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify full-size orderly API restart with race children",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify sensor lineage and authenticated replay",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify actual daemon lost-success replay",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Verify bounded Attack Lab network enforcement",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Post Set up Go",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Post Set up Node",
+      "conclusion": "skipped"
+    },
+    {
+      "name": "Post Check out repository",
+      "conclusion": "success"
+    },
+    {
+      "name": "Complete job",
+      "conclusion": "success"
+    }
+  ],
+  "logsFetchJoinedExit": 1,
+  "logsAvailable": false,
+  "browserFailureCause": "UNKNOWN_FROM_AVAILABLE_HOSTED_EVIDENCE",
+  "sourceInferenceIsActualFailureCause": false,
+  "mergeAttempted": false
+}

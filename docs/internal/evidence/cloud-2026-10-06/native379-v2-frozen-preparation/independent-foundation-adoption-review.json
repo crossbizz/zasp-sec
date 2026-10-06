@@ -1,0 +1,50 @@
+{
+  "format": "independent-foundation-and-source-adoption-review-v1",
+  "reviewer": "provider_deployment_readiness",
+  "scope": "TOOL/MODULE FOUNDATION AND SOURCE-ONLY ADOPTION REVIEW PASS; NO NATIVE APPROVAL",
+  "foundation_summary_sha256": "4fb859d984026b2b312abeb5a2f85b5104484f779397e9bea193c266c844129e",
+  "independent_recomputations": {
+    "go_tree_files": 14539,
+    "selected_modules": 73,
+    "archive_extracted_files": 18412,
+    "lazy_mod_metadata": 283,
+    "all_manifest_hashes_and_archive_h1_and_go_mod_h1_match": true,
+    "extracted_file_rosters_and_bytes_match_archives": true,
+    "tool_sha_match": true,
+    "nexus_license_sha_match": true,
+    "old_unlicensed_package_absent": true,
+    "no_symlinks": true,
+    "owned_source_absent": true,
+    "fresh_build_cache_empty": true
+  },
+  "source_adoption": {
+    "go_sha256": "05f314d326b85a56f98370431dc8fb4d7088d9ac9ddf8c73eebf3261d2b4f3e8",
+    "go_exact_private_bytes": true,
+    "wire_sha256": "ca7dd2ad47a4afcea9f0dfca48d10e5e4b8876c0daf6450c33a66776e830d5e9",
+    "wire_bytes": 25160408,
+    "durable_manifest_sha256": "c10cb7402738b2ad4d6c021c51b81100b7114252cf0c368dad9102e229c932a2",
+    "durable_members": 35,
+    "durable_roster_hashes_sizes_complete": true,
+    "only_authority_packet_field_changed": true,
+    "recorded_programs": 589,
+    "program_steps": 6348,
+    "scripted_executor_invocations": 7,
+    "selected_scripted_controls": 6,
+    "separate_actual_PG_protocol_top_controls": 8,
+    "separate_actual_PG_protocol_immediate_subcases": 10,
+    "source_manifest_members": 1544,
+    "source_manifest_mismatches": [],
+    "planned_node_union_members": 1553,
+    "seven_compiled_anchors_empty": true,
+    "historical_RED_and_security_and_728_preserved": true
+  },
+  "remaining_gates": [
+    "separately reviewed populated companion candidate",
+    "fresh reviewed Git source archive and exact eight derived outputs",
+    "full consumed Go/module/tool/binary immutable envelope",
+    "complete Node union and final PG closure rehash",
+    "root authorization before native execution",
+    "actual native budgets/results/cleanup",
+    "varied-login portability remains pending"
+  ]
+}

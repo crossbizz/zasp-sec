@@ -1,0 +1,845 @@
+{
+  "encodedPayloadSelection": [],
+  "format": "CLI-custody-selected-ordinary-copy-candidate-v1",
+  "omittedFinalRootJoinAddendum": "059129; private reference only, not a selected member",
+  "originalCopies": [
+    {
+      "bytes": 2332,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437259",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "2332",
+        "uid": "1000"
+      },
+      "path": "selected-originals/actual-nine-TDD-owner-result.json",
+      "sha256": "0aca50806a5b91992e91250abfeb1b3c9524731ca7a9e4bdceaa565ca1a89eba",
+      "sourceIdentity": {
+        "ctime_ns": "1791308980523253274",
+        "dev": "27",
+        "gid": "1000",
+        "ino": "1246964",
+        "mode": "33024",
+        "mtime_ns": "1791308980523253274",
+        "nlink": "1",
+        "size": "2332",
+        "uid": "1000"
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/CLI-custody-TDD-owner-2e038a6028a145f3a39870ecce5fc834/result.json"
+    },
+    {
+      "bytes": 1353,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437260",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "1353",
+        "uid": "1000"
+      },
+      "path": "selected-originals/independent-nine-TDD-review.json",
+      "sha256": "16d088381bf5424c0fb5d8ff83af96dae64379abb75fa19c7ed7369a6070f24a",
+      "sourceIdentity": {
+        "ctime_ns": "1791309080357286067",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434524",
+        "mode": "33024",
+        "mtime_ns": "1791309080357286067",
+        "nlink": "1",
+        "size": "1353",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-CLI-nine-retained-archive-control-review.json"
+    },
+    {
+      "bytes": 2561,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437261",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "2561",
+        "uid": "1000"
+      },
+      "path": "selected-originals/actual-prepare-owner-result.json",
+      "sha256": "039725a8a72d9e4441a960dcb16f74fe8b943cbbe4f4e80f0b31cc3bd777b9bf",
+      "sourceIdentity": {
+        "ctime_ns": "1791309719358464404",
+        "dev": "27",
+        "gid": "1000",
+        "ino": "1247007",
+        "mode": "33024",
+        "mtime_ns": "1791309719358464404",
+        "nlink": "1",
+        "size": "2561",
+        "uid": "1000"
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/CLI-custody-prepare-owner-a39a2c8fd6d54a97a270270efacea064/result.json"
+    },
+    {
+      "bytes": 15657,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437262",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "15657",
+        "uid": "1000"
+      },
+      "path": "selected-originals/independent-prepare-review.json",
+      "sha256": "2452bbe7bb668d221ec353618463674d16215f3dd02345603d2275984e36dd3e",
+      "sourceIdentity": {
+        "ctime_ns": "1791310106628862685",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434745",
+        "mode": "33024",
+        "mtime_ns": "1791310106628862685",
+        "nlink": "1",
+        "size": "15657",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-CLI-retained-archive-prepare-review.json"
+    },
+    {
+      "bytes": 6055,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437263",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "6055",
+        "uid": "1000"
+      },
+      "path": "selected-originals/independent-prepare-tool-journal-addendum.json",
+      "sha256": "e987a3b7c55dd208e533810795b64f192796f1e80eeea9e61e9b57583f6331c5",
+      "sourceIdentity": {
+        "ctime_ns": "1791310135473564311",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434746",
+        "mode": "33024",
+        "mtime_ns": "1791310135473564311",
+        "nlink": "1",
+        "size": "6055",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-CLI-prepare-tool-journal-addendum.json"
+    },
+    {
+      "bytes": 1166,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437264",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "1166",
+        "uid": "1000"
+      },
+      "path": "selected-originals/ROOT-prepare-tool-join.json",
+      "sha256": "7befe4e333641f8fa5433edce8cf3cb1c314da008ba67721f9d450f8eb4e797e",
+      "sourceIdentity": {
+        "ctime_ns": "1791310185518780094",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434747",
+        "mode": "33024",
+        "mtime_ns": "1791310185518780094",
+        "nlink": "1",
+        "size": "1166",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/ROOT-CLI-retained-archive-prepare-tool-join.json"
+    },
+    {
+      "bytes": 745,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437265",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "745",
+        "uid": "1000"
+      },
+      "path": "selected-originals/independent-prepare-ROOT-join-addendum.json",
+      "sha256": "112fce50830de876a92d2a00769975a1c8740e7adc4fa6e660480f4f0d77cba6",
+      "sourceIdentity": {
+        "ctime_ns": "1791310277133003474",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434749",
+        "mode": "33024",
+        "mtime_ns": "1791310277133003474",
+        "nlink": "1",
+        "size": "745",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-CLI-prepare-ROOT-join-addendum.json"
+    },
+    {
+      "bytes": 1757,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437266",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "1757",
+        "uid": "1000"
+      },
+      "path": "selected-originals/prepared.json",
+      "sha256": "ed67363af3418af6205e33f927b5a1c96c1ec3ddc621b7e37559fcbc31cb12df",
+      "sourceIdentity": {
+        "ctime_ns": "1791309718523476562",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434701",
+        "mode": "33024",
+        "mtime_ns": "1791309718523476562",
+        "nlink": "1",
+        "size": "1757",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/CLI-retained-archive-custody-2cb574a71f9841e8a2c27084180b3663/prepared.json"
+    },
+    {
+      "bytes": 607,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437267",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "607",
+        "uid": "1000"
+      },
+      "path": "selected-originals/closed-independent-admission.json",
+      "sha256": "22cce4e9c9367fa2371fbd204220d554801f55739132ee0c13f262cd6ca7857e",
+      "sourceIdentity": {
+        "ctime_ns": "1791310426564641073",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434757",
+        "mode": "33024",
+        "mtime_ns": "1791310426564641073",
+        "nlink": "1",
+        "size": "607",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/independent-admission.json"
+    },
+    {
+      "bytes": 2781,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437268",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "2781",
+        "uid": "1000"
+      },
+      "path": "selected-originals/actual-final-owner-result.json",
+      "sha256": "6dbca90d65c817803b546cd3c6a12d4127c08f5b51dfc4a98acc8e41e101c560",
+      "sourceIdentity": {
+        "ctime_ns": "1791310580465379637",
+        "dev": "27",
+        "gid": "1000",
+        "ino": "1247022",
+        "mode": "33024",
+        "mtime_ns": "1791310580465379637",
+        "nlink": "1",
+        "size": "2781",
+        "uid": "1000"
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/CLI-custody-final-owner-49a49be35f2f42119bf0f95449c0f534/result.json"
+    },
+    {
+      "bytes": 2788,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437269",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "2788",
+        "uid": "1000"
+      },
+      "path": "selected-originals/independent-final-source-static-review.json",
+      "sha256": "8605b79ffc8495a6624c5838f00dfb29ddeb054f004f8ccda026e8d5219afa25",
+      "sourceIdentity": {
+        "ctime_ns": "1791310544923514513",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434779",
+        "mode": "33024",
+        "mtime_ns": "1791310544923514513",
+        "nlink": "1",
+        "size": "2788",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-final-CLI-one-unlink-successor-source-static-review.json"
+    },
+    {
+      "bytes": 5774,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437270",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "5774",
+        "uid": "1000"
+      },
+      "path": "selected-originals/actual-final-root-proof.json",
+      "sha256": "e3592839d5b0c4e5ab75f762375ec785f17a291c46b84bf225f782dbd7a24535",
+      "sourceIdentity": {
+        "ctime_ns": "1791310578064316928",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434860",
+        "mode": "33024",
+        "mtime_ns": "1791310578064316928",
+        "nlink": "1",
+        "size": "5774",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/root-proof-finalize.json"
+    },
+    {
+      "bytes": 1758,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437271",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "1758",
+        "uid": "1000"
+      },
+      "path": "selected-originals/destination-custody.json",
+      "sha256": "ed69ab45bb13655fe9ed80a10016bbcd9d86e45c3692c69580e5156c0f83d916",
+      "sourceIdentity": {
+        "ctime_ns": "1791310579740357506",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434863",
+        "mode": "33024",
+        "mtime_ns": "1791310579740357506",
+        "nlink": "1",
+        "size": "1758",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/CLI-retained-archive-custody-2cb574a71f9841e8a2c27084180b3663/custody.json"
+    },
+    {
+      "bytes": 1758,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437272",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "1758",
+        "uid": "1000"
+      },
+      "path": "selected-originals/mirror-custody.json",
+      "sha256": "ed69ab45bb13655fe9ed80a10016bbcd9d86e45c3692c69580e5156c0f83d916",
+      "sourceIdentity": {
+        "ctime_ns": "1791310579740357506",
+        "dev": "27",
+        "gid": "1000",
+        "ino": "1247020",
+        "mode": "33024",
+        "mtime_ns": "1791310579740357506",
+        "nlink": "1",
+        "size": "1758",
+        "uid": "1000"
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/CLI-retained-archive-mirror-1abbfb8870ef4ec49656d0b2fdc7a492/custody.json"
+    },
+    {
+      "bytes": 65536,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437273",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "65536",
+        "uid": "1000"
+      },
+      "path": "selected-originals/destination-finalize-journal.jsonl",
+      "sha256": "d5c23d2b33484ce3b0aa2402b931bc17c6032ffc9dfb171f4cffe6157a03384f",
+      "sourceIdentity": {
+        "ctime_ns": "1791310579744357603",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434861",
+        "mode": "33024",
+        "mtime_ns": "1791310579744357603",
+        "nlink": "1",
+        "size": "65536",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/CLI-retained-archive-custody-2cb574a71f9841e8a2c27084180b3663/finalize-reserved.jsonl"
+    },
+    {
+      "bytes": 65536,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437274",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "65536",
+        "uid": "1000"
+      },
+      "path": "selected-originals/mirror-finalize-journal.jsonl",
+      "sha256": "d5c23d2b33484ce3b0aa2402b931bc17c6032ffc9dfb171f4cffe6157a03384f",
+      "sourceIdentity": {
+        "ctime_ns": "1791310579744357603",
+        "dev": "27",
+        "gid": "1000",
+        "ino": "1247018",
+        "mode": "33024",
+        "mtime_ns": "1791310579744357603",
+        "nlink": "1",
+        "size": "65536",
+        "uid": "1000"
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/CLI-retained-archive-mirror-1abbfb8870ef4ec49656d0b2fdc7a492/finalize-reserved.jsonl"
+    },
+    {
+      "bytes": 7992,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437275",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "7992",
+        "uid": "1000"
+      },
+      "path": "selected-originals/exact-custody-plan.json",
+      "sha256": "ee723f92dc23aa1ced3309487aed3f6ec7ad2682cf2c9890d070b4b7721e1dcf",
+      "sourceIdentity": {
+        "ctime_ns": "1791309174833058438",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434545",
+        "mode": "33024",
+        "mtime_ns": "1791309174818385985",
+        "nlink": "1",
+        "size": "7992",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/plan.json"
+    },
+    {
+      "bytes": 15852,
+      "copyIdentity": {
+        "ctime_ns": "1791310933360902778",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437276",
+        "mode": "33024",
+        "mtime_ns": "1791310933360902778",
+        "nlink": "1",
+        "size": "15852",
+        "uid": "1000"
+      },
+      "path": "selected-originals/independent-actual-final-custody-review.json",
+      "sha256": "30b968cb024df8d76bd502a26967b8bf5742e730d0b7c95041981d18dca2266e",
+      "sourceIdentity": {
+        "ctime_ns": "1791310657810248856",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434876",
+        "mode": "33024",
+        "mtime_ns": "1791310657810248856",
+        "nlink": "1",
+        "size": "15852",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-final-CLI-one-unlink-custody-review.json"
+    },
+    {
+      "bytes": 3928,
+      "copyIdentity": {
+        "ctime_ns": "1791310933364902875",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437277",
+        "mode": "33024",
+        "mtime_ns": "1791310933364902875",
+        "nlink": "1",
+        "size": "3928",
+        "uid": "1000"
+      },
+      "path": "selected-originals/independent-actual-final-freshness-tools-addendum.json",
+      "sha256": "5d30d76a9e0481d5d40c47809396645418f0b5b836ba131ef5d349cbc19f02a7",
+      "sourceIdentity": {
+        "ctime_ns": "1791310698047223492",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434878",
+        "mode": "33024",
+        "mtime_ns": "1791310698047223492",
+        "nlink": "1",
+        "size": "3928",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-final-CLI-custody-freshness-tools-addendum.json"
+    },
+    {
+      "bytes": 1247,
+      "copyIdentity": {
+        "ctime_ns": "1791310933364902875",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "437278",
+        "mode": "33024",
+        "mtime_ns": "1791310933364902875",
+        "nlink": "1",
+        "size": "1247",
+        "uid": "1000"
+      },
+      "path": "selected-originals/ROOT-final-tool-join.json",
+      "sha256": "47635cc44e2e25be731e5817072a156c1d9c4a5721aaee37bdcdef0072d03346",
+      "sourceIdentity": {
+        "ctime_ns": "1791310696935196557",
+        "dev": "34",
+        "gid": "1000",
+        "ino": "434877",
+        "mode": "33024",
+        "mtime_ns": "1791310696935196557",
+        "nlink": "1",
+        "size": "1247",
+        "uid": "1000"
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/ROOT-CLI-final-one-unlink-tool-join.json"
+    }
+  ],
+  "receiptPrefix": {
+    "actor": "ROOT only; exact full hash must be verified before any future append",
+    "bytes": 110095,
+    "sha256Prefix": "ed9471"
+  },
+  "scanner": "NOT_RUN",
+  "selectedOriginalBytes": 207183,
+  "selectedOriginalFiles": 20,
+  "sourcePlan": {
+    "adoptionGates": [
+      "All20 selected originals and actual final independent review/rootjoin now exact bound. ROOT must preserve decoded bytes and bind any publication encoder+scanner outputs separately.",
+      "ROOT controls any byte-preserving gzip/copy and scoped default scans; source author has not compressed/scanned/copied payload.",
+      "Immutable packet manifest binds every encoded member and decoded original SHA/size/mode; disclose repository0644 conversion if adopted.",
+      "Independent publication closure review required before durable adoption."
+    ],
+    "currentOriginalBytes": 207183,
+    "currentSelectedOriginalProofs": 20,
+    "maximumSelectedOriginalProofs": 20,
+    "members": [
+      {
+        "bytes": 2332,
+        "dev": 27,
+        "ino": 1246964,
+        "originalMode": "0o400",
+        "originalPath": "/workspace/.zasp-cloud-owned/CLI-custody-TDD-owner-2e038a6028a145f3a39870ecce5fc834/result.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "actual-nine-TDD-owner-result.json",
+        "sha256": "0aca50806a5b91992e91250abfeb1b3c9524731ca7a9e4bdceaa565ca1a89eba"
+      },
+      {
+        "bytes": 1353,
+        "dev": 34,
+        "ino": 434524,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-CLI-nine-retained-archive-control-review.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "independent-nine-TDD-review.json",
+        "sha256": "16d088381bf5424c0fb5d8ff83af96dae64379abb75fa19c7ed7369a6070f24a"
+      },
+      {
+        "bytes": 2561,
+        "dev": 27,
+        "ino": 1247007,
+        "originalMode": "0o400",
+        "originalPath": "/workspace/.zasp-cloud-owned/CLI-custody-prepare-owner-a39a2c8fd6d54a97a270270efacea064/result.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "actual-prepare-owner-result.json",
+        "sha256": "039725a8a72d9e4441a960dcb16f74fe8b943cbbe4f4e80f0b31cc3bd777b9bf"
+      },
+      {
+        "bytes": 15657,
+        "dev": 34,
+        "ino": 434745,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-CLI-retained-archive-prepare-review.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "independent-prepare-review.json",
+        "sha256": "2452bbe7bb668d221ec353618463674d16215f3dd02345603d2275984e36dd3e"
+      },
+      {
+        "bytes": 6055,
+        "dev": 34,
+        "ino": 434746,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-CLI-prepare-tool-journal-addendum.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "independent-prepare-tool-journal-addendum.json",
+        "sha256": "e987a3b7c55dd208e533810795b64f192796f1e80eeea9e61e9b57583f6331c5"
+      },
+      {
+        "bytes": 1166,
+        "dev": 34,
+        "ino": 434747,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/zasp-cloud-evidence/ROOT-CLI-retained-archive-prepare-tool-join.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "ROOT-prepare-tool-join.json",
+        "sha256": "7befe4e333641f8fa5433edce8cf3cb1c314da008ba67721f9d450f8eb4e797e"
+      },
+      {
+        "bytes": 745,
+        "dev": 34,
+        "ino": 434749,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/zasp-cloud-evidence/independent-CLI-prepare-ROOT-join-addendum.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "independent-prepare-ROOT-join-addendum.json",
+        "sha256": "112fce50830de876a92d2a00769975a1c8740e7adc4fa6e660480f4f0d77cba6"
+      },
+      {
+        "bytes": 1757,
+        "dev": 34,
+        "ino": 434701,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/CLI-retained-archive-custody-2cb574a71f9841e8a2c27084180b3663/prepared.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "prepared.json",
+        "sha256": "ed67363af3418af6205e33f927b5a1c96c1ec3ddc621b7e37559fcbc31cb12df"
+      },
+      {
+        "bytes": 607,
+        "dev": 34,
+        "ino": 434757,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/independent-admission.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "closed-independent-admission.json",
+        "sha256": "22cce4e9c9367fa2371fbd204220d554801f55739132ee0c13f262cd6ca7857e"
+      },
+      {
+        "bytes": 2781,
+        "dev": 27,
+        "ino": 1247022,
+        "originalMode": "0o400",
+        "originalPath": "/workspace/.zasp-cloud-owned/CLI-custody-final-owner-49a49be35f2f42119bf0f95449c0f534/result.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "actual-final-owner-result.json",
+        "sha256": "6dbca90d65c817803b546cd3c6a12d4127c08f5b51dfc4a98acc8e41e101c560"
+      },
+      {
+        "bytes": 2788,
+        "dev": 34,
+        "ino": 434779,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/zasp-cloud-evidence/independent-final-CLI-one-unlink-successor-source-static-review.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "independent-final-source-static-review.json",
+        "sha256": "8605b79ffc8495a6624c5838f00dfb29ddeb054f004f8ccda026e8d5219afa25"
+      },
+      {
+        "bytes": 5774,
+        "dev": 34,
+        "ino": 434860,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/root-proof-finalize.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "actual-final-root-proof.json",
+        "sha256": "e3592839d5b0c4e5ab75f762375ec785f17a291c46b84bf225f782dbd7a24535"
+      },
+      {
+        "bytes": 1758,
+        "dev": 34,
+        "ino": 434863,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/CLI-retained-archive-custody-2cb574a71f9841e8a2c27084180b3663/custody.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "destination-custody.json",
+        "sha256": "ed69ab45bb13655fe9ed80a10016bbcd9d86e45c3692c69580e5156c0f83d916"
+      },
+      {
+        "bytes": 1758,
+        "dev": 27,
+        "ino": 1247020,
+        "originalMode": "0o400",
+        "originalPath": "/workspace/.zasp-cloud-owned/CLI-retained-archive-mirror-1abbfb8870ef4ec49656d0b2fdc7a492/custody.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "mirror-custody.json",
+        "sha256": "ed69ab45bb13655fe9ed80a10016bbcd9d86e45c3692c69580e5156c0f83d916"
+      },
+      {
+        "bytes": 65536,
+        "dev": 34,
+        "ino": 434861,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/CLI-retained-archive-custody-2cb574a71f9841e8a2c27084180b3663/finalize-reserved.jsonl",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "destination-finalize-journal.jsonl",
+        "sha256": "d5c23d2b33484ce3b0aa2402b931bc17c6032ffc9dfb171f4cffe6157a03384f"
+      },
+      {
+        "bytes": 65536,
+        "dev": 27,
+        "ino": 1247018,
+        "originalMode": "0o400",
+        "originalPath": "/workspace/.zasp-cloud-owned/CLI-retained-archive-mirror-1abbfb8870ef4ec49656d0b2fdc7a492/finalize-reserved.jsonl",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "mirror-finalize-journal.jsonl",
+        "sha256": "d5c23d2b33484ce3b0aa2402b931bc17c6032ffc9dfb171f4cffe6157a03384f"
+      },
+      {
+        "bytes": 7992,
+        "dev": 34,
+        "ino": 434545,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/plan.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "exact-custody-plan.json",
+        "sha256": "ee723f92dc23aa1ced3309487aed3f6ec7ad2682cf2c9890d070b4b7721e1dcf"
+      },
+      {
+        "bytes": 15852,
+        "dev": 34,
+        "ino": 434876,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-final-CLI-one-unlink-custody-review.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "independent-actual-final-custody-review.json",
+        "sha256": "30b968cb024df8d76bd502a26967b8bf5742e730d0b7c95041981d18dca2266e"
+      },
+      {
+        "bytes": 3928,
+        "dev": 34,
+        "ino": 434878,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-final-CLI-custody-freshness-tools-addendum.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "independent-actual-final-freshness-tools-addendum.json",
+        "sha256": "5d30d76a9e0481d5d40c47809396645418f0b5b836ba131ef5d349cbc19f02a7"
+      },
+      {
+        "bytes": 1247,
+        "dev": 34,
+        "ino": 434877,
+        "originalMode": "0o400",
+        "originalPath": "/tmp/zasp-cloud-evidence/ROOT-CLI-final-one-unlink-tool-join.json",
+        "publicationEncoding": "deterministic gzip mtime0 only after ROOT authorization and scan review; original decoded bytes unchanged",
+        "publicationName": "ROOT-final-tool-join.json",
+        "sha256": "47635cc44e2e25be731e5817072a156c1d9c4a5721aaee37bdcdef0072d03346"
+      }
+    ],
+    "noAuthorCompression": true,
+    "noAuthorRuntime": true,
+    "noAuthorScanner": true,
+    "omissions": [
+      {
+        "reason": "Not duplicated; fully preserved as exact temporal member of retained archive. Old physical identity historical only.",
+        "sha256": "712217694cac9f786a72d4b6c876cd15f3dcf1bf31434d9fed6af25242a327a0",
+        "what": "Raw156328098-byte historicalCLI payload"
+      },
+      {
+        "path": "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/temporal.tar.gz",
+        "reason": "Retained in place; binary/asset payload intentionally not publication member.",
+        "sha256": "09a0326a51db84d02735e53542b9ebd8c4758daf47482a9ab0abce15844e60d5",
+        "what": "Official45298806-byte archive"
+      },
+      {
+        "path": "/workspace/.zasp-cloud-owned/CLI-retained-archive-mirror-1abbfb8870ef4ec49656d0b2fdc7a492/prepared.json",
+        "reason": "Exactsame bytes as selected prepared.json; independent review checks equality.",
+        "sha256": "ed67363af3418af6205e33f927b5a1c96c1ec3ddc621b7e37559fcbc31cb12df",
+        "what": "Prepared mirror bytes"
+      },
+      {
+        "reason": "Referenced exact hashes in admitted originals and independent reviews; no complete replayability claim from selected bounded metadata.",
+        "what": "Both prepare allocated journals and full14 fresh original observer files/controllers/tools/source bodies/globalmodulemaps"
+      },
+      {
+        "reason": "Remain private immutable historical source checkpoints; static final report explicitly supersedes them, not executed proof.",
+        "what": "Unrun badprefix qds/0tn and9db mutation-uncertainty drafts"
+      },
+      {
+        "path": "/tmp/zasp-cloud-evidence/CLI-retained-archive-custody-source-vigs_lfp/source-admission.json",
+        "reason": "Exact identity bound by selected custodyplan and actualreview; source13 verified by independentreview. Omitted redundant original to retain20proof maximum with mandatory final freshness addendum.",
+        "sha256": "eb2a2b4fa8db433285da987f015a5d352d42330f6f345efb8edde74d6fdb1a48",
+        "what": "Current source-admission.json original"
+      }
+    ],
+    "requiredPendingFinalProofs": [],
+    "schema": "CLI-one-duplicate-custody-bounded-publication-plan-v1",
+    "scope": {
+      "actualFinal": "Independent actual final PASS30b968 plus mandatory5d30d freshness/tools addendum: complete retained archive CRC/tarEOF/memberSHA replay; actual14refs/normalcleanup/protected8/source13/current53pins, both five-record finalizejournals exactoneintent+return; rawpathabsent/historicalidentity. Whole joinedstage bounded3.261409s from conservative observeSTART beforestagecompletion <5s; source unchanged exact5s immediatelypreunlink check. ROOT final canonical join still pending. ROOT canonical transcription47635cc now exact bound: f21ab7/session86759\u2192156d33 normalexit0, finalresult6dbca90d. It does not fabricate kernelPID/wholeelapsed receipt.",
+      "actualPrepare": "Full official archive+raw sameFD byte equality, strict gzipCRC/tarEOF, prepared mirrors, actual fresh observer and normal owner completion; raw remained at prepare.",
+      "actualTDD": "Defined API admission omission behavioral RED then nine GREEN controls; neither cache deletion nor runtime readiness.",
+      "capacity": "Root observes315686912 tmp/1538080768 workspace after final; snapshot not measured exact allocation attribution, not future fit or lifetime inactivity.",
+      "custody": "Official archive preserves all raw bytes; raw historical path no longer physically present; original receipts remain unchanged historical custody evidence. Current13 source exclusion is exact selected scope only; future consumers need explicit new custody resolution.",
+      "notClaimed": [
+        "Installed raw TemporalCLI readiness at oldpath",
+        "Real Temporal PG/OpenFGA/app80 service acceptance",
+        "Any source/model/SQL/Go/native/control/browser/provider/ledger promotion",
+        "Standalone full14observer replay from this bounded packet",
+        "Zero fullhistory scan or blanket scanner clearance"
+      ]
+    },
+    "status": "SOURCE-ONLY-COMPLETE-20-ORIGINAL-PROOF-PUBLICATION-PLAN-NOT-ENCODED-OR-SCANNED",
+    "supersedesPlanSHA256": "e0a641d1218e9d7ce2c8ca8f8e754609ea5e0edcf7515f267be2a7d046c6f948"
+  },
+  "sourcePlanPath": "/tmp/zasp-cloud-evidence/CLI-custody-complete-publication-plan-0pl1w11j/publication-plan.json",
+  "sourcePlanSHA256": "511fc305d086527b91db551a226eac7e30a9a0e6ef38cdb2cda4113de3af2724",
+  "status": "PRIVATE-CANDIDATE-NOT-PUBLISHED-NOT-SCANNED"
+}

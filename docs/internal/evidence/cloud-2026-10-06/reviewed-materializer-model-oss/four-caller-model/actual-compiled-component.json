@@ -1,0 +1,22 @@
+{
+  "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test",
+  "sha256": "80b28abda3f0007cfbfcd6a3610431558c13bc5ebc181c82f182c2cebed7c438",
+  "bytes": 153223894,
+  "mode": 448,
+  "source_identity_equal": true,
+  "source_overlay_sha256": "fc41fb8873cbdae6b2e7584da64bc3311ab43de3b84bf0f25bdb85704887e2fe",
+  "binding": {
+    "device": 27,
+    "inode": 1247955,
+    "mode": 448,
+    "uid": 1000,
+    "gid": 1000,
+    "links": 1,
+    "bytes": 153223894,
+    "mtime_ns": 1791291307737782951,
+    "ctime_ns": 1791291307743470498,
+    "sha256": "80b28abda3f0007cfbfcd6a3610431558c13bc5ebc181c82f182c2cebed7c438"
+  },
+  "test2json_source_binding": "Go1.25 builtin cmd/test2json compiled by pinned go tool under same90s caller deadline",
+  "goroot_tool_source_map_sha256": "496dcd651bd0192036c1b4062c375d2bbe3b2d36c39bc9416612151b7b695a72"
+}

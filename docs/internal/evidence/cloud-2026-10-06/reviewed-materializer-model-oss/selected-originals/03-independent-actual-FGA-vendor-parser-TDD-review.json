@@ -1,0 +1,52 @@
+{
+  "status": "ACTUAL-FGA-VENDOR-PARSER-TDD-PASS",
+  "actualResultSHA256": "fe18012ec807a6a7848379ceafa5a2fa5aafc653da77afc1821d1122170c9824",
+  "files": {
+    "failure-journal.jsonl": {
+      "sha256": "502d1fd0205c8ad47ae0bf2227941ea90bfc4745fc318ac6d9349d7152ef9526",
+      "bytes": 65536
+    },
+    "old-vendor-RED.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "old-vendor-RED-record.json": {
+      "sha256": "4b42abd6e9411e9536206c4a4d0c0c626c1247569767ed42f4ca33a50b809892",
+      "bytes": 865
+    },
+    "new-vendor-ten-GREEN.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "new-vendor-ten-GREEN-record.json": {
+      "sha256": "a82d049ea78de8d8cf1adcd9d0193e43e1450ff5fbe7611e8201e3a6a96aa86c",
+      "bytes": 790
+    },
+    "result.json": {
+      "sha256": "fe18012ec807a6a7848379ceafa5a2fa5aafc653da77afc1821d1122170c9824",
+      "bytes": 2252
+    },
+    "new-vendor-ten-GREEN.stderr": {
+      "sha256": "2e333b66e9f6e0cec01052744bb773391abcd406fb1b385487a0512fe6dd9be5",
+      "bytes": 1423
+    },
+    "old-vendor-RED.stderr": {
+      "sha256": "30b20e65d37c05f40f633967683abb26334ee6081b512c9848d5b7c988c19a6b",
+      "bytes": 1591
+    }
+  },
+  "checks": [
+    "Causal old862 named existing-parser call actually exits1 with unapproved archive member/Ran1/errors1; no missing API error.",
+    "Candidate007 ten named tests actually pass/Ran10/OK/no skips, including full authenticated FGA roster binary-only extraction and sidecar/cache/type/digest negatives.",
+    "Two actual producer-recorded waits joined:0.170049s oldexit1/0.470352s newexit0; no timeout/signals/forced/unexpected/survivors.",
+    "Reserved journal remains UNVERIFIED awaiting external ROOT join, no FAILED entry; result completedAtWrite true and recorded groups empty.",
+    "All launch-config source/tool/archive hashes freshly rechecked, retained official archive exact inode/device/UID/nlink1/0400/size unchanged."
+  ],
+  "rootObservation": "ROOT supplied directly observed normal joined exit0; no independent kernel/root-PID trace fabricated. Producer elapsed0.6764885s retained separately, no cross-clock elapsed equivalence asserted.",
+  "scope": "Parser component TDD only; controlled new temporary extraction, no binary invocation/network/installer main/services.",
+  "limits": [
+    "No tests/import/parser/extraction/network execution by reviewer.",
+    "Actual installer retry remains unissued pending Temporal census/roster/capacity and future exact recipe.",
+    "No executable version/schema/model/provider/browser/native/deployment acceptance."
+  ]
+}

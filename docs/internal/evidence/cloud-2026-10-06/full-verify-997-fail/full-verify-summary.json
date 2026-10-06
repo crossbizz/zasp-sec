@@ -1,0 +1,30 @@
+{
+  "started_utc": "2026-10-06T02:55:12Z",
+  "completed_utc": "2026-10-06T03:03:42Z",
+  "exit_code": 1,
+  "elapsed_seconds": 510,
+  "head_before": "9970bcbd04227e32d3161e921838371a3c14642c",
+  "head_after": "9970bcbd04227e32d3161e921838371a3c14642c",
+  "worktree": "/workspace/.zasp-cloud-owned/full-verify-9970bcbd-vExzs0",
+  "shared_dependency_realpath": "/workspace/zasp-sec/node_modules",
+  "observed_dependency_identity_unchanged": true,
+  "tracked_source_status_after": [],
+  "raw_log_sha256": "7ca6603ac79781debdd1f6c6b5a251f87a2991b5d7d4f99e0c6344df65cabfcb",
+  "raw_log_bytes": 251297,
+  "failed_phase": "health:contract:test",
+  "failure_tests": [
+    "--- FAIL: TestP7GuardedRuntimeReadinessCallback (1.01s)"
+  ],
+  "packages": [
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/health\t1.159s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/healthserver\t6.070s",
+    "FAIL\tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-api\t11.042s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-worker\t451.861s"
+  ],
+  "completed_phase": "dependencies:check",
+  "unreached": "OpenAPI/tenancy/graph/RLS/UI/typecheck/lint/imports/staging/release/build/status",
+  "baseline_failure_cause": "unknown expiry stage; separate private diagnosis owned by releaseaudit",
+  "no_root_source_edits": true,
+  "no_install_or_guard_skip": true,
+  "no_native_or_deployed_acceptance": true
+}

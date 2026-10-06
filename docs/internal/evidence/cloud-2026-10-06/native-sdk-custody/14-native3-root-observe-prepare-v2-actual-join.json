@@ -1,0 +1,22 @@
+{
+  "actualExitCode": 0,
+  "format": "root-actual-tool-join-transcription-v1",
+  "initialChunkId": "121248",
+  "initialToolWallTimeSeconds": 1.000839347,
+  "joinedChunkId": "772e19",
+  "joinedToolWallTimeSeconds": 1.827716082,
+  "logs": {
+    "/tmp/zasp-cloud-evidence/native3-root-observe-prepare-v2.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/tmp/zasp-cloud-evidence/native3-root-observe-prepare-v2.stdout.log": {
+      "bytes": 200,
+      "sha256": "8f71230ae2801b25dccaaa90993de3a6a770e0e26454f73652a613175323a040"
+    }
+  },
+  "ongoingSessionReturnedAfterJoin": false,
+  "resultPath": "/tmp/zasp-cloud-evidence/actual-native3-observe-derive-prepare-euwke2oe/result.json",
+  "resultSHA256": "4e79b1043aa0a57fcab4c012f6498743d448bc9b4c307190e33ef74ea9236486",
+  "sessionId": 45261
+}

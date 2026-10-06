@@ -1,0 +1,31 @@
+{
+  "scope": "exact reviewed revision66members defaultdirscan; notzero; publicSHA classificationindependentpending",
+  "directory": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/publication-primary2912-reviewed-kbg239sj",
+  "manifestSHA256": "5ef1bcb9bc8814808fc5b43ba135485eedacf85a746c2a72e51de1dfdd77ab2d",
+  "actualExitCode": 1,
+  "actualFindings": 8,
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "/usr/bin/timeout",
+    "-k",
+    "5s",
+    "120s",
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "dir",
+    "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/publication-primary2912-reviewed-kbg239sj",
+    "--max-archive-depth",
+    "2",
+    "--ignore-gitleaks-allow",
+    "--redact",
+    "--report-format",
+    "json",
+    "--report-path",
+    "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/publication-reviewed-gitleaks-report.json"
+  ],
+  "reportSHA256": "eccc8b2de6c45f3526b8ed55e2ffd440c8ee2affdf3604e9231eceb4c000221f",
+  "logSHA256": "b8e49e617be4fa79e4e42cab402e2a54bdfb77172614af0edf537b8897013bf2",
+  "toolSHA256": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509",
+  "rulesOrExceptionsChanged": false
+}

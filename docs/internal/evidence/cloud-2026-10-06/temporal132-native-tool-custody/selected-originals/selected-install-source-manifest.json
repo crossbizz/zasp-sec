@@ -1,0 +1,42 @@
+{
+  "schema": "private-source-manifest-v1",
+  "scope": "SOURCE-ONLY-SELECTED-TEMPORAL-INSTALLER-UNRUN",
+  "members": [
+    {
+      "path": "SOURCE-BOUNDARY.json",
+      "bytes": 1606,
+      "sha256": "024f963a5116c1cc1de05a34adedbe86a035b1ae7960f7108db1d1bb85c6b306",
+      "mode": "0400"
+    },
+    {
+      "path": "exact-vendor-members.json",
+      "bytes": 6830,
+      "sha256": "6d34984c453307fdeb1c1bd5479379b3edd97eb27251073acb74a11b33d1a872",
+      "mode": "0400"
+    },
+    {
+      "path": "installer-plan.json",
+      "bytes": 9943,
+      "sha256": "3f41fd38c7071ac4f6f69b0fa39c1294d0bc7b63c37780d7c2fa39b7471c46c3",
+      "mode": "0400"
+    },
+    {
+      "path": "prepare-selected-Temporal-server132.py",
+      "bytes": 23779,
+      "sha256": "939edc2d2ad24e9bdc42438177684fb552a93a551977bca875041b36e3880f3f",
+      "mode": "0400"
+    },
+    {
+      "path": "selected-installer.test.py",
+      "bytes": 9054,
+      "sha256": "0add319eb33599975d696a4381a4e84273b960883596ad56b3b7501edbf74da3",
+      "mode": "0400"
+    },
+    {
+      "path": "source.diff",
+      "bytes": 20677,
+      "sha256": "b1bb7f49f7e49e104b75f0f31ed324eb8aa7a6aaf61e53529bb82eb1aab5d6aa",
+      "mode": "0400"
+    }
+  ]
+}

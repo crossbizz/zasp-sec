@@ -1,0 +1,184 @@
+[
+  {
+    "tool": "temporal",
+    "members": [
+      {
+        "name": "LICENSE",
+        "type": "0",
+        "bytes": 1108,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "e49bd01f919437fff0dc471b8aefc66889c6adb702405a4be25eec67224fd020"
+      },
+      {
+        "name": "temporal",
+        "type": "0",
+        "bytes": 156328098,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "2e9338de424017b1e5a0039aa1884fe34f7449d9114a9d44ce8a8a65d8129c5f"
+      }
+    ],
+    "streamConsumedToFirstZero": 156331520,
+    "noExtraction": true
+  },
+  {
+    "tool": "openfga",
+    "members": [
+      {
+        "name": "assets/assets.go",
+        "type": "0",
+        "bytes": 538,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "843ddadbfa4949c2bd36c46c176c32dcf6048de25ef686485c7e906da5b4a5b0"
+      },
+      {
+        "name": "assets/migrations/mysql/001_initialize_schema.sql",
+        "type": "0",
+        "bytes": 1466,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "019b633e0811d14355e49b384dfe3ac754599129a8fc9cd5c18ce130c2243bd5"
+      },
+      {
+        "name": "assets/migrations/mysql/002_add_authorization_model_version.sql",
+        "type": "0",
+        "bytes": 182,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "4e8157083e97766b3e56388420f001e6ed6853421a37bcf567643f4c332d736d"
+      },
+      {
+        "name": "assets/migrations/mysql/003_add_reverse_lookup_index.sql",
+        "type": "0",
+        "bytes": 159,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "8df2329792937999144df5e078f6f3c122afeaf687923eaf324403b52c5742d1"
+      },
+      {
+        "name": "assets/migrations/mysql/004_add_authorization_model_serialized_protobuf.sql",
+        "type": "0",
+        "bytes": 167,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "76cfe20c9d1f7f0777eace033fd5df1f272bf4c1f8379c8f9045695d2c8320c3"
+      },
+      {
+        "name": "assets/migrations/mysql/005_add_conditions_to_tuples.sql",
+        "type": "0",
+        "bytes": 385,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "b2e9622870bcda9510d25368d40e713876086df5287bca6b3cf3e3ec6a1558e9"
+      },
+      {
+        "name": "assets/migrations/mysql/006_extend_object_id.sql",
+        "type": "0",
+        "bytes": 140,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "8fd997a09b40d545a7c8c490ea24ce1b75d36b952871130d130dc59cb66b5d96"
+      },
+      {
+        "name": "assets/migrations/mysql/007_collate_object_id.sql",
+        "type": "0",
+        "bytes": 498,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "380bfb4ef22258cc2a50c712079766ea115e84790dc61a35a25d6c0b946812d0"
+      },
+      {
+        "name": "assets/migrations/mysql/008_collate_identifiers.sql",
+        "type": "0",
+        "bytes": 2753,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "714eaf319e6f14c68d726bf7e29cbb0075900dc7217823d3f33d41a831dae68e"
+      },
+      {
+        "name": "assets/migrations/mysql/collation_migrations.md",
+        "type": "0",
+        "bytes": 3465,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "1cccde714a0dd970c0c0857da9d40955d75dea54a00c2e1ce1cccf79c65d3cf0"
+      },
+      {
+        "name": "assets/migrations/postgres/001_initialize_schema.sql",
+        "type": "0",
+        "bytes": 1518,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "07f067bcc768a6b81feb87d421e9715f7b4ffa2e36883e9f29916ca7a29b006b"
+      },
+      {
+        "name": "assets/migrations/postgres/002_add_authorization_model_version.sql",
+        "type": "0",
+        "bytes": 176,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "04e152c6ccaf0394810ab1695322bd66d860a5eb83622f84ffd5f14fd12ce962"
+      },
+      {
+        "name": "assets/migrations/postgres/003_add_reverse_lookup_index.sql",
+        "type": "0",
+        "bytes": 160,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "5165acde436e96192407b3419d8c0e4e9e65563a9428cc59ec23eb1dc3274256"
+      },
+      {
+        "name": "assets/migrations/postgres/004_add_authorization_model_serialized_protobuf.sql",
+        "type": "0",
+        "bytes": 164,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "b3e64bbee43fb194c329a0ca670991185987e05ed7585be1d2918f1a6494a2d8"
+      },
+      {
+        "name": "assets/migrations/postgres/005_add_conditions_to_tuples.sql",
+        "type": "0",
+        "bytes": 363,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "d3e842afbc8f62595cded12670347c068f8127ca7f1a4e143abcac50dc63546c"
+      },
+      {
+        "name": "assets/migrations/postgres/006_add_collate_index.sql",
+        "type": "0",
+        "bytes": 427,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "00c0dcbf8670f95fef859d8991203a4e0074453232f984c5c6bf145e2de541e0"
+      },
+      {
+        "name": "assets/migrations/sqlite/005_initialize_schema.sql",
+        "type": "0",
+        "bytes": 2314,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "19574d6042aa8a26c2350ea2100842ae0a0a60eab05959a5c2d333355e2f5234"
+      },
+      {
+        "name": "assets/migrations/sqlite/006_add_store_ulid_index.sql",
+        "type": "0",
+        "bytes": 118,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "40db2ea8532801d6610ae47deb15b60f959d72c6efda7fc9ed5bec526d53f553"
+      },
+      {
+        "name": "assets/playground/index.html",
+        "type": "0",
+        "bytes": 379,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "6a4f3ef49adcb364e10724bc4b8603d79cef632a96987dbf4ab37b580d3ccc06"
+      },
+      {
+        "name": "assets/tests/abac_tests.yaml",
+        "type": "0",
+        "bytes": 100213,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "8ddb577631c78dd87fd978c5311cea182ceab1bce7692b8473db824d152eedac"
+      },
+      {
+        "name": "assets/tests/consolidated_1_1_tests.yaml",
+        "type": "0",
+        "bytes": 276330,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "77c95540977619c967274b3a80def003bcdd63138e2bd4ae0c110541cbbfb9a4"
+      },
+      {
+        "name": "openfga",
+        "type": "0",
+        "bytes": 64577698,
+        "magicHex": "7573746172003030",
+        "headerSHA256": "ce04c9d5aecfced54a2d542f3a94dd64e2bd5d2bc7eb0fe68e302c7e3123ee1d"
+      }
+    ],
+    "streamConsumedToFirstZero": 64986624,
+    "noExtraction": true
+  }
+]

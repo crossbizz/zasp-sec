@@ -13,7 +13,7 @@ test("legacy migration release has explicit phases and rejects unconfigured forw
   // chart's rollout contract. Pin the known source inventory, then prove every
   // schema beyond60 is refused without its required named profile.
   // Default49 remains deliberate: compatible pods precede the50 hook.
-  assert.equal(latest, 80, "new migration sources need an explicit rollout review");
+  assert.equal(latest, 81, "new migration sources need an explicit rollout review");
   for (let schemaVersion = 61; schemaVersion <= latest; schemaVersion++) {
     await assert.rejects(renderRelease(productionReleaseFixture, {
       schemaVersion, sessionSearchPhase: "precision-intake", discoveryScheduleReplayPhase: "active",
@@ -172,7 +172,7 @@ test("staging deployment binds thirty-two deployments and every init/runner/cana
   assert.throws(() => buildStagingDeployment({ ...deployment, jobIdentities: deployment.jobIdentities.map((identity) => identity.name === "agentsec-schema-v49" ? { ...identity, roleArn: "arn:aws:iam::210987654321:role/zasp-production-migration" } : identity) }), /rejected/);
 });
 
-test("staging evidence is deterministic, credential-free, and gates exact private readiness", () => {
+test("staging evidence is deterministic and credential-free without admitting the M1A gate", () => {
   const evidence = createStagingEvidence({
     terraformRevision: "a".repeat(40),
     clusterVersion: "1.35.5",
@@ -183,7 +183,7 @@ test("staging evidence is deterministic, credential-free, and gates exact privat
     deploymentRunID: "deploy-run-1",
   });
   assert.deepEqual(evidence.images.map(({ name }) => name), deployment.workloads.map(({ name }) => name).sort());
-  assert.deepEqual(evaluateM1AGate({ deploymentReady: true, privateEndpoints: true, perWorkloadIAM: true, evidence }).workloads, deployment.workloads.map(({ name }) => name));
+  assert.throws(() => evaluateM1AGate({ deploymentReady: true, privateEndpoints: true, perWorkloadIAM: true, evidence }), /staging gate rejected/);
   assert.throws(() => createStagingEvidence({ ...evidence, accessKey: "forbidden" }), /rejected/);
   assert.throws(() => evaluateM1AGate({ deploymentReady: true, privateEndpoints: false, perWorkloadIAM: true, evidence }), /rejected/);
   assert.throws(() => evaluateM1AGate({ deploymentReady: true, dependenciesReady: true, privateEndpoints: true, perWorkloadIAM: true, evidence }), /rejected/);
@@ -193,4 +193,15 @@ test("staging deployment forbids missing and inherited sandbox roles", () => {
   for (const roleArn of [null, "arn:aws:iam::123456789012:role/zasp-production-discovery-worker"]) {
     assert.throws(() => buildStagingDeployment({ ...deployment, jobIdentities: deployment.jobIdentities.map((identity) => identity.name === "agentsec-attack-lab-runner" ? { ...identity, roleArn } : identity) }), /rejected/);
   }
+});
+
+test("boolean readiness cannot substitute for actual same-run dependency and OTLP collection", () => {
+  const evidence = createStagingEvidence({
+    terraformRevision: "a".repeat(40), clusterVersion: "1.35.5", cluster: "zasp-staging",
+    platformAccountID: deployment.platformAccountID,
+    images: deployment.workloads.map(({ name, image }) => ({ name, image })),
+    identities: [...deployment.workloads, ...deployment.jobIdentities].map(({ name, serviceAccount, roleArn }) => ({ name, serviceAccount, roleArn })),
+    deploymentRunID: "deploy-run-1",
+  });
+  assert.throws(() => evaluateM1AGate({ deploymentReady: true, privateEndpoints: true, perWorkloadIAM: true, evidence }), /staging gate rejected/);
 });

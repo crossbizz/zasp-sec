@@ -1,0 +1,19 @@
+=== RUN   TestNative379V2RawJSONRefusesAmbiguousWire
+--- PASS: TestNative379V2RawJSONRefusesAmbiguousWire (0.00s)
+=== RUN   TestNative379V2UnreviewedAnchorsRefuseBeforeSubprocess
+--- PASS: TestNative379V2UnreviewedAnchorsRefuseBeforeSubprocess (0.00s)
+=== RUN   TestNative379V2RawBoundaryRefusesUnknownNoncanonicalAndForgedStatuses
+--- PASS: TestNative379V2RawBoundaryRefusesUnknownNoncanonicalAndForgedStatuses (0.00s)
+=== RUN   TestNative379V2PacketWireAndEveryRecordedControl
+=== RUN   TestNative379V2PacketWireAndEveryRecordedControl/physical-row-feasibility-refuses-before-owned-fixture
+    authorization_worker_ordered_current_native379_v2_test.go:2991: verified source-only refusal: forged-entry requires6148physical rows; unchanged cap2048; all589 controls retained; native readiness remains pending
+--- PASS: TestNative379V2PacketWireAndEveryRecordedControl (34.38s)
+    --- PASS: TestNative379V2PacketWireAndEveryRecordedControl/physical-row-feasibility-refuses-before-owned-fixture (0.00s)
+=== RUN   TestNative379V2CanonicalWirePreservesJSStringBoundaries
+--- PASS: TestNative379V2CanonicalWirePreservesJSStringBoundaries (0.00s)
+=== RUN   TestNative379V2RuntimeBudgetRefusesBeforeRetention
+--- PASS: TestNative379V2RuntimeBudgetRefusesBeforeRetention (0.00s)
+=== RUN   TestNative379V2RowStreamClosesAtBudget
+--- PASS: TestNative379V2RowStreamClosesAtBudget (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	34.423s

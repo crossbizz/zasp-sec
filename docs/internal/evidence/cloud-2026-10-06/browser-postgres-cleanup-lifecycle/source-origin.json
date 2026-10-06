@@ -1,0 +1,50 @@
+{
+  "commit": "81d7d531ca17c3082674ca679a35c61cadc7ab3c",
+  "members": [
+    {
+      "path": "scripts/production-combined-e2e.mjs",
+      "sha256": "cb03b8cfe0720b6ad84379c17d040b928e4c3a57b89728634a69051dc277c0a8",
+      "bytes": 663408
+    },
+    {
+      "path": "scripts/production-combined-e2e.test.mjs",
+      "sha256": "c11ffcdb89ea329af59588caa3fcccdba78f23d44b46ac6c7d40d70197f968b7",
+      "bytes": 151644
+    },
+    {
+      "path": "scripts/owned-browser-postgres.mjs",
+      "sha256": "2eb952ef1aa95ee717ab5ae64733f13646fe613680b6f11b9a9f681ea0959016",
+      "bytes": 8460
+    },
+    {
+      "path": "scripts/owned-browser-postgres.test.mjs",
+      "sha256": "244ea31b7037200da10e03fac0d11f95e4dfbfdf10f3323b3f5d47b7a60e913a",
+      "bytes": 11014
+    },
+    {
+      "path": "scripts/owned-command.mjs",
+      "sha256": "044e151c9260b9356ac78e5cde6b59dbbdd7b934d66ad06732288346831ad47e",
+      "bytes": 4028
+    },
+    {
+      "path": "scripts/isolated-postgres-bridge.mjs",
+      "sha256": "c6674ea4de730d4b047c582bcf60930650ccf90b90955cff58b210bb20a81f96",
+      "bytes": 4045
+    },
+    {
+      "path": "scripts/bounded-signal-cleanup.mjs",
+      "sha256": "a3ed332a23f52a9a3686966e3fe2f461490b3612094367d7b872809ee268759b",
+      "bytes": 1315
+    },
+    {
+      "path": "scripts/audit-log-browser-proof.mjs",
+      "sha256": "79e14868b0b9aa3c46b12d61589c0ba37688a61a2a282f0f0a468f2ef15a11e1",
+      "bytes": 23422
+    },
+    {
+      "path": "scripts/security-agent-export-mounted-browser.mjs",
+      "sha256": "737ac3239a2dabe42d304b2591f5e10e3420182acf3fbbe0798f8b3844274a77",
+      "bytes": 19977
+    }
+  ]
+}

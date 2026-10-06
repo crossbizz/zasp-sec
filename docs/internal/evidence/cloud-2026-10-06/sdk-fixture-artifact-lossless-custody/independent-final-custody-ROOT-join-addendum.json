@@ -1,0 +1,16 @@
+{
+  "ROOTJoinPath": "/tmp/zasp-cloud-evidence/ROOT-SDK-final-one-unlink-tool-join.json",
+  "ROOTJoinSHA256": "484cbb4cff51465ee2fd82794a219faec5d7916c422c09c71da62f9ff477758e",
+  "checks": [
+    "7e6a7a/session22151/1c1c3e ROOTobservednormal0 binds exact8ba recipe and b6c7 actualowner",
+    "12MiB stronger preflight recorded; originalfloors unchanged",
+    "18c94 fullactualgzip/oneintent+returnbothjournals/oldrawabsence/protected11/current72/fresh2.21895 conservativeupperbound scope retained"
+  ],
+  "independentActualReviewPath": "/tmp/zasp-cloud-evidence/independent-actual-SDK-final-one-unlink-custody-review.json",
+  "independentActualReviewSHA256": "18c94c86a15f201fa0d3c1e58e383f6b547ca2a5bef8200660c4c977d886c916",
+  "limits": [
+    "Direct parent tool-transcription corroboration only, no independent kerneltrace/parentPID/exactunlinktimestamp/duration fabrication",
+    "No repeated archive decoding/runtime in this additive review; custody not currentcompiler or native/provider readiness"
+  ],
+  "status": "SDK-FINAL-CANONICAL-ROOT-TOOL-JOIN-ADDENDUM-PASS"
+}

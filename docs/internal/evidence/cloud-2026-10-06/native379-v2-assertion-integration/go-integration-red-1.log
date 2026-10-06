@@ -1,0 +1,5 @@
+# github.com/zasp-ai/zasp-sec/services/platform/apiserver
+# [github.com/zasp-ai/zasp-sec/services/platform/apiserver]
+vet: apiserver/authorization_worker_ordered_current_native379_v2_test.go:3494:13: undefined: native379V2SessionBinding
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver [build failed]
+FAIL

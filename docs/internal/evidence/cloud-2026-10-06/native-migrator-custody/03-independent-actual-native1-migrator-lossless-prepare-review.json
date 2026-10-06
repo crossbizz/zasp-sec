@@ -1,0 +1,152 @@
+{
+  "ROOTToolObservation": "Parent supplied session63164/initialaf51c4/poll7be91b normal terminal0; no invented ROOT kernel PID trace. Curated tool receipt follows separately.",
+  "actualChildStages": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/native1-readonly-root-observer-source-v1-vxncvm79/fresh-observer-owner-v3.py",
+        "a1a4930f073427df1237d82c6c212641bf18c59f8ba71b148446cb303de3005e"
+      ],
+      "cleanupErrors": [],
+      "elapsed_seconds": 3.4407994719949784,
+      "exceptionClass": null,
+      "finishedMonotonicNanoseconds": 69863732945787,
+      "finishedUnixNanoseconds": 1791301124558540582,
+      "forced": false,
+      "joined": true,
+      "ownedResourceState": "unknown-unless-controller-normal-cleanup-validated",
+      "pid": 303604,
+      "returncode": 0,
+      "scope": "ROOT actual fresh observer owner wait only; forced/error/timeout implies no cache binding and possible owned Docker resources remain unknown",
+      "signals": [],
+      "timeout": false
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/native-migrator-lossless-relocation-source-r5ajrt_a/relocate.py",
+        "prepare",
+        "--root-proof-sha256",
+        "cb1a5399a08817acc10ef6b985d782c2703fc45fd9de7820bb158b0018ab8215"
+      ],
+      "cleanupErrors": [],
+      "elapsed_seconds": 0.2645746009948198,
+      "exceptionClass": null,
+      "finishedMonotonicNanoseconds": 69864001581119,
+      "finishedUnixNanoseconds": 1791301124827182835,
+      "forced": false,
+      "joined": true,
+      "ownedResourceState": "unknown-unless-controller-normal-cleanup-validated",
+      "pid": 304736,
+      "returncode": 0,
+      "scope": "ROOT actual fresh observer owner wait only; forced/error/timeout implies no cache binding and possible owned Docker resources remain unknown",
+      "signals": [],
+      "timeout": false
+    }
+  ],
+  "controllerRecordsNormalJoined": 14,
+  "copies": {
+    "agentsec-migrate": {
+      "ctime_ns": 1791301124671311502,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 432372,
+      "kind": "file",
+      "mode": 33216,
+      "mtime_ns": 1791266323190066283,
+      "nlink": 1,
+      "sha256": "cba69ee00bbc20939e50d1954c6243e1f347ccd9c6b36971f0d68abb05952d38",
+      "size": 44126392,
+      "uid": 1000
+    }
+  },
+  "fdRows": 48,
+  "inactivity": {
+    "inactivityAfter": {
+      "privilegedExactRootProofSHA256": "cb1a5399a08817acc10ef6b985d782c2703fc45fd9de7820bb158b0018ab8215",
+      "snapshotNotLifetimeClaim": true,
+      "unknownOrActive": false,
+      "visibleNonZombieProcessesInspected": 10
+    },
+    "inactivityBefore": {
+      "privilegedExactRootProofSHA256": "cb1a5399a08817acc10ef6b985d782c2703fc45fd9de7820bb158b0018ab8215",
+      "snapshotNotLifetimeClaim": true,
+      "unknownOrActive": false,
+      "visibleNonZombieProcessesInspected": 10
+    }
+  },
+  "journals": {
+    "/tmp/zasp-cloud-evidence/native-migrator-lossless-relocation-source-r5ajrt_a/prepare-reserved-fallback.jsonl": {
+      "sha256": "8c5812907ba0dba94349882340478cccae7c560cc2678ff8084b8a133dfc4e18",
+      "states": [
+        "UNVERIFIED-RESERVED",
+        "NORMAL-PHASE-CANDIDATE"
+      ]
+    },
+    "/tmp/zasp-cloud-evidence/native-migrator-lossless-relocation-source-r5ajrt_a/prepare-reserved-primary.jsonl": {
+      "sha256": "8c5812907ba0dba94349882340478cccae7c560cc2678ff8084b8a133dfc4e18",
+      "states": [
+        "UNVERIFIED-RESERVED",
+        "NORMAL-PHASE-CANDIDATE"
+      ]
+    }
+  },
+  "mechanicalAdmissionAgeSeconds": 1.803904383,
+  "mmapRowsPerPID": {
+    "304": 11,
+    "355": 4
+  },
+  "prepareFinishedAgeSecondsUpperBound": 2.068549169,
+  "preparedSHA256": "1f18097a7f458f474160a48b6aac5a6e9dd6f2ca43e82f3044f54ca929778db7",
+  "producerMeasuredSpace": {
+    "tmpAfter": 569061376,
+    "workspaceAfter": 1502797824
+  },
+  "proofReferencesVerified": 14,
+  "proofSHA256": "cb1a5399a08817acc10ef6b985d782c2703fc45fd9de7820bb158b0018ab8215",
+  "protectedHistoricalProofFilesVerified": {
+    "/tmp/zasp-cloud-evidence/independent-native-OSS-lossless-relocation-v5-static-review.json": {
+      "ctime_ns": 1791298678421220809,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 429965,
+      "kind": "file",
+      "mode": 33024,
+      "mtime_ns": 1791298678421220809,
+      "nlink": 1,
+      "sha256": "2524c8d4c6c32f2979c307f875fa7e2db9e471bd52f346765e4673b7bc72b6ca",
+      "size": 2831,
+      "uid": 1000
+    },
+    "/workspace/.zasp-cloud-owned/frozen0b-cache-reclaim-plan-nf9kobp1/cache-reclaim-plan-v1.json": {
+      "ctime_ns": 1791266724670411326,
+      "dev": 27,
+      "gid": 1000,
+      "ino": 993148,
+      "kind": "file",
+      "mode": 33024,
+      "mtime_ns": 1791266724670411326,
+      "nlink": 1,
+      "sha256": "777b259b515899996c94223b588b70fbebda1a4d31b9f0f3c9a895d5cc67c7ce",
+      "size": 7201,
+      "uid": 1000
+    },
+    "/workspace/.zasp-cloud-owned/frozen0b-cache-reclaim-plan-nf9kobp1/independent-actual-cache-reclaim-v11-review.json": {
+      "ctime_ns": 1791270557662598141,
+      "dev": 27,
+      "gid": 1000,
+      "ino": 993605,
+      "kind": "file",
+      "mode": 33024,
+      "mtime_ns": 1791270557662598141,
+      "nlink": 1,
+      "sha256": "af1b94cebe1749cb8b2925982415856cd2d83b7c5f2922ea811538bce86aeb3e",
+      "size": 5824,
+      "uid": 1000
+    }
+  },
+  "scope": "Original two-member source roster plus three protected historical proofs fully same-FD bytes/metadata verified.44MB source and copied executable matchcba69; copydistinctinode/allmetadata sameadmitted. No source unlink occurred; separately reviewed two-target fresh observer required before finalize. Snapshot and historical prepare-age are not a reusable live inactivity grant. No migrator/service/schema/SDK/native/production acceptance or physical recovery claim.",
+  "sourceOriginalRosterMembers": 2,
+  "status": "ACTUAL-PREPARE-ADMISSION-PASS",
+  "totalCopiedPayloadBytes": 44126392
+}

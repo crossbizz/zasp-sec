@@ -1,0 +1,111 @@
+{
+  "schema": "bounded-physical-fullretry-unverified-publication-manifest-v1",
+  "commit": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "members": {
+    "evidence/README.md": {
+      "bytes": 2023,
+      "sha256": "a6d10befb9b0bda509d1963e04eb227a22e2addd0969447b01463eff3e0f2807"
+    },
+    "evidence/compression-provenance.json": {
+      "bytes": 14265,
+      "sha256": "c9adea0c6a0e9de4add609f3d34c96e3aca2b607dc647e279fc6851619495afd"
+    },
+    "evidence/originals/full-verify-0b788520-physical-2026-10-06-command-metadata.json.gz": {
+      "bytes": 346,
+      "sha256": "4e204eb8f82e0a73efdeb974b028d7a6e4b2e26ad7e7b418faf5e704fba1bfe5"
+    },
+    "evidence/originals/full-verify-0b788520-physical-2026-10-06-head-before.txt.gz": {
+      "bytes": 59,
+      "sha256": "a8fac781adb3641b41252504128c494042e60310ce0d5c8cda8d9c88699eae5a"
+    },
+    "evidence/originals/full-verify-0b788520-physical-2026-10-06-space-before.txt.gz": {
+      "bytes": 122,
+      "sha256": "d43db86efa379605bda0d6d0f2b987f04f6c1a8225a0545a78b32dfd1429cefc"
+    },
+    "evidence/originals/full-verify-0b788520-physical-2026-10-06-status-before.txt.gz": {
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    "evidence/originals/full-verify-0b788520-physical-2026-10-06-tools.txt.gz": {
+      "bytes": 93,
+      "sha256": "1eb839f1663e60906afd97eff08aac90a76460b7d525b3ad578de60ab63f6b1e"
+    },
+    "evidence/originals/full-verify-0b788520-physical-2026-10-06-umask.txt.gz": {
+      "bytes": 25,
+      "sha256": "ad0df815e54077a89afcbabc79afe12e710d3455a4713e2b8b62b7cdc58b2cf0"
+    },
+    "evidence/originals/full-verify-0b788520-physical-2026-10-06.raw.log.gz": {
+      "bytes": 18154,
+      "sha256": "ace8fe8d6fadb622682d3599dc468522197914fc0484fe1f6d97eebca8f1802c"
+    },
+    "evidence/originals/full-verify-0b788520-physical-authority-before.json.gz": {
+      "bytes": 711,
+      "sha256": "3f4907a1ef3c0b616745bd8a1817eb24f9c641b78a789f22a31d454de1535e40"
+    },
+    "evidence/originals/full-verify-0b788520-physical-cache-change-classification.json.gz": {
+      "bytes": 602,
+      "sha256": "afb01fd12b51b086974d995faf93e3f741c730a5fbd64d3757e6e518b3f8d083"
+    },
+    "evidence/originals/full-verify-0b788520-physical-observed-unverified-summary.json.gz": {
+      "bytes": 1252,
+      "sha256": "10fa1014c4d3d1761fd72fa97aa9d58c5219b38df2748777c3ebe476a186b07b"
+    },
+    "evidence/originals/full-verify-0b788520-physical-orphan-zombie-observation.json.gz": {
+      "bytes": 553,
+      "sha256": "b3aa8e2f26c70f0919a7747d0701853900d75467a1bb6c6d2c28a19b8cfbb8a9"
+    },
+    "evidence/originals/full-verify-0b788520-physical-post-closure-record.json.gz": {
+      "bytes": 675,
+      "sha256": "5afc9a5c1899f151406609ad975d6a240028027cb9ec8cf4e20cf47670dffd7d"
+    },
+    "evidence/originals/full-verify-0b788520-physical-runtime-paths.json.gz": {
+      "bytes": 401,
+      "sha256": "ce40d3b6857bcf3f3a77b4ecfd4a3d64b2502597585396e30db8f324faa58252"
+    },
+    "evidence/originals/full-verify-0b788520-physical-tracked-source-after.json.gz": {
+      "bytes": 552188,
+      "sha256": "213f162f069e2f051fee2f4b5bed55f9c5d6dc04e86042a01d4b83ad3121a15a"
+    },
+    "evidence/originals/full-verify-0b788520-physical-tracked-source-closure-record.json.gz": {
+      "bytes": 420,
+      "sha256": "3636ee6a7591f497cb1d1820e66c6b419bb82959795875f584ba6a7ed302e36a"
+    },
+    "evidence/originals/plain-originals-scan/plain-originals-scan-record.json.gz": {
+      "bytes": 524,
+      "sha256": "cd0d7e627a326db6e75fce753327322ec1c9aff8c826281baa609e3b6a1a63f6"
+    },
+    "evidence/originals/plain-originals-scan/plain-originals-scan-redacted.json.gz": {
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "evidence/originals/plain-originals-scan/plain-originals-scan.log.gz": {
+      "bytes": 91,
+      "sha256": "bd6278772e8bcc841c7a4794ed83fe9878968fcfc9e2248f0bba9a28a3854a08"
+    },
+    "evidence/originals/private-originals-manifest.json.gz": {
+      "bytes": 1605,
+      "sha256": "472b0e852ae89c790a5a449cfefee8963b4f6d0b78f2c050dd563b0dbe6c56ff"
+    },
+    "evidence/originals/run-full-verify-0b788520-physical-2026-10-06.sh.gz": {
+      "bytes": 826,
+      "sha256": "fc55a6e7803a738da99d2326d2f3b7a52848d8ad2037a6469dca148ebdd8ab87"
+    },
+    "evidence/scope.json": {
+      "bytes": 4346,
+      "sha256": "bb1d61d37a1453661652e17ac4d7267d7e2ef8dbf4e71049d6faa923c854d198"
+    },
+    "publication-scan-record.json": {
+      "bytes": 880,
+      "sha256": "c2da6cd0a39e566000a8ede4be7669b7877fedcf7d1d4f86643380ed7bc05498"
+    },
+    "publication-scan-redacted.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "publication-scan.log": {
+      "bytes": 79,
+      "sha256": "c8734cf1c395913b1c1e4899ced0ae8e196c5c9758144849d9d7d2b5276ee08c"
+    }
+  },
+  "boundary": "Historical UNVERIFIED outcome; manifest excludes itself.20exact encodedoriginals including sourcegzip verbatim,3truthfulscope/readme/provenance,3actualpublication scan artifacts. Largepostnodecapture omittedexplicitidentities; missingownerjoin/result untouched. Currentrootfull separate."
+}

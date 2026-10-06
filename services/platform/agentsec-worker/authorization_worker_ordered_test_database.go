@@ -152,7 +152,7 @@ func (d *workerOrderedTestDatabase) QueryJSON(ctx context.Context, statement str
 	bounded, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if statement == `SELECT to_jsonb(zasp_temporal68.ready($1,$2))` {
-		if len(args) != 2 || args[0] != migrations.ProductionTemporalExecutor().Checksum() || args[1] != migrations.TemporalExecutorFingerprint() {
+		if len(args) != 2 || args[0] != migrations.TemporalExecutorChecksum() || args[1] != migrations.TemporalExecutorFingerprint() {
 			return nil, authorization.ErrInvalid
 		}
 		if err := d.forward.ReadyFor(bounded, "ordered68.linked.read"); err != nil {

@@ -1,0 +1,193 @@
+{
+  "source_expected": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "commands": [
+    [
+      "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+      "--test",
+      "scripts/browser-prerequisites.test.mjs",
+      "scripts/browser-e2e-helpers.test.mjs",
+      "scripts/owned-browser-postgres.test.mjs",
+      "scripts/compliance-browser-bytes.test.mjs"
+    ],
+    [
+      "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+      "scripts/production-combined-e2e.mjs"
+    ]
+  ],
+  "environment": {
+    "HOME": "/home/agent",
+    "PATH": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin:/tmp/zasp-cloud-tools/go/bin:/tmp/zasp-cloud-tools/bin:/tmp/zasp-cloud-tools/postgres-18.3/bin:/usr/local/bin:/usr/bin:/bin",
+    "GOROOT": "/tmp/zasp-cloud-tools/go",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "direct",
+    "GOFLAGS": "-mod=readonly",
+    "TMPDIR": "/workspace/.zasp-cloud-owned/compliance-browser-0b-20261006-attempt-root-a441ef12/tmp",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC",
+    "ZASP_COMBINED_E2E_CHROME": "/usr/bin/chromium",
+    "ZASP_COMBINED_E2E_COMPLIANCE": "true"
+  },
+  "aggregate_seconds": 900,
+  "cleanup_seconds": 30,
+  "umask": "0077",
+  "completed": false,
+  "exit_code": 1,
+  "failure_class": "RuntimeError",
+  "scope": "local connected browser, controlled identity/SDK providers; not deployed acceptance",
+  "parent_full_receipt_sha256": {
+    "before.json": "0c3ac2d12811bbf8c0ab122135b289eea88172f949550a56cc36e4efc1213692",
+    "process-binding.json": "fee5c2899b01b2b8b68cef6f1b194d15dbda5ae62d3740fcd1fbb626b1fae900",
+    "result.json": "fa1dee88d005d416736aa0bc858ba56a07b7b9f1aace09cb009cf8ec39de21ad"
+  },
+  "parent_full_log_sha256": "756e85fc9d3fecff1cb81c7d7d1e9c2e8a3262c0ba15cc0e8184cbdc3c048ac7",
+  "parent_attestation_files": {
+    "capture-summary.json": "4ceda8011b2767391df1cafb21f9e5c1cd36957d8fd3b1b8a390cb9da19d00e3",
+    "post-full-source-6674-manifest.json": "359d7008f324567b4b5e05e3df9c1bf90484eaff947fd39ec4a97f1855513ad4",
+    "post-full-actual-build-manifest.json": "27de1aef879ac802f9459169dcc03b8df96433abf1db8e053218f28e4c1bb764",
+    "dependency-postfull-closure.json": "edeba3cdfd5af03313234e07dda2c23c6755b6a11f6fb1ddcbf28ceea1f07576"
+  },
+  "tool_sha256": {
+    "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068",
+    "/tmp/zasp-cloud-tools/go/bin/go": "3fb44b0d47becc087cf9e6002366bfbf136d3e08460f12389dbd04687dcf0dd0",
+    "/tmp/zasp-cloud-tools/bin/tini": "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c",
+    "/usr/bin/chromium": "2c8d32d29dc6781c35ae196ea83299d507ac88fc339301abe74672feda299779",
+    "/usr/lib/chromium/chromium": "d387400aaf740ccb75e5e996a34aa0940e6e97683a4eabd6ae34c1eed6804723",
+    "/usr/local/bin/docker": "27f239f97492c434e091a70b41b8796c698f0aa2b6052c6f9c28da4ee7ae888b",
+    "/usr/bin/openssl": "f4aa15f2822f670af7b5c1043d7aa6ebbbc64229fd2fae382edfc6a4524749c1",
+    "/tmp/zasp-cloud-tools/postgres-18.3/bin/pg_config": "61ddafa1de9ad332a42308b52d4c29d51a191252cd9f63a88426fe5b65d1b8d9",
+    "/tmp/zasp-cloud-tools/postgres-18.3/usr/lib/postgresql/18/bin/psql": "9b19f53d3de23ea9d7d909e551e0bbb803d796db54fc7b906c5027805c9bf1f5"
+  },
+  "tool_versions": {
+    "python": "Python 3.13.5",
+    "node": "v22.23.1",
+    "go": "go version go1.25.13 linux/amd64",
+    "tini": "tini version 0.19.0 - git.de40ad0",
+    "chromium": "Chromium 151.0.7922.173 built on Debian GNU/Linux 13 (trixie)",
+    "docker": "Docker version 28.4.0, build d8eb465",
+    "openssl": "OpenSSL 3.5.7 9 Jun 2026 (Library: OpenSSL 3.5.7 9 Jun 2026)",
+    "pg_config": "PostgreSQL 18.3 (Debian 18.3-1.pgdg12+1)"
+  },
+  "go_cache_paths_observed_not_immutable_closure": {
+    "GOCACHE": "/home/agent/.cache/go-build",
+    "GOMODCACHE": "/home/agent/go/pkg/mod",
+    "GOTMPDIR": ""
+  },
+  "storage_monitor": {
+    "interval_seconds_max": 2,
+    "workspace_minimum_bytes": 1500000000,
+    "tmp_minimum_bytes": 100000000,
+    "refusal_cleanup": "ordinary TERM then bounded KILL/join; no assertion/deadline changes"
+  },
+  "storage_observations": [
+    {
+      "monotonic": 31751.460645875,
+      "workspace_available_bytes": 3391770624,
+      "tmp_available_bytes": 1309655040
+    },
+    {
+      "monotonic": 31751.468392312,
+      "workspace_available_bytes": 3391758336,
+      "tmp_available_bytes": 1309655040
+    },
+    {
+      "monotonic": 31751.739032533,
+      "workspace_available_bytes": 3391737856,
+      "tmp_available_bytes": 1309655040
+    },
+    {
+      "monotonic": 31753.73924388,
+      "workspace_available_bytes": 2938195968,
+      "tmp_available_bytes": 1309655040
+    },
+    {
+      "monotonic": 31755.739433592,
+      "workspace_available_bytes": 3391672320,
+      "tmp_available_bytes": 1309655040
+    }
+  ],
+  "head_before": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "compiled_server_sha256_before": "f08ce42f02f113c812c9a208cea00890590d8ca3a2d44bbdea5d4b08a5ee8c07",
+  "launcher_sha256": "3b59790b890b3610da2b7e3f1ba6be3fbe04a5bf4d9e9c68c5ec8a8356ae6eee",
+  "supervisor_identity": {
+    "pid": 239024,
+    "state": "R",
+    "ppid": 621,
+    "group": 239024,
+    "start_ticks": 3174967
+  },
+  "started_utc": "2026-10-06T05:03:32Z",
+  "capture_deadline_monotonic": 32651.463128992,
+  "cleanup_deadline_monotonic": 31785.772861165,
+  "unexpected_descendants_after_commands": false,
+  "survivors": {},
+  "process_waits": [
+    {
+      "pid": 239082,
+      "joined": true,
+      "exit_code": 0
+    },
+    {
+      "pid": 239138,
+      "joined": true,
+      "exit_code": 1
+    }
+  ],
+  "head_after": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "tracked_clean_after": true,
+  "compiled_server_sha256_after": "f08ce42f02f113c812c9a208cea00890590d8ca3a2d44bbdea5d4b08a5ee8c07",
+  "completed_utc": "2026-10-06T05:03:36Z",
+  "elapsed_seconds": 4.327259798999876,
+  "stage_records": [
+    {
+      "argv": [
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "scripts/browser-prerequisites.test.mjs",
+        "scripts/browser-e2e-helpers.test.mjs",
+        "scripts/owned-browser-postgres.test.mjs",
+        "scripts/compliance-browser-bytes.test.mjs"
+      ],
+      "cwd": "/workspace/.zasp-cloud-owned/sbom-0b-graph-diagnosis-pgt18jsv/candidate",
+      "source_head": "0b788520159170a825a925a3f639b0b1d63169f5",
+      "pid": 239082,
+      "identity": {
+        "state": "S",
+        "ppid": 239024,
+        "group": 239082,
+        "start_ticks": 3175146
+      },
+      "joined": true,
+      "started_monotonic": 31751.467468732,
+      "capture_deadline_monotonic": 32651.463128992,
+      "exit_code": 0,
+      "ended_monotonic": 31751.733195159
+    },
+    {
+      "argv": [
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "scripts/production-combined-e2e.mjs"
+      ],
+      "cwd": "/workspace/.zasp-cloud-owned/sbom-0b-graph-diagnosis-pgt18jsv/candidate",
+      "source_head": "0b788520159170a825a925a3f639b0b1d63169f5",
+      "pid": 239138,
+      "identity": {
+        "state": "S",
+        "ppid": 239024,
+        "group": 239138,
+        "start_ticks": 3175173
+      },
+      "joined": true,
+      "started_monotonic": 31751.738282294,
+      "capture_deadline_monotonic": 32651.463128992,
+      "exit_code": 1,
+      "ended_monotonic": 31755.771822622
+    }
+  ]
+}

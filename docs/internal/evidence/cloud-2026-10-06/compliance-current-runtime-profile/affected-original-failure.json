@@ -1,0 +1,27 @@
+{
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=15s",
+    "90s",
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "--",
+    "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+    "--test",
+    "scripts/compliance-current-runtime.test.mjs",
+    "scripts/compliance-runtime-prerequisites.test.mjs",
+    "scripts/production-combined-e2e.test.mjs",
+    "scripts/compliance-browser-bytes.test.mjs"
+  ],
+  "cwd": "/workspace/zasp-sec",
+  "exit": 1,
+  "normalWait": true,
+  "scope": "NODE-COMPONENT-REGRESSIONS-NOT-NATIVE-SQL-BROWSER",
+  "seconds": 9.546094731995254,
+  "stderr.logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout.logSHA256": "70fc3964ae192d7ada487c5babbf1cea228566a667c914804d31aefd8ab866e5"
+}

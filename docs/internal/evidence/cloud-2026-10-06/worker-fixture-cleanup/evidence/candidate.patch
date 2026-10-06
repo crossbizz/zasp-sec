@@ -1,0 +1,188 @@
+--- a/services/platform/agentsec-worker/security_agent_temporal_runner_settlement_test.go
++++ b/services/platform/agentsec-worker/security_agent_temporal_runner_settlement_test.go
+@@ -29,9 +29,10 @@
+ // Only SQL responses and the engine process are controlled here; this is not
+ // a native journal/authority test. The native happy consumer covers those.
+ func TestTemporalRunnerUsesValidatedCommittedSettlement(t *testing.T) {
+-	for _, mode := range []string{"valid", "error", "malformed", "effect", "child", "state", "receipt", "output", "digest"} {
++	for _, mode := range []string{"valid", "error", "malformed", "effect", "child", "state", "receipt", "output", "digest", "dispatch_error", "dispatch_cancel", "started", "unknown"} {
+ 		t.Run(mode, func(t *testing.T) {
+-			ctx := context.Background()
++			ctx, cancel := context.WithCancel(context.Background())
++			defer cancel()
+ 			templateStore, _, fixture := fixtureExistingTestEvidence(t)
+ 			scope := fixture.Scope
+ 			parent := "pid_89000020-0000-4000-8000-000000000001"
+@@ -62,9 +63,16 @@
+ 			resolution, _ := json.Marshal(map[string]any{"binding": map[string]any{"target_id": input.TargetID, "target_kind": input.TargetKind, "endpoint": endpoint, "credential_reference": "ref:red-team/fixture_credential", "version": 1}, "comparison": comparison, "provenance": map[string]any{"integration_id": input.TargetID, "snapshot_id": input.TargetID, "evidence_id": input.TargetID, "source": "fixture", "generation": 1}})
+ 			bodyText := string(inputBody)
+ 			linked := temporalRunnerLinkedState{EffectKey: key, Generation: 1, TestRunID: child, InputDigest: input.InputDigest, DefinitionID: input.DefinitionID, DefinitionVersion: 1, TargetID: input.TargetID, TargetKind: input.TargetKind, Categories: input.Categories, TargetResolution: resolution, InputManifest: &inputManifest, InputBody: &bodyText}
+-			stateReads, settlements, commands := 0, 0, 0
++			stateReads, settlements, commands, stops := 0, 0, 0, 0
++			state := "reserved"
++			if mode == "started" || mode == "unknown" {
++				state = mode
++			}
+ 			settled := false
+ 			db := settlementRunnerDatabase{query: func(ctx context.Context, sql string, args ...any) (json.RawMessage, error) {
++				if ctx.Err() != nil {
++					return nil, ctx.Err()
++				}
+ 				if strings.Contains(sql, ".ready(") {
+ 					return json.RawMessage(`true`), nil
+ 				}
+@@ -75,18 +83,42 @@
+ 					if settled {
+ 						return nil, context.DeadlineExceeded
+ 					}
+-					return json.Marshal(map[string]any{"run_id": parent, "definition_version": 1, "run_state": "verifying", "effects": []any{map[string]any{"step_id": step, "effect_key": key, "generation": 1, "state": "reserved", "action_key": "run_test"}}})
++					return json.Marshal(map[string]any{"run_id": parent, "definition_version": 1, "run_state": "verifying", "effects": []any{map[string]any{"step_id": step, "effect_key": key, "generation": 1, "state": state, "action_key": "run_test"}}})
+ 				}
+ 				var q struct {
+ 					Operation string          `json:"operation"`
+ 					Payload   json.RawMessage `json:"payload"`
+ 				}
+-				if len(args) != 1 || json.Unmarshal(args[0].(json.RawMessage), &q) != nil {
++				var raw []byte
++				if len(args) == 1 {
++					switch v := args[0].(type) {
++					case json.RawMessage:
++						raw = v
++					case []byte:
++						raw = v
++					}
++				}
++				if len(raw) == 0 || json.Unmarshal(raw, &q) != nil {
+ 					t.Fatal("bad runner query")
++				}
++				if sql == `SELECT zasp_temporal68.test_stop($1::jsonb)` {
++					if q.Operation != "stop" {
++						t.Fatal("wrong stop operation")
++					}
++					stops++
++					state = "stopped"
++					return json.RawMessage(`{}`), nil
+ 				}
+ 				if sql == `SELECT zasp_temporal68.linked($1::jsonb)` {
+ 					if q.Operation != "read" && q.Operation != "dispatch" {
+ 						t.Fatal("unexpected linked operation", q.Operation)
++					}
++					if q.Operation == "dispatch" && mode == "dispatch_error" {
++						return nil, apiserver.ErrRepositoryUnavailable
++					}
++					if q.Operation == "dispatch" && mode == "dispatch_cancel" {
++						cancel()
++						return nil, ctx.Err()
+ 					}
+ 					v := linked
+ 					v.SendPermit = q.Operation == "dispatch"
+@@ -159,6 +191,22 @@
+ 				t.Fatal(err)
+ 			}
+ 			got, err := runner.RunTemporalTest(ctx, db, scope, parent, step, 1)
++			if mode == "dispatch_error" || mode == "started" || mode == "unknown" {
++				wantReads := 2
++				if mode == "dispatch_error" {
++					wantReads = 3
++				}
++				if got != "stopped" || err != nil || commands != 0 || settlements != 0 || stops != 1 || stateReads != wantReads {
++					t.Fatalf("no-send recovery failed: result=%q err=%v commands=%d settlements=%d stops=%d reads=%d", got, err, commands, settlements, stops, stateReads)
++				}
++				return
++			}
++			if mode == "dispatch_cancel" {
++				if got != "" || err == nil || ctx.Err() != context.Canceled || commands != 0 || settlements != 0 || stops != 0 {
++					t.Fatalf("canceled dispatch crossed a boundary: result=%q err=%v commands=%d settlements=%d stops=%d", got, err, commands, settlements, stops)
++				}
++				return
++			}
+ 			if commands != 1 || settlements != 1 {
+ 				t.Fatalf("did not reach real settlement validator: commands=%d settlements=%d err=%v", commands, settlements, err)
+ 			}
+--- a/services/platform/agentsec-worker/compliance_export_composition_test.go
++++ b/services/platform/agentsec-worker/compliance_export_composition_test.go
+@@ -68,6 +68,7 @@
+ 	retry                                 string
+ 	heartbeat, claims, captures, prepares int
+ 	leaseLost, revoked                    bool
++	captureFailure                        bool
+ }
+ 
+ func (d *complianceRuntimeDB) QueryJSON(ctx context.Context, q string, args ...any) (json.RawMessage, error) {
+@@ -90,6 +91,9 @@
+ 		return json.Marshal(map[string]any{"organization_id": l.Scope.OrganizationID().String(), "workspace_id": l.Scope.WorkspaceID().String(), "environment_id": l.Scope.EnvironmentID().String(), "export_id": l.ExportID, "generation": l.Generation, "attempt": l.Attempt, "lease_expires_at": l.ExpiresAt, "lane": "execute", "captured": false, "prepared": false, "reference": nil, "version": nil, "size": nil, "sha256": nil})
+ 	case complianceCaptureSQL:
+ 		d.captures++
++		if d.captureFailure {
++			return nil, errors.New("owned pre-upload capture failure")
++		}
+ 		h := sha256.Sum256(d.snapshot)
+ 		return json.Marshal(map[string]any{"snapshot": d.snapshot, "mapping_revision": "product-evidence-v1", "sha256": hex.EncodeToString(h[:])})
+ 	case compliancePrepareSQL:
+@@ -160,9 +164,10 @@
+ }
+ 
+ func TestComplianceRuntimeComposedLifecycle(t *testing.T) {
+-	for _, mode := range []string{"complete", "cancel", "lease_loss", "revoked", "close"} {
++	for _, mode := range []string{"complete", "cancel", "lease_loss", "revoked", "close", "capture_failure"} {
+ 		t.Run(mode, func(t *testing.T) {
+ 			config, db, api, clients := complianceRuntimeFixture(t)
++			db.captureFailure = mode == "capture_failure"
+ 			deps, err := composeComplianceExportWorkerRuntime(context.Background(), config, db, clients)
+ 			if err != nil {
+ 				t.Fatal(err)
+@@ -191,12 +196,41 @@
+ 					time.Sleep(15 * time.Millisecond)
+ 				}
+ 			}
+-			done := make(chan error, 1)
+-			go func() { done <- deps.Processor.RunOnce(ctx) }()
++			done := make(chan struct{})
++			var runErr error
++			go func() { runErr = deps.Processor.RunOnce(ctx); close(done) }()
++			failBeforeUpload := func(reason string) {
++				db.mu.Lock()
++				defer db.mu.Unlock()
++				t.Fatalf("%s: claims=%d captures=%d prepares=%d heartbeats=%d retry=%q", reason, db.claims, db.captures, db.prepares, db.heartbeat, db.retry)
++			}
+ 			select {
+ 			case <-entered:
++			case <-done:
++				// Both channels may be closed after a successful upload. Observe
++				// upload entry before classifying an early worker return.
++				select {
++				case <-entered:
++				default:
++					if mode != "capture_failure" {
++						failBeforeUpload("worker returned before upload")
++					}
++				}
+ 			case <-time.After(time.Second):
+-				t.Fatal("upload not reached")
++				failBeforeUpload("upload not reached within unchanged one-second test bound")
++			}
++			if mode == "capture_failure" {
++				select {
++				case <-done:
++				default:
++					t.Fatal("capture failure reached upload before joining")
++				}
++				db.mu.Lock()
++				defer db.mu.Unlock()
++				if runErr == nil || db.finished || db.claims != 1 || db.captures != 1 || db.prepares != 0 || api.puts != 0 || db.retry != "source_failed" {
++					t.Fatal("pre-upload failure crossed a prepare/upload/finish boundary")
++				}
++				return
+ 			}
+ 			if mode == "cancel" {
+ 				cancel()
+@@ -207,7 +241,8 @@
+ 				}
+ 			}
+ 			select {
+-			case err = <-done:
++			case <-done:
++				err = runErr
+ 			case <-time.After(2 * time.Second):
+ 				t.Fatal("worker/heartbeat did not join")
+ 			}

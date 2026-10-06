@@ -1,0 +1,9 @@
+# Actual exact-commit scan: 0b788520
+
+The actual default Gitleaks 8.30.1 scan of commit 0b788520159170a825a925a3f639b0b1d63169f5 returned PASS with zero findings. The command scanned the exact parent-to-commit range; its log records one commit and approximately 979,224 scanned bytes. The complete current ignore file has SHA256 0ea55c26ab249af09129f0ee3d060373c9acdd079ba6d6cd363af0902f4d99d8 and equals the committed ignore bytes. No configuration argument, configuration environment override or root .gitleaks.toml changed the default rules. The scope proof binds all 154 changed tracked blobs by byte count and SHA256. The scanner observes the commit diff, rather than certifying every complete file or decoded archive member.
+
+There were no actual findings to classify and no immutable-coordinate additions to propose. No exception candidate or canary was invented or borrowed from earlier commits. The existing ignore bytes were preserved, and this work made no shared writes. Original failed scans, including the prior source-packet FAIL8 and FAIL16, retain their separate scopes and original bytes; this commit-diff PASS does not rewrite those results or rescan compressed originals.
+
+Actual argv, redacted empty report, log, baseline and scope proof are retained with deterministic gzip and exact decoded hashes. Independent scope verification is separate from root's fresh full-history scan. No full-current clearance, fresh frozen-build approval, native result, release or all-728 promotion is claimed by this packet.
+
+Independent review bcef27f0 passed: the tool, ignore baseline, 154 changed Git blobs, original report/log and an independent exact-range minimal-environment rerun were checked. Both actual runs returned zero findings. The reviewer’s raw ANSI log remains private; the exact review report is archived without modification.

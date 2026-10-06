@@ -1,0 +1,50 @@
+{
+  "format": "independent-native379-v2-Go-review-checkpoint-v1",
+  "assessment": "NATIVE-READINESS-BLOCKED",
+  "implementation_sha256": "4a19be4156245c2677ff399b74834b1e9f0a759f27d2ca5605289c0f5cb72025",
+  "companion_sha256": "25db996134b0f804366b530ed129508f9b013168842a5bd367ad3c773fdac344",
+  "compiled_anchors": "All seven empty; native opt-in remains closed before tool subprocesses.",
+  "source_roster_sha256": "8a86da0fda2b9e2bd46ebf3421696caf1fb5754b90fc5965fd1a4685ca699618",
+  "source_roster_actual_implementation_matches": true,
+  "source_review": {
+    "raw_boundary": "strict UTF8, depth, duplicate-at-every-depth, root-field, trailing/canonical newline, exact rawSHA admission",
+    "resolved_prior_finding": "private admittedRawSHA; Raw hash rechecked; full typed projection compared with fresh decode; compiled-pin re-admission; detached control refusal; deepclone before native-owned execution",
+    "observations": "independent observed SQLSTATE/rows/captures, observation digest and role/backend checks; Matched alone cannot grant acceptance",
+    "budget": "runtime global/phase row+byte charging before retention, phase deadlines, fixed and observed preimage replay; complete required evidence currently refuses unchanged caps",
+    "closure": "complete Node roster plus separately full-Go-bound excluded companion; envelope/source/module/PG binding repeated after owned cleanup",
+    "actual_589_control_path": "one compiled Admission/raw-tether+deepclone, then private owned executor per control; no whole25MB decode per actual control",
+    "canonical": "U2028/U2029 helper distinguishes actual string escapes from escaped backslash literals; final focused test passes"
+  },
+  "preserved_scope": {
+    "rules": 379,
+    "controls": 589,
+    "private_routines": 8,
+    "expected_source_facts": 10052,
+    "role_sites": 565,
+    "row_cap": 38240,
+    "byte_cap": 85983232,
+    "time_cap_ms": 750000,
+    "legacy_anchors_unchanged": true
+  },
+  "verification": {
+    "log_path": "/tmp/zasp-native379-v2-final-4a19-source-wire-green.log",
+    "log_sha256": "607ed9d89628e385f52d34309e9a9901fd4967c77586a67b6c6050a44ee7d036",
+    "passed": 6,
+    "failed": 1,
+    "group_status": "FAIL",
+    "failure": "TestNative379V2PacketWireAndEveryRecordedControl refuses complete budget evidence at unchanged row/byte caps",
+    "elapsed_failure_seconds": 25.84,
+    "no_native_PostgreSQL_execution": true,
+    "late_fullwire_checks": "Group stops during test budget construction before later mutation/589control validations; final GREEN absent."
+  },
+  "findings": {
+    "resolved": [
+      "Authenticated raw-to-typed tether gap found by code review; not represented as behavioral RED."
+    ],
+    "open": [
+      "Complete authentic-wire scripted budget evidence exceeds unchanged caps; exact per-phase cost derivation pending."
+    ],
+    "critical": []
+  },
+  "limits": "Source/mock review only. No reviewed actual native result, full Go binary envelope, installed/deployed/provider or production acceptance. Do not populate anchors at this checkpoint."
+}

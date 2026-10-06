@@ -1,0 +1,49 @@
+{
+  "members": {
+    "browser-b3-failed-actual-result.json.gz": {
+      "bytes": 4466,
+      "decodedBytes": 14309,
+      "decodedSHA256": "0ecc68da4cec2948f0b4bb501deae43319986c5f55994e03844108da3709dc48",
+      "originalPath": "/workspace/.zasp-cloud-owned/browser-current-b3-full-20261006T1124/result.json",
+      "sha256": "7b9f16d7aeacc21ac46f4ba4437e9b7288a05a449edac878a7958883285b0dc6"
+    },
+    "browser-b3-failed-independent-review.json.gz": {
+      "bytes": 1315,
+      "decodedBytes": 2342,
+      "decodedSHA256": "633920b64754b4e7739b43dfae8169a417669641d18ce6c42bc112cbd410c029",
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-current-b3-full-browser-failure-review.json",
+      "sha256": "62431112353e808167b4fabd8e0a532e20c3a2c899f38b975a331275743db7fd"
+    },
+    "cache-recovery-actual-summary.json.gz": {
+      "bytes": 386717,
+      "decodedBytes": 1787203,
+      "decodedSHA256": "033b55b7e477d23a8d7d38fe1bab4e80d34d2fa2afa8eba445e3623037afbef7",
+      "originalPath": "/tmp/zasp-cloud-evidence/api-private-cache-recovery-aekq_bve/actual-reclaim-e4nxj7wh/summary.json",
+      "sha256": "249b9236e46b5ea42c362c18c5775139c056820da5d3c41a409de7801ec060d0"
+    },
+    "cache-recovery-independent-review.json.gz": {
+      "bytes": 1861,
+      "decodedBytes": 3253,
+      "decodedSHA256": "a8fd1eb8d47bd4ce03f4a1337c6cbf89db6cd49792a4bdb27b587084ac2deec9",
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-api-private-cache-recovery-review.json",
+      "sha256": "eec4408a9dc9f2b8d30d9c3bc8d5f3eef718e77138bd4bb22700c372910f2b7c"
+    },
+    "compact-seven-component-independent-review.json.gz": {
+      "bytes": 2640,
+      "decodedBytes": 8478,
+      "decodedSHA256": "eb272a2de25140a7365c10f7b0ca15d86413e66c8dd12c54b4efaac4781dbb37",
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-compact-overlay-8ac972-review.json",
+      "sha256": "5808c4cb7607a04a5321e7b66b28335b20ecec3eb760c1ab79aa699c85374851"
+    },
+    "focused27-default-independent-review.json.gz": {
+      "bytes": 3694,
+      "decodedBytes": 13098,
+      "decodedSHA256": "53eee6ed424ba3ba505843c245acc663a0afffd60db20a3d425ff9216031f56b",
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-focused27-default-645c5e-review.json",
+      "sha256": "5c0277d94e2b5ba5ae88b172aaca93aa2c36192ae84ddbaa28cba14a521ecadb"
+    }
+  },
+  "schema": "zasp-continuation-selected-records-v1",
+  "scope": "Byte-exact selected actual summaries and independent reviews. Omitted underlying raw logs, source snapshots, process receipts and module inventories remain explicitly hash references in selected records; this packet is not a complete replay closure or production acceptance. Failures preserved.",
+  "sourceHead": "b3ecf60eb6171c5ff0de9203ecd0c19312ced54a"
+}

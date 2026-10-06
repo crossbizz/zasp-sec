@@ -1,0 +1,22 @@
+{
+  "scope": "supplement to immutable31member combinedpublication; finalindependentcombined23/activation/sevenanchors only; no frozen/nativeapproval",
+  "originalPublicationManifestSHA256": "26f12090962866b44f9ca2c7a9c303bbd74ae6a3a4c6912ab29bd50d2f33a47a",
+  "files": {
+    "native379-v2-independent-combined-warm-rerun-record.json": {
+      "sha256": "52c16b53ca1d9e76fae8bbeda67046b3e0e72906f68c6c5aaff633d808bf7502",
+      "bytes": 2572
+    },
+    "native379-v2-independent-combined-warm-and-seven-anchor-review.json": {
+      "sha256": "2537a01a6493ec214a5f7c993dfc21396ab847ed9db94efe57b0d24fd768fa64",
+      "bytes": 8269
+    },
+    "native379-v2-independent-combined-warm-full23.log": {
+      "sha256": "7b8a153609074e5c92e67291afa38d87a985627036d509ec1d12c910b80ec12c",
+      "bytes": 12081
+    },
+    "native379-v2-independent-combined-warm-activation.log": {
+      "sha256": "8f3aa2b4dcef74905c209fdc87732da249bb105bf5017faea7555200e421b417",
+      "bytes": 4642
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "status": "NARROW-FOUR-CALLER-SOURCE-RECIPE-STATIC-PASS",
+  "runnerSHA256": "8e5c5ef90a98b8ad25e9e81b044f336d362ac4bac7beae02e118f24608b60c5d",
+  "preparationSHA256": "231f086c8c0a4dfe286d773d7452c724bac548eff9f8c84292801eda63a942c1",
+  "casesSHA256": "bbecdcce7dbf849ef581c99ef10961f86c45b5c81ed5f70058d033e2e38c67cc",
+  "codecSHA256": "8ba722729b2420248a7085d763af2699add4b9bc05cee0bde02e6cc82e70f5dc",
+  "checks": [
+    "Exact original model body conserved except users parameter/iteration; old all-four entry retained and four wrappers use exact original caller strings.",
+    "Source census589/6348/379/10052/565, records/cost/encoded cap assertions, typed true-bound NOFIT versus unexpected-error failures unchanged.",
+    "Race binary compile once, finite owned exclusive regular artifact with FD O_NOFOLLOW/device/inode/size/mode/owner/nlink/mtime/ctime streamed SHA checked before/open/after.",
+    "Immediate cancellation/stage/work checks now after final binary hash and directly before Popen; duplicate binary summary SHA/bytes/mode consistent with FD binding.",
+    "Pinned full GOROOT map verified inside each caller stage and final; Go tool test2json uses pinned Go source, not assumed packaged executable.",
+    "Compile90 plus four caller90 maxima share270 work/300 final; original reserve1.5GB and productcaps unchanged. Setup/hash/compile overhead charged against deadlines.",
+    "Four exact singleton pass rosters required, zero failures/skips, actual joins/cleanup/source equality/final tool and artifact closure required; failure or expiry cannot produce completedtrue.",
+    "Eleven inherited functions AST-identical to prior bd01; run_stage/main adapted and two new artifact/tool helpers inspected statically."
+  ],
+  "astUnchangedFunctions": [
+    "sha",
+    "durable",
+    "identity",
+    "proc_table",
+    "remember",
+    "live_owned",
+    "signal_owned",
+    "reap",
+    "cleanup",
+    "cancellation",
+    "test_events"
+  ],
+  "astChangedFunctions": [
+    "run_stage",
+    "main"
+  ],
+  "correctedEarlierFinding": {
+    "checkpointSHA256": "34547831af6f9a945b1b882aa842d96a6b25c3572fadce50f74f63ade997e109",
+    "gap": "Final hash could cross stage/work deadline before Popen; repaired guard closes this source gap.",
+    "reviewBookkeepingLimitation": "A preliminary blocked note was written while author changed bytes and labels its requested345 checkpoint with observed7de SHA. The mixed-binding note is superseded and provides no final-revision gate; this review binds only frozen8e5 and its verified preparation."
+  },
+  "execution": "No compiler/Go/Node/PG/gofmt/main or extracted helper executed. AST/static byte comparison only.",
+  "scope": "Root may schedule bounded component attempt; not runtime outcome, fit/full-result/adapter/publisher/native/provider/deployment acceptance. Model3 original b89d failure and all previous checkpoints remain immutable; anchors remain EMPTY."
+}

@@ -1,0 +1,28 @@
+TAP version 13
+# Subtest: separate Linux source assembly retains all eight outputs and source-derived facts
+ok 1 - separate Linux source assembly retains all eight outputs and source-derived facts
+  ---
+  duration_ms: 138.780509
+  type: 'test'
+  ...
+# Subtest: source fact/SQL delta explains only reserved build mutation and unchanged private routine bodies
+ok 2 - source fact/SQL delta explains only reserved build mutation and unchanged private routine bodies
+  ---
+  duration_ms: 15884.226158
+  type: 'test'
+  ...
+# Subtest: outputs and facts are detached and deterministic; malformed caller baselines cannot assert delta
+ok 3 - outputs and facts are detached and deterministic; malformed caller baselines cannot assert delta
+  ---
+  duration_ms: 559.592157
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 29479.982829

@@ -17,7 +17,7 @@ func TemporalWorkflowFingerprint() string {
 func ProductionTemporalWorkflow() Metadata {
 	sum := sha256.Sum256([]byte(temporalWorkflowSQL))
 	checksum := hex.EncodeToString(sum[:])
-	bound := strings.NewReplacer("-- workflow69 checksum", checksum, "-- workflow69 fingerprint", TemporalWorkflowFingerprint(), "-- executor68 checksum", ProductionTemporalExecutor().Checksum(), "-- executor68 fingerprint", TemporalExecutorFingerprint()).Replace(temporalWorkflowSQL)
+	bound := strings.NewReplacer("-- workflow69 checksum", checksum, "-- workflow69 fingerprint", TemporalWorkflowFingerprint(), "-- executor68 checksum", TemporalExecutorChecksum(), "-- executor68 fingerprint", TemporalExecutorFingerprint()).Replace(temporalWorkflowSQL)
 	return Metadata{version: 69, name: "production_temporal_workflow_extension", checksum: checksum, up: bound}
 }
 

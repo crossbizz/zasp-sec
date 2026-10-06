@@ -1,0 +1,54 @@
+{
+  "status": "ACTUAL-CLI-READ-CONTRACT-TDD-PASS",
+  "files": {
+    "failure-journal.jsonl": {
+      "sha256": "037427bac9928058bf00b9c17ee72e053d67fda001d24ea0e0409416ad9fb4d5",
+      "bytes": 65536
+    },
+    "old-read-contract-RED.stderr": {
+      "sha256": "b7d04e0280da04a92c266f238b7c081f02df8d03efb5c50cf0bab94f97ef31f8",
+      "bytes": 1601
+    },
+    "result.json": {
+      "sha256": "96b1dee5a8454c9c879ab5d9e0d5cee4d488e4795c207841116804660fe80663",
+      "bytes": 2209
+    },
+    "new-read-contract-four-GREEN.stderr": {
+      "sha256": "1e34fbd34d6b059c7a031372af24e0710329c99b87a91c87c7fb0111388b806a",
+      "bytes": 532
+    },
+    "old-read-contract-RED-record.json": {
+      "sha256": "bb608d8cd8e29274dcea35eb8578ccd833d92c0989ff36cb1b5c8aa945a2cbf9",
+      "bytes": 827
+    },
+    "old-read-contract-RED.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "new-read-contract-four-GREEN.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "new-read-contract-four-GREEN-record.json": {
+      "sha256": "78610eeb1fec0b24598c7450f8a7efe4a8ba0b91bb6f3371d221713efc88bb0f",
+      "bytes": 783
+    }
+  },
+  "currentLaunchers": {
+    "read-contract-TDD": "086443338223e2fe9c5d34bb1254bb3377b69868e3087a645ef15f66ac74484b",
+    "authenticated-census-retry": "9e82502bbe5b266a2daa689781947a2801e1c8df10a79f24b029a991c2d5aa70"
+  },
+  "checks": [
+    "Genuine originala0fc gzip invocation errors at actual Python3.13 gzip.py553 READ_BUFFER_SIZE request, compressed request cap; oldexit1/Ran1/errors1.",
+    "Repaired0c34 all4 tests pass/no skip, including actual gzip decode and<=64KiB underlying read, exactSHA/count/invalid bounds; scopedmock restoration verified by later large-readPASS.",
+    "Two actual producer waits normal joined,no timeouts/interruption/forced/unexpected/survivors; final result no failure/signals and ownedgroups empty.",
+    "Reserved journal UNVERIFIED awaiting external ROOT join, no FAILED; allcurrent source/tool/owner pins freshly rechecked and retry freshUUID absent."
+  ],
+  "rootObservation": "ROOT supplied directly observed normal joined exit0 and .200229985s tool elapsed. Producer0.261903582s retained separately; no elapsed-clock equivalence/independent kerneltrace asserted.",
+  "gate": "Static9e825 retry plus actualTDD gate satisfied for ROOT metadata-only census, subject to fresh1.5GB/100MB reserve, exclusive window, exactclosed env/tool/source recheck and ROOT actual normal owner join.",
+  "limits": [
+    "No tests/import/network/launcher by reviewer.",
+    "This establishes actualsource gzip incompatibility and repair on fixture; original opaque networkattempt CensusRefusal cause remains unproven/immutable.",
+    "No actualTemporal archive format/version/diskfit/installer/service/native readiness."
+  ]
+}

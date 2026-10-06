@@ -1,0 +1,22 @@
+{
+  "status": "FAILED-UNVERIFIED",
+  "errorClass": "CensusRefusal",
+  "closedErrorCode": "unsupported link/type",
+  "stage": "authenticated-stream-parse",
+  "unsupportedHeader": {
+    "typeHex": "32",
+    "headerSHA256": "06e0175de9040a7451c36cbb11889b2a23446f39d9e1d39fd33f1eca565002d4",
+    "declaredBytes": 0,
+    "headerOrdinal": 17,
+    "pendingLinkMetadataPresent": false,
+    "archiveAuthenticated": true,
+    "gzipComplete": false,
+    "tarComplete": false,
+    "compressedBytes": 100230267,
+    "compressedSHA256": "ca1ccbb1d1545b68eb4523de463c51ffcd80f7e0bccd14a9b2c56fc7e389e792"
+  },
+  "assetFileCreated": false,
+  "extraction": false,
+  "binaryExecution": false,
+  "serviceReadiness": false
+}

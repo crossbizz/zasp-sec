@@ -1,0 +1,5 @@
+
+> zasp-agent-security-console@0.1.0 production:imports:compiled
+> node scripts/check-production-imports.mjs --compiled
+
+Production compiled graph passed: client_chunks=7 server_chunks=8.

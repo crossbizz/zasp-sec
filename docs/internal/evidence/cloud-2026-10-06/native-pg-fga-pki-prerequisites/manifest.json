@@ -1,0 +1,94 @@
+{
+  "encodedPayloadSelection": [],
+  "files": {
+    "README.md": {
+      "bytes": 1474,
+      "mode": "0400",
+      "sha256": "1c399393d2b89a9bd6a757912d2bbcf41228b35f07cb4a7010d058535c6689fc"
+    },
+    "existing-task-crosswalk.json": {
+      "bytes": 3418,
+      "mode": "0400",
+      "sha256": "069360415f526b55c4029f94b03d285af8addc18ea275e4e3cb67150a700ddfc"
+    },
+    "publication-plan.json": {
+      "bytes": 22226,
+      "mode": "0400",
+      "sha256": "d2ceae70ddc34adc29aaac7b7c783b6849e79aa67bebd3a516a861baffd48ab8"
+    },
+    "selected-originals/FGA-bootstrap-failed-ROOT-tool-join.json": {
+      "bytes": 812,
+      "mode": "0400",
+      "sha256": "2be9e17ee4966395a952516199b2867d267917d418094b0a95588cd5a603acf0"
+    },
+    "selected-originals/FGA-bootstrap-failed-result.json": {
+      "bytes": 2118,
+      "mode": "0400",
+      "sha256": "90e0622e0f789990553431308454817c42474a83d728f8d6a50c955ca30037fb"
+    },
+    "selected-originals/FGA-bootstrap-failed-review.json": {
+      "bytes": 2088,
+      "mode": "0400",
+      "sha256": "f4fb3183a83facc46ce6f18158b42047d66dbff242c9286519ed804f532d2faa"
+    },
+    "selected-originals/PG-native-ROOT-tool-join.json": {
+      "bytes": 779,
+      "mode": "0400",
+      "sha256": "da8ba38b527170e8f20ca81e4892d815c61f3a042160d510d4c95e23b4caf5aa"
+    },
+    "selected-originals/PG-native-owner-result.json": {
+      "bytes": 636,
+      "mode": "0400",
+      "sha256": "1f5e97a762c548473c55de0d5de72efe15ba7aab15bc3e23b2504c26526af737"
+    },
+    "selected-originals/PG-native-schema-review.json": {
+      "bytes": 4186,
+      "mode": "0400",
+      "sha256": "42c3fa04bbcc4f585a15bd5524ace647deb545704a810d3c6cc43e10cc59d3ef"
+    },
+    "selected-originals/PKI-own14-result.json": {
+      "bytes": 3000,
+      "mode": "0400",
+      "sha256": "de086f3d5f13fa0af23a28eebf4363969a8fe77a68927ca57a371654bccfe2e1"
+    },
+    "selected-originals/PKI-own14-review.json": {
+      "bytes": 2090,
+      "mode": "0400",
+      "sha256": "279b741b9ad441a65d7c5d91c6693a0ec5556e93f8427dc77034ab0754633663"
+    },
+    "selected-originals/PKI-real20-curated-review.json": {
+      "bytes": 1497,
+      "mode": "0400",
+      "sha256": "0c60d96d1fbca56fc8b032851b3b2931a5498799aa2a77404e56df30caaeabfa"
+    },
+    "selected-originals/PKI-real20-result.json": {
+      "bytes": 3074,
+      "mode": "0400",
+      "sha256": "c75c043c5f84580100131c232cb0733228c49ef3f04bcc7f4167f3a66a41bc2d"
+    },
+    "selected-originals/mTLS-original11-failure-result.json": {
+      "bytes": 571,
+      "mode": "0400",
+      "sha256": "c2a18de18d861981a93b7e4c94e9270c9fbf3b5e82d20887b1cfa4860b498991"
+    },
+    "selected-originals/mTLS-original11-failure-review.json": {
+      "bytes": 1109,
+      "mode": "0400",
+      "sha256": "ef4f7c538201834539d856c367bcca143d857819c1f9e056fbc0e31b6c7857bd"
+    },
+    "selected-originals/mTLS-own12-result.json": {
+      "bytes": 612,
+      "mode": "0400",
+      "sha256": "a7c327517afead67aa7ddc2f6b5423fabd0d93f553e14e14bf68254525d8ea9a"
+    },
+    "selected-originals/mTLS-own12-review.json": {
+      "bytes": 1155,
+      "mode": "0400",
+      "sha256": "8f1eab0f37a9e58a2eb13f0be36a3540654255e139e3a3b8dc466debb361fd76"
+    }
+  },
+  "format": "native-PG-FGA-PKI-selected14-manifest-v1",
+  "originalBytes": 23727,
+  "originalCount": 14,
+  "scanner": "NOT_RUN"
+}

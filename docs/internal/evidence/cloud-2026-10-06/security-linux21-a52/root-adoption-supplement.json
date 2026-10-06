@@ -1,0 +1,31 @@
+{
+  "publicationManifestSHA256": "ece2a57dd428bb0e523b0d2e18b1f618a1a926374a2966d7284809b5ad25e59f",
+  "originalPublicationFilesByteEqual": 39,
+  "supplements": [
+    {
+      "file": "independent-publication-review.json.gz",
+      "originalSHA256": "0be3a639802dc9090d3fb12f6abf53d400b6b63a29d1892353ff8286a14dd6d2",
+      "originalBytes": 2753,
+      "encodedSHA256": "594b24a4be9936a74a119c80f75a99fffc40fa4b6537caabfa87df2160ebd6b2",
+      "encodedBytes": 1349,
+      "scope": "byte-preserving original; original scan scope and outcome unchanged"
+    },
+    {
+      "file": "independent-receipt-addendum-review.json.gz",
+      "originalSHA256": "2df9e7b7dfd623ebbbe993668cf4fce8d5669c9ccf3c6dc2bfae8a8d6bc49cc1",
+      "originalBytes": 1961,
+      "encodedSHA256": "4ce4abd24dadbc45e65b5a9bb868c85aae1779cb087a957a3927ba441612eb35",
+      "encodedBytes": 1129,
+      "scope": "byte-preserving original; original scan scope and outcome unchanged"
+    },
+    {
+      "file": "original-final-publication-scoped-record.json.gz",
+      "originalSHA256": "21890abaad1256dfc6e56ef0c99cebb5c1346aa34b8b292d73fe8209c48a4d31",
+      "originalBytes": 818,
+      "encodedSHA256": "4dcdc204a3d2cedc81b6708427f2fec8c68de478bc559b77f67ccd6170329044",
+      "encodedBytes": 454,
+      "scope": "byte-preserving original; original scan scope and outcome unchanged"
+    }
+  ],
+  "scope": "Root copy after independent publication review; repository modes0644, private publication mode0600 not claimed immutable"
+}

@@ -1,0 +1,16 @@
+{
+  "scope": "Direct transcription of observed ROOT normal tool join, not independent kernel trace",
+  "startToolChunk": "7e6a7a",
+  "sessionID": 22151,
+  "terminalToolChunk": "1c1c3e",
+  "observedNormalExit": 0,
+  "recipePath": "/tmp/zasp-cloud-evidence/SDK-gzip-final-one-unlink-root-owner-lmp088iv/ROOT-RECIPE.json",
+  "recipeSHA256": "8ba757f58b3cce52d4fa91c0c4e7137dc351a14e2318488c15da0759f34c6c26",
+  "ownerResultPath": "/workspace/.zasp-cloud-owned/SDK-gzip-final-one-unlink-owner-b84903ac418243a78f684ae156cd1d11/result.json",
+  "ownerResultSHA256": "b6c7f496bd299953f5f07c74b2f081d8182931697fde89508ccfb1ead4b6fd2c",
+  "rootStrongerPreflightFloors": {
+    "tmp": 112582912,
+    "workspace": 1512582912
+  },
+  "limits": "No external parent PID, unlink syscall timestamp or unobserved duration reconstructed. Actual archive/journal/source disposition still requires independent review; no runtime readiness."
+}

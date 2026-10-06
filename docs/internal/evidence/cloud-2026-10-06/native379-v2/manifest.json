@@ -1,0 +1,77 @@
+{
+  "scope": "source-only preparation and verified pre-fixture refusal; no native or deployed acceptance",
+  "files": {
+    "README.md": {
+      "bytes": 841,
+      "sha256": "8f6ee6ff229d6ff273ef2eeb3974231839937b63b7035f84eb787b5a8b2b0a05"
+    },
+    "budget-red-source-checkpoint.tar.gz": {
+      "bytes": 137826,
+      "sha256": "83b1de29f0bde0236349b5537c660a545a2f16d5b52220f772ae347851f5c102"
+    },
+    "component-identity.json": {
+      "bytes": 4456,
+      "sha256": "c4e318d883c6e9d7ff913ff733e03e294af184f112a171e3a24e0e5bcdeebfea"
+    },
+    "go-budget-red.log": {
+      "bytes": 1116,
+      "sha256": "607ed9d89628e385f52d34309e9a9901fd4967c77586a67b6c6050a44ee7d036"
+    },
+    "go-canonical-wire-red.log": {
+      "bytes": 733,
+      "sha256": "dcf10c8a93ab0cd7f01637ad0631519e4731f0f61279adfd18df36627775c7b1"
+    },
+    "go-refusal-green.log": {
+      "bytes": 1451,
+      "sha256": "c588ddd3b2963760cfbc12e3b9be92e43fe9b05dbc6df636248145c4a1e95274"
+    },
+    "independent-Go-review-4a19-blocked.json": {
+      "bytes": 3071,
+      "sha256": "8c850dbe2bd99bd1af362fc460c9af4d9027c65edaa9e536a9c4cc2f9044077f"
+    },
+    "independent-Go-review-da6d-failclosed.json": {
+      "bytes": 3893,
+      "sha256": "0dec047f29dbbb1cef6e901f4dd73013ef821ce096d0707c06ec1e9c776f90ed"
+    },
+    "independent-budget-cost-4a19.json": {
+      "bytes": 2781,
+      "sha256": "84f895d2fe136b6abb438d24a4b38cac937108443f1cf186600c164cc3e9e01c"
+    },
+    "independent-component-rerun.log": {
+      "bytes": 1382,
+      "sha256": "53b8b98378ed0e747d9a53241cc169ce2b58dc229e8d7b3b13859b6a6c4f2383"
+    },
+    "independent-eight-shared-facts.json": {
+      "bytes": 726073,
+      "sha256": "484c6c266ae1f8b3264c169fa9572660230a67cbd7536711d5505aeedd1e6e97"
+    },
+    "independent-refusal-review-da6d.json": {
+      "bytes": 5439,
+      "sha256": "e67ea95c97a659f2afd6dbc905d3f252aab05e9d55eb21b884c583f175c0b872"
+    },
+    "independent-source-review-4a19.json": {
+      "bytes": 5701,
+      "sha256": "67152b199863076574f2b7ac0e1945f0a64f24af0b033dcf010d77227a9efb0d"
+    },
+    "node-refusal-green.log": {
+      "bytes": 1631,
+      "sha256": "d10aedb511887d1a29bdae03acb1ef7116c40b22fd4834bfa8d7d2e12a1d7119"
+    },
+    "source-budget-audit-4a19.json": {
+      "bytes": 2474,
+      "sha256": "7a46f368e08e4fe3faaea0e41d25e391750cbb760dd1dad42b1a606f70cdecd0"
+    },
+    "wire-budget-red.json.gz": {
+      "bytes": 1578273,
+      "sha256": "05842109beb865d8d29d5b79794b2656328067af39d24d05ade1320581d2896b"
+    },
+    "wire-refusal-summary.json": {
+      "bytes": 734,
+      "sha256": "44da0104bcf2e5d354bfbb3258fa4f8903deed20ec6507958ff1b1ee120a6e87"
+    },
+    "wire-refusal.json.gz": {
+      "bytes": 1578277,
+      "sha256": "98d3264dce8b8993626975e99d1e5b0c7525a0c13651469a08871dea3295dfb7"
+    }
+  }
+}

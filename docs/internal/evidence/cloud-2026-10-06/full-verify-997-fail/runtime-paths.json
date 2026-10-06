@@ -1,0 +1,11 @@
+{
+  "cwd": "/workspace/.zasp-cloud-owned/full-verify-9970bcbd-vExzs0",
+  "nodeExecPath": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+  "nodeVersion": "v22.23.1",
+  "localPackagePath": "/workspace/.zasp-cloud-owned/full-verify-9970bcbd-vExzs0/package.json",
+  "localPackageRealPath": "/workspace/.zasp-cloud-owned/full-verify-9970bcbd-vExzs0/package.json",
+  "dependencyInputRealPath": "/workspace/zasp-sec/node_modules",
+  "viteEntryRealPath": "/workspace/zasp-sec/node_modules/vite/dist/node/index.js",
+  "vinextBinRealPath": "/workspace/zasp-sec/node_modules/vinext/dist/cli.js",
+  "limits": "Postrun resolution confirms source cwd/package and shared dependency executable paths; not a complete immutable dependency closure or traced proof of every consumed module."
+}

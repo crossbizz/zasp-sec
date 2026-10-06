@@ -1,0 +1,360 @@
+{
+  "includedOriginals": [
+    {
+      "bytes": 3522,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/manifest.json",
+      "sha256": "24c8a8a0bc2bd0d9f46255222e03341e2e73db162c352b342a1c9ca70905f4a4"
+    },
+    {
+      "bytes": 582,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/README.md",
+      "sha256": "261a6ff98c782f3271c7218d32a9c40843f7c0fc0a79a03557c932c31437add3"
+    },
+    {
+      "bytes": 936,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/closure-counts.json",
+      "sha256": "a1374c7d6e74430504cd347ef52073c1fc10b4cd83fc14c0d13c6bb385d0247f"
+    },
+    {
+      "bytes": 2259,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/executed-recipe-manifest.json",
+      "sha256": "014c2926d82a6d8bd35199e0832675d9c98528970073d4cdd7853df05ea1c672"
+    },
+    {
+      "bytes": 13685,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/full-original-record-identities.json",
+      "sha256": "74d3dd485bf45b0a91199c20e5fb91c71864e0231f2a773ea46e61328ddffc14"
+    },
+    {
+      "bytes": 722,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/historical-v2-original-fullwire.jsonl.gz",
+      "sha256": "40e446750a60c9602ba828f5b46a5fb447baea3401af95a222c723846fcfd13e"
+    },
+    {
+      "bytes": 2329,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/independent-actual-historical-v2-materializer-parser-failure-review.json",
+      "sha256": "17afdd2fae89328277eb39d90c1594b15c9e37df1f13fe96f6d019e6baedc434"
+    },
+    {
+      "bytes": 5000,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/independent-actual-historical-v2-materializer-tdd-pass-review.json",
+      "sha256": "cb55d39a228a0f40eef54b340e0ee99746d0f7417870f2b4bf0423f13d6ecd46"
+    },
+    {
+      "bytes": 1565,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/independent-historical-materializer-v2-parser-recipe-review.json",
+      "sha256": "6085ad9a99494dea9466f11970a2ac8360b5f854de0eecf5e4f412d2f3d365a1"
+    },
+    {
+      "bytes": 2184,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/materializer-green.jsonl.gz",
+      "sha256": "ec182e251f30a2b4a340f63b76b45ebf918a83d66a34a799b8aaa864f52a5531"
+    },
+    {
+      "bytes": 1662,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/next-current-go-step.json",
+      "sha256": "508d1b1a878bbfa2d3902986e6f009c63f51ec04cb5bec3d99a25b3fa32415e9"
+    },
+    {
+      "bytes": 1298,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/parser-regression.json",
+      "sha256": "54e3d8b5ef1375b31739c554e1814853a5fa00fcde3686134a98cffba07c2b47"
+    },
+    {
+      "bytes": 3868,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/publication-scan-receipt.json",
+      "sha256": "34d2ad2d9c0881193de99acf250d0439b22e86be0fb0023fc235bb3a5b78d2a1"
+    },
+    {
+      "bytes": 3,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/publication-scan-report.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "bytes": 628,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/root-historical-materializer-35126-outer-join.json",
+      "sha256": "089562bd626e68e4032c4af8051400f7f333a4267f921ed44f187cb0fc3472be"
+    },
+    {
+      "bytes": 2199,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/selected-raw-log-identities.json",
+      "sha256": "befe3863eb490a7c2ac9fbb78bcf977054926b2555ae8a335c31ad02f02a3023"
+    },
+    {
+      "bytes": 2111,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/source-only-freeze-manifest.json",
+      "sha256": "68ecb8190c7995a5066372df1e7320a326f86e0b6ec6101fde0ed658c76a8b18"
+    },
+    {
+      "bytes": 372,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/source-policy-red.jsonl.gz",
+      "sha256": "ff53a7f43fedc2061e20c9cf258fc65dd1294453036c6f9bf33ab006b6cfb314"
+    },
+    {
+      "bytes": 7131,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/stages-and-joins.json",
+      "sha256": "f915bd87a3086e17ad4839f107c7e52c7cb5b51e650bed96f7f87f815d002988"
+    },
+    {
+      "bytes": 2838,
+      "path": "/tmp/zasp-cloud-evidence/historical-materializer-actual-publication-ac79ea2d56bf/summary.json",
+      "sha256": "158fe2dd6cab43e300c15108caeb778889ea301e285b6ae4b3e0d957fa7e4e63"
+    },
+    {
+      "bytes": 7841,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/manifest.json",
+      "sha256": "7dbf6d934c41ab7771bc0e4b88c026df5c17587ae50eabffb3b2a0276530f233"
+    },
+    {
+      "bytes": 1572,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/README.md",
+      "sha256": "9dcc10c40c34f8e9d13c04a2a1786cce72f027174be4a00f8ccf7d2d9acb884f"
+    },
+    {
+      "bytes": 1108,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/actual-baseline.record.json.gz",
+      "sha256": "b117996b80f6e86d6d098c697339e95ab9db747af64182a144f04a4ed9661639"
+    },
+    {
+      "bytes": 368,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/actual-baseline.stderr.gz",
+      "sha256": "efe36a0987b8123eb4725cd42199bb5140fc0190045e5cf63fc57d8b8ecbd798"
+    },
+    {
+      "bytes": 20,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/actual-baseline.stdout.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "bytes": 1135,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/actual-candidate.record.json.gz",
+      "sha256": "23420836f4ad9a4684c5235f65045412b21ec3e63fa1feac793f8413ea3a29f9"
+    },
+    {
+      "bytes": 20,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/actual-candidate.stderr.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "bytes": 3346,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/actual-candidate.stdout.gz",
+      "sha256": "d49e2ec41f4073fea2af11867231a47f46fc49cae201737bfe882753c356dc14"
+    },
+    {
+      "bytes": 1604,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/actual-result.json.gz",
+      "sha256": "de3ac4b776ffd4f941d299d88cfe8eeac3579f94a93c901cc53a1a9e09ad6c05"
+    },
+    {
+      "bytes": 1659,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/current-four-manifest.json.gz",
+      "sha256": "1750604046af2ccf141096b10b41ac461c03643f57cc17b2897c03e39dede75b"
+    },
+    {
+      "bytes": 13101,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/current-four-ordered-current-native379-packet-v3.mjs.gz",
+      "sha256": "0cea004c65d490415d77e4479104b6e9197d914ec35705a19b83063373153f75"
+    },
+    {
+      "bytes": 2318,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/current-four-ordered-current-native379-packet-v3.test.mjs.gz",
+      "sha256": "1c706298c25c0acc1bb9b1aaf7e732510f35ebd900ffa2c52c3fe8d20614934b"
+    },
+    {
+      "bytes": 9467,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/current-four-ordered-current-native379-source-schema-v3.mjs.gz",
+      "sha256": "693772d1e684321850209f4dce5ea563033333856a2b8358015794808538c566"
+    },
+    {
+      "bytes": 3550,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/current-four-ordered-current-native379-source-schema-v3.test.mjs.gz",
+      "sha256": "9896e478160ac472a353582cd42c5757bc096177c695773b7c5e0ec75e049c4a"
+    },
+    {
+      "bytes": 595,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/outer-README.md.gz",
+      "sha256": "f5cca61cb4ff62bdf66f8e9b17bb20e166d0e1f37e81a9ca9d888ed33c972ee1"
+    },
+    {
+      "bytes": 289,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/outer-command.sh.gz",
+      "sha256": "97b2f5772fd760f385e37535d94a1fd5e37f120e4e4b7a8f2a7ae95bd0353052"
+    },
+    {
+      "bytes": 319,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/outer-manifest.json.gz",
+      "sha256": "a1cfc05f64d0db2333198412d5fd193a19d1e288a672eb031a1a84c077f30ff8"
+    },
+    {
+      "bytes": 1627,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/outer-recipe.json.gz",
+      "sha256": "fb483fa6ceaebe69a83ddcab6b80a6c4c0d1aac75a5bdd5a6f8374e1cc939d58"
+    },
+    {
+      "bytes": 1697,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/review-independent-actual-historical-node-tiny-source-unit-review-v2.json.gz",
+      "sha256": "066153ebae52ac4781f67b04fad8e5b2059787f9b776d167f7cfa0577ae1cee5"
+    },
+    {
+      "bytes": 1125,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/review-independent-historical-node-root-outer-v1-static-review.json.gz",
+      "sha256": "4f67e20b75c39fe74436a2fa8fbdc9cef9db3e44ad5879fc3a9421d5259cd4f5"
+    },
+    {
+      "bytes": 1724,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/review-independent-historical-node-runner-v1-static-blockers.json.gz",
+      "sha256": "7333b876dbcf4d7519dcb4ee4a239216405868740e2cf5fdebe76cf456216324"
+    },
+    {
+      "bytes": 1135,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/review-independent-historical-node-runner-v2-static-blockers.json.gz",
+      "sha256": "5d34abdca3ca058563c9b5ba3a594997ec988a60a46e002786283543a9aa9f7b"
+    },
+    {
+      "bytes": 1092,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/review-independent-historical-node-source-unit-owner-v4-static-review.json.gz",
+      "sha256": "dd07038f3c45ff41afba78bb1ec6b055360a59371f41512aacaac53d2e6ecb84"
+    },
+    {
+      "bytes": 1271,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/review-independent-historical-node-v4-source-unit-recipe-blockers.json.gz",
+      "sha256": "3865fad5830ced46bce2fa9512e49dfd4a4ba8e73deaea66bbedfc6c1d4211b9"
+    },
+    {
+      "bytes": 491,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/root-outer-join.json.gz",
+      "sha256": "999d12a1151af3fb9dd0722d75e0ae800beb28d79ba342875fc8a173962768d9"
+    },
+    {
+      "bytes": 1028,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/source-checkpoint-v1-manifest.json.gz",
+      "sha256": "84655884c1d65ac96fba28b3fed87be40d05455833fe64e86d2d78aec61cfd4d"
+    },
+    {
+      "bytes": 8103,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/source-checkpoint-v1-ordered-current-native379-source-schema-v3.mjs.gz",
+      "sha256": "1619fcfcc164702e09a2645312c505855bdc1583edcfb772514046019d7514ab"
+    },
+    {
+      "bytes": 1128,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/source-checkpoint-v2-manifest.json.gz",
+      "sha256": "83d941c0ddc966bbeef6b902c9fe2710a1849c2e88d8b33738c9bfef0beaf5e8"
+    },
+    {
+      "bytes": 9097,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/source-checkpoint-v2-ordered-current-native379-source-schema-v3.mjs.gz",
+      "sha256": "9f0f2966423c05f61fddb3a0dae79bea0675ddb85ed245b5eda6493196dce72d"
+    },
+    {
+      "bytes": 1064,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/source-checkpoint-v3-manifest.json.gz",
+      "sha256": "3a26b971646704ff18ba59a7dcb9fbc1d61c0897826ee98df727774a4be1d244"
+    },
+    {
+      "bytes": 9336,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/source-checkpoint-v3-ordered-current-native379-source-schema-v3.mjs.gz",
+      "sha256": "c937881185ed1b1041d24f65d25775a4718064c3efe67d270f18849d259207a0"
+    },
+    {
+      "bytes": 1062,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/source-checkpoint-v4-manifest.json.gz",
+      "sha256": "41af6629592536e3c3621b89f5766807841f1e598167456915dfb18a8e0a5bf8"
+    },
+    {
+      "bytes": 9467,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/source-checkpoint-v4-ordered-current-native379-source-schema-v3.mjs.gz",
+      "sha256": "693772d1e684321850209f4dce5ea563033333856a2b8358015794808538c566"
+    },
+    {
+      "bytes": 4377,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/unit-final-lifecycle-fixture.mjs.gz",
+      "sha256": "9f6bdf054554ade865c7fa8ce731255bc346babed9bf48f570acc7e68989705f"
+    },
+    {
+      "bytes": 2819,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/unit-final-recipe.json.gz",
+      "sha256": "b9fb322d1a30215cd5b916a5b4ad03cdf8ef3402c82a0ef34b7be24132d5f1be"
+    },
+    {
+      "bytes": 4536,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/unit-final-run.py.gz",
+      "sha256": "e231e15fbe67e510dec16d93f44c1a388ede325ac9065273b0f4a3fa211ff38b"
+    },
+    {
+      "bytes": 1973,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/unit-original-blocked-recipe.json.gz",
+      "sha256": "16481fe00331882efa0ed286e5485c7955424fba2334a9969a8ec3584209c80a"
+    },
+    {
+      "bytes": 3139,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/archive/unit-original-blocked-run.py.gz",
+      "sha256": "de02590f2a1f63b90fe4f78beaa11700783166c7ee74f4701848eb730544578a"
+    },
+    {
+      "bytes": 15046,
+      "path": "/tmp/zasp-cloud-evidence/historical-node-source-unit-selected-publication-ay82tybj/originals.json",
+      "sha256": "900a225057bb58da26d5bff94db5cbb95d9f9811812a30452515cf1b096f0294"
+    },
+    {
+      "bytes": 1400,
+      "path": "/tmp/zasp-cloud-evidence/independent-historical-materializer-selected-publication-review.json",
+      "sha256": "e9cad7462a37d741d96084f683334141f6fc4491a3d848c1193c6edf67650ea0"
+    },
+    {
+      "bytes": 1408,
+      "path": "/tmp/zasp-cloud-evidence/independent-historical-node-f24-freeze-7dbf-publication-review.json",
+      "sha256": "dacce0ca57a24b4c21185d424478b865340e2bf95db848c5077401fe1ac311f5"
+    },
+    {
+      "bytes": 1511,
+      "path": "/tmp/zasp-cloud-evidence/independent-882ebb72-eight-committed-blob-review.json",
+      "sha256": "a746a58a8c548b6771c80c50549ff75f07e676387a7433f3fc0214e1d99bcbf5"
+    },
+    {
+      "bytes": 11422,
+      "path": "/tmp/zasp-cloud-evidence/independent-actual-phase-codec-model3-deadline-failure-review.json",
+      "sha256": "0a06a89c4393718ff831d44b1f966d8e14d802d4671e396081a4abae702daa43"
+    }
+  ],
+  "newDeterministicArchives": [
+    {
+      "archive": "materializer-original-publication.tar.gz",
+      "exactRoundtrip": true,
+      "memberCount": 20,
+      "metadata": "USTAR sorted regular0400 uid/gid/mtime0 namesempty gzipmtime0"
+    },
+    {
+      "archive": "tiny-node-original-publication.tar.gz",
+      "exactRoundtrip": true,
+      "memberCount": 39,
+      "metadata": "USTAR sorted regular0400 uid/gid/mtime0 namesempty gzipmtime0"
+    },
+    {
+      "archive": "independent-reviews.tar.gz",
+      "exactRoundtrip": true,
+      "memberCount": 4,
+      "metadata": "USTAR sorted regular0400 uid/gid/mtime0 namesempty gzipmtime0"
+    }
+  ],
+  "omissions": [
+    {
+      "bytes": 243656,
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-empty-phase-revision-OspKF33a/actual-phase-codec-source-tests-df1ec49e1eeb4f22958846ac23c01512/result.json",
+      "reason": "Reference only; large result/complete source map omitted; no replay closure claim.",
+      "sha256": "b89d7e8801722bba6621c0ac19cd3ba4be894a321405d50cb5de0401a99296da"
+    },
+    {
+      "bytes": 3190245,
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-empty-phase-revision-OspKF33a/actual-phase-codec-source-tests-df1ec49e1eeb4f22958846ac23c01512/source-before.json",
+      "reason": "Reference only; large result/complete source map omitted; no replay closure claim.",
+      "sha256": "7e29478b10d013aca9cb51705e3674161f5076e9d6b56b4907097a6f46f428b1"
+    },
+    {
+      "bytes": 3190245,
+      "path": "/workspace/.zasp-cloud-owned/native379-phase-codec-empty-phase-revision-OspKF33a/actual-phase-codec-source-tests-df1ec49e1eeb4f22958846ac23c01512/source-after.json",
+      "reason": "Reference only; large result/complete source map omitted; no replay closure claim.",
+      "sha256": "7e29478b10d013aca9cb51705e3674161f5076e9d6b56b4907097a6f46f428b1"
+    }
+  ],
+  "otherOmissions": "Original packets retain their own reference-only large records; no full source/tool/module/wire/binary/TMP/PEM archive or complete replay closure transferred."
+}

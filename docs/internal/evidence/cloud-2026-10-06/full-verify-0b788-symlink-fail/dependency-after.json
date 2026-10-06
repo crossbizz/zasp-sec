@@ -1,0 +1,12 @@
+{
+  "worktree_head": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "tracked_source_status": [],
+  "node_modules_realpath": "/workspace/zasp-sec/node_modules",
+  "package_files": {
+    "package.json": "43a2e7504ebbb0fdf78c58075077ce041dd77547b4cb9938efe68b10b1c4af00",
+    "package-lock.json": "d34f213a3222a5fd3cecea449bb4242ebe725bdb8a3c73a08d2eb3a66d687b01"
+  },
+  "node_modules_lock_sha256": "eae4b9ec86f69caf26eb6b6bf82c9eab8d3c4413df39ca28f05c1abd3d669faa",
+  "limits": "These observed package/module-lock identities and shared node_modules symlink do not prove a complete immutable dependency-file closure; no install performed.",
+  "observed_dependency_identity_unchanged": true
+}

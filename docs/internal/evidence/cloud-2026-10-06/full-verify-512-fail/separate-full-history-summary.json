@@ -1,0 +1,10 @@
+{
+  "head": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "logOptions": "HEAD",
+  "exit": 0,
+  "elapsedSeconds": 93.65,
+  "findings": 0,
+  "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "ignoreSHA256": "eed1fd29226f178d71e6f0e77b1e2cbcc9101513d600e99fc5a081779f85082c",
+  "headUnchanged": true
+}

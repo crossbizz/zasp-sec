@@ -1,0 +1,186 @@
+{
+  "format": "independent-native379-assertion-source-boundary-cost-v1",
+  "source_sha256": "05f314d326b85a56f98370431dc8fb4d7088d9ac9ddf8c73eebf3261d2b4f3e8",
+  "packet_sha256": "ca7dd2ad47a4afcea9f0dfca48d10e5e4b8876c0daf6450c33a66776e830d5e9",
+  "scope": "Source-modeled known program outputs and mock captures, not native execution or capacity.63-byte quoted PostgreSQL identifiers can include non-NUL control characters; these JSON-escape to6bytes per character. Positive backendPID maxint32 and guardelapsed10sec included; uniform10sec guards exceed phase timing feasibility and serve only conservative byte-boundary test. Actual per-phase combined time controls also required. Added1ns per guard case is positive and cumulatively within timingcaps; byte sizes adjusted exactly by10removed decimal digits/guard. It independently proves escaped63-byte user overflow without excessive elapsed assumptions. Refreshed exact byte-cost deltas for authoritative source recovery placement; baseline12908/15035885 andforged1923/3303847 exactly match actual authentic Go source-group ledger.",
+  "cases": {
+    "baseline": {
+      "user_utf8_bytes": 9,
+      "user_canonical_json_bytes": 11,
+      "pid": 37980,
+      "elapsed_ns": 0,
+      "phase_costs": {
+        "pristine-truth": {
+          "rows": 10058,
+          "bytes": 10068231,
+          "guards": 0
+        },
+        "drift": {
+          "rows": 606,
+          "bytes": 1047644,
+          "guards": 1351
+        },
+        "forged-entry": {
+          "rows": 1923,
+          "bytes": 3303847,
+          "guards": 4225
+        },
+        "null-error-lazy-demand": {
+          "rows": 277,
+          "bytes": 560718,
+          "guards": 701
+        },
+        "frame-restoration": {
+          "rows": 44,
+          "bytes": 55445,
+          "guards": 70
+        }
+      },
+      "total_rows": 12908,
+      "total_bytes": 15035885,
+      "source_byte_delta_due_to_authoritative_recovery_placement": {
+        "preflight": 0,
+        "pristine-truth": 0,
+        "drift": -984,
+        "forged-entry": -2871,
+        "null-error-lazy-demand": -416,
+        "frame-restoration": 115,
+        "cleanup-result": 0
+      }
+    },
+    "ascii63_pid10_elapsed11": {
+      "user_utf8_bytes": 63,
+      "user_canonical_json_bytes": 65,
+      "pid": 2147483647,
+      "elapsed_ns": 10000000000,
+      "phase_costs": {
+        "pristine-truth": {
+          "rows": 10058,
+          "bytes": 10068447,
+          "guards": 0
+        },
+        "drift": {
+          "rows": 606,
+          "bytes": 1194349,
+          "guards": 1351
+        },
+        "forged-entry": {
+          "rows": 1923,
+          "bytes": 3742185,
+          "guards": 4225
+        },
+        "null-error-lazy-demand": {
+          "rows": 277,
+          "bytes": 636211,
+          "guards": 701
+        },
+        "frame-restoration": {
+          "rows": 44,
+          "bytes": 61985,
+          "guards": 70
+        }
+      },
+      "total_rows": 12908,
+      "total_bytes": 15703177,
+      "source_byte_delta_due_to_authoritative_recovery_placement": {
+        "preflight": 0,
+        "pristine-truth": 0,
+        "drift": -984,
+        "forged-entry": -3249,
+        "null-error-lazy-demand": -416,
+        "frame-restoration": -155,
+        "cleanup-result": 0
+      }
+    },
+    "escaped_control63_pid10_elapsed11": {
+      "user_utf8_bytes": 63,
+      "user_canonical_json_bytes": 380,
+      "pid": 2147483647,
+      "elapsed_ns": 10000000000,
+      "phase_costs": {
+        "pristine-truth": {
+          "rows": 10058,
+          "bytes": 10069707,
+          "guards": 0
+        },
+        "drift": {
+          "rows": 606,
+          "bytes": 1928299,
+          "guards": 1351
+        },
+        "forged-entry": {
+          "rows": 1923,
+          "bytes": 5917890,
+          "guards": 4225
+        },
+        "null-error-lazy-demand": {
+          "rows": 277,
+          "bytes": 1013266,
+          "guards": 701
+        },
+        "frame-restoration": {
+          "rows": 44,
+          "bytes": 93485,
+          "guards": 70
+        }
+      },
+      "total_rows": 12908,
+      "total_bytes": 19022647,
+      "source_byte_delta_due_to_authoritative_recovery_placement": {
+        "preflight": 0,
+        "pristine-truth": 0,
+        "drift": -984,
+        "forged-entry": -5454,
+        "null-error-lazy-demand": -416,
+        "frame-restoration": -1730,
+        "cleanup-result": 0
+      }
+    },
+    "escaped_control63_pid10_elapsed1": {
+      "user_utf8_bytes": 63,
+      "user_canonical_json_bytes": 380,
+      "pid": 2147483647,
+      "elapsed_ns": 1,
+      "phase_costs": {
+        "pristine-truth": {
+          "rows": 10058,
+          "bytes": 10069707,
+          "guards": 0
+        },
+        "drift": {
+          "rows": 606,
+          "bytes": 1914789,
+          "guards": 1351
+        },
+        "forged-entry": {
+          "rows": 1923,
+          "bytes": 5875640,
+          "guards": 4225
+        },
+        "null-error-lazy-demand": {
+          "rows": 277,
+          "bytes": 1006256,
+          "guards": 701
+        },
+        "frame-restoration": {
+          "rows": 44,
+          "bytes": 92785,
+          "guards": 70
+        }
+      },
+      "total_rows": 12908,
+      "total_bytes": 18959177,
+      "proven_overflow": "forged-entry total>4194304; first-overflow position not recalculated",
+      "source_byte_delta_due_to_authoritative_recovery_placement": {
+        "preflight": 0,
+        "pristine-truth": 0,
+        "drift": -984,
+        "forged-entry": -5454,
+        "null-error-lazy-demand": -416,
+        "frame-restoration": -1730,
+        "cleanup-result": 0
+      }
+    }
+  },
+  "predecessor_report_sha256": "730a1baee08a55a8596f1e41558db24a25726ba7dadabc73ed45fe97a8f784df"
+}

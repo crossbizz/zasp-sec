@@ -1,0 +1,286 @@
+{
+  "scope": "PRIVATE primary-false diagnostic source component; no PostgreSQL/native execution, no new frozen envelope",
+  "baselineCommit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "implementationSHA256": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0",
+  "sourceTests": {
+    "fullGo": {
+      "passed": 23,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 65.83680319786072
+    },
+    "nonWireGo": {
+      "passed": 22,
+      "failed": 0,
+      "seconds": 0.977
+    },
+    "Node": {
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "milliseconds": 35837.655318
+    }
+  },
+  "unchangedPacket": {
+    "allNonAuthorityFieldsExactReviewed5d18": true,
+    "rules": 379,
+    "facts": 10052,
+    "sites": 565,
+    "controls": 589,
+    "steps": 6348,
+    "capsChanged": false
+  },
+  "limitations": [
+    "Replay is ordered diagnostic re-execution, never original execution trace.",
+    "NULL, query/stream errors, cardinality or deadline/budget failures stay unknown; original primary false stays refused.",
+    "Interval timings include client/local validation; not SQL server profile.",
+    "589 recorded program/outcome validations use scripted source-model data; no actual589 SQL executions.",
+    "Companion468734 remains stale for new source; no native admission.",
+    "Fresh combined-source binding/foundation held pending separate readiness candidate review."
+  ],
+  "redClassification": {
+    "behavioral": [
+      "old-api-behavioral-red.log",
+      "replay-deadline-partial-behavioral-red.log",
+      "replay-closed-failure-behavioral-red.log",
+      "replay-borrowed-query-behavioral-red.log",
+      "replay-unknown-deadline-behavioral-red.log"
+    ],
+    "featureAbsentAPICompile": [
+      "replay-feature-red.log"
+    ],
+    "excludedImplementationOrInvocationMistakes": [
+      "replay-source-group-1.log",
+      "replay-source-group-2.log"
+    ],
+    "supersededA6Checkpoint": [
+      "replay-authentic-full22.log",
+      "replay-node6.log",
+      "replay-canonical-archive.log"
+    ]
+  },
+  "artifactMembers": [
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/old-api-behavioral-red.log",
+      "sha256": "1609bd56bb8b6a1126c4711b6d6280829f52faa536e82985cf0cff93d1918fb0",
+      "bytes": 325,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/old-api-red-test.go.txt",
+      "sha256": "333a3b2f958c8ceba0bf7b9f05b63134c2b5341a64c05c5553c89ad55cef55aa",
+      "bytes": 588,
+      "mode": "0o600"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-2912-canonical-archive.log",
+      "sha256": "e6ae4b4856b4a9a00de17ad50b361e474f26aaf858a491875575217f65faa285",
+      "bytes": 699,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-2912-node6.log",
+      "sha256": "d18fb0fa2a6135e313266454d91a77bf356c1bd25b39bd0eb5a1a8d9cb796634",
+      "bytes": 1632,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-authentic-full22.log",
+      "sha256": "bd3206b2438ca116862cabbadc153bfa5f0dd1a5a60bbc1e4e91b210aabc5553",
+      "bytes": 11246,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-borrowed-query-behavioral-red.log",
+      "sha256": "a70c7f5bc338efeefcfd0d0d67f93709bf479befc13a0e99916c2fa3c303e631",
+      "bytes": 1130,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-canonical-archive.log",
+      "sha256": "9109d7e761124a40a2c03d27f7e3f3710dff024c61070b61902445a0226e924d",
+      "bytes": 699,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-closed-failure-behavioral-red.log",
+      "sha256": "590d944a734bb6232847057f864da6d45f81c8825ba65fa8032b3268b67bab16",
+      "bytes": 1174,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-component-2912-orchestrator.log",
+      "sha256": "e826da866f799bfab2a5906bf5737bf33b28e10feb6447909fb38bc76f0909cf",
+      "bytes": 2346,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-deadline-partial-behavioral-red.log",
+      "sha256": "f1913e4cc155ac13fd63a27afae60ba3d42c8b3a9ffa9d33f92a77c3800d47ba",
+      "bytes": 822,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-feature-red.log",
+      "sha256": "2f3a0b86efa6739b9b0deec0b778fe596f559f34c4483010e0adff82534296b7",
+      "bytes": 1497,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-feature-tests.go.txt",
+      "sha256": "b59149777372991c35d27d91a192c37d478686b158a877e548d912c81e486c3b",
+      "bytes": 5776,
+      "mode": "0o600"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-focused-green-1.log",
+      "sha256": "62a340dcdccd5ea6818b353f92bab8b1ac3480f2727ab66859c10fd5b5193b16",
+      "bytes": 1499,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-node6.log",
+      "sha256": "6c4fb3a97ee0cdf3a7cdddadc017705d4a0ad6e1fedef76644d71e4e998a7373",
+      "bytes": 1630,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-source-group-1.log",
+      "sha256": "30c5b71555feabee1c85b5c2f71572f616d3f488db55c8ca1f7406f57fc52df4",
+      "bytes": 6079,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-source-group-2.log",
+      "sha256": "31fdb5ccd3d996a724cd981495636dd64521c3f4ca24cf96e62e9b10f30da53e",
+      "bytes": 684,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-source-group-3.log",
+      "sha256": "8ab274ecd5ab73a30f24290fde8e00247fe657c8c8616e20fd911f0235d1d0bb",
+      "bytes": 9725,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-source-group-4.log",
+      "sha256": "a15f400576ce3f9e6dd744bf0c742c5fb4336be91457c33cfdada209ccbc2712",
+      "bytes": 10433,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-source-group-5.log",
+      "sha256": "ad31a37b74e4fb4e8a4480bf2d2e247a5bdf7b66bd3cf652016d5d25f06ce233",
+      "bytes": 11337,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-unknown-deadline-behavioral-red.log",
+      "sha256": "136d3c95dd7fa0ce867bec82f94c793c8c7d4dded4a2478a054f5614b1d03417",
+      "bytes": 565,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/component-review-2912/apiserver-source-review.test",
+      "sha256": "c173341b141093f9777b9f97ed468b2053b67d081b86a729ef2b78942f59d952",
+      "bytes": 117777864,
+      "mode": "0o500"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/component-review-2912/compile.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/component-review-2912/full23.log",
+      "sha256": "1037d84f755c4901af62c67a0950bc3431acf9881606328c242111a7e5ccc39e",
+      "bytes": 12081,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/component-review-2912/identity.json",
+      "sha256": "7c484baededb2e8365e9f475496b4abc779a75717d38dc277644abbd30742157",
+      "bytes": 2690,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/authorization_worker_ordered_current_native379_v2_test.go",
+      "sha256": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0",
+      "bytes": 249144,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/canonical-wire.json",
+      "sha256": "93a6a59469725b7357d0119245726b93c08066abc6afb81972df5ad9d1d4c6a7",
+      "bytes": 25160408,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/canonical-wire.json.gz",
+      "sha256": "8bdb61861140695d8a207e8d04564a735b084dc74586c73f82a328781f14fb20",
+      "bytes": 1578274,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/generated-identities.json",
+      "sha256": "9d1053e9310e27128404e45c2eeedce1dc6b42eaff004ecf0e0760c903b59f99",
+      "bytes": 17274,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/ordered-current-native379-packet-v2.mjs",
+      "sha256": "71ca75091285774ae7e1dbbf815cdfa0be3f30830d9d232f016aaf083ceb2bec",
+      "bytes": 43460,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/ordered-current-native379-packet-v2.test.mjs",
+      "sha256": "4a08ca625405c60a1f1feb086fdd8431155e42fce70808e2eecd977d0d66530b",
+      "bytes": 5979,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/ordered-current-native379-source-schema-v2.mjs",
+      "sha256": "64a6f338e7e83aa1ad8efc4341d29240601ea092f9ea415c42ca65bb0f4cc1c0",
+      "bytes": 4701,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/ordered-current-native379-source-schema-v2.test.mjs",
+      "sha256": "531e9d8255222266efa76f77161b101d5d3452285d2bb7076d12278d14a8eaa3",
+      "bytes": 4811,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/private-source-delta.json",
+      "sha256": "4bd6b6613f5dee402684070cb71383a0c8fa521501caa90f7593a4fbdd0c4aa6",
+      "bytes": 2062,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/source-fact-delta.json",
+      "sha256": "90325bea8205ec4e3f8eaa1de3c1fb0d814981cc6fbfd91e3c3e4ad3e6a9cdab",
+      "bytes": 68573,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/source-inputs.json",
+      "sha256": "605a85d721647a355adbf1e99f7ce722860765cca83d02ffbe814e7b91c29339",
+      "bytes": 272739,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/source-sha256.json",
+      "sha256": "0383e360973f711fecfbfe45ab122b5ef60b312df74f10694e825d7b178018f0",
+      "bytes": 1308,
+      "mode": "0o400"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/summary.json",
+      "sha256": "dd5335191b288c7539675c2b91c1471c09dd8b27828ba7b226b63f192116615a",
+      "bytes": 731,
+      "mode": "0o400"
+    }
+  ]
+}

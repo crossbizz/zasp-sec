@@ -1,0 +1,42 @@
+[
+ {
+  "RuleID": "generic-api-key",
+  "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "StartLine": 45,
+  "EndLine": 45,
+  "StartColumn": 29,
+  "EndColumn": 116,
+  "Match": "libgssapi_krb5.so.2\": \"c290f761873ebeac539911010526e1c5db86218bfcb29672760da46841741de0\"",
+  "Secret": "c290f761873ebeac539911010526e1c5db86218bfcb29672760da46841741de0",
+  "File": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/source-five-scan-kykgb7ym/source/ordered-current-linux-provenance-v1.json",
+  "SymlinkFile": "",
+  "Commit": "",
+  "Entropy": 3.8968225,
+  "Author": "",
+  "Email": "",
+  "Date": "",
+  "Message": "",
+  "Tags": [],
+  "Fingerprint": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/source-five-scan-kykgb7ym/source/ordered-current-linux-provenance-v1.json:generic-api-key:45"
+ },
+ {
+  "RuleID": "generic-api-key",
+  "Description": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+  "StartLine": 49,
+  "EndLine": 49,
+  "StartColumn": 29,
+  "EndColumn": 113,
+  "Match": "libkeyutils.so.1\": \"e5d5a7450d08eff7d4bbcaac75ef2b94d3447c81a1b2ddf3ab85d2de4709a9a8\"",
+  "Secret": "e5d5a7450d08eff7d4bbcaac75ef2b94d3447c81a1b2ddf3ab85d2de4709a9a8",
+  "File": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/source-five-scan-kykgb7ym/source/ordered-current-linux-provenance-v1.json",
+  "SymlinkFile": "",
+  "Commit": "",
+  "Entropy": 3.796723,
+  "Author": "",
+  "Email": "",
+  "Date": "",
+  "Message": "",
+  "Tags": [],
+  "Fingerprint": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/source-five-scan-kykgb7ym/source/ordered-current-linux-provenance-v1.json:generic-api-key:49"
+ }
+]

@@ -1,0 +1,31 @@
+{
+  "format": "independent-diagnostic-tool-module-foundation-review-v1",
+  "assessment": "PASS TOOLS/MODULES ONLY; FUTURE SOURCE BUILD ENVELOPES AND NATIVE NOT APPROVED",
+  "reviewer": "provider_deployment_readiness",
+  "root": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r",
+  "summary_sha256": "43d6da35c39da44f17311062db466c8fb747bcbfe74f1e5be6ecc66a200d6f57",
+  "independent_recomputations": {
+    "Go_files": 14539,
+    "Go_bytes": 206408419,
+    "external_module_and_Node_files": 18916,
+    "external_module_and_Node_bytes": 403275681,
+    "full_manifests_actual_rosters_hashes_and_readonly_permissions_match": true,
+    "selected_modules": 73,
+    "module_archive_h1_and_go_mod_h1_recomputed_against_actual_platform_go_sum": true,
+    "go_sum_sha256": "a99d2c9979401b020e8ce1c7818276f05c820dce5f43820566ba94121bf48825",
+    "archive_extracted_regular_unique_safe_member_files": 18412,
+    "all_extracted_rosters_and_bytes_match_archives": true,
+    "lazy_mod_metadata_hashes": 283,
+    "GoSHA256": "3fb44b0d47becc087cf9e6002366bfbf136d3e08460f12389dbd04687dcf0dd0",
+    "NodeSHA256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068",
+    "licensed_Nexus_MIT_sha256": "06847bcc52e67fceae1691299bdd42dbfdff138c91e3ea89811a7aa2827988d6",
+    "old_unlicensed_Nexus_absent": true,
+    "owned_source_absent": true,
+    "build_cache_tmp_bin_empty_owner0700": true,
+    "prior_foundation_bound_proof_files_rehashed_unchanged": true
+  },
+  "permission_boundary": "Go tree and all copied module/tool children read-only; module-cache root0700 deliberately remains writable for future committed source then finalfreeze. Current emptycache0700 is preparation, not trusted compiledcache admission.",
+  "old_root_scope": "Rehashed referenced oldfoundation proof files and selectedsource archives; no oldroot writes. Not an independent alloldowned-source rehash assertion.",
+  "commands_by_reviewer": "Only Python/shell read/hash/zip verification; no Go/Node/PG executable, network, productsourcecopy, compilation or native run.",
+  "findings": []
+}

@@ -1,0 +1,6 @@
+=== RUN   TestNative379V2LegacyDeferredErrorDiagnosticPreservesSafeCause
+    authorization_worker_ordered_current_native379_v2_test.go:4074: deferred stream diagnostic discarded actual safe SQLSTATE
+--- FAIL: TestNative379V2LegacyDeferredErrorDiagnosticPreservesSafeCause (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.021s
+FAIL

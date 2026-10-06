@@ -1,0 +1,45 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "SDK-observe-derive-gzip-prepare",
+  "completedAtWrite": false,
+  "failureClass": "RuntimeError",
+  "signals": [],
+  "records": [
+    {
+      "label": "fresh-root-one-observer",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/SDK-gzip-R10-prepare-observer-8nuhyi0f/fresh-observer-owner-v3.py",
+        "cea8b10f383eec752971bc87312bd354900e48105e57aae72d0940dcde115818"
+      ],
+      "declared_cap_seconds": 125,
+      "effective_limit_seconds": 125,
+      "enclosing_deadline_monotonic": 81003.061195935,
+      "effective_deadline_monotonic": 80883.062046705,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 318164,
+      "seconds": 2.732329,
+      "stdout_sha256": "34ea3b209ed9603ecec6a99ad69652805eaf9e5e8030c4dd3c0b84e2a2de3a83",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "groups": {
+    "318164": []
+  },
+  "seconds": 2.750686119994498,
+  "expectedNetworkVariableNames": [],
+  "servicesStarted": false,
+  "installerInvoked": false,
+  "compressionInvoked": false,
+  "rawUnlinkedByThisRecipe": false,
+  "admissionScope": "LOSSLESS-GZIP-PREPARE-ONLY-ORIGINAL-REMAINS-NO-UNLINK-OR-RUNTIME",
+  "rootExternalNormalJoinRequired": true
+}

@@ -100,7 +100,7 @@ describe("M1-29 system health aggregator", () => {
       expect(sourceProse).toContain(value);
     }
     expect(packageJson.scripts?.["health:contract:test"]).toBe(
-      "node --test openapi/internal-health.test.mjs && go test -C services/health -race -count=1 ./... && go test -C services/platform -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker && go test -C services/event-ingest -race -count=1 ./... && go test -C services/runtime-gateway -race -count=1 ./...",
+      "node --test openapi/internal-health.test.mjs && go test -C services/health -race -count=1 ./... && go test -C services/platform -p=1 -race -count=1 ./healthserver ./agentsec-api ./agentsec-worker && go test -C services/event-ingest -race -count=1 ./... && go test -C services/runtime-gateway -race -count=1 ./...",
     );
     for (const value of [
       "M1-29 is Complete",

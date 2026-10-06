@@ -1,0 +1,21 @@
+{
+  "label": "full-source-delta",
+  "argv": [
+    "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin/node",
+    "--input-type=module",
+    "-e",
+    "import {analyzeOrderedCurrentLinuxSuccessorV1} from './services/platform/migrations/tools/build-ordered-current-linux-successor-v1.mjs'; console.log(JSON.stringify(analyzeOrderedCurrentLinuxSuccessorV1()));"
+  ],
+  "cwd": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/source",
+  "environment": {
+    "PATH": "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+    "TMPDIR": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-7egctdb2/tmp",
+    "LANG": "C",
+    "TZ": "UTC"
+  },
+  "exit": 0,
+  "timedOut": false,
+  "directProcessJoined": true,
+  "seconds": 29.133652280001115,
+  "logSHA256": "ef0897845df1fb8857591949c1e38867c7c7f411443e409d09d73b9b911f43cf"
+}

@@ -1,0 +1,18 @@
+
+// Additional overlay-only component regression; no SQL or PostgreSQL runs.
+type native379V2LegacyDiagnosticTx struct { pgx.Tx; rows pgx.Rows }
+func (tx native379V2LegacyDiagnosticTx) Query(context.Context,string,...any)(pgx.Rows,error){return tx.rows,nil}
+type native379V2LegacyDeferredRows struct {pgx.Rows; closed bool}
+func(r *native379V2LegacyDeferredRows) Next()bool{return false}
+func(r *native379V2LegacyDeferredRows) Close(){r.closed=true}
+func(r *native379V2LegacyDeferredRows) Err()error{return &pgconn.PgError{Code:"42501",Message:"SECRET-CANARY-ERROR-MESSAGE",Detail:"SECRET-CANARY-ERROR-DETAIL"}}
+func TestNative379V2LegacyDeferredErrorDiagnosticPreservesSafeCause(t *testing.T){
+ collector,err:=os.ReadFile(os.Getenv("ZASP_DIAGNOSTIC_COLLECTOR_TEST_FIXTURE"));if err!=nil{t.Fatal("owned test fixture unavailable")}
+ if orderedCurrentNative379V2SHA256(collector)!=orderedCurrentNative379V2CollectorSHA256{t.Fatal("owned collector fixture pin mismatch")}
+ var packet orderedCurrentNative379V2Packet;packet.Limits.MaxRows=20;packet.Limits.MaxBytes=1<<20
+ rows:=&native379V2LegacyDeferredRows{}
+ diagnostic:=orderedCurrentNative379V2CollectCatalogDiagnostic(context.Background(),native379V2LegacyDiagnosticTx{rows:rows},packet,collector)
+ raw,err:=json.Marshal(diagnostic);if err!=nil||!rows.closed||!diagnostic.Overflow{t.Fatal("refusal or cleanup lost")}
+ if !bytes.Contains(raw,[]byte("42501")){t.Fatal("deferred stream diagnostic discarded actual safe SQLSTATE")}
+ if bytes.Contains(raw,[]byte("SECRET-CANARY"))||len(raw)>4096{t.Fatal("unsafe diagnostic disclosure")}
+}

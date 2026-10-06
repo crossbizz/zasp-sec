@@ -1,0 +1,57 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "exact32244-installer-retry",
+  "completedAtWrite": true,
+  "failureClass": null,
+  "signals": [],
+  "records": [
+    {
+      "label": "strict-two-vendor-installer-retry",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/native-OSS-installer-retry-32244-c2h7s0pa/prepare-native-OSS-tools.py",
+        "--plan",
+        "/tmp/zasp-cloud-evidence/native-OSS-installer-retry-32244-c2h7s0pa/installer-plan.json",
+        "--plan-sha256",
+        "8d2395af65e5d91ce96acebdbb48d2091afbdaaa0f5d5036c2b8290e74b7560d",
+        "--output",
+        "/workspace/.zasp-cloud-owned/native-OSS-component-tools-457255ffbb3f42fc93aaa551e2942d25"
+      ],
+      "declared_cap_seconds": 275,
+      "effective_limit_seconds": 274.9989393029973,
+      "enclosing_deadline_monotonic": 64575.860283274,
+      "effective_deadline_monotonic": 64575.860283274,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 293508,
+      "seconds": 3.785988,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "groups": {
+    "293508": []
+  },
+  "seconds": 4.011292157003481,
+  "expectedNetworkVariableNames": [
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "REQUESTS_CA_BUNDLE"
+  ],
+  "servicesStarted": false,
+  "installerInvoked": true,
+  "rootExternalNormalJoinRequired": true
+}

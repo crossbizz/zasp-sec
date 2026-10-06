@@ -1,0 +1,109 @@
+{
+  "status": "ACTUAL-FAILED-MODEL3-RECONCILIATION-PASS",
+  "resultSHA256": "b89d7e8801722bba6621c0ac19cd3ba4be894a321405d50cb5de0401a99296da",
+  "sourceMapSHA256": "7e29478b10d013aca9cb51705e3674161f5076e9d6b56b4907097a6f46f428b1",
+  "sourceIdentityCount": 7664,
+  "currentInputPinsVerified": {
+    "/workspace/.zasp-cloud-owned/native379-compact-source-icyjmyf_/source/authorization_worker_ordered_current_native379_v3_test.go": "4b29d8318704bc1e4b4637473c19bb2e71323f18b1ed1013fc6f423d833f2f37",
+    "/workspace/.zasp-cloud-owned/native379-compact-source-icyjmyf_/source/authorization_worker_ordered_current_native379_v3_pins_test.go": "ff4b79953be4e37d3c619ff412ea5bfee07d470d9770530ef911b48daba6faaf",
+    "/workspace/.zasp-cloud-owned/native379-compact-source-icyjmyf_/source/authorization_worker_ordered_current_native379_compact_receipt_test.go": "67fdb6a2e42f464b472414c17a1478bbc425dce85ff4d8b6f5f64e6a1b3c962c",
+    "/workspace/.zasp-cloud-owned/native379-compact-json-repair-64up_411/source/authorization_worker_ordered_current_native379_compact_receipt_test.go": "92fe2bb84aba2f26f063f62e5d4c829e5116852a7cde33a5b88902b1d78e2e28",
+    "/workspace/.zasp-cloud-owned/native379-compact-json-repair-64up_411/new-regression-source.go.txt": "c2515a9b67e51960053bc0be8d4cb9981fd0df38e6c28bf70f65d095bf5d4166",
+    "/workspace/.zasp-cloud-owned/native379-compact-overlay-recipe-e8843vpa/green-core-only.go.txt": "2199991840df645b6d7a788d7be0496d1d1af1adee618342ee83703086e89cd0",
+    "/workspace/.zasp-cloud-owned/native379-compact-overlay-recipe-e8843vpa/red-overlay.json": "7bd83f5a11cfd5d85d9523f1de94c7dfa657cda78662908ca14826c4c5563cd6",
+    "/workspace/.zasp-cloud-owned/native379-compact-overlay-recipe-e8843vpa/green-overlay.json": "ebdc4a8db977d582571a9eb10070cf88f8c02dedbc03066b95dc13e6ab2a7c67",
+    "/workspace/.zasp-cloud-owned/native379-v3-go-source21-initial-lem9djox/source/services/platform/go.mod": "3d0176805b0c3fa8ce90b3984650e9dae08baaa13dc2dcbdc5528493326756b0",
+    "/workspace/.zasp-cloud-owned/native379-v3-go-source21-initial-lem9djox/source/services/platform/go.sum": "a99d2c9979401b020e8ce1c7818276f05c820dce5f43820566ba94121bf48825",
+    "/tmp/zasp-cloud-tools/go/bin/go": "3fb44b0d47becc087cf9e6002366bfbf136d3e08460f12389dbd04687dcf0dd0",
+    "/tmp/zasp-cloud-tools/bin/tini": "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c",
+    "/tmp/zasp-cloud-evidence/independent-native379-compact-component67fdb6-static-review.json": "7f4e8beda18d10b7a3a325d9f2cbd1ae43c7490e76e22fc80eda53cb4012383a",
+    "/tmp/zasp-cloud-evidence/independent-native379-compact-component92fe2b-static-review.json": "7577695dcee0cbbc215367decac946630c8e7ed15f6cd41151b6bd15d71840c3",
+    "/workspace/.zasp-cloud-owned/native379-compact-wire-fixture-revision-4mogde8y/regression-source.go.txt": "6111257f367dd536d4d27908522b508aca8f2cf820c7052886cd47ee0ac845b1",
+    "/workspace/.zasp-cloud-owned/native379-compact-overlay-fixture-retry-zbhm8t3p/red-overlay.json": "f75b9c881a4758af1ea66cd8b0ad2421fe7c37460eb5ff17016f7456f17ee371",
+    "/workspace/.zasp-cloud-owned/native379-compact-overlay-fixture-retry-zbhm8t3p/green-overlay.json": "dd554bf128f77b58193da556be441f25daa6a1e4807129ed9707662917388205",
+    "/tmp/zasp-cloud-evidence/independent-compact-overlay-actual-failed-cdebb6-review.json": "00e74a1ccffeee77cc2829abcca574118c6114fbcfc85a18e67cbf751bd88639",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-draft-2rhhvy8j/authorization_worker_ordered_current_native379_phase_codec_test.go": "c8a675e4ecafd41a1b5d289eb7ea0dca73ba8ee7c74a94d5f6ccfb45202f8547",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-draft-2rhhvy8j/authorization_worker_ordered_current_native379_phase_codec_cases_test.go": "84cba8e4eee1b77905b62e5c0a29987572e3abc27115267d53d42d55e01ca2a1",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-draft-2rhhvy8j/source-overlay.json": "2554fe08d95c6f844beb32ada85f4b8c85ea9cf3dc0cf6b06666c1b740b1dcef",
+    "/workspace/.zasp-cloud-owned/native379-v3-final81-0atrosfr/evidence/final-v3-canonical-wire.json": "41141f2ed08cfaee0bfea75dd11152c95d898a625a5f0d87f1f1b65be939d035",
+    "/tmp/zasp-cloud-evidence/independent-compact-full-adapter-transport-design-review.json": "cb394df620b4f0fd67c95fd8d503819b0bfed6467a35e88f88ce6e9bf3af5083",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-repair-ujm4v_x2/authorization_worker_ordered_current_native379_phase_codec_test.go": "6dd1a1464fb0db85623a14b325c62edd4cebf66c7b7e61ae396330815f959ec7",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-repair-ujm4v_x2/authorization_worker_ordered_current_native379_phase_codec_cases_test.go": "463fc9e9c1e03d5a8d28566170541cdc784bccfdf5c0e45a5d88f72b5c1f38b2",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-repair-ujm4v_x2/source-overlay.json": "9464d5da72ab86cb247b5337325095646b02fe84c68216d628bb933d3687fb48",
+    "/tmp/zasp-cloud-evidence/independent-phase-codec-draft-source-blockers.json": "c5e30f9e7bc98ed923815d2221daa936b85d8b426dd4f4515333169bc554453b",
+    "/tmp/zasp-cloud-evidence/independent-native379-phase-codec-c8a675-static-review.json": "a67ef60acf8fd9391dc31950a861914994165b113252def0de03c72d75d37bbc",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-final-guard-fxr3fxmo/authorization_worker_ordered_current_native379_phase_codec_test.go": "8ba722729b2420248a7085d763af2699add4b9bc05cee0bde02e6cc82e70f5dc",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-final-guard-fxr3fxmo/authorization_worker_ordered_current_native379_phase_codec_cases_test.go": "6e4824b35423056706161332d8f8a877d284ed3e6bf875f5b5eaa89ee89c7b7f",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-final-guard-fxr3fxmo/source-overlay.json": "69bf6550571ac38dada709a34e3908628815136c8cb4bc73fda4b30b54faa1de",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-reconstructed-model-fzV8Fdge/authorization_worker_ordered_current_native379_phase_codec_test.go": "8ba722729b2420248a7085d763af2699add4b9bc05cee0bde02e6cc82e70f5dc",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-reconstructed-model-fzV8Fdge/authorization_worker_ordered_current_native379_phase_codec_cases_test.go": "b7f3742c767f9cea6281d549014afe788270371e87b22f1643a328cf6b67258a",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-reconstructed-model-fzV8Fdge/source-overlay.json": "9ada41e2b361714a69321028f1a01a3bc6e27fbc8a4cd8dadb61a0d936d9ddd5",
+    "/tmp/zasp-cloud-evidence/independent-phase-codec-parameter-attribution-design-review.json": "534bbba6e121e1b67bfe9b3ee9a1ee367444c69a0e558b213061fdd715e32d7d",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-final-guard-fxr3fxmo/actual-phase-codec-source-tests-c8e03c4b4f1c4bb38e8c9def30784fab/result.json": "221fc7967fff9675b52fd5fb8d3f30c5da9bfd933a24f7f72113effaf5595c9f",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-empty-phase-revision-OspKF33a/authorization_worker_ordered_current_native379_phase_codec_test.go": "8ba722729b2420248a7085d763af2699add4b9bc05cee0bde02e6cc82e70f5dc",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-empty-phase-revision-OspKF33a/authorization_worker_ordered_current_native379_phase_codec_cases_test.go": "36a21c9a721a1ec6412abe68fbb39bf133c372b6fb435665ac926ae331ee01a0",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-empty-phase-revision-OspKF33a/red-cases.go.txt": "af747cd029b236b87d5e59ef12b4c5189f3ae84b025660071edefa776e1423ae",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-empty-phase-revision-OspKF33a/same-regression.go.txt": "9696e54e6c5cff3c8819acb17134082a5d730c9bcce44a6d350a91cb86fd448a",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-empty-phase-revision-OspKF33a/red-overlay.json": "095400c468ce11f1017e1232606d9a80877cdef37f1271b12cf1a6ddad9b6869",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-empty-phase-revision-OspKF33a/green-overlay.json": "e86ad5bf92815f836bad6b300f3c4c539bbd0774e3b7ab6fc08e4889fddec686",
+    "/tmp/zasp-cloud-evidence/independent-actual-phase-codec-reconstructed-model-failure-review.json": "577e4a3c5dde0540f36a9b14c92c513e5235f7403088582031b2a6af28026abf",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-reconstructed-model-fzV8Fdge/actual-phase-codec-source-tests-bf69564abf8d42fd9c0d3090cba57006/result.json": "e2986cd217414ddc8d1114a77bcddfc59e557dbf9c53c09f2303f85b275f2738"
+  },
+  "logs": {
+    "empty-phase-model-red": "9805a505431215a46cde83bb9dfc88d6e21e1d5f394b8958e1e58244660c74b1",
+    "empty-phase-model-green": "ec639fe176aeb74b666790874c5ce947571cdc3fedef5e7b9de9a4588500d8dd",
+    "phase-source-cost-model": "be97861e9774e34bfabe9d442c264949ad4a50f1f067eb582b7732e1dc99a234"
+  },
+  "processBindings": {
+    "empty-phase-model-red": "7a76c096cb54e90e37664188057bcfc089ff6b0dbfdbc58dad27f561b626e823",
+    "empty-phase-model-green": "4962a2079929f39a5894e06947d8f94a48cde5f4b8744601ddd602984b4df6e4",
+    "phase-source-cost-model": "85a60fa9ce7620a6d22ba2b18421cc2913a6120c0ac7cb1c3c2c68d2588d43dc"
+  },
+  "outcomes": {
+    "focusedRED": "Exactly expected empty-phase regression FAIL at explicit nonnil-empty-list assertion;0skips. Stage56.819338818s; GoJSON package0.072s.",
+    "focusedGREEN": "Same named regression PASS/0fail/0skip;stage56.481544829s;test0.02s/package1.102s.",
+    "fullModel": "FAIL-REFUSED: process-15 at90.326476384s, absolute_stage_or_aggregate_deadline. GoJSON test RUN but no final test/package PASS/FAIL event.",
+    "partialScriptedCallerEvidence": [
+      "Short9-byte caller reaches source line184 after encode, decode, fullrecords equality, replayedcost equality and encodedcap checks:2182909encoded/17998025charged.",
+      "ASCII63 caller reaches same line184:2184382encoded/18032492charged.",
+      "Control-character63 caller emits typed unchanged-cap refusal after3phases.",
+      "UTF8-63 caller rawledger construction completes logline176 but no line184/178 or terminal outcome before termination."
+    ],
+    "interpretation": "Two individual scripted raw-ledger roundtrip log checkpoints are partial model evidence only. No closed fullfourcaller model/FIT approval, complete-result metadata/adapter/native proof or publisher acceptance."
+  },
+  "supervision": {
+    "recordedWaits": [
+      {
+        "pid": 288484,
+        "returncode": 1,
+        "main_joined": true
+      },
+      {
+        "pid": 288604,
+        "returncode": 0,
+        "main_joined": true
+      },
+      {
+        "pid": 288783,
+        "wait_status": 15,
+        "reaped_adopted": true
+      },
+      {
+        "pid": 288723,
+        "returncode": -15,
+        "main_joined": true
+      }
+    ],
+    "forcedCleanup": true,
+    "teardownErrors": [],
+    "survivors": [],
+    "signals": [],
+    "minRecordedFreeBytes": 2011705344,
+    "finalStageFreeBytes": 2172211200,
+    "storageRefusal": false,
+    "sourceBeforeAfterByteEqual": true,
+    "elapsedSeconds": 204.80313659200328
+  },
+  "timingLimits": "Stage total includes compile/setup; GoJSON proves firsttwo test durations are small and full model began RUN before termination. No unrecorded compiler-only/test-only breakdown or percaller cost attribution inferred. Root86128joined1 is separately parent-observed, not fabricated kernel receipt.",
+  "scope": "Source-only model failure plus genuine focused regression correction. No runtime rerun/native/provider/deployment/currentcomplete-result acceptance. All original failures preserved."
+}

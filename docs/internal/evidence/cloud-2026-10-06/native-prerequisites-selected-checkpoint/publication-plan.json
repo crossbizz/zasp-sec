@@ -1,0 +1,789 @@
+{
+  "PGOwn18Scope": "Offline mocked lifecycle/CAS/schema-row/config guards only; no actual native PG, SQL, service or network. Real provision gates HELD.",
+  "fixedSelectedOriginalCount": 25,
+  "fixedTotalPayloadFilesIncludingREADMEAndPlan": 27,
+  "format": "selected-native-prerequisites-publication-candidate-v1",
+  "ledger": {
+    "categoryChanges": 0,
+    "component": 144,
+    "externalBlocked": 61,
+    "missing": 0,
+    "newTaskCompletions": 0,
+    "productionHistorical": 523,
+    "rows": 728
+  },
+  "omissions": {
+    "SQLSourceBodies": "All omitted; exact83 original custody metadata/ledger only",
+    "binariesArchivesTokenFiles": "All omitted",
+    "fullModuleToolMaps": "All omitted; original review counts/hash identities retained",
+    "raw83EncodedAPIResponses": "All omitted",
+    "rawProxySignedURLs": "No selected source contains matched sensitive URL/auth pattern; this filter is not a secret scan or clearance"
+  },
+  "originalFGAFailedGroup": {
+    "overallResultPresent": false,
+    "scope": "Three original stderr and six-file before-map only. No synthetic aggregate result/join/survivor proof created.",
+    "toolObservation": "ROOT335c66"
+  },
+  "preservedInitialCandidateManifestSHA256": "2a8ad9822b702f0c4dd53ebb203f0bab5bd4e8c71ada33a4bb6c685e3237114a",
+  "records": [
+    {
+      "bytePreserved": true,
+      "bytes": 6819,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103222709,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434179,
+        "mode": 33024,
+        "mtime_ns": 1791307743103222709,
+        "nlink": 1,
+        "size": 6819,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/temporal-six-version-help-result.json",
+      "sha256": "c904d112233c6028644aa4756d976492291d1068864534fca7d5e2ec37d6c1e7",
+      "sourceIdentity": {
+        "ctime_ns": 1791304898659401193,
+        "dev": 27,
+        "gid": 1000,
+        "ino": 1246888,
+        "mode": 33024,
+        "mtime_ns": 1791304898659401193,
+        "nlink": 1,
+        "size": 6819,
+        "uid": 1000
+      },
+      "sourcePath": "/workspace/.zasp-cloud-owned/Temporal132-version-help-owner-b6b73d9c48564860845def155511484c/result.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 10308,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103294187,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434180,
+        "mode": 33024,
+        "mtime_ns": 1791307743103294187,
+        "nlink": 1,
+        "size": 10308,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/temporal-six-version-help-review.json",
+      "sha256": "ce7d232b056792f28efe55fbbccd57ad743f76d2e04f8441bed4b85290f4ee98",
+      "sourceIdentity": {
+        "ctime_ns": 1791304960596105480,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432896,
+        "mode": 33024,
+        "mtime_ns": 1791304960596105480,
+        "nlink": 1,
+        "size": 10308,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-native-version-help-review.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 493,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103335319,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434181,
+        "mode": 33024,
+        "mtime_ns": 1791307743103335319,
+        "nlink": 1,
+        "size": 493,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/temporal-six-version-help-root-join.json",
+      "sha256": "0468910952dc8604c1f60ac9f6e494de89b3850169b7e098a43c292739ae85c9",
+      "sourceIdentity": {
+        "ctime_ns": 1791304906026788481,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432894,
+        "mode": 33152,
+        "mtime_ns": 1791304906026788481,
+        "nlink": 1,
+        "size": 493,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal132-native-version-help-root-join.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 564,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103436161,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434182,
+        "mode": 33024,
+        "mtime_ns": 1791307743103436161,
+        "nlink": 1,
+        "size": 564,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/schema-offline19-CAS-result.json",
+      "sha256": "e0e69150398d0fd9fadff94800dd902cb103324759b6f517cb45b7c8591400fb",
+      "sourceIdentity": {
+        "ctime_ns": 1791305436235645603,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432992,
+        "mode": 33024,
+        "mtime_ns": 1791305436235645603,
+        "nlink": 1,
+        "size": 564,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/temporal132-schema-tests-owner-noswm34r/result.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 1311,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103479155,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434183,
+        "mode": 33024,
+        "mtime_ns": 1791307743103479155,
+        "nlink": 1,
+        "size": 1311,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/schema-offline19-CAS-review.json",
+      "sha256": "621e78f1d93a3f18b67a483aaffdfb308ebfa9615dcf48d63e2233ed79a1923e",
+      "sourceIdentity": {
+        "ctime_ns": 1791305487510116225,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432995,
+        "mode": 33024,
+        "mtime_ns": 1791305487510116225,
+        "nlink": 1,
+        "size": 1311,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-offline19-CAS-review.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 608,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103508269,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434184,
+        "mode": 33024,
+        "mtime_ns": 1791307743103508269,
+        "nlink": 1,
+        "size": 608,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/schema-offline19-CAS-root-join.json",
+      "sha256": "69c88c79b4823f1d4b84fda63926e2e63d4d1aaeebcbf749e036c6ded75fb90f",
+      "sourceIdentity": {
+        "ctime_ns": 1791305447847926383,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 432993,
+        "mode": 33152,
+        "mtime_ns": 1791305447847926383,
+        "nlink": 1,
+        "size": 608,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/temporal132-schema-tests-root-join.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 603,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103533727,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434185,
+        "mode": 33024,
+        "mtime_ns": 1791307743103533727,
+        "nlink": 1,
+        "size": 603,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/schema-exact83-fetch-result.json",
+      "sha256": "d39168dfd182bfa0b020c9ed3aa7b65c0a764f5f2776a090cdb3158f5c05001f",
+      "sourceIdentity": {
+        "ctime_ns": 1791305545586289978,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433216,
+        "mode": 33024,
+        "mtime_ns": 1791305545586289978,
+        "nlink": 1,
+        "size": 603,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/temporal132-schema-fetch-owner-d33t81xr/result.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 1641,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103558715,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434186,
+        "mode": 33024,
+        "mtime_ns": 1791307743103558715,
+        "nlink": 1,
+        "size": 1641,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/schema-exact83-custody-review.json",
+      "sha256": "6ed51840ab9783d6c0532962a31e8eb4b0ac5bac1a1a4c349743d122b3395658",
+      "sourceIdentity": {
+        "ctime_ns": 1791305765460015981,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433234,
+        "mode": 33024,
+        "mtime_ns": 1791305765460015981,
+        "nlink": 1,
+        "size": 1641,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-exact83-schema-source-custody-review.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 726,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103584334,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434187,
+        "mode": 33024,
+        "mtime_ns": 1791307743103584334,
+        "nlink": 1,
+        "size": 726,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/schema-exact83-root-join.json",
+      "sha256": "15c13a62bb69b0f46033cdee3ecf8ecac2899a4a9858e45b80faf41237239b71",
+      "sourceIdentity": {
+        "ctime_ns": 1791305690081782014,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433228,
+        "mode": 33152,
+        "mtime_ns": 1791305690081782014,
+        "nlink": 1,
+        "size": 726,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/temporal132-schema-fetch-root-join.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 25004,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103615030,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434188,
+        "mode": 33024,
+        "mtime_ns": 1791307743103615030,
+        "nlink": 1,
+        "size": 25004,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/schema-exact83-custody-manifest.json",
+      "sha256": "5e6e45a7b0c845a90b9820d1144276d46b7eed90ff0ae472db3f7395f4ea6ad0",
+      "sourceIdentity": {
+        "ctime_ns": 1791305545521179516,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433215,
+        "mode": 33024,
+        "mtime_ns": 1791305545521179516,
+        "nlink": 1,
+        "size": 25004,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/temporal132-pg-schema-custody-729d941e3005490f9b3789adf6631c51/manifest.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 131072,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103768982,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434189,
+        "mode": 33024,
+        "mtime_ns": 1791307743103768982,
+        "nlink": 1,
+        "size": 131072,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/schema-exact83-reserved-ledger.jsonl",
+      "sha256": "c61ad4f9e26edd047407847a6826dbc470784f9e0088c5226cf69793c275ad72",
+      "sourceIdentity": {
+        "ctime_ns": 1791305545534288721,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433002,
+        "mode": 33024,
+        "mtime_ns": 1791305545534288721,
+        "nlink": 1,
+        "size": 131072,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/temporal132-pg-schema-custody-729d941e3005490f9b3789adf6631c51/reserved-progress.jsonl"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 595,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103964866,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434190,
+        "mode": 33024,
+        "mtime_ns": 1791307743103964866,
+        "nlink": 1,
+        "size": 595,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/PG-owned18-guards-result.json",
+      "sha256": "6b2d6fa96f0591d1ff51863212f0af64ddfce80b264b84c0e7629af87c863012",
+      "sourceIdentity": {
+        "ctime_ns": 1791306579367396064,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433373,
+        "mode": 33024,
+        "mtime_ns": 1791306579367396064,
+        "nlink": 1,
+        "size": 595,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/Temporal132-PG18-tests-owner-fpah36d8/result.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 1751,
+      "copyIdentity": {
+        "ctime_ns": 1791307743103993289,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434191,
+        "mode": 33024,
+        "mtime_ns": 1791307743103993289,
+        "nlink": 1,
+        "size": 1751,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/PG-owned18-guards-review.json",
+      "sha256": "ce95b74e1c50a80d973aaf29abac4d9a81711d93c7eb4a02d9ddf8e319be163a",
+      "sourceIdentity": {
+        "ctime_ns": 1791306675446999028,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433375,
+        "mode": 33024,
+        "mtime_ns": 1791306675446999028,
+        "nlink": 1,
+        "size": 1751,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-own18-PG-guard-review.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 2265,
+      "copyIdentity": {
+        "ctime_ns": 1791307743104019028,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434192,
+        "mode": 33024,
+        "mtime_ns": 1791307743104019028,
+        "nlink": 1,
+        "size": 2265,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/FGA-original-failed-tiny-before.json",
+      "sha256": "fe4f7500bf31ac7e5ce749a6d657eb55d8266d0810284f0d8e917d8df49fef0d",
+      "sourceIdentity": {
+        "ctime_ns": 1791305896473102391,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433264,
+        "mode": 33152,
+        "mtime_ns": 1791305896473102391,
+        "nlink": 1,
+        "size": 2265,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/owned-FGA-tiny-lifecycle-root-actual/before.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 925,
+      "copyIdentity": {
+        "ctime_ns": 1791307743104046008,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434193,
+        "mode": 33024,
+        "mtime_ns": 1791307743104046008,
+        "nlink": 1,
+        "size": 925,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/FGA-original-failed-tiny-0.stderr",
+      "sha256": "0bdcdce246da373efb4574ebcadf6c9406317aa9a921727ac830612ecaccc721",
+      "sourceIdentity": {
+        "ctime_ns": 1791305896732454902,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433267,
+        "mode": 33152,
+        "mtime_ns": 1791305896732454902,
+        "nlink": 1,
+        "size": 925,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/owned-FGA-tiny-lifecycle-root-actual/0.stderr"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 206,
+      "copyIdentity": {
+        "ctime_ns": 1791307743104069995,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434194,
+        "mode": 33024,
+        "mtime_ns": 1791307743104069995,
+        "nlink": 1,
+        "size": 206,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/FGA-original-failed-tiny-1.stderr",
+      "sha256": "9a4bd728ffad62e46a0f512996456a669ffad687d1ede481c95ba59e893dad67",
+      "sourceIdentity": {
+        "ctime_ns": 1791305896995559100,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433270,
+        "mode": 33152,
+        "mtime_ns": 1791305896995559100,
+        "nlink": 1,
+        "size": 206,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/owned-FGA-tiny-lifecycle-root-actual/1.stderr"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 3610,
+      "copyIdentity": {
+        "ctime_ns": 1791307743104094041,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434195,
+        "mode": 33024,
+        "mtime_ns": 1791307743104094041,
+        "nlink": 1,
+        "size": 3610,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/FGA-original-failed-tiny-2.stderr",
+      "sha256": "5ae3a0a68bf2b2a76dee15bba00ae667517e3b9cdda95bcfef03bc2819ec4b80",
+      "sourceIdentity": {
+        "ctime_ns": 1791305897288534794,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433289,
+        "mode": 33152,
+        "mtime_ns": 1791305897288534794,
+        "nlink": 1,
+        "size": 3610,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/owned-FGA-tiny-lifecycle-root-actual/2.stderr"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 820,
+      "copyIdentity": {
+        "ctime_ns": 1791307743104118888,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434196,
+        "mode": 33024,
+        "mtime_ns": 1791307743104118888,
+        "nlink": 1,
+        "size": 820,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/FGA-corrected-nine-result.json",
+      "sha256": "966a51ff2104f7b0e7b0cc6d0ce97735f4dc7c4f096ed6134ee0ad0a492ca557",
+      "sourceIdentity": {
+        "ctime_ns": 1791306291640557485,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433333,
+        "mode": 33152,
+        "mtime_ns": 1791306291640557485,
+        "nlink": 1,
+        "size": 820,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/owned-FGA-tiny-lifecycle-import-fix-root-actual/result.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 1592,
+      "copyIdentity": {
+        "ctime_ns": 1791307743104143936,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434197,
+        "mode": 33024,
+        "mtime_ns": 1791307743104143936,
+        "nlink": 1,
+        "size": 1592,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/FGA-corrected-nine-review.json",
+      "sha256": "1b02586aae0b415988132b8aff7d1285b38812223b87f730ddfdbe8f22885a7e",
+      "sourceIdentity": {
+        "ctime_ns": 1791306361882784784,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433347,
+        "mode": 33024,
+        "mtime_ns": 1791306361882784784,
+        "nlink": 1,
+        "size": 1592,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-owned-FGA-tiny-nine-lifecycle-import-retry-review.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 185,
+      "copyIdentity": {
+        "ctime_ns": 1791307743104239510,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434198,
+        "mode": 33024,
+        "mtime_ns": 1791307743104239510,
+        "nlink": 1,
+        "size": 185,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/FGA-old-failure-current-CWD-point-observation.json",
+      "sha256": "de76dbd2ca1b75414861c7790acb166249f6514291b3134c6a7ddf61b1066a50",
+      "sourceIdentity": {
+        "ctime_ns": 1791306259779642677,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433309,
+        "mode": 33152,
+        "mtime_ns": 1791306259779642677,
+        "nlink": 1,
+        "size": 185,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/owned-FGA-failed-tiny-current-cwd-observation.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 2275,
+      "copyIdentity": {
+        "ctime_ns": 1791307743104281232,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434199,
+        "mode": 33024,
+        "mtime_ns": 1791307743104281232,
+        "nlink": 1,
+        "size": 2275,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/FGA-corrected-nine-before.json",
+      "sha256": "ffbc638bf2b97f1f9d60cf60b84555e643ffaf7ae3a3e78c1a4f36f1adee1c48",
+      "sourceIdentity": {
+        "ctime_ns": 1791306291248386881,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433311,
+        "mode": 33152,
+        "mtime_ns": 1791306291248386881,
+        "nlink": 1,
+        "size": 2275,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/owned-FGA-tiny-lifecycle-import-fix-root-actual/before.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 2275,
+      "copyIdentity": {
+        "ctime_ns": 1791307743104309074,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434200,
+        "mode": 33024,
+        "mtime_ns": 1791307743104309074,
+        "nlink": 1,
+        "size": 2275,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/FGA-corrected-nine-after.json",
+      "sha256": "ffbc638bf2b97f1f9d60cf60b84555e643ffaf7ae3a3e78c1a4f36f1adee1c48",
+      "sourceIdentity": {
+        "ctime_ns": 1791306291640441420,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433332,
+        "mode": 33152,
+        "mtime_ns": 1791306291640441420,
+        "nlink": 1,
+        "size": 2275,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/owned-FGA-tiny-lifecycle-import-fix-root-actual/after.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 9650,
+      "copyIdentity": {
+        "ctime_ns": 1791307743104336976,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434201,
+        "mode": 33024,
+        "mtime_ns": 1791307743104336976,
+        "nlink": 1,
+        "size": 9650,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/real-FGA-race-compile-only-result.json",
+      "sha256": "3997db38598ad8b2cc33975dbbe13225407eb44df17df4cdae72ebfedc4dd2ec",
+      "sourceIdentity": {
+        "ctime_ns": 1791306785093571648,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 433393,
+        "mode": 33152,
+        "mtime_ns": 1791306785088368368,
+        "nlink": 1,
+        "size": 9650,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/authorization80-sdk-proof-reserved-attempt-ewzbsuzz/result.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 2906,
+      "copyIdentity": {
+        "ctime_ns": 1791307743104371068,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434202,
+        "mode": 33024,
+        "mtime_ns": 1791307743104371068,
+        "nlink": 1,
+        "size": 2906,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/real-FGA-race-compile-only-artifact-review.json",
+      "sha256": "0cf1ce29e077f65693e372ba102d684a7892691d7aa174683c809f70225a96f5",
+      "sourceIdentity": {
+        "ctime_ns": 1791307054911215372,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434080,
+        "mode": 33024,
+        "mtime_ns": 1791307054911215372,
+        "nlink": 1,
+        "size": 2906,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/independent-actual-real-FGA-compile-only-artifact-review.json"
+    },
+    {
+      "bytePreserved": true,
+      "bytes": 578,
+      "copyIdentity": {
+        "ctime_ns": 1791307743104396716,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434203,
+        "mode": 33024,
+        "mtime_ns": 1791307743104396716,
+        "nlink": 1,
+        "size": 578,
+        "uid": 1000
+      },
+      "originalSecurityMetadataUnchangedAfterCopy": true,
+      "path": "selected-originals/real-FGA-race-compile-only-root-join.json",
+      "sha256": "c180f9caae13cc25da6bf19624e4da8902a11f0c3b4cf914a0f4988f0a948279",
+      "sourceIdentity": {
+        "ctime_ns": 1791306959720588602,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 434079,
+        "mode": 33152,
+        "mtime_ns": 1791306959720588602,
+        "nlink": 1,
+        "size": 578,
+        "uid": 1000
+      },
+      "sourcePath": "/tmp/zasp-cloud-evidence/real-FGA-compile-only-root-join.json"
+    }
+  ],
+  "rootNextStep": "ROOT copies selection, actual scoped scan, append receipt preserving old prefix; independent publication review before commit.",
+  "scanner": {
+    "encodedPayloadSelection": [],
+    "executed": false,
+    "noClearanceInferred": true
+  },
+  "scope": "Prerequisite custody/metadata/offline tests/compile only; no source implementation/runtime/service/API/browser/provider readiness",
+  "sourceOriginalBytes": 208782,
+  "status": "PRIVATE-CANDIDATE-SCANNER-NOT-RUN-ROOT-AND-INDEPENDENT-REVIEW-PENDING"
+}

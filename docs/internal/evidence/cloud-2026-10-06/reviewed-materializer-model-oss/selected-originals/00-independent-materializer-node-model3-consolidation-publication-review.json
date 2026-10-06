@@ -1,0 +1,61 @@
+{
+  "format": "independent-selected-materializer-node-model3-consolidation-review-v1",
+  "status": "PASS-SELECTED-PUBLICATION-CLOSURE-ONLY",
+  "reviewer": "connected_flow_gap_audit",
+  "publication": "/tmp/zasp-cloud-evidence/materializer-node-model3-consolidation-289ufs_d/publication",
+  "manifest_sha256": "0f1b953dd8f735a3c3147dbf06fc3bb6851d4f1c3d705162e038460f7d2b6d76",
+  "payload_members": 9,
+  "payload_bytes": 166863,
+  "checks": {
+    "all_payload_hashes_sizes_modes": true,
+    "included_originals_rehashed": 63,
+    "omitted_reference_bodies_hash_sizes_only": 3,
+    "archives": [
+      {
+        "archive": "materializer-original-publication.tar.gz",
+        "members": 20,
+        "all_bytes_equal_actual_originals": true,
+        "normalized_metadata": true
+      },
+      {
+        "archive": "tiny-node-original-publication.tar.gz",
+        "members": 39,
+        "all_bytes_equal_actual_originals": true,
+        "normalized_metadata": true
+      },
+      {
+        "archive": "independent-reviews.tar.gz",
+        "members": 4,
+        "all_bytes_equal_actual_originals": true,
+        "normalized_metadata": true
+      }
+    ],
+    "scan_proofs": [
+      {
+        "scope": "decoded-selected",
+        "recorded_returncode": 0,
+        "findings": 0,
+        "members": 65,
+        "all_scanned_members_still_match": true
+      },
+      {
+        "scope": "encoded-payload",
+        "recorded_returncode": 0,
+        "findings": 0,
+        "members": 7,
+        "all_scanned_members_still_match": true
+      }
+    ],
+    "model3_scalar_projection_matches_actual_failed_result": true,
+    "model3_complete_fourcaller_fit_not_claimed": true,
+    "current_anchors_empty": true,
+    "ledger_promotions": false
+  },
+  "limitations": [
+    "Independent original archive byte/hash/normalized metadata review, source-model scalar/result reconciliation and recorded scoped scans only; no scanner rerun/project/model/compiler/Node/Go/PG/browser runtime.",
+    "Scan manifests match actual selected preseal scopes; scan archive/addendum/finalmanifest added afterward and excluded; omitted bodies/Git history/allrefs/currentfullsource not cleared.",
+    "Materializer/helper actual historicalPASS and tiny14source-extracted Node controls do not establish current issued wrapper or four historical Node modules/current standard/native/deployed acceptance.",
+    "Model3 fullcostmodel FAILED at original90s; two caller roundtrip checkpoints remainpartial, controlcharacter callerrefused cap and UTF8caller no terminaloutcome.",
+    "Original manifests/bytes preserved; no source/dependency/ignore/rule/history/ledger/sharedmutation. ROOT toolobserved joins are retrospective records, not initial kernel trace."
+  ]
+}

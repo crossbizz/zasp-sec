@@ -1,0 +1,33 @@
+{
+  "scope": "reviewed anchor bindings and prepared tool/module foundation; actual frozen build and native execution pending",
+  "files": {
+    "foundation-author-reverification.json": {
+      "bytes": 28204,
+      "sha256": "1af04391c7d5a5fcd2d39b4234b63758f14eada92d1492bdeb85f45163d23c59"
+    },
+    "foundation-summary.json": {
+      "bytes": 5781,
+      "sha256": "4fb859d984026b2b312abeb5a2f85b5104484f779397e9bea193c266c844129e"
+    },
+    "frozen-build-plan.json": {
+      "bytes": 7829,
+      "sha256": "462ab863b9e25e5ac4cc72f28ce06757d6da667cc3a674ef875776b887993253"
+    },
+    "hosted-7549131b-failure-summary.json": {
+      "bytes": 1883,
+      "sha256": "868af755a17e7ca76a141a9855fdfc047ee8d1fc928c21f0ad497ad373e6b7d9"
+    },
+    "independent-anchor-plan-review.json": {
+      "bytes": 6334,
+      "sha256": "d25abf8d831a2b9ebbde700e7a45f748bccbf9c20163f1e42b1b9e836f84a3fa"
+    },
+    "independent-foundation-adoption-review.json": {
+      "bytes": 2169,
+      "sha256": "6ee2a12b6430d1a81f38d0c5e03edbb2668f2919c99b5025e11ce025d10074ab"
+    },
+    "seven-anchor-candidate.json": {
+      "bytes": 2045,
+      "sha256": "8a1e4674f0599437c8d45596a67fa7c7fdabfc30a29defa1bbce8dcec4c14be0"
+    }
+  }
+}

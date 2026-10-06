@@ -1,0 +1,22 @@
+=== RUN   TestNative379V2PristineRecorderRejectsUnsafeSQLState
+--- PASS: TestNative379V2PristineRecorderRejectsUnsafeSQLState (0.00s)
+=== RUN   TestNative379V2ReplaySourceAndClosedPlan
+--- PASS: TestNative379V2ReplaySourceAndClosedPlan (0.10s)
+=== RUN   TestNative379V2ReplayEarliestFalseAndSafeEvidence
+--- PASS: TestNative379V2ReplayEarliestFalseAndSafeEvidence (0.03s)
+=== RUN   TestNative379V2ReplayCancelBudgetUnknownAndIdentity
+=== RUN   TestNative379V2ReplayCancelBudgetUnknownAndIdentity/cancel
+=== RUN   TestNative379V2ReplayCancelBudgetUnknownAndIdentity/row-budget
+=== RUN   TestNative379V2ReplayCancelBudgetUnknownAndIdentity/byte-budget
+=== RUN   TestNative379V2ReplayCancelBudgetUnknownAndIdentity/query-error
+=== RUN   TestNative379V2ReplayCancelBudgetUnknownAndIdentity/identity-false
+--- PASS: TestNative379V2ReplayCancelBudgetUnknownAndIdentity (0.10s)
+    --- PASS: TestNative379V2ReplayCancelBudgetUnknownAndIdentity/cancel (0.02s)
+    --- PASS: TestNative379V2ReplayCancelBudgetUnknownAndIdentity/row-budget (0.02s)
+    --- PASS: TestNative379V2ReplayCancelBudgetUnknownAndIdentity/byte-budget (0.02s)
+    --- PASS: TestNative379V2ReplayCancelBudgetUnknownAndIdentity/query-error (0.02s)
+    --- PASS: TestNative379V2ReplayCancelBudgetUnknownAndIdentity/identity-false (0.02s)
+=== RUN   TestNative379V2PristineTimingPrefixSafeAndOrdered
+--- PASS: TestNative379V2PristineTimingPrefixSafeAndOrdered (0.00s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.261s

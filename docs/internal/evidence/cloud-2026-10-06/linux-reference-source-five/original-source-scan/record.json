@@ -1,0 +1,23 @@
+{
+  "scope": "exact five new Linux source files only; default rules no exceptions",
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "dir",
+    "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/source-five-scan-kykgb7ym/source",
+    "--report-format",
+    "json",
+    "--report-path",
+    "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/source-five-scan-kykgb7ym/report.json",
+    "--no-banner"
+  ],
+  "exit": 1,
+  "seconds": 0.5191262709995499,
+  "findingCount": 2,
+  "sourceFileSHA256": {
+    "build-ordered-current-linux-successor-v1.mjs": "b5a8d9dc9e11a52d07113b3d315ef9c04cc46774e452ebe7a80be366038f2249",
+    "ordered-current-linux-provenance-v1.mjs": "64b0d211765c03071d124d1443831d2d9c3f60393878eadcbaf6ac4635be80e0",
+    "ordered-current-linux-provenance-v1.json": "68425b6efc85e163c5028dadb4b8ff3ec219dfb5d7a8a2772c73a58a45dddfb5",
+    "build-ordered-current-linux-successor-v1.test.mjs": "94dea86cf72c42b687ec28909b76b7eb06d0292190684c1b9084271a522f70a1",
+    "ordered-current-linux-provenance-v1.test.mjs": "9e1658847bbc433dcc3755b7d75dfd792b66743153832f7dff37c0a819b60c38"
+  }
+}

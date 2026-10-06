@@ -1,0 +1,33 @@
+--- FAIL: TestTemporalRunnerUsesValidatedCommittedSettlement (2.29s)
+    --- FAIL: TestTemporalRunnerUsesValidatedCommittedSettlement/dispatch_error (2.29s)
+panic: interface conversion: interface {} is []uint8, not json.RawMessage [recovered, repanicked]
+
+goroutine 8 [running]:
+testing.tRunner.func1.2({0x3f2ff20, 0xc000a354a0})
+	/tmp/zasp-cloud-tools/go/src/testing/testing.go:1872 +0x232
+testing.tRunner.func1()
+	/tmp/zasp-cloud-tools/go/src/testing/testing.go:1875 +0x35b
+panic({0x3f2ff20?, 0xc000a354a0?})
+	/tmp/zasp-cloud-tools/go/src/runtime/panic.go:783 +0x132
+github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker.TestTemporalRunnerUsesValidatedCommittedSettlement.func1.1({0x565ca10, 0xc000c562a0}, {0x4555358, 0x2b}, {0xc0003dda00, 0x1, 0x0?})
+	/workspace/.zasp-cloud-owned/worker-triage-512-hjz53075/source/services/platform/agentsec-worker/security_agent_temporal_runner_settlement_test.go:92 +0x19a5
+github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker.settlementRunnerDatabase.QueryJSON(...)
+	/workspace/.zasp-cloud-owned/worker-triage-512-hjz53075/source/services/platform/agentsec-worker/security_agent_temporal_runner_settlement_test.go:25
+github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker.(*productionRedTeamRunner).RunTemporalTest.func1({0x4555358, 0x2b}, {0xc0003dda00, 0x1, 0x1})
+	/workspace/.zasp-cloud-owned/worker-triage-512-hjz53075/source/services/platform/agentsec-worker/security_agent_temporal_runner.go:43 +0xda
+github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker.(*productionRedTeamRunner).RunTemporalTest.func3(...)
+	/workspace/.zasp-cloud-owned/worker-triage-512-hjz53075/source/services/platform/agentsec-worker/security_agent_temporal_runner.go:96
+github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker.(*productionRedTeamRunner).RunTemporalTest.func4(...)
+	/workspace/.zasp-cloud-owned/worker-triage-512-hjz53075/source/services/platform/agentsec-worker/security_agent_temporal_runner.go:99
+github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker.(*productionRedTeamRunner).RunTemporalTest.func5(...)
+	/workspace/.zasp-cloud-owned/worker-triage-512-hjz53075/source/services/platform/agentsec-worker/security_agent_temporal_runner.go:113
+github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker.(*productionRedTeamRunner).RunTemporalTest(0xc0001dfb80, {0x565c9d8, 0xc000b87810}, {0x5656718, 0xc000b91a58}, {{{0x99, 0x10, 0x0, 0x10, 0x0, ...}}, ...}, ...)
+	/workspace/.zasp-cloud-owned/worker-triage-512-hjz53075/source/services/platform/agentsec-worker/security_agent_temporal_runner.go:161 +0x3050
+github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker.TestTemporalRunnerUsesValidatedCommittedSettlement.func1(0xc000504c40)
+	/workspace/.zasp-cloud-owned/worker-triage-512-hjz53075/source/services/platform/agentsec-worker/security_agent_temporal_runner_settlement_test.go:184 +0x1b25
+testing.tRunner(0xc000504c40, 0xc000012fc0)
+	/tmp/zasp-cloud-tools/go/src/testing/testing.go:1934 +0xea
+created by testing.(*T).Run in goroutine 7
+	/tmp/zasp-cloud-tools/go/src/testing/testing.go:1997 +0x465
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	2.337s
+FAIL

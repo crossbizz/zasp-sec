@@ -83,9 +83,17 @@ func TestAuditExportsCommandsPreserveHistoricalAndFutureBoundaries(t *testing.T)
 			t.Errorf("rollback accepted wrong source%d: version=%d events=%v err=%v", start, runner.version, runner.events, err)
 		}
 	}
-	for _, args := range [][]string{{"up-to-52", "extra"}, {"up-to-56"}, {"down-to-51"}, {"down-to-52"}, {"down-to-53"}} {
+	for _, args := range [][]string{{"up-to-52", "extra"}, {"up-to-56", "extra"}, {"up-to-61"}, {"down-to-51"}, {"down-to-52"}, {"down-to-53"}} {
 		if isForwardMigration(args) {
 			t.Error("unexpected forward command", args)
+		}
+	}
+	// Later explicit release targets must still trigger principal registration.
+	// The first unsupported numeric alias is61; its canonical profile has a
+	// separate native installer rather than an implicit broad migration target.
+	for _, command := range []string{"up-to-53", "up-to-54", "up-to-55", "up-to-56", "up-to-57", "up-to-58", "up-to-59", "up-to-60"} {
+		if !isForwardMigration([]string{command}) {
+			t.Error("supported release command skips principal registration", command)
 		}
 	}
 	defaults := &scriptedMigrationRunner{version: 48}

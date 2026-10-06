@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: lint excludes local agent evidence without excluding product code or durable tests
+ok 1 - lint excludes local agent evidence without excluding product code or durable tests
+  ---
+  duration_ms: 1865.142546
+  type: 'test'
+  ...
+# Subtest: recovery confirmation component satisfies active UI lint rules
+ok 2 - recovery confirmation component satisfies active UI lint rules
+  ---
+  duration_ms: 443.90576
+  type: 'test'
+  ...
+# Subtest: ordinary product scripts still reject accidental control-byte regexes
+ok 3 - ordinary product scripts still reject accidental control-byte regexes
+  ---
+  duration_ms: 26.564259
+  type: 'test'
+  ...
+# Subtest: the two archived Node evidence files retain lint coverage without the Next-only module rule
+ok 4 - the two archived Node evidence files retain lint coverage without the Next-only module rule
+  ---
+  duration_ms: 265.183101
+  type: 'test'
+  ...
+# Subtest: ordinary web modules retain the module-name and raw-fetch security rules
+ok 5 - ordinary web modules retain the module-name and raw-fetch security rules
+  ---
+  duration_ms: 23.970145
+  type: 'test'
+  ...
+# Subtest: unreviewed evidence neighbors and later dates retain the Next-only module rule
+ok 6 - unreviewed evidence neighbors and later dates retain the Next-only module rule
+  ---
+  duration_ms: 24.403828
+  type: 'test'
+  ...
+# Subtest: both archived Node paths still reject control-byte regexes
+ok 7 - both archived Node paths still reject control-byte regexes
+  ---
+  duration_ms: 26.280222
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2891.931513

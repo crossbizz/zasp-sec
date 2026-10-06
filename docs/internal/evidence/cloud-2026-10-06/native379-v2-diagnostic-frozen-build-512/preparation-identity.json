@@ -1,0 +1,9 @@
+{
+  "foundation": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r",
+  "sourceCommit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "GoEnvelopeSHA256": "816fe4fb0b7be143cb3715e6b9ae3be934f34c78d753657b7922f7862e86b9e4",
+  "V2EnvelopeSHA256": "000076387b815beb30c8f02818e0ef8fd9e3d3eb269fdd4280eaff2f08978aef",
+  "scriptSHA256": "196e853984d19fb892f2bf28729d0041dc1b5a38cac8b19e5513ac9379543f67",
+  "planSHA256": "b17886a422e6429a9594e30af2cd41cdaa4fec1462f44fde6ebc472fcec1cfb1",
+  "phase": "PRIVATE PUBLICATION PREPARATION; no shared writes by recorder"
+}

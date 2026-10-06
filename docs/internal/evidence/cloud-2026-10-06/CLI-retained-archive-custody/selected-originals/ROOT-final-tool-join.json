@@ -1,0 +1,20 @@
+{
+  "schema": "ROOT-direct-tool-transcription-v1",
+  "initialToolChunk": "f21ab7",
+  "initialSessionID": 86759,
+  "completionToolChunk": "156d33",
+  "completionExit": 0,
+  "observedStdout": "actualOwnerOutput /workspace/.zasp-cloud-owned/CLI-custody-final-owner-49a49be35f2f42119bf0f95449c0f534 normalExit 0",
+  "normalOuterSubprocessRunReturned": true,
+  "recipeSHA256": "40e6aa75309a0310a68eec2cfa0068f9916295fe8bf67570849800641eef9aa3",
+  "ownerSHA256": "3b3149285fe24bf826fc1e8e402cb8f296f691ba9393e5e7cd3d1f131388e7fe",
+  "ownerResultPath": "/workspace/.zasp-cloud-owned/CLI-custody-final-owner-49a49be35f2f42119bf0f95449c0f534/result.json",
+  "ownerResultSHA256": "6dbca90d65c817803b546cd3c6a12d4127c08f5b51dfc4a98acc8e41e101c560",
+  "ROOTPrechecksObserved": "Exact53CONFIGpins+4outertools+owner/recipe hash, output absent, actual104194304TMP/1504194304WS floors; env-i child closedPATH rootenv",
+  "subsequentCapacityObservation": {
+    "toolChunk": "717f4d",
+    "tmpFreeBytes": 315686912,
+    "workspaceFreeBytes": 1538080768
+  },
+  "scope": "Available direct ROOT tool transcription, not independent kernel/PID/whole-runtime receipt or prospectiveFIT. Only one archived duplicate custody mutation; no native service/readiness result."
+}

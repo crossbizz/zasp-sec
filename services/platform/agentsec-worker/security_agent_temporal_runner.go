@@ -42,7 +42,7 @@ func (runner *productionRedTeamRunner) RunTemporalTest(ctx context.Context, data
 		defer done()
 		return database.QueryJSON(bounded, statement, args...)
 	}
-	ready, err := query(`SELECT to_jsonb(zasp_temporal68.ready($1,$2))`, migrations.ProductionTemporalExecutor().Checksum(), migrations.TemporalExecutorFingerprint())
+	ready, err := query(`SELECT to_jsonb(zasp_temporal68.ready($1,$2))`, migrations.TemporalExecutorChecksum(), migrations.TemporalExecutorFingerprint())
 	if err != nil || !bytes.Equal(bytes.TrimSpace(ready), []byte("true")) {
 		return "", errWorkerExecution
 	}

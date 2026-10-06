@@ -1,0 +1,41 @@
+{
+  "source_commit": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "files": [
+    {
+      "path": "deploy/production/release-gates.mjs",
+      "bytes": 24917,
+      "sha256": "6f542afecf287f90b2693b4e67bcf0d39d0c7d2824d9372f0df9b0d9626a5fa1"
+    },
+    {
+      "path": "deploy/production/release-gates.test.mjs",
+      "bytes": 6678,
+      "sha256": "5e191b9fbcf1e24dd5558b4293a21d8ca191e9a4ec3574904a16dc126fe5ebd2"
+    },
+    {
+      "path": "package.json",
+      "bytes": 16833,
+      "sha256": "43a2e7504ebbb0fdf78c58075077ce041dd77547b4cb9938efe68b10b1c4af00"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 2227994,
+      "sha256": "d34f213a3222a5fd3cecea449bb4242ebe725bdb8a3c73a08d2eb3a66d687b01"
+    },
+    {
+      "path": "services/platform/agentsec-api/authorization_runtime_readiness_test.go",
+      "bytes": 5020,
+      "sha256": "778143507e03add77dc0b7ff9c1bb52264ca62e4969ac9d0a14776e071eac026"
+    },
+    {
+      "path": "services/platform/agentsec-api/authorization_runtime_readiness.go",
+      "bytes": 1126,
+      "sha256": "b4140a7195722fe36b10e3d7d1a2bbeeef49679fb1e7611498ef9d98ff884e0a"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_runtime_readiness.go",
+      "bytes": 1541,
+      "sha256": "148a993cba12c9c868a993caf63850724b42bb2796345576ae0c6b264bde740d"
+    }
+  ],
+  "limits": "Exact source hashes bind this detached0b execution; no hosted SBOM cause or future/currentHEAD result inferred."
+}

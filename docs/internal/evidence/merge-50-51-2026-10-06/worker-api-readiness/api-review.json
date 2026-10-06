@@ -1,0 +1,175 @@
+{
+  "assessment": "Source approved API fresh-checksum substitutions; no blocking findings",
+  "scope": "11 production API files/12 checksum-only substitutions + actual repository cost test; worker receipt unchanged",
+  "sourceCommit": "18d80f9bfbb88059891eedc4592e81ff0e0ea05c",
+  "checks": [
+    {
+      "path": "services/platform/apiserver/authorization_readiness.go",
+      "version": 74,
+      "replacements": 1,
+      "old": "ProductionTemporalTestExecutor().Checksum()",
+      "new": "TemporalTestExecutorChecksum()",
+      "exactRestoration": true
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_budget_release_database.go",
+      "version": 74,
+      "replacements": 1,
+      "old": "ProductionTemporalTestExecutor().Checksum()",
+      "new": "TemporalTestExecutorChecksum()",
+      "exactRestoration": true
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_compatibility_repository.go",
+      "version": 70,
+      "replacements": 2,
+      "old": "ProductionTemporalCompatibility().Checksum()",
+      "new": "TemporalCompatibilityChecksum()",
+      "exactRestoration": true
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_legacy_test_database.go",
+      "version": 71,
+      "replacements": 1,
+      "old": "ProductionTemporalLegacyTests().Checksum()",
+      "new": "TemporalLegacyTestsChecksum()",
+      "exactRestoration": true
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_admission.go",
+      "version": 73,
+      "replacements": 1,
+      "old": "ProductionTemporalAdmission().Checksum()",
+      "new": "TemporalAdmissionChecksum()",
+      "exactRestoration": true
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_human_admission.go",
+      "version": 76,
+      "replacements": 1,
+      "old": "ProductionTemporalHumanAdmission().Checksum()",
+      "new": "TemporalHumanAdmissionChecksum()",
+      "exactRestoration": true
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_linked_repository.go",
+      "version": 68,
+      "replacements": 1,
+      "old": "ProductionTemporalExecutor().Checksum()",
+      "new": "TemporalExecutorChecksum()",
+      "exactRestoration": true
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_single_repository.go",
+      "version": 74,
+      "replacements": 1,
+      "old": "ProductionTemporalTestExecutor().Checksum()",
+      "new": "TemporalTestExecutorChecksum()",
+      "exactRestoration": true
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_test_activation.go",
+      "version": 74,
+      "replacements": 1,
+      "old": "ProductionTemporalTestExecutor().Checksum()",
+      "new": "TemporalTestExecutorChecksum()",
+      "exactRestoration": true
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_test_selector_repository.go",
+      "version": 75,
+      "replacements": 1,
+      "old": "ProductionTemporalTestSelector().Checksum()",
+      "new": "TemporalTestSelectorChecksum()",
+      "exactRestoration": true
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_worker_repository.go",
+      "version": 70,
+      "replacements": 1,
+      "old": "ProductionTemporalCompatibility().Checksum()",
+      "new": "TemporalCompatibilityChecksum()",
+      "exactRestoration": true
+    }
+  ],
+  "ownership66FilesByteUnchanged": [
+    "security_agent_temporal_capability.go",
+    "security_agent_repository.go",
+    "security_agent_manual_start.go"
+  ],
+  "guardPreservation": "Every changed API buffer reverses byte-exactly: original SQL/fingerprint/arity/authority/context/error/readiness guards unchanged. Metadata constructors untouched by API delta. Existing helper formulas recompute live source per call.",
+  "consumerTest": "Real temporalReady consumer fixed68 checksum/fingerprint, query1/arity2,4MiB allocation ceiling. Baseline fake interface embeds actual JSONDatabase for compile-valid body test.",
+  "independent68VectorReceiptSHA256": "9fbf2317a58deaa8c1d39df10781223ec33da91cca99680542880820a58da414",
+  "rows": [
+    {
+      "path": "services/platform/apiserver/authorization_readiness.go",
+      "sha256": "98b9b65bcecf092609ea978ee04f60ccb14016240a82745a49ee776d36478ca4",
+      "bytes": 5713
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_budget_release_database.go",
+      "sha256": "742050b81e34d5bf0cfb2d80a5ef28ed13651c756840bf592b09c8587aeea4e4",
+      "bytes": 5016
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_compatibility_repository.go",
+      "sha256": "a530283f698a81c46909a8fb4e6a4bc56baa7e5e221d9a3122d3f90cf7398e20",
+      "bytes": 12507
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_legacy_test_database.go",
+      "sha256": "eea419f817d2f062a539d70826f600d0197e23a86d0bd38ff166d61d4d0d79a0",
+      "bytes": 1094
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_admission.go",
+      "sha256": "7215c992dfb720aebd8d239b012d780ef08329d8aa46734cb149dd495af1982c",
+      "bytes": 1087
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_human_admission.go",
+      "sha256": "6cd020798ff6904502e441217c3ed5e9c878ec22c569a4ccfc489b7b846bd5cd",
+      "bytes": 4074
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_linked_repository.go",
+      "sha256": "d3c7122c3cc99e033e916c524738c0733d613c0877edf74f05a67259d9536318",
+      "bytes": 18993
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_single_repository.go",
+      "sha256": "c7fc39c812d72d5b7012067e0071ab96ad858d5d334cd3c8dedac75231370d98",
+      "bytes": 2339
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_temporal_test_activation.go",
+      "sha256": "4c88aa6030bea4128ee271bb540bc57ff875f789e69ddc126b4cf102a69845b6",
+      "bytes": 3548
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_test_selector_repository.go",
+      "sha256": "b752235dafce2ae4bc0433b48c2ac4be2cfd6ad5d78c228ffc3615a6ca162742",
+      "bytes": 955
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_worker_repository.go",
+      "sha256": "c4dc3db94a9f91149f56fab529bb236fe64176e78c1f8dd28845a9cfe8bf2244",
+      "bytes": 44745
+    },
+    {
+      "path": "services/platform/apiserver/temporal_readiness_cost_test.go",
+      "sha256": "7cb6a50c7de7195fd3ce15edd7c2e49629f5a0f4c011a14bab2a6892b4e79c86",
+      "bytes": 1273
+    },
+    {
+      "path": "services/platform/migrations/temporal_source_checksums.go",
+      "sha256": "1318b4a31393294667a521384c9ddfb3fc875d8f4493364e6f284cae80abae7d",
+      "bytes": 1672
+    }
+  ],
+  "runtimeEvidence": "Root reports genuine repository allocation body RED744124904>4MiB; reviewer did not execute/claim independent Go result",
+  "limitations": [
+    "No native/provider/full728 admission",
+    "Actual focused/full validation remains Root-owned"
+  ]
+}

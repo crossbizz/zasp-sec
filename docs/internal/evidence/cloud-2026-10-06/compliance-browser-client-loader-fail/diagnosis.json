@@ -1,0 +1,49 @@
+{
+  "classification": "local pinned PostgreSQL client shared-library prerequisite mismatch, not product/browser assertion failure",
+  "tool_checks": [
+    {
+      "label": "original-closed-library-context",
+      "argv": [
+        "/tmp/zasp-cloud-tools/postgres-18.3/usr/lib/postgresql/18/bin/psql",
+        "--version"
+      ],
+      "environment": {
+        "PATH": "/usr/bin:/bin",
+        "HOME": "/home/agent",
+        "LANG": "C.UTF-8"
+      },
+      "exit_code": 127,
+      "seconds": 0.004621594998752698
+    },
+    {
+      "label": "pinned-library-context",
+      "argv": [
+        "/tmp/zasp-cloud-tools/postgres-18.3/usr/lib/postgresql/18/bin/psql",
+        "--version"
+      ],
+      "environment": {
+        "PATH": "/usr/bin:/bin",
+        "HOME": "/home/agent",
+        "LANG": "C.UTF-8",
+        "LD_LIBRARY_PATH": "/tmp/zasp-cloud-tools/postgres-18.3/deps"
+      },
+      "exit_code": 0,
+      "seconds": 0.005529942001885502
+    }
+  ],
+  "sha256": {
+    "/tmp/zasp-cloud-tools/postgres-18.3/usr/lib/postgresql/18/bin/psql": "9b19f53d3de23ea9d7d909e551e0bbb803d796db54fc7b906c5027805c9bf1f5",
+    "/tmp/zasp-cloud-tools/postgres-18.3/deps/libpq.so.5": "f64f061a98c2ba51b62e9dc10ac8bb1be6aaa0454696b754746cce90c033c5eb",
+    "/lib/x86_64-linux-gnu/libpq.so.5": "f64dcec14657e4123621448442cd3d0795744d238e588774f5c864f592f4860d"
+  },
+  "actual_browser_attempt": "/workspace/.zasp-cloud-owned/compliance-browser-0b-20261006-attempt-root-a441ef12",
+  "actual_result_exit": 1,
+  "actual_failure_symbol": "PQfullProtocolVersion",
+  "owned_label_containers_after": 0,
+  "process_survivors_recorded": 0,
+  "source_changed": false,
+  "browser_acceptance_reached": false,
+  "hosted_cause": "UNKNOWN: this local prerequisite failure does not establish hosted cause",
+  "correction_scope": "future reviewed launcher closed environment must include pinned PostgreSQL shared-library directory; no source/guard change",
+  "new_browser_run_performed": false
+}

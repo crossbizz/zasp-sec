@@ -1,0 +1,19 @@
+{
+  "scanner": "gitleaks8.30.1",
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "dir",
+    "/workspace/.zasp-cloud-owned/native379-v2-0b788-full-history-attachment-v01cn_ge/evidence",
+    "--no-banner",
+    "--redact=100",
+    "--report-format=json",
+    "--gitleaks-ignore-path=/workspace/.zasp-cloud-owned/native379-v2-0b788-postcommit-8q8fuxvr/baseline.gitleaksignore",
+    "--report-path=/workspace/.zasp-cloud-owned/native379-v2-0b788-full-history-attachment-v01cn_ge/publication-final-scan-redacted.json"
+  ],
+  "cwd": "/workspace/zasp-sec",
+  "exitCode": 0,
+  "findingCount": 0,
+  "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "logSHA256": "0079eada4c52d140e96ef53ea16b82cd5fafce1d83a269293003108d611cb595",
+  "boundary": "Plain publication metadata only; root full-history outcome retains its own record/log/report scope."
+}

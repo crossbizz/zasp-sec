@@ -352,7 +352,7 @@ func buildTemporalSecurityAgentRuntimeWithIO(ctx context.Context, cfg workerRunt
 		}
 		for i, db := range databases {
 			authority := []string{"zasp_temporal_executor", "zasp_temporal_compensation"}[i]
-			raw, err := db.QueryJSON(bounded, `SELECT to_jsonb(zasp_temporal69.ready($1,$2) AND zasp_temporal69.principal_ready($3))`, migrations.ProductionTemporalWorkflow().Checksum(), migrations.TemporalWorkflowFingerprint(), authority)
+			raw, err := db.QueryJSON(bounded, `SELECT to_jsonb(zasp_temporal69.ready($1,$2) AND zasp_temporal69.principal_ready($3))`, migrations.TemporalWorkflowChecksum(), migrations.TemporalWorkflowFingerprint(), authority)
 			if err != nil || !bytes.Equal(bytes.TrimSpace(raw), []byte("true")) {
 				return errRuntimeUnavailable
 			}

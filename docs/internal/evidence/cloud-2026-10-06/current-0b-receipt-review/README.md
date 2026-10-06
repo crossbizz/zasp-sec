@@ -1,0 +1,1 @@
+Independent review of the exact October 6 receipt and implementation-status snapshots. The gzip preserves the original review bytes; later changes are outside its scope. No native, deployed or ledger-category acceptance follows from this review.

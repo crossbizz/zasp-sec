@@ -31,6 +31,7 @@ type RunLimits struct {
 type Verification struct{ Kind string }
 
 type SecurityAgent struct {
+	TemporaryPolicyMode      TemporaryPolicyMode `json:"temporary_policy_mode,omitempty"`
 	ID, OrganizationID, Name string
 	Trigger                  Trigger
 	Scope                    Scope
@@ -46,6 +47,12 @@ type SecurityAgent struct {
 
 func ValidateAgent(value SecurityAgent) error {
 	if !bounded(value.ID, 128) || !bounded(value.OrganizationID, 128) || !bounded(value.Name, 256) || !bounded(value.Trigger.Kind, 64) || !bounded(value.Trigger.Source, 64) || value.Scope.OrganizationID != value.OrganizationID || len(value.Scope.EnvironmentIDs) == 0 || len(value.Scope.EnvironmentIDs) > 100 || (value.Autonomy != AutonomySupervised && value.Autonomy != AutonomyAutonomous) || value.Limits.MaxSteps <= 0 || value.Limits.MaxSteps > 100 || value.Limits.MaxDuration <= 0 || value.Limits.MaxDuration > 24*time.Hour || value.Limits.TemporaryPolicyTTL <= 0 || value.Limits.TemporaryPolicyTTL > 24*time.Hour || value.Limits.MaxAITokens <= 0 || value.Limits.MaxAITokens > 12000 || value.Limits.MaxConcurrent <= 0 || value.Limits.MaxConcurrent > 10 || len(value.AllowedActions) == 0 || len(value.AllowedActions) > 32 || !bounded(value.Verification.Kind, 64) || value.DefinitionVersion <= 0 {
+		return ErrRejected
+	}
+	if !value.TemporaryPolicyMode.Valid() {
+		return ErrRejected
+	}
+	if value.TemporaryPolicyMode == TemporaryPolicyMonitor && (value.Autonomy != AutonomySupervised || value.Limits.MaxSteps != 1 || value.Limits.TemporaryPolicyTTL < time.Minute || value.Limits.TemporaryPolicyTTL > time.Hour || len(value.AllowedActions) != 1 || value.AllowedActions[0] != "create_temporary_policy" || value.Verification.Kind != "policy_state") {
 		return ErrRejected
 	}
 	if !uniqueBounded(value.Scope.EnvironmentIDs, 128) || !uniqueBounded(value.AllowedActions, 128) {

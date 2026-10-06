@@ -92,6 +92,12 @@ func ValidatePlannerOutput(plan Plan, agent SecurityAgent, scope PlannerScope, r
 		if err != nil {
 			return ErrRejected
 		}
+		if step.ActionKey == "create_temporary_policy" && agent.TemporaryPolicyMode != "" {
+			ttl, err := time.ParseDuration(step.Parameters["ttl"])
+			if err != nil || ttl < time.Minute || ttl > time.Hour || ttl > agent.Limits.TemporaryPolicyTTL || step.Parameters["mode"] != string(agent.TemporaryPolicyMode) {
+				return ErrRejected
+			}
+		}
 		metadata[step.ActionKey] = value
 		if !validStepReferences(step, scope) {
 			return ErrRejected

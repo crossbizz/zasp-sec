@@ -1,0 +1,14 @@
+{
+  "cache-reclamation-receipt.json": {
+    "original_sha256": "ac9064640b4c92df3af51bf1387d12aacc70a6535e151709a2f92e8f9dedba49",
+    "original_bytes": 1751,
+    "gzip_sha256": "46e823bf9d484dd2cc1991cf2e927aaa6908f90b3e5d26c102eef2095480591b",
+    "gzip_bytes": 797
+  },
+  "cache-reclamation-members.json": {
+    "original_sha256": "3bec26b073bb734441163433978bf72f0d0a338705e420f36298afc919c50677",
+    "original_bytes": 2514261,
+    "gzip_sha256": "9896c96ab7eecb068549eed28134db67a2070f0476b3502c5c3d4201beef59e9",
+    "gzip_bytes": 785746
+  }
+}

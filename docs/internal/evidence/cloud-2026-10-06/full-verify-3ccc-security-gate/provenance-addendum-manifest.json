@@ -1,0 +1,12 @@
+{
+  "format": "full-verify-provenance-addendum-manifest-v1",
+  "original_manifest_path": "manifest.json",
+  "original_manifest_sha256": "0d0c9d817a41d907d1b02589466edc80c681560f3556f310408b6c3f8ad4f49b",
+  "files": [
+    {
+      "path": "provenance-addendum.json",
+      "bytes": 9063,
+      "sha256": "63a4da157cc18aa71e3d14b4e83850c6d2c730c4c05a8f6d46365217ea302bdf"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "ROOTTerminalScope": "Author/parent report actual normal failure join. No root tool transcription supplied to reviewer yet.",
+  "actualBoundary": "One top-level test failed at60046 source line41 model bootstrap refusal, after authenticated-health and wrong-auth passed. Underlying bootstrap error is intentionally opaque; no solecause diagnosis inferred.",
+  "cleanupScope": "Actual source checks all owned groups/registered descendants/endpoints and finalfloors before recorded finalErrors[]. No separate per-descendant kernel wait/absence receipt invented; no residue guarantee beyond this recorded closure.",
+  "finalRefusalSHA256": "088ea4f96beda2faeaaef55d428bc3679551dc63811941c07165da2c947a25dc",
+  "limits": [
+    "No real SDK bootstrap/model/store/permissions acceptance.",
+    "No application79/80 schema, Temporal service/API/provider deployment acceptance.",
+    "No timeout/storage/compiler failure cause attribution. Failure and original files preserved, no reviewer runtime or edits."
+  ],
+  "privateComponentLogSHA256": "ce675bc15ce927c02121900477e0de734a6d361b5775f6f635ff217411f8f5ca",
+  "recordedPrerequisites": [
+    "Owned PG/FGA listeners and migrate exit0",
+    "Actual component return1",
+    "Normal PG/FGA exits0, all8 direct cleanup joins unforced",
+    "finalErrors[] and signals[]"
+  ],
+  "resultSHA256": "90e0622e0f789990553431308454817c42474a83d728f8d6a50c955ca30037fb",
+  "secretBoundary": "Only filtered known failure/pass log lines read with token/password redaction in-memory; no raw logs, credential contents or keys published.",
+  "sourceClosure": {
+    "beforeAfterFull70MapsEqual": true,
+    "beforeAfterSHA256": "39195fecde5d967a84a0d0ea8cf5de4e6d9107b468bb852a7dd71b178bf8c122",
+    "current33AliasReadlinkAndResolutionVerified": true,
+    "currentAll70SameFDSHAAndMetadataVerified": true
+  },
+  "startupPoll": "pg-ready-3 returned2 before pg-ready-5 returned0; no blanket all stage0 claim.",
+  "status": "RECONCILED-ACTUAL-FAIL",
+  "unreached": [
+    "93 permission checks",
+    "wrong-model status case",
+    "empty-store status case"
+  ]
+}

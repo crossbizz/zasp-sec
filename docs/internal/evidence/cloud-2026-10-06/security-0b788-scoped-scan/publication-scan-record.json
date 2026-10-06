@@ -1,0 +1,19 @@
+{
+  "scanner": "gitleaks8.30.1",
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "dir",
+    "/workspace/.zasp-cloud-owned/native379-v2-0b788-scoped-scan-publication-100b7xmu/evidence",
+    "--no-banner",
+    "--redact=100",
+    "--report-format=json",
+    "--gitleaks-ignore-path=/workspace/.zasp-cloud-owned/native379-v2-0b788-postcommit-8q8fuxvr/baseline.gitleaksignore",
+    "--report-path=/workspace/.zasp-cloud-owned/native379-v2-0b788-scoped-scan-publication-100b7xmu/publication-scan-redacted.json"
+  ],
+  "cwd": "/workspace/zasp-sec",
+  "exitCode": 0,
+  "findingCount": 0,
+  "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "logSHA256": "5e193dcd439ac43bb62f6c22033b97360ad1fb97f66c4af39171ba4666dde156",
+  "boundary": "Plain publication metadata only; no decoded-gzip or full-history/native clearance."
+}

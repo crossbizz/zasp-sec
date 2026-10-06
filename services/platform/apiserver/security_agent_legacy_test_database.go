@@ -23,7 +23,7 @@ func (d *PostgresJSONDatabase) LegacyTestsAvailable(ctx context.Context, role st
 	if !present {
 		return false, nil
 	}
-	if err := d.driver.QueryRow(ctx, `SELECT zasp_temporal71.client_ready($1,$2,$3)`, migrations.ProductionTemporalLegacyTests().Checksum(), migrations.TemporalLegacyTestsFingerprint(), role).Scan(&ready); err != nil || !ready || ctx.Err() != nil {
+	if err := d.driver.QueryRow(ctx, `SELECT zasp_temporal71.client_ready($1,$2,$3)`, migrations.TemporalLegacyTestsChecksum(), migrations.TemporalLegacyTestsFingerprint(), role).Scan(&ready); err != nil || !ready || ctx.Err() != nil {
 		return false, ErrRepositoryUnavailable
 	}
 	return true, nil

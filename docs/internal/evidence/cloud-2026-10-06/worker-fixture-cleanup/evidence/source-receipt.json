@@ -1,0 +1,6 @@
+{
+  "root": "/workspace/.zasp-cloud-owned/worker-triage-512-hjz53075",
+  "source_commit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "source_archive_sha256": "5a405323e0947edac41d41b43243b9a638c8c77bf8f3137461fe9897309e09d8",
+  "policy": "Exclusive private tracked snapshot only; no shared/frozen roots modified."
+}

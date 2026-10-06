@@ -1,0 +1,48 @@
+{
+  "archiveBinding": {
+    "ctime_ns": 1791312676991963340,
+    "dev": 34,
+    "gid": 1000,
+    "ino": 439148,
+    "mode": 33024,
+    "mtime_ns": 1791312676987073822,
+    "nlink": 1,
+    "sha256": "ac6082e81551fc55f6e152599f4a9df5c955e76b1594f111760a67d200966518",
+    "size": 26836375,
+    "uid": 1000
+  },
+  "controller14NormalRecords": [
+    "cleanup-CID-absence",
+    "cleanup-discover",
+    "cleanup-inspect",
+    "cleanup-label-check",
+    "cleanup-remove",
+    "create",
+    "created-inspect",
+    "daemon",
+    "image",
+    "image-volumes",
+    "observe",
+    "post-daemon",
+    "stopped-inspect",
+    "wait"
+  ],
+  "current16AndOwner48PinsCurrent": true,
+  "decodedBytes": 67492916,
+  "decodedSHA256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d",
+  "exact14ReferenceHashesVerified": true,
+  "independentFullGzipCRCAndEveryRawByteEqual": true,
+  "mapsPerProcess": {
+    "304": 11,
+    "355": 4
+  },
+  "mirroredPreparedAndJournalsEqual": true,
+  "noUnlink": true,
+  "normalOwnedContainerRemovalAndAbsence": true,
+  "ownerResultSHA256": "024aa60d61db3511ff9b0d321874fa3c7185866870d9969c098fb4e1edd7375d",
+  "preparedSHA256": "86a560f80366fdde353cd5669276472bcbcc99b5fd159434bec349ecf31c3de6",
+  "protected11Unchanged": true,
+  "rootProofSHA256": "0b4534264adbe79d2a6dc7ea9465578805306c59e3510222931b759e4fac6740",
+  "scope": "Prepare custody only. Full archive/CRC and retained raw byte equality independently replayed without extraction. Root reported outer normal0 separately, no invented kernel trace. Inactivity snapshot not lifetime; future fresh raw+gzip2alias proof/independent admission required before any unlink; no compiler/runtime readiness.",
+  "status": "ACTUAL-SDK-GZIP-PREPARE-PASS-RAW-STILL-PRESENT"
+}

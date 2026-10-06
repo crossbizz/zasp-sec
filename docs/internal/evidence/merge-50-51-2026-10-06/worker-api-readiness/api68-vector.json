@@ -1,0 +1,53 @@
+{
+  "scope": "Independent Python eight ordered source fragments; no Go",
+  "sourceCommit": "18d80f9bfbb88059891eedc4592e81ff0e0ea05c",
+  "checksum": "bf5f2b8a2578c8d3c43b8edd0590c55a5eb7c48b178cca310e0ebadfc90e8eed",
+  "sourceBytes": 203581,
+  "rows": [
+    {
+      "path": "services/platform/migrations/sql/0068_production_temporal_executor.up.sql",
+      "sha256": "7156a0dbd73c9dcfdb8ae0d81aa92da8a62abb49adb5f77eb6652807148de2cf",
+      "bytes": 35991
+    },
+    {
+      "path": "services/platform/migrations/sql/0068_production_temporal_executor.planning.sql",
+      "sha256": "28f7b8c47acaefe50fdb15bdd0841f8e1f9165bd1fe9455e672b4a3a60f2bf12",
+      "bytes": 33017
+    },
+    {
+      "path": "services/platform/migrations/sql/0068_production_temporal_executor.late_usage.sql",
+      "sha256": "1bc28627720506cbafefcb28379db5f2c7a44bc65fdd06c371e6c9b90bb5d9d6",
+      "bytes": 11837
+    },
+    {
+      "path": "services/platform/migrations/sql/0068_production_temporal_executor.effects.sql",
+      "sha256": "261d36525320fe264a0faec89d31f741e5fd5f8a9a8924bb231f5c55a210be98",
+      "bytes": 10466
+    },
+    {
+      "path": "services/platform/migrations/sql/0068_production_temporal_executor.linked.sql",
+      "sha256": "66d3c03dc3d32a870f674afc48c4ecf0c16210f0eb8054beb80f7a2652d8f767",
+      "bytes": 24309
+    },
+    {
+      "path": "services/platform/migrations/sql/0068_production_temporal_executor.settlement.sql",
+      "sha256": "fad533ddf07b7d1ae2c6a38271c0ea80981659c6ae3682c9cb0e5036f729372a",
+      "bytes": 27528
+    },
+    {
+      "path": "services/platform/migrations/sql/0068_production_temporal_executor.application.sql",
+      "sha256": "ba5acb7f447a9f5bfaa02522b4a78edcc8668accf18f9d4a5f8ca7678091114c",
+      "bytes": 10108
+    },
+    {
+      "path": "services/platform/migrations/sql/0068_production_temporal_executor.delivery.sql",
+      "sha256": "aeb59694e432edfe721ead2df69cd35b733e986f9ea5529532c6914b6a2149d6",
+      "bytes": 19542
+    },
+    {
+      "path": "services/platform/migrations/sql/0068_production_temporal_executor.cleanup.sql",
+      "sha256": "497521c020b6ff636c199433ccff34e4851444f2e494de5d7269f9c05aa57ec1",
+      "bytes": 30962
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "completionChunk": "cabf44",
+  "normalWaitReturn": 0,
+  "originalRaceProfilePreserved": true,
+  "ownerResultPath": "/tmp/authorization80-sdk-proof-reserved-attempt-ewzbsuzz/result.json",
+  "ownerResultSHA256": "3997db38598ad8b2cc33975dbbe13225407eb44df17df4cdae72ebfedc4dd2ec",
+  "scope": "COMPILE-ONLY-NO-TESTS-MODEL-PERMISSIONS-SERVICES",
+  "session": 25032,
+  "sourceStaticReviewSHA256": "10bcd65124879d7747dbc8397d80d37463383b8751c124950bc094e30b3fd819",
+  "tmpFreeBefore": 263933952,
+  "toolExit": 0,
+  "toolStartChunk": "0a1c9c",
+  "workspaceFreeBefore": 1544581120
+}

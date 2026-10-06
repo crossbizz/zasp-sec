@@ -18,7 +18,7 @@ func TemporalCompatibilityFingerprint() string {
 func ProductionTemporalCompatibility() Metadata {
 	sum := sha256.Sum256([]byte(temporalCompatibilitySQL))
 	checksum := hex.EncodeToString(sum[:])
-	bound := strings.NewReplacer("-- compatibility70 checksum", checksum, "-- compatibility70 fingerprint", TemporalCompatibilityFingerprint(), "-- workflow69 checksum", ProductionTemporalWorkflow().Checksum(), "-- workflow69 fingerprint", TemporalWorkflowFingerprint()).Replace(temporalCompatibilitySQL)
+	bound := strings.NewReplacer("-- compatibility70 checksum", checksum, "-- compatibility70 fingerprint", TemporalCompatibilityFingerprint(), "-- workflow69 checksum", TemporalWorkflowChecksum(), "-- workflow69 fingerprint", TemporalWorkflowFingerprint()).Replace(temporalCompatibilitySQL)
 	return Metadata{version: 70, name: "production_temporal_compatibility_extension", checksum: checksum, up: bound}
 }
 

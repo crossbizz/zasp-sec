@@ -1,0 +1,8 @@
+{
+  "status": "FAILED-UNVERIFIED",
+  "errorClass": "CensusRefusal",
+  "assetFileCreated": false,
+  "extraction": false,
+  "binaryExecution": false,
+  "serviceReadiness": false
+}

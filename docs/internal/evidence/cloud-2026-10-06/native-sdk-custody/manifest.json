@@ -1,0 +1,231 @@
+{
+  "files": {
+    "01-independent-actual-native-OSS-installer-32244-review.json": {
+      "bytes": 2058,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-native-OSS-installer-32244-review.json",
+      "sha256": "91a24485e5fb8b4cec574be30c595c31df4921ba40064f57c1fd4a230cbe2ffb"
+    },
+    "02-independent-native-OSS-lossless-relocation-v5-static-review.json": {
+      "bytes": 2831,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-native-OSS-lossless-relocation-v5-static-review.json",
+      "sha256": "2524c8d4c6c32f2979c307f875fa7e2db9e471bd52f346765e4673b7bc72b6ca"
+    },
+    "03-independent-native3-mmap-tiny-control-recipe-review.json": {
+      "bytes": 4071,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-native3-mmap-tiny-control-recipe-review.json",
+      "sha256": "0bad9e2f41d1127a6f91118f22bf6827f542ec64195220b424fb06d1c3f5e2a9"
+    },
+    "04-independent-actual-native3-mmap-tiny-controls-review.json": {
+      "bytes": 3186,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-native3-mmap-tiny-controls-review.json",
+      "sha256": "dd3ed26826a96474df43f3705b7c2cbfe5c64974d7aec69bc100f90fce9accf8"
+    },
+    "05-independent-actual-native3-mmap-tiny-controls-root-join-addendum.json": {
+      "bytes": 1255,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-native3-mmap-tiny-controls-root-join-addendum.json",
+      "sha256": "a59c80287e8f8a3fb2ae28907cba821fa8cd5cf3ee3119fdf36c1d59d42a759d"
+    },
+    "06-native3-mmap-root-actual-joins.json": {
+      "bytes": 1259,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/native3-mmap-root-actual-joins.json",
+      "sha256": "87f11d8daa9a16cf372ad19af643fb5ee4bece20ca225b5b0037f08d5a5e3d82"
+    },
+    "07-native3-mmap-root-red.stdout.log": {
+      "bytes": 0,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/native3-mmap-root-red.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "08-native3-mmap-root-red.stderr.log": {
+      "bytes": 390,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/native3-mmap-root-red.stderr.log",
+      "sha256": "0099a2b5eadf426f9023fbf868eb74bb7e8244d47d48bbfb75c4baa545649098"
+    },
+    "09-native3-mmap-root-green.stdout.log": {
+      "bytes": 720,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/native3-mmap-root-green.stdout.log",
+      "sha256": "1939c2ff8bd07c2380742cdedcee985ef5fa941b6e15c0c935dc0d706b198723"
+    },
+    "10-native3-mmap-root-green.stderr.log": {
+      "bytes": 0,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/native3-mmap-root-green.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "11-independent-native3-observer-derive-prepare-v1-static-blockers.json": {
+      "bytes": 1384,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-native3-observer-derive-prepare-v1-static-blockers.json",
+      "sha256": "08a7998c9bb9b4cc0d1f74f2700d692d99033c18a8f8745c75da9d7d36758adc"
+    },
+    "12-independent-native3-observer-derive-prepare-v2-static-review.json": {
+      "bytes": 3055,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-native3-observer-derive-prepare-v2-static-review.json",
+      "sha256": "958b42e79e8575d35e3e7dcb28f25268e3ba5a0e41a7153956875941d367f7a8"
+    },
+    "13-independent-actual-native3-observer-lossless-prepare-review.json": {
+      "bytes": 5337,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-native3-observer-lossless-prepare-review.json",
+      "sha256": "b979fae66cf309aba90c91853922d62ff7d27c3f9d0d977f8ed0094690aab942"
+    },
+    "14-native3-root-observe-prepare-v2-actual-join.json": {
+      "bytes": 871,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/native3-root-observe-prepare-v2-actual-join.json",
+      "sha256": "869e632f4cbcee2778004c788bdf91e3e9951361d9c29b3ca6fa292b34d6eca2"
+    },
+    "15-independent-native6-observer-v3-source-static-review.json": {
+      "bytes": 3977,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-native6-observer-v3-source-static-review.json",
+      "sha256": "e831328f139858e3190bca90563b7d31a10d63d9f65ce12b0d33c64b204074b1"
+    },
+    "16-independent-native6-finalize-glue-v3-static-review.json": {
+      "bytes": 3105,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-native6-finalize-glue-v3-static-review.json",
+      "sha256": "82586e7ce6d441be652da820617bf0ebc2e6700508d5c844e910b09c451cd3af"
+    },
+    "17-independent-actual-native6-lossless-relocation-custody-review.json": {
+      "bytes": 6359,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-native6-lossless-relocation-custody-review.json",
+      "sha256": "0a88e734d952ce8ae24266d0244f582433e2bf73e4969018852a046f88bc5cb1"
+    },
+    "18-native6-root-observe-finalize-v3-actual-join.json": {
+      "bytes": 873,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/native6-root-observe-finalize-v3-actual-join.json",
+      "sha256": "44d99deb49c40f4b7c6c7a10a40a1ae72df88e3ad89bf35dd98c5221f0b6fe3e"
+    },
+    "19-independent-actual-owned-FGA-SDK72513-storage-failure-review.json": {
+      "bytes": 1539,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-owned-FGA-SDK72513-storage-failure-review.json",
+      "sha256": "04d1f3b46691f3a97133f35462754c7ab5112a61f6828285ad9fde0df41b3d83"
+    },
+    "20-independent-SDK-reserved-tmp-retry-source-review.json": {
+      "bytes": 2023,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-SDK-reserved-tmp-retry-source-review.json",
+      "sha256": "cc46994b8a3ed60aa696dc943bb939adb36ce62304ca5af2097ed169942ad206"
+    },
+    "21-independent-actual-owned-SDK-reserved-retry-failure-review.json": {
+      "bytes": 5726,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-owned-SDK-reserved-retry-failure-review.json",
+      "sha256": "01f8f09385d637e189cc3dfec63c8a29eb83489fe50245e9b2bac8ce111f1de6"
+    },
+    "22-owned-sdk-reserved-retry-root-actual-join.json": {
+      "bytes": 762,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/owned-sdk-reserved-retry-root-actual-join.json",
+      "sha256": "6ec2b9fdbefc75d885cc2896b45037ad48cb84c406fabda412d33ef4cba67bad"
+    },
+    "23-independent-owned-SDK-same-binary-cwd-replay-static-review.json": {
+      "bytes": 2562,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-owned-SDK-same-binary-cwd-replay-static-review.json",
+      "sha256": "b915d1ccfebae73eb0bd4db4620e7b131f40d2f8e35da9a0974757189801a5f4"
+    },
+    "24-independent-owned-sdk-same-binary-actual-review.json": {
+      "bytes": 5883,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-owned-sdk-same-binary-actual-review.json",
+      "sha256": "c1469e8bd54710d3a089576b7e59c708cfca978bbeba87c859987cfdaa73b45c"
+    },
+    "25-owned-sdk-same-binary-root-actual-join.json": {
+      "bytes": 757,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/owned-sdk-same-binary-root-actual-join.json",
+      "sha256": "41ec07079f781123e8abcf27ef90f582921138c44a2e964dfd5db3be23e72b88"
+    },
+    "26-pr51-32244-job-112307282429-curated.json": {
+      "bytes": 3598,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/pr51-32244-job-112307282429-curated.json",
+      "sha256": "2a17ce8c58fce9e7158382fe6c82202990ddcfc0cf71648e1556039f8eecd225"
+    },
+    "27-pr51-32244-job-112307247048-curated.json": {
+      "bytes": 3598,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/zasp-cloud-evidence/pr51-32244-job-112307247048-curated.json",
+      "sha256": "b187b31aa8d381fcbcdf03ba89b773a3f23d4412550a876c8807b0a3988c39bd"
+    },
+    "28-result.json": {
+      "bytes": 1793,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/workspace/.zasp-cloud-owned/native-OSS-installer-retry-owner-5e92a3b3983a4e9eb1d83a1dfcc20942/result.json",
+      "sha256": "4ce8937f8fc24a519ceb98cd4c02f4237bac1731012074a6bbab021e2a0200a6"
+    },
+    "29-result.json": {
+      "bytes": 983,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/workspace/.zasp-cloud-owned/native-OSS-component-tools-457255ffbb3f42fc93aaa551e2942d25/result.json",
+      "sha256": "d5653aa1471caa9feb2c2c73325cc6d677e2e4fd3023eeff626822363c916cef"
+    },
+    "30-result.json": {
+      "bytes": 43539,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/result.json",
+      "sha256": "b1fbef4599f5980637fd573255e2905be29cc7996173bc8c7b0e6b7eafd0890a"
+    },
+    "31-result.json": {
+      "bytes": 8866,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/result.json",
+      "sha256": "1fb3d21d661f4a864b43ba785bcdef45610880c5689999ab66143ffb295c0fcc"
+    },
+    "32-custody.json": {
+      "bytes": 2126,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/custody.json",
+      "sha256": "1bfbc8da9e8882ae1a5b5b5885add9fe6ab45cfa978f05e9b6ab745b9f361bd2"
+    },
+    "33-prepared.json": {
+      "bytes": 2741,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/prepared.json",
+      "sha256": "cd174ecba33402a9322d6ec982a452c4ed48ad75de2475520391a73c712242ec"
+    },
+    "34-unlink-intent.json": {
+      "bytes": 717,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/unlink-intent.json",
+      "sha256": "7f9f89f16fad273192304247534391d8ccebf985edcbd35d68da2310ecfbd9b0"
+    },
+    "35-unlinked-openfga-openfga.json": {
+      "bytes": 587,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/unlinked-openfga-openfga.json",
+      "sha256": "3cb7529b8746e65ca1ee35b00ce3b8d8a1af59869820bebb563d80c4f76cba1c"
+    },
+    "36-unlinked-temporal-temporal.json": {
+      "bytes": 592,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/unlinked-temporal-temporal.json",
+      "sha256": "bf0ee3b6dbaff627814c56413042a5229d61b5d853b873f9865d227cd08e03f9"
+    },
+    "37-unlinked-temporal.tar.gz.json": {
+      "bytes": 587,
+      "copiedBytesUnchanged": true,
+      "originalPath": "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/unlinked-temporal.tar.gz.json",
+      "sha256": "1e307c060f18844d8f1defb24d1a93e34c9bbfa22598ad378340eec4a5ac7def"
+    }
+  },
+  "format": "reviewed-native-sdk-custody-selected-originals-v1",
+  "originalRecordsUnchanged": true,
+  "payloadBytes": 129710,
+  "payloadCount": 37,
+  "scope": "Selected actual outcomes, reviews and custody; not complete raw evidence publication or production availability"
+}

@@ -57,11 +57,11 @@ func (p *productionSecurityAgentPlanner) runTemporalPlanningOwned(ctx context.Co
 		return db.QueryJSON(bounded, statement, args...)
 	}
 	readySQL, readSQL, planSQL := `SELECT to_jsonb(zasp_temporal68.ready($1,$2))`, `SELECT zasp_temporal68.status($1::jsonb)->'planning'`, `SELECT zasp_temporal68.plan($1::jsonb)`
-	checksum, fingerprint := migrations.ProductionTemporalExecutor().Checksum(), migrations.TemporalExecutorFingerprint()
+	checksum, fingerprint := migrations.TemporalExecutorChecksum(), migrations.TemporalExecutorFingerprint()
 	validReceipt := validOrderedPlanningReceiptBinding
 	if owner == temporalPlanningSingleTest {
 		readySQL, readSQL, planSQL = `SELECT to_jsonb(zasp_temporal74.client_ready($1,$2))`, `SELECT zasp_temporal74.planning_state($1::jsonb)`, `SELECT zasp_temporal74.plan($1::jsonb)`
-		checksum, fingerprint = migrations.ProductionTemporalTestExecutor().Checksum(), migrations.TemporalTestExecutorFingerprint()
+		checksum, fingerprint = migrations.TemporalTestExecutorChecksum(), migrations.TemporalTestExecutorFingerprint()
 		validReceipt = validSingleTestPlanningReceipt
 	}
 	if owner == temporalPlanningFinding {

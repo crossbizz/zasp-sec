@@ -1,0 +1,55 @@
+{
+  "members": {
+    "README.md": {
+      "bytes": 1411,
+      "sha256": "768219b193b0e8d51e3078f921cf8881e5a260572afdf1b1abd29897a808bce8"
+    },
+    "classify.py.gz": {
+      "bytes": 1777,
+      "sha256": "4b777a8ba2493e365e043049b53b2e20f24c26ac4489f11ffc29ae4fbc685617"
+    },
+    "complete-original-frozen0b-packet.tar.gz": {
+      "bytes": 6116847,
+      "sha256": "098916a04180b7fd9e0b274fa578ef5c300f4688ac1208881f68a79722d22073"
+    },
+    "decoded-original-file-inventory.json": {
+      "bytes": 15013,
+      "sha256": "b8afcdea8c3eeea95ee11231f2f134a383d56099a6bb9986c3ef66d6e3c8e396"
+    },
+    "encoding-and-preservation.json": {
+      "bytes": 604,
+      "sha256": "091e8a508223938dd2ba6f94001b16dc1f2d470f5ff65bb9006c7b4b31a06984"
+    },
+    "native379-v2-frozen-build-0b788.json.gz": {
+      "bytes": 25134,
+      "sha256": "70c2b3475f6fc2ea035c12934db79675b15366d654484f23b98da62bffcd1f09"
+    },
+    "native379-v2-frozen-build-0b788.log.gz": {
+      "bytes": 133,
+      "sha256": "a8f8ffe8d8e2d64103275672f3a9ca55112e66922a0a35d81dfbb8b9fc384b83"
+    },
+    "outer-scanner-original-provenance.json": {
+      "bytes": 792,
+      "sha256": "854871efa656b64755337e488f41e71e040d011f0f5880f39250647af7eb71af"
+    },
+    "outer-scoped-scan-record.json": {
+      "bytes": 802,
+      "sha256": "24efe3645711c8fc3d2168aca8478d1a3d011cea53e6af8ccf93f5d9aa96de69"
+    },
+    "outer-scoped-scan.json.gz": {
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "outer-scoped-scan.log.gz": {
+      "bytes": 127,
+      "sha256": "906f9f227e385d7f482cd71d90016bbf398934db2241664f28e2d32463f493d3"
+    },
+    "public-digest-identity-proof.json.gz": {
+      "bytes": 142698,
+      "sha256": "036722e0c3fa2468907d32783fb0b2b6b70f7e880e309a4d784a9bc2fcb902dc"
+    }
+  },
+  "originalInner66MemberManifestSHA256": "d02aac6c245c67aff1d8d0249ff6bb66f225708b43087b652aa149941980f161",
+  "scope": "opaque preserved complete folder plus bounded original scan and identity proofs",
+  "version": 1
+}

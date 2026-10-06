@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "observed_date_utc": "2026-10-06",
+  "repository_head": "969456d4630e654bc0ce26f0c3b85e7e94533079",
+  "audit_scope": "existing cloud configuration, current process variable presence, canonical local config path existence, checked-in deployment templates; no endpoint probes, credential reads or auth mutations",
+  "secrets_recorded": false,
+  "cloud_observations": {
+    "current": true,
+    "spec_revision": "4",
+    "network_policy": {
+      "state": "enforced",
+      "mode": "restricted",
+      "stytch_hosts_allowlisted": true
+    },
+    "outbound_identity_count": 0,
+    "product_prefixed_bindings_count": 0
+  },
+  "product_bindings": {
+    "product_deployment": [
+      {
+        "name": "ZASP_PUBLIC_ORIGIN",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_ENVIRONMENT",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_RUNTIME_SERVICES_ENABLED",
+        "status": "missing_in_current_process"
+      }
+    ],
+    "core_database": [
+      {
+        "name": "ZASP_POSTGRES_DSN",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_SECURITY_AGENT_POSTGRES_DSN",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_DATABASE_AUTHORITY",
+        "status": "missing_in_current_process"
+      }
+    ],
+    "temporal": [
+      {
+        "name": "ZASP_TEMPORAL_ADDRESS",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_TEMPORAL_NAMESPACE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_TEMPORAL_TASK_QUEUE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_TEMPORAL_TLS_CA_FILE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_TEMPORAL_TLS_CERT_FILE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_TEMPORAL_TLS_KEY_FILE",
+        "status": "missing_in_current_process"
+      }
+    ],
+    "openfga": [
+      {
+        "name": "ZASP_OPENFGA_URL",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_OPENFGA_STORE_ID",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_OPENFGA_MODEL_ID",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_OPENFGA_TOKEN_FILE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_OPENFGA_TLS_CA_FILE",
+        "status": "missing_in_current_process"
+      }
+    ],
+    "worker_authority": [
+      {
+        "name": "ZASP_WORKER_MODE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_WORKER_ID",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_TEMPORAL_EXECUTOR_POSTGRES_DSN",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_TEMPORAL_COMPENSATION_POSTGRES_DSN",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_AUTHORIZATION_WORKER_KEY_FILE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_AUTHORIZATION_COMPENSATION_KEY_FILE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_TEMPORAL_PRICING_BINDINGS_FILE",
+        "status": "missing_in_current_process"
+      }
+    ],
+    "stytch_product_binding": [
+      {
+        "name": "ZASP_STYTCH_BASE_URL",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_STYTCH_AUTHORIZE_URL",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_STYTCH_PROJECT_ID",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_STYTCH_SECRET",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_STYTCH_WEBHOOK_SECRET",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_STYTCH_PUBLIC_TOKEN",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_STYTCH_ORGANIZATION_ID",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_WORKFLOW_SIGNING_KEY",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_TOKEN_REVEAL_KEY",
+        "status": "missing_in_current_process"
+      }
+    ],
+    "provider_execution": [
+      {
+        "name": "ZASP_CONNECTOR_ROLE_ARN",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_CONNECTOR_KMS_KEY_ARN",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_SECURITY_AGENT_PLANNER_TOKEN_FILE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_SECURITY_AGENT_PLANNER_MODEL",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_RED_TEAM_TARGET_ENDPOINT",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_RED_TEAM_TARGET_TOKEN_FILE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_RED_TEAM_TARGET_CA_FILE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_RED_TEAM_RUNNER_IMAGE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_GATEWAY_SIGNING_PRIVATE_KEY_FILE",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_DISCOVERY_ROLE_ARN",
+        "status": "missing_in_current_process"
+      },
+      {
+        "name": "ZASP_DISCOVERY_WEB_IDENTITY_TOKEN_FILE",
+        "status": "missing_in_current_process"
+      }
+    ]
+  },
+  "generic_bindings": {
+    "status": "ready_setup_observations_exist",
+    "examples": [
+      "DATABASE_URL",
+      "TEMPORAL_ADDRESS",
+      "TEMPORAL_NAMESPACE",
+      "STYTCH_PROJECT_ID",
+      "STYTCH_SECRET",
+      "STYTCH_PUBLIC_TOKEN",
+      "OPENROUTER_API_KEY",
+      "AWS_ACCESS_KEY_ID"
+    ],
+    "product_authority": "unknown; no evidenced mapping to the required ZASP deployment, tenant, pinned model, service principals or mounted credentials"
+  },
+  "known_missing_in_checked_scope": [
+    "all 162 runtime-loader ZASP variable bindings in current process",
+    "committed staging OpenFGA storeID and modelID are empty",
+    "committed product publicOrigin and productImages are empty",
+    "canonical local .env/.env.local/.env.production, kubeconfig and serviceaccount token paths absent"
+  ],
+  "unknown_external_state": [
+    "approved deployment target and authenticated product origin",
+    "whether any generic Temporal address belongs to intended ZASP namespace",
+    "published OpenFGA model/store and tuple revision synchronization",
+    "installed product DB authorities/catalog/readiness and verifier registrations",
+    "real Stytch organization/member/session/callback and webhook mapping",
+    "provider target tenancy, runner images, effect and signing authority",
+    "deployment reachability, TLS identity, database privileges and restore/backup ownership"
+  ],
+  "runtime_gate": {
+    "status": "known_closed_in_source",
+    "evidence": "services/platform/migrations/sql/0080_authorization_worker_profile.sql:115-116",
+    "reason": "runtime_ready() remains current_ready() AND false; native379 parity alone cannot activate supported forward workers"
+  },
+  "native379_v2": {
+    "status": "pending_at_latest_local_packet_summary",
+    "evidence_file": "native379-v2-final-packet-summary.json",
+    "note": "No acceptance promotion made by this inventory"
+  },
+  "independent_work_after_native379_v2": [
+    "Bind accepted native packet to the fixed 379-rule Go consumers and run existing product parity/readback acceptance under owned disposable PostgreSQL",
+    "Complete fresh-install and supported-upgrade catalog/data preservation, registration, drift refusal and retired raw-privilege proofs using prepared native PostgreSQL tools",
+    "Review exact combined API/worker authority composition and remaining full-family readiness transition; keep runtime_ready closed until supported acceptance",
+    "Reconcile existing immutable source/capture evidence and security-gate classifications without broad ignore, guard relaxation or history rewrite",
+    "Prepare concrete deployment configuration requirements and operator rollout/readiness checks without inventing target values or provisioning"
+  ],
+  "not_independent_product_completion": "No newly demonstrated end-to-end product feature can be accepted in this environment solely from native379 v2; browser/deployed API/worker/provider acceptance needs the missing product bindings and approved target."
+}

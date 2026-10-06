@@ -1,0 +1,4 @@
+v22.23.1
+10.9.8
+go version go1.25.13 linux/amd64
+tini version 0.19.0 - git.de40ad0

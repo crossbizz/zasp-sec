@@ -23,7 +23,7 @@ func (d *PostgresJSONDatabase) SecurityAgentCommonAdmissionAvailable(ctx context
 	if !present {
 		return false, nil
 	}
-	if err := d.driver.QueryRow(ctx, `SELECT zasp_temporal73.client_ready($1,$2)`, migrations.ProductionTemporalAdmission().Checksum(), migrations.TemporalAdmissionFingerprint()).Scan(&ready); err != nil || !ready || ctx.Err() != nil {
+	if err := d.driver.QueryRow(ctx, `SELECT zasp_temporal73.client_ready($1,$2)`, migrations.TemporalAdmissionChecksum(), migrations.TemporalAdmissionFingerprint()).Scan(&ready); err != nil || !ready || ctx.Err() != nil {
 		return false, ErrRepositoryUnavailable
 	}
 	return true, nil

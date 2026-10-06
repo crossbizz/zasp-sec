@@ -1,6 +1,6 @@
 module github.com/zasp-ai/zasp-sec/proofs/neo4j-graphstore
 
-go 1.25.4
+go 1.26.0
 
 require (
 	github.com/neo4j/neo4j-go-driver/v6 v6.2.0
@@ -8,3 +8,5 @@ require (
 )
 
 replace github.com/zasp-ai/zasp-sec/services/platform => ../../services/platform
+
+replace github.com/zasp-ai/zasp-sec/services/health => ../../services/health

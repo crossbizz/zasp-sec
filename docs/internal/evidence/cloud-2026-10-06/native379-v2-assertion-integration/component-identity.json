@@ -1,0 +1,81 @@
+{
+  "kind": "source-only-component-review-not-native-envelope",
+  "sourceBaseCommit": "3c123ef46fc9982c503384d44a93045984a3ec89",
+  "cwd": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/source/services/platform",
+  "environment": {
+    "PATH": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin:/tmp/zasp-cloud-tools/go/bin:/usr/bin:/bin",
+    "TMPDIR": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/tmp",
+    "GOROOT": "/tmp/zasp-cloud-tools/go",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOFLAGS": "-mod=readonly",
+    "GOEXPERIMENT": "",
+    "GOOS": "linux",
+    "GOARCH": "amd64",
+    "CGO_ENABLED": "0",
+    "GOMODCACHE": "/home/agent/go/pkg/mod",
+    "GOCACHE": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/build-cache"
+  },
+  "compileArgv": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "test",
+    "-c",
+    "-mod=readonly",
+    "-o",
+    "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/component-review-05f314/apiserver-source-review.test",
+    "./apiserver"
+  ],
+  "rerunArgv": [
+    "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/component-review-05f314/apiserver-source-review.test",
+    "-test.run",
+    "^TestNative379V2",
+    "-test.count=1",
+    "-test.v"
+  ],
+  "binary": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/component-review-05f314/apiserver-source-review.test",
+    "sha256": "18a01854c915d758a4b2a084a37c486b75916845b6d027c8719b2cc4ceea4b7b",
+    "bytes": 117380955
+  },
+  "implementation": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/source/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+    "sha256": "05f314d326b85a56f98370431dc8fb4d7088d9ac9ddf8c73eebf3261d2b4f3e8",
+    "bytes": 183111
+  },
+  "emptyPinsCompanion": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/source/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_pins_test.go",
+    "sha256": "25db996134b0f804366b530ed129508f9b013168842a5bd367ad3c773fdac344",
+    "bytes": 741
+  },
+  "wire": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/candidate-05f314-t2l_d_0s/canonical-wire.json",
+    "sha256": "ca7dd2ad47a4afcea9f0dfca48d10e5e4b8876c0daf6450c33a66776e830d5e9",
+    "bytes": 25160408
+  },
+  "go": {
+    "path": "/tmp/zasp-cloud-tools/go/bin/go",
+    "sha256": "3fb44b0d47becc087cf9e6002366bfbf136d3e08460f12389dbd04687dcf0dd0",
+    "bytes": 14989108
+  },
+  "node": {
+    "path": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+    "sha256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068",
+    "bytes": 124835376
+  },
+  "greenLog": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/evidence/assertion-integration-05f314-full-wire-green.log",
+    "sha256": "7950b79061787c30e94792680326a91ade0a05c82358f88c952bc6e92c5e721f",
+    "bytes": 3232
+  },
+  "compileLog": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/component-review-05f314/compile.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "sourceOnly": true,
+  "nativeExecution": false,
+  "scope": "All589 recorded outcomes and authenticated ledger validation; seven selected scripted executor invocations across six controls/recovery families; no SQL/PG execution. Fixed zasp_test/PID37980 mock cost model; varied-login portability pending."
+}

@@ -1,0 +1,2426 @@
+{
+  "format": "ordered-current-native379-source-fact-delta-v2",
+  "historicalV1": {
+    "expectedFacts": 10053,
+    "countBasis": "Exact frozen historical source manifest at HEAD02a974e2472c11fc7347e0cdf30c54fbe9ff293d; independently cross-checked by source review; never a native target observation",
+    "privateRoutines": 7,
+    "sourceManifestSHA256": "bc6cdb5b0abe421e22c6592a69a31ef7ca9c9246c66d1fec1db6b2fb7eceabea"
+  },
+  "currentSource": {
+    "expectedFacts": 10052,
+    "privateRoutines": 8,
+    "rules": 379,
+    "roleSites": 565,
+    "sourceManifestSHA256": "4820af14e63ea69b9285e5c69463436fe4ce01ef3a39111b7cbefc8adc2897f9"
+  },
+  "additions": [
+    {
+      "ruleId": "private-routines",
+      "kind": "routine",
+      "identity": "[\"private-routines\",\"zasp_authorization80_ordered_current.function_resolve_public(text)\"]",
+      "factSHA256": "9ea01d0726f8dc9bb0c0b058affdb426e536f7136e799e696260b3d52b157a45",
+      "source": "source-built-private8-precision-resolver",
+      "netRows": 1
+    }
+  ],
+  "equalExisting": [
+    {
+      "ruleId": "temporal72:trigger",
+      "kind": "trigger",
+      "removedAliasIdentity": "[\"temporal72:trigger\",\"[\\\"zasp_connector_credentials\\\", \\\"zasp_execution_bind_oauth_subject\\\"]\"]",
+      "removedSourceFactSHA256": "a5d5ae78158dfc44f53f238873b3f250d4d6c89c81f782f6e1e66747a43a7135",
+      "retainedCanonicalIdentity": "[\"temporal72:trigger\",\"[\\\"public.zasp_connector_credentials\\\",\\\"zasp_execution_bind_oauth_subject\\\"]\"]",
+      "retainedFactSHA256": "bd6d00c57f7804119b14aceec40d236ed3e09dfb31427f44a42b2fccfcc5eb31",
+      "sourceWitnessSHA256": "3711750bab518ee5fc8f02e8b08e61a3a8ed6f3497ea109e03e9a42764b57701",
+      "disposition": "source-proven-equalExisting; preserve both source collections/index alignment; omit only duplicate expected alias",
+      "netRows": -1
+    },
+    {
+      "ruleId": "temporal72:trigger",
+      "kind": "trigger",
+      "removedAliasIdentity": "[\"temporal72:trigger\",\"[\\\"zasp_discovery_syncs\\\", \\\"zasp_execution_sync_version\\\"]\"]",
+      "removedSourceFactSHA256": "fdfe88dfe967f6245815ee7a9c443eccf6278b23adf2a322f7b119313a35b2d7",
+      "retainedCanonicalIdentity": "[\"temporal72:trigger\",\"[\\\"public.zasp_discovery_syncs\\\",\\\"zasp_execution_sync_version\\\"]\"]",
+      "retainedFactSHA256": "5e17f139588ed3c3f0fd1fa84e0c7bfec8479e4c9be8d91937935bb9ea53351e",
+      "sourceWitnessSHA256": "3711750bab518ee5fc8f02e8b08e61a3a8ed6f3497ea109e03e9a42764b57701",
+      "disposition": "source-proven-equalExisting; preserve both source collections/index alignment; omit only duplicate expected alias",
+      "netRows": -1
+    }
+  ],
+  "perRule": [
+    {
+      "ruleId": "worker-line-2",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-4",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-5",
+      "historicalV1ExpectedFacts": 383,
+      "currentSourceExpectedFacts": 383,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-6",
+      "historicalV1ExpectedFacts": 41,
+      "currentSourceExpectedFacts": 41,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-7",
+      "historicalV1ExpectedFacts": 359,
+      "currentSourceExpectedFacts": 359,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-8",
+      "historicalV1ExpectedFacts": 203,
+      "currentSourceExpectedFacts": 203,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-9",
+      "historicalV1ExpectedFacts": 17,
+      "currentSourceExpectedFacts": 17,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-10",
+      "historicalV1ExpectedFacts": 27,
+      "currentSourceExpectedFacts": 27,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-11",
+      "historicalV1ExpectedFacts": 168,
+      "currentSourceExpectedFacts": 168,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-12",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-15",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-16",
+      "historicalV1ExpectedFacts": 67,
+      "currentSourceExpectedFacts": 67,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-17",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-18",
+      "historicalV1ExpectedFacts": 9,
+      "currentSourceExpectedFacts": 9,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-19",
+      "historicalV1ExpectedFacts": 10,
+      "currentSourceExpectedFacts": 10,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-20",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-21",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-22",
+      "historicalV1ExpectedFacts": 11,
+      "currentSourceExpectedFacts": 11,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-23",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-24",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-25",
+      "historicalV1ExpectedFacts": 25,
+      "currentSourceExpectedFacts": 25,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-26",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-27",
+      "historicalV1ExpectedFacts": 52,
+      "currentSourceExpectedFacts": 52,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-31",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-32",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-33",
+      "historicalV1ExpectedFacts": 12,
+      "currentSourceExpectedFacts": 12,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-34",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-35",
+      "historicalV1ExpectedFacts": 6,
+      "currentSourceExpectedFacts": 6,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-36",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-37",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-38",
+      "historicalV1ExpectedFacts": 12,
+      "currentSourceExpectedFacts": 12,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-39",
+      "historicalV1ExpectedFacts": 13,
+      "currentSourceExpectedFacts": 13,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-40",
+      "historicalV1ExpectedFacts": 17,
+      "currentSourceExpectedFacts": 17,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-line-41",
+      "historicalV1ExpectedFacts": 10,
+      "currentSourceExpectedFacts": 10,
+      "delta": 0
+    },
+    {
+      "ruleId": "private-routines",
+      "historicalV1ExpectedFacts": 7,
+      "currentSourceExpectedFacts": 8,
+      "delta": 1
+    },
+    {
+      "ruleId": "private-namespace",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "private-relation",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "private-column",
+      "historicalV1ExpectedFacts": 10,
+      "currentSourceExpectedFacts": 10,
+      "delta": 0
+    },
+    {
+      "ruleId": "private-constraint",
+      "historicalV1ExpectedFacts": 14,
+      "currentSourceExpectedFacts": 14,
+      "delta": 0
+    },
+    {
+      "ruleId": "private-index",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "private-policy",
+      "historicalV1ExpectedFacts": 0,
+      "currentSourceExpectedFacts": 0,
+      "delta": 0
+    },
+    {
+      "ruleId": "private-trigger",
+      "historicalV1ExpectedFacts": 0,
+      "currentSourceExpectedFacts": 0,
+      "delta": 0
+    },
+    {
+      "ruleId": "private-view",
+      "historicalV1ExpectedFacts": 0,
+      "currentSourceExpectedFacts": 0,
+      "delta": 0
+    },
+    {
+      "ruleId": "private-rewrite",
+      "historicalV1ExpectedFacts": 0,
+      "currentSourceExpectedFacts": 0,
+      "delta": 0
+    },
+    {
+      "ruleId": "private-type",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "native-memberships",
+      "historicalV1ExpectedFacts": 0,
+      "currentSourceExpectedFacts": 0,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:acceptance:function",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:candidate_authority:function",
+      "historicalV1ExpectedFacts": 6,
+      "currentSourceExpectedFacts": 6,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:candidate_authority:table",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:candidate_authority:column",
+      "historicalV1ExpectedFacts": 35,
+      "currentSourceExpectedFacts": 35,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:candidate_authority:constraint",
+      "historicalV1ExpectedFacts": 55,
+      "currentSourceExpectedFacts": 55,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:candidate_authority:index",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:candidate_authority:policy",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:candidate_authority:trigger",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:correlation_routing:function",
+      "historicalV1ExpectedFacts": 6,
+      "currentSourceExpectedFacts": 6,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:correlation_routing:trigger",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:enrollment_pairing:function",
+      "historicalV1ExpectedFacts": 9,
+      "currentSourceExpectedFacts": 9,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:enrollment_pairing:table",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:enrollment_pairing:column",
+      "historicalV1ExpectedFacts": 18,
+      "currentSourceExpectedFacts": 18,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:enrollment_pairing:constraint",
+      "historicalV1ExpectedFacts": 34,
+      "currentSourceExpectedFacts": 34,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:enrollment_pairing:policy",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:enrollment_pairing:trigger",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:queue_replay:function",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_evidence:function",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_query:function",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_reads:function",
+      "historicalV1ExpectedFacts": 8,
+      "currentSourceExpectedFacts": 8,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_reads:table",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_reads:constraint",
+      "historicalV1ExpectedFacts": 29,
+      "currentSourceExpectedFacts": 29,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_reads:column",
+      "historicalV1ExpectedFacts": 14,
+      "currentSourceExpectedFacts": 14,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_reads:policy",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_reads:index",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_reads:trigger",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_search:function",
+      "historicalV1ExpectedFacts": 8,
+      "currentSourceExpectedFacts": 8,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_search:table",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_search:constraint",
+      "historicalV1ExpectedFacts": 27,
+      "currentSourceExpectedFacts": 27,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_search:column",
+      "historicalV1ExpectedFacts": 17,
+      "currentSourceExpectedFacts": 17,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_search:policy",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_search:index",
+      "historicalV1ExpectedFacts": 5,
+      "currentSourceExpectedFacts": 5,
+      "delta": 0
+    },
+    {
+      "ruleId": "runtime:session_search:trigger",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:approval_notification:table",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:approval_notification:column",
+      "historicalV1ExpectedFacts": 19,
+      "currentSourceExpectedFacts": 19,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:approval_notification:constraint",
+      "historicalV1ExpectedFacts": 35,
+      "currentSourceExpectedFacts": 35,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:approval_notification:index",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:approval_notification:policy",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:approval_notification:function",
+      "historicalV1ExpectedFacts": 7,
+      "currentSourceExpectedFacts": 7,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:approval_notification:trigger",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:home_attention:function",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:integration_setup:function",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:integration_webhook:function",
+      "historicalV1ExpectedFacts": 5,
+      "currentSourceExpectedFacts": 5,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:integration_webhook:table",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:integration_webhook:column",
+      "historicalV1ExpectedFacts": 22,
+      "currentSourceExpectedFacts": 22,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:integration_webhook:constraint",
+      "historicalV1ExpectedFacts": 44,
+      "currentSourceExpectedFacts": 44,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:integration_webhook:index",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:integration_webhook:policy",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:reconciliation_lane_plan:function",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:red_team_artifacts:function",
+      "historicalV1ExpectedFacts": 7,
+      "currentSourceExpectedFacts": 7,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:red_team_artifacts:constraint",
+      "historicalV1ExpectedFacts": 27,
+      "currentSourceExpectedFacts": 27,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:red_team_artifacts:column",
+      "historicalV1ExpectedFacts": 18,
+      "currentSourceExpectedFacts": 18,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:red_team_invocation:function",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:red_team_safety:function",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "product:workflow_compatibility:function",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "role-profile:current-profile",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "role-profile:native-roles",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:70.fingerprint:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:70.fingerprint:column",
+      "historicalV1ExpectedFacts": 9,
+      "currentSourceExpectedFacts": 9,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:70.fingerprint:constraint",
+      "historicalV1ExpectedFacts": 10,
+      "currentSourceExpectedFacts": 10,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:70.fingerprint:index",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:70.fingerprint:policy",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:70.fingerprint:trigger",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:70.fingerprint:saved",
+      "historicalV1ExpectedFacts": 63,
+      "currentSourceExpectedFacts": 63,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:71.fingerprint:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:71.fingerprint:column",
+      "historicalV1ExpectedFacts": 9,
+      "currentSourceExpectedFacts": 9,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:71.fingerprint:constraint",
+      "historicalV1ExpectedFacts": 10,
+      "currentSourceExpectedFacts": 10,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:71.fingerprint:index",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:71.fingerprint:policy",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:71.fingerprint:trigger",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:71.fingerprint:saved",
+      "historicalV1ExpectedFacts": 24,
+      "currentSourceExpectedFacts": 24,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:72.retained_precision_fingerprint:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.outbox65_fingerprint:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.outbox65_fingerprint:column",
+      "historicalV1ExpectedFacts": 32,
+      "currentSourceExpectedFacts": 32,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.outbox65_fingerprint:constraint",
+      "historicalV1ExpectedFacts": 30,
+      "currentSourceExpectedFacts": 30,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.outbox65_fingerprint:policy",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.outbox65_fingerprint:index",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.outbox65_fingerprint:trigger",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.owner66_fingerprint:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.owner66_fingerprint:table",
+      "historicalV1ExpectedFacts": 8,
+      "currentSourceExpectedFacts": 8,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.owner66_fingerprint:column",
+      "historicalV1ExpectedFacts": 26,
+      "currentSourceExpectedFacts": 26,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.owner66_fingerprint:constraint",
+      "historicalV1ExpectedFacts": 30,
+      "currentSourceExpectedFacts": 30,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.owner66_fingerprint:index",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.owner66_fingerprint:policy",
+      "historicalV1ExpectedFacts": 6,
+      "currentSourceExpectedFacts": 6,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.owner66_fingerprint:trigger",
+      "historicalV1ExpectedFacts": 7,
+      "currentSourceExpectedFacts": 7,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:75.fingerprint:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:75.fingerprint:column",
+      "historicalV1ExpectedFacts": 25,
+      "currentSourceExpectedFacts": 25,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:75.fingerprint:constraint",
+      "historicalV1ExpectedFacts": 28,
+      "currentSourceExpectedFacts": 28,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:75.fingerprint:index",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:75.fingerprint:policy",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:75.fingerprint:trigger",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:75.fingerprint:owner-trigger",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:75.fingerprint:owner-policy",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:75.fingerprint:saved",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:77.domain67_fingerprint:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:77.domain67_fingerprint:column",
+      "historicalV1ExpectedFacts": 11,
+      "currentSourceExpectedFacts": 11,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:77.domain67_fingerprint:constraint",
+      "historicalV1ExpectedFacts": 14,
+      "currentSourceExpectedFacts": 14,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:77.domain67_fingerprint:index",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:77.domain67_fingerprint:policy",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:77.domain67_fingerprint:trigger",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:77.domain67_fingerprint:saved",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor73_fingerprint:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor73_fingerprint:column",
+      "historicalV1ExpectedFacts": 34,
+      "currentSourceExpectedFacts": 34,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor73_fingerprint:constraint",
+      "historicalV1ExpectedFacts": 33,
+      "currentSourceExpectedFacts": 33,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor73_fingerprint:index",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor73_fingerprint:policy",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor73_fingerprint:trigger",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor73_fingerprint:capacity-trigger",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor73_fingerprint:saved",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:column",
+      "historicalV1ExpectedFacts": 28,
+      "currentSourceExpectedFacts": 28,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:constraint",
+      "historicalV1ExpectedFacts": 29,
+      "currentSourceExpectedFacts": 29,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:index",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:policy",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:trigger",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:human-trigger",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:owner-policy",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:executor-constraint",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:saved-constraint",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:saved",
+      "historicalV1ExpectedFacts": 6,
+      "currentSourceExpectedFacts": 6,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor77_fingerprint:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor77_fingerprint:column",
+      "historicalV1ExpectedFacts": 107,
+      "currentSourceExpectedFacts": 107,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor77_fingerprint:constraint",
+      "historicalV1ExpectedFacts": 97,
+      "currentSourceExpectedFacts": 97,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor77_fingerprint:index",
+      "historicalV1ExpectedFacts": 12,
+      "currentSourceExpectedFacts": 12,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor77_fingerprint:policy",
+      "historicalV1ExpectedFacts": 9,
+      "currentSourceExpectedFacts": 9,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor77_fingerprint:trigger",
+      "historicalV1ExpectedFacts": 7,
+      "currentSourceExpectedFacts": 7,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor77_fingerprint:definition-guard",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor77_fingerprint:source-capture",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor77_fingerprint:occurrence-guard",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor77_fingerprint:saved",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:attack_lab_execution:role",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:attack_lab_execution:table",
+      "historicalV1ExpectedFacts": 25,
+      "currentSourceExpectedFacts": 25,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:attack_lab_execution:policy",
+      "historicalV1ExpectedFacts": 9,
+      "currentSourceExpectedFacts": 9,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:discovery_schedule_replay:saved",
+      "historicalV1ExpectedFacts": 19,
+      "currentSourceExpectedFacts": 19,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:discovery_schedule_replay:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:discovery_schedule_replay:table",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:discovery_schedule_replay:column",
+      "historicalV1ExpectedFacts": 19,
+      "currentSourceExpectedFacts": 19,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:discovery_schedule_replay:constraint",
+      "historicalV1ExpectedFacts": 26,
+      "currentSourceExpectedFacts": 26,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:discovery_schedule_replay:index",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:red_team_execution:role",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:red_team_execution:table",
+      "historicalV1ExpectedFacts": 21,
+      "currentSourceExpectedFacts": 21,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:red_team_execution:policy",
+      "historicalV1ExpectedFacts": 7,
+      "currentSourceExpectedFacts": 7,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_attack_lab:saved",
+      "historicalV1ExpectedFacts": 24,
+      "currentSourceExpectedFacts": 24,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_attack_lab:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_attack_lab:table",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_attack_lab:column",
+      "historicalV1ExpectedFacts": 44,
+      "currentSourceExpectedFacts": 44,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_attack_lab:constraint",
+      "historicalV1ExpectedFacts": 47,
+      "currentSourceExpectedFacts": 47,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_attack_lab:policy",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_export:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_export:table",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_export:column",
+      "historicalV1ExpectedFacts": 76,
+      "currentSourceExpectedFacts": 76,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_export:constraint",
+      "historicalV1ExpectedFacts": 75,
+      "currentSourceExpectedFacts": 75,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_export:policy",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_export:index",
+      "historicalV1ExpectedFacts": 5,
+      "currentSourceExpectedFacts": 5,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_export:trigger",
+      "historicalV1ExpectedFacts": 0,
+      "currentSourceExpectedFacts": 0,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_multistep:column",
+      "historicalV1ExpectedFacts": 41,
+      "currentSourceExpectedFacts": 41,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_multistep:constraint",
+      "historicalV1ExpectedFacts": 73,
+      "currentSourceExpectedFacts": 73,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_multistep:policy",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_multistep:index",
+      "historicalV1ExpectedFacts": 8,
+      "currentSourceExpectedFacts": 8,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_multistep:trigger",
+      "historicalV1ExpectedFacts": 8,
+      "currentSourceExpectedFacts": 8,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_webhook:saved",
+      "historicalV1ExpectedFacts": 15,
+      "currentSourceExpectedFacts": 15,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_webhook:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_webhook:table",
+      "historicalV1ExpectedFacts": 5,
+      "currentSourceExpectedFacts": 5,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_webhook:column",
+      "historicalV1ExpectedFacts": 76,
+      "currentSourceExpectedFacts": 76,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_webhook:constraint",
+      "historicalV1ExpectedFacts": 100,
+      "currentSourceExpectedFacts": 100,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_webhook:policy",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_webhook:index",
+      "historicalV1ExpectedFacts": 9,
+      "currentSourceExpectedFacts": 9,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_webhook:trigger",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_webhook:role",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:security_agent_connector_revocation:table",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:70.fingerprint:table",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:70.fingerprint:foreign-key-trigger",
+      "historicalV1ExpectedFacts": 0,
+      "currentSourceExpectedFacts": 0,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:71.fingerprint:table",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:71.fingerprint:foreign-key-trigger",
+      "historicalV1ExpectedFacts": 0,
+      "currentSourceExpectedFacts": 0,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:72.retained_execution_fingerprint:column",
+      "historicalV1ExpectedFacts": 223,
+      "currentSourceExpectedFacts": 223,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:72.retained_execution_fingerprint:constraint",
+      "historicalV1ExpectedFacts": 242,
+      "currentSourceExpectedFacts": 242,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:72.retained_execution_fingerprint:index",
+      "historicalV1ExpectedFacts": 11,
+      "currentSourceExpectedFacts": 11,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:72.retained_precision_fingerprint:constraint",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:72.retained_precision_fingerprint:trigger",
+      "historicalV1ExpectedFacts": 23,
+      "currentSourceExpectedFacts": 23,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.outbox65_fingerprint:table",
+      "historicalV1ExpectedFacts": 6,
+      "currentSourceExpectedFacts": 6,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:75.fingerprint:table",
+      "historicalV1ExpectedFacts": 8,
+      "currentSourceExpectedFacts": 8,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:75.fingerprint:foreign-key-trigger",
+      "historicalV1ExpectedFacts": 8,
+      "currentSourceExpectedFacts": 8,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:77.domain67_fingerprint:table",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor73_fingerprint:table",
+      "historicalV1ExpectedFacts": 8,
+      "currentSourceExpectedFacts": 8,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor73_fingerprint:foreign-key-trigger",
+      "historicalV1ExpectedFacts": 8,
+      "currentSourceExpectedFacts": 8,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:table",
+      "historicalV1ExpectedFacts": 8,
+      "currentSourceExpectedFacts": 8,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:foreign-key-trigger",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor77_fingerprint:table",
+      "historicalV1ExpectedFacts": 21,
+      "currentSourceExpectedFacts": 21,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor77_fingerprint:foreign-key-trigger",
+      "historicalV1ExpectedFacts": 20,
+      "currentSourceExpectedFacts": 20,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:attack_lab_execution:index",
+      "historicalV1ExpectedFacts": 16,
+      "currentSourceExpectedFacts": 16,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:attack_lab_execution:column",
+      "historicalV1ExpectedFacts": 204,
+      "currentSourceExpectedFacts": 204,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:attack_lab_execution:constraint",
+      "historicalV1ExpectedFacts": 209,
+      "currentSourceExpectedFacts": 209,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:attack_lab_execution:function",
+      "historicalV1ExpectedFacts": 28,
+      "currentSourceExpectedFacts": 28,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:inventory:column",
+      "historicalV1ExpectedFacts": 136,
+      "currentSourceExpectedFacts": 136,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:inventory:constraint",
+      "historicalV1ExpectedFacts": 212,
+      "currentSourceExpectedFacts": 212,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:inventory:index",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:inventory:trigger",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:red_team_execution:column",
+      "historicalV1ExpectedFacts": 153,
+      "currentSourceExpectedFacts": 153,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:red_team_execution:constraint",
+      "historicalV1ExpectedFacts": 152,
+      "currentSourceExpectedFacts": 152,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:red_team_execution:function",
+      "historicalV1ExpectedFacts": 39,
+      "currentSourceExpectedFacts": 39,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_multistep:table",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_multistep:foreign-key-trigger",
+      "historicalV1ExpectedFacts": 40,
+      "currentSourceExpectedFacts": 40,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:security_agent_connector_revocation:column",
+      "historicalV1ExpectedFacts": 14,
+      "currentSourceExpectedFacts": 14,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:security_agent_connector_revocation:table_constraint",
+      "historicalV1ExpectedFacts": 22,
+      "currentSourceExpectedFacts": 22,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:security_agent_connector_revocation:index",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:security_agent_connector_revocation:policy",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:security_agent_connector_revocation:function",
+      "historicalV1ExpectedFacts": 22,
+      "currentSourceExpectedFacts": 22,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:security_agent_connector_revocation:constraint",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal72:table",
+      "historicalV1ExpectedFacts": 18,
+      "currentSourceExpectedFacts": 18,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal72:function",
+      "historicalV1ExpectedFacts": 56,
+      "currentSourceExpectedFacts": 56,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal72:policy",
+      "historicalV1ExpectedFacts": 17,
+      "currentSourceExpectedFacts": 17,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal72:trigger",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 2,
+      "delta": -2
+    },
+    {
+      "ruleId": "temporal72:role",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal72:precision-function",
+      "historicalV1ExpectedFacts": 51,
+      "currentSourceExpectedFacts": 51,
+      "delta": 0
+    },
+    {
+      "ruleId": "inventory-fields:table",
+      "historicalV1ExpectedFacts": 9,
+      "currentSourceExpectedFacts": 9,
+      "delta": 0
+    },
+    {
+      "ruleId": "inventory-fields:policy",
+      "historicalV1ExpectedFacts": 8,
+      "currentSourceExpectedFacts": 8,
+      "delta": 0
+    },
+    {
+      "ruleId": "inventory-fields:function",
+      "historicalV1ExpectedFacts": 34,
+      "currentSourceExpectedFacts": 34,
+      "delta": 0
+    },
+    {
+      "ruleId": "inventory-fields:role",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_domain:column",
+      "historicalV1ExpectedFacts": 360,
+      "currentSourceExpectedFacts": 360,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_domain:constraint",
+      "historicalV1ExpectedFacts": 570,
+      "currentSourceExpectedFacts": 570,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_domain:index",
+      "historicalV1ExpectedFacts": 62,
+      "currentSourceExpectedFacts": 62,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_domain:policy",
+      "historicalV1ExpectedFacts": 23,
+      "currentSourceExpectedFacts": 23,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_temporal_profile:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_temporal_profile:table",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_temporal_profile:column",
+      "historicalV1ExpectedFacts": 10,
+      "currentSourceExpectedFacts": 10,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_temporal_profile:constraint",
+      "historicalV1ExpectedFacts": 12,
+      "currentSourceExpectedFacts": 12,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_temporal_profile:policy",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_temporal_profile:trigger",
+      "historicalV1ExpectedFacts": 6,
+      "currentSourceExpectedFacts": 6,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_temporal_profile:saved",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected62:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected62:column",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected62:constraint",
+      "historicalV1ExpectedFacts": 7,
+      "currentSourceExpectedFacts": 7,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected62:policy",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected62:index",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected62:trigger",
+      "historicalV1ExpectedFacts": 0,
+      "currentSourceExpectedFacts": 0,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected68:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected68:column",
+      "historicalV1ExpectedFacts": 279,
+      "currentSourceExpectedFacts": 279,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected68:constraint",
+      "historicalV1ExpectedFacts": 254,
+      "currentSourceExpectedFacts": 254,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected68:index",
+      "historicalV1ExpectedFacts": 24,
+      "currentSourceExpectedFacts": 24,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected68:policy",
+      "historicalV1ExpectedFacts": 16,
+      "currentSourceExpectedFacts": 16,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected68:trigger",
+      "historicalV1ExpectedFacts": 10,
+      "currentSourceExpectedFacts": 10,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected68:saved",
+      "historicalV1ExpectedFacts": 9,
+      "currentSourceExpectedFacts": 9,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected69:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected69:column",
+      "historicalV1ExpectedFacts": 23,
+      "currentSourceExpectedFacts": 23,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected69:constraint",
+      "historicalV1ExpectedFacts": 23,
+      "currentSourceExpectedFacts": 23,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected69:index",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected69:policy",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected69:trigger",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected69:saved",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected72:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected72:column",
+      "historicalV1ExpectedFacts": 157,
+      "currentSourceExpectedFacts": 157,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected72:constraint",
+      "historicalV1ExpectedFacts": 151,
+      "currentSourceExpectedFacts": 151,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected72:index",
+      "historicalV1ExpectedFacts": 16,
+      "currentSourceExpectedFacts": 16,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected72:policy",
+      "historicalV1ExpectedFacts": 10,
+      "currentSourceExpectedFacts": 10,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected72:trigger",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected78:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected78:column",
+      "historicalV1ExpectedFacts": 234,
+      "currentSourceExpectedFacts": 234,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected78:constraint",
+      "historicalV1ExpectedFacts": 201,
+      "currentSourceExpectedFacts": 201,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected78:index",
+      "historicalV1ExpectedFacts": 21,
+      "currentSourceExpectedFacts": 21,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected78:policy",
+      "historicalV1ExpectedFacts": 14,
+      "currentSourceExpectedFacts": 14,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected78:trigger",
+      "historicalV1ExpectedFacts": 11,
+      "currentSourceExpectedFacts": 11,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected78:finding-ownership-trigger",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected78:finding-decision-trigger",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected78:saved",
+      "historicalV1ExpectedFacts": 40,
+      "currentSourceExpectedFacts": 40,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected79:schema",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected79:relation",
+      "historicalV1ExpectedFacts": 18,
+      "currentSourceExpectedFacts": 18,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected79:column",
+      "historicalV1ExpectedFacts": 81,
+      "currentSourceExpectedFacts": 81,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected79:constraint",
+      "historicalV1ExpectedFacts": 68,
+      "currentSourceExpectedFacts": 68,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected79:policy",
+      "historicalV1ExpectedFacts": 7,
+      "currentSourceExpectedFacts": 7,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected79:trigger",
+      "historicalV1ExpectedFacts": 27,
+      "currentSourceExpectedFacts": 27,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_domain:table",
+      "historicalV1ExpectedFacts": 23,
+      "currentSourceExpectedFacts": 23,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected_domain:foreign-key-trigger",
+      "historicalV1ExpectedFacts": 136,
+      "currentSourceExpectedFacts": 136,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected62:table",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected68:table",
+      "historicalV1ExpectedFacts": 40,
+      "currentSourceExpectedFacts": 40,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected68:foreign-key-trigger",
+      "historicalV1ExpectedFacts": 64,
+      "currentSourceExpectedFacts": 64,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected69:table",
+      "historicalV1ExpectedFacts": 7,
+      "currentSourceExpectedFacts": 7,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected69:foreign-key-trigger",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected72:table",
+      "historicalV1ExpectedFacts": 26,
+      "currentSourceExpectedFacts": 26,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected72:foreign-key-trigger",
+      "historicalV1ExpectedFacts": 32,
+      "currentSourceExpectedFacts": 32,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected78:table",
+      "historicalV1ExpectedFacts": 35,
+      "currentSourceExpectedFacts": 35,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker:projected78:foreign-key-trigger",
+      "historicalV1ExpectedFacts": 52,
+      "currentSourceExpectedFacts": 52,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected24:2",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected24:3",
+      "historicalV1ExpectedFacts": 24,
+      "currentSourceExpectedFacts": 24,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected24:4",
+      "historicalV1ExpectedFacts": 31,
+      "currentSourceExpectedFacts": 31,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected24:5",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected24:7",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected27:2",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected27:4",
+      "historicalV1ExpectedFacts": 25,
+      "currentSourceExpectedFacts": 25,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected27:5",
+      "historicalV1ExpectedFacts": 17,
+      "currentSourceExpectedFacts": 17,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected27:6",
+      "historicalV1ExpectedFacts": 153,
+      "currentSourceExpectedFacts": 153,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected27:7",
+      "historicalV1ExpectedFacts": 158,
+      "currentSourceExpectedFacts": 158,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected27:8",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected27:9",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected27:10",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected27:11",
+      "historicalV1ExpectedFacts": 8,
+      "currentSourceExpectedFacts": 8,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:gateway_projected27:12",
+      "historicalV1ExpectedFacts": 101,
+      "currentSourceExpectedFacts": 101,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:ordered_projected28:2",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:ordered_projected28:4",
+      "historicalV1ExpectedFacts": 7,
+      "currentSourceExpectedFacts": 7,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:ordered_projected28:5",
+      "historicalV1ExpectedFacts": 61,
+      "currentSourceExpectedFacts": 61,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:ordered_projected28:6",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:ordered_projected28:7",
+      "historicalV1ExpectedFacts": 31,
+      "currentSourceExpectedFacts": 31,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:ordered_projected28:8",
+      "historicalV1ExpectedFacts": 3,
+      "currentSourceExpectedFacts": 3,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:ordered_projected28:9",
+      "historicalV1ExpectedFacts": 5,
+      "currentSourceExpectedFacts": 5,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected40:3",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected40:4",
+      "historicalV1ExpectedFacts": 41,
+      "currentSourceExpectedFacts": 41,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected40:5",
+      "historicalV1ExpectedFacts": 23,
+      "currentSourceExpectedFacts": 23,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected40:6",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected40:7",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected50_binding:3",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected50_binding:4",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected50_binding:5",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected50_binding:6",
+      "historicalV1ExpectedFacts": 16,
+      "currentSourceExpectedFacts": 16,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected50_binding:7",
+      "historicalV1ExpectedFacts": 2,
+      "currentSourceExpectedFacts": 2,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected50_binding:8",
+      "historicalV1ExpectedFacts": 7,
+      "currentSourceExpectedFacts": 7,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected50_search:4",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected50_search:5",
+      "historicalV1ExpectedFacts": 27,
+      "currentSourceExpectedFacts": 27,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected50_search:6",
+      "historicalV1ExpectedFacts": 17,
+      "currentSourceExpectedFacts": 17,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected50_search:7",
+      "historicalV1ExpectedFacts": 1,
+      "currentSourceExpectedFacts": 1,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected50_search:8",
+      "historicalV1ExpectedFacts": 5,
+      "currentSourceExpectedFacts": 5,
+      "delta": 0
+    },
+    {
+      "ruleId": "worker-edge:runtime_projected50_search:9",
+      "historicalV1ExpectedFacts": 5,
+      "currentSourceExpectedFacts": 5,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:70.fingerprint:function",
+      "historicalV1ExpectedFacts": 91,
+      "currentSourceExpectedFacts": 91,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:71.fingerprint:function",
+      "historicalV1ExpectedFacts": 47,
+      "currentSourceExpectedFacts": 47,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.outbox65_fingerprint:function",
+      "historicalV1ExpectedFacts": 6,
+      "currentSourceExpectedFacts": 6,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:74.owner66_fingerprint:function",
+      "historicalV1ExpectedFacts": 10,
+      "currentSourceExpectedFacts": 10,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:75.fingerprint:function",
+      "historicalV1ExpectedFacts": 15,
+      "currentSourceExpectedFacts": 15,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:77.domain67_fingerprint:function",
+      "historicalV1ExpectedFacts": 9,
+      "currentSourceExpectedFacts": 9,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor73_fingerprint:function",
+      "historicalV1ExpectedFacts": 10,
+      "currentSourceExpectedFacts": 10,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:function",
+      "historicalV1ExpectedFacts": 12,
+      "currentSourceExpectedFacts": 12,
+      "delta": 0
+    },
+    {
+      "ruleId": "temporal:78.predecessor76_fingerprint:executor-function",
+      "historicalV1ExpectedFacts": 4,
+      "currentSourceExpectedFacts": 4,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_attack_lab:function",
+      "historicalV1ExpectedFacts": 46,
+      "currentSourceExpectedFacts": 46,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_export:function",
+      "historicalV1ExpectedFacts": 79,
+      "currentSourceExpectedFacts": 79,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_multistep:function",
+      "historicalV1ExpectedFacts": 7,
+      "currentSourceExpectedFacts": 7,
+      "delta": 0
+    },
+    {
+      "ruleId": "public:sa_webhook:function",
+      "historicalV1ExpectedFacts": 44,
+      "currentSourceExpectedFacts": 44,
+      "delta": 0
+    }
+  ],
+  "buildProvenanceRows": {
+    "historicalV1": 1,
+    "currentSource": 1
+  },
+  "sourceScope": "No evaluator rule or feature removed. Two duplicate aliases are source-proven equalExisting; the independent qualified expected rows remain. Native target output is never expected authority.",
+  "staleReferences": [
+    {
+      "source": "Go-v1-admission",
+      "expectedFacts": 10089,
+      "disposition": "stale; not current expected truth"
+    },
+    {
+      "source": "original-native379-plan",
+      "expectedFacts": 10231,
+      "disposition": "stale; not current expected truth"
+    }
+  ],
+  "sharedPayloadChanges": [
+    {
+      "kind": "constraint",
+      "identity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public.zasp_recovery_audit\\\",\\\"zasp_recovery_audit_check\\\"]\"]",
+      "oldFactSHA256": "424ba164a150730ff5e4a2d7488b6b4e7b1684e84ef0bf6abdee5f8e043bf8a8",
+      "newFactSHA256": "2c8d780e2da78b2e86cea4358b46fac40773093fd0ab8e05423580bad13d0b09",
+      "changedFields": [
+        "definition_pretty"
+      ],
+      "sourceDisposition": "Fixed remaining-projection witness proves exact source-frame qualification; original incoming/canonical source collections retain index alignment"
+    },
+    {
+      "kind": "constraint",
+      "identity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public.zasp_recovery_backups\\\",\\\"zasp_recovery_backups_check\\\"]\"]",
+      "oldFactSHA256": "9b7ff9d616385adaaee22c8f3e4f7034b5046e8e1d4ba532feb6c2eb2e3a586d",
+      "newFactSHA256": "9c6b3518ebdce82d92414927b9708fceb5010f7af4362bf2e0fe3494f38c0f2c",
+      "changedFields": [
+        "definition_pretty"
+      ],
+      "sourceDisposition": "Fixed remaining-projection witness proves exact source-frame qualification; original incoming/canonical source collections retain index alignment"
+    },
+    {
+      "kind": "constraint",
+      "identity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public.zasp_recovery_fairness\\\",\\\"zasp_recovery_fairness_last_organization_id_check\\\"]\"]",
+      "oldFactSHA256": "8db04292417a8c8fdcdb4d2447468d69f3c30ce80f4f10bd646baa8f9ac45a97",
+      "newFactSHA256": "b2600ca0348e5be788e1c7da75beb08d11c5b06ad4aa390338d36b955d4d91a0",
+      "changedFields": [
+        "definition_pretty"
+      ],
+      "sourceDisposition": "Fixed remaining-projection witness proves exact source-frame qualification; original incoming/canonical source collections retain index alignment"
+    },
+    {
+      "kind": "constraint",
+      "identity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public.zasp_recovery_request_receipts\\\",\\\"zasp_recovery_request_receipts_check\\\"]\"]",
+      "oldFactSHA256": "370a321588aae28a9b14782002f953277ba583d77895ee185e8653cf22cc97c9",
+      "newFactSHA256": "1858391201afcef44f12e9d7f44126049aa56e4b222390aa1839ed5ec3cc5a4b",
+      "changedFields": [
+        "definition_pretty"
+      ],
+      "sourceDisposition": "Fixed remaining-projection witness proves exact source-frame qualification; original incoming/canonical source collections retain index alignment"
+    },
+    {
+      "kind": "constraint",
+      "identity": "[\"worker-edge:gateway_projected27:7\",\"[\\\"public.zasp_recovery_restores\\\",\\\"zasp_recovery_restores_check\\\"]\"]",
+      "oldFactSHA256": "c77695765f82ecda2b537de3f8e4db98bfe88da2f4bdf42618129ad4419a2fcc",
+      "newFactSHA256": "fee5b1a0a63d260cd847d6edbfbb00b7c1f17a2ba51df3a628e9ab920852a791",
+      "changedFields": [
+        "definition_pretty"
+      ],
+      "sourceDisposition": "Fixed remaining-projection witness proves exact source-frame qualification; original incoming/canonical source collections retain index alignment"
+    },
+    {
+      "kind": "routine",
+      "identity": "[\"private-routines\",\"zasp_authorization80_ordered_current.catalog(text)\"]",
+      "oldFactSHA256": "86be1ca1413a299163010cc3d9c454b46db21796ba4dbe3ba05946fd61280127",
+      "newFactSHA256": "11513ec7f5d1d8426c06d45590cddbce7dfa03251f6ae74632ab33340ec1a0f1",
+      "changedFields": [
+        "source"
+      ],
+      "sourceDisposition": "Catalog routine source adds the admitted precision resolver gate/roster and current compiler collector; exact reviewed source assembly, no target-derived body"
+    },
+    {
+      "kind": "trigger",
+      "identity": "[\"worker-edge:ordered_projected28:9\",\"[\\\"public.zasp_security_agent_temporary_policy_targets\\\",\\\"zasp_security_agent_targets_policy_sequence\\\"]\"]",
+      "oldFactSHA256": "2a245509d61efe30de4cd6e90298a016043143bba3c1793e6ab0ed17d823f179",
+      "newFactSHA256": "320d5a17e4784f45f7b05482e7d9cd7cf47f9f832ff30e3ddc55321dad57e002",
+      "changedFields": [
+        "definition_pretty"
+      ],
+      "sourceDisposition": "Fixed remaining-projection witness proves exact source-frame qualification; original incoming/canonical source collections retain index alignment"
+    },
+    {
+      "kind": "build",
+      "identity": "provenance",
+      "oldFactSHA256": "922fd7eff77404b9f5c9de6f8925364fd66b43a6c0fbbab22add1a5b588acaac",
+      "newFactSHA256": "688193abbf9a8795e8c45507dd38d726bcc3993ee965e048a05191a7fb34ab1d",
+      "changedFields": [
+        "generator_sha256",
+        "module_sha256"
+      ],
+      "sourceDisposition": "Current reviewed compiler/module/source-inventory provenance replaces historical provenance; historical referencePostgres remains unchanged"
+    }
+  ]
+}

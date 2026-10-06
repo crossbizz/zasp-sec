@@ -1,0 +1,20 @@
+{
+  "actualExitCode": 0,
+  "format": "root-actual-tool-join-transcription-v1",
+  "initialChunkId": "cb8004",
+  "joinedChunkId": "6cdf9d",
+  "logs": {
+    "/tmp/zasp-cloud-evidence/temporal132-full-metadata-root.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/tmp/zasp-cloud-evidence/temporal132-full-metadata-root.stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "ongoingSessionReturnedAfterJoin": false,
+  "resultPath": "/workspace/.zasp-cloud-owned/Temporal-server132-full-metadata-census-owner-70b62968ae6f4b32b84a157dfca357cc/result.json",
+  "resultSHA256": "6b74766b15e34955ee71cc1cdca61223468a479e42d998c3426d83dca668401e",
+  "sessionId": 88352
+}

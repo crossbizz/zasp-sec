@@ -1,0 +1,16 @@
+{
+  "scope": "direct transcription of observed ROOT tool normal join; not independent kernel trace",
+  "startToolChunk": "43a102",
+  "sessionID": 25830,
+  "terminalToolChunk": "8e332d",
+  "observedNormalExit": 0,
+  "ownerResult": {
+    "path": "/tmp/zasp-cloud-evidence/Temporal132-PG18-provision-owner-rby1zru_/result.json",
+    "sha256": "1f5e97a762c548473c55de0d5de72efe15ba7aab15bc3e23b2504c26526af737"
+  },
+  "independentActualReview": {
+    "path": "/tmp/zasp-cloud-evidence/independent-actual-Temporal132-PG18-native-schema-provision-review.json",
+    "sha256": "42c3fa04bbcc4f585a15bd5524ace647deb545704a810d3c6cc43e10cc59d3ef"
+  },
+  "limits": "No external parent PID or unobserved elapsed time reconstructed; stopped schema provision is not live Temporal readiness."
+}

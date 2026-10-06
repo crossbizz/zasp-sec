@@ -1,0 +1,34 @@
+{
+  "rootRecipeSHA256": "b804fa52e14d605e1687872c603a66a1794dc0ee1a1d0c453eea86df8f3fa408",
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "LC_ALL=C",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "TMPDIR=/tmp",
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "-g",
+    "--",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=35s",
+    "80s",
+    "/usr/bin/python3",
+    "/tmp/zasp-cloud-evidence/old-real9c13-gzip50-root-owners-luk30bo9/run-map-TDD.py",
+    "--self-sha256",
+    "3f19a1a61bd1f6a5d2446623fc06229f36d96d796eed9d0489e09e2c0be1db22"
+  ],
+  "cwd": "/workspace",
+  "returncode": 0,
+  "elapsedSeconds": 0.3698831359943142,
+  "freshFloorsBefore": {
+    "/tmp": 174944256,
+    "/workspace": 1535643648
+  },
+  "ownerResult": "/workspace/.zasp-cloud-owned/old-real9c13-gzip50-TDD-owner-44cd10d667494e6bbe3fd335bcd0af84/result.json",
+  "outerNormalReturn": true,
+  "independentStaticReviewSHA256": "58fae8759125a1acf1a3f7cc718c0145f0cfdcff1b85385f97ffb69617f6aede",
+  "scope": "eight tiny gzip controls only no actual oldartifact compression or unlink"
+}

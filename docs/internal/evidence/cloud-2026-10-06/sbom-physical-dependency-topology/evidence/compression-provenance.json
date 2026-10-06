@@ -1,0 +1,268 @@
+{
+  "schema": "exact-original-gzip-roundtrip-provenance-v1",
+  "encoding": "deterministic gzip9 mtime0",
+  "members": {
+    "evidence/candidate-evidence-manifest.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/candidate-evidence-manifest.json",
+      "originalMember": "candidate-evidence-manifest.json",
+      "originalBytes": 3995,
+      "originalSHA256": "3edb42c7b9a83a666b01efbca340926c75aec2f81df567ec56e35019c7914ef4",
+      "compressedBytes": 1601,
+      "compressedSHA256": "57201a9543cd12429d451575a9cdb9c990d116eabfb7db60932d8c07b51594dc",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/arborist-actual-graph.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/arborist-actual-graph.json",
+      "originalMember": "evidence/arborist-actual-graph.json",
+      "originalBytes": 89118,
+      "originalSHA256": "0c2e2814c33e34a6b6a2de0118e434d8468707407a6a10fcd0ecf0346fc526a5",
+      "compressedBytes": 4710,
+      "compressedSHA256": "13d4edad6897381c8857e88a4b13ff43d8b5d1bd1b8b137e381d13d427da12ee",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/arborist-root-symlink-candidate-graph.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/arborist-root-symlink-candidate-graph.json",
+      "originalMember": "evidence/arborist-root-symlink-candidate-graph.json",
+      "originalBytes": 96881,
+      "originalSHA256": "300690cd89f626a5261c7b265c5ffd10755a7422de2970c83b68cbf8cff03224",
+      "compressedBytes": 5057,
+      "compressedSHA256": "aaf151cc049788917da03022f394d38aa3046f480e73b8feb109e689c7867481",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/candidate-sbom-command-record.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/candidate-sbom-command-record.json",
+      "originalMember": "evidence/candidate-sbom-command-record.json",
+      "originalBytes": 635,
+      "originalSHA256": "1aba46948c46c1757257fe7ee0bd063e58beaf6d01592e25ecca6162f221e39d",
+      "compressedBytes": 437,
+      "compressedSHA256": "a0bc28d40e39376c5bae96c1230193720b78e7ecfb127af135c3344b30501261",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/candidate-stderr.log.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/candidate-stderr.log",
+      "originalMember": "evidence/candidate-stderr.log",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compressedBytes": 20,
+      "compressedSHA256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/candidate-stdout.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/candidate-stdout.json",
+      "originalMember": "evidence/candidate-stdout.json",
+      "originalBytes": 77171,
+      "originalSHA256": "0b5c742802aba003c11bd6118e92c6f9db756ea8b4d35834b8df738d357f8cba",
+      "compressedBytes": 12825,
+      "compressedSHA256": "b03dc6ab6de78de94b8485c25a41ecace562e84f76c21558727a46e971cac509",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/detached-symlink-stderr.log.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/detached-symlink-stderr.log",
+      "originalMember": "evidence/detached-symlink-stderr.log",
+      "originalBytes": 14931,
+      "originalSHA256": "bf3339bcad9508913176bcdd7dae1ba950c3975ad3404103d598499356b91273",
+      "compressedBytes": 2443,
+      "compressedSHA256": "725589f8b072c29702e80645f3c5500bd068b54942fb30c88271aa532e255c4a",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/detached-symlink-stdout.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/detached-symlink-stdout.json",
+      "originalMember": "evidence/detached-symlink-stdout.json",
+      "originalBytes": 13000,
+      "originalSHA256": "c44eac21a2cd7700e7c42026acf8b1f422642a41630da988b826626b1466e0e2",
+      "compressedBytes": 2386,
+      "compressedSHA256": "f75cfcd91fb33219e7f6f65f752c90f39e1c8587139cf13c55f29c317fe70f80",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/original-full-sbom-safe-errors.log.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/original-full-sbom-safe-errors.log",
+      "originalMember": "evidence/original-full-sbom-safe-errors.log",
+      "originalBytes": 14993,
+      "originalSHA256": "b0fbd79ddad553fd64a9dc1dba4144b1322722787e8c83ae9676ad55a4a1ed05",
+      "compressedBytes": 2485,
+      "compressedSHA256": "1cdd46a07b81f77e7fc10f9aa49c96980e6af61087e08b813f8261fe51a6d037",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/original-full755-fail-summary.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/original-full755-fail-summary.json",
+      "originalMember": "evidence/original-full755-fail-summary.json",
+      "originalBytes": 3847,
+      "originalSHA256": "58a8cd852aa315ae0516394339c9130aa4d97419af39feebc7ea08ea29c10a01",
+      "compressedBytes": 1358,
+      "compressedSHA256": "155eefd5a1ffd0068fb5742fa531d3834dabc116a55275644b45629a7c1b6651",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/post-command-closure-record.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/post-command-closure-record.json",
+      "originalMember": "evidence/post-command-closure-record.json",
+      "originalBytes": 1192,
+      "originalSHA256": "b447d730470dfd7d44787898d193f3b16b4ff182993db337631865c6f154ed19",
+      "compressedBytes": 611,
+      "compressedSHA256": "e63bb553bb6e592db9c7c3562973476819c8a92aa3d7592eeb07abc5e4adbdb4",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/root-stderr.log.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/root-stderr.log",
+      "originalMember": "evidence/root-stderr.log",
+      "originalBytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compressedBytes": 20,
+      "compressedSHA256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/root-stdout.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/root-stdout.json",
+      "originalMember": "evidence/root-stdout.json",
+      "originalBytes": 77171,
+      "originalSHA256": "ed76e5e109f0727a07c5941abbf30d9c9ffd2ac958f653cf5e3fcb192b0deebe",
+      "compressedBytes": 12823,
+      "compressedSHA256": "2bcde2ba92a7f6509dd399d1e05f7a6b5949f1faf520ccfbe4ecb54e31767027",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/root-vs-symlink-command-record.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/root-vs-symlink-command-record.json",
+      "originalMember": "evidence/root-vs-symlink-command-record.json",
+      "originalBytes": 1040,
+      "originalSHA256": "2e8fc810ac7ec822f8a7723803636656842bd802bbd0a6ed2a8cb90876017fdd",
+      "compressedBytes": 490,
+      "compressedSHA256": "0bf4b82b60bb91890fcd5666ee04fadf9d15fcd73948cb17e3f6e538058ea5c5",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/source-tool-bindings.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/source-tool-bindings.json",
+      "originalMember": "evidence/source-tool-bindings.json",
+      "originalBytes": 2157,
+      "originalSHA256": "93200d6eea56be5c6c97f05f7d0cc1d47e0d3df4bd606e3c5954b8f52c3e5cfe",
+      "compressedBytes": 994,
+      "compressedSHA256": "d0e232be0fbc42281fced3eb24da01b88d452df3ab79889ef172858c11303845",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/topology-repair-receipt.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/topology-repair-receipt.json",
+      "originalMember": "evidence/topology-repair-receipt.json",
+      "originalBytes": 1762,
+      "originalSHA256": "f228342f6ffac19b3abc071699afcbd9fc3697d4152784751900a227c0d82d20",
+      "compressedBytes": 964,
+      "compressedSHA256": "e957fdbcc7b2f2ef21e71f76784830d2c66f8eed685101ec8fe34ac8e646d3aa",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/unchanged-release-gate-green.log.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/unchanged-release-gate-green.log",
+      "originalMember": "evidence/unchanged-release-gate-green.log",
+      "originalBytes": 362,
+      "originalSHA256": "633933a54087726c7371b83a388eb29a6ce4ef34d85dc56c713e2cc69ce8b7d1",
+      "compressedBytes": 228,
+      "compressedSHA256": "6daf0460e00b735449d86b3dd0d866da238fd2d76ea4b1b9a727a6eb3c6f7ba2",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/unchanged-release-gate-record.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/unchanged-release-gate-record.json",
+      "originalMember": "evidence/unchanged-release-gate-record.json",
+      "originalBytes": 1049,
+      "originalSHA256": "c722cad31265b16551b309e074c15d053d3451181216fdb343b95ae8e8005dda",
+      "compressedBytes": 591,
+      "compressedSHA256": "8ff6d9521bd656148596c46135a2cd7b8da4ee61bd3b2dbf5a1651aa3f4a9dd9",
+      "roundTripVerified": true
+    },
+    "evidence/evidence/validation-summary.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/evidence/validation-summary.json",
+      "originalMember": "evidence/validation-summary.json",
+      "originalBytes": 11211,
+      "originalSHA256": "10d28a6942856efe844f56de30bd646cf6700444e3db5871840f066dbba7d703",
+      "compressedBytes": 4076,
+      "compressedSHA256": "7284feae8ad07fbef19eba97b0371ac062d11706f8e894c1752ee504f160251a",
+      "roundTripVerified": true
+    },
+    "evidence/independent-provider-final-physical-node-sbom-review.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/independent-provider-final-physical-node-sbom-review.json",
+      "originalMember": "independent-provider-final-physical-node-sbom-review.json",
+      "originalBytes": 2231,
+      "originalSHA256": "c46c4d2929c0007b44a0c2a98f8fcc9bf169d6edbb02455ff8d148819b526492",
+      "compressedBytes": 1308,
+      "compressedSHA256": "66118bf9b54d4badedb71eb078ad6f00be88b45b031781fb5e3a6f884ab0faaa",
+      "roundTripVerified": true
+    },
+    "evidence/independent-provider-physical-node-sbom-topology-review.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/independent-provider-physical-node-sbom-topology-review.json",
+      "originalMember": "independent-provider-physical-node-sbom-topology-review.json",
+      "originalBytes": 1985,
+      "originalSHA256": "11e0932a2c4be418c6380e462e8d49d2179273110e6f4f9d5ae989e27dd6afd5",
+      "compressedBytes": 1134,
+      "compressedSHA256": "55ec0ca4eb19d0142b6f07c472d4ab50af2b97dd2945fc406ef3f5de7ffd1c34",
+      "roundTripVerified": true
+    },
+    "evidence/inspect-arborist-candidate.cjs.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/inspect-arborist-candidate.cjs",
+      "originalMember": "inspect-arborist-candidate.cjs",
+      "originalBytes": 2255,
+      "originalSHA256": "6c5804273040de5d2f38519bafa205abb360f77f426c25e4bc994fa9cb3015f5",
+      "compressedBytes": 1000,
+      "compressedSHA256": "88fd04228377c21142536b009625154dc7cb19ac686457e0dc0f995882e009a5",
+      "roundTripVerified": true
+    },
+    "evidence/inspect-arborist.cjs.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/inspect-arborist.cjs",
+      "originalMember": "inspect-arborist.cjs",
+      "originalBytes": 2151,
+      "originalSHA256": "d9f89ff657eb0cd5195c1f052b48e3e75e65c3d105c1aeaf71164ecc3c37c295",
+      "compressedBytes": 980,
+      "compressedSHA256": "7792eedb5d8f92b1990dac471b1c9f4471f96ddf5e2be7e118216f4cc3b1d3a5",
+      "roundTripVerified": true
+    },
+    "evidence/plain-originals-scan/plain-originals-scan-record.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-scan-evidence/plain-originals-scan-record.json",
+      "originalMember": "plain-originals-scan/plain-originals-scan-record.json",
+      "originalBytes": 887,
+      "originalSHA256": "ab57f5250d1dcb29766aca60462eabc203fa54c66c5b73b524e5aa7b43ebea29",
+      "compressedBytes": 529,
+      "compressedSHA256": "09abd79652ef9d0053161998c2c06ab75c230678119c5c5c392f1b7cd03f47a9",
+      "roundTripVerified": true
+    },
+    "evidence/plain-originals-scan/plain-originals-scan-redacted.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-scan-evidence/plain-originals-scan-redacted.json",
+      "originalMember": "plain-originals-scan/plain-originals-scan-redacted.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "compressedBytes": 23,
+      "compressedSHA256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "roundTripVerified": true
+    },
+    "evidence/plain-originals-scan/plain-originals-scan.log.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-scan-evidence/plain-originals-scan.log",
+      "originalMember": "plain-originals-scan/plain-originals-scan.log",
+      "originalBytes": 81,
+      "originalSHA256": "2b22d2e9e57bd23c2484b520b2e4b31adb7d950e5a0ecc9af0cf1286b9ea5510",
+      "compressedBytes": 93,
+      "compressedSHA256": "be9010ad4b0c0d9709d930941143362ea13a09f4f57ae1faab5d8496b5327092",
+      "roundTripVerified": true
+    },
+    "evidence/prepare-private-actual-tree.py.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/prepare-private-actual-tree.py",
+      "originalMember": "prepare-private-actual-tree.py",
+      "originalBytes": 6181,
+      "originalSHA256": "490eb7081f3a9552f4747f6547d35baf681612fa00b8c983e80df5b572433db9",
+      "compressedBytes": 2487,
+      "compressedSHA256": "1e574477d83a1e5f1f209eaee164b7515ee27ad32da48c53fbec585fa772fdac",
+      "roundTripVerified": true
+    },
+    "evidence/verify-post-command-closure.py.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/sbom-0b-topology-publication-k_v3vjhh/private-plain-originals/verify-post-command-closure.py",
+      "originalMember": "verify-post-command-closure.py",
+      "originalBytes": 3122,
+      "originalSHA256": "fb0aac284dde3c1ee2d4605efa894e49acbba7b3d7dae48b211caebbf2cc3986",
+      "compressedBytes": 1429,
+      "compressedSHA256": "aef80d42b8725b535934a61f0b15648e71011f5a0cfb8fc9a4fad9b2af1079a4",
+      "roundTripVerified": true
+    }
+  },
+  "omittedOriginalMembers": [
+    {
+      "originalMember": "evidence/node-modules-closure-manifest.json",
+      "bytes": 26040116,
+      "sha256": "a6302b77d77233a3853a25f852c643f669b45442294b59f1a56c49e59ba34209",
+      "privateOriginalRetained": true,
+      "reason": "Bounded publication retains exact original23manifest entry, snapshot count/byte identities and independently reviewed completeclosure proof; raw102k-member26MB map remains private unchanged."
+    }
+  ],
+  "boundary": "All retained originals byteexact; encoding does not alter originalfailed scans or claim scanner clearance."
+}

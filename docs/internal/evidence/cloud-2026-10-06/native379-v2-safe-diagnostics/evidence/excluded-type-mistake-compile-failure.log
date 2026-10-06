@@ -1,0 +1,14 @@
+# github.com/zasp-ai/zasp-sec/services/platform/apiserver [github.com/zasp-ai/zasp-sec/services/platform/apiserver.test]
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4073:12: undefined: native379V2CollectorFailureMetadata
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4098:27: undefined: orderedCurrentNative379V2Phase
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4114:16: undefined: native379V2ConsumeCatalogDiagnostic
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4128:49: undefined: native379V2DiagnosticEnclosingDeadlineKey
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4131:8: undefined: native379V2CollectorFailureMetadata
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4135:7: undefined: native379V2CollectorFailureMetadata
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4138:7: undefined: native379V2CollectorFailureMetadata
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4142:11: undefined: native379V2CleanupFailureMetadata
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4145:198: cannot use []string{…} (value of type []string) as int value in struct literal
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4146:8: undefined: native379V2CleanupFailureMetadata
+apiserver/authorization_worker_ordered_current_native379_v2_test.go:4146:8: too many errors
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver [build failed]
+FAIL

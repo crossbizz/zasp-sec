@@ -1,0 +1,658 @@
+{
+  "format": "bounded-a6f-lint-cache-source6-nextbatch-v1",
+  "scope": "Bounded source6/ownedtests/cacheprerequisites recorded evidence; not finalruntimeacceptance",
+  "members": [
+    {
+      "path": "a6f-security.tar.gz",
+      "bytes": 1332,
+      "sha256": "34730027b26131612fec256327cc78f9a3328cb0dee06267cc7a60044af04007",
+      "encoding": "deterministic-tar-gzip",
+      "members": [
+        {
+          "path": "a6f-security/full-history/before.json",
+          "bytes": 524,
+          "sha256": "a8958dbcf213ee764a680fe99c3cfb3e8d1b0a19b94b3812d49e53b66ee8c8c3"
+        },
+        {
+          "path": "a6f-security/full-history/record.json",
+          "bytes": 991,
+          "sha256": "81440b6d7abebc49d7952d1e378e957e0fa49b7814b188fcbd93dce46f612f8f"
+        },
+        {
+          "path": "a6f-security/full-history/report.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "path": "a6f-security/full-history/scan.log",
+          "bytes": 118,
+          "sha256": "f4485a51f04081905992ba9361d4eeb4c388018aef75a7ec9a21f28a0b3aa3ef"
+        },
+        {
+          "path": "a6f-security/scoped/before.json",
+          "bytes": 561,
+          "sha256": "c70d136c3b25ac73e70d8bbe00ae52c08178b43fa8c2d3d65ddd686e170f5578"
+        },
+        {
+          "path": "a6f-security/scoped/record.json",
+          "bytes": 1029,
+          "sha256": "c9158f90ab021d57cc6e89ec0a87edcd5bf826c31b3e34f76181119347955daa"
+        },
+        {
+          "path": "a6f-security/scoped/report.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "path": "a6f-security/scoped/scan.log",
+          "bytes": 108,
+          "sha256": "b821252b3a0e7d88acf661c479362cfe67be03ef066141bb36a98a7e2e2655e3"
+        }
+      ],
+      "internalManifestSHA256": "268c9addb60dde6fdd6107de72de4ae2108a55aacc279e76624dad4951726adc"
+    },
+    {
+      "path": "bounded-reconciliation.tar.gz",
+      "bytes": 2456,
+      "sha256": "d561707ebb4723effb6299fb8f1f02a10ccd51c5ccdd880dcd83a93e11191b17",
+      "encoding": "deterministic-tar-gzip",
+      "members": [
+        {
+          "path": "bounded-reconciliation/review.json",
+          "bytes": 11093,
+          "sha256": "07e01d66b7faccfc5cafd8536d92a7010af9b63f00a18e3602f3aaf83805b772"
+        }
+      ],
+      "internalManifestSHA256": "24d8d5577e229a3a4c22c0f92ba05cb25ec44e90173c065519d06f548ece0fa6"
+    },
+    {
+      "path": "cache-v10-v11.tar.gz",
+      "bytes": 210311,
+      "sha256": "793c2bafc1e80ebd91d8bc1f385d3bcac2aec56bb400129dc5a345d41ac28a83",
+      "encoding": "deterministic-tar-gzip",
+      "members": [
+        {
+          "path": "cache-v10-v11/v10/authentic-cleanup-remove-record.json",
+          "bytes": 481,
+          "sha256": "88f6e6d37d6f50c2a12c500419a1787d5391930c18cbb4a73b194187cde89c7e"
+        },
+        {
+          "path": "cache-v10-v11/v10/fresh-observer-summary.json",
+          "bytes": 558,
+          "sha256": "a879fcd073a06ff3b09468d4b3b4a037984dea0bbe5830a1c90f4e7c8557cb0a"
+        },
+        {
+          "path": "cache-v10-v11/v10/fresh-owner-receipt.json",
+          "bytes": 834,
+          "sha256": "d2f2e91d70e1c996c10700ccbd95132b56e3e3a5100a010639534295b9338419"
+        },
+        {
+          "path": "cache-v10-v11/v10/independent-review.json",
+          "bytes": 2486,
+          "sha256": "70b4e0a4df4ba30cd5f35e45448a0132ab1425ceff5ffad833a5db8ba03daafd"
+        },
+        {
+          "path": "cache-v10-v11/v10/root-observer-intent.json",
+          "bytes": 366,
+          "sha256": "ce3cff1263edf456ff075a21fae30afac0ea85a28d4644bbb9683f318d9a2fa5"
+        },
+        {
+          "path": "cache-v10-v11/v10/summary.json",
+          "bytes": 588,
+          "sha256": "bbf23f39785acbb4c161fd623b4a4e9b7615f92db038b8c3111f00150e261941"
+        },
+        {
+          "path": "cache-v10-v11/v11/fresh-observer-summary.json",
+          "bytes": 558,
+          "sha256": "8d1f4ea64691ed123e239b2e89ccab760a0dc01d2809d096a6790cc6140cb5b4"
+        },
+        {
+          "path": "cache-v10-v11/v11/fresh-owner-receipt.json",
+          "bytes": 833,
+          "sha256": "cf56d203f8dd42b15a82d801f59ba274211e59dd80b32b8813792df1ce49e47f"
+        },
+        {
+          "path": "cache-v10-v11/v11/independent-review.json",
+          "bytes": 5824,
+          "sha256": "af1b94cebe1749cb8b2925982415856cd2d83b7c5f2922ea811538bce86aeb3e"
+        },
+        {
+          "path": "cache-v10-v11/v11/root-observer-intent.json",
+          "bytes": 366,
+          "sha256": "ce3cff1263edf456ff075a21fae30afac0ea85a28d4644bbb9683f318d9a2fa5"
+        },
+        {
+          "path": "cache-v10-v11/v11/summary.json",
+          "bytes": 385182,
+          "sha256": "b0a533a58de89687e4df9b0cc31c6eec5741dbb2629774af9d369a08a25f27cd"
+        },
+        {
+          "path": "cache-v10-v11/v11/unlink-intent.json",
+          "bytes": 601,
+          "sha256": "ab115197832f284b4f8f1f97a558b3e72639156aabc896ded4dfacfc03c87d0f"
+        }
+      ],
+      "internalManifestSHA256": "a5b304ca1568cf3571c1a40481a3c400289b848ec30646da226897962980b1f3"
+    },
+    {
+      "path": "initial-six-lint.tar.gz",
+      "bytes": 26989,
+      "sha256": "ee491b68c59e44d3af29293434f9dd262f88c80960842cd9af968f701951670f",
+      "encoding": "deterministic-tar-gzip",
+      "members": [
+        {
+          "path": "initial-six-lint/exact-archive-scope-authentic-red.json",
+          "bytes": 692,
+          "sha256": "8cbdf8aa56043c16acd480d1320c8917d57a03f71a9bb05f334997bb94e51e6a"
+        },
+        {
+          "path": "initial-six-lint/exact-archive-scope-authentic-red.log",
+          "bytes": 2717,
+          "sha256": "d98ffe811fd4f28082dcac590d1a69e421c428821f7396baf2f8af431748dbba"
+        },
+        {
+          "path": "initial-six-lint/exact-archive-scope-green.json",
+          "bytes": 672,
+          "sha256": "76b07ec2e53146661f185da83335e84cd59d848f3467db4b379f9cf6169be451"
+        },
+        {
+          "path": "initial-six-lint/exact-archive-scope-green.log",
+          "bytes": 2098,
+          "sha256": "d2fd1632b20d5fbf5c922677ebc9b2bd96e5cf584e44951a4e62d6424d69f60a"
+        },
+        {
+          "path": "initial-six-lint/independent-review.json",
+          "bytes": 4712,
+          "sha256": "18966195d960de1af9d9bb45bd999bc537907813f0ba4664b89944597be31855"
+        },
+        {
+          "path": "initial-six-lint/source-lint-authentic-red.json",
+          "bytes": 779,
+          "sha256": "3246d2b4e08a16f171fa29dd3631dee5ecd4c3d2c07539ff8056557cfe5e88e6"
+        },
+        {
+          "path": "initial-six-lint/source-lint-authentic-red.log",
+          "bytes": 77524,
+          "sha256": "7df267e25e21dd859f7d496a1e9dbce743908a2ac978fe034e294be7c9d6eb0e"
+        },
+        {
+          "path": "initial-six-lint/source-lint-green.json",
+          "bytes": 760,
+          "sha256": "ae1259555bd58452327a69396bd94a77f7a63d5ee1bd243df5fb3b19d85da4b0"
+        },
+        {
+          "path": "initial-six-lint/source-lint-green.log",
+          "bytes": 1544,
+          "sha256": "b7208acd98808ae25ba68e82efd0682b8c04c9a98d19f4af8e1ccc14baf14e7e"
+        },
+        {
+          "path": "initial-six-lint/source-linux-nine-and-v3-eight-green.json",
+          "bytes": 1017,
+          "sha256": "ed0c21b16c35cb229b76581060647acd23320eaa44872ff1b77ef93c753d544c"
+        },
+        {
+          "path": "initial-six-lint/source-linux-nine-and-v3-eight-green.log",
+          "bytes": 4264,
+          "sha256": "f733d2e55b37efa0c2bd061ed8bb78cb16efc783ebfeafee796d7b33e70f3dfe"
+        },
+        {
+          "path": "initial-six-lint/summary.json",
+          "bytes": 2881,
+          "sha256": "2e2eb49d08eb82afe95512a824cadcc2ca7d8ba112661dc91ca9b0a8b60fe2eb"
+        }
+      ],
+      "internalManifestSHA256": "41feb21d3de0e38a17188f50ac4e0ecdef028644d1eeee5f6a9b5c74923d2ace"
+    },
+    {
+      "path": "portable-source-final-author.tar.gz",
+      "bytes": 7329,
+      "sha256": "53b15e7c5effc281cc68d5755c7fd8e26284145eb89051d75921684dcd424ace",
+      "encoding": "deterministic-tar-gzip",
+      "members": [
+        {
+          "path": "portable-source-final-author/after-cross-mount-no-TMPDIR-green.json",
+          "bytes": 844,
+          "sha256": "9fec708895588796c18037f43d044d96b8a364196276427f0a7d7a7b4f840718"
+        },
+        {
+          "path": "portable-source-final-author/after-cross-mount-no-TMPDIR-green.log",
+          "bytes": 381,
+          "sha256": "d7d4f5997444c49ec4a46a1d227c0f54c5baec6c05233b5a62ce0bfd7fe8ad38"
+        },
+        {
+          "path": "portable-source-final-author/after-source17-cross-mount-green.json",
+          "bytes": 1079,
+          "sha256": "bb35baa584017352601545e425139ea428e436f204d25d8feb56b789535d19bf"
+        },
+        {
+          "path": "portable-source-final-author/after-source17-cross-mount-green.log",
+          "bytes": 4266,
+          "sha256": "efcaf398b17e8b8371249c98a8e7cc62aede1f18f06c7f4add83b5fa314c9d46"
+        },
+        {
+          "path": "portable-source-final-author/before-cross-mount-mechanical-fail.json",
+          "bytes": 866,
+          "sha256": "16195c16693da4a89cf15deb9ac9a355741d959fda50f7037dfc11ba884edd0a"
+        },
+        {
+          "path": "portable-source-final-author/before-cross-mount-mechanical-fail.log",
+          "bytes": 1390,
+          "sha256": "d213c072a804e3ff938d3d7218ed10ca835e476383cbfb4ae1241774b2b12899"
+        },
+        {
+          "path": "portable-source-final-author/final-candidate.diff",
+          "bytes": 4232,
+          "sha256": "27c8aa46cedcaef220fdb8d06c6ef4f0f5cc309cd9f85e9e579cfe6174424beb"
+        },
+        {
+          "path": "portable-source-final-author/final-source-change.json",
+          "bytes": 481,
+          "sha256": "30fc55c36b7ce2cafc8f9536e02c432d45e107634f74e33347b147e2fc42f418"
+        },
+        {
+          "path": "portable-source-final-author/final-source-lint-green.json",
+          "bytes": 828,
+          "sha256": "4202f117745012068371c852a0b370857900aa0ebfa310d6c10d7a51a63adc04"
+        },
+        {
+          "path": "portable-source-final-author/final-source-lint-green.log",
+          "bytes": 1544,
+          "sha256": "b7208acd98808ae25ba68e82efd0682b8c04c9a98d19f4af8e1ccc14baf14e7e"
+        },
+        {
+          "path": "portable-source-final-author/final-source17-cross-mount-green.json",
+          "bytes": 1065,
+          "sha256": "8f81537c0dd6c19243e9882448c9f06e1e2a21ede1b2c008770dcb295a39e062"
+        },
+        {
+          "path": "portable-source-final-author/final-source17-cross-mount-green.log",
+          "bytes": 4263,
+          "sha256": "9744fc2e11dd7ef37df34243a88439c72d6ee5463ffefbf87d285cf1aa787044"
+        },
+        {
+          "path": "portable-source-final-author/final-summary.json",
+          "bytes": 2635,
+          "sha256": "6e7eff92d5e84b51d419f3c6aa486534f89dd1fc0e5e885001271c56d5129c0e"
+        },
+        {
+          "path": "portable-source-final-author/independent-final-portability-review.json",
+          "bytes": 4026,
+          "sha256": "47ff1966cca5fc3a96abb5465a12a9665992d38d3461c73007e300490d16401d"
+        },
+        {
+          "path": "portable-source-final-author/independent-tiny-transport.json",
+          "bytes": 422,
+          "sha256": "0c4fcad7687c1e69477e6632d81d2a085df0cd307434fcfd50058a26ba86235f"
+        },
+        {
+          "path": "portable-source-final-author/source-change.json",
+          "bytes": 621,
+          "sha256": "9fea48b66a09763370d41dabd200c1edf0a164ac4581d4a6dca64ad774fe2a4e"
+        }
+      ],
+      "internalManifestSHA256": "26660867816fda73afd3d14316a0215366f0dc3663a1ead6397ee2c95f8d1d5e"
+    },
+    {
+      "path": "root-final-portable-tests.tar.gz",
+      "bytes": 5018,
+      "sha256": "d178a042a03d77cfd62311d0997b9c58bdc92b18cd9385abbe8fb9552b38c075",
+      "encoding": "deterministic-tar-gzip",
+      "members": [
+        {
+          "path": "root-final-portable-tests/before.json",
+          "bytes": 804,
+          "sha256": "d1c7143559081f49f9509caee23ddf68892983658e5486fd9c2e5c8ac37064ca"
+        },
+        {
+          "path": "root-final-portable-tests/changed-test-lint-receipt.json",
+          "bytes": 403,
+          "sha256": "a9b385db13f19ba4545d5257104f51fc00d3a598d29a2f2a0a508f133e1b5f00"
+        },
+        {
+          "path": "root-final-portable-tests/changed-test-lint.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "root-final-portable-tests/committed-six-identity-review.json",
+          "bytes": 4568,
+          "sha256": "856faf8b5e7d23b51068ae19ffc19fd35ba173ad06d1e8c2a9e300bff8088090"
+        },
+        {
+          "path": "root-final-portable-tests/independent-committed-six-review.json",
+          "bytes": 5437,
+          "sha256": "f823dd8419f372a4160ad97b87e4ec460b356c8884c9892bc8636ab8843cb0d6"
+        },
+        {
+          "path": "root-final-portable-tests/receipt.json",
+          "bytes": 1081,
+          "sha256": "d504e5e650760f738327960f263f8189778ed0fd1926bd37c3961c5eb4c3fdee"
+        },
+        {
+          "path": "root-final-portable-tests/source17-receipt.json",
+          "bytes": 620,
+          "sha256": "a30addedfaa2ff745332b86d0667237baa6f71a4cb69a0d1dc27ba0aa9b9942c"
+        },
+        {
+          "path": "root-final-portable-tests/source17.log",
+          "bytes": 4264,
+          "sha256": "d069174229c3ab566aa92bf599f5682597d12ef9f1b71ada2f1b8eb3bfec6dcb"
+        }
+      ],
+      "internalManifestSHA256": "5550dfef6599bf6ff51788533fd69d5181af171e9fa0f0cdcd615c00bb97e592"
+    },
+    {
+      "path": "root-full-lint-pass.tar.gz",
+      "bytes": 1165,
+      "sha256": "0114ee3df0262e0ed5637a7a069cb3718cae5ae6a4267084ba0538f773e746cf",
+      "encoding": "deterministic-tar-gzip",
+      "members": [
+        {
+          "path": "root-full-lint-pass/log.txt",
+          "bytes": 2243,
+          "sha256": "ebf5ec0ea6d4725905f49d0ce4ecd5bfbe21255c7f93228c187b032636a6e75f"
+        },
+        {
+          "path": "root-full-lint-pass/receipt.json",
+          "bytes": 260,
+          "sha256": "826b2013a7cc9f4387ac5c584da668163a58641b0b983feb91c034890fcf7cfd"
+        }
+      ],
+      "internalManifestSHA256": "cdf16af0689524c63ba2511de7710d77c0120e2a39212e4b3c663ceff3e4dd10"
+    },
+    {
+      "path": "root-source17-mechanical-fail.tar.gz",
+      "bytes": 2601,
+      "sha256": "dbc7ffdeb45fbf49e767a12ff458d27b8a4ae5c755d3388f3e7fc9b8c926d7d6",
+      "encoding": "deterministic-tar-gzip",
+      "members": [
+        {
+          "path": "root-source17-mechanical-fail/before.json",
+          "bytes": 804,
+          "sha256": "ba8fd9cfcdff3bf34f05122320f6f5bc25da13f35bb82b9345cbde5bd0dab383"
+        },
+        {
+          "path": "root-source17-mechanical-fail/receipt.json",
+          "bytes": 678,
+          "sha256": "a728faea66cda9b561180d0c8ce0ecbba6714c72d99836a3b6ae9a9f66522089"
+        },
+        {
+          "path": "root-source17-mechanical-fail/source17-receipt.json",
+          "bytes": 620,
+          "sha256": "b618bc2855f32ce9592b1d11ed751fa74166916f664f6903be451164378796b9"
+        },
+        {
+          "path": "root-source17-mechanical-fail/source17.log",
+          "bytes": 5266,
+          "sha256": "ed7c766bd1aa8151783f67747b5655f63303b52d556fb65a29eec84a330c9706"
+        }
+      ],
+      "internalManifestSHA256": "b706201ba3f294e3b9e210866e4ee699ecc571c3f6d6a5edac75a7dd35b57efe"
+    },
+    {
+      "path": "source1ea-security.tar.gz",
+      "bytes": 1405,
+      "sha256": "e3a51969f64411167d04d42a142fcf851a502e9f1fd0987df32e140c08fa1140",
+      "encoding": "deterministic-tar-gzip",
+      "members": [
+        {
+          "path": "source1ea-security/full-history/before.json",
+          "bytes": 439,
+          "sha256": "babeb7e091baf1019f0d4ef63da397c688aee79f3f0fc963b04647ee543f657a"
+        },
+        {
+          "path": "source1ea-security/full-history/record.json",
+          "bytes": 958,
+          "sha256": "daadd0e5a05e76223b3bdd502b1c1c5eaa031b5db99e98d45fa3a8f9635d8b8f"
+        },
+        {
+          "path": "source1ea-security/full-history/report.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "path": "source1ea-security/full-history/scan.log",
+          "bytes": 196,
+          "sha256": "002b604a5eb18071fee0e9f00973a557a5857e18fa5a47c587c20368a9fa56b0"
+        },
+        {
+          "path": "source1ea-security/scoped/before.json",
+          "bytes": 511,
+          "sha256": "7d2eed76a6a6241160990692eda8d36b93fa6e09f16847e2950c15a97a52deb5"
+        },
+        {
+          "path": "source1ea-security/scoped/record.json",
+          "bytes": 1032,
+          "sha256": "019711102cee44fe3554dcc225f2753d64d272e7f6400830902603ae011cfd4c"
+        },
+        {
+          "path": "source1ea-security/scoped/report.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "path": "source1ea-security/scoped/scan.log",
+          "bytes": 184,
+          "sha256": "1769e2521004d0efa449cd91bdcf682006f14fd2e08a91080a8d23cf819a805e"
+        }
+      ],
+      "internalManifestSHA256": "a3568ecb87d649ec2e6c3d008d738ddbaf833e568504de3145dde99f927ef30a"
+    },
+    {
+      "path": "closed-selection-and-original-scans.tar.gz",
+      "bytes": 6813,
+      "sha256": "8c922cfb0e67f42aa8acf8440d799939729fce1b891606ac4d4e511513d0203f",
+      "encoding": "deterministic-tar-gzip",
+      "members": [
+        {
+          "path": "final-originals-scan-record.json",
+          "bytes": 813,
+          "sha256": "2e1db735c3fac13cb6b00b65581e553147ecd985747f81f955c33308569d4399"
+        },
+        {
+          "path": "final-originals-scan-report.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "path": "final-originals-scan.log",
+          "bytes": 79,
+          "sha256": "bd91defbdb822048e51d47333a80df25ecca94796bf6546142db34fb6527a39e"
+        },
+        {
+          "path": "originals-after-portability-scan-record.json",
+          "bytes": 858,
+          "sha256": "176187653d4820dfc4bbbb96bf67ad216ed03d58463b36a6e70d090322e589f2"
+        },
+        {
+          "path": "originals-after-portability-scan-report.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "path": "originals-after-portability-scan.log",
+          "bytes": 81,
+          "sha256": "a0f3b69a6c9da4c6c6f43c54dac4f783b45cc2d2a24de3c4a29848a185036e0d"
+        },
+        {
+          "path": "originals-scan-record.json",
+          "bytes": 829,
+          "sha256": "0945584fd1f48324b87246875774b41b0a0c0d3b6c217f202a97de885234bbc4"
+        },
+        {
+          "path": "originals-scan-report.json",
+          "bytes": 3,
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        {
+          "path": "originals-scan.log",
+          "bytes": 80,
+          "sha256": "08e3db84a1b8661d4769707cbcce4fb67abf071b0237e230b434cc894a8b6708"
+        },
+        {
+          "path": "selection-manifest.json",
+          "bytes": 31487,
+          "sha256": "8bc303a4db9db4bb53e2878ce8f81139d8893da0166e1d2aa70793f471838c5d"
+        }
+      ]
+    },
+    {
+      "path": "README.md",
+      "bytes": 3143,
+      "sha256": "c9ff910c88a9116e871bbb68daa464317ff5325151b413d31de1f40d1d967cb9",
+      "encoding": "identity"
+    },
+    {
+      "path": "unchanged-ledger-crosswalk-references.json",
+      "bytes": 2772,
+      "sha256": "263a0859f970b0bf9fd362e88e1c7b0903d048a180b0e50d32fec0334d95284e",
+      "encoding": "identity"
+    }
+  ],
+  "outerMemberCount": 12,
+  "originalProofCount": 71,
+  "omitted": [
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/frozen0b-cache-reclaim-plan-nf9kobp1/immutable-authority-before.json",
+      "bytes": 15362006,
+      "sha256": "5e46a35d3dc79b6e6140a13a4a427d02d0b3d848d0fe049dcada3cf3c09909ed",
+      "reason": "Broad inventory/controller/source-derived artifact retained privately; no byte inclusion or delegated executable authority"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/frozen0b-cache-reclaim-plan-nf9kobp1/cache-member-inventory.json",
+      "bytes": 2018654,
+      "sha256": "2088a54b9ba4bb97af1a25981ac154f44def42abb45fbf90837bcbc918fada9c",
+      "reason": "Broad inventory/controller/source-derived artifact retained privately; no byte inclusion or delegated executable authority"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/frozen0b-cache-reclaim-plan-nf9kobp1/cache-reclaim-root-attempt-blpvuczh/authority-before.json",
+      "bytes": 147,
+      "sha256": "3fbeec19de4506b967691db46ceae4215a7730670da6bdd4e2416f542405feae",
+      "reason": "Broad inventory/controller/source-derived artifact retained privately; no byte inclusion or delegated executable authority"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/frozen0b-cache-reclaim-plan-nf9kobp1/cache-reclaim-root-attempt-blpvuczh/authority-after.json",
+      "bytes": 147,
+      "sha256": "3fbeec19de4506b967691db46ceae4215a7730670da6bdd4e2416f542405feae",
+      "reason": "Broad inventory/controller/source-derived artifact retained privately; no byte inclusion or delegated executable authority"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/frozen0b-cache-reclaim-plan-nf9kobp1/cache-reclaim-root-attempt-blpvuczh/cache-before.json",
+      "bytes": 157,
+      "sha256": "86d82cb3c40d0b0b092011365a3d9641cba4eb8e1d1e41994b95777f1cf4fdd9",
+      "reason": "Broad inventory/controller/source-derived artifact retained privately; no byte inclusion or delegated executable authority"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/frozen0b-cache-reclaim-plan-nf9kobp1/cache-reclaim-root-attempt-blpvuczh/process-before.json",
+      "bytes": 26917,
+      "sha256": "477f807d0efb0d476008a12073fad70322840afb571029acd7934571ba3c4220",
+      "reason": "Broad inventory/controller/source-derived artifact retained privately; no byte inclusion or delegated executable authority"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/frozen0b-cache-reclaim-plan-nf9kobp1/reclaim-owned-cache-v10.py",
+      "bytes": 23357,
+      "sha256": "c520e5c528d6ab6d13b5a78de0ce2002a009618cfc43b00015023f57186e8784",
+      "reason": "Broad inventory/controller/source-derived artifact retained privately; no byte inclusion or delegated executable authority"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/frozen0b-cache-reclaim-plan-nf9kobp1/reclaim-owned-cache-v11.py",
+      "bytes": 24609,
+      "sha256": "bf635d476f5de92487506f921d31a5c0aa01e17bc8bae58e0cb142c37bec804d",
+      "reason": "Broad inventory/controller/source-derived artifact retained privately; no byte inclusion or delegated executable authority"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/frozen0b-cache-reclaim-plan-nf9kobp1/run-readonly-observer-v7.py",
+      "bytes": 20056,
+      "sha256": "091c27ccf43b25a8675d4f0f16e56295f4dc09066277521795ac81f5faf1496d",
+      "reason": "Broad inventory/controller/source-derived artifact retained privately; no byte inclusion or delegated executable authority"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/frozen0b-cache-reclaim-plan-nf9kobp1/cache-reclaim-plan-v2-v11-candidate.json",
+      "bytes": 6846,
+      "sha256": "bf4b52018a1ae732221212b9acc57bed8438325e9cfa40aaa42582adc506ee08",
+      "reason": "Broad inventory/controller/source-derived artifact retained privately; no byte inclusion or delegated executable authority"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/linux-source-lint-fix-mu9d03em/evidence/derived-identities.json",
+      "bytes": 35985,
+      "sha256": "d2d53d9f1f1c279fa8e70f284d91d7ee8482890f5d0a9932cb8b151898f9e911",
+      "reason": "Broad inventory/controller/source-derived artifact retained privately; no byte inclusion or delegated executable authority"
+    },
+    {
+      "privatePath": "/tmp/zasp-cloud-evidence/root-fresh-observer-v2-idexzh2e/stdout.jsonl",
+      "bytes": 201,
+      "sha256": "646cd62fa6c8041d1c0561c0c7410058e570a9feb05fcdab035dd37e31a4f14e",
+      "reason": "Fresh owned observer original transport retained privately; parent receipt SHA fields and observer summary retained, broad output not copied"
+    },
+    {
+      "privatePath": "/tmp/zasp-cloud-evidence/root-fresh-observer-v2-idexzh2e/stderr.private",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "reason": "Fresh owned observer original transport retained privately; parent receipt SHA fields and observer summary retained, broad output not copied"
+    },
+    {
+      "privatePath": "/tmp/zasp-cloud-evidence/root-fresh-observer-v2-elp3k_2m/stdout.jsonl",
+      "bytes": 201,
+      "sha256": "f7fe52654346d857aded57466a30a804a87576f50a1045baebeddb2141ce782f",
+      "reason": "Fresh owned observer original transport retained privately; parent receipt SHA fields and observer summary retained, broad output not copied"
+    },
+    {
+      "privatePath": "/tmp/zasp-cloud-evidence/root-fresh-observer-v2-elp3k_2m/stderr.private",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "reason": "Fresh owned observer original transport retained privately; parent receipt SHA fields and observer summary retained, broad output not copied"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/linux-source-lint-fix-mu9d03em/portability-evidence/before-schema-test.mjs",
+      "bytes": 7065,
+      "sha256": "fa18084776ee261f93bf705175f11a78ae236eaf326cd4e7b412732923299eda",
+      "reason": "Exact individual source checkpoint retained privately; final diff/records/hashes retained instead of source snapshots"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/linux-source-lint-fix-mu9d03em/portability-evidence/after-schema-test.mjs",
+      "bytes": 8630,
+      "sha256": "033c894756b515a1391a594ed9685dfab8089fdc46fca13b003e36660786d672",
+      "reason": "Exact individual source checkpoint retained privately; final diff/records/hashes retained instead of source snapshots"
+    },
+    {
+      "privatePath": "/workspace/.zasp-cloud-owned/linux-source-lint-fix-mu9d03em/portability-evidence/final-schema-test.mjs",
+      "bytes": 8578,
+      "sha256": "7f798fed99cb5f31ae5d960d647f4d67cce05906dddc8491feda9a3613a0622e",
+      "reason": "Exact individual source checkpoint retained privately; final diff/records/hashes retained instead of source snapshots"
+    }
+  ],
+  "totalMemberBytes": 271334,
+  "selectedOriginalsScan": {
+    "argv": [
+      "/tmp/zasp-cloud-tools/bin/gitleaks",
+      "dir",
+      "/workspace/.zasp-cloud-owned/a6f-lint-cache-nextbatch-fdksrr09/originals",
+      "--report-format",
+      "json",
+      "--report-path",
+      "/workspace/.zasp-cloud-owned/a6f-lint-cache-nextbatch-fdksrr09/final-originals-scan-report.json",
+      "--no-banner"
+    ],
+    "cwd": "/workspace",
+    "exit": 0,
+    "findings": 0,
+    "seconds": 0.5740861000012956,
+    "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "logSHA256": "bd91defbdb822048e51d47333a80df25ecca94796bf6546142db34fb6527a39e",
+    "selectionManifestSHA256": "8bc303a4db9db4bb53e2878ce8f81139d8893da0166e1d2aa70793f471838c5d",
+    "configExceptionsChanged": false,
+    "scope": "Finalselectedoriginals beforeencoding; not anyfuture/fullsecurity/nativeapproval"
+  },
+  "ledgerCountsUnchanged": {
+    "rows": 728,
+    "uniqueIDs": 728,
+    "uniqueOwnedIDs": 728,
+    "missingOwners": 0,
+    "classes": {
+      "production-available": 523,
+      "component-only": 144,
+      "blocked/external": 61
+    }
+  },
+  "noNewTaskMappingOrCategoryPromotion": true
+}

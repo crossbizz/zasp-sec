@@ -1,0 +1,67 @@
+{
+  "status": "READ-ONLY-DIAGNOSIS-UNDERLYING-CAUSE-NOT-RECOVERABLE-FROM-RETAINED-LOGS",
+  "failureEvidence": [
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/native379-v2-root-attempt-d466/actual-native379-record.json",
+      "sha256": "90f314f47c89b502bcc5b7d794bb9e3c9ca81bf897e282ade9af00effdd4c6d6",
+      "bytes": 549
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/native379-v2-root-attempt-d466/actual-native379.log",
+      "sha256": "aeb27a26823b44c9497409185f072c7b67eaa66fff7ee871119fe876088cff7e",
+      "bytes": 975
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/native379-v2-root-attempt-d466/closed-environment.json",
+      "sha256": "551734aabd7c05939c3d22af7d330e3922a42e9b91848d379994b05900c5e147",
+      "bytes": 1277
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/native379-v2-root-attempt-d466/root-launch-binding.json",
+      "sha256": "ca028d123a665cca4c3e4e54c5f4d14dbfdacd467439d8699b8e9d2acb1788f0",
+      "bytes": 603
+    }
+  ],
+  "frozenImplementationSHA256": "05f314d326b85a56f98370431dc8fb4d7088d9ac9ddf8c73eebf3261d2b4f3e8",
+  "known": [
+    "Native attempt exited1 in205.99s reported test duration; actual process record206.075869s and no outer timeout.",
+    "Owned PostgreSQL test179.46s, pid85297, pg_ctl0/server Wait0/normal-exit; no result published.",
+    "Reaching diagnostic requires installed inventory, complete10052 expected rows/key-value checks, independent admissiontrue, and catalog query successful with booleanfalse.",
+    "Observed collector stream refused is the rows.Err error path after Next finishes; returned zero counts are default-valued failure fields, not observed empty catalog.",
+    "Immediate Query error, Scan error, and runtime charge refusal use distinct messages and did not produce this observed message.",
+    "PostgreSQL stderr is captured in a private bytes.Buffer; this test name is outside the existing restricted error-log allowlist. Owned temporary data directory was removed; no server log retained among attempt files."
+  ],
+  "unknown": [
+    "Exact rows.Err cause, SQLSTATE, driver error, context cancellation/deadline state.",
+    "Partial live rows/bytes or actual remaining phase/global budget and time at collector failure.",
+    "Which catalog facts differed or which catalog() guard returned false."
+  ],
+  "nextCriticalFix": {
+    "scope": "Bounded safe source-only diagnostic instrumentation with new source/packet/full-build chain; no modification to old immutable roots.",
+    "failureFields": [
+      "stage(query/scan/charge/stream)",
+      "validated5characterSQLSTATE and closed errorclass; no pgMessage/Detail/Hint/rawSQL",
+      "context error class and independent phase/global deadline status",
+      "wrapper querySHA256 only",
+      "partial scanned/charged rows and canonical bytes",
+      "phase/global budget counters and inherited caps before/proposed charge",
+      "elapsed and remaining timings"
+    ],
+    "tests": [
+      "Deferred PostgreSQL error in rows.Err retains SQLSTATE/class, closes stream and preserves partial counts.",
+      "Context deadline/cancel and non-Postgres driver errors retain distinct safe classifications.",
+      "Malformed/untrusted SQLSTATE and message/detail-bearing errors cannot leak unsafe text.",
+      "Partial Scan/Charge failures record correct prior/proposed counters and remain fail-closed under unchanged caps.",
+      "No native result/readiness emitted for any diagnostic refusal; no589program, SQL, expected fact, role, or cap changes."
+    ],
+    "implementation": "Factor collector row consumption behind a minimal Next/Scan/Err/Close interface; native path continues same exact authenticated collector query.",
+    "reviewRequired": "Grouped RED/GREEN, authentic wire controls, independent review, fresh source roster/packet anchors/frozen build/envelopes before any separately authorized attempt."
+  },
+  "performed": {
+    "repositoryEdits": false,
+    "oldRootWrites": false,
+    "SQLProbes": false,
+    "PGLaunches": false,
+    "nativeRelaunches": false
+  }
+}

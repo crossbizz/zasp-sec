@@ -1,0 +1,29 @@
+{
+  "schema": "independent-combined-warm-source-authority-review-v1",
+  "result": "PASS-SOURCE-AUTHORITY-INTEGRITY-ONLY",
+  "warmProductionSHA256": "95a188b5d23de72a69a9f82c8719bf1b040295642710c1e87e1c617be65a6471",
+  "warmTestSHA256": "c3d02cc05aed023d6f5b84ae145ad3fe395ee0f5896142af25623d5172defaca",
+  "sourceManifestSHA256": "d3f6fac0d38478208fe1feff2f521a8b132b373aa8516771c62005a762a11ea4",
+  "sourceMembers": 1545,
+  "schemaSHA256": "da5a78ad3d5d9a19f348d99e1b44b444fe188e54e373a7d46d3fb609c3cc71a0",
+  "compilerSHA256": "b0f2c1483d009f45f9660bbb05e62fd7f7dfbae643bcd0af50023456a7ccd9c3",
+  "wireSHA256": "d7aaea0657e9bdb8e512a3c0a332e3cf91296a50e6c967233829ec95f45a01ce",
+  "unchangedReplayImplementationSHA256": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0",
+  "currentRootSourceIndexProofSHA256": "5f80f0c3e35e19c919860760c26c3d209ab9d9ca1d5dc387bfaa4db7b8e8504c",
+  "retainedComponentIdentitySHA256": "ab7b6879cbafe86371a9eeed7eb5a70da13117ea99e04764479b9837fd231362",
+  "retainedComponentBinarySHA256": "31f421452860556068c3f59babbacb44c25eb13138ca6921040ab7796a3320a1",
+  "checks": [
+    "Both warm deliverables exact previously independently reviewed95a188/c3d02cc. No private timing diagnostic helper in consumed roster; no tenant/auth decision cache introduced.",
+    "All1545fixed roster members independently rehashed in both private/currentRoot paths; actual currentRoot985apiserver Go filenames match roster exactly after only named companion exclusion. Not wholeRootGitarchive identity.",
+    "Relative reviewed2912 roster,1543members unchanged, onlytransaction changes and activationtest added. All other manifest metadata/import edges/policy unchanged.",
+    "Fixed schema differs only manifestSHA literal and cardinality1544\u21921545; compiler differs only pinned schemaSHA. Fixed repository-relative root, no caller/env roster authority, regular-member/hash/topology/bytecap/staticimport/exactcompanion policy preserved.",
+    "Canonical wire differs only authority vs reviewed2912 candidate. Programs/rules/facts/SQL/steps/phases/caps and all other fields exactly unchanged; compressed wire byte-equalsraw.",
+    "Actual retained source-only component binary and compile/activation/full23 records/log hashes verified exit0."
+  ],
+  "boundaries": [
+    "Source-only integrity review; replay2912 semantic review remains separate sibling review.",
+    "No complete currentRootGitarchive, foundation, fresh Go consumed closure/envelope, PostgreSQL/native outcome or deployment approval.",
+    "Excluded companion currently stale; future exact anchors/frozen envelope must independently bind complete actualGo source plus companion before native use."
+  ],
+  "blockers": []
+}

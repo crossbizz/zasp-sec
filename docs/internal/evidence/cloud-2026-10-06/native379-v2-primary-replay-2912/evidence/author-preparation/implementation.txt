@@ -1,0 +1,93 @@
+// Timings measure the complete interval since the previous recorded completion,
+// including local validation and stream consumption, rather than SQL server time.
+type native379V2PristineTiming struct {
+ ID string `json:"id"`
+ IntervalNanoseconds int64 `json:"intervalNanoseconds"`
+ SQLState string `json:"sqlState"`
+ Context native379V2CollectorFailure `json:"context"`
+}
+func native379V2NewPristineRecorder(ctx context.Context, packet orderedCurrentNative379V2Packet, clock func()time.Time) *orderedCurrentNative379V2OperationRecorder {
+ if clock==nil {clock=time.Now}
+ return &orderedCurrentNative379V2OperationRecorder{diagnosticContext:ctx,diagnosticPacket:packet,clock:clock,previousCompletion:clock()}
+}
+func (r *orderedCurrentNative379V2OperationRecorder) safePrefix() []native379V2PristineTiming {return append([]native379V2PristineTiming(nil),r.timings...)}
+
+type native379V2PrimaryReplayStep struct {id,sql,sourceSpanSHA,placementSHA string; usesManifest bool}
+type native379V2PrimaryReplayObservation struct {
+ Stage string `json:"stage"`
+ SQLSHA256 string `json:"sqlSHA256"`
+ ParamsSHA256 string `json:"paramsSHA256"`
+ SourceSpanSHA256 string `json:"sourceSpanSHA256"`
+ PlacementSHA256 string `json:"placementSHA256"`
+ SessionBindingSHA256 string `json:"sessionBindingSHA256"`
+ Value *bool `json:"value,omitempty"`
+ ElapsedNanoseconds int64 `json:"elapsedNanoseconds"`
+}
+type native379V2PrimaryReplay struct {
+ Scope string `json:"scope"`
+ SourceSHA256 string `json:"sourceSHA256"`
+ Outcome string `json:"outcome"`
+ FirstRefusal string `json:"firstRefusal,omitempty"`
+ Steps []native379V2PrimaryReplayObservation `json:"steps"`
+ Failure *native379V2CollectorFailure `json:"failure,omitempty"`
+ ComparisonComplete bool `json:"comparisonComplete"`
+}
+const native379V2ReplayFrameSQL = `SELECT current_user='zasp_discovery_authority' AND pg_catalog.pg_backend_pid()=$1::integer AND session_user=$2::text AND pg_catalog.current_setting('transaction_isolation')='repeatable read' AND pg_catalog.current_setting('transaction_read_only')='on' AND pg_catalog.current_setting('search_path')='pg_catalog' AND pg_catalog.current_setting('TimeZone')='UTC'`
+func native379V2BuildPrimaryReplayPlan(module []byte)([]native379V2PrimaryReplayStep,error){
+ if orderedCurrentNative379V2SHA256(module)!=orderedCurrentNative379V2ModuleSHA256{return nil,errors.New("replay immutable module source refused")}
+ full:=string(module);head:="CREATE FUNCTION zasp_authorization80_ordered_current.catalog(expected_manifest text) RETURNS boolean\n";i:=strings.Index(full,head)
+ if i<0 || strings.Count(full,head)!=1{return nil,errors.New("replay catalog source refused")}
+ end:=strings.Index(full[i:],"$catalog$;");if end<0{return nil,errors.New("replay catalog closure refused")};body:=full[i:i+end]
+ span:=func(start,finish string)(string,error){a:=strings.Index(body,start);if a<0||strings.Count(body,start)!=1{return "",errors.New("replay source span refused")};b:=strings.Index(body[a:],finish);if b<0{return "",errors.New("replay source endpoint refused")};return body[a:a+b+len(finish)],nil}
+ terminator:=" THEN RETURN false; END IF;"
+ plan:=[]native379V2PrimaryReplayStep{{id:"session-frame",sql:native379V2ReplayFrameSQL,sourceSpanSHA:orderedCurrentNative379V2SHA256([]byte(native379V2ReplayFrameSQL))}}
+ add:=func(id,source,sql string,manifest bool){plan=append(plan,native379V2PrimaryReplayStep{id:id,sql:sql,sourceSpanSHA:orderedCurrentNative379V2SHA256([]byte(source)),usesManifest:manifest})}
+ for _,spec:=range []struct{id,start string}{{"public-wrapper-admission"," IF (SELECT count(*)=3 AND"},{"resolver-admission"," IF (SELECT count(*)=1 AND"}} {
+  raw,err:=span(spec.start,") IS DISTINCT FROM true"+terminator);if err!=nil{return nil,err};q:=strings.TrimSuffix(strings.TrimPrefix(raw," IF ("),") IS DISTINCT FROM true"+terminator);add(spec.id,raw,q,false)
+ }
+ for _,spec:=range []struct{id,start string;manifest bool}{{"caller-and-manifest"," IF current_user<>",true},{"registration-count"," IF (SELECT count(*) FROM zasp_authorization80_ordered_current.registration)<>1",false},{"registration-binding"," IF NOT EXISTS(SELECT 1 FROM zasp_authorization80_ordered_current.registration WHERE singleton AND format_version=1",true}} {
+  raw,err:=span(spec.start,terminator);if err!=nil{return nil,err};expr:=strings.TrimSuffix(strings.TrimPrefix(raw," IF "),terminator);expr=strings.ReplaceAll(expr,"expected_manifest","$1::text");add(spec.id,raw,"SELECT NOT ("+expr+")",spec.manifest)
+ }
+ raw,err:=span(" SELECT jsonb_agg(jsonb_build_object('kind',kind,'identity',identity,'fact',fact) ORDER BY kind COLLATE \"C\",identity COLLATE \"C\")",terminator);if err!=nil{return nil,err}
+ parts:=strings.Split(raw,";\n");if len(parts)!=3{return nil,errors.New("replay normalized source shape refused")}
+ aggregate:=strings.ReplaceAll(strings.TrimSpace(parts[0]),"INTO expected_rows ","")
+ if parts[1]!=" normalized:=zasp_authorization80_ordered_current.normalize_rows(expected_rows,expected_manifest)"{return nil,errors.New("replay normalization binding refused")}
+ expr:=strings.TrimSuffix(strings.TrimPrefix(parts[2]," IF "),terminator);expr=strings.ReplaceAll(expr,"expected_manifest","$1::text")
+ q:="WITH expected_snapshot(expected_rows) AS MATERIALIZED ("+aggregate+"), normalized_snapshot AS MATERIALIZED (SELECT zasp_authorization80_ordered_current.normalize_rows(expected_rows,$1::text) AS normalized FROM expected_snapshot) SELECT NOT ("+expr+") FROM normalized_snapshot"
+ add("expected-normalization-and-digest",raw,q,true)
+ provenance:="WITH provenance_snapshot AS MATERIALIZED (SELECT fact AS provenance FROM zasp_authorization80_ordered_current.expected WHERE kind='build' AND identity='provenance') "
+ for _,spec:=range []struct{id,start string}{{"postgres-provenance"," IF provenance->>'postgres'"},{"profile-checksum"," IF NOT EXISTS(SELECT 1 FROM zasp_authorization80_ordered_current.registration WHERE profile_checksum="}}{
+  raw,err:=span(spec.start,terminator);if err!=nil{return nil,err};expr:=strings.TrimSuffix(strings.TrimPrefix(raw," IF "),terminator);add(spec.id,raw,provenance+"SELECT NOT ("+expr+") FROM provenance_snapshot",false)
+ }
+ raw,err=span(" IF EXISTS(SELECT 1 FROM unnest(ARRAY[",terminator);if err!=nil{return nil,err};expr=strings.TrimSuffix(strings.TrimPrefix(raw," IF "),terminator);add("private-routine-closure",raw,"SELECT NOT ("+expr+")",false)
+ if len(plan)!=10{return nil,errors.New("replay source cardinality refused")}
+ for n:=range plan {encoded,_:=orderedCurrentNative379V2CanonicalJSONFromValue([]any{"diagnostic-only-same-repeatable-read-current-role",n,plan[n].id,plan[n].sourceSpanSHA,orderedCurrentNative379V2ModuleSHA256});plan[n].placementSHA=orderedCurrentNative379V2SHA256(encoded)}
+ return plan,nil
+}
+func native379V2ValidatePrimaryReplayPlan(module []byte,plan []native379V2PrimaryReplayStep)error{want,err:=native379V2BuildPrimaryReplayPlan(module);if err!=nil||!reflect.DeepEqual(want,plan){return errors.New("replay source/query/order provenance refused")};return nil}
+func native379V2RunPrimaryReplay(ctx context.Context,module []byte,manifest string,pid int32,user string,query func(context.Context,string,...any)(bool,error))native379V2PrimaryReplay{
+ receipt:=native379V2PrimaryReplay{Scope:"diagnostic-only-ordered-prefix-replay-not-original-trace",SourceSHA256:orderedCurrentNative379V2SHA256(module),Outcome:"unknown-refused",Steps:[]native379V2PrimaryReplayObservation{}}
+ started:=time.Now();plan,err:=native379V2BuildPrimaryReplayPlan(module)
+ failure:=func(stage string,err error,sqlSHA string,started time.Time,proposedRows,proposedBytes int){meta:=native379V2CollectorFailureMetadata(ctx,orderedCurrentNative379V2Packet{},stage,err,sqlSHA,started,0,0,0,proposedRows,proposedBytes);receipt.Failure=&meta}
+ if err!=nil||!native379V2ValidSHA(manifest)||pid<=0||user==""||len(user)>63||query==nil{failure("source",errors.New("replay source or binding refused"),"",started,0,0);return receipt}
+ boundRaw,_:=orderedCurrentNative379V2CanonicalJSONFromValue([]any{pid,user,native379V2ReplayFrameSQL});binding:=orderedCurrentNative379V2SHA256(boundRaw)
+ for index,step:=range plan {
+  started=time.Now();sqlSHA:=orderedCurrentNative379V2SHA256([]byte(step.sql))
+  if err:=ctx.Err();err!=nil{failure("query",err,sqlSHA,started,0,0);return receipt}
+  // Refuse a known physical-row overflow before issuing another query.
+  snapshot:=native379V2CollectorFailureMetadata(ctx,orderedCurrentNative379V2Packet{},"query",nil,sqlSHA,started,0,0,0,1,0).Budget
+  if !snapshot.Available{failure("charge",errors.New("replay runtime budget absent"),sqlSHA,started,1,0);return receipt}
+  if snapshot.GlobalRows>=snapshot.GlobalMaxRows||snapshot.PhaseRows>=snapshot.PhaseMaxRows{failure("charge",native379V2RowByteBudgetError,sqlSHA,started,1,0);return receipt}
+  args:=[]any{};if index==0{args=[]any{pid,user}}else if step.usesManifest{args=[]any{manifest}}
+  params,_:=orderedCurrentNative379V2CanonicalJSONFromValue(args)
+  value,err:=query(ctx,step.sql,args...)
+  item:=native379V2PrimaryReplayObservation{Stage:step.id,SQLSHA256:sqlSHA,ParamsSHA256:orderedCurrentNative379V2SHA256(params),SourceSpanSHA256:step.sourceSpanSHA,PlacementSHA256:step.placementSHA,SessionBindingSHA256:binding,ElapsedNanoseconds:time.Since(started).Nanoseconds()}
+  if err!=nil{failure("query",err,sqlSHA,started,0,0);return receipt}
+  item.Value=&value
+  encoded,encodeErr:=orderedCurrentNative379V2CanonicalJSONFromValue(item);if encodeErr!=nil{failure("charge",encodeErr,sqlSHA,started,1,0);return receipt}
+  if err:=native379V2Charge(ctx,1,item);err!=nil{failure("charge",err,sqlSHA,started,1,len(encoded));return receipt}
+  receipt.Steps=append(receipt.Steps,item)
+  if !value {if index==0{receipt.Outcome="replay-session-frame-refusal"}else{receipt.Outcome="observed-prefix-refusal";receipt.FirstRefusal=step.id};return receipt}
+ }
+ receipt.Outcome="prefix-passed-primary-still-false";return receipt
+}

@@ -604,7 +604,7 @@ function decodeSecurityAgentFindingResponseArguments(value: unknown, requireEnri
 export function decodeSecurityAgentApproval(value: unknown): SecurityAgentApproval {
   const record = exactRecord(value, ["id", "run_id", "step_id", "state", "expires_at", "version", "expected_effect", "reversible", "ttl_seconds", "evidence_summary"], ["approval_context", "attack_lab", "manual_trigger"]);
   productID(record.id); productID(record.run_id); productID(record.step_id); enumValue(record.state, ["pending", "approved", "rejected", "cancelled", "expired"]); dateTime(record.expires_at); positiveInteger(record.version);
-  printableString(record.expected_effect, 1, 128); const validEffect = (record.expected_effect === "Move finding to under review" || record.expected_effect === FINDING_RESPONSE_EFFECT || record.expected_effect === "Create run-scoped evidence export") && record.ttl_seconds === 0 && record.reversible === true || record.expected_effect === "Apply temporary containment policy" && Number.isInteger(record.ttl_seconds) && (record.ttl_seconds as number) >= 60 && (record.ttl_seconds as number) <= 3600 && record.reversible === true || record.expected_effect === "Isolate runtime session" && Number.isInteger(record.ttl_seconds) && (record.ttl_seconds as number) >= 60 && (record.ttl_seconds as number) <= 3600 && record.reversible === true || record.expected_effect === "Revoke integration connection" && record.ttl_seconds === 0 && record.reversible === false || (record.expected_effect === "Run existing test" || record.expected_effect === "Rerun existing test") && record.ttl_seconds === 0 && record.reversible === false; if (!validEffect && !(record.expected_effect === ATTACK_LAB_EFFECT && record.ttl_seconds === 0 && record.reversible === false && record.attack_lab !== undefined)) fail(); decodeSecurityAgentManualEvidence(record, record.evidence_summary, 100);
+  printableString(record.expected_effect, 1, 128); const validEffect = (record.expected_effect === "Move finding to under review" || record.expected_effect === FINDING_RESPONSE_EFFECT || record.expected_effect === "Create run-scoped evidence export") && record.ttl_seconds === 0 && record.reversible === true || (record.expected_effect === "Apply temporary containment policy" || record.expected_effect === "Apply temporary monitoring policy") && Number.isInteger(record.ttl_seconds) && (record.ttl_seconds as number) >= 60 && (record.ttl_seconds as number) <= 3600 && record.reversible === true || record.expected_effect === "Isolate runtime session" && Number.isInteger(record.ttl_seconds) && (record.ttl_seconds as number) >= 60 && (record.ttl_seconds as number) <= 3600 && record.reversible === true || record.expected_effect === "Revoke integration connection" && record.ttl_seconds === 0 && record.reversible === false || (record.expected_effect === "Run existing test" || record.expected_effect === "Rerun existing test") && record.ttl_seconds === 0 && record.reversible === false; if (!validEffect && !(record.expected_effect === ATTACK_LAB_EFFECT && record.ttl_seconds === 0 && record.reversible === false && record.attack_lab !== undefined)) fail(); decodeSecurityAgentManualEvidence(record, record.evidence_summary, 100);
   if (record.expected_effect === FINDING_RESPONSE_EFFECT && record.approval_context === undefined) fail();
   if (record.approval_context !== undefined) decodeSecurityAgentApprovalContext(record.approval_context, record.expected_effect, record.run_id);
   if (record.attack_lab !== undefined) {
@@ -631,7 +631,7 @@ function decodeSecurityAgentApprovalContext(value: unknown, effect: unknown, run
   } else if (effect === FINDING_RESPONSE_EFFECT) fail();
   const risk = exactRecord(context.risk, ["class", "source"]);
   const expected: Record<string, readonly [string, string]> = {
-    update_finding_response: ["low", enrichedFinding ? FINDING_RESPONSE_EFFECT : "Move finding to under review"], create_temporary_policy: ["containment", "Apply temporary containment policy"],
+    update_finding_response: ["low", enrichedFinding ? FINDING_RESPONSE_EFFECT : "Move finding to under review"], create_temporary_policy: ["containment", effect === "Apply temporary monitoring policy" ? "Apply temporary monitoring policy" : "Apply temporary containment policy"],
     isolate_session: ["containment", "Isolate runtime session"], revoke_integration_connection: ["destructive", "Revoke integration connection"],
     run_test: ["low", "Run existing test"], rerun_test: ["low", "Rerun existing test"],
     start_attack_lab: ["moderate", ATTACK_LAB_EFFECT],
@@ -687,7 +687,7 @@ export function decodeSecurityAgentRunDetail(value: unknown): SecurityAgentRunDe
       if (step.authorization !== "approval_required" || approval.expected_effect !== "Create run-scoped evidence export" || approval.ttl_seconds !== 0 || !approval.reversible) fail();
       continue;
     }
-    const validEffect = step?.action === "update_finding_response" && (approval.expected_effect === "Move finding to under review" || approval.expected_effect === FINDING_RESPONSE_EFFECT) && approval.ttl_seconds === 0 && approval.reversible || step?.action === "create_temporary_policy" && approval.expected_effect === "Apply temporary containment policy" && approval.ttl_seconds >= 60 && approval.ttl_seconds <= 3600 && approval.reversible || step?.action === "isolate_session" && approval.expected_effect === "Isolate runtime session" && approval.ttl_seconds >= 60 && approval.ttl_seconds <= 3600 && approval.reversible || step?.action === "revoke_integration_connection" && approval.expected_effect === "Revoke integration connection" && approval.ttl_seconds === 0 && !approval.reversible || (step?.action === "run_test" && approval.expected_effect === "Run existing test" || step?.action === "rerun_test" && approval.expected_effect === "Rerun existing test") && approval.ttl_seconds === 0 && !approval.reversible;
+    const validEffect = step?.action === "update_finding_response" && (approval.expected_effect === "Move finding to under review" || approval.expected_effect === FINDING_RESPONSE_EFFECT) && approval.ttl_seconds === 0 && approval.reversible || step?.action === "create_temporary_policy" && (approval.expected_effect === "Apply temporary containment policy" || approval.expected_effect === "Apply temporary monitoring policy") && approval.ttl_seconds >= 60 && approval.ttl_seconds <= 3600 && approval.reversible || step?.action === "isolate_session" && approval.expected_effect === "Isolate runtime session" && approval.ttl_seconds >= 60 && approval.ttl_seconds <= 3600 && approval.reversible || step?.action === "revoke_integration_connection" && approval.expected_effect === "Revoke integration connection" && approval.ttl_seconds === 0 && !approval.reversible || (step?.action === "run_test" && approval.expected_effect === "Run existing test" || step?.action === "rerun_test" && approval.expected_effect === "Rerun existing test") && approval.ttl_seconds === 0 && !approval.reversible;
     if (!step || step.authorization !== "approval_required" || !validEffect && !(step.action === "start_attack_lab" && approval.expected_effect === ATTACK_LAB_EFFECT && approval.attack_lab && approval.ttl_seconds === 0 && !approval.reversible)) fail();
   }
   const execution = array(record.execution, 100); if (execution.length !== steps.length) fail(); const executionIDs = new Set<string>();
@@ -731,7 +731,7 @@ function decodeSecurityAgentActionDetails(value: unknown, steps: readonly unknow
         decodeSecurityAgentFindingResponseArguments(args);
       } else if (policy) {
         productID(args.scope); boundedInteger(args.ttl_seconds, 60, 3600); ttl = args.ttl_seconds;
-        if (item.action === "create_temporary_policy") { if (args.mode !== "block" || args.scope !== args.target_id) fail(); }
+        if (item.action === "create_temporary_policy") { if (args.mode !== "block" && args.mode !== "monitor" || args.scope !== args.target_id) fail(); }
         else { productID(args.device_id); if (args.session_id !== args.target_id) fail(); }
       } else if (exactTest) boundedInteger(args.expected_version, 1, 1000000);
       else productID(args.integration_id);
@@ -1166,7 +1166,7 @@ function decodeSecurityAgentReceiptIntent(operation: string, body: unknown, resu
 
 function decodeSecurityAgentReceiptBody(value: unknown, includeID: boolean): Record<string, unknown> {
   const fields = ["name", "trigger_kind", "trigger_source", "environment_ids", "autonomy", "max_steps", "max_duration_seconds", "temporary_policy_seconds", "ai_token_budget", "concurrency_limit", "allowed_actions", "verification_kind", "definition_version", "enabled"];
-  const record = exactRecord(value, includeID ? ["id", ...fields] : fields, ["max_ai_cost_nano_credits", "existing_test", "trigger_rules"]);
+  const record = exactRecord(value, includeID ? ["id", ...fields] : fields, ["max_ai_cost_nano_credits", "existing_test", "trigger_rules", "temporary_policy_mode"]);
   if (Object.hasOwn(record, "trigger_rules")) decodeSecurityAgentTriggerRules(record.trigger_rules, record.trigger_kind as string, record.trigger_source as string);
   if ("max_ai_cost_nano_credits" in record) boundedInteger(record.max_ai_cost_nano_credits, 1, 1000000000000);
   if (includeID) productID(record.id);
@@ -1175,6 +1175,14 @@ function decodeSecurityAgentReceiptBody(value: unknown, includeID: boolean): Rec
   boundedInteger(record.max_steps, 1, 100); boundedInteger(record.max_duration_seconds, 1, 86400); boundedInteger(record.temporary_policy_seconds, 1, 86400);
   boundedInteger(record.ai_token_budget, 1, 12000); boundedInteger(record.concurrency_limit, 1, 10); stringArray(record.allowed_actions, 32, 128, 1);
   boundedString(record.verification_kind, 1, 64); positiveInteger(record.definition_version); if (typeof record.enabled !== "boolean") fail();
+  if (Object.hasOwn(record, "temporary_policy_mode")) {
+    enumValue(record.temporary_policy_mode, ["monitor", "block"]);
+    if (record.temporary_policy_mode === "monitor") {
+      const actions = record.allowed_actions as string[];
+      if (record.autonomy !== "supervised" || record.max_steps !== 1 || actions.length !== 1 || actions[0] !== "create_temporary_policy" || record.verification_kind !== "policy_state") fail();
+      boundedInteger(record.temporary_policy_seconds, 60, 3600);
+    }
+  }
   // Legacy reads/receipts can omit intent. Any explicit reference is closed and
   // bound to exactly one test action; it never conveys execution availability.
   if (Object.hasOwn(record, "existing_test")) {

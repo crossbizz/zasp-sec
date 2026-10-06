@@ -1,0 +1,13 @@
+{
+  "version": "reviewed-current-B-source-successor-v1",
+  "seed_A_manifest_sha256": "b3d03a9e7cd86daabbd80ead85cb30a5e98f856be35c08d15227fa710dd914fa",
+  "archive": "current-B-successor-v1.tar.gz",
+  "archive_sha256": "cd07338903fddaec3ce56e3164f20501810abfa7f3ac64e02fd99a094d2c1504",
+  "archive_bytes": 5400139,
+  "files": 167,
+  "manifest_members": 166,
+  "source_pins": 159,
+  "capture_descriptors": 1862,
+  "manifest_sha256": "2b56edf0f7a190d19aeb43ab2986727aa6df89ae897c4d552b066a7e6e5e35d5",
+  "scope": "SOURCE ONLY; no Go/native/installed/production readiness; historical Darwin reference provenance preserved"
+}

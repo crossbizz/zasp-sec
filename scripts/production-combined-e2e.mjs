@@ -1,4 +1,9 @@
+import { browserCommandFailureAnnotation, emitComplianceBrowserPhaseFailure, emitComplianceAPIChildFailure, emitComplianceMigrationFailure } from "./browser-command-failure.mjs";
+import {installOwnedCurrent80,closedOwnedAmbientEnvironment,runOwnedProjectionLoop,OwnedProjectionCleanupIncomplete} from "./owned-current80-composition.mjs";
+import {startRetainedOwnedRuntimeLifetime} from "./owned-runtime-lifetime.mjs";
+import {withOwnedRuntimeStartupDiagnostics,recordOwnedRuntimeStartupFailure} from "./owned-runtime-startup-diagnostics.mjs";
 import assert from "node:assert/strict";
+import { complianceRuntimeBindings, complianceOwnedRuntimeInputs } from "./compliance-runtime-prerequisites.mjs";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, createHmac, generateKeyPairSync, randomBytes } from "node:crypto";
 import { once } from "node:events";
@@ -130,6 +135,12 @@ let policyHistory;
 let failNextRuntimeSessionSearch = false;
 let api;
 let postgres;
+let ownedResourceCleanupStarted = false;
+let currentCompliancePostgres, currentComplianceServices, currentComplianceStateRoot;
+let currentComplianceRuntimeStartup;
+let currentCompliancePreparation;
+let currentComplianceClosing=false, currentComplianceFailure;
+let currentComplianceProjectionLoop, currentComplianceProjectionController;
 let web;
 let browser;
 let secondBrowserTab;
@@ -197,7 +208,9 @@ let loseNextRecoveryBackupResponse = true;
 const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
 if (auditExportBrowserMode) installAuditBrowserFatalCleanup(()=>cleanupController.run());
 
+let compliancePhase = "services";
 try {
+  if (complianceBrowserMode) complianceOwnedRuntimeInputs(process.env);
   if (automaticDiscoveryMode) automaticDiscoverySourceHashes = await hashAutomaticDiscoveryInputs();
   const ports = await Promise.all(Array.from({ length: 8 }, reservePort));
   const [postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort] = ports;
@@ -208,11 +221,14 @@ try {
   const actionPrivateKey = Buffer.concat([Buffer.from(actionPrivateJWK.d, "base64url"), Buffer.from(actionPrivateJWK.x, "base64url")]).toString("base64url");
   const dsn = `postgres://zasp_e2e@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
   const apiDSN = `postgres://zasp_e2e_api@127.0.0.1:${postgresPort}/postgres?sslmode=disable`;
+  if (complianceBrowserMode) compliancePhase = "postgres-startup";
   postgres = await startPostgres(postgresPort);
   if (process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1") {
+    if (complianceBrowserMode) compliancePhase = "postgres-instrumentation";
     const instrumentation = await command(path.join(postgresBin, "psql"), [dsn, "-X", "-At", "-c", "SELECT current_setting('track_functions')"]);
     assert.equal(instrumentation.stdout.trim(), "pl", "concurrent-load diagnostic requires actual claim-function call accounting in its owned database");
   }
+  if (complianceBrowserMode) compliancePhase = "postgres-principal-provisioning";
   await provisionPostgresPrincipals(dsn);
   console.log("combined E2E: disposable PostgreSQL ready");
 
@@ -222,6 +238,7 @@ try {
   const workerE2EBinary = path.join(temporaryRoot, "agentsec-worker-e2e");
 	const gatewayE2EBinary = path.join(temporaryRoot, "runtime-gateway-e2e");
 	const agentsecctl = path.join(temporaryRoot, "agentsecctl");
+  if (complianceBrowserMode) compliancePhase = "command-builds";
   await command("go", ["build", "-o", migrate, "./agentsec-migrate"], { cwd: platform });
   await command("go", [auditExportBrowserMode || complianceBrowserMode || attackLabMountedMode || securityAgentExportMode ? "test" : "build", ...(auditExportBrowserMode || complianceBrowserMode || attackLabMountedMode || securityAgentExportMode ? ["-c"] : []), "-o", apiBinary, "./agentsec-api"], { cwd: platform, timeout: 120_000 });
   if (!auditExportBrowserMode) {
@@ -264,8 +281,10 @@ try {
 		ZASP_RECOVERY_WORKER_DB_PRINCIPAL: "zasp_e2e_recovery",
 		ZASP_RECOVERY_OUTBOX_DB_PRINCIPAL: "zasp_e2e_recovery_outbox",
   };
+  if (complianceBrowserMode) compliancePhase = "schema-bootstrap";
   const migrationResult = await command(migrate, ["up-to-48"], { reject: false, env: migrationEnvironment });
 	if (migrationResult.status !== 0) {
+    if (complianceBrowserMode) emitComplianceMigrationFailure(message=>console.error(message));
 		if(existingTestMountedMode && postgres.containerID) {
 			const diagnostic=await command("docker",["logs","--tail","250",postgres.containerID],{reject:false,timeout:5000});
 			console.error("owned migration diagnostic:",((diagnostic.stderr??"")+"\n"+(diagnostic.stdout??"")).split("\n").filter(line=>/ERROR:|DETAIL:|CONTEXT:|FATAL:/.test(line)).slice(-20).join("\n"));
@@ -355,7 +374,7 @@ try {
   } else if (attackLabMountedMode) {
     await exerciseAttackLabMountedBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, migrate, migrationEnvironment, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
   } else if (complianceBrowserMode) {
-    await exerciseComplianceBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
+    await exerciseComplianceBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, migrate, migrationEnvironment, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
   } else if (existingTestMountedMode) {
     await exerciseExistingTestMountedBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
   } else if (securityAgentSimulationMode) {
@@ -1326,6 +1345,9 @@ try {
   console.log("production combined E2E passed: callback/cookie/bootstrap, risk pagination/recovery, administration, PAT/receipt recovery, responsive keyboard focus, durable restart/reload, tenant denial");
   }
   }
+} catch (error) {
+  if (complianceBrowserMode) emitComplianceBrowserPhaseFailure(compliancePhase,message=>console.error(message));
+  throw error;
 } finally {
 	await cleanupController.run();
 	cleanupController.dispose();
@@ -2186,36 +2208,103 @@ COMMIT;`);
   }
 }
 
+async function prepareOwnedCurrentComplianceRuntime(configuration,complianceFixtureSQL){
+  if (ownedResourceCleanupStarted || currentComplianceClosing) throw new Error("owned current runtime startup after cleanup refused");
+  let finishPreparation;
+  currentCompliancePreparation=new Promise(resolve=>{finishPreparation=resolve;});
+  try {
+  const {migrate,migrationEnvironment,proxyPort}=configuration;
+  const archiveRoot=process.env.ZASP_BROWSER_RUNTIME_ARCHIVE_ROOT,rawRoot=process.env.ZASP_BROWSER_RUNTIME_RAW_ROOT;
+  assert.ok(typeof archiveRoot==='string'&&typeof rawRoot==='string','owned pinned runtime archive/raw inputs required');
+  if (complianceBrowserMode) compliancePhase = 'compliance-runtime-services';
+  currentComplianceStateRoot=await withOwnedRuntimeStartupDiagnostics(async()=>{try{return await mkdtemp('/tmp/zasp-browser-current-runtime-');}catch(error){throw recordOwnedRuntimeStartupFailure(error,'state-allocation');}},complianceBrowserMode);
+  if (ownedResourceCleanupStarted || currentComplianceClosing) {
+    await rm(currentComplianceStateRoot,{recursive:true,force:true});
+    throw new Error("owned current runtime startup after cleanup refused");
+  }
+  currentComplianceRuntimeStartup=withOwnedRuntimeStartupDiagnostics(()=>startRetainedOwnedRuntimeLifetime({stateRoot:currentComplianceStateRoot,archiveRoot,rawRoot,run:randomBytes(8).toString('hex')}),complianceBrowserMode);
+  currentComplianceServices=await currentComplianceRuntimeStartup;
+  if (ownedResourceCleanupStarted || currentComplianceClosing) throw new Error("owned current runtime startup after cleanup refused");
+  complianceRuntimeBindings(currentComplianceServices.environment);
+  void currentComplianceServices.completed.then(()=>{if(!currentComplianceClosing){currentComplianceFailure=new Error('owned runtime service exited');void cleanupController.run().catch(()=>{process.exitCode=1;});}},()=>{if(!currentComplianceClosing){currentComplianceFailure=new Error('owned runtime resource refused');void cleanupController.run().catch(()=>{process.exitCode=1;});}});
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-postgres';
+  const port=await reservePort(),dsn=`postgres://zasp_e2e@127.0.0.1:${port}/postgres?sslmode=disable`;
+  if (ownedResourceCleanupStarted || currentComplianceClosing) throw new Error("owned current runtime startup after cleanup refused");
+  currentCompliancePostgres=createOwnedBrowserPostgres({port});await currentCompliancePostgres.start();
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-principals';
+  await provisionPostgresPrincipals(dsn);
+  await command(path.join(postgresBin,'psql'),[dsn,'-X','-v','ON_ERROR_STOP=1','-c','CREATE ROLE zasp_e2e_temporal_executor LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS; CREATE ROLE zasp_e2e_temporal_compensation LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;']);
+  const migration={...closedOwnedAmbientEnvironment(migrationEnvironment),...Object.fromEntries(Object.entries(migrationEnvironment).filter(([key])=>key.endsWith('_DB_PRINCIPAL'))),ZASP_POSTGRES_DSN:dsn,ZASP_MIGRATION_TIMEOUT:'5m'};
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-schema';
+  await command(migrate,['up-to-56'],{env:migration,timeout:300000});
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-fixture';
+  await seedPostgres(dsn);
+  await command(path.join(postgresBin,'psql'),[dsn,'-X','-v','ON_ERROR_STOP=1','-c',complianceFixtureSQL]);
+  const publicOrigin=`https://${productHostname}:${proxyPort}`,apiDSN=`postgres://zasp_e2e_api@127.0.0.1:${port}/postgres?sslmode=disable`;
+  const currentConfiguration={...configuration,dsn,apiDSN,postgresPort:port};
+  const identityEnvironment=combinedAPIEnvironment({...currentConfiguration,publicOrigin,ownedAmbient:closedOwnedAmbientEnvironment(process.env)});
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-keys';
+  const forward=path.join(currentComplianceStateRoot,'forward.seed'),compensation=path.join(currentComplianceStateRoot,'compensation.seed');
+  await writeFile(forward,randomBytes(32),{flag:'wx',mode:0o400});await writeFile(compensation,randomBytes(32),{flag:'wx',mode:0o400});
+  if (complianceBrowserMode) compliancePhase = 'compliance-reconcile-build';
+  const reconcile=path.join(temporaryRoot,'zasp-authorization-reconcile');await command('go',['build','-o',reconcile,'./cmd/zasp-authorization-reconcile'],{cwd:platform,timeout:120000});
+  if (complianceBrowserMode) compliancePhase = 'compliance-current-profile';
+  const projection=await installOwnedCurrent80({command,migrate,reconcile,psql:path.join(postgresBin,'psql'),port,organization:'pid_10000001-0000-4000-8000-000000000001',identityEnvironment,runtimeEnvironment:currentComplianceServices.environment,keyFiles:{forward,compensation}});
+  if (ownedResourceCleanupStarted || currentComplianceClosing) throw new Error("owned current runtime startup after cleanup refused");
+  complianceRuntimeBindings(projection.environment);
+  currentComplianceProjectionController=new AbortController();
+  currentComplianceProjectionLoop=runOwnedProjectionLoop(projection,currentComplianceProjectionController.signal,()=>{currentComplianceFailure=new Error('owned authorization projection refused');void cleanupController.run().catch(()=>{process.exitCode=1;});});void currentComplianceProjectionLoop.catch(()=>{});
+  if (complianceBrowserMode) compliancePhase = 'compliance-fixture-provisioning';
+  return {configuration:{...currentConfiguration,currentRuntimeEnvironment:projection.environment},projection};
+  } finally { finishPreparation(); }
+}
+
 async function exerciseComplianceBrowser(configuration) {
-  const {dsn,apiBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
-  const sql=async statement=>(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
+  let {dsn,apiBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
+  if (complianceBrowserMode) compliancePhase = "compliance-fixture-provisioning";
+  let currentProjection;
+  const sql=async statement=>{const result=(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();if(currentProjection)await currentProjection.refresh();return result;};
   const org="pid_10000001-0000-4000-8000-000000000001",workspace="pid_10000022-0000-4000-8000-000000000022",environment="pid_10000023-0000-4000-8000-000000000023",actor="pid_10000004-0000-4000-8000-000000000004";
   const selectedScope=`${org}/${workspace}/${environment}`;
   const pagingPrefix="policy-"+"a".repeat(118);
   const pagingLast=pagingPrefix+"101";
   assert.equal(await sql("SELECT max(version) FROM zasp_schema_versions"),"56");
-  await sql(`CREATE ROLE compliance_executor LOGIN INHERIT; CREATE ROLE compliance_cleanup LOGIN INHERIT;
+  const complianceFixtureSQL=`CREATE ROLE compliance_executor LOGIN INHERIT; CREATE ROLE compliance_cleanup LOGIN INHERIT;
 SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanup',(SELECT checksum FROM zasp_schema_versions WHERE version=56),(SELECT value FROM zasp_schema_metadata WHERE key='production_compliance_fingerprint'));
 UPDATE zasp_authorized_scopes SET permissions=permissions || '["view_audit","view_compliance"]'::jsonb WHERE principal_id='${actor}';
 INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) VALUES('${org}','${workspace}','${environment}','policy','policy-compliance-browser',7,'{"raw_prompt":"NEVER_EXPORT_BROWSER"}','2020-01-01');
-INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) SELECT '${org}','${workspace}','${environment}','policy','${pagingPrefix}'||lpad(n::text,3,'0'),7,'{}','2020-01-01' FROM generate_series(1,101) n;`);
+INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) SELECT '${org}','${workspace}','${environment}','policy','${pagingPrefix}'||lpad(n::text,3,'0'),7,'{}','2020-01-01' FROM generate_series(1,101) n;`;
+  await sql(complianceFixtureSQL);
+  const current=await prepareOwnedCurrentComplianceRuntime(configuration,complianceFixtureSQL);
+  configuration={...configuration,...current.configuration};dsn=configuration.dsn;postgresPort=configuration.postgresPort;currentProjection=current.projection;
+
   const storage=await mkdtemp("/tmp/zasp-compliance-browser-");
   const object=path.join(storage,"object.json"),downloads=path.join(storage,"downloads");
   // Retained local evidence: downloaded files and exact controlled-provider bytes.
   console.log(`compliance browser evidence: ${storage}`);
   const publicOrigin=`https://${productHostname}:${proxyPort}`;
-  identity=await startIdentityServer(identityPort,publicOrigin); policyHistory=await startPolicyHistoryServer(policyHistoryPort);
-  const apiEnvironment={...combinedAPIEnvironment({...configuration,publicOrigin}), ZASP_COMPLIANCE_BROWSER_API:"true", ZASP_COMPLIANCE_BROWSER_PG_PORT:String(postgresPort), ZASP_COMPLIANCE_BROWSER_OBJECT:object,ZASP_COMPLIANCE_BROWSER_DEADLINE:new Date(Date.now()+20*60_000).toISOString(),
+  if (complianceBrowserMode) compliancePhase = "controlled-identity-startup";
+  identity=await startIdentityServer(identityPort,publicOrigin);
+  if (complianceBrowserMode) compliancePhase = "policy-history-startup";
+  policyHistory=await startPolicyHistoryServer(policyHistoryPort);
+  if (complianceBrowserMode) compliancePhase = "api-startup";
+  const apiEnvironment={...combinedAPIEnvironment({...configuration,publicOrigin,ownedAmbient:closedOwnedAmbientEnvironment(process.env)}), ...configuration.currentRuntimeEnvironment, ZASP_COMPLIANCE_BROWSER_API:"true", ZASP_COMPLIANCE_BROWSER_PG_PORT:String(postgresPort), ZASP_COMPLIANCE_BROWSER_OBJECT:object,ZASP_COMPLIANCE_BROWSER_DEADLINE:new Date(Date.now()+20*60_000).toISOString(),
     ZASP_COMPLIANCE_EXPORT_BUCKET:"zasp-compliance-exports", ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER:"123456789012",ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN:"arn:aws:kms:us-east-1:123456789012:key/11111111-1111-4111-8111-111111111111",ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN:"arn:aws:iam::123456789012:role/compliance-api-reader",ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE:"/var/run/secrets/eks.amazonaws.com/serviceaccount/token"};
-  const startAPI=async(enabled=true)=>{const environment={...apiEnvironment};if(!enabled){for(const key of Object.keys(environment))if(key.startsWith("ZASP_COMPLIANCE_EXPORT_"))delete environment[key];environment.ZASP_COMPLIANCE_BROWSER_LEGACY="true";}api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:environment});try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(e){throw new Error(`${e.message}; ${api.output()}`);}};
+  const startAPI=async(enabled=true)=>{const previousCompliancePhase=compliancePhase;const environment={...apiEnvironment};if(!enabled){for(const key of Object.keys(environment))if(key.startsWith("ZASP_COMPLIANCE_EXPORT_"))delete environment[key];environment.ZASP_COMPLIANCE_BROWSER_LEGACY="true";}if(complianceBrowserMode)compliancePhase="api-startup";api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:environment});if(complianceBrowserMode)compliancePhase="api-ready";try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(e){if(complianceBrowserMode)emitComplianceAPIChildFailure(api.output(),message=>console.error(message));throw new Error(`${e.message}; ${api.output()}`);}if(complianceBrowserMode)compliancePhase=previousCompliancePhase;};
   await startAPI(false);
+  if (complianceBrowserMode) compliancePhase = "web-startup";
   web=startChild(path.join(root,"node_modules/.bin/vinext"),["start","--port",String(webPort),"--hostname","127.0.0.1"],{cwd:root});
+  if (complianceBrowserMode) compliancePhase = "web-ready";
   await waitForHTTP(`http://127.0.0.1:${webPort}/sign-in`,200);
   const key=path.join(temporaryRoot,"compliance-tls.key"),certificate=path.join(temporaryRoot,"compliance-tls.crt");
+  if (complianceBrowserMode) compliancePhase = "tls-provisioning";
   await command("openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","1","-subj",`/CN=${productHostname}`,"-addext",`subjectAltName=DNS:${productHostname}`,"-keyout",key,"-out",certificate]);
+  if (complianceBrowserMode) compliancePhase = "proxy-startup";
   proxy=await startProxy(proxyPort,apiPort,webPort,key,certificate,dsn);
+  if (complianceBrowserMode) compliancePhase = "browser-startup";
   browser=await startBrowser(path.join(temporaryRoot,"compliance-profile"),chromePort,`${publicOrigin}/api/v1/session/start?return_to=%2Fcompliance%2Fevidence`);
   const cdp=browser.cdp;
+  if (complianceBrowserMode) compliancePhase = "browser-assertions";
   const continuityCheckpoints=[];
   let previousTraceCount=0;
   const continuity = async (label, scope, mounted = false) => {
@@ -2931,9 +3020,9 @@ VALUES('${organizationID}','${workspaceID}','${environmentID}','${integrationID}
   await auditExportProviderCommand(ready,{action:"stop"});console.log(await joinAuditExportProvider(auditExportProvider));
 }
 
-function combinedAPIEnvironment({ apiDSN, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, publicOrigin }) {
+function combinedAPIEnvironment({ apiDSN, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, publicOrigin, ownedAmbient=process.env }) {
   return {
-    ...auditBrowserEnvironment(process.env),
+    ...auditBrowserEnvironment(ownedAmbient),
     ...(auditBrowserMode ? auditBrowserAPISettings() : {}),
     HOSTNAME: "agentsec-api-production-e2e",
     ZASP_ENVIRONMENT: "test",
@@ -3165,10 +3254,16 @@ async function exercisePrecisionBrowserTenantDenial(metadata, sql, chromePort, o
 }
 
 async function cleanupOwnedResources() {
+  ownedResourceCleanupStarted = true;
+  currentComplianceClosing=true;
+  currentComplianceProjectionController?.abort();
   const cleanupErrors = [];
   const attempt = async operation => {
     try { await operation(); } catch (error) { cleanupErrors.push(error); }
   };
+  // Fence and cancel an in-flight PostgreSQL start before unrelated joins.
+  // Capture errors immediately and join this same stop at its cleanup slot.
+  const postgresCleanup = postgres ? attempt(() => stopPostgres(postgres)) : undefined;
   await attempt(() => precisionBrowserCheckpoint?.close());
   for(const proof of mountedRuntimeProofs) await attempt(()=>proof.close());
   if (runtimePipelineChild) await attempt(() => stopChild(runtimePipelineChild));
@@ -3204,7 +3299,12 @@ async function cleanupOwnedResources() {
   if (web) await attempt(() => stopChild(web));
   console.log("combined E2E: cleanup postgres");
   if (auditExportProvider) await attempt(() => auditExportProvider.stop());
-  if (postgres) await attempt(() => stopPostgres(postgres));
+  if (currentCompliancePreparation) await attempt(()=>currentCompliancePreparation);
+  if (currentComplianceRuntimeStartup) await attempt(()=>currentComplianceRuntimeStartup);
+  if(currentComplianceProjectionLoop)await attempt(()=>currentComplianceProjectionLoop);
+  if (currentComplianceServices) await attempt(()=>currentComplianceServices.close());
+  if (currentCompliancePostgres) await attempt(()=>currentCompliancePostgres.stop());
+  if (postgresCleanup) await postgresCleanup;
   console.log("combined E2E: cleanup remaining processes");
   for (const child of children.reverse()) await attempt(() => stopChild(child));
   if(exportBrowserEvidenceDirectory) await attempt(()=>writeFile(path.join(exportBrowserEvidenceDirectory,"cleanup.json"),JSON.stringify({joined:cleanupErrors.length===0,errors:cleanupErrors.map(error=>error instanceof Error?error.message:String(error)),temporaryRootRetained:cleanupErrors.length>0},null,2)));
@@ -3213,6 +3313,7 @@ async function cleanupOwnedResources() {
   // and every original error, even if a later cleanup attempt succeeded.
   if (cleanupErrors.length) throw new AggregateError(cleanupErrors, `owned resource cleanup failed; temporary root retained: ${temporaryRoot}`);
   console.log("combined E2E: cleanup files");
+  if(currentComplianceStateRoot)await rm(currentComplianceStateRoot,{recursive:true,force:false});
   await rm(temporaryRoot, { recursive: true, force: true });
 }
 
@@ -3223,6 +3324,7 @@ async function generateHarnessGitHubAppPrivateKey(target) {
 }
 
 async function startPostgres(port) {
+  if (ownedResourceCleanupStarted) throw new Error("owned PostgreSQL startup after cleanup refused");
   let isolatedRelay, discoveryCollectorBinary;
   if (attackLabMountedMode || securityAgentExportMode || automaticDiscoveryMode) {
     const image = "postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba";
@@ -3236,6 +3338,9 @@ async function startPostgres(port) {
       await chmod(discoveryCollectorBinary,0o755);
     }
   }
+  // Preparation can settle successfully after cleanup has begun. There is
+  // no await between this admission check and registering the owned fixture.
+  if (ownedResourceCleanupStarted) throw new Error("owned PostgreSQL startup after cleanup refused");
   postgres = createOwnedBrowserPostgres({ port, isolatedRelay, ...(discoveryCollectorBinary ? {discoveryCollectorBinary} : {}), trackFunctions: process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1" });
   await postgres.start();
   return postgres;
@@ -7050,6 +7155,7 @@ async function connectCDP(target) {
 }
 
 function startChild(executable, args, options = {}) {
+  if(currentComplianceFailure||currentComplianceClosing&&currentComplianceServices)throw new Error("owned current runtime unavailable");
   const child = spawn(executable, args, { cwd: options.cwd ?? root, env: options.env ?? auditBrowserEnvironment(process.env), stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   child.stdout.on("data", (value) => { output += value; });
@@ -7071,6 +7177,7 @@ async function stopChild(child) {
 }
 
 async function command(executable, args, options = {}) {
+  if(currentComplianceFailure||currentComplianceClosing&&currentComplianceServices)throw new Error("owned current runtime unavailable");
   if(existingTestMountedMode && executable === "docker" && (args[0] === "pull" || args[0] === "build")) throw new Error("mounted acceptance forbids image downloads and builds");
   const environment = options.env ?? auditBrowserEnvironment(process.env);
   const owned = spawnOwnedCommand(executable, args, {
@@ -7081,16 +7188,27 @@ async function command(executable, args, options = {}) {
   children.push(owned.child);
   ownedCommands.set(owned.child, owned);
   options.onStarted?.(owned.child);
-  let rejectShutdown;
+  let rejectShutdown,cancelledStop;
+  const cancel=()=>{cancelledStop??=owned.stop();void cancelledStop.catch(error=>rejectShutdown?.(error));};
+  options.signal?.addEventListener("abort",cancel,{once:true});if(options.signal?.aborted)cancel();
   const failedShutdown = new Promise((_, reject) => { rejectShutdown = reject; });
   let timedOut = false;
   const deadline = setTimeout(() => { timedOut = true; void owned.stop().catch(rejectShutdown); }, options.timeout ?? 30_000);
-  let result;
+  let result,operationError,operationFailed=false,cleanupFailed=false;
   try { result = await Promise.race([owned.completed, failedShutdown]); }
-  finally { clearTimeout(deadline); }
-  if (timedOut) throw new Error(`${path.basename(executable)} exceeded its deadline`);
+  catch(error){operationError=error;operationFailed=true;}
+  finally { clearTimeout(deadline);options.signal?.removeEventListener("abort",cancel);if(cancelledStop){try{await cancelledStop;}catch{cleanupFailed=true;}} }
+  if(cleanupFailed)throw new OwnedProjectionCleanupIncomplete();
+  if(operationFailed)throw operationError;
+  if (timedOut) {
+    console.error(browserCommandFailureAnnotation(executable,args,"deadline"));
+    throw new Error(`${path.basename(executable)} exceeded its deadline`);
+  }
   const { status, signal, stdout, stderr } = result;
-	if (status !== 0 && options.reject !== false) throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
+	if (status !== 0 && options.reject !== false) {
+    console.error(browserCommandFailureAnnotation(executable,args,"nonzero-exit",stderr));
+    throw new Error(`${path.basename(executable)} failed (${status ?? signal}): ${stderr || stdout}`);
+  }
   return result;
 }
 

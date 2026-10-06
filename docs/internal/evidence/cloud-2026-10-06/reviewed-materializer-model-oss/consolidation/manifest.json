@@ -1,0 +1,54 @@
+{
+  "currentAnchors": "EMPTY",
+  "format": "materializer-node-model3-selected-documentation-consolidation-v1",
+  "ledger": "728 unchanged:523 historical-production/144 component/61 external-blocked",
+  "members": {
+    "README.md": {
+      "bytes": 1262,
+      "mode": "0400",
+      "sha256": "b97d5fd3c9fbe8068c4d96e3df6bfb0a5adff0e7ba0a54b2f23227c610143260"
+    },
+    "actual-selected-scan-proof.tar.gz": {
+      "bytes": 4799,
+      "mode": "0400",
+      "sha256": "c555897095ecb43bd1de359dc57b7ab93704990efef9a5016994c1fff583a538"
+    },
+    "independent-reviews.tar.gz": {
+      "bytes": 6279,
+      "mode": "0400",
+      "sha256": "8de117822c89cdd305568c331d0043fc59a5cb0fe1c52c59c1394a7f6b6ec7ca"
+    },
+    "materializer-original-publication.tar.gz": {
+      "bytes": 16997,
+      "mode": "0400",
+      "sha256": "4aabed64c81b2072d34e33f1da818072d7f116cd19f44a72dc93d06b9695d03d"
+    },
+    "model3-curated-summary.json": {
+      "bytes": 3437,
+      "mode": "0400",
+      "sha256": "f8b3a1729d7aea5fc91d2ee0b879b7dbadcc64e99ee712f6bbcbe9b86c90bce9"
+    },
+    "original-identities-and-omissions.json": {
+      "bytes": 18334,
+      "mode": "0400",
+      "sha256": "30e78098169857c4da82caa5710e443925e853679ca429e99a0674cd36216d10"
+    },
+    "proposed-receipt-append.md": {
+      "bytes": 1665,
+      "mode": "0400",
+      "sha256": "4650c375e541669e2496bee752e2c480ee50fecb291c08017f6a1170f0bb1125"
+    },
+    "scan-addendum.json": {
+      "bytes": 768,
+      "mode": "0400",
+      "sha256": "cfa6142d6552211292cb02a667f08f21cb0ca7ab755e48755f52f74564c32a8b"
+    },
+    "tiny-node-original-publication.tar.gz": {
+      "bytes": 113322,
+      "mode": "0400",
+      "sha256": "058f1780b937b07b3e8c4a2dd84a7ba71b589199dfb4e95fb425f62adbcc3ac2"
+    }
+  },
+  "originalManifestsUnchanged": true,
+  "selectedScopesOnly": true
+}

@@ -1,0 +1,21 @@
+{
+  "format": "archived-public-reference-evidence-receipt-v1",
+  "archive": "original-sixteen-files.tar.gz",
+  "archive_bytes": 30343,
+  "archive_sha256": "f3e446bd4ec2ff342bba7881f021ce3b5356ec77ca28b4464b903920165e57cb",
+  "regular_members": 16,
+  "deterministic_second_encoding_identical": true,
+  "all_members_verified_verbatim_original_bytes": true,
+  "original_manifest_sha256": "213c95e66777b72a348fc9e691761a0f1aba6c7315e22ca1f47a569fbd5105cf",
+  "original_plain_directory_scan": {
+    "exit": 1,
+    "findings": 180,
+    "rule": "sourcegraph-access-token",
+    "verified_public_git_references": 180,
+    "unknown": 0,
+    "distinct_actual_commit_objects": 3,
+    "classification_proof_sha256": "ec57ab68a3034c8df9c362f38705a7c6dcacfd0cdba7e9649b8d36de719a70d0"
+  },
+  "candidate_independent_review_sha256": "400d7617f3e626801a66c0020a94a6bd0666f3ea085fcd13697d792ca212b0ce",
+  "policy": "Ordinary deterministic evidence archive. Original16 files remain unmodified. Normalized tar uid/gid/time/names and mode0400; no compression-based scanner-clearance inference. Original FAIL550/546/180 preserved. Fresh full-history scan after integration required; native/deployed/advisory acceptance not promoted."
+}

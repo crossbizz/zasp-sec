@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -155,7 +156,7 @@ func (processor *securityAgentActionProcessor) applyClaim(ctx context.Context, c
 	if actionKey == "" {
 		actionKey = "create_temporary_policy"
 	}
-	compiled, err := temporaryContainmentPolicies(actionKey, claim.SessionID, claim.Phase)
+	compiled, err := temporaryPolicyModePolicies(actionKey, claim.SessionID, claim.Phase, string(claim.Mode))
 	if err != nil {
 		return errWorkerExecution
 	}
@@ -216,8 +217,12 @@ func (processor *securityAgentActionProcessor) applyClaim(ctx context.Context, c
 	timer := time.NewTimer(waitLimit)
 	defer timer.Stop()
 	for {
-		_, err = processor.config.Authority.FinishTemporaryPolicyEffect(ctx, claim, processor.config.WorkerID, leaseToken, resultDigest, ids[0], ids[1])
+		result, finishErr := processor.config.Authority.FinishTemporaryPolicyEffect(ctx, claim, processor.config.WorkerID, leaseToken, resultDigest, ids[0], ids[1])
+		err = finishErr
 		if err == nil {
+			if claim.Mode == "monitor" && (result.Mode != claim.Mode || result.RunState != "needs_human" || result.RunID != claim.RunID || result.StepID != claim.StepID || result.Phase != claim.Phase || result.ResultDigest != resultDigest || claim.Phase == "apply" && result.EffectState != "cleanup_pending" || claim.Phase == "cleanup" && result.EffectState != "cleaned") {
+				return errWorkerExecution
+			}
 			return nil
 		}
 		if !errors.Is(err, apiserver.ErrRepositoryConflict) {
@@ -236,6 +241,23 @@ func (processor *securityAgentActionProcessor) applyClaim(ctx context.Context, c
 func (processor *securityAgentActionProcessor) verifyReadback(claim apiserver.TemporaryPolicyEffectClaim, readback apiserver.TemporaryPolicyTargetEnvelope, now time.Time) error {
 	var compiled []policy.CompiledPolicy
 	if json.Unmarshal(readback.Policies, &compiled) != nil {
+		return errWorkerExecution
+	}
+	actionKey := claim.ActionKey
+	if actionKey == "" {
+		actionKey = "create_temporary_policy"
+	}
+	expected, err := temporaryPolicyModePolicies(actionKey, claim.SessionID, claim.Phase, string(claim.Mode))
+	if err != nil {
+		return errWorkerExecution
+	}
+	expectedRaw, err := json.Marshal(expected)
+	if err != nil {
+		return errWorkerExecution
+	}
+	expectedCanonical, expectedOK := canonicalTemporaryPolicies(expectedRaw)
+	actualCanonical, actualOK := canonicalTemporaryPolicies(readback.Policies)
+	if !expectedOK || !actualOK || !bytes.Equal(expectedCanonical, actualCanonical) {
 		return errWorkerExecution
 	}
 	publicKey, ok := processor.config.PrivateKey.Public().(ed25519.PublicKey)
@@ -309,6 +331,13 @@ func temporaryPolicyRepositoryEnvelope(target apiserver.TemporaryPolicyTarget, p
 }
 
 func temporaryContainmentPolicies(actionKey, sessionID, phase string) ([]policy.CompiledPolicy, error) {
+	return temporaryPolicyModePolicies(actionKey, sessionID, phase, "")
+}
+
+func temporaryPolicyModePolicies(actionKey, sessionID, phase, mode string) ([]policy.CompiledPolicy, error) {
+	if mode != "" && mode != "monitor" && mode != "block" || actionKey == "isolate_session" && mode == "monitor" {
+		return nil, errWorkerExecution
+	}
 	if actionKey == "create_temporary_policy" && sessionID != "" || actionKey == "isolate_session" && !validActionSessionID(sessionID) || actionKey != "create_temporary_policy" && actionKey != "isolate_session" {
 		return nil, errWorkerExecution
 	}
@@ -328,6 +357,12 @@ func temporaryContainmentPolicies(actionKey, sessionID, phase string) ([]policy.
 		definitions = []policy.Policy{
 			{ID: "session-isolation-http-v1", Trigger: "http_request", Conditions: []policy.Condition{{Field: "http.method", Operator: "present"}, {Field: "session_id", Operator: "equals", Value: sessionID}}, Action: policy.ActionBlock},
 			{ID: "session-isolation-mcp-v1", Trigger: "tool_call", Conditions: []policy.Condition{{Field: "tool.name", Operator: "present"}, {Field: "session_id", Operator: "equals", Value: sessionID}}, Action: policy.ActionBlock},
+		}
+	}
+	if mode == "monitor" {
+		for i := range definitions {
+			definitions[i].Action = policy.ActionMonitor
+			definitions[i].ID = strings.Replace(definitions[i].ID, "containment", "monitor", 1)
 		}
 	}
 	compiled := make([]policy.CompiledPolicy, len(definitions))

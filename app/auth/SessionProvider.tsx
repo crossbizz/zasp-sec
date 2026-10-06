@@ -3,7 +3,7 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Principal, SessionBootstrap, SessionScope } from "../../apps/web/api/generated";
-import { APIProductError, requireAPIData } from "../../apps/web/api/client";
+import { APIProductError, APITransportError, requireAPIData } from "../../apps/web/api/client";
 import { decodeSessionBootstrap, decodeSessionScopePage } from "../../apps/web/api/decoders";
 import { useAPI } from "../api/APIProvider";
 
@@ -222,12 +222,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!sessionCSRF.current) throw new Error("Session CSRF token is unavailable");
     const result = await client.POST("/api/v1/session/sign-out", { params: { header: { "X-CSRF-Token": sessionCSRF.current } } });
     if (result.error) throw result.error;
+    if (result.response.status !== 204) throw new APITransportError("invalid_response", "API did not acknowledge session revocation");
+    latestLoadGeneration.current += 1;
+    activeLoad.current?.abort(new DOMException("Session signed out", "AbortError"));
+    activeLoad.current = null;
+    scopeAttempt.current = null;
+    setScopeSwitch({ status: "idle" });
     sessionCSRF.current = null;
     setCSRFToken(null);
 	setRequestScope(null);
     suspendQueryCache();
+    setStateSessionExpiry(getSessionInvalidationGeneration());
+    setStateScopeStale(getScopeStaleGeneration());
     setState({ status: "unauthenticated" });
-  }, [client, setCSRFToken, setRequestScope, suspendQueryCache]);
+  }, [client, getSessionInvalidationGeneration, getScopeStaleGeneration, setCSRFToken, setRequestScope, suspendQueryCache]);
   const signIn = useCallback((returnTo?: string) => {
     window.location.assign(buildSignInURL(returnTo ?? `${window.location.pathname}${window.location.search}`));
   }, []);
