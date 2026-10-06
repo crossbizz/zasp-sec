@@ -1,0 +1,60 @@
+{
+  "format": "independent-native379-v2-Go-failclosed-source-review-v1",
+  "assessment": "SOURCE-REVIEW-PASS; NATIVE-READINESS-BLOCKED",
+  "implementation_sha256": "da6d2bf06c99b0e95ae5abf940bcf2da89b203e973fd4d39aea214070076b912",
+  "companion_sha256": "25db996134b0f804366b530ed129508f9b013168842a5bd367ad3c773fdac344",
+  "compiled_anchors": "All seven empty; native opt-in remains closed before tool subprocesses.",
+  "source_roster_sha256": "44898f917fa13db57ba2e2da79fdcfe03f3f522aa2aff2e61223c397776ec99c",
+  "source_roster_actual_implementation_matches": true,
+  "source_review": {
+    "raw_boundary": "strict UTF8, depth, duplicate-at-every-depth, root-field, trailing/canonical newline, exact rawSHA admission",
+    "resolved_prior_finding": "private admittedRawSHA; Raw hash rechecked; full typed projection compared with fresh decode; compiled-pin re-admission; detached control refusal; deepclone before native-owned execution",
+    "observations": "independent observed SQLSTATE/rows/captures, observation digest and role/backend checks; Matched alone cannot grant acceptance",
+    "budget": "runtime global/phase row+byte charging before retention, phase deadlines, fixed and observed preimage replay; complete required evidence currently refuses unchanged caps",
+    "closure": "complete Node roster plus separately full-Go-bound excluded companion; envelope/source/module/PG binding repeated after owned cleanup",
+    "actual_589_control_path": "one compiled Admission/raw-tether+deepclone, then private owned executor per control; no whole25MB decode per actual control",
+    "canonical": "U2028/U2029 helper distinguishes actual string escapes from escaped backslash literals; final focused test passes",
+    "feasibility": "Pure exact packet accounting includes SessionIdentity, per-step ObserveRole (poison exception preserved), declared output rows; real native/owned executor refuses before fixture at forged-entry6148>2048. No role assertion optimization, controls or caps changed."
+  },
+  "preserved_scope": {
+    "rules": 379,
+    "controls": 589,
+    "private_routines": 8,
+    "expected_source_facts": 10052,
+    "role_sites": 565,
+    "row_cap": 38240,
+    "byte_cap": 85983232,
+    "time_cap_ms": 750000,
+    "legacy_anchors_unchanged": true
+  },
+  "verification": {
+    "final_log": "/tmp/zasp-native379-v2-final-da6d-verified-refusal-green.log",
+    "final_log_sha256": "c588ddd3b2963760cfbc12e3b9be92e43fe9b05dbc6df636248145c4a1e95274",
+    "top_level_passed": 7,
+    "named_refusal_subtest_passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_seconds": 34.423,
+    "scope": "Actual Node-generated complete source wire; offline scripted589 outcome/tether/forgery/poison/clone controls and budget refusal. No native PG.",
+    "historical_RED": {
+      "path": "/tmp/zasp-native379-v2-final-4a19-source-wire-green.log",
+      "sha256": "607ed9d89628e385f52d34309e9a9901fd4967c77586a67b6c6050a44ee7d036",
+      "top_level_passed": 6,
+      "failed": 1,
+      "reason": "Complete physical runtime budget evidence exceeds unchanged forged-entry cap; retained not rewritten."
+    }
+  },
+  "findings": {
+    "source_blockers": [],
+    "native_acceptance_blockers": [
+      "Authenticated source packet requires6148 physical forged-entry rows under current protocol; unchanged cap2048. Native path must remain closed."
+    ],
+    "resolved": [
+      "Raw-to-typed execution tether",
+      "Detached control refusal",
+      "Consumption-time budgets and independent recorded-preimage evidence",
+      "Previously unexercised full589 scripted validators now run after explicit verified feasibility refusal."
+    ]
+  },
+  "limits": "Source-only fail-closed batch. All seven compiled anchors empty. No actual native result, Go executable-envelope acceptance, installed/deployed/provider or production readiness. Private zero-row assertion design/TDD is separate."
+}

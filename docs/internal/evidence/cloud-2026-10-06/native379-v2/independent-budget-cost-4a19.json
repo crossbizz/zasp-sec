@@ -1,0 +1,99 @@
+{
+  "format": "independent-native379-v2-source-budget-cost-v1",
+  "packet_sha256": "3f36899b4192ed77344696d233100d50f58e13114714715ee77a86e9693f1c4c",
+  "source_go_sha256": "4a19be4156245c2677ff399b74834b1e9f0a759f27d2ca5605289c0f5cb72025",
+  "model": "Exact source expected outcomes and Go scripted identity zasp_test/37980; returned physical rows and canonical preimages, not native observations or PostgreSQL scanned tuples",
+  "phase_costs": {
+    "preflight": {
+      "rows": 0,
+      "bytes": 0,
+      "controls": 0,
+      "steps": 0,
+      "identity_rows": 0,
+      "role_rows": 0,
+      "query_output_rows": 0,
+      "zero_row_preimages": 0
+    },
+    "pristine-truth": {
+      "rows": 10058,
+      "bytes": 10068231,
+      "controls": 0,
+      "steps": 0,
+      "identity_rows": 0,
+      "role_rows": 0,
+      "query_output_rows": 0,
+      "zero_row_preimages": 0
+    },
+    "drift": {
+      "rows": 1957,
+      "bytes": 114924,
+      "controls": 124,
+      "steps": 1351,
+      "identity_rows": 124,
+      "role_rows": 1351,
+      "query_output_rows": 482,
+      "zero_row_preimages": 869
+    },
+    "forged-entry": {
+      "rows": 6148,
+      "bytes": 367426,
+      "controls": 388,
+      "steps": 4225,
+      "identity_rows": 388,
+      "role_rows": 4225,
+      "query_output_rows": 1535,
+      "zero_row_preimages": 2690
+    },
+    "null-error-lazy-demand": {
+      "rows": 978,
+      "bytes": 69429,
+      "controls": 68,
+      "steps": 701,
+      "identity_rows": 68,
+      "role_rows": 701,
+      "query_output_rows": 209,
+      "zero_row_preimages": 492
+    },
+    "frame-restoration": {
+      "rows": 114,
+      "bytes": 8119,
+      "controls": 9,
+      "steps": 71,
+      "identity_rows": 9,
+      "role_rows": 70,
+      "query_output_rows": 35,
+      "zero_row_preimages": 36
+    },
+    "cleanup-result": {
+      "rows": 0,
+      "bytes": 0,
+      "controls": 0,
+      "steps": 0,
+      "identity_rows": 0,
+      "role_rows": 0,
+      "query_output_rows": 0,
+      "zero_row_preimages": 0
+    }
+  },
+  "global_rows": 19255,
+  "global_bytes": 10628129,
+  "first_overflow": {
+    "phase": "forged-entry",
+    "control": "rule:temporal:74.owner66_fingerprint:index",
+    "step": null,
+    "kind": "identity",
+    "charge_index": 15829,
+    "before_phase_rows": 2048,
+    "before_phase_bytes": 121856,
+    "charge_rows": 1,
+    "charge_bytes": 48,
+    "proposed_rows": 2049,
+    "proposed_bytes": 121904,
+    "caps": {
+      "maxBytes": 4194304,
+      "maxMilliseconds": 60000,
+      "maxRows": 2048
+    }
+  },
+  "scope_limit": "Capture mock snapshots and literal one-row field names are scripted; byte totals are source-model costs, not measured native byte costs. Forged-entry identity/role row lower bound is independent of payload and native session values."
+}

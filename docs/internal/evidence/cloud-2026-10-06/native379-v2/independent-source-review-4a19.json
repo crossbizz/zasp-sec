@@ -1,0 +1,55 @@
+{
+  "format": "independent-native379-v2-source-review-v1",
+  "assessment": "SOURCE-ONLY-FAIL-CLOSED-PREPARATION; NATIVE-READINESS-BLOCKED",
+  "reviewer": "review_capture_dependency",
+  "reviewed_go_sha256": "4a19be4156245c2677ff399b74834b1e9f0a759f27d2ca5605289c0f5cb72025",
+  "reviewed_packet_sha256": "3f36899b4192ed77344696d233100d50f58e13114714715ee77a86e9693f1c4c",
+  "reviewed_source_manifest_sha256": "8a86da0fda2b9e2bd46ebf3421696caf1fb5754b90fc5965fd1a4685ca699618",
+  "findings": {
+    "Critical": [],
+    "Important": [
+      {
+        "title": "Complete forged-entry execution cannot fit the unchanged phase row cap",
+        "file": "/workspace/zasp-sec/services/platform/migrations/tools/ordered-current-native379-packet-v2.mjs",
+        "line": 30,
+        "runtime_file": "/workspace/zasp-sec/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+        "runtime_lines": [
+          1863,
+          1875,
+          2074
+        ],
+        "evidence": "388 control SessionIdentity queries plus4225 actual step role-observation queries require4613 returned rows even before1535 program result rows; unchanged forged-entry cap2048. Full source-model cost6148 rows/367426 canonical bytes. First overflow occurs on SessionIdentity for rule:temporal:74.owner66_fingerprint:index at2048->2049 rows. This is not helper double-counting: each identity/role observation is an actual separate pgx query.",
+        "consequence": "The complete589-control authentic-wire group is6PASS/1FAIL; future native executor correctly aborts at row cap and cannot publish success under this unchanged packet.",
+        "required_disposition": "Preserve failure and empty anchors; do not claim native readiness, increase limits, omit declared controls, or omit mandatory query observations. Source-only fail-closed preparation is reviewable with this blocker explicit."
+      }
+    ],
+    "Minor": []
+  },
+  "verified": {
+    "source_closure": "All1544 fixed source member hashes and no-symlink topology match actual workspace; included stable Go implementation and only explicit packet-derived companion excluded from Node; companion still required in full Go frozen envelope.",
+    "archive": "Every final archive file0400; eight archived source/artifact identities match workspace; gzip decompresses exact canonical raw packet25,160,408bytes.",
+    "identity_and_scope": "379rules/10052sourcefacts/565sites/8routines/589controls; LinuxNode exact executable hash; historical Darwin PG reference distinct from anticipated native Linux PG; no native/installable/capture authority and pending gates unchanged.",
+    "delta": "Independent retained source-1 old10053 manifest baseline and regenerated current outputs verified +1 resolver/-2 equivalent temporal aliases,8 shared payload changes, complete379 countledger; exact full witnessSHA484c6c266ae1f8b3264c169fa9572660230a67cbd7536711d5505aeedd1e6e97.",
+    "raw_tether": "Every typed projection compared against rehashed exact raw JSON; detached controls and typed SQL/expectation mutations refused. Observed outcomes independently compared with expected values rather than relying on Matched flag.",
+    "runtime_budgets": "Canonical-byte/row charge before result retention; fixed phase deadlines inherited by SQL step contexts; phase reentry cannot reset deadline; same global budget spans pristine and all controls; canceled pristine does not cancel global/drift. Six fixed observations + complete facts + every control/session/role/error preimage exactly bound by no-leftover ledger replay and exact counters. Endpoint matches preinstall port; stage durations aggregate by phase.",
+    "nested_go": "Original fixture nested go run receives registrationReferenceGoEnvironment from bound Go build before fixture.",
+    "immutable_preservation": "git diff --name-only empty; candidate files are new untracked version2 files; seven trust anchors empty."
+  },
+  "tests": {
+    "Node": "6PASS/0FAIL/0SKIP31.532sec exact4a19 source log /tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-reviewed-4a19-green.log",
+    "Go": "6PASS/1FAIL/0SKIP25.883sec exact4a19 full authentic-wire source group; filename ends-green.log but actual statusFAIL; log /tmp/zasp-native379-v2-final-4a19-source-wire-green.log SHA607ed9d89628e385f52d34309e9a9901fd4967c77586a67b6c6050a44ee7d036"
+  },
+  "independent_budget_witness": {
+    "path": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-budget-cost-4a19.json",
+    "sha256": "84f895d2fe136b6abb438d24a4b38cac937108443f1cf186600c164cc3e9e01c",
+    "scope": "Exact source-scripted returned-row/canonical-byte costs, not native observations or PostgreSQL internally scanned tuples. Byte sizes use scripted zasp_test/37980 identities and mock captures; unavoidable forged-entry identity/role lower bound does not depend on mock payloads."
+  },
+  "declined_to_judge": [
+    "Actual PostgreSQL/native379 execution, cleanup or native result validity: none executed by reviewer.",
+    "Full consumed Go/tool/module/test-binary frozen closure and external envelope: not yet supplied as completed artifact.",
+    "Original fixture preparation cancellation: historical setup helper retains its internal timeout; callback deadline seeded from fixtureStart and elapsed phase admission rejects overrun but does not cancel earlier preparation.",
+    "Actual native byte cost, runtime durations and production capacity.",
+    "Varied login/OID/platform portability, installed worker acceptance, provider/deployment or release authority."
+  ],
+  "readiness": "Suitable only as source-only failure-preserving preparation. Not ready for anchor activation or native admission."
+}
