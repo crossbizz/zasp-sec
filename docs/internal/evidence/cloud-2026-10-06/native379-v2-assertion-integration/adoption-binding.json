@@ -1,0 +1,13 @@
+{
+  "baseline": "3c123ef46fc9982c503384d44a93045984a3ec89",
+  "adoptionHead": "7549131b324ffd72ae871ac5584c62337b9c5a31",
+  "headDifferences": "documentation-only; exact other1543 roster byte checks retained",
+  "changedSourcePaths": [
+    "services/platform/migrations/tools/ordered-current-native379-packet-v2.mjs",
+    "services/platform/migrations/tools/ordered-current-native379-source-schema-v2.mjs",
+    "services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json",
+    "services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go"
+  ],
+  "anchors": "seven empty, unchanged25db9961 companion",
+  "scope": "source-only; no native PostgreSQL execution or capacity/release approval"
+}

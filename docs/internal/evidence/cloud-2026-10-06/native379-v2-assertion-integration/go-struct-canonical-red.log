@@ -1,0 +1,8 @@
+=== RUN   TestNative379V2CanonicalWirePreservesJSStringBoundaries
+=== RUN   TestNative379V2CanonicalWirePreservesJSStringBoundaries/struct-map-receipt-canonical-equivalence
+    authorization_worker_ordered_current_native379_v2_test.go:3657: struct receipt canonical order differs from map/raw replay
+--- FAIL: TestNative379V2CanonicalWirePreservesJSStringBoundaries (0.00s)
+    --- FAIL: TestNative379V2CanonicalWirePreservesJSStringBoundaries/struct-map-receipt-canonical-equivalence (0.00s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.019s
+FAIL

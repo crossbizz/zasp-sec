@@ -113,11 +113,10 @@ PostgreSQL envelope, feasible actual execution, varied-login/OID portability,
 unchanged-limit capacity, installed workers and deployed acceptance remain
 open. Original 728 mappings and milestone acceptance are unchanged.
 
-A separate private protocol candidate is testing zero-row server assertions
-for every required role/session check. Such a change must preserve actual
-identity verification, poisoning/recovery and all original program SQL/limits;
-expected values cannot be mislabeled as observed role values. It has not been
-integrated or accepted here.
+The later zero-row server-assertion integration is recorded below. The
+verified refusal above and its original failed budget evidence remain retained
+as historical checkpoints; their source manifests and packet identities were
+not rewritten.
 
 Independent exact-component rerun also passed seven groups and the named
 refusal, zero failures/skips; the full-wire case took 34.26 seconds. It used
@@ -151,3 +150,76 @@ Historical provenance limitations are unchanged. No scanner, ignore,
 configuration, security/release guard or history change cleared this gate.
 The branch remains a draft PR; merge/release readiness is blocked, not
 claimed from repository push permission or scoped component tests.
+
+
+## Reviewed zero-row assertion source integration
+
+The separately reviewed private candidate was adopted after confirming that
+commit `7549131b324ffd72ae871ac5584c62337b9c5a31` differs from the private
+`3c123ef4` baseline only in documentation. Exactly four reviewed source files
+changed: the Go v2 implementation and its source-manifest, schema-manifest
+and packet-schema hash bindings. The other 1,543 source inputs are unchanged.
+Original 379 rules, 10,052 facts, 565 sites, eight routines, all 589 complete
+programs and every phase/total limit are exactly equal to the retained d949
+packet. Seven compiled anchors remain empty.
+
+The fixed qualified 390-byte parameterized assertion checks expected role,
+actual bootstrap session user and backend PID. It accepts only an exhausted
+zero-row stream with clean completion and `SELECT 0`. Receipts explicitly
+label the role as asserted; they bind the SQL, parameters, connection identity
+and source placement and charge canonical receipt bytes and elapsed time.
+Source-matched declared errors carry the successful prior guard through only
+the declared recovery step, followed by a fresh assertion. Poison, mismatches,
+nonzero/incomplete results, cancellation, stale connection identity and forged
+recovery/budget evidence are refused.
+
+The separate disposable PostgreSQL protocol evidence retains genuine row-
+producing and hostile-lookup REDs plus eight reviewed GREEN controls with ten
+immediate subcases and normal cleanup. That protocol run does not establish
+native379 acceptance. Integrated tests launch no PostgreSQL: all 589 recorded
+outcomes across 6,348 source steps are validated, with seven scripted executor
+invocations across six selected recovery controls. The original authentic
+47444 integration failed 8-pass/1-fail on canonical receipt ordering; its log
+and source checkpoint remain, alongside the struct/map canonical RED. The
+final normalization repair retains the Unicode/HTML safeguards.
+
+Final Node results: six passed, zero failed/skipped, 26.129 seconds. Author Go
+results: nine passed, zero failed/skipped, 50.487 seconds. Independent exact-
+component rerun: nine passed, zero failed/skipped; authentic matrix 51.98
+seconds. The fixed scripted complete ledger is 12,908 rows / 15,035,885 bytes,
+including forged-entry 1,923 rows / 3,303,847 bytes, within unchanged limits.
+These are source/component observations, not native PostgreSQL capacity.
+
+Final adopted identities:
+
+- Go implementation: `05f314d326b85a56f98370431dc8fb4d7088d9ac9ddf8c73eebf3261d2b4f3e8`.
+- Source manifest: `0bac52d45ea7aeb417561cab1481e35842b94f62d41caeacf4878df794aafa56`.
+- Canonical packet: `ca7dd2ad47a4afcea9f0dfca48d10e5e4b8876c0daf6450c33a66776e830d5e9`, 25,160,408 bytes.
+- Durable packet gzip: `86ad21413f985c8e73b3692190b81bb51a4af26d970ad71a93b838f102006510`, 1,578,280 bytes.
+- Assertion SQL: `81e2b073cc50b21204754d51c4f7b3cadbbff5f21978d24ab566e9080acf4c87`, 390 bytes.
+
+The bounded durable directory
+`evidence/cloud-2026-10-06/native379-v2-assertion-integration/` retains protocol
+sources/reviews and RED/GREEN logs, failed integration source checkpoints,
+final compressed packet, exact source delta, component identity, independent
+rerun/review and varied-login boundary witness. Its manifest binds every
+member (manifest SHA256 `c10cb7402738b2ad4d6c021c51b81100b7114252cf0c368dad9102e229c932a2`). The original native379-v2 evidence directory remains unchanged.
+
+The legal escaped 63-byte PostgreSQL login witness requires 5,875,640 forged-
+entry bytes against the unchanged 4,194,304 cap despite rows and timing fitting.
+Fixed-fixture success therefore does not prove varied-login portability;
+actual live byte overflow must still refuse. A later newly frozen build must
+regenerate all eight derived outputs, retain explicit Git-to-derived deltas,
+include the excluded anchor companion in the full consumed Go envelope and
+complete independent review before any native opt-in. No native379 SQL,
+anchor activation, worker readiness or deployed acceptance occurred here.
+The packet stays NATIVE-PARITY-PENDING with installable, nativeVerified and
+captureAuthority false. All 728 IDs, 523/144/61 categories, milestone acceptance,
+546-finding security gate and merge/release/deployment guards remain unchanged.
+
+
+Root independently reran both adopted-tree v2 Node groups with the exact pinned
+Node: six passed, zero failed/skipped, 26.211 seconds. Diff whitespace checks
+were clean; the original 728 IDs, 523/144/61 categories and zero missing rows
+remain valid. Fresh main fetch remained d21f036e with the initial e13ccb95
+ancestor confirmed. These read-only checks grant no native/deployed authority.

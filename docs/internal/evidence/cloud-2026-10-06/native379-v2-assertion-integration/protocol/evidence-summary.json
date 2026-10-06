@@ -1,0 +1,89 @@
+{
+  "red-observation-arity.log": {
+    "sha256": "5be35d7b3f71dcadd48a9dbfd290ae9e4a108f0675a5cf520d7334e2fe6e82d4",
+    "top_level_pass": 2,
+    "top_level_fail": 5,
+    "immediate_subcase_pass": 0,
+    "immediate_subcase_fail": 10,
+    "skips": 0,
+    "normal_owned_cleanup": true
+  },
+  "red.log": {
+    "sha256": "a5e2c0978e992e441c4a77cedd45988b36701c122b30f7428f4eb68d54f44963",
+    "top_level_pass": 2,
+    "top_level_fail": 5,
+    "immediate_subcase_pass": 0,
+    "immediate_subcase_fail": 10,
+    "skips": 0,
+    "normal_owned_cleanup": true
+  },
+  "green.log": {
+    "sha256": "ad194ea0e870d2beb5bc4b5827455bfff9e343a23e232a19756a3615f8471ad8",
+    "top_level_pass": 7,
+    "top_level_fail": 0,
+    "immediate_subcase_pass": 10,
+    "immediate_subcase_fail": 0,
+    "skips": 0,
+    "normal_owned_cleanup": true
+  },
+  "green-final.log": {
+    "sha256": "3c3bfc01cb3325e776c902f3b881a1c07272bfd71ee0c4eea938fce19a5633de",
+    "top_level_pass": 8,
+    "top_level_fail": 0,
+    "immediate_subcase_pass": 10,
+    "immediate_subcase_fail": 0,
+    "skips": 0,
+    "normal_owned_cleanup": true
+  },
+  "assertion.go": {
+    "sha256": "ae0eaf96feada3484f351b9d945f3f39185e04048555ab0a224768eaf384ed0a"
+  },
+  "assertion_test.go": {
+    "sha256": "e3604aea64767cea7e5292a80d7760ef38fa32e10ae5018d98798d94456ff8ee"
+  },
+  "assertion-red.go.snapshot": {
+    "sha256": "991b1ae0828e8c0782252d4659f61c337aa009d4b38d6ff0422a9e741c17614f"
+  },
+  "go.mod": {
+    "sha256": "3d0176805b0c3fa8ce90b3984650e9dae08baaa13dc2dcbdc5528493326756b0"
+  },
+  "go.sum": {
+    "sha256": "a99d2c9979401b020e8ce1c7818276f05c820dce5f43820566ba94121bf48825"
+  },
+  "assertion_sql": {
+    "sha256": "81e2b073cc50b21204754d51c4f7b3cadbbff5f21978d24ab566e9080acf4c87",
+    "utf8_bytes": 390,
+    "parameter_order": [
+      "expected_role",
+      "owned_bootstrap_session_user",
+      "owned_bootstrap_backend_pid"
+    ],
+    "success_rows": 0,
+    "success_command_tag": "SELECT 0",
+    "mismatch_or_null_sqlstate": "22012"
+  },
+  "README.md": {
+    "sha256": "1b878d32b112641e659cdf25fb273b7f0e15779bc1fc1c2b456da0baa3733574"
+  },
+  "shadow-red.log": {
+    "sha256": "8fc8afce37b4d54210c4048444da98a900149d0f0642e9e998d20cfebeb86ba8",
+    "top_level_pass": 7,
+    "top_level_fail": 1,
+    "immediate_subcase_pass": 10,
+    "immediate_subcase_fail": 0,
+    "skips": 0,
+    "normal_owned_cleanup": true
+  },
+  "green-reviewed.log": {
+    "sha256": "41acc6756e501e1d1ff6665c9441de959c47ea76c4819369590f590d60bf9e9c",
+    "top_level_pass": 8,
+    "top_level_fail": 0,
+    "immediate_subcase_pass": 10,
+    "immediate_subcase_fail": 0,
+    "skips": 0,
+    "normal_owned_cleanup": true
+  },
+  "assertion-shadow-red.go.snapshot": {
+    "sha256": "b7deace6fa4f2c1e6f179c0aedce2653f644432911fc55f82876c6a8c92f4e9c"
+  }
+}

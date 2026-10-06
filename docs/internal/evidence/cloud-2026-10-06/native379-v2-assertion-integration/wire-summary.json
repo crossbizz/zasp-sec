@@ -1,0 +1,14 @@
+{
+  "directory": "/workspace/.zasp-cloud-owned/native379-v2-assertion-integration-HZNNAN/candidate-05f314-t2l_d_0s",
+  "wireSHA256": "ca7dd2ad47a4afcea9f0dfca48d10e5e4b8876c0daf6450c33a66776e830d5e9",
+  "wireBytes": 25160408,
+  "gzipSHA256": "86ad21413f985c8e73b3692190b81bb51a4af26d970ad71a93b838f102006510",
+  "gzipBytes": 1578280,
+  "status": "NATIVE-PARITY-PENDING",
+  "rules": 379,
+  "facts": 10052,
+  "controls": 589,
+  "sourceManifestSHA256": "0bac52d45ea7aeb417561cab1481e35842b94f62d41caeacf4878df794aafa56",
+  "goImplementationSHA256": "05f314d326b85a56f98370431dc8fb4d7088d9ac9ddf8c73eebf3261d2b4f3e8",
+  "allPacketNonAuthorityFieldsIdenticalToRetainedD949": true
+}

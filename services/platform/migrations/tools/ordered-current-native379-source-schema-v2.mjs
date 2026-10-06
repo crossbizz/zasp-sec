@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 
 const root=path.resolve(fileURLToPath(new URL('../../../../',import.meta.url)));
-const manifestSHA256='44898f917fa13db57ba2e2da79fdcfe03f3f522aa2aff2e61223c397776ec99c';
+const manifestSHA256='0bac52d45ea7aeb417561cab1481e35842b94f62d41caeacf4878df794aafa56';
 const sha=raw=>crypto.createHash('sha256').update(raw).digest('hex');
 const fail=message=>{throw Error('ordered-current native379 v2 source '+message);};
 const canonical=value=>JSON.stringify(value,(_,item)=>{

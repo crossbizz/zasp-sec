@@ -1,22 +1,22 @@
 # Agent Security Platform Implementation Status
 
-## Cloud source-refusal receipt, October 6, 2026
+## Cloud source-only assertion receipt, October 6, 2026
 
-A separately versioned Linux native379 source packet retains all 379 rules,
-589 controls and original caps while binding the current source/Go closure.
-Independent review caught mutable typed execution views and missing physical
-row/byte accounting; the new admission and result checks address those gaps.
-Complete budget evidence then genuinely failed: forged-entry needs at least
-4,613 identity/role query rows against its unchanged 2,048 cap. The reviewed
-source-only batch now refuses before the owned fixture, with seven grouped
-Go tests and six Node tests passing. Original RED evidence is retained; native
-anchors remain empty. This is verified refusal, not native readiness.
+The reviewed Linux native379 zero-row assertion integration preserves all
+379 rules, 10,052 source facts, 589 complete programs and original caps.
+Actual bootstrap session user/PID and qualified parameterized assertions bind
+role receipts; source-declared poison/error recovery requires fresh assertions.
+Final source-only tests pass six Node groups and nine Go groups; independent
+rerun passes nine groups. Original physical-budget and canonical RED evidence
+and prior refusal manifests remain retained. Seven native anchors stay empty;
+no native379 PostgreSQL execution or readiness promotion occurred.
 
-Fresh runtime inventory found all 162 inspected ZASP loader bindings absent;
-generic credentials do not establish an approved product deployment. Full
-history security scan remains failed with 546 findings (538 retained plus
-eight independently verified source digests), and deployed acceptance remains
-blocked. See [the October 6 receipt](cloud-continuation-receipt-2026-10-06.md).
+The fixed scripted ledger fits unchanged limits, but a legal escaped 63-byte
+login exceeds the forged-entry byte cap. Varied-login portability, new full
+frozen/derived build closure, native parity and deployed acceptance remain open.
+Fresh runtime inventory found all 162 inspected ZASP loader bindings absent.
+The full-history security scan still fails with 546 findings; merge/release
+readiness remains blocked. See [the October 6 receipt](cloud-continuation-receipt-2026-10-06.md).
 All 728 IDs and 523/144/61 evidence categories remain unchanged.
 
 ## Cloud runtime receipt, October 5, 2026

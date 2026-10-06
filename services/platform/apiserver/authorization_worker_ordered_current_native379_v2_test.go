@@ -257,18 +257,21 @@ type orderedCurrentNative379V2Operation struct {
 }
 
 type orderedCurrentNative379V2ControlStepResult struct {
-	ID                  string          `json:"id"`
-	Outcome             string          `json:"outcome"`
-	SQLState            string          `json:"sqlState"`
-	DeclaredRole        string          `json:"declaredRole"`
-	ObservedRole        string          `json:"observedRole"`
-	ObservedSessionUser string          `json:"observedSessionUser"`
-	ObservedBackendPID  int32           `json:"observedBackendPID"`
-	RoleObservation     string          `json:"roleObservation"`
-	Observation         json.RawMessage `json:"observation"`
-	ObservedSHA256      string          `json:"observedSHA256"`
-	Matched             bool            `json:"matched"`
-	TimedOut            bool            `json:"timedOut"`
+	ID                        string                       `json:"id"`
+	Outcome                   string                       `json:"outcome"`
+	SQLState                  string                       `json:"sqlState"`
+	DeclaredRole              string                       `json:"declaredRole"`
+	RoleAssertion             *native379V2AssertionReceipt `json:"roleAssertion,omitempty"`
+	RecoveryPredecessorSHA256 string                       `json:"recoveryPredecessorSHA256,omitempty"`
+	RecoverySQLState          string                       `json:"recoverySQLState,omitempty"`
+	CarriedAssertionSHA256    string                       `json:"carriedAssertionSHA256,omitempty"`
+	BoundSessionUser          string                       `json:"boundSessionUser"`
+	BoundBackendPID           int32                        `json:"boundBackendPID"`
+	RoleObservation           string                       `json:"roleObservation"`
+	Observation               json.RawMessage              `json:"observation"`
+	ObservedSHA256            string                       `json:"observedSHA256"`
+	Matched                   bool                         `json:"matched"`
+	TimedOut                  bool                         `json:"timedOut"`
 }
 
 type orderedCurrentNative379V2AdmittedPacket struct {
@@ -509,7 +512,8 @@ func orderedCurrentNative379V2CanonicalJSONFromValue(value any) (json.RawMessage
 	if err := encoder.Encode(value); err != nil {
 		return nil, errors.New("native379 observation encoding refused")
 	}
-	return json.RawMessage(native379V2JSONStringSeparators(bytes.TrimSuffix(canonical.Bytes(), []byte{'\n'}))), nil
+	normalized, err := orderedCurrentNative379V2CanonicalJSON(canonical.Bytes())
+	return json.RawMessage(normalized), err
 }
 
 func orderedCurrentNative379V2DiagnosticFact(raw json.RawMessage) ([]byte, string) {
@@ -1075,8 +1079,8 @@ func validateOrderedCurrentNative379V2ControlResults(packet orderedCurrentNative
 	}
 	index := 0
 	phaseDuration := make(map[string]int64, len(packet.Phases))
-	observedSessionUser := ""
-	var observedBackendPID int32
+	boundSessionUser := ""
+	var boundBackendPID int32
 	for _, phase := range packet.Phases {
 		evidenceCtx, cancel, e := evidenceBudget.phase(context.Background(), phase.ID)
 		if e != nil {
@@ -1091,8 +1095,13 @@ func validateOrderedCurrentNative379V2ControlResults(packet orderedCurrentNative
 			if result.ID != id || result.Phase != phase.ID || result.MutationSHA256 != control.MutationSHA256 || !result.Restored || result.Milliseconds < 0 || len(result.Steps) != len(control.Program.Steps) {
 				return errors.New("native379 control result identity or restoration refused")
 			}
+			if result.Milliseconds > phaseLimit[phase.ID]-phaseDuration[phase.ID] {
+				return errors.New("native379 v2 control phase time overflow")
+			}
 			phaseDuration[phase.ID] += result.Milliseconds
 			captures := map[string]any{}
+			var poisonReceiptSHA string
+			var assertionElapsed int64
 			for stepIndex, step := range control.Program.Steps {
 				got := result.Steps[stepIndex]
 				wantState := "00000"
@@ -1117,35 +1126,64 @@ func validateOrderedCurrentNative379V2ControlResults(packet orderedCurrentNative
 						return err
 					}
 				}
-				wantRoleObservation := "before"
-				if step.ID == "recover-probe" {
-					wantRoleObservation = "after-recovery"
+				wantRoleObservation, wantAssertedRole, placementErr := native379V2RolePlacement(control, stepIndex)
+				if placementErr != nil {
+					return placementErr
 				}
-				if control.ID == "restore:transaction" && step.ID == "probe" {
-					wantRoleObservation = "before-poison"
+				wantAssertedRole = orderedCurrentNative379V2ExpectedAssertedRole(wantAssertedRole, got.BoundSessionUser)
+				if wantRoleObservation == "after-recovery" {
+					if stepIndex == 0 {
+						return errors.New("native379 v2 recovery predecessor absent")
+					}
+					predecessor, state, err := native379V2RecoveryEvidence(control, stepIndex, result.Steps[stepIndex-1])
+					if err != nil {
+						return err
+					}
+					if got.RecoveryPredecessorSHA256 != predecessor || got.RecoverySQLState != state {
+						return errors.New("native379 v2 recovery assertion link refused")
+					}
+				} else if got.RecoveryPredecessorSHA256 != "" || got.RecoverySQLState != "" {
+					return errors.New("native379 v2 unexpected recovery evidence")
 				}
-				if control.ID == "restore:transaction" && step.ID == "restore" {
-					wantRoleObservation = "after-recovery"
+
+				binding := native379V2SessionBinding{ControlID: control.ID, User: got.BoundSessionUser, PID: got.BoundBackendPID}
+				if wantRoleObservation == "before-poison" {
+					if got.RoleAssertion != nil || got.CarriedAssertionSHA256 == "" || got.CarriedAssertionSHA256 != poisonReceiptSHA || stepIndex == 0 || result.Steps[stepIndex-1].SQLState != "22012" {
+						return errors.New("native379 v2 carried before-poison assertion refused")
+					}
+				} else {
+					if got.RoleAssertion == nil || got.CarriedAssertionSHA256 != "" {
+						return errors.New("native379 v2 required role assertion omitted")
+					}
+					if err := native379V2ValidateAssertionReceipt(*got.RoleAssertion, binding, step, wantRoleObservation, wantAssertedRole); err != nil {
+						return err
+					}
+					if err := native379V2Charge(evidenceCtx, 0, *got.RoleAssertion); err != nil {
+						return err
+					}
+					if got.RoleAssertion.ElapsedNanoseconds > (result.Milliseconds+1)*int64(time.Millisecond)-assertionElapsed {
+						return errors.New("native379 v2 assertion elapsed aggregate overflow")
+					}
+					assertionElapsed += got.RoleAssertion.ElapsedNanoseconds
+					if control.ID == "restore:transaction" && step.ID == "mutate" {
+						poisonReceiptSHA = native379V2AssertionReceiptSHA(*got.RoleAssertion)
+					}
 				}
-				wantObservedRole := step.Role
-				if step.Role == "fixture-owner" || step.Role == "zasp_test" {
-					wantObservedRole = got.ObservedSessionUser
+				if boundSessionUser == "" {
+					boundSessionUser = got.BoundSessionUser
 				}
-				if control.ID == "restore:transaction" && step.ID == "restore" {
-					wantObservedRole = "zasp_discovery_authority"
+				if boundBackendPID == 0 {
+					boundBackendPID = got.BoundBackendPID
 				}
-				if observedSessionUser == "" {
-					observedSessionUser = got.ObservedSessionUser
-				}
-				if observedBackendPID == 0 {
-					observedBackendPID = got.ObservedBackendPID
-				}
-				if got.ObservedBackendPID <= 0 || got.ObservedBackendPID != observedBackendPID || !native379V2ObservedStepMatches(step, got, captures) {
+				if got.BoundBackendPID <= 0 || got.BoundBackendPID != boundBackendPID || !native379V2ObservedStepMatches(step, got, captures) {
 					return errors.New("native379 v2 independently checked observed outcome refused")
 				}
-				if got.ID != step.ID || got.Outcome != step.Expected.Outcome || got.SQLState != wantState || got.DeclaredRole != step.Role || got.ObservedSessionUser == "" || got.ObservedSessionUser != observedSessionUser || got.ObservedRole != wantObservedRole || got.RoleObservation != wantRoleObservation || canonicalErr != nil || !bytes.Equal(canonical, got.Observation) || len(got.ObservedSHA256) != 64 || got.ObservedSHA256 != strings.ToLower(got.ObservedSHA256) || got.ObservedSHA256 != orderedCurrentNative379V2SHA256(canonical) || !got.Matched || got.TimedOut {
+				if got.ID != step.ID || got.Outcome != step.Expected.Outcome || got.SQLState != wantState || got.DeclaredRole != step.Role || got.BoundSessionUser == "" || got.BoundSessionUser != boundSessionUser || got.RoleObservation != wantRoleObservation || canonicalErr != nil || !bytes.Equal(canonical, got.Observation) || len(got.ObservedSHA256) != 64 || got.ObservedSHA256 != strings.ToLower(got.ObservedSHA256) || got.ObservedSHA256 != orderedCurrentNative379V2SHA256(canonical) || !got.Matched || got.TimedOut {
 					return errors.New("native379 control step evidence refused")
 				}
+			}
+			if assertionElapsed > (result.Milliseconds+1)*int64(time.Millisecond) {
+				return errors.New("native379 v2 assertion time exceeds control observation")
 			}
 			index++
 		}
@@ -1521,9 +1559,7 @@ func native379V2PhysicalRowCosts(packet orderedCurrentNative379V2Packet) (map[st
 	for _, control := range packet.Controls {
 		required[control.Phase]++ // SessionIdentity is a real one-row query.
 		for _, step := range control.Program.Steps {
-			if !(control.ID == "restore:transaction" && step.ID == "probe") {
-				required[control.Phase]++
-			} // actual ObserveRole query
+			// Every role placement uses the exact zero-row assertion; no tuple is charged.
 			switch step.Expected.Outcome {
 			case "capture", "equal-captured", "one-row", "one-json-row":
 				required[control.Phase]++
@@ -1677,7 +1713,7 @@ func native379V2ValidateBudgetEvidence(packet orderedCurrentNative379V2Packet, c
 		return errors.New("native379 v2 fixed inventory/frame/admission refused")
 	}
 	var frame []string
-	if json.Unmarshal(evidence.Fixed["frame-before"], &frame) != nil || len(frame) != 6 || len(controls) == 0 || len(controls[0].Steps) == 0 || frame[0] != controls[0].Steps[0].ObservedSessionUser || frame[1] != frame[0] {
+	if json.Unmarshal(evidence.Fixed["frame-before"], &frame) != nil || len(frame) != 6 || len(controls) == 0 || len(controls[0].Steps) == 0 || frame[0] != controls[0].Steps[0].BoundSessionUser || frame[1] != frame[0] {
 		return errors.New("native379 v2 fixed frame shape refused")
 	}
 
@@ -1691,12 +1727,15 @@ func native379V2ValidateBudgetEvidence(packet orderedCurrentNative379V2Packet, c
 			return errors.New("native379 v2 budget control omitted")
 		}
 		first := control.Steps[0]
-		if err := require(control.Phase, 1, map[string]any{"session_user": first.ObservedSessionUser, "backend_pid": first.ObservedBackendPID}); err != nil {
+		if err := require(control.Phase, 1, map[string]any{"session_user": first.BoundSessionUser, "backend_pid": first.BoundBackendPID}); err != nil {
 			return err
 		}
 		for _, step := range control.Steps {
 			if step.RoleObservation != "before-poison" {
-				if err := require(control.Phase, 1, map[string]any{"current_user": step.ObservedRole, "session_user": step.ObservedSessionUser}); err != nil {
+				if step.RoleAssertion == nil {
+					return errors.New("native379 v2 budget assertion omitted")
+				}
+				if err := require(control.Phase, 0, *step.RoleAssertion); err != nil {
 					return err
 				}
 			}
@@ -1909,11 +1948,113 @@ func orderedCurrentNative379V2StepState(err error) string {
 	return "NON_SQL_ERROR"
 }
 
-const orderedCurrentNative379V2RoleObservationSQL = "SELECT current_user,session_user"
+// Exact independently reviewed qualified390-byte server predicate. No source
+// control SQL is changed; this replaces only the separate role-observation query.
+const native379V2AssertionSQL = `WITH assertion AS (SELECT ((current_user::pg_catalog.text OPERATOR(pg_catalog.=) $1::pg_catalog.text) AND (session_user::pg_catalog.text OPERATOR(pg_catalog.=) $2::pg_catalog.text) AND (pg_catalog.pg_backend_pid() OPERATOR(pg_catalog.=) $3::pg_catalog.int4)) AS ok) SELECT 1 OPERATOR(pg_catalog./) CASE WHEN ok IS TRUE THEN 1 ELSE 0 END AS role_assertion FROM assertion WHERE ok IS NOT TRUE`
+
+type native379V2SessionBinding struct {
+	ControlID, User string
+	PID             int32
+}
+
+const native379V2IdentitySQL = "SELECT session_user,pg_catalog.pg_backend_pid() AS backend_pid"
+
+type native379V2AssertionReceipt struct {
+	Kind                string `json:"kind"`
+	SQLSHA256           string `json:"sql_sha256"`
+	ParameterSHA256     string `json:"parameter_sha256"`
+	AssertedRole        string `json:"asserted_role"`
+	BoundSessionUser    string `json:"bound_session_user"`
+	BoundBackendPID     int32  `json:"bound_backend_pid"`
+	Placement           string `json:"placement"`
+	SQLState            string `json:"sqlstate"`
+	RowCount            int    `json:"row_count"`
+	CommandTag          string `json:"command_tag"`
+	TimedOut            bool   `json:"timed_out"`
+	ControlID           string `json:"controlId"`
+	StepID              string `json:"stepId"`
+	SourceStepSQLSHA256 string `json:"sourceStepSQLSHA256"`
+	PlacementSHA256     string `json:"placementSHA256"`
+	BootstrapSHA256     string `json:"bootstrapSHA256"`
+	ElapsedNanoseconds  int64  `json:"elapsedNanoseconds"`
+}
+
+func native379V2BootstrapSHA(binding native379V2SessionBinding) string {
+	raw, _ := orderedCurrentNative379V2CanonicalJSONFromValue(map[string]any{"controlId": binding.ControlID, "identitySQLSHA256": orderedCurrentNative379V2SHA256([]byte(native379V2IdentitySQL)), "session_user": binding.User, "backend_pid": binding.PID})
+	return orderedCurrentNative379V2SHA256(raw)
+}
+func native379V2AssertionReceiptFor(binding native379V2SessionBinding, step orderedCurrentNative379V2ProgramStep, placement, role string, elapsed int64) native379V2AssertionReceipt {
+	// Parameter hash is the exact reviewed adapter's UTF8 json.Marshal array.
+	parameters, _ := json.Marshal([]any{role, binding.User, binding.PID})
+	receipt := native379V2AssertionReceipt{Kind: "server-role-session-assertion-v1", SQLSHA256: orderedCurrentNative379V2SHA256([]byte(native379V2AssertionSQL)), ParameterSHA256: orderedCurrentNative379V2SHA256(parameters), AssertedRole: role, BoundSessionUser: binding.User, BoundBackendPID: binding.PID, Placement: placement, SQLState: "00000", RowCount: 0, CommandTag: "SELECT 0", ControlID: binding.ControlID, StepID: step.ID, SourceStepSQLSHA256: step.SQLSHA256, BootstrapSHA256: native379V2BootstrapSHA(binding), ElapsedNanoseconds: elapsed}
+	position, _ := orderedCurrentNative379V2CanonicalJSONFromValue(map[string]any{"controlId": binding.ControlID, "stepId": step.ID, "sourceStepSQLSHA256": step.SQLSHA256, "placement": placement, "SQLSHA256": receipt.SQLSHA256, "parameterSHA256": receipt.ParameterSHA256, "bootstrapSHA256": receipt.BootstrapSHA256})
+	receipt.PlacementSHA256 = orderedCurrentNative379V2SHA256(position)
+	return receipt
+}
+func native379V2ValidateAssertionReceipt(receipt native379V2AssertionReceipt, binding native379V2SessionBinding, step orderedCurrentNative379V2ProgramStep, placement, role string) error {
+	if binding.ControlID == "" || binding.User == "" || binding.PID <= 0 || role == "" || receipt.ElapsedNanoseconds < 0 || receipt.ElapsedNanoseconds > int64(10000)*int64(time.Millisecond) || (placement != "before" && placement != "after-recovery") {
+		return errors.New("native379 v2 assertion authority refused")
+	}
+	expected := native379V2AssertionReceiptFor(binding, step, placement, role, receipt.ElapsedNanoseconds)
+	if !reflect.DeepEqual(expected, receipt) {
+		return errors.New("native379 v2 server assertion receipt refused")
+	}
+	return nil
+}
+func native379V2AssertionReceiptSHA(receipt native379V2AssertionReceipt) string {
+	raw, _ := orderedCurrentNative379V2CanonicalJSONFromValue(receipt)
+	return orderedCurrentNative379V2SHA256(raw)
+}
+
+type native379V2AssertionStream interface {
+	Next() bool
+	Close()
+	Err() error
+	CommandTag() pgconn.CommandTag
+}
+
+func native379V2AssertionCompletion(ctx context.Context, rows native379V2AssertionStream) error {
+	defer rows.Close()
+	if rows.Next() {
+		return &native379V2AssertionFailure{Class: "nonzero-assertion-stream", SQLState: "NON_SQL_ERROR"}
+	}
+	rows.Close()
+	if rows.Err() != nil {
+		return native379V2AssertionError(ctx, rows.Err())
+	}
+	if ctx.Err() != nil {
+		return native379V2AssertionError(ctx, ctx.Err())
+	}
+	if rows.CommandTag().String() != "SELECT 0" {
+		return &native379V2AssertionFailure{Class: "assertion-completion-refused", SQLState: "NON_SQL_ERROR"}
+	}
+	return nil
+}
+
+type native379V2AssertionFailure struct {
+	Class, SQLState string
+	TimedOut        bool
+}
+
+func (failure *native379V2AssertionFailure) Error() string {
+	return fmt.Sprintf("native379 v2 assertion refused: class=%s sqlstate=%s timed_out=%t", failure.Class, failure.SQLState, failure.TimedOut)
+}
+func native379V2AssertionError(ctx context.Context, err error) error {
+	state := orderedCurrentNative379V2StepState(err)
+	timeout := errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) || state == "57014"
+	class := "server-assertion-error"
+	if state == "22012" {
+		class = "server-assertion-mismatch"
+	}
+	if timeout {
+		class = "server-assertion-timeout"
+	}
+	return &native379V2AssertionFailure{Class: class, SQLState: state, TimedOut: timeout}
+}
 
 type orderedCurrentNative379V2ExecutionSession interface {
 	SessionIdentity(context.Context) (string, int32, error)
-	ObserveRole(context.Context) (string, string, error)
+	AssertRole(context.Context, native379V2SessionBinding, orderedCurrentNative379V2ProgramStep, string, string) (native379V2AssertionReceipt, error)
 	ExecStep(context.Context, string) error
 	QueryStep(context.Context, string) ([]map[string]any, error)
 	TxStatus() byte
@@ -1923,28 +2064,35 @@ type orderedCurrentNative379V2ExecutionSession interface {
 type orderedCurrentNative379V2PGXSession struct{ owner *pgx.Conn }
 
 func (session *orderedCurrentNative379V2PGXSession) SessionIdentity(ctx context.Context) (string, int32, error) {
-	rows, err := orderedCurrentNative379V2QueryRows(ctx, session.owner, "SELECT session_user,pg_catalog.pg_backend_pid() AS backend_pid")
+	rows, err := orderedCurrentNative379V2QueryRows(ctx, session.owner, native379V2IdentitySQL)
 	if err != nil || len(rows) != 1 {
 		return "", 0, errors.New("native379 owned identity budget/query refused")
 	}
 	user, ok := rows[0]["session_user"].(string)
 	pid, pok := rows[0]["backend_pid"].(int32)
-	if !ok || !pok {
+	if !ok || !pok || user != session.owner.Config().User || pid != int32(session.owner.PgConn().PID()) {
 		return "", 0, errors.New("native379 owned identity shape refused")
 	}
 	return user, pid, nil
 }
-func (session *orderedCurrentNative379V2PGXSession) ObserveRole(ctx context.Context) (string, string, error) {
-	rows, err := orderedCurrentNative379V2QueryRows(ctx, session.owner, orderedCurrentNative379V2RoleObservationSQL)
-	if err != nil || len(rows) != 1 {
-		return "", "", errors.New("native379 fixed role budget/query refused")
+func (session *orderedCurrentNative379V2PGXSession) AssertRole(ctx context.Context, binding native379V2SessionBinding, step orderedCurrentNative379V2ProgramStep, placement, role string) (native379V2AssertionReceipt, error) {
+	if binding.User != session.owner.Config().User || binding.PID != int32(session.owner.PgConn().PID()) {
+		return native379V2AssertionReceipt{}, &native379V2AssertionFailure{Class: "owned-session-binding-refused", SQLState: "NON_SQL_ERROR"}
 	}
-	role, ok := rows[0]["current_user"].(string)
-	user, uok := rows[0]["session_user"].(string)
-	if !ok || !uok {
-		return "", "", errors.New("native379 fixed role shape refused")
+	started := time.Now()
+	rows, err := session.owner.Query(ctx, native379V2AssertionSQL, role, binding.User, binding.PID)
+	if err != nil {
+		return native379V2AssertionReceipt{}, native379V2AssertionError(ctx, err)
 	}
-	return role, user, nil
+	if err := native379V2AssertionCompletion(ctx, rows); err != nil {
+		return native379V2AssertionReceipt{}, err
+	}
+
+	receipt := native379V2AssertionReceiptFor(binding, step, placement, role, time.Since(started).Nanoseconds())
+	if err := native379V2Charge(ctx, 0, receipt); err != nil {
+		return native379V2AssertionReceipt{}, err
+	}
+	return receipt, nil
 }
 func (session *orderedCurrentNative379V2PGXSession) ExecStep(ctx context.Context, sql string) error {
 	_, err := session.owner.Exec(ctx, sql)
@@ -1967,7 +2115,7 @@ func (session *orderedCurrentNative379V2PGXSession) CleanupRollback(ctx context.
 	return err
 }
 
-func orderedCurrentNative379V2ExpectedObservedRole(declared, sessionUser string) string {
+func orderedCurrentNative379V2ExpectedAssertedRole(declared, sessionUser string) string {
 	if declared == "fixture-owner" || declared == "zasp_test" {
 		return sessionUser
 	}
@@ -2000,6 +2148,70 @@ func orderedCurrentNative379V2ExecuteControlSession(ctx context.Context, session
 	}
 	return native379V2ExecuteOwnedControlSession(ctx, session, packet, control)
 }
+
+const native379V2FullRestoreSQL = "ROLLBACK; RESET ROLE; SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE; SET SESSION search_path TO pg_catalog; SET SESSION TimeZone TO 'UTC'; SET ROLE zasp_discovery_authority;"
+
+func native379V2RecoverySource(control orderedCurrentNative379V2Control, index int) (bool, string, error) {
+	step := control.Program.Steps[index]
+	if step.ID != "recover-probe" && step.ID != "restore" {
+		return false, "", nil
+	}
+	if index == 0 || control.Program.Steps[index-1].Expected.Outcome != "error" {
+		return false, "", nil
+	}
+	previous := control.Program.Steps[index-1]
+	if previous.Expected.SQLState == nil || len(*previous.Expected.SQLState) != 5 {
+		return false, "", errors.New("native379 v2 recovery source error state absent")
+	}
+	if step.Expected.Outcome != "command-success" && step.Expected.Outcome != "command-complete" {
+		return false, "", errors.New("native379 v2 recovery source command refused")
+	}
+	switch step.ID {
+	case "recover-probe":
+		if step.SQL != "ROLLBACK TO SAVEPOINT native379_probe" {
+			return false, "", errors.New("native379 v2 savepoint recovery bytes refused")
+		}
+	case "restore":
+		if step.SQL != native379V2FullRestoreSQL {
+			return false, "", errors.New("native379 v2 full recovery bytes refused")
+		}
+	}
+	return true, *previous.Expected.SQLState, nil
+}
+func native379V2RecoveryEvidence(control orderedCurrentNative379V2Control, index int, previous orderedCurrentNative379V2ControlStepResult) (string, string, error) {
+	recovery, state, err := native379V2RecoverySource(control, index)
+	if err != nil || !recovery {
+		return "", "", errors.New("native379 v2 undeclared recovery refused")
+	}
+	if !previous.Matched || previous.TimedOut || previous.ID != control.Program.Steps[index-1].ID || previous.Outcome != "error" || previous.SQLState != state {
+		return "", "", errors.New("native379 v2 actual recovery predecessor error refused")
+	}
+	if previous.RoleAssertion != nil {
+		return native379V2AssertionReceiptSHA(*previous.RoleAssertion), state, nil
+	}
+	if control.ID == "restore:transaction" && previous.ID == "probe" && state == "25P02" && native379V2ValidSHA(previous.CarriedAssertionSHA256) {
+		return previous.CarriedAssertionSHA256, state, nil
+	}
+	return "", "", errors.New("native379 v2 recovery predecessor assertion absent")
+}
+func native379V2RolePlacement(control orderedCurrentNative379V2Control, index int) (string, string, error) {
+	step := control.Program.Steps[index]
+	if control.ID == "restore:transaction" && step.ID == "probe" {
+		return "before-poison", step.Role, nil
+	}
+	recovery, _, err := native379V2RecoverySource(control, index)
+	if err != nil {
+		return "", "", err
+	}
+	if recovery {
+		role := step.Role
+		if step.ID == "restore" {
+			role = "zasp_discovery_authority"
+		}
+		return "after-recovery", role, nil
+	}
+	return "before", step.Role, nil
+}
 func native379V2ExecuteOwnedControlSession(ctx context.Context, session orderedCurrentNative379V2ExecutionSession, packet orderedCurrentNative379V2Packet, control orderedCurrentNative379V2Control) (result orderedCurrentNative379V2ControlResult, failure error) {
 	result.ID, result.Phase, result.MutationSHA256 = control.ID, control.Phase, control.MutationSHA256
 	started := time.Now()
@@ -2018,23 +2230,45 @@ func native379V2ExecuteOwnedControlSession(ctx context.Context, session orderedC
 		return result, errors.New("native379 owned session identity refused")
 	}
 	captures := make(map[string]any)
-	var poisonRole, poisonSessionUser string
+	binding := native379V2SessionBinding{ControlID: control.ID, User: sessionUser, PID: backendPID}
+	var poisonReceipt native379V2AssertionReceipt
 	for stepIndex, step := range control.Program.Steps {
 		stepCtx, cancel := context.WithTimeout(ctx, time.Duration(packet.Limits.SQLMilliseconds)*time.Millisecond)
 		roleObservation := "before"
-		var observedRole, observedSessionUser string
+		var roleReceipt *native379V2AssertionReceipt
+		var carriedSHA, recoverySHA, recoveryState string
 		poisonProbe := control.ID == "restore:transaction" && stepIndex > 0 && step.ID == "probe" && control.Program.Steps[stepIndex-1].ID == "mutate" && control.Program.Steps[stepIndex-1].Expected.Outcome == "error" && control.Program.Steps[stepIndex-1].Expected.SQLState != nil && *control.Program.Steps[stepIndex-1].Expected.SQLState == "22012" && len(result.Steps) == stepIndex && result.Steps[stepIndex-1].Matched && result.Steps[stepIndex-1].SQLState == "22012" && step.Expected.Outcome == "error" && step.Expected.SQLState != nil && *step.Expected.SQLState == "25P02"
-		poisonRestore := control.ID == "restore:transaction" && stepIndex > 1 && step.ID == "restore" && control.Program.Steps[stepIndex-1].ID == "probe" && control.Program.Steps[stepIndex-1].Expected.Outcome == "error" && control.Program.Steps[stepIndex-1].Expected.SQLState != nil && *control.Program.Steps[stepIndex-1].Expected.SQLState == "25P02" && len(result.Steps) == stepIndex && result.Steps[stepIndex-1].Matched && result.Steps[stepIndex-1].SQLState == "25P02" && step.Expected.Outcome == "command-complete" && strings.HasPrefix(step.SQL, "ROLLBACK;")
-		if poisonProbe {
-			observedRole, observedSessionUser, roleObservation = poisonRole, poisonSessionUser, "before-poison"
-		} else if step.ID != "recover-probe" && !poisonRestore {
-			var roleErr error
-			observedRole, observedSessionUser, roleErr = session.ObserveRole(stepCtx)
-			wantRole := orderedCurrentNative379V2ExpectedObservedRole(step.Role, observedSessionUser)
-			if roleErr != nil || observedSessionUser == "" || observedRole != wantRole {
+		sourceRecovery, _, recoveryErr := native379V2RecoverySource(control, stepIndex)
+		if recoveryErr != nil {
+			cancel()
+			return result, recoveryErr
+		}
+		if sourceRecovery {
+			if len(result.Steps) != stepIndex || session.TxStatus() != 'E' {
 				cancel()
-				return result, errors.New("native379 declared role transition refused")
+				return result, errors.New("native379 v2 recovery requires owned aborted transaction")
 			}
+			recoverySHA, recoveryState, recoveryErr = native379V2RecoveryEvidence(control, stepIndex, result.Steps[stepIndex-1])
+			if recoveryErr != nil {
+				cancel()
+				return result, recoveryErr
+			}
+		}
+		if poisonProbe {
+			roleObservation = "before-poison"
+			carriedSHA = native379V2AssertionReceiptSHA(poisonReceipt)
+		} else if !sourceRecovery {
+			wantRole := orderedCurrentNative379V2ExpectedAssertedRole(step.Role, sessionUser)
+			receipt, roleErr := session.AssertRole(stepCtx, binding, step, "before", wantRole)
+			if roleErr != nil {
+				cancel()
+				return result, roleErr
+			}
+			if roleErr = native379V2ValidateAssertionReceipt(receipt, binding, step, "before", wantRole); roleErr != nil {
+				cancel()
+				return result, roleErr
+			}
+			roleReceipt = &receipt
 		}
 		var observed any
 		err = nil
@@ -2053,17 +2287,23 @@ func native379V2ExecuteOwnedControlSession(ctx context.Context, session orderedC
 			cancel()
 			return result, errors.New("native379 unknown step outcome refused")
 		}
-		if step.ID == "recover-probe" || poisonRestore {
+		if sourceRecovery {
 			roleObservation = "after-recovery"
 			if err == nil {
-				observedRole, observedSessionUser, err = session.ObserveRole(stepCtx)
-				wantRole := orderedCurrentNative379V2ExpectedObservedRole(step.Role, observedSessionUser)
-				if poisonRestore {
+				wantRole := orderedCurrentNative379V2ExpectedAssertedRole(step.Role, sessionUser)
+				if step.ID == "restore" {
 					wantRole = "zasp_discovery_authority"
 				}
-				if err == nil && (observedSessionUser == "" || observedRole != wantRole) {
-					err = errors.New("native379 recovered role transition refused")
+				receipt, roleErr := session.AssertRole(stepCtx, binding, step, "after-recovery", wantRole)
+				if roleErr != nil {
+					cancel()
+					return result, roleErr
 				}
+				if roleErr = native379V2ValidateAssertionReceipt(receipt, binding, step, "after-recovery", wantRole); roleErr != nil {
+					cancel()
+					return result, roleErr
+				}
+				roleReceipt = &receipt
 			}
 		}
 		if step.Expected.Outcome == "error" && err != nil && orderedCurrentNative379V2StepState(err) != "NON_SQL_ERROR" {
@@ -2124,12 +2364,15 @@ func native379V2ExecuteOwnedControlSession(ctx context.Context, session orderedC
 		if encodeErr != nil {
 			return result, encodeErr
 		}
-		result.Steps = append(result.Steps, orderedCurrentNative379V2ControlStepResult{ID: step.ID, Outcome: step.Expected.Outcome, SQLState: state, DeclaredRole: step.Role, ObservedRole: observedRole, ObservedSessionUser: observedSessionUser, ObservedBackendPID: backendPID, RoleObservation: roleObservation, Observation: observedRaw, ObservedSHA256: orderedCurrentNative379V2SHA256(observedRaw), Matched: matched, TimedOut: timedOut})
+		result.Steps = append(result.Steps, orderedCurrentNative379V2ControlStepResult{ID: step.ID, Outcome: step.Expected.Outcome, SQLState: state, DeclaredRole: step.Role, RoleAssertion: roleReceipt, CarriedAssertionSHA256: carriedSHA, RecoveryPredecessorSHA256: recoverySHA, RecoverySQLState: recoveryState, BoundSessionUser: sessionUser, BoundBackendPID: backendPID, RoleObservation: roleObservation, Observation: observedRaw, ObservedSHA256: orderedCurrentNative379V2SHA256(observedRaw), Matched: matched, TimedOut: timedOut})
 		if !matched {
 			return result, fmt.Errorf("native379 control %s step %s refused", control.ID, step.ID)
 		}
 		if control.ID == "restore:transaction" && step.ID == "mutate" && state == "22012" {
-			poisonRole, poisonSessionUser = observedRole, observedSessionUser
+			if roleReceipt == nil {
+				return result, errors.New("native379 v2 before-poison assertion absent")
+			}
+			poisonReceipt = *roleReceipt
 		}
 	}
 	if session.TxStatus() != 'I' {
@@ -2974,27 +3217,40 @@ func TestNative379V2PacketWireAndEveryRecordedControl(t *testing.T) {
 	}
 
 	results := orderedCurrentNative379V2TestControlResults(packet)
+	evidence := native379V2TestAssertionBudgetEvidence(t, packet, results)
+	if err := native379V2ValidateBudgetEvidence(packet, results, evidence); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("complete authenticated-packet source-model ledger: rows=%d bytes=%d forged_rows=%d forged_bytes=%d (mock snapshots/session, not native observations)", evidence.Total.Rows, evidence.Total.Bytes, evidence.Phases["forged-entry"].Rows, evidence.Phases["forged-entry"].Bytes)
+	changedEvidence := evidence
+	changedEvidence.Total.Bytes--
+	if native379V2ValidateBudgetEvidence(packet, results, changedEvidence) == nil {
+		t.Fatal("forged receipt ledger totals admitted")
+	}
+	// Omit a real expected assertion and honestly recompute all totals. Completeness
+	// must still refuse; a recomputed summary is not an observation proof.
+	changedEvidence = native379V2OmitAssertionCharge(t, packet, evidence)
+	if native379V2ValidateBudgetEvidence(packet, results, changedEvidence) == nil {
+		t.Fatal("omitted assertion charge with consistent totals admitted")
+	}
 
-	t.Run("physical-row-feasibility-refuses-before-owned-fixture", func(t *testing.T) {
+	t.Run("zero-row-assertions-preserve-complete-physical-feasibility", func(t *testing.T) {
 		required, err := native379V2PhysicalRowCosts(packet)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if required["forged-entry"] != 6148 {
-			t.Fatal("full589 physical row cost differs", required)
+		if required["forged-entry"] != 1923 {
+			t.Fatal("complete program row cost differs", required)
 		}
-		err = native379V2RequireFeasibleRows(packet)
-		var refusal *native379V2PhysicalRowRefusal
-		if !errors.As(err, &refusal) || refusal.Phase != "forged-entry" || refusal.RequiredRows != 6148 || refusal.MaxRows != 2048 {
-			t.Fatal("authentic full packet did not refuse before fixture", err)
+		if err := native379V2RequireFeasibleRows(packet); err != nil {
+			t.Fatal(err)
 		}
-		t.Log("verified source-only refusal: forged-entry requires6148physical rows; unchanged cap2048; all589 controls retained; native readiness remains pending")
 	})
 
 	if err := validateOrderedCurrentNative379V2ControlResults(packet, results); err != nil {
 		t.Fatal(err)
 	}
-	for _, kind := range []string{"partial", "sqlstate", "role", "observation", "self-consistent-forged-observation", "backend", "timeout", "restore"} {
+	for _, kind := range []string{"partial", "sqlstate", "role", "assertion-omitted", "assertion-misplaced", "assertion-parameters", "assertion-cross-session", "assertion-source", "assertion-cross-user", "assertion-time", "assertion-borrowed-placement", "carried-before-poison", "poison-prior-error", "recovery-omitted", "control-time-overflow", "observation", "self-consistent-forged-observation", "backend", "timeout", "restore"} {
 		changed := cloneOrderedCurrentNative379V2ControlResults(results)
 		switch kind {
 		case "partial":
@@ -3002,14 +3258,58 @@ func TestNative379V2PacketWireAndEveryRecordedControl(t *testing.T) {
 		case "sqlstate":
 			changed[0].Steps[0].SQLState = "42501"
 		case "role":
-			changed[0].Steps[0].ObservedRole = "forged"
+			changed[0].Steps[0].RoleAssertion.AssertedRole = "forged"
+		case "assertion-omitted":
+			changed[0].Steps[0].RoleAssertion = nil
+		case "assertion-misplaced":
+			changed[0].Steps[0].RoleAssertion.Placement = "after-recovery"
+		case "assertion-parameters":
+			changed[0].Steps[0].RoleAssertion.ParameterSHA256 = strings.Repeat("0", 64)
+		case "assertion-cross-session":
+			changed[0].Steps[0].RoleAssertion.BoundBackendPID++
+		case "assertion-source":
+			changed[0].Steps[0].RoleAssertion.SourceStepSQLSHA256 = strings.Repeat("0", 64)
+		case "assertion-cross-user":
+			changed[0].Steps[0].RoleAssertion.BoundSessionUser = "borrowed-user"
+		case "assertion-time":
+			changed[0].Steps[0].RoleAssertion.ElapsedNanoseconds = int64(time.Second)
+		case "assertion-borrowed-placement":
+			changed[0].Steps[1].RoleAssertion = changed[0].Steps[0].RoleAssertion
+		case "poison-prior-error":
+			for ci := range changed {
+				if changed[ci].ID == "restore:transaction" {
+					for si := range changed[ci].Steps {
+						if changed[ci].Steps[si].ID == "mutate" {
+							changed[ci].Steps[si].SQLState = "42501"
+						}
+					}
+				}
+			}
+		case "recovery-omitted":
+			for ci := range changed {
+				for si := range changed[ci].Steps {
+					if changed[ci].Steps[si].RoleObservation == "after-recovery" {
+						changed[ci].Steps[si].RoleAssertion = nil
+					}
+				}
+			}
+		case "carried-before-poison":
+			for ci := range changed {
+				for si := range changed[ci].Steps {
+					if changed[ci].Steps[si].RoleObservation == "before-poison" {
+						changed[ci].Steps[si].CarriedAssertionSHA256 = strings.Repeat("0", 64)
+					}
+				}
+			}
+		case "control-time-overflow":
+			changed[0].Milliseconds = int64(^uint64(0) >> 1)
 		case "observation":
 			changed[0].Steps[0].Observation = json.RawMessage(`{}`)
 		case "self-consistent-forged-observation":
 			changed[0].Steps[0].Observation = json.RawMessage(`{"sqlState":"42501"}`)
 			changed[0].Steps[0].ObservedSHA256 = orderedCurrentNative379V2SHA256(changed[0].Steps[0].Observation)
 		case "backend":
-			changed[0].Steps[0].ObservedBackendPID = 0
+			changed[0].Steps[0].BoundBackendPID = 0
 		case "timeout":
 			changed[0].Steps[0].TimedOut = true
 		case "restore":
@@ -3038,14 +3338,45 @@ func TestNative379V2PacketWireAndEveryRecordedControl(t *testing.T) {
 		t.Fatal("detached executable control reached session")
 	}
 	script := &orderedCurrentNative379V2PoisonScript{control: poison, txStatus: 'I', currentRole: "zasp_test", sessionUser: "zasp_test", backendPID: 37980}
-	result, err := orderedCurrentNative379V2ExecuteControlSession(ctx, script, packet, poison)
+	scriptCtx, stopScript := context.WithTimeout(context.Background(), time.Duration(packet.Limits.SQLMilliseconds)*time.Millisecond)
+	defer stopScript()
+	result, err := orderedCurrentNative379V2ExecuteControlSession(scriptCtx, script, packet, poison)
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantOrder := "observe:mutate,query:mutate,query:probe,exec:restore,observe-after:restore,observe:assert-restored,query:assert-restored"
+	wantOrder := "assert:mutate,query:mutate,query:probe,exec:restore,assert-after:restore,assert:assert-restored,query:assert-restored"
 	if !strings.Contains(strings.Join(script.calls, ","), wantOrder) || !result.Restored || script.index != len(poison.Program.Steps) {
 		t.Fatal("closed poison recovery did not restore/join declared steps")
 	}
+	t.Run("all-declared-error-recovery-families", func(t *testing.T) {
+		covered := map[string]bool{}
+		for _, control := range packet.Controls {
+			for index := range control.Program.Steps {
+				recovery, state, err := native379V2RecoverySource(control, index)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !recovery || covered[state] {
+					continue
+				}
+				script := &orderedCurrentNative379V2PoisonScript{control: control, txStatus: 'I', currentRole: "zasp_test", sessionUser: "zasp_test", backendPID: 37980}
+				result, err := orderedCurrentNative379V2ExecuteControlSession(context.Background(), script, packet, control)
+				if err != nil {
+					t.Fatalf("scripted recovery state=%s control=%s: %v", state, control.ID, err)
+				}
+				recovered := result.Steps[index]
+				if !result.Restored || recovered.RoleAssertion == nil || recovered.RoleObservation != "after-recovery" || recovered.RecoverySQLState != state || recovered.RecoveryPredecessorSHA256 == "" {
+					t.Fatal("fresh recovery guard/link absent", state)
+				}
+				covered[state] = true
+			}
+		}
+		for _, state := range []string{"42883", "42501", "25P02", "21000", "ZX001", "22023"} {
+			if !covered[state] {
+				t.Fatal("declared recovery family omitted", state)
+			}
+		}
+	})
 
 	copy := packet.clone()
 	copy.Raw[0] = 'X'
@@ -3104,21 +3435,30 @@ func orderedCurrentNative379V2TestControlResults(packet orderedCurrentNative379V
 					observation, _ = orderedCurrentNative379V2CanonicalJSONFromValue([]any{map[string]any{"value": native379V2TestResolveBindings(value)}})
 				}
 
-				role := step.Role
-				if role == "fixture-owner" {
-					role = "zasp_test"
+				stepIndex := len(result.Steps)
+				roleObservation, role, placementErr := native379V2RolePlacement(control, stepIndex)
+				if placementErr != nil {
+					panic(placementErr)
 				}
-				roleObservation := "before"
-				if step.ID == "recover-probe" {
-					roleObservation = "after-recovery"
+				role = orderedCurrentNative379V2ExpectedAssertedRole(role, "zasp_test")
+				var recoverySHA, recoveryState string
+				if roleObservation == "after-recovery" {
+					var err error
+					recoverySHA, recoveryState, err = native379V2RecoveryEvidence(control, stepIndex, result.Steps[stepIndex-1])
+					if err != nil {
+						panic(err)
+					}
 				}
-				if control.ID == "restore:transaction" && step.ID == "probe" {
-					roleObservation = "before-poison"
+
+				var assertion *native379V2AssertionReceipt
+				var carried string
+				if roleObservation == "before-poison" {
+					carried = native379V2AssertionReceiptSHA(*result.Steps[len(result.Steps)-1].RoleAssertion)
+				} else {
+					receipt := native379V2AssertionReceiptFor(native379V2SessionBinding{ControlID: control.ID, User: "zasp_test", PID: 37980}, step, roleObservation, role, 0)
+					assertion = &receipt
 				}
-				if control.ID == "restore:transaction" && step.ID == "restore" {
-					role, roleObservation = "zasp_discovery_authority", "after-recovery"
-				}
-				result.Steps = append(result.Steps, orderedCurrentNative379V2ControlStepResult{ID: step.ID, Outcome: step.Expected.Outcome, SQLState: sqlState, DeclaredRole: step.Role, ObservedRole: role, ObservedSessionUser: "zasp_test", ObservedBackendPID: 37980, RoleObservation: roleObservation, Observation: observation, ObservedSHA256: orderedCurrentNative379V2SHA256(observation), Matched: true})
+				result.Steps = append(result.Steps, orderedCurrentNative379V2ControlStepResult{ID: step.ID, Outcome: step.Expected.Outcome, SQLState: sqlState, DeclaredRole: step.Role, RoleAssertion: assertion, CarriedAssertionSHA256: carried, RecoveryPredecessorSHA256: recoverySHA, RecoverySQLState: recoveryState, BoundSessionUser: "zasp_test", BoundBackendPID: 37980, RoleObservation: roleObservation, Observation: observation, ObservedSHA256: orderedCurrentNative379V2SHA256(observation), Matched: true})
 			}
 			results = append(results, result)
 		}
@@ -3142,20 +3482,22 @@ func (script *orderedCurrentNative379V2PoisonScript) SessionIdentity(context.Con
 	return script.sessionUser, script.backendPID, nil
 }
 
-func (script *orderedCurrentNative379V2PoisonScript) ObserveRole(context.Context) (string, string, error) {
+func (script *orderedCurrentNative379V2PoisonScript) AssertRole(ctx context.Context, binding native379V2SessionBinding, step orderedCurrentNative379V2ProgramStep, placement, role string) (native379V2AssertionReceipt, error) {
 	if script.txStatus == 'E' {
-		script.calls = append(script.calls, "observe-refused:"+script.control.Program.Steps[script.index].ID)
-		return "", "", &pgconn.PgError{Code: "25P02"}
+		script.calls = append(script.calls, "assert-refused:"+step.ID)
+		return native379V2AssertionReceipt{}, &pgconn.PgError{Code: "25P02"}
 	}
-	label := "observe:" + script.control.Program.Steps[script.index].ID
+	label := "assert:" + step.ID
 	if script.recoveryObservationNeeded {
-		label = "observe-after:restore"
+		label = "assert-after:" + step.ID
 		script.recoveryObservationNeeded = false
 	}
 	script.calls = append(script.calls, label)
-	return script.currentRole, script.sessionUser, nil
+	if role != script.currentRole || binding.User != script.sessionUser || binding.PID != script.backendPID {
+		return native379V2AssertionReceipt{}, &pgconn.PgError{Code: "22012"}
+	}
+	return native379V2AssertionReceiptFor(binding, step, placement, role, 0), nil
 }
-
 func (script *orderedCurrentNative379V2PoisonScript) ExecStep(_ context.Context, sql string) error {
 	step := script.control.Program.Steps[script.index]
 	if step.SQL != sql {
@@ -3163,16 +3505,39 @@ func (script *orderedCurrentNative379V2PoisonScript) ExecStep(_ context.Context,
 	}
 	script.calls = append(script.calls, "exec:"+step.ID)
 	script.index++
+	if step.ID == "setup-session" && strings.HasPrefix(sql, "RESET ROLE;") {
+		script.txStatus = 'I'
+		script.currentRole = script.sessionUser
+	}
+	if step.ID == "begin" && sql == "BEGIN" {
+		script.txStatus = 'T'
+	}
+	if step.ID == "source-frame" && strings.HasPrefix(sql, "SET LOCAL ROLE zasp_discovery_authority;") {
+		script.currentRole = "zasp_discovery_authority"
+	}
 	if step.ID == "setup" {
 		script.txStatus = 'T'
 		script.currentRole = "zasp_discovery_authority"
 	}
-	if step.ID == "restore" {
+	if step.ID == "recover-probe" {
 		if script.txStatus != 'E' {
+			return errors.New("script savepoint recovery outside aborted transaction")
+		}
+		script.txStatus = 'T'
+		script.recoveryObservationNeeded = true
+	}
+	if step.ID == "restore" {
+		if script.txStatus != 'E' && script.txStatus != 'T' {
 			return errors.New("script restore was not reached from aborted transaction")
 		}
 		script.txStatus = 'I'
-		script.currentRole = "zasp_discovery_authority"
+		if sql == native379V2FullRestoreSQL {
+			script.currentRole = "zasp_discovery_authority"
+		} else if sql == "ROLLBACK" {
+			script.currentRole = script.sessionUser
+		} else {
+			return errors.New("script unknown restoration bytes")
+		}
 		script.recoveryObservationNeeded = true
 	}
 	return nil
@@ -3186,9 +3551,7 @@ func (script *orderedCurrentNative379V2PoisonScript) QueryStep(_ context.Context
 	script.calls = append(script.calls, "query:"+step.ID)
 	script.index++
 	if step.Expected.Outcome == "error" {
-		if step.ID == "mutate" {
-			script.txStatus = 'E'
-		}
+		script.txStatus = 'E'
 		return nil, &pgconn.PgError{Code: *step.Expected.SQLState}
 	}
 	var resolve func(any) any
@@ -3216,6 +3579,8 @@ func (script *orderedCurrentNative379V2PoisonScript) QueryStep(_ context.Context
 		return value
 	}
 	switch step.Expected.Outcome {
+	case "capture", "equal-captured":
+		return []map[string]any{{"snapshot": "mock-" + step.Expected.Key}}, nil
 	case "one-row", "one-json-row":
 		value, err := orderedCurrentNative379V2DecodeExpected(step.Expected.Value)
 		if err != nil {
@@ -3277,6 +3642,25 @@ func native379V2JSONStringSeparators(encoded []byte) []byte {
 	return out
 }
 func TestNative379V2CanonicalWirePreservesJSStringBoundaries(t *testing.T) {
+	t.Run("struct-map-receipt-canonical-equivalence", func(t *testing.T) {
+		value := struct {
+			Z string `json:"z"`
+			A string `json:"a"`
+		}{Z: "<>&\u2028\u2029", A: "receipt"}
+		structured, err := orderedCurrentNative379V2CanonicalJSONFromValue(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mapped, err := orderedCurrentNative379V2CanonicalJSONFromValue(map[string]any{"a": value.A, "z": value.Z})
+		if err != nil {
+			t.Fatal(err)
+		}
+		normalized, err := orderedCurrentNative379V2CanonicalJSON(structured)
+		if err != nil || !bytes.Equal(structured, mapped) || !bytes.Equal(structured, normalized) {
+			t.Fatal("struct receipt canonical order differs from map/raw replay")
+		}
+	})
+
 	source := map[string]any{"text": "<>&\u2028\u2029", "literal": `\u2028 \u2029`, "quotes": `"\`, "primitives": []any{nil, true, json.Number("12")}}
 	raw, err := orderedCurrentNative379V2CanonicalJSONFromValue(source)
 	if err != nil {
@@ -3334,13 +3718,13 @@ func native379V2ObservedStepMatches(step orderedCurrentNative379V2ProgramStep, g
 		}
 		if step.Expected.Outcome == "equal-captured" {
 			prior, exists := captures[step.Expected.Key]
-			return exists && orderedCurrentNative379V2MatchValue(prior, value, got.ObservedSessionUser, got.ObservedBackendPID)
+			return exists && orderedCurrentNative379V2MatchValue(prior, value, got.BoundSessionUser, got.BoundBackendPID)
 		}
 		expected, err := orderedCurrentNative379V2DecodeExpected(step.Expected.Value)
-		return err == nil && orderedCurrentNative379V2MatchValue(expected, value, got.ObservedSessionUser, got.ObservedBackendPID)
+		return err == nil && orderedCurrentNative379V2MatchValue(expected, value, got.BoundSessionUser, got.BoundBackendPID)
 	case "rows":
 		expected, err := orderedCurrentNative379V2DecodeExpected(step.Expected.Rows)
-		return err == nil && orderedCurrentNative379V2MatchValue(expected, observed, got.ObservedSessionUser, got.ObservedBackendPID)
+		return err == nil && orderedCurrentNative379V2MatchValue(expected, observed, got.BoundSessionUser, got.BoundBackendPID)
 	}
 	return false
 }
@@ -3485,5 +3869,190 @@ func TestNative379V2RowStreamClosesAtBudget(t *testing.T) {
 	stream := &native379V2FakeRows{}
 	if result, err := native379V2ReadRows(ctx, stream); err == nil || result != nil || !stream.closed || stream.reads != 3 || budget.rows != 2 || len(budget.charges) != 2 {
 		t.Fatal("overflow stream retained/unclosed/unbounded")
+	}
+}
+
+func TestNative379V2AssertionReceiptClosedBindings(t *testing.T) {
+	step := orderedCurrentNative379V2ProgramStep{ID: "probe", Role: "fixture-owner", SQL: "SELECT 1"}
+	step.SQLSHA256 = orderedCurrentNative379V2SHA256([]byte(step.SQL))
+	binding := native379V2SessionBinding{ControlID: "test-control", User: "owned-user", PID: 37980}
+	receipt := native379V2AssertionReceiptFor(binding, step, "before", binding.User, 0)
+	if err := native379V2ValidateAssertionReceipt(receipt, binding, step, "before", binding.User); err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{"sql", "params", "placement", "control", "step", "source", "session", "pid", "rows", "tag", "timeout", "status", "negative-time", "huge-time"} {
+		changed := receipt
+		switch kind {
+		case "sql":
+			changed.SQLSHA256 = strings.Repeat("0", 64)
+		case "params":
+			changed.ParameterSHA256 = strings.Repeat("0", 64)
+		case "placement":
+			changed.Placement = "after-recovery"
+		case "control":
+			changed.ControlID = "other"
+		case "step":
+			changed.StepID = "other"
+		case "source":
+			changed.SourceStepSQLSHA256 = strings.Repeat("0", 64)
+		case "session":
+			changed.BoundSessionUser = "borrowed"
+		case "pid":
+			changed.BoundBackendPID++
+		case "rows":
+			changed.RowCount = 1
+		case "tag":
+			changed.CommandTag = "SELECT 1"
+		case "timeout":
+			changed.TimedOut = true
+		case "status":
+			changed.SQLState = "22012"
+		case "negative-time":
+			changed.ElapsedNanoseconds = -1
+		case "huge-time":
+			changed.ElapsedNanoseconds = int64(^uint64(0) >> 1)
+		}
+		if native379V2ValidateAssertionReceipt(changed, binding, step, "before", binding.User) == nil {
+			t.Fatal("forged assertion admitted", kind)
+		}
+	}
+}
+
+func native379V2TestAssertionBudgetEvidence(t *testing.T, packet orderedCurrentNative379V2Packet, controls []orderedCurrentNative379V2ControlResult) native379V2BudgetEvidence {
+	t.Helper()
+	budget := native379V2NewBudget(packet)
+	charge := func(phase string, rows int, value any) {
+		ctx, cancel, err := budget.phase(context.Background(), phase)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer cancel()
+		if err := native379V2Charge(ctx, rows, value); err != nil {
+			t.Fatalf("mock budget refused phase=%s rows=%d bytes=%d: %v", phase, budget.phaseRows[phase], budget.phaseBytes[phase], err)
+		}
+	}
+	fixedCtx, cancel, err := budget.phase(context.Background(), "pristine-truth")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cancel()
+	routines, err := orderedCurrentNative379V2ExpectedRoutines(packet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id, value := range map[string]any{"preinstall": []any{packet.Identity.ServerVersionNum, packet.Identity.Postgres, packet.Identity.Pgcrypto, "127.0.0.1", 5432, 0, 0}, "inventory": []any{"zasp_discovery_authority", []string{"zasp_authorization80_ordered_current.expected", "zasp_authorization80_ordered_current.registration"}, routines, 1, len(packet.ExpectedFacts), 0}, "frame-before": []string{"zasp_test", "zasp_test", "pg_catalog", "UTC", "off", "read committed"}, "frame-after": []string{"zasp_test", "zasp_test", "pg_catalog", "UTC", "off", "read committed"}, "admission": true, "catalog": true} {
+		if err := native379V2ChargeFixed(fixedCtx, id, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, fact := range packet.ExpectedFacts {
+		charge("pristine-truth", 1, map[string]any{"kind": fact.Kind, "identity": fact.Identity, "fact": fact.Fact})
+	}
+	for _, control := range controls {
+		first := control.Steps[0]
+		charge(control.Phase, 1, map[string]any{"session_user": first.BoundSessionUser, "backend_pid": first.BoundBackendPID})
+		for _, step := range control.Steps {
+			if step.RoleAssertion != nil {
+				charge(control.Phase, 0, *step.RoleAssertion)
+			}
+			var value any
+			decoder := json.NewDecoder(bytes.NewReader(step.Observation))
+			decoder.UseNumber()
+			if decoder.Decode(&value) != nil {
+				t.Fatal("step decode")
+			}
+			if rows, ok := value.([]any); ok {
+				for _, row := range rows {
+					charge(control.Phase, 1, row)
+				}
+			} else {
+				charge(control.Phase, 0, value)
+			}
+		}
+	}
+	return budget.evidence()
+}
+func native379V2OmitAssertionCharge(t *testing.T, packet orderedCurrentNative379V2Packet, evidence native379V2BudgetEvidence) native379V2BudgetEvidence {
+	t.Helper()
+	budget := native379V2NewBudget(packet)
+	removed := false
+	for _, charge := range evidence.Charges {
+		if !removed && bytes.Contains(charge.Value, []byte(`"kind":"server-role-session-assertion-v1"`)) {
+			removed = true
+			continue
+		}
+		ctx, cancel, err := budget.phase(context.Background(), charge.Phase)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var value any
+		decoder := json.NewDecoder(bytes.NewReader(charge.Value))
+		decoder.UseNumber()
+		if decoder.Decode(&value) != nil {
+			t.Fatal("charge decode")
+		}
+		err = native379V2Charge(ctx, charge.Rows, value)
+		cancel()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !removed {
+		t.Fatal("mock ledger lacks assertion")
+	}
+	result := budget.evidence()
+	result.Fixed = maps.Clone(evidence.Fixed)
+	return result
+}
+
+type native379V2FakeAssertionStream struct {
+	hasRow, closed bool
+	state          error
+	tag            string
+}
+
+func (stream *native379V2FakeAssertionStream) Next() bool { return stream.hasRow }
+func (stream *native379V2FakeAssertionStream) Close()     { stream.closed = true }
+func (stream *native379V2FakeAssertionStream) Err() error { return stream.state }
+func (stream *native379V2FakeAssertionStream) CommandTag() pgconn.CommandTag {
+	return pgconn.NewCommandTag(stream.tag)
+}
+func TestNative379V2AssertionCompletionAndDistinctRefusals(t *testing.T) {
+	for _, test := range []struct {
+		name                 string
+		stream               native379V2FakeAssertionStream
+		cancel               bool
+		wantClass, wantState string
+		wantTimeout          bool
+	}{
+		{name: "zero", stream: native379V2FakeAssertionStream{tag: "SELECT 0"}},
+		{name: "row", stream: native379V2FakeAssertionStream{hasRow: true, tag: "SELECT 1"}, wantClass: "nonzero-assertion-stream", wantState: "NON_SQL_ERROR"},
+		{name: "tag", stream: native379V2FakeAssertionStream{tag: "SELECT 1"}, wantClass: "assertion-completion-refused", wantState: "NON_SQL_ERROR"},
+		{name: "mismatch", stream: native379V2FakeAssertionStream{state: &pgconn.PgError{Code: "22012"}}, wantClass: "server-assertion-mismatch", wantState: "22012"},
+		{name: "timeout", stream: native379V2FakeAssertionStream{state: &pgconn.PgError{Code: "57014"}}, wantClass: "server-assertion-timeout", wantState: "57014", wantTimeout: true},
+		{name: "poison", stream: native379V2FakeAssertionStream{state: &pgconn.PgError{Code: "25P02"}}, wantClass: "server-assertion-error", wantState: "25P02"},
+		{name: "cancel", stream: native379V2FakeAssertionStream{tag: "SELECT 0"}, cancel: true, wantClass: "server-assertion-error", wantState: "NON_SQL_ERROR"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if test.cancel {
+				cancel()
+			}
+			err := native379V2AssertionCompletion(ctx, &test.stream)
+			if !test.stream.closed {
+				t.Fatal("assertion stream not closed")
+			}
+			if test.wantClass == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			var refusal *native379V2AssertionFailure
+			if !errors.As(err, &refusal) || refusal.Class != test.wantClass || refusal.SQLState != test.wantState || refusal.TimedOut != test.wantTimeout {
+				t.Fatal("assertion refusal class differs", err)
+			}
+		})
 	}
 }
