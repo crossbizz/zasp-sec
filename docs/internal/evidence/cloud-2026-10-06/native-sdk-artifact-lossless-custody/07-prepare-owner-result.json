@@ -1,0 +1,73 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "old-real9c13-observe-hardcap-gzip-prepare",
+  "completedAtWrite": true,
+  "failureClass": null,
+  "signals": [],
+  "records": [
+    {
+      "label": "fresh-root-one-observer",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/SDK-gzip-prepare-observer-source-real9c13-q6zyaj3d/fresh-observer-owner-v3.py",
+        "c223370e217377bbb108a5b4df9d609bd825502342cc9d957010aeb77e31a1fb"
+      ],
+      "declared_cap_seconds": 125,
+      "effective_limit_seconds": 125,
+      "enclosing_deadline_monotonic": 86169.194435887,
+      "effective_deadline_monotonic": 86049.195126316,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 330888,
+      "seconds": 2.984084,
+      "stdout_sha256": "42713161e00ee20a2355c08408400ec5697313a7a74f890065c4488838dad75d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "SDK-gzip-prepare",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/old-real9c13-gzip50-prepare-source-j3na2nyr/custody.py",
+        "prepare",
+        "--root-proof-sha256",
+        "06794c807c6aacdc39257870bfb86916e2fb46b61b2a4c5bccce3cba9c128d6a"
+      ],
+      "declared_cap_seconds": 125,
+      "effective_limit_seconds": 125,
+      "enclosing_deadline_monotonic": 86169.194435887,
+      "effective_deadline_monotonic": 86052.202481352,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 332017,
+      "seconds": 9.957727,
+      "stdout_sha256": "11188c90f0c975e2b9647769f30077c1fa9ea632bdd02fc64f5f321e53b925be",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "groups": {
+    "330888": [],
+    "332017": []
+  },
+  "seconds": 13.579204702997231,
+  "expectedNetworkVariableNames": [],
+  "servicesStarted": false,
+  "installerInvoked": false,
+  "compressionInvoked": true,
+  "rawUnlinkedByThisRecipe": false,
+  "admissionScope": "LOSSLESS-GZIP-PREPARE-ONLY-ORIGINAL-REMAINS-NO-UNLINK-OR-RUNTIME",
+  "rootExternalNormalJoinRequired": true
+}

@@ -1,0 +1,38 @@
+{
+  "archiveBinding": {
+    "ctime_ns": 1791317197320482328,
+    "dev": 34,
+    "gid": 1000,
+    "ino": 441601,
+    "kind": "file",
+    "mode": 33024,
+    "mtime_ns": 1791317197316345871,
+    "nlink": 1,
+    "sha256": "b9bae6186c5c2c539232ca7f1a8afb4e54599be8b2bec65d2dcfb28178a5d62e",
+    "size": 26860725,
+    "uid": 1000
+  },
+  "inactivity": {
+    "privilegedExactRootProofSHA256": "c18816e230426c9f15388d454650907cc1dd1ffe6147ba426636271bd087ef8e",
+    "snapshotNotLifetimeClaim": true,
+    "unknownOrActive": false,
+    "visibleNonZombieProcessesInspected": 11
+  },
+  "independentAdmissionSHA256": "9e13f3baaeb81e85e6d44857e038bd4de344caedbe9ffdf1c66d85baa5399423",
+  "planSHA256": "eec16b113da0eb393c5b78c008c65f4b544e00b00abccf447517dd3b352152f0",
+  "preparedSHA256": "1e88c6785aebf40df661cfca89639b37ef46ec06cc1572fb53b2d9619ad317c1",
+  "sourceBinding": {
+    "ctime_ns": 1791306781532734779,
+    "dev": 34,
+    "gid": 1000,
+    "ino": 434056,
+    "kind": "file",
+    "mode": 33216,
+    "mtime_ns": 1791306781528286281,
+    "nlink": 1,
+    "sha256": "9c13c49c93007d0f81da7a42ddcbc93676696349013226f62a45410d50a32f02",
+    "size": 67555591,
+    "uid": 1000
+  },
+  "status": "ADMITTED-EXACT-ONE-UNLINK-INTENT-NOT-COMPLETION"
+}

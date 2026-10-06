@@ -1,0 +1,34 @@
+{
+  "rootRecipeSHA256": "4eb68097ff70dc6c19b1a7d0ce5c68eb00fb9efb3a5aa88f4747351f7f8b06e2",
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "LC_ALL=C",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "TMPDIR=/tmp",
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "-g",
+    "--",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=35s",
+    "270s",
+    "/usr/bin/python3",
+    "/tmp/zasp-cloud-evidence/old-real9c13-actual8-admitted-prepare-owner-98q2iapq/run-observe-and-gzip-prepare.py",
+    "--self-sha256",
+    "c990e76992fa3cbac71de84d8a2b3aaaa28085979dc6b62298e86f2e22c481f7"
+  ],
+  "cwd": "/workspace",
+  "returncode": 0,
+  "elapsedSeconds": 13.668579593009781,
+  "freshFloorsBefore": {
+    "/tmp": 174780416,
+    "/workspace": 1535553536
+  },
+  "ownerResult": "/workspace/.zasp-cloud-owned/old-real9c13-actual8-admitted-gzip-prepare-owner-1c012ba9cbc0409b9c7a3094cc7f73da/result.json",
+  "outerNormalReturn": true,
+  "independentStaticReviewSHA256": "014e7feaf99eeadcab0d6935da231f2b0bb2f6e228ad81bf9ba9eabc4ae2ed9c",
+  "scope": "old9c13 compression only no unlink authority"
+}

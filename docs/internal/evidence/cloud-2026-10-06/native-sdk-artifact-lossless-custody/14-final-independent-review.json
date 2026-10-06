@@ -1,0 +1,67 @@
+{
+  "archiveBinding": {
+    "ctime_ns": 1791317197320482328,
+    "dev": 34,
+    "gid": 1000,
+    "ino": 441601,
+    "mode": 33024,
+    "mtime_ns": 1791317197316345871,
+    "nlink": 1,
+    "sha256": "b9bae6186c5c2c539232ca7f1a8afb4e54599be8b2bec65d2dcfb28178a5d62e",
+    "size": 26860725,
+    "uid": 1000
+  },
+  "conservativeWholeFinalStageAgeUpperBoundSeconds": 2.5551345759886317,
+  "controller14NormalRecords": [
+    "cleanup-CID-absence",
+    "cleanup-discover",
+    "cleanup-inspect",
+    "cleanup-label-check",
+    "cleanup-remove",
+    "create",
+    "created-inspect",
+    "daemon",
+    "image",
+    "image-volumes",
+    "observe",
+    "post-daemon",
+    "stopped-inspect",
+    "wait"
+  ],
+  "current7AndOwner67PinsCurrent": true,
+  "decodedBytes": 67555591,
+  "decodedSHA256": "9c13c49c93007d0f81da7a42ddcbc93676696349013226f62a45410d50a32f02",
+  "exact14ReferenceHashesVerified": true,
+  "exactOneDurableIntentAndUnlinkReturnedEachJournal": true,
+  "fiveMirroredControlIdentities": {
+    "custody.json": "d6b325995e5822b9b0d951cf96f601ebaae4334ea949e1baab5cd19464865074",
+    "finalize-reserved.jsonl": "e86ed0ec65ca711d580ee1f9d38a35c55abc9de50a6a03adf6b9e291eaa48cd6",
+    "prepare-reserved.jsonl": "da958aa1dfe4d781ed34719e8a8c1787e7c12f6342ff11dfb66e1bc0491acff1",
+    "prepared.json": "1e88c6785aebf40df661cfca89639b37ef46ec06cc1572fb53b2d9619ad317c1",
+    "unlink-intent.json": "090c29246b1f32f281f4a7ee9a1876e1c01e71dd5f4541f7e05753606f5bde51"
+  },
+  "independentFullGzipCRCAndEOFReplay": true,
+  "mapsPerProcess": {
+    "304": 11,
+    "355": 4
+  },
+  "normalOwnedContainerRemovalAndAbsence": true,
+  "originalRawAbsentHistoricalIdentity": {
+    "ctime_ns": 1791306781532734779,
+    "dev": 34,
+    "gid": 1000,
+    "ino": 434056,
+    "kind": "file",
+    "mode": 33216,
+    "mtime_ns": 1791306781528286281,
+    "nlink": 1,
+    "sha256": "9c13c49c93007d0f81da7a42ddcbc93676696349013226f62a45410d50a32f02",
+    "size": 67555591,
+    "uid": 1000
+  },
+  "ownerResultSHA256": "d2729b71e6a10c9baa3f044982770640019b5a451963095e3167f0d28cb324b5",
+  "protected11Unchanged": true,
+  "rootProofSHA256": "c18816e230426c9f15388d454650907cc1dd1ffe6147ba426636271bd087ef8e",
+  "scope": "Exact historical real9c13 binary custody only. Full gzip decoded bytes independently rehashed to original9c13; everyrawbyte comparison was previousab62 prepare review, raw now absent. Strict5s guard and whole-stage conservativeupperbound verify freshness without invented unlink timestamp. ROOT reported outer normal0 separately/no independentkerneltrace. No diagnosticcompile/currentservice/provider readiness.",
+  "status": "ACTUAL-OLD-REAL9C13-EXACT-ONE-UNLINK-LOSSLESS-GZIP-CUSTODY-PASS"
+}

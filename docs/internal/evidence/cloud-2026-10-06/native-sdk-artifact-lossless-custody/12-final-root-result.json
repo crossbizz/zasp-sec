@@ -1,0 +1,33 @@
+{
+  "rootRecipeSHA256": "3ab5e1f0840d2a34655f56fda6daf4781ce579b11f051c49a831f4cc4719817b",
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "LC_ALL=C",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "TMPDIR=/tmp",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=35s",
+    "270s",
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "--",
+    "/usr/bin/python3",
+    "/tmp/zasp-cloud-evidence/old-real9c13-final-described-root-owner-poh9jaqc/run-fresh-observe-and-one-unlink.py",
+    "--self-sha256",
+    "2e83ef1aa97a8c86260fc4145a725f3a68e3efde8a41c80c55078ac8e0ca9e53"
+  ],
+  "cwd": "/workspace",
+  "returncode": 0,
+  "elapsedSeconds": 4.294647816001088,
+  "freshFloorsBefore": {
+    "/tmp": 146595840,
+    "/workspace": 1535385600
+  },
+  "ownerResult": "/workspace/.zasp-cloud-owned/old-real9c13-final-one-unlink-owner-7afd07102d40456d8c710f21d903c91f/result.json",
+  "outerNormalReturn": true,
+  "independentStaticReviewSHA256": "50a18c30f08e1b2cb91e3205f48cc23f7f45af1e4607ae5b5407b473e797dae1",
+  "scope": "exact one historical9c13 path whole-byte custody only"
+}
