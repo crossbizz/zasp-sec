@@ -1,0 +1,19 @@
+{
+  "schema": "native379-v2-failed-attempt-public-hash-classification-v1",
+  "originalScanOutcome": "FAIL",
+  "findingCount": 1,
+  "unknown": 0,
+  "ruleID": "generic-api-key",
+  "source": "/workspace/.zasp-cloud-owned/native379-v2-failure-publication-512-qwodunwb/evidence/run-root-native379-v2-512-diagnostic.py",
+  "sourceSHA256": "63fa5567c95ffaa2266642518be05b1b2774f2dd8e32b389bafa6a1c950a2619",
+  "reportedLine": 14,
+  "reportedColumns": [
+    20,
+    101
+  ],
+  "literalSHA256": "2f2d85ac203f610d1f5f7d52dee2f3e88e092594b3ed8fcca37b24fc4508c9f4",
+  "actualFrozenBinary": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/bin/apiserver.test",
+  "actualRegularFileSHA256": "2f2d85ac203f610d1f5f7d52dee2f3e88e092594b3ed8fcca37b24fc4508c9f4",
+  "exactWholeSourceLineContainsSingleDigestAndBinaryName": true,
+  "boundary": "Public hash provenance only; no scanner configuration changes or whole-history/native clearance."
+}

@@ -1,0 +1,17 @@
+{
+  "format": "separate-exact-publication-review-archive-v1",
+  "members": {
+    "native379-v2-independent-frozen-and-failure-publication-review-512.json.gz": {
+      "bytes": 1909,
+      "sha256": "9b3aba6f908f02173205bda761da4d08226896d1fa4108d039f123fd559ee459",
+      "decodedBytes": 3631,
+      "decodedSHA256": "6cb2cb672168039dae9553c4564559aba2c4eb629481e567a7772cb33b0bb69c"
+    },
+    "independent-provider-sealed512-publication-final-review.json.gz": {
+      "bytes": 1734,
+      "sha256": "b2f306cde45a0ecb7f351cb8d29147418a8d8dd1f9fce280db1650b638b96ec8",
+      "decodedBytes": 3557,
+      "decodedSHA256": "717559114bcc8a0e6be5dbb7966da5df82791d9910d0f5eb5d2885ccd11f7bd0"
+    }
+  }
+}

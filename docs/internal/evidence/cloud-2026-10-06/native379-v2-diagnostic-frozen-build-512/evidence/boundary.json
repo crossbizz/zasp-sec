@@ -1,0 +1,36 @@
+{
+  "scope": "ACTUAL-NEW-FROZEN-BUILD-VERIFIED; NO NATIVE OUTCOME",
+  "sourceCommit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "actualCounts": {
+    "committedGitBlobs": 6239,
+    "finishedSourceFiles": 6239,
+    "generatedVerified": 8,
+    "generatedChanged": 6,
+    "GoInputs": 5787,
+    "resolvedModules": 74,
+    "externalModules": 73,
+    "localPlatformModules": 1,
+    "NodeInputs": 1553,
+    "reviewedNodeSourceMembers": 1544,
+    "externalModuleToolFiles": 18916
+  },
+  "health": "tracked sibling replacement availability inside owned source only; not a consumed Go input/module",
+  "sourceControls": "13PASS/0FAIL/0SKIP57.914895sec; recorded589 outcome validations,6348steps,seven selected scripted executor calls acrosssix controls; noSQL/PG",
+  "supervision": "all11 actual source-preparation command records exit0/joined/no timeout/no unexpected descendants; same reviewed ordinary-group helper, not arbitrary escaped-session proof",
+  "omissions": {
+    "rawWire": "exact unchanged5d18, approved gzip already durable",
+    "binaries": "actual hashes in summary/envelopes; originals retained in new owned root",
+    "entireSourceArchiveSHA256": "5a405323e0947edac41d41b43243b9a638c8c77bf8f3137461fe9897309e09d8",
+    "duplicateIndependentInventory": "independent source-only rerun report/log binds478883; actualcompleteGo inventory retainedcompressed"
+  },
+  "launcher": "root63fa requires separate staticreview and rootowned bounded attempt; no invocation/result in this packet",
+  "historicalFailures": "originald466 nativeFAIL and oldroots remain unchanged; new secondarydiagnostic does not identify old primarycatalogfalse cause",
+  "separateVerification": "fullnpm512 FAIL302sec with threefixturepaths; fullhistory512 PASS0 93.65sec separate; fullverify UI/releaseunreached; historical3ccc UI2535 passes remainhistorical",
+  "pending": [
+    "native379 outcomes/actual budget/timing/cleanup/afterbind",
+    "varied-login/OID portability/legal63byte escaped-login byte overflow",
+    "production capacity",
+    "installed/deployed acceptance",
+    "release/728 milestone acceptance"
+  ]
+}

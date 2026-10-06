@@ -1,0 +1,4 @@
+=== RUN   TestWorkerRegistrationReferenceBuildInputInventory
+    authorization_worker_registration_reference_test.go:1830: source-only CGO0 complete input roster; binaries and PG NOT accepted 5787 74 f4d659824558dbe6d4098f9e89754e5cb16e9ebb302b1ca0ac31564691bfe77f
+--- PASS: TestWorkerRegistrationReferenceBuildInputInventory (8.63s)
+PASS

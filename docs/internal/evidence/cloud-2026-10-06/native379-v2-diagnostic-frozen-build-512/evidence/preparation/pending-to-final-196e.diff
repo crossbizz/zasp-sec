@@ -1,0 +1,29 @@
+--- pending-commit-checkpoint
++++ final-exact512-script
+@@ -10,7 +10,8 @@
+ WIRE=P('/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/candidate-6d02-dp9pgin8/canonical-wire.json')
+ EXPECTED_WIRE='5d18ca5f38c6f86c7cccda46fde1fb43008f6491b3c2a8319515592f7279a25a'
+ EXPECTED_IMPLEMENTATION='6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e'
+-EXPECTED_COMPANION='ROOT-APPROVED-COMPANION-SHA-PENDING'
++EXPECTED_COMPANION='468734a003d41cad8ce4a5ffe31963ba37f49838ae8c5f5744c5ce6d5638850a'
++EXPECTED_SOURCE_COMMIT='512beb183a0f7994f8769fc6765e3e1b80af4523'
+ def sha(p):
+  with P(p).open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+ def write(p,x):
+@@ -43,6 +44,7 @@
+  ap.add_argument('--reviewed-pg-binding',type=P)
+  args=ap.parse_args();commit=args.authorized_source_commit
+  if not re.fullmatch('[0-9a-f]{64}',EXPECTED_COMPANION):raise RuntimeError('pending exact independent/root companion binding; preparation closed')
++ if commit!=EXPECTED_SOURCE_COMMIT:raise RuntimeError('source commit differs from exact reviewed preparation binding')
+  if not re.fullmatch('[0-9a-f]{40}',commit):raise RuntimeError('exact root-authorized commit required')
+  actual=subprocess.check_output(['/usr/bin/git','rev-parse',commit+'^{commit}'],cwd=REPO,text=True,timeout=10).strip()
+  if actual!=commit:raise RuntimeError('commit identity')
+@@ -54,7 +56,7 @@
+  if tmp.exists():
+   if tmp.is_symlink() or not tmp.is_dir() or stat.S_IMODE(tmp.stat().st_mode)!=0o700 or tmp.stat().st_uid!=os.getuid() or any(tmp.iterdir()):raise RuntimeError('prepared TMPDIR must be fresh empty owned0700')
+  else:tmp.mkdir(mode=0o700)
+- if sha(PLAN/'frozen-build-plan.json')!='d658f956b734668a884994ff04da2bc4c1640c5ac1da9422a8f9a3182e568d7d':raise RuntimeError('reviewed plan hash differs')
++ if sha(PLAN/'frozen-build-plan.json')!='b17886a422e6429a9594e30af2cd41cdaa4fec1462f44fde6ebc472fcec1cfb1':raise RuntimeError('reviewed plan hash differs')
+  for tool,pin in [(FOUNDATION/'go/bin/go','3fb44b0d47becc087cf9e6002366bfbf136d3e08460f12389dbd04687dcf0dd0'),(FOUNDATION/'module-cache/owned-tools/node/bin/node','93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068')]:
+   check_file(tool)
+   if sha(tool)!=pin:raise RuntimeError('reviewed tool executable differs')

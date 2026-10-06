@@ -1,0 +1,77 @@
+{
+  "final-go-input-inventory.json.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/frozen-source-preparation/final-go-input-inventory.json",
+    "originalBytes": 1716466,
+    "originalSHA256": "478883205be66410c8574c1cc31222e9651dd73c1c53934ee330170375916a0c"
+  },
+  "go-build-envelope-candidate.json.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/frozen-source-preparation/go-build-envelope-candidate.json",
+    "originalBytes": 1723559,
+    "originalSHA256": "816fe4fb0b7be143cb3715e6b9ae3be934f34c78d753657b7922f7862e86b9e4"
+  },
+  "native379-v2-envelope-candidate.json.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/frozen-source-preparation/native379-v2-envelope-candidate.json",
+    "originalBytes": 502170,
+    "originalSHA256": "000076387b815beb30c8f02818e0ef8fd9e3d3eb269fdd4280eaff2f08978aef"
+  },
+  "committed-source-file-manifest.json.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/frozen-source-preparation/committed-source-file-manifest.json",
+    "originalBytes": 870631,
+    "originalSHA256": "a7d7e077caac589e89c7501e97b45f6f2091b3f244312c6cc05bd784d8d0c020"
+  },
+  "finished-source-file-manifest.json.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/frozen-source-preparation/finished-source-file-manifest.json",
+    "originalBytes": 870631,
+    "originalSHA256": "72c43e3a0cf3a09491b0f3687e53fbc9cb133a7dc2896b808d88181f28e6bdf9"
+  },
+  "before-build-module-tool-file-manifest.json.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/frozen-source-preparation/before-build-module-tool-file-manifest.json",
+    "originalBytes": 2818351,
+    "originalSHA256": "6a35d5c435820739c37430b893316d3675434f3ef8dcdbfac56fd0549e591ed8"
+  },
+  "go-tree-manifest.json.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/go-tree-manifest.json",
+    "originalBytes": 1627355,
+    "originalSHA256": "c77a7fb1be6bb84df71bac58d8dedf0279cdc7393f25048313a497bf34c9bb59"
+  },
+  "module-tool-tree-manifest.json.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/module-tool-tree-manifest.json",
+    "originalBytes": 2894016,
+    "originalSHA256": "5f22417139990dee4d05a8a5cf70418152ed4d7ea0f6e85ea11396519ed4dfdd"
+  },
+  "retained-mod-metadata-manifest.json.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/retained-mod-metadata-manifest.json",
+    "originalBytes": 38389,
+    "originalSHA256": "7f59ce9b0c1f649a558774b907e7653886d64b4e27619d031f6fd5b91ff068d7"
+  },
+  "generate-eight.log.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/frozen-source-preparation/generate-eight.log",
+    "originalBytes": 702165,
+    "originalSHA256": "d2dacb37b1f8e31d0142d1465f8d741433bcc707ee237b3be937c559624d58e4"
+  },
+  "check-eight.log.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/frozen-source-preparation/check-eight.log",
+    "originalBytes": 702165,
+    "originalSHA256": "d2dacb37b1f8e31d0142d1465f8d741433bcc707ee237b3be937c559624d58e4"
+  },
+  "repeat-generate-eight.log.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/outputs/frozen-source-preparation/repeat-generate-eight.log",
+    "originalBytes": 702165,
+    "originalSHA256": "d2dacb37b1f8e31d0142d1465f8d741433bcc707ee237b3be937c559624d58e4"
+  },
+  "security/original-metadata-redacted.json.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-frozen-publication-512-fcasib74/security-scan/original-metadata-redacted.json",
+    "originalBytes": 1125723,
+    "originalSHA256": "d7dc65b236b95426b179b3d66a2c6aec4c33b035a0e4aa05bf776afe29695974"
+  },
+  "security/evidence-redacted.json.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-frozen-publication-512-fcasib74/security-scan/evidence-redacted.json",
+    "originalBytes": 3041,
+    "originalSHA256": "3d2b8bd9ba492dbccf1246828de53699f017f96f4a288c15206d77c3169dbdeb"
+  },
+  "security/public-hash-classification.json.gz": {
+    "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-frozen-publication-512-fcasib74/security-scan/public-hash-classification.json",
+    "originalBytes": 2610588,
+    "originalSHA256": "c97be8d79606b7ae75bedb668f53af2dd7f89204aeeeae835af7827f43cc4434"
+  }
+}

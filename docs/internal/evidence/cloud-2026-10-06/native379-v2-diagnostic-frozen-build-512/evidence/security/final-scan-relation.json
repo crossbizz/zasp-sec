@@ -1,0 +1,8 @@
+{
+  "originalFindings": 4,
+  "finalFindings": 4,
+  "exactFindingMultisetEqual": true,
+  "originalReportSHA256": "3d2b8bd9ba492dbccf1246828de53699f017f96f4a288c15206d77c3169dbdeb",
+  "finalReportSHA256": "03c891c3eb316a3e38f5bd031758bdfeb84004a6eff4d7508279af503addeffc",
+  "classification": "independently verified public SHA256 values; scan remains FAIL; no clearance"
+}

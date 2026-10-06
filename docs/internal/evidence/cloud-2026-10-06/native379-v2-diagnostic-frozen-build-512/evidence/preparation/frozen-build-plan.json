@@ -1,0 +1,133 @@
+{
+  "status": "AUTHORIZED-SOURCE-ONLY-PREPARATION-PLAN-REQUIRES-INDEPENDENT-SCRIPT-REVIEW",
+  "foundation": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r",
+  "authorizedFoundationCopySummarySHA256": "43d6da35c39da44f17311062db466c8fb747bcbfe74f1e5be6ecc66a200d6f57",
+  "sourceCommit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "compiledCompanionSHA256": "468734a003d41cad8ce4a5ffe31963ba37f49838ae8c5f5744c5ce6d5638850a",
+  "implementationSHA256": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e",
+  "packetSHA256": "5d18ca5f38c6f86c7cccda46fde1fb43008f6491b3c2a8319515592f7279a25a",
+  "sourceInventorySHA256": "02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989",
+  "generatedIdentitiesSHA256": "9d1053e9310e27128404e45c2eeedce1dc6b42eaff004ecf0e0760c903b59f99",
+  "sourceFactDeltaSHA256": "90325bea8205ec4e3f8eaa1de3c1fb0d814981cc6fbfd91e3c3e4ad3e6a9cdab",
+  "generatedEightPins": {
+    "consolidated-reference-contract.json": "d7e2149d8be0d1e04bd1f18e571bf55ffe4458cbe380bc1f406d3ef49aae02ff",
+    "consolidated-reference-select.sql": "23f8a023d001acbf0c257c653335603864eead2b9f963ebdbafc03e266577b57",
+    "development-admission.sql": "999db012258f1cd04880c8fd5451bd41d4317556bb00c9dec15d493b257ba3ef",
+    "development-checkpoint.json": "905664791351c9714bfa4769ab94a6c11c6f1744c11ff56c165536fc71d13705",
+    "development-collector.sql": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f",
+    "development-manifest.json": "4820af14e63ea69b9285e5c69463436fe4ce01ef3a39111b7cbefc8adc2897f9",
+    "development-module.sql": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74",
+    "effective-contract4.json": "06210a2df2f96445b2e864812c83672a46a747c57ffc5b8c4ba380c23e1ab7b0"
+  },
+  "expectedNodeEnvelopeMembers": 1553,
+  "futureActualGoInputs": null,
+  "futureActualResolvedModules": null,
+  "futureActualCommittedSourceFiles": null,
+  "ownedSourceTopology": {
+    "root": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-source",
+    "platform": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-source/services/platform",
+    "healthAvailableTrackedSibling": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-source/services/health",
+    "healthConsumedClaim": false
+  },
+  "environment": {
+    "PATH": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/go/bin:/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-tools/node/bin:/tmp/zasp-cloud-tools/postgres-18.3/bin:/usr/bin:/bin",
+    "TMPDIR": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/tmp",
+    "GOROOT": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/go",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOFLAGS": "-mod=readonly",
+    "GOEXPERIMENT": "",
+    "GOOS": "linux",
+    "GOARCH": "amd64",
+    "CGO_ENABLED": "0",
+    "GOMODCACHE": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache",
+    "GOCACHE": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/build-cache"
+  },
+  "finiteCommands": [
+    [
+      "/usr/bin/git",
+      "archive",
+      "--format=tar",
+      "512beb183a0f7994f8769fc6765e3e1b80af4523"
+    ],
+    [
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-tools/node/bin/node",
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-source/services/platform/migrations/tools/build-ordered-current-development.mjs",
+      "--write"
+    ],
+    [
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-tools/node/bin/node",
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-source/services/platform/migrations/tools/build-ordered-current-development.mjs",
+      "--check"
+    ],
+    [
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-tools/node/bin/node",
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-source/services/platform/migrations/tools/build-ordered-current-development.mjs",
+      "--write"
+    ],
+    [
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-tools/node/bin/node",
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-source/services/platform/migrations/tools/ordered-current-native379-packet-v2.mjs",
+      "--json"
+    ],
+    [
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/go/bin/go",
+      "mod",
+      "verify"
+    ],
+    [
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/go/bin/go",
+      "test",
+      "-c",
+      "-mod=readonly",
+      "-o",
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/bin/apiserver.test",
+      "./apiserver"
+    ],
+    [
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/go/bin/go",
+      "test",
+      "-c",
+      "-mod=readonly",
+      "-o",
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/bin/migrations.test",
+      "./migrations"
+    ],
+    [
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/go/bin/go",
+      "build",
+      "-mod=readonly",
+      "-o",
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/bin/agentsec-migrate",
+      "./agentsec-migrate"
+    ],
+    [
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/bin/apiserver.test",
+      "-test.run=^TestWorkerRegistrationReferenceBuildInputInventory$",
+      "-test.count=1",
+      "-test.v"
+    ],
+    [
+      "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/bin/apiserver.test",
+      "-test.run=^TestNative379V2",
+      "-test.count=1",
+      "-test.v"
+    ]
+  ],
+  "gates": [
+    "Root exact reviewed source+sevenanchor commit and independent new companion byte review before sourcearchive/generation. Oldsource/d466 failedbundle unchanged.",
+    "Verify freshsource6d02 andapprovedcompanion, exactnewNode1544membermanifest/allcompilerbindings, Go1.25.13+Node22.23.1/toolroot maps/approved go.mod/go.sum.",
+    "Generate8\u2192--check\u2192repeat--write; exact all8 pins and entire sourcefilemap repeat equality. Retain actual Git-to-derived delta (expectations never replace actualcounts). Reproduce exact5d packet.",
+    "Use freshEMPTYowner0700cache, newTMPDIR, finiteprocessgroup/subreaper cleanup+durabletimeouts. Compile3realbinaries; full source/module/tool map postbuild equality.",
+    "Freeze GoRoot+ModuleCache incl NEWownedsource/platform+health+copiedNode. Inventory actual Go/source/module/embed/assemblerheader/nestedCLI closure; include newlyapproved companion. Actualcounts from utility only.",
+    "Construct actualGo/v2 envelopes with freshPG4wrapper+runtime/extension closure rehash from newrootreviewed PGmetadata (exact40f499 metadata freshly rehashed before generation and each runtime member rehashed before envelope emission). Nodeunion exact1553/noextra. No PGversion/server command in preparation.",
+    "Source13 controls on actualnewbuiltimmutablebinary then independently review complete immutable roots, source/tool/module/binary/PGmetadata/envelopes and root approve exactdigests.",
+    "Any later separately root-authorized native attempt uses env-i closedexactenv with no LD_PRELOAD/LD_LIBRARY_PATH/provider/PG ambientsettings; wrappers and fixture dependencies individually bound. Preserve actualfailure+cleanup/status evidence. No native command planned/executed here.",
+    "Diagnosticmetadata classifies secondarycollector only; originalcatalogfalse cause remains opaque; all589programs/10052facts/379rules/caps unchanged, longescapedusername byteportability gate unchanged."
+  ],
+  "reviewedPGBindingPath": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-root-reviewed-pg-binding.json",
+  "reviewedPGBindingSHA256": "40f499a12a8b69daa2f2e6bf527d74e01a7fdd4110b18b025b9ea6887275a500"
+}

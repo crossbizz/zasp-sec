@@ -15709,3 +15709,21 @@ and original acceptance requirements remain unchanged.
 
 
 Fresh reviewed fingerprint configuration passed the full-history scan at source 512beb with zero findings; historical 546/550-finding failures remain preserved. Full npm verification at that source FAILED after 302 seconds in three fixture paths, with UI/release stages unreached. The new frozen native attempt also FAILED after 224.45 seconds: secondary collector deadline confirmed, primary normal-false cause unobserved, no acceptance artifact. Two worker fixture corrections pass focused and race groups without changing production logic, waits, permissions or caps. API diagnostics reproduce no expiry and select no fix. These results do not promote any original task or milestone; approved advisory evidence and real deployed Stytch/provider bindings remain unavailable.
+
+
+The actual new 512 frozen build is independently reviewed: 6,239 committed/finished
+source files, eight verified outputs with six declared changes, 5,787 Go inputs,
+74 modules (73 external + platform), 1,553 Node inputs and 13 source groups passing
+57.915 seconds. Tracked health is available but not consumed. All 11 preparation
+commands joined; original 589 programs/caps remain. This source/build proof grants
+no native acceptance. Original d466 failure and new 512 native outcome are separate.
+Raw metadata scans retain 1,461 + 4 public-file-hash findings with explicit provenance;
+compression is not clearance. Full npm verification at 512 failed after 302 seconds; separate history scan
+passed with zero findings. Full UI/release was not reached; no 728/category/deployed promotion.
+
+Durable packet member manifest: `5bdcc1668b1af612050f5c7882f2b263869c27453d026c04b58f3c3311fdf545` (70 members).
+
+
+The root-owned 512 native attempt failed after 224.45 seconds, before the 589 controls. A secondary collector stream deadline was observed; the primary catalog Boolean-false cause remains unknown. Row and byte counters were below caps, without a catalog-parity or capacity claim. Owned PostgreSQL stopped and joined normally; endpoint and surviving-resource checks recorded zero survivors. No acceptance artifact exists. The new frozen-build proof and original d466 failure remain unchanged.
+
+Durable packet member manifest: `82484bec888b44ebd69efa3d30ea709dbb6c0d2d17221ff4898e72cdaa61385e` (17 members).
