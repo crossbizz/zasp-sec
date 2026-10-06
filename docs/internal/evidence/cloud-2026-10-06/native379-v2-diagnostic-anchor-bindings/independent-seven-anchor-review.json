@@ -1,0 +1,44 @@
+{
+  "assessment": "PASS-PRIVATE-COMPANION-BINDING-ONLY",
+  "changes_to_repository": "None by reviewer; privatecandidate only.",
+  "declined_to_judge": [
+    "Futurebuilds/Go inputs/modules/binaries/actualfrozenenvelopes andruntimePG/toolclosure.",
+    "Anewnative/probe/relaunch or successfulnative379 outcomes/capacity.",
+    "Cause of opaquepreviousprimarycatalogfalse or lostsecondarycollectorerror.",
+    "Installed/product/release/productionauthority."
+  ],
+  "findings": {
+    "Critical": [],
+    "Important": [],
+    "Minor": []
+  },
+  "format": "independent-native379-v2-seven-anchor-candidate-review-v1",
+  "identity": {
+    "anchors": {
+      "orderedCurrentNative379V2CollectorSHA256": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f",
+      "orderedCurrentNative379V2GeneratedIdentitiesSHA256": "9d1053e9310e27128404e45c2eeedce1dc6b42eaff004ecf0e0760c903b59f99",
+      "orderedCurrentNative379V2ManifestSHA256": "4820af14e63ea69b9285e5c69463436fe4ce01ef3a39111b7cbefc8adc2897f9",
+      "orderedCurrentNative379V2ModuleSHA256": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74",
+      "orderedCurrentNative379V2PacketSHA256": "5d18ca5f38c6f86c7cccda46fde1fb43008f6491b3c2a8319515592f7279a25a",
+      "orderedCurrentNative379V2SourceFactDeltaSHA256": "90325bea8205ec4e3f8eaa1de3c1fb0d814981cc6fbfd91e3c3e4ad3e6a9cdab",
+      "orderedCurrentNative379V2SourceInventorySHA256": "02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989"
+    },
+    "approved_go_source_sha256": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e",
+    "approved_schema_sha256": "82c955587e6c6f5e8c26dd3a0377d38887ed2711a8d26a50766c9882a8ae3a88",
+    "approved_source_manifest_sha256": "02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989",
+    "approved_wire_sha256": "5d18ca5f38c6f86c7cccda46fde1fb43008f6491b3c2a8319515592f7279a25a",
+    "candidate_path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/anchor-derivation-6d02-abbx5jil/authorization_worker_ordered_current_native379_v2_pins_test.go.candidate",
+    "candidate_sha256": "468734a003d41cad8ce4a5ffe31963ba37f49838ae8c5f5744c5ce6d5638850a",
+    "derivation_receipt_sha256": "f5e54bf072fcd28490065c55c196283ae0c27618cbe6c55c998c4edc63d1cd46",
+    "old_companion_sha256": "ae73247dade4f3a2af08249da9634cab4cf5d3d214d83b13d1e1a3643969f6c8"
+  },
+  "reviewer": "review_capture_dependency",
+  "safe_scope": "Root may separately adopt these exact candidatecompanion bytes in its authorized companion-only batch. Actualnewsourcecommit, newly preparedimmutablefoundation, generation/reproduction, threefreshbinaries, Go/moduleh1/fullinputs+1553Node/tool/PGclosure, actualenvelopes and cleanup must be independently reviewed before any separatelyauthorized boundednative attempt. No old frozenroot/binary/envelope reused or reauthorized.",
+  "verified": [
+    "Allseven literal values independently recomputed from actual approved raw/artifact bytes. Module/manifest/collector hashrecomputed from previously reviewed immutable exact generatedfiles and agrees with approved unchangedgeneratedidentities outputPins; these reads convey no oldroot reauthorization.",
+    "Exactlytwo literal values change from oldae732: packet and sourceinventory. Five(module,manifest,collector,generatedidentities,sourcefactdelta)unchanged. Removing sevenliteralvalues makes candidate/old byteexactidentical; noothercode/comment/format change.",
+    "Reviewed source6d02/raw5d18 is the same source-only candidate that passed independent13component tests. Every nonauthoritypacketfield exactca7d; allcontrols/caps/facts unchanged.",
+    "Companion explicitly absent1544Node source roster; implementation included. Literalchange cannot introduceNode/provenance cycle. Actualfuturefull consumedGo roster MUST include candidatecompanion exact468734 bytes.",
+    "Explicit localempty-pinset test remains unmodified, and native external closedGo/V2 envelope gating remains unmodified. Compiled populatedanchors alone do not confer runtime or captureauthority."
+  ]
+}
