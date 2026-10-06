@@ -1,0 +1,8 @@
+{
+  "commit": "9706df6732de608a1ffe24eb851df8b1baa6808d",
+  "exit": 1,
+  "findings": 1,
+  "elapsedSeconds": 0.518,
+  "reportSHA256": "03646295775608a20298de81fad752318968568122ed716a52c5e14162e65c7c",
+  "scope": "Exact worker fixture/failure evidence commit only; fresh full scan required separately."
+}
