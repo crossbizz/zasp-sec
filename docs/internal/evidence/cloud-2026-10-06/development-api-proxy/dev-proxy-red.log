@@ -1,0 +1,81 @@
+TAP version 13
+# Subtest: development API routing preserves browser security headers, cookies and product errors
+not ok 1 - development API routing preserves browser security headers, cookies and product errors
+  ---
+  duration_ms: 296.420877
+  type: 'test'
+  location: '/workspace/zasp-sec/scripts/dev-api-proxy.test.mjs:16:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    404 !== 401
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 401
+  actual: 404
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/zasp-sec/scripts/dev-api-proxy.test.mjs:30:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: absent development authority leaves API routing unconfigured
+ok 2 - absent development authority leaves API routing unconfigured
+  ---
+  duration_ms: 0.610905
+  type: 'test'
+  ...
+# Subtest: development authority rejects credentials, ambiguous URL components and insecure remote origins
+not ok 3 - development authority rejects credentials, ambiguous URL components and insecure remote origins
+  ---
+  duration_ms: 0.271531
+  type: 'test'
+  location: '/workspace/zasp-sec/scripts/dev-api-proxy.test.mjs:48:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception: invalid authority must refuse startup without including its value'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/zasp-sec/scripts/dev-api-proxy.test.mjs:50:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: development authority accepts HTTPS and explicit loopback without changing TLS or cookie authority
+not ok 4 - development authority accepts HTTPS and explicit loopback without changing TLS or cookie authority
+  ---
+  duration_ms: 0.118359
+  type: 'test'
+  location: '/workspace/zasp-sec/scripts/dev-api-proxy.test.mjs:54:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading '^/api(?:/|$)')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/zasp-sec/scripts/dev-api-proxy.test.mjs:57:23)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 1
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 552.798804

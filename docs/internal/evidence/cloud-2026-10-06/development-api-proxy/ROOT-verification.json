@@ -1,0 +1,34 @@
+{
+  "scope": "explicit dev-server same-origin API routing; production ingress unchanged",
+  "typecheckExit": 0,
+  "lintExit": 0,
+  "applicationHTTPTests": {
+    "pass": 4,
+    "fail": 0,
+    "skip": 0
+  },
+  "independentHTTPTests": {
+    "pass": 4,
+    "fail": 0,
+    "skip": 0
+  },
+  "files": [
+    {
+      "path": "vite.config.ts",
+      "sha256": "df376bce560410b588164d0547311da50da154d48b776e41753116602632c10e"
+    },
+    {
+      "path": "scripts/dev-api-proxy.mjs",
+      "sha256": "236bd188b79a234cc11253f59b940a91e5276f9bbd99c7c989444632e13d51ea"
+    },
+    {
+      "path": "scripts/dev-api-proxy.test.mjs",
+      "sha256": "f31d96c91d310b23cca83984f18e17aed8001bbfe53519dedfede0a4ec0a0cbe"
+    }
+  ],
+  "limits": [
+    "Controlled loopback HTTP upstream proves proxy behavior, not real product API or provider authentication.",
+    "Live Vinext/Cloudflare server with the real product backend still needs verification.",
+    "No ledger classification promoted."
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "outcome": "PASS source and independent HTTP component tests",
+  "sourceSHA256": [
+    {
+      "path": "vite.config.ts",
+      "sha256": "df376bce560410b588164d0547311da50da154d48b776e41753116602632c10e"
+    },
+    {
+      "path": "scripts/dev-api-proxy.mjs",
+      "sha256": "236bd188b79a234cc11253f59b940a91e5276f9bbd99c7c989444632e13d51ea"
+    },
+    {
+      "path": "scripts/dev-api-proxy.test.mjs",
+      "sha256": "f31d96c91d310b23cca83984f18e17aed8001bbfe53519dedfede0a4ec0a0cbe"
+    }
+  ],
+  "independentRun": {
+    "exit": 0,
+    "tests": 4,
+    "pass": 4,
+    "fail": 0,
+    "skip": 0,
+    "logSHA256": "3b5b361094c1c59bb38fecfa4d4154e3b6ae8c7fa4b3cf668fc8afb567a75246"
+  },
+  "verified": [
+    "Only explicit development serve and not preview; build/deployment unchanged",
+    "Strict canonical parsed origin, no credentials/path/query/fragment; insecure remote HTTP refused",
+    "TLS verification true; no host/origin/cookie/path rewrites",
+    "Actual owned Vite HTTP GET+PUT retain request method/body/query/Host/Origin/cookie/CSRF and backend401+SetCookie; nonAPI prefix excluded"
+  ],
+  "limits": [
+    "Independent tests use Vite configFile=false without vinext/Cloudflare plugins; full configured devserver smoke remains separate",
+    "No upstream API/provider/runtime authentication acceptance",
+    "Author fourth baseline error is fixture TypeError, not behavioralRED"
+  ],
+  "publication": {
+    "originalSHA256": "61c618fd58cf6feb536049436fe5ca161efebfe4c90ee7999b9fd092e1ba7f1f",
+    "change": "Digest map reformatted as path/sha256 records to avoid scanner treating path names as credential keys; original report retained privately unchanged."
+  }
+}
