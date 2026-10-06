@@ -1,0 +1,90 @@
+{
+  "correctedSourceAndRecipe": [
+    {
+      "bytes": 32377,
+      "metadata": {
+        "ctime_ns": 1791317524014098591,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441659,
+        "mode": 33024,
+        "mtime_ns": 1791317524014098591,
+        "nlink": 1,
+        "size": 32377,
+        "uid": 1000
+      },
+      "path": "/tmp/zasp-cloud-evidence/old-real9c13-final-described-source-envoz8na/custody.py",
+      "sha256": "feae787be6b937d7d3f43f6f3be0e75274c786143e7973c57598bd10f3be2bb5"
+    },
+    {
+      "bytes": 16672,
+      "metadata": {
+        "ctime_ns": 1791317524021183675,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441666,
+        "mode": 33024,
+        "mtime_ns": 1791317524021183675,
+        "nlink": 1,
+        "size": 16672,
+        "uid": 1000
+      },
+      "path": "/tmp/zasp-cloud-evidence/old-real9c13-final-described-root-owner-poh9jaqc/ROOT-RECIPE.json",
+      "sha256": "3ab5e1f0840d2a34655f56fda6daf4781ce579b11f051c49a831f4cc4719817b"
+    }
+  ],
+  "finding": "Copied prepare-only description contradicted finalize-only main and actual oneunlink; corrected description plus exclusive namespace/pin changes, no lifecycle algorithm expansion. Held87238/dd5/c7ec were never executed. No test or causal-runtime RED claimed.",
+  "noOriginalBytesRewritten": true,
+  "originalHeldSourceAndOwner": [
+    {
+      "bytes": 32295,
+      "metadata": {
+        "ctime_ns": 1791317401177569125,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441632,
+        "mode": 33024,
+        "mtime_ns": 1791317401177569125,
+        "nlink": 1,
+        "size": 32295,
+        "uid": 1000
+      },
+      "path": "/tmp/zasp-cloud-evidence/old-real9c13-final-one-unlink-source-un24w6ob/custody.py",
+      "sha256": "87238a4870e972a93a511c1026ef720e9025556679a9a6f071a8713d99c7f4f5"
+    },
+    {
+      "bytes": 31273,
+      "metadata": {
+        "ctime_ns": 1791317448178794147,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441651,
+        "mode": 33024,
+        "mtime_ns": 1791317448178794147,
+        "nlink": 1,
+        "size": 31273,
+        "uid": 1000
+      },
+      "path": "/tmp/zasp-cloud-evidence/old-real9c13-final-one-unlink-root-owner-_phd5ss3/run-fresh-observe-and-one-unlink.py",
+      "sha256": "dd5ccf8059e13a2815eef4b2170bbe417823e4d871f2b979d666307a79f5f4f0"
+    },
+    {
+      "bytes": 16545,
+      "metadata": {
+        "ctime_ns": 1791317448179036862,
+        "dev": 34,
+        "gid": 1000,
+        "ino": 441652,
+        "mode": 33024,
+        "mtime_ns": 1791317448179036862,
+        "nlink": 1,
+        "size": 16545,
+        "uid": 1000
+      },
+      "path": "/tmp/zasp-cloud-evidence/old-real9c13-final-one-unlink-root-owner-_phd5ss3/ROOT-RECIPE.json",
+      "sha256": "c7ec3d070ca17343d59196eae9b0928a35b677a76efe9a1a5bf28838479d8cf6"
+    }
+  ],
+  "originalScaffoldingSetupFailure": "A source-generation attempt expected PINS on observer owner that actually uses PIN; fixed authoring only before issuance; no observer/test/runtime claim.",
+  "status": "SOURCE-DESCRIPTION-REFUSAL-UNRUN-CHECKPOINT-NOT-RUNTIME-FAILURE"
+}

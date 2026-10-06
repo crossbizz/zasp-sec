@@ -1,0 +1,15 @@
+test_prepare_never_writes_past_encoded_cap (__main__.EncodedControls.test_prepare_never_writes_past_encoded_cap) ... FAIL
+
+======================================================================
+FAIL: test_prepare_never_writes_past_encoded_cap (__main__.EncodedControls.test_prepare_never_writes_past_encoded_cap)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/zasp-cloud-evidence/old-real9c13-gzip50-controls-ybr_5_dg/encoded-cap.test.py", line 17, in test_prepare_never_writes_past_encoded_cap
+    self.assertLessEqual(self.m.ARCHIVE.stat().st_size,10,'existing prepare API must refuse BEFORE writing beyond encoded cap')
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 298 not less than or equal to 10 : existing prepare API must refuse BEFORE writing beyond encoded cap
+
+----------------------------------------------------------------------
+Ran 1 test in 0.012s
+
+FAILED (failures=1)

@@ -1,0 +1,13 @@
+test_complete_payload_crc_direct_original_equality (__main__.EncodedControls.test_complete_payload_crc_direct_original_equality) ... ok
+test_empty_compressor_output_is_valid_no_growth (__main__.EncodedControls.test_empty_compressor_output_is_valid_no_growth) ... ok
+test_exact_encoded_limit_accepted (__main__.EncodedControls.test_exact_encoded_limit_accepted) ... ok
+test_nonempty_short_write_refused (__main__.EncodedControls.test_nonempty_short_write_refused) ... ok
+test_nonempty_zero_write_refused (__main__.EncodedControls.test_nonempty_zero_write_refused) ... ok
+test_one_below_complete_size_refuses_preserves_raw (__main__.EncodedControls.test_one_below_complete_size_refuses_preserves_raw) ... ok
+test_prepare_never_writes_past_encoded_cap (__main__.EncodedControls.test_prepare_never_writes_past_encoded_cap) ... ok
+test_signal_and_deadline_refuse_before_encoded_write (__main__.EncodedControls.test_signal_and_deadline_refuse_before_encoded_write) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.051s
+
+OK

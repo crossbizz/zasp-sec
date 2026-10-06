@@ -1,0 +1,70 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "old-real9c13-hardcap-eight-TDD",
+  "completedAtWrite": true,
+  "failureClass": null,
+  "signals": [],
+  "records": [
+    {
+      "label": "old-postwrite-cap-RED",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/old-real9c13-gzip50-controls-ybr_5_dg/encoded-cap.test.py",
+        "EncodedControls.test_prepare_never_writes_past_encoded_cap",
+        "-v"
+      ],
+      "declared_cap_seconds": 10,
+      "effective_limit_seconds": 10,
+      "enclosing_deadline_monotonic": 85762.375563098,
+      "effective_deadline_monotonic": 85742.376342371,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 1,
+      "pid": 330772,
+      "seconds": 0.121349,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "9499063887be3063b12d146044f4437e3df52ec5141284220081446512119576"
+    },
+    {
+      "label": "new-prewrite-hardcap-eight-GREEN",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/old-real9c13-gzip50-controls-ybr_5_dg/encoded-cap.test.py",
+        "-v"
+      ],
+      "declared_cap_seconds": 20,
+      "effective_limit_seconds": 20,
+      "enclosing_deadline_monotonic": 85762.375563098,
+      "effective_deadline_monotonic": 85752.497920344,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 330773,
+      "seconds": 0.123266,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "097a2e150d7fe7cf8287607a3d28e6d7b882731b9a492787a799607e470ac766"
+    }
+  ],
+  "groups": {
+    "330772": [],
+    "330773": []
+  },
+  "seconds": 0.2797571569972206,
+  "expectedNetworkVariableNames": [],
+  "servicesStarted": false,
+  "installerInvoked": false,
+  "admissionScope": "TINY-SOURCE-TESTS-ONLY-NO-INSTALLER-NETWORK-OR-SERVICE",
+  "rootExternalNormalJoinRequired": true
+}

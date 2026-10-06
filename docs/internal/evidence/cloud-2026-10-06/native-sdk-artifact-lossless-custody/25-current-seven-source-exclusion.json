@@ -1,0 +1,42 @@
+{
+  "currentExclusion": {
+    "R11ConfigRawTargetAbsentAndComponentNull": true,
+    "R11CurrentExactUnboundSourceNoRawTargetLiteralOrReader": true,
+    "authorConfirmation": "registration current e52/51d5/1167/c05 source-bound readers no old raw9c13; cases use old90e resultfixture only. Historical R10 consuming profile/results remain historical; no R10rerun authorized. Future rendered artifact/config requires newadmission.",
+    "diagnosticEXPECTEDCount": 19402,
+    "diagnosticNoOldAttemptOrTargetKeys": true
+  },
+  "historicalR10ConsumptionPreserved": true,
+  "scope": "Only current804b/e52/51d5/1167/c05/67ead snapshot. FutureboundR11/config/artifact requires newadmission. Notservice/compile authority.",
+  "sourceInputs": {
+    "/tmp/authorization80-FGA-R11-Path-import-only-v3-f6gcnd5y/ACTIVATION-CONFIG-CLOSED-SPEC.json": {
+      "bytes": 5190,
+      "sha256": "1167e6a909fca704278211b906068c80610b58a2f2038984dfd20c3a14f1cad3"
+    },
+    "/tmp/authorization80-FGA-R11-Path-import-only-v3-f6gcnd5y/SOURCE-PREPARATION.json": {
+      "bytes": 1670,
+      "sha256": "c05fe5f27c810b96481765596540969976dd2d864d8fa24ab54d8016eff4b147"
+    },
+    "/tmp/authorization80-FGA-R11-Path-import-only-v3-f6gcnd5y/lifecycle_restart_cases.py": {
+      "bytes": 14901,
+      "sha256": "51d5b6dff4e68375511c36708304d9ad3639d7b25b802a1d320101341e87b2e4"
+    },
+    "/tmp/authorization80-FGA-R11-Path-import-only-v3-f6gcnd5y/owned_fga_pg_parent_R11_UNBOUND.py": {
+      "bytes": 34155,
+      "sha256": "e52ed974428403ad08b3473e13d858c6db20a1bff02a89fc9f453bb6add0b36f"
+    },
+    "/tmp/authorization80-FGA-R11-owned-restart-option-9zj_r7u4/CONFIG-R11-UNBOUND.json": {
+      "bytes": 42680,
+      "sha256": "67ead27181e288bffb52bb418968ee62bfd2a77a34e7ec5e57066fd9a4ad344a"
+    },
+    "/tmp/authorization80-FGA-diagnostic-pointer-count-v4-9tkazoe1/RECIPE.json": {
+      "bytes": 4050,
+      "sha256": "230464495fbae97f726870365b809c0972e3b3e545d45e6ffbfed79190f491bd"
+    },
+    "/tmp/authorization80-FGA-diagnostic-pointer-count-v4-9tkazoe1/run-diagnostic-source.py": {
+      "bytes": 4550502,
+      "sha256": "804b55ed1be03f3888dde166da406247d0a76a0e0b5fbf2940900117d5ac6982"
+    }
+  },
+  "status": "CURRENT-EXACT-REAL9C13-RAW-NOT-CONSUMED-BY-FROZEN-DIAGNOSTIC-OR-UNBOUND-R11"
+}
