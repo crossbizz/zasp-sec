@@ -1,0 +1,76 @@
+{
+  "format": "historical-git-object-restoration-check-v1",
+  "source_commit": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "source_path": "docs/internal/cloud-handoff-security-review-2026-10-01.md",
+  "origin": "https://github.com/crossbizz/zasp-sec.git",
+  "origin_advertisement": {
+    "exit": 0,
+    "outcome": "success",
+    "advertised_entry_count": 108,
+    "stdout_sha256": "c026b055f453e784abc98e20d50003d21278366aa0fcc96f3745db051dd113f7",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "objects": [
+    {
+      "git_id": "1079ff4750f20f0065cfd4f57c76cc5e2e147f14",
+      "semantic_label": "preservation-commit",
+      "source_line": 9,
+      "local_type_before": null,
+      "advertised_exact_id": false,
+      "fetch_exit": 128,
+      "fetch_outcome": "origin-rejected-object-request",
+      "fetch_stderr_sha256": "f91aa81337e61cb50b748c2da739db9b6f88303b83472e41cf009cc7ce03b4d6",
+      "local_type_after": null
+    },
+    {
+      "git_id": "d19fd666b65d7cb736a6de0524e86c7a70503092",
+      "semantic_label": "reviewed-tree",
+      "source_line": 10,
+      "local_type_before": null,
+      "advertised_exact_id": false,
+      "fetch_exit": 128,
+      "fetch_outcome": "origin-rejected-object-request",
+      "fetch_stderr_sha256": "ab0a8449d394d743244f70c7dd4eff7e4e0260f79f27579e8f3913889e02278f",
+      "local_type_after": null
+    },
+    {
+      "git_id": "6e7d759007e0ad7cb2e5ef385d99f48bc3aa774a",
+      "semantic_label": "original-worktree-head",
+      "source_line": 11,
+      "local_type_before": null,
+      "advertised_exact_id": false,
+      "fetch_exit": 128,
+      "fetch_outcome": "origin-rejected-object-request",
+      "fetch_stderr_sha256": "f9160dbfab3a6167cd6b82932534320b2c6cc918e3a26bb3bcd60177d6ae27a8",
+      "local_type_after": null
+    },
+    {
+      "git_id": "5fbd24310ce8d779ec6ee3ac995651f45908ce3b",
+      "semantic_label": "reviewed-scan-commit",
+      "source_line": 31,
+      "local_type_before": null,
+      "advertised_exact_id": false,
+      "fetch_exit": 128,
+      "fetch_outcome": "origin-rejected-object-request",
+      "fetch_stderr_sha256": "3ec38b86369d4d3c8bbbeaa83e547d94d34664b642ccbeff2dcfc7aae4fd2863",
+      "local_type_after": null
+    },
+    {
+      "git_id": "b89460deb3a2eb95c8a02cd31183b9f075465cf0",
+      "semantic_label": "introduction-commit",
+      "source_line": 96,
+      "local_type_before": "commit",
+      "advertised_exact_id": false,
+      "fetch_outcome": "not-needed-already-local",
+      "local_type_after": "commit"
+    }
+  ],
+  "head_before": "d466887f7fa2dd44562489278d302e3aff9ed32f",
+  "head_after": "d466887f7fa2dd44562489278d302e3aff9ed32f",
+  "refs_unchanged": true,
+  "worktree_status_unchanged": true,
+  "restored_objects": 0,
+  "missing_objects_after": 4,
+  "policy": "Inherited proxy, TLS, authentication preserved; noninteractive exact-SHA fetch only, 25-second per-command deadline, no FETCH_HEAD/ref writes, no branch/history/config/ignore edits. Raw fetch output omitted.",
+  "security_status": "No scanner clearing or artifact-provenance claim. Object existence alone cannot establish missing artifact origin or historical release evidence."
+}

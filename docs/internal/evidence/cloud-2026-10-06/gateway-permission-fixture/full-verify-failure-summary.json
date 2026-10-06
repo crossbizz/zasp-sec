@@ -1,0 +1,34 @@
+{
+  "started_utc": "2026-10-06T01:04:23Z",
+  "completed_utc": "2026-10-06T01:11:01Z",
+  "exit_code": 1,
+  "head_before": "8f537fecb731c3135a81f39ced2f1bd1e7999281",
+  "head_after": "d466887f7fa2dd44562489278d302e3aff9ed32f",
+  "raw_log_sha256": "f63805ed5ed853a355970d1037a1ef6f5a3685dbf5f17d181c92bb6e1018ab3f",
+  "tools": [
+    "v22.23.1",
+    "10.9.8",
+    "go version go1.25.13 linux/amd64",
+    "tini version 0.19.0 - git.de40ad0"
+  ],
+  "umask": "0077",
+  "completed_packages": {
+    "health": "1.046s",
+    "healthserver": "6.076s",
+    "agentsec_api": "6.258s",
+    "agentsec_worker": "376.043s",
+    "event_ingest": "2.520s"
+  },
+  "failure": {
+    "package": "services/runtime-gateway",
+    "test": "TestGatewayEvidenceDiskStoreRejectsUnsafeExistingFilesBeforeRecovery/group_readable_database_file",
+    "source": "services/runtime-gateway/evidence_store_test.go:154",
+    "observation": "store opened with err=nil",
+    "fixture_root_cause": "os.WriteFile requested0640 masked to0600 by host0077; existing production guard requires0600",
+    "production_guard": "services/runtime-gateway/evidence_directory.go:76"
+  },
+  "ui_suite_reached": false,
+  "hosted_failure_cause": "unknown: hosted direct log retrieval forbidden403; local finding does not establish hosted cause",
+  "source_changes_during_run": "after SHA differs; only companion docs/evidence and frozen native379 pin test changes, not runtime-gateway source",
+  "repo_changes_by_this_task": false
+}

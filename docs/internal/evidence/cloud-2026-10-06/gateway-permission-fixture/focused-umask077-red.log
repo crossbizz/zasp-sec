@@ -1,0 +1,6 @@
+--- FAIL: TestGatewayEvidenceDiskStoreRejectsUnsafeExistingFilesBeforeRecovery (0.01s)
+    --- FAIL: TestGatewayEvidenceDiskStoreRejectsUnsafeExistingFilesBeforeRecovery/group_readable_database_file (0.01s)
+        evidence_store_test.go:154: store=&main.gatewayEvidenceDiskStore{mu:sync.Mutex{_:sync.noCopy{}, mu:sync.Mutex{state:0, sema:0x0}}, parent:(*os.Root)(0xc0000ce518), root:(*os.Root)(0xc0000ce520), directory:(*os.File)(0xc0000ce538), parentName:"evidence", database:(*badger.DB)(0xc00029d688), expected:main.gatewayAuthority{OrganizationID:"pid_90000001-0000-4000-8000-000000000001", WorkspaceID:"pid_90000002-0000-4000-8000-000000000002", EnvironmentID:"pid_90000003-0000-4000-8000-000000000003", DeviceID:"pid_90000004-0000-4000-8000-000000000004", CredentialID:"pid_90000005-0000-4000-8000-000000000005", ReplayFloor:0x0}, maximum:8, maximumBytes:0x1000000, maximumDatabaseBytes:0x4000000, closed:false} err=<nil>
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/runtime-gateway	0.029s
+FAIL

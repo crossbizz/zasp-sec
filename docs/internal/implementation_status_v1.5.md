@@ -8,8 +8,9 @@ Actual bootstrap session user/PID and qualified parameterized assertions bind
 role receipts; source-declared poison/error recovery requires fresh assertions.
 Final source-only tests pass six Node groups and nine Go groups; independent
 rerun passes nine groups. Original physical-budget and canonical RED evidence
-and prior refusal manifests remain retained. Seven native anchors stay empty;
-no native379 PostgreSQL execution or readiness promotion occurred.
+and prior refusal manifests remain retained. Seven companion literals now bind
+the reviewed packet; the actual immutable build envelope and native379
+PostgreSQL acceptance remain pending. No readiness promotion occurred.
 
 The fixed scripted ledger fits unchanged limits, but a legal escaped 63-byte
 login exceeds the forged-entry byte cap. Varied-login portability, new full
@@ -18,6 +19,14 @@ Fresh runtime inventory found all 162 inspected ZASP loader bindings absent.
 The full-history security scan still fails with 546 findings; merge/release
 readiness remains blocked. See [the October 6 receipt](cloud-continuation-receipt-2026-10-06.md).
 All 728 IDs and 523/144/61 evidence categories remain unchanged.
+
+Fresh full verification started at reviewed `8f537fec` and failed after 398
+seconds: the worker race package passed in 376.043 seconds, while the gateway's
+intended group-readable test fixture was masked to 0600 by host umask 0077.
+UI verification was not reached. A narrowly reviewed fixture correction now
+sets 0640 explicitly; the unchanged production exact-0600 guard and existing
+grouped tests pass under umasks 077 and 022. This component repair does not
+replace the retained full failure or establish a fresh full-suite pass.
 
 ## Cloud runtime receipt, October 5, 2026
 
