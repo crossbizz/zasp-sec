@@ -185,7 +185,7 @@
     "services/platform/apiserver/authorization_worker_ordered_consumer_mode_test.go": "6d4824255f7413f399b34daab9475009439957afae37f250b58c1f6fec8d4392",
     "services/platform/apiserver/authorization_worker_ordered_convergence_postgres_test.go": "3730284a8c082a2892324a69e927a46550d1279ec6c18673b5b3e1a886cb6399",
     "services/platform/apiserver/authorization_worker_ordered_current_integrity_postgres_test.go": "848ab758aec73cdd9da5ed61db4667e6da9efab8558bd8ad2284e2b086840303",
-    "services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go": "05f314d326b85a56f98370431dc8fb4d7088d9ac9ddf8c73eebf3261d2b4f3e8",
+    "services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e",
     "services/platform/apiserver/authorization_worker_ordered_direct_frame_acceptance_boundary_test.go": "c818f6a93eba5cbcb08c9b7ba970f551245f53bfe8b57243f678618144c0a3a0",
     "services/platform/apiserver/authorization_worker_ordered_direct_frame_acceptance_postgres_test.go": "f47a204812ef8ec1dd8548e0aae6ccfca6137b8683105ca8ef4e21a5a28bcc31",
     "services/platform/apiserver/authorization_worker_ordered_dispatch_native_test.go": "aed409377387d20959d2bd7e493d88776e8eab338b749ce4651a759ed5857540",

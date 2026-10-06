@@ -1,0 +1,120 @@
+{
+  "kind": "source-only-component-review-not-native-envelope",
+  "sourceBaseCommit": "3ccc145510ea90c751a66306b6bb1d39812d5c51",
+  "cwd": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/source/services/platform",
+  "environment": {
+    "PATH": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go/bin:/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+    "TMPDIR": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/tmp",
+    "GOROOT": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOFLAGS": "-mod=readonly",
+    "GOEXPERIMENT": "",
+    "GOOS": "linux",
+    "GOARCH": "amd64",
+    "CGO_ENABLED": "0",
+    "GOMODCACHE": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache",
+    "GOCACHE": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/build-cache"
+  },
+  "compileArgv": [
+    "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go/bin/go",
+    "test",
+    "-c",
+    "-mod=readonly",
+    "-o",
+    "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/component-review-6d02/apiserver-source-review.test",
+    "./apiserver"
+  ],
+  "rerunArgv": [
+    "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/component-review-6d02/apiserver-source-review.test",
+    "-test.run",
+    "^TestNative379V2",
+    "-test.count=1",
+    "-test.v"
+  ],
+  "binary": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/component-review-6d02/apiserver-source-review.test",
+    "sha256": "e6306ca979ffb25b38ebf062ece45cf46b498a8131e767297adcc251f3961655",
+    "bytes": 117586224
+  },
+  "implementation": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/source/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+    "sha256": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e",
+    "bytes": 198861
+  },
+  "inheritedStaleCompanionNotReauthorized": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/source/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_pins_test.go",
+    "sha256": "ae73247dade4f3a2af08249da9634cab4cf5d3d214d83b13d1e1a3643969f6c8",
+    "bytes": 1189
+  },
+  "wire": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/candidate-6d02-dp9pgin8/canonical-wire.json",
+    "sha256": "5d18ca5f38c6f86c7cccda46fde1fb43008f6491b3c2a8319515592f7279a25a",
+    "bytes": 25160408
+  },
+  "Go": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go/bin/go",
+    "sha256": "3fb44b0d47becc087cf9e6002366bfbf136d3e08460f12389dbd04687dcf0dd0",
+    "bytes": 14989108
+  },
+  "Node": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-tools/node/bin/node",
+    "sha256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068",
+    "bytes": 124835376
+  },
+  "full13Green": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/evidence/diagnostic-6d02-authentic-full13-green.log",
+    "sha256": "709d62760c2f611f134730f03d4227784298562d5864bc4ee59ce99714c454d0",
+    "bytes": 5228
+  },
+  "nonWire12Green": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/evidence/diagnostic-source-group-green-3.log",
+    "sha256": "a4c3d1bb50c493538b306f6a301c75a27cc216a25757cf62bcd46ee50d94094d",
+    "bytes": 4415
+  },
+  "behavioralLegacyAPIRed": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/evidence/diagnostic-legacy-api-behavioral-red.log",
+    "sha256": "2aeeea560286c3e9746bb715767bafcc93d662f57724c257aafa0721ef93993d",
+    "bytes": 358
+  },
+  "behavioralLegacyAPIGreen": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/evidence/diagnostic-legacy-api-behavioral-green.log",
+    "sha256": "ba1e9e5c1729cb1615a65b7edb70b1e4d0122a1d07eea6725a461aee1173842e",
+    "bytes": 227
+  },
+  "featureCompileRed": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/evidence/diagnostic-group-red-2.log",
+    "sha256": "6396c3ce20a89cb3a0e15881634687b776eb4d0738ab0b1a658956ec77211579",
+    "bytes": 1192
+  },
+  "excludedTypeMistakeCompileLog": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/evidence/diagnostic-group-red-1.log",
+    "sha256": "65d1ac48ccd90dc89cc8dd756268f94d3ea08686d1296d250b7e032d4ca1fdc1",
+    "bytes": 1562
+  },
+  "staleRosterRefusalNotGreen": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/evidence/diagnostic-source-group-green-2.log",
+    "sha256": "91318bd27c932130b79fa0d607c9f853159adb32fa221bc61e570667711c9628",
+    "bytes": 4656
+  },
+  "legacyAPIExtraOverlayControl": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/behavioral-legacy-api/extra-regression.go.txt",
+    "sha256": "eb7dc659567464b1e09382b37c960f7eee384ce38df30c75b78d1e15ac2d7e3f",
+    "bytes": 1586
+  },
+  "baselineOverlaySource": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/behavioral-legacy-api/baseline-overlay.go",
+    "sha256": "eb2db3f71f8b5a63d791af502b48d53a5bb40bb5aefedd206d49514be6e22ef2",
+    "bytes": 184697
+  },
+  "candidateOverlaySource": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/behavioral-legacy-api/candidate-overlay.go",
+    "sha256": "a001478fc7ccd4ed7017ee4b5453da945916e9c799f4a42cf4978e02aa54dac8",
+    "bytes": 200447
+  },
+  "scope": "Actual source13 groups: scripted diagnostic error/rows/counters/context/cleanup tests plus all589 recorded outcome validation and selected seven scripted executor invocations across six controls. Extra legacyAPI RED/GREEN is separately overlaid test-only component verification. NoSQL/PG execution. New failure metadata diagnoses SECONDARY collector; original catalogfalse cause remains opaque. Full fresh native packet anchors/frozen envelope/review required before any future native attempt.",
+  "nativeExecution": false
+}

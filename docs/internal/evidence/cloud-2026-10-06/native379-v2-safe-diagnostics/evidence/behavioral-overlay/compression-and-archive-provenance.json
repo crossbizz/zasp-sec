@@ -1,0 +1,19 @@
+{
+  "baseline-overlay.go.gz": {
+    "originalSHA256": "eb2db3f71f8b5a63d791af502b48d53a5bb40bb5aefedd206d49514be6e22ef2",
+    "originalBytes": 184697,
+    "originalRetainedAt": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/behavioral-legacy-api/baseline-overlay.go"
+  },
+  "candidate-overlay.go.gz": {
+    "originalSHA256": "a001478fc7ccd4ed7017ee4b5453da945916e9c799f4a42cf4978e02aa54dac8",
+    "originalBytes": 200447,
+    "originalRetainedAt": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/behavioral-legacy-api/candidate-overlay.go"
+  },
+  "baseline.tar-omitted": {
+    "bytes": 343029760,
+    "sha256": "73243effd6f9f3415c3ba0827af1640ee8e1d3e8efe2b4e13cc6ffe22a3a74ad",
+    "commit": "3ccc145510ea90c751a66306b6bb1d39812d5c51",
+    "retainedAt": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/behavioral-legacy-api/baseline.tar",
+    "reason": "entire343MBGit archive omitted from bounded publication"
+  }
+}

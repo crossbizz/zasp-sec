@@ -1,0 +1,19 @@
+{
+  "original14MemberManifestSHA256": "743e2a9a2d97fde2e116505b8647539a9929abce71011c5b40c601f3287c2f6d",
+  "omittedOriginalMembers": {
+    "source-inputs.json": {
+      "bytes": 272739,
+      "sha256": "02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989",
+      "retainedAt": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/candidate-6d02-dp9pgin8/source-inputs.json",
+      "publicationReason": "source-inputs is one of four separately adopted reviewed code files; original archive manifest preserves exact member identity"
+    },
+    "canonical-wire.json": {
+      "bytes": 25160408,
+      "sha256": "5d18ca5f38c6f86c7cccda46fde1fb43008f6491b3c2a8319515592f7279a25a",
+      "retainedAt": "/workspace/.zasp-cloud-owned/native379-v2-safe-diagnostic-3mutfah8/candidate-6d02-dp9pgin8/canonical-wire.json",
+      "publicationReason": "raw25MBwire omitted; exactdurablegzip expands it"
+    }
+  },
+  "originalManifestPreservedUnmodified": true,
+  "copyPolicy": "publication subset is explicitly different from original; original complete private archive immutable"
+}
