@@ -204,7 +204,7 @@ function assertRunnableUiWorkflow(
   ]);
 
   const verificationJobs = Object.values(workflow.jobs ?? {}).filter((job) =>
-    job.steps?.some((step) => step.run === "npm run verify"),
+    job.steps?.some((step) => step.run === verifyDiagnosticRun),
   );
   expect(verificationJobs).toHaveLength(1);
 
@@ -229,7 +229,7 @@ function assertRunnableUiWorkflow(
     postgresFixtureCommand,
     "go install github.com/zricethezav/gitleaks/v8@v8.30.1",
     "npm run implementation:status:check",
-    "npm run verify",
+    verifyDiagnosticRun,
     ...complianceSteps.map(step => step.run),
     "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n",
     "npm run production:release:gate",
@@ -289,7 +289,7 @@ function validWorkflow(): Workflow {
           { run: postgresFixtureCommand },
           { run: "go install github.com/zricethezav/gitleaks/v8@v8.30.1" },
           { run: "npm run implementation:status:check" },
-          { run: "npm run verify" },
+          { run: verifyDiagnosticRun },
           ...structuredClone(complianceSteps),
           { run: "node --test scripts/red-team-runtime-proof.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/owned-command.test.mjs scripts/implementation-status-check.test.mjs workers/redteam-node/runner.test.mjs workers/redteam-node/artifact.test.mjs\ngo test -C services/platform -race -count=1 ./apiserver -run '^TestProductionRedTeamHandlerOperationAcceptance$'\n" },
           { run: "npm run production:release:gate" },
@@ -305,6 +305,8 @@ function validWorkflow(): Workflow {
     },
   };
 }
+
+const verifyDiagnosticRun = "task_verify_log=$(mktemp \"${RUNNER_TEMP}/zasp-npm-verify.XXXXXX\")\nset +e\nnpm run verify 2>&1 | tee \"$task_verify_log\"\ntask_verify_status=${PIPESTATUS[0]}\nset -e\nif [ \"$task_verify_status\" -ne 0 ]; then\n  node scripts/annotate-verify-failure.mjs \"$task_verify_log\" || printf '%s\\n' '::error title=npm verify failed::Verification failed; phase unavailable.'\nfi\nrm -f -- \"$task_verify_log\" || true\nexit \"$task_verify_status\"";
 
 describe("runnable UI GitHub Actions gate", () => {
   it.each(complianceSteps.flatMap(step => ["omitted", "skipped", "allowed failure", "timeout", "command", "environment", "order"].map(condition => [step.name!, condition] as const)))("rejects compliance step %s with %s", async (name, condition) => {
@@ -555,7 +557,7 @@ describe("runnable UI GitHub Actions gate", () => {
           setup: {
             steps: validWorkflow().jobs?.verify?.steps?.slice(0, 4),
           },
-          verify: { steps: [{ run: "npm run verify" }] },
+          verify: { steps: [{ run: verifyDiagnosticRun }] },
         },
       },
     },
@@ -570,7 +572,7 @@ describe("runnable UI GitHub Actions gate", () => {
               { uses: checkoutAction, with: { "fetch-depth": 0 } },
               { run: "npm install --global npm@10.9.8" },
               { run: "SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm ci" },
-              { run: "npm run verify" },
+              { run: verifyDiagnosticRun },
             ],
           },
         },
