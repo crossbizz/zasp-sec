@@ -957,3 +957,52 @@ was deleted and no process-inactivity acceptance is inferred. A separately
 witnessed read-only Docker image projection RED/GREEN check also remains
 separate from controller execution. The compatibility repair and fresh actual
 observer result must be reviewed before cache reclamation or compilation.
+
+
+## Source lint, portable fixtures and capacity verification — 2026-10-06
+
+Source commit `1ea1bf15b8b3bea9d8d5537cec0bacb9c550e067` fixes the three
+confirmed hosted lint errors and their dependent source pins. Its six paths
+also make the four-case pre-import tamper fixture portable: only EXDEV permits
+exclusive copying; other errors still propagate. Two exact immutable evidence
+paths receive an unused-binding-only lint exception. Current product paths,
+neighboring evidence and all other rules retain coverage. Historical evidence
+bytes are unchanged.
+
+The final six working-tree files subsequently committed as 1ea1 passed ROOT's
+17 source tests with captured exit 0, no timeout and unchanged source hashes in
+54.691 seconds. Changed-test lint passed in 1.673 seconds. Full repository lint
+passed in 42.976 seconds at the earlier six-file checkpoint; it is not relabeled
+as a final full-lint rerun. The original ROOT cross-filesystem fixture attempt
+remains FAILED: 16 passes and one setup failure, with no skipped assertion.
+Independent reviews bind both source checkpoints and all six committed blobs.
+
+The exact 1ea1 commit scan passes zero findings in 0.465 seconds. The recorded
+`--all` scan over available Git refs passes zero findings in 81.948 seconds.
+Source HEAD and scanner configuration are unchanged. No immutable all-ref
+snapshot or every-merge-diff coverage is inferred. Actual a6f scan receipts are
+also preserved; no ignore entries, scanner rules or future detections changed.
+
+The first cache-reclamation run FAILED before the process gate because the
+consumer tried to read intentionally discarded cleanup output. It removed
+zero files. A narrow reviewed discard-schema repair and fresh ROOT observer
+then passed the original live-process and freshness gates. The successful
+run removed exactly 5,248 inactive files and 257 directories, totaling
+796,221,869 logical bytes. Measured free space increased by 815,304,704 bytes.
+The original cache directory inode, owner and mode 0700 remain; all 40,194
+protected file names, metadata and hashes and the retained 44,126,392-byte
+executable were independently checked unchanged. This is capacity preparation,
+not an atomic system-wide exclusion guarantee or native acceptance.
+
+Bounded originals, failure chronology, scan scopes and measured omissions are
+retained in `evidence/cloud-2026-10-06/lint-source-and-cache-capacity/`.
+This batch supports the existing authorization-worker and runtime-readiness
+critical path in the original technical and Temporal/OpenFGA execution plans.
+The original 728-row ledger and owner crosswalk remain unchanged: 523 historical
+production-evidence categories, 144 component-only and 61 externally blocked,
+with zero missing or duplicate rows. No category or milestone is promoted.
+
+Complete npm verification still belongs to exact 0b only. Final v3 wire,
+metadata, artifacts, Go anchors and native controls remain unverified; real
+Stytch/provider deployment and all 162 product runtime bindings remain blocked.
+Obsolete implementations are retained. Browser acceptance has not been retried.

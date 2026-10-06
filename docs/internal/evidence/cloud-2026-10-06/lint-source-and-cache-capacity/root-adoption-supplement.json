@@ -1,0 +1,42 @@
+{
+  "baseCopiedFiles": 13,
+  "externalMembers": [
+    {
+      "encoding": "deterministic-gzip",
+      "originalBytes": 6495,
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-a6f-lint-cache-publication-receipt-review.json",
+      "originalSHA256": "6938dd5b3506787831bc4676b34355db5268aef54128f33f4821f8f81c159e6b",
+      "path": "independent-publication-receipt-review.json.gz",
+      "sha256": "2ebd8af68ac9cb8915c7716e7a18c9835c4fb82071067561df3dd722075ff2ef"
+    },
+    {
+      "encoding": "deterministic-gzip",
+      "originalBytes": 882,
+      "originalPath": "/workspace/.zasp-cloud-owned/a6f-lint-cache-nextbatch-fdksrr09/final-publication-default-record.json",
+      "originalSHA256": "9042b29bf61b3d0bf6dc5b8afff82e8ba3b9f21e62eef44503ccc27b7a4ba49e",
+      "path": "final-publication-default-record.json.gz",
+      "sha256": "11f4c0eec07f459526b6385e6611a5d0d0f2429b88a467bad90ff41cd3ddffe0"
+    },
+    {
+      "encoding": "deterministic-gzip",
+      "originalBytes": 3,
+      "originalPath": "/workspace/.zasp-cloud-owned/a6f-lint-cache-nextbatch-fdksrr09/final-publication-default-report.json",
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "path": "final-publication-default-report.json.gz",
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    {
+      "encoding": "deterministic-gzip",
+      "originalBytes": 79,
+      "originalPath": "/workspace/.zasp-cloud-owned/a6f-lint-cache-nextbatch-fdksrr09/final-publication-default.log",
+      "originalSHA256": "bc3545d5db637b2f056af2a0e82cbb16ecf5d0a54b3a7830907d714b0df6162c",
+      "path": "final-publication-default.log.gz",
+      "sha256": "d7ce8ece4c3388fa646bd6537d952a0185b30fde7a3c627b21155831489b3dfa"
+    }
+  ],
+  "format": "root-lint-source-cache-adoption-v1",
+  "privatePublicationManifestSHA256": "8ab387996643aef1dce58e9e83a7719b53f3126c6ddd4e304ec8e677ca27179f",
+  "privatePublicationPath": "/workspace/.zasp-cloud-owned/a6f-lint-cache-nextbatch-fdksrr09/publication",
+  "publicationMode": "0644; private outer0600 and regular archived members0400 preserved as original evidence encoding",
+  "scope": "Bounded evidence adoption only; no decoded/default-wide clearance, original source tests precede commit1ea1, no native or deployment promotion"
+}
