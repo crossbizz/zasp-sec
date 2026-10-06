@@ -654,3 +654,9 @@ e13ccb95451b03107681ccb59b3fc6fe175a228f:superpowers/sdd/2026-09-22-temporal-ope
 3c123ef46fc9982c503384d44a93045984a3ec89:services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json:generic-api-key:884
 3c123ef46fc9982c503384d44a93045984a3ec89:services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json:generic-api-key:885
 3c123ef46fc9982c503384d44a93045984a3ec89:services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json:generic-api-key:934
+
+# Freshly independently verified frozen binary/approved PG-library SHA256 identities.
+# Exact immutable commit:path:rule:line coordinates; detection rules unchanged.
+c032e9ae608ef697a3d4bdb91c5ccae0f012b0cc:docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-d466/native379-v2-independent-actual-frozen-envelope-review-d466.json:generic-api-key:5
+c032e9ae608ef697a3d4bdb91c5ccae0f012b0cc:docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-d466/native379-v2-root-reviewed-pg-binding.json:generic-api-key:1
+c032e9ae608ef697a3d4bdb91c5ccae0f012b0cc:docs/internal/evidence/cloud-2026-10-06/native379-v2-frozen-build-d466/summary.json:generic-api-key:1

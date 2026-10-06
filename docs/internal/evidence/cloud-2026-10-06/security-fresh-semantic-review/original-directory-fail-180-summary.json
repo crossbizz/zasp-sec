@@ -1,0 +1,28 @@
+{
+  "format": "fresh-publication-private-packet-dirscan-summary-v1",
+  "packet": "/workspace/.zasp-cloud-owned/gitleaks-fresh-publication-mtucw7lx",
+  "manifest_sha256": "213c95e66777b72a348fc9e691761a0f1aba6c7315e22ca1f47a569fbd5105cf",
+  "scanner": "8.30.1",
+  "command": [
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "dir",
+    "--redact",
+    "--report-format",
+    "json",
+    "--report-path",
+    "/tmp/zasp-cloud-evidence/security-triage/fresh-publication-packet-dirscan-redacted.json",
+    "--no-banner",
+    "/workspace/.zasp-cloud-owned/gitleaks-fresh-publication-mtucw7lx"
+  ],
+  "exit": 1,
+  "finding_count": 180,
+  "rules": {
+    "sourcegraph-access-token": 180
+  },
+  "redacted_report_path": "/tmp/zasp-cloud-evidence/security-triage/fresh-publication-packet-dirscan-redacted.json",
+  "redacted_report_sha256": "97707f5d3649b1dc985c15474bbfca245495401022802106a5e6f12bf79bedbc",
+  "source_proof_bytes_changed": false,
+  "scanner_or_ignore_modified": false,
+  "logs_not_printed": true,
+  "publication_scope": "Private packet only; result is not a full-history scan or release clearance."
+}

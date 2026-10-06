@@ -1,0 +1,9 @@
+{
+  "head": "3c45f358a7f76d33224c4aa0c3d923f8bc5e9a1b",
+  "exit": 0,
+  "elapsedSeconds": 83.687,
+  "findings": 0,
+  "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "ignoreSHA256": "eed1fd29226f178d71e6f0e77b1e2cbcc9101513d600e99fc5a081779f85082c",
+  "scope": "Actual full-history HEAD with reviewed446 candidate applied but not committed; no scanner clearance for future commits."
+}
