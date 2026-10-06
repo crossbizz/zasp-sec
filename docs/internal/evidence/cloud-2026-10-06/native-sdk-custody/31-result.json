@@ -1,0 +1,302 @@
+{
+  "completed": true,
+  "error": null,
+  "signals": [],
+  "stages": [
+    {
+      "name": "existing-cwd-red",
+      "argv": [
+        "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/compiler-tmp/component.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=90s",
+        "-test.run=^(TestOwnedFGABootstrapSourceAndEndpoint|TestOwnedFGABootstrapSDKContract|TestOwnedFGABootstrapPermissionSourceConservation)$"
+      ],
+      "cwd": "/workspace/.zasp-cloud-owned/native379-v3-go-source21-initial-lem9djox/source/services/platform",
+      "returncode": 1,
+      "elapsed_seconds": 0.8204600019962527,
+      "refusal": null,
+      "free_after_stage": 1502797824,
+      "tmp_free_after_stage": 587706368,
+      "log_sha256": "9d36b9a13fbc51bea7c787a560f6429d92cbef0c9bd2f92db770c615fdf7fedf",
+      "overlay_sha256": "9f5cb2334d2b5582ca34370d8b2532205b8ce57baf99edf95c9ff825cd8d5703",
+      "top_level_pass": [],
+      "top_level_fail": [
+        "TestOwnedFGABootstrapSourceAndEndpoint",
+        "TestOwnedFGABootstrapSDKContract",
+        "TestOwnedFGABootstrapPermissionSourceConservation"
+      ],
+      "subtests_fail": [],
+      "run_tests": [
+        "TestOwnedFGABootstrapSourceAndEndpoint",
+        "TestOwnedFGABootstrapSDKContract",
+        "TestOwnedFGABootstrapPermissionSourceConservation"
+      ],
+      "skips": [],
+      "survivors": [],
+      "cleanup": {
+        "pid": 303505,
+        "forced": false,
+        "joined": true,
+        "errors": [],
+        "survivors": []
+      }
+    },
+    {
+      "name": "package-cwd-green",
+      "argv": [
+        "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/compiler-tmp/component.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=90s",
+        "-test.run=^(TestOwnedFGABootstrapSourceAndEndpoint|TestOwnedFGABootstrapSDKContract|TestOwnedFGABootstrapPermissionSourceConservation)$"
+      ],
+      "cwd": "/workspace/.zasp-cloud-owned/native379-v3-go-source21-initial-lem9djox/source/services/platform/authorization",
+      "returncode": 0,
+      "elapsed_seconds": 3.0413637650053715,
+      "refusal": null,
+      "free_after_stage": 1502797824,
+      "tmp_free_after_stage": 587694080,
+      "log_sha256": "9d30a89b36bc114620116b0cb95a51aa1b54f8552ea67ceee5e6880f38b7789f",
+      "overlay_sha256": "9f5cb2334d2b5582ca34370d8b2532205b8ce57baf99edf95c9ff825cd8d5703",
+      "top_level_pass": [
+        "TestOwnedFGABootstrapSourceAndEndpoint",
+        "TestOwnedFGABootstrapSDKContract",
+        "TestOwnedFGABootstrapPermissionSourceConservation"
+      ],
+      "top_level_fail": [],
+      "subtests_fail": [],
+      "run_tests": [
+        "TestOwnedFGABootstrapSourceAndEndpoint",
+        "TestOwnedFGABootstrapSDKContract",
+        "TestOwnedFGABootstrapSDKContract/exact",
+        "TestOwnedFGABootstrapSDKContract/wrong-read-id",
+        "TestOwnedFGABootstrapSDKContract/wrong-body",
+        "TestOwnedFGABootstrapSDKContract/write-error",
+        "TestOwnedFGABootstrapSDKContract/wrong-auth",
+        "TestOwnedFGABootstrapPermissionSourceConservation"
+      ],
+      "skips": [],
+      "survivors": [],
+      "cleanup": {
+        "pid": 303511,
+        "forced": false,
+        "joined": true,
+        "errors": [],
+        "survivors": []
+      }
+    }
+  ],
+  "process_waits": [
+    {
+      "pid": 303505,
+      "returncode": 1,
+      "main_joined": true
+    },
+    {
+      "pid": 303511,
+      "returncode": 0,
+      "main_joined": true
+    }
+  ],
+  "cleanup_records": [
+    {
+      "pid": 303505,
+      "forced": false,
+      "joined": true,
+      "errors": [],
+      "survivors": []
+    },
+    {
+      "pid": 303511,
+      "forced": false,
+      "joined": true,
+      "errors": [],
+      "survivors": []
+    },
+    {
+      "pid": null,
+      "forced": false,
+      "joined": true,
+      "errors": [],
+      "survivors": []
+    }
+  ],
+  "teardown_errors": [],
+  "survivors": [],
+  "elapsed_seconds": 8.22138893000374,
+  "source_unchanged": true,
+  "source_before_sha256": "a47d3d7a8cc40b52a2fc9f18050b8f8758a636984acdc8c6ba3987ccce168cdf",
+  "source_after_sha256": "a47d3d7a8cc40b52a2fc9f18050b8f8758a636984acdc8c6ba3987ccce168cdf",
+  "space_observations": [
+    {
+      "stage": "existing-cwd-red",
+      "elapsed": 3.005631830004859,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587710464
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 3.9188976710138377,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587698176
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 4.022223580002901,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 4.125465143006295,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 4.22886259900406,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 4.332262579002418,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 4.438806373000261,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 4.543121378010255,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 4.646879071005969,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 4.750799606001237,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 4.854858465012512,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 4.9582420340011595,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 5.061692769013462,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 5.165320301006432,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 5.268843652011128,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 5.372309620011947,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 5.476001563001773,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 5.5799599130114075,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 5.683991083002184,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 5.7881157160009025,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 5.892826523006079,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 5.996601553008077,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    },
+    {
+      "stage": "package-cwd-green",
+      "elapsed": 6.100232065000455,
+      "free_bytes": 1502797824,
+      "tmp_free_bytes": 587694080
+    }
+  ],
+  "free_after_cleanup": 1502797824,
+  "tmp_free_after_cleanup": 609701888,
+  "owned_tmp": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/compiler-tmp",
+  "native_approval": false,
+  "full589_admission": false,
+  "representation_fit_claimed": false,
+  "source_component_only": true,
+  "owned_sdk_bootstrap_component_version": 1,
+  "cwd_binding_revision": 1,
+  "genuine_historical_red_claimed": true,
+  "compiled_component": {
+    "path": "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/compiler-tmp/component.test",
+    "binding": {
+      "device": 34,
+      "inode": 432210,
+      "mode": 448,
+      "uid": 1000,
+      "gid": 1000,
+      "links": 1,
+      "bytes": 67492916,
+      "mtime_ns": 1791300150171707439,
+      "ctime_ns": 1791300150176298171,
+      "sha256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d"
+    },
+    "sha256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d",
+    "recompiled": false,
+    "existing_compilation_record_sha256": "444451eb627775931bd79d6c9eb6b869d8a469b8ee1f16e9d0876afb94616c59"
+  },
+  "real_provider_semantics_proven": false,
+  "owned_fake_http_boundary_only": true,
+  "anchors": "EMPTY"
+}

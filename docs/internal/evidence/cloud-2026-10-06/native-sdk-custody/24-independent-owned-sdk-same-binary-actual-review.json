@@ -1,0 +1,132 @@
+{
+  "actualElapsedSeconds": 8.22138893000374,
+  "actualRootJoin": {
+    "exitCode": 0,
+    "initialChunkId": "bb66f9",
+    "joinedChunkId": "11cac0",
+    "sessionId": 27479
+  },
+  "actualStages": [
+    {
+      "elapsedSeconds": 0.8204600019962527,
+      "name": "existing-cwd-red",
+      "returncode": 1,
+      "runs": 3,
+      "skips": 0,
+      "topFail": 3,
+      "topPass": 0
+    },
+    {
+      "elapsedSeconds": 3.0413637650053715,
+      "name": "package-cwd-green",
+      "returncode": 0,
+      "runs": 8,
+      "skips": 0,
+      "topFail": 0,
+      "topPass": 3
+    }
+  ],
+  "assessment": [
+    "Freshly rehashed all19386 exact runner EXPECTED pins; complete persisted source-before/source-after27003-entry maps byteequal a47d.",
+    "Independently FD-hashed same67492916-byte binary and compared dev/inode/mode/owner/nlink/size/mtime/ctime before/open/after to admitted54bdf binding.",
+    "Exact source strict Go testing-text parser replayed against both actual .test-v.log files; three RED top failures/packageFAIL then three GREEN top PASS and exact five SDK subcase PASS/packagePASS, no extras/duplicates/skips/incomplete markers.",
+    "RED each reports exact product model fixture refused under original modulecwd; same argv, environment, binary and overlay with authorization packagecwd GREEN. No compiler/test/source/model/body mutation is required or inferred.",
+    "Both immediate processbindings PID/startticks/pgrp/argv/cwd match joined result/waits; normal cleanup, zero force/signal/errors/survivors. ROOT outer actualjoin separately reconciled."
+  ],
+  "beforeAfterIdentityBytesEqual": true,
+  "beforeAfterIdentitySHA256": "a47d3d7a8cc40b52a2fc9f18050b8f8758a636984acdc8c6ba3987ccce168cdf",
+  "binary": {
+    "binding": {
+      "bytes": 67492916,
+      "ctime_ns": 1791300150176298171,
+      "device": 34,
+      "gid": 1000,
+      "inode": 432210,
+      "links": 1,
+      "mode": 448,
+      "mtime_ns": 1791300150171707439,
+      "sha256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d",
+      "uid": 1000
+    },
+    "existing_compilation_record_sha256": "444451eb627775931bd79d6c9eb6b869d8a469b8ee1f16e9d0876afb94616c59",
+    "path": "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/compiler-tmp/component.test",
+    "recompiled": false,
+    "sha256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d"
+  },
+  "completeBeforeAfterIdentityEntries": 27003,
+  "format": "independent-owned-sdk-same-binary-actual-review-v1",
+  "inputs": [
+    {
+      "bytes": 8866,
+      "path": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/result.json",
+      "sha256": "1fb3d21d661f4a864b43ba785bcdef45610880c5689999ab66143ffb295c0fcc"
+    },
+    {
+      "bytes": 4599067,
+      "path": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/initial.json",
+      "sha256": "16c310948b6d3c764c93f6042987e7bf59aff119774b6c145abb4b0e599d1068"
+    },
+    {
+      "bytes": 11541411,
+      "path": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/source-before.json",
+      "sha256": "a47d3d7a8cc40b52a2fc9f18050b8f8758a636984acdc8c6ba3987ccce168cdf"
+    },
+    {
+      "bytes": 11541411,
+      "path": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/source-after.json",
+      "sha256": "a47d3d7a8cc40b52a2fc9f18050b8f8758a636984acdc8c6ba3987ccce168cdf"
+    },
+    {
+      "bytes": 616,
+      "path": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/reused-component.json",
+      "sha256": "b5b4ff1d7f9ceb8cba579052ded4ff6104ce63bb6dc8ccf9fff5bd4a5e07a436"
+    },
+    {
+      "bytes": 1323,
+      "path": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/existing-cwd-red-process-binding.json",
+      "sha256": "11c5cb3cc3bd068d1625de7c47d87ce5b3dd48b60112ce33ff2b6586ac623e6a"
+    },
+    {
+      "bytes": 1307,
+      "path": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/existing-cwd-red-result.json",
+      "sha256": "8d53e5489e8f387ff61fbd10b9ddfbd366a2e762dbbc99a0f8574a8f4c981423"
+    },
+    {
+      "bytes": 566,
+      "path": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/existing-cwd-red.test-v.log",
+      "sha256": "9d36b9a13fbc51bea7c787a560f6429d92cbef0c9bd2f92db770c615fdf7fedf"
+    },
+    {
+      "bytes": 1337,
+      "path": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/package-cwd-green-process-binding.json",
+      "sha256": "caefb5756ce372cd19c64c87a6965bacd1d6a648bfa7939640354b755ef7978a"
+    },
+    {
+      "bytes": 1576,
+      "path": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/package-cwd-green-result.json",
+      "sha256": "c06ca75bba65a2de6e2b4d5028f6231d1a6bda4ca2b9dbb393ccfd2e7fb2ee7d"
+    },
+    {
+      "bytes": 931,
+      "path": "/tmp/authorization80-sdk-proof-reserved-attempt-zgyybmax/package-cwd-green.test-v.log",
+      "sha256": "9d30a89b36bc114620116b0cb95a51aa1b54f8552ea67ceee5e6880f38b7789f"
+    },
+    {
+      "bytes": 757,
+      "path": "/tmp/zasp-cloud-evidence/owned-sdk-same-binary-root-actual-join.json",
+      "sha256": "41ec07079f781123e8abcf27ef90f582921138c44a2e964dfd5db3be23e72b88"
+    },
+    {
+      "bytes": 2562,
+      "path": "/tmp/zasp-cloud-evidence/independent-owned-SDK-same-binary-cwd-replay-static-review.json",
+      "sha256": "b915d1ccfebae73eb0bd4db4620e7b131f40d2f8e35da9a0974757189801a5f4"
+    }
+  ],
+  "scopeLimits": [
+    "Reviewer performed data/hash/source-parser replay only; no binary/compiler/SDK/provider/server execution.",
+    "Owned fake HTTP SDK boundary and fixture resolution component only; real OpenFGA/provider permission lifecycle, full589, native, deployed/production acceptance remain unproven.",
+    "Existing warm compiler cache is mutable output and no full compiler closure is promoted; original failed attempts preserved; all anchors EMPTY."
+  ],
+  "status": "PASS-OWNED-SDK-COMPONENT-CWD-RED-GREEN",
+  "verifiedExpectedPinsFresh": 19386
+}

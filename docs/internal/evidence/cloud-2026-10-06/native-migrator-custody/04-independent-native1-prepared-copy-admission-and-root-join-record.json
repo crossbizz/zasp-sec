@@ -1,0 +1,26 @@
+{
+  "ROOTToolObservedJoin": {
+    "actualExitCode": 0,
+    "path": "/tmp/zasp-cloud-evidence/native1-root-observe-prepare-v1-actual-join.json",
+    "resultSHA256": "4c105c986c4693b0455f491a2ee3ddd1132bef35e2e4157e943814058fb8990b",
+    "scope": "ROOT-authored transcription of tool terminal wait; not an independently recorded ROOT kernel PID trace.",
+    "sha256": "516f6c89adbbc9c3992d36f56da946d1e3fefbbd8c09bce9f156b6636f9e925e"
+  },
+  "independentAdmission": {
+    "exactKeys": [
+      "allowExactSourceUnlink",
+      "destination",
+      "planSHA256",
+      "preparedSHA256",
+      "status"
+    ],
+    "path": "/tmp/zasp-cloud-evidence/native-migrator-lossless-relocation-source-r5ajrt_a/independent-admission.json",
+    "sha256": "120883acaba6c8cecaf170bd4751c37dbc6caaa5009c17bbf864c7632b14a899"
+  },
+  "originalActualReview": {
+    "path": "/tmp/zasp-cloud-evidence/independent-actual-native1-migrator-lossless-prepare-review.json",
+    "sha256": "dffc563e9a114d03e828e01fe7658c4bb669d2268175263a7b90ccad89d7c5bf"
+  },
+  "scope": "Copy custody prerequisite only. Original remains present. Fresh separately reviewed two-target observer and finalization recipe required before exact source unlink; no runtime or service readiness.",
+  "status": "ACTUAL-PREPARE-ADMISSION-PASS"
+}

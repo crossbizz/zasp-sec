@@ -1,0 +1,26 @@
+{
+  "actualROOTStages": [
+    {
+      "actualExitCode": 1,
+      "expectedCause": "GENUINE old upstream printf failure is masked by successful sort; scanner returns zero",
+      "name": "RED",
+      "sessionIdReturned": false,
+      "toolChunkId": "057fe2",
+      "toolWallTimeSeconds": 2.2004e-05
+    },
+    {
+      "actualExitCode": 0,
+      "name": "GREEN",
+      "reportedCases": 7,
+      "sessionIdReturned": false,
+      "toolChunkId": "155be1",
+      "toolWallTimeSeconds": 2.5919e-05
+    }
+  ],
+  "additiveROOTToolJoinTranscription": "/tmp/zasp-cloud-evidence/native3-mmap-root-actual-joins.json",
+  "additiveROOTToolJoinTranscriptionSHA256": "87f11d8daa9a16cf372ad19af643fb5ee4bece20ca225b5b0037f08d5a5e3d82",
+  "originalReview": "/tmp/zasp-cloud-evidence/independent-actual-native3-mmap-tiny-controls-review.json",
+  "originalReviewSHA256": "dd3ed26826a96474df43f3705b7c2cbfe5c64974d7aec69bc100f90fce9accf8",
+  "scope": "Exact four retained log hashes agree. Tool wall time is transcription of returned tool metadata, not child elapsed duration. Source-enforced child completion/group absence is distinct from ROOT tool-observed terminal outcomes. No additional runtime or readiness acceptance.",
+  "status": "ACTUAL-TINY-SOURCE-CONTROL-PASS"
+}

@@ -1,0 +1,86 @@
+{
+  "bounds": {
+    "controllerCleanupSeconds": 30,
+    "dockerCommandSeconds": 10,
+    "observationSeconds": 30,
+    "outerKillAfterSeconds": 10,
+    "outerTimeoutSeconds": 290,
+    "ownerGraceSeconds": 35,
+    "ownerNormalWaitSeconds": 90
+  },
+  "checks": {
+    "controllerAndOwnerLifecycleASTUnchangedApartFromPinnedConstants": true,
+    "createMountMatchesOwnedEmptyReadonlyVolume": true,
+    "directValidatedByteCompileAndTerminalLiveGuardReviewedByPinnedGlueReview": true,
+    "eightManifestMemberHashesAndSizesMatch": true,
+    "emptyVolumeObservedOwnedMode0500AndEmpty": true,
+    "fdAndCwdMatchBothExactRootsWithPathBoundaries": true,
+    "freshObservationTimestampAndFourteenReferenceDerivationUnchanged": true,
+    "mapDeviceInodeAliasesCoverAllSixTargets": true,
+    "positiveMapEndAndCountChecksUnchanged": true,
+    "reclaimAliasCount": 6,
+    "sixSourceAndDestinationDeviceInodeBindingsMatchPrepared": true
+  },
+  "finalizeGlueReview": {
+    "path": "/tmp/zasp-cloud-evidence/independent-native6-finalize-glue-v3-static-review.json",
+    "sha256": "82586e7ce6d441be652da820617bf0ebc2e6700508d5c844e910b09c451cd3af"
+  },
+  "format": "independent-native6-observer-source-static-review-v3",
+  "independentAdmission": {
+    "actualPayloadRehashOwner": "provider_deployment_readiness; not duplicated in this review",
+    "path": "/tmp/zasp-cloud-evidence/native-oss-lossless-relocation-v5-d1ldrxd_/independent-admission.json",
+    "sha256": "b3a4a466e7d67d7bc88f37cdb5e6ed485ea64ea944b173a5cd73b4fb077f707e"
+  },
+  "observerManifest": {
+    "path": "/tmp/zasp-cloud-evidence/native6-readonly-root-observer-source-v3-nyu7wcz3/manifest.json",
+    "sha256": "b969360d91619f3fa9d1c34c6556b96f47d5d1d91c5d31f87fbbc2bb70bd6d70",
+    "verifiedMembers": {
+      "README.md": {
+        "bytes": 365,
+        "sha256": "a8bc1aee0eddbb1d4820680c9f9392afc2889c4efcd3e03e99b492ac032e6877"
+      },
+      "fresh-observer-owner-v3.py": {
+        "bytes": 6133,
+        "sha256": "08281b96516f96440364f83601561c3e8124fe84c34efc9c3f4443fcfb3e2db5"
+      },
+      "independent-docker-28.4.0-adapter-grounding-v2.json": {
+        "bytes": 6718,
+        "sha256": "87c5fa1e76f9d7919beb84852acde22253d381608e2209b7ae076c126dc88d91"
+      },
+      "independent-observer-static-review-v5.json": {
+        "bytes": 4573,
+        "sha256": "c21d1354162cd555406a6a14c0f6771d55fbe6d352100afdee94e12d46dfac01"
+      },
+      "observe-exact-root-services-v5.sh": {
+        "bytes": 5733,
+        "sha256": "d7c15d9ac90259f1de2262b194ee88e995cd077f855415b922f540f772e8c3a5"
+      },
+      "payload-target-inventory.json": {
+        "bytes": 2692,
+        "sha256": "f23b102570937d440458f9eb276def5a419b29e6fd8ef92510a82b71a119d794"
+      },
+      "root-service-observer-plan-v5.json": {
+        "bytes": 6202,
+        "sha256": "103dd58c802f355977aee37115c1ed5b484cadff2b35a4bf38e1feeb2e5d5286"
+      },
+      "run-readonly-observer-v7.py": {
+        "bytes": 21255,
+        "sha256": "bc51d3ea30191618ed664b5a131dbc3eb78f5c94abe50ec81e6ced6c959387da"
+      }
+    }
+  },
+  "prepared": {
+    "path": "/tmp/native-oss-lossless-custody-e468e2a4ca38492faa531ff2c9d4039b/prepared.json",
+    "sha256": "cd174ecba33402a9322d6ec982a452c4ed48ad75de2475520391a73c712242ec"
+  },
+  "preservedPredecessorFindings": [
+    "v1 createArgv mount referenced old native3 volume and would refuse current mount admission",
+    "v1 FD/cwd root matcher omitted destination root and alias metadata was stale; v3 repairs these exact scope declarations"
+  ],
+  "scopeLimits": [
+    "No Docker, observer, version, payload unlink or finalize execution performed by this reviewer.",
+    "This gate admits only exact reviewed source recipe; fresh actual observation, inactivity, cleanup and final joins remain ROOT runtime requirements.",
+    "Existing provider full-copy admission is distinct from this static gate; no product/provider/native acceptance or task-ledger promotion."
+  ],
+  "status": "PASS-SOURCE-STATIC-ONLY"
+}

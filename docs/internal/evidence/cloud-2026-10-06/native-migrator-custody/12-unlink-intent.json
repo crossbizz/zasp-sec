@@ -1,0 +1,16 @@
+{
+  "inactivity": {
+    "privilegedExactRootProofSHA256": "87be687625f898a973ba8585a6c07a79f364f3ca02bf4dc2d4bfc3cac60067f5",
+    "snapshotNotLifetimeClaim": true,
+    "unknownOrActive": false,
+    "visibleNonZombieProcessesInspected": 10
+  },
+  "independentAdmissionSHA256": "120883acaba6c8cecaf170bd4751c37dbc6caaa5009c17bbf864c7632b14a899",
+  "oldPathPresenceBecomesHistorical": true,
+  "payloads": [
+    "agentsec-migrate"
+  ],
+  "planSHA256": "5a1688d07bbdcf1915feb81516ddd96f57636cf94dc4e3299b1a67e3d7c7c707",
+  "preparedSHA256": "1f18097a7f458f474160a48b6aac5a6e9dd6f2ca43e82f3044f54ca929778db7",
+  "status": "ADMITTED-EXACT-ONE-UNLINK-INTENT-NOT-COMPLETION"
+}

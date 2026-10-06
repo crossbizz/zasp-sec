@@ -1,0 +1,37 @@
+{
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "290s",
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "--",
+    "/usr/bin/python3",
+    "/tmp/zasp-cloud-evidence/native1-observer-derive-prepare-root-recipe-v1-rw10zg_m/run-prepare.py"
+  ],
+  "assessment": [
+    "All observer manifest members and recipe source/tool identities/resolved paths freshly verified.",
+    "Owner/controller functionAST identical to reviewed native6V3. Prepare glue helperAST identical to reviewed prepareV2; verified-byte module execution and live terminal check retained.",
+    "Exact source1 alias27:993154/map0:27:993154; both source/destination prefix branches, plan reclaimAliasCount1/both roots and correct fresh local bind mount verified.",
+    "Actual namespace/rootPID start/comm/exe, strict daemon/image/runtime securitytuple, positive complete MAPEND and FD double-snapshot/normalownedCIDcleanup gates unchanged.",
+    "Fixed native1 proof namespace derives complete14refs then mechanically admits through reviewed one-file consumer787fa/newplan5a168 before prepare. No finalize/unlink in wrapper."
+  ],
+  "findings": [],
+  "glueManifestSHA256": "2ca7acd00321d75033a8f8c3e7f19adeb09b245bf9785c76bbbd5c5564f2d3bc",
+  "glueSourceSHA256": "b14dbff12dafe30d34ef55ffee4a8a779aaf9415070d966636c9c5c3d54d8c61",
+  "nonoperativeLegacyProse": "Plan minimality/scope/reviewGate retain inherited native3/THREE wording. Actual source1 cardinality is exclusively bound by the one-entry target inventory, reclaimAliasCount1 and pinned shell; review grants exactly this one source alias, never three-source authority or borrowed historical approval.",
+  "observerManifestSHA256": "177228c7ceabc12331ab1f8f51005993900d0a24319839db0d419f6171b27997",
+  "prerequisites": [
+    "ROOT alone runs exact argv under fresh reserve/window and no migrator payload/source/destination writers or executors.",
+    "Current44MB body hash is not reviewer-rehashed here; ROOT prepare must same-FD validate historical cba69 plus full metadata before/after copy.",
+    "Actual source1 observer/normaljoins14refs and prepare outcome require independent byte/custody review before separate closed admission.",
+    "New actual source+copy two-inode observer and finalization wrapper separately reviewed before any unlink; original120s/270/290 bounds, tmp100MB and runtimeWS1.5GB unchanged."
+  ],
+  "recipeSHA256": "537702ba71b5f25cccb055da8f818152ff6cca7c18376823bedc8ada22386029",
+  "scope": "One completed cached executable lossless prepare only. No Docker/observer/checker/copy/hash-body/migrator execution or unlink by reviewer; no service/schema/SDK/native/production acceptance.",
+  "status": "SOURCE-STATIC-PASS"
+}

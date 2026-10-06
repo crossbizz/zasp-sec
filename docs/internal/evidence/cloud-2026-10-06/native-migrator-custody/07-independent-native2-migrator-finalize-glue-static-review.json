@@ -1,0 +1,31 @@
+{
+  "admissionSHA256": "120883acaba6c8cecaf170bd4751c37dbc6caaa5009c17bbf864c7632b14a899",
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "290s",
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "--",
+    "/usr/bin/python3",
+    "/tmp/zasp-cloud-evidence/native2-observer-derive-finalize-root-recipe-v1-nmn0rosf/run-finalize.py"
+  ],
+  "checks": [
+    "All recipe inputs and four resolved tool bytes rehashed; fixed manifest/source verified",
+    "Every top-level helper AST equals reviewed native6v3; only fixed source1/copy1 bindings and scope text changed",
+    "Verified raw-byte module loader, retained handlers and live post-stdout terminal guard",
+    "Closed five-key admission, exact prepared copy inventory, fourteen-reference proof then V5 mechanical admission before finalized child",
+    "Aggregate270, observer90+35/finalize130+10, ROOT timeout290+10 unchanged; conservative30s pre-unlink recheck preserved"
+  ],
+  "findings": [],
+  "manifestSHA256": "0c32179a828e365753a241eb0ab0e67b10ba75827bbaa3d6af04d85a40c5d567",
+  "observerStaticReviewSHA256": "3973423d1b38f4ccc0456b70035e524a54463622ba5911fd9eb118e07959bc74",
+  "recipeSHA256": "f4eb98949b1e4fe40853a8a6017554d8e0dd052b5be5ea0f808e85fc4eba0ff8",
+  "scope": "ROOT launch prerequisite only. Fresh actual two-target observer plus consumer all-visible process checks and conservative30s freshness must pass; independently review terminal joins, custody ledger, exact source absence and protected bytes after outcome. No migrator execution, service, schema, SDK/native readiness or physical recovery promise.",
+  "scriptSHA256": "0ca4754dde91d22543a0bb996c3389d7b1531faa93879ae599324dfe13186374",
+  "status": "SOURCE-STATIC-PASS"
+}

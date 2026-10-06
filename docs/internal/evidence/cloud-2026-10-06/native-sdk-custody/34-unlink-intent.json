@@ -1,0 +1,18 @@
+{
+  "inactivity": {
+    "privilegedExactRootProofSHA256": "eb1fb6e955b47b490cc8ddaba42788942258bfa26fc40e5957b028a2630283f2",
+    "snapshotNotLifetimeClaim": true,
+    "unknownOrActive": false,
+    "visibleNonZombieProcessesInspected": 10
+  },
+  "independentAdmissionSHA256": "b3a4a466e7d67d7bc88f37cdb5e6ed485ea64ea944b173a5cd73b4fb077f707e",
+  "oldPathPresenceBecomesHistorical": true,
+  "payloads": [
+    "openfga/openfga",
+    "temporal/temporal",
+    "temporal.tar.gz"
+  ],
+  "planSHA256": "d09cce61eba63df3e14aa104c581c997d7027a54dcb357e8b802a7ac1de9b14a",
+  "preparedSHA256": "cd174ecba33402a9322d6ec982a452c4ed48ad75de2475520391a73c712242ec",
+  "status": "ADMITTED-EXACT-THREE-UNLINK-INTENT-NOT-COMPLETION"
+}

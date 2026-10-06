@@ -1,0 +1,24 @@
+{
+  "status": "PASS-SOURCE-STATIC-RESERVED-TMP-SDK-RETRY-CAPACITY-HELD",
+  "preparationSHA256": "a91caad2e02ba97c177395f552abfd3e8a63d40c3e9322958cb2dac3ac5ec7ca",
+  "runnerSHA256": "2d5d7386cd42cc571743ce60f537b0b849a09b7fcd2dd2f8c6c2e11d945a79ba",
+  "inputCountFreshlyRehashed": 19375,
+  "checks": [
+    "All15 members and19375 exact regular inputs freshly size/hashchecked; SDK/helpers/threefakecases unchanged",
+    "Only durable/reserve_final_proofs/main AST changed relative01f supervisor; childownedcleanup/proc/source/module/artifact/stage/cancellation unchanged",
+    "Allproofs/compiler outputs in exclusive/tmp root, initial/prestage/live/postjoin/final workspace1.5GB/tmp100MB floors unchanged",
+    "32MiB sourceafter+4MiBresult+4MiBrefusal allocations posix_fallocate/fsync before child; distinct reserved-allocation markers never pretend publishedJSON",
+    "Reserved finalwrite serialized sizechecked, allocatedFD rewrite/fsync/truncate/fsync and FDdev/inode/pathUID/nlink equality plus absentdest rename/parentfsync; unavailable/overflow refuses; unused reservations retained",
+    "Fallback64KiB fullinitialwrite/fsync beforechildren; finalexit requires livecancel/deadline and ROOTnormaljoined terminal, cachedJSON alone notauthority"
+  ],
+  "conditions": [
+    "CAPACITY HOLD until separate reviewed relocation/recovery and ROOTfreshfloors/exclusivewindow",
+    "Two component stages90/270work/300final; no genuineRED claimed; rootouterfinitejoin required",
+    "Physicalpreallocation does not guarantee durability under arbitrary I/O failure or forcedkill; refusal/actualexit supersede cachedsummary",
+    "Reservedwrite/allocation/path/error behavior source-reviewed but no extracted fault tests executed or witnessed yet",
+    "GlobalwarmGoCache remains mutable protected, growth can still cause unchangedworkspacefloorFAIL; coldcacheFIT not assumed",
+    "FakeHTTP3cases only, realFGA/bootstrap/perms/Temporal/PG/schema80/API/provider/native unverified"
+  ],
+  "executed": false,
+  "findings": []
+}

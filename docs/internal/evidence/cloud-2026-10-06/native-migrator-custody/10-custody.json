@@ -1,0 +1,38 @@
+{
+  "futurePlansRequireNewPathDigestBindings": true,
+  "inactivityAfter": {
+    "privilegedExactRootProofSHA256": "87be687625f898a973ba8585a6c07a79f364f3ca02bf4dc2d4bfc3cac60067f5",
+    "snapshotNotLifetimeClaim": true,
+    "unknownOrActive": false,
+    "visibleNonZombieProcessesInspected": 10
+  },
+  "independentAdmissionSHA256": "120883acaba6c8cecaf170bd4751c37dbc6caaa5009c17bbf864c7632b14a899",
+  "newBindings": {
+    "agentsec-migrate": {
+      "ctime_ns": 1791301124671311502,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 432372,
+      "kind": "file",
+      "mode": 33216,
+      "mtime_ns": 1791266323190066283,
+      "nlink": 1,
+      "sha256": "cba69ee00bbc20939e50d1954c6243e1f347ccd9c6b36971f0d68abb05952d38",
+      "size": 44126392,
+      "uid": 1000
+    }
+  },
+  "noCacheSourceToolExecutionOrServices": true,
+  "oldInstallationAndHelpPathsAreHistorical": true,
+  "oldPathsAbsent": [
+    "agentsec-migrate"
+  ],
+  "physicalFreedBytesNotAssumed": true,
+  "planSHA256": "5a1688d07bbdcf1915feb81516ddd96f57636cf94dc4e3299b1a67e3d7c7c707",
+  "preparedSHA256": "1f18097a7f458f474160a48b6aac5a6e9dd6f2ca43e82f3044f54ca929778db7",
+  "protectedOriginalReceiptsUnchanged": true,
+  "runtimeWorkspaceFloorUnchanged": 1500000000,
+  "status": "EXACT-ONE-LOSSLESS-RELOCATION-COMPLETED",
+  "tmpFreeAfter": 568221696,
+  "workspaceFreeAfterObservedOnly": 1546698752
+}

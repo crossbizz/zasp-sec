@@ -1,0 +1,22 @@
+{
+  "assessment": [
+    "Narrow one-file adaptation of reviewed V5: fixed preserved agentsec-migrate path, empty child-dir set, one-file rosters/status and native1/native2 proof source namespaces.",
+    "All same-FD/canonical control/schema/journaling/partial-custody/signal/deadline/freshness helpers remain; source parent FD/hash and destination identity must be rechecked before the only possible unlink.",
+    "Adds exact immutable historical plan/V11/static-review checks without borrowing historical native/cache acceptance; protected source receipt remains after relocation.",
+    "Target lstat identity, two-member source roster, protected three historical proof files and preserved receipt bytes verified.44MB body SHA remains historical until ROOT prepare performs current same-FD full hashing; reviewer did not rehash payload body.",
+    "Projected TMP threshold after journal reservations is44126392+100000000+1048576=145174968B; runtime WS1.5GB floor unchanged, no compressed/physical-savings assumption."
+  ],
+  "findings": [],
+  "planSHA256": "5a1688d07bbdcf1915feb81516ddd96f57636cf94dc4e3299b1a67e3d7c7c707",
+  "preparationSHA256": "560b213f9050e757012b25f544d5430e3eb81f09f896fd708294bea1dca1709a",
+  "prerequisites": [
+    "New exact source1 observer and finite prepare wrapper independently source-reviewed; ROOT fresh normal joins/complete14ref metadata proof required before prepare.",
+    "Actual prepared44MB copy/original receipt/proof full-byte and metadata review plus separately authored closed admission required before finalize.",
+    "New actual source+copied2-inode observer and finalize wrapper separately reviewed after preparation; source1 proof cannot authorize unlink.",
+    "ROOT sole actor under finite outer boundary; actual normal terminal joins and final/partial mutation ledger review required."
+  ],
+  "scope": "Static custody gate only; no reviewer payload hash/copy/observer/checker/unlink/runtime. Native executable preservation receipt authority becomes historical original-path evidence only after actual custody; no migrator/tool/service/schema/SDK/native/production acceptance.",
+  "source": "/tmp/zasp-cloud-evidence/native-migrator-lossless-relocation-source-r5ajrt_a/relocate.py",
+  "sourceSHA256": "787fa4dbcac0a8f3d72ab2ef231bb7c69628cb85f86cdf14ca9f9320b5605b95",
+  "status": "SOURCE-STATIC-PASS"
+}

@@ -1,0 +1,29 @@
+{
+  "status": "PASS-ACTUAL-INSTALLATION-ONLY",
+  "ownerResultSHA256": "4ce8937f8fc24a519ceb98cd4c02f4237bac1731012074a6bbab021e2a0200a6",
+  "innerResultSHA256": "d5653aa1471caa9feb2c2c73325cc6d677e2e4fd3023eeff626822363c916cef",
+  "actualToolsSHA256": "760e00a1b9546a34c892a6c460c4abf0a8d7351e842c464eb08ce623fec38927",
+  "sourceOwnerStaticReview": "b949227c0457b24201227c7a6f5f464f5414e4fba6405f6de3b6f31b07c0fe07",
+  "rootObservation": {
+    "session": 12644,
+    "joinedExit": 0,
+    "provenance": "Parent ROOT tool-observed terminal join, not independently fabricated kernel receipt"
+  },
+  "checks": [
+    "One outer and five inner process records normal exit0/joined within effective limits; no forced/signaled/timeout/unexpected/survivor records; group proofs empty",
+    "Both reserved65536 journals UNVERIFIED/no FAILED; nested final result digest exact and completeAtWrite true",
+    "Actual FGA22 and CLI2 full member rosters exactly pinned, only two binaries extracted; both actual binary full stream SHA/size/0500/UID1000/nlink1 verified",
+    "CLI retained compressed archive full SHA/size verified; retained FGA same archive source pins rehashed",
+    "Captured versions OpenFGA v1.21.0 and CLI1.9.1 Server1.32.0/UI2.54.1; version logs hash-bound",
+    "Exact HEAD32244 before/after, all source/helper/Python/archive pins freshly rehashed",
+    "Proof bytes excluding exact2binaries+CLIarchive bounded16MiB; no service startup/schema checked"
+  ],
+  "physicalBinaryBytes": 220905796,
+  "proofBytes": 78697,
+  "ownerSeconds": 4.011292157003481,
+  "currentWorkspaceFreeBytes": 1645678592,
+  "capacityScope": "Current point-in-time statvfs and reviewed per-operation guard observations; no fabricated durable minimum series",
+  "scope": "Downloaded/extracted/version-confirmed tool installation only. No services, PG/Temporal/FGA database/model, app authorization80 readiness, browser/provider/deployment/native acceptance. Earlier refusal and causal TDD remain separate preserved evidence.",
+  "reviewerExecutedTools": false,
+  "findings": []
+}

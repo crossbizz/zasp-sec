@@ -1,0 +1,20 @@
+{
+  "actualExitCode": 1,
+  "format": "root-actual-tool-join-transcription-v1",
+  "initialChunkId": "7aa619",
+  "joinedChunkId": "cfb824",
+  "logs": {
+    "/tmp/zasp-cloud-evidence/owned-sdk-reserved-retry-root.stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/tmp/zasp-cloud-evidence/owned-sdk-reserved-retry-root.stdout.log": {
+      "bytes": 215,
+      "sha256": "3086b85c4b261e6b4451fb92e53f19e522ef82905281699cc57bd40d53ea1c81"
+    }
+  },
+  "ongoingSessionReturnedAfterJoin": false,
+  "resultPath": "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/result.json",
+  "resultSHA256": "b1fbef4599f5980637fd573255e2905be29cc7996173bc8c7b0e6b7eafd0890a",
+  "sessionId": 1952
+}

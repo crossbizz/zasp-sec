@@ -1,0 +1,39 @@
+{
+  "argv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "290s",
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "--",
+    "/usr/bin/python3",
+    "/tmp/zasp-cloud-evidence/native6-observer-derive-finalize-root-recipe-v3-sjhd4y29/run-finalize.py"
+  ],
+  "assessment": [
+    "All defined helper function ASTs identical to reviewed prepareV2; raw verified-byte module execution, bounded same-FD reads, normal child receipt checks and live final-output checks remain.",
+    "Only fixed six-target domain/pinchain, prepared/admission preconditions, exact destination copies proof additions, finalize mechanical admission and exact finalize argv alter orchestration.",
+    "Exact canonical preparedcd174 and sole-writer admissionb3a4 checked before observer and again before final proof; inventory copies/preparedSHA match; V5 independently parses14 originals and all six source/destination bindings before ROOT finalize.",
+    "Consumer requires each original source parent/FD hash+metadata and destination full identity; full sameUID conservative process snapshot plus root30s freshness after durable intent before each exact unlink remain.",
+    "Reserved mirrored mutation ledgers, partial-custody refusal and unchanged tmp100MB/runtimeworkspace1.5GB floor semantics remain in reviewed V5."
+  ],
+  "bounds": "270aggregate, observer90+35/finalize130+10, ROOT timeoutTERM290/KILL10/Tini-s; consumer phase120 unchanged.",
+  "findings": [],
+  "manifestSHA256": "b5085e9ba3bf6c67b2390f0d8cc642c664361cecd293797068230e8a8b055830",
+  "prerequisites": [
+    "Separate exact native6 observerb969 source-static PASS required before ROOT launch; glue review does not substitute for observer mount/prefix/alias review.",
+    "ROOT sole actor, no payload/copy writers or executors; exact argv only. Actual independent prepared copy admissionb979/b3a4 remains unchanged.",
+    "Fresh six-target owner/controller normal joins -> exact14 proof -> strict V5 mechanical admission -> immediate finalize; conservative30s freshness enforces refusal after hash/intent delay.",
+    "Actual ROOT normal exit/join plus independent partial/final custody reconciliation required afterward. Timeout/forced/error/IO failure remains failure; never rerun blindly after partial unlink."
+  ],
+  "preservedHeldPriorGlue": "5d6e7214707df7f6e2c1a2d6a788bbf7b46e16559b240153dd3e49a3a1a88167",
+  "recipeSHA256": "671057842a1b6751c973097cba506512d97249bbe577bce172b493f1fc202269",
+  "scope": "Three independently copied source payload path unlinks only after fresh exact-six metadata proof. No service startup, SDK/application/schema/native or production acceptance.",
+  "source": "/tmp/zasp-cloud-evidence/native6-observer-derive-finalize-root-recipe-v3-sjhd4y29/run-finalize.py",
+  "sourceSHA256": "750f3745b860f9366cfa7bdbcf8da2279fad078fdaa1f4d1d61acb387dfdabfb",
+  "status": "SOURCE-STATIC-PASS",
+  "verified": "Manifest members, all recipe source/evidence/tool hashes and resolved paths freshly checked; no candidate imports/runtime by reviewer."
+}

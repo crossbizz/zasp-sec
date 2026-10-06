@@ -1,0 +1,21 @@
+{
+  "findings": [
+    {
+      "function": "module",
+      "issue": "Pinned raw source is executed with SourceFileLoader, which can consume an unbound timestamp .pyc. Execute compile of the already hash-checked raw bytes in a fresh module namespace instead.",
+      "severity": "Important"
+    },
+    {
+      "issue": "Live cancellation/deadline acceptance check precedes potentially blocking final stdout only. Recheck live state after final output and in terminal exit expression.",
+      "location": "terminal print/exit",
+      "severity": "Important"
+    }
+  ],
+  "otherAssessment": "Exact source-three ->14ref proof -> consumer mechanical admission -> prepare only scope and conservative30s source start-age are retained. No finalize/unlink exists in this wrapper.",
+  "recipeSHA256": "b44586d6a865eceeb2428d8e098265f447c0e2843cce8e139170eaba75852e0b",
+  "scope": "Reviewer executed no candidate import, controller, observer, proof derivation, copy or runtime. Originals preserved; repaired exclusive recipe must be reviewed before ROOT launch.",
+  "source": "/tmp/zasp-cloud-evidence/native3-observer-derive-prepare-root-recipe-v1-f2fvd8h1/run-prepare.py",
+  "sourceSHA256": "5fdbfe567c6395ed4a094af483e93ab73665581d495f24333f42f3c0452b26bf",
+  "status": "BLOCKED-SOURCE-STATIC",
+  "verified": "All recipe input/tool byte hashes and resolved paths, raw source AST inspected."
+}
