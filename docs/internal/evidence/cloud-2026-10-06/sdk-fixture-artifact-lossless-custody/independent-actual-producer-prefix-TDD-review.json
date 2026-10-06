@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "Old actual producer path triggers exact unchanged verifier guard: authentic named assertion failure1, no setup error",
+    "New actual producer path two top tests OK including six negative topology subcases and valid future-final-prefix control",
+    "Both normal child waits/records/streams hash-bound, no timeout/forced/signals/survivors; reserved journal no lateFAILED",
+    "Source-static831b source/test/producer recipe pins bind exact guard expression; no observer proof/compression/raw unlink occurred"
+  ],
+  "resultPath": "/workspace/.zasp-cloud-owned/SDK-fixed-prefix-TDD-owner-67559fea4f194425a3aa39ea809dced4/result.json",
+  "resultSHA256": "f6efdb4711b1cbd5a3b2a56a5d158e07b403fc51e5a4c9a02faf45ba91ab6c7d",
+  "rootObservation": "ROOT reported61d96d normaljoin0/tool0.267649 separately from owner0.271598756; no independently invented kernel ROOT trace or claimed tautological wrapper-recipe guard",
+  "scope": "Finite namespace expression fixture only; fresh real14-ref inactivity/root-proof remains mandatory for prepare. No unlink/runtime acceptance.",
+  "status": "ACTUAL-SDK-PRODUCER-PREFIX-TDD-PASS"
+}

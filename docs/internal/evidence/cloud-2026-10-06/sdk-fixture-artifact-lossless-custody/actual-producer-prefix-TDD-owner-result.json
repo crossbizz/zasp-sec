@@ -1,0 +1,74 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "SDK-producer-fixed-prefix-tiny-TDD",
+  "completedAtWrite": true,
+  "failureClass": null,
+  "signals": [],
+  "records": [
+    {
+      "label": "old-producer-prefix-defined-RED",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/SDK-fixed-prefix-control-TDD-_kai1fxo/producer-prefix.test.py",
+        "/tmp/zasp-cloud-evidence/SDK-gzip-R10-root-prepare-owner-be2bo7da/ROOT-RECIPE.json",
+        "42c3a5a40940e29cb1130b684596b8a47da36f14ea70168dc6eed8ed2871c9d9",
+        "PrefixControls.test_actual_producer_namespace_satisfies_unchanged_verifier"
+      ],
+      "declared_cap_seconds": 20,
+      "effective_limit_seconds": 20,
+      "enclosing_deadline_monotonic": 81200.007399264,
+      "effective_deadline_monotonic": 81190.01136972,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 1,
+      "pid": 320075,
+      "seconds": 0.122084,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "cb6c5db3a49b4bc0c7a3c998de00480a0bf41471037116d2a4271c3a4b83bcd7"
+    },
+    {
+      "label": "corrected-producer-prefix-two-GREEN",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/SDK-fixed-prefix-control-TDD-_kai1fxo/producer-prefix.test.py",
+        "/tmp/zasp-cloud-evidence/SDK-gzip-prefix-fixed-root-owner-9g1oiw_t/ROOT-RECIPE.json",
+        "21bd9fd2e0b8e2556b1245f43505ed8264fbbdb58a674f74d2a6b2de57c88f8b"
+      ],
+      "declared_cap_seconds": 20,
+      "effective_limit_seconds": 20,
+      "enclosing_deadline_monotonic": 81200.007399264,
+      "effective_deadline_monotonic": 81190.133518096,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 320076,
+      "seconds": 0.121332,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "fe008aab760eb03ccac7578e2b84665b1b50b0d7f855b17a0c7a8d039435b658"
+    }
+  ],
+  "groups": {
+    "320075": [],
+    "320076": []
+  },
+  "seconds": 0.27159875599318184,
+  "expectedNetworkVariableNames": [],
+  "servicesStarted": false,
+  "installerInvoked": false,
+  "compressionInvoked": false,
+  "rawUnlinkedByThisRecipe": false,
+  "admissionScope": "LOSSLESS-GZIP-PREPARE-ONLY-ORIGINAL-REMAINS-NO-UNLINK-OR-RUNTIME",
+  "rootExternalNormalJoinRequired": true
+}

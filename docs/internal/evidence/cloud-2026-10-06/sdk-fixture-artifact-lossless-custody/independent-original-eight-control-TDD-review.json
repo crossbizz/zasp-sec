@@ -1,0 +1,14 @@
+{
+  "limitations": [
+    "Prepare requires fresh TMP169590068/WS1501048576 and its exact source gate f52c",
+    "No finalization/unlink approval",
+    "No reviewer tests/runtime"
+  ],
+  "outcome": "PASS_EIGHT_TINY_CONTROLS_ONLY",
+  "resultPath": "/workspace/.zasp-cloud-owned/SDK-gzip-TDD-owner-e51ee22fdce04f97887fad7d76ec78bb/result.json",
+  "resultSHA256": "df6dec0419a3c1f11a6facb9bc558506fe641d700290a65f2d4a3268add4ddc8",
+  "rootOuterJoin": "ROOT parent tool-observed59bfad normal0/.267s, not independently invented kernel wait.",
+  "scope": "Deliberate 30-to5 second observation policy transition plus synthetic custody/FD/gzip/mirror/floor controls. No observed compression/removal/service.",
+  "staticReviewSHA256": "28a46fb85ac049ab3137199401d9eb531713fb6a754af87e709c87107fceb5e2",
+  "verification": "Actual old age-policy named assertion failed once/exit1; all8 new named methods OK/exit0. Both captured streams match hashes, both records normal joined with no timeout/signal/force/unexpected descendant/survivor; groups empty. Fixed65536 journal has awaiting-ROOT terminal record and no FAILED; all21 source pins currently unchanged."
+}

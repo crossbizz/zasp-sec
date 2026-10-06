@@ -1,0 +1,81 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "SDK-fresh-observe-final-exact-one-lossless-gzip-unlink",
+  "completedAtWrite": true,
+  "failureClass": null,
+  "signals": [],
+  "records": [
+    {
+      "label": "fresh-root-two-observer",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/SDK-gzip-finalize-observer-source-R10-ym8k5z0w/fresh-observer-owner-v3.py",
+        "40cb5b638aea21d2b8e8a25fbc9b64214fdcb6e1895b0b9fb17a4dcc6d2d3dd9"
+      ],
+      "declared_cap_seconds": 125,
+      "effective_limit_seconds": 125,
+      "enclosing_deadline_monotonic": 82121.428792975,
+      "effective_deadline_monotonic": 82001.43014514,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 321971,
+      "seconds": 2.879196,
+      "stdout_sha256": "a5ad9486f6bcad98178988915c23d07ecc870d6e4c337978a431a97235393aed",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "SDK-exact-one-unlink-finalize",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/SDK-single-gzip-R10-source-_4cz1fk4/custody.py",
+        "finalize",
+        "--admission-sha256",
+        "654f8ac136b65df3599a091a8fdaaff7cc4a5a6be5683814d18e4a8de1d7c6b5",
+        "--root-proof-sha256",
+        "55a925337adf70c5a03e82213adf2ed6dfc3bebc157399496c145e5bdb2f5813"
+      ],
+      "declared_cap_seconds": 125,
+      "effective_limit_seconds": 125,
+      "enclosing_deadline_monotonic": 82121.428792975,
+      "effective_deadline_monotonic": 82004.327187091,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 323099,
+      "seconds": 0.723464,
+      "stdout_sha256": "aff4bac15b9e2bbf52670f7818f58374f6d3a4de90d26a6c8baaf9e871ced82a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "groups": {
+    "321971": [],
+    "323099": []
+  },
+  "seconds": 4.023189102998003,
+  "expectedNetworkVariableNames": [],
+  "servicesStarted": false,
+  "installerInvoked": false,
+  "compressionInvoked": false,
+  "archiveEquivalenceInvoked": true,
+  "rawUnlinkedByThisRecipe": true,
+  "admissionScope": "EXACT-ONE-HISTORICAL-SDK-RAW-LOSSLESS-GZIP-CUSTODY-NO-RUNTIME-READINESS",
+  "rootExternalNormalJoinRequired": true,
+  "actualUnlinkReturnedJournalObservations": [
+    true,
+    true
+  ],
+  "originalPathAbsentObserved": true
+}

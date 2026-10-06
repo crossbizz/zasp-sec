@@ -1,0 +1,22 @@
+{
+  "admissionSHA256": "654f8ac136b65df3599a091a8fdaaff7cc4a5a6be5683814d18e4a8de1d7c6b5",
+  "capacityCondition": [
+    "Recipe1MiB floor is planning allowance, not a full observer evidence peak bound. ROOT should retain at least12MiB headroom above original100MB TMP and1.5GB workspace floors for 14 pairs262KiB captures plus emergency/owner/journals; fresh>=112582912 TMP/>=1512582912 workspace, with normal monitored floor checks. Current reported150MB/1.538GB fits this extra preflight, no guard/source change needed."
+  ],
+  "checks": [
+    "72actual source/tool/prepare/admission/current pins match; fivefield admission exact preparedarchivebinding4178 independent actual admission",
+    "Allowed finalobserverfamily, exact raw432210+gzip439148 twoaliases/bothprefixes/newownedmount; observerhelper ASTs unchanged",
+    "Derives real14ref freshproof then unchanged26d2 fullCRC/EOF/protected11/source+archivefullSHA/securitymetadata/parentFD beforemutation; strict5s conservativeSTART rechecked after durableintent immediatelybeforeoneunlink",
+    "Mirrored reserved intent/UNLINKRETURNED/custody postchecks, fullgzipdecodedproof and protected/currentpins rechecked; failure mutationtrue onlydurablereturn,false onlynotstarted,otherwiseunknownnull",
+    "Finite275=245+30/ROOT270+35/two125, live terminalhandler/journal/result+ROOTnormalterminal acceptance; no rollback assumed"
+  ],
+  "ownerSHA256": "7a24a2bb2a6db31f0022206820152c4ddbc5f58a79dbdc06b737ea72ffd341b6",
+  "prerequisites": [
+    "ROOT verifies exact72pins/source/outertools/resources/exclusivewindow then exact recipe; fresh actualroot-owned14ref noUIDunknown/zeroFDcwdmmap normalcleanup mandatory",
+    "Any expired5s lease refuses beforeunlink; no clockrefresh withoutnewactualsnapshot",
+    "Independent actualarchive/custody/journals/absence/protected/currentclosure/terminaljoins review aftermutation; historicalrawphysicalidentity explicitlyretired"
+  ],
+  "recipeSHA256": "8ba757f58b3cce52d4fa91c0c4e7137dc351a14e2318488c15da0759f34c6c26",
+  "scope": "Exact oldfake SDKraw oneunlink losslessgzipcustody only. No currentdiagnosticcompiled/runtime/permission/provider admission. Reviewer noobserver/decoder/candidateexecution/unlink during staticgate.",
+  "status": "SOURCE-STATIC-PASS-CONDITIONAL-ROOT-EXACT-ONE-SDK-RAW-UNLINK"
+}

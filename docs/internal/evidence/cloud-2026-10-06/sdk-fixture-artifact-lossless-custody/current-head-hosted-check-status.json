@@ -1,0 +1,29 @@
+{
+  "scope": "current-head hosted-check and repository read-only status",
+  "head": "4546e3739a292aa8850c22e49518e4428ec537bb",
+  "originMain": "d21f036eab610f28177267ca8f12fa86981e5ac3",
+  "requiredAncestor": "e13ccb95451b03107681ccb59b3fc6fe175a228f",
+  "ancestorPresent": true,
+  "freshFetchToolChunk": "7322e4",
+  "currentCheckToolChunk": "0a8e52",
+  "checks": [
+    {
+      "name": "Verify runnable UI",
+      "conclusion": "FAILURE",
+      "run": 37515940582,
+      "job": 112448721837,
+      "duration": "37m42s"
+    },
+    {
+      "name": "Verify runnable UI",
+      "conclusion": "FAILURE",
+      "run": 37515947392,
+      "job": 112448745663,
+      "duration": "36m29s"
+    }
+  ],
+  "failureLogAccess": "DENIED: Forbidden on Actions log receiver; raw transport error retained privately and excluded from publication",
+  "actualFailureCause": "UNKNOWN",
+  "mergeAttempted": false,
+  "securityOrReleaseGuardsBypassed": false
+}
