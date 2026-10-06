@@ -15727,3 +15727,11 @@ Durable packet member manifest: `5bdcc1668b1af612050f5c7882f2b263869c27453d026c0
 The root-owned 512 native attempt failed after 224.45 seconds, before the 589 controls. A secondary collector stream deadline was observed; the primary catalog Boolean-false cause remains unknown. Row and byte counters were below caps, without a catalog-parity or capacity claim. Owned PostgreSQL stopped and joined normally; endpoint and surviving-resource checks recorded zero survivors. No acceptance artifact exists. The new frozen-build proof and original d466 failure remain unchanged.
 
 Durable packet member manifest: `82484bec888b44ebd69efa3d30ea709dbb6c0d2d17221ff4898e72cdaa61385e` (17 members).
+Fresh full verification at unchanged 6af016b4 FAILED after 478 seconds. Worker
+race package passed 439.046 seconds after reviewed fixture-only corrections;
+API readiness deadline characterization is the sole failure with unchanged
+1s caller/5s production bounds. UI/release/build were unreached. Original 512
+302s FAIL and historical 3ccc 2535 UI pass remain separate. Exact same 6af scanner
+0 findings92.417s and ledger728/523/144/61/0missing are separate checks, not full/
+release/native/deployed clearance. No API cause or fix is claimed; original
+health-command task links and all 728 acceptance requirements remain unchanged.

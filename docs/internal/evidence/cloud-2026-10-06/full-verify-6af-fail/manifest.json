@@ -1,0 +1,129 @@
+{
+  "format": "private-fullverify6af-failure-manifest-v1",
+  "source_commit": "6af016b47c13980465aa4598c193b0693e1a2233",
+  "full_result": "FAIL478s; workerPASS439.046s; APIsolefailure; UI/release/buildunreached",
+  "separate_checks": "fullhistoryGitleaks0/92.417s and728ledger consistency only",
+  "publication_state": "PRIVATE drafts requiring independent review before adoption",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1115,
+      "sha256": "63f1aff1d5fd325e3d5e5e8a2008d46aff057827ebe876ec1b4383d0a4e015df"
+    },
+    {
+      "path": "bounded-task-crosswalk.json",
+      "bytes": 1600,
+      "sha256": "a94cb2aad1dabdb1f9511f9988a301c76b3190a58f4038f4dc8f629bedd833d2"
+    },
+    {
+      "path": "command-metadata.json",
+      "bytes": 515,
+      "sha256": "6bbae23f4e8534c6c4a21372f350f5a08384d3af775ce714de406316874b2803"
+    },
+    {
+      "path": "full-verify-result.json",
+      "bytes": 92,
+      "sha256": "4043d3cc44c344a82a08323be79f721bf515c450278fc70534a9cb45c57d084c"
+    },
+    {
+      "path": "full-verify-sanitized.log.gz",
+      "bytes": 34664,
+      "sha256": "8cf6b699236c8eb7b217f2715cc91de650eb05fdf9f733ec5d02d821773bde0d"
+    },
+    {
+      "path": "full-verify-summary.json",
+      "bytes": 1464,
+      "sha256": "d6ce408158c8d2ed801ead3c7e735bb8022a9b1b4d2f387c8c8a3fbfbf3637d2"
+    },
+    {
+      "path": "head-after.txt",
+      "bytes": 41,
+      "sha256": "a95841fa08da4a0d73b4e89e87a8f1022cb69795459699c4aa4d401826ae4ffb"
+    },
+    {
+      "path": "head-before.txt",
+      "bytes": 41,
+      "sha256": "a95841fa08da4a0d73b4e89e87a8f1022cb69795459699c4aa4d401826ae4ffb"
+    },
+    {
+      "path": "log-sanitization.json",
+      "bytes": 888,
+      "sha256": "9eca3bf2a07d9f7c267f1426bfde5512f6c587ab45266e03696292aa202b50df"
+    },
+    {
+      "path": "prior-failures.json",
+      "bytes": 542,
+      "sha256": "6cb8ffd24e7f05401ea77c3440e3e66dbdcd4eeab07e43c978bcfdaf94b67044"
+    },
+    {
+      "path": "publication-dirscan-redacted.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "publication-dirscan.log",
+      "bytes": 81,
+      "sha256": "b6d7e1f8ea29111bfadc11313cf0c6ec445b32cd0845bf5a7ffd499e1a4d3b80"
+    },
+    {
+      "path": "raw-log-scan-redacted.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "raw-log-scan.log",
+      "bytes": 81,
+      "sha256": "d1586f7f200f414b484c105025d7bd94142884c40e9dfd967072268e853b35ef"
+    },
+    {
+      "path": "receipt-append.md",
+      "bytes": 2123,
+      "sha256": "d0abdd20a7aa1c4e714363251a70ef8fb7842c0d6deba8f00fe41734e152c9c9"
+    },
+    {
+      "path": "run-command.sh",
+      "bytes": 1936,
+      "sha256": "1b45e79caab8f0b88f1b4da3f328d5633f003f21d718c37e9e8e52bfb22854c6"
+    },
+    {
+      "path": "separate-full-history-report-redacted.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "separate-full-history-scan.log",
+      "bytes": 183,
+      "sha256": "c714b6f7262dcca6cd35d4caab773ab862fccafefd1f1ed7aa7f7a760e27203c"
+    },
+    {
+      "path": "separate-full-history-summary.json",
+      "bytes": 336,
+      "sha256": "bf7933b30c96a2310cedbb6f4dcec703d1c09deecb8b216db3f0162c8d3430ba"
+    },
+    {
+      "path": "separate-ledger-proof.json",
+      "bytes": 748,
+      "sha256": "3198dea4c4de246dfd83292e95c9406fb2aac2eb3370dcc45531bea02d572686"
+    },
+    {
+      "path": "source-identity.json",
+      "bytes": 1328,
+      "sha256": "3bac538d295a2fe1520bb0399630c6902ecb3be5459ea14ba569f67b8b80f1f8"
+    },
+    {
+      "path": "status-append.md",
+      "bytes": 631,
+      "sha256": "1a0883150ac35f853432554726ba21e10b062b0d6bdac2f552218b204ff53eb8"
+    },
+    {
+      "path": "tools.txt",
+      "bytes": 83,
+      "sha256": "2b81ccaeed775e663ffab7be4c7a9cfed05812d7c1fcc49fa0814e4cdcc2a09f"
+    },
+    {
+      "path": "umask.txt",
+      "bytes": 5,
+      "sha256": "5e02f5b89f7b74c02ca1a79b316850e8ca23e54c1c68da2bcbc386ec84e60d79"
+    }
+  ]
+}

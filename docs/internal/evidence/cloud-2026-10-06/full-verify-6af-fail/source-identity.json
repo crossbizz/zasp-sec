@@ -1,0 +1,33 @@
+{
+  "source_commit": "6af016b47c13980465aa4598c193b0693e1a2233",
+  "files": [
+    {
+      "path": "services/platform/agentsec-api/ordered_readiness_routing_characterization_test.go",
+      "sha256": "8949c228d278c857d2a542938a09878f1a03a42d5d1c8cf644cbc3f5318bac0b",
+      "bytes": 5002
+    },
+    {
+      "path": "services/platform/apiserver/security_agent_ordered_production.go",
+      "sha256": "dbb15de9b179960d9da9a083c0849e96d61404923164cefbf1d96c7d8b14e262",
+      "bytes": 3626
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_temporal_runner_settlement_test.go",
+      "sha256": "49ea318bcbc38e4c4ce3d1260de415a1c80532dc98591fc5a90a3203b208e35a",
+      "bytes": 10684
+    },
+    {
+      "path": "services/platform/agentsec-worker/compliance_export_composition_test.go",
+      "sha256": "8b94357130fd22db44de3ed443ac975ec3cd2861d3fd8fd410f87e9286ff668a",
+      "bytes": 9212
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_temporal_runner.go",
+      "sha256": "2a224519f2fa13776fdf091800371b4ba1f8c074190a1076b1e60a707f9a374c",
+      "bytes": 9527
+    }
+  ],
+  "api_test_parent_seconds": 1,
+  "production_child_max_seconds": 5,
+  "source_limits": "Source/file hashes bind exact observed source, not production/deployed/native acceptance; API cause not proven."
+}

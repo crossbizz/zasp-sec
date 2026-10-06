@@ -1,0 +1,26 @@
+{
+  "source": "docs/internal/2026-09-22-temporal-openfga-crosswalk.tsv",
+  "source_commit": "6af016b47c13980465aa4598c193b0693e1a2233",
+  "source_sha256": "6c0f4432ee18b260d194b47fe89774d5377441e38b77715ba9298e3dc51381ce",
+  "linked_rows": [
+    {
+      "original_id": "M1-28",
+      "requirement": "service health endpoints. Deliverable: Register common health endpoint contract in OpenAPI/internal service docs.",
+      "packet": "P1,P10",
+      "production_class_unchanged": "production-available",
+      "observation": "Fresh health-contract gate FAIL because API characterization failed; worker full package PASS439.046s. Shared health/healthserver packages PASS.",
+      "limit": "Command/gate evidence only; no proven shared health defect, task completion promotion or installed/deployed authority."
+    },
+    {
+      "original_id": "M1-28b",
+      "requirement": "platform health wiring. Deliverable: Wire shared health handlers into platform API and worker commands.",
+      "packet": "P1,P10",
+      "production_class_unchanged": "production-available",
+      "observation": "Fresh health-contract gate FAIL because API characterization failed; worker full package PASS439.046s. Shared health/healthserver packages PASS.",
+      "limit": "Command/gate evidence only; no proven shared health defect, task completion promotion or installed/deployed authority."
+    }
+  ],
+  "other_ids": "No additional original IDs inferred. Two workerfixture corrections are tested component changes, not completion of all worker/security task families.",
+  "ledger_unchanged": true,
+  "promotion": false
+}

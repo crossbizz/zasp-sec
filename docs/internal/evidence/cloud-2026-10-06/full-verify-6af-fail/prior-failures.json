@@ -1,0 +1,10 @@
+{
+  "original_full512_failure_packet_manifest_sha256": "140bbe54abdd55868bd22874eca2d68af51a734f8da39f1b86f48713926f1fff",
+  "original_full512_elapsed_seconds": 302,
+  "original_full512_failures": 3,
+  "original_full512_unchanged": true,
+  "current6af_full_fail_elapsed_seconds": 478,
+  "current6af_worker_package": "PASS439.046s",
+  "current6af_api_failure": "sole observed failure, original characterization1s deadline",
+  "historical3ccc_ui": "246files/2535tests PASS; separate733s fullFAIL at historical securitygate; no currentUIpass"
+}

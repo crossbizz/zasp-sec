@@ -1,0 +1,19 @@
+{
+  "sourceHEAD": "6af016b47c13980465aa4598c193b0693e1a2233",
+  "fetchedOriginMain": "d21f036eab610f28177267ca8f12fa86981e5ac3",
+  "requiredAncestorPresent": true,
+  "rows": 728,
+  "categories": {
+    "production-available": 523,
+    "component-only": 144,
+    "blocked/external": 61
+  },
+  "missing": 0,
+  "duplicates": 0,
+  "ownerCoverage": 728,
+  "fileSHA256": {
+    "implementation_production_availability_v1.5.tsv": "a162d9575349b6ce7e19c9dc5f6db62f5ef1951419e48efe627515d1fc09a0f1",
+    "implementation_production_availability_owners_v1.5.tsv": "b32873f73e38097f167f3075fbdacb216836c89a858cf47f3107a113cd41c125"
+  },
+  "limits": "Historical evidence categories do not prove deployed availability; no promotion from this consistency check."
+}
