@@ -1,6 +1,7 @@
 import test from 'node:test';
 import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
@@ -22,7 +23,7 @@ test('v3 reference refuses historical reference, omitted source/output and statu
 });
 test('v3 closure comparison refuses accessors, symbols and ambiguous array authority',()=>{
  const r=load();const q=structuredClone(r);Object.defineProperty(q,'installable',{get(){throw Error('getter invoked');}});assert.throws(()=>assertOrderedCurrentNative379LinuxReferenceV3(q),/accessor/);
- assert.throws(()=>native379V3Canonical([,1]),/(sparse|array authority)/);assert.throws(()=>native379V3Canonical({value:NaN}),/noninteger/);assert.throws(()=>native379V3Canonical({[Symbol('authority')]:true}),/symbol/);
+ const sparse=Array(2);sparse[1]=1;assert.throws(()=>native379V3Canonical(sparse),/(sparse|array authority)/);assert.throws(()=>native379V3Canonical({value:NaN}),/noninteger/);assert.throws(()=>native379V3Canonical({[Symbol('authority')]:true}),/symbol/);
 });
 
 test('wrong Node runtime refuses before any reviewed source assembly read',()=>{
@@ -32,18 +33,35 @@ test('wrong Node runtime refuses before any reviewed source assembly read',()=>{
  assert.equal(r.error,undefined);assert.equal(r.signal,null);assert.equal(r.status,0,r.stderr);
 });
 
+function linkOrCopyFixtureSource(source,destination,filesystem=fs){
+ try{filesystem.linkSync(source,destination);}catch(error){
+  if(error.code!=='EXDEV')throw error;
+  filesystem.copyFileSync(source,destination,fs.constants.COPYFILE_EXCL);
+ }
+}
 test('fixed execution closure refuses changed generator and transitive code before benign execution',()=>{
+ // A cross-device optimization failure permits only exclusive byte-preserving
+ // copying. Permission, missing source and occupied destination failures remain
+ // original errors; they must never become copy attempts or skipped challenges.
+ for(const code of ['EACCES','ENOENT','EEXIST']){
+  const original=Object.assign(new Error('fixture transport '+code),{code});let copied=false;
+  assert.throws(()=>linkOrCopyFixtureSource('source','destination',{linkSync(){throw original;},copyFileSync(){copied=true;}}),error=>error===original);assert.equal(copied,false);
+ }
+ let copied=false;linkOrCopyFixtureSource('source','destination',{linkSync(){throw Object.assign(new Error('cross-device'),{code:'EXDEV'});},copyFileSync(source,destination,flags){assert.equal(source,'source');assert.equal(destination,'destination');assert.equal(flags,fs.constants.COPYFILE_EXCL);copied=true;}});assert.equal(copied,true);
+ const copyFailure=Object.assign(new Error('copy permission'),{code:'EACCES'});
+ assert.throws(()=>linkOrCopyFixtureSource('source','destination',{linkSync(){throw Object.assign(new Error('cross-device'),{code:'EXDEV'});},copyFileSync(){throw copyFailure;}}),error=>error===copyFailure);
+
  for(const variant of ['generator-bytes','transitive-bytes','generator-symlink','ancestor-symlink']){
-  const temporary=fs.mkdtempSync(path.join(process.env.TMPDIR,'native379-v3-preimport-'+variant+'-'));
+  const temporary=fs.mkdtempSync(path.join(process.env.TMPDIR||os.tmpdir(),'native379-v3-preimport-'+variant+'-'));
   try{
    const originalRoot=fileURLToPath(new URL('../../../../',import.meta.url));
    const tools='services/platform/migrations/tools/';
    const manifest=JSON.parse(fs.readFileSync(path.join(originalRoot,tools,'ordered-current-native379-packet-v2-artifacts/source-inputs.json')));
    const extras=['ordered-current-native379-packet-v2.mjs','ordered-current-native379-source-schema-v2.mjs','ordered-current-native379-packet-v2-artifacts/source-inputs.json','ordered-current-native379-packet-v2-artifacts/generated-identities.json','ordered-current-native379-packet-v2-artifacts/source-fact-delta.json','build-ordered-current-linux-successor-v1.mjs','build-ordered-current-linux-successor-v1.test.mjs','ordered-current-linux-provenance-v1.mjs','ordered-current-linux-provenance-v1.test.mjs','ordered-current-linux-provenance-v1.json','ordered-current-native379-source-schema-v3.mjs'];
-   // Read-only links avoid duplicating source artifacts. A mutated test member
+   // Same-filesystem links or exclusive EXDEV copies preserve source bytes. A mutated test member
    // is unlinked before writing, so no original inode can change.
    for(const relative of new Set([...Object.keys(manifest.files),...extras.map(n=>tools+n)])){
-    const destination=path.join(temporary,relative);fs.mkdirSync(path.dirname(destination),{recursive:true});fs.linkSync(path.join(originalRoot,relative),destination);
+    const destination=path.join(temporary,relative);fs.mkdirSync(path.dirname(destination),{recursive:true});linkOrCopyFixtureSource(path.join(originalRoot,relative),destination);
    }
    const generator=path.join(temporary,tools,'build-ordered-current-linux-successor-v1.mjs');
    if(variant==='generator-bytes'||variant==='transitive-bytes'){

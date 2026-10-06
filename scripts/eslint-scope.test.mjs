@@ -68,3 +68,34 @@ test("both archived Node paths still reject control-byte regexes", { timeout: 10
     assert.equal(result.messages.some(message => message.ruleId === nextModuleRule), false);
   }
 });
+
+const linuxSourceSnapshots = [
+  "docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/source/build-ordered-current-linux-successor-v1.mjs",
+  "docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/source/ordered-current-linux-provenance-v1.test.mjs",
+];
+test("exact immutable Linux source snapshots retain every other lint rule", { timeout: 10000 }, async () => {
+  const eslint = new ESLint();
+  for (const file of linuxSourceSnapshots) {
+    assert.equal(await eslint.isPathIgnored(file), false);
+    const config = await eslint.calculateConfigForFile(file);
+    assert.equal(config.rules["@typescript-eslint/no-unused-vars"][0], 0);
+    const [actual] = await eslint.lintFiles(file);
+    assert.equal(actual.errorCount, 0, JSON.stringify(actual.messages));
+    const [result] = await eslint.lintText("const unused = 1; const expression = /\\x00/; console.log(expression);", { filePath: file });
+    assert.equal(result.messages.some(message => message.ruleId === "@typescript-eslint/no-unused-vars"), false);
+    assert.ok(result.messages.some(message => message.ruleId === "no-control-regex"));
+  }
+});
+test("current Linux tools and unreviewed neighboring snapshots retain unused-binding errors", { timeout: 10000 }, async () => {
+  const eslint = new ESLint();
+  for (const file of [
+    "services/platform/migrations/tools/build-ordered-current-linux-successor-v1.mjs",
+    "services/platform/migrations/tools/ordered-current-linux-provenance-v1.test.mjs",
+    "docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/source/unreviewed-tool.mjs",
+    "docs/internal/evidence/cloud-2026-10-07/linux-reference-source-five/source/build-ordered-current-linux-successor-v1.mjs",
+  ]) {
+    assert.equal(await eslint.isPathIgnored(file), false);
+    const [result] = await eslint.lintText("const unused = 1;", { filePath: file });
+    assert.ok(result.messages.some(message => message.ruleId === "@typescript-eslint/no-unused-vars"));
+  }
+});

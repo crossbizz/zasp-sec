@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import {admitOrderedCurrentLinuxProvenanceV1,readOrderedCurrentLinuxProvenanceV1} from './ordered-current-linux-provenance-v1.mjs';
 const load=()=>structuredClone(readOrderedCurrentLinuxProvenanceV1());
 test('actual Linux witness admission retains observed build identity and pending flags',()=>{

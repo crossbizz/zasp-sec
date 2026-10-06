@@ -7,10 +7,10 @@ import {fileURLToPath} from 'node:url';
 const root=path.resolve(fileURLToPath(new URL('../../../../',import.meta.url)));
 const tools='services/platform/migrations/tools/';
 const pins=Object.freeze({
- 'build-ordered-current-linux-successor-v1.mjs':'b5a8d9dc9e11a52d07113b3d315ef9c04cc46774e452ebe7a80be366038f2249',
+ 'build-ordered-current-linux-successor-v1.mjs':'97e7172223ba7cdcc0a289ca8fcfae6f367f827029d1226a40ea261ff80f9503',
  'build-ordered-current-linux-successor-v1.test.mjs':'94dea86cf72c42b687ec28909b76b7eb06d0292190684c1b9084271a522f70a1',
  'ordered-current-linux-provenance-v1.mjs':'64b0d211765c03071d124d1443831d2d9c3f60393878eadcbaf6ac4635be80e0',
- 'ordered-current-linux-provenance-v1.test.mjs':'9e1658847bbc433dcc3755b7d75dfd792b66743153832f7dff37c0a819b60c38',
+ 'ordered-current-linux-provenance-v1.test.mjs':'a5f2c04c1ee1db60d9f6933e825da323bf144700fdb2b12fadf4f81c75ef3fd0',
  'ordered-current-linux-provenance-v1.json':'68425b6efc85e163c5028dadb4b8ff3ec219dfb5d7a8a2772c73a58a45dddfb5'});
 const sha=raw=>crypto.createHash('sha256').update(raw).digest('hex');
 const fail=message=>{throw Error('ordered-current native379 v3 source '+message);};

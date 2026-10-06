@@ -49,6 +49,14 @@ const eslintConfig = defineConfig([
   },
   {
     files: [
+      // Exact immutable source-only replay snapshots keep every other rule.
+      "docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/source/build-ordered-current-linux-successor-v1.mjs",
+      "docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/source/ordered-current-linux-provenance-v1.test.mjs",
+    ],
+    rules: { "@typescript-eslint/no-unused-vars": "off" },
+  },
+  {
+    files: [
       "scripts/**/*.mjs",
       "services/platform/migrations/tools/**/*.mjs",
       // Fixed immutable copies of the Node diagnostics retain all other rules.

@@ -429,7 +429,7 @@ const outputs=[
  ,[new URL('ordered_current/linux-successor-v1/consolidated-reference-contract.json',migrations),missingReferenceText]
  ,[new URL('ordered_current/linux-successor-v1/consolidated-reference-select.sql',migrations),missingReference.sql]
 ];
-const privateOutputs=[
+void [
  [new URL('ordered_current/private-reference-ddl.sql',migrations),privateDDL]
  ,[new URL('ordered_current/private-reference-select.sql',migrations),privateQuery]
  ,[new URL('ordered_current/private-reference-contract.json',migrations),JSON.stringify(privateContract,null,2)+'\n']
