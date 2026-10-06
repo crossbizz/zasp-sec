@@ -1,0 +1,17 @@
+{
+  "source_commit": "c032e9ae608ef697a3d4bdb91c5ccae0f012b0cc",
+  "scanner": "gitleaks 8.30.1",
+  "scope": "faithful repository full-history with unchanged original ignore configuration",
+  "result": "FAIL",
+  "findings": 550,
+  "prior_retained": 546,
+  "new_findings": 4,
+  "new_independently_verified_public_file_digests": 4,
+  "new_unresolved": 0,
+  "full_report_sha256": "58dbcf0535a560cda054986e42d12627586ebc26604700af9079a03f8fdea1c3",
+  "classification_report_sha256": "b43b349afe7036dd0e7e8bbde1bbf587cb58d470797a39cffcb98d3294fd2644",
+  "configuration_changed": false,
+  "credential_clearance": false,
+  "merge_release_clearance": false,
+  "remote_exception_change": "eb497c20; not yet integrated, independent audit pending"
+}

@@ -1,0 +1,25 @@
+{
+  "format": "separate-scoped-tail-checks-v1",
+  "head_before": "c032e9ae608ef697a3d4bdb91c5ccae0f012b0cc",
+  "head_after": "c032e9ae608ef697a3d4bdb91c5ccae0f012b0cc",
+  "checks": {
+    "build": {
+      "exit_code": 0
+    },
+    "production:imports:compiled": {
+      "exit_code": 0,
+      "client_chunks": 7,
+      "server_chunks": 8
+    },
+    "implementation:status:check": {
+      "exit_code": 0,
+      "rows": 728,
+      "production_available_categories": 523,
+      "component_only_categories": 144,
+      "blocked_external_categories": 61,
+      "missing": 0
+    }
+  },
+  "full_verification_status": "FAIL: release full-history546 findings; tail stages were unreached in full run and performed separately. No release or deployment clearance.",
+  "head_change_during_scoped_checks": "Concurrent frozen/native failure receipt commit c032e9ae: only docs/internal files; product/build source unchanged."
+}

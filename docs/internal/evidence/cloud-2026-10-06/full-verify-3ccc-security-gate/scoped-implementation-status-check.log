@@ -1,0 +1,5 @@
+
+> zasp-agent-security-console@0.1.0 implementation:status:check
+> node scripts/implementation-status-check.mjs
+
+Implementation status ledger valid: 728 rows; 523 production-available, 144 component-only, 61 blocked/external, 0 missing.

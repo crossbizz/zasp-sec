@@ -1,0 +1,67 @@
+{
+  "started_utc": "2026-10-06T01:19:32Z",
+  "completed_utc": "2026-10-06T01:31:45Z",
+  "exit_code": 1,
+  "elapsed_seconds": 733,
+  "head_before": "3ccc145510ea90c751a66306b6bb1d39812d5c51",
+  "head_after": "3ccc145510ea90c751a66306b6bb1d39812d5c51",
+  "tools": [
+    "v22.23.1",
+    "10.9.8",
+    "go version go1.25.13 linux/amd64",
+    "tini version 0.19.0 - git.de40ad0"
+  ],
+  "umask": "0077",
+  "raw_log_sha256": "34c6cff73ceb49b7d6ecc46487780b1db239ac09201beff0cf23f6080589877f",
+  "raw_log_bytes": 93688,
+  "completed_stages": [
+    "dependencies:check",
+    "health:contract:test",
+    "openapi:test",
+    "openapi:lint",
+    "openapi:check",
+    "ui-api:test",
+    "ui-api:check",
+    "raw-fetch:test",
+    "saas:tenancy:test",
+    "graph:neo4j:test",
+    "db:tenant-rls:test",
+    "test",
+    "typecheck",
+    "lint",
+    "production:imports:test",
+    "production:imports:source",
+    "staging:gate:test"
+  ],
+  "ui_tests": {
+    "files_passed": 246,
+    "tests_passed": 2535
+  },
+  "worker_package_seconds": 394.608,
+  "gateway_package_seconds": 4.054,
+  "release_tests": {
+    "passed": 284,
+    "failed": 1,
+    "cancelled": 0,
+    "skipped": 0,
+    "seconds": 119.726651359
+  },
+  "failure": {
+    "stage": "production:release:test",
+    "test": "release sources contain truthful runbooks, canary, SBOM/license/image/secret gates",
+    "source": "deploy/production/release-gates.test.mjs:46",
+    "command": "gitleaks git --no-banner --redact --log-opts=HEAD",
+    "commits_scanned": 1428,
+    "findings": 546,
+    "scan_seconds": 92.4,
+    "classification": "unchanged unresolved full-history security gate"
+  },
+  "unreached_stages": [
+    "build",
+    "production:imports:compiled",
+    "implementation:status:check"
+  ],
+  "hosted_failure_cause": "unknown: hosted logs forbidden403; local outcome does not prove hosted failure cause",
+  "shared_edits_by_this_task": false,
+  "prior_fail_evidence": "retained unchanged"
+}

@@ -393,3 +393,63 @@ attempt; the evidence recorder launched no PG/native operation. The 728 rows,
 523/144/61 categories, varied-login gate, security546 and release/deployment
 restrictions remain unchanged. A reviewed repair requires new evidence and
 cannot retroactively promote this failed attempt.
+
+
+## Fresh security reconciliation at the frozen-proof publication
+
+The faithful full-history Gitleaks 8.30.1 scan at
+`c032e9ae608ef697a3d4bdb91c5ccae0f012b0cc` failed with 550 findings: all
+546 earlier findings plus four newly reported public file-content digests.
+Independent review rehashed the exact frozen test binary and resolved approved
+PostgreSQL libraries, verifying all four new values; none remains unknown.
+The private classification is bound by SHA256
+`b43b349afe7036dd0e7e8bbde1bbf587cb58d470797a39cffcb98d3294fd2644`.
+Raw matches remain private. `evidence/cloud-2026-10-06/security-c032-reconciliation/summary.json`
+retains the aggregate and report identity. Scanner failure, historical provenance
+limits and native/deployed gates remain; no ignore/rule/history change cleared
+this scan. Concurrent remote fingerprint exceptions at eb497c20 are being
+independently audited before integration; their claimed historical private
+review artifacts were not transferred and are not authenticated by this receipt.
+
+
+## Fresh full verification at 3ccc; separately scoped remaining checks
+
+The actual new full `npm run verify` ran from 01:19:32 to 01:31:45 UTC, with
+both persisted source captures exactly
+`3ccc145510ea90c751a66306b6bb1d39812d5c51`. It FAILED after 733 seconds.
+The worker race package passed in 394.608 seconds and runtime gateway in
+4.054 seconds. This run actually passed all 246 UI files / 2,535 tests,
+typecheck, lint, production source imports and staging checks. Production
+release tests reported 284 passes / one failure / zero skips or cancellations:
+the unchanged full-history Gitleaks gate scanned 1,428 commits and retained
+546 findings. These are the historical 3ccc scan statistics; the later c032
+reconciliation above records the current 550 findings. Neither count is a
+security clearance, and hosted failure cause remains unknown without logs.
+
+Build, compiled imports and ledger validation were unreached in the failed
+full run. They were explicitly authorized as separate local scoped checks and
+all passed: compiled imports actually report seven client/eight server chunks;
+the ledger retains 728 rows / 523 production-available evidence categories /
+144 component-only / 61 blocked-external / zero missing. Both persisted scoped
+captures are `c032e9ae608ef697a3d4bdb91c5ccae0f012b0cc`. The two runs differ
+only in `docs/internal` files; no product/build source changed between them.
+No commit during the scoped run is proven or claimed. The initial coordinator
+observation of 3ccc is superseded by the actual persisted c032 captures.
+
+The bounded directory
+`evidence/cloud-2026-10-06/full-verify-3ccc-security-gate/` retains the actual
+full failure/result/tools/commands, fresh UI and release observations, separately
+scoped build/import/ledger logs, and sanitized compressed full log. Its original
+22-member manifest SHA256 is
+`0d0c9d817a41d907d1b02589466edc80c681560f3556f310408b6c3f8ad4f49b`.
+Original bytes remain intact, including the inaccurate during-run wording in
+the first scoped summary. A separate provenance addendum explicitly corrects
+that wording and the original equal-c032 comparison; its SHA256 is
+`63a4da157cc18aa71e3d14b4e83850c6d2c730c4c05a8f6d46365217ea302bdf`,
+bound by separate addendum-manifest SHA256
+`b7ee939093648ba4cae09eb00bbc3af1b1d5377decc6167552d8714c0b4ef0cb`.
+Private raw-log and scoped durable scans reported zero findings before adoption;
+URL redaction/ANSI removal does not establish repository security clearance.
+All original failures, 728 task/category mappings and native/deployed/security/
+release gates remain. Separate scoped success does not turn full verification
+into PASS, publish/deploy anything or bypass a release guard.

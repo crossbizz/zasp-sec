@@ -19,7 +19,8 @@ login exceeds the forged-entry byte cap. Actual d466 frozen/derived build
 closure is verified (6,053 source files, 5,787 Go inputs/74 modules, 1,553 Node
 inputs); native parity, varied-login capacity and deployed acceptance remain open.
 Fresh runtime inventory found all 162 inspected ZASP loader bindings absent.
-The full-history security scan still fails with 546 findings; merge/release
+The fresh full-history security scan at c032 fails with 550 findings (546 prior
+plus four independently verified public file digests); merge/release
 readiness remains blocked. See [the October 6 receipt](cloud-continuation-receipt-2026-10-06.md).
 All 728 IDs and 523/144/61 evidence categories remain unchanged.
 
@@ -30,6 +31,16 @@ UI verification was not reached. A narrowly reviewed fixture correction now
 sets 0640 explicitly; the unchanged production exact-0600 guard and existing
 grouped tests pass under umasks 077 and 022. This component repair does not
 replace the retained full failure or establish a fresh full-suite pass.
+
+The later fresh full verification at unchanged `3ccc1455` passed all 2,535 UI
+tests, typecheck, lint, import and staging checks, then FAILED after 733 seconds
+at the historical 546-finding release security gate (284 release tests passed,
+one failed). Build, compiled imports and ledger checks were unreached in that
+full run; separate scoped checks at unchanged `c032e9ae` passed build, actual
+seven-client/eight-server compiled imports and the original 728-row ledger.
+These runs differ only in documentation, as corrected by a preserved provenance
+addendum. The current c032 scan remains 550 findings; neither scoped success
+nor historical UI success clears full verification, release or deployed gates.
 
 ## Cloud runtime receipt, October 5, 2026
 
