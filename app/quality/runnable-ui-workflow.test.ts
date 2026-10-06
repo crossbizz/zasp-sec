@@ -59,7 +59,7 @@ console.log(execFileSync(chrome, ["--version"], { encoding: "utf8", timeout: 500
 appendFileSync(process.env.GITHUB_ENV, \`ZASP_COMBINED_E2E_CHROME=\${chrome}\\n\`);
 NODE
 `;
-const complianceAcceptanceCommand = "node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs\nnode scripts/production-combined-e2e.mjs\n";
+const complianceAcceptanceCommand = "node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs scripts/compliance-runtime-prerequisites.test.mjs\nnode scripts/production-combined-e2e.mjs\n";
 const complianceSteps: WorkflowStep[] = [
   { name: "Provision isolated compliance browser prerequisites", "timeout-minutes": 10, run: compliancePrerequisitesCommand },
   { name: "Verify current compliance browser acceptance", "timeout-minutes": 15, env: { ZASP_COMBINED_E2E_COMPLIANCE: "true" }, run: complianceAcceptanceCommand },
