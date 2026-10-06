@@ -1,0 +1,42 @@
+{
+  "schema": "browser-pg-cleanup-root-component-supplement-v1",
+  "members": [
+    {
+      "path": "root-browser-cleanup-components-record.json.gz",
+      "sha256": "8c82658bc40df979b0d3902730bb4088ec09d93524be5ace3c7d3196e3b81563",
+      "bytes": 880,
+      "mode": "0400",
+      "originalPath": "/tmp/zasp-cloud-evidence/root-browser-cleanup-components-record.json",
+      "originalSHA256": "04fa27dae6d8d6f0720b1d627f08a93e2fb1add4cb4a7884460db4c89ba73d3e",
+      "originalBytes": 1581,
+      "encoding": "gzip-mtime-0"
+    },
+    {
+      "path": "root-browser-cleanup-selected.log.gz",
+      "sha256": "fe5cbec0efd72c1a21d763ca2a6a451737f6ac2b5a2776806c69997a7db76d96",
+      "bytes": 1141,
+      "mode": "0400",
+      "originalPath": "/tmp/zasp-cloud-evidence/root-browser-cleanup-selected.log",
+      "originalSHA256": "0443b597d5a34101d706f193a738b6163492ace5bbf7b18cd4870c3ba43ef27d",
+      "originalBytes": 4827,
+      "encoding": "gzip-mtime-0"
+    },
+    {
+      "path": "root-browser-cleanup-owned-pg.log.gz",
+      "sha256": "2c1a32482c138b6dc33a6be9ad217c14b0eaa91963ba9dce775abf3f91bbb39d",
+      "bytes": 942,
+      "mode": "0400",
+      "originalPath": "/tmp/zasp-cloud-evidence/root-browser-cleanup-owned-pg.log",
+      "originalSHA256": "6d3401027dcdc84d3ddf47c3ae5926992ffc8cb592cb7a94bfd4dd3d340e7011",
+      "originalBytes": 3379,
+      "encoding": "gzip-mtime-0"
+    },
+    {
+      "path": "scope-and-counts.json",
+      "sha256": "84ffe57c0af2b29233903e2c08e7750f6789573f54183fb570a1276d57167499",
+      "bytes": 781,
+      "mode": "0400",
+      "encoding": "identity"
+    }
+  ]
+}

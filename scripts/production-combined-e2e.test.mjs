@@ -1623,7 +1623,7 @@ test("failed checkpoint or provider joins retain errors and files while other ow
     try {
       let caught;
       try { await cleanup(); } catch (error) { caught = error; }
-      assert.deepEqual(events, ["checkpoint", "mounted first", "mounted second", "provider", "graph", "redteam", "aws/search", "second tab", "cdp", "browser", "task4", "api", "proxy", "identity", "policy history", "web", "audit provider", "postgres", "remaining child", ...(failureAt ? [] : ["files"])]);
+      assert.deepEqual(events, ["postgres", "checkpoint", "mounted first", "mounted second", "provider", "graph", "redteam", "aws/search", "second tab", "cdp", "browser", "task4", "api", "proxy", "identity", "policy history", "web", "audit provider", "remaining child", ...(failureAt ? [] : ["files"])]);
       if (failureAt) {
         assert.ok(caught instanceof AggregateError, "cleanup lost collected errors");
         assert.ok(caught.errors.includes(expectedError), "cleanup replaced original failure");
@@ -1646,7 +1646,7 @@ test("combined PostgreSQL startup registers its owner before readiness rejects",
   const end = source.indexOf("async function provisionPostgresPrincipals", start);
   const failure = new Error("owned readiness rejected");
   const owner = { start: async () => { throw failure; }, stop: async () => { owner.stopped = true; } };
-  const context = { process: { env: { ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC: "1" } }, postgres: undefined, automaticDiscoveryMode: false, attackLabMountedMode: false, securityAgentExportMode: false,
+  const context = { ownedResourceCleanupStarted: false, process: { env: { ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC: "1" } }, postgres: undefined, automaticDiscoveryMode: false, attackLabMountedMode: false, securityAgentExportMode: false,
     path, temporaryRoot: "/unused", postgresBin: "/unused", command: async () => { throw failure; },
     createOwnedBrowserPostgres: options => { assert.deepEqual(JSON.parse(JSON.stringify(options)), { port: 54321, trackFunctions: true }); return owner; } };
   const flow = runInNewContext(`(async () => { ${source.slice(start, end)} try { await startPostgres(54321); } catch (error) { if (postgres) await stopPostgres(postgres); throw error; } })`, context);
@@ -1810,3 +1810,108 @@ function rejectAfter(milliseconds, describe) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+// Exercise the actual orchestration functions; only process, server and file
+// boundaries are controlled. No Docker, Go or browser process is dispatched.
+async function postgresCleanupFlow(overrides = {}) {
+  const source = await readFile(new URL("./production-combined-e2e.mjs", import.meta.url), "utf8");
+  const cleanupStart = source.indexOf("async function cleanupOwnedResources() {");
+  const cleanupEnd = source.indexOf("\nasync function generateHarnessGitHubAppPrivateKey", cleanupStart);
+  const startupStart = source.indexOf("async function startPostgres(port) {");
+  const startupEnd = source.indexOf("\nasync function provisionPostgresPrincipals", startupStart);
+  assert.ok(cleanupStart > 0 && cleanupEnd > cleanupStart && startupEnd > startupStart);
+  const events = [];
+  const context = {
+    ownedResourceCleanupStarted: false, postgres: undefined,
+    precisionBrowserCheckpoint: null, mountedRuntimeProofs: [], runtimePipelineChild: null, runtimeGraphDependency: null,
+    redTeamRuntimeProof: { close: async () => { events.push("redteam closed"); } }, runtimePipelineDependencies: { close: async () => {} },
+    exportBrowserProfiles: [], secondBrowserTab: null, browser: null, task4Workers: [], exportBrowserAPILifetimes: [],
+    api: null, proxy: null, identity: null, policyHistory: null, web: null, auditExportProvider: null, children: [],
+    exportBrowserEvidenceDirectory: null, automaticDiscoveryEvidenceDirectory: null,
+    temporaryRoot: "/virtual-owned-root", platform: "/virtual-platform", attackLabMountedMode: true, securityAgentExportMode: false, automaticDiscoveryMode: false,
+    process: { env: {} }, console: { log() {} }, path, assert, AggregateError,
+    auditBrowserEnvironment: value => value, chmod: async () => {},
+    rm: async () => { events.push("files removed"); },
+    command: async () => { throw new Error("unexpected preparation dispatch"); },
+    createOwnedBrowserPostgres: () => { events.push("owner registered"); return { start: async () => { events.push("postgres started"); }, stop: async () => { events.push("postgres stopped"); } }; },
+    stopChild: async () => {}, closeServer: async () => {}, ...overrides,
+  };
+  const flow = runInNewContext(`(() => { ${source.slice(cleanupStart, cleanupEnd)}\n${source.slice(startupStart, startupEnd)}\nreturn { cleanupOwnedResources, startPostgres }; })()`, context);
+  return { ...flow, context, events };
+}
+
+function cleanupDeferred() {
+  let resolve;
+  const promise = new Promise(value => { resolve = value; });
+  return { promise, resolve };
+}
+
+test("PostgreSQL cleanup refuses owner registration after in-flight preparation completes", async () => {
+  const preparation = cleanupDeferred(), started = cleanupDeferred();
+  const flow = await postgresCleanupFlow({
+    children: ["preparation"],
+    command: async executable => {
+      if (executable === "docker") return { stdout: "amd64" };
+      started.resolve(); return preparation.promise;
+    },
+    stopChild: async () => { preparation.resolve({ status: 0 }); await new Promise(resolve => setImmediate(resolve)); },
+  });
+  // Capture rejection immediately: cancellation must not become an unhandled
+  // startup rejection while cleanup is still joining unrelated resources.
+  const boot = flow.startPostgres(54321).then(() => ({ accepted: true }), error => ({ error }));
+  await started.promise;
+  await flow.cleanupOwnedResources();
+  const result = await boot;
+  assert.equal(result.accepted, undefined, "cleanup admitted a late PostgreSQL owner");
+  assert.match(result.error?.message ?? "", /PostgreSQL startup after cleanup refused/);
+  assert.equal(flow.context.postgres, undefined);
+  assert.deepEqual(flow.events, ["redteam closed", "files removed"]);
+});
+
+test("PostgreSQL cleanup cancels a registered in-flight owner before unrelated joins", async () => {
+  const unrelated = cleanupDeferred(), entered = cleanupDeferred(), postgresJoin = cleanupDeferred();
+  const events = [];
+  const owner = { stop: () => { events.push("postgres stop began"); return postgresJoin.promise; } };
+  const flow = await postgresCleanupFlow({ postgres: owner, precisionBrowserCheckpoint: { close: () => { entered.resolve(); return unrelated.promise; } } });
+  const cleanup = flow.cleanupOwnedResources();
+  await entered.promise;
+  // Resolve barriers even on failed assertions, so a RED leaves no work pending.
+  try { assert.deepEqual([...events], ["postgres stop began"]); }
+  finally { unrelated.resolve(); postgresJoin.resolve(); await cleanup; }
+  assert.deepEqual(events, ["postgres stop began"], "owned PostgreSQL was stopped more than once");
+  assert.ok(flow.events.includes("files removed"));
+});
+
+test("PostgreSQL cleanup retains early stop failure while joining every other resource", async () => {
+  const unrelated = cleanupDeferred(), entered = cleanupDeferred(), events = [], unhandled = [];
+  const original = new Error("owned PostgreSQL join rejected");
+  const listener = error => { unhandled.push(error); };
+  process.on("unhandledRejection", listener);
+  const flow = await postgresCleanupFlow({ postgres: { stop: async () => { events.push("postgres stop began"); throw original; } },
+    precisionBrowserCheckpoint: { close: () => { entered.resolve(); return unrelated.promise; } },
+    children: ["remaining child"], stopChild: async () => { events.push("remaining child joined"); } });
+  const cleanup = flow.cleanupOwnedResources().then(() => ({ accepted: true }), error => ({ error }));
+  try {
+    try {
+    await entered.promise;
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual([...events], ["postgres stop began"]);
+    assert.deepEqual(unhandled, []);
+    } finally { unrelated.resolve(); }
+    const result = await cleanup;
+    assert.ok(result.error instanceof AggregateError);
+    assert.ok(result.error.errors.includes(original));
+    assert.deepEqual(events, ["postgres stop began", "remaining child joined"]);
+    assert.deepEqual(flow.events, ["redteam closed"]);
+    assert.deepEqual(unhandled, []);
+  } finally { unrelated.resolve(); await cleanup; process.off("unhandledRejection", listener); }
+});
+
+test("PostgreSQL cleanup refuses subsequent startup before preparation dispatch", async () => {
+  let commands = 0;
+  const flow = await postgresCleanupFlow({ command: async () => { commands += 1; return { stdout: "amd64" }; } });
+  await flow.cleanupOwnedResources();
+  await assert.rejects(flow.startPostgres(54321), /PostgreSQL startup after cleanup refused/);
+  assert.equal(commands, 0);
+  assert.equal(flow.context.postgres, undefined);
+});

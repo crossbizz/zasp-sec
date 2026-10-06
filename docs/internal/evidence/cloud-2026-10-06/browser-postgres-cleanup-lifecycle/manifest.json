@@ -1,0 +1,132 @@
+{
+  "schema": "browser-pg-cleanup-source81-component-publication-v1",
+  "baseCommit": "81d7d531ca17c3082674ca679a35c61cadc7ab3c",
+  "members": [
+    {
+      "path": "source-origin.json",
+      "sha256": "66e62a76ab3e48d240299625ab2481dbedeb5aa15d121671951e9c886a86efe9",
+      "bytes": 1627,
+      "mode": "0400",
+      "originalPath": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/evidence/source-origin.json",
+      "originalSHA256": "66e62a76ab3e48d240299625ab2481dbedeb5aa15d121671951e9c886a86efe9",
+      "originalBytes": 1627,
+      "encoding": "identity"
+    },
+    {
+      "path": "component-summary.json",
+      "sha256": "beba4c0dbfbb0c88c3e1bd2eb114ea9cecd37b468f3ba74f0f9b92e99d0aee9d",
+      "bytes": 8258,
+      "mode": "0400",
+      "originalPath": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/evidence/component-summary.json",
+      "originalSHA256": "beba4c0dbfbb0c88c3e1bd2eb114ea9cecd37b468f3ba74f0f9b92e99d0aee9d",
+      "originalBytes": 8258,
+      "encoding": "identity"
+    },
+    {
+      "path": "candidate.diff.gz",
+      "sha256": "a457289e38dbf6562e293b2892971d127d794f56315aedd41057f3285ed2244e",
+      "bytes": 3538,
+      "mode": "0400",
+      "originalPath": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/evidence/candidate.diff",
+      "originalSHA256": "a6e69d9bef89d9aad167de728a7c74355d7f80bd187e7a061e979db05fd0dbbb",
+      "originalBytes": 11733,
+      "encoding": "gzip-mtime-0"
+    },
+    {
+      "path": "lifecycle-red-final-tests.log.gz",
+      "sha256": "4e37412c76520ebd7ac7ef899104f30294f0f6a74fd64f57c5d91c1a02c2333d",
+      "bytes": 857,
+      "mode": "0400",
+      "originalPath": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/evidence/lifecycle-red-final-tests.log",
+      "originalSHA256": "cbc2dfd709ec3d9904cddde017819343c1a2cb4e2ad1167b4301a33edc87cc6c",
+      "originalBytes": 3841,
+      "encoding": "gzip-mtime-0"
+    },
+    {
+      "path": "lifecycle-green.log.gz",
+      "sha256": "fd8540706c7db6291b211aca9d3a52d9e8f2b163bc9f08ed9f2f9c22b2bf003c",
+      "bytes": 364,
+      "mode": "0400",
+      "originalPath": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/evidence/lifecycle-green.log",
+      "originalSHA256": "74d66effa47fa558a270154b04d97238275533d0465a42bdf680cb4e0f8ed155",
+      "originalBytes": 1032,
+      "encoding": "gzip-mtime-0"
+    },
+    {
+      "path": "combined-component-green.log.gz",
+      "sha256": "e80495a36453dd6d14ec7a2fcf49b1e78ac40e233de13c1d3121f0c35cc3fb1a",
+      "bytes": 1100,
+      "mode": "0400",
+      "originalPath": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/evidence/combined-component-green.log",
+      "originalSHA256": "84a964ecca6a0868d11c162e0b97f7170c921b8cca0a055b9138e500735d817e",
+      "originalBytes": 4666,
+      "encoding": "gzip-mtime-0"
+    },
+    {
+      "path": "owned-postgres-component-green.log.gz",
+      "sha256": "381dec82dfb7915ee600e1f6a26c5d4c4de673bc4eb1456665fec80c831806b7",
+      "bytes": 943,
+      "mode": "0400",
+      "originalPath": "/workspace/.zasp-cloud-owned/browser-pg-cleanup-source81-0exux2z0/evidence/owned-postgres-component-green.log",
+      "originalSHA256": "d8a1e447e62147fce0e4c41fff08d5015b36ca4228eee633c371529184d76d8d",
+      "originalBytes": 3376,
+      "encoding": "gzip-mtime-0"
+    },
+    {
+      "path": "original-late-registration-witness.mjs.gz",
+      "sha256": "1ba778376c88496f311ca2b36d42df7f5d6bea9ca2f53614f0a37a87933f4f5f",
+      "bytes": 1309,
+      "mode": "0400",
+      "originalPath": "/tmp/zasp-cloud-evidence/browser-late-registration-source-witness.mjs",
+      "originalSHA256": "c75c22f9d9a36fc830d524bb13d95457e74420151d4f8baecd1bbce1cc02ac2b",
+      "originalBytes": 2883,
+      "encoding": "gzip-mtime-0"
+    },
+    {
+      "path": "original-late-registration-witness.json.gz",
+      "sha256": "a4c3dd7a8fd4bd52e0e9be4548c8473c3e5f9a12c5ea4f57b73e7a5f5f6b5b61",
+      "bytes": 362,
+      "mode": "0400",
+      "originalPath": "/tmp/zasp-cloud-evidence/browser-late-registration-source-witness.json",
+      "originalSHA256": "b58f1ce552877248027fafea6da4dda653af91b21ae5b8d9a2552f79c2525673",
+      "originalBytes": 526,
+      "encoding": "gzip-mtime-0"
+    },
+    {
+      "path": "original-late-registration-witness.log.gz",
+      "sha256": "82f62eb3850e062f4522d8aaf05f5e0cf338ceb2a16c8ba616ca9059e1322fcb",
+      "bytes": 485,
+      "mode": "0400",
+      "originalPath": "/tmp/zasp-cloud-evidence/browser-late-registration-source-witness.log",
+      "originalSHA256": "6c2495ba0aa6585a318ea6dd88a98a650f295ad0d0ce0449bb4bea59df84d8f8",
+      "originalBytes": 915,
+      "encoding": "gzip-mtime-0"
+    },
+    {
+      "path": "omissions.json",
+      "sha256": "a2385ec0310b4f2a8b546848a12cf0035b9ddf293aa687dde58c5017cf33225a",
+      "bytes": 3265,
+      "mode": "0400",
+      "encoding": "identity",
+      "origin": "New authored bounded publication metadata"
+    },
+    {
+      "path": "commands-and-scope.json",
+      "sha256": "1063a33006343a2c3cb0f4978eb5d64d77d7236e3a612e5bf17000212d045925",
+      "bytes": 3571,
+      "mode": "0400",
+      "encoding": "identity",
+      "origin": "New authored bounded publication metadata"
+    },
+    {
+      "path": "README.md",
+      "sha256": "77b200cea4e1783031894183fa4302918c1a718694b22d76616b0fa85967261d",
+      "bytes": 1612,
+      "mode": "0400",
+      "encoding": "identity",
+      "origin": "New authored bounded publication metadata"
+    }
+  ],
+  "memberCount": 13,
+  "claims": "Private source-only component evidence; independent review pending; original Browser3 cause unknown; real browser/PG integration deferred."
+}

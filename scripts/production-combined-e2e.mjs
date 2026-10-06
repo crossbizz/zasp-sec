@@ -130,6 +130,7 @@ let policyHistory;
 let failNextRuntimeSessionSearch = false;
 let api;
 let postgres;
+let ownedResourceCleanupStarted = false;
 let web;
 let browser;
 let secondBrowserTab;
@@ -3165,10 +3166,14 @@ async function exercisePrecisionBrowserTenantDenial(metadata, sql, chromePort, o
 }
 
 async function cleanupOwnedResources() {
+  ownedResourceCleanupStarted = true;
   const cleanupErrors = [];
   const attempt = async operation => {
     try { await operation(); } catch (error) { cleanupErrors.push(error); }
   };
+  // Fence and cancel an in-flight PostgreSQL start before unrelated joins.
+  // Capture errors immediately and join this same stop at its cleanup slot.
+  const postgresCleanup = postgres ? attempt(() => stopPostgres(postgres)) : undefined;
   await attempt(() => precisionBrowserCheckpoint?.close());
   for(const proof of mountedRuntimeProofs) await attempt(()=>proof.close());
   if (runtimePipelineChild) await attempt(() => stopChild(runtimePipelineChild));
@@ -3204,7 +3209,7 @@ async function cleanupOwnedResources() {
   if (web) await attempt(() => stopChild(web));
   console.log("combined E2E: cleanup postgres");
   if (auditExportProvider) await attempt(() => auditExportProvider.stop());
-  if (postgres) await attempt(() => stopPostgres(postgres));
+  await postgresCleanup;
   console.log("combined E2E: cleanup remaining processes");
   for (const child of children.reverse()) await attempt(() => stopChild(child));
   if(exportBrowserEvidenceDirectory) await attempt(()=>writeFile(path.join(exportBrowserEvidenceDirectory,"cleanup.json"),JSON.stringify({joined:cleanupErrors.length===0,errors:cleanupErrors.map(error=>error instanceof Error?error.message:String(error)),temporaryRootRetained:cleanupErrors.length>0},null,2)));
@@ -3223,6 +3228,7 @@ async function generateHarnessGitHubAppPrivateKey(target) {
 }
 
 async function startPostgres(port) {
+  if (ownedResourceCleanupStarted) throw new Error("owned PostgreSQL startup after cleanup refused");
   let isolatedRelay, discoveryCollectorBinary;
   if (attackLabMountedMode || securityAgentExportMode || automaticDiscoveryMode) {
     const image = "postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba";
@@ -3236,6 +3242,9 @@ async function startPostgres(port) {
       await chmod(discoveryCollectorBinary,0o755);
     }
   }
+  // Preparation can settle successfully after cleanup has begun. There is
+  // no await between this admission check and registering the owned fixture.
+  if (ownedResourceCleanupStarted) throw new Error("owned PostgreSQL startup after cleanup refused");
   postgres = createOwnedBrowserPostgres({ port, isolatedRelay, ...(discoveryCollectorBinary ? {discoveryCollectorBinary} : {}), trackFunctions: process.env.ZASP_RECONCILIATION_API_LOAD_DIAGNOSTIC === "1" });
   await postgres.start();
   return postgres;

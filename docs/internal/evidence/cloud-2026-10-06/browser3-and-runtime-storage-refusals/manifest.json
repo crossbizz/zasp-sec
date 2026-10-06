@@ -1,0 +1,135 @@
+{
+  "scope": "Bounded selected original failures, separate owned cleanup, unchanged-ledger references and document81 scan observations; private proposed adoption only",
+  "members": [
+    {
+      "path": "README.md",
+      "bytes": 2300,
+      "sha256": "2c77e21dbced62fed7cc87922b0021efdbade949d06404697cdd2b2a99d6a9a4"
+    },
+    {
+      "path": "browser3-independent-review.tar.gz",
+      "bytes": 1882,
+      "sha256": "4c951afece4f06f254ccd1a6ab92138bb5171c8201ad711fae8a38753e1eacb2"
+    },
+    {
+      "path": "browser3-later-owned-container-cleanup.tar.gz",
+      "bytes": 1361,
+      "sha256": "bfcecd7ef9935aac102da2b00cdee00b9836ddc8dc90c939cf6515069e716ad2"
+    },
+    {
+      "path": "browser3-original-failure.tar.gz",
+      "bytes": 5623,
+      "sha256": "3335cd4097254944e3b631918f5fa55668b86368900c87f49b30489b7c85bf86"
+    },
+    {
+      "path": "current81-independent-review.tar.gz",
+      "bytes": 1137,
+      "sha256": "2ddd675341b87a6840e856be1d2d9183aa3dcf4be7431dbf00db4dfaa16b65ba"
+    },
+    {
+      "path": "current81-security-all-refs-history.tar.gz",
+      "bytes": 1377,
+      "sha256": "178faf816371f74295cdc5b14f47801980821fec00848e2337f3f436870c29cb"
+    },
+    {
+      "path": "current81-security-scoped.tar.gz",
+      "bytes": 1369,
+      "sha256": "aee1fe1fc287c2c1136e53aa90be798bf3042eb4710872855cea3677adb0b226"
+    },
+    {
+      "path": "go-independent-review.tar.gz",
+      "bytes": 1519,
+      "sha256": "50504ded1363710181cb205867815ebc1873b331803af20c507c22e7f8abf370"
+    },
+    {
+      "path": "go-runtime-tdd-storage-failure.tar.gz",
+      "bytes": 22026,
+      "sha256": "9273cc503befb71306b22350d83267669ee460ccda92350bc671d3f8b2a23dbd"
+    },
+    {
+      "path": "proposed-receipt.md",
+      "bytes": 2175,
+      "sha256": "d2a7f4b37d43e2fc347062bb69ec2ca437a3c757d687b37726e3045bab1b4981"
+    },
+    {
+      "path": "selection-omissions-and-actual-scans.tar.gz",
+      "bytes": 5801,
+      "sha256": "a34d1187d83a498791e45369274cd55616ad2fca6d2cd795685b42c1ce8e1de9"
+    }
+  ],
+  "original_selected_count": 49,
+  "omission_count": 7,
+  "roundtrips": [
+    {
+      "archive": "browser3-independent-review.tar.gz",
+      "members": 2,
+      "decodedBytes": 3838,
+      "verbatimSafeRegularRoundtrip": true
+    },
+    {
+      "archive": "browser3-later-owned-container-cleanup.tar.gz",
+      "members": 10,
+      "decodedBytes": 3686,
+      "verbatimSafeRegularRoundtrip": true
+    },
+    {
+      "archive": "browser3-original-failure.tar.gz",
+      "members": 8,
+      "decodedBytes": 25236,
+      "verbatimSafeRegularRoundtrip": true
+    },
+    {
+      "archive": "current81-independent-review.tar.gz",
+      "members": 2,
+      "decodedBytes": 1688,
+      "verbatimSafeRegularRoundtrip": true
+    },
+    {
+      "archive": "current81-security-all-refs-history.tar.gz",
+      "members": 7,
+      "decodedBytes": 3598,
+      "verbatimSafeRegularRoundtrip": true
+    },
+    {
+      "archive": "current81-security-scoped.tar.gz",
+      "members": 7,
+      "decodedBytes": 3735,
+      "verbatimSafeRegularRoundtrip": true
+    },
+    {
+      "archive": "go-independent-review.tar.gz",
+      "members": 2,
+      "decodedBytes": 2521,
+      "verbatimSafeRegularRoundtrip": true
+    },
+    {
+      "archive": "go-runtime-tdd-storage-failure.tar.gz",
+      "members": 19,
+      "decodedBytes": 152997,
+      "verbatimSafeRegularRoundtrip": true
+    },
+    {
+      "archive": "selection-omissions-and-actual-scans.tar.gz",
+      "members": 9,
+      "decodedBytes": 31024,
+      "verbatimSafeRegularRoundtrip": true
+    }
+  ],
+  "initialSelectedDirectoryScan": {
+    "exit": 0,
+    "findings": 0
+  },
+  "finalSelectedDirectoryScan": {
+    "exit": 0,
+    "findings": 0
+  },
+  "limits": [
+    "No generated PEM read or included",
+    "No native or runtime acceptance",
+    "No availability category promotion",
+    "No cache/source/process mutation",
+    "No outer kernel or df receipt fabricated",
+    "No current full npm run",
+    "Archive encoding is not decoded scanner clearance"
+  ]
+}

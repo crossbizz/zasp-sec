@@ -1,0 +1,148 @@
+{
+  "status": "PRIVATE-SOURCE-COMPONENT-TDD-PASS-INDEPENDENT-REVIEW-PENDING",
+  "baseCommit": "81d7d531ca17c3082674ca679a35c61cadc7ab3c",
+  "changes": [
+    {
+      "path": "scripts/production-combined-e2e.mjs",
+      "beforeSHA256": "cb03b8cfe0720b6ad84379c17d040b928e4c3a57b89728634a69051dc277c0a8",
+      "afterSHA256": "125c66c369c87bd1e884bae095c694c09ff7ad694a340bc1dd617a3a95c60ea3",
+      "bytes": 664049
+    },
+    {
+      "path": "scripts/production-combined-e2e.test.mjs",
+      "beforeSHA256": "c11ffcdb89ea329af59588caa3fcccdba78f23d44b46ac6c7d40d70197f968b7",
+      "afterSHA256": "7787d5f7c46b849f58627c18a1a0eee5f8c45308318f2572409a26e0fe22f28c",
+      "bytes": 158257
+    }
+  ],
+  "diffSHA256": "a6e69d9bef89d9aad167de728a7c74355d7f80bd187e7a061e979db05fd0dbbb",
+  "unchangedPrivateDependencies": [
+    "scripts/owned-browser-postgres.mjs",
+    "scripts/owned-browser-postgres.test.mjs",
+    "scripts/owned-command.mjs",
+    "scripts/isolated-postgres-bridge.mjs",
+    "scripts/bounded-signal-cleanup.mjs",
+    "scripts/audit-log-browser-proof.mjs",
+    "scripts/security-agent-export-mounted-browser.mjs"
+  ],
+  "sharedSourceMembersStillExact": [
+    "scripts/production-combined-e2e.mjs",
+    "scripts/production-combined-e2e.test.mjs",
+    "scripts/owned-browser-postgres.mjs",
+    "scripts/owned-browser-postgres.test.mjs",
+    "scripts/owned-command.mjs",
+    "scripts/isolated-postgres-bridge.mjs",
+    "scripts/bounded-signal-cleanup.mjs",
+    "scripts/audit-log-browser-proof.mjs",
+    "scripts/security-agent-export-mounted-browser.mjs"
+  ],
+  "environment": {
+    "PATH": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin:/usr/bin:/bin",
+    "TMPDIR": "/tmp"
+  },
+  "environmentRecipe": "env -i",
+  "node": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+  "selectionPattern": "^(PostgreSQL cleanup |owned cleanup is idempotent$|failed checkpoint or provider joins retain errors and files while other owned resources close$|combined PostgreSQL startup registers its owner before readiness rejects$|retirement diagnostic rejects dead owned container despite a live Docker CLI child$|export API leaves shutdown margin inside the owned five second grace$|export API persists clean slow shutdown and forced kill before acceptance checks$|export API shutdown rejects nonzero and signaled restart and final lifetimes$)",
+  "logs": {
+    "lifecycle-red-final-tests.log": {
+      "sha256": "cbc2dfd709ec3d9904cddde017819343c1a2cb4e2ad1167b4301a33edc87cc6c",
+      "bytes": 3841,
+      "pass": 0,
+      "fail": 4,
+      "skipped": 0,
+      "durationMilliseconds": 110.344789,
+      "topLevelNames": [
+        "PostgreSQL cleanup refuses owner registration after in-flight preparation completes",
+        "PostgreSQL cleanup cancels a registered in-flight owner before unrelated joins",
+        "PostgreSQL cleanup retains early stop failure while joining every other resource",
+        "PostgreSQL cleanup refuses subsequent startup before preparation dispatch"
+      ]
+    },
+    "lifecycle-green.log": {
+      "sha256": "74d66effa47fa558a270154b04d97238275533d0465a42bdf680cb4e0f8ed155",
+      "bytes": 1032,
+      "pass": 4,
+      "fail": 0,
+      "skipped": 0,
+      "durationMilliseconds": 124.159012,
+      "topLevelNames": [
+        "PostgreSQL cleanup refuses owner registration after in-flight preparation completes",
+        "PostgreSQL cleanup cancels a registered in-flight owner before unrelated joins",
+        "PostgreSQL cleanup retains early stop failure while joining every other resource",
+        "PostgreSQL cleanup refuses subsequent startup before preparation dispatch"
+      ]
+    },
+    "combined-component-green.log": {
+      "sha256": "84a964ecca6a0868d11c162e0b97f7170c921b8cca0a055b9138e500735d817e",
+      "bytes": 4666,
+      "pass": 27,
+      "fail": 0,
+      "skipped": 0,
+      "durationMilliseconds": 6384.291398,
+      "topLevelNames": [
+        "export API leaves shutdown margin inside the owned five second grace",
+        "export API persists clean slow shutdown and forced kill before acceptance checks",
+        "export API shutdown rejects nonzero and signaled restart and final lifetimes",
+        "owned cleanup is idempotent",
+        "failed checkpoint or provider joins retain errors and files while other owned resources close",
+        "combined PostgreSQL startup registers its owner before readiness rejects",
+        "retirement diagnostic rejects dead owned container despite a live Docker CLI child",
+        "PostgreSQL cleanup refuses owner registration after in-flight preparation completes",
+        "PostgreSQL cleanup cancels a registered in-flight owner before unrelated joins",
+        "PostgreSQL cleanup retains early stop failure while joining every other resource",
+        "PostgreSQL cleanup refuses subsequent startup before preparation dispatch"
+      ]
+    },
+    "owned-postgres-component-green.log": {
+      "sha256": "d8a1e447e62147fce0e4c41fff08d5015b36ca4228eee633c371529184d76d8d",
+      "bytes": 3376,
+      "pass": 16,
+      "fail": 0,
+      "skipped": 0,
+      "durationMilliseconds": 174.394846,
+      "topLevelNames": [
+        "starts only pinned loopback ephemeral PostgreSQL and joins its exact container",
+        "rejects invalid ports before dispatch",
+        "optional discovery helper is one exact readonly regular executable mount",
+        "isolated browser PostgreSQL has no published port and joins its raw-wire bridge",
+        "initializes the same C UTF8 database as the pinned migration reference fixture",
+        "default startup leaves function instrumentation off",
+        "readiness failure still removes the created container",
+        "early server exit fails readiness even if the CLI already exited successfully",
+        "failed start removes the exact created resource",
+        "lost create response recovers only the invocation name and matching ownership label",
+        "ambiguous create cannot remove a container without matching ownership",
+        "concurrent and repeated stop perform one exact cleanup",
+        "cancellation joins an in-flight create then recovers and removes its resource",
+        "hung commands are bounded and joined before cleanup",
+        "cleanup failure stays rejected even when repeated and absence checks still run",
+        "successful CLI removal without observed container absence fails the join"
+      ]
+    }
+  },
+  "redSource": {
+    "productionSHA256": "cb03b8cfe0720b6ad84379c17d040b928e4c3a57b89728634a69051dc277c0a8",
+    "testsOnlyReconstructedSHA256": "34888fe9d87f93dae094ef78ab8a0f89493e131ec696047defb63753738736fb",
+    "reconstruction": "Exact inverse of two existing-test context/order updates performed after RED; four new regressions unchanged."
+  },
+  "scope": [
+    "Four genuine source-extracted lifecycle REDs before production edits; then four GREEN",
+    "Full owned-browser-postgres component file: 16 passing mock-boundary tests",
+    "Positively selected combined component groups: 11 top-level/27 including subtests passing; external Node child lifetime checks execute real small Node processes",
+    "No real Docker, Go, PostgreSQL, browser or full verification execution; no shared source edits",
+    "Original Browser3 causal attribution remains UNPROVEN",
+    "Real combined SIGTERM/owned-container integration tests and broader suite unchanged and unexecuted here",
+    "PG stop begins before unrelated cleanup; its same caught promise is joined once at prior slot; all other resource/error retention checks preserved"
+  ],
+  "unexecutedIntegrationNames": [
+    "combined production E2E removes owned processes and temp root on SIGTERM",
+    "combined runtime proof removes owned containers and processes on real SIGTERM",
+    "composed Red Team runtime removes its owned container on real SIGTERM"
+  ],
+  "originalWitness": {
+    "path": "/tmp/zasp-cloud-evidence/browser-late-registration-source-witness.json",
+    "sha256": "b58f1ce552877248027fafea6da4dda653af91b21ae5b8d9a2552f79c2525673"
+  },
+  "originalBrowserReviewSHA256": "8232ab745d1d64b840a09e9eab7619f4e76576f12628884a8907914973047d2d",
+  "recordProvenance": "Manually assembled from actual retained tool invocations/logs/source bytes; not an automatic initial process receipt."
+}

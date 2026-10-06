@@ -1,0 +1,7 @@
+{
+  "bindingPublicationManifest": "0e038dc89907df5f4d64540df8bf1262e4e0e9efbfd55a1dc018ce56f8fe3860",
+  "rootRecordSHA256": "04fa27dae6d8d6f0720b1d627f08a93e2fb1add4cb4a7884460db4c89ba73d3e",
+  "counting": "ROOT selected TAP reports28 passes:27 meaningful combined cases including subtests and one empty owned-PG file wrapper under name filtering. Separate full owned-PG file runs16 meaningful tests.43=27+16; four lifecycle GREEN cases already included in27. No44 distinct passing-case claim.",
+  "scope": "ROOT independent private-source component verification only; manually assembled actual tool joins; real browser/Go/PG/Docker integration deferred; original Browser3 cause unknown.",
+  "mutation": "Original13-member publication remains unchanged; supplement is separate."
+}
