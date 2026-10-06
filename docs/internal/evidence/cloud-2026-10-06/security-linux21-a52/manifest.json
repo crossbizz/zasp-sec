@@ -1,0 +1,408 @@
+{
+  "format": "linux21-a52-security-and-v2-compatibility-publication-v1",
+  "scope": "Historical exact21FAIL6 and private candidate controls; separate actuala52 scans/existingv2 compatibility; no fullnpm atnewsource",
+  "members": [
+    {
+      "path": "archive/actual-a52-full-history/before.json.gz",
+      "bytes": 336,
+      "sha256": "f9e1b0c222083af22699fcb9bfabc07bed91af810457f32d88be4d562bf393de",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/actual-a52-full-history/before.json",
+      "originalBytes": 496,
+      "originalSHA256": "2364120dfa3c0a2d7cf228cbee745c56ee1d8c892412e49dd4bedde2eafb559a"
+    },
+    {
+      "path": "archive/actual-a52-full-history/record.json.gz",
+      "bytes": 474,
+      "sha256": "d123a58395e68e253f43856e748f503878525bdf127929f1217fc404ea615f93",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/actual-a52-full-history/record.json",
+      "originalBytes": 877,
+      "originalSHA256": "7cb3e486c13b45271248607b46c0ee3bb3bdd8504a7383612a305e373204dc18"
+    },
+    {
+      "path": "archive/actual-a52-full-history/report.json.gz",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/actual-a52-full-history/report.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "archive/actual-a52-full-history/scan.log.gz",
+      "bytes": 114,
+      "sha256": "b81dec3f2bf719480da4f018ef36cd4d46e8b365082bc3c0c4d3645d543c352b",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/actual-a52-full-history/scan.log",
+      "originalBytes": 118,
+      "originalSHA256": "06eee9735f554a46a330ea37c61bd8630f11fda66b9a45c07959619fffee09af"
+    },
+    {
+      "path": "archive/actual-a52-scoped/before.json.gz",
+      "bytes": 333,
+      "sha256": "556a957fe635a6d78d522dae9687ddc5c75551aa4804fa5ac8bab5830a1b90ce",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/actual-a52-scoped/before.json",
+      "originalBytes": 569,
+      "originalSHA256": "b6ab038319bd92b297e22912bed252e5233448195cd3db48a7d8e1dd12a70dd3"
+    },
+    {
+      "path": "archive/actual-a52-scoped/record.json.gz",
+      "bytes": 470,
+      "sha256": "1a698369c1d6f17dbb13f95d734e5cece16c3e6136fb1c876f9249c35bed72c1",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/actual-a52-scoped/record.json",
+      "originalBytes": 949,
+      "originalSHA256": "cd2666c6b821cffa0710dfb4f502a5f5e9cde27e25e4fdf0e4eea8e5c5686877"
+    },
+    {
+      "path": "archive/actual-a52-scoped/report.json.gz",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/actual-a52-scoped/report.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "archive/actual-a52-scoped/scan.log.gz",
+      "bytes": 96,
+      "sha256": "1e7d760df1e015ac06671bc1f00aeab10a37eef31427d031331e1139a9d290f2",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/actual-a52-scoped/scan.log",
+      "originalBytes": 107,
+      "originalSHA256": "53a02dafefe7fc51cfd0b5763c74a679d59ebd085188130a59016bfe12e3acf2"
+    },
+    {
+      "path": "archive/actual-a52-v2-compatibility/log.txt.gz",
+      "bytes": 555,
+      "sha256": "b5e9e48680353462d4736e68d5d3ff16915fc6549852dc5ee4bc5a515d6171b3",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/actual-a52-v2-compatibility/log.txt",
+      "originalBytes": 1628,
+      "originalSHA256": "aabe2e7f478ce45993f345de48c5bc571632719943aa37d7ce55c3c29ee10dd4"
+    },
+    {
+      "path": "archive/actual-a52-v2-compatibility/receipt.json.gz",
+      "bytes": 536,
+      "sha256": "227b3bab5b5c970ccd432fa8973ed74b3026e2afc22e53d59b7778f96977ec15",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/actual-a52-v2-compatibility/receipt.json",
+      "originalBytes": 976,
+      "originalSHA256": "78820deb3ccf21b7f1c3ec26c3fa1a983addfabe61abcc93a390d12b0679820e"
+    },
+    {
+      "path": "archive/earlier-masked-exit-tap-only/linux-a52-existing-v2-compatibility.log.gz",
+      "bytes": 553,
+      "sha256": "5854bbe34be8d2d7593b497ad20a36df562f58c17ad8387ae88fb4eeabfdeac3",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/earlier-masked-exit-tap-only/linux-a52-existing-v2-compatibility.log",
+      "originalBytes": 1629,
+      "originalSHA256": "6a74dca75c533ee8becca2f622d062329be3a6bd0abf561d152ea2159db9b533"
+    },
+    {
+      "path": "archive/independent-six-candidate/candidate.gitleaksignore.gz",
+      "bytes": 7696,
+      "sha256": "b5ec066a40b877a6677afda4d2a8604f0893318006f9ee9d116e832e763558e5",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/candidate.gitleaksignore",
+      "originalBytes": 85182,
+      "originalSHA256": "3ac098083c9ac6798b14b78b1c05b90990796e02d87916024ce2a8b27f9f525c"
+    },
+    {
+      "path": "archive/independent-six-candidate/candidate.patch.gz",
+      "bytes": 381,
+      "sha256": "e1d86f356f29bd5547028ba277247feb43275b0be1170de1af09c241c86c21d9",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/candidate.patch",
+      "originalBytes": 1562,
+      "originalSHA256": "4021e6ccb586810f68da7bce5930d512801e80cbfcfc249ae79a946797e9dc60"
+    },
+    {
+      "path": "archive/independent-six-candidate/classification.json.gz",
+      "bytes": 1938,
+      "sha256": "403157ab33c4926c4b0bc18ed915b82dcd23475c4526b3ee497871e6639a819b",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/classification.json",
+      "originalBytes": 18164,
+      "originalSHA256": "2bad6ea44117e9108540c411443ccc36e6d4f5220fdc29d7c83e53e99c532d95"
+    },
+    {
+      "path": "archive/independent-six-candidate/combined-future-controls-red-report.json.gz",
+      "bytes": 639,
+      "sha256": "5313ab303b44badbf02f235109d6557cbcbeb0b7f50a50b2cf6b0e745a55b212",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/combined-future-controls-red-report.json",
+      "originalBytes": 3315,
+      "originalSHA256": "7476aa1c0a01b113d994e65b00bb5c8fb251e8fc9c192ae34ee28ed4e44c2eda"
+    },
+    {
+      "path": "archive/independent-six-candidate/combined-future-controls-red.log.gz",
+      "bytes": 165,
+      "sha256": "e402d771beeab14a2798658260f097f8f3d998af1e512e8e159857a85a0e63d8",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/combined-future-controls-red.log",
+      "originalBytes": 190,
+      "originalSHA256": "3a84670a9859b29f94d00135ae123ed2e9de67e8d12aa5b502a3f348a4e9c0cb"
+    },
+    {
+      "path": "archive/independent-six-candidate/exact21-baseline-red-report.json.gz",
+      "bytes": 673,
+      "sha256": "7f8ed2d41e52b97c7d3c2b3e06ffeb7943d5370fdacf87de93fd4c4725f61277",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/exact21-baseline-red-report.json",
+      "originalBytes": 5282,
+      "originalSHA256": "9e6920a4355472e88995333d70329af40103f4df7d012f651bceba266e27ba9d"
+    },
+    {
+      "path": "archive/independent-six-candidate/exact21-baseline-red.log.gz",
+      "bytes": 167,
+      "sha256": "466d6b4f0baefc7d48e7a50da6cba8dafefd3d8d3c2d924cf5495d96b2178d68",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/exact21-baseline-red.log",
+      "originalBytes": 194,
+      "originalSHA256": "cd218f7949ba26232a3609737e58c8a68dc12a16610654ff5aa138a75d2f53da"
+    },
+    {
+      "path": "archive/independent-six-candidate/exact21-candidate-green-report.json.gz",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/exact21-candidate-green-report.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "archive/independent-six-candidate/exact21-candidate-green.log.gz",
+      "bytes": 163,
+      "sha256": "4fc5e74558d5da6f0299fc42ad0bb625328b3612bf5d184560229240d5aa30a9",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/exact21-candidate-green.log",
+      "originalBytes": 194,
+      "originalSHA256": "6c428a66715bbba11a61dca3334d1c6b7cfdadd135446dcc9c53cd86ad7b6c69"
+    },
+    {
+      "path": "archive/independent-six-candidate/futurecommit-newpath-red-report.json.gz",
+      "bytes": 516,
+      "sha256": "fbc1de9b2ececacd8505831c0ac54ef5b929540522b02f81d440d0a041061798",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/futurecommit-newpath-red-report.json",
+      "originalBytes": 1610,
+      "originalSHA256": "8e6740476321e526efc3459b68d651899ef165849e57f2c1a2fb592ec5d3efef"
+    },
+    {
+      "path": "archive/independent-six-candidate/futurecommit-newpath-red.log.gz",
+      "bytes": 164,
+      "sha256": "04a22c4f099946157a3a1c9fd9a4352b3a90bc5a3390cbfa4761463cc646e64e",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/futurecommit-newpath-red.log",
+      "originalBytes": 190,
+      "originalSHA256": "d86803057c678374746c21e50f44a3ffb7d88b42f2e22b69d65c6f0c12a2ec57"
+    },
+    {
+      "path": "archive/independent-six-candidate/futurecommit-samepath-red-report.json.gz",
+      "bytes": 536,
+      "sha256": "dccc39e68cbe2adc3540392e5aa2451045ce9cb8b6e8494aee11c38325a857bd",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/futurecommit-samepath-red-report.json",
+      "originalBytes": 1708,
+      "originalSHA256": "6af6e4bea47f350811b6b3821ae65815e989bf22af8529d17466beb29f3447c7"
+    },
+    {
+      "path": "archive/independent-six-candidate/futurecommit-samepath-red.log.gz",
+      "bytes": 160,
+      "sha256": "120b822e85a5cd44d350885ef89271ba8dcec18e1b02c633c11fee43de302f5a",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/futurecommit-samepath-red.log",
+      "originalBytes": 191,
+      "originalSHA256": "491a7caed3ea2a7b87ad0aa6f0e743b7293574af49fe29335c9368e52244714f"
+    },
+    {
+      "path": "archive/independent-six-candidate/review.json.gz",
+      "bytes": 3353,
+      "sha256": "9d038d9d7e51e89e487c425a9c562c3c2163dabad6f0aad10fa1d06c5442e998",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/independent-six-candidate/review.json",
+      "originalBytes": 25919,
+      "originalSHA256": "529a87d04a01b736b8165fe7be5e441866d153caf1b4be4509303f312be126ac"
+    },
+    {
+      "path": "archive/original21fail/before.json.gz",
+      "bytes": 328,
+      "sha256": "360e8c4cd6d2c04073e103a2f0ada457e75c181f747faa747e4f3c71459b29e1",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/original21fail/before.json",
+      "originalBytes": 564,
+      "originalSHA256": "5775bbc1df33b6974e721615ab61d99cc9d39f9d881bd9a6b9aa6a978461ff46"
+    },
+    {
+      "path": "archive/original21fail/record.json.gz",
+      "bytes": 466,
+      "sha256": "853695b62479dfb740aee93e3d9e49498b75c617a686035109cc10f1d87e4212",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/original21fail/record.json",
+      "originalBytes": 944,
+      "originalSHA256": "c1a1f8c97e2d6449b0b0fcd4fd77666195d1e31f432ec050431a9d8d2335948b"
+    },
+    {
+      "path": "archive/original21fail/report.json.gz",
+      "bytes": 745,
+      "sha256": "2482e6ac29f68fc05ab5d4ea6d647af0e16232c9b939366a9715a256acbb8325",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/original21fail/report.json",
+      "originalBytes": 6474,
+      "originalSHA256": "69c0d3de9f3c3d1775d92fb2d1f7c63c96892e56f42e23f4c351252efa47f81d"
+    },
+    {
+      "path": "archive/original21fail/scan.log.gz",
+      "bytes": 109,
+      "sha256": "d9d3755e2bcb4789f3b08edc3c955ad7ec9f62c3f03b3778e2e2cafc6170de37",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/original21fail/scan.log",
+      "originalBytes": 110,
+      "originalSHA256": "4c7b7c7111db1cdf1488a44eabf66b6765aca29d516f3b71a496011c44eb460b"
+    },
+    {
+      "path": "archive/originals-manifest.json.gz",
+      "bytes": 2013,
+      "sha256": "72659544edde004f489125b522955132dbab1c9acf510767cda7e833f3b3d345",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/originals-manifest.json",
+      "originalBytes": 8983,
+      "originalSHA256": "56dbdae85ae2ea382abbd36f79efefccae9759b3dcb26d109165cb06f3cced03"
+    },
+    {
+      "path": "archive/producer/reconcile-linux21b6-private.py.gz",
+      "bytes": 3874,
+      "sha256": "cb7a96bd192c48a5e9e41930928bcbf8f15b1c4138a97fbcdd11ba83df984e90",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals/producer/reconcile-linux21b6-private.py",
+      "originalBytes": 9832,
+      "originalSHA256": "44393ce3953725e49c51376125db09068ae1fbc0008ea11d148f64f22ebea0c8"
+    },
+    {
+      "path": "plain-proof-scan/originals-default-scan-record.json.gz",
+      "bytes": 423,
+      "sha256": "c687cd41ecc036ec25059b213b17498d3265a028318a19e3725fb8858130df94",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals-default-scan-record.json",
+      "originalBytes": 737,
+      "originalSHA256": "48e47831d1157a6d7bb9de98605697137453ac7d67844279153657a67fd975a7"
+    },
+    {
+      "path": "plain-proof-scan/originals-default-scan-report.json.gz",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals-default-scan-report.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "plain-proof-scan/originals-default-scan.log.gz",
+      "bytes": 91,
+      "sha256": "4b9bb58a45388523afbd29b1b143b16e42a81c88837dbfa86a901c2ef12c5abe",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/originals-default-scan.log",
+      "originalBytes": 81,
+      "originalSHA256": "b71e175c82c58059e846b114594e8886fa13d7d0e9f9d9f2f73a7baaa0273a27"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2526,
+      "sha256": "7b63b1b5c35abca994fb3f3c025cad5cadb5ff7b29a14a1c27b9ec93d26db3c8",
+      "encoding": "identity"
+    },
+    {
+      "path": "initial-publication-35member-scan/publication-scoped-record.json.gz",
+      "bytes": 467,
+      "sha256": "bc9ebfb8605ed2869ce6cb16cae798d938b97e61f9e745def2cab967d0a73da4",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/publication-scoped-record.json",
+      "originalBytes": 822,
+      "originalSHA256": "8de7575ba5fe5fe9a783a9ff5ec89d373c37cbb3843873a8ebf5d4133f884d9d"
+    },
+    {
+      "path": "initial-publication-35member-scan/publication-scoped-report.json.gz",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/publication-scoped-report.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "initial-publication-35member-scan/publication-scoped.log.gz",
+      "bytes": 91,
+      "sha256": "f4ed66720aa0ca292e2cb89446112f78e6c33a53674bcde3305094bf036bbd5d",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/linux21-a52-security-publication-idnl23y2/publication-scoped.log",
+      "originalBytes": 79,
+      "originalSHA256": "b9b3a6feee3d636469fce60238534f6685959d94cc45d036f0b778f126ac749e"
+    }
+  ],
+  "payloadBytes": 31266,
+  "reviewedClosureChecks": [
+    "exact original529review",
+    "actual independentcontrolcounts",
+    "sixexactcandidate",
+    "actual source/result original21fail",
+    "actual record reportlog original21fail",
+    "no rule/config relaxations original21fail",
+    "same before afterignore original21fail",
+    "actual source/result actual-a52-scoped",
+    "actual record reportlog actual-a52-scoped",
+    "no rule/config relaxations actual-a52-scoped",
+    "same before afterignore actual-a52-scoped",
+    "actual candidatea52 actual-a52-scoped",
+    "actual source/result actual-a52-full-history",
+    "actual record reportlog actual-a52-full-history",
+    "no rule/config relaxations actual-a52-full-history",
+    "same before afterignore actual-a52-full-history",
+    "actual candidatea52 actual-a52-full-history",
+    "actual ownedv2receipt",
+    "actual6compatibilityTAP",
+    "exact roundtrip archive/actual-a52-full-history/before.json",
+    "exact roundtrip archive/actual-a52-full-history/record.json",
+    "exact roundtrip archive/actual-a52-full-history/report.json",
+    "exact roundtrip archive/actual-a52-full-history/scan.log",
+    "exact roundtrip archive/actual-a52-scoped/before.json",
+    "exact roundtrip archive/actual-a52-scoped/record.json",
+    "exact roundtrip archive/actual-a52-scoped/report.json",
+    "exact roundtrip archive/actual-a52-scoped/scan.log",
+    "exact roundtrip archive/actual-a52-v2-compatibility/log.txt",
+    "exact roundtrip archive/actual-a52-v2-compatibility/receipt.json",
+    "exact roundtrip archive/earlier-masked-exit-tap-only/linux-a52-existing-v2-compatibility.log",
+    "exact roundtrip archive/independent-six-candidate/candidate.gitleaksignore",
+    "exact roundtrip archive/independent-six-candidate/candidate.patch",
+    "exact roundtrip archive/independent-six-candidate/classification.json",
+    "exact roundtrip archive/independent-six-candidate/combined-future-controls-red-report.json",
+    "exact roundtrip archive/independent-six-candidate/combined-future-controls-red.log",
+    "exact roundtrip archive/independent-six-candidate/exact21-baseline-red-report.json",
+    "exact roundtrip archive/independent-six-candidate/exact21-baseline-red.log",
+    "exact roundtrip archive/independent-six-candidate/exact21-candidate-green-report.json",
+    "exact roundtrip archive/independent-six-candidate/exact21-candidate-green.log",
+    "exact roundtrip archive/independent-six-candidate/futurecommit-newpath-red-report.json",
+    "exact roundtrip archive/independent-six-candidate/futurecommit-newpath-red.log",
+    "exact roundtrip archive/independent-six-candidate/futurecommit-samepath-red-report.json",
+    "exact roundtrip archive/independent-six-candidate/futurecommit-samepath-red.log",
+    "exact roundtrip archive/independent-six-candidate/review.json",
+    "exact roundtrip archive/original21fail/before.json",
+    "exact roundtrip archive/original21fail/record.json",
+    "exact roundtrip archive/original21fail/report.json",
+    "exact roundtrip archive/original21fail/scan.log",
+    "exact roundtrip archive/originals-manifest.json",
+    "exact roundtrip archive/producer/reconcile-linux21b6-private.py",
+    "exact roundtrip plain-proof-scan/originals-default-scan-record.json",
+    "exact roundtrip plain-proof-scan/originals-default-scan-report.json",
+    "exact roundtrip plain-proof-scan/originals-default-scan.log"
+  ],
+  "initialPublicationScanBoundary": {
+    "members": 35,
+    "manifestSHA256": "d641b8824a8ac2a087dcb133a1b21a452daa701d850c2db70c2d9d6f764da3cf",
+    "exit": 0,
+    "findings": 0,
+    "scope": "Encoded35member snapshot only, separate final38member scan outside packet"
+  }
+}

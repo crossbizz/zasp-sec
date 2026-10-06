@@ -877,3 +877,46 @@ The hosted failure cause remains unknown: fresh job-log access was forbidden.
 None of these controlled-provider attempts establishes real Stytch/provider or
 deployed acceptance. All failures and the earlier local full-command PASS retain
 their distinct scopes.
+
+
+## Verified Linux reference source batch at a52
+
+The five new Linux reference source files are committed in
+`21b6c51c2c177a12c9eef083ff7e291b3da02155`. They use the actually witnessed
+PostgreSQL build identity and preserve strict version equality. Nine grouped
+tests and an independent nine-test run pass. All 10,051 functional facts remain
+unchanged; one build-identity fact changes. Exactly three of eight generated
+outputs change. The original v2 references, admission code and production
+readiness remain unchanged. Source evidence is retained under
+`evidence/cloud-2026-10-06/linux-reference-source-five/`.
+
+The actual exact-commit scan at 21b6 FAILED with six findings. Independent
+review classified all six as aliases of two immutable public library digests.
+Six exact commit/path/rule fingerprints are committed in
+`a52feda20f531712982df41c4060aae618c119bd`. Genuine synthetic future-commit and new-path
+controls remain detected. Actual exact-commit and full-history
+scans at a52 both PASS with zero findings, in 0.415 and 79.106 seconds. No
+scanner rule, path or future commit is waived; the original failure is retained.
+
+A root-owned compatibility check of the two existing v2 Node test files
+completed with captured actual exit 0 in 25.593 seconds: six tests pass, zero
+fail and zero skip. Source before and after was a52, and tracked status was
+clean. Its original log hash is
+`aabe2e7f478ce45993f345de48c5bc571632719943aa37d7ce55c3c29ee10dd4`.
+An earlier invocation produced the same passing TAP summary but its shell
+masked the child exit; that observation remains distinct from this owned run.
+
+The verified batch is pushed to the existing draft PR 51. The complete local
+822-second verification still applies to 0b, not a52. Native acceptance, browser
+acceptance, release advisory evidence and real deployed integrations remain
+unverified or blocked. No ledger category is promoted. Latest fetched main is
+`d21f036eab610f28177267ca8f12fa86981e5ac3`; the required e13 commit is its
+ancestor, and all main commits are included in this branch.
+
+The next v3 Node and Go source batches remain private. Independent review found
+that importing the Linux generator before validating its source pins could
+execute unverified top-level code; a genuine regression and repair are required
+before adoption. Final v3 artifacts, source roster and seven anchors remain
+unissued, and native admission stays closed. Browser storage preparation also
+remains pending: independently reviewed cleanup faults must be repaired before
+a read-only process observer or cache reclamation is executed.
