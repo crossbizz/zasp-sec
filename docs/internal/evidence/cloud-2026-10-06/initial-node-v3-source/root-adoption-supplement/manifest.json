@@ -1,0 +1,110 @@
+{
+  "sealedOriginalManifestSHA256": "28daa31cc8b039302e60161a2b84d604e96f8e8794e419d4b32b1ef843345eac",
+  "scope": "original71files copied byte-exact; repository modes0644 differ private0400; supplements retain original bytes/scopes; final wire/Go/native unavailable",
+  "members": [
+    {
+      "path": "00-final-sealed-scan-record.json.gz",
+      "originalPath": "/workspace/.zasp-cloud-owned/initial-node-v3-source-publication-yovuy5nq/final-sealed-scan-record.json",
+      "originalSHA256": "9c614291f14424b8db6b8c1f55ef5b1dd2e6f22dc0e4c7193ae3cee8ea22f916",
+      "originalBytes": 1209,
+      "encodedSHA256": "da0355d70048e7b9335c2295c6cc60a15fa39052970cfcd873e1b306d65b24ff",
+      "encodedBytes": 695
+    },
+    {
+      "path": "01-final-sealed-scan.json.gz",
+      "originalPath": "/workspace/.zasp-cloud-owned/initial-node-v3-source-publication-yovuy5nq/final-sealed-scan.json",
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "originalBytes": 3,
+      "encodedSHA256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "encodedBytes": 23
+    },
+    {
+      "path": "02-final-sealed-scan.log.gz",
+      "originalPath": "/workspace/.zasp-cloud-owned/initial-node-v3-source-publication-yovuy5nq/final-sealed-scan.log",
+      "originalSHA256": "4e2b1ca279f98fbd22d3f67db6ee1a3c351a88e5627d6337407ccd1fb49be8e3",
+      "originalBytes": 144,
+      "encodedSHA256": "8e4d3c0132d15849fca5d62e1b2556be2280509f4afce3b08acf7ebc0b50bf14",
+      "encodedBytes": 127
+    },
+    {
+      "path": "03-independent-initial-node-v3-publication-review.json.gz",
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-initial-node-v3-publication-review.json",
+      "originalSHA256": "24bab89f37119e680aa9cd2f7c9f2d8fe8010bb459bb049e7e570d9fd5cfecf1",
+      "originalBytes": 2309,
+      "encodedSHA256": "a5b030c96975d74823242cc2fd269057cd2cc59ac73bf6513f3575a23eb28737",
+      "encodedBytes": 1241
+    },
+    {
+      "path": "04-independent-node-cfa-four-committed-blob-review.json.gz",
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-node-cfa-four-committed-blob-review.json",
+      "originalSHA256": "9568858e3c58effa330bb0aa37fb5b52407dce136a3579470034c9a684e98e17",
+      "originalBytes": 3322,
+      "encodedSHA256": "181c72d25447fb973a8ef99280db9f36cd50fdc3a7c523512aaa14b322ff7574",
+      "encodedBytes": 1559
+    },
+    {
+      "path": "05-before.json.gz",
+      "originalPath": "/tmp/zasp-cloud-evidence/nodecfa-scoped-1791267036684252009/before.json",
+      "originalSHA256": "0ca2381bb122c1610b1e71005344ca600bc40d41a89d61309c71c4345e4aed24",
+      "originalBytes": 562,
+      "encodedSHA256": "fa7c4f2372865ff6efce90012c3c490d13d5fbadd530c0707f38fd9125b9dd45",
+      "encodedBytes": 328
+    },
+    {
+      "path": "06-record.json.gz",
+      "originalPath": "/tmp/zasp-cloud-evidence/nodecfa-scoped-1791267036684252009/record.json",
+      "originalSHA256": "886fb7a0f67c04010519a0385e4ef5a60d5ab04ca2ea0daee4acdecd7001e488",
+      "originalBytes": 1030,
+      "encodedSHA256": "fe71c617e14570cac729a702c9edcaab51bd14c51b40843c89d42f637234d40f",
+      "encodedBytes": 515
+    },
+    {
+      "path": "07-report.json.gz",
+      "originalPath": "/tmp/zasp-cloud-evidence/nodecfa-scoped-1791267036684252009/report.json",
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "originalBytes": 3,
+      "encodedSHA256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "encodedBytes": 23
+    },
+    {
+      "path": "08-scan.log.gz",
+      "originalPath": "/tmp/zasp-cloud-evidence/nodecfa-scoped-1791267036684252009/scan.log",
+      "originalSHA256": "c17c911329bda4eba0cc5d3531583629e0913fb6bfd718c6f329d93ecf21f65f",
+      "originalBytes": 108,
+      "encodedSHA256": "ba8e9ff53b51833a40e41e6ddce53c63515147d4644e35145e354182606c31f7",
+      "encodedBytes": 105
+    },
+    {
+      "path": "09-before.json.gz",
+      "originalPath": "/tmp/zasp-cloud-evidence/nodecfa-full-history-1791267036684799422/before.json",
+      "originalSHA256": "b2fb9986b3e36c3c0302b01119e74cc9419475688efc4cbc8dd3f2c8d387c854",
+      "originalBytes": 525,
+      "encodedSHA256": "f3c849cdee2b586abd2495fc1d6eb920569bd67ff36cd63d7002c022d3b72cf9",
+      "encodedBytes": 327
+    },
+    {
+      "path": "10-record.json.gz",
+      "originalPath": "/tmp/zasp-cloud-evidence/nodecfa-full-history-1791267036684799422/record.json",
+      "originalSHA256": "f39e009dc786832551b04682e97b276a14a79f5a943ce44e2c71c075018bfc8a",
+      "originalBytes": 992,
+      "encodedSHA256": "91525de506d922237b17fa394d141677b1e87fe48cefb836a7522b2f6bab4cdf",
+      "encodedBytes": 515
+    },
+    {
+      "path": "11-report.json.gz",
+      "originalPath": "/tmp/zasp-cloud-evidence/nodecfa-full-history-1791267036684799422/report.json",
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "originalBytes": 3,
+      "encodedSHA256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "encodedBytes": 23
+    },
+    {
+      "path": "12-scan.log.gz",
+      "originalPath": "/tmp/zasp-cloud-evidence/nodecfa-full-history-1791267036684799422/scan.log",
+      "originalSHA256": "50dd6fe01aa80f5fd473db4f7f22e8d8fa8459e2f043cd7329e35bffae089990",
+      "originalBytes": 116,
+      "encodedSHA256": "67d06f0fe866f9e7b243181a90263e0a8cbde9980eebd862296fcf394c449712",
+      "encodedBytes": 112
+    }
+  ]
+}

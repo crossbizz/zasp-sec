@@ -920,3 +920,40 @@ before adoption. Final v3 artifacts, source roster and seven anchors remain
 unissued, and native admission stays closed. Browser storage preparation also
 remains pending: independently reviewed cleanup faults must be repaired before
 a read-only process observer or cache reclamation is executed.
+
+
+## Initial v3 source-import boundary at cfa
+
+Four new Node source files are committed and pushed in
+`cfa57fe8db92d2c3e774624d6a677cff1255875a`. Their builtins-only bootstrap
+checks the exact runtime and all 1,555 fixed regular-file inputs before any
+local import. Genuine old-code RED/new-code GREEN evidence covers execution of
+unverified code. Modified generator and transitive module bytes, a same-byte
+generator symlink and an ancestor symlink are refused before execution. The
+original Important review finding, failed intermediate tests and excluded
+mechanical errors/timeouts remain distinct.
+
+The eight-test group passes independently in 53.265 seconds. ROOT also ran the
+exact four adopted working-tree files with captured exit 0, joined/no timeout,
+eight passes/zero failures/zero skips in 52.845 seconds. That run used parent
+d37 with four new working-tree files; those byte-identical files were then
+committed as cfa. It is not relabeled as a test run at committed cfa. Actual
+exact-commit and full-history scans at cfa pass zero findings in 0.624 and
+80.410 seconds with unchanged ignore/configuration. Evidence is retained in
+`evidence/cloud-2026-10-06/initial-node-v3-source/`; d37 scan receipts are in
+`evidence/cloud-2026-10-06/security-d37b3b05/`.
+
+This is initial source evidence. Final v3 artifacts, source roster, wire, Go
+compilation, seven anchors and native acceptance remain pending. Production
+readiness and all ledger categories retain their prior state. Complete local
+npm verification still applies to 0b only.
+
+The first ROOT-owned read-only process-observer controller attempt FAILED with
+actual joined exit 1 in 2.673 seconds, before observer code started. Docker's
+created-container metadata differed from the strict expected representation.
+All ten commands joined without timeout or unexpected descendants; the owned
+container was removed normally, and CID/label absence checks passed. No cache
+was deleted and no process-inactivity acceptance is inferred. A separately
+witnessed read-only Docker image projection RED/GREEN check also remains
+separate from controller execution. The compatibility repair and fresh actual
+observer result must be reviewed before cache reclamation or compilation.

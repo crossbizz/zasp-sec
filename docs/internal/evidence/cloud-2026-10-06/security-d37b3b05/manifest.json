@@ -1,0 +1,103 @@
+{
+  "format": "d37-recorded-security-scans-nextbatch-v1",
+  "scope": "Exact historic scanner receipts and origin review; not newexecution/fullreleaseclearance",
+  "members": [
+    {
+      "path": "exact-commit/before.json.gz",
+      "bytes": 328,
+      "sha256": "a19a98f5dada0ee7fdc76326fbb6ca0b70b386a03204da6c640b3dae7f6a56bb",
+      "encoding": "gzip",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/docd37-scoped-1791266131186646222/before.json",
+      "originalBytes": 561,
+      "originalSHA256": "de336435fc1c0b9c146dc346428f8a71c80d1dc76c939538865cd70f015ae694"
+    },
+    {
+      "path": "exact-commit/record.json.gz",
+      "bytes": 513,
+      "sha256": "848a083c58ed34de3b7a949ed39025c9aa07cfaa9a8cc7df28d483a9c31529af",
+      "encoding": "gzip",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/docd37-scoped-1791266131186646222/record.json",
+      "originalBytes": 1029,
+      "originalSHA256": "5fc3b5071703b93a55774342fa09bcb683df94abef1c4606c15a05c0b00b6178"
+    },
+    {
+      "path": "exact-commit/report.json.gz",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "encoding": "gzip",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/docd37-scoped-1791266131186646222/report.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "exact-commit/scan.log.gz",
+      "bytes": 105,
+      "sha256": "612687b34fbbf3b7857fd86f6e6a016af21c8e6193c88c7bf6cef79c0b9e265d",
+      "encoding": "gzip",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/docd37-scoped-1791266131186646222/scan.log",
+      "originalBytes": 108,
+      "originalSHA256": "f487b6dfdccac01b0db8cb3cdb985e47c8717981fec47b616ad65d4fd5a224b6"
+    },
+    {
+      "path": "reachable-history/before.json.gz",
+      "bytes": 327,
+      "sha256": "18573e86da940110673f0027476beae4b2ae855abea0f967b1fafe8be5973bed",
+      "encoding": "gzip",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/docd37-full-history-1791266131187076294/before.json",
+      "originalBytes": 524,
+      "originalSHA256": "810f4ac4b80ef1b823c04f070c2f20f06b89433c32b3321055af3a549a33cc89"
+    },
+    {
+      "path": "reachable-history/record.json.gz",
+      "bytes": 511,
+      "sha256": "51a49126cad89bbf0a5e33b126c5fa48c7692c445899f4ea0f0f8455858f9c55",
+      "encoding": "gzip",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/docd37-full-history-1791266131187076294/record.json",
+      "originalBytes": 991,
+      "originalSHA256": "b47c6155dd46870b324298275ac3ea3d41f78520b5325791f78c28420743799c"
+    },
+    {
+      "path": "reachable-history/report.json.gz",
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "encoding": "gzip",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/docd37-full-history-1791266131187076294/report.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "reachable-history/scan.log.gz",
+      "bytes": 114,
+      "sha256": "e07baa5f6fca96bb00a3b16037fd3b4e5f78c36de72e2aed7afbeb3628a5d98b",
+      "encoding": "gzip",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/docd37-full-history-1791266131187076294/scan.log",
+      "originalBytes": 118,
+      "originalSHA256": "05b6d8d330116c27cb78b799437cd794f358a00eee59fc2ee8611d7551bd6225"
+    },
+    {
+      "path": "independent-recorded-scan-review.json.gz",
+      "bytes": 1372,
+      "sha256": "81e077605ef214008094c0b970b9c37c07390c8fc1c5bac091895a3eeecc21df",
+      "encoding": "gzip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/docd37-recorded-scan-nextbatch-8vxz32z4/review.json",
+      "originalBytes": 3201,
+      "originalSHA256": "3684cdfef04ba99ac20bfebf0e02671fb36504f5bbf09c2b33437e4b0e265182"
+    },
+    {
+      "path": "prior-independent-44-blob-origin-review.json.gz",
+      "bytes": 5028,
+      "sha256": "4411267fc0dfd4f23659777c3bf31496f3e136ccb357274060fccc47a76e0ba0",
+      "encoding": "gzip",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/docd37-committed-independent-irpi_veo/review.json",
+      "originalBytes": 28258,
+      "originalSHA256": "fbbebca679dd2bca9da624885d81d073f607b36b6c36edd3e6c99a7485177b8c"
+    },
+    {
+      "path": "README.md",
+      "bytes": 795,
+      "sha256": "2908bd34a48a7cb6a7a1271618d922bfb6ca073ed8b3c838e47567746fba6df9",
+      "encoding": "identity"
+    }
+  ],
+  "totalMemberBytes": 9139
+}
