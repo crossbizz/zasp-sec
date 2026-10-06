@@ -53,8 +53,8 @@ func TestOrderedCurrentWorkerTailExpectedFactsMatchGoExportSource(t *testing.T) 
 	}
 }
 
-func TestOrderedCurrentIndependentPrivateAdmission(t *testing.T) {
-	artifact, err := decodeOrderedCurrentDevelopment(authorizationWorkerOrderedCurrentManifest)
+func TestOrderedCheckpointIndependentPrivateAdmission(t *testing.T) {
+	artifact, err := decodeOrderedCheckpointDevelopment(authorizationWorkerOrderedCurrentManifest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestOrderedCurrentIndependentPrivateAdmission(t *testing.T) {
 		}
 		return raw
 	}
-	if err := admitOrderedCurrentPrivate(encode(private)); err != nil {
+	if err := admitOrderedCheckpointPrivate(encode(private)); err != nil {
 		t.Fatal(err)
 	}
 	for index := range private {
@@ -89,7 +89,7 @@ func TestOrderedCurrentIndependentPrivateAdmission(t *testing.T) {
 				t.Fatal(err)
 			}
 			changed[index]["fact"].(map[string]any)[field] = nil
-			if admitOrderedCurrentPrivate(encode(changed)) == nil {
+			if admitOrderedCheckpointPrivate(encode(changed)) == nil {
 				t.Fatalf("accepted NULL %s at routine %d", field, index)
 			}
 		}
@@ -100,14 +100,14 @@ func TestOrderedCurrentIndependentPrivateAdmission(t *testing.T) {
 			t.Fatal(err)
 		}
 		changed[0]["fact"].(map[string]any)[field] = value
-		if admitOrderedCurrentPrivate(encode(changed)) == nil {
+		if admitOrderedCheckpointPrivate(encode(changed)) == nil {
 			t.Fatalf("accepted %s mutation", field)
 		}
 	}
-	if admitOrderedCurrentPrivate(encode(private[:3])) == nil {
+	if admitOrderedCheckpointPrivate(encode(private[:3])) == nil {
 		t.Fatal("accepted missing evaluator")
 	}
-	if admitOrderedCurrentPrivate(encode(append(private, private[0]))) == nil {
+	if admitOrderedCheckpointPrivate(encode(append(private, private[0]))) == nil {
 		t.Fatal("accepted duplicate evaluator")
 	}
 	if query, err := orderedCurrentPrivateAdmissionQuery(); err != nil || !bytes.Contains([]byte(query), []byte("current_setting('search_path')='pg_catalog'")) {
@@ -115,15 +115,15 @@ func TestOrderedCurrentIndependentPrivateAdmission(t *testing.T) {
 	}
 }
 
-func TestOrderedCurrentDevelopmentArtifactPinsAndInstallationRefusal(t *testing.T) {
-	artifact, err := decodeOrderedCurrentDevelopment(authorizationWorkerOrderedCurrentManifest)
+func TestOrderedCheckpointDevelopmentArtifactPinsAndInstallationRefusal(t *testing.T) {
+	artifact, err := decodeOrderedCheckpointDevelopment(authorizationWorkerOrderedCurrentManifest)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if artifact.Installable || artifact.Format != 1 || len(artifact.Payload) == 0 {
 		t.Fatal("development artifact lost its non-installable typed boundary")
 	}
-	if source, err := authorizationWorkerOrderedCurrentSource(); err == nil || source != "" {
+	if source, err := authorizationWorkerOrderedCheckpointSource(); err == nil || source != "" {
 		t.Fatal("incomplete development integrity was admitted into a migration")
 	}
 	for _, replacement := range [][2][]byte{
@@ -135,7 +135,7 @@ func TestOrderedCurrentDevelopmentArtifactPinsAndInstallationRefusal(t *testing.
 		if bytes.Equal(changed, authorizationWorkerOrderedCurrentManifest) {
 			t.Fatal("mutation did not change its intended field")
 		}
-		if _, err := decodeOrderedCurrentDevelopment(changed); err == nil {
+		if _, err := decodeOrderedCheckpointDevelopment(changed); err == nil {
 			t.Fatal("changed artifact passed the independent compiled file pin")
 		}
 	}
