@@ -71,7 +71,7 @@ const names=new Map(order.filter(sig=>!parameters.has(sig)&&sig!==root).map((sig
 const records=[];
 for(const sig of order) {
   const fn=bySignature.get(sig);
-  if(fn.owner!=='zasp_discovery_authority'||fn.language!=='sql'||fn.volatility!=='s'||fn.strict||fn.parallel!=='u'||JSON.stringify(fn.config)!==JSON.stringify(['search_path=pg_catalog, public'])||/[^\x00-\x7f]/.test(fn.source))throw Error('ineligible frame '+sig);
+  if(fn.owner!=='zasp_discovery_authority'||fn.language!=='sql'||fn.volatility!=='s'||fn.strict||fn.parallel!=='u'||JSON.stringify(fn.config)!==JSON.stringify(['search_path=pg_catalog, public'])||[...fn.source].some(character=>character.charCodeAt(0)>127))throw Error('ineligible frame '+sig);
   if(fn.arguments&&!parameters.has(sig))throw Error('unapproved parameters '+sig);
   const source=fn.source;
   if(parameters.has(sig)) {

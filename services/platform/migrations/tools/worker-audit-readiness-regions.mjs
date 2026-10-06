@@ -23,7 +23,7 @@ export function higherReadinessRegions({bySignature,calls,masked,depends,hash,no
     pins.set(fn.signature,{signature:fn.signature,definitionHash:hash(normal(fn.definition)),sourceHash:hash(normal(fn.source)),owner:fn.owner,acl:fn.acl});
   }
   function frame(fn){
-    if(fn.owner!=='zasp_discovery_authority'||fn.volatility!=='s'||fn.strict||fn.parallel!=='u'||JSON.stringify(fn.config)!==JSON.stringify(['search_path=pg_catalog, public'])||/[^\x00-\x7f]/.test(fn.source))fail('ineligible frame '+fn.signature);
+    if(fn.owner!=='zasp_discovery_authority'||fn.volatility!=='s'||fn.strict||fn.parallel!=='u'||JSON.stringify(fn.config)!==JSON.stringify(['search_path=pg_catalog, public'])||[...fn.source].some(character=>character.charCodeAt(0)>127))fail('ineligible frame '+fn.signature);
   }
   function expression(fn){
     frame(fn);pin(fn);

@@ -38,7 +38,7 @@ const savedOriginals = [
     "acl": "{zasp_discovery_authority=X/zasp_discovery_authority}"
   }
 ];
-export function auditWorkerBoundary(capture,{hash,quote}) {
+export function auditWorkerBoundary(capture,{hash}) {
   const wrapper=capture.functions.find(f=>f.signature==='zasp_sa_attack_lab_live_fingerprint()');
   if(!wrapper||hash(wrapper.source)!=='2bba8a12807667b6c63a68215d134ae7c550477d44c57f200292ec182d67417f'
     ||hash(wrapper.definition)!=='09e2e679bd9b085d335e396f45705c0ebaab64ae059b028125791b3da24964c9'
