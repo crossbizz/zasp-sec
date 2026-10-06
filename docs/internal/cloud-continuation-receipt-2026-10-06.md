@@ -223,3 +223,37 @@ Node: six passed, zero failed/skipped, 26.211 seconds. Diff whitespace checks
 were clean; the original 728 IDs, 523/144/61 categories and zero missing rows
 remain valid. Fresh main fetch remained d21f036e with the initial e13ccb95
 ancestor confirmed. These read-only checks grant no native/deployed authority.
+
+
+## Reviewed packet bindings and new frozen-build preparation
+
+The source-only assertion batch was committed and pushed at
+`8f537fecb731c3135a81f39ced2f1bd1e7999281`; its exact-commit Gitleaks 8.30.1
+scan passed with zero findings. The full-history 546-finding failure remains.
+
+After independent exact-byte review, the seven companion literals now bind
+the approved ca7dd2 packet and module/manifest/collector/source/identity/delta
+artifacts. This changes only those literals, not the packet or its 1,544-source
+roster. The companion must enter the full consumed Go closure. Populated
+literals authorize no native run by themselves: the externally hashed strict
+frozen envelopes, actual tool/source/module/binary closure and explicit opt-in
+remain mandatory. Earlier empty-anchor evidence remains historical and intact.
+
+A new isolated foundation contains independently verified official Go/Node
+bytes, 73 checksum-bound module packages, licensed Nexus successor and 283
+separate lazy-graph module metadata files. Preparation and its same-author
+reverification are distinguished from the separate independent review. Source
+was absent and build cache empty at those checkpoints. Compilation, full
+actual inventory and native acceptance remain pending. The reviewed plan
+requires regeneration and verification of all eight outputs before compilation,
+retention of the six Git-to-derived byte changes, actual complete Go inventory,
+and exactly 1,553 Node inputs. Existing frozen roots remain untouched.
+
+The bounded `evidence/cloud-2026-10-06/native379-v2-frozen-preparation/`
+directory retains those plans, foundation checkpoints and independent reviews.
+It also records both hosted UI jobs at 7549131b failing in their verify step.
+Run/job log retrieval was forbidden and no artifacts were available; only exit
+code 1 is known, so no detailed failure cause is claimed. Fresh full local
+verification started on committed 8f537fec and remains running at this
+preparation checkpoint. All original ledger categories, deployment prerequisites,
+portability limitations and merge/security/release guards remain unchanged.

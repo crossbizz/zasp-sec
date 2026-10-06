@@ -1,0 +1,112 @@
+{
+  "status": "PLAN-ONLY-NO-ANCHORS-APPLIED-NO-BUILDS-NO-NATIVE",
+  "foundation": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0",
+  "ownedSource": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source",
+  "platform": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source/services/platform",
+  "health": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source/services/health",
+  "node": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-tools/node/bin/node",
+  "environment": {
+    "PATH": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go/bin:/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-tools/node/bin:/tmp/zasp-cloud-tools/postgres-18.3/bin:/usr/bin:/bin",
+    "TMPDIR": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/tmp",
+    "GOROOT": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOFLAGS": "-mod=readonly",
+    "GOEXPERIMENT": "",
+    "GOOS": "linux",
+    "GOARCH": "amd64",
+    "CGO_ENABLED": "0",
+    "GOMODCACHE": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache",
+    "GOCACHE": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/build-cache"
+  },
+  "closure": [
+    "actual apiserver -deps -test Go/source/module/embed closure",
+    "actual migrations test assembly emitter closure",
+    "nested agentsec-migrate CLI closure",
+    "implicit GOROOT pkg/include assembly inputs",
+    "derived companion candidate bytes",
+    "8 exact regenerated outputs where consumed"
+  ],
+  "commands": {
+    "generate8": {
+      "cwd": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-tools/node/bin/node",
+        "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source/services/platform/migrations/tools/build-ordered-current-development.mjs",
+        "--write"
+      ]
+    },
+    "packetReproduction": {
+      "cwd": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-tools/node/bin/node",
+        "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source/services/platform/migrations/tools/ordered-current-native379-packet-v2.mjs",
+        "--json"
+      ],
+      "stdoutExclusive": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/reproduced-ca7d-wire.json"
+    },
+    "buildApiserver": {
+      "cwd": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source/services/platform",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go/bin/go",
+        "test",
+        "-c",
+        "-mod=readonly",
+        "-o",
+        "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/bin/apiserver.test",
+        "./apiserver"
+      ]
+    },
+    "buildAssembly": {
+      "cwd": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source/services/platform",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/go/bin/go",
+        "test",
+        "-c",
+        "-mod=readonly",
+        "-o",
+        "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/bin/migrations.test",
+        "./migrations"
+      ]
+    },
+    "inventory": {
+      "cwd": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source/services/platform/apiserver",
+      "environmentAdditions": {
+        "ZASP_WORKER_REGISTRATION_INPUT_INVENTORY_OUTPUT": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/final-go-input-inventory.json"
+      },
+      "argv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/bin/apiserver.test",
+        "-test.run=^TestWorkerRegistrationReferenceBuildInputInventory$",
+        "-test.count=1",
+        "-test.v"
+      ]
+    },
+    "sourceControls": {
+      "cwd": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/module-cache/owned-source/services/platform/apiserver",
+      "argv": [
+        "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/bin/apiserver.test",
+        "-test.run=^TestNative379V2",
+        "-test.count=1",
+        "-test.v"
+      ]
+    }
+  },
+  "GoEnvelopePath": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/reviewed-go-build.json",
+  "V2EnvelopePath": "/workspace/.zasp-cloud-owned/native379-v2-foundation-ouncz9k0/outputs/reviewed-native379-v2-build.json",
+  "GoEnvelopeVersion": "original-worker-registration-frozen-build-v1",
+  "V2EnvelopeVersion": "ordered-current-native379-frozen-build-v2",
+  "NodeEnvelopeInputsExactCount": 1553,
+  "steps": [
+    "Root selects exact reviewed integration commit and separately reviews private seven-anchor candidate. Copy actual committed source into new owned-source under admitted ModuleCache; no global/repository writes. Verify platform go.sum a99d2c... and go.mod 3d0176... against foundation selection before compilation. Preserve services/health sibling replacement honestly beneath ModuleCache root.",
+    "Apply only independently approved companion candidate in owned snapshot. This excluded Node member MUST enter actual Go inventory. Keep reviewed implementation05f314 and all7Node candidate source identities unchanged.",
+    "Generate8 with exact copied Node. Verify every output against reviewed generated-identities pins, retain exact Git-to-derived6-output SHA ledger. No original/historical checkout packet rewrite. Outputs are excluded from Node1544 source roster, so exact ca7d packet must still reproduce.",
+    "Compile both binaries offline using new owner0700 build-cache/TMPDIR and recorded full env/argv; binaries outside admitted source/tool/module roots. Nested CLI uses same source and bound Go env; inventory explicitly enumerates it. Do not reuse component-review binary.",
+    "Freeze GoRoot and complete ModuleCache (including owned-source/health/owned-tools/external packages) recursively read-only before final inventory verification. Keep outputs/bin/cache/TMPDIR outside these roots. Final inventory runs actual-source utility from finished paths; source-count/module-count/hash are observed, never historic targets.",
+    "Populate Go envelope from actual utility output with actual two build commands/binary hashes/private-cache policy/ControlledPATH and independently bound PG18.3 wrapper binaries + all underlying runtime binaries/libs/extension controls/SQL/pgcryptoSO identities. Original helper schema remains unchanged; external evidence records additional actual tool/runtime dependencies. Historical Homebrew reference metadata is not live runtime identity.",
+    "Build V2 envelope with exact1553 Node members:1544 source members +8 required output/compiler/artifact members +copied Node; no extras. Bind three regenerated output paths and exact sourceInventory/generatedIdentities/delta anchors. Bind Go envelope digest. Require exclusive canonical JSON records and root review both raw envelope digests.",
+    "Independent review repeats final immutable topology, hashes/full rosters, packet ca7d, fresh Go binaries/environment/runtime bindings and source controls before any native opt-in. No fixture/server/capture command is provided or executed in this plan. Varied-login escaped-user capacity stays pending and live unchanged byte caps refuse overflow."
+  ]
+}

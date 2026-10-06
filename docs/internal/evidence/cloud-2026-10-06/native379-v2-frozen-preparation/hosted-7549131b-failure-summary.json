@@ -1,0 +1,53 @@
+{
+  "scope": "read-only exact head run/job/check metadata",
+  "hosted_runs": [
+    {
+      "run_id": 37394635390,
+      "job_id": 112047571604,
+      "event": "pull_request",
+      "head_sha": "7549131b324ffd72ae871ac5584c62337b9c5a31",
+      "conclusion": "failure",
+      "failed_step": {
+        "number": 10,
+        "name": "Verify runnable UI",
+        "started_at": "2026-10-06T00:35:13Z",
+        "completed_at": "2026-10-06T00:43:52Z"
+      },
+      "annotations": [
+        {
+          "level": "failure",
+          "log_line": 1193,
+          "message": "Process completed with exit code 1."
+        }
+      ],
+      "run_and_job_log_downloads": "forbidden; private raw stderr retained; no log payload received",
+      "artifact_count": 0,
+      "failure_cause": "unknown; no assertion/test/compiler locus available"
+    },
+    {
+      "run_id": 37394631281,
+      "job_id": 112047558431,
+      "event": "push",
+      "head_sha": "7549131b324ffd72ae871ac5584c62337b9c5a31",
+      "conclusion": "failure",
+      "failed_step": {
+        "number": 10,
+        "name": "Verify runnable UI",
+        "started_at": "2026-10-06T00:35:12Z",
+        "completed_at": "2026-10-06T00:54:15Z"
+      },
+      "annotations": [
+        {
+          "level": "failure",
+          "log_line": 3273,
+          "message": "Process completed with exit code 1."
+        }
+      ],
+      "run_and_job_log_downloads": "forbidden; private raw stderr retained; no log payload received",
+      "artifact_count": 0,
+      "failure_cause": "unknown; no assertion/test/compiler locus available"
+    }
+  ],
+  "local_comparison": "Earlier UI2535 pass is separate source/environment evidence; earlier full verify failed credential mode fixture and cannot stand in for current hosted acceptance",
+  "action": "fresh full local verify pending finalized adoption review/commit; no source change by triage"
+}
