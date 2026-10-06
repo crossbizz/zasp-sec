@@ -7,6 +7,15 @@ import { startOwnedRuntimeServices } from './owned-runtime-services.mjs';
 
 const RESERVE=2684354560n,BUDGET=536870912n,MARGIN=33554432n;
 const fail=()=>{throw Error('owned runtime resource unavailable');};
+// Closed reason labels distinguish resource failures without publishing paths,
+// process output, credentials, or caller-controlled error properties.
+const allocationReasons=new WeakMap();
+const allocationFail=kind=>{const error=Error('owned runtime resource unavailable');allocationReasons.set(error,kind);throw error;};
+function checkRetainedSample(value){
+ if(typeof value.free!=='bigint'||typeof value.allocated!=='bigint'||value.allocated<0n)allocationFail('resource-value');
+ if(value.free<RESERVE)allocationFail('resource-reserve');
+ if(value.allocated>BUDGET)allocationFail('resource-budget');
+}
 export async function observeOwnedAllocation(root){
  const first=await lstat(root,{bigint:true});if(!first.isDirectory()||first.isSymbolicLink()||(first.mode&0o077n)!==0n||first.uid!==BigInt(process.getuid())||await realpath(root)!==root)fail();
  const pending=[root];let bytes=0n,entries=0;
@@ -35,12 +44,23 @@ export async function startOwnedRuntimeLifetime(config,adapters=defaults){
 }
 
 export async function observeRetainedAllocation(roots){
+ try {
  const identities=new Set();let allocated=0n,free,device,entries=0;
- for(const root of roots){const before=await lstat(root,{bigint:true});if(!before.isDirectory()||before.isSymbolicLink()||(before.mode&0o077n)!==0n||before.uid!==BigInt(process.getuid())||await realpath(root)!==root||device!==undefined&&before.dev!==device)fail();device=before.dev;const pending=[root];
-  while(pending.length){const current=pending.pop(),info=await lstat(current,{bigint:true});const identity=info.dev+':'+info.ino;if(++entries>100000||info.dev!==device||info.uid!==BigInt(process.getuid())||identities.has(identity)||info.isSymbolicLink()||!info.isDirectory()&&!info.isFile()||info.isFile()&&info.nlink!==1n)fail();identities.add(identity);allocated+=info.blocks*512n;if(info.isDirectory()){const names=await readdir(current);if(names.length+entries>100000)fail();for(const name of names)pending.push(path.join(current,name));}}
-  const after=await lstat(root,{bigint:true});if(before.dev!==after.dev||before.ino!==after.ino||before.uid!==after.uid||before.mode!==after.mode||await realpath(root)!==root)fail();const disk=await statfs(root,{bigint:true}),observed=disk.bavail*disk.bsize;free=free===undefined?observed:free<observed?free:observed;
+ for(const root of roots){const before=await lstat(root,{bigint:true});if(!before.isDirectory()||before.isSymbolicLink()||(before.mode&0o077n)!==0n||before.uid!==BigInt(process.getuid())||await realpath(root)!==root||device!==undefined&&before.dev!==device)allocationFail('allocation-root');device=before.dev;const pending=[root];
+  while(pending.length){const current=pending.pop(),info=await lstat(current,{bigint:true});const identity=info.dev+':'+info.ino;
+   if(++entries>100000)allocationFail('allocation-limit');
+   if(info.dev!==device||info.uid!==BigInt(process.getuid())||identities.has(identity))allocationFail('allocation-identity');
+   if(info.isSymbolicLink()||info.isFile()&&info.nlink!==1n)allocationFail('allocation-link');
+   if(info.isSocket())allocationFail('allocation-socket');
+   if(!info.isDirectory()&&!info.isFile())allocationFail('allocation-node');
+   identities.add(identity);allocated+=info.blocks*512n;if(info.isDirectory()){const names=await readdir(current);if(names.length+entries>100000)allocationFail('allocation-limit');for(const name of names)pending.push(path.join(current,name));}}
+  const after=await lstat(root,{bigint:true});if(before.dev!==after.dev||before.ino!==after.ino||before.uid!==after.uid||before.mode!==after.mode||await realpath(root)!==root)allocationFail('allocation-root');const disk=await statfs(root,{bigint:true}),observed=disk.bavail*disk.bsize;free=free===undefined?observed:free<observed?free:observed;
  }
  return {allocated,free};
+ } catch(error) {
+  if(error instanceof Error&&!allocationReasons.has(error))allocationReasons.set(error,error.code==='ENOENT'?'allocation-missing':'allocation-io');
+  throw error;
+ }
 }
 const retainedDefaults={...defaults,observe:observeRetainedAllocation,reopen:reopenOfficialHeldTool};
 export async function startRetainedOwnedRuntimeLifetime(config,adapters=retainedDefaults){
@@ -54,12 +74,12 @@ export async function startRetainedOwnedRuntimeLifetime(config,adapters=retained
  const controller=new AbortController(),tools={};let services,timer,sampling=Promise.resolve(),stopped=false,closePromise,rejectResource;
  const resourceFailure=new Promise((_,reject)=>{rejectResource=reject;});void resourceFailure.catch(()=>{});
  const close=()=>closePromise??=(async()=>{stopped=true;controller.abort();adapters.clearTimer(timer);await sampling;let failed=false;if(services){try{await services.close();}catch{failed=true;}}for(const tool of Object.values(tools)){try{await adapters.closeTool(tool);}catch{failed=true;}}if(failed)throw recordOwnedRuntimeStartupFailure(Error('owned runtime cleanup incomplete'),'retained-cleanup','cleanup-incomplete');})();
- const sample=()=>{if(stopped)return;sampling=(async()=>{try{const value=await adapters.observe(roots);if(typeof value.free!=='bigint'||typeof value.allocated!=='bigint'||value.free<RESERVE||value.allocated>BUDGET||value.allocated<0n)fail();}catch{controller.abort();rejectResource(recordOwnedRuntimeStartupFailure(Error('owned runtime sampled resource refusal'),'retained-sampled-resource'));}finally{if(!stopped&&!controller.signal.aborted)timer=adapters.setTimer(sample,100);}})();};
+ const sample=()=>{if(stopped)return;sampling=(async()=>{try{const value=await adapters.observe(roots);checkRetainedSample(value);}catch(error){controller.abort();rejectResource(recordOwnedRuntimeStartupFailure(Error('owned runtime sampled resource refusal'),'retained-sampled-resource',allocationReasons.get(error)??'refused'));}finally{if(!stopped&&!controller.signal.aborted)timer=adapters.setTimer(sample,100);}})();};
  diagnosticPhase='retained-sampler-start';
  timer=adapters.setTimer(sample,100);let loading=Promise.resolve();
  try{loading=(async()=>{for(const name of ['temporal','openfga']){if(controller.signal.aborted)fail();diagnosticPhase=name==='temporal'?'retained-temporal-custody':'retained-openfga-custody';tools[name]=await adapters.reopen(name,path.join(config.archiveRoot,name+'.tar.gz'),path.join(config.rawRoot,name+'-held'));if(controller.signal.aborted)fail();}diagnosticPhase='retained-service-start';services=await adapters.start({run:config.run,rootParent:config.stateRoot,tools},undefined,controller.signal);return services;})();await Promise.race([loading,resourceFailure]);
   const completed=Promise.race([services.completed,resourceFailure]).then(async value=>{await close();return value;},async error=>{await close();throw error;});void completed.catch(()=>{});return Object.freeze({environment:services.environment,completed,close,root:config.stateRoot,acceptance:false,native:false,production:false,deployed:false,upgradeInstalled:false,ledger:false});
  }catch(error){controller.abort();try{await loading;}catch{/* Preserve the original failure after joining the losing startup operation. */}await close();throw error;}
 
- }catch(error){recordOwnedRuntimeStartupFailure(error,diagnosticPhase);throw error;}
+ }catch(error){recordOwnedRuntimeStartupFailure(error,diagnosticPhase,allocationReasons.get(error)??'refused');throw error;}
 }
