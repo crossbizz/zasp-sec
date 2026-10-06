@@ -1,0 +1,62 @@
+{
+  "format": "connected-discovery-status-grouped-TDD-v1",
+  "sourceCheckpoint": "34a3f07d",
+  "scope": "Two app files; explicit authoritative status readback and obsolete detail response isolation; no provider/worker/deployed acceptance",
+  "files": [
+    {
+      "path": "app/features/workflows/ProductionWorkflowViews.tsx",
+      "beforeSHA256": "4fed8ea7d8fcee0f9feb2c16706a8251cd9dda0007deb064fef9867b155a91d4",
+      "afterSHA256": "83d17be2547a1809cd282fad44adf0f8a7c96ffb07268cfbdce4b29f47211412"
+    },
+    {
+      "path": "app/features/workflows/ProductionWorkflowDiscovery.test.tsx",
+      "beforeSHA256": "78028dcb18529e1507e288ba07315c8365a9161a7afd0b1b426b1b85c3f5decb",
+      "afterSHA256": "23e8a6b17d8814c305d4ffe1f5d7e1df1ed751699c7bb712261dde994b099b24"
+    }
+  ],
+  "runs": [
+    {
+      "name": "red.json",
+      "logSHA256": "c99d9bacfaef4a3f66fd90c26451f78c888e5374ad529eb34ab11ab226ebab7c",
+      "summary": {
+        "numTotalTests": 10,
+        "numPassedTests": 7,
+        "numFailedTests": 3,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "red-v2.json",
+      "logSHA256": "cf85c7bbe4b58c65c6a242661a1f7f47f30ea9e7720e5357b53db1f2669f50c4",
+      "summary": {
+        "numTotalTests": 10,
+        "numPassedTests": 7,
+        "numFailedTests": 3,
+        "numPendingTests": 0
+      }
+    },
+    {
+      "name": "green.json",
+      "logSHA256": "92b8d8e193c1aa9847bfa3740f5ddee92ca391ed53919cfac4416a2ea82890cb",
+      "summary": {
+        "numTotalTests": 29,
+        "numPassedTests": 29,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      }
+    }
+  ],
+  "redInterpretation": "InitialRED includes ambiguousClose selector failure; correctedRED-v2 establishes3 behavior failures (2missing refresh,1stale closed/reopened detail). All7 unchanged discovery cases pass. Fourth request ordering case added forGREEN regression only.",
+  "greenCommand": "timeout --signal=TERM --kill-after=10s 90s pinnedNode22.23.1 node_modules/vitest/vitest.mjs run app/features/workflows/ProductionWorkflowDiscovery.test.tsx app/features/workflows/ProductionWorkflowViews.test.tsx --configLoader native --no-cache --reporter=json",
+  "greenJoin": {
+    "sessionID": 31376,
+    "exit": 0,
+    "total": 29
+  },
+  "limitations": [
+    "No fullbrowser/services exercised.",
+    "Typecheck and independent review owned by root/release collaborator remain pending.",
+    "Installeddependencies reused, no immutable fullclosure claim.",
+    "InitialRED used defaultconfigLoader; correctedRED/GREEN native/no-cache."
+  ]
+}

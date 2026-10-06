@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -101,6 +101,86 @@ describe("production integration discovery workflows", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Inventory sync queued. Audit pid_30000001-0000-4000-8000-000000000001");
     expect(document.body.innerHTML).not.toContain(syncID);
     expect(document.body.innerHTML).not.toContain(snapshotID);
+  });
+
+  it("refreshes queued discovery from authoritative history, detail and projection readback", async () => {
+    const user = userEvent.setup();
+    let completed = false;
+    const client = discoveryClient();
+    const originalGET = client.GET;
+    client.GET = vi.fn(async (path, options) => {
+      if (path === "/api/v1/integrations/{id}/syncs") return jsonResult({ items: [completed ? sync : queued], page_info: { next_cursor: null, has_more: false } }, 200, { "Cache-Control": "no-store" });
+      if (path === "/api/v1/integrations/{id}/syncs/{syncId}") return jsonResult(completed ? sync : queued, 200, { ETag: '"1"', "Cache-Control": "no-store" });
+      if (path === "/api/v1/integrations/{id}/freshness") return jsonResult(completed ? freshness : { ...freshness, last_good: null, latest_sync: queued }, 200, { ETag: '"7"', "Cache-Control": "no-store" });
+      return originalGET(path, options);
+    }) as APIClient["GET"];
+    renderSurface(client);
+    await user.click(await screen.findByRole("button", { name: "Open GitHub" }));
+    await user.click(await screen.findByRole("button", { name: "Sync inventory now" }));
+    await user.click(await screen.findByRole("button", { name: "Open queued sync" }));
+    expect(await screen.findByText(/Sync detail: queued/)).toBeVisible();
+    completed = true;
+    await user.click(screen.getByRole("button", { name: "Refresh discovery status" }));
+    expect(await screen.findByRole("button", { name: "Open succeeded sync" })).toBeVisible();
+    expect(await screen.findByText(/Sync detail: succeeded/)).toHaveTextContent("10 discovered");
+    expect(await screen.findByText(/Last good inventory: 10 discovered/)).toBeVisible();
+    expect(screen.getByText("Graph projection: pending")).toBeVisible();
+    expect(screen.getByText("Search projection: degraded")).toBeVisible();
+  });
+
+  it("does not show an old sync detail after closing and reopening its integration", async () => {
+    const user = userEvent.setup();
+    const pending = deferred<ReturnType<typeof jsonResult>>();
+    const client = discoveryClient();
+    const originalGET = client.GET;
+    client.GET = vi.fn((path, options) => path === "/api/v1/integrations/{id}/syncs/{syncId}" ? pending.promise : originalGET(path, options)) as APIClient["GET"];
+    renderSurface(client);
+    await user.click(await screen.findByRole("button", { name: "Open GitHub" }));
+    await user.click(await screen.findByRole("button", { name: "Open succeeded sync" }));
+    await user.click(screen.getAllByRole("button", { name: "Close" })[0]);
+    await user.click(screen.getByRole("button", { name: "Open GitHub" }));
+    await screen.findByRole("button", { name: "Open succeeded sync" });
+    await act(async () => { pending.resolve(jsonResult(sync, 200, { ETag: '"1"', "Cache-Control": "no-store" })); });
+    await waitFor(() => expect(screen.queryByText(/Sync detail: succeeded/)).not.toBeInTheDocument());
+  });
+
+  it("keeps the latest sync selected when an earlier detail request finishes last", async () => {
+    const user = userEvent.setup();
+    const first = deferred<ReturnType<typeof jsonResult>>();
+    const newer = { ...sync, id: "pid_20000002-0000-4000-8000-000000000004", status: "failed", discovered_count: 0, changed_count: 0, removed_count: 0, snapshot_id: null, last_error_code: "denied" };
+    const client = discoveryClient();
+    const originalGET = client.GET;
+    client.GET = vi.fn((path, options) => {
+      if (path === "/api/v1/integrations/{id}/syncs") return Promise.resolve(jsonResult({ items: [sync, newer], page_info: { next_cursor: null, has_more: false } }, 200, { "Cache-Control": "no-store" }));
+      if (path === "/api/v1/integrations/{id}/syncs/{syncId}") return options?.params?.path?.syncId === syncID ? first.promise : Promise.resolve(jsonResult(newer, 200, { ETag: '"1"', "Cache-Control": "no-store" }));
+      return originalGET(path, options);
+    }) as APIClient["GET"];
+    renderSurface(client);
+    await user.click(await screen.findByRole("button", { name: "Open GitHub" }));
+    await user.click(await screen.findByRole("button", { name: "Open succeeded sync" }));
+    await user.click(screen.getByRole("button", { name: "Open failed sync" }));
+    expect(await screen.findByText(/Sync detail: failed/)).toBeVisible();
+    await act(async () => { first.resolve(jsonResult(sync, 200, { ETag: '"1"', "Cache-Control": "no-store" })); });
+    expect(screen.getByText(/Sync detail: failed/)).toBeVisible();
+    expect(screen.queryByText(/Sync detail: succeeded/)).not.toBeInTheDocument();
+  });
+
+  it("refuses to invent discovery completion on refresh failure and permits an authoritative retry", async () => {
+    const user = userEvent.setup();
+    let fail = false;
+    const client = discoveryClient();
+    const originalGET = client.GET;
+    client.GET = vi.fn((path, options) => fail && path === "/api/v1/integrations/{id}/freshness" ? Promise.resolve(productError(503, "unavailable")) : originalGET(path, options)) as APIClient["GET"];
+    renderSurface(client);
+    await user.click(await screen.findByRole("button", { name: "Open GitHub" }));
+    await screen.findByText(/Last good inventory/);
+    fail = true;
+    await user.click(screen.getByRole("button", { name: "Refresh discovery status" }));
+    expect(await screen.findByText("Discovery freshness is unavailable.")).toBeVisible();
+    expect(screen.queryByText(/Last good inventory/)).not.toBeInTheDocument();
+    fail = false;
+    await user.click(screen.getByRole("button", { name: "Refresh discovery status" }));
+    expect(await screen.findByText(/Last good inventory/)).toBeVisible();
   });
 
   it("keeps a sync 409 locked until the authoritative integration refetch succeeds", async () => {

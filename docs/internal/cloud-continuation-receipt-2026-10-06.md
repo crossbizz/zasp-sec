@@ -1212,3 +1212,12 @@ The fresh ledger still contains 728 unique original requirements and 728 matchin
 At the latest hosted head `3e6c1134c6d0dd8678bb410c158e74a47c31e1e6`, both UI workflows failed compliance browser acceptance after successful UI and browser prerequisite steps. Annotations report exit 1; the exact cause remains unknown because log retrieval is blocked. No merge or release guard was bypassed.
 
 The first staged secret scan passed with zero findings; Git whitespace checking failed on original space padding in `19-final-owner-reserved-padded.jsonl` (retained private scan receipt `c3d57e1e538672a6c5872d972a0a8058ee03da6367c8d9cd386f63b0324f383b`). A separate directory-scoped `.gitattributes` marks that exact journal as binary. Its original bytes remain unchanged; the attribute is an additional publication file, separate from the 28 reviewed copies. Final staged checks are required before commit.
+
+
+### Fresh main launch continuation: discovery status refresh
+
+Fetched and cleanly fast-forwarded to `34a3f07dbe8ab6056ce243755596314be6091c40`; original required `e13ccb95451b03107681ccb59b3fc6fe175a228f` remains an ancestor. Prior PR51 is merged. The recovered cloud runtime cleared temporary/shared-memory files: previous private tool, build and custody artifacts are unavailable and are not reused as current evidence. Node22.23.1/npm10.9.8 and Go1.26.8 were freshly checksum-verified.
+
+For M3-49/M3-52e and P4/P8, discovery UI now rereads actual freshness, history and selected sync status on explicit refresh; closed or superseded selections cannot receive stale detail responses. Corrected grouped RED preceded implementation, all29 grouped tests passed, independent11 passed, typecheck/lint passed. Raw REDs/GREEN and additive verification are retained under `evidence/cloud-2026-10-06/discovery-status-refresh/`. These are component results, not native/deployed acceptance. All728 ledger IDs/owners and523/144/61 categories remain unchanged.
+
+Fresh main Gitleaks commit/history scans exited0 with zero findings. Real Stytch TEST read-only authentication succeeded; search returned0 organizations, without mutations. The UI was restored on loopback3050 with HTTP200 at `/` and `/login`; API paths still return HTML until a real upstream is configured. API runtime configuration, native services, provider flows and deployment remain separate launch gates. No immutable evidence, release guard or requirement was rewritten.
