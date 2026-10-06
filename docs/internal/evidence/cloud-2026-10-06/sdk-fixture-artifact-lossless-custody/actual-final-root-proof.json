@@ -1,0 +1,136 @@
+{
+  "allChildrenJoined": true,
+  "controllerSHA256": "40cb5b638aea21d2b8e8a25fbc9b64214fdcb6e1895b0b9fb17a4dcc6d2d3dd9",
+  "controllerSummarySHA256": "5b52aee8d166d7793fd08b224fe5adbf4275d86f64fdcb7774a87ef640ece617",
+  "cwdHits": 0,
+  "evidenceReferences": {
+    "controller": {
+      "bytes": 21252,
+      "path": "/tmp/zasp-cloud-evidence/SDK-gzip-finalize-observer-source-R10-ym8k5z0w/run-readonly-observer-v7.py",
+      "sha256": "40cb5b638aea21d2b8e8a25fbc9b64214fdcb6e1895b0b9fb17a4dcc6d2d3dd9"
+    },
+    "controllerIdentity": {
+      "bytes": 865,
+      "path": "/tmp/zasp-cloud-evidence/SDK-gzip-finalize-observer-source-R10-ym8k5z0w/readonly-observer-attempt-ni8kc6gx/controller-identity.json",
+      "sha256": "61390a0084803671b9f364b754c057cbef0c8040971fe3bdf25468f1a66235f2"
+    },
+    "controllerSummary": {
+      "bytes": 673,
+      "path": "/tmp/zasp-cloud-evidence/SDK-gzip-finalize-observer-source-R10-ym8k5z0w/readonly-observer-attempt-ni8kc6gx/summary.json",
+      "sha256": "5b52aee8d166d7793fd08b224fe5adbf4275d86f64fdcb7774a87ef640ece617"
+    },
+    "observeIntent": {
+      "bytes": 729,
+      "path": "/tmp/zasp-cloud-evidence/SDK-gzip-finalize-observer-source-R10-ym8k5z0w/readonly-observer-attempt-ni8kc6gx/observe-intent.json",
+      "sha256": "69aa3d8969f99a6e6ff9421e3f788b47e6e0035150831bfeb2ae5ad275018d84"
+    },
+    "observeRecord": {
+      "bytes": 575,
+      "path": "/tmp/zasp-cloud-evidence/SDK-gzip-finalize-observer-source-R10-ym8k5z0w/readonly-observer-attempt-ni8kc6gx/observe-record.json",
+      "sha256": "3c251e8bc86cd5dcbda2574758309b352c5784c851e333bcc915c69613c8ef75"
+    },
+    "observeStdout": {
+      "bytes": 5022,
+      "path": "/tmp/zasp-cloud-evidence/SDK-gzip-finalize-observer-source-R10-ym8k5z0w/readonly-observer-attempt-ni8kc6gx/observe.stdout",
+      "sha256": "6b5bf17817b59c604db2692bb69d0b4f1e4ac5f9de09de283b80c248f2f0f56f"
+    },
+    "observerPlan": {
+      "bytes": 6220,
+      "path": "/tmp/zasp-cloud-evidence/SDK-gzip-finalize-observer-source-R10-ym8k5z0w/root-service-observer-plan-v5.json",
+      "sha256": "2635cd9d4fafff20df02b15fba65b0e229fe9e59b6a016165f962ee1c224cd31"
+    },
+    "observerScript": {
+      "bytes": 5575,
+      "path": "/tmp/zasp-cloud-evidence/SDK-gzip-finalize-observer-source-R10-ym8k5z0w/observe-exact-root-services-v5.sh",
+      "sha256": "e1189a84fd84d17e9c66cb10986c1c866019fe34ede489b0980799155a19350d"
+    },
+    "ownedCID": {
+      "bytes": 271,
+      "path": "/tmp/zasp-cloud-evidence/SDK-gzip-finalize-observer-source-R10-ym8k5z0w/readonly-observer-attempt-ni8kc6gx/owned-CID.json",
+      "sha256": "7f607d737ba1845084b8d2e49b8fe56638bcd23a17e139f07658b52222f944b4"
+    },
+    "owner": {
+      "bytes": 6130,
+      "path": "/tmp/zasp-cloud-evidence/SDK-gzip-finalize-observer-source-R10-ym8k5z0w/fresh-observer-owner-v3.py",
+      "sha256": "460a84eb524fcf3fb68785de30c72280d9e192f31e29c07b677be41fa2c8f766"
+    },
+    "ownerIntent": {
+      "bytes": 372,
+      "path": "/tmp/zasp-cloud-evidence/root-fresh-observer-v2-so2mlndi/intent.json",
+      "sha256": "bd99f88263fdb5a6bef3c859f43b24e7b0f433d55b31da85b9e6f82be438b863"
+    },
+    "ownerReceipt": {
+      "bytes": 839,
+      "path": "/tmp/zasp-cloud-evidence/root-fresh-observer-v2-so2mlndi/receipt.json",
+      "sha256": "ec4f6c531e40bba6470908b8b77bc95c6230b6b3284415fcebd05822eb3c81ff"
+    },
+    "ownerStdout": {
+      "bytes": 207,
+      "path": "/tmp/zasp-cloud-evidence/root-fresh-observer-v2-so2mlndi/stdout.jsonl",
+      "sha256": "f77854cb64838a3d04482ae5c18b4878e14aed84d385764dfe09fb202190be9c"
+    },
+    "targetInventory": {
+      "bytes": 1169,
+      "path": "/tmp/zasp-cloud-evidence/SDK-gzip-finalize-observer-source-R10-ym8k5z0w/payload-target-inventory.json",
+      "sha256": "508005acc0bbc29d9d8dfbc03c58238e1a374c3e3ac2a8e600e726727cc6ef39"
+    }
+  },
+  "fdHits": 0,
+  "forcedCleanup": false,
+  "format": "exact-native-oss-root-resource-proof-v1",
+  "mapHits": 0,
+  "normalCleanup": true,
+  "observationStartMonotonicNs": 81877831700887,
+  "observerPlanSHA256": "2635cd9d4fafff20df02b15fba65b0e229fe9e59b6a016165f962ee1c224cd31",
+  "observerScriptSHA256": "e1189a84fd84d17e9c66cb10986c1c866019fe34ede489b0980799155a19350d",
+  "ownerReceiptSHA256": "ec4f6c531e40bba6470908b8b77bc95c6230b6b3284415fcebd05822eb3c81ff",
+  "ownerSHA256": "460a84eb524fcf3fb68785de30c72280d9e192f31e29c07b677be41fa2c8f766",
+  "phase": "finalize",
+  "pidNamespace": "pid:[4026532200]",
+  "planSHA256": "fcf33baaeb7fcd3d833675dfef0611f797d91423a125f4e1fe42ee3ca14c7498",
+  "rootObserverSucceeded": true,
+  "rootProcesses": {
+    "304": {
+      "comm": "dockerd",
+      "exe": "/usr/local/bin/dockerd",
+      "startTicks": "529"
+    },
+    "355": {
+      "comm": "containerd",
+      "exe": "/usr/local/bin/containerd",
+      "startTicks": "544"
+    }
+  },
+  "signals": [],
+  "targetBindings": {
+    "/tmp/SDK-component-gzip-R10-custody-09f4277d55454eb0a5f18da2e3ca3d8a/component.test.lossless-v1.gz": {
+      "ctime_ns": 1791312676991963340,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 439148,
+      "kind": "file",
+      "mode": 33024,
+      "mtime_ns": 1791312676987073822,
+      "nlink": 1,
+      "sha256": "ac6082e81551fc55f6e152599f4a9df5c955e76b1594f111760a67d200966518",
+      "size": 26836375,
+      "uid": 1000
+    },
+    "/tmp/authorization80-sdk-proof-reserved-attempt-y49xui_8/compiler-tmp/component.test": {
+      "ctime_ns": 1791300150176298171,
+      "dev": 34,
+      "gid": 1000,
+      "ino": 432210,
+      "kind": "file",
+      "mode": 33216,
+      "mtime_ns": 1791300150171707439,
+      "nlink": 1,
+      "sha256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d",
+      "size": 67492916,
+      "uid": 1000
+    }
+  },
+  "timestampScope": "observe-command-start-conservative-lower-bound",
+  "unknown": false,
+  "userNamespace": "user:[4026531837]"
+}

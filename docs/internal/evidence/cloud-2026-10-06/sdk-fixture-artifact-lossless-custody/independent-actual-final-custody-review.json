@@ -1,0 +1,67 @@
+{
+  "archiveBinding": {
+    "ctime_ns": 1791312676991963340,
+    "dev": 34,
+    "gid": 1000,
+    "ino": 439148,
+    "mode": 33024,
+    "mtime_ns": 1791312676987073822,
+    "nlink": 1,
+    "sha256": "ac6082e81551fc55f6e152599f4a9df5c955e76b1594f111760a67d200966518",
+    "size": 26836375,
+    "uid": 1000
+  },
+  "conservativeWholeFinalStageAgeUpperBoundSeconds": 2.2189502039836952,
+  "controller14NormalRecords": [
+    "cleanup-CID-absence",
+    "cleanup-discover",
+    "cleanup-inspect",
+    "cleanup-label-check",
+    "cleanup-remove",
+    "create",
+    "created-inspect",
+    "daemon",
+    "image",
+    "image-volumes",
+    "observe",
+    "post-daemon",
+    "stopped-inspect",
+    "wait"
+  ],
+  "current16AndOwner72PinsCurrent": true,
+  "decodedBytes": 67492916,
+  "decodedSHA256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d",
+  "exact14ReferenceHashesVerified": true,
+  "exactOneDurableIntentAndUnlinkReturnedEachJournal": true,
+  "fiveMirroredControlIdentities": {
+    "custody.json": "afc5ab50e324fff596076d105070d8c6f21a8962358350404b45cfb7ed756ea1",
+    "finalize-reserved.jsonl": "a44f29da7e509c041c2f02fb45e8f356a7905561a9a467e6ca2a732b2f69fd01",
+    "prepare-reserved.jsonl": "e10b508757750cda2e7c6d856902237a0a19d141c97b0c6e324219e990ba5b5a",
+    "prepared.json": "86a560f80366fdde353cd5669276472bcbcc99b5fd159434bec349ecf31c3de6",
+    "unlink-intent.json": "c4e4e49df19486c4f8bf1fef6fa26382241070176ad48e4b1a2eaa0532adfc78"
+  },
+  "independentFullGzipCRCAndEOFReplay": true,
+  "mapsPerProcess": {
+    "304": 11,
+    "355": 4
+  },
+  "normalOwnedContainerRemovalAndAbsence": true,
+  "originalRawAbsentHistoricalIdentity": {
+    "ctime_ns": 1791300150176298171,
+    "dev": 34,
+    "gid": 1000,
+    "ino": 432210,
+    "kind": "file",
+    "mode": 33216,
+    "mtime_ns": 1791300150171707439,
+    "nlink": 1,
+    "sha256": "54bdf07f2530b3a2904e0c4da7873fe5725f4e029e768da77b1edecec186385d",
+    "size": 67492916,
+    "uid": 1000
+  },
+  "ownerResultSHA256": "b6c7f496bd299953f5f07c74b2f081d8182931697fde89508ccfb1ead4b6fd2c",
+  "protected11Unchanged": true,
+  "rootProofSHA256": "55a925337adf70c5a03e82213adf2ed6dfc3bebc157399496c145e5bdb2f5813",
+  "scope": "Exact historical fake SDK binary custody only. Full gzip decoded bytes independently rehashed to original54bdf; everyrawbyte comparison was previous4178 prepare review, raw now absent. Strict5s guard and whole-stage conservativeupperbound verify freshness without invented unlink timestamp. ROOT reported outer normal0 separately/no independentkerneltrace. No diagnosticcompile/currentservice/provider readiness.",
+  "status": "ACTUAL-SDK-EXACT-ONE-UNLINK-LOSSLESS-GZIP-CUSTODY-PASS"
+}

@@ -1,0 +1,366 @@
+{
+  "selected20": [
+    {
+      "name": "independent-original-eight-control-TDD-review.json",
+      "source": "/tmp/zasp-cloud-evidence/independent-actual-SDK-gzip-eight-control-TDD-review.json",
+      "bytes": 1150,
+      "sha256": "40f167cf092fd43797df8119b4a14b86e952e1f0495ecec6c6ddfb7aaee8e2af",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 434304,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 1150,
+        "mtime_ns": 1791308325214188597,
+        "ctime_ns": 1791308325214188597
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "actual-first-R10-prefix-refusal-owner-result.json",
+      "source": "/workspace/.zasp-cloud-owned/SDK-gzip-R10-prepare-owner-3b32c8af5c814739995a61bf0ad02dc2/result.json",
+      "bytes": 1501,
+      "sha256": "ea112304b3b58434e53ff5d67ee42f754df55cdac0f5aa9818b998be1eb22c13",
+      "originalMetadata": {
+        "dev": 27,
+        "ino": 1246983,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 1501,
+        "mtime_ns": 1791312021638418968,
+        "ctime_ns": 1791312021638418968
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "independent-actual-first-prefix-refusal-review.json",
+      "source": "/tmp/zasp-cloud-evidence/independent-actual-SDK-R10-prepare-prefix-failure-review.json",
+      "bytes": 1528,
+      "sha256": "da344ad48bd1df4e3b29b844b242049e795dc51c6cac850d4c45de520ccb0417",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 439054,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 1528,
+        "mtime_ns": 1791312610153500117,
+        "ctime_ns": 1791312610153500117
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "actual-producer-prefix-TDD-owner-result.json",
+      "source": "/workspace/.zasp-cloud-owned/SDK-fixed-prefix-TDD-owner-67559fea4f194425a3aa39ea809dced4/result.json",
+      "bytes": 2743,
+      "sha256": "f6efdb4711b1cbd5a3b2a56a5d158e07b403fc51e5a4c9a02faf45ba91ab6c7d",
+      "originalMetadata": {
+        "dev": 27,
+        "ino": 1247000,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 2743,
+        "mtime_ns": 1791312431105527381,
+        "ctime_ns": 1791312431105527381
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "independent-actual-producer-prefix-TDD-review.json",
+      "source": "/tmp/zasp-cloud-evidence/independent-actual-SDK-producer-prefix-TDD-review.json",
+      "bytes": 1142,
+      "sha256": "38153c6702e1a2d4f4f8f53a9a468b66a335e51e9dd6e95d07a2d1f5bce80f17",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 439020,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 1142,
+        "mtime_ns": 1791312546267958006,
+        "ctime_ns": 1791312546267958006
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "actual-successful-gzip-prepare-owner-result.json",
+      "source": "/workspace/.zasp-cloud-owned/SDK-prefix-fixed-final48-prepare-owner-a3308839d95b4f428753e8a641711a53/result.json",
+      "bytes": 2484,
+      "sha256": "024aa60d61db3511ff9b0d321874fa3c7185866870d9969c098fb4e1edd7375d",
+      "originalMetadata": {
+        "dev": 27,
+        "ino": 1247069,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 2484,
+        "mtime_ns": 1791312677859423328,
+        "ctime_ns": 1791312677859423328
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "independent-actual-gzip-prepare-review.json",
+      "source": "/tmp/zasp-cloud-evidence/independent-actual-SDK-gzip-R10-prepare-review.json",
+      "bytes": 1749,
+      "sha256": "4178c3036f04963e053bb4f0389a4e35ddf358473b63b80b837f8b0ed589f898",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 439205,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 1749,
+        "mtime_ns": 1791312804214152133,
+        "ctime_ns": 1791312804214152133
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "ROOT-successful-gzip-prepare-tool-join.json",
+      "source": "/tmp/zasp-cloud-evidence/ROOT-SDK-final48-gzip-prepare-tool-join.json",
+      "bytes": 782,
+      "sha256": "46a4f3805b58c67d34361cdc302a1b9acf0fa1a1e22852e3af636b9b1b8a119a",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 439206,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 782,
+        "mtime_ns": 1791312818274492262,
+        "ctime_ns": 1791312818274492262
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "prepared.json",
+      "source": "/tmp/SDK-component-gzip-R10-custody-09f4277d55454eb0a5f18da2e3ca3d8a/prepared.json",
+      "bytes": 1199,
+      "sha256": "86a560f80366fdde353cd5669276472bcbcc99b5fd159434bec349ecf31c3de6",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 439165,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 1199,
+        "mtime_ns": 1791312677331082149,
+        "ctime_ns": 1791312677331082149
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "closed-independent-final-admission.json",
+      "source": "/tmp/zasp-cloud-evidence/SDK-single-gzip-R10-source-_4cz1fk4/independent-admission.json",
+      "bytes": 595,
+      "sha256": "654f8ac136b65df3599a091a8fdaaff7cc4a5a6be5683814d18e4a8de1d7c6b5",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 439246,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 595,
+        "mtime_ns": 1791312925509086740,
+        "ctime_ns": 1791312925509086740
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "independent-final-two-alias-one-unlink-source-review.json",
+      "source": "/tmp/zasp-cloud-evidence/independent-SDK-final-two-alias-one-unlink-source-review.json",
+      "bytes": 2306,
+      "sha256": "9ad1f73f9aaf24a5bfc9032917d11251215029ee0ac9a99b72b8f173934b0c33",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 439277,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 2306,
+        "mtime_ns": 1791313112508222719,
+        "ctime_ns": 1791313112508222719
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "actual-final-one-unlink-owner-result.json",
+      "source": "/workspace/.zasp-cloud-owned/SDK-gzip-final-one-unlink-owner-b84903ac418243a78f684ae156cd1d11/result.json",
+      "bytes": 2782,
+      "sha256": "b6c7f496bd299953f5f07c74b2f081d8182931697fde89508ccfb1ead4b6fd2c",
+      "originalMetadata": {
+        "dev": 27,
+        "ino": 1247110,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 2782,
+        "mtime_ns": 1791313141279250963,
+        "ctime_ns": 1791313141279250963
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "actual-final-root-proof.json",
+      "source": "/tmp/zasp-cloud-evidence/SDK-single-gzip-R10-source-_4cz1fk4/root-proof-finalize.json",
+      "bytes": 5846,
+      "sha256": "55a925337adf70c5a03e82213adf2ed6dfc3bebc157399496c145e5bdb2f5813",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 439358,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 5846,
+        "mtime_ns": 1791313140146275931,
+        "ctime_ns": 1791313140146275931
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "destination-custody.json",
+      "source": "/tmp/SDK-component-gzip-R10-custody-09f4277d55454eb0a5f18da2e3ca3d8a/custody.json",
+      "bytes": 1230,
+      "sha256": "afc5ab50e324fff596076d105070d8c6f21a8962358350404b45cfb7ed756ea1",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 439361,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 1230,
+        "mtime_ns": 1791313140842292764,
+        "ctime_ns": 1791313140842292764
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "mirror-custody.json",
+      "source": "/workspace/.zasp-cloud-owned/SDK-component-gzip-R10-mirror-eef6c2a0263449349e4ea1de4d914c00/custody.json",
+      "bytes": 1230,
+      "sha256": "afc5ab50e324fff596076d105070d8c6f21a8962358350404b45cfb7ed756ea1",
+      "originalMetadata": {
+        "dev": 27,
+        "ino": 1247108,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 1230,
+        "mtime_ns": 1791313140842292764,
+        "ctime_ns": 1791313140842292764
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "destination-finalize-reserved.jsonl",
+      "source": "/tmp/SDK-component-gzip-R10-custody-09f4277d55454eb0a5f18da2e3ca3d8a/finalize-reserved.jsonl",
+      "bytes": 65536,
+      "sha256": "a44f29da7e509c041c2f02fb45e8f356a7905561a9a467e6ca2a732b2f69fd01",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 439359,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 65536,
+        "mtime_ns": 1791313140842292764,
+        "ctime_ns": 1791313140842292764
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "mirror-finalize-reserved.jsonl",
+      "source": "/workspace/.zasp-cloud-owned/SDK-component-gzip-R10-mirror-eef6c2a0263449349e4ea1de4d914c00/finalize-reserved.jsonl",
+      "bytes": 65536,
+      "sha256": "a44f29da7e509c041c2f02fb45e8f356a7905561a9a467e6ca2a732b2f69fd01",
+      "originalMetadata": {
+        "dev": 27,
+        "ino": 1247106,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 65536,
+        "mtime_ns": 1791313140842292764,
+        "ctime_ns": 1791313140842292764
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "independent-actual-final-custody-review.json",
+      "source": "/tmp/zasp-cloud-evidence/independent-actual-SDK-final-one-unlink-custody-review.json",
+      "bytes": 2673,
+      "sha256": "18c94c86a15f201fa0d3c1e58e383f6b547ca2a5bef8200660c4c977d886c916",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 439404,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 2673,
+        "mtime_ns": 1791313232048498507,
+        "ctime_ns": 1791313232048498507
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "ROOT-final-one-unlink-tool-join.json",
+      "source": "/tmp/zasp-cloud-evidence/ROOT-SDK-final-one-unlink-tool-join.json",
+      "bytes": 919,
+      "sha256": "484cbb4cff51465ee2fd82794a219faec5d7916c422c09c71da62f9ff477758e",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 439397,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 919,
+        "mtime_ns": 1791313217988158375,
+        "ctime_ns": 1791313217988158375
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    },
+    {
+      "name": "independent-final-custody-ROOT-join-addendum.json",
+      "source": "/tmp/zasp-cloud-evidence/independent-SDK-final-custody-canonical-ROOT-join-addendum.json",
+      "bytes": 1075,
+      "sha256": "445c59cbff402a0fd8dc4830b40cb9ac1d0102ac76f1edb25de922eb51f621d9",
+      "originalMetadata": {
+        "dev": 34,
+        "ino": 440081,
+        "mode": 33024,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 1075,
+        "mtime_ns": 1791313319912578701,
+        "ctime_ns": 1791313319912578701
+      },
+      "encoding": "none: exact original bytes; Git determines binary treatment"
+    }
+  ],
+  "selectionSHA256": "ccb711536453c0a877cf0c062db74dad350c577b24710ba7b5d4bcbaf4f4532d",
+  "scope": "SDK component fixture artifact whole-byte custody only; no native server/authorization acceptance"
+}

@@ -1,0 +1,15 @@
+{
+  "checks": [
+    "Only fresh observer stage started and joined0/2.732329s; supervisor records no forced/signal/timeout/survivors and groups empty",
+    "Observer summary observedtrue/normalContainerRemoved/allOwnedGroupsJoined and no cleanupErrors/signals; no separate full14-ref deletion authority minted",
+    "Owner actual opaqueRuntimeError before root-proof write and compression; root-proof absent and original raw path still present",
+    "Exact unchanged consumer26d2 requires SDK-gzip-prepare-observer-source- or finalize family; actual R10 basename violates it, a necessary source-derived topology refusal (no unique original traceback inferred)"
+  ],
+  "correction": "Historical34bd staticPASS missed producer namespace vs preserved consumer guard. Preserved unchanged; corrected prefix-only831b and authentic actual tiny38153 supersede execution gate. No guard widening.",
+  "observerSummaryPath": "/tmp/zasp-cloud-evidence/SDK-gzip-R10-prepare-observer-8nuhyi0f/readonly-observer-attempt-v0v2wgb9/summary.json",
+  "observerSummarySHA256": "f89a5e71b4f8cab507cebb03d9a0e51ca81fa66729d30342bfa4828badf34d2e",
+  "resultPath": "/workspace/.zasp-cloud-owned/SDK-gzip-R10-prepare-owner-3b32c8af5c814739995a61bf0ad02dc2/result.json",
+  "resultSHA256": "ea112304b3b58434e53ff5d67ee42f754df55cdac0f5aa9818b998be1eb22c13",
+  "scope": "Failure reconciliation only; no compression/unlink/runtime acceptance. Reviewer no observer/process/asset activation.",
+  "status": "ACTUAL-FAILED-SDK-PREPARE-PRESERVED-NO-COMPRESSION"
+}
