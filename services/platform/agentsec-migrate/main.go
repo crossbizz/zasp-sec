@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -359,6 +360,12 @@ func main() {
 		err = runReleaseMigration(ctx, &registeredReleaseMigrationRunner{releaseMigrationRunner: runner, queryer: connection, registration: registration}, arguments)
 	}
 	if err != nil {
+		if marker := authorizationRuntimeProfileFailureMarker(err); marker != "" {
+			if _, writeErr := fmt.Fprint(os.Stderr, marker); writeErr != nil {
+				log.Fatal("release migration output failed")
+			}
+			os.Exit(1)
+		}
 		log.Fatal("release migration failed")
 	}
 	if isForwardMigration(arguments) {
