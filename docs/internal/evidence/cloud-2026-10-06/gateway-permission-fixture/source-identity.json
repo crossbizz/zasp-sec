@@ -1,0 +1,11 @@
+{
+  "base_commit": "d466887f7fa2dd44562489278d302e3aff9ed32f",
+  "source_path": "services/runtime-gateway/evidence_store_test.go",
+  "before_sha256": "7c888fe585cc86cc7a8e569649477ce77c62e6366128f0160d312c1c08325f84",
+  "after_sha256": "d5949d211b06e154ab6134f5b59374fff7e1e297d74311ba974dd245590d3c1f",
+  "patch_sha256": "0c0c86c751d3078ccd9e9972fe6a2a5344e01cf203660e973cfd9b347faabf98",
+  "production_guard_unchanged": true,
+  "production_guard_path": "services/runtime-gateway/evidence_directory.go",
+  "production_guard_sha256": "6695ecd94db84c48983aed74a874346a075514a2f9bb53f11734e10f26718583",
+  "scope": "Only intended group-readable existing database fixture explicitly Chmod0640 after successful WriteFile; production guard and assertions unchanged."
+}

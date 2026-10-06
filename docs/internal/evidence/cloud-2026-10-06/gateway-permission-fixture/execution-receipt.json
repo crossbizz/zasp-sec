@@ -1,0 +1,37 @@
+{
+  "working_directory": "/workspace/zasp-sec/services/runtime-gateway",
+  "evidence_kind": "execution-receipt recorded from actual exec_command tool invocations; original test logs do not independently embed umask/tool identity",
+  "go_binary": "/tmp/zasp-cloud-tools/go/bin/go",
+  "go_version": "go version go1.25.13 linux/amd64",
+  "environment": {
+    "PATH": "/tmp/zasp-cloud-tools/go/bin:/usr/bin:/bin",
+    "GOROOT": "/tmp/zasp-cloud-tools/go",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOFLAGS": "-mod=readonly"
+  },
+  "runs": [
+    {
+      "shell_umask_command": "umask 077",
+      "command": "go test -race -count=1 -run '^TestGatewayEvidenceDiskStoreRejectsUnsafeExistingFilesBeforeRecovery$' .",
+      "exit_code": 1,
+      "log": "/tmp/zasp-cloud-evidence/gateway-fixture-umask077-red.log",
+      "log_sha256": "ac5d282cde8f861c818a80f33623d3c9b7c3007a3017d7f1eaed36d793b407b1"
+    },
+    {
+      "shell_umask_command": "umask 077",
+      "command": "go test -race -count=1 -json -run '^TestGateway(Evidence|Runtime(RestoresCachedOfflineEvidenceAndDrainsAfterReconnect|PreservesClockFloorAcrossRestart|RestoresDrainedEvaluationReplayReceipt))' .",
+      "exit_code": 0,
+      "log": "/tmp/zasp-cloud-evidence/gateway-fixture-umask077-green.jsonl",
+      "log_sha256": "5034b0f85530d38106d5557504d33785d9b0aea7381b9bb33884db4497da4580"
+    },
+    {
+      "shell_umask_command": "umask 022",
+      "command": "go test -race -count=1 -json -run '^TestGateway(Evidence|Runtime(RestoresCachedOfflineEvidenceAndDrainsAfterReconnect|PreservesClockFloorAcrossRestart|RestoresDrainedEvaluationReplayReceipt))' .",
+      "exit_code": 0,
+      "log": "/tmp/zasp-cloud-evidence/gateway-fixture-umask022-green.jsonl",
+      "log_sha256": "67e13fd93938e0ac41a33c8c5222918f2ffb50f8c6503159b24164d2df3a373d"
+    }
+  ],
+  "original_host_umask_observation": "/tmp/zasp-cloud-evidence/full-verify-after-adoption-2026-10-06-umask.txt"
+}

@@ -1,0 +1,44 @@
+{
+  "format": "independent-gateway-permission-fixture-review-v1",
+  "reviewer": "provider_deployment_readiness",
+  "assessment": "PASS-TEST-FIXTURE-ONLY",
+  "candidate_source_sha256": "d5949d211b06e154ab6134f5b59374fff7e1e297d74311ba974dd245590d3c1f",
+  "unchanged_production_guard_sha256": "6695ecd94db84c48983aed74a874346a075514a2f9bb53f11734e10f26718583",
+  "code_review": "Only group-readable database fixture setup changes: successful WriteFile0640 followed by explicit Chmod0640. Host umask077 previously masked fixture to0600. Production exact0600 pre/post recovery permission and file identity guards remain unchanged. No new test or production change.",
+  "focused_behavioral_red": {
+    "umask": "077",
+    "exit": 1,
+    "sha256": "ac5d282cde8f861c818a80f33623d3c9b7c3007a3017d7f1eaed36d793b407b1",
+    "observed": "Existing group-readable subtest fails because a store is admitted without error; package0.029s. Wrong-cwd command refusal retained separately and not behavioral RED."
+  },
+  "existing_group_race_green": [
+    {
+      "umask": "077",
+      "exit": 0,
+      "sha256": "5034b0f85530d38106d5557504d33785d9b0aea7381b9bb33884db4497da4580",
+      "top_level_pass": 13,
+      "immediate_subcase_pass": 6,
+      "fail": 0,
+      "skip": 0,
+      "package_seconds": 3.109
+    },
+    {
+      "umask": "022",
+      "exit": 0,
+      "sha256": "67e13fd93938e0ac41a33c8c5222918f2ffb50f8c6503159b24164d2df3a373d",
+      "top_level_pass": 13,
+      "immediate_subcase_pass": 6,
+      "fail": 0,
+      "skip": 0,
+      "package_seconds": 2.892
+    }
+  ],
+  "execution_identity": {
+    "receipt_sha256": "016298c062b04308a287dcdeaeb2150d9f1008135ec37fa735d6f784d747c1ba",
+    "cwd": "/workspace/zasp-sec/services/runtime-gateway",
+    "go": "/tmp/zasp-cloud-tools/go/bin/go",
+    "review": "Author execution receipt records actual explicit umask077/022 shell commands, pinned Go environment, race/count1 filters, log hashes and exits. Log bytes and outcomes independently inspected.",
+    "limitation": "Original test logs do not independently embed umask or tool identity; receipt is author-recorded from actual exec invocations, not a new independent test rerun."
+  },
+  "readiness": "No native, capacity, security, deployed, milestone or728 ledger promotion. Full repository verification and future frozen envelopes remain separate scopes."
+}

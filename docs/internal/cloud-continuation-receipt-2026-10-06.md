@@ -257,3 +257,44 @@ code 1 is known, so no detailed failure cause is claimed. Fresh full local
 verification started on committed 8f537fec and remains running at this
 preparation checkpoint. All original ledger categories, deployment prerequisites,
 portability limitations and merge/security/release guards remain unchanged.
+
+
+## Fresh full verification failure and bounded gateway permission fixture
+
+The fresh full `npm run verify` used Node 22.23.1, npm 10.9.8, Go 1.25.13,
+Tini subreaping, inherited TLS/trust, and unchanged module checksums. It began
+at `8f537fecb731c3135a81f39ced2f1bd1e7999281` at 01:04:23 UTC and failed at
+01:11:01 UTC, after 398 seconds. The after-run HEAD was
+`d466887f7fa2dd44562489278d302e3aff9ed32f`, reflecting the separate companion
+bindings/evidence change; the gateway source was unchanged during the run.
+Dependencies, service health, API, worker and event-ingest checks passed. The
+worker race package took 376.043 seconds. The gateway health-contract package
+failed `TestGatewayEvidenceDiskStoreRejectsUnsafeExistingFilesBeforeRecovery`
+for its `group_readable_database_file` case. UI verification was not reached;
+the earlier 2,535-test UI pass is not a result from this run. Hosted failure
+cause at 7549131b remains unknown because direct log retrieval was forbidden.
+
+The actual host umask was 0077. The fixture's `os.WriteFile(..., 0640)` created
+0600, so the unchanged production exact-0600 guard correctly admitted the file.
+The bounded correction changes only that fixture: after successful creation it
+explicitly sets 0640. Real focused RED under 077 reproduces the original case
+failure; existing grouped evidence-store/recovery tests then pass under 077
+and 022 (13 top-level tests and six subcases each, zero failures/skips,
+3.109 and 2.892 seconds). The initial wrong-working-directory Go refusal is
+retained separately and is not behavioral RED. No new tests or production
+permission/security guard changes were made. Independent source/log review
+and the invocation receipt distinguish actual commands from metadata not
+embedded directly in the original focused logs.
+
+The new bounded evidence directory is
+`evidence/cloud-2026-10-06/gateway-permission-fixture/` (18-member manifest
+SHA256 `f9049b011077c347298d5a049358562d87a534d1e43fc527d10feb4f2895eeb4`).
+It preserves the full FAIL summary, scanned compressed raw log, exact fixture delta and hashes,
+focused RED, grouped GREENs, invocation receipt and independent review.
+Its separately retained historical Git-object report records four unavailable
+objects after origin rejected exact-object requests, zero restored objects,
+and one already-local introduction commit. That report establishes neither
+missing artifact provenance nor security clearance. The full-history 546-
+finding security gate, fresh full/UI verification, immutable build/native379
+acceptance and deployed authority remain open. All original task/category
+counts and release/merge/deployment guards are unchanged.
