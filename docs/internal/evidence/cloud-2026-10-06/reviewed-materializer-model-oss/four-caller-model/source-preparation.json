@@ -1,0 +1,17 @@
+{
+  "algorithm": "model body unchanged except users parameter; original all4 entry retained; four exact original callers separately selected",
+  "artifactProof": "FD-no-follow streamed hash+device/inode/size/mode/uid/gid/nlink/mtime/ctime equality before immediate spawn, after each run and final; private producer ownership, no atomic-system guarantee",
+  "bounds": "compile<=90, eachcaller<=90, all five stages share unchanged work270/final300/reserve1.5GB; product caps unchanged",
+  "changes": "actual compiler artifact SHA/source/overlay/tool bound before each execution; finite owned helper stays except argv/artifact checks",
+  "files": {
+    "authorization_worker_ordered_current_native379_phase_codec_cases_test.go": "bbecdcce7dbf849ef581c99ef10961f86c45b5c81ed5f70058d033e2e38c67cc",
+    "authorization_worker_ordered_current_native379_phase_codec_test.go": "8ba722729b2420248a7085d763af2699add4b9bc05cee0bde02e6cc82e70f5dc",
+    "run-source-draft.py": "8e5c5ef90a98b8ad25e9e81b044f336d362ac4bac7beae02e118f24608b60c5d",
+    "source-overlay.json": "fc41fb8873cbdae6b2e7584da64bc3311ab43de3b84bf0f25bdb85704887e2fe"
+  },
+  "lastSourceRepair": "Immediate cancellation/stage/work guard after final artifact hash and before Popen; original345/7de checkpoints retained; no runtime.",
+  "retained": "model3 RED1/GREEN0 established separately; fullstage deadline failure b89d retained; no closed FIT",
+  "scope": "SOURCE GROUPING ONLY; no tests/compiler executed",
+  "sourcePreparation": "Initial missing packaged tool assumption and toolguard timing draft retained; corrected before review/runtime, not behavioral RED.",
+  "toolSourceBinding": "Go1.25 go tool test2json builds official builtin cmd/test2json from complete pinned GOROOT map inside same90s deadline; no separate packaged binary exists."
+}

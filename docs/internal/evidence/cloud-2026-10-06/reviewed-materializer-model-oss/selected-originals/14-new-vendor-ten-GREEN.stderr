@@ -1,0 +1,15 @@
+test_actual_pinned_openfga_vendor_archive_binary_only (__main__.InstallerComponents.test_actual_pinned_openfga_vendor_archive_binary_only) ... ok
+test_declared_size_and_inflate_and_metadata_caps (__main__.InstallerComponents.test_declared_size_and_inflate_and_metadata_caps) ... ok
+test_exact_vendor_roster_and_sidecar_digest_refuse (__main__.InstallerComponents.test_exact_vendor_roster_and_sidecar_digest_refuse) ... ok
+test_no_overwrite_duplicate_and_unapproved_refuse (__main__.InstallerComponents.test_no_overwrite_duplicate_and_unapproved_refuse) ... ok
+test_readonly_input_cache_identity_digest_and_topology (__main__.InstallerComponents.test_readonly_input_cache_identity_digest_and_topology) ... ok
+test_redirect_authority_fixed (__main__.InstallerComponents.test_redirect_authority_fixed) ... ok
+test_reserved_journal_size_inode_and_write_fsync_failures (__main__.InstallerComponents.test_reserved_journal_size_inode_and_write_fsync_failures) ... ok
+test_traversal_absolute_links_and_devices_refuse (__main__.InstallerComponents.test_traversal_absolute_links_and_devices_refuse) ... ok
+test_truncation_and_header_numeric_refuse (__main__.InstallerComponents.test_truncation_and_header_numeric_refuse) ... ok
+test_valid_regular_hash_inventory (__main__.InstallerComponents.test_valid_regular_hash_inventory) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.317s
+
+OK

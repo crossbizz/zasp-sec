@@ -1,0 +1,24 @@
+{
+  "scanner": "gitleaks8.30.1",
+  "defaultRules": true,
+  "redact": true,
+  "records": [
+    {
+      "scope": "decoded selected publication payloads before later scan proof/final manifest",
+      "rootJoinedExit": 0,
+      "findings": 0,
+      "toolSeconds": 0.331241949,
+      "decodedMembers": 135,
+      "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "scope": "encoded selected publication payloads before later scan proof/final manifest",
+      "rootJoinedExit": 0,
+      "findings": 0,
+      "toolSeconds": 0.426655424,
+      "decodedMembers": null,
+      "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    }
+  ],
+  "historicalFailedScansWaived": false
+}

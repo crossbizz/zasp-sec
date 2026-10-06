@@ -1,0 +1,19 @@
+{
+  "decodedBytes": 153223894,
+  "decodedSHA256": "80b28abda3f0007cfbfcd6a3610431558c13bc5ebc181c82f182c2cebed7c438",
+  "gzipBytes": 58437354,
+  "gzipSHA256": "d18c6ee31c9b4612b3684c53e73b1fbceeb390459274ae6c98b4522bd50b2982",
+  "originalIdentity": {
+    "st_ctime_ns": 1791291307743470498,
+    "st_dev": 27,
+    "st_ino": 1247955,
+    "st_mode": 33216,
+    "st_mtime_ns": 1791291307737782951,
+    "st_nlink": 1,
+    "st_size": 153223894,
+    "st_uid": 1000
+  },
+  "planSHA256": "1ad103bc86e92323f05e73ecc2cc41e371ff06bf8d0831bbdd50e187f17cf63f",
+  "status": "VERIFIED-UNLINK-INTENT",
+  "target": "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test"
+}

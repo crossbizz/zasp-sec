@@ -1,0 +1,226 @@
+{
+  "allLegalCallerFit": false,
+  "callerModels": [
+    {
+      "result": {
+        "argv": [
+          "/tmp/zasp-cloud-tools/go/bin/go",
+          "tool",
+          "test2json",
+          "-p",
+          "github.com/zasp-ai/zasp-sec/services/platform/apiserver",
+          "-t",
+          "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test",
+          "-test.v",
+          "-test.count=1",
+          "-test.timeout=90s",
+          "-test.run=^TestNative379PhaseCodecSourceCallerShort$"
+        ],
+        "cleanup": {
+          "errors": [],
+          "forced": false,
+          "joined": true,
+          "pid": 289821,
+          "survivors": []
+        },
+        "elapsed_seconds": 40.9812283640058,
+        "free_after_stage": 1844793344,
+        "log_sha256": "9ceccd0413f7ea7e14c0291179314dd196707b54a576e6bed38d76fcdc420df5",
+        "name": "caller-short",
+        "overlay_sha256": "fc41fb8873cbdae6b2e7584da64bc3311ab43de3b84bf0f25bdb85704887e2fe",
+        "refusal": null,
+        "returncode": 0,
+        "run_tests": [
+          "TestNative379PhaseCodecSourceCallerShort"
+        ],
+        "skips": [],
+        "subtests_fail": [],
+        "survivors": [],
+        "top_level_fail": [],
+        "top_level_pass": [
+          "TestNative379PhaseCodecSourceCallerShort"
+        ]
+      },
+      "scriptedOutputs": [
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=preflight rows=0 canonicalBytes=0 expandedBytes=0 originalByteCap=1048576; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=pristine-truth rows=10058 canonicalBytes=10068445 expandedBytes=10238413 originalByteCap=33554432; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=drift rows=606 canonicalBytes=994944 expandedBytes=1165232 originalByteCap=33554432; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=forged-entry rows=1923 canonicalBytes=3140698 expandedBytes=3713519 originalByteCap=4194304; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=null-error-lazy-demand rows=277 canonicalBytes=534613 expandedBytes=638279 originalByteCap=8388608; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=frame-restoration rows=44 canonicalBytes=53069 expandedBytes=59673 originalByteCap=4194304; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=cleanup-result rows=0 canonicalBytes=0 expandedBytes=0 originalByteCap=1048576; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:176: SCRIPTED complete source raw-ledger model: userUTF8Bytes=9 controls=589 steps=6348 rows=12908 records=23342 canonicalBytes=14791769 expandedBytesWithRecordFraming=15815116; modelVersion=2 exact reconstructed parameters; optional duplicate arrays absent; no full-result metadata or native observations\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:184: SCRIPTED RAW-LEDGER ONLY encodedBytes=2182909 chargedBytes=17998025; not full result/adapter/native acceptance\n"
+      ],
+      "stage": "caller-short"
+    },
+    {
+      "result": {
+        "argv": [
+          "/tmp/zasp-cloud-tools/go/bin/go",
+          "tool",
+          "test2json",
+          "-p",
+          "github.com/zasp-ai/zasp-sec/services/platform/apiserver",
+          "-t",
+          "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test",
+          "-test.v",
+          "-test.count=1",
+          "-test.timeout=90s",
+          "-test.run=^TestNative379PhaseCodecSourceCallerASCII63$"
+        ],
+        "cleanup": {
+          "errors": [],
+          "forced": false,
+          "joined": true,
+          "pid": 289920,
+          "survivors": []
+        },
+        "elapsed_seconds": 43.26089985900035,
+        "free_after_stage": 1844715520,
+        "log_sha256": "764250cf85c916960ebba0e48ed861827b490b39e5b657e09ff922a8d368a6a1",
+        "name": "caller-ascii63",
+        "overlay_sha256": "fc41fb8873cbdae6b2e7584da64bc3311ab43de3b84bf0f25bdb85704887e2fe",
+        "refusal": null,
+        "returncode": 0,
+        "run_tests": [
+          "TestNative379PhaseCodecSourceCallerASCII63"
+        ],
+        "skips": [],
+        "subtests_fail": [],
+        "survivors": [],
+        "top_level_fail": [],
+        "top_level_pass": [
+          "TestNative379PhaseCodecSourceCallerASCII63"
+        ]
+      },
+      "scriptedOutputs": [
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=preflight rows=0 canonicalBytes=0 expandedBytes=0 originalByteCap=1048576; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=pristine-truth rows=10058 canonicalBytes=10068661 expandedBytes=10238629 originalByteCap=33554432; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=drift rows=606 canonicalBytes=1001640 expandedBytes=1171928 originalByteCap=33554432; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=forged-entry rows=1923 canonicalBytes=3162136 expandedBytes=3734957 originalByteCap=4194304; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=null-error-lazy-demand rows=277 canonicalBytes=538285 expandedBytes=641951 originalByteCap=8388608; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=frame-restoration rows=44 canonicalBytes=54041 expandedBytes=60645 originalByteCap=4194304; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=cleanup-result rows=0 canonicalBytes=0 expandedBytes=0 originalByteCap=1048576; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:176: SCRIPTED complete source raw-ledger model: userUTF8Bytes=63 controls=589 steps=6348 rows=12908 records=23342 canonicalBytes=14824763 expandedBytesWithRecordFraming=15848110; modelVersion=2 exact reconstructed parameters; optional duplicate arrays absent; no full-result metadata or native observations\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:184: SCRIPTED RAW-LEDGER ONLY encodedBytes=2184382 chargedBytes=18032492; not full result/adapter/native acceptance\n"
+      ],
+      "stage": "caller-ascii63"
+    },
+    {
+      "result": {
+        "argv": [
+          "/tmp/zasp-cloud-tools/go/bin/go",
+          "tool",
+          "test2json",
+          "-p",
+          "github.com/zasp-ai/zasp-sec/services/platform/apiserver",
+          "-t",
+          "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test",
+          "-test.v",
+          "-test.count=1",
+          "-test.timeout=90s",
+          "-test.run=^TestNative379PhaseCodecSourceCallerControl63$"
+        ],
+        "cleanup": {
+          "errors": [],
+          "forced": false,
+          "joined": true,
+          "pid": 289966,
+          "survivors": []
+        },
+        "elapsed_seconds": 32.88396984200517,
+        "free_after_stage": 1844695040,
+        "log_sha256": "32e77337f5573d99ec1c4115e66ea489f4f6bbc3dd5c751332643ce633c1022c",
+        "name": "caller-control63",
+        "overlay_sha256": "fc41fb8873cbdae6b2e7584da64bc3311ab43de3b84bf0f25bdb85704887e2fe",
+        "refusal": null,
+        "returncode": 0,
+        "run_tests": [
+          "TestNative379PhaseCodecSourceCallerControl63"
+        ],
+        "skips": [],
+        "subtests_fail": [],
+        "survivors": [],
+        "top_level_fail": [],
+        "top_level_pass": [
+          "TestNative379PhaseCodecSourceCallerControl63"
+        ]
+      },
+      "scriptedOutputs": [
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=preflight rows=0 canonicalBytes=0 expandedBytes=0 originalByteCap=1048576; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=pristine-truth rows=10058 canonicalBytes=10069921 expandedBytes=10239889 originalByteCap=33554432; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=drift rows=606 canonicalBytes=1040700 expandedBytes=1210988 originalByteCap=33554432; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=forged-entry rows=1923 canonicalBytes=3287191 expandedBytes=3860012 originalByteCap=4194304; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=null-error-lazy-demand rows=277 canonicalBytes=559705 expandedBytes=663371 originalByteCap=8388608; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=frame-restoration rows=44 canonicalBytes=59711 expandedBytes=66315 originalByteCap=4194304; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=cleanup-result rows=0 canonicalBytes=0 expandedBytes=0 originalByteCap=1048576; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:176: SCRIPTED complete source raw-ledger model: userUTF8Bytes=63 controls=589 steps=6348 rows=12908 records=23342 canonicalBytes=15017228 expandedBytesWithRecordFraming=16040575; modelVersion=2 exact reconstructed parameters; optional duplicate arrays absent; no full-result metadata or native observations\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:178: SCRIPTED encoded-fit NOT demonstrated: typed unchanged row/byte cap refused; no compression ratio or native acceptance inferred. completedPhases=3\n"
+      ],
+      "stage": "caller-control63"
+    },
+    {
+      "result": {
+        "argv": [
+          "/tmp/zasp-cloud-tools/go/bin/go",
+          "tool",
+          "test2json",
+          "-p",
+          "github.com/zasp-ai/zasp-sec/services/platform/apiserver",
+          "-t",
+          "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test",
+          "-test.v",
+          "-test.count=1",
+          "-test.timeout=90s",
+          "-test.run=^TestNative379PhaseCodecSourceCallerUTF8_63$"
+        ],
+        "cleanup": {
+          "errors": [],
+          "forced": false,
+          "joined": true,
+          "pid": 290009,
+          "survivors": []
+        },
+        "elapsed_seconds": 40.32315850500163,
+        "free_after_stage": 1844678656,
+        "log_sha256": "9d1a383c944738b4ad7d331909b0b8df7a8bcfd2790de05b9f8c61e3abccb2ad",
+        "name": "caller-utf8-63",
+        "overlay_sha256": "fc41fb8873cbdae6b2e7584da64bc3311ab43de3b84bf0f25bdb85704887e2fe",
+        "refusal": null,
+        "returncode": 0,
+        "run_tests": [
+          "TestNative379PhaseCodecSourceCallerUTF8_63"
+        ],
+        "skips": [],
+        "subtests_fail": [],
+        "survivors": [],
+        "top_level_fail": [],
+        "top_level_pass": [
+          "TestNative379PhaseCodecSourceCallerUTF8_63"
+        ]
+      },
+      "scriptedOutputs": [
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=preflight rows=0 canonicalBytes=0 expandedBytes=0 originalByteCap=1048576; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=pristine-truth rows=10058 canonicalBytes=10068661 expandedBytes=10238629 originalByteCap=33554432; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=drift rows=606 canonicalBytes=1001640 expandedBytes=1171928 originalByteCap=33554432; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=forged-entry rows=1923 canonicalBytes=3162136 expandedBytes=3734957 originalByteCap=4194304; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=null-error-lazy-demand rows=277 canonicalBytes=538285 expandedBytes=641951 originalByteCap=8388608; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=frame-restoration rows=44 canonicalBytes=54041 expandedBytes=60645 originalByteCap=4194304; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:174: SCRIPTED phase=cleanup-result rows=0 canonicalBytes=0 expandedBytes=0 originalByteCap=1048576; encoded overhead not yet included\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:176: SCRIPTED complete source raw-ledger model: userUTF8Bytes=63 controls=589 steps=6348 rows=12908 records=23342 canonicalBytes=14824763 expandedBytesWithRecordFraming=15848110; modelVersion=2 exact reconstructed parameters; optional duplicate arrays absent; no full-result metadata or native observations\n",
+        "    authorization_worker_ordered_current_native379_phase_codec_cases_test.go:184: SCRIPTED RAW-LEDGER ONLY encodedBytes=2184577 chargedBytes=18032687; not full result/adapter/native acceptance\n"
+      ],
+      "stage": "caller-utf8-63"
+    }
+  ],
+  "completed": true,
+  "elapsedSeconds": 221.50065422899934,
+  "fullAdapterAccepted": false,
+  "fullResultFit": false,
+  "nativeAccepted": false,
+  "oldFailures": "model2 record-comparisonFAIL and model3 fullstage deadlineFAIL remain historical; previous monolithic2partial checkpoints do not substitute this closed run",
+  "parentWait": "ROOT reported session62122 joined0; no separate automatic kernel receipt supplied",
+  "resultSHA256": "195f6d5badd7d8fe965672217aedd92a5d4f161c972856bdf91d8dc4b1a27e68",
+  "status": "ACTUAL_FOUR_CALLER_SOURCE_MODEL_CLOSED_3_RAW_LEDGER_FIT_1_NOFIT"
+}

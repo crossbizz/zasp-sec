@@ -1,0 +1,39 @@
+{
+  "name": "caller-utf8-63",
+  "argv": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "tool",
+    "test2json",
+    "-p",
+    "github.com/zasp-ai/zasp-sec/services/platform/apiserver",
+    "-t",
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test",
+    "-test.v",
+    "-test.count=1",
+    "-test.timeout=90s",
+    "-test.run=^TestNative379PhaseCodecSourceCallerUTF8_63$"
+  ],
+  "returncode": 0,
+  "elapsed_seconds": 40.32315850500163,
+  "refusal": null,
+  "free_after_stage": 1844678656,
+  "log_sha256": "9d1a383c944738b4ad7d331909b0b8df7a8bcfd2790de05b9f8c61e3abccb2ad",
+  "overlay_sha256": "fc41fb8873cbdae6b2e7584da64bc3311ab43de3b84bf0f25bdb85704887e2fe",
+  "top_level_pass": [
+    "TestNative379PhaseCodecSourceCallerUTF8_63"
+  ],
+  "top_level_fail": [],
+  "subtests_fail": [],
+  "run_tests": [
+    "TestNative379PhaseCodecSourceCallerUTF8_63"
+  ],
+  "skips": [],
+  "survivors": [],
+  "cleanup": {
+    "pid": 290009,
+    "forced": false,
+    "joined": true,
+    "errors": [],
+    "survivors": []
+  }
+}

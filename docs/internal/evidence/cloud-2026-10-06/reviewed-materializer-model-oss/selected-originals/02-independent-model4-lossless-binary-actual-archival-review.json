@@ -1,0 +1,76 @@
+{
+  "status": "ACTUAL-LOSSLESS-ARCHIVAL-RECONCILIATION-PASS",
+  "proofs": {
+    "/tmp/zasp-cloud-evidence/model4-lossless-binary-archive-plan-v4-mutiwb6a/manifest.json": {
+      "sha256": "266b7d48543f1a8f588103503bc3334d270fc4d5630d2e25b49c53c9b34cbf91",
+      "bytes": 509,
+      "mode": "0o600"
+    },
+    "/tmp/zasp-cloud-evidence/model4-lossless-binary-archive-plan-v4-mutiwb6a/plan.json": {
+      "sha256": "1ad103bc86e92323f05e73ecc2cc41e371ff06bf8d0831bbdd50e187f17cf63f",
+      "bytes": 3845,
+      "mode": "0o600"
+    },
+    "/tmp/zasp-cloud-evidence/model4-lossless-binary-archive-plan-v4-mutiwb6a/archive.py": {
+      "sha256": "6a026a7edaae045913a32798b7ff84da8839c332b78ed7c305a10bdb4a5bc487",
+      "bytes": 5441,
+      "mode": "0o600"
+    },
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test.lossless-v1.gz": {
+      "sha256": "d18c6ee31c9b4612b3684c53e73b1fbceeb390459274ae6c98b4522bd50b2982",
+      "bytes": 58437354,
+      "mode": "0o400"
+    },
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test.lossless-v1.prepared.json": {
+      "sha256": "ef99eff3b483bac546af25e6bdf565c4cba5186a5e475c02c4415a948c194b0c",
+      "bytes": 777,
+      "mode": "0o400"
+    },
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test.lossless-v1.unlink-intent.json": {
+      "sha256": "49209b1b5b99a230556ae24d2962283fedcc6660680436dedc9bec3c4d45be76",
+      "bytes": 760,
+      "mode": "0o400"
+    },
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/component.test.lossless-v1.custody.json": {
+      "sha256": "13689235d1534ea8adcf34475f0d97a0e27c54b199a3f9f98a59286bb6ecfd94",
+      "bytes": 1131,
+      "mode": "0o400"
+    },
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/result.json": {
+      "sha256": "195f6d5badd7d8fe965672217aedd92a5d4f161c972856bdf91d8dc4b1a27e68",
+      "bytes": 243696,
+      "mode": "0o600"
+    },
+    "/workspace/.zasp-cloud-owned/native379-phase-codec-four-caller-recipe-6bIKq21E/actual-phase-codec-source-tests-e4b07ec5ff2d49fc835fb650eebadb8f/compiled-component.json": {
+      "sha256": "2e25a4ccf0c4f38720441f3bcbefc895b8a0c22932278df7c9b45b8ff3bedf6b",
+      "bytes": 948,
+      "mode": "0o600"
+    }
+  },
+  "streamedRoundtrip": {
+    "decodedBytes": 153223894,
+    "decodedSHA256": "80b28abda3f0007cfbfcd6a3610431558c13bc5ebc181c82f182c2cebed7c438",
+    "gzipBytes": 58437354,
+    "gzipSHA256": "d18c6ee31c9b4612b3684c53e73b1fbceeb390459274ae6c98b4522bd50b2982"
+  },
+  "originalPathState": "ABSENT-AFTER-ARCHIVAL",
+  "protectedReceipts": "Exact original SHA and security metadata unchanged",
+  "rootObservation": {
+    "prepareSession": 55113,
+    "prepareJoinedExit": 0,
+    "finalizeSession": 91623,
+    "finalizeJoinedExit": 0,
+    "provenance": "ROOT supplied tool-observed joins, not invented independent kernel receipt"
+  },
+  "capacityObservation": {
+    "rootFreeBeforePrepare": 1819590656,
+    "rootCurrentFree": 1914372096,
+    "rootMeasuredNetDifference": 94781440,
+    "limit": "Point-in-time root observation; unrelated metadata can change, no exact causal physical savings claim"
+  },
+  "limits": [
+    "Reviewer streamed gzip64KiB to verify whole original size/SHA; no binary execution, compression, unlink or mutation.",
+    "Historical compiled inode receipt remains historical; current binary is compressed custody, original pathname absent.",
+    "Only named archival action reviewed; no application/native/full-adapter/readiness promotion or global-cache audit inferred."
+  ]
+}
