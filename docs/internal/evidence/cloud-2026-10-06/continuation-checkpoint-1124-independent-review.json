@@ -1,0 +1,33 @@
+{
+  "status": "PASS-NARROW-ADDITIVE-RECEIPT-SELECTED-SIX-RECORDS",
+  "draft": {
+    "path": "/tmp/zasp-cloud-evidence/root-next-batch-receipt-append-draft.md",
+    "sha256": "e7b7627b346f2f97dcc464e51e67f60e9f8a71a7246c39a4e2ae76a6212a6806",
+    "bytes": 7868
+  },
+  "publicationManifestSHA256": "67a069ddc3e519121ab187861f4cc96191900fc9b388a7f62bfbcbe4d7ba28c0",
+  "checks": {
+    "sixGzipOriginalByteRoundTrips": true,
+    "exactOuterMembership": true,
+    "gzipMtimeZero": true,
+    "decodedStagingMatchesOriginals": true,
+    "existingB3ReceiptStillByteExact": true,
+    "existingReceiptBytes": 70229,
+    "existingReceiptSHA256": "29bdc4fe8594552e506b9dc7f9f95c9c0c59bc7ff54fa4f2152379670e4f2578",
+    "hostedJobs112173366095And112173387702ActualB3BrowserFailure": true,
+    "cacheActualSummaryAndIndependentReviewMetricsMatch": true,
+    "priorRouteCompactFocusedReviewsMatch": true,
+    "standard6526FailureCountsStorageAndScopeMatchIndependentActualReview": true,
+    "wireNode20AndCountsMatchIndependentFinal81Review": true,
+    "sourceDiagnosisExplicitlyCandidateNotProvenCause": true,
+    "scanReportsEmptyAndLogsNoLeaks": true
+  },
+  "limits": [
+    "Additive draft only; ROOT must preserve the exact70229-byte original prefix during adoption.",
+    "Six selected summaries/reviews are not a complete replay closure; raw logs, process receipts, source/module maps are omitted private hash references.",
+    "Recorded scan reports/logs substantiate narrow decoded and encoded no-findings observations; no independent scanner execution or full-history claim.",
+    "Parent tool session joins/fetch/UI/presence observations remain parent observations, not newly fabricated kernel receipts.",
+    "No private source candidate adoption, source/category/728 promotion, codec/runtime/native/provider/current fullnpm or browser acceptance.",
+    "Actual local browser failure retained; its underlying cause remains unproven."
+  ]
+}
