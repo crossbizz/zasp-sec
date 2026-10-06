@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "dir",
+    "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/evidence",
+    "--no-banner",
+    "--redact=100",
+    "--report-format=json",
+    "--gitleaks-ignore-path=/workspace/zasp-sec/.gitleaksignore",
+    "--report-path=/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/publication-scan-redacted.json"
+  ],
+  "cwd": "/workspace/zasp-sec",
+  "exitCode": 0,
+  "findings": 0,
+  "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "logSHA256": "dad913958b5e3c886899aae442516be28f1db31985fa1f55f36fc8e9c4f1135f",
+  "scope": "Actualplain publication metadata directory; separate actualuncompressed14input scan0 already archived. No wholehistory or decodedarchive/nativeclearance."
+}

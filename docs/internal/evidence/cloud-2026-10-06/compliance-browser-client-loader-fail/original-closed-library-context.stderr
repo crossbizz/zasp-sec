@@ -1,0 +1,1 @@
+/tmp/zasp-cloud-tools/postgres-18.3/usr/lib/postgresql/18/bin/psql: symbol lookup error: /tmp/zasp-cloud-tools/postgres-18.3/usr/lib/postgresql/18/bin/psql: undefined symbol: PQfullProtocolVersion

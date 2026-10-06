@@ -1,0 +1,125 @@
+{
+  "encoding": "gzip, mtime=0, no filename header",
+  "members": {
+    "archive/before.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/before.json",
+      "originalBytes": 1023,
+      "originalSHA256": "0c3ac2d12811bbf8c0ab122135b289eea88172f949550a56cc36e4efc1213692",
+      "compressedSHA256": "abe44f778355672cc020388ad692b9603baeecc853f2f3f46ef20b3196d6b6c4",
+      "roundTripVerified": true
+    },
+    "archive/capture-summary.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/capture-summary.json",
+      "originalBytes": 752,
+      "originalSHA256": "4ceda8011b2767391df1cafb21f9e5c1cd36957d8fd3b1b8a390cb9da19d00e3",
+      "compressedSHA256": "d83b9c2c4853f32239b39d01b47c7cb01c436e5a4fabecfe07dca1d084205db9",
+      "roundTripVerified": true
+    },
+    "archive/dependency-postfull-closure.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/dependency-postfull-closure.json",
+      "originalBytes": 1625,
+      "originalSHA256": "edeba3cdfd5af03313234e07dda2c23c6755b6a11f6fb1ddcbf28ceea1f07576",
+      "compressedSHA256": "7c01e22ab2508d36332a3d225354f2cf2f8d967a7e409cee8f9c2119babcabbe",
+      "roundTripVerified": true
+    },
+    "archive/joined-full-summary.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/joined-full-summary.json",
+      "originalBytes": 2907,
+      "originalSHA256": "b331cc96d8deb07d9d4044a8e83078772ebb3767d0d65e8441d4214965cd7e43",
+      "compressedSHA256": "f50b1490857a094091a5274e4e4df1a91a1b0668a90b8e5d189b42287ef08862",
+      "roundTripVerified": true
+    },
+    "archive/post-capture-tool-identities.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/post-capture-tool-identities.json",
+      "originalBytes": 1569,
+      "originalSHA256": "2232920308ed09bffac40a50d98589071054819964cfaeb4e9478823fc65a650",
+      "compressedSHA256": "e5a6448d2457c133cbbd22c529fc4fd122089980907339f996996d7d2d134d48",
+      "roundTripVerified": true
+    },
+    "archive/post-command-closure-record.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/post-command-closure-record.json",
+      "originalBytes": 1192,
+      "originalSHA256": "b447d730470dfd7d44787898d193f3b16b4ff182993db337631865c6f154ed19",
+      "compressedSHA256": "e63bb553bb6e592db9c7c3562973476819c8a92aa3d7592eeb07abc5e4adbdb4",
+      "roundTripVerified": true
+    },
+    "archive/post-full-actual-build-manifest.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/post-full-actual-build-manifest.json",
+      "originalBytes": 538668,
+      "originalSHA256": "27de1aef879ac802f9459169dcc03b8df96433abf1db8e053218f28e4c1bb764",
+      "compressedSHA256": "c703af4502d51befd580e60f04477d3bde4cea4142602cf41cc4f05c327c005a",
+      "roundTripVerified": true
+    },
+    "archive/post-full-source-6674-manifest.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/post-full-source-6674-manifest.json",
+      "originalBytes": 1758542,
+      "originalSHA256": "359d7008f324567b4b5e05e3df9c1bf90484eaff947fd39ec4a97f1855513ad4",
+      "compressedSHA256": "4f9f2573cc26239f37ce84fd24d65512ba44070b7158ba99b33b720946d0816e",
+      "roundTripVerified": true
+    },
+    "archive/process-binding.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/process-binding.json",
+      "originalBytes": 365,
+      "originalSHA256": "fee5c2899b01b2b8b68cef6f1b194d15dbda5ae62d3740fcd1fbb626b1fae900",
+      "compressedSHA256": "750dd53e9653f90c0533bf31adc757bd3bc43997141b0a3440a98090d383b9cb",
+      "roundTripVerified": true
+    },
+    "archive/result.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/result.json",
+      "originalBytes": 463,
+      "originalSHA256": "fa1dee88d005d416736aa0bc858ba56a07b7b9f1aace09cb009cf8ec39de21ad",
+      "compressedSHA256": "25fbbc7ffd0c75589881256f2fc851db8df17b8e881105bb0231e9be3431d78b",
+      "roundTripVerified": true
+    },
+    "archive/run-root-full-verify-0b-receipt.py.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/run-root-full-verify-0b-receipt.py",
+      "originalBytes": 3887,
+      "originalSHA256": "abfe89395a79e0d254f90020bbac93a554c02b54f32e99b65f0add96a9ef0eea",
+      "compressedSHA256": "d2e870ecfc7a964644d29e007ba0ccf68732699c39329c008c27d1c5856c1742",
+      "roundTripVerified": true
+    },
+    "archive/source-tool-bindings.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/source-tool-bindings.json",
+      "originalBytes": 2157,
+      "originalSHA256": "93200d6eea56be5c6c97f05f7d0cc1d47e0d3df4bd606e3c5954b8f52c3e5cfe",
+      "compressedSHA256": "d0e232be0fbc42281fced3eb24da01b88d452df3ab79889ef172858c11303845",
+      "roundTripVerified": true
+    },
+    "archive/topology-repair-receipt.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/topology-repair-receipt.json",
+      "originalBytes": 1762,
+      "originalSHA256": "f228342f6ffac19b3abc071699afcbd9fc3697d4152784751900a227c0d82d20",
+      "compressedSHA256": "e957fdbcc7b2f2ef21e71f76784830d2c66f8eed685101ec8fe34ac8e646d3aa",
+      "roundTripVerified": true
+    },
+    "archive/verify.log.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-inputs/verify.log",
+      "originalBytes": 95416,
+      "originalSHA256": "756e85fc9d3fecff1cb81c7d7d1e9c2e8a3262c0ba15cc0e8184cbdc3c048ac7",
+      "compressedSHA256": "89ea5e2e82cd7a047652cad462bea82d9daebd2a52ab0a26b1910715b0a8836b",
+      "roundTripVerified": true
+    },
+    "archive/original-scan-redacted.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-redacted.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "compressedSHA256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "roundTripVerified": true
+    },
+    "archive/original-scan.log.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan.log",
+      "originalBytes": 79,
+      "originalSHA256": "5a96e671c6e9085f2c63ec1be3e6860209ba8e1938d9da6451dd5b4ae021c716",
+      "compressedSHA256": "c785826a08095613356898f1d91b27fbbd29faba0c7f178349f17f94d107a44e",
+      "roundTripVerified": true
+    },
+    "archive/original-scan-record.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/full-verify-0b-joined-publication-x_h6s291/original-scan-record.json",
+      "originalBytes": 890,
+      "originalSHA256": "4a0ab3394376a7160768c48793de0a8f49bdc176706fe61a18df099fc9512055",
+      "compressedSHA256": "5d3ac5dbed88eed7bb5a5c9325f29fdb249df7889e137b91d7d479817ef5bd6d",
+      "roundTripVerified": true
+    }
+  },
+  "boundary": "Beforeencoding scan actualPASS0 for these14inputs. Encoding is not security/currenthistory or decodedfullpacketclearance."
+}

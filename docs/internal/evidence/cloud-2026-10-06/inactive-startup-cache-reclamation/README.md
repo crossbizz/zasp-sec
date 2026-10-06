@@ -1,0 +1,1 @@
+Only the confirmed inactive owned compiler cache was reclaimed. The receipt and complete SHA inventory are retained as exact gzip roundtrips. No source, module, tool, binary or evidence tree was removed. All 27 original startup evidence members were reverified; their original manifest is unchanged. This storage operation is not product verification or a ledger promotion.

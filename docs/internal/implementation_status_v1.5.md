@@ -15752,3 +15752,24 @@ original2912 and startup evidence remain distinct. Fresh committed full guards,
 regenerated frozen envelopes and reviewed root native execution remain required.
 No 728 ledger/category or deployed/retirement acceptance promotion. Original
 205/224 native and302/478/510 full failures remain unchanged.
+
+
+Exact0b full verification FAILED755s at the actual SBOM release guard after
+UI2535 PASS. Independently reviewed source-identical physical dependency copy
+passes the unchanged SBOM command and focused release source closure174.752s;
+no source/package/lock/guard changes. Fresh frozen5788Go/74archives+1554Node
+inputs and1545-source roster independently verified. Actual root native0b
+FAILED152.884s, no accepted artifact/zero controls/normal joined PG cleanup;
+separate replay refused PostgreSQL provenance after seven true checks. Original
+expanded scans FAIL1492/FAIL5 remain retained alongside separate scoped results.
+Exact0b commit and full-history scans PASS0, no future/security/deployed waiver.
+Hosted current compliance browser acceptance fails; actual cause unknown and
+unchanged local reproduction pending. Strict PG version equality remains;
+separate Linux-reference work requires an actual witnessed identity. All728
+rows/523historical/144component/61external and original acceptance scope remain.
+
+Root-owned unchanged full0b npm verify PASS822.023s, actualexit0/mainwaitjoined,
+sourcebeforeafter0b/trackedclean/noTimeout/nosurvivors. Reviewed physicaldependency
+copy; noguard/source/lock/package relaxations. All earlier failures and unjoined
+attempt remain distinct. FullcommandPASS doesnot clear native0bFAIL, hosted
+compliancebrowserFAIL, advisoryrelease or real deployedStytch/provider acceptance.

@@ -1,0 +1,34 @@
+{
+  "encoding": "gzip, mtime=0",
+  "members": {
+    "full-history-0b788520-record.json.gz": {
+      "originalSource": "/tmp/zasp-cloud-evidence/full-history-0b788520-record.json",
+      "originalBytes": 593,
+      "originalSHA256": "3644b79f62d12e4f90a08755fb724be202f75b205debc69cc1971fe7ffc8d780",
+      "compressedSHA256": "2552c4f1957f9a1dfc3a3cd31a96dedec1ca796f2e7f6a441c2e92f4562c57ed",
+      "roundTripVerified": true
+    },
+    "full-history-0b788520-report.json.gz": {
+      "originalSource": "/tmp/zasp-cloud-evidence/full-history-0b788520-report.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "compressedSHA256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "roundTripVerified": true
+    },
+    "full-history-0b788520.log.gz": {
+      "originalSource": "/tmp/zasp-cloud-evidence/full-history-0b788520.log",
+      "originalBytes": 183,
+      "originalSHA256": "4df0d4c580743d2e0d69fea041399090fee9b17b50a027a4243a748f7c84797b",
+      "compressedSHA256": "80a7f9fdbf0f731219f0ef95ccc8e71b0cc0da274a860f6f091d1e640763cdb5",
+      "roundTripVerified": true
+    },
+    "independent-provider-0b788-publication-closures-review.json.gz": {
+      "originalSource": "/tmp/zasp-cloud-evidence/security-triage/independent-provider-0b788-publication-closures-review.json",
+      "originalBytes": 1673,
+      "originalSHA256": "e62750ddde2a408dc5185f96d9b24814d298ecf2941af054f18197a779f1dfa4",
+      "compressedSHA256": "1b283e4c9507b0771b651bf8ee70e0aaa8900ac8339c6a7923ba60a54508dc40",
+      "roundTripVerified": true
+    }
+  },
+  "boundary": "Exact original root record/report/log bytes. Not a borrowed scoped-scan review."
+}

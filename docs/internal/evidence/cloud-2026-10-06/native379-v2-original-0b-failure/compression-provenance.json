@@ -1,0 +1,182 @@
+{
+  "encoding": "gzip, mtime=0, no filename header",
+  "members": {
+    "archive/actual-native379-record.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/actual-native379-record.json",
+      "originalBytes": 567,
+      "originalSHA256": "b67d3f3e22db22c9b7480e87ec5c60231a06e06a2c0f0a63f44da6f0fc944f70",
+      "compressedBytes": 368,
+      "compressedSHA256": "0649a94ad7d840dbfeff0426fed3a52dc7116bde8e5ed96dbf205bc8b93ebd66",
+      "roundTripVerified": true
+    },
+    "archive/actual-native379.log.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/actual-native379.log",
+      "originalBytes": 35140,
+      "originalSHA256": "76c46f9da749c56c1945d285b1a9e130bdf1171be0977ac90733097d23b4477a",
+      "compressedBytes": 4123,
+      "compressedSHA256": "8707fc00cdf3d4566d7f0b697f6f248f1a094080586ac2c84f020ace3671fa3f",
+      "roundTripVerified": true
+    },
+    "archive/closed-environment.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/closed-environment.json",
+      "originalBytes": 1389,
+      "originalSHA256": "1fdced92f986f9692387c9d3a85de3842539eafe9a6c1f33ef450bd633d89542",
+      "compressedBytes": 534,
+      "compressedSHA256": "be360f1af29fe73b38cf8f8c97d1b26a1c0db1d47d519ab1dee01fe413e71991",
+      "roundTripVerified": true
+    },
+    "archive/failure-safe-summary.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/failure-safe-summary.json",
+      "originalBytes": 20128,
+      "originalSHA256": "ad32979db72ad9eb4e37fd10fcbeca708253b087aee05aaa9d6e10bd5a30543d",
+      "compressedBytes": 2808,
+      "compressedSHA256": "87f117ae7162258e935d372708bfab666dd61479e3e8ee0fb9f6b87cfdb0a710",
+      "roundTripVerified": true
+    },
+    "archive/frozen-source-timing-prefix-2604-2630.go.txt.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/frozen-source-timing-prefix-2604-2630.go.txt",
+      "originalBytes": 1365,
+      "originalSHA256": "524d636ffc2c48459c607bdee6ec6e353faa14f990d7884f9b95127036ecacdd",
+      "compressedBytes": 664,
+      "compressedSHA256": "e358bdeaf13169640bb2a79002a79796c9e405a04afb146e79918f76560e31cc",
+      "roundTripVerified": true
+    },
+    "archive/independent-provider-fresh0b-PG-static-review.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/independent-provider-fresh0b-PG-static-review.json",
+      "originalBytes": 3040,
+      "originalSHA256": "b179d099aad696a11ae8dd4552976cdbfd6e70f05978c4fcc2ef804683b181e6",
+      "compressedBytes": 1682,
+      "compressedSHA256": "072d34e0b839de36f9f68c6819939cca8dc64acc6a2c3fe7bca86cff4a9e8cf5",
+      "roundTripVerified": true
+    },
+    "archive/independent-root-native379-v2-0b-launcher-static-review-b08c.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/independent-root-native379-v2-0b-launcher-static-review-b08c.json",
+      "originalBytes": 3169,
+      "originalSHA256": "564b0036ac2b9acdd0c5461277e5c5e97ad6a26aa91381ee9707d2325694f753",
+      "compressedBytes": 1744,
+      "compressedSHA256": "e5580081fce5ca7a08d70dc34fd5c2970335cc20a29ec42003d6506fa004a4bd",
+      "roundTripVerified": true
+    },
+    "archive/independent-root-native379-v2-0b-launcher-static-review-d432.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/independent-root-native379-v2-0b-launcher-static-review-d432.json",
+      "originalBytes": 3834,
+      "originalSHA256": "bc4d56224a99a0685c657ea88c25f941dc2923ff946f8201361fcb590098323a",
+      "compressedBytes": 1924,
+      "compressedSHA256": "067774f320784563ff468ae3b1bbd9da5a2aa11bb1ee10475564908c917458b6",
+      "roundTripVerified": true
+    },
+    "archive/native379-v2-independent-actual-combined-frozen-envelope-review.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/native379-v2-independent-actual-combined-frozen-envelope-review.json",
+      "originalBytes": 5669,
+      "originalSHA256": "708d97d53de3cfa7f701707a547ce1cc5c9a20612b31ae0df9b0c0763ee985cf",
+      "compressedBytes": 2926,
+      "compressedSHA256": "cf34c36d8a427173b92028e393f44fa40283292a9120f51715630867afd5eaf8",
+      "roundTripVerified": true
+    },
+    "archive/parsed-safe-diagnostic.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/parsed-safe-diagnostic.json",
+      "originalBytes": 38947,
+      "originalSHA256": "8a7b6d4c2119a2df1f5f9a3ea307ce7fd507baa8a858c36b68101f3bade26288",
+      "compressedBytes": 3333,
+      "compressedSHA256": "40d5f96f930ae489548a1df3aed335509b7877051815766306d48f68d839736e",
+      "roundTripVerified": true
+    },
+    "archive/preparation-environment.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/preparation-environment.json",
+      "originalBytes": 833,
+      "originalSHA256": "b013382afacad0914009d1d6d6deadb1227b3cb4b8de555f226f24781345aad3",
+      "compressedBytes": 336,
+      "compressedSHA256": "40a35b0f5a9be6abad63fcbb6daac9c67078b75c01793fce57e0c50c3ab631b3",
+      "roundTripVerified": true
+    },
+    "archive/root-launch-authorization-supplement.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/root-launch-authorization-supplement.json",
+      "originalBytes": 728,
+      "originalSHA256": "ab077419bb3870fcb45a48c04a4172cf8b9daddac21431d2c009499c94f12069",
+      "compressedBytes": 451,
+      "compressedSHA256": "98da416917cd49cfd2a6f9d30256e12dfe61c2b5af42c9f26047c2c64c70d18c",
+      "roundTripVerified": true
+    },
+    "archive/root-launch-binding.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/root-launch-binding.json",
+      "originalBytes": 646,
+      "originalSHA256": "f67df14ef0a12e3eca0ffdcfe8fc2a7b0fd58969241015c5d4966c11df29b70f",
+      "compressedBytes": 433,
+      "compressedSHA256": "583fbcac5a83198e38fe11822fbb72ee96f0ef340f9b677a376e32b295bd766a",
+      "roundTripVerified": true
+    },
+    "archive/root-native379-v2-0b-launcher-env-guard-red-green.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/root-native379-v2-0b-launcher-env-guard-red-green.json",
+      "originalBytes": 1365,
+      "originalSHA256": "fed8901f73ce2203651f419ff283f0aabb27b45478c4753e3c2320b77585ff2e",
+      "compressedBytes": 635,
+      "compressedSHA256": "67d89673f2b8d0910f4aeedeac36943781176369f9be35760e62b112a77550c8",
+      "roundTripVerified": true
+    },
+    "archive/run-root-native379-v2-0b-combined-v2.py.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/run-root-native379-v2-0b-combined-v2.py",
+      "originalBytes": 3769,
+      "originalSHA256": "d432cedb37f6a8ef5f780244c4386e59122071ec66a6cd684e9de680545b135b",
+      "compressedBytes": 1792,
+      "compressedSHA256": "e7ac6c4a2cf0f2f2defaa25e5d5cfc3181c1d3081f795fe2eb00299f2ef15366",
+      "roundTripVerified": true
+    },
+    "archive/run-root-native379-v2-0b-combined.py.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-inputs/run-root-native379-v2-0b-combined.py",
+      "originalBytes": 3669,
+      "originalSHA256": "b08c0eb208881acee1f7bf21f8595543d688236d6778050049e5ebad23eb0063",
+      "compressedBytes": 1745,
+      "compressedSHA256": "22fa61c0d9f267f094ad71b769c77a4158ac5797eace84193a6c82321d7852fd",
+      "roundTripVerified": true
+    },
+    "archive/preparation-input-bindings.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/preparation-input-bindings.json",
+      "originalBytes": 4936,
+      "originalSHA256": "1cd72ec2ff966d75d85ca3a40b6c8611aebfe66e1fbc5a09bedc63330e6847ec",
+      "compressedBytes": 1455,
+      "compressedSHA256": "ae126b42aba5192708b486d8e82ad5a5eca566299dfa5f0d897742601a85bf30",
+      "roundTripVerified": true
+    },
+    "archive/original-scan-redacted.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-redacted.json",
+      "originalBytes": 4059,
+      "originalSHA256": "5b98bbc390c67511378ebf9744352aa559fbac14f32e97dc6bdd846c8ac59690",
+      "compressedBytes": 578,
+      "compressedSHA256": "39ccbcaaab7e764967395f8272eeedb30e7b179f3897a2dbaf8cbe649da6cc7a",
+      "roundTripVerified": true
+    },
+    "archive/original-scan.log.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan.log",
+      "originalBytes": 81,
+      "originalSHA256": "36b8a638e6278436328e769cfa523c077031217238af0dd073748513f4370516",
+      "compressedBytes": 95,
+      "compressedSHA256": "f1ef7a019ebc3655373e6eab26b901de4d0621abd8abfd54ee8e0d7f2f8751cc",
+      "roundTripVerified": true
+    },
+    "archive/original-scan-record.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/original-scan-record.json",
+      "originalBytes": 1135,
+      "originalSHA256": "30258744dc962a3168cdfdb673e27e7319af9c4b60cc0eac91458ffaf888048f",
+      "compressedBytes": 639,
+      "compressedSHA256": "b444cac358c123ace1bac7cb164afe3b6e8f7582ee64a1bc124a8d467efc6b80",
+      "roundTripVerified": true
+    },
+    "archive/public-hash-classification.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/public-hash-classification.json",
+      "originalBytes": 5330,
+      "originalSHA256": "37982fb9e1967904e6381d440ed240dfc4bfd3d5c9841e4bd567620a95ed1cbc",
+      "compressedBytes": 1120,
+      "compressedSHA256": "38b738f3806ef90c01e21507246f0e0dc8a669f6a9371e1cb71c26f53af6ee29",
+      "roundTripVerified": true
+    },
+    "archive/scan-baseline.gitleaksignore.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-original-0b-failure-publication-7mcfizks/scan-baseline.gitleaksignore",
+      "originalBytes": 84236,
+      "originalSHA256": "0ea55c26ab249af09129f0ee3d060373c9acdd079ba6d6cd363af0902f4d99d8",
+      "compressedBytes": 7598,
+      "compressedSHA256": "aa9deff1496139b334459053ff7b41dcceb4a95eea8a85d95fa1c76a1fda561d",
+      "roundTripVerified": true
+    }
+  },
+  "boundary": "Exact original source/attempt/recipe/review metadata bytes preserve FAIL5 before encoding. Compression is data encoding, not scanner or native clearance."
+}

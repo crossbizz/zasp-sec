@@ -742,3 +742,138 @@ bounded native execution remain required. Existing205/224s native failures and
 302/478/510s full verification failures are unchanged. No ledger promotion:
 728 original rows, 523 historical production-available, 144 component-only,
 61 external blockers. Real deployed Stytch/provider acceptance is still missing.
+
+
+## Exact 0b verification and native evidence
+
+At committed source `0b788520159170a825a925a3f639b0b1d63169f5`, the
+fresh ledger retains 728 unique original rows and 728 owners: 523 historical
+production-available, 144 component-only and 61 externally blocked. These
+categories do not establish fresh deployed acceptance. Latest fetched main
+`d21f036eab610f28177267ca8f12fa86981e5ac3` is included in this branch;
+original starting main was `e13ccb95451b03107681ccb59b3fc6fe175a228f`.
+
+The original detached full verification failed after 755 seconds. UI passed
+2535 tests; the release phase failed its actual npm SBOM command with 207
+missing-requirement errors. Build and subsequent phases were unreached. The
+independently reviewed original packet is preserved in
+`evidence/cloud-2026-10-06/full-verify-0b788-symlink-fail/`.
+
+A source-identical private candidate with a physical dependency directory
+reproduced the distinction: the shared symlink failed the unchanged SBOM command,
+while the real directory passed. The complete 102084-file dependency copy and
+its modes, symlinks and bytes were independently verified. The unchanged release
+source-closure test passed in 174.751809 seconds. No package installation,
+lockfile edit, source edit or guard relaxation was used. The reviewed bounded
+publication is in `evidence/cloud-2026-10-06/sbom-physical-dependency-topology/`.
+That focused result alone is not a full verification pass.
+
+The fresh immutable build has 5788 actual Go inputs across 74 archives and 1554
+Node inputs; the consumed source roster has 1545 members. Eight generated
+artifacts, six derived deltas, source maps, tool/module closure and the PostgreSQL
+4-wrapper/52-runtime-member envelope were independently checked. Original
+source-only proofs and the explicit artifact omissions are retained in
+`evidence/cloud-2026-10-06/native379-v2-frozen-build-0b788/`. Its expanded metadata
+scan failed with 1492 public-hash observations. Their verified source identities
+are scoped classifications, not a zero-finding scan or security waiver.
+
+The root-owned actual native attempt FAILED in 152.883676 seconds, with no
+accepted artifact and zero controls. PostgreSQL stopped normally and its owned
+process was joined, with endpoints and survivors checked. The separate ordered
+read-only replay passed seven prefix checks, including normalized digests, then
+refused PostgreSQL provenance. This replay is not an original branch trace or a
+proof of the original refusal's cause. The independently reviewed 28-member
+packet is retained in
+`evidence/cloud-2026-10-06/native379-v2-original-0b-failure/`. Its original expanded
+scan FAIL5 is retained; the encoded publication's separate zero-finding scan
+does not clear the original scan or repository history.
+
+Actual exact-commit scoped and full-history scans at 0b both passed with zero
+findings; the latter took 94.550 seconds with unchanged ignore rules and source.
+Their independently reviewed original attachments are retained under
+`security-0b788-scoped-scan/` and `security-0b788-full-history/` in the same evidence
+root. They do not clear future commits, native acceptance or deployment gates.
+The inactive startup compiler cache was reclaimed only after process checks,
+complete SHA inventory and evidence rehashing; its receipt is retained in
+`inactive-startup-cache-reclamation/`. Source, binaries, toolchains and evidence
+were preserved.
+
+Hosted checks at 0b failed the actual “Verify current compliance browser
+acceptance” step. Available job metadata identifies the step; generic annotations
+do not disclose its cause. Exact unchanged local reproduction is prepared and
+must retain the original 15-minute deadline. Controlled identity/provider
+transports in that harness cannot establish real Stytch/provider deployment.
+
+All earlier native and full failures remain preserved. The exact PostgreSQL
+version equality remains enforced. A separately named Linux reference successor
+requires witnessed local build identity, source-derived artifacts and fresh
+verification; relabeling runtime metadata cannot satisfy it. Product deployment
+bindings, approved target authority and real deployed Stytch/provider acceptance
+remain unavailable. No task-category, milestone, retirement or all-728 completion
+claim is made.
+
+
+## Root-owned complete verification at 0b
+
+The new receipt-bound unchanged full `npm run verify` completed with actual
+exit 0 in 822.023 seconds at source
+`0b788520159170a825a925a3f639b0b1d63169f5`. Source before and after was identical
+and tracked status was clean. The main process was waited and joined; no timeout,
+unexpected survivors or adopted children remained. The original log hash is
+`756e85fc9d3fecff1cb81c7d7d1e9c2e8a3262c0ba15cc0e8184cbdc3c048ac7`.
+This passes the complete local command with the reviewed physical dependency
+copy and unchanged guards. It does not replace the earlier full failures, the
+unjoined physical attempt, the actual failed native run, hosted browser failure,
+approved-advisory release gates or real deployed acceptance. UI port 3050
+separately returned HTTP 200 during this run. Fresh browser reproduction and
+strict Linux-reference work remain the next local critical-path batches.
+
+
+## Witnessed local PostgreSQL build identity
+
+ROOT executed the independently reviewed closed-environment capture recipe and
+observed its tool session 19888 join with exit 0. The capture completed in
+1.02055 seconds on a fresh Unix-socket-only empty local database: PostgreSQL
+18.3 Debian build on x86_64 Linux, server version 180003, pgcrypto 1.4, owned
+pgcapture role and null TCP address/port. Normal pg_ctl stop and foreground
+wait exit 0 were recorded; all seven owned groups, endpoint and PID-file checks
+were clear. The 60 pinned PostgreSQL/client/library files were independently
+rehashed after capture. Actual identity hash is
+`f0a0c2453f34ca87c7f3b38a58462cc6476eef44f0d0d0c6c504bae8dbd794ac`.
+
+The witness establishes build identity only. It records no repeatable-read
+transaction frame, native catalog equivalence, native controls, provider target
+or deployed acceptance. Rejected supervisor versions, genuine child-process
+RED/GREEN checks and later durability repairs remain separate evidence. The
+Linux-only reference successor must derive its descriptor and complete artifact
+deltas from these observed bytes, preserve historical artifacts and enforce
+strict exact version equality. No runtime metadata relabel or guard waiver is
+accepted.
+
+
+## Actual compliance browser attempts at 0b
+
+The first exact local hosted-step reproduction FAILED in 4.327 seconds. Its
+prerequisite tests passed, then the connected command failed before acceptance:
+the raw pinned PostgreSQL 18.3 client resolved the incompatible system libpq
+and exited 127. The same raw-client version command genuinely failed in the
+original context and passed with its pinned library directory. Both commands
+were joined; source/build stayed unchanged, no process survivors remained, and
+an independent Docker-label inventory found no owned browser containers.
+Original evidence is retained in
+`evidence/cloud-2026-10-06/compliance-browser-client-loader-fail/`.
+
+The independently reviewed launcher-only loader correction binds the actual
+client and 60 PostgreSQL/library files. It preserves source/build checks,
+assertions and the aggregate 900-second deadline. Its fresh attempt FAILED in
+44.756 seconds when compilation crossed the required 1.5 GB disk reserve.
+The supervisor sent normal TERM; both commands joined (0 then 143), source was
+still clean and no process survivors remained. Free space recovered after
+cleanup. Container cleanup and the exact storage evidence remain under separate
+review. This is a resource refusal, not successful browser acceptance or a
+proven application defect. The reserve is not lowered to obtain a pass.
+
+The hosted failure cause remains unknown: fresh job-log access was forbidden.
+None of these controlled-provider attempts establishes real Stytch/provider or
+deployed acceptance. All failures and the earlier local full-command PASS retain
+their distinct scopes.

@@ -1,0 +1,48 @@
+{
+  "encoding": "gzip, mtime=0, no filename header",
+  "members": {
+    "baseline.gitleaksignore.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-0b788-postcommit-8q8fuxvr/baseline.gitleaksignore",
+      "originalBytes": 84236,
+      "originalSHA256": "0ea55c26ab249af09129f0ee3d060373c9acdd079ba6d6cd363af0902f4d99d8",
+      "compressedSHA256": "aa9deff1496139b334459053ff7b41dcceb4a95eea8a85d95fa1c76a1fda561d",
+      "roundTripVerified": true
+    },
+    "scan-redacted.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-0b788-postcommit-8q8fuxvr/scan-redacted.json",
+      "originalBytes": 3,
+      "originalSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "compressedSHA256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "roundTripVerified": true
+    },
+    "scan.log.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-0b788-postcommit-8q8fuxvr/scan.log",
+      "originalBytes": 110,
+      "originalSHA256": "27e795173e04a646c498ce61f354423bed6b5947543b5b2a13c08371934882f5",
+      "compressedSHA256": "04f7cc0405ea6bd7a3ccf744e212062271324502e21858c258dc157fa96ddaeb",
+      "roundTripVerified": true
+    },
+    "scan-record.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-0b788-postcommit-8q8fuxvr/scan-record.json",
+      "originalBytes": 920,
+      "originalSHA256": "3d5f8cd1b0f356da6cf34d8fc7d5f23fb81cc3f8a90fe739725038e4ad852bea",
+      "compressedSHA256": "cc1318078d5c91b5df46954d5bf0487251da3be6d75a7be054cdaddf08384b91",
+      "roundTripVerified": true
+    },
+    "scope-proof.json.gz": {
+      "originalSource": "/workspace/.zasp-cloud-owned/native379-v2-0b788-postcommit-8q8fuxvr/scope-proof.json",
+      "originalBytes": 42003,
+      "originalSHA256": "c3502012b56165bdb10d8ae1bee02cdb2c180519489ebdc8e108d48e558aa842",
+      "compressedSHA256": "67c51d5fcac870dab0afc7a3189bce8015c9439bc11ebb438a65da209a0e91e0",
+      "roundTripVerified": true
+    },
+    "independent-provider-0b788-scoped-review.json.gz": {
+      "originalSource": "/tmp/zasp-cloud-evidence/security-triage/independent-provider-0b788-scoped-review.json",
+      "originalBytes": 1479,
+      "originalSHA256": "bcef27f0afc2f444ad3fb455819e88b88645e6bc35af5da82aa191a5ea8e6458",
+      "compressedSHA256": "4ef248285b37a82c90f0e03d86655b99181626947a0d01ef17d025489e0bc5df",
+      "roundTripVerified": true
+    }
+  },
+  "boundary": "Exact actual scoped scan bytes preserved; compression is encoding and does not scan decoded payloads or confer whole-history clearance."
+}

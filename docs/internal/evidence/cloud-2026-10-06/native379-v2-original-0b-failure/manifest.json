@@ -1,0 +1,119 @@
+{
+  "schema": "bounded-original-root-0b-native-failure-publication-v1",
+  "members": {
+    "README.md": {
+      "bytes": 3422,
+      "sha256": "f758890b407902bab1c05ce0baebbfb70c1292100b6551ea585b7c884d2105e7"
+    },
+    "archive/actual-native379-record.json.gz": {
+      "bytes": 368,
+      "sha256": "0649a94ad7d840dbfeff0426fed3a52dc7116bde8e5ed96dbf205bc8b93ebd66"
+    },
+    "archive/actual-native379.log.gz": {
+      "bytes": 4123,
+      "sha256": "8707fc00cdf3d4566d7f0b697f6f248f1a094080586ac2c84f020ace3671fa3f"
+    },
+    "archive/closed-environment.json.gz": {
+      "bytes": 534,
+      "sha256": "be360f1af29fe73b38cf8f8c97d1b26a1c0db1d47d519ab1dee01fe413e71991"
+    },
+    "archive/failure-safe-summary.json.gz": {
+      "bytes": 2808,
+      "sha256": "87f117ae7162258e935d372708bfab666dd61479e3e8ee0fb9f6b87cfdb0a710"
+    },
+    "archive/frozen-source-timing-prefix-2604-2630.go.txt.gz": {
+      "bytes": 664,
+      "sha256": "e358bdeaf13169640bb2a79002a79796c9e405a04afb146e79918f76560e31cc"
+    },
+    "archive/independent-provider-fresh0b-PG-static-review.json.gz": {
+      "bytes": 1682,
+      "sha256": "072d34e0b839de36f9f68c6819939cca8dc64acc6a2c3fe7bca86cff4a9e8cf5"
+    },
+    "archive/independent-root-native379-v2-0b-launcher-static-review-b08c.json.gz": {
+      "bytes": 1744,
+      "sha256": "e5580081fce5ca7a08d70dc34fd5c2970335cc20a29ec42003d6506fa004a4bd"
+    },
+    "archive/independent-root-native379-v2-0b-launcher-static-review-d432.json.gz": {
+      "bytes": 1924,
+      "sha256": "067774f320784563ff468ae3b1bbd9da5a2aa11bb1ee10475564908c917458b6"
+    },
+    "archive/native379-v2-independent-actual-combined-frozen-envelope-review.json.gz": {
+      "bytes": 2926,
+      "sha256": "cf34c36d8a427173b92028e393f44fa40283292a9120f51715630867afd5eaf8"
+    },
+    "archive/original-scan-record.json.gz": {
+      "bytes": 639,
+      "sha256": "b444cac358c123ace1bac7cb164afe3b6e8f7582ee64a1bc124a8d467efc6b80"
+    },
+    "archive/original-scan-redacted.json.gz": {
+      "bytes": 578,
+      "sha256": "39ccbcaaab7e764967395f8272eeedb30e7b179f3897a2dbaf8cbe649da6cc7a"
+    },
+    "archive/original-scan.log.gz": {
+      "bytes": 95,
+      "sha256": "f1ef7a019ebc3655373e6eab26b901de4d0621abd8abfd54ee8e0d7f2f8751cc"
+    },
+    "archive/parsed-safe-diagnostic.json.gz": {
+      "bytes": 3333,
+      "sha256": "40d5f96f930ae489548a1df3aed335509b7877051815766306d48f68d839736e"
+    },
+    "archive/preparation-environment.json.gz": {
+      "bytes": 336,
+      "sha256": "40a35b0f5a9be6abad63fcbb6daac9c67078b75c01793fce57e0c50c3ab631b3"
+    },
+    "archive/preparation-input-bindings.json.gz": {
+      "bytes": 1455,
+      "sha256": "ae126b42aba5192708b486d8e82ad5a5eca566299dfa5f0d897742601a85bf30"
+    },
+    "archive/public-hash-classification.json.gz": {
+      "bytes": 1120,
+      "sha256": "38b738f3806ef90c01e21507246f0e0dc8a669f6a9371e1cb71c26f53af6ee29"
+    },
+    "archive/root-launch-authorization-supplement.json.gz": {
+      "bytes": 451,
+      "sha256": "98da416917cd49cfd2a6f9d30256e12dfe61c2b5af42c9f26047c2c64c70d18c"
+    },
+    "archive/root-launch-binding.json.gz": {
+      "bytes": 433,
+      "sha256": "583fbcac5a83198e38fe11822fbb72ee96f0ef340f9b677a376e32b295bd766a"
+    },
+    "archive/root-native379-v2-0b-launcher-env-guard-red-green.json.gz": {
+      "bytes": 635,
+      "sha256": "67d89673f2b8d0910f4aeedeac36943781176369f9be35760e62b112a77550c8"
+    },
+    "archive/run-root-native379-v2-0b-combined-v2.py.gz": {
+      "bytes": 1792,
+      "sha256": "e7ac6c4a2cf0f2f2defaa25e5d5cfc3181c1d3081f795fe2eb00299f2ef15366"
+    },
+    "archive/run-root-native379-v2-0b-combined.py.gz": {
+      "bytes": 1745,
+      "sha256": "22fa61c0d9f267f094ad71b769c77a4158ac5797eace84193a6c82321d7852fd"
+    },
+    "archive/scan-baseline.gitleaksignore.gz": {
+      "bytes": 7598,
+      "sha256": "aa9deff1496139b334459053ff7b41dcceb4a95eea8a85d95fa1c76a1fda561d"
+    },
+    "boundary.json": {
+      "bytes": 3399,
+      "sha256": "025f974c1f85c2b071320fa247812308e233310e313604b0a034cab9f5a7d6d6"
+    },
+    "compression-provenance.json": {
+      "bytes": 11333,
+      "sha256": "0890bb109951f4cf124521f537d39c736643ab72d5d83f409ddf54e993561405"
+    },
+    "security/publication-scan-record.json": {
+      "bytes": 1045,
+      "sha256": "a46b75aac90f552d11abcb46aef85f37a574e0f2d44b98c8040ea63b6d73ec46"
+    },
+    "security/publication-scan-redacted.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "security/publication-scan.log": {
+      "bytes": 79,
+      "sha256": "3a8a9ed54b2b8261a0939e11d50ab85667da5efbb880b935a25c68ffd40a0c3e"
+    }
+  },
+  "excludedPrivateAssembly": "original-scan-inputs/private-literal-resolution files remain at original private paths; private input hashes disclosed in boundary. No source/binary/cache/Git tree duplicate.",
+  "boundary": "Original failed native attempt and exact source-bound diagnostic replay/completion intervals, not original branch trace. BeforeencodingFAIL5; encodedpublicationdirPASS0 separate. Manifest excludes itself."
+}

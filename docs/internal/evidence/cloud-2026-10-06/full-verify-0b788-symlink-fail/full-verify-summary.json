@@ -1,0 +1,92 @@
+{
+  "started_utc": "2026-10-06T03:31:21Z",
+  "completed_utc": "2026-10-06T03:43:56Z",
+  "exit_code": 1,
+  "elapsed_seconds": 755,
+  "head_before": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "head_after": "0b788520159170a825a925a3f639b0b1d63169f5",
+  "worktree": "/workspace/.zasp-cloud-owned/full-verify-0b788520-IlZxbb",
+  "shared_dependency_realpath": "/workspace/zasp-sec/node_modules",
+  "observed_dependency_identity_unchanged": true,
+  "tracked_source_status_after": [],
+  "tools": [
+    "v22.23.1",
+    "10.9.8",
+    "go version go1.25.13 linux/amd64",
+    "tini version 0.19.0 - git.de40ad0"
+  ],
+  "command": "/tmp/zasp-cloud-tools/bin/tini -s -- npm run verify",
+  "raw_log_sha256": "c3a3cafd4118052b0feea82cdeb0e5e0de6a17f837138b185f624c3f780dd490",
+  "raw_log_bytes": 110299,
+  "completed_phases": [
+    "dependencies:check",
+    "health:contract:test",
+    "openapi:test",
+    "openapi:lint",
+    "openapi:check",
+    "ui-api:test",
+    "ui-api:check",
+    "raw-fetch:test",
+    "saas:tenancy:test",
+    "graph:neo4j:test",
+    "db:tenant-rls:test",
+    "test",
+    "typecheck",
+    "lint",
+    "production:imports:test",
+    "production:imports:source",
+    "staging:gate:test"
+  ],
+  "failed_phase": "production:release:test",
+  "ui_tests": {
+    "files": 246,
+    "passed": 2535
+  },
+  "release_tests": {
+    "passed": 284,
+    "failed": 1,
+    "skipped": 0,
+    "cancelled": 0,
+    "duration_ms": 86830.059541
+  },
+  "packages": [
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/health\t1.075s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/healthserver\t6.100s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-api\t8.993s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-worker\t387.221s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/event-ingest\t2.030s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/runtime-gateway\t4.233s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/config\t1.021s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/repository\t1.020s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/eventstore\t1.024s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/artifactstore\t1.079s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/jobqueue\t1.041s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/graphstore\t2.244s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/tenantquota\t1.012s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/graphstore\t2.274s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/graphstore/neo4jstore\t1.088s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/proofs/neo4j-graphstore\t1.018s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/tenantcontext\t1.013s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/tenantrls\t1.012s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/repository\t1.016s",
+    "ok  \tgithub.com/zasp-ai/zasp-sec/proofs/neon-pooled\t1.015s"
+  ],
+  "failure": {
+    "test": "release sources contain truthful runbooks, canary, SBOM/license/image/secret gates",
+    "source": "deploy/production/release-gates.test.mjs:46",
+    "command": "npm sbom --omit=dev --sbom-format spdx --json",
+    "code": "ESBOMPROBLEMS",
+    "observation": "npm lists missing dependency requirements",
+    "missing_dependency_lines": 207,
+    "cause": "unknown: sharedsymlink/dependencygraph discrepancy requires separate diagnosis; no inference from refusal alone"
+  },
+  "unreached_phases": [
+    "build",
+    "production:imports:compiled",
+    "implementation:status:check"
+  ],
+  "hosted_failure_cause": "unknown, annotationexit1only; local refusal does not prove hosted cause",
+  "no_root_source_edits": true,
+  "no_install_guard_skip_or_provider_native_actions": true,
+  "no_release_or_deployed_readiness": true
+}

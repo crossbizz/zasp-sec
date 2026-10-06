@@ -1,0 +1,8 @@
+{
+  "tool_session": 53879,
+  "observed_joined_exit": 1,
+  "script_sha256": "0acda6f6b57eafc232ca5ccba9abd40a932c886cddf10b28b34f8b649637a134",
+  "review_sha256": "79689bc67c7fd16944d7f89c6cd8cb85f17966f0bd7f6cf74f9b057503c37236",
+  "result_sha256": "c474fe07edc8bad18a817c9a3533c2823ace46a837ebc40331469b927a6d9434",
+  "scope": "Separately authored root tool-join observation, not kernel receipt or browser acceptance."
+}

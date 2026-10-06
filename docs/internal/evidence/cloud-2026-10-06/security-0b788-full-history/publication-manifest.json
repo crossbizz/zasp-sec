@@ -1,0 +1,50 @@
+{
+  "schema": "bounded-root-fullhistory-attachment-v1",
+  "members": {
+    "evidence/README.md": {
+      "bytes": 1387,
+      "sha256": "e2e1fda72d1c1800aee2ec89ae6222692cc0b550fa82f82e64cb6d1bee0233c1"
+    },
+    "evidence/compression-provenance.json": {
+      "bytes": 1741,
+      "sha256": "5ba38e09b1c8883b8a704eb2470647e846a9f380f6af68b2dc08f3726da77ca5"
+    },
+    "evidence/full-history-0b788520-record.json.gz": {
+      "bytes": 358,
+      "sha256": "2552c4f1957f9a1dfc3a3cd31a96dedec1ca796f2e7f6a441c2e92f4562c57ed"
+    },
+    "evidence/full-history-0b788520-report.json.gz": {
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6"
+    },
+    "evidence/full-history-0b788520.log.gz": {
+      "bytes": 149,
+      "sha256": "80a7f9fdbf0f731219f0ef95ccc8e71b0cc0da274a860f6f091d1e640763cdb5"
+    },
+    "evidence/independent-provider-0b788-publication-closures-review.json.gz": {
+      "bytes": 916,
+      "sha256": "1b283e4c9507b0771b651bf8ee70e0aaa8900ac8339c6a7923ba60a54508dc40"
+    },
+    "publication-final-scan-redacted.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "publication-final-scan.log": {
+      "bytes": 77,
+      "sha256": "0079eada4c52d140e96ef53ea16b82cd5fafce1d83a269293003108d611cb595"
+    },
+    "publication-scan-record.json": {
+      "bytes": 884,
+      "sha256": "5f6f046b2e07355fc14cd34f29b6b6fb9e99e7f8b4948767ae85255b3ccfec29"
+    },
+    "publication-scan-redacted.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "publication-scan.log": {
+      "bytes": 77,
+      "sha256": "7f235886b4681b507736eed0bbb5b6cbcf1cdcf736bc3345a059db8eed5350c1"
+    }
+  },
+  "boundary": "Separate ROOTactual0b fullhistory evidence fidelity; not borrowed scoped approval. Manifest excludes itself. No detailed argv inferred or decoded-gzip/native clearance."
+}

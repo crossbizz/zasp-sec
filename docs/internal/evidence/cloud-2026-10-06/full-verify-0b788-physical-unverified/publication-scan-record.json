@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "dir",
+    "/workspace/.zasp-cloud-owned/physical-full0b-unverified-publication-uv1_2vdh/publication/evidence",
+    "--no-banner",
+    "--redact=100",
+    "--report-format=json",
+    "--report-path=/workspace/.zasp-cloud-owned/physical-full0b-unverified-publication-uv1_2vdh/publication/publication-scan-redacted.json"
+  ],
+  "cwd": "/tmp/zasp-cloud-evidence",
+  "exitCode": 0,
+  "seconds": 0.4151798109996889,
+  "findingCount": 0,
+  "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "logSHA256": "c8734cf1c395913b1c1e4899ced0ae8e196c5c9758144849d9d7d2b5276ee08c",
+  "boundary": "Actual default publicationmetadata directory scan only. Historical full outcome remains UNVERIFIED; no compressedpayload/currentfuturefull/build/native clearance. No config/ignore/rule/source changes."
+}
