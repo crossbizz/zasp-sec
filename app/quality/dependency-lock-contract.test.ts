@@ -17,6 +17,8 @@ function taskRows(tracker: string, heading: "In progress" | "Complete" | "Blocke
   return markdownRows(section).slice(2);
 }
 
+const verifyDiagnosticRun = "task_verify_log=$(mktemp \"${RUNNER_TEMP}/zasp-npm-verify.XXXXXX\")\nset +e\nnpm run verify 2>&1 | tee \"$task_verify_log\"\ntask_verify_status=${PIPESTATUS[0]}\nset -e\nif [ \"$task_verify_status\" -ne 0 ]; then\n  node scripts/annotate-verify-failure.mjs \"$task_verify_log\" || printf '%s\\n' '::error title=npm verify failed::Verification failed; phase unavailable.'\nfi\nrm -f -- \"$task_verify_log\" || true\nexit \"$task_verify_status\"";
+
 describe("M1-02 dependency lock contract", () => {
   it("binds the source task to the approved exact runtime inventory", async () => {
     const [source, design, plan] = await Promise.all([
@@ -91,7 +93,7 @@ describe("M1-02 dependency lock contract", () => {
     expect(packageJson.scripts?.verify).toBe(
       "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm run graph:neo4j:test && npm run db:tenant-rls:test && npm test && npm run typecheck && npm run lint && npm run production:imports:test && npm run production:imports:source && npm run staging:gate:test && npm run production:release:test && npm run build && npm run production:imports:compiled && npm run implementation:status:check",
     );
-    expect(workflow).toContain("run: npm run verify");
+    expect(workflow).toContain("run: |-\n" + verifyDiagnosticRun.split("\n").map(line => "          " + line).join("\n"));
     expect(workflow).not.toContain("validate-dependencies.mjs");
   });
 });
