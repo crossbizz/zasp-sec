@@ -1,0 +1,26 @@
+{
+  "format": "private-fullverify512-publication-addendum-manifest-v1",
+  "original_manifest_sha256": "140bbe54abdd55868bd22874eca2d68af51a734f8da39f1b86f48713926f1fff",
+  "files": [
+    {
+      "path": "bounded-task-crosswalk.json",
+      "bytes": 2323,
+      "sha256": "4b53f636eea43d961b6ee57ccc48203b043f0cddc5591809f754b7e142d2785d"
+    },
+    {
+      "path": "receipt-append.md",
+      "bytes": 2541,
+      "sha256": "24bdf7992ed36b72549a6c7fb6b81bd2296f88e2ef869aa5e121e0b89856130e"
+    },
+    {
+      "path": "status-append.md",
+      "bytes": 763,
+      "sha256": "a181b033b5c32e702f28211934da234d82dab43f927c715ef6046af26ed2defc"
+    },
+    {
+      "path": "publication-provenance.json",
+      "bytes": 597,
+      "sha256": "392cc843252859aa06e76eeeece9e10c4a15ae814746e6bc2769259b7168c0d0"
+    }
+  ]
+}

@@ -15696,3 +15696,16 @@ opaque. No new PostgreSQL probe, native attempt or readiness promotion occurred.
 The inherited ae732 companion is stale for 5d18; separate reviewed new anchors
 and frozen-Go closure remain required. Varied-login, security, installed/deployed
 acceptance and the 728 / 523 / 144 / 61 categories remain unchanged.
+Fresh full verification at unchanged `512beb18` FAILED after 302 seconds in
+the health-contract phase: API readiness deadline refusal plus compliance close
+and settlement/effect worker failures. UI/release were unreached. The earlier
+2,535 UI passes remain historical3ccc evidence. A separate faithful scanner
+run at512 passed0findings; approved-advisory availability and failed npm/native/
+deployed acceptance gates remain separate. Private API instrumentation passed
+five focused and three package runs without expiry reproduction; baseline cause
+remains unknown and no API fix is selected. Existing M1-28/M1-28b/M7-14 links
+identify relevant gate/component evidence only; all728 IDs/523/144/61 categories
+and original acceptance requirements remain unchanged.
+
+
+Fresh reviewed fingerprint configuration passed the full-history scan at source 512beb with zero findings; historical 546/550-finding failures remain preserved. Full npm verification at that source FAILED after 302 seconds in three fixture paths, with UI/release stages unreached. The new frozen native attempt also FAILED after 224.45 seconds: secondary collector deadline confirmed, primary normal-false cause unobserved, no acceptance artifact. Two worker fixture corrections pass focused and race groups without changing production logic, waits, permissions or caps. API diagnostics reproduce no expiry and select no fix. These results do not promote any original task or milestone; approved advisory evidence and real deployed Stytch/provider bindings remain unavailable.

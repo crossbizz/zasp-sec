@@ -1,0 +1,10 @@
+{
+  "services/platform/agentsec-worker/security_agent_temporal_runner_settlement_test.go": {
+    "baseline_sha256": "40b8bc81f19d95a13f0c8a24cbdad7abbeb70304de26244e1c5107f1c63e4fc0",
+    "candidate_sha256": "49ea318bcbc38e4c4ce3d1260de415a1c80532dc98591fc5a90a3203b208e35a"
+  },
+  "services/platform/agentsec-worker/compliance_export_composition_test.go": {
+    "baseline_sha256": "38e0e35dd2fd3725be83426521bf5128b1b1744c67920eccf510c8640c9368de",
+    "candidate_sha256": "8b94357130fd22db44de3ed443ac975ec3cd2861d3fd8fd410f87e9286ff668a"
+  }
+}

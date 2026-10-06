@@ -1,0 +1,57 @@
+{
+  "started_utc": "2026-10-06T01:59:21Z",
+  "completed_utc": "2026-10-06T02:04:23Z",
+  "exit_code": 1,
+  "head_before": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "head_after": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "raw_log_sha256": "86466c84229f37adc8d83aa29077565d6f2dd5f4c0457d33f948834afec7fa2e",
+  "raw_log_bytes": 260546,
+  "failure": "API TestP7OrderedReadinessRoutingCharacterization/current_typed_release_without_actor_proof: missing, expired or excessive release deadline; exact installed release probe refused",
+  "failure_refs": [
+    "services/platform/agentsec-api/ordered_readiness_routing_characterization_test.go:75",
+    "services/platform/agentsec-api/ordered_readiness_routing_characterization_test.go:49"
+  ],
+  "completed_phases": [
+    "dependencies:check"
+  ],
+  "failed_phase": "health:contract:test",
+  "unreached": "OpenAPI/UI/tenancy/graph/RLS/typecheck/lint/import/staging/release/build/status phases",
+  "api_failure_cause": "unknown stage of deadline expiry pending private diagnostic evidence",
+  "no_shared_edits": true,
+  "elapsed_seconds": 302,
+  "failures": [
+    {
+      "package": "agentsec-api",
+      "test": "TestP7OrderedReadinessRoutingCharacterization/current_typed_release_without_actor_proof",
+      "errors": [
+        "missing, expired or excessive release deadline",
+        "exact installed release probe refused: repository provider unavailable"
+      ],
+      "source_refs": [
+        "ordered_readiness_routing_characterization_test.go:75",
+        "ordered_readiness_routing_characterization_test.go:49"
+      ],
+      "cause": "not proven; private stage instrumentation pending"
+    },
+    {
+      "package": "agentsec-worker",
+      "test": "TestComplianceRuntimeComposedLifecycle/close",
+      "error": "upload not reached",
+      "source_ref": "compliance_export_composition_test.go:199",
+      "cause": "private separate worker triage pending"
+    },
+    {
+      "package": "agentsec-worker",
+      "test": "TestTemporalRunnerUsesValidatedCommittedSettlement/effect",
+      "error": "interface conversion: interface {} is []uint8, not json.RawMessage",
+      "source_ref": "security_agent_temporal_runner_settlement_test.go:84",
+      "cause": "private separate worker triage pending"
+    }
+  ],
+  "worker_package_seconds": 286.233,
+  "api_package_seconds": 9.332,
+  "ui_reached": false,
+  "release_reached": false,
+  "production_native_deployed_acceptance": false,
+  "original_summary_status": "Original initial private summary captured API failure only before final worker failure extraction; retained unchanged. This final packet summary binds all three actual failures."
+}

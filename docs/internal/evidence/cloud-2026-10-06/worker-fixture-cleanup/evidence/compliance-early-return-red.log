@@ -1,0 +1,6 @@
+--- FAIL: TestComplianceRuntimeComposedLifecycle (1.04s)
+    --- FAIL: TestComplianceRuntimeComposedLifecycle/capture_failure (1.04s)
+        compliance_export_composition_test.go:204: upload not reached
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/agentsec-worker	1.078s
+FAIL

@@ -1,0 +1,92 @@
+=== RUN   TestP7OrderedReadinessRoutingCharacterization
+=== RUN   TestP7OrderedReadinessRoutingCharacterization/current_typed_release_without_actor_proof
+    ordered_readiness_routing_characterization_test.go:47: PRIVATE_DIAGNOSTIC call-entry remaining=999.985398ms expired=false
+PRIVATE_DIAGNOSTIC production-authorization-pin elapsed=206.896403ms remaining=792.976816ms expired=false
+PRIVATE_DIAGNOSTIC production-public-pin elapsed=115.637952ms remaining=677.284262ms expired=false
+    ordered_readiness_routing_characterization_test.go:72: PRIVATE_DIAGNOSTIC QueryRow-entry remaining=677.164411ms expired=false
+    ordered_readiness_routing_characterization_test.go:76: PRIVATE_DIAGNOSTIC fake-authorization-pin elapsed=198.640297ms remaining=478.460278ms expired=false
+    ordered_readiness_routing_characterization_test.go:79: PRIVATE_DIAGNOSTIC fake-public-pin elapsed=118.709235ms remaining=359.647468ms expired=false
+    ordered_readiness_routing_characterization_test.go:49: PRIVATE_DIAGNOSTIC call-return elapsed=640.770581ms remaining=359.214827ms expired=false error=false
+    ordered_readiness_routing_characterization_test.go:57: current=true refused=false QueryRow=1 Begin=0 Exec=0
+=== RUN   TestP7OrderedReadinessRoutingCharacterization/noncurrent_exact_release_control
+    ordered_readiness_routing_characterization_test.go:47: PRIVATE_DIAGNOSTIC call-entry remaining=999.992038ms expired=false
+    ordered_readiness_routing_characterization_test.go:72: PRIVATE_DIAGNOSTIC QueryRow-entry remaining=880.065406ms expired=false
+    ordered_readiness_routing_characterization_test.go:49: PRIVATE_DIAGNOSTIC call-return elapsed=234.013388ms remaining=765.97862ms expired=false error=false
+    ordered_readiness_routing_characterization_test.go:57: current=false refused=false QueryRow=1 Begin=0 Exec=0
+--- PASS: TestP7OrderedReadinessRoutingCharacterization (0.88s)
+    --- PASS: TestP7OrderedReadinessRoutingCharacterization/current_typed_release_without_actor_proof (0.64s)
+    --- PASS: TestP7OrderedReadinessRoutingCharacterization/noncurrent_exact_release_control (0.23s)
+=== RUN   TestP7OrderedReadinessRoutingCharacterization
+=== RUN   TestP7OrderedReadinessRoutingCharacterization/current_typed_release_without_actor_proof
+    ordered_readiness_routing_characterization_test.go:47: PRIVATE_DIAGNOSTIC call-entry remaining=999.993541ms expired=false
+PRIVATE_DIAGNOSTIC production-authorization-pin elapsed=206.355128ms remaining=793.566845ms expired=false
+PRIVATE_DIAGNOSTIC production-public-pin elapsed=114.24476ms remaining=679.273391ms expired=false
+    ordered_readiness_routing_characterization_test.go:72: PRIVATE_DIAGNOSTIC QueryRow-entry remaining=679.200612ms expired=false
+    ordered_readiness_routing_characterization_test.go:76: PRIVATE_DIAGNOSTIC fake-authorization-pin elapsed=190.985947ms remaining=488.140102ms expired=false
+    ordered_readiness_routing_characterization_test.go:79: PRIVATE_DIAGNOSTIC fake-public-pin elapsed=132.554026ms remaining=355.483532ms expired=false
+    ordered_readiness_routing_characterization_test.go:49: PRIVATE_DIAGNOSTIC call-return elapsed=644.859875ms remaining=355.133605ms expired=false error=false
+    ordered_readiness_routing_characterization_test.go:57: current=true refused=false QueryRow=1 Begin=0 Exec=0
+=== RUN   TestP7OrderedReadinessRoutingCharacterization/noncurrent_exact_release_control
+    ordered_readiness_routing_characterization_test.go:47: PRIVATE_DIAGNOSTIC call-entry remaining=999.992128ms expired=false
+    ordered_readiness_routing_characterization_test.go:72: PRIVATE_DIAGNOSTIC QueryRow-entry remaining=883.557177ms expired=false
+    ordered_readiness_routing_characterization_test.go:49: PRIVATE_DIAGNOSTIC call-return elapsed=230.119959ms remaining=769.872179ms expired=false error=false
+    ordered_readiness_routing_characterization_test.go:57: current=false refused=false QueryRow=1 Begin=0 Exec=0
+--- PASS: TestP7OrderedReadinessRoutingCharacterization (0.88s)
+    --- PASS: TestP7OrderedReadinessRoutingCharacterization/current_typed_release_without_actor_proof (0.65s)
+    --- PASS: TestP7OrderedReadinessRoutingCharacterization/noncurrent_exact_release_control (0.23s)
+=== RUN   TestP7OrderedReadinessRoutingCharacterization
+=== RUN   TestP7OrderedReadinessRoutingCharacterization/current_typed_release_without_actor_proof
+    ordered_readiness_routing_characterization_test.go:47: PRIVATE_DIAGNOSTIC call-entry remaining=999.991838ms expired=false
+PRIVATE_DIAGNOSTIC production-authorization-pin elapsed=241.956228ms remaining=757.959175ms expired=false
+PRIVATE_DIAGNOSTIC production-public-pin elapsed=114.985054ms remaining=642.909584ms expired=false
+    ordered_readiness_routing_characterization_test.go:72: PRIVATE_DIAGNOSTIC QueryRow-entry remaining=642.790665ms expired=false
+    ordered_readiness_routing_characterization_test.go:76: PRIVATE_DIAGNOSTIC fake-authorization-pin elapsed=214.930349ms remaining=427.799905ms expired=false
+    ordered_readiness_routing_characterization_test.go:79: PRIVATE_DIAGNOSTIC fake-public-pin elapsed=113.010843ms remaining=314.671214ms expired=false
+    ordered_readiness_routing_characterization_test.go:49: PRIVATE_DIAGNOSTIC call-return elapsed=685.646103ms remaining=314.345704ms expired=false error=false
+    ordered_readiness_routing_characterization_test.go:57: current=true refused=false QueryRow=1 Begin=0 Exec=0
+=== RUN   TestP7OrderedReadinessRoutingCharacterization/noncurrent_exact_release_control
+    ordered_readiness_routing_characterization_test.go:47: PRIVATE_DIAGNOSTIC call-entry remaining=999.992699ms expired=false
+    ordered_readiness_routing_characterization_test.go:72: PRIVATE_DIAGNOSTIC QueryRow-entry remaining=886.952196ms expired=false
+    ordered_readiness_routing_characterization_test.go:49: PRIVATE_DIAGNOSTIC call-return elapsed=239.845297ms remaining=760.147363ms expired=false error=false
+    ordered_readiness_routing_characterization_test.go:57: current=false refused=false QueryRow=1 Begin=0 Exec=0
+--- PASS: TestP7OrderedReadinessRoutingCharacterization (0.93s)
+    --- PASS: TestP7OrderedReadinessRoutingCharacterization/current_typed_release_without_actor_proof (0.69s)
+    --- PASS: TestP7OrderedReadinessRoutingCharacterization/noncurrent_exact_release_control (0.24s)
+=== RUN   TestP7OrderedReadinessRoutingCharacterization
+=== RUN   TestP7OrderedReadinessRoutingCharacterization/current_typed_release_without_actor_proof
+    ordered_readiness_routing_characterization_test.go:47: PRIVATE_DIAGNOSTIC call-entry remaining=999.991978ms expired=false
+PRIVATE_DIAGNOSTIC production-authorization-pin elapsed=199.838935ms remaining=800.0912ms expired=false
+PRIVATE_DIAGNOSTIC production-public-pin elapsed=106.194049ms remaining=693.833335ms expired=false
+    ordered_readiness_routing_characterization_test.go:72: PRIVATE_DIAGNOSTIC QueryRow-entry remaining=693.760154ms expired=false
+    ordered_readiness_routing_characterization_test.go:76: PRIVATE_DIAGNOSTIC fake-authorization-pin elapsed=215.399234ms remaining=478.310144ms expired=false
+    ordered_readiness_routing_characterization_test.go:79: PRIVATE_DIAGNOSTIC fake-public-pin elapsed=114.878214ms remaining=363.326862ms expired=false
+    ordered_readiness_routing_characterization_test.go:49: PRIVATE_DIAGNOSTIC call-return elapsed=636.987812ms remaining=363.004156ms expired=false error=false
+    ordered_readiness_routing_characterization_test.go:57: current=true refused=false QueryRow=1 Begin=0 Exec=0
+=== RUN   TestP7OrderedReadinessRoutingCharacterization/noncurrent_exact_release_control
+    ordered_readiness_routing_characterization_test.go:47: PRIVATE_DIAGNOSTIC call-entry remaining=999.992499ms expired=false
+    ordered_readiness_routing_characterization_test.go:72: PRIVATE_DIAGNOSTIC QueryRow-entry remaining=875.771084ms expired=false
+    ordered_readiness_routing_characterization_test.go:49: PRIVATE_DIAGNOSTIC call-return elapsed=247.978842ms remaining=752.013637ms expired=false error=false
+    ordered_readiness_routing_characterization_test.go:57: current=false refused=false QueryRow=1 Begin=0 Exec=0
+--- PASS: TestP7OrderedReadinessRoutingCharacterization (0.89s)
+    --- PASS: TestP7OrderedReadinessRoutingCharacterization/current_typed_release_without_actor_proof (0.64s)
+    --- PASS: TestP7OrderedReadinessRoutingCharacterization/noncurrent_exact_release_control (0.25s)
+=== RUN   TestP7OrderedReadinessRoutingCharacterization
+=== RUN   TestP7OrderedReadinessRoutingCharacterization/current_typed_release_without_actor_proof
+    ordered_readiness_routing_characterization_test.go:47: PRIVATE_DIAGNOSTIC call-entry remaining=999.99376ms expired=false
+PRIVATE_DIAGNOSTIC production-authorization-pin elapsed=207.763608ms remaining=792.171444ms expired=false
+PRIVATE_DIAGNOSTIC production-public-pin elapsed=128.143468ms remaining=663.962448ms expired=false
+    ordered_readiness_routing_characterization_test.go:72: PRIVATE_DIAGNOSTIC QueryRow-entry remaining=663.898562ms expired=false
+    ordered_readiness_routing_characterization_test.go:76: PRIVATE_DIAGNOSTIC fake-authorization-pin elapsed=221.352325ms remaining=442.493718ms expired=false
+    ordered_readiness_routing_characterization_test.go:79: PRIVATE_DIAGNOSTIC fake-public-pin elapsed=106.851868ms remaining=335.281107ms expired=false
+    ordered_readiness_routing_characterization_test.go:49: PRIVATE_DIAGNOSTIC call-return elapsed=664.939125ms remaining=335.054556ms expired=false error=false
+    ordered_readiness_routing_characterization_test.go:57: current=true refused=false QueryRow=1 Begin=0 Exec=0
+=== RUN   TestP7OrderedReadinessRoutingCharacterization/noncurrent_exact_release_control
+    ordered_readiness_routing_characterization_test.go:47: PRIVATE_DIAGNOSTIC call-entry remaining=999.993931ms expired=false
+    ordered_readiness_routing_characterization_test.go:72: PRIVATE_DIAGNOSTIC QueryRow-entry remaining=896.205679ms expired=false
+    ordered_readiness_routing_characterization_test.go:49: PRIVATE_DIAGNOSTIC call-return elapsed=225.324082ms remaining=774.66968ms expired=false error=false
+    ordered_readiness_routing_characterization_test.go:57: current=false refused=false QueryRow=1 Begin=0 Exec=0
+--- PASS: TestP7OrderedReadinessRoutingCharacterization (0.89s)
+    --- PASS: TestP7OrderedReadinessRoutingCharacterization/current_typed_release_without_actor_proof (0.67s)
+    --- PASS: TestP7OrderedReadinessRoutingCharacterization/noncurrent_exact_release_control (0.23s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/agentsec-api	5.550s

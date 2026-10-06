@@ -1,0 +1,112 @@
+{
+  "format": "private-worker-exact512-triage-candidate-v1",
+  "assessment": "PASS scoped two-test-file fixture correction and targetedTDD/race group; historicalfull512FAIL and unknownprecedingcauses preserved",
+  "source_commit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "candidate_pins": {
+    "services/platform/agentsec-worker/security_agent_temporal_runner_settlement_test.go": {
+      "baseline_sha256": "40b8bc81f19d95a13f0c8a24cbdad7abbeb70304de26244e1c5107f1c63e4fc0",
+      "candidate_sha256": "49ea318bcbc38e4c4ce3d1260de415a1c80532dc98591fc5a90a3203b208e35a"
+    },
+    "services/platform/agentsec-worker/compliance_export_composition_test.go": {
+      "baseline_sha256": "38e0e35dd2fd3725be83426521bf5128b1b1744c67920eccf510c8640c9368de",
+      "candidate_sha256": "8b94357130fd22db44de3ed443ac975ec3cd2861d3fd8fd410f87e9286ff668a"
+    }
+  },
+  "candidate_patch_sha256": "ce5f9056e551e2771a60cd80f8978aca3090bbc24a02b3db721b2582b1617d65",
+  "exact_source_delta_verification": {
+    "path": "exact-source-delta-verification.json",
+    "sha256": "3486d094655c7a4aff758c87056bc49caf152576b8e66edc8712e35217ff35ea",
+    "tracked_blobs_checked": 6239,
+    "changed_files": 2
+  },
+  "historical_full_failure": {
+    "path": "/tmp/zasp-cloud-evidence/full-verify-512beb18-2026-10-06.raw.log",
+    "sha256": "86466c84229f37adc8d83aa29077565d6f2dd5f4c0457d33f948834afec7fa2e",
+    "status": "FAIL unchanged",
+    "recorded_worker_package_seconds": 286.233,
+    "semantic_reasons": [
+      "Compliance/close upload not reached within1s; no prior early-return/phase diagnostic.",
+      "Temporal/effect dispatchLinked failure enteredrecoverReserved+stop; fixture panicked on[]byte assertion."
+    ]
+  },
+  "proven_root_cause": "Temporal fixture wrongly assumes onlyjson.RawMessage at QueryJSON while ownrunner directstop validly usesjson.Marshal []byte. Owned fault-injection reproduces this exact panic without relying on load/time expiry.",
+  "unresolved_historical_causes": [
+    "Why original Temporal linkeddispatch validation failed beforecleanup.",
+    "Why original complianceclose failed toreachupload within1s: terminalreturn vs pendingoperation unknown."
+  ],
+  "correction_scope": "Two TEST files only. Accept both legalJSONbyte representations in mock, modelstop/currentstate and respectctxcancellation. Observe completion beforeupload without consumingresult or misclassifying simultaneousuploadcompletion. Add ownrunner no-send reserveddispatch-error/start/unknown/cancellation and preuploadcapture-failure lifecycle coverage.",
+  "unchanged_guards": [
+    "All productionlogic/timeouts/deadlines/security/caps/modulelocks/Goanchors.",
+    "Compliance original1s upload wait and2s join bound.",
+    "Temporal repository10s/runner configured30s+30s inheritedtimeout/artifactstore1s bounds.",
+    "Originalinvalidsettlementfields and receipt/artifact/cardinality assertions."
+  ],
+  "test_runs": [
+    {
+      "log": "baseline-focused.log",
+      "sha256": "cc700e0a2056f85b9cd55469ea7286ae22b24ce1e4618d7f764ff423ed79143c",
+      "exit": 0,
+      "meaning": "Unchanged exact512 focusedpair historical-compatible PASS; originalfull512FAIL retained."
+    },
+    {
+      "log": "temporal-deterministic-red.log",
+      "sha256": "c885eaff2a50aa9dba688e214416f2ec067f719511b7fdc8779df760584a8aa8",
+      "exit": 1,
+      "meaning": "New owned reserved-dispatch-error case with original512fixture typeassertion fails with actual[]byte/RawMessage panic."
+    },
+    {
+      "log": "compliance-early-return-red.log",
+      "sha256": "d5dbe93a4048e5276744c2bb32e81886350f853c6b3b9df522ba323fbb44a7f8",
+      "exit": 1,
+      "meaning": "New owned source-capture-failure case with original512upload-only waiting fails despite terminalRunOnce return."
+    },
+    {
+      "log": "grouped-green.log",
+      "sha256": "a85a5d0e42b0d60d136fcdcf28a26c8735bd3ea90c2db3e3674528cd79c8a001",
+      "exit": 0,
+      "meaning": "Correctedfixture grouped ownrunner/compliance/cleanup/cancellation coverage PASS."
+    },
+    {
+      "log": "grouped-race-green.log",
+      "sha256": "563d4129b3629c132acfff0b8bef07a120488bb5ab6c7b73c2bfde9fd6336128",
+      "exit": 0,
+      "package_reported_seconds": 133.699,
+      "race_enabled": true,
+      "meaning": "Actualownrunner no-send/stop/canceleddispatch +compliance failure/cancel/close/heartbeatjoin targetedracegroup PASS"
+    }
+  ],
+  "go_environment": {
+    "GOROOT": "/tmp/zasp-cloud-tools/go",
+    "GOTOOLCHAIN": "local",
+    "GOWORK": "off",
+    "GOENV": "off",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOCACHE": "/workspace/.zasp-cloud-owned/worker-triage-512-hjz53075/build-cache",
+    "GOTMPDIR": "/workspace/.zasp-cloud-owned/worker-triage-512-hjz53075/tmp",
+    "PATH": "/tmp/zasp-cloud-tools/go/bin:/usr/bin:/bin",
+    "command_prefix": "go test -mod=readonly -count=1 ./agentsec-worker",
+    "group_regex": "^(TestComplianceRuntimeComposedLifecycle|TestComplianceRuntimeListenerFailureJoinsPolling|TestTemporalRunnerUsesValidatedCommittedSettlement|TestOrderedTestRunnerCapturedRecoveryNeverResends)$",
+    "race_command": "go test -mod=readonly -race -count=1 ./agentsec-worker -run [group_regex]"
+  },
+  "candidate_source_dirscan": {
+    "scanner": "8.30.1",
+    "exit": 0,
+    "findings": 0,
+    "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "scope": "Two private worker candidate test files only; not full repository/history clearance."
+  },
+  "native_or_real_provider_or_shared_edit_or_commit": false,
+  "publication": "Private only. Root independentreview required before bounded integration. ScopedGREEN does notpromote historicalfull302s verification orfix unknownprecedingfailures.",
+  "grouped_nonrace_package_seconds": 38.974,
+  "baseline_focused_package_seconds": 27.409,
+  "group_test_roster": {
+    "TestComplianceRuntimeComposedLifecycle": 6,
+    "TestComplianceRuntimeListenerFailureJoinsPolling": 1,
+    "TestTemporalRunnerUsesValidatedCommittedSettlement": 13,
+    "TestOrderedTestRunnerCapturedRecoveryNeverResends": 5
+  },
+  "group_test_roster_note": "Subcase counts from exact candidate tables plus existingcaptured-recovery table; Go regex executes full fourparenttests. No fullpackage/fullnpm rerun claim.",
+  "pinned_go_binary_sha256": "3fb44b0d47becc087cf9e6002366bfbf136d3e08460f12389dbd04687dcf0dd0",
+  "independent_review_status": "Root-assigned independent provider reviewing; author scopedGREEN not production/native approval"
+}
