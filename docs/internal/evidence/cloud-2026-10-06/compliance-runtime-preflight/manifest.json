@@ -1,0 +1,103 @@
+{
+  "baseCommit": "2a9fb144acd35d161d9ea2e7984f11e8f802da0c",
+  "members": {
+    "actual-review.json.gz": {
+      "bytes": 2178,
+      "decodedBytes": 5161,
+      "decodedSHA256": "51de17c06edf316de2842217e3ffda0a09b0b13a8940feea3510f929cf2594eb",
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-actual-compliance-preflight-tdd-review.json",
+      "sha256": "1770f01f583ec39dd5601c7a9124a46a1f0820163cd4eaaf89561112ac432461"
+    },
+    "adopted-ci-prerequisite.log.gz": {
+      "bytes": 2077,
+      "decodedBytes": 10127,
+      "decodedSHA256": "7d17fe1e61c61610fd005be7032dc216e0da9e63edba2d2b30c03095896ba227",
+      "originalPath": "/tmp/zasp-cloud-evidence/preflight-adopted-ci-prerequisite.log",
+      "sha256": "cba6a53531b90308480faf6b224e22357e060ff6ceda9108315c2cfcea42dcad"
+    },
+    "green-start.json.gz": {
+      "bytes": 318,
+      "decodedBytes": 533,
+      "decodedSHA256": "8518ee23b24436fc398c683ba945b3ea5e3609a9ccac6af253154cb822066b79",
+      "originalPath": "/tmp/zasp-cloud-evidence/actual-compliance-preflight-tdd-gwndz0vm/green-start.json",
+      "sha256": "8118c1cfad6a4a4b2d0b485b8ece45b4251eb46076fbf6816ded909e5832e555"
+    },
+    "green-wait.json.gz": {
+      "bytes": 479,
+      "decodedBytes": 875,
+      "decodedSHA256": "9ab33f555e685553fbf0122d4691a9aa650acb3a347a513d97dfe56c03a8e27c",
+      "originalPath": "/tmp/zasp-cloud-evidence/actual-compliance-preflight-tdd-gwndz0vm/green-wait.json",
+      "sha256": "9b768fa967d731828d56a2afdb505a4911d6e54d0851a2add8b59b10a87cd675"
+    },
+    "green.log.gz": {
+      "bytes": 424,
+      "decodedBytes": 1260,
+      "decodedSHA256": "79c7f0c70b8056359cbf4bf1c41e2a4f4f9c00d4545d2e18c1ef01a301e2f09d",
+      "originalPath": "/tmp/zasp-cloud-evidence/actual-compliance-preflight-tdd-gwndz0vm/green.log",
+      "sha256": "bb60f3335925db202fa78c6f7e3b41336ce5da12986b65efe7fc7125dd28e6f9"
+    },
+    "red-start.json.gz": {
+      "bytes": 444,
+      "decodedBytes": 802,
+      "decodedSHA256": "0e9ffdfde3d8e2da1cf179e7d63277a146bffa5581b091ee3430b09ef67f9170",
+      "originalPath": "/tmp/zasp-cloud-evidence/actual-compliance-preflight-tdd-gwndz0vm/red-start.json",
+      "sha256": "ca5bb604f100fdefdad9fead4d222b6c95c54952aaa5321eb1d4481e3eefe68c"
+    },
+    "red-wait.json.gz": {
+      "bytes": 605,
+      "decodedBytes": 1151,
+      "decodedSHA256": "7564f9ef18acf3c08eb0ca9e93136f1d73af1e45922d30586f6181b2d80c5ede",
+      "originalPath": "/tmp/zasp-cloud-evidence/actual-compliance-preflight-tdd-gwndz0vm/red-wait.json",
+      "sha256": "3dacb142a363927f1a905d69117ff2e98d10ff2eb381262683637c1f80668ecb"
+    },
+    "red.log.gz": {
+      "bytes": 512,
+      "decodedBytes": 1043,
+      "decodedSHA256": "c48d556f477b5325c7c7fc29d6300a532ed9735a3a064d39092dd6f330b444a3",
+      "originalPath": "/tmp/zasp-cloud-evidence/actual-compliance-preflight-tdd-gwndz0vm/red.log",
+      "sha256": "ad1173c781a5035ec7837fb89a3b6d48e22cc7a82da55afa00b009e57474282b"
+    },
+    "result.json.gz": {
+      "bytes": 958,
+      "decodedBytes": 2731,
+      "decodedSHA256": "abd4d599ddc2dd7ae595abacd6fc1e1d3c8699e1849154c8854e49f0117219f5",
+      "originalPath": "/tmp/zasp-cloud-evidence/actual-compliance-preflight-tdd-gwndz0vm/result.json",
+      "sha256": "fc28af7ed3d8b3aa22e15478c2396451df2e0ca0a9ddfde0c42a81c62ed72bbc"
+    },
+    "safe-adoption.json.gz": {
+      "bytes": 617,
+      "decodedBytes": 1271,
+      "decodedSHA256": "01abd57aa8f95db6c86a51357f8633599a9063f1a4b86c4ded04f22fdcfae6d2",
+      "originalPath": "/tmp/zasp-cloud-evidence/root-preflight-four-file-safe-adoption.json",
+      "sha256": "a1635415d63988cf076179e9657a74598a9f9afff019bf88488d75d9663b837f"
+    },
+    "static-review.json.gz": {
+      "bytes": 1654,
+      "decodedBytes": 2968,
+      "decodedSHA256": "645b2206403a8d8e4e2245ad96efa673cf039c56ee0315ef4bbec0f298de2937",
+      "originalPath": "/tmp/zasp-cloud-evidence/independent-compliance-preflight-f603-four-source-static-review.json",
+      "sha256": "5044c9376a5787e7318c18447963ec60ff7e724b3760eeb4e3489db302be3e79"
+    },
+    "targeted-eslint.log.gz": {
+      "bytes": 20,
+      "decodedBytes": 0,
+      "decodedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalPath": "/tmp/zasp-cloud-evidence/preflight-adopted-targeted-eslint.log",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    }
+  },
+  "rootObservedVerification": {
+    "adoptedCIStageExit": 0,
+    "adoptedCIStageFail": 0,
+    "adoptedCIStagePass": 50,
+    "adoptedCIStageSkip": 0,
+    "candidateTopPass": 5,
+    "greenExit": 0,
+    "negativeConfigurationCases": 24,
+    "redExit": 1,
+    "targetedLintJoinedExit": 0,
+    "targetedLintSession": "97333"
+  },
+  "schema": "zasp-preflight-selected-verified-evidence-v1",
+  "scope": "Configuration validation/refusal/forwarding only; actual runtime/schema/production readiness remains unverified. Before/after source map was compared by original owner but not persisted, explicitly retained as a limitation. Shared verification joins are ROOT parent observations, not invented kernel receipts. Complete private source preparation bytes are omitted; reviewed manifest pins and Git implementation blobs are separate authority."
+}

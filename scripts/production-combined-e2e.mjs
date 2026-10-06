@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { complianceRuntimeBindings } from "./compliance-runtime-prerequisites.mjs";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, createHmac, generateKeyPairSync, randomBytes } from "node:crypto";
 import { once } from "node:events";
@@ -199,6 +200,7 @@ const cleanupController = installBoundedSignalCleanup(cleanupOwnedResources);
 if (auditExportBrowserMode) installAuditBrowserFatalCleanup(()=>cleanupController.run());
 
 try {
+  if (complianceBrowserMode) complianceRuntimeBindings(process.env);
   if (automaticDiscoveryMode) automaticDiscoverySourceHashes = await hashAutomaticDiscoveryInputs();
   const ports = await Promise.all(Array.from({ length: 8 }, reservePort));
   const [postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort] = ports;
@@ -2935,6 +2937,7 @@ VALUES('${organizationID}','${workspaceID}','${environmentID}','${integrationID}
 function combinedAPIEnvironment({ apiDSN, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, publicOrigin }) {
   return {
     ...auditBrowserEnvironment(process.env),
+    ...(complianceBrowserMode ? complianceRuntimeBindings(process.env).environment : {}),
     ...(auditBrowserMode ? auditBrowserAPISettings() : {}),
     HOSTNAME: "agentsec-api-production-e2e",
     ZASP_ENVIRONMENT: "test",

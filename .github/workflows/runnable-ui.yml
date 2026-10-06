@@ -89,7 +89,7 @@ jobs:
         env:
           ZASP_COMBINED_E2E_COMPLIANCE: "true"
         run: |
-          node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs
+          node --test scripts/browser-prerequisites.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/owned-browser-postgres.test.mjs scripts/compliance-browser-bytes.test.mjs scripts/compliance-runtime-prerequisites.test.mjs
           node scripts/production-combined-e2e.mjs
       - name: Verify Red Team runtime and ledger regressions
         run: |
