@@ -1,0 +1,49 @@
+{
+  "checks": [
+    "All four shared current metadata/fullSHA match adoptionrecord; oldmain/newmain inodes differ, prerequisites exactsamebeforeafter",
+    "Production/helper equal reviewedprivatebytes, oldbaseline retained",
+    "Repositorytest exactly reviewedbody with one helperimportrelocation plus same actualsource invocation; all assertions unchanged",
+    "Static1e23/actual9037 review and exactdiff hashes verified"
+  ],
+  "manifestSHA256": "8f42a219360e2cd77e1c6136926d902e92eafb0156819c01eaf75806a368d2af",
+  "scope": "Source adoption identity only. Historical replacement action recorded by author, currentphysicaldistinctinode independently verified; no invented syscall trace. No reviewer writes/tests/runtime/commit, actual SQL/API/browser/service/native readiness not inferred. ROOT affectedtests and future runtime gates remain.",
+  "sharedSourceIdentities": {
+    "/workspace/zasp-sec/scripts/compliance-current-runtime.mjs": {
+      "bytes": 1453,
+      "device": 27,
+      "exists": true,
+      "inode": 995096,
+      "mode": 420,
+      "nlink": 1,
+      "sha256": "849087c235782785edb1909ee1e66f858fd7ecb4f1ff75790a58e426b5d50641"
+    },
+    "/workspace/zasp-sec/scripts/compliance-current-runtime.test.mjs": {
+      "bytes": 4304,
+      "device": 27,
+      "exists": true,
+      "inode": 995097,
+      "mode": 420,
+      "nlink": 1,
+      "sha256": "285ec4c0fea2dfcc710e90d6472c161832b001b26e5957df6a580f84733e3534"
+    },
+    "/workspace/zasp-sec/scripts/compliance-runtime-prerequisites.mjs": {
+      "bytes": 4183,
+      "device": 27,
+      "exists": true,
+      "inode": 994877,
+      "mode": 384,
+      "nlink": 1,
+      "sha256": "5284fa9c7f8c3a2fe761b06e8966956a136b6e120630c13aca48b05b6c865e62"
+    },
+    "/workspace/zasp-sec/scripts/production-combined-e2e.mjs": {
+      "bytes": 664857,
+      "device": 27,
+      "exists": true,
+      "inode": 995098,
+      "mode": 420,
+      "nlink": 1,
+      "sha256": "adc93ce62345fc627dc4686158c83ae0ff0a1dd9a153d0a10912fe2e34da4a26"
+    }
+  },
+  "status": "SOURCE-ADOPTION-IDENTITY-PASS"
+}

@@ -1,0 +1,64 @@
+{
+  "ROOTStages": [
+    {
+      "acceptance": "exact selected actualprefix firstcase fails missingcurrentprofile/verifier assertion; other2 originalnegativecases filtered/skipped explicitly, notbehavioralRED",
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "30s",
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "--test-name-pattern",
+        "actual compliance startup",
+        "baseline-schema.test.mjs"
+      ],
+      "cwd": "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg",
+      "expectedExit": 1,
+      "name": "actualprefix-causal-red"
+    },
+    {
+      "acceptance": "3topPASS/0fail/0skip/0cancel; noSQL/service/API execution",
+      "argv": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "/usr/bin/timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        "30s",
+        "/tmp/zasp-cloud-tools/bin/tini",
+        "-s",
+        "--",
+        "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+        "--test",
+        "candidate-schema.test.mjs"
+      ],
+      "cwd": "/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg",
+      "expectedExit": 0,
+      "name": "orchestration-and-failclosed-green"
+    }
+  ],
+  "checks": [
+    "All nine input/fullsource and four actual tool hashes/sizes verified",
+    "Production diff only importshelper/passesmigrate+env and invokescurrent preparation after untouchedrelease56fixture SQL before browser/API construction",
+    "Helper validates unchanged10runtimebindings/signingkey before firstmigration, fixed up-to60\u2192runtimeprofile\u2192registerverifier sequence and final canonical61 assertion; real currentCLI branches support those names and verifierkeyenv",
+    "Meaningful actualprefix VM extraction with controlled command effects: old prefix seedsfixture but neverprofile/verifier assertionFAIL; candidate reachesboth/current61; no reduced copied orchestration",
+    "Negativegroups missingbindings no migrations, installer rejection no verifier, canonical mismatch refusal; RED other2cases explicitlyfiltered not behavioralRED",
+    "Originalbrowser body/runtimebinding validator unchanged; fixture/helper source does not establish actual SQL/catalog readiness"
+  ],
+  "findings": [],
+  "helperSHA256": "849087c235782785edb1909ee1e66f858fd7ecb4f1ff75790a58e426b5d50641",
+  "limits": "Two sequentialROOT30+10/Tini/env-i fixedNode stages under90aggregate, fresh1.5GB workspace and input/tool prepost/root actualterminal joins required; no reviewer execution.",
+  "manifestSHA256": "17fe385d45e0f31b74f34bd1b92fe61158c034a47f821d55d89c35ff7e6e4e01",
+  "productionCandidateSHA256": "adc93ce62345fc627dc4686158c83ae0ff0a1dd9a153d0a10912fe2e34da4a26",
+  "recipeSHA256": "4c0da29cd5c1b26a3a15b2a19c176348cbee65cd8bb52b0b8b50f55701a541b5",
+  "scope": "Controlled orchestration component/source gate only. SQL/profile/native catalog readiness, deployedTemporal/FGA actualstore/model/productprojection/provider/browser remain unverified. Configuration-only fixtures are not readiness; no installation/bootstrap/fullruntime acceptance or shared adoption byreviewer.",
+  "status": "SOURCE-STATIC-PASS-CONTROLLED-TDD-ONLY"
+}

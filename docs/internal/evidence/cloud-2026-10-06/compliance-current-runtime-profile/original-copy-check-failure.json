@@ -1,0 +1,8 @@
+{
+  "copiedOriginalFilesRetained": 11,
+  "exit": 1,
+  "failure": "Complete os.stat object equality assertion during initial selected copy; per-field difference not captured",
+  "scope": "PUBLICATION-COPY-ONLY-NOT-APPLICATION-FAILURE",
+  "successor": "Retains and bytechecks existing copies; validates unchanged complete content and identity fields dev/ino/mode/nlink/uid/gid/size/mtime_ns/ctime_ns; access time excluded",
+  "toolChunk": "1b0c47"
+}

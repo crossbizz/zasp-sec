@@ -883,7 +883,7 @@ test("Security Agent simulation selection bypasses broad dependencies and propag
         exerciseExistingTestMountedBrowser: proof("mounted", { workerE2EBinary: "owned-worker" }),
         exerciseSecurityAgentExportMountedBrowser: proof("agent export", { workerE2EBinary: "owned-worker" }),
         exerciseAttackLabMountedBrowser: proof("attack lab", { workerE2EBinary: "owned-worker", migrate: "owned-migrate", migrationEnvironment: { owner: "owned" } }),
-        exerciseComplianceBrowser: proof("compliance", { workerE2EBinary: "owned-worker" }),
+        exerciseComplianceBrowser: proof("compliance", { workerE2EBinary: "owned-worker", migrate: "owned-migrate", migrationEnvironment: { owner: "owned" } }),
         exerciseSecurityAgentSimulationBrowser: proof("simulation"),
         exerciseAuditExportNativeBrowser: proof("audit export", { migrate: "owned-migrate", migrationEnvironment: { owner: "owned" } }),
         createGraphFixtureDependency: () => { calls.push("graph owner"); return { start: () => call("graph start") }; },
@@ -1043,7 +1043,7 @@ test("actual combined API environment keeps separate logins and removes ambient 
   const start = source.indexOf("function combinedAPIEnvironment(");
   const end = source.indexOf("\nasync function beginPrecisionBrowserAcceptance(", start);
   for (const selected of [false, true]) {
-    const build = runInNewContext(`(${source.slice(start,end)})`, { process: { env: { PATH: "/owned", ZASP_AUDIT_EXPORT_UNKNOWN: "", ZASP_AUDIT_EXPORT_BUCKET: "ambient" } }, auditBrowserMode: selected, auditBrowserEnvironment, auditBrowserAPISettings, stytchWebhookSecret: "owned" });
+    const build = runInNewContext(`(${source.slice(start,end)})`, { process: { env: { PATH: "/owned", ZASP_AUDIT_EXPORT_UNKNOWN: "", ZASP_AUDIT_EXPORT_BUCKET: "ambient" } }, auditBrowserMode: selected, complianceBrowserMode: false, auditBrowserEnvironment, auditBrowserAPISettings, stytchWebhookSecret: "owned" });
     const result = build({ apiDSN: "postgres://zasp_e2e_api@127.0.0.1:54321/postgres?sslmode=disable", postgresPort: 54321 });
     assert.equal(result.ZASP_POSTGRES_DSN, "postgres://zasp_e2e_api@127.0.0.1:54321/postgres?sslmode=disable");
     assert.equal(result.ZASP_SECURITY_AGENT_POSTGRES_DSN, "postgres://zasp_e2e_security_agent_api@127.0.0.1:54321/postgres?sslmode=disable");

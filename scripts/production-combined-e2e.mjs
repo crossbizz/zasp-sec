@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { complianceRuntimeBindings } from "./compliance-runtime-prerequisites.mjs";
+import { prepareComplianceCurrentRuntime } from "./compliance-current-runtime.mjs";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, createHmac, generateKeyPairSync, randomBytes } from "node:crypto";
 import { once } from "node:events";
@@ -358,7 +359,7 @@ try {
   } else if (attackLabMountedMode) {
     await exerciseAttackLabMountedBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, migrate, migrationEnvironment, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
   } else if (complianceBrowserMode) {
-    await exerciseComplianceBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
+    await exerciseComplianceBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, migrate, migrationEnvironment, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
   } else if (existingTestMountedMode) {
     await exerciseExistingTestMountedBrowser({ dsn, apiDSN, apiBinary, workerE2EBinary, postgresPort, identityPort, policyHistoryPort, apiPort, healthPort, webPort, proxyPort, chromePort });
   } else if (securityAgentSimulationMode) {
@@ -2190,7 +2191,7 @@ COMMIT;`);
 }
 
 async function exerciseComplianceBrowser(configuration) {
-  const {dsn,apiBinary,workerE2EBinary,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
+  const {dsn,apiBinary,workerE2EBinary,migrate,migrationEnvironment,postgresPort,identityPort,policyHistoryPort,apiPort,healthPort,webPort,proxyPort,chromePort}=configuration;
   const sql=async statement=>(await command(path.join(postgresBin,"psql"),[dsn,"-X","-v","ON_ERROR_STOP=1","-At","-c",statement])).stdout.trim();
   const org="pid_10000001-0000-4000-8000-000000000001",workspace="pid_10000022-0000-4000-8000-000000000022",environment="pid_10000023-0000-4000-8000-000000000023",actor="pid_10000004-0000-4000-8000-000000000004";
   const selectedScope=`${org}/${workspace}/${environment}`;
@@ -2202,6 +2203,11 @@ SELECT zasp_compliance_register_workers('compliance_executor','compliance_cleanu
 UPDATE zasp_authorized_scopes SET permissions=permissions || '["view_audit","view_compliance"]'::jsonb WHERE principal_id='${actor}';
 INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) VALUES('${org}','${workspace}','${environment}','policy','policy-compliance-browser',7,'{"raw_prompt":"NEVER_EXPORT_BROWSER"}','2020-01-01');
 INSERT INTO zasp_workflow_records(organization_id,workspace_id,environment_id,kind,id,version,body,updated_at) SELECT '${org}','${workspace}','${environment}','policy','${pagingPrefix}'||lpad(n::text,3,'0'),7,'{}','2020-01-01' FROM generate_series(1,101) n;`);
+  // Preserve the release56 fixture and registration above, then activate the
+  // production current authorization profile before constructing either API.
+  await prepareComplianceCurrentRuntime({ command, migrate, migrationEnvironment,
+    sql, environment: process.env,
+    signingKey: combinedAPIEnvironment({ ...configuration, publicOrigin: `https://${productHostname}:${proxyPort}` }).ZASP_WORKFLOW_SIGNING_KEY });
   const storage=await mkdtemp("/tmp/zasp-compliance-browser-");
   const object=path.join(storage,"object.json"),downloads=path.join(storage,"downloads");
   // Retained local evidence: downloaded files and exact controlled-provider bytes.

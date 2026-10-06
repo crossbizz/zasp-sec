@@ -1,0 +1,7 @@
+{
+  "afterSHA256": "ad55be65a8a480a3f9d89d2237a9e965573020895c49cf9b2b3b0d1836a6e56c",
+  "limits": "No tests or services executed by reviewer; ROOT next regression requires actual Docker PATH binding. No SQL/API/browser acceptance.",
+  "manifestSHA256": "b20ef93f5123f8af40506aa89c497b6ce90fa4d7cac4737b84e290e4e224a79a",
+  "status": "PASS-SOURCE-STATIC-ONLY",
+  "verified": "Exact two-line fixture-only diff, complete configuration equality and failure propagation retained; audit VM explicitly models noncompliance mode. Docker discovery test untouched. Shared three adopted files and prerequisite exact prior pins; original RED log hash verified."
+}

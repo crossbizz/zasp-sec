@@ -1,0 +1,28 @@
+TAP version 13
+# Subtest: actual compliance startup selects current profile after preserving release56 fixture
+not ok 1 - actual compliance startup selects current profile after preserving release56 fixture
+  ---
+  duration_ms: 4.952764
+  type: 'test'
+  location: '/tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg/schema-orchestration-cases.mjs:14:2'
+  failureType: 'testCodeFailure'
+  error: 'actual compliance source reaches current profile and verifier before API construction'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///tmp/zasp-cloud-evidence/compliance-current-schema-candidate-e6jwzaeg/schema-orchestration-cases.mjs:41:28)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 56.735068
