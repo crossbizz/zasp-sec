@@ -657,3 +657,8 @@ scanned sanitized compressed output and explicit sanitization match counts.
 No raw secret matches, provider/native actions, shared source/guard edits or
 online audit/disclosure were added by this verification recorder. Independent
 packet/publication review remains required before repository adoption.
+
+
+## API readiness characterization fixture preserves deadline and pin guards
+
+The fixture now precomputes independently derived expected migration checksums and public fingerprint before opening its original one-second caller context. The real readiness call still computes and validates its own pins; production logic, its five-second bound, exact SQL/arity/body/pin/IO/current-mode/row-shape/deadline assertions remain unchanged. Actual full512/6af failures and private original isolated/whole-API passes are both retained. Measured duplicate fixture computation is avoided, but the original expiry cause is not proven. Author grouped/whole-API/race and independent normal/race checks pass. Evidence is retained under `evidence/cloud-2026-10-06/api-readiness-fixture-pins/`; fresh full verification remains mandatory, with no ledger or deployed promotion.
