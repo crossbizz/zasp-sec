@@ -42,7 +42,7 @@ func TemporalTestExecutorFingerprint() string {
 	return "0be1a2bfe93c30928eb03eae744993df6ec6c4db692b909aed9b7c486de6aca5"
 }
 
-func ProductionTemporalTestExecutor() Metadata {
+func temporalTestExecutorSource() string {
 	source := strings.Replace(temporalTestExecutorSQL, "-- specialized74 planning", temporalTestPlanningSQL, 1)
 	source = strings.Replace(source, "-- specialized74 effects", temporalTestEffectsSQL, 1)
 	source = strings.Replace(source, "-- specialized74 invocation", temporalTestInvocationSQL, 1)
@@ -52,6 +52,11 @@ func ProductionTemporalTestExecutor() Metadata {
 	source = strings.Replace(source, "-- specialized74 decisions", temporalTestDecisionsSQL, 1)
 	source = strings.Replace(source, "-- specialized74 delivery", temporalTestDeliverySQL, 1)
 	source = strings.Replace(source, "-- specialized74 compatibility", temporalTestCompatibilitySQL, 1)
+	return source
+}
+
+func ProductionTemporalTestExecutor() Metadata {
+	source := temporalTestExecutorSource()
 	sum := sha256.Sum256([]byte(source))
 	checksum := hex.EncodeToString(sum[:])
 	bound := strings.NewReplacer("-- test74 checksum", checksum, "-- test74 fingerprint", TemporalTestExecutorFingerprint(), "-- admission73 checksum", ProductionTemporalAdmission().Checksum(), "-- admission73 fingerprint", TemporalAdmissionFingerprint(), "-- compatibility70 checksum", ProductionTemporalCompatibility().Checksum(), "-- compatibility70 fingerprint", TemporalCompatibilityFingerprint()).Replace(source)

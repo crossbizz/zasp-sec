@@ -45,7 +45,7 @@ func TemporalExecutorDomainFingerprint() string {
 	return "499b011078b1a124e95e44454ae1bcbe1e5eda8dbb99d59d156dfd1bd19c0dbf"
 }
 
-func ProductionTemporalExecutor() Metadata {
+func temporalExecutorSource() string {
 	source := strings.Replace(temporalExecutorSQL, "-- executor68 planning", temporalExecutorPlanningSQL, 1)
 	source = strings.Replace(source, "-- executor68 late usage", temporalExecutorLateUsageSQL, 1)
 	source = strings.Replace(source, "-- executor68 effects", temporalExecutorEffectsSQL, 1)
@@ -54,6 +54,11 @@ func ProductionTemporalExecutor() Metadata {
 	source = strings.Replace(source, "-- executor68 application", temporalExecutorApplicationSQL, 1)
 	source = strings.Replace(source, "-- executor68 delivery", temporalExecutorDeliverySQL, 1)
 	source = strings.Replace(source, "-- executor68 cleanup", temporalExecutorCleanupSQL, 1)
+	return source
+}
+
+func ProductionTemporalExecutor() Metadata {
+	source := temporalExecutorSource()
 	digest := sha256.Sum256([]byte(source))
 	checksum := hex.EncodeToString(digest[:])
 	bind := strings.NewReplacer("-- executor68 checksum", checksum,

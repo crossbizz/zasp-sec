@@ -104,10 +104,10 @@ func (r *registeredReleaseMigrationRunner) UpAuthorizationRuntimeProfile(ctx con
 	}
 	for _, command := range commands {
 		if err = runReleaseMigration(ctx, r, []string{command}); err != nil {
-			return err
+			return authorizationRuntimeProfileStepRefusal(command, "install", err)
 		}
 		if err = registerForwardRelease(ctx, r.queryer, r.registration, []string{command}); err != nil {
-			return err
+			return authorizationRuntimeProfileStepRefusal(command, "forward-readiness", err)
 		}
 	}
 	return nil
