@@ -1,0 +1,17 @@
+=== RUN   TestNative379V2ReplayFailureMetadataClosedStrings
+=== RUN   TestNative379V2ReplayFailureMetadataClosedStrings/state
+    authorization_worker_ordered_current_native379_v2_test.go:5265: forged failure text admitted
+=== RUN   TestNative379V2ReplayFailureMetadataClosedStrings/class
+    authorization_worker_ordered_current_native379_v2_test.go:5265: forged failure text admitted
+=== RUN   TestNative379V2ReplayFailureMetadataClosedStrings/stage
+    authorization_worker_ordered_current_native379_v2_test.go:5265: forged failure text admitted
+=== RUN   TestNative379V2ReplayFailureMetadataClosedStrings/context
+    authorization_worker_ordered_current_native379_v2_test.go:5265: forged failure text admitted
+--- FAIL: TestNative379V2ReplayFailureMetadataClosedStrings (0.17s)
+    --- FAIL: TestNative379V2ReplayFailureMetadataClosedStrings/state (0.01s)
+    --- FAIL: TestNative379V2ReplayFailureMetadataClosedStrings/class (0.01s)
+    --- FAIL: TestNative379V2ReplayFailureMetadataClosedStrings/stage (0.05s)
+    --- FAIL: TestNative379V2ReplayFailureMetadataClosedStrings/context (0.01s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.197s
+FAIL

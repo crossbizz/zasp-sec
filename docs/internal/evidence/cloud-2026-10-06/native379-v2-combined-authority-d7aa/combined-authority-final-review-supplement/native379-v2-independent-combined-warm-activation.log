@@ -1,0 +1,37 @@
+=== RUN   TestP7AuthorizationActivationPreparesRuntimePins
+    authorization_runtime_activation_test.go:26: fresh-process activation checks:
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/invalid_activation_does_not_initialize_or_enable
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/valid_activation_prepares_real_immutable_pins_before_mode
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/concurrent_activation_uses_one_compiled_pin_load
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/expired
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/wrong_role
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/short_key
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/uppercase_key
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/independent_refused
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/profile_refused
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/scan_error
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/late_cancel
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/closed
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/non_enforcing
+        === RUN   TestP7AuthorizationActivationPreparesRuntimePins/initialization_panic_leaves_mode_disabled_and_mutex_unlocked
+        --- PASS: TestP7AuthorizationActivationPreparesRuntimePins (0.29s)
+            --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/invalid_activation_does_not_initialize_or_enable (0.00s)
+            --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/valid_activation_prepares_real_immutable_pins_before_mode (0.28s)
+            --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/concurrent_activation_uses_one_compiled_pin_load (0.00s)
+            --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards (0.00s)
+                --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/expired (0.00s)
+                --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/wrong_role (0.00s)
+                --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/short_key (0.00s)
+                --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/uppercase_key (0.00s)
+                --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/independent_refused (0.00s)
+                --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/profile_refused (0.00s)
+                --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/scan_error (0.00s)
+                --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/late_cancel (0.00s)
+                --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/closed (0.00s)
+                --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/prepared_pins_retain_context_identity_and_query_result_guards/non_enforcing (0.00s)
+            --- PASS: TestP7AuthorizationActivationPreparesRuntimePins/initialization_panic_leaves_mode_disabled_and_mutex_unlocked (0.00s)
+        PASS
+--- PASS: TestP7AuthorizationActivationPreparesRuntimePins (0.30s)
+PASS

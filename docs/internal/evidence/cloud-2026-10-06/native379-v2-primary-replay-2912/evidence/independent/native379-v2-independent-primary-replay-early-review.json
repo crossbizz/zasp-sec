@@ -1,0 +1,43 @@
+{
+  "assessment": "CHANGES-REQUIRED-BEFORE-LIVE-INTEGRATION",
+  "declined_to_judge": [
+    "Pendingliveintegration/finalsourcebinary/wire orreceiptvalidator",
+    "ActualPGpermissions/runtime/successfulnativeexecution",
+    "Causeofpreviousprimarycatalogfalse oractualcapacity",
+    "Deployment/product/releaseacceptance"
+  ],
+  "findings": {
+    "Critical": [],
+    "Important": [
+      {
+        "detail": "Replay callback receives phasecontext directly. OriginalSQLMilliseconds10s is not applied perquery; expensive normalization could occupy180s pristinephase. Derivequerychild=minSQL/phase/global deadline, snapshotactualchildcontext before cancel, and refuse timeout/error asunknown without laterreplay orfalserefusalclaim. Authoracknowledgedrepairpending.",
+        "line": 4786,
+        "title": "Apply original per-query SQL deadline"
+      },
+      {
+        "detail": "Failureclosure always emitszero successfullyscanned/charged counts. AfternilbooleanScan establishesoneobservedrow, a latercanonical/bytecharge refusal shouldretainknownscanned1/charged0/proposed1. OpaqueQueryRowerrors cannotprove actualphysicalrow; keepunknownexplicit oruseminimalstreamingNext/Scan/Err/Close tocountobservedrows andrefuseNULL/extra/trailingerrors. Authoracknowledgedrepairpending.",
+        "line": 4753,
+        "title": "Preserve known scan count on charge refusal"
+      }
+    ],
+    "Minor": []
+  },
+  "format": "independent-native379-v2-primary-replay-preintegration-review-v1",
+  "integration_requirements": [
+    "Onlyinvoke after actualoriginalcatalog normalfalse withnilScanError, livecontext andsuccessful originalcharge; primaryerror/timeout/unknownneverentersreplay.",
+    "Outcomealwaysdiagnostic-onlyorderedprefix-not-originaltrace; ComparisonCompletefalse andprimaryfailure retained evenallprefixtrue. Earliestobservedreplayfalse mayskipsecondarycollector butnotassert originalbranchcause.",
+    "Charge everyactualobservedphysicalrow/fullcanonicalsuccessorfailure receipt underoriginalphase/globalcaps beforeappend; no silentdroppedreceipts/zerocostoverhead. Needindependentexpectedquery/params/sourceSpan/placement/sessionbindings/order/firstrefusal/budget/cumulative timing replay forforgerycontrols.",
+    "Recommendminimalstreaminginterface for exactobservedrows/NULL/cardinality/Err/Close/livecontextproof. Conservative1rowreservation isalternatively validonly explicitly upperboundfail-onlyledger, neverclaimedobservedrownativeacceptance; preserveunknownreservation/no doublecharge.",
+    "Retainall379rules/10052facts/589programs/6348steps/allcaps; sourcewirechangeslimitedactualhelperclosure. SeparatefinalNode/wire/sourcecomponentreview beforeanyanchors/build/nativeauthorization."
+  ],
+  "observed_source_sha256": "d53529fdac33eca49c0c1f742ba3de006407cfa0f2b89718ff64c462c35a946d",
+  "readonly_permission_assessment": [
+    "Exact4add moduleSHA prerequisite binds extraction. Publicwrapper/resolveradmissions readpg_catalog only; caller/registration/digest/provenance/profile/privateclosure queries readprivateexpected/registration/catalogs only.",
+    "Canonical/normalizeRows helper bodies underadmittedmodule are pure IMMUTABLE STRICT SECURITYINVOKER; actualrolezasp_discovery_authority owns privateschema/tables/functions. No DML/DDL/newroutine/rolemutation introduced byprefixqueries.",
+    "SameownedTx repeatableread/read-only/authorityrole/pg_catalog searchpath/UTC/sessionuser/PID frameproof mustpassfirst. Nativeargs derivedfromrealowner.ConfigUser/PgConnPID, notcallerlabels. Noquerycallbackauthority exposed inliveentry.",
+    "Originaldigest expression beforePostgresprovenance preserved; materializedCTEs avoid repeatedhelpercalls. ReplayNULL/missingprovenance/error mustremainunknown, notconvertedtofalse. No claimofSQLexpressionevaluationorder withincompoundpredicates."
+  ],
+  "reviewer": "review_capture_dependency",
+  "scope": "Early private readonly/source extraction/spec review; noSQL/PG/nativeexecution",
+  "source_path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/source/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go"
+}

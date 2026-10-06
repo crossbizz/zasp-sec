@@ -1,0 +1,11 @@
+=== RUN   TestNative379V2ReplaySQLDeadlineAndPartialChargeRefusal
+=== RUN   TestNative379V2ReplaySQLDeadlineAndPartialChargeRefusal/sql-child-deadline
+    authorization_worker_ordered_current_native379_v2_test.go:4820: replay query lacks original10s SQL cap
+=== RUN   TestNative379V2ReplaySQLDeadlineAndPartialChargeRefusal/scanned-before-byte-refusal
+    authorization_worker_ordered_current_native379_v2_test.go:4826: actual scanned row lost on byte-budget refusal
+--- FAIL: TestNative379V2ReplaySQLDeadlineAndPartialChargeRefusal (0.08s)
+    --- FAIL: TestNative379V2ReplaySQLDeadlineAndPartialChargeRefusal/sql-child-deadline (0.02s)
+    --- FAIL: TestNative379V2ReplaySQLDeadlineAndPartialChargeRefusal/scanned-before-byte-refusal (0.04s)
+FAIL
+FAIL	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.097s
+FAIL

@@ -1,0 +1,113 @@
+{
+  "status": "PASS_EXACT_COMBINED_SOURCE_COMPONENT_AND_SEPARATE_ANCHOR_CANDIDATE",
+  "findings": [],
+  "private_source": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/source",
+  "whole_current_root_git_identity_claim": false,
+  "baseline_git_commit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "actual_source_files": 6240,
+  "source_delta": "Exactly5modified+1added vs original6239Git512 files: reviewed warmtransaction/newactivation +unchangedreviewed2912implementation +3Node provenance files; no missing/extra sourcefiles",
+  "implementation_sha256": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0",
+  "warm_transaction_sha256": "95a188b5d23de72a69a9f82c8719bf1b040295642710c1e87e1c617be65a6471",
+  "warm_activation_sha256": "c3d02cc05aed023d6f5b84ae145ad3fe395ee0f5896142af25623d5172defaca",
+  "wire_sha256": "d7aaea0657e9bdb8e512a3c0a332e3cf91296a50e6c967233829ec95f45a01ce",
+  "source_manifest_sha256": "d3f6fac0d38478208fe1feff2f521a8b132b373aa8516771c62005a762a11ea4",
+  "source_schema_sha256": "da5a78ad3d5d9a19f348d99e1b44b444fe188e54e373a7d46d3fb609c3cc71a0",
+  "packet_compiler_sha256": "b0f2c1483d009f45f9660bbb05e62fd7f7dfbae643bcd0af50023456a7ccd9c3",
+  "roster_verification": "All1545private+actualcurrentrootmember hashes independentlymatch; complete985apiserverGo set excluding onlyexactnamedcompanion matches noextraDIAG; rootNode3 exactprivate bytes; rosterdelta vs reviewed2912 onlywarmtransaction+newactivation",
+  "archive_verification": "All10sourcearchivepins exact regular0400; raw/gzip exactroundtrip25160408bytes; every nonauthority packetfield exact reviewed2912 and5d18, preserving379rules/10052facts/565sites/589controls/6348steps/allcaps/eightSQLidentities",
+  "warm_semantics": "Onlyexistingimmutable OnceValues pins prepared aftervalid capability/open check andbefore mode enable underdeferredunlock; live readiness/query/identity/context/result checks unchanged. Newfresh-process test coversinvalid/noinitialization,realpins/singleload/concurrentactivation,negative/live-query guards andpanicdisabled/unlocked. Provider reviewedwarm separately; no originalcallbackcause orproductionrelease promotion inferred.",
+  "node_delta": "Schema onlymanifestSHA+exactcardinality1544to1545; packetcompiler onlynewsource-schemaSHA; sourceinput onlyreviewedwarmmember/newtest, pendinggate/refusal/import/topology policy unchanged",
+  "separate_anchor_candidate": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/combined-seven-anchor-candidate-facn98sx/authorization_worker_ordered_current_native379_v2_pins_test.go",
+    "sha256": "6578c51887f7a91765d660f2f7d833e1f82d08bff025dcecb632178f70427c7c",
+    "derivation_sha256": "70271d4c1b193672e81e82078898193bd55026a2e41e9356d5571347213acef6",
+    "exact_seven_values": {
+      "orderedCurrentNative379V2PacketSHA256": "d7aaea0657e9bdb8e512a3c0a332e3cf91296a50e6c967233829ec95f45a01ce",
+      "orderedCurrentNative379V2ModuleSHA256": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74",
+      "orderedCurrentNative379V2ManifestSHA256": "4820af14e63ea69b9285e5c69463436fe4ce01ef3a39111b7cbefc8adc2897f9",
+      "orderedCurrentNative379V2CollectorSHA256": "97f6547ee1a61a8af8c82dbf3bdba38a35b0df3eb60cd69c0ba3743d7bf6446f",
+      "orderedCurrentNative379V2SourceInventorySHA256": "d3f6fac0d38478208fe1feff2f521a8b132b373aa8516771c62005a762a11ea4",
+      "orderedCurrentNative379V2GeneratedIdentitiesSHA256": "9d1053e9310e27128404e45c2eeedce1dc6b42eaff004ecf0e0760c903b59f99",
+      "orderedCurrentNative379V2SourceFactDeltaSHA256": "90325bea8205ec4e3f8eaa1de3c1fb0d814981cc6fbfd91e3c3e4ad3e6a9cdab"
+    },
+    "verification": "Candidate bytes exactlyold468734 withONLYpacket/sourceinventory literals replaced. Fourartifact hashes rederived fromactualcombinedraw/sourceinputs/generatedidentities/delta; module/manifest/collector hashes rederived fromunchanged actualapproved512frozen generatedbytes. PrivateGitdevelopment outputs intentionallystale, not same hashes. No companion installed/compiled in retainedcurrentbinary. Explicit Node exclusion avoids cycle; future fullconsumedGo envelope mustinclude candidate."
+  },
+  "independent_component_rerun": {
+    "binary_sha256": "31f421452860556068c3f59babbacb44c25eb13138ca6921040ab7796a3320a1",
+    "environment": {
+      "HOME": "/home/agent",
+      "PATH": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/go/bin:/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+      "TMPDIR": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/tmp",
+      "GOROOT": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/go",
+      "GOMODCACHE": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache",
+      "GOCACHE": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/build-cache",
+      "GOTOOLCHAIN": "local",
+      "GOENV": "off",
+      "GOWORK": "off",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOFLAGS": "-mod=readonly",
+      "CGO_ENABLED": "0",
+      "GOOS": "linux",
+      "GOARCH": "amd64",
+      "ZASP_NATIVE379_V2_REPLAY_SOURCE_MODULE": "/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/module-cache/owned-source/services/platform/migrations/ordered_current/development-module.sql"
+    },
+    "results": [
+      {
+        "name": "activation",
+        "exit_code": 0,
+        "seconds": 0.3304098190019431,
+        "passes": 1,
+        "failures": 0,
+        "skips": 0,
+        "argv": [
+          "/usr/bin/timeout",
+          "-k",
+          "5s",
+          "240s",
+          "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/component-review-combined-warm/apiserver-source-review.test",
+          "-test.run=^TestP7AuthorizationActivationPreparesRuntimePins$",
+          "-test.count=1",
+          "-test.v"
+        ],
+        "cwd": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/source/services/platform/apiserver",
+        "log_sha256": "8f3aa2b4dcef74905c209fdc87732da249bb105bf5017faea7555200e421b417"
+      },
+      {
+        "name": "full23",
+        "exit_code": 0,
+        "seconds": 52.243827038000745,
+        "passes": 23,
+        "failures": 0,
+        "skips": 0,
+        "argv": [
+          "/usr/bin/timeout",
+          "-k",
+          "5s",
+          "240s",
+          "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/component-review-combined-warm/apiserver-source-review.test",
+          "-test.run=^TestNative379V2",
+          "-test.count=1",
+          "-test.v"
+        ],
+        "cwd": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/source/services/platform/apiserver",
+        "log_sha256": "7b8a153609074e5c92e67291afa38d87a985627036d509ec1d12c910b80ec12c"
+      }
+    ]
+  },
+  "independent_rerun_record_sha256": "52c16b53ca1d9e76fae8bbeda67046b3e0e72906f68c6c5aaff633d808bf7502",
+  "component_identity_sha256": "ab7b6879cbafe86371a9eeed7eb5a70da13117ea99e04764479b9837fd231362",
+  "inherited_replay_review_sha256": "550cd14f8ef21ae624f5a5a3d734a265f30b062f59420374897b21512ea9bf19",
+  "approval_scope": "Exactcombinedsource batch andexactseparate6578companion source-binding candidate acceptable for root-controlled source adoption. This doesnot approve any future frozen envelope ornative/PG launch.",
+  "required_next": [
+    "Fresh exactcommittedsource archive andall8generatedoutputs; never use stale privateGit development references asadmittedoutputfiles",
+    "Fresh fullconsumedGo inputs/modules/tools/binaries includingnewcompanion; strictclosed Go+Node/runtime/PG envelopes andactualmode/hash/processcleanup proofs reviewedseparately",
+    "Separate rootauthorization/finite review for anyPG/nativeattempt; existing oldroots/failedattempts/publications unchanged"
+  ],
+  "declined_to_judge": [
+    "Native379 outcome/parity/capacity/installed/deployed/release acceptance",
+    "Wholecurrentroot Git/archive/dependency closure orfuturefrozenbuild alreadycompleted",
+    "Full/npm verification oractual originalcallback expirycause",
+    "Candidatepopulatedanchors executing native withoutfresh actualfullGo envelope"
+  ]
+}

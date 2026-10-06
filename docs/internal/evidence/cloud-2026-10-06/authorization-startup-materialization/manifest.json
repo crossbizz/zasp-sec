@@ -1,0 +1,179 @@
+{
+  "format": "exact-startup-materialization-evidence-archive-v1",
+  "members": {
+    "evidence/activation-grouped-green-record.json.gz": {
+      "bytes": 367,
+      "sha256": "1c34656c19d467ce14ad6d255b2becab16cf51437517fbfa3e9beb2b5bfa3418",
+      "decodedBytes": 528,
+      "decodedSHA256": "6d665628fd89a1c02f9e515423f9852ce4c2726bc2e23f75c81b0657a584497c"
+    },
+    "evidence/activation-grouped-green.log.gz": {
+      "bytes": 1023,
+      "sha256": "a3b2c839171a64aa71b70b47f2727b9e4e0e64393528ef60543b4130598de55c",
+      "decodedBytes": 9138,
+      "decodedSHA256": "8e2f8bf6718a46946aeb94c6d76726a51fbb381b733e7d783770f9ce5eb25a72"
+    },
+    "evidence/activation-grouped-race-green-record.json.gz": {
+      "bytes": 413,
+      "sha256": "4b54032ff654d3ddcc18c6a041928b9d79f8fefa3f790b5aa0995fdc9874baa4",
+      "decodedBytes": 606,
+      "decodedSHA256": "823a7e8b699e3d855a223f59654fdca34ee8f338abe24242c3b0f4095940e131"
+    },
+    "evidence/activation-grouped-race-green.log.gz": {
+      "bytes": 1032,
+      "sha256": "9865f6dd3098a83c872189dbde4ba81b9b1c2c6ea548ce6082c601b8b8bd0494",
+      "decodedBytes": 9138,
+      "decodedSHA256": "9d7cb58f81138a611d0b9e1bb5f66929ff5cdd20456023f8c859ec3da0167485"
+    },
+    "evidence/activation-grouped-red.log.gz": {
+      "bytes": 675,
+      "sha256": "3fbeea4d6591331adf4aa35fed1f33334b9dfcf73b445b7ec89b7050acaedd83",
+      "decodedBytes": 5158,
+      "decodedSHA256": "5adf88684933e8675fb41119b93f7e59d6fb2ef45b8f14ec8b4010b69eabd0c6"
+    },
+    "evidence/authentic-full997-final-summary.json.gz": {
+      "bytes": 734,
+      "sha256": "6a4994f186a45691efded57ecee16233914d5d95716cbe8cd5e1ca2c7c90178a",
+      "decodedBytes": 1413,
+      "decodedSHA256": "6a9f43b286efc8aa0971eacb0b61b483b2422ffbac489dbc8a7455455b324f08"
+    },
+    "evidence/baseline-authorization_transaction.go.gz": {
+      "bytes": 1634,
+      "sha256": "d37ff0c9fab48c83b8666cbf8b0cf2d1b0c5752b4f5fa15c729736ec7e3513a0",
+      "decodedBytes": 4597,
+      "decodedSHA256": "156004e966a068ebafb70c4055367b4cb4f53626361dbb822e93a5a11670987d"
+    },
+    "evidence/candidate-activation-callback-timing-record.json.gz": {
+      "bytes": 390,
+      "sha256": "9a31d599dc9b5b1120ed51bcea817a50b48a693d6aad2f6db2acdb15f7ff5de7",
+      "decodedBytes": 546,
+      "decodedSHA256": "734accfb1c7a013ef4e52e735fc1bfb047650f2ef46812ba82fe536552cfd531"
+    },
+    "evidence/candidate-activation-callback-timing.log.gz": {
+      "bytes": 305,
+      "sha256": "51437537477616dca5d11e72425fc340f149202ea4e29a4048fde76c8a510566",
+      "decodedBytes": 635,
+      "decodedSHA256": "99b009ac6ecd37a3a9874d50b2df88ed3e989ba10f74ed9c362848f43f970aaf"
+    },
+    "evidence/candidate-pins.json.gz": {
+      "bytes": 549,
+      "sha256": "708b53c3b8da59115fd1cf887ad1787c25bedb670f5e7834cfee84d7522f605f",
+      "decodedBytes": 968,
+      "decodedSHA256": "d80a5bbd922f2e18f615476ca50d51784ff5cf42f54c06f49b2b0f8de10e8437"
+    },
+    "evidence/candidate-source-dirscan-record.json.gz": {
+      "bytes": 439,
+      "sha256": "5e83e2f0f563e3cdee1478f5c18f7500258932738a179be31d6b3bdba0713a28",
+      "decodedBytes": 751,
+      "decodedSHA256": "b575dbd952f6e1f814481c4c2fc18c506bee5f3c38700ca5912691d5664a4cf6"
+    },
+    "evidence/candidate-source-dirscan-redacted.json.gz": {
+      "bytes": 23,
+      "sha256": "2ca4529576310b626c1bd48352d283b521d029d54f195d8416536872d826e4c6",
+      "decodedBytes": 3,
+      "decodedSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "evidence/candidate-source-dirscan.log.gz": {
+      "bytes": 91,
+      "sha256": "599042ece74d8614a1cac26bdbaff5f31aa6de7bd69df05e0253b196119eb389",
+      "decodedBytes": 79,
+      "decodedSHA256": "542074ecee98a6d1942356835c516f3284bf0ef51f433c6c0beffe92f0092e1f"
+    },
+    "evidence/candidate.patch.gz": {
+      "bytes": 2335,
+      "sha256": "3c40feb74151b7fb00f5d9b88c8a452117262f75a5b3022f4cf1a1a98fcafd37",
+      "decodedBytes": 7637,
+      "decodedSHA256": "06ecb8b9a8d82fc6bdad4374475fa71b2167a852878e72a675a73290f62f41d7"
+    },
+    "evidence/cold-warm-callback-timing.log.gz": {
+      "bytes": 316,
+      "sha256": "f13489bcd1aa3bbe78adda6660e3798bcd235062e8ae3706d889455f55a33fa1",
+      "decodedBytes": 639,
+      "decodedSHA256": "75442eb1cde9a3536165a417423a3198a734b679bcb74079389f88d190b479b9"
+    },
+    "evidence/cold-warm-factories-timing.log.gz": {
+      "bytes": 272,
+      "sha256": "5102a9678aca97c97a2b732ae401b0e4964d6546b6a1806929d0ca00dcd01ec0",
+      "decodedBytes": 474,
+      "decodedSHA256": "a6c957b8f0a0b4bd0d999ea3626ebabf563e75f81bb18c73e9e7b2cd836c2054"
+    },
+    "evidence/exact-source-delta.json.gz": {
+      "bytes": 404,
+      "sha256": "e443c6f249aef2f8da0138190593c16a0b345a5fe715abd41e2933d13188a338",
+      "decodedBytes": 863,
+      "decodedSHA256": "5ef4c2e7d1a9c1e733174f39fecd9924b6cddf4c14bd9b63ca79ea03ecce3c2f"
+    },
+    "evidence/health-source-receipt.json.gz": {
+      "bytes": 157,
+      "sha256": "e7c0607a8ad2417badb95e0cb4a269e5aec67224bee21f98275bae2c4bf0015b",
+      "decodedBytes": 170,
+      "decodedSHA256": "1cfe5db1755e9b63dbb3237102de109644b0b09e4ad616cd9a11549846dcb3f6"
+    },
+    "evidence/initial-readonly-diagnosis.json.gz": {
+      "bytes": 1607,
+      "sha256": "0751328273f0c6249d66c9c88a95dff07aa22ee0526cd6eca14e4d536619e09f",
+      "decodedBytes": 3416,
+      "decodedSHA256": "f1d4fb7866700e488ac06ad759fc7c36cbd34cc1dcccd1993f649d2bb67fb7c0"
+    },
+    "evidence/original-cold-callback-retry.log.gz": {
+      "bytes": 173,
+      "sha256": "c215a6905f327220529e304e37aec579da7f1668243bf013bee55b84d5027793",
+      "decodedBytes": 304,
+      "decodedSHA256": "56332253824f8816037c965985b38a12c227c3ef2deaa69fd76314fc1114ca58"
+    },
+    "evidence/original-cold-callback.log.gz": {
+      "bytes": 166,
+      "sha256": "830ca87bcdfeebd5c7efb39216e413aff6c1a24f1fa8a5f19979864d3d7b2cd8",
+      "decodedBytes": 273,
+      "decodedSHA256": "7536a58d0144e4c8974a9667b4d175341bb8062b4381c7255b28808fbdfd3558"
+    },
+    "evidence/private_readiness_timing_test.go.gz": {
+      "bytes": 958,
+      "sha256": "1e878687126d4428ab868723168b619ece94b2b9dddb3de1966f83f911b87ded",
+      "decodedBytes": 2498,
+      "decodedSHA256": "85a7c1cca81388e226ac09993dd5177a92c5f030b3e94d1a34e4b205f9839205"
+    },
+    "evidence/source-receipt.json.gz": {
+      "bytes": 184,
+      "sha256": "310d0bce551ff495b70a7f801469962d2cf80e0441fd197b8acd10bc510966e9",
+      "decodedBytes": 207,
+      "decodedSHA256": "b418e11d0f57c9614c560ff6ad32dd3d943e9f7fbd0c2ab561253ae53b7c01a3"
+    },
+    "evidence/timing-diagnosis.json.gz": {
+      "bytes": 2459,
+      "sha256": "5e0c6b037f32813aa5cdaeaea75a2471b6f71b95cbd7ae212eab69213f1b0fc8",
+      "decodedBytes": 5444,
+      "decodedSHA256": "4784ab6ea136a5bb97591ce07d4aa0fddc634c498a88743cc58cfb970b536702"
+    },
+    "evidence/validation-summary.json.gz": {
+      "bytes": 2720,
+      "sha256": "e722e3c53c27fd9c711f4cb5169c6c6aa1721af447c1714ad254d352bea1f32f",
+      "decodedBytes": 6962,
+      "decodedSHA256": "3ee969df3294aab36ed140baa35c4cf049aea5a4537efc44d0d4b46021305569"
+    },
+    "candidate-files/services/platform/apiserver/authorization_runtime_activation_test.go.gz": {
+      "bytes": 2109,
+      "sha256": "b2c8a2fb4b960590172374c5b21f0550c14374a2565a39d3ba99f9c4ab708f77",
+      "decodedBytes": 6819,
+      "decodedSHA256": "c3d02cc05aed023d6f5b84ae145ad3fe395ee0f5896142af25623d5172defaca"
+    },
+    "candidate-files/services/platform/apiserver/authorization_transaction.go.gz": {
+      "bytes": 1726,
+      "sha256": "ebfa458f711389918e5c215dd8c35c4ba3c15b27be8979a669b156bae4e0ddc8",
+      "decodedBytes": 4789,
+      "decodedSHA256": "95a188b5d23de72a69a9f82c8719bf1b040295642710c1e87e1c617be65a6471"
+    },
+    "candidate-evidence-manifest.json.gz": {
+      "bytes": 1831,
+      "sha256": "19f5dfda7851be31d9bbf7d8076fcad6ff4ffc6378202e3711627e70c5201deb",
+      "decodedBytes": 4757,
+      "decodedSHA256": "eed2bb8b086074401eb2b01620e0bd986f24978c2534f118584dc70e905aca56"
+    },
+    "independent-authorization-readiness-production-review-997.json.gz": {
+      "bytes": 1675,
+      "sha256": "8cd4a7d90a371e2731fefc6b81e4a7a1a114e50d154b26c6f9866a74161815be",
+      "decodedBytes": 3298,
+      "decodedSHA256": "2807d09f37c5a1825229e68d6a2b0bc2e2fdf01a10ab80af51d00b839fa851f6"
+    }
+  }
+}

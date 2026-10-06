@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 
 const root=path.resolve(fileURLToPath(new URL('../../../../',import.meta.url)));
-const manifestSHA256='02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989';
+const manifestSHA256='d3f6fac0d38478208fe1feff2f521a8b132b373aa8516771c62005a762a11ea4';
 const sha=raw=>crypto.createHash('sha256').update(raw).digest('hex');
 const fail=message=>{throw Error('ordered-current native379 v2 source '+message);};
 const canonical=value=>JSON.stringify(value,(_,item)=>{
@@ -34,7 +34,7 @@ function fixed(){
  const raw=readNative379RegularSourceV2(root,'services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json',manifestSHA256);
  if(raw.length>1048576)fail('manifest byte cap');
  const source=JSON.parse(raw);
- if(source.format!=='ordered-current-native379-source-inputs-v2'||source.installable!==false||source.nativeVerified!==false||source.status!=='SOURCE-PROVENANCE-ONLY'||Object.keys(source.files).length!==1544)fail('manifest shape/cardinality');
+ if(source.format!=='ordered-current-native379-source-inputs-v2'||source.installable!==false||source.nativeVerified!==false||source.status!=='SOURCE-PROVENANCE-ONLY'||Object.keys(source.files).length!==1545)fail('manifest shape/cardinality');
  const implementation='services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go';
  const companion='services/platform/apiserver/authorization_worker_ordered_current_native379_v2_pins_test.go';
  const policy={implementation,excludedSourcePaths:[companion],companionBinding:'independently-reviewed-full-consumed-Go-source-module-test-binary-envelope'};

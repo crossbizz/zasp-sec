@@ -701,3 +701,44 @@ dependency limits, separate scanner proof and bounded existing M1-28/M1-28b
 health-command task links. No all 728/category or original acceptance promotion,
 provider mutations, online audit/disclosure or root shared edits by this recorder.
 Receipt/status are private drafts requiring independent review before adoption.
+
+
+## Reviewed startup materialization and primary-refusal diagnostics
+
+The production authorization activation now prepares the existing immutable
+compiled checksum cache before enabling bounded readiness probes. Live database
+readiness, tenant authorization decisions, queries and deadlines remain per
+request. Actual full997 healthy-callback FAIL510s and original isolated PASS
+remain separate: cold cache work is measured, not claimed as a proven original
+expiry cause. Genuine startup-order/panic/once regressions, 38 grouped leaves,
+normal/race checks and independent review passed. Original proof is retained in
+`evidence/cloud-2026-10-06/authorization-startup-materialization/`.
+
+Native379 diagnostics retain operation timings and an ordered read-only replay
+after primary normal FALSE. Replay is a separate diagnostic observation, not an
+original branch trace or positive acceptance. Deadlines, budgets, live session
+identity, stream partial counts and safe output closure remain enforced. Genuine
+deadline/count/borrowed-hash regressions and independent 23-group verification
+passed. Original2912 proof and required scan/provenance supplement remain under
+`evidence/cloud-2026-10-06/native379-v2-primary-replay-2912/`. Its retained scans
+FAIL8 reflect independently verified public source hashes, not security clearance.
+
+The combined actual consumed roster has 1545 members and 985 API Go files. Its
+packet SHA is d7aaea0657e9bdb8e512a3c0a332e3cf91296a50e6c967233829ec95f45a01ce;
+all non-authority packet fields preserve the original 379/10052/565/589/6348
+counts and budgets. Independent source controls 23/23 and startup test pass. The
+separate seven-anchor companion changes only packet and source-index literals;
+five derived values remain unchanged and require fresh generation/full checks.
+Reviewed31-member proof plus required scan and five-file independent-review
+supplements are retained in `evidence/cloud-2026-10-06/native379-v2-combined-authority-d7aa/`.
+Its actual FAIL16 consists of eight public source hashes repeated in two
+inventories. Independent publication review c944e197098fe3dd9eda52678a6a1021beb726f1777ecfa45445708dcf5db85a
+verifies closure and scoped classifications; it does not waive actual commit
+coordinates, security rules, fresh full-history scans or native/deployed gates.
+
+A fresh immutable committed-source build, eight regenerated artifacts, complete
+Go/Node/tool/PostgreSQL consumed envelopes, independent review and root-owned
+bounded native execution remain required. Existing205/224s native failures and
+302/478/510s full verification failures are unchanged. No ledger promotion:
+728 original rows, 523 historical production-available, 144 component-only,
+61 external blockers. Real deployed Stytch/provider acceptance is still missing.

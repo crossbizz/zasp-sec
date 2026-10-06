@@ -1,0 +1,107 @@
+{
+  "scope": "independent reproducible Python transcription of unchanged reviewed Go source extractor; NOT observed execution",
+  "moduleSHA256": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74",
+  "implementationSHA256": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0",
+  "orderedSteps": [
+    {
+      "index": 0,
+      "id": "session-frame",
+      "sourceSpanSHA256": "700c184ff61d43056e171371dc98500b0a3239a0c6d702dcd5e18c813b1d2da1",
+      "querySHA256": "700c184ff61d43056e171371dc98500b0a3239a0c6d702dcd5e18c813b1d2da1",
+      "queryBytes": 359,
+      "placementSHA256": "60ce9702d7b1c5f8d5a33e7450fbf6c2b8254b7b4c01d437f27b50ffac0ce8f2",
+      "parameterShape": "session-pid/user-actual-owner-binding",
+      "parameterSHA256Rule": "SHA256 of JS-compatible canonical actual [] or [sourceManifest] or [actual owner PID,user]; no actual runtime parameters asserted"
+    },
+    {
+      "index": 1,
+      "id": "public-wrapper-admission",
+      "sourceSpanSHA256": "6c5defb129a04ce2dc8b6837c52c68203dfa325d04c5af91094cee6807361ed1",
+      "querySHA256": "ad9fef1bfc3d6c203b17136631ab9ba21727198056ef7581f3bae0a881fbbd29",
+      "queryBytes": 1746,
+      "placementSHA256": "7ec57029ff87f4b1f79e45a479f7ee84f4db3cade7143b1848124e834a7c6e0e",
+      "parameterShape": "none",
+      "parameterSHA256Rule": "SHA256 of JS-compatible canonical actual [] or [sourceManifest] or [actual owner PID,user]; no actual runtime parameters asserted"
+    },
+    {
+      "index": 2,
+      "id": "resolver-admission",
+      "sourceSpanSHA256": "bec3cfa0fad2b4961b5a1d62e8c53eec67c41bcd30cb2772f36644eabf055ba8",
+      "querySHA256": "1dd5c5a4370a846623641d0b9c5aeae6f43e176e2f1ea7c4c5006870d47b527b",
+      "queryBytes": 1373,
+      "placementSHA256": "2abfe72abe72c17366fb12a7fd87c8bb9425e656945f962a4b88bdbc96628bd5",
+      "parameterShape": "none",
+      "parameterSHA256Rule": "SHA256 of JS-compatible canonical actual [] or [sourceManifest] or [actual owner PID,user]; no actual runtime parameters asserted"
+    },
+    {
+      "index": 3,
+      "id": "caller-and-manifest",
+      "sourceSpanSHA256": "c059f55b4949730dbad24003e29ac127c486121e675afdfb570d68c80e62fa86",
+      "querySHA256": "ad71bfa59779c948f7f71bd86debe437f3a7d7d546f4dab56b2c5390212f24dc",
+      "queryBytes": 105,
+      "placementSHA256": "2cccef7e6009e44cc0c456ed8401eb495385634e0b803b5b3ca19a1d7bd8b8ca",
+      "parameterShape": "source-manifest",
+      "parameterSHA256Rule": "SHA256 of JS-compatible canonical actual [] or [sourceManifest] or [actual owner PID,user]; no actual runtime parameters asserted"
+    },
+    {
+      "index": 4,
+      "id": "registration-count",
+      "sourceSpanSHA256": "13b102ffc4b3ee66cf55648926b9673ba29b70d182a9918f03fdb9288072b1a4",
+      "querySHA256": "5d11f4e2c553e786e79e1808c2007269f99b164b685ece9f2bd469b8f4dd2310",
+      "queryBytes": 88,
+      "placementSHA256": "e645cb442f0949e9da3d37e4552d15b776f64d29a11a18906279ce87fa2a8d07",
+      "parameterShape": "none",
+      "parameterSHA256Rule": "SHA256 of JS-compatible canonical actual [] or [sourceManifest] or [actual owner PID,user]; no actual runtime parameters asserted"
+    },
+    {
+      "index": 5,
+      "id": "registration-binding",
+      "sourceSpanSHA256": "5099cbf3af72b0b80ac3a2d46a597bde0805b04154f5f6819f6ec09f71d61725",
+      "querySHA256": "2902317c52d91279cb47d36ea3bace4968f9d7c3f4ccda0a7c290e50eb07f190",
+      "queryBytes": 154,
+      "placementSHA256": "6289baddee31ad42cc09fb265d6f2695c25db2c10080f236ce33ad5d59cca176",
+      "parameterShape": "source-manifest",
+      "parameterSHA256Rule": "SHA256 of JS-compatible canonical actual [] or [sourceManifest] or [actual owner PID,user]; no actual runtime parameters asserted"
+    },
+    {
+      "index": 6,
+      "id": "expected-normalization-and-digest",
+      "sourceSpanSHA256": "e1842b06a4da10abb1e922f48cef26597093ca18ed289deb468d5fa5ca921a42",
+      "querySHA256": "e9bb558867df02b925d5ea45863e1733775e3ef35167e53732d0a85688f77ef1",
+      "queryBytes": 592,
+      "placementSHA256": "b4b4644cbab9168ca6a39766854e4172d9248c3fb3aca25fb4eb5940cc6de0fd",
+      "parameterShape": "source-manifest",
+      "parameterSHA256Rule": "SHA256 of JS-compatible canonical actual [] or [sourceManifest] or [actual owner PID,user]; no actual runtime parameters asserted"
+    },
+    {
+      "index": 7,
+      "id": "postgres-provenance",
+      "sourceSpanSHA256": "e213ddd416f622377cc087da4be6f1f5896f11c3064b53abfa399069af4a9e2a",
+      "querySHA256": "9e5da2cfe6b5a1d47de5957185eb1d880ee42c9cb46db82dedd2cf9749363fd7",
+      "queryBytes": 264,
+      "placementSHA256": "185000a4732399058da32a61e9172718f622054bb4ae23c5c631a9728f20b616",
+      "parameterShape": "none",
+      "parameterSHA256Rule": "SHA256 of JS-compatible canonical actual [] or [sourceManifest] or [actual owner PID,user]; no actual runtime parameters asserted"
+    },
+    {
+      "index": 8,
+      "id": "profile-checksum",
+      "sourceSpanSHA256": "0efe16d28c3f0feef7017abae7941bd8ebb5b06362536189db42da046718da05",
+      "querySHA256": "80c7ca43fbe8da568cc28185a4b105018f02bd1826901e71010f5724108b8d32",
+      "queryBytes": 333,
+      "placementSHA256": "4b78f6075d39b6b31b8e15a0fee8604a057b2e182b0a79fc40a47f1cae8763e5",
+      "parameterShape": "none",
+      "parameterSHA256Rule": "SHA256 of JS-compatible canonical actual [] or [sourceManifest] or [actual owner PID,user]; no actual runtime parameters asserted"
+    },
+    {
+      "index": 9,
+      "id": "private-routine-closure",
+      "sourceSpanSHA256": "c182c975fc928afac1a3c1241d4720812e16fd8c095bc844fcd5356186dabc41",
+      "querySHA256": "a6be4fc6bf7ea92753bb8364bfed94d3e5aa1631663d2a4889c8433d0a013cb7",
+      "queryBytes": 1097,
+      "placementSHA256": "d4180722923ef681cba7e14cc14109039fd4e04d80d8b2fcdbcc0fbfcf10e60b",
+      "parameterShape": "none",
+      "parameterSHA256Rule": "SHA256 of JS-compatible canonical actual [] or [sourceManifest] or [actual owner PID,user]; no actual runtime parameters asserted"
+    }
+  ]
+}

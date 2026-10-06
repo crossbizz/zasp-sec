@@ -1,0 +1,64 @@
+{
+  "baselineCommit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+  "baselineSourceFiles": 6239,
+  "privateSourceFiles": 6240,
+  "currentRootWholeGitIdentityClaim": false,
+  "actualConsumedSourceMembers": 1545,
+  "warmDeliverablesExactReviewed": true,
+  "changedPaths": [
+    {
+      "path": "services/platform/apiserver/authorization_transaction.go",
+      "baselineGitBlobSHA256": "156004e966a068ebafb70c4055367b4cb4f53626361dbb822e93a5a11670987d",
+      "privateSHA256": "95a188b5d23de72a69a9f82c8719bf1b040295642710c1e87e1c617be65a6471"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+      "baselineGitBlobSHA256": "6d02b8f23bf4c53fbe6230cb536bd8f993cf78eb67abe1fd832b27badf8e324e",
+      "privateSHA256": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0"
+    },
+    {
+      "path": "services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json",
+      "baselineGitBlobSHA256": "02ef1b7ce237fa49272bc7e8e778a6fd9e77bde9566b363f7821d770cb2bd989",
+      "privateSHA256": "d3f6fac0d38478208fe1feff2f521a8b132b373aa8516771c62005a762a11ea4"
+    },
+    {
+      "path": "services/platform/migrations/tools/ordered-current-native379-packet-v2.mjs",
+      "baselineGitBlobSHA256": "368ba50a83b52d07649b23eaa28814a4a1ccad71acd7b91716669c0c86c56927",
+      "privateSHA256": "b0f2c1483d009f45f9660bbb05e62fd7f7dfbae643bcd0af50023456a7ccd9c3"
+    },
+    {
+      "path": "services/platform/migrations/tools/ordered-current-native379-source-schema-v2.mjs",
+      "baselineGitBlobSHA256": "82c955587e6c6f5e8c26dd3a0377d38887ed2711a8d26a50766c9882a8ae3a88",
+      "privateSHA256": "da5a78ad3d5d9a19f348d99e1b44b444fe188e54e373a7d46d3fb609c3cc71a0"
+    },
+    {
+      "path": "services/platform/apiserver/authorization_runtime_activation_test.go",
+      "baselineGitBlobSHA256": null,
+      "privateSHA256": "c3d02cc05aed023d6f5b84ae145ad3fe395ee0f5896142af25623d5172defaca"
+    }
+  ],
+  "packetNonAuthorityExactEqualityToReviewed5d18": {
+    "buildRuntime": true,
+    "captureAuthority": true,
+    "controls": true,
+    "coverage": true,
+    "entry": true,
+    "expectedFacts": true,
+    "format": true,
+    "identity": true,
+    "installable": true,
+    "limits": true,
+    "nativeVerified": true,
+    "nextGates": true,
+    "pendingGates": true,
+    "phases": true,
+    "referenceProvenance": true,
+    "resultAuthority": true,
+    "rules": true,
+    "sourceFactDelta": true,
+    "sourceInventory": true,
+    "status": true
+  },
+  "historicalEmbeddedOutputsRewritten": false,
+  "companionUnchangedSHA256": "468734a003d41cad8ce4a5ffe31963ba37f49838ae8c5f5744c5ce6d5638850a"
+}

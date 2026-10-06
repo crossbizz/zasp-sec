@@ -15743,3 +15743,12 @@ observed package/lock/modulelock identities are disclosed, not a frozen complete
 closure. Separate exact 997 scanner 0/96.673s cannot clear full verification/advisory/
 native/deployed gates. Existing M1-28/M1-28b command gate links do not promote
 any of 728 original tasks or 523/144/61 categories. Earlier full/native FAILs remain.
+
+Reviewed startup immutable-pin materialization and primary-refusal diagnostic
+replay adopted as source-only work. Independent23 controls/startup PASS; combined
+1545-member authority d7aa with separately reviewed seven-anchor companion.
+Original31-member proof preserves FAIL16 public-hash observations and supplements;
+original2912 and startup evidence remain distinct. Fresh committed full guards,
+regenerated frozen envelopes and reviewed root native execution remain required.
+No 728 ledger/category or deployed/retirement acceptance promotion. Original
+205/224 native and302/478/510 full failures remain unchanged.

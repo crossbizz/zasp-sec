@@ -1,0 +1,154 @@
+=== RUN   TestNative379V2RawJSONRefusesAmbiguousWire
+--- PASS: TestNative379V2RawJSONRefusesAmbiguousWire (0.00s)
+=== RUN   TestNative379V2UnreviewedAnchorsRefuseBeforeSubprocess
+--- PASS: TestNative379V2UnreviewedAnchorsRefuseBeforeSubprocess (0.00s)
+=== RUN   TestNative379V2RawBoundaryRefusesUnknownNoncanonicalAndForgedStatuses
+--- PASS: TestNative379V2RawBoundaryRefusesUnknownNoncanonicalAndForgedStatuses (0.00s)
+=== RUN   TestNative379V2CanonicalWirePreservesJSStringBoundaries
+=== RUN   TestNative379V2CanonicalWirePreservesJSStringBoundaries/struct-map-receipt-canonical-equivalence
+--- PASS: TestNative379V2CanonicalWirePreservesJSStringBoundaries (0.00s)
+    --- PASS: TestNative379V2CanonicalWirePreservesJSStringBoundaries/struct-map-receipt-canonical-equivalence (0.00s)
+=== RUN   TestNative379V2RuntimeBudgetRefusesBeforeRetention
+--- PASS: TestNative379V2RuntimeBudgetRefusesBeforeRetention (0.00s)
+=== RUN   TestNative379V2RowStreamClosesAtBudget
+--- PASS: TestNative379V2RowStreamClosesAtBudget (0.00s)
+=== RUN   TestNative379V2AssertionReceiptClosedBindings
+--- PASS: TestNative379V2AssertionReceiptClosedBindings (0.00s)
+=== RUN   TestNative379V2AssertionCompletionAndDistinctRefusals
+=== RUN   TestNative379V2AssertionCompletionAndDistinctRefusals/zero
+=== RUN   TestNative379V2AssertionCompletionAndDistinctRefusals/row
+=== RUN   TestNative379V2AssertionCompletionAndDistinctRefusals/tag
+=== RUN   TestNative379V2AssertionCompletionAndDistinctRefusals/mismatch
+=== RUN   TestNative379V2AssertionCompletionAndDistinctRefusals/timeout
+=== RUN   TestNative379V2AssertionCompletionAndDistinctRefusals/poison
+=== RUN   TestNative379V2AssertionCompletionAndDistinctRefusals/cancel
+--- PASS: TestNative379V2AssertionCompletionAndDistinctRefusals (0.00s)
+    --- PASS: TestNative379V2AssertionCompletionAndDistinctRefusals/zero (0.00s)
+    --- PASS: TestNative379V2AssertionCompletionAndDistinctRefusals/row (0.00s)
+    --- PASS: TestNative379V2AssertionCompletionAndDistinctRefusals/tag (0.00s)
+    --- PASS: TestNative379V2AssertionCompletionAndDistinctRefusals/mismatch (0.00s)
+    --- PASS: TestNative379V2AssertionCompletionAndDistinctRefusals/timeout (0.00s)
+    --- PASS: TestNative379V2AssertionCompletionAndDistinctRefusals/poison (0.00s)
+    --- PASS: TestNative379V2AssertionCompletionAndDistinctRefusals/cancel (0.00s)
+=== RUN   TestNative379V2CollectorSafeFailureMetadata
+=== RUN   TestNative379V2CollectorSafeFailureMetadata/postgres
+=== RUN   TestNative379V2CollectorSafeFailureMetadata/wrapped-postgres
+=== RUN   TestNative379V2CollectorSafeFailureMetadata/invalid-state
+=== RUN   TestNative379V2CollectorSafeFailureMetadata/driver
+=== RUN   TestNative379V2CollectorSafeFailureMetadata/deadline
+=== RUN   TestNative379V2CollectorSafeFailureMetadata/cancel
+--- PASS: TestNative379V2CollectorSafeFailureMetadata (0.00s)
+    --- PASS: TestNative379V2CollectorSafeFailureMetadata/postgres (0.00s)
+    --- PASS: TestNative379V2CollectorSafeFailureMetadata/wrapped-postgres (0.00s)
+    --- PASS: TestNative379V2CollectorSafeFailureMetadata/invalid-state (0.00s)
+    --- PASS: TestNative379V2CollectorSafeFailureMetadata/driver (0.00s)
+    --- PASS: TestNative379V2CollectorSafeFailureMetadata/deadline (0.00s)
+    --- PASS: TestNative379V2CollectorSafeFailureMetadata/cancel (0.00s)
+=== RUN   TestNative379V2CollectorDeferredStreamAndPartialCounts
+=== RUN   TestNative379V2CollectorDeferredStreamAndPartialCounts/stream
+=== RUN   TestNative379V2CollectorDeferredStreamAndPartialCounts/scan
+=== RUN   TestNative379V2CollectorDeferredStreamAndPartialCounts/charge
+=== RUN   TestNative379V2CollectorDeferredStreamAndPartialCounts/encoding
+--- PASS: TestNative379V2CollectorDeferredStreamAndPartialCounts (0.00s)
+    --- PASS: TestNative379V2CollectorDeferredStreamAndPartialCounts/stream (0.00s)
+    --- PASS: TestNative379V2CollectorDeferredStreamAndPartialCounts/scan (0.00s)
+    --- PASS: TestNative379V2CollectorDeferredStreamAndPartialCounts/charge (0.00s)
+    --- PASS: TestNative379V2CollectorDeferredStreamAndPartialCounts/encoding (0.00s)
+=== RUN   TestNative379V2CollectorContextAndReadOnlyBudgetSnapshot
+--- PASS: TestNative379V2CollectorContextAndReadOnlyBudgetSnapshot (0.00s)
+=== RUN   TestNative379V2CleanupFailureLogUsesActualSnapshot
+--- PASS: TestNative379V2CleanupFailureLogUsesActualSnapshot (0.00s)
+=== RUN   TestNative379V2PristineRecorderRejectsUnsafeSQLState
+--- PASS: TestNative379V2PristineRecorderRejectsUnsafeSQLState (0.00s)
+=== RUN   TestNative379V2ReplaySourceAndClosedPlan
+--- PASS: TestNative379V2ReplaySourceAndClosedPlan (0.10s)
+=== RUN   TestNative379V2ReplayEarliestFalseAndSafeEvidence
+--- PASS: TestNative379V2ReplayEarliestFalseAndSafeEvidence (0.03s)
+=== RUN   TestNative379V2ReplayCancelBudgetUnknownAndIdentity
+=== RUN   TestNative379V2ReplayCancelBudgetUnknownAndIdentity/cancel
+=== RUN   TestNative379V2ReplayCancelBudgetUnknownAndIdentity/row-budget
+=== RUN   TestNative379V2ReplayCancelBudgetUnknownAndIdentity/byte-budget
+=== RUN   TestNative379V2ReplayCancelBudgetUnknownAndIdentity/query-error
+=== RUN   TestNative379V2ReplayCancelBudgetUnknownAndIdentity/identity-false
+--- PASS: TestNative379V2ReplayCancelBudgetUnknownAndIdentity (0.13s)
+    --- PASS: TestNative379V2ReplayCancelBudgetUnknownAndIdentity/cancel (0.02s)
+    --- PASS: TestNative379V2ReplayCancelBudgetUnknownAndIdentity/row-budget (0.02s)
+    --- PASS: TestNative379V2ReplayCancelBudgetUnknownAndIdentity/byte-budget (0.02s)
+    --- PASS: TestNative379V2ReplayCancelBudgetUnknownAndIdentity/query-error (0.02s)
+    --- PASS: TestNative379V2ReplayCancelBudgetUnknownAndIdentity/identity-false (0.05s)
+=== RUN   TestNative379V2PristineTimingPrefixSafeAndOrdered
+--- PASS: TestNative379V2PristineTimingPrefixSafeAndOrdered (0.00s)
+=== RUN   TestNative379V2ReplaySQLDeadlineAndPartialChargeRefusal
+=== RUN   TestNative379V2ReplaySQLDeadlineAndPartialChargeRefusal/sql-child-deadline
+=== RUN   TestNative379V2ReplaySQLDeadlineAndPartialChargeRefusal/scanned-before-byte-refusal
+--- PASS: TestNative379V2ReplaySQLDeadlineAndPartialChargeRefusal (0.04s)
+    --- PASS: TestNative379V2ReplaySQLDeadlineAndPartialChargeRefusal/sql-child-deadline (0.02s)
+    --- PASS: TestNative379V2ReplaySQLDeadlineAndPartialChargeRefusal/scanned-before-byte-refusal (0.02s)
+=== RUN   TestNative379V2ReplayStreamUnknownsCloseAndCharge
+=== RUN   TestNative379V2ReplayStreamUnknownsCloseAndCharge/empty
+=== RUN   TestNative379V2ReplayStreamUnknownsCloseAndCharge/null-scan
+=== RUN   TestNative379V2ReplayStreamUnknownsCloseAndCharge/duplicate
+=== RUN   TestNative379V2ReplayStreamUnknownsCloseAndCharge/deferred
+=== RUN   TestNative379V2ReplayStreamUnknownsCloseAndCharge/deadline
+=== RUN   TestNative379V2ReplayStreamUnknownsCloseAndCharge/cancel
+--- PASS: TestNative379V2ReplayStreamUnknownsCloseAndCharge (0.18s)
+    --- PASS: TestNative379V2ReplayStreamUnknownsCloseAndCharge/empty (0.03s)
+    --- PASS: TestNative379V2ReplayStreamUnknownsCloseAndCharge/null-scan (0.03s)
+    --- PASS: TestNative379V2ReplayStreamUnknownsCloseAndCharge/duplicate (0.03s)
+    --- PASS: TestNative379V2ReplayStreamUnknownsCloseAndCharge/deferred (0.03s)
+    --- PASS: TestNative379V2ReplayStreamUnknownsCloseAndCharge/deadline (0.03s)
+    --- PASS: TestNative379V2ReplayStreamUnknownsCloseAndCharge/cancel (0.03s)
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/sql
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/params
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/source
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/placement
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/session
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/order
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/omit
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/received
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/bytes
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/base
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/canonical
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/secret-ledger
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/claim-original
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/claim-acceptance
+=== RUN   TestNative379V2ReplayLedgerRefusesForgedEvidence/duration
+--- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence (0.25s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/sql (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/params (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/source (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/placement (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/session (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/order (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/omit (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/received (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/bytes (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/base (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/canonical (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/secret-ledger (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/claim-original (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/claim-acceptance (0.01s)
+    --- PASS: TestNative379V2ReplayLedgerRefusesForgedEvidence/duration (0.01s)
+=== RUN   TestNative379V2ReplayFailureMetadataClosedStrings
+=== RUN   TestNative379V2ReplayFailureMetadataClosedStrings/state
+=== RUN   TestNative379V2ReplayFailureMetadataClosedStrings/class
+=== RUN   TestNative379V2ReplayFailureMetadataClosedStrings/stage
+=== RUN   TestNative379V2ReplayFailureMetadataClosedStrings/context
+--- PASS: TestNative379V2ReplayFailureMetadataClosedStrings (0.08s)
+    --- PASS: TestNative379V2ReplayFailureMetadataClosedStrings/state (0.01s)
+    --- PASS: TestNative379V2ReplayFailureMetadataClosedStrings/class (0.01s)
+    --- PASS: TestNative379V2ReplayFailureMetadataClosedStrings/stage (0.01s)
+    --- PASS: TestNative379V2ReplayFailureMetadataClosedStrings/context (0.01s)
+=== RUN   TestNative379V2ReplayBorrowedQueryMetadataRefused
+=== RUN   TestNative379V2ReplayBorrowedQueryMetadataRefused/context-borrowed-valid-SHA
+=== RUN   TestNative379V2ReplayBorrowedQueryMetadataRefused/context-wrong-closed-stage
+=== RUN   TestNative379V2ReplayBorrowedQueryMetadataRefused/failure-borrowed-valid-SHA
+=== RUN   TestNative379V2ReplayBorrowedQueryMetadataRefused/unknown-attempt-exceeds-SQL-child-deadline
+--- PASS: TestNative379V2ReplayBorrowedQueryMetadataRefused (0.13s)
+    --- PASS: TestNative379V2ReplayBorrowedQueryMetadataRefused/context-borrowed-valid-SHA (0.01s)
+    --- PASS: TestNative379V2ReplayBorrowedQueryMetadataRefused/context-wrong-closed-stage (0.01s)
+    --- PASS: TestNative379V2ReplayBorrowedQueryMetadataRefused/failure-borrowed-valid-SHA (0.04s)
+    --- PASS: TestNative379V2ReplayBorrowedQueryMetadataRefused/unknown-attempt-exceeds-SQL-child-deadline (0.03s)
+PASS
+ok  	github.com/zasp-ai/zasp-sec/services/platform/apiserver	0.977s

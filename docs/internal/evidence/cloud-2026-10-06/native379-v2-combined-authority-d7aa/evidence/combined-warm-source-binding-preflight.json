@@ -1,0 +1,23 @@
+{
+  "scope": "private combined reviewedwarm2 + unchanged replay2912; no wholecurrentRootGitarchive identity claim",
+  "warmDeliverables": {
+    "services/platform/apiserver/authorization_transaction.go": "95a188b5d23de72a69a9f82c8719bf1b040295642710c1e87e1c617be65a6471",
+    "services/platform/apiserver/authorization_runtime_activation_test.go": "c3d02cc05aed023d6f5b84ae145ad3fe395ee0f5896142af25623d5172defaca"
+  },
+  "actualPreviousSourceMembers": 1544,
+  "actualCurrentSourceMembers": 1545,
+  "sourceManifestSHA256": "d3f6fac0d38478208fe1feff2f521a8b132b373aa8516771c62005a762a11ea4",
+  "schemaSHA256": "da5a78ad3d5d9a19f348d99e1b44b444fe188e54e373a7d46d3fb609c3cc71a0",
+  "packetCompilerSHA256": "b0f2c1483d009f45f9660bbb05e62fd7f7dfbae643bcd0af50023456a7ccd9c3",
+  "unchangedReplaySHA256": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0",
+  "oldMembersChangedSince2912": [
+    "services/platform/apiserver/authorization_transaction.go"
+  ],
+  "newMembers": [
+    "services/platform/apiserver/authorization_runtime_activation_test.go"
+  ],
+  "oldMembersUnchangedSince2912": 1543,
+  "consumedCurrentRootSourceSetExactMatchBeforeNodeAuthorityRefresh": true,
+  "newSchemaDelta": "one exactmanifestSHA literal plus fixedcardinality1544->1545; noadmissionguard weakening",
+  "noPrivateDiagnosticHelperCopied": true
+}

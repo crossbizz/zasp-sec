@@ -1,0 +1,603 @@
+{
+  "scope": "PRIVATE bounded source-only publication candidate; independent publication review required before durable adoption",
+  "members": {
+    "evidence/archive/authorization_worker_ordered_current_native379_v2_test.go": {
+      "sha256": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0",
+      "bytes": 249144,
+      "originalSHA256": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0",
+      "originalBytes": 249144,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/authorization_worker_ordered_current_native379_v2_test.go",
+      "expandedScanMember": "evidence/archive/authorization_worker_ordered_current_native379_v2_test.go"
+    },
+    "evidence/archive/canonical-wire.json.gz": {
+      "sha256": "8bdb61861140695d8a207e8d04564a735b084dc74586c73f82a328781f14fb20",
+      "bytes": 1578274,
+      "originalSHA256": "8bdb61861140695d8a207e8d04564a735b084dc74586c73f82a328781f14fb20",
+      "originalBytes": 1578274,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/canonical-wire.json.gz",
+      "expandedScanMember": "evidence/archive/canonical-wire.json.gz"
+    },
+    "evidence/archive/generated-identities.json.gz": {
+      "sha256": "08296abecc54222047e19daa9f19246dd2629ebc2f9a9dced7ee09319dddc73f",
+      "bytes": 5359,
+      "originalSHA256": "9d1053e9310e27128404e45c2eeedce1dc6b42eaff004ecf0e0760c903b59f99",
+      "originalBytes": 17274,
+      "encoding": "gzip-mtime0-exact-roundtrip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/generated-identities.json",
+      "expandedScanMember": "evidence/archive/generated-identities.json"
+    },
+    "evidence/archive/ordered-current-native379-packet-v2.mjs.gz": {
+      "sha256": "92c832b73e306a3cb9f28a126137653c854fed2f1fcaa6caace08eb689784e20",
+      "bytes": 13028,
+      "originalSHA256": "71ca75091285774ae7e1dbbf815cdfa0be3f30830d9d232f016aaf083ceb2bec",
+      "originalBytes": 43460,
+      "encoding": "gzip-mtime0-exact-roundtrip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/ordered-current-native379-packet-v2.mjs",
+      "expandedScanMember": "evidence/archive/ordered-current-native379-packet-v2.mjs"
+    },
+    "evidence/archive/ordered-current-native379-packet-v2.test.mjs.gz": {
+      "sha256": "c6ac610bb162deb5ce01f8b71cab530e5219446568831883d48e7a35ccbf74d9",
+      "bytes": 2293,
+      "originalSHA256": "4a08ca625405c60a1f1feb086fdd8431155e42fce70808e2eecd977d0d66530b",
+      "originalBytes": 5979,
+      "encoding": "gzip-mtime0-exact-roundtrip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/ordered-current-native379-packet-v2.test.mjs",
+      "expandedScanMember": "evidence/archive/ordered-current-native379-packet-v2.test.mjs"
+    },
+    "evidence/archive/ordered-current-native379-source-schema-v2.mjs.gz": {
+      "sha256": "b87e9a9beac83b04595db3175e3197e17b64c547a61ab1bc1d55f88d00838a15",
+      "bytes": 2027,
+      "originalSHA256": "64a6f338e7e83aa1ad8efc4341d29240601ea092f9ea415c42ca65bb0f4cc1c0",
+      "originalBytes": 4701,
+      "encoding": "gzip-mtime0-exact-roundtrip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/ordered-current-native379-source-schema-v2.mjs",
+      "expandedScanMember": "evidence/archive/ordered-current-native379-source-schema-v2.mjs"
+    },
+    "evidence/archive/ordered-current-native379-source-schema-v2.test.mjs.gz": {
+      "sha256": "32e88fb497f83e70a1d74c01905f32d2039c7c6a15a6eba1d4ff72d75081d837",
+      "bytes": 1510,
+      "originalSHA256": "531e9d8255222266efa76f77161b101d5d3452285d2bb7076d12278d14a8eaa3",
+      "originalBytes": 4811,
+      "encoding": "gzip-mtime0-exact-roundtrip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/ordered-current-native379-source-schema-v2.test.mjs",
+      "expandedScanMember": "evidence/archive/ordered-current-native379-source-schema-v2.test.mjs"
+    },
+    "evidence/archive/private-source-delta.json": {
+      "sha256": "4bd6b6613f5dee402684070cb71383a0c8fa521501caa90f7593a4fbdd0c4aa6",
+      "bytes": 2062,
+      "originalSHA256": "4bd6b6613f5dee402684070cb71383a0c8fa521501caa90f7593a4fbdd0c4aa6",
+      "originalBytes": 2062,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/private-source-delta.json",
+      "expandedScanMember": "evidence/archive/private-source-delta.json"
+    },
+    "evidence/archive/source-fact-delta.json.gz": {
+      "sha256": "233560d66e31805d0957537178ecd298986ee863788031eacb12f1a6d76baea4",
+      "bytes": 5797,
+      "originalSHA256": "90325bea8205ec4e3f8eaa1de3c1fb0d814981cc6fbfd91e3c3e4ad3e6a9cdab",
+      "originalBytes": 68573,
+      "encoding": "gzip-mtime0-exact-roundtrip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/source-fact-delta.json",
+      "expandedScanMember": "evidence/archive/source-fact-delta.json"
+    },
+    "evidence/archive/source-inputs.json.gz": {
+      "sha256": "39c77ce142682c65b5562cb7b01cbbda83b9fb2be239ef3b03e1fe2870a45853",
+      "bytes": 74705,
+      "originalSHA256": "605a85d721647a355adbf1e99f7ce722860765cca83d02ffbe814e7b91c29339",
+      "originalBytes": 272739,
+      "encoding": "gzip-mtime0-exact-roundtrip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/source-inputs.json",
+      "expandedScanMember": "evidence/archive/source-inputs.json"
+    },
+    "evidence/archive/source-sha256.json": {
+      "sha256": "0383e360973f711fecfbfe45ab122b5ef60b312df74f10694e825d7b178018f0",
+      "bytes": 1308,
+      "originalSHA256": "0383e360973f711fecfbfe45ab122b5ef60b312df74f10694e825d7b178018f0",
+      "originalBytes": 1308,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/source-sha256.json",
+      "expandedScanMember": "evidence/archive/source-sha256.json"
+    },
+    "evidence/archive/summary.json": {
+      "sha256": "dd5335191b288c7539675c2b91c1471c09dd8b27828ba7b226b63f192116615a",
+      "bytes": 731,
+      "originalSHA256": "dd5335191b288c7539675c2b91c1471c09dd8b27828ba7b226b63f192116615a",
+      "originalBytes": 731,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/summary.json",
+      "expandedScanMember": "evidence/archive/summary.json"
+    },
+    "evidence/author/old-api-behavioral-red.log": {
+      "sha256": "1609bd56bb8b6a1126c4711b6d6280829f52faa536e82985cf0cff93d1918fb0",
+      "bytes": 325,
+      "originalSHA256": "1609bd56bb8b6a1126c4711b6d6280829f52faa536e82985cf0cff93d1918fb0",
+      "originalBytes": 325,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/old-api-behavioral-red.log",
+      "expandedScanMember": "evidence/author/old-api-behavioral-red.log"
+    },
+    "evidence/author/old-api-red-test.go.txt": {
+      "sha256": "333a3b2f958c8ceba0bf7b9f05b63134c2b5341a64c05c5553c89ad55cef55aa",
+      "bytes": 588,
+      "originalSHA256": "333a3b2f958c8ceba0bf7b9f05b63134c2b5341a64c05c5553c89ad55cef55aa",
+      "originalBytes": 588,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/old-api-red-test.go.txt",
+      "expandedScanMember": "evidence/author/old-api-red-test.go.txt"
+    },
+    "evidence/author/replay-2912-canonical-archive.log": {
+      "sha256": "e6ae4b4856b4a9a00de17ad50b361e474f26aaf858a491875575217f65faa285",
+      "bytes": 699,
+      "originalSHA256": "e6ae4b4856b4a9a00de17ad50b361e474f26aaf858a491875575217f65faa285",
+      "originalBytes": 699,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-2912-canonical-archive.log",
+      "expandedScanMember": "evidence/author/replay-2912-canonical-archive.log"
+    },
+    "evidence/author/replay-2912-node6.log": {
+      "sha256": "d18fb0fa2a6135e313266454d91a77bf356c1bd25b39bd0eb5a1a8d9cb796634",
+      "bytes": 1632,
+      "originalSHA256": "d18fb0fa2a6135e313266454d91a77bf356c1bd25b39bd0eb5a1a8d9cb796634",
+      "originalBytes": 1632,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-2912-node6.log",
+      "expandedScanMember": "evidence/author/replay-2912-node6.log"
+    },
+    "evidence/author/replay-authentic-full22.log": {
+      "sha256": "bd3206b2438ca116862cabbadc153bfa5f0dd1a5a60bbc1e4e91b210aabc5553",
+      "bytes": 11246,
+      "originalSHA256": "bd3206b2438ca116862cabbadc153bfa5f0dd1a5a60bbc1e4e91b210aabc5553",
+      "originalBytes": 11246,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-authentic-full22.log",
+      "expandedScanMember": "evidence/author/replay-authentic-full22.log"
+    },
+    "evidence/author/replay-borrowed-query-behavioral-red.log": {
+      "sha256": "a70c7f5bc338efeefcfd0d0d67f93709bf479befc13a0e99916c2fa3c303e631",
+      "bytes": 1130,
+      "originalSHA256": "a70c7f5bc338efeefcfd0d0d67f93709bf479befc13a0e99916c2fa3c303e631",
+      "originalBytes": 1130,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-borrowed-query-behavioral-red.log",
+      "expandedScanMember": "evidence/author/replay-borrowed-query-behavioral-red.log"
+    },
+    "evidence/author/replay-canonical-archive.log": {
+      "sha256": "9109d7e761124a40a2c03d27f7e3f3710dff024c61070b61902445a0226e924d",
+      "bytes": 699,
+      "originalSHA256": "9109d7e761124a40a2c03d27f7e3f3710dff024c61070b61902445a0226e924d",
+      "originalBytes": 699,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-canonical-archive.log",
+      "expandedScanMember": "evidence/author/replay-canonical-archive.log"
+    },
+    "evidence/author/replay-closed-failure-behavioral-red.log": {
+      "sha256": "590d944a734bb6232847057f864da6d45f81c8825ba65fa8032b3268b67bab16",
+      "bytes": 1174,
+      "originalSHA256": "590d944a734bb6232847057f864da6d45f81c8825ba65fa8032b3268b67bab16",
+      "originalBytes": 1174,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-closed-failure-behavioral-red.log",
+      "expandedScanMember": "evidence/author/replay-closed-failure-behavioral-red.log"
+    },
+    "evidence/author/replay-component-2912-orchestrator.log": {
+      "sha256": "e826da866f799bfab2a5906bf5737bf33b28e10feb6447909fb38bc76f0909cf",
+      "bytes": 2346,
+      "originalSHA256": "e826da866f799bfab2a5906bf5737bf33b28e10feb6447909fb38bc76f0909cf",
+      "originalBytes": 2346,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-component-2912-orchestrator.log",
+      "expandedScanMember": "evidence/author/replay-component-2912-orchestrator.log"
+    },
+    "evidence/author/replay-deadline-partial-behavioral-red.log": {
+      "sha256": "f1913e4cc155ac13fd63a27afae60ba3d42c8b3a9ffa9d33f92a77c3800d47ba",
+      "bytes": 822,
+      "originalSHA256": "f1913e4cc155ac13fd63a27afae60ba3d42c8b3a9ffa9d33f92a77c3800d47ba",
+      "originalBytes": 822,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-deadline-partial-behavioral-red.log",
+      "expandedScanMember": "evidence/author/replay-deadline-partial-behavioral-red.log"
+    },
+    "evidence/author/replay-feature-red.log": {
+      "sha256": "2f3a0b86efa6739b9b0deec0b778fe596f559f34c4483010e0adff82534296b7",
+      "bytes": 1497,
+      "originalSHA256": "2f3a0b86efa6739b9b0deec0b778fe596f559f34c4483010e0adff82534296b7",
+      "originalBytes": 1497,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-feature-red.log",
+      "expandedScanMember": "evidence/author/replay-feature-red.log"
+    },
+    "evidence/author/replay-feature-tests.go.txt": {
+      "sha256": "b59149777372991c35d27d91a192c37d478686b158a877e548d912c81e486c3b",
+      "bytes": 5776,
+      "originalSHA256": "b59149777372991c35d27d91a192c37d478686b158a877e548d912c81e486c3b",
+      "originalBytes": 5776,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-feature-tests.go.txt",
+      "expandedScanMember": "evidence/author/replay-feature-tests.go.txt"
+    },
+    "evidence/author/replay-focused-green-1.log": {
+      "sha256": "62a340dcdccd5ea6818b353f92bab8b1ac3480f2727ab66859c10fd5b5193b16",
+      "bytes": 1499,
+      "originalSHA256": "62a340dcdccd5ea6818b353f92bab8b1ac3480f2727ab66859c10fd5b5193b16",
+      "originalBytes": 1499,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-focused-green-1.log",
+      "expandedScanMember": "evidence/author/replay-focused-green-1.log"
+    },
+    "evidence/author/replay-node6.log": {
+      "sha256": "6c4fb3a97ee0cdf3a7cdddadc017705d4a0ad6e1fedef76644d71e4e998a7373",
+      "bytes": 1630,
+      "originalSHA256": "6c4fb3a97ee0cdf3a7cdddadc017705d4a0ad6e1fedef76644d71e4e998a7373",
+      "originalBytes": 1630,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-node6.log",
+      "expandedScanMember": "evidence/author/replay-node6.log"
+    },
+    "evidence/author/replay-source-group-1.log": {
+      "sha256": "30c5b71555feabee1c85b5c2f71572f616d3f488db55c8ca1f7406f57fc52df4",
+      "bytes": 6079,
+      "originalSHA256": "30c5b71555feabee1c85b5c2f71572f616d3f488db55c8ca1f7406f57fc52df4",
+      "originalBytes": 6079,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-source-group-1.log",
+      "expandedScanMember": "evidence/author/replay-source-group-1.log"
+    },
+    "evidence/author/replay-source-group-2.log": {
+      "sha256": "31fdb5ccd3d996a724cd981495636dd64521c3f4ca24cf96e62e9b10f30da53e",
+      "bytes": 684,
+      "originalSHA256": "31fdb5ccd3d996a724cd981495636dd64521c3f4ca24cf96e62e9b10f30da53e",
+      "originalBytes": 684,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-source-group-2.log",
+      "expandedScanMember": "evidence/author/replay-source-group-2.log"
+    },
+    "evidence/author/replay-source-group-3.log": {
+      "sha256": "8ab274ecd5ab73a30f24290fde8e00247fe657c8c8616e20fd911f0235d1d0bb",
+      "bytes": 9725,
+      "originalSHA256": "8ab274ecd5ab73a30f24290fde8e00247fe657c8c8616e20fd911f0235d1d0bb",
+      "originalBytes": 9725,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-source-group-3.log",
+      "expandedScanMember": "evidence/author/replay-source-group-3.log"
+    },
+    "evidence/author/replay-source-group-4.log": {
+      "sha256": "a15f400576ce3f9e6dd744bf0c742c5fb4336be91457c33cfdada209ccbc2712",
+      "bytes": 10433,
+      "originalSHA256": "a15f400576ce3f9e6dd744bf0c742c5fb4336be91457c33cfdada209ccbc2712",
+      "originalBytes": 10433,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-source-group-4.log",
+      "expandedScanMember": "evidence/author/replay-source-group-4.log"
+    },
+    "evidence/author/replay-source-group-5.log": {
+      "sha256": "ad31a37b74e4fb4e8a4480bf2d2e247a5bdf7b66bd3cf652016d5d25f06ce233",
+      "bytes": 11337,
+      "originalSHA256": "ad31a37b74e4fb4e8a4480bf2d2e247a5bdf7b66bd3cf652016d5d25f06ce233",
+      "originalBytes": 11337,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-source-group-5.log",
+      "expandedScanMember": "evidence/author/replay-source-group-5.log"
+    },
+    "evidence/author/replay-unknown-deadline-behavioral-red.log": {
+      "sha256": "136d3c95dd7fa0ce867bec82f94c793c8c7d4dded4a2478a054f5614b1d03417",
+      "bytes": 565,
+      "originalSHA256": "136d3c95dd7fa0ce867bec82f94c793c8c7d4dded4a2478a054f5614b1d03417",
+      "originalBytes": 565,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/evidence/replay-unknown-deadline-behavioral-red.log",
+      "expandedScanMember": "evidence/author/replay-unknown-deadline-behavioral-red.log"
+    },
+    "evidence/component/identity.json": {
+      "sha256": "7c484baededb2e8365e9f475496b4abc779a75717d38dc277644abbd30742157",
+      "bytes": 2690,
+      "originalSHA256": "7c484baededb2e8365e9f475496b4abc779a75717d38dc277644abbd30742157",
+      "originalBytes": 2690,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/component-review-2912/identity.json",
+      "expandedScanMember": "evidence/component/identity.json"
+    },
+    "evidence/component/compile.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "originalBytes": 0,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/component-review-2912/compile.log",
+      "expandedScanMember": "evidence/component/compile.log"
+    },
+    "evidence/component/full23.log": {
+      "sha256": "1037d84f755c4901af62c67a0950bc3431acf9881606328c242111a7e5ccc39e",
+      "bytes": 12081,
+      "originalSHA256": "1037d84f755c4901af62c67a0950bc3431acf9881606328c242111a7e5ccc39e",
+      "originalBytes": 12081,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/component-review-2912/full23.log",
+      "expandedScanMember": "evidence/component/full23.log"
+    },
+    "evidence/primary-replay-2912-component-receipt.json": {
+      "sha256": "4bb873192803cd2ae793ebd4ef892b6da7573062372187b4b96a119896584a4d",
+      "bytes": 11993,
+      "originalSHA256": "4bb873192803cd2ae793ebd4ef892b6da7573062372187b4b96a119896584a4d",
+      "originalBytes": 11993,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/primary-replay-2912-component-receipt.json",
+      "expandedScanMember": "evidence/primary-replay-2912-component-receipt.json"
+    },
+    "evidence/independent/native379-v2-independent-primary-replay-2912-final-review.json": {
+      "sha256": "550cd14f8ef21ae624f5a5a3d734a265f30b062f59420374897b21512ea9bf19",
+      "bytes": 6670,
+      "originalSHA256": "550cd14f8ef21ae624f5a5a3d734a265f30b062f59420374897b21512ea9bf19",
+      "originalBytes": 6670,
+      "encoding": "identity",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-primary-replay-2912-final-review.json",
+      "expandedScanMember": "evidence/independent/native379-v2-independent-primary-replay-2912-final-review.json"
+    },
+    "evidence/independent/native379-v2-independent-primary-replay-2912-full23.record.json": {
+      "sha256": "54f55a2b89b95c10e1072bc589a7be73cc55efa9c2f7a79fff1cf19ef9901c4d",
+      "bytes": 1751,
+      "originalSHA256": "54f55a2b89b95c10e1072bc589a7be73cc55efa9c2f7a79fff1cf19ef9901c4d",
+      "originalBytes": 1751,
+      "encoding": "identity",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-primary-replay-2912-full23.record.json",
+      "expandedScanMember": "evidence/independent/native379-v2-independent-primary-replay-2912-full23.record.json"
+    },
+    "evidence/independent/native379-v2-independent-primary-replay-2912-source-review.json": {
+      "sha256": "0e28cc505fb6774c70c18234b80980bb88fa0a4545bbd2b9b8ca3a03f2db23b7",
+      "bytes": 4048,
+      "originalSHA256": "0e28cc505fb6774c70c18234b80980bb88fa0a4545bbd2b9b8ca3a03f2db23b7",
+      "originalBytes": 4048,
+      "encoding": "identity",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-primary-replay-2912-source-review.json",
+      "expandedScanMember": "evidence/independent/native379-v2-independent-primary-replay-2912-source-review.json"
+    },
+    "evidence/independent/native379-v2-independent-primary-replay-a6e8-interim-review.json": {
+      "sha256": "e88c229e5bf5ca1dcdeeb87e1e7ebd5d3d9e70d6c95f4f0361e413e2209416d0",
+      "bytes": 2298,
+      "originalSHA256": "e88c229e5bf5ca1dcdeeb87e1e7ebd5d3d9e70d6c95f4f0361e413e2209416d0",
+      "originalBytes": 2298,
+      "encoding": "identity",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-primary-replay-a6e8-interim-review.json",
+      "expandedScanMember": "evidence/independent/native379-v2-independent-primary-replay-a6e8-interim-review.json"
+    },
+    "evidence/independent/native379-v2-independent-primary-replay-early-review.json": {
+      "sha256": "835d6dda2e8f640f87c618c00497824a80bd5003912a4b26b67092c4595d8faa",
+      "bytes": 4132,
+      "originalSHA256": "835d6dda2e8f640f87c618c00497824a80bd5003912a4b26b67092c4595d8faa",
+      "originalBytes": 4132,
+      "encoding": "identity",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-primary-replay-early-review.json",
+      "expandedScanMember": "evidence/independent/native379-v2-independent-primary-replay-early-review.json"
+    },
+    "evidence/independent/native379-v2-independent-primary-replay-2912-full23.log": {
+      "sha256": "781e6b15951ba97811f318dd96703e78b82fa03aaa86e79606f9379921907fff",
+      "bytes": 12081,
+      "originalSHA256": "781e6b15951ba97811f318dd96703e78b82fa03aaa86e79606f9379921907fff",
+      "originalBytes": 12081,
+      "encoding": "identity",
+      "originalPrivatePath": "/tmp/zasp-cloud-evidence/runtime-continuation/native379-v2-independent-primary-replay-2912-full23.log",
+      "expandedScanMember": "evidence/independent/native379-v2-independent-primary-replay-2912-full23.log"
+    },
+    "evidence/read-only-primary-diagnosis.json": {
+      "sha256": "15e9eec0df88fc6621485e3ae74134286b0b1c24f23da66f4e2ad2026cd46a43",
+      "bytes": 8272,
+      "originalSHA256": "15e9eec0df88fc6621485e3ae74134286b0b1c24f23da66f4e2ad2026cd46a43",
+      "originalBytes": 8272,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-readonly-primary-diagnosis-lwq06b3u/read-only-primary-diagnosis.json",
+      "expandedScanMember": "evidence/read-only-primary-diagnosis.json"
+    },
+    "evidence/author-preparation/add-red.py": {
+      "sha256": "0be9d64b3c23e100b453de401c682db975ae316b871427ec2a23d8b229ac06f3",
+      "bytes": 880,
+      "originalSHA256": "0be9d64b3c23e100b453de401c682db975ae316b871427ec2a23d8b229ac06f3",
+      "originalBytes": 880,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/add-red.py",
+      "expandedScanMember": "evidence/author-preparation/add-red.py"
+    },
+    "evidence/author-preparation/integrate.py": {
+      "sha256": "cb02864f83a5e82e87080e6633ef260a0dc59a416adc04cbc3dd9675a0ce3ac1",
+      "bytes": 3232,
+      "originalSHA256": "cb02864f83a5e82e87080e6633ef260a0dc59a416adc04cbc3dd9675a0ce3ac1",
+      "originalBytes": 3232,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/integrate.py",
+      "expandedScanMember": "evidence/author-preparation/integrate.py"
+    },
+    "evidence/author-preparation/refresh-private-node.py": {
+      "sha256": "dfb987425efb3bcd7fb80374f899e869cba52bdf3367ceb8a987c6bb4907854f",
+      "bytes": 1588,
+      "originalSHA256": "dfb987425efb3bcd7fb80374f899e869cba52bdf3367ceb8a987c6bb4907854f",
+      "originalBytes": 1588,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/refresh-private-node.py",
+      "expandedScanMember": "evidence/author-preparation/refresh-private-node.py"
+    },
+    "evidence/author-preparation/archive-primary-replay.py": {
+      "sha256": "39eb5421287180b01f5e3825e303fa538e01b65b595aaea31dddf3303aaf6886",
+      "bytes": 3811,
+      "originalSHA256": "39eb5421287180b01f5e3825e303fa538e01b65b595aaea31dddf3303aaf6886",
+      "originalBytes": 3811,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/archive-primary-replay.py",
+      "expandedScanMember": "evidence/author-preparation/archive-primary-replay.py"
+    },
+    "evidence/author-preparation/archive-primary-replay-2912.py": {
+      "sha256": "0c1e01f7824da4fd8c3ffe8ae9287b19633c36d450075e38e393f93d5214b9e4",
+      "bytes": 3811,
+      "originalSHA256": "0c1e01f7824da4fd8c3ffe8ae9287b19633c36d450075e38e393f93d5214b9e4",
+      "originalBytes": 3811,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/archive-primary-replay-2912.py",
+      "expandedScanMember": "evidence/author-preparation/archive-primary-replay-2912.py"
+    },
+    "evidence/author-preparation/retain-component-2912.py": {
+      "sha256": "980d05b295b7acde773addd1899dac2eafa5ea26995ba3dee6262a0861cf7818",
+      "bytes": 2153,
+      "originalSHA256": "980d05b295b7acde773addd1899dac2eafa5ea26995ba3dee6262a0861cf7818",
+      "originalBytes": 2153,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/retain-component-2912.py",
+      "expandedScanMember": "evidence/author-preparation/retain-component-2912.py"
+    },
+    "evidence/author-preparation/implementation.txt": {
+      "sha256": "e73bd946f4256ea78d67e26eacca7fe0dd3e1b157668227cebe831215f3a30e8",
+      "bytes": 9934,
+      "originalSHA256": "e73bd946f4256ea78d67e26eacca7fe0dd3e1b157668227cebe831215f3a30e8",
+      "originalBytes": 9934,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/implementation.txt",
+      "expandedScanMember": "evidence/author-preparation/implementation.txt"
+    },
+    "evidence/author-preparation/stream-run.txt": {
+      "sha256": "67860740391be999f07bc81e04c2364c110b5af6541f9d8c0ea292572f645ee7",
+      "bytes": 4967,
+      "originalSHA256": "67860740391be999f07bc81e04c2364c110b5af6541f9d8c0ea292572f645ee7",
+      "originalBytes": 4967,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/stream-run.txt",
+      "expandedScanMember": "evidence/author-preparation/stream-run.txt"
+    },
+    "evidence/superseded-a6e8/authorization_worker_ordered_current_native379_v2_test.go.gz": {
+      "sha256": "6e9397b0b963e9c95e44bfc9bdcff0b8ae9636da55606d5d01ac54e4a960bbee",
+      "bytes": 52061,
+      "originalSHA256": "a6e8befd933d9b02c0b513f7e982f6a7f3f9b7ce9b969122111d4fbff9be1cb2",
+      "originalBytes": 243521,
+      "encoding": "gzip-mtime0-exact-roundtrip",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/source-checkpoint-a6e8/authorization_worker_ordered_current_native379_v2_test.go",
+      "expandedScanMember": "evidence/superseded-a6e8/authorization_worker_ordered_current_native379_v2_test.go"
+    },
+    "evidence/superseded-a6e8/summary.json": {
+      "sha256": "2fff5ca6d0ff3039509873b5c435b8662591186304847f001738ace8676db1ae",
+      "bytes": 731,
+      "originalSHA256": "2fff5ca6d0ff3039509873b5c435b8662591186304847f001738ace8676db1ae",
+      "originalBytes": 731,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-a6e8-teffmiud/summary.json",
+      "expandedScanMember": "evidence/superseded-a6e8/summary.json"
+    },
+    "evidence/query-placement-plan.json": {
+      "sha256": "ac5d693936a7694a81e815d2ab7b14e6aef7914d3c0ac1967d2ed5195d527db7",
+      "bytes": 6014,
+      "originalSHA256": "ac5d693936a7694a81e815d2ab7b14e6aef7914d3c0ac1967d2ed5195d527db7",
+      "originalBytes": 6014,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/publication-primary2912-8t9eg25w/query-placement-plan.json",
+      "expandedScanMember": "evidence/query-placement-plan.json"
+    },
+    "evidence/README.md": {
+      "sha256": "7053c665a5f3b67405e9e898a128a8fb168aaf7b4f80037290a54bf19113841d",
+      "bytes": 2400,
+      "originalSHA256": "7053c665a5f3b67405e9e898a128a8fb168aaf7b4f80037290a54bf19113841d",
+      "originalBytes": 2400,
+      "encoding": "identity",
+      "originalPrivatePath": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/publication-primary2912-reviewed-kbg239sj/evidence/README.md",
+      "expandedScanMember": null
+    },
+    "evidence/author-preparation/finish-primary-publication.py": {
+      "sha256": "26e9bce28bfb1ca6abbe6e4afd4e803769bec81828784eecf38305554819a421",
+      "bytes": 4020,
+      "originalSHA256": "26e9bce28bfb1ca6abbe6e4afd4e803769bec81828784eecf38305554819a421",
+      "originalBytes": 4020,
+      "encoding": "identity"
+    },
+    "evidence/author-preparation/prepare-primary-publication.py": {
+      "sha256": "3480dcbb9e6cac6d427fcb25db6ee1c083c45697163b0885ec6bb50630a4ad92",
+      "bytes": 10149,
+      "originalSHA256": "3480dcbb9e6cac6d427fcb25db6ee1c083c45697163b0885ec6bb50630a4ad92",
+      "originalBytes": 10149,
+      "encoding": "identity"
+    },
+    "evidence/original-root-failure/actual-native379-record.json": {
+      "sha256": "90b5291f5376193829618edba59adb406ed8c8c57f0f87b732ca0e5f7d7d9940",
+      "bytes": 571,
+      "originalSHA256": "90b5291f5376193829618edba59adb406ed8c8c57f0f87b732ca0e5f7d7d9940",
+      "originalBytes": 571,
+      "encoding": "identity"
+    },
+    "evidence/original-root-failure/actual-native379.log": {
+      "sha256": "e7d9a8d738fd4c5f6acfcd172c1cda4023f42c137ea5667d2d585d8aa80e2ba6",
+      "bytes": 2034,
+      "originalSHA256": "e7d9a8d738fd4c5f6acfcd172c1cda4023f42c137ea5667d2d585d8aa80e2ba6",
+      "originalBytes": 2034,
+      "encoding": "identity"
+    },
+    "evidence/original-root-failure/closed-environment.json": {
+      "sha256": "d33b3aa92af3b7d24d25895e757ed8aed97074b4e4e8f9577f669b581e264c8f",
+      "bytes": 1408,
+      "originalSHA256": "d33b3aa92af3b7d24d25895e757ed8aed97074b4e4e8f9577f669b581e264c8f",
+      "originalBytes": 1408,
+      "encoding": "identity"
+    },
+    "evidence/original-root-failure/root-launch-binding.json": {
+      "sha256": "956a51f4239d6b769d47321d4c1bbcf8efdbc6855bf20db6fcdff1fca76c6a5f",
+      "bytes": 646,
+      "originalSHA256": "956a51f4239d6b769d47321d4c1bbcf8efdbc6855bf20db6fcdff1fca76c6a5f",
+      "originalBytes": 646,
+      "encoding": "identity"
+    },
+    "evidence/scans/expanded-log": {
+      "sha256": "c4d1d7fe4e448b2bca64f3dec578e38e0cef718358731e4aab38cd47ae9ecdb6",
+      "bytes": 196,
+      "originalSHA256": "c4d1d7fe4e448b2bca64f3dec578e38e0cef718358731e4aab38cd47ae9ecdb6",
+      "originalBytes": 196,
+      "encoding": "identity"
+    },
+    "evidence/scans/expanded-report.json": {
+      "sha256": "bd84840e6b142fd2c34c949cc1b496cecbdf8eddfd8b72fe864682071c3694eb",
+      "bytes": 6460,
+      "originalSHA256": "bd84840e6b142fd2c34c949cc1b496cecbdf8eddfd8b72fe864682071c3694eb",
+      "originalBytes": 6460,
+      "encoding": "identity"
+    },
+    "evidence/scans/packed-log": {
+      "sha256": "be2e1e984affb514476be84d4e9d07bc3743cb1d752bf646f8b2347939ae4140",
+      "bytes": 198,
+      "originalSHA256": "be2e1e984affb514476be84d4e9d07bc3743cb1d752bf646f8b2347939ae4140",
+      "originalBytes": 198,
+      "encoding": "identity"
+    },
+    "evidence/scans/packed-report.json": {
+      "sha256": "32c2ce9ee956128f701d69abce5fc1d9e0376b8646b0285783ac3d0ab1a3c50b",
+      "bytes": 6284,
+      "originalSHA256": "32c2ce9ee956128f701d69abce5fc1d9e0376b8646b0285783ac3d0ab1a3c50b",
+      "originalBytes": 6284,
+      "encoding": "identity"
+    },
+    "evidence/scans/scan-record-and-public-hash-classification.json": {
+      "sha256": "7d0907eefafb686eca88e9121c6934509edd272c3aff03622682c8d29990dc48",
+      "bytes": 11106,
+      "originalSHA256": "7d0907eefafb686eca88e9121c6934509edd272c3aff03622682c8d29990dc48",
+      "originalBytes": 11106,
+      "encoding": "identity"
+    }
+  },
+  "omissions": [
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei/canonical-wire.json",
+      "sha256": "93a6a59469725b7357d0119245726b93c08066abc6afb81972df5ad9d1d4c6a7",
+      "bytes": 25160408,
+      "reason": "exact deterministicgzip published instead"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/component-review-2912/apiserver-source-review.test",
+      "sha256": "c173341b141093f9777b9f97ed468b2053b67d081b86a729ef2b78942f59d952",
+      "bytes": 117777864,
+      "reason": "retained private source-component executable; identity published, not frozen native envelope"
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/baseline.tar",
+      "reason": "retained private6239-source baseline; reviewed complete source delta published"
+    }
+  ],
+  "actualPublishedMemberCount": 66,
+  "scanStatus": "two actual default scans exit1 with8public-source-SHA findings each; independent classification review required",
+  "componentCountClaims": "actual author23/independent23/Node6; no seven-test claim",
+  "publicationRevision": {
+    "predecessorDirectory": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/publication-primary2912-8t9eg25w",
+    "predecessorManifestSHA256": "37bf678ea623b46c34a4a67b870583964dac9cdc228870d6b9df7babfa34f826",
+    "delta": "README accuracy correction:1544current pins rehashed,1543 source members unchanged+updatedGo; nonauthorityfields unchanged. Prior sealed candidate retained."
+  }
+}

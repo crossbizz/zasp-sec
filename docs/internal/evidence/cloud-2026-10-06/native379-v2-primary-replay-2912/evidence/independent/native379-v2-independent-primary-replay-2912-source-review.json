@@ -1,0 +1,53 @@
+{
+  "status": "PASS_SOURCE_INSPECTION_AND_EXACT_PACKET_IDENTITY",
+  "source_sha256": "2912b71c0189819c24250e585ac0090ba983547b36ef83ca58fb4c96ed9c31a0",
+  "archive": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/candidate-2912-ju2e8yei",
+  "wire_sha256": "93a6a59469725b7357d0119245726b93c08066abc6afb81972df5ad9d1d4c6a7",
+  "manifest_sha256": "605a85d721647a355adbf1e99f7ce722860765cca83d02ffbe814e7b91c29339",
+  "findings": [],
+  "verification": {
+    "actual_git_source_files": 6239,
+    "exact_base_commit": "512beb183a0f7994f8769fc6765e3e1b80af4523",
+    "changed_paths": [
+      "services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+      "services/platform/migrations/tools/ordered-current-native379-packet-v2-artifacts/source-inputs.json",
+      "services/platform/migrations/tools/ordered-current-native379-packet-v2.mjs",
+      "services/platform/migrations/tools/ordered-current-native379-source-schema-v2.mjs"
+    ],
+    "roster_files_rehashed": 1544,
+    "archive_sources_rehashed": 8,
+    "archive_all_files_mode": "0400",
+    "gzip_exact_raw": true,
+    "nonauthority_packet_fields": "Every field exact approved5d18; 379rules/10052facts/565sites/589controls/6348steps and all caps/programs unchanged"
+  },
+  "repaired_findings": [
+    "Inherited phase/global plus SQL10s child context captured before explicit cancellation",
+    "Actual Next received physical rows counted and charged even failed Scan; successful decoded scalar bool and full receipt canonical bytes charged separately with zero additional physical rows",
+    "Item Context query SHA and query stage derived from exact source step; top Failure SHA derived from attempted/next source step; failed started queries also bind positive child deadline cap"
+  ],
+  "evidence_hashes": {
+    "replay-deadline-partial-behavioral-red.log": "f1913e4cc155ac13fd63a27afae60ba3d42c8b3a9ffa9d33f92a77c3800d47ba",
+    "replay-borrowed-query-behavioral-red.log": "a70c7f5bc338efeefcfd0d0d67f93709bf479befc13a0e99916c2fa3c303e631",
+    "replay-unknown-deadline-behavioral-red.log": "136d3c95dd7fa0ce867bec82f94c793c8c7d4dded4a2478a054f5614b1d03417",
+    "replay-source-group-5.log": "ad31a37b74e4fb4e8a4480bf2d2e247a5bdf7b66bd3cf652016d5d25f06ce233",
+    "replay-2912-node6.log": "d18fb0fa2a6135e313266454d91a77bf356c1bd25b39bd0eb5a1a8d9cb796634"
+  },
+  "behavior_scope": "Read source and preserved logs; final nonwire22 authorPASS0.977s and Node6authorPASS. Independent final retained-binary authentic23 rerun remains pending and not claimed. Intermediate a6e8 actual22PASS preserved but superseded for genuine discovered gap.",
+  "security_scope": [
+    "Extra SQL only following actual normal primaryfalse and successful charge, never primaryerror",
+    "Exact immutable module4add source spans/ordering/read-only expressions; admitted pure helpers and sameownedTx authority/RR/readonly/PID/user frame proof; no version-first reordering",
+    "Scalar false classification requires exactly1 decoded row, completed Errnil/live context and full successful charge; NULL/duplicate/error/cancellation/budget unknown",
+    "Scoped exact canonical charge ledger is rederived with before/after physical row/byte caps; alltrue replay still primaryfalse and comparisonIncomplete; never original branchtrace",
+    "Only safe closed stage/class/validated SQLSTATE/context/deadlines/counts and hashes emitted, no rawSQL/params/PGmessages/version/sourcefacts"
+  ],
+  "future_prerequisites": [
+    "New independently derived companion anchors (existing468734 unchanged and stale)",
+    "Fresh complete consumed Go source/module/tool/test-binary envelope and exact Node roster, separate strict-schema root approval",
+    "Root authorization for any bounded native attempt"
+  ],
+  "declined_to_judge": [
+    "Actual PostgreSQL permission/effects/outcomes or causal primary branch",
+    "Native379 parity/capacity/installed/deployed/release acceptance",
+    "Any future companion/populated anchors, fresh frozen closure or native attempt"
+  ]
+}

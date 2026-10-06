@@ -1,0 +1,10 @@
+=== RUN   TestP7OrderedCurrentIntegrityNativeV2
+=== RUN   TestP7OrderedCurrentIntegrityNativeV2/owned-postgresql-18.3
+    authorization_worker_ordered_current_native379_v2_test.go:2829: native379 pristine catalog equality refused: diagnostic={"failure":{"stage":"stream","errorClass":"context-deadline","contextState":"deadline","querySHA256":"36252e816108a8866c6c7ae350a8b1ccad1a439c02530125edb75c69a9ba1f84","scannedRows":0,"chargedRows":0,"chargedBytes":0,"elapsedNanoseconds":37988123509,"comparisonComplete":false,"effectiveDeadline":{"available":true,"expired":true,"remainingMilliseconds":-6},"phaseDeadline":{"available":true,"expired":true,"remainingMilliseconds":-6},"enclosingDeadline":{"available":true,"expired":false,"remainingMilliseconds":468304},"budget":{"available":true,"phase":"pristine-truth","globalRows":10057,"globalBytes":10068173,"globalMaxRows":38240,"globalMaxBytes":85983232,"phaseRows":10057,"phaseBytes":10068173,"phaseMaxRows":12000,"phaseMaxBytes":33554432,"proposedRows":0,"proposedBytes":0}},"expected":10052,"live":0,"missing":0,"extra":0,"changed":0,"duplicates":0,"overflow":true,"error":"collector stream refused","entries":[]}
+    postgres_integration_test.go:1409: joined owned PostgreSQL pid=127711 data=/workspace/.zasp-cloud-owned/native379-v2-diagnostic-foundation-ntje6h8r/tmp/TestP7OrderedCurrentIntegrityNativeV2owned-postgresql-18.3112479083/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+=== NAME  TestP7OrderedCurrentIntegrityNativeV2
+    authorization_worker_ordered_current_native379_v2_test.go:2839: native379 v2 owned cleanup snapshot: {"available":true,"pgCtlStopped":true,"waitJoined":true,"normalExit":true,"endpointChecked":true,"survivingResourcesChecked":true,"survivingResources":0}
+    authorization_worker_ordered_current_native379_v2_test.go:2840: ordered-current native379 owned fixture did not complete cleanly
+--- FAIL: TestP7OrderedCurrentIntegrityNativeV2 (224.45s)
+    --- FAIL: TestP7OrderedCurrentIntegrityNativeV2/owned-postgresql-18.3 (183.35s)
+FAIL

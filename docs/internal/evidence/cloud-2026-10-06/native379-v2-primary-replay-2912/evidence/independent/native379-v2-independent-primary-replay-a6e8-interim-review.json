@@ -1,0 +1,30 @@
+{
+  "status": "CHANGES_REQUIRED",
+  "scope": "Private source-only primary replay; no PostgreSQL/native execution or future anchor/envelope approval",
+  "source": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/source/services/platform/apiserver/authorization_worker_ordered_current_native379_v2_test.go",
+    "sha256": "a6e8befd933d9b02c0b513f7e982f6a7f3f9b7ce9b969122111d4fbff9be1cb2"
+  },
+  "prior_important_findings": "SQL10s child propagation and actual partial scanned/charged counts repaired by source inspection; author grouped tests observed, independent full candidate run pending",
+  "findings": [
+    {
+      "severity": "Important",
+      "line": 5059,
+      "title": "Bind contextual query metadata to the actual source step",
+      "detail": "Item SQLSHA/params/source/placement/session are rederived, but item.Context.QuerySHA256 is only checked as valid SHA; generic closed Stage also permits values other than producer query stage. Top Failure.QuerySHA similarly lacks attempted/next-source-step binding. A borrowed valid digest could survive a recomputed receipt ledger. Author acknowledged and will preserve meaningful RED before repair."
+    }
+  ],
+  "verified_boundaries": [
+    "Extra SQL only after original normal false plus successful primary charge; primary error does not trigger replay",
+    "Immutable module digest and exact source spans, original predicate order, same owned pgx transaction/session PID/user proof",
+    "NULL/scan/deferred/duplicate/cancel errors remain unknown; false needs complete scalar stream and live child context; alltrue keeps primary false",
+    "Diagnostic ledger only new charges, physical Next rows counted even Scan error, canonical receipts charged, before/after counters and caps independently replayed",
+    "SQL cap remains10s and child inherits phase/global deadlines; captured before explicit cancel",
+    "Read-only source predicates and original normalize/canonical helpers; no production routines or guard/cap changes"
+  ],
+  "declined_to_judge": [
+    "Actual PostgreSQL permission/runtime behavior or replay outcomes",
+    "Native379 capacity/parity/installed/deployment acceptance",
+    "Future regenerated packet or populated companion/frozen envelope without exact follow-up review"
+  ]
+}

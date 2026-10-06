@@ -1,0 +1,48 @@
+{
+  "status": "PASS_EXACT_PUBLICATION_WITH_REQUIRED_SCAN_AND_REVIEW_SUPPLEMENTS",
+  "findings": [],
+  "payload": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/publication-combined-authority-u15_vlft",
+    "manifest_sha256": "26f12090962866b44f9ca2c7a9c303bbd74ae6a3a4c6912ab29bd50d2f33a47a",
+    "declared_members": 31,
+    "all_member_sha256_size_modes_verified": true,
+    "unlisted_members": 0,
+    "gzip_exact_mtime0_roundtrips": 8,
+    "all_declared_retained_original_identity_paths_rehashed": true,
+    "raw_omitted_and_verified_gzip_roundtrip_sha256": "d7aaea0657e9bdb8e512a3c0a332e3cf91296a50e6c967233829ec95f45a01ce",
+    "raw_bytes": 25160408
+  },
+  "required_scan_supplement": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/combined-publication-scan-supplement",
+    "members": 3,
+    "scan_record_sha256": "8635091e74e789df09c4d5b25d90c73cb1b990d977011b787cc8c9ed7e19ed4b",
+    "actual_exit": 1,
+    "actual_findings": 16,
+    "unique_public_source_sha_values": 8,
+    "representations": 2,
+    "classification": "All16reportedsource-inputs/combined-root-source-index JSONlines independentlydecoded/rehashed againstcurrentprivate/currentroot/exacttrackedGit512source bytes; generic-api-key findings matchpublicSHA values, notauthentication credentials. Actualredactedreport/log/tool hashbinding verified, no rule/config/exception changes claimed."
+  },
+  "required_final_review_supplement": {
+    "path": "/workspace/.zasp-cloud-owned/native379-v2-primary-replay-ci9zftl1/combined-authority-final-review-supplement",
+    "files": 5,
+    "supplement_manifest_sha256": "2e132e6a93d812d5f2d69f9145ec11a5bfb44f8978e6dc44c77d699c04c6c5e0",
+    "independent_source_anchor_review_sha256": "2537a01a6493ec214a5f7c993dfc21396ab847ed9db94efe57b0d24fd768fa64",
+    "verification": "All4review/log/record bytes exactoriginal independent outputs and0400; manifestboundexact31payload26f1. Independentactivation1PASS0.330s andsource23PASS52.244s, noPG/native."
+  },
+  "scope_accuracy": [
+    "Reviewedwarm2 andunchanged2912implementation exact6sourceadoptionpaths; 1545member/985Go source sets andcurrentrootNode3hash matching, explicitly notwholeRootGit/fullGo/Node/tool/frozenclosure",
+    "AuthorNode6PASS26.248s/source23PASS52.828s/activation0.319s; independentactual23+activation supplement distinct",
+    "Every nonauthority packetfield exact5d18/2912, original379/10052/565/589/6348/caps/eightgeneratedidentities unchanged",
+    "Separate6578candidate replaces2literals only; fiveotheranchors actualidentities verified; existingcompiledprivatecompanion stale468734 transparentlyrecorded",
+    "Futureexactcommittedsource+eightgeneratedoutputs/companion/fullGo+Node/tool/runtime/PGenvelopes andindependentrootboundedexecution requiredseparately; no nativecapacity/variedlogin/installed/deployed/releaseacceptance",
+    "Prior2912/a6/source/component/actualfailures keptdistinct; no fabricatedoriginalcallbackcause orseven-test/589actualSQLclaim",
+    "ScanFAIL16 retained, classifications supportscopedpublication ofpublichashes, no zero scan/fullhistory/scanner/native clearance claim. Actualscanner target31payload; separate finalreviewattachment scan notclaimed."
+  ],
+  "approval_scope": "Publish exactly31payload+manifest alongside3scanattachments+5finalreviewattachments andthisreview; preserve originalsealed bytes. Sourcebinding review2537 unchanged; no freshfoundation/nativeauthorization.",
+  "declined_to_judge": [
+    "ActualPG/SQL/native379capacity/parity/installed/deployed/releaseoutcome",
+    "FuturewholecommittedGit/archive/actualconsumed fullGo+Nodeenvelope correctness",
+    "New full/npm verification ororiginalcallbackexpiry cause",
+    "Independently rerunning scanners orclaimingscancoverageoutsideactual31membertarget"
+  ]
+}
