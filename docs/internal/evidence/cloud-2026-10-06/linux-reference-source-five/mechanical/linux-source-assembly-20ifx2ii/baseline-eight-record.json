@@ -1,0 +1,20 @@
+{
+  "label": "baseline-eight",
+  "argv": [
+    "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin/node",
+    "services/platform/migrations/tools/build-ordered-current-development.mjs",
+    "--write"
+  ],
+  "cwd": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-20ifx2ii/source",
+  "environment": {
+    "PATH": "/workspace/.zasp-cloud-owned/native379-v2-combined-foundation-vg_j3yv2/module-cache/owned-tools/node/bin:/usr/bin:/bin",
+    "TMPDIR": "/workspace/.zasp-cloud-owned/linux-successor-source-tdd/linux-source-assembly-20ifx2ii/tmp",
+    "LANG": "C",
+    "TZ": "UTC"
+  },
+  "exit": 0,
+  "timedOut": false,
+  "directProcessJoined": true,
+  "seconds": 12.315481695997732,
+  "logSHA256": "d2dacb37b1f8e31d0142d1465f8d741433bcc707ee237b3be937c559624d58e4"
+}

@@ -1,0 +1,17 @@
+{
+  "scope": "Independent emitted-source-byte audit; no SQL execution or runtime admission",
+  "originalModuleSHA256": "4add5c6dff44aa768bd524c357bc0310ee69c5833a6f9821df84d2b1376e2c74",
+  "successorModuleSHA256": "36e7652dfd0582ef872cd2a11d4d6514504736b835b688808a9712cb9c4d4ee6",
+  "installationPrefixBeforeRegistrationBytes": 359244,
+  "installationPrefixSHA256": "fcfdb9af45e0c00f72a0ecbc4ec2457d8527d977a6b59dcd74213e87891e42ea",
+  "privateCreateFunctionDeclarationsInExactPrefix": 8,
+  "exactModuleEqualAfterOnlyTwoApprovedMetadataSubstitutions": true,
+  "substitutions": [
+    "one exact reserved build expected-row line",
+    "one exact registration manifest payload literal"
+  ],
+  "buildRowLine": 11195,
+  "beforeBuildRowSHA256": "c81db09528e7abfb430378c48759fc6c5b3e5f688c73aafa4197be7fc42b79e6",
+  "afterBuildRowSHA256": "32fc07d3925e811efe02b5a5bd6df126043b70b11b253758ab72ee69d59f5bab",
+  "unchangedFactRows": 10051
+}

@@ -1,0 +1,24 @@
+{
+  "source_sha": "3e1597963a0dd28ff010934c948a27dc3fa9cc07",
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/gitleaks",
+    "git",
+    "--no-banner",
+    "--redact",
+    "--log-opts=3e1597963a0dd28ff010934c948a27dc3fa9cc07^..3e1597963a0dd28ff010934c948a27dc3fa9cc07",
+    "--report-format",
+    "json",
+    "--report-path",
+    "/tmp/zasp-cloud-evidence/doc3e-scoped-1791264043408131011/report.json"
+  ],
+  "ignore_sha256": "0ea55c26ab249af09129f0ee3d060373c9acdd079ba6d6cd363af0902f4d99d8",
+  "config_environment_names_present": [],
+  "root_toml_exists": false,
+  "exit": 0,
+  "seconds": 0.987,
+  "findings": 0,
+  "source_sha_after": "3e1597963a0dd28ff010934c948a27dc3fa9cc07",
+  "ignore_sha256_after": "0ea55c26ab249af09129f0ee3d060373c9acdd079ba6d6cd363af0902f4d99d8",
+  "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "log_sha256": "167243fc3d1d5a405730d6f4cad29476314a3b3898df5943171c59f628fa24ed"
+}

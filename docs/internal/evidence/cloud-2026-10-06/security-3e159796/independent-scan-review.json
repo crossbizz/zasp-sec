@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "status": "PASS",
+  "scope": "Independent exact recorded commit-scoped and default reachable-history scan attachment; no new scanner run",
+  "commit": "3e1597963a0dd28ff010934c948a27dc3fa9cc07",
+  "reviewedAtUTC": "2026-10-06T05:23:26.101302+00:00",
+  "commitScope": {
+    "actualExit": 0,
+    "findings": 0,
+    "seconds": 0.987,
+    "changedDocBlobsVerified": 301,
+    "reviewSHA256": "0b6b283fba685941e3182011cccab9bf837f2ed7125e26dc7e01c9fd1a8c5e3d"
+  },
+  "fullDefaultReachableHistory": {
+    "actualRootReportedJoinedExit": 0,
+    "recordedExit": 0,
+    "findings": 0,
+    "seconds": 80.089,
+    "logOptions": "HEAD",
+    "loggedScannedCommitCount": 1444,
+    "reachableNonMergeCommitsIndependentlyVerified": 1444,
+    "totalReachableCommits": 1501,
+    "reachableMergeCommits": 57,
+    "mergeDiffIndependentCoverageNotClaimed": true,
+    "logSHA256": "623b74194244cd3db2ec283d6a206c2984549734248b9ffe0c13d81b0d381942"
+  },
+  "baselineIgnoreSHA256": "0ea55c26ab249af09129f0ee3d060373c9acdd079ba6d6cd363af0902f4d99d8",
+  "configEnvironmentNamesPresent": [],
+  "rootTomlPresent": false,
+  "scannerCurrentExecutableSHA256PostscanObservation": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509",
+  "findings": [],
+  "boundaries": [
+    "Actual default Git scans PASS0 with existing unchanged ignore baseline; no new rules/config/waivers.",
+    "Prior staged219 full-blob directory scan FAIL4 remains FAIL4; four historical unchanged lines are not dispositioned by this review.",
+    "Default history Git-diff scan logs1444 nonmerge commits; no independent merge-diff, decoded archive, filesystem or security-wide clearance claimed.",
+    "Root supplied original command join outcome; reviewer verified retained terminal record/report/log and commit correspondence, did not independently observe historic OS wait.",
+    "Any later attachment commit needs its own fresh exact-head scan; this receipt does not scan itself.",
+    "No native/runtime/provider/deployment approval."
+  ]
+}
