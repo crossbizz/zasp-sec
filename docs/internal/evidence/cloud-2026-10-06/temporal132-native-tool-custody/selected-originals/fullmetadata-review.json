@@ -1,0 +1,262 @@
+{
+  "ROOTToolJoinSHA256": "55750ded7da35bcce88a012d842ba78b70e90034faab3c566327ee1d91b8dbb4",
+  "actualStage": {
+    "argv": [
+      "/usr/bin/python3",
+      "/tmp/zasp-cloud-evidence/Temporal-server132-full-metadata-census-hw_dsy8f/stream-Temporal-server132-full-metadata-census.py",
+      "--source-sha256",
+      "309c7a2bbc194fc33e016f9758a76a41e69c6ecc2edc1d06e1c8922016c5cc26",
+      "--output",
+      "/workspace/.zasp-cloud-owned/Temporal-server132-stream-census-74799a5934b742fb883328571d06d24b"
+    ],
+    "cleanup_deadline_monotonic": null,
+    "declared_cap_seconds": 95,
+    "effective_deadline_monotonic": 72155.295801253,
+    "effective_limit_seconds": 95,
+    "enclosing_deadline_monotonic": 72160.294687066,
+    "exit": 0,
+    "forced_cleanup": false,
+    "interrupted": false,
+    "joined": true,
+    "label": "authenticated-full-metadata-census",
+    "pid": 307163,
+    "seconds": 3.481255,
+    "started": true,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "survivors": [],
+    "timed_out": false,
+    "unexpected_descendants": false
+  },
+  "all31Members": [
+    {
+      "bytes": 2278,
+      "path": "config/development-cass-archival.yaml",
+      "sha256": "d88a40789af8f50818b62a687af3b34b0b0b3c6438f25488f19da2f2194ce798",
+      "type": "regular"
+    },
+    {
+      "bytes": 2640,
+      "path": "config/development-cass-es-custom.yaml",
+      "sha256": "213ff2f459b9722314d4604530cd1c406ce41a3c3f726d24d5a2eba662c3e99d",
+      "type": "regular"
+    },
+    {
+      "bytes": 2602,
+      "path": "config/development-cass-es-dual.yaml",
+      "sha256": "bd3b2ca3d1945757bfd3f921c63e9eded40d1ede8762468c6b6b258933a3312e",
+      "type": "regular"
+    },
+    {
+      "bytes": 3435,
+      "path": "config/development-cass-es-fi.yaml",
+      "sha256": "7f2ee8a6f752726c0b1e1f7c2c351330dd4e9005f8ff49fdd82807b7681ddf37",
+      "type": "regular"
+    },
+    {
+      "bytes": 2346,
+      "path": "config/development-cass-es.yaml",
+      "sha256": "e2f49b367b3e31d51125140551e26e502fcda95a02876efacb7fcc64252db2c7",
+      "type": "regular"
+    },
+    {
+      "bytes": 2144,
+      "path": "config/development-cass-s3.yaml",
+      "sha256": "718bade157df5082ddee57e9aa3c07144e8428060151da726dc10e700fda0ded",
+      "type": "regular"
+    },
+    {
+      "bytes": 2809,
+      "path": "config/development-cluster-a.yaml",
+      "sha256": "86cf6ff64ab369f5d6cad78874e020de5dc66699cc9410c9cdb21152adbb05d9",
+      "type": "regular"
+    },
+    {
+      "bytes": 2748,
+      "path": "config/development-cluster-b.yaml",
+      "sha256": "42a30ebf50ce9eca23895937baeadf9889b360a9c4449afaab754e1724179d99",
+      "type": "regular"
+    },
+    {
+      "bytes": 2749,
+      "path": "config/development-cluster-c.yaml",
+      "sha256": "c5b150b25b57480a93c4ab4495658188be3a559c56693688c412c16ed5cf2b74",
+      "type": "regular"
+    },
+    {
+      "bytes": 3291,
+      "path": "config/development-jwt.yaml",
+      "sha256": "7ec0a4f888a3b8a45a99f6d3ae80e322aca96caeb085089db9c2066adba303ca",
+      "type": "regular"
+    },
+    {
+      "bytes": 2478,
+      "path": "config/development-mysql-es.yaml",
+      "sha256": "dcd627216e6800d837c536d50c07cc63be005d722f24bfcbf1a3663479449416",
+      "type": "regular"
+    },
+    {
+      "bytes": 2518,
+      "path": "config/development-mysql8.yaml",
+      "sha256": "8aea9ba4c749715c51d872415875efd83b6905fa700e9920524915a3a19e8284",
+      "type": "regular"
+    },
+    {
+      "bytes": 2550,
+      "path": "config/development-postgres-es.yaml",
+      "sha256": "bc0f8d8632b3c0ab3edd935c5bfcdb9b5c017bf51f16e712c97c28c504e901d4",
+      "type": "regular"
+    },
+    {
+      "bytes": 2538,
+      "path": "config/development-postgres12.yaml",
+      "sha256": "a1ff7c05cc7ff52dd683f4106fa1409389cd0dd7c683d8534451574d270fc301",
+      "type": "regular"
+    },
+    {
+      "bytes": 3097,
+      "path": "config/development-sqlite-file.yaml",
+      "sha256": "ff4c9b55756f52a999f4802a4892156d8218a923c417386419fc5dd0212676c5",
+      "type": "regular"
+    },
+    {
+      "bytes": 2997,
+      "path": "config/development-sqlite.yaml",
+      "sha256": "dbf440e477e5ba4a1789451f9dddba24e774fa7be3bee1f57452583cf23f373e",
+      "type": "regular"
+    },
+    {
+      "bytes": 0,
+      "extracted": false,
+      "headerSHA256": "06e0175de9040a7451c36cbb11889b2a23446f39d9e1d39fd33f1eca565002d4",
+      "linkCreated": false,
+      "linkFollowed": false,
+      "nameSHA256": "1ac4cd1f9ffcef0624f83618d9c1ea877f2a35ec256e7973291d146dc920e746",
+      "path": "config/development.yaml",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "targetBytes": 23,
+      "targetSHA256": "1e0dd7a8fd216ad651199dbfe3205fbf1870a5b9acc9c58046862a5238214c23",
+      "type": "symlink-metadata-only"
+    },
+    {
+      "bytes": 16732,
+      "path": "config/docker.yaml",
+      "sha256": "81fde509f35f96ca16e3c04cb557c246fa0133816464ee40d88a041e3f5ea006",
+      "type": "regular"
+    },
+    {
+      "bytes": 1127,
+      "path": "config/dynamicconfig/README.md",
+      "sha256": "b05e3994c461237530dabd2b0e918a8e789376be86b0c9c85491486df5ab835a",
+      "type": "regular"
+    },
+    {
+      "bytes": 1383,
+      "path": "config/dynamicconfig/development-cass.yaml",
+      "sha256": "1d40e87085e8ebbeaa14db0bdf184cc13daade6524f401ebad85787481fe3044",
+      "type": "regular"
+    },
+    {
+      "bytes": 2657,
+      "path": "config/dynamicconfig/development-sql.yaml",
+      "sha256": "7b5cebdf80907cf1c098201caabfd33b5e62618a255e8ab6c15f7485eea27af8",
+      "type": "regular"
+    },
+    {
+      "bytes": 1255,
+      "path": "config/dynamicconfig/development-xdc.yaml",
+      "sha256": "5e6d1b8debf4999b6438fa132529e8e039727682868893ea1ebdc5c93b1ae022",
+      "type": "regular"
+    },
+    {
+      "bytes": 0,
+      "path": "config/dynamicconfig/docker.yaml",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "type": "regular"
+    },
+    {
+      "bytes": 1684,
+      "path": "config/jwt/README.md",
+      "sha256": "17228447012310b8f92ba3e07c0fe276a3f37263100c40214f3c20b207eaabb5",
+      "type": "regular"
+    },
+    {
+      "bytes": 1994,
+      "path": "config/jwt/generate-token.sh",
+      "sha256": "4887f9ccb6b83485d34f48b5bbb665941f37187cb3e247b566971a8533be9be6",
+      "type": "regular"
+    },
+    {
+      "bytes": 1373,
+      "path": "config/jwt/setup-keys.sh",
+      "sha256": "02208ebd8473276372262ae554d427521b32c434370b45831968a192bdf1305a",
+      "type": "regular"
+    },
+    {
+      "bytes": 148754594,
+      "path": "temporal-server",
+      "sha256": "c054d42ddfd63c9358a7db15a05fa106e7f4ef52b06d08bd5566ac2ad400fb9e",
+      "type": "regular"
+    },
+    {
+      "bytes": 32010402,
+      "path": "temporal-cassandra-tool",
+      "sha256": "39dc663204c52ab959426fb07a541bf914ebd3745e8f418b3a94d89b9ea98f8f",
+      "type": "regular"
+    },
+    {
+      "bytes": 40226978,
+      "path": "temporal-sql-tool",
+      "sha256": "20e0a62ba2de523cd54c6a481d372d18acf3bafccabef3ee5ee7d4cdd5b1ef0c",
+      "type": "regular"
+    },
+    {
+      "bytes": 35688610,
+      "path": "temporal-elasticsearch-tool",
+      "sha256": "141979f56d67b8ea640458e592b4515c8eb65778f9690e52068cbdd383d783e0",
+      "type": "regular"
+    },
+    {
+      "bytes": 76730530,
+      "path": "tdbg",
+      "sha256": "ad6602fbad64452e86c058ac9c27bbe4bd5517da256848061fdc327c84c00199",
+      "type": "regular"
+    }
+  ],
+  "checks": [
+    "All frozen source309c/helper/Python pins rehashed; result/log/record/journal and canonical ROOT terminal0 verified",
+    "Thirty regular full member SHA observations plus one zero-payload metadata-only symlink; complete roster/sum/unique safe names reconciled",
+    "Pinned successful census returns only after gzip CRC/EOF, tar double-zero terminator/nonzero-tail refusal, full compressed length/SHA, regular-root requirements and capacity checks",
+    "Original failed608 diagnostic header06e matches full roster ordinal17 metadata observation; original refusal remains preserved",
+    "Actual child normaljoined0 within95sec cap, no signals/forced/timeouts/unknown descendants/survivors"
+  ],
+  "journals": {
+    "/workspace/.zasp-cloud-owned/Temporal-server132-full-metadata-census-owner-70b62968ae6f4b32b84a157dfca357cc/failure-journal.jsonl": "378fcc0575c7fa709646cea29a869b157c724397699a8411512d65280f38a34e",
+    "/workspace/.zasp-cloud-owned/Temporal-server132-stream-census-74799a5934b742fb883328571d06d24b/failure-journal.jsonl": "53418603124e2f822d65db4f94107e7e204c283ed79cdee09f0ac824de607bda"
+  },
+  "ownerResultSHA256": "6b74766b15e34955ee71cc1cdca61223468a479e42d998c3426d83dca668401e",
+  "scope": "Metadata census only. Compressed archive/raw member bodies not retained: member/header SHA and fullgzip/tar completion are reviewed pinned-source runtime observations, not independent byte replay or new fetch. No asset file, extraction, binary/service execution, schema/provider readiness or diskFIT. No archive LICENSE member observed; licensing source obligations remain separate. May prepare narrow regular-only selection/install proposal under new source, complete-roster, capacity and actual gates. ROOT join is tool transcription, not invented ROOT kernel trace.",
+  "selectedFutureRegularCandidates": {
+    "temporal-server": {
+      "bytes": 148754594,
+      "path": "temporal-server",
+      "sha256": "c054d42ddfd63c9358a7db15a05fa106e7f4ef52b06d08bd5566ac2ad400fb9e",
+      "type": "regular"
+    },
+    "temporal-sql-tool": {
+      "bytes": 40226978,
+      "path": "temporal-sql-tool",
+      "sha256": "20e0a62ba2de523cd54c6a481d372d18acf3bafccabef3ee5ee7d4cdd5b1ef0c",
+      "type": "regular"
+    }
+  },
+  "status": "ACTUAL-AUTHENTICATED-FULL-METADATA-CENSUS-PASS",
+  "totals": {
+    "compressedBytes": 100230267,
+    "compressedSHA256": "ca1ccbb1d1545b68eb4523de463c51ffcd80f7e0bccd14a9b2c56fc7e389e792",
+    "declaredPayloadBytes": 333482539,
+    "inflatedBytes": 333507072,
+    "metadataHeaders": 0
+  },
+  "workerResultSHA256": "5ec3d4953d3a53040be9ab51019a9eca6deeccfe41a5514d1a7be19f87554d7e"
+}

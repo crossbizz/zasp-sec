@@ -1,0 +1,70 @@
+{
+  "schema": "ROOT-native-OSS-owned-stage-v1",
+  "kind": "selected-installer-TDD",
+  "completedAtWrite": true,
+  "failureClass": null,
+  "signals": [],
+  "records": [
+    {
+      "label": "old-selected-link-policy-RED",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/Temporal-server132-selected-installer-4w3gor7i/selected-installer.test.py",
+        "SelectedInstaller.test_selected_regular_binaries_vendor_symlink_discarded",
+        "-v"
+      ],
+      "declared_cap_seconds": 10,
+      "effective_limit_seconds": 10,
+      "enclosing_deadline_monotonic": 72920.334211368,
+      "effective_deadline_monotonic": 72900.335161017,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 1,
+      "pid": 307536,
+      "seconds": 0.120301,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "96042c8ecdb6a285c66dc617a20c700da1ed64c4b3b552e811e4cd76d4e5956e"
+    },
+    {
+      "label": "new-selected-eight-GREEN",
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/Temporal-server132-selected-installer-4w3gor7i/selected-installer.test.py",
+        "-v"
+      ],
+      "declared_cap_seconds": 20,
+      "effective_limit_seconds": 20,
+      "enclosing_deadline_monotonic": 72920.334211368,
+      "effective_deadline_monotonic": 72910.45574365,
+      "cleanup_deadline_monotonic": null,
+      "started": true,
+      "joined": true,
+      "timed_out": false,
+      "interrupted": false,
+      "forced_cleanup": false,
+      "unexpected_descendants": false,
+      "survivors": [],
+      "exit": 0,
+      "pid": 307537,
+      "seconds": 0.120381,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "ef71008848c83349cb70735af12d3127f758a27a1fa1a099e69a955892c2e346"
+    }
+  ],
+  "groups": {
+    "307536": [],
+    "307537": []
+  },
+  "seconds": 0.2619904780003708,
+  "expectedNetworkVariableNames": [],
+  "servicesStarted": false,
+  "installerInvoked": false,
+  "admissionScope": "TINY-SOURCE-TESTS-ONLY-NO-INSTALLER-NETWORK-OR-SERVICE",
+  "rootExternalNormalJoinRequired": true
+}

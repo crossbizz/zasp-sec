@@ -1,0 +1,8 @@
+{
+  "ROOTToolJoinPath": "/tmp/zasp-cloud-evidence/selected-Temporal132-TDD-root-join.json",
+  "ROOTToolJoinSHA256": "2468d05a6038fb2ac0ed763bd12737e6d9516efaa2a7bb874e4b5b9ccb77f9f0",
+  "actualReviewSHA256": "6b90924ca9722b8d957e08ba1da26774b42663c82834c1925686d7b2cb94283b",
+  "resultSHA256": "7f701cba3484d19aafc6f8688bdd44a00f0aeace271ba0aef1d0d8584100e540",
+  "scope": "ROOT-authored direct terminal0 observation, not independent ROOT kernel trace. Tiny protocol tests only; installer and runtime gates unchanged.",
+  "status": "ACTUAL-TINY-TDD-ROOT-JOIN-RECONCILED"
+}

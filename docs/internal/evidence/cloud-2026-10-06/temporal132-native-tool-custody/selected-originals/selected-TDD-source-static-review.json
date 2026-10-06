@@ -1,0 +1,19 @@
+{
+  "TDDOwnerSHA256": "f28a91f57c565fc880363fcb84488f4cb5418c871318937e153f02c759098e46",
+  "checks": [
+    "All manifests/members/sourceBindings and owner source/helper/Python pins freshly verified; owned TDD root absent",
+    "Exact ordered31-row roster equals independently reviewed actual census; complete binary+discard member hashes and metadata symlink exactheader/name/target receipts required",
+    "Only named two regular root binaries exclusive-created; symlink branch constructs no destination, link or target filesystem operation; every unselected body hash/discard",
+    "Full archive SHA before extraction, fullgzipCRC/tar terminator/tail/inflated333507072/ordered complete roster required; original caps/lifecycle preserved",
+    "Fresh TMP422766271 and workspace1501048576 thresholds include archive+binaries+16MiBproof+16MiBmargin above original respective floors; no promised diskFIT",
+    "Separate MIT raw license SHA/Gitblob3349 checked; no invented archiveLICENSE member",
+    "Eight tiny tests cover policy transition, orderedroster/hash/linkfields, unsupported/unsafe metadata, exclusive output, CRC/tail/limits/floors and reservedjournal refusal"
+  ],
+  "findings": [],
+  "planSHA256": "3f41fd38c7071ac4f6f69b0fa39c1294d0bc7b63c37780d7c2fa39b7471c46c3",
+  "scope": "SOURCE prerequisite and ROOT tiny TDD only; no reviewer tests/assets/network/import/installer/binary execution. Old defined3d API refusal is intended new selection protocol policy transition, not bug. Installer actual argv UNISSUED: actual eight-group TDD review, freshHEAD plan/owner rebinding, fresh resources and separate static gate mandatory before download/extraction. Installed-byte authority only; version checks/schema/runtime/service/native/provider readiness remain pending.",
+  "sourceManifestSHA256": "1051b329c1d80558c001bc2a4a8093e329113b326e862d6c933828d17c410f41",
+  "sourceSHA256": "939edc2d2ad24e9bdc42438177684fb552a93a551977bca875041b36e3880f3f",
+  "status": "SOURCE-STATIC-PASS-TDD-ONLY-LAUNCH-GATE",
+  "testSHA256": "0add319eb33599975d696a4381a4e84273b960883596ad56b3b7501edbf74da3"
+}

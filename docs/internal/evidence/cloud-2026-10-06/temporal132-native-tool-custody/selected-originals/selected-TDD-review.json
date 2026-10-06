@@ -1,0 +1,67 @@
+{
+  "ROOTToolObservation": "Parent supplied direct chunk1c7625 normal terminal0/.247s without ongoing session. Curated tool receipt can be bound additively; no invented ROOT kernel PID receipt.",
+  "actualStages": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/Temporal-server132-selected-installer-4w3gor7i/selected-installer.test.py",
+        "SelectedInstaller.test_selected_regular_binaries_vendor_symlink_discarded",
+        "-v"
+      ],
+      "cleanup_deadline_monotonic": null,
+      "declared_cap_seconds": 10,
+      "effective_deadline_monotonic": 72900.335161017,
+      "effective_limit_seconds": 10,
+      "enclosing_deadline_monotonic": 72920.334211368,
+      "exit": 1,
+      "forced_cleanup": false,
+      "interrupted": false,
+      "joined": true,
+      "label": "old-selected-link-policy-RED",
+      "pid": 307536,
+      "seconds": 0.120301,
+      "started": true,
+      "stderr_sha256": "96042c8ecdb6a285c66dc617a20c700da1ed64c4b3b552e811e4cd76d4e5956e",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "survivors": [],
+      "timed_out": false,
+      "unexpected_descendants": false
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/tmp/zasp-cloud-evidence/Temporal-server132-selected-installer-4w3gor7i/selected-installer.test.py",
+        "-v"
+      ],
+      "cleanup_deadline_monotonic": null,
+      "declared_cap_seconds": 20,
+      "effective_deadline_monotonic": 72910.45574365,
+      "effective_limit_seconds": 20,
+      "enclosing_deadline_monotonic": 72920.334211368,
+      "exit": 0,
+      "forced_cleanup": false,
+      "interrupted": false,
+      "joined": true,
+      "label": "new-selected-eight-GREEN",
+      "pid": 307537,
+      "seconds": 0.120381,
+      "started": true,
+      "stderr_sha256": "ef71008848c83349cb70735af12d3127f758a27a1fa1a099e69a955892c2e346",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "survivors": [],
+      "timed_out": false,
+      "unexpected_descendants": false
+    }
+  ],
+  "checks": [
+    "All exact frozen source939ed/test0add/old3d/rawhelper/Python pins rehashed",
+    "Genuine same defined oldAPI rejects new selected-link metadata protocol, intentional policy scope transition RED assertion not missing API or old bug",
+    "All eight complete tiny source groups PASS: selected outputs/link discard, ordered roster/hash/link receipts, unsupported and unsafe metadata, exclusive nofollow output, CRC/tail/caps, TMP/WS floors and reservedjournal monotonic failure",
+    "Both actual child waits normal10/20caps, no timeout/interruption/forced/unexpected descendants/survivors; journal remains provisionaluntilROOT observation"
+  ],
+  "journalSHA256": "53d89dbedad12f7fb2eb9110dd93e8cb8a2b6607534bf8ef519ed2dabb7d150f",
+  "ownerSHA256": "f28a91f57c565fc880363fcb84488f4cb5418c871318937e153f02c759098e46",
+  "resultSHA256": "7f701cba3484d19aafc6f8688bdd44a00f0aeace271ba0aef1d0d8584100e540",
+  "scope": "Tiny source protocol tests with only benign ownedTMP fixtures, no actual vendor archive/network/installer main/binary service. Original refusal proofs preserved. Installer actual command still requires freshHEAD-bound plan+concreteowner independent static gate and unchanged freshTMP/WS floors; no diskFIT/version/schema/service/SDK/native/provider acceptance.",
+  "status": "ACTUAL-SELECTED-INSTALLER-TINY-TDD-PASS"
+}

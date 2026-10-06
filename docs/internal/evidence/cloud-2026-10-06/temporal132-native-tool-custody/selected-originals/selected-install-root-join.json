@@ -1,0 +1,17 @@
+{
+  "allRecipePinsChecked": true,
+  "exclusiveResourceWindow": true,
+  "freshHeadMatched": true,
+  "freshOutputsAbsent": true,
+  "normalWaitReturn": 0,
+  "ownerResult": "/workspace/.zasp-cloud-owned/Temporal-server132-selected-install-owner-2e626a21b81c48afa5ef8bc48ba52a68/result.json",
+  "ownerResultSHA256": "6c75c1c4a12631a16b9f8d0870f02cc82eec5c962799c9ec2e6edc12fe91f60e",
+  "preflightTmpFree": 567033856,
+  "preflightWorkspaceFree": 1545728000,
+  "schema": "root-normal-tool-join-v1",
+  "scope": "BYTE-INSTALLATION-ONLY-NO-EXECUTION-SERVICE-SCHEMA",
+  "toolCompletionChunk": "d7b3ae",
+  "toolExit": 0,
+  "toolSession": 90846,
+  "toolStartChunk": "94d42d"
+}

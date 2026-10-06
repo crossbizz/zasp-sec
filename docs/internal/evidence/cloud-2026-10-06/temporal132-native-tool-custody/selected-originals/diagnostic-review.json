@@ -1,0 +1,72 @@
+{
+  "ROOTToolJoinSHA256": "6b5a68d085c04eb42a1ef946681e7d11dc33ceab12babc7531bd0b3f8646cf8a",
+  "actualStage": {
+    "argv": [
+      "/usr/bin/python3",
+      "/tmp/zasp-cloud-evidence/Temporal-server132-refusal-diagnostic-3wodz037/stream-Temporal-server132-refusal-diagnostic.py",
+      "--source-sha256",
+      "608244b44f699e337b78d4056439aa2d11c48643bed7fd466b44fce206a5a911",
+      "--output",
+      "/workspace/.zasp-cloud-owned/Temporal-server132-stream-census-a3f6d9daf04b4d8fb397facfabd1f12f"
+    ],
+    "cleanup_deadline_monotonic": null,
+    "declared_cap_seconds": 95,
+    "effective_deadline_monotonic": 71328.071643446,
+    "effective_limit_seconds": 95,
+    "enclosing_deadline_monotonic": 71333.070785385,
+    "exit": 1,
+    "forced_cleanup": false,
+    "interrupted": false,
+    "joined": true,
+    "label": "authenticated-failed-parse-diagnostic",
+    "pid": 306813,
+    "seconds": 5.234186,
+    "started": true,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "survivors": [],
+    "timed_out": false,
+    "unexpected_descendants": false
+  },
+  "checks": [
+    "All source/helper/Python pins freshly rehashed; owner and worker exact result/log/record hashes verified",
+    "Pinned CompressedStream.finish drains remainder in <=65536-byte read1 calls, enforcing exact complete100230267-byte SHA before archiveAuthenticated=true",
+    "Pinned HTTPS official URL and HTTPS-only github/release-assets redirect guard retained; default TLS trust uses named existing proxy/CA context without values logged",
+    "Actual worker refused typeHex32 symbolic-link header ordinal17 with declared0 and no pendinglink; gzip/tar completion remain false",
+    "Owner expected refusal protocol succeeded with actual worker exit1 and normal joined/no forced/timeout/signals/descendants; canonical ROOT terminal0 reconciled"
+  ],
+  "journals": {
+    "/workspace/.zasp-cloud-owned/Temporal-server132-authenticated-refusal-retry-owner-51017199e875404584c1fd6b7b5784b2/failure-journal.jsonl": {
+      "sha256": "d066830301871245591116cf6a626d3b44d2aa06c1e1c7e65725582c7d26cf7c",
+      "states": [
+        "UNVERIFIED",
+        "UNVERIFIED-PRECHILD",
+        "UNVERIFIED-AWAITING-ROOT-JOIN"
+      ]
+    },
+    "/workspace/.zasp-cloud-owned/Temporal-server132-stream-census-a3f6d9daf04b4d8fb397facfabd1f12f/failure-journal.jsonl": {
+      "sha256": "acc1f0c722d94d7d051c1c32971c070c4c7fab555e03b1a96d46824eac50d521",
+      "states": [
+        "FAILED",
+        "FAILED-UNVERIFIED"
+      ]
+    }
+  },
+  "ownerResultSHA256": "ec6b9ed74b8d61b0ed079e8a5dce229a332726af1d2d0b982c70022bcb8094e2",
+  "scope": "Authenticated compressed bytes and bounded failed-parse diagnostic only. Actual header digest/ordinal are pinned-source runtime observations; raw header/archive was not retained and reviewer did not independently replay bytes or fetch network. No complete tar roster, gzip completion, supported vendor format, extraction, binary/tool/server/readiness admission. May prepare separate metadata-only census proposal, preserving refusal and requiring new source/runtime gates. ROOT join is tool-authored transcription, not independent ROOT kernel receipt.",
+  "sourceSHA256": "608244b44f699e337b78d4056439aa2d11c48643bed7fd466b44fce206a5a911",
+  "status": "ACTUAL-AUTHENTICATED-FAILED-PARSE-DIAGNOSTIC-PASS",
+  "unsupportedHeader": {
+    "archiveAuthenticated": true,
+    "compressedBytes": 100230267,
+    "compressedSHA256": "ca1ccbb1d1545b68eb4523de463c51ffcd80f7e0bccd14a9b2c56fc7e389e792",
+    "declaredBytes": 0,
+    "gzipComplete": false,
+    "headerOrdinal": 17,
+    "headerSHA256": "06e0175de9040a7451c36cbb11889b2a23446f39d9e1d39fd33f1eca565002d4",
+    "pendingLinkMetadataPresent": false,
+    "tarComplete": false,
+    "typeHex": "32"
+  },
+  "workerResultSHA256": "7111c0b5de6bf20637f7486169247aaa309d1b183880ceb4f8b7efc738012e28"
+}
