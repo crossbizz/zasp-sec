@@ -18,7 +18,7 @@ func TemporalHumanAdmissionFingerprint() string {
 func ProductionTemporalHumanAdmission() Metadata {
 	sum := sha256.Sum256([]byte(temporalHumanAdmissionSQL))
 	checksum := hex.EncodeToString(sum[:])
-	bound := strings.NewReplacer("-- human76 checksum", checksum, "-- human76 fingerprint", TemporalHumanAdmissionFingerprint(), "-- selector75 checksum", ProductionTemporalTestSelector().Checksum(), "-- selector75 fingerprint", TemporalTestSelectorFingerprint(), "-- compatibility70 checksum", ProductionTemporalCompatibility().Checksum(), "-- compatibility70 fingerprint", TemporalCompatibilityFingerprint()).Replace(temporalHumanAdmissionSQL)
+	bound := strings.NewReplacer("-- human76 checksum", checksum, "-- human76 fingerprint", TemporalHumanAdmissionFingerprint(), "-- selector75 checksum", TemporalTestSelectorChecksum(), "-- selector75 fingerprint", TemporalTestSelectorFingerprint(), "-- compatibility70 checksum", TemporalCompatibilityChecksum(), "-- compatibility70 fingerprint", TemporalCompatibilityFingerprint()).Replace(temporalHumanAdmissionSQL)
 	return Metadata{version: 76, name: "production_temporal_human_admission_extension", checksum: checksum, up: bound}
 }
 

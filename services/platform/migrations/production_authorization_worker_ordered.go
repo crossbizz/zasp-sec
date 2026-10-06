@@ -57,6 +57,10 @@ var authorizationWorkerOrderedEffectCatalogSQL string
 var authorizationWorkerReadinessGraphSQL string
 
 func authorizationWorkerOrderedSource(source string) string {
+	return authorizationWorkerOrderedSourceWithGraph(source, authorizationWorkerReadinessGraphSQL)
+}
+
+func authorizationWorkerOrderedSourceWithGraph(source, graph string) string {
 	const gateway = "-- worker gateway writer definitions"
 	if strings.Count(source, gateway) != 1 {
 		panic("ordered writer gateway predecessor marker changed")
@@ -89,5 +93,5 @@ func authorizationWorkerOrderedSource(source string) string {
 		"-- worker ordered source definitions", authorizationWorkerOrderedSourcesSQL,
 		"-- worker ordered planning definitions", authorizationWorkerOrderedPlanningSQL,
 		"-- worker ordered catalog definitions", authorizationWorkerOrderedHumanSQL+"\n"+authorizationWorkerOrderedApprovalInnerSQL+"\n"+authorizationWorkerOrderedCatalogSQL,
-	).Replace(source) + "\n" + authorizationWorkerReadinessGraphSQL
+	).Replace(source) + "\n" + graph
 }

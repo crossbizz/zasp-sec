@@ -59,7 +59,7 @@ func ProductionTemporalTestExecutor() Metadata {
 	source := temporalTestExecutorSource()
 	sum := sha256.Sum256([]byte(source))
 	checksum := hex.EncodeToString(sum[:])
-	bound := strings.NewReplacer("-- test74 checksum", checksum, "-- test74 fingerprint", TemporalTestExecutorFingerprint(), "-- admission73 checksum", ProductionTemporalAdmission().Checksum(), "-- admission73 fingerprint", TemporalAdmissionFingerprint(), "-- compatibility70 checksum", ProductionTemporalCompatibility().Checksum(), "-- compatibility70 fingerprint", TemporalCompatibilityFingerprint()).Replace(source)
+	bound := strings.NewReplacer("-- test74 checksum", checksum, "-- test74 fingerprint", TemporalTestExecutorFingerprint(), "-- admission73 checksum", TemporalAdmissionChecksum(), "-- admission73 fingerprint", TemporalAdmissionFingerprint(), "-- compatibility70 checksum", TemporalCompatibilityChecksum(), "-- compatibility70 fingerprint", TemporalCompatibilityFingerprint()).Replace(source)
 	return Metadata{version: 74, name: "production_temporal_test_executor_extension", checksum: checksum, up: bound}
 }
 

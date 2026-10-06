@@ -87,19 +87,23 @@ func authorizationWorkerStopSuccessor(source string) string {
 }
 
 func authorizationWorkerProfileSource() (string, string) {
+	return authorizationWorkerProfileSourceWithGraph(authorizationWorkerReadinessGraphSQL)
+}
+
+func authorizationWorkerProfileSourceWithGraph(graph string) (string, string) {
 	source := strings.NewReplacer(
 		"-- worker finding checksum", TemporalFindingResponseChecksum(),
 		"-- worker finding fingerprint", TemporalFindingResponseFingerprint(),
-		"-- worker test checksum", ProductionTemporalTestExecutor().Checksum(),
+		"-- worker test checksum", TemporalTestExecutorChecksum(),
 		"-- worker test fingerprint", TemporalTestExecutorFingerprint(),
 	).Replace(strings.NewReplacer("-- worker source definitions", authorizationWorkerSourcesSQL, "-- worker planning definitions", authorizationWorkerPlanningSQL, "-- worker test definitions", authorizationWorkerTestsSQL, "-- worker test effect definitions", authorizationWorkerTestEffectsSQL, "-- worker test adapter definitions", authorizationWorkerTestAdapterSQL, "-- worker test completion definitions", authorizationWorkerTestCompletionSQL, "-- worker test receipt definitions", authorizationWorkerTestReceiptSQL, "-- worker test settlement definitions", authorizationWorkerTestSettlementSQL, "-- worker test catalog definitions", authorizationWorkerTestCatalogSQL).Replace(authorizationWorkerProfileSQL))
 	source = strings.ReplaceAll(source, "-- worker planner portability definitions", authorizationWorkerPlannerPortabilitySQL)
-	lifecycle := strings.NewReplacer("-- worker test checksum", ProductionTemporalTestExecutor().Checksum(), "-- worker test fingerprint", TemporalTestExecutorFingerprint()).Replace(authorizationWorkerTestLifecycleSQL)
+	lifecycle := strings.NewReplacer("-- worker test checksum", TemporalTestExecutorChecksum(), "-- worker test fingerprint", TemporalTestExecutorFingerprint()).Replace(authorizationWorkerTestLifecycleSQL)
 	lifecycle = authorizationWorkerStopSuccessor(ProductionTemporalTestExecutor().UpSQL()) + "\n" + lifecycle
 	source = strings.ReplaceAll(source, "-- worker test lifecycle definitions", lifecycle)
 	source = strings.ReplaceAll(source, "-- worker test activation definitions", authorizationWorkerTestActivationSQL)
 	source = strings.NewReplacer("-- worker discovery source definitions", authorizationWorkerDiscoverySourcesSQL, "-- worker discovery fence definitions", authorizationWorkerDiscoveryFencesSQL, "-- worker discovery catalog definitions", authorizationWorkerDiscoveryCatalogSQL).Replace(source)
-	source = authorizationWorkerOrderedSource(source)
+	source = authorizationWorkerOrderedSourceWithGraph(source, graph)
 	source = strings.ReplaceAll(source, "-- worker gateway writer definitions", authorizationWorkerGatewayWritersSQL)
 	source = authorizationWorkerRuntimeSource(source)
 	source = authorizationWorkerRuntimeAncestrySource(source)
@@ -123,6 +127,10 @@ func authorizationWorkerProfileSource() (string, string) {
 }
 
 func (r *Runner) UpProductionAuthorizationWorkerProfile(ctx context.Context) error {
+	return r.upProductionAuthorizationWorkerProfile(ctx, false)
+}
+
+func (r *Runner) upProductionAuthorizationWorkerProfile(ctx context.Context, audit bool) error {
 	if r == nil || nilInterface(r.database) {
 		return ErrInvalidRunner
 	}
@@ -150,6 +158,15 @@ func (r *Runner) UpProductionAuthorizationWorkerProfile(ctx context.Context) err
 			return err
 		}
 		source, checksum := authorizationWorkerProfileSource()
+		if audit {
+			if err := check(`SELECT to_regnamespace('zasp_authorization80_audit') IS NOT NULL AND to_regnamespace('zasp_authorization80_identity') IS NOT NULL`); err != nil {
+				return err
+			}
+			if err := check(`SELECT (SELECT count(*)=1 AND bool_and(singleton AND name='canonical61-temporal78-authorization79-80-v1' AND audit_mode=$1 AND identity_mode=$2) FROM zasp_authorization80.runtime_profile) AND EXISTS(SELECT 1 FROM zasp_authorization80_audit.registration WHERE checksum=$3) AND zasp_authorization80_audit.catalog_ready() AND zasp_authorization80_identity.structural_ready($4)`, AuthorizationAuditProfileName, AuthorizationIdentityProfileName, AuthorizationAuditProfileChecksum(), AuthorizationIdentityProfileChecksum()); err != nil {
+				return err
+			}
+			source, checksum = authorizationWorkerAuditProfileSource()
+		}
 		var present bool
 		if err := scanRow(ctx, tx, `SELECT to_regnamespace('zasp_authorization80_worker') IS NOT NULL`, nil, &present); err != nil {
 			return fixedDatabaseError(ctx, err)
@@ -162,6 +179,12 @@ func (r *Runner) UpProductionAuthorizationWorkerProfile(ctx context.Context) err
 				return fixedDatabaseError(ctx, err)
 			}
 		}
-		return check(`SELECT EXISTS(SELECT 1 FROM zasp_authorization80_worker.registration WHERE checksum=$1) AND zasp_authorization80_worker.catalog_ready() AND zasp_authorization80_temporal.ready()`, checksum)
+		if err := check(`SELECT EXISTS(SELECT 1 FROM zasp_authorization80_worker.registration WHERE checksum=$1) AND zasp_authorization80_worker.catalog_ready() AND zasp_authorization80_temporal.ready()`, checksum); err != nil {
+			return err
+		}
+		if audit {
+			return check(`SELECT zasp_authorization80_audit.catalog_ready() AND zasp_authorization80_identity.structural_ready($1)`, AuthorizationIdentityProfileChecksum())
+		}
+		return nil
 	})
 }

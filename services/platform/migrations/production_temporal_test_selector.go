@@ -17,7 +17,7 @@ func TemporalTestSelectorFingerprint() string {
 func ProductionTemporalTestSelector() Metadata {
 	sum := sha256.Sum256([]byte(temporalTestSelectorSQL))
 	checksum := hex.EncodeToString(sum[:])
-	bound := strings.NewReplacer("-- selector75 checksum", checksum, "-- selector75 fingerprint", TemporalTestSelectorFingerprint(), "-- test74 checksum", ProductionTemporalTestExecutor().Checksum(), "-- test74 fingerprint", TemporalTestExecutorFingerprint(), "-- compatibility70 checksum", ProductionTemporalCompatibility().Checksum(), "-- compatibility70 fingerprint", TemporalCompatibilityFingerprint()).Replace(temporalTestSelectorSQL)
+	bound := strings.NewReplacer("-- selector75 checksum", checksum, "-- selector75 fingerprint", TemporalTestSelectorFingerprint(), "-- test74 checksum", TemporalTestExecutorChecksum(), "-- test74 fingerprint", TemporalTestExecutorFingerprint(), "-- compatibility70 checksum", TemporalCompatibilityChecksum(), "-- compatibility70 fingerprint", TemporalCompatibilityFingerprint()).Replace(temporalTestSelectorSQL)
 	return Metadata{version: 75, name: "production_temporal_test_selector_extension", checksum: checksum, up: bound}
 }
 func (r *Runner) UpProductionTemporalTestSelector(ctx context.Context) error {

@@ -58,7 +58,11 @@ func authorizationRuntimeProfilePlan(version int64, namespaces []string) ([]stri
 	}
 	worker := present["zasp_authorization80_worker"]
 	delete(present, "zasp_authorization80_worker")
-	if len(present) != 0 || count != 0 && (count != len(authorization) && !projectionOnly || highest != 11) || worker && count != len(authorization) {
+	// The worker installer also owns this exact runtime capture schema. Inventory
+	// only selects full installer revalidation; it cannot establish readiness.
+	runtime := present["zasp_authorization80_runtime"]
+	delete(present, "zasp_authorization80_runtime")
+	if len(present) != 0 || count != 0 && (count != len(authorization) && !projectionOnly || highest != 11) || worker && count != len(authorization) || runtime && !worker {
 		return nil, migrations.ErrInvalidState
 	}
 	end := []string{"up-authorization-temporal-identity-profile", "up-authorization-worker-profile"}
@@ -103,7 +107,11 @@ func (r *registeredReleaseMigrationRunner) UpAuthorizationRuntimeProfile(ctx con
 		}
 	}
 	for _, command := range commands {
-		if err = runReleaseMigration(ctx, r, []string{command}); err != nil {
+		var installer releaseMigrationRunner = r
+		if command == "up-authorization-worker-profile" {
+			installer = authorizationRuntimeWorkerRunner{r}
+		}
+		if err = runReleaseMigration(ctx, installer, []string{command}); err != nil {
 			return authorizationRuntimeProfileStepRefusal(command, "install", err)
 		}
 		if err = registerForwardRelease(ctx, r.queryer, r.registration, []string{command}); err != nil {

@@ -65,7 +65,7 @@ func ProductionTemporalExecutor() Metadata {
 		"-- executor68 fingerprint", TemporalExecutorFingerprint(),
 		"-- executor68 base fingerprint", TemporalExecutorBaseFingerprint(),
 		"-- executor68 domain fingerprint", TemporalExecutorDomainFingerprint(),
-		"-- domain67 checksum", ProductionTemporalDomain().Checksum(),
+		"-- domain67 checksum", TemporalDomainChecksum(),
 		"-- domain67 fingerprint", TemporalDomainFingerprint(),
 		"-- release61 checksum", ProductionSecurityAgentMultistep().Checksum(),
 		"-- release61 fingerprint", SecurityAgentMultistepRegisteredFingerprint())
