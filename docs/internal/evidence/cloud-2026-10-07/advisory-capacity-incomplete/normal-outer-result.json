@@ -1,0 +1,32 @@
+{
+  "args": [
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "610s",
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/tmp/official-advisory-complete-tree-owner-v3-lu0xg9es/run.py"
+  ],
+  "exitCode": 1,
+  "seconds": 27.51858729000014,
+  "sourceToolBefore": {
+    "/tmp/official-advisory-complete-tree-owner-v3-lu0xg9es/plan.json": "e3356f93f65a286a3d6d617e05f57330b462984e3faabae1aaf6bd9427b268bd",
+    "/tmp/official-advisory-complete-tree-owner-v3-lu0xg9es/run.py": "0e39e6356d6fadb61cf74e49b946672eb29a61bc66ddd6d9eea4ec0d2e131a7b",
+    "/usr/bin/gh": "ad48084500298bdf0458c16b14253ab8d74cd163d07e360a53d86a93bfd7b49c",
+    "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1",
+    "/tmp/official-advisory-complete-tree-owner-v3-lu0xg9es/ROOT-RECIPE.json": "c69a829a98bb9fc85afc65e162ac5523a19ecad048d3fe62c8bbc75d64b69315"
+  },
+  "sourceToolAfter": {
+    "/tmp/official-advisory-complete-tree-owner-v3-lu0xg9es/plan.json": "e3356f93f65a286a3d6d617e05f57330b462984e3faabae1aaf6bd9427b268bd",
+    "/tmp/official-advisory-complete-tree-owner-v3-lu0xg9es/run.py": "0e39e6356d6fadb61cf74e49b946672eb29a61bc66ddd6d9eea4ec0d2e131a7b",
+    "/usr/bin/gh": "ad48084500298bdf0458c16b14253ab8d74cd163d07e360a53d86a93bfd7b49c",
+    "/usr/bin/python3": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1",
+    "/usr/bin/timeout": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1",
+    "/tmp/official-advisory-complete-tree-owner-v3-lu0xg9es/ROOT-RECIPE.json": "c69a829a98bb9fc85afc65e162ac5523a19ecad048d3fe62c8bbc75d64b69315"
+  },
+  "pinsEqual": true,
+  "scope": "Bounded official public tree metadata; normal exit0 and actual complete required, no corpus intake or release clearance."
+}

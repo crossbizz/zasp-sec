@@ -1,0 +1,52 @@
+{
+  "V4": {
+    "disposition": "Do not execute year-only traversal as complete solution. Avoiding repeatedyear recursive responses does not shrink same May2022 direct monthly body below20MiB.",
+    "onlyMainTraversalFunctionChanged": true,
+    "recipeSHA256": "268492c613f6391aaf0cab800272a5d7724be675bd681b78b59c308fb7ceec64",
+    "sourcePath": "/tmp/official-advisory-direct-year-month-v4-held-m6iyt7wi/run.py",
+    "sourceSHA256": "2c448d3e29948da88035c323f3a776116bd8df39e72c4fbb47762a4b9e68a9b6"
+  },
+  "actualOwnership": "All23 recorded SID cleanups complete/noUNKNOWN/emptymembers; last intervened=true so no success. Owner generic RuntimeError does not retain a distinct primary closed cause; near-cap retained prefix/source-path corroborates cap diagnosis, not a fabricated error code.",
+  "actualSHA256": "aed5b1968f732b8ab9ec57e68682e2636b69db7f001983cf696a3262a979370c",
+  "diagnosisSHA256": "c9f42d7ceae7928de9570b2ef06d3d1b662725c0e0f700096aafa7ddadc14fd1",
+  "failedPartialResponse": {
+    "bytes": 20971515,
+    "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/023.json",
+    "scope": "Monthly nonrecursive tree advisories/unreviewed/2022/05; incompleteJSON, no complete tree hash/coverage/count acceptance.",
+    "sha256": "db904e492899644f88fe68d80b501477b23daf6d65a01b9cabc6b9307149dc8d"
+  },
+  "limits": "Original20MiBresponse/128MiBaggregate/256requests/600s/300krows/floors retained. No cap increase/network/newarchive/ownerexecution by reviewer.",
+  "previousRecursiveMonth": {
+    "rows": 78546,
+    "sha": "b53660dcdaae3c5dbd7b1d570bdca28b5c8a3e0f",
+    "truncated": true
+  },
+  "scope": "No complete canonical corpus roster/FIT/intake/vulnerability/native/release acceptance. Partial94krow diagnostic count remains prefix-only, not independently certified full coverage. Failed receipts and heldV4 immutable.",
+  "verdict": "ACTUAL-incomplete-preserved/V4-HELD-known-month-response-cap",
+  "verifiedGitTreeChain": [
+    {
+      "childName": "advisories",
+      "childTree": "44f2558da4ae05a86b879d918b0334fdb33b470b",
+      "response": "001",
+      "tree": "cf1bc509e4632a6ade7cb7be969814e4a9a44f39"
+    },
+    {
+      "childName": "unreviewed",
+      "childTree": "98fd5c3a4f10f214327c436bdde697141580ca79",
+      "response": "002",
+      "tree": "44f2558da4ae05a86b879d918b0334fdb33b470b"
+    },
+    {
+      "childName": "2022",
+      "childTree": "f1701dd1ebbe22a096e3e8245b03d96109157495",
+      "response": "014",
+      "tree": "98fd5c3a4f10f214327c436bdde697141580ca79"
+    },
+    {
+      "childName": "05",
+      "childTree": "b53660dcdaae3c5dbd7b1d570bdca28b5c8a3e0f",
+      "response": "017",
+      "tree": "f1701dd1ebbe22a096e3e8245b03d96109157495"
+    }
+  ]
+}

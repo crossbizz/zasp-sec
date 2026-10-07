@@ -1,0 +1,36 @@
+{
+  "copies": [
+    {
+      "path": "actual-result.json",
+      "sha256": "aed5b1968f732b8ab9ec57e68682e2636b69db7f001983cf696a3262a979370c",
+      "bytes": 16172
+    },
+    {
+      "path": "normal-outer-result.json",
+      "sha256": "ea6f23f88ee0501dc10b50c1fd36b9764083aa038ca8ec7b47dea5b8f37b1f77",
+      "bytes": 1863
+    },
+    {
+      "path": "independent-actual-review.json",
+      "sha256": "aa8a2672ec8141522417c26905fd9a92129cb187d22445f6b19d3515fce2d4db",
+      "bytes": 15927
+    },
+    {
+      "path": "independent-month-diagnosis-review.json",
+      "sha256": "bd493bc072d3b00dfc1c71a2debdb35c26de3def238e5d003e339cde9067f965",
+      "bytes": 2714
+    },
+    {
+      "path": "source-review.json",
+      "sha256": "a81aacf99ab7d0ffd3b56d7af847718351ef0f2b6f8aec839d44ee30bb2a4427",
+      "bytes": 1779
+    },
+    {
+      "path": "root-recipe.json",
+      "sha256": "c69a829a98bb9fc85afc65e162ac5523a19ecad048d3fe62c8bbc75d64b69315",
+      "bytes": 3027
+    }
+  ],
+  "omitted": "22 full API responses, request023 raw prefix, private owner source and remaining source checkpoints retained privately; not a complete public evidence archive. Reviewed raw response hashes are in actual reviews.",
+  "interpretation": "completeAdvisoryTree=false, outer1. Partial counts are not coverage. No official corpus intake or release clearance."
+}

@@ -1,0 +1,295 @@
+{
+  "verdict": "FINAL_STAGED_INCOMPLETE_METADATA_PUBLICATION_PASS",
+  "copies": [
+    {
+      "original": {
+        "path": "/tmp/official-advisory-complete-capacity-actual-xtfmm2zs/result.json",
+        "sha256": "aed5b1968f732b8ab9ec57e68682e2636b69db7f001983cf696a3262a979370c",
+        "bytes": 16172,
+        "metadata": {
+          "dev": 34,
+          "ino": 141069,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 16172,
+          "mtime_ns": 1791391869960763428,
+          "ctime_ns": 1791391869960763428
+        }
+      },
+      "copy": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/advisory-capacity-incomplete/actual-result.json",
+        "sha256": "aed5b1968f732b8ab9ec57e68682e2636b69db7f001983cf696a3262a979370c",
+        "bytes": 16172,
+        "metadata": {
+          "dev": 34,
+          "ino": 141080,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 16172,
+          "mtime_ns": 1791392233463750268,
+          "ctime_ns": 1791392233463750268
+        }
+      },
+      "indexByteExact": true
+    },
+    {
+      "original": {
+        "path": "/tmp/advisory-capacity-root-outer-lulnzzfg/normal-outer-result.json",
+        "sha256": "ea6f23f88ee0501dc10b50c1fd36b9764083aa038ca8ec7b47dea5b8f37b1f77",
+        "bytes": 1863,
+        "metadata": {
+          "dev": 34,
+          "ino": 141070,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 1863,
+          "mtime_ns": 1791391870042446331,
+          "ctime_ns": 1791391870042446331
+        }
+      },
+      "copy": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/advisory-capacity-incomplete/normal-outer-result.json",
+        "sha256": "ea6f23f88ee0501dc10b50c1fd36b9764083aa038ca8ec7b47dea5b8f37b1f77",
+        "bytes": 1863,
+        "metadata": {
+          "dev": 34,
+          "ino": 141081,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 1863,
+          "mtime_ns": 1791392233463881487,
+          "ctime_ns": 1791392233463881487
+        }
+      },
+      "indexByteExact": true
+    },
+    {
+      "original": {
+        "path": "/tmp/advisory-v3-incomplete-actual-review-k4dbjzq5/review.json",
+        "sha256": "aa8a2672ec8141522417c26905fd9a92129cb187d22445f6b19d3515fce2d4db",
+        "bytes": 15927,
+        "metadata": {
+          "dev": 34,
+          "ino": 141073,
+          "mode": 33024,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 15927,
+          "mtime_ns": 1791392019879005646,
+          "ctime_ns": 1791392019879005646
+        }
+      },
+      "copy": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/advisory-capacity-incomplete/independent-actual-review.json",
+        "sha256": "aa8a2672ec8141522417c26905fd9a92129cb187d22445f6b19d3515fce2d4db",
+        "bytes": 15927,
+        "metadata": {
+          "dev": 34,
+          "ino": 141082,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 15927,
+          "mtime_ns": 1791392233463934767,
+          "ctime_ns": 1791392233463934767
+        }
+      },
+      "indexByteExact": true
+    },
+    {
+      "original": {
+        "path": "/tmp/independent-advisory-V3-month-cap-failure-V4-held-review.json",
+        "sha256": "bd493bc072d3b00dfc1c71a2debdb35c26de3def238e5d003e339cde9067f965",
+        "bytes": 2714,
+        "metadata": {
+          "dev": 34,
+          "ino": 141078,
+          "mode": 33024,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 2714,
+          "mtime_ns": 1791392160479702084,
+          "ctime_ns": 1791392160479702084
+        }
+      },
+      "copy": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/advisory-capacity-incomplete/independent-month-diagnosis-review.json",
+        "sha256": "bd493bc072d3b00dfc1c71a2debdb35c26de3def238e5d003e339cde9067f965",
+        "bytes": 2714,
+        "metadata": {
+          "dev": 34,
+          "ino": 141083,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 2714,
+          "mtime_ns": 1791392233463990071,
+          "ctime_ns": 1791392233463990071
+        }
+      },
+      "indexByteExact": true
+    },
+    {
+      "original": {
+        "path": "/tmp/independent-official-advisory-complete-tree-V3-final-source-review.json",
+        "sha256": "a81aacf99ab7d0ffd3b56d7af847718351ef0f2b6f8aec839d44ee30bb2a4427",
+        "bytes": 1779,
+        "metadata": {
+          "dev": 34,
+          "ino": 141014,
+          "mode": 33024,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 1779,
+          "mtime_ns": 1791391791137617979,
+          "ctime_ns": 1791391791137617979
+        }
+      },
+      "copy": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/advisory-capacity-incomplete/source-review.json",
+        "sha256": "a81aacf99ab7d0ffd3b56d7af847718351ef0f2b6f8aec839d44ee30bb2a4427",
+        "bytes": 1779,
+        "metadata": {
+          "dev": 34,
+          "ino": 141084,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 1779,
+          "mtime_ns": 1791392233464032575,
+          "ctime_ns": 1791392233464032575
+        }
+      },
+      "indexByteExact": true
+    },
+    {
+      "original": {
+        "path": "/tmp/official-advisory-complete-tree-owner-v3-lu0xg9es/ROOT-RECIPE.json",
+        "sha256": "c69a829a98bb9fc85afc65e162ac5523a19ecad048d3fe62c8bbc75d64b69315",
+        "bytes": 3027,
+        "metadata": {
+          "dev": 34,
+          "ino": 141013,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 3027,
+          "mtime_ns": 1791391732525902516,
+          "ctime_ns": 1791391732525902516
+        }
+      },
+      "copy": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/advisory-capacity-incomplete/root-recipe.json",
+        "sha256": "c69a829a98bb9fc85afc65e162ac5523a19ecad048d3fe62c8bbc75d64b69315",
+        "bytes": 3027,
+        "metadata": {
+          "dev": 34,
+          "ino": 141085,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 3027,
+          "mtime_ns": 1791392233464072546,
+          "ctime_ns": 1791392233464072546
+        }
+      },
+      "indexByteExact": true
+    }
+  ],
+  "interpretiveFiles": [
+    {
+      "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/advisory-capacity-incomplete/README.md",
+      "sha256": "d50a4b7af5b6607e92d92ecaea76a45c0b9a154d9295103ac543f18dae8caf2a",
+      "bytes": 1099,
+      "metadata": {
+        "dev": 34,
+        "ino": 141087,
+        "mode": 33152,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 1099,
+        "mtime_ns": 1791392233464194961,
+        "ctime_ns": 1791392233464194961
+      }
+    },
+    {
+      "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/advisory-capacity-incomplete/selection.json",
+      "sha256": "3ce17e611e03ed04a0afba5dac207a8f3dd66e2ba32d290c29c2b5f45bdaa788",
+      "bytes": 1346,
+      "metadata": {
+        "dev": 34,
+        "ino": 141086,
+        "mode": 33152,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 1346,
+        "mtime_ns": 1791392233464174079,
+        "ctime_ns": 1791392233464174079
+      }
+    },
+    {
+      "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/implementation_status_v1.5.md",
+      "sha256": "b4a6344bae7bb3384d229511b678341cad26308ae52e6da3602853f8f86c021b",
+      "bytes": 1278269,
+      "metadata": {
+        "dev": 34,
+        "ino": 140888,
+        "mode": 33152,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 1278269,
+        "mtime_ns": 1791392233473933270,
+        "ctime_ns": 1791392233473933270
+      }
+    }
+  ],
+  "stagedIndexEqualReviewedWorktree": true,
+  "scalarInterpretation": [
+    "completeAdvisoryTreefalse/normalouter1/27.519s; no capacitycompletion/intake/scan/clearance/FIT/ledgerpromotions.",
+    "20completehashverifiedresponses+2truncated, request023near20MiBprefixunverified/unaccounted. No inventedrequest23record.",
+    "All23recordedownedSIDcleanupscomplete/noUNKNOWN/forced/signals; lastintervenedtruezombieonly. No allnonintervened/global/escaped/fleetabsenceclaim.",
+    "GenericRuntimeError cannotproveexactprimarycause, cleanupfinallymaymask; rawsource/prefixcorroboratescapdiagnosis, not fabricatedcode.",
+    "Verifiedparentchain identifies May2022 monthlytree, thereforedirectyear/monthiteration alone stillheld underoriginalcap.",
+    "22rawAPIresponses/prefix/owner/privatecheckpoints omittedexplicitly; no completepublicarchiveclaim.",
+    "Cloud67/51genericnames andUI200 contextual observation only, no providerbindings/readiness fromgenericvariables."
+  ],
+  "stagedSecretFindingsReport": {
+    "path": "/tmp/advisory-incomplete-public-staged-gitleaks.json",
+    "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "bytes": 3,
+    "metadata": {
+      "dev": 34,
+      "ino": 141105,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1,
+      "size": 3,
+      "mtime_ns": 1791392234001698500,
+      "ctime_ns": 1791392234001698500
+    }
+  },
+  "scanQualification": "ROOT reports actualdefaultstagedscanPASS49953B; reviewer verified retainedfindingreportempty but didnotrerunscanner or inventactualcommandrecord.",
+  "sourceChange": "Stageddiff consistssolely selectedevidence/status documentation; no productsource orledgerfile adoption.",
+  "noMaterialPublicationBlocker": true,
+  "reviewOnlyNoMutationRuntime": true
+}
