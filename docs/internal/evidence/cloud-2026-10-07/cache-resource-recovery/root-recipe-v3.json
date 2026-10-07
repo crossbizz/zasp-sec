@@ -1,0 +1,69 @@
+{
+  "finalizeArgvTemplate": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "HOME=/home/agent",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "200s",
+    "/usr/bin/python3",
+    "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/relocate-bucket3a-v3.py",
+    "finalize",
+    "<exact independently-reviewed prepared.json SHA256>"
+  ],
+  "format": "ROOT-one-bucket-lossless-custody-two-stage-recipe-v1",
+  "limits": "No fullrootFDvisibility claim; procedural ROOT cachewriterhold + allUID compiler/process metadata + fullsourcehash/securitymetadata at destructiveboundary. An abnormal outer exit leaves custodyUNKNOWN with completepreparedcopy/quarantine retained, not cleanupPASS.",
+  "metadataScope": "Modes/UID/GID/mtime and content copied; inode/dev/ctime intentionally new, originalidentities retained. Atime is read-mutable and is copied initially but notusedas immutable acceptance; no originalphysicalidentity claim.",
+  "pins": [
+    {
+      "bytes": 12953,
+      "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/relocate-bucket3a-v3.py",
+      "sha256": "6c43a345a91c407167ba37f98ce3a4eaa87d18a5e2288f69cecf807d1ef83f4b"
+    },
+    {
+      "bytes": 38160,
+      "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/bucket3a-plan.json",
+      "sha256": "aa45817a7744a9823a221d939ba7d2539c7edd0fe58ab9dedbe0a3aed91db603"
+    },
+    {
+      "bytes": 9256606,
+      "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/source-inventory.json",
+      "sha256": "9db0efc4963e1853e46ebd14e627af274db779cd379e6824864c20ef627f6e6e"
+    },
+    {
+      "bytes": 6812336,
+      "path": "/usr/bin/python3.13",
+      "sha256": "17b78e0a93175e86f9ac03141924fd7a7f0c0c52e66b34bfa0de20ffef989df1"
+    },
+    {
+      "bytes": 47984,
+      "path": "/usr/bin/timeout",
+      "sha256": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+    }
+  ],
+  "prepareArgv": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/usr/bin:/bin",
+    "HOME=/home/agent",
+    "/usr/bin/timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "200s",
+    "/usr/bin/python3",
+    "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/relocate-bucket3a-v3.py",
+    "prepare"
+  ],
+  "requiredSequence": [
+    "ROOT verifies exactsource/plan/inventory/tool hashes and sourcecachewriter HOLD; no activeGo/compile/link in actualallUID processmetadata. Knownmigrations57473 remainsZ, notabsent.",
+    "ROOT executes prepare; accepts onlynormalouter0/PREPARED. Everybyte copied and sameFD/fullSHA/meta verified; no source mutation.",
+    "Release independently verifies preparedcopies/hash+originalsource73 allmetadata/body before destructivephase. ROOT supplies exactpreparedSHA literal after thisreview.",
+    "ROOT executes finalize; completepreparedcopy and originalfiles rechecked before sourcealias switch and everyunlink; journal/fullcopies retainedonrefusal. Originalsourcepath redirects to completeSHM copy.",
+    "No othercache payloadhash repeateduntil sourcephysicalbytes freed; allothercache topology/securitymetadata checkedbefore, fullother18,619fileSHA/meta checkedonceafterrecovery.",
+    "ROOT actualnormaljoin/result and finalfloor\u22651.5GB required. Independent finalcustodyreview before writerhold release. No Go/runtime/test during recovery or retrospective completion promotion."
+  ],
+  "rootWriterHoldRequired": true,
+  "sourceAggregateSeconds": 180
+}

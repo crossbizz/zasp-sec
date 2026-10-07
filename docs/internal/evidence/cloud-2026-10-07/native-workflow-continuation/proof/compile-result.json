@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "test",
+    "-c",
+    "-o",
+    "/tmp/zasp-live-cleanup-continuation-d64usjal/orchestration.test",
+    "./orchestration"
+  ],
+  "binarySHA256": "ab4bc6b2fdace7a9cdefee7516f9b421d8bb7c9f1db92a8ae45888b33711e21d",
+  "elapsedSeconds": 31.54557467000086,
+  "failureClass": null,
+  "forced": false,
+  "joined": true,
+  "returncode": 0,
+  "scope": "Unchanged orchestration package compile only, no test execution",
+  "toolSHA256": "d9a2fa19c7ef8b57f420012c21f49f235c46f08a68c12077d9c753dbb6ccdc34"
+}

@@ -1,0 +1,358 @@
+{
+  "closedPayloadMembers": 11,
+  "format": "Stytch-owned-TEST-closed-selected-source-and-proof-v2",
+  "members": [
+    {
+      "copy": {
+        "bytes": 854,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59951,
+          "mode": "0o600",
+          "mtimeNs": 1791333632859505870,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv/actual/parent-result.json",
+        "sha256": "6e4d464547a0d64fb70c21c5b939207499e22fda93b2716562e7dc429580c27c"
+      },
+      "original": {
+        "bytes": 854,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59942,
+          "mode": "0o600",
+          "mtimeNs": 1791333486567781235,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-safe-a2p87fyx/parent-result.json",
+        "sha256": "6e4d464547a0d64fb70c21c5b939207499e22fda93b2716562e7dc429580c27c"
+      },
+      "relativePath": "actual/parent-result.json",
+      "review": "Byte-identical curated scalar proof or fixed source/test code. No actual credential/password/JWT/authheader or ownership journal body."
+    },
+    {
+      "copy": {
+        "bytes": 844,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59952,
+          "mode": "0o600",
+          "mtimeNs": 1791333632859612271,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv/actual/child-result.json",
+        "sha256": "be9f494cd04f3cbcca57adc6a277fb54c675d369ca2bfbca871796688cfc02ff"
+      },
+      "original": {
+        "bytes": 844,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59943,
+          "mode": "0o600",
+          "mtimeNs": 1791333486567866383,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-safe-a2p87fyx/child-result.json",
+        "sha256": "be9f494cd04f3cbcca57adc6a277fb54c675d369ca2bfbca871796688cfc02ff"
+      },
+      "relativePath": "actual/child-result.json",
+      "review": "Byte-identical curated scalar proof or fixed source/test code. No actual credential/password/JWT/authheader or ownership journal body."
+    },
+    {
+      "copy": {
+        "bytes": 3144,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59954,
+          "mode": "0o600",
+          "mtimeNs": 1791333632859666173,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv/reviews/actual-real-TEST-review.json",
+        "sha256": "6457d138d37a1d599c6d6f716a1ee003aaa6d0e6b9e0fdf93c7ce6a53b4716a1"
+      },
+      "original": {
+        "bytes": 3144,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59944,
+          "mode": "0o600",
+          "mtimeNs": 1791333486567923430,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-safe-a2p87fyx/independent-review.json",
+        "sha256": "6457d138d37a1d599c6d6f716a1ee003aaa6d0e6b9e0fdf93c7ce6a53b4716a1"
+      },
+      "relativePath": "reviews/actual-real-TEST-review.json",
+      "review": "Byte-identical curated scalar proof or fixed source/test code. No actual credential/password/JWT/authheader or ownership journal body."
+    },
+    {
+      "copy": {
+        "bytes": 8701,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59956,
+          "mode": "0o600",
+          "mtimeNs": 1791333632859773675,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv/source/run.mjs",
+        "sha256": "6558e13100d68e3c565cacc8885a8e7088e5070847175c44784a0dc07ac40e21"
+      },
+      "original": {
+        "bytes": 8701,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59815,
+          "mode": "0o400",
+          "mtimeNs": 1791332962065778860,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-disposable-session-bounded-source-v4/run.mjs",
+        "sha256": "6558e13100d68e3c565cacc8885a8e7088e5070847175c44784a0dc07ac40e21"
+      },
+      "relativePath": "source/run.mjs",
+      "review": "Byte-identical curated scalar proof or fixed source/test code. No actual credential/password/JWT/authheader or ownership journal body."
+    },
+    {
+      "copy": {
+        "bytes": 2323,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59957,
+          "mode": "0o600",
+          "mtimeNs": 1791333632859931574,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv/source/scope.json",
+        "sha256": "9292129465485b4d4b19db3e26bfabefc22c5ae9207053a3c702befdb46ac68c"
+      },
+      "original": {
+        "bytes": 2323,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59816,
+          "mode": "0o400",
+          "mtimeNs": 1791332962065960194,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-disposable-session-bounded-source-v4/scope.json",
+        "sha256": "9292129465485b4d4b19db3e26bfabefc22c5ae9207053a3c702befdb46ac68c"
+      },
+      "relativePath": "source/scope.json",
+      "review": "Byte-identical curated scalar proof or fixed source/test code. No actual credential/password/JWT/authheader or ownership journal body."
+    },
+    {
+      "copy": {
+        "bytes": 3531,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59959,
+          "mode": "0o600",
+          "mtimeNs": 1791333632859986157,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv/offline/result.json",
+        "sha256": "3dd7d8861e5ed91e250458fc01325fc27b82b8e236f71e52b8a54e3cd70f8ff2"
+      },
+      "original": {
+        "bytes": 3531,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59924,
+          "mode": "0o600",
+          "mtimeNs": 1791333166287399740,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/result.json",
+        "sha256": "3dd7d8861e5ed91e250458fc01325fc27b82b8e236f71e52b8a54e3cd70f8ff2"
+      },
+      "relativePath": "offline/result.json",
+      "review": "Byte-identical curated scalar proof or fixed source/test code. No actual credential/password/JWT/authheader or ownership journal body."
+    },
+    {
+      "copy": {
+        "bytes": 6541,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59960,
+          "mode": "0o600",
+          "mtimeNs": 1791333632860038967,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv/offline/controls-corrected.py",
+        "sha256": "f71ff68ca5bcdf8ef45908e228f9c5e38e58af2b53f99eb93b9453ca1d3a3fa7"
+      },
+      "original": {
+        "bytes": 6541,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59867,
+          "mode": "0o400",
+          "mtimeNs": 1791333165866952049,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/controls-corrected.py",
+        "sha256": "f71ff68ca5bcdf8ef45908e228f9c5e38e58af2b53f99eb93b9453ca1d3a3fa7"
+      },
+      "relativePath": "offline/controls-corrected.py",
+      "review": "Byte-identical curated scalar proof or fixed source/test code. No actual credential/password/JWT/authheader or ownership journal body."
+    },
+    {
+      "copy": {
+        "bytes": 3746,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59961,
+          "mode": "0o600",
+          "mtimeNs": 1791333632860095983,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv/reviews/source-review.json",
+        "sha256": "939d42352146e971fb54e6bbaa2b9ff3897297cfe89cc43a4fa11fc80b287fb1"
+      },
+      "original": {
+        "bytes": 3746,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59926,
+          "mode": "0o400",
+          "mtimeNs": 1791333215760308809,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/independent-Stytch-V4-wrapper-source-review.json",
+        "sha256": "939d42352146e971fb54e6bbaa2b9ff3897297cfe89cc43a4fa11fc80b287fb1"
+      },
+      "relativePath": "reviews/source-review.json",
+      "review": "Byte-identical curated scalar proof or fixed source/test code. No actual credential/password/JWT/authheader or ownership journal body."
+    },
+    {
+      "copy": {
+        "bytes": 11384,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59962,
+          "mode": "0o600",
+          "mtimeNs": 1791333632860163235,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv/reviews/offline-consistency-review.json",
+        "sha256": "ea3d1eb2bf3643cd7fd34fade0c685fea6a09bf41e9b9a71438dbd5839d3f8af"
+      },
+      "original": {
+        "bytes": 11384,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59927,
+          "mode": "0o400",
+          "mtimeNs": 1791333246199251112,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/independent-Stytch-V4-wrapper-offline-controls-consistency-review.json",
+        "sha256": "ea3d1eb2bf3643cd7fd34fade0c685fea6a09bf41e9b9a71438dbd5839d3f8af"
+      },
+      "relativePath": "reviews/offline-consistency-review.json",
+      "review": "Byte-identical curated scalar proof or fixed source/test code. No actual credential/password/JWT/authheader or ownership journal body."
+    },
+    {
+      "copy": {
+        "bytes": 403,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59963,
+          "mode": "0o600",
+          "mtimeNs": 1791333632860234222,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv/offline/preserved-first-attempt.json",
+        "sha256": "ddddd3c2637600749a006de91aa3f6e4d0f311399114f5e6f2085eec2fbcdd64"
+      },
+      "original": {
+        "bytes": 403,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59866,
+          "mode": "0o600",
+          "mtimeNs": 1791333165866913671,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/first-attempt.json",
+        "sha256": "ddddd3c2637600749a006de91aa3f6e4d0f311399114f5e6f2085eec2fbcdd64"
+      },
+      "relativePath": "offline/preserved-first-attempt.json",
+      "review": "Byte-identical curated scalar proof or fixed source/test code. No actual credential/password/JWT/authheader or ownership journal body."
+    },
+    {
+      "copy": {
+        "bytes": 1545,
+        "metadata": {
+          "dev": 34,
+          "gid": 1000,
+          "ino": 59964,
+          "mode": "0o600",
+          "mtimeNs": 1791333632860282445,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv/README.md",
+        "sha256": "e8ae5c0a4c414a7d5b0f4399aa3fe615ce011e12fe046d7036ceacbe7c3c04fc"
+      },
+      "relativePath": "README.md",
+      "review": "New scope and chronology only."
+    }
+  ],
+  "omissions": [
+    {
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/controls.py",
+      "reason": "Original failed driver retained privately; safe first-attempt receipt copied without altering chronology.",
+      "sha256": "c817f1a03b0c0896df749135b4d2f7b8e47b8b7775563124d09c0e0c8bd8dbcb"
+    },
+    {
+      "category": "Private ownership journal and raw streams",
+      "reason": "Reviewed in memory; identities recorded in actual review, bodies excluded."
+    }
+  ],
+  "scanner": "NOT_RUN",
+  "scope": "Real disposable TEST password/session and cleanup plus separate seven offline controls, not email ownership/SSO/OAuth/fullAPI/production.",
+  "status": "PRIVATE-PUBLICATION-CANDIDATE"
+}

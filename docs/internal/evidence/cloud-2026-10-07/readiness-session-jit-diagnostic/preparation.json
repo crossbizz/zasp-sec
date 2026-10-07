@@ -1,0 +1,15 @@
+{
+  "scope": "SOURCE_ONLY new selected diagnostic appended onto original suite and retained original3-EXPLAIN diagnostic (not selected). Four fixed leaf SELECTs once each; SHOWjit before, one read-only tx SETLOCALjitoff current68 repeated separately, rollback+SHOWrestoration. No source/GUC default/security/cache changes; no original acceptance/context changes.5min diagnosticctx/default10m/650outer/300compile, floorsunchanged. CPU/runtime HOLD untilHelmjoined.",
+  "query_counts": {
+    "default_leaf": 4,
+    "jit_off_comparison": 1,
+    "SHOW_jit": 3
+  },
+  "members": {
+    "compile-inputs-before.json": "3b0a435b3597a64841cfc4bd0232b4a7ab7b997ead5754629c5418993207c953",
+    "run-profile.py": "e841f945a62f81dbbd622ae8bf5dd0d7744b4d1cbb11b630f1c1ca8aaf5de155",
+    "compile-owner.py": "334e9d4f20e76c0b0fce7766137e7253f46e0b31fac90bd59cd1c0118ec49736",
+    "overlay.json": "8ed39ebb435e78892f8f0eb84f02bbb65f06a0b676b0002d710b4d8dc94a8009",
+    "diagnostic-overlay.go": "36fd725c67ade666af74269e90ddc72863206ec6a9c34106aa3177261515bb5d"
+  }
+}

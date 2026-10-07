@@ -1,0 +1,33 @@
+{
+  "scope": "Actual disposable TEST-only Stytch password/session; no messages or retained configuration writes",
+  "sourceSHA256": "6558e13100d68e3c565cacc8885a8e7088e5070847175c44784a0dc07ac40e21",
+  "pid": 32580,
+  "startTicks": "1206723",
+  "returncode": 0,
+  "elapsedSeconds": 2.2203491020009096,
+  "normalJoined": true,
+  "outerTimedOut": false,
+  "forced": false,
+  "environmentKeys": [
+    "HOME",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "LANG",
+    "LC_ALL",
+    "NODE_EXTRA_CA_CERTS",
+    "NO_PROXY",
+    "PATH",
+    "SSL_CERT_FILE",
+    "STYTCH_PROJECT_ID",
+    "STYTCH_SECRET",
+    "TMPDIR",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy"
+  ],
+  "stdoutBytes": 132,
+  "stderrBytes": 178,
+  "childResultPath": "/tmp/zasp-stytch-disposable-1e3bed00-7eae-49f4-995c-afb272b6982e/result.json",
+  "completed": true,
+  "cleanupAbsent": true
+}

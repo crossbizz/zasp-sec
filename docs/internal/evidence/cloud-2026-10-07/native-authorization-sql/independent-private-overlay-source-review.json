@@ -1,0 +1,43 @@
+{
+  "outcome": "PASS private native projection79 fixture admission/source overlay scope",
+  "sourcePins": [
+    {
+      "path": "/dev/shm/native-projection79-fixture-31112e09c7/native-admission_test.go",
+      "sha256": "961f2373a262482c743cd5ce681f335fa39446ac38b0b8914a1e3be8ffbf7b47",
+      "bytes": 10718
+    },
+    {
+      "path": "/dev/shm/native-projection79-fixture-31112e09c7/fixture-candidate.go",
+      "sha256": "7aa946b921e6e1490126558c49886bbeb6034b8ad5d9aca6a0d936ad206ecc2c",
+      "bytes": 3470
+    },
+    {
+      "path": "/dev/shm/native-projection79-fixture-31112e09c7/fixture-original.go",
+      "sha256": "eddce9d2e27bf25c47d18cf6b48242c7d1e18dd66c83aa502223931fc4a2748f",
+      "bytes": 2964
+    },
+    {
+      "path": "/dev/shm/native-projection79-fixture-31112e09c7/projection-native-overlay.go",
+      "sha256": "2319a62ef2e300bb2dc4924f528a46c3ba1dd853f53580504f05207c47ea8fe8",
+      "bytes": 8281
+    },
+    {
+      "path": "/dev/shm/native-projection79-fixture-31112e09c7/overlay.json",
+      "sha256": "cd14d0e50b12429d50508a7f0a7105a7c8c13202f05410bc359266f3d92e8b70",
+      "bytes": 194
+    }
+  ],
+  "checks": [
+    "Single existing fixture path replacement; all merged fixture and non-test admission helper functions byteexact; excludes unit testbody.",
+    "Both-or-none explicit canonical literal IPv4/IPv6 loopback HTTP port, no userinfo/path/query/fragment or fallback from refusal.",
+    "Private sameUID regular token0400/0600/nlink1/no final symlink/bounded8..4096/stableheldFD/pathidentity+mtime/ctime; comma/controlbyte refusal.",
+    "Final Linux race seven subcases PASS; comma and extraction-equivalent missing-selection RED retained. Darwin crosscompile0 only.",
+    "Default Docker discovery conditions/errors, SDK operations and wrapper order/downstream SQL assertions preserved."
+  ],
+  "limits": [
+    "PRIVATE selected diagnostic overlay only: shared immutable V2 input restored; no full-suite adoption or historical pin edits.",
+    "Actual selected SQL79 TestAuthorizationProjectionPostgres future gate; no current80/fullAPI/production/native379 acceptance.",
+    "No per-fixture fullRead/delete addition claimed; original store semantics under owned service lifetime.",
+    "ROOT actual runtime must bind effective compiled source closure/tools/floors/live owned credentials and service lifetime."
+  ]
+}

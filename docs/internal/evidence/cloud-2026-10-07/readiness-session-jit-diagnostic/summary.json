@@ -1,0 +1,22 @@
+{
+  "scope": "Diagnostic only; no SQL/source/GUCdefault/security/acceptancewindow changes. Original current80 suite still FAIL underoriginalsession.",
+  "actual_events": [
+    "authorization_runtime_profile_postgres_test.go:651: READINESS_JIT default=on",
+    "authorization_runtime_profile_postgres_test.go:657: READINESS_LEAF fingerprint68 elapsed=46.371233ms matches_compiled=true",
+    "authorization_runtime_profile_postgres_test.go:672: READINESS_LEAF base68 elapsed=1.73403675s ready=true",
+    "authorization_runtime_profile_postgres_test.go:672: READINESS_LEAF current68 elapsed=16.772329502s ready=true",
+    "authorization_runtime_profile_postgres_test.go:672: READINESS_LEAF authorization79 elapsed=61.734263ms ready=true",
+    "authorization_runtime_profile_postgres_test.go:697: READINESS_JIT diagnostic=off current68_elapsed=387.815944ms ready=true same_default=true",
+    "authorization_runtime_profile_postgres_test.go:708: READINESS_JIT restored=on"
+  ],
+  "configuration": "SHOWjit=on before; readonlySETLOCALjitoff solelydiagnostic; samecurrent68 trueboth; rollbackSHOWjit=on restored.",
+  "actual_normal_join": true,
+  "test_seconds": 97.372680839,
+  "no_skips": true,
+  "source_union_unchanged": true,
+  "owned_pg_cleanup": true,
+  "process_group_survivors": [],
+  "interpretation": "Observed samepredicate defaultjit16.772329502s vs localoff0.387815944s (~43.248xspeedup). Fingerprint68 46.371ms/base68 1.734s/79ready61.734ms isolate68current chain. NestedexactJITcompilation location notyettraced; no production availability claim.",
+  "overlap": "ROOT authorized privateNode4guards overlappedearlystage/setup; exactintervalreceipt notyetreceived. Nofullyuncontendedmeasurement claim/load attribution.",
+  "omissions": "Full9842maps/9847union/binary omitted; exactoriginalhashes retained."
+}

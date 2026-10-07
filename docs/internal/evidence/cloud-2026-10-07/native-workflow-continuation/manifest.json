@@ -1,0 +1,367 @@
+{
+  "format": "native-Temporal-application-cleanup-continuation-selected-v1",
+  "logSafety": "Original test log byte-exact; current actual credentials/disposable passwords/token values and authorization/JWT-shaped outputs checked absent. Controlled Product source scope confirmed. No raw service logs copied.",
+  "members": [
+    {
+      "copy": {
+        "bytes": 9787,
+        "dev": 34,
+        "ino": 78672,
+        "mode": "0o600",
+        "mtimeNs": 1791334112409936737,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/source/run-owned-v3.py",
+        "sha256": "9ca9e5b5d9d2ecd8e2cb2bd64b218a1a362fa61801c3892912ba94be54b97785"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 9787,
+        "dev": 34,
+        "ino": 67416,
+        "mode": "0o400",
+        "mtimeNs": 1791333890725611351,
+        "nlink": 1,
+        "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/run-owned-v3.py",
+        "sha256": "9ca9e5b5d9d2ecd8e2cb2bd64b218a1a362fa61801c3892912ba94be54b97785"
+      },
+      "relativePath": "source/run-owned-v3.py"
+    },
+    {
+      "copy": {
+        "bytes": 4234,
+        "dev": 34,
+        "ino": 78673,
+        "mode": "0o600",
+        "mtimeNs": 1791334112410102888,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/source/original-single-test-live-test.go",
+        "sha256": "ba075b3b89f1378d370a6dd6d6bfb1812a94d3fb81eec497e0c7d20de30c6307"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 4234,
+        "dev": 27,
+        "ino": 865384,
+        "mode": "0o600",
+        "mtimeNs": 1791231094780777634,
+        "nlink": 2,
+        "path": "/workspace/zasp-sec/services/platform/orchestration/single_test_live_test.go",
+        "sha256": "ba075b3b89f1378d370a6dd6d6bfb1812a94d3fb81eec497e0c7d20de30c6307"
+      },
+      "relativePath": "source/original-single-test-live-test.go"
+    },
+    {
+      "copy": {
+        "bytes": 551,
+        "dev": 34,
+        "ino": 78675,
+        "mode": "0o600",
+        "mtimeNs": 1791334112410167796,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/proof/compile-result.json",
+        "sha256": "5014f458a0a1b6c8711e0a7b4a976c6bd5777de01e17f8e3cdd0ced996950235"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 551,
+        "dev": 34,
+        "ino": 65729,
+        "mode": "0o600",
+        "mtimeNs": 1791333746954215709,
+        "nlink": 1,
+        "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/compile-result.json",
+        "sha256": "5014f458a0a1b6c8711e0a7b4a976c6bd5777de01e17f8e3cdd0ced996950235"
+      },
+      "relativePath": "proof/compile-result.json"
+    },
+    {
+      "copy": {
+        "bytes": 1113,
+        "dev": 34,
+        "ino": 78676,
+        "mode": "0o600",
+        "mtimeNs": 1791334112410246996,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/proof/compile-provenance-addendum.json",
+        "sha256": "375409a66b99f181862010dcdc99d923229e358d24e43e48e82f26b6fe549ade"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 1113,
+        "dev": 34,
+        "ino": 67405,
+        "mode": "0o400",
+        "mtimeNs": 1791333801443634425,
+        "nlink": 1,
+        "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/compile-provenance-addendum.json",
+        "sha256": "375409a66b99f181862010dcdc99d923229e358d24e43e48e82f26b6fe549ade"
+      },
+      "relativePath": "proof/compile-provenance-addendum.json"
+    },
+    {
+      "copy": {
+        "bytes": 520,
+        "dev": 34,
+        "ino": 78677,
+        "mode": "0o600",
+        "mtimeNs": 1791334112410295449,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/proof/owned-readiness.json",
+        "sha256": "f904b83fdb4873a49c88bf3de4078bececc633356ccb37f29c1364e3c3f82cb7"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 520,
+        "dev": 34,
+        "ino": 78270,
+        "mode": "0o600",
+        "mtimeNs": 1791333941778199009,
+        "nlink": 1,
+        "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/readiness.json",
+        "sha256": "f904b83fdb4873a49c88bf3de4078bececc633356ccb37f29c1364e3c3f82cb7"
+      },
+      "relativePath": "proof/owned-readiness.json"
+    },
+    {
+      "copy": {
+        "bytes": 132734,
+        "dev": 34,
+        "ino": 78678,
+        "mode": "0o600",
+        "mtimeNs": 1791334112413076616,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/proof/original-test.log",
+        "sha256": "adfd5a3ba718278c896f3e17c2e063ed8eef3672d3a294b5fa5f6b7e82aee356"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 132734,
+        "dev": 34,
+        "ino": 78271,
+        "mode": "0o600",
+        "mtimeNs": 1791333945790242381,
+        "nlink": 1,
+        "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/actual-original-test.private.log",
+        "sha256": "adfd5a3ba718278c896f3e17c2e063ed8eef3672d3a294b5fa5f6b7e82aee356"
+      },
+      "relativePath": "proof/original-test.log"
+    },
+    {
+      "copy": {
+        "bytes": 3141,
+        "dev": 34,
+        "ino": 78679,
+        "mode": "0o600",
+        "mtimeNs": 1791334112413705407,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/proof/original-overall-failure.json",
+        "sha256": "785ba2aa66240137a280313ea0950fb9c193fdcf11f4c193921f4c31d8812baa"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 3141,
+        "dev": 34,
+        "ino": 78370,
+        "mode": "0o600",
+        "mtimeNs": 1791333947619126158,
+        "nlink": 1,
+        "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/result.json",
+        "sha256": "785ba2aa66240137a280313ea0950fb9c193fdcf11f4c193921f4c31d8812baa"
+      },
+      "relativePath": "proof/original-overall-failure.json"
+    },
+    {
+      "copy": {
+        "bytes": 1031,
+        "dev": 34,
+        "ino": 78680,
+        "mode": "0o600",
+        "mtimeNs": 1791334112413763635,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/proof/TIME-WAIT-readonly-diagnostic.json",
+        "sha256": "3b8394898fa9c785fba8642ab6dd0179f37970902ab17e84011950a9097b3cc3"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 1031,
+        "dev": 34,
+        "ino": 78411,
+        "mode": "0o400",
+        "mtimeNs": 1791333975470317993,
+        "nlink": 1,
+        "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/failure-readonly-diagnostic.json",
+        "sha256": "3b8394898fa9c785fba8642ab6dd0179f37970902ab17e84011950a9097b3cc3"
+      },
+      "relativePath": "proof/TIME-WAIT-readonly-diagnostic.json"
+    },
+    {
+      "copy": {
+        "bytes": 1287,
+        "dev": 34,
+        "ino": 78681,
+        "mode": "0o600",
+        "mtimeNs": 1791334112413809034,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/proof/fresh-additive-cleanup-observation.json",
+        "sha256": "beab27dc0a4fc11856fcf59896f1641548ca5a12f6265d0c570c52eaf2500470"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 1287,
+        "dev": 34,
+        "ino": 78520,
+        "mode": "0o400",
+        "mtimeNs": 1791334007805823388,
+        "nlink": 1,
+        "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/additive-cleanup-observation.json",
+        "sha256": "beab27dc0a4fc11856fcf59896f1641548ca5a12f6265d0c570c52eaf2500470"
+      },
+      "relativePath": "proof/fresh-additive-cleanup-observation.json"
+    },
+    {
+      "copy": {
+        "bytes": 826,
+        "dev": 34,
+        "ino": 78682,
+        "mode": "0o600",
+        "mtimeNs": 1791334112413857507,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/proof/timing-floor-clarification.json",
+        "sha256": "9cba1edd0c507bf05291cba4f828f525af95e67b35b3ee59a355d4b522d7df57"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 826,
+        "dev": 34,
+        "ino": 78615,
+        "mode": "0o400",
+        "mtimeNs": 1791334038293815132,
+        "nlink": 1,
+        "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/additive-timing-floor-clarification.json",
+        "sha256": "9cba1edd0c507bf05291cba4f828f525af95e67b35b3ee59a355d4b522d7df57"
+      },
+      "relativePath": "proof/timing-floor-clarification.json"
+    },
+    {
+      "copy": {
+        "bytes": 1118,
+        "dev": 34,
+        "ino": 78684,
+        "mode": "0o600",
+        "mtimeNs": 1791334112413942746,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/reviews/source-review.json",
+        "sha256": "1c1af2e6dd376d2d099bdcddeae9e85ec36938facde686ee72b61b86604475fb"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 1118,
+        "dev": 34,
+        "ino": 67420,
+        "mode": "0o600",
+        "mtimeNs": 1791333922209301237,
+        "nlink": 1,
+        "path": "/tmp/restart-independent-j73g1s1l/native-temporal-live-continuation-v3-source-review.json",
+        "sha256": "1c1af2e6dd376d2d099bdcddeae9e85ec36938facde686ee72b61b86604475fb"
+      },
+      "relativePath": "reviews/source-review.json"
+    },
+    {
+      "copy": {
+        "bytes": 1804,
+        "dev": 34,
+        "ino": 78685,
+        "mode": "0o600",
+        "mtimeNs": 1791334112413991360,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/reviews/actual-review.json",
+        "sha256": "e3fb0a55cfdd867e63a6fb3b6d914fb3f294a2e0676044555fdc101a0a2c58bd"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 1804,
+        "dev": 34,
+        "ino": 78657,
+        "mode": "0o600",
+        "mtimeNs": 1791334054427126673,
+        "nlink": 1,
+        "path": "/tmp/restart-independent-j73g1s1l/native-temporal-live-continuation-actual-review.json",
+        "sha256": "e3fb0a55cfdd867e63a6fb3b6d914fb3f294a2e0676044555fdc101a0a2c58bd"
+      },
+      "relativePath": "reviews/actual-review.json"
+    },
+    {
+      "copy": {
+        "bytes": 1614,
+        "dev": 34,
+        "ino": 78686,
+        "mode": "0o600",
+        "mtimeNs": 1791334112414043388,
+        "nlink": 1,
+        "path": "/tmp/zasp-cloud-evidence/native-Temporal-cleanup-continuation-selected-cibazl14/README.md",
+        "sha256": "4d3f4f549b1188f95ea290e6f7b0993050a1b233c9ae2f74297e4bdafe4baf0b"
+      },
+      "encoding": "new-scope-only",
+      "relativePath": "README.md"
+    }
+  ],
+  "omissions": [
+    {
+      "bytes": 8391,
+      "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/run-owned.py",
+      "reason": "Initial source checkpoint retained; final v3 review describes repairs.",
+      "sha256": "56b47461106f50f44a0d156a7134ea4595baf4ec9855dfac546cb0bb0fa660fb"
+    },
+    {
+      "bytes": 9409,
+      "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/run-owned-v2.py",
+      "reason": "Intermediate source checkpoint retained; no execution.",
+      "sha256": "73234cfcb923a6cdff8c31cfcacdb823644d38acb007a15d535c2bb7a25e5b13"
+    },
+    {
+      "bytes": 93361,
+      "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/consumed-inputs.json",
+      "reason": "Full270 private input hash/metadata map retained; source review binds it, no map copied.",
+      "sha256": "cec0823e401d2211cba5b2f84fe60ba06ca8e843a52c6e2c90174ab4aff737ed"
+    },
+    {
+      "bytes": 9089,
+      "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/preflight.json",
+      "reason": "Full original package source roster retained; actual review binds source conservation.",
+      "sha256": "6ea192da707db07c9e79e3c230ea599c466ad92392c29139dc6072890461c0ce"
+    },
+    {
+      "bytes": 39915,
+      "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/temporal.private.log",
+      "reason": "Raw service log excluded",
+      "sha256": "f90b4a9ae44bbe94b6b648d09ffb96470e3a2b407bb95f2d12027b913653bc0c"
+    },
+    {
+      "bytes": 1391,
+      "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/postgres.private.log",
+      "reason": "Raw service log excluded",
+      "sha256": "f30bf4c7746a0d2dae1445072bac4602f6517c5c609362de68c57233daf43da8"
+    },
+    {
+      "bytes": 1675,
+      "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/private-temporal.yaml",
+      "reason": "Private configuration excluded",
+      "sha256": "8b46dbdb9a23dbda6d81bfb4bf09e26136a1f368f13faa07f494262f69020ee5"
+    },
+    {
+      "bytes": 48,
+      "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/pg-password",
+      "reason": "Private password file excluded",
+      "sha256": "3d24b66417ef12364aff59342eae66134bf47c9d72d7ba5f9a031033c36fded1"
+    },
+    {
+      "bytes": 34117911,
+      "path": "/tmp/zasp-live-cleanup-continuation-d64usjal/orchestration.test",
+      "reason": "Compiled binary excluded",
+      "sha256": "ab4bc6b2fdace7a9cdefee7516f9b421d8bb7c9f1db92a8ae45888b33711e21d"
+    }
+  ],
+  "scanner": "NOT_RUN",
+  "sourceValuesInspectedWithoutDisclosure": true,
+  "status": "PRIVATE-PUBLICATION-CANDIDATE"
+}

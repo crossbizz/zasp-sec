@@ -1,0 +1,39 @@
+{
+  "scope": "TEST password/session diagnostic; not email ownership, OAuth, SSO or product session acceptance",
+  "proofPassed": true,
+  "createStarted": true,
+  "createResponseObserved": true,
+  "absenceObserved": true,
+  "cleanupAbsent": true,
+  "deletedAcknowledged": true,
+  "cancelled": false,
+  "calls": [
+    {
+      "method": "POST",
+      "pathKind": "organization-create",
+      "httpStatus": 200
+    },
+    {
+      "method": "POST",
+      "pathKind": "password",
+      "httpStatus": 200
+    },
+    {
+      "method": "POST",
+      "pathKind": "password",
+      "httpStatus": 200
+    },
+    {
+      "method": "DELETE",
+      "pathKind": "owned-organization",
+      "httpStatus": 200
+    },
+    {
+      "method": "GET",
+      "pathKind": "owned-organization",
+      "httpStatus": 404
+    }
+  ],
+  "failure": null,
+  "completed": true
+}

@@ -1,0 +1,16 @@
+{
+  "outcome": "PASS conditional source gate exact singleton native Temporal cleanup-continuation owner",
+  "sourceSHA256": "9ca9e5b5d9d2ecd8e2cb2bd64b218a1a362fa61801c3892912ba94be54b97785",
+  "checks": [
+    "Exact source/tool/domain before-after identity checks now include270 selectedinputs+originalorchestrationGo sources.",
+    "Exact singleton RUN/PASS/globalPASS/noSKIP/FAIL acceptance added; command0 alone insufficient.",
+    "Guard after hashes/log parse and immediately before exit; terminal signals exit1 after cleanup and superseding guardfailure persistedFAILED.",
+    "Owned private PG54391 +nativeTemporal7233 independent fromSQL80; original test90s body, Go150s/owner330 unchanged.",
+    "Finally records direct joins/ports/sourcechecks and forcedcleanup causesfailure."
+  ],
+  "limits": [
+    "ROOT actual wait0, exactsingletonPASS/noSKIP, currenthashes/floors/normalcleanup required.",
+    "Direct child/group/port lifecycle only; no globalescaped-descendant or fullAPI/worker/deployed acceptance.",
+    "No reviewer service invocation/compiler/test; no rawconfigs/passwords/serverlog read."
+  ]
+}

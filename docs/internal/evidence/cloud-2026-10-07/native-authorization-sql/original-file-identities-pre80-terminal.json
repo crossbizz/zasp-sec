@@ -1,0 +1,312 @@
+[
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/apiserver-native79.test",
+    "bytes": 154658518,
+    "sha256": "ebcdaffbd7939fc1a511acdc9cd2f8600317dcec833a3b829aaa61cc132ecef5",
+    "mode": "0o700",
+    "device": 26,
+    "inode": 11885,
+    "mtime_ns": 1791332844802613818,
+    "ctime_ns": 1791332850536947793
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/compile-inputs-after.json",
+    "bytes": 3859684,
+    "sha256": "2a3c6c9dba79a0591da08030debe64a8a1e1871fa341d7731b3615315afe5b4b",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 12259,
+    "mtime_ns": 1791332851314777810,
+    "ctime_ns": 1791332851314777810
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/compile-inputs-before.json",
+    "bytes": 3859684,
+    "sha256": "2a3c6c9dba79a0591da08030debe64a8a1e1871fa341d7731b3615315afe5b4b",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10847,
+    "mtime_ns": 1791332720194156544,
+    "ctime_ns": 1791332720194156544
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/compile-owner.py",
+    "bytes": 4741,
+    "sha256": "bc1b4f98d00048276882b521b7972cd651af2134ec337a1bac7f1df63088d8b9",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10848,
+    "mtime_ns": 1791332764806683427,
+    "ctime_ns": 1791332764806683427
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/compile-process-binding.json",
+    "bytes": 979,
+    "sha256": "79aacfe08f1cc93d02f9f766bb89b4a8340b58c24c454f278bb6d20ad0254fba",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10851,
+    "mtime_ns": 1791332765524465839,
+    "ctime_ns": 1791332765524465839
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/compile-result.json",
+    "bytes": 39086,
+    "sha256": "b12df39a37bffde24ed3f81d8920a747192263e8669b346912dfd26ab375ba45",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 12260,
+    "mtime_ns": 1791332851424476739,
+    "ctime_ns": 1791332851424476739
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/compile.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10850,
+    "mtime_ns": 1791332765516615888,
+    "ctime_ns": 1791332765516615888
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/compile.stdout",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10849,
+    "mtime_ns": 1791332765516615888,
+    "ctime_ns": 1791332765516615888
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/fixture-candidate.go",
+    "bytes": 3470,
+    "sha256": "7aa946b921e6e1490126558c49886bbeb6034b8ad5d9aca6a0d936ad206ecc2c",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10837,
+    "mtime_ns": 1791332471118682935,
+    "ctime_ns": 1791332471118682935
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/fixture-original.go",
+    "bytes": 2964,
+    "sha256": "eddce9d2e27bf25c47d18cf6b48242c7d1e18dd66c83aa502223931fc4a2748f",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10838,
+    "mtime_ns": 1791332471118697938,
+    "ctime_ns": 1791332471118697938
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/go-input-list.jsonstream",
+    "bytes": 3424651,
+    "sha256": "998ae7009bafd01b699e041bf5ab262acfc2f2946eca7793392f656fccbd601d",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10843,
+    "mtime_ns": 1791332667538146030,
+    "ctime_ns": 1791332667538146030
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/go-input-list.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10844,
+    "mtime_ns": 1791332666806127575,
+    "ctime_ns": 1791332666806127575
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/independent-pg-fixture-wrapper-source-review.json",
+    "bytes": 2903,
+    "sha256": "28cb076ba36c418d4aece90c608aec72aa8f097e4550c05c1d36a9b47e96561a",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 12274,
+    "mtime_ns": 1791333328238228695,
+    "ctime_ns": 1791333328238228695
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/native-admission_test.go",
+    "bytes": 10718,
+    "sha256": "961f2373a262482c743cd5ce681f335fa39446ac38b0b8914a1e3be8ffbf7b47",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10836,
+    "mtime_ns": 1791332471118655013,
+    "ctime_ns": 1791332471118655013
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/overlay.json",
+    "bytes": 194,
+    "sha256": "cd14d0e50b12429d50508a7f0a7105a7c8c13202f05410bc359266f3d92e8b70",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10840,
+    "mtime_ns": 1791332471118819692,
+    "ctime_ns": 1791332471118819692
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/projection-native-overlay.go",
+    "bytes": 8281,
+    "sha256": "2319a62ef2e300bb2dc4924f528a46c3ba1dd853f53580504f05207c47ea8fe8",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10839,
+    "mtime_ns": 1791332485553564326,
+    "ctime_ns": 1791332485553564326
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/run-sql79.py",
+    "bytes": 7393,
+    "sha256": "134c123b44a76ceb2280d472b6928aae567219da91af26216ff3d4b561c5114f",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 12270,
+    "mtime_ns": 1791333266514952327,
+    "ctime_ns": 1791333266514952327
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/run-sql80.py",
+    "bytes": 6213,
+    "sha256": "9ff522d4b9aeded02ae3dc9cde9cebb01ed3f2ffc60c4604eaaebc6024d727fe",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 13983,
+    "mtime_ns": 1791333520464064378,
+    "ctime_ns": 1791333520464064378
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/source-preparation.json",
+    "bytes": 1112,
+    "sha256": "2eeb523fb92e47acde44ca54992bbe52843a3f3f491a76d37a5160edf5375f5c",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 10841,
+    "mtime_ns": 1791332471121053061,
+    "ctime_ns": 1791332471121053061
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/sql79-inputs-after.json",
+    "bytes": 3861447,
+    "sha256": "5ae40a59d7c8f55ae49e7f56a6ca1d6933a71296f2d30ea8aaff1e99ed7695bc",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 13981,
+    "mtime_ns": 1791333370655850862,
+    "ctime_ns": 1791333370655850862
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/sql79-inputs-before.json",
+    "bytes": 3859684,
+    "sha256": "2a3c6c9dba79a0591da08030debe64a8a1e1871fa341d7731b3615315afe5b4b",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 12275,
+    "mtime_ns": 1791333365475720328,
+    "ctime_ns": 1791333365475720328
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/sql79-process-binding.json",
+    "bytes": 917,
+    "sha256": "7eb5d2fccac41df6b845613335357569a71eb6ab87ef0ecbc44313aa0c1cf24e",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 12279,
+    "mtime_ns": 1791333365481174176,
+    "ctime_ns": 1791333365481174176
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/sql79-result.json",
+    "bytes": 2837,
+    "sha256": "b3bc82bb2fce4c2471544677226aac0f74efede81d4b75c6107cdda834df8124",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 13982,
+    "mtime_ns": 1791333370661854939,
+    "ctime_ns": 1791333370661854939
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/sql79-tools-before.json",
+    "bytes": 2138,
+    "sha256": "b99d02f0a1f50ebf477c86ebc114f0728a128cd439f9435bd98a23dcdae50b44",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 12276,
+    "mtime_ns": 1791333365479937515,
+    "ctime_ns": 1791333365479937515
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/sql79.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 12278,
+    "mtime_ns": 1791333365479937515,
+    "ctime_ns": 1791333365479937515
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/sql79.stdout",
+    "bytes": 1026,
+    "sha256": "1ae4fc57fa415c12a030b50af80ae14a6e236bfa018ca9c8315584d9cb16fdde",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 12277,
+    "mtime_ns": 1791333368795803993,
+    "ctime_ns": 1791333368795803993
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/sql80-inputs-before.json",
+    "bytes": 3859684,
+    "sha256": "2a3c6c9dba79a0591da08030debe64a8a1e1871fa341d7731b3615315afe5b4b",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 13986,
+    "mtime_ns": 1791333521311648326,
+    "ctime_ns": 1791333521311648326
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/sql80-process-binding.json",
+    "bytes": 674,
+    "sha256": "05881b51494453538352400550612c49c645bd166618de97a255bea566343733",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 13990,
+    "mtime_ns": 1791333521316225776,
+    "ctime_ns": 1791333521316225776
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/sql80-tools-before.json",
+    "bytes": 2138,
+    "sha256": "b99d02f0a1f50ebf477c86ebc114f0728a128cd439f9435bd98a23dcdae50b44",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 13987,
+    "mtime_ns": 1791333521315031519,
+    "ctime_ns": 1791333521315031519
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/sql80.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 13989,
+    "mtime_ns": 1791333521315031519,
+    "ctime_ns": 1791333521315031519
+  },
+  {
+    "path": "/dev/shm/native-projection79-fixture-31112e09c7/sql80.stdout",
+    "bytes": 24154,
+    "sha256": "5bc746b23621eeeb8dd7fccf9e9cc5b46cda9987c012e45c79e2e57d0f9b4df5",
+    "mode": "0o600",
+    "device": 26,
+    "inode": 13988,
+    "mtime_ns": 1791333769773844184,
+    "ctime_ns": 1791333769773844184
+  }
+]

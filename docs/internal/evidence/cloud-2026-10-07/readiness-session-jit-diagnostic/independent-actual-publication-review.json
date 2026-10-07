@@ -1,0 +1,28 @@
+{
+  "outcome": "PASS actual leaf/JIT diagnostic and16member closure; production tune requires separate behavioral gate",
+  "manifestSHA256": "54eea08346499de831ececd523c9b819d05d3c24423c7f330854d0d5ac483d93",
+  "members": 16,
+  "actualResultSHA256": "f4d7c744914ed27f10df1a21f312f9e1532eadf8af8afbca75bc493687abf8f5",
+  "elapsedSeconds": 97.37268083900017,
+  "observed": {
+    "current68DefaultJITOnSeconds": 16.772329502,
+    "current68ReadOnlyLocalJITOffSeconds": 0.387815944,
+    "bothPredicateTrue": true,
+    "defaultRestored": "on",
+    "fingerprint68Milliseconds": 46.371233,
+    "base68Seconds": 1.73403675,
+    "authorization79Milliseconds": 61.734263
+  },
+  "checks": [
+    "Exact loggedevents andall16memberhashes/fourgzip byteexactroundtrip checked.",
+    "Normal singletonPASS/noSKIP/sourceunionunchanged/PGcleanup/norecordedgroupsurvivors.",
+    "Only readonlySETLOCALjitoff thenrollback/SHOWon; productSQL/predicate/source/defaultcaps unchanged."
+  ],
+  "limits": [
+    "One sequential paired measurement: observed43xspeedup supports sessionJIT hypothesis but warm-cache/order/concurrency effects and exactnested compilation contribution not independently isolated.",
+    "Node4earlyoverlap disclosed, no fullyuncontended/solecause claim.",
+    "Originalcurrent80FAIL remains; legitimate production sessiontune must preserveallroles/catalogquery/security/timeout semantics and pass originalbehavioral suite.",
+    "No globalJITdisable/schemaSQL/cachememoization/deadlineincrease accepted bythis diagnosticreview.",
+    "No fullAPI/native379/deployed/ledger promotion."
+  ]
+}

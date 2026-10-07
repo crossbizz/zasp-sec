@@ -1,0 +1,19 @@
+{
+  "floors": [
+    {
+      "freeBytes": 1515085824,
+      "path": "/workspace",
+      "requiredBytes": 1500000000
+    },
+    {
+      "freeBytes": 4579450880,
+      "path": "/tmp",
+      "requiredBytes": 100000000
+    }
+  ],
+  "format": "continuation-additive-timing-floor-clarification-v1",
+  "observationSHA256": "beab27dc0a4fc11856fcf59896f1641548ca5a12f6265d0c570c52eaf2500470",
+  "observedSinceFirstChildSeconds": 67.89774843800114,
+  "scope": "Additive clarification, original observation bytes unchanged.",
+  "timingScope": "The first-child clock is later than owner start, not exact owner launch. Fresh observation ended about this many seconds after initdb; it is comfortably below330s. No exact outer kernel-start timestamp was retained. Original owner8.3755s failure and tool normaljoin are separately retained."
+}

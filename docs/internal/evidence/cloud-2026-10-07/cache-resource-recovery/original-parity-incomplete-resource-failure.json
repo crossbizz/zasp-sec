@@ -1,0 +1,44 @@
+{
+  "status": "FAILED-INCOMPLETE-RESOURCE-FLOOR",
+  "command": "/usr/bin/timeout --signal=TERM --kill-after=30s 300s /tmp/zasp-cloud-tools/go/bin/go test -mod=readonly -race -count=1 -overlay=/tmp/native379-v3-current-coherent-private-_gkp3vv5/constructor-parity-overlay.json -run ^TestNative379HistoricalCurrentConstructedProgramsEqual$ -v ./migrations",
+  "cwd": "/tmp/native379-v3-current-coherent-private-_gkp3vv5/source/services/platform",
+  "configuredEnvironmentSelection": {
+    "HOME": "/home/agent",
+    "XDG_CACHE_HOME": null,
+    "GOCACHE": null,
+    "GOMODCACHE": null,
+    "GOPATH": null,
+    "TMPDIR": null
+  },
+  "explicitControlledEnvironmentWasMissing": true,
+  "inferredDefaultGOCACHE": "/home/agent/.cache/go-build",
+  "inferredDefaultGOMODCACHE": "/home/agent/go/pkg/mod",
+  "processes": [
+    {
+      "pid": 54216,
+      "observedStartTicks": 1379671,
+      "clockTicksPerSecond": 100,
+      "bootUnixSeconds": 1791321284,
+      "calculatedStartUnixSeconds": 1791335080.71,
+      "currentlyAbsent": true
+    },
+    {
+      "pid": 57473,
+      "observedStartTicks": 1381665,
+      "clockTicksPerSecond": 100,
+      "bootUnixSeconds": 1791321284,
+      "calculatedStartUnixSeconds": 1791335100.65,
+      "currentlyAbsent": false,
+      "currentState": "Z"
+    }
+  ],
+  "joinedOwnerExitCode": 143,
+  "interruption": "Author sentSIGTERM to exact Go and migrations.test PIDs after actual reserve breach",
+  "firstObservedFloorBreach": {
+    "workspaceFree": 1284792320,
+    "tmpFree": 2160361472,
+    "shmFree": 8444329984
+  },
+  "sourceOrModelSuccessNotClaimed": true,
+  "cacheBeforeInventory": "NOT_CAPTURED; no producer-only new-output identity inferred"
+}

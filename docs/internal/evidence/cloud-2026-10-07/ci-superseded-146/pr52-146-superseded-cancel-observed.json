@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-07T00:43:53.425393+00:00",
+  "runs": [
+    {
+      "id": 37550267961,
+      "head_sha": "146dceb57fbf5241cb5ed6bec24db2ac4f351ec8",
+      "status": "completed",
+      "conclusion": "cancelled"
+    },
+    {
+      "id": 37550262689,
+      "head_sha": "146dceb57fbf5241cb5ed6bec24db2ac4f351ec8",
+      "status": "completed",
+      "conclusion": "cancelled"
+    }
+  ],
+  "scope": "Completed cancellation is not a passed guard; latest298 runs preserved."
+}

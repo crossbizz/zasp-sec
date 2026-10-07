@@ -1,0 +1,5 @@
+{
+  "format": "readiness80-profile-publication-clarification-v1",
+  "manifest_sha256": "3a22d8d6b7866e63fb1aa1d5b829e649aaea00a3f12a8423d6afe6ebf9d8f8e0",
+  "correction": "summary.json key original_context_failure_preserved is mislabeled: its referenced predecessor compile-result.json is the diagnostic unused-preciseWire compiler failure, not the original current80 context failure. That original current80 failure is preserved in separate selected SQL79/current80 packet manifest4077128c. No original bytes rewritten."
+}

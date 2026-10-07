@@ -1,0 +1,9 @@
+{
+  "status": "PASS-SOURCE-STATIC-AND-ACTUAL-PREPARED-COPY-ADMISSION",
+  "preparedSHA256": "32771de22a3fc088786df6fd8c22624e62b7c6249534648217cddec029c9f71f",
+  "sourceSHA256": "6c43a345a91c407167ba37f98ce3a4eaa87d18a5e2288f69cecf807d1ef83f4b",
+  "checks": 1910,
+  "files": 73,
+  "logicalBytes": 320655218,
+  "scope": "Full original and destination same-FD hashes/stable identity; source intact, exact copies retain mode UID GID size mtime. Read-mutated atime excluded. Prepare source gate only; finalization remains ROOT-only exact prepared SHA, writer HOLD and normal terminal join. No root FD visibility or new-file attribution; no runtime acceptance. Final protected full hashes and restored workspace floor still pending."
+}

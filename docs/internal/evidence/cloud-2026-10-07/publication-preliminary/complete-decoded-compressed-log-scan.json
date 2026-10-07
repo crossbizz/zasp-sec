@@ -1,0 +1,52 @@
+{
+  "scope": "Every complete decoded compressed log in selected SQL/profile proof directories",
+  "members": [
+    {
+      "source": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-fixture-portable-green.jsonl.gz",
+      "decodedBytes": 7745,
+      "decodedSha256": "11eb103d038257e4222687f2e413c222fae7a4b0c4cecaefa90908831f893566"
+    },
+    {
+      "source": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80.stdout.gz",
+      "decodedBytes": 29659,
+      "decodedSha256": "1ecfb1bb0a13d9dd353cdd3e959f9dfda9efb98876a86d7913151fa749a257fb"
+    },
+    {
+      "source": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-fixture-red.jsonl.gz",
+      "decodedBytes": 6939,
+      "decodedSha256": "da2dd52fcc2623ef26cbe42662d65d2769228404dcef206c961a3e23c5afe259"
+    },
+    {
+      "source": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80.stderr.gz",
+      "decodedBytes": 0,
+      "decodedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-fixture-comma-red.jsonl.gz",
+      "decodedBytes": 8016,
+      "decodedSha256": "c9176fe2f936d5c8abcd6722d8c401ada61fd8ece7e76f428822b8041be52b5b"
+    },
+    {
+      "source": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile.stdout.gz",
+      "decodedBytes": 0,
+      "decodedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile.stderr.gz",
+      "decodedBytes": 0,
+      "decodedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/sql80.stdout.gz",
+      "decodedBytes": 5203,
+      "decodedSha256": "afb82a5f0ab0b92d94c976b8b251462874b9ee14fe64f58f61955c44848bb75f"
+    },
+    {
+      "source": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/sql80.stderr.gz",
+      "decodedBytes": 0,
+      "decodedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "scanExit": 0,
+  "findings": 0
+}

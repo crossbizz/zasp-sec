@@ -1,0 +1,17 @@
+{
+  "custodyStates": {
+    "completeSHMCopyVerified": true,
+    "destinationRetained": true,
+    "oldPathExists": true,
+    "oldPathIsSymlink": false,
+    "quarantineRemainingFiles": 0,
+    "quarantineRetained": false,
+    "reversibilityScope": "Complete byte copy retains every cache payload; original physical metadata cannot be restored after successful unlink. No promise original inode/dev/ctime survive relocation."
+  },
+  "elapsedSeconds": 3.8540104260027874,
+  "phase": "prepare",
+  "planSHA256": "aa45817a7744a9823a221d939ba7d2539c7edd0fe58ab9dedbe0a3aed91db603",
+  "scope": "Filesystem recovery only; all cachebytes retained, no task/file attribution or runtime/test acceptance; originaldev/ino/ctime historical, copiesnecessarilynew.",
+  "status": "PREPARED",
+  "unlinkedReturned": []
+}

@@ -1,0 +1,37 @@
+{
+  "outcome": "PASS honest bounded actual/publication closure: SQL79 PASS; current80 FAIL retained",
+  "manifestSHA256": "4077128c922184121864112c533e60989f153da034474b50ff224b19522a9d9f",
+  "payloadMembers": 34,
+  "actual": {
+    "sql79": {
+      "exit": 0,
+      "elapsed": 5.973326417999488,
+      "top_pass": 1,
+      "skip": 0,
+      "completed": true,
+      "fixture_postgres_cleanup_log": true
+    },
+    "sql80": {
+      "exit": 1,
+      "elapsed": 328.3332932829999,
+      "top_pass": 0,
+      "skip": 0,
+      "completed": false,
+      "fixture_postgres_cleanup_log": true
+    }
+  },
+  "checks": [
+    "All34 selected memberhash/size/regular files match sealedmanifest.",
+    "BothSQL80 gzipdecoded streams byteexact original; claimed URI password replacements0 verified.",
+    "Each9840 before-map member equals after; after adds only5wrapper members independently equal separate before-toolmap, so input unions unchanged (not raw9840vs9845 equality).",
+    "SQL79 singleton real native projection/reconcile/ack PASS normaljoined; fixturepg_ctl/serverWait0 cleanup.",
+    "Current80 authentic firstfailure same-call readiness implication line176 returnsfalse,false,wanttrue pluscontextdeadlineexceeded afteroriginal5min sharedcontext; laterfailures includeexpired/closedconnection.",
+    "Current80 initial subgroups pass but overallFAIL; originaldefaultGo10m/body5min andallassertions unchanged."
+  ],
+  "limits": [
+    "Observed readiness timings do not prove underlying cause/productbug or soleexpensivestage; no deadlineincrease/retry/dropassertions authorized.",
+    "Shared immutableFGA input preserved, private one-path overlay exact; no fullsuite/current80fullprojection/native379/deployed promotion.",
+    "Large154MBbinary/maps omitted with measured identities; not independently rehashing all9840files during review.",
+    "Actual final publication scopedscan required; gzipencodedscan not decodedclearance."
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "outcome": "PASS preliminary copied evidence/prefix/scope pending final combined index/scanner",
+  "exactCopyAndHashComparisons": 53,
+  "receiptSHA256": "fe887d426947faffe190a19e94e630cbc4330160f733e0a511cf3c9ba0cacf57",
+  "oldPrefixBytes": 126923,
+  "oldPrefixSHA256": "627c339e3dff4da7781c254475d10d3dc8f56b1d6d32c5cf25991e4df14eac4c",
+  "checks": [
+    "SQL34+manifest andTemporal payload/original hashes+baseline5 checked; Stytch13 separateabcc.",
+    "OriginalSQL80failure/TemporalownerPortAbsenceFAIL preserved separatelyfromcomponentPASS/latercleanup.",
+    "CI146 completedcancelled is notPASS; latest298 guards retained.",
+    "728/523/144/61 unchanged/no nativeproduction promotion."
+  ],
+  "limits": [
+    "Receipt nextV3 phrase6348assertions should use6348SQLsteps.",
+    "Private modes0600/0400 transportGit100644; no lifetime tools/fullcompilerclosure approval.",
+    "Finalactual staged combinedscan/index includingUI proof required; preliminary notsecurityclearance."
+  ]
+}

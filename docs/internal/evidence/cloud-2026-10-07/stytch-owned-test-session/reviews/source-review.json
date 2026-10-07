@@ -1,0 +1,65 @@
+{
+  "checks": [
+    {
+      "bytes": 13154,
+      "path": "/workspace/zasp-sec/proofs/stytch-b2b-test-session.mjs",
+      "sha256": "856a3c14a7810780abc2768cccbbf71013c3ec6e5d78466ccf74c5158161a29f"
+    },
+    {
+      "bytes": 10982,
+      "path": "/workspace/zasp-sec/node_modules/stytch/dist/b2b/organizations.js",
+      "sha256": "c73121f849faca8ecce762b7d51963c957266373c6b898d548509d5e81fa01be"
+    },
+    {
+      "bytes": 6643,
+      "path": "/workspace/zasp-sec/node_modules/stytch/dist/b2b/passwords.js",
+      "sha256": "a2d0f086a175f8c8d8f5400660626134fef2d7424db05babe3841fce8de598f1"
+    },
+    {
+      "bytes": 67867,
+      "path": "/workspace/zasp-sec/node_modules/stytch/types/lib/b2b/organizations.d.ts",
+      "sha256": "1ff7d9e1b2dfc90c402afb6c06f4036bc8948b79b47c7954d84f5a104cb2f39f"
+    },
+    {
+      "bytes": 20737,
+      "path": "/workspace/zasp-sec/node_modules/stytch/types/lib/b2b/passwords.d.ts",
+      "sha256": "bf75248cb66cda6064f094d32ed63e99899f300754464ac2666e2761904be5c8"
+    },
+    {
+      "bytes": 8701,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-disposable-session-bounded-source-v4/run.mjs",
+      "sha256": "6558e13100d68e3c565cacc8885a8e7088e5070847175c44784a0dc07ac40e21"
+    },
+    {
+      "bytes": 2323,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-disposable-session-bounded-source-v4/scope.json",
+      "sha256": "9292129465485b4d4b19db3e26bfabefc22c5ae9207053a3c702befdb46ac68c"
+    },
+    {
+      "bytes": 593,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-disposable-session-bounded-source-v4/source-pins.json",
+      "sha256": "cceb04ebbb55e136bcd1a7cb09c63e4984924cd50a6330085d5bd95485ef7740"
+    }
+  ],
+  "findings": [],
+  "format": "independent-Stytch-V4-owned-TEST-wrapper-source-review-v1",
+  "launchPrerequisites": [
+    "Provider actual dry request/cleanup controls must pass independently before ROOT launch.",
+    "ROOT uses exact admitted Node and outer GNU timeout TERM55s kill-after10s, one run only; actual tool exit/join required.",
+    "Curated environment retains verified CA/proxy settings and TEST credentials only; NODE_OPTIONS, NODE_TLS_REJECT_UNAUTHORIZED and proof origin/loopback overrides absent; no TLS trust-disable."
+  ],
+  "limits": [
+    "No provider request, dry runtime, source execution, mutation or cleanup performed by reviewer.",
+    "No remote outcome or whole-owner cleanup acceptance inferred. Abnormal outer termination leaves custody UNKNOWN and private journal retained.",
+    "Scope one synthetic TEST password/session diagnostic, not email ownership, OAuth/SSO or product session acceptance."
+  ],
+  "observedUTC": "2026-10-07T00:33:35.760186+00:00",
+  "reviewed": [
+    "Fixed HTTPS test.stytch.com origin; URL credentials/query/hash and redirects refused. EnvHttpProxyAgent retains default TLS verification.",
+    "Exact password-only UUID-marked disposable organization create, synthetic member migrate/authenticate, owned TEST ID delete, exact UUID slug recovery GET only. No messaging/invites/payments or retained configuration operations.",
+    "Durable private0600 intent before create; matching name+slug+TEST ID required before delete custody; uncertain outcomes fail and retain exact slug for parent recovery. Installed official SDK documents organization slug as supported organization identifier.",
+    "Original full proof source856a remains unchanged. Main30s abort, per-request5s and response64KiB; up to3 cleanup requests independent of cancelled main. Signals latch refusal during cleanup and exit1 at terminal boundary.",
+    "Fixed error/result outputs omit credentials/password/hash/JWT/member identifiers. Journal contains only owned organization identity/intent/status."
+  ],
+  "status": "PASS-SOURCE-STATIC-CONDITIONAL"
+}

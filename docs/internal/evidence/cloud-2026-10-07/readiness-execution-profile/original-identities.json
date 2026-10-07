@@ -1,0 +1,152 @@
+[
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/sql80-result.json",
+    "bytes": 76185,
+    "sha256": "cc7144e2c288c4ed4e833e3599becc8c0f604948693dd4198cb7189c48ec7657"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/sql80-inputs-after.json",
+    "bytes": 3862117,
+    "sha256": "1c14b82cff92812df65e3616d7ca69012d1f669178067596fe1794706c1e9ad1"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/sql80-process-binding.json",
+    "bytes": 662,
+    "sha256": "28e560c9b9ce689666306661a3113e79a25d634199b01fbdb448c247926f9c0a"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/sql80.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/sql80.stdout",
+    "bytes": 5203,
+    "sha256": "afb82a5f0ab0b92d94c976b8b251462874b9ee14fe64f58f61955c44848bb75f"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/sql80-tools-before.json",
+    "bytes": 2138,
+    "sha256": "b99d02f0a1f50ebf477c86ebc114f0728a128cd439f9435bd98a23dcdae50b44"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/sql80-inputs-before.json",
+    "bytes": 3860354,
+    "sha256": "e4ef1b3ef6b019a88784a8a83807bedfc376cb38fd6884cb209a4e0e2882732f"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/compile-result.json",
+    "bytes": 25919,
+    "sha256": "d2d726b54bbc1e5811c5c08b7ae0ac7f9f792845c483ca808ec209f2d04d6ca6"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/compile-inputs-after.json",
+    "bytes": 3860354,
+    "sha256": "e4ef1b3ef6b019a88784a8a83807bedfc376cb38fd6884cb209a4e0e2882732f"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/apiserver-native79.test",
+    "bytes": 154651941,
+    "sha256": "0c362d51e0fc65cfe9b307766390e947415a3231026bc4a369a111e334dc52a5"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/compile-process-binding.json",
+    "bytes": 959,
+    "sha256": "87f345f6f0f7c7f0ad4ec3bc09e0dfd344caf5ecc0a5a93e59396bb9e097f516"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/compile.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/compile.stdout",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/preparation.json",
+    "bytes": 1114,
+    "sha256": "d603d0a4285e7bd9d0f1066f5de624c08a58f94257bb906419723dcb1e12d990"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/compile-inputs-before.json",
+    "bytes": 3860354,
+    "sha256": "e4ef1b3ef6b019a88784a8a83807bedfc376cb38fd6884cb209a4e0e2882732f"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/run-profile.py",
+    "bytes": 6128,
+    "sha256": "4a23f7f589b8e4d914f67cd8cda5cc27103f764bf1e0de697fefa05960fd19f0"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/compile-owner.py",
+    "bytes": 4778,
+    "sha256": "3f53f6edb68cf436115c57334fee3bdb56c6a6531c7a488f354509114b298f5d"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/overlay.json",
+    "bytes": 175,
+    "sha256": "d46505e3fe69275706978f0c40349c245541d014da9007c7ca2d79a7aaf82360"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/diagnostic-overlay.go",
+    "bytes": 30062,
+    "sha256": "5e49c9f06afa8d80559f890a5c5045edc1f18729fde7e62bccd10468a5df02bb"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-82wqqm9u/compile-result.json",
+    "bytes": 1839,
+    "sha256": "b10a3172ee55be0989172896c37d17f54327d8e03b664c3b778f6f64a23926ab"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-82wqqm9u/compile-inputs-after.json",
+    "bytes": 3860342,
+    "sha256": "c0c7087532dbe93f9e1bab74434f6fc1722a45b339594c89e6a9468746b1dd9e"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-82wqqm9u/compile-process-binding.json",
+    "bytes": 953,
+    "sha256": "cdb48b5935e58eb9fbe690ee2bdd45fda0d3fac18dd2585ac81f0bdc51293589"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-82wqqm9u/compile.stderr",
+    "bytes": 220,
+    "sha256": "f5077fae7f8cbd71f642aa44b5a4cd3766564e278922bf95488ac5fc974b7d43"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-82wqqm9u/compile.stdout",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-82wqqm9u/preparation.json",
+    "bytes": 827,
+    "sha256": "5c30e6e1e48e8b31e978be5a42f1cbd34b8acd0dc02e694929476945588a7bb0"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-82wqqm9u/run-profile.py",
+    "bytes": 6125,
+    "sha256": "cae6f4290ca24ca47b121edb66db0beb730ee7b0804ab052ad9ee1fa3a911672"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-82wqqm9u/compile-owner.py",
+    "bytes": 4775,
+    "sha256": "50e96b7673b6c7b2f695dd129f56ce1132585f7044a15143171918b913c47196"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-82wqqm9u/compile-inputs-before.json",
+    "bytes": 3860342,
+    "sha256": "c0c7087532dbe93f9e1bab74434f6fc1722a45b339594c89e6a9468746b1dd9e"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-82wqqm9u/overlay.json",
+    "bytes": 172,
+    "sha256": "a3f79457161a6aa9501922229d7e90240b73a237ffdfaf06a335bffc17853b8f"
+  },
+  {
+    "original_path": "/dev/shm/readiness80-cost-82wqqm9u/diagnostic-overlay.go",
+    "bytes": 29972,
+    "sha256": "c71e660f59ac3f4320a085e744f9286ff050d3fdc8dab3ba01089bf9e301b912"
+  }
+]

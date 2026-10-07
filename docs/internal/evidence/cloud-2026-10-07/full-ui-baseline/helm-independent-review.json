@@ -1,0 +1,17 @@
+{
+  "outcome": "PASS scoped restored Helm source-built tool byte/admission metadata",
+  "manifestSHA256": "4e802cdf46fd1130c48ec8f47ae2c12890df1f70699e8a774725c0f1642e956c",
+  "binarySHA256": "7bb647ba5a84f762ddd0945541c0cf3dd4a159066b705ccfd5a3fb635f2b5509",
+  "bytes": 60915874,
+  "checks": [
+    "Full binary streamed SHA independently matches manifest, regular0500/exactsize.",
+    "Retained actual buildresult hash bound totoolmanifest; moduleverify0/allmodulesverified and1380source-byte checks are producer provenance receipts.",
+    "OfficialHelm3.19 sourcecommit3d8990f +source-builtGo1.26.8 suffix explicitly disclosed, notvendorreleasebinary.",
+    "Prior checksumendpoint/download/module-symlink failures retained."
+  ],
+  "limits": [
+    "No reviewer network/build/version invocation/release render/runtime or vendor tests.",
+    "Not independently rebuilding all1380source files/signedsumdb cryptographic proof during this lightweight tool review.",
+    "Actual UI/release checks still mandatory; tooladmission not launch/deployment clearance."
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "scope": "SOURCE_ONLY diagnostic compilation and three exact fixed EXPLAIN ANALYZE statements; original5min suite unchanged. New test uses5min diagnostic context; outer650/default10m, storage1.5GB/100MB and memory100MB guards retained.",
+  "original_source_sha256": "e34475961cd5d7d39bd445b290025a4b322a376acac9e81195d722cf217ae488",
+  "members": {
+    "compile-inputs-before.json": "e4ef1b3ef6b019a88784a8a83807bedfc376cb38fd6884cb209a4e0e2882732f",
+    "run-profile.py": "4a23f7f589b8e4d914f67cd8cda5cc27103f764bf1e0de697fefa05960fd19f0",
+    "compile-owner.py": "3f53f6edb68cf436115c57334fee3bdb56c6a6531c7a488f354509114b298f5d",
+    "overlay.json": "d46505e3fe69275706978f0c40349c245541d014da9007c7ca2d79a7aaf82360",
+    "diagnostic-overlay.go": "5e49c9f06afa8d80559f890a5c5045edc1f18729fde7e62bccd10468a5df02bb"
+  },
+  "predecessor_compile_failure": {
+    "result": "/dev/shm/readiness80-cost-82wqqm9u/compile-result.json",
+    "sha256": "b10a3172ee55be0989172896c37d17f54327d8e03b664c3b778f6f64a23926ab",
+    "classification": "Diagnostic-only unused preciseWire compile omission; no SQL executed"
+  }
+}

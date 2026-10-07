@@ -1,0 +1,174 @@
+{
+  "format": "Helm319-retained-source-tool-preparation-failure-chronology-v1",
+  "limits": "Safe additive chronology; no raw signed networkURL or fullmodulemaps copied. No failure erased.",
+  "phases": [
+    {
+      "originalRecord": {
+        "bytes": 176,
+        "metadata": {
+          "dev": 34,
+          "ino": 78699,
+          "mode": "0o600",
+          "mtimeNs": 1791334214039090406,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/download-record.json",
+        "sha256": "16fdac1f9966ab44208545d78229fb690c46d334034cbe80cc63921a5b54411f"
+      },
+      "phase": "official release checksum fetch",
+      "returncode": 22,
+      "scope": "Fixed officialgethelm endpoint refused; no vendorbinary downloaded."
+    },
+    {
+      "phase": "GOPROXYoff moduleverify",
+      "returncode": 1,
+      "scope": "Missing exact AdaLogics dependency; no source or assertion change.",
+      "stderr": {
+        "bytes": 115,
+        "metadata": {
+          "dev": 34,
+          "ino": 82204,
+          "mode": "0o600",
+          "mtimeNs": 1791334389059081282,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/module-verify.stderr.log",
+        "sha256": "4b3a825de14d500d7626380b1ad8b3c5cf15cf7dcf3e276b2d945da1132616ac"
+      },
+      "stdout": {
+        "bytes": 0,
+        "metadata": {
+          "dev": 34,
+          "ino": 82203,
+          "mode": "0o600",
+          "mtimeNs": 1791334389053404448,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/module-verify.stdout.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "originalRecord": {
+        "bytes": 199,
+        "metadata": {
+          "dev": 34,
+          "ino": 91448,
+          "mode": "0o600",
+          "mtimeNs": 1791334437435086128,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/dependency-download-result.json",
+        "sha256": "7df1dedd02f565efa9b6c48c47f6a2a743444c8b917f4b3462561eddf718e681"
+      },
+      "phase": "proxy dependencydownload",
+      "privateLog": {
+        "bytes": 648,
+        "metadata": {
+          "dev": 34,
+          "ino": 84043,
+          "mode": "0o600",
+          "mtimeNs": 1791334437410618072,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/dependency-download.private.log",
+        "sha256": "66ad0308e4138d877691b921af78a459e4c4d250086011fb807061bcc991a650"
+      },
+      "returncode": 1,
+      "scope": "Single klauspost/compress1.18.0 storage redirect failed; raw network log maycontain signed URL, excluded."
+    },
+    {
+      "phase": "symlinkmodule verification",
+      "privateStderr": {
+        "bytes": 19052,
+        "metadata": {
+          "dev": 34,
+          "ino": 91987,
+          "mode": "0o600",
+          "mtimeNs": 1791334486810497422,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/module-verify-final.stderr.log",
+        "sha256": "11e9b2a4b9e9cbd850e645b0616365aa7f69ef71c813751b38de78939ca6604c"
+      },
+      "returncode": 1,
+      "scope": "Go refuses symlinkmodule directory roots; only newly authored TMP links replaced by canonicalchecksumverified physical extraction. Full117module stderr map excluded.",
+      "stdout": {
+        "bytes": 0,
+        "metadata": {
+          "dev": 34,
+          "ino": 91986,
+          "mode": "0o600",
+          "mtimeNs": 1791334486803857218,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/module-verify-final.stdout.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "originalRecord": {
+        "bytes": 129,
+        "metadata": {
+          "dev": 34,
+          "ino": 91985,
+          "mode": "0o600",
+          "mtimeNs": 1791334476797447290,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/compress-direct-result.json",
+        "sha256": "13b603acfb813a8e087f364951f737024dd618d6ab2dbfe70349064d761537cc"
+      },
+      "phase": "ordinary officialdirect dependencydownload",
+      "returncode": 0,
+      "scope": "Existing Go.sum enforced, exact fixed GitHub module resolved via supported ordinary direct transport."
+    },
+    {
+      "phase": "canonicalphysical module verification",
+      "returncode": 0,
+      "scope": "All modules verified. Original source go.mod/go.sum unchanged.",
+      "stderr": {
+        "bytes": 0,
+        "metadata": {
+          "dev": 34,
+          "ino": 114424,
+          "mode": "0o600",
+          "mtimeNs": 1791334519119453242,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/verify-physical.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stdout": {
+        "bytes": 21,
+        "metadata": {
+          "dev": 34,
+          "ino": 114423,
+          "mode": "0o600",
+          "mtimeNs": 1791334519119453242,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/verify-physical.stdout.log",
+        "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+      }
+    },
+    {
+      "buildRecord": {
+        "bytes": 1329,
+        "metadata": {
+          "dev": 34,
+          "ino": 120464,
+          "mode": "0o600",
+          "mtimeNs": 1791334637423348761,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/build-result.json",
+        "sha256": "5818013d225b9d0e3709e0b27511531013861154db50675079e929f3fd4dac6b"
+      },
+      "phase": "sourcebuild and version",
+      "returncode": 0,
+      "scope": "Source-built Helm3.19.0 with Go1.26.8, not vendor release binary."
+    }
+  ],
+  "status": "Failures preserved; successful tool build separate"
+}

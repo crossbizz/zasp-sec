@@ -1,0 +1,16 @@
+{
+	"Path": "helm.sh/helm/v3",
+	"Version": "v3.19.0",
+	"Info": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/module-cache/cache/download/helm.sh/helm/v3/@v/v3.19.0.info",
+	"GoMod": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/module-cache/cache/download/helm.sh/helm/v3/@v/v3.19.0.mod",
+	"Zip": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/module-cache/cache/download/helm.sh/helm/v3/@v/v3.19.0.zip",
+	"Dir": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/module-cache/helm.sh/helm/v3@v3.19.0",
+	"Sum": "h1:krVyCGa8fa/wzTZgqw0DUiXuRT5BPdeqE/sQXujQ22k=",
+	"GoModSum": "h1:Lk/SfzN0w3a3C3o+TdAKrLwJ0wcZ//t1/SDXAvfgDdc=",
+	"Origin": {
+		"VCS": "git",
+		"URL": "https://github.com/helm/helm",
+		"Hash": "3d8990f0836691f0229297773f3524598f46bda6",
+		"Ref": "refs/tags/v3.19.0"
+	}
+}

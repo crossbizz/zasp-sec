@@ -1,0 +1,143 @@
+{
+  "cleanup": [
+    {
+      "normalJoined": true,
+      "phase": "actual-original-test",
+      "pid": 41795,
+      "pidAbsent": true,
+      "returncode": 0
+    },
+    {
+      "normalJoined": true,
+      "phase": "temporal",
+      "pid": 41763,
+      "pidAbsent": true,
+      "returncode": 0
+    },
+    {
+      "normalJoined": true,
+      "phase": "update-visibility",
+      "pid": 41745,
+      "pidAbsent": true,
+      "returncode": 0
+    },
+    {
+      "normalJoined": true,
+      "phase": "setup-visibility",
+      "pid": 41736,
+      "pidAbsent": true,
+      "returncode": 0
+    },
+    {
+      "normalJoined": true,
+      "phase": "update-temporal",
+      "pid": 41728,
+      "pidAbsent": true,
+      "returncode": 0
+    },
+    {
+      "normalJoined": true,
+      "phase": "setup-temporal",
+      "pid": 41720,
+      "pidAbsent": true,
+      "returncode": 0
+    },
+    {
+      "normalJoined": true,
+      "phase": "owned-databases",
+      "pid": 41718,
+      "pidAbsent": true,
+      "returncode": 0
+    },
+    {
+      "normalJoined": true,
+      "phase": "postgres",
+      "pid": 41708,
+      "pidAbsent": true,
+      "returncode": 0
+    },
+    {
+      "normalJoined": true,
+      "phase": "initdb",
+      "pid": 41691,
+      "pidAbsent": true,
+      "returncode": 0
+    }
+  ],
+  "elapsedSeconds": 8.375510204999955,
+  "failureClass": "PortAbsenceRefusal",
+  "forcedCleanup": false,
+  "portsBindable": {
+    "54391": true,
+    "6933": true,
+    "6934": true,
+    "6935": true,
+    "6939": false,
+    "7233": true,
+    "7234": true,
+    "7235": true,
+    "7239": true,
+    "9090": true
+  },
+  "records": [
+    {
+      "elapsedSeconds": 0.7273796080007742,
+      "normalJoined": true,
+      "phase": "initdb",
+      "pid": 41691,
+      "returncode": 0,
+      "startTicks": "1265546"
+    },
+    {
+      "elapsedSeconds": 0.10365374200046062,
+      "normalJoined": true,
+      "phase": "owned-databases",
+      "pid": 41718,
+      "returncode": 0,
+      "startTicks": "1265630"
+    },
+    {
+      "elapsedSeconds": 0.10196993399949861,
+      "normalJoined": true,
+      "phase": "setup-temporal",
+      "pid": 41720,
+      "returncode": 0,
+      "startTicks": "1265640"
+    },
+    {
+      "elapsedSeconds": 0.23294633299883571,
+      "normalJoined": true,
+      "phase": "update-temporal",
+      "pid": 41728,
+      "returncode": 0,
+      "startTicks": "1265651"
+    },
+    {
+      "elapsedSeconds": 0.10490694700092718,
+      "normalJoined": true,
+      "phase": "setup-visibility",
+      "pid": 41736,
+      "returncode": 0,
+      "startTicks": "1265674"
+    },
+    {
+      "elapsedSeconds": 0.2562469599997712,
+      "normalJoined": true,
+      "phase": "update-visibility",
+      "pid": 41745,
+      "returncode": 0,
+      "startTicks": "1265684"
+    },
+    {
+      "elapsedSeconds": 4.043278967001243,
+      "normalJoined": true,
+      "phase": "actual-original-test",
+      "pid": 41795,
+      "returncode": 0,
+      "startTicks": "1265733"
+    }
+  ],
+  "scope": "Original real-app cleanup continuation test with controlled Product only; no full API/production/provider acceptance.",
+  "sourceUnchanged": true,
+  "status": "FAILED"
+}

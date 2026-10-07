@@ -1,0 +1,397 @@
+{
+  "format": "Helm319-small-source-built-tooling-selection-v1",
+  "members": [
+    {
+      "copy": {
+        "bytes": 1776,
+        "metadata": {
+          "dev": 34,
+          "ino": 129279,
+          "mode": "0o600",
+          "mtimeNs": 1791334770129579005,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/admitted-tool-manifest.json",
+        "sha256": "4e802cdf46fd1130c48ec8f47ae2c12890df1f70699e8a774725c0f1642e956c"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 1776,
+        "metadata": {
+          "dev": 34,
+          "ino": 120469,
+          "mode": "0o400",
+          "mtimeNs": 1791334661554350492,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/admitted-tool-manifest.json",
+        "sha256": "4e802cdf46fd1130c48ec8f47ae2c12890df1f70699e8a774725c0f1642e956c"
+      },
+      "relativePath": "admitted-tool-manifest.json"
+    },
+    {
+      "copy": {
+        "bytes": 1329,
+        "metadata": {
+          "dev": 34,
+          "ino": 129280,
+          "mode": "0o600",
+          "mtimeNs": 1791334770129718616,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/build-result.json",
+        "sha256": "5818013d225b9d0e3709e0b27511531013861154db50675079e929f3fd4dac6b"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 1329,
+        "metadata": {
+          "dev": 34,
+          "ino": 120464,
+          "mode": "0o600",
+          "mtimeNs": 1791334637423348761,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/build-result.json",
+        "sha256": "5818013d225b9d0e3709e0b27511531013861154db50675079e929f3fd4dac6b"
+      },
+      "relativePath": "build-result.json"
+    },
+    {
+      "copy": {
+        "bytes": 709,
+        "metadata": {
+          "dev": 34,
+          "ino": 129281,
+          "mode": "0o600",
+          "mtimeNs": 1791334770129765117,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/source-admission.json",
+        "sha256": "d2f43d32ddfdb77b96e70faee9f695b48c24733cc30960f210a294bf9e10a23a"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 709,
+        "metadata": {
+          "dev": 34,
+          "ino": 82200,
+          "mode": "0o400",
+          "mtimeNs": 1791334340819620533,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/source-admission.json",
+        "sha256": "d2f43d32ddfdb77b96e70faee9f695b48c24733cc30960f210a294bf9e10a23a"
+      },
+      "relativePath": "source-admission.json"
+    },
+    {
+      "copy": {
+        "bytes": 349,
+        "metadata": {
+          "dev": 34,
+          "ino": 129282,
+          "mode": "0o600",
+          "mtimeNs": 1791334770129802633,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/official-sumdb-lookup.txt",
+        "sha256": "6e050f25d38c40787e136d1d1a808aa15caa5d7283ef4da63f0092b21b216664"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 349,
+        "metadata": {
+          "dev": 34,
+          "ino": 78713,
+          "mode": "0o600",
+          "mtimeNs": 1791334289993250648,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/official-sumdb-lookup.txt",
+        "sha256": "6e050f25d38c40787e136d1d1a808aa15caa5d7283ef4da63f0092b21b216664"
+      },
+      "relativePath": "official-sumdb-lookup.txt"
+    },
+    {
+      "copy": {
+        "bytes": 808,
+        "metadata": {
+          "dev": 34,
+          "ino": 129283,
+          "mode": "0o600",
+          "mtimeNs": 1791334770129843876,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/Go-module-admission.json",
+        "sha256": "e3a4b8d4204f7760bfc1f19b3462ac6564c4581d092cc18ed4ff951a9f6d9b4b"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 808,
+        "metadata": {
+          "dev": 34,
+          "ino": 82201,
+          "mode": "0o600",
+          "mtimeNs": 1791334367500553588,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/Go-module-admission.stdout.json",
+        "sha256": "e3a4b8d4204f7760bfc1f19b3462ac6564c4581d092cc18ed4ff951a9f6d9b4b"
+      },
+      "relativePath": "Go-module-admission.json"
+    },
+    {
+      "copy": {
+        "bytes": 176,
+        "metadata": {
+          "dev": 34,
+          "ino": 129284,
+          "mode": "0o600",
+          "mtimeNs": 1791334770129906651,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/original-release-checksum-fetch-refusal.json",
+        "sha256": "16fdac1f9966ab44208545d78229fb690c46d334034cbe80cc63921a5b54411f"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 176,
+        "metadata": {
+          "dev": 34,
+          "ino": 78699,
+          "mode": "0o600",
+          "mtimeNs": 1791334214039090406,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/download-record.json",
+        "sha256": "16fdac1f9966ab44208545d78229fb690c46d334034cbe80cc63921a5b54411f"
+      },
+      "relativePath": "original-release-checksum-fetch-refusal.json"
+    },
+    {
+      "copy": {
+        "bytes": 199,
+        "metadata": {
+          "dev": 34,
+          "ino": 129285,
+          "mode": "0o600",
+          "mtimeNs": 1791334770129951318,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/original-proxy-dependency-refusal.json",
+        "sha256": "7df1dedd02f565efa9b6c48c47f6a2a743444c8b917f4b3462561eddf718e681"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 199,
+        "metadata": {
+          "dev": 34,
+          "ino": 91448,
+          "mode": "0o600",
+          "mtimeNs": 1791334437435086128,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/dependency-download-result.json",
+        "sha256": "7df1dedd02f565efa9b6c48c47f6a2a743444c8b917f4b3462561eddf718e681"
+      },
+      "relativePath": "original-proxy-dependency-refusal.json"
+    },
+    {
+      "copy": {
+        "bytes": 129,
+        "metadata": {
+          "dev": 34,
+          "ino": 129286,
+          "mode": "0o600",
+          "mtimeNs": 1791334770129986291,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/ordinary-official-direct-dependency-result.json",
+        "sha256": "13b603acfb813a8e087f364951f737024dd618d6ab2dbfe70349064d761537cc"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 129,
+        "metadata": {
+          "dev": 34,
+          "ino": 91985,
+          "mode": "0o600",
+          "mtimeNs": 1791334476797447290,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/compress-direct-result.json",
+        "sha256": "13b603acfb813a8e087f364951f737024dd618d6ab2dbfe70349064d761537cc"
+      },
+      "relativePath": "ordinary-official-direct-dependency-result.json"
+    },
+    {
+      "copy": {
+        "bytes": 21,
+        "metadata": {
+          "dev": 34,
+          "ino": 129287,
+          "mode": "0o600",
+          "mtimeNs": 1791334770130019792,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/final-module-verification.log",
+        "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 21,
+        "metadata": {
+          "dev": 34,
+          "ino": 114423,
+          "mode": "0o600",
+          "mtimeNs": 1791334519119453242,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/verify-physical.stdout.log",
+        "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+      },
+      "relativePath": "final-module-verification.log"
+    },
+    {
+      "copy": {
+        "bytes": 1065,
+        "metadata": {
+          "dev": 34,
+          "ino": 129288,
+          "mode": "0o600",
+          "mtimeNs": 1791334770130057289,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/independent-lightweight-tool-review.json",
+        "sha256": "0fb5c19e3f7c0a856283a31374f3685f65c692c78c2cfbfd67e4b9c85b503fd3"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 1065,
+        "metadata": {
+          "dev": 34,
+          "ino": 129088,
+          "mode": "0o600",
+          "mtimeNs": 1791334704194820152,
+          "nlink": 1
+        },
+        "path": "/tmp/restart-independent-j73g1s1l/helm-source-built-lightweight-tool-review.json",
+        "sha256": "0fb5c19e3f7c0a856283a31374f3685f65c692c78c2cfbfd67e4b9c85b503fd3"
+      },
+      "relativePath": "independent-lightweight-tool-review.json"
+    },
+    {
+      "copy": {
+        "bytes": 6075,
+        "metadata": {
+          "dev": 34,
+          "ino": 129289,
+          "mode": "0o600",
+          "mtimeNs": 1791334770130388590,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/failure-chronology.json",
+        "sha256": "d8b2469d8f92bb1063cc8cf7867749d927504469ff0dfaadfea0e7f1e2925a0d"
+      },
+      "encoding": "new-safe-scalar-chronology",
+      "relativePath": "failure-chronology.json"
+    },
+    {
+      "copy": {
+        "bytes": 1533,
+        "metadata": {
+          "dev": 34,
+          "ino": 129290,
+          "mode": "0o600",
+          "mtimeNs": 1791334770130429522,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/README.md",
+        "sha256": "e8428f0d492fba24aaaf26e3abc7d0c3fe8b248247565aa9c2872b053aef5322"
+      },
+      "encoding": "new-scope-only",
+      "relativePath": "README.md"
+    }
+  ],
+  "omissions": [
+    {
+      "identity": {
+        "bytes": 60915874,
+        "metadata": {
+          "dev": 34,
+          "ino": 120461,
+          "mode": "0o700",
+          "mtimeNs": 1791334637251638470,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/helm",
+        "sha256": "7bb647ba5a84f762ddd0945541c0cf3dd4a159066b705ccfd5a3fb635f2b5509"
+      },
+      "reason": "Binary/fullmodulemap/rawnetwork log or referenced upstream provenance retained privately; no copy."
+    },
+    {
+      "identity": {
+        "bytes": 13245,
+        "metadata": {
+          "dev": 34,
+          "ino": 91990,
+          "mode": "0o600",
+          "mtimeNs": 1791334510831401035,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/physical-module-expansion-plan.json",
+        "sha256": "470e48918629b006d34fcbef6e5d31e18f7842cb3ab35187417bf7d07d1c20ea"
+      },
+      "reason": "Binary/fullmodulemap/rawnetwork log or referenced upstream provenance retained privately; no copy."
+    },
+    {
+      "identity": {
+        "bytes": 648,
+        "metadata": {
+          "dev": 34,
+          "ino": 84043,
+          "mode": "0o600",
+          "mtimeNs": 1791334437410618072,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/dependency-download.private.log",
+        "sha256": "66ad0308e4138d877691b921af78a459e4c4d250086011fb807061bcc991a650"
+      },
+      "reason": "Binary/fullmodulemap/rawnetwork log or referenced upstream provenance retained privately; no copy."
+    },
+    {
+      "identity": {
+        "bytes": 19052,
+        "metadata": {
+          "dev": 34,
+          "ino": 91987,
+          "mode": "0o600",
+          "mtimeNs": 1791334486810497422,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/module-verify-final.stderr.log",
+        "sha256": "11e9b2a4b9e9cbd850e645b0616365aa7f69ef71c813751b38de78939ca6604c"
+      },
+      "reason": "Binary/fullmodulemap/rawnetwork log or referenced upstream provenance retained privately; no copy."
+    },
+    {
+      "identity": {
+        "bytes": 2619,
+        "metadata": {
+          "dev": 34,
+          "ino": 114428,
+          "mode": "0o600",
+          "mtimeNs": 1791334546967898678,
+          "nlink": 1
+        },
+        "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/official-annotated-tag.json",
+        "sha256": "80c59e20c75a5839fbc3df87274c53b99290628d0acd0bfd12d3b7df225be9dc"
+      },
+      "reason": "Binary/fullmodulemap/rawnetwork log or referenced upstream provenance retained privately; no copy."
+    }
+  ],
+  "scanner": "NOT_RUN",
+  "scope": "Source-built tool prerequisite; independent tool byte review narrower than producer checksum/source admission; UItests/runtime/deployment results separate.",
+  "status": "PRIVATE-PUBLICATION-CANDIDATE"
+}

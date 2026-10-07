@@ -1,0 +1,100 @@
+{
+  "actualHTTPStatuses": [
+    {
+      "httpStatus": 200,
+      "method": "POST",
+      "pathKind": "organization-create"
+    },
+    {
+      "httpStatus": 200,
+      "method": "POST",
+      "pathKind": "password"
+    },
+    {
+      "httpStatus": 200,
+      "method": "POST",
+      "pathKind": "password"
+    },
+    {
+      "httpStatus": 200,
+      "method": "DELETE",
+      "pathKind": "owned-organization"
+    },
+    {
+      "httpStatus": 404,
+      "method": "GET",
+      "pathKind": "owned-organization"
+    }
+  ],
+  "elapsedSeconds": 2.2203491020009096,
+  "forced": false,
+  "format": "independent-real-Stytch-owned-TEST-result-custody-review-v1",
+  "journalReview": {
+    "bodyCopied": false,
+    "bytes": 1305,
+    "deleteAcknowledgmentIDMatch": true,
+    "finalAbsent": true,
+    "intentNameSlugMarkerMatch": true,
+    "sha256": "cf6d350c958f9c08224722be5b8caacebe172acb7d524aaa017b9ecd75f2dbfd",
+    "singleOwnedTESTID": true,
+    "states": [
+      "START",
+      "CREATE_INTENT",
+      "OWNED",
+      "DELETE_ACK",
+      "FINAL"
+    ]
+  },
+  "normalParentJoin": true,
+  "observedUTC": "2026-10-07T00:38:06.567419+00:00",
+  "originals": [
+    {
+      "bytes": 854,
+      "path": "/tmp/zasp-cloud-evidence/stytch-actual-owned-parent-dps02a8n/parent-result.json",
+      "sha256": "6e4d464547a0d64fb70c21c5b939207499e22fda93b2716562e7dc429580c27c",
+      "sourceMetadata": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 59936,
+        "mode": "0o600",
+        "mtimeNs": 1791333353902856496,
+        "nlink": 1,
+        "uid": 1000
+      }
+    },
+    {
+      "bytes": 844,
+      "path": "/tmp/zasp-stytch-disposable-1e3bed00-7eae-49f4-995c-afb272b6982e/result.json",
+      "sha256": "be9f494cd04f3cbcca57adc6a277fb54c675d369ca2bfbca871796688cfc02ff",
+      "sourceMetadata": {
+        "dev": 34,
+        "gid": 1000,
+        "ino": 59935,
+        "mode": "0o600",
+        "mtimeNs": 1791333353843427151,
+        "nlink": 1,
+        "uid": 1000
+      }
+    }
+  ],
+  "outerTimedOut": false,
+  "processObservation": {
+    "nodePIDSource": "numeric Node warning prefix",
+    "numericPIDAbsentNow": {
+      "32580": true
+    },
+    "parentPID": 32580,
+    "parentStartTicksRecorded": "1206723",
+    "scope": "Direct recorded parent and warning-emitting Node process absent; no invented descendant registry."
+  },
+  "scanner": "NOT_RUN",
+  "scope": "Real TEST-only owned disposable organization, synthetic migrated member/password authentication/session response, owned DELETE200 and subsequent GET404. No messages or retained configuration writes; no email ownership, SSO/OAuth, product API session or production acceptance. No remote requests by reviewer.",
+  "sourceSHA256": "6558e13100d68e3c565cacc8885a8e7088e5070847175c44784a0dc07ac40e21",
+  "status": "PASS-SCOPED-REAL-TEST-PASSWORD-SESSION-AND-OWNED-CLEANUP",
+  "stderr": {
+    "bodyCopied": false,
+    "bytes": 178,
+    "classification": "Installed undici EnvHttpProxyAgent UNDICI-EHPA experimental warning plus Node trace-warnings hint only; not TLS-disabled warning or proof failure.",
+    "sha256": "46e08ca7b65c2a11c5637f113cc21ad8b1a519856ec76c2915ad5181ca7be993"
+  }
+}
