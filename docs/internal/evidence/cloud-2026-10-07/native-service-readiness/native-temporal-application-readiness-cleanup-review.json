@@ -1,0 +1,102 @@
+{
+  "outcome": "PASS scoped actual native PostgreSQL Temporal namespace/current application library readiness and normal direct-service cleanup",
+  "checks": {
+    "schemaRegularFiles": 83,
+    "schemaBytes": 88278,
+    "schemaFileSHA256Matches": 83,
+    "helperSourceAndBinaryHashes": true,
+    "currentLibrarySourcePins": true,
+    "namespaceServiceInfoRegisterDescribe": true,
+    "wrongNamespaceRefused": true,
+    "applicationLoadConnectReady": true,
+    "absentNamespaceRefused": true,
+    "retryNormalJoined": true,
+    "retryServerReturncode": 0,
+    "retryElapsedSeconds": 11.068695921001563,
+    "originalOwnerExpiredNormallyPreserved": true,
+    "originalApplicationAdapterFailedPreserved": true,
+    "nativeFGAAndPGNormalJoined": true,
+    "directLeaderAbsenceFreshReadonly": true
+  },
+  "scopeLimits": [
+    "Existing application library Load/Connect/Ready only: DescribeNamespace plus authenticated ReadAuthorizationModel. No workflow execution, worker consumption, complete API, provider, deployed or ledger promotion.",
+    "83 schema hashes independently checked against retained intake; immutable commit archive origin is producer evidence, not independently reconstructed Git ancestry.",
+    "Native Temporal1.32 with PostgreSQL12 schema on native PG18.3; separate execution and visibility setup/update commands all six recorded normal0. No SQLite substitute.",
+    "No mTLS handshake claim: current readiness helper uses loopback plain Temporal connection and authenticated loopback FGA.",
+    "Original adapter failure after normal 240s owner expiry retained; retry uses same compiled helper and DB, fresh owner normal shutdown11.0687s.",
+    "Cleanup proves direct leaders absent and producer-observed listener absence; no global escaped-descendant census inferred. Parent outer terminal observations remain parent observations.",
+    "No independently complete Go compiler/transitive module/tool lifetime closure attestation. No services or secrets read/rerun during this review."
+  ],
+  "evidence": [
+    {
+      "path": "/tmp/zasp-temporal132-schema-intake/schema-intake.json",
+      "sha256": "607b1ebbe9fa9305261eedaf5673f5da02919d574ecc13b9b550f337a43c4a98",
+      "bytes": 27196
+    },
+    {
+      "path": "/tmp/zasp-temporal132-pg-qafobrl1/preparation.json",
+      "sha256": "4a0f5feacc87c01f643608fb39aea2ca1146df50539d239800751cce6c1b9340",
+      "bytes": 1564
+    },
+    {
+      "path": "/tmp/zasp-temporal132-pg-qafobrl1/namespace-handshake-result.json",
+      "sha256": "259d131e4457ca76d08e4f0298a34f197e2b06118f68a696c95cf28af4a6a4de",
+      "bytes": 539
+    },
+    {
+      "path": "/tmp/zasp-temporal132-pg-qafobrl1/namespace-handshake.stdout.json",
+      "sha256": "8ecba719a490594bfe46b0a3691aa19bc4c36710b2f18caa22176938d98d2b8a",
+      "bytes": 431
+    },
+    {
+      "path": "/tmp/zasp-temporal132-pg-qafobrl1/application-adapter-result.json",
+      "sha256": "cd10f65f344998d13f957743960a492846658ba844387bd9ccfb9e2fe19b2795",
+      "bytes": 792
+    },
+    {
+      "path": "/tmp/zasp-temporal132-pg-qafobrl1/result.json",
+      "sha256": "c00f316160fb788f8367c1ee61f2cd640e17f024096ce1b894b5a15609b03eca",
+      "bytes": 535
+    },
+    {
+      "path": "/tmp/zasp-temporal132-pg-qafobrl1/adapter-failure-readonly-diagnostic.json",
+      "sha256": "435927b7d44e05a9e9a950f55de8f3fa432f167d11b0221fc40348cabdf32b43",
+      "bytes": 740
+    },
+    {
+      "path": "/tmp/zasp-temporal132-adapter-retry-kutanvix/application-adapter-result.json",
+      "sha256": "76ba4db34b4978d26863a065bcf7829b386d977b315e49dd1ef177e5e7492d4b",
+      "bytes": 799
+    },
+    {
+      "path": "/tmp/zasp-temporal132-adapter-retry-kutanvix/application-adapter.stdout.json",
+      "sha256": "a281ae226ad6f3c4e0131ee7d85e770e1df1a52b981d213a6d764b3bc3b00b4d",
+      "bytes": 380
+    },
+    {
+      "path": "/tmp/zasp-temporal132-adapter-retry-kutanvix/result.json",
+      "sha256": "d4b121ac5f6322ec0d065fb9b0b374eacd5cb0da63f836a9e55ee55c96df34aa",
+      "bytes": 536
+    },
+    {
+      "path": "/tmp/zasp-temporal132-adapter-retry-kutanvix/cleanup-proof.json",
+      "sha256": "1fc31a830b1691f3f572289c881db599e848ff9fcdb89f37011912514b73bc3c",
+      "bytes": 886
+    },
+    {
+      "path": "/tmp/zasp-temporal132-adapter-retry-kutanvix/retry-provenance.json",
+      "sha256": "29d0ccec2fa6ec60211be4c49aa7c36dee65088cedfdc37bb145bfb20386caf9",
+      "bytes": 555
+    },
+    {
+      "path": "/tmp/zr-0f0e298d0e/service-final.json",
+      "sha256": "5e2e34e5f0e054c87642ca829cd614ac90f942544bad94bbb064bd508b39030a",
+      "bytes": 675
+    },
+    {
+      "path": "/tmp/zr-0f0e298d0e/normal-service-cleanup-proof.json",
+      "sha256": "0095e149846fd5482f560568bffa6fe354a9d76b173a654a281496b9e6e060ff",
+      "bytes": 1523
+    }
+  ]
+}

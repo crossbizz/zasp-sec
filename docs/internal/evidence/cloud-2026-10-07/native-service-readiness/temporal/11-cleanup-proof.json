@@ -1,0 +1,30 @@
+{
+  "binding": {
+    "exe": "/tmp/zasp-native-supported-tools-h0zqa978/temporal-server-complete/temporal-server",
+    "pid": 26704,
+    "port": 7233,
+    "socketInode": "33762",
+    "startTicks": "1039637"
+  },
+  "forcedCleanup": false,
+  "format": "owned-Temporal132-adapter-normal-cleanup-proof-v1",
+  "liveGroupRemaining": [],
+  "loopbackPortsConnected": {
+    "54389": true,
+    "6933": false,
+    "6934": false,
+    "6935": false,
+    "6939": false,
+    "7233": false,
+    "7234": false,
+    "7235": false,
+    "7239": false,
+    "8088": true,
+    "9090": false
+  },
+  "normalOwnerResultSHA256": "d4b121ac5f6322ec0d065fb9b0b374eacd5cb0da63f836a9e55ee55c96df34aa",
+  "observedMonotonicNs": 10415392987520,
+  "pidPresent": false,
+  "scope": "Actual Temporal owner normalwait/group/ports cleanup; PG/FGA stillalive for coordinated separateownerstop.",
+  "serverNormalReturncode": 0
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "path": "usr/share/postgresql/postgresql.conf.sample",
+    "bytes": 32506,
+    "sha256": "135e3eb04e8b313897bd16d70778486114f768e0babf16609b8870c25aade243"
+  },
+  {
+    "path": "usr/share/postgresql/postgresql.conf.sample.dpkg",
+    "bytes": 32552,
+    "sha256": "e3d4f068cf76efd433d966550766f7e0dc528fa284039c6f8c472186d25bb610"
+  }
+]

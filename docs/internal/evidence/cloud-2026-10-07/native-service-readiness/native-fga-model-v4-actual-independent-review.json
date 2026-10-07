@@ -1,0 +1,86 @@
+{
+  "outcome": "PASS actual scopednativeFGA applicationmodel tests; servicecleanup pending",
+  "actualResult": {
+    "returncode": 0,
+    "elapsedSeconds": 1.417628531000446,
+    "pid": 26140,
+    "joined": true,
+    "binarySHA256": "793326b590dd60bf867dfe4343802be03aa86f32b5be746a3e62ad22646c9cf7",
+    "logSHA256": "2716f3bbe0a7e4ea9159b0d0fd83b9fe5a94e67b26b0b15881d764bbd22245f0",
+    "scope": "Actual native ownedFGA fullknownmodel default-equivalent bootstrap and original93matrix"
+  },
+  "topPassNames": [
+    "TestLocalPermissionModel",
+    "TestOwnedNativeProductBootstrap",
+    "TestOwnedNativeEndpointClosure",
+    "TestOwnedNativeModelDefaultEquivalence"
+  ],
+  "negativeSubcases": [
+    "TestOwnedNativeModelDefaultEquivalence/relation",
+    "TestOwnedNativeModelDefaultEquivalence/condition",
+    "TestOwnedNativeModelDefaultEquivalence/schema",
+    "TestOwnedNativeModelDefaultEquivalence/userset-presence",
+    "TestOwnedNativeModelDefaultEquivalence/extra-relation",
+    "TestOwnedNativeModelDefaultEquivalence/nondefault-object"
+  ],
+  "originalApplicationPermissionChecks": 93,
+  "permissionScope": [
+    "six approvedroles",
+    "tenant/org/workspace/environment isolation",
+    "direct resourcegrants",
+    "task-bound agent/service delegation",
+    "independent revocation",
+    "membership removal"
+  ],
+  "model": {
+    "sourceSHA256": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
+    "types": 8,
+    "relations": 61,
+    "conditions": 1,
+    "returnedIDEqualsWrittenID": true,
+    "knownCompleteTypedProjectionEquivalent": true,
+    "rawByteIdentity": false,
+    "requestBytes": 12465,
+    "readBytes": 16020,
+    "onlyExplicitEmptyDefaults": "nilstringpointer/emptystring and nilpointermap/slice/emptycollections; no nilstructcollapse or nonempty association removal"
+  },
+  "artifact": {
+    "binary": "/tmp/zasp-native-supported-tools-h0zqa978/native-sdk-v4.test",
+    "bytes": 68728536,
+    "sha256": "793326b590dd60bf867dfe4343802be03aa86f32b5be746a3e62ad22646c9cf7",
+    "source": "/tmp/zasp-native-supported-tools-h0zqa978/native_model_integration_v4_test.go",
+    "sourceSHA256": "3cc6cd01c07900467894ea345591faeb614764c92248cd2c779a2d2d343ff301",
+    "scope": "Compileartifactonly testsnotyetexecuted"
+  },
+  "artifactFullstreamIndependentVerified": true,
+  "toolEvidence": {
+    "FGAExecutableSHA256": "1071466abb2f9f71ecc4a047ff6537215756940edd404feb1e3ce0d4f854fd5a",
+    "FGAExecutableFullstreamMatchesRetainedOfficialManifest": true,
+    "postgres18.3StartupObserved": true,
+    "selectedPG6filesAnd5wrappersIndependentlyHashVerified": true,
+    "selectedPGReviewSHA256": "20e01e5ea897c2f74be4d4a5993f076a56483752bb0517076cb43ee2e966d299",
+    "supervisorV6SHA256": "63f5878a3a80c9f30cf971a00972a37468ac73224b75db89838d1cae12314f67"
+  },
+  "failureHistory": [
+    {
+      "version": "V2",
+      "returncode": 1,
+      "reason": "wholemodel serializedbytecomparison12465vs16020",
+      "logSHA256": "74d60c9864f6155ba81f0c18fd65ca01381af2a4ba1c8b0f4a10e968a5d6193f"
+    },
+    {
+      "version": "V3",
+      "returncode": 1,
+      "reason": "scalar/defaultcontrolsPASS but wholemodel still refused pointercollectionempty defaults",
+      "logSHA256": "62e9dee6c42966dd62aa2a076b0f79e3bd1e5fafe16bcf47a53cad7f7c452240"
+    }
+  ],
+  "limits": [
+    "RawSDKresponse unknownfields notauthenticated; currenttypedknownmodel only",
+    "Entire consumedcompiledsource/moduleclosure not independently inventoried bythisreview; actualsourceoverlay/artifacthash bound separately",
+    "ActualPG18.3/FGA1.21 diagnostic, not docPG17.7 or orderednative379 evidence",
+    "Services remainactive for separate Temporalcombinedprobe; no finalcleanup/no allsurvivors absent claim yet",
+    "No complete productAPI/workers/provider/hosted/deployed/full728 promotion",
+    "Originalinitdb/image-library/share failures retained separately, not erased by thisSDKsuccess"
+  ]
+}

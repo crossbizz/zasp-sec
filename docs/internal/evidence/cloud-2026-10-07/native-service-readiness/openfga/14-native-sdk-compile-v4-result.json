@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "test",
+    "-mod=readonly",
+    "-race",
+    "-c",
+    "-overlay",
+    "/tmp/zasp-native-supported-tools-h0zqa978/native-model-overlay-v3.json",
+    "-o",
+    "/tmp/zasp-native-supported-tools-h0zqa978/native-sdk-v3.test",
+    "./authorization"
+  ],
+  "returncode": 0,
+  "elapsedSeconds": 3.8105860329997086,
+  "refusal": null,
+  "scope": "Incrementalprivatecomparator compileonly"
+}

@@ -1,0 +1,21 @@
+{
+  "results": [
+    {
+      "case": "health",
+      "status": 200,
+      "elapsedSeconds": 0.0035948629993072245
+    },
+    {
+      "case": "missing-auth",
+      "status": 401,
+      "elapsedSeconds": 0.0009174779988825321
+    },
+    {
+      "case": "wrong-auth",
+      "status": 401,
+      "elapsedSeconds": 0.0007102939998731017
+    }
+  ],
+  "accepted": true,
+  "scope": "Actual publicAPI auth boundary; no body/header/tokenpublication"
+}

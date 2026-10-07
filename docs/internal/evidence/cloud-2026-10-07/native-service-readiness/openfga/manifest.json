@@ -1,0 +1,237 @@
+{
+  "scope": "Selected private native-model93 source/actualscalarproof only; no fullAPI/SQLregistration/native379/deploymentacceptance",
+  "members": [
+    {
+      "member": "00-native-runtime-reproducibility.md",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/native-runtime-reproducibility.md",
+      "bytes": 3105,
+      "sha256": "161c3677efa0a471570e637e3040bf35d5d749c4e2a3ff133d1920e95dbb16e4",
+      "mode": "0400"
+    },
+    {
+      "member": "01-native_model_integration_v2_test.go",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/native_model_integration_v2_test.go",
+      "bytes": 13798,
+      "sha256": "b51ebb43f6207dce21582e82dd69ce19d7340a413294fe661b436d7e220e4e63",
+      "mode": "0400"
+    },
+    {
+      "member": "02-native_model_integration_v3_test.go",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/native_model_integration_v3_test.go",
+      "bytes": 16343,
+      "sha256": "48a50e4e5f73a499e0ab625c9e41e622959acfbd22c4699d08b59b286a1b6e5f",
+      "mode": "0400"
+    },
+    {
+      "member": "03-native_model_integration_v4_test.go",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/native_model_integration_v4_test.go",
+      "bytes": 17193,
+      "sha256": "3cc6cd01c07900467894ea345591faeb614764c92248cd2c779a2d2d343ff301",
+      "mode": "0400"
+    },
+    {
+      "member": "04-run-native-pg-fga-v4.py",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/run-native-pg-fga-v4.py",
+      "bytes": 8495,
+      "sha256": "54493fb4a13041ab360c47cfc7337261a72122b400cfb911c32eac83802fc65f",
+      "mode": "0400"
+    },
+    {
+      "member": "05-run-native-pg-fga-v5.py",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/run-native-pg-fga-v5.py",
+      "bytes": 8422,
+      "sha256": "9866aa6e714cfe0c9f3d5d391a2043867b7643c441a0eaac12d64ad151c59f1d",
+      "mode": "0400"
+    },
+    {
+      "member": "06-run-native-pg-fga-v6.py",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/run-native-pg-fga-v6.py",
+      "bytes": 8470,
+      "sha256": "63f5878a3a80c9f30cf971a00972a37468ac73224b75db89838d1cae12314f67",
+      "mode": "0400"
+    },
+    {
+      "member": "07-native-v4-pointer-default-schema-proof.json",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/native-v4-pointer-default-schema-proof.json",
+      "bytes": 738,
+      "sha256": "c9b6f0e1e6e4fd1736a8f191e69f9aa38cde1988dfeac7ce91e4c73f23b6a403",
+      "mode": "0400"
+    },
+    {
+      "member": "08-pg-wrapper-current-manifest.json",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/pg-wrapper-current-manifest.json",
+      "bytes": 1188,
+      "sha256": "977563c59c3bc1124657ae65f03ac806c10b71decf6d5e9721fb93637a5add29",
+      "mode": "0400"
+    },
+    {
+      "member": "09-pg-non-glibc-libs-manifest.json",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/pg-non-glibc-libs-manifest.json",
+      "bytes": 50102,
+      "sha256": "96642e82997ffd2caf2893a5ecc0116ad2aef6e982df2d929f3efda4e04f3474",
+      "mode": "0400"
+    },
+    {
+      "member": "10-PG18.3-share-completion-manifest.json",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/PG18.3-share-completion-manifest.json",
+      "bytes": 346,
+      "sha256": "6f16a6f71bc3edac1c64489c3bee144a810a830f817ed063c0730cc037f44087",
+      "mode": "0400"
+    },
+    {
+      "member": "11-installed-complete-manifest.json",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/installed-complete-manifest.json",
+      "bytes": 15822,
+      "sha256": "d4e593714fa432d3ae087b371056725d198607cd943c192724b97ade1f8ec501",
+      "mode": "0400"
+    },
+    {
+      "member": "12-PG18.3-image-export-receipt.json",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/PG18.3-image-export-receipt.json",
+      "bytes": 2171,
+      "sha256": "35cfda65ee78eb138d2da8d69d53a03514205017664861358449892fa45924a1",
+      "mode": "0400"
+    },
+    {
+      "member": "13-native-sdk-compile-v3-result.json",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/native-sdk-compile-v3-result.json",
+      "bytes": 460,
+      "sha256": "a0d5ec961fe36dd23a8d29c764fa7238685c7f12e4a580d7e676c2ecb83945b6",
+      "mode": "0400"
+    },
+    {
+      "member": "14-native-sdk-compile-v4-result.json",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/native-sdk-compile-v4-result.json",
+      "bytes": 442,
+      "sha256": "fae94854119ec2e8f4356ab024c4d3ea20dc0fc37adf3ed8700be9c01c000751",
+      "mode": "0400"
+    },
+    {
+      "member": "15-native-sdk-compile-v5-result.json",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/native-sdk-compile-v5-result.json",
+      "bytes": 456,
+      "sha256": "8480cd17772769a92f6a6ab98fb206b0faf68e41bbf8a5c82d176bbfe6a9fb86",
+      "mode": "0400"
+    },
+    {
+      "member": "16-native-sdk-v4-artifact.json",
+      "original": "/tmp/zasp-native-supported-tools-h0zqa978/native-sdk-v4-artifact.json",
+      "bytes": 413,
+      "sha256": "4a321196366b223aaaedbae584c3452492c50531024846961325500daf52de4c",
+      "mode": "0400"
+    },
+    {
+      "member": "17-native-product-matrix-result.json",
+      "original": "/tmp/zr-0f0e298d0e/native-product-matrix-result.json",
+      "bytes": 266,
+      "sha256": "9ccf539e029493f86599434d729460db2026a89f447189040241db8e4ac2721f",
+      "mode": "0400"
+    },
+    {
+      "member": "18-native-product-matrix-v3-result.json",
+      "original": "/tmp/zr-0f0e298d0e/native-product-matrix-v3-result.json",
+      "bytes": 395,
+      "sha256": "947a85898c2c5175376a6889a25f2e8e263e7a9553563a5080ae723e686a5160",
+      "mode": "0400"
+    },
+    {
+      "member": "19-native-product-matrix-v4-result.json",
+      "original": "/tmp/zr-0f0e298d0e/native-product-matrix-v4-result.json",
+      "bytes": 366,
+      "sha256": "dbfb30dc4def8c7e654f2463879cc4029c5a4db43249c019214f7b45e4fad9b7",
+      "mode": "0400"
+    },
+    {
+      "member": "20-native-product-matrix-v4-roster.json",
+      "original": "/tmp/zr-0f0e298d0e/native-product-matrix-v4-roster.json",
+      "bytes": 1006,
+      "sha256": "41f1b73537c2a368b49c213df42443275ff71264251ffe18a7cc2fb117d368fb",
+      "mode": "0400"
+    },
+    {
+      "member": "21-native-fga-auth-boundary.json",
+      "original": "/tmp/zr-0f0e298d0e/native-fga-auth-boundary.json",
+      "bytes": 442,
+      "sha256": "59ce9d6b99404221f54462a4d5cd24c9ba29533c3fa1fa16c2458cfd428312e8",
+      "mode": "0400"
+    },
+    {
+      "member": "22-typed-default-comparator-source-conservation.json",
+      "original": "/tmp/zr-0f0e298d0e/typed-default-comparator-source-conservation.json",
+      "bytes": 529,
+      "sha256": "ee99c1a1b9bad63ef6667ecc2b74bd4edb61b89491999a669fc851df4a7d6c9c",
+      "mode": "0400"
+    },
+    {
+      "member": "23-service-final.json",
+      "original": "/tmp/zr-0f0e298d0e/service-final.json",
+      "bytes": 675,
+      "sha256": "5e2e34e5f0e054c87642ca829cd614ac90f942544bad94bbb064bd508b39030a",
+      "mode": "0400"
+    },
+    {
+      "member": "24-normal-service-cleanup-proof.json",
+      "original": "/tmp/zr-0f0e298d0e/normal-service-cleanup-proof.json",
+      "bytes": 1523,
+      "sha256": "0095e149846fd5482f560568bffa6fe354a9d76b173a654a281496b9e6e060ff",
+      "mode": "0400"
+    }
+  ],
+  "omissions": [
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/native-sdk-v2.test",
+      "bytes": 68711396,
+      "sha256": "e089e9ecf52b763dace5d033c0f0d5a49aa6b1f8d75292e2a5cebdcbad651e0c",
+      "omissionReason": "Binary/largeprivateclosure/rawprivateobservations excluded from selectedsafe sourcepacket"
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/native-sdk-v3.test",
+      "bytes": 68726528,
+      "sha256": "f02acb4c5ef755d752ef7c220403fc70aa24e8da2e4b7b3d28a68bf9dd52dbf2",
+      "omissionReason": "Binary/largeprivateclosure/rawprivateobservations excluded from selectedsafe sourcepacket"
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/native-sdk-v4.test",
+      "bytes": 68728536,
+      "sha256": "793326b590dd60bf867dfe4343802be03aa86f32b5be746a3e62ad22646c9cf7",
+      "omissionReason": "Binary/largeprivateclosure/rawprivateobservations excluded from selectedsafe sourcepacket"
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/PG18.3-selected-tree.json",
+      "bytes": 849776,
+      "sha256": "6a3d6e75219985f907df1860e879a17507ce146a4355ccb12049fe2dda62f584",
+      "omissionReason": "Binary/largeprivateclosure/rawprivateobservations excluded from selectedsafe sourcepacket"
+    },
+    {
+      "path": "/tmp/zr-0f0e298d0e/native-product-matrix.log",
+      "bytes": 1168,
+      "sha256": "74d60c9864f6155ba81f0c18fd65ca01381af2a4ba1c8b0f4a10e968a5d6193f",
+      "omissionReason": "Binary/largeprivateclosure/rawprivateobservations excluded from selectedsafe sourcepacket"
+    },
+    {
+      "path": "/tmp/zr-0f0e298d0e/native-product-matrix-v3.log",
+      "bytes": 2086,
+      "sha256": "62e9dee6c42966dd62aa2a076b0f79e3bd1e5fafe16bcf47a53cad7f7c452240",
+      "omissionReason": "Binary/largeprivateclosure/rawprivateobservations excluded from selectedsafe sourcepacket"
+    },
+    {
+      "path": "/tmp/zr-0f0e298d0e/native-product-matrix-v4.log",
+      "bytes": 1957,
+      "sha256": "2716f3bbe0a7e4ea9159b0d0fd83b9fe5a94e67b26b0b15881d764bbd22245f0",
+      "omissionReason": "Binary/largeprivateclosure/rawprivateobservations excluded from selectedsafe sourcepacket"
+    },
+    {
+      "path": "/tmp/zr-0f0e298d0e/actual-permission-model-read-private.json",
+      "bytes": 17396,
+      "sha256": "6886008b956a33820613a3b42a9bebb1fa7eca404c10c747788f31bb0094fbe8",
+      "omissionReason": "Binary/largeprivateclosure/rawprivateobservations excluded from selectedsafe sourcepacket"
+    }
+  ],
+  "totalPayloadBytes": 153166,
+  "priorOrdinaryInitdbFailureRoots": [
+    "/tmp/zr-c50e39adb6",
+    "/tmp/zr-650ab49310",
+    "/tmp/zr-f04d76dc90"
+  ],
+  "scanStatus": "NOT_RUN"
+}

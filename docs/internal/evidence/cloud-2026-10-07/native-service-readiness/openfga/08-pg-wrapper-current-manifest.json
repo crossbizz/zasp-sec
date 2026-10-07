@@ -1,0 +1,35 @@
+{
+  "rows": [
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-bin/initdb",
+      "bytes": 319,
+      "sha256": "6b7f13f62055cff1d475534530f7232dd6a20dbc62f91f9e84b11e7321ab5ec9",
+      "mode": "0o700"
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-bin/pg_ctl",
+      "bytes": 319,
+      "sha256": "a0fab04cce75128b4ec12fc75bb8421ffde827b551f680511d1c96a1ad4f5350",
+      "mode": "0o700"
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-bin/pg_isready",
+      "bytes": 323,
+      "sha256": "14d3ed68b2e361e82ba996148175a01f85cfb60027c37a429ae0a230b8e103f2",
+      "mode": "0o700"
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-bin/postgres",
+      "bytes": 321,
+      "sha256": "ca7a08708ee099e5e802420938168d5cfe8a90e511242860081a1ec69c6c8b7a",
+      "mode": "0o700"
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-bin/psql",
+      "bytes": 317,
+      "sha256": "29eeb4207d56a359ab39f2269b22221e95d08d17688065468ecdd779dc411d91",
+      "mode": "0o700"
+    }
+  ],
+  "scope": "Current explicit nativeimage loader wrapper sourcebindings, no productPGversion acceptance"
+}

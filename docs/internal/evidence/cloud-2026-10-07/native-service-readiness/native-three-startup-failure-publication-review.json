@@ -1,0 +1,53 @@
+{
+  "outcome": "PASS three original startup-failure scalar records safe byte-preserving supplement",
+  "members": [
+    {
+      "path": "/tmp/zr-c50e39adb6/service-final.json",
+      "bytes": 299,
+      "sha256": "31e6bbda141da460488ec3fb8f7a698213b9afba1c2fbb1d9b69ece9ba40b99e",
+      "failureClass": "RuntimeError",
+      "phaseRecords": [
+        {
+          "phase": "initdb",
+          "returncode": 1,
+          "elapsedSeconds": 0.0014440449995163362
+        }
+      ],
+      "cleanupRecords": []
+    },
+    {
+      "path": "/tmp/zr-650ab49310/service-final.json",
+      "bytes": 298,
+      "sha256": "2f544dc94b2567c6fadba1ab8db2d6cbb603cff8d6ca92489df4c981cde6b94d",
+      "failureClass": "RuntimeError",
+      "phaseRecords": [
+        {
+          "phase": "initdb",
+          "returncode": 1,
+          "elapsedSeconds": 0.015787603999342537
+        }
+      ],
+      "cleanupRecords": []
+    },
+    {
+      "path": "/tmp/zr-f04d76dc90/service-final.json",
+      "bytes": 297,
+      "sha256": "b9fa56caaf8a5d192f63a4e06b85206a59bfbafb95beaace20306a48f322bede",
+      "failureClass": "RuntimeError",
+      "phaseRecords": [
+        {
+          "phase": "initdb",
+          "returncode": 1,
+          "elapsedSeconds": 0.01659279600062291
+        }
+      ],
+      "cleanupRecords": []
+    }
+  ],
+  "scope": [
+    "All three failed initdb setup before successful later native service start; original failures remain failures.",
+    "Only fixed failure classifications, status/timing/cleanup scalar fields; no credentials, configs, SQL data or raw error payloads in these originals.",
+    "Later successful source/model/readiness is separate evidence, not rewriting these failures.",
+    "Root actual assembled publication scan required; no security exception or whole API/native production clearance."
+  ]
+}

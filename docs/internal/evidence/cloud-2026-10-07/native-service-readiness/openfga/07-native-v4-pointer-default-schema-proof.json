@@ -1,0 +1,16 @@
+{
+  "scope": "PublicSDK schema source, pointercollection default mismatch sourcegrounded, original actualfailure retained",
+  "types": [
+    {
+      "path": "/home/agent/go/pkg/mod/github.com/openfga/go-sdk@v0.8.2/model_type_definition.go",
+      "sha256": "45a227e1cebea338a6d8820cce0d579e1c7aa4b7130c2cfeb306d14a68c7693e",
+      "declaration": "Relations *map[string]Userset"
+    },
+    {
+      "path": "/home/agent/go/pkg/mod/github.com/openfga/go-sdk@v0.8.2/model_relation_metadata.go",
+      "sha256": "31c7c9b67a9b243b7dc68619d77e93aed73089104e9d72c8d153c239a9b75acc",
+      "declaration": "DirectlyRelatedUserTypes *[]RelationReference"
+    }
+  ],
+  "v4SHA256": "3cc6cd01c07900467894ea345591faeb614764c92248cd2c779a2d2d343ff301"
+}

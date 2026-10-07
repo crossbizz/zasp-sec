@@ -1,0 +1,14 @@
+{
+  "failureClass": "RuntimeError",
+  "signals": [],
+  "renewals": 0,
+  "records": [
+    {
+      "phase": "initdb",
+      "returncode": 1,
+      "elapsedSeconds": 0.015787603999342537
+    }
+  ],
+  "cleanup": [],
+  "scope": "Owned service lifecycle only; actual SDK/domain test evidence separate"
+}

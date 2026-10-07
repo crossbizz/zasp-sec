@@ -1,0 +1,85 @@
+{
+  "excludedPrivateBodies": [
+    "private-temporal.yaml",
+    "server-private.log",
+    "password/token files"
+  ],
+  "format": "Temporal132-current-library-readiness-selected-safe-index-v1",
+  "members": [
+    {
+      "bytes": 27196,
+      "mode": "0o600",
+      "path": "/tmp/zasp-temporal132-schema-intake/schema-intake.json",
+      "sha256": "607b1ebbe9fa9305261eedaf5673f5da02919d574ecc13b9b550f337a43c4a98"
+    },
+    {
+      "bytes": 1564,
+      "mode": "0o600",
+      "path": "/tmp/zasp-temporal132-pg-qafobrl1/preparation.json",
+      "sha256": "4a0f5feacc87c01f643608fb39aea2ca1146df50539d239800751cce6c1b9340"
+    },
+    {
+      "bytes": 539,
+      "mode": "0o600",
+      "path": "/tmp/zasp-temporal132-pg-qafobrl1/namespace-handshake-result.json",
+      "sha256": "259d131e4457ca76d08e4f0298a34f197e2b06118f68a696c95cf28af4a6a4de"
+    },
+    {
+      "bytes": 792,
+      "mode": "0o600",
+      "path": "/tmp/zasp-temporal132-pg-qafobrl1/application-adapter-result.json",
+      "sha256": "cd10f65f344998d13f957743960a492846658ba844387bd9ccfb9e2fe19b2795"
+    },
+    {
+      "bytes": 740,
+      "mode": "0o600",
+      "path": "/tmp/zasp-temporal132-pg-qafobrl1/adapter-failure-readonly-diagnostic.json",
+      "sha256": "435927b7d44e05a9e9a950f55de8f3fa432f167d11b0221fc40348cabdf32b43"
+    },
+    {
+      "bytes": 535,
+      "mode": "0o600",
+      "path": "/tmp/zasp-temporal132-pg-qafobrl1/result.json",
+      "sha256": "c00f316160fb788f8367c1ee61f2cd640e17f024096ce1b894b5a15609b03eca"
+    },
+    {
+      "bytes": 555,
+      "mode": "0o600",
+      "path": "/tmp/zasp-temporal132-adapter-retry-kutanvix/retry-provenance.json",
+      "sha256": "29d0ccec2fa6ec60211be4c49aa7c36dee65088cedfdc37bb145bfb20386caf9"
+    },
+    {
+      "bytes": 539,
+      "mode": "0o600",
+      "path": "/tmp/zasp-temporal132-adapter-retry-kutanvix/service-ready.json",
+      "sha256": "d593b4c4c1cfc245c919279b809594f7980fa5570cda200bbf949b6ab569bc65"
+    },
+    {
+      "bytes": 799,
+      "mode": "0o600",
+      "path": "/tmp/zasp-temporal132-adapter-retry-kutanvix/application-adapter-result.json",
+      "sha256": "76ba4db34b4978d26863a065bcf7829b386d977b315e49dd1ef177e5e7492d4b"
+    },
+    {
+      "bytes": 380,
+      "mode": "0o600",
+      "path": "/tmp/zasp-temporal132-adapter-retry-kutanvix/application-adapter.stdout.json",
+      "sha256": "a281ae226ad6f3c4e0131ee7d85e770e1df1a52b981d213a6d764b3bc3b00b4d"
+    },
+    {
+      "bytes": 536,
+      "mode": "0o600",
+      "path": "/tmp/zasp-temporal132-adapter-retry-kutanvix/result.json",
+      "sha256": "d4b121ac5f6322ec0d065fb9b0b374eacd5cb0da63f836a9e55ee55c96df34aa"
+    },
+    {
+      "bytes": 886,
+      "mode": "0o600",
+      "path": "/tmp/zasp-temporal132-adapter-retry-kutanvix/cleanup-proof.json",
+      "sha256": "1fc31a830b1691f3f572289c881db599e848ff9fcdb89f37011912514b73bc3c"
+    }
+  ],
+  "publication": "PRIVATE-ONLY",
+  "scanner": "NOT_RUN",
+  "scope": "Actual owned PostgreSQL Temporal schema/SDK namespace plus current application library Load/Connect/Ready and absent namespace refusal. Normal Temporal shutdown observed. Full API, workflows, workers, production deployment remain unverified. Original expired-endpoint adapter failure retained."
+}

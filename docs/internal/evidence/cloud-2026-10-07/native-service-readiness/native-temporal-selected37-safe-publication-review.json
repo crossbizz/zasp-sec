@@ -1,0 +1,26 @@
+{
+  "outcome": "PASS semantic safe selected37 originals and exact publication identities; actual assembled scanner still required",
+  "native25Review": {
+    "path": "/tmp/restart-independent-j73g1s1l/native25-selected-publication-closure-review.json",
+    "sha256": "da0efcae83e4db62ce0f30b9c14b696278cf4f62f5105e3577c82f73a2aa6fee"
+  },
+  "temporalIndex": {
+    "path": "/tmp/zasp-temporal132-adapter-retry-kutanvix/selected-safe-evidence-index.json",
+    "sha256": "dd0aa302c4caa93d15ce93e123ba050e4098ca6000b2ac98711de5af83ec767e",
+    "members": 12,
+    "allFullHashesAndSizes": true
+  },
+  "semanticClassification": {
+    "selectedNative25": "Source literals, public source/tool digests, local path/inode/PID/port metadata, scalar outcomes. No captured password/token/config/key/data/rawAPI response bodies.",
+    "selectedTemporal12": "Schema file public hashes and source commit, SQL command scalar outcomes and role/database identifiers, namespace/service PID/port metadata, original failure and retry scalar outcomes/normal cleanup. No private config/password/token bodies.",
+    "unknownSelectedCredentialValues": 0
+  },
+  "requiredScope": [
+    "Original first Temporal adapter failure and expired owner retained alongside retry PASS; namespace-only original result not whole app.",
+    "Current readiness was observed before intentional normal full-stack stop, not live ongoing availability.",
+    "No mTLS, workflow execution, worker orchestration, fullAPI/providers/native379/deployed/ledger promotion.",
+    "No blanked or rewritten original bytes, ignore/config waiver, or scanner clearance from this semantic review. Root assembled staged actual default scan mandatory.",
+    "Three initdb failure roots reference-only in native25; preserve any separately added scalar originals byteexact.",
+    "Private modes0400/0600 may become Git100644; disclose Git transport mode, never imply original filesystem modes retained."
+  ]
+}

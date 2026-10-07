@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "test",
+    "-mod=readonly",
+    "-race",
+    "-c",
+    "-overlay",
+    "/tmp/zasp-native-supported-tools-h0zqa978/native-model-overlay-v2.json",
+    "-o",
+    "/tmp/zasp-native-supported-tools-h0zqa978/native-sdk-v2.test",
+    "./authorization"
+  ],
+  "elapsedSeconds": 49.225050920000285,
+  "returncode": 0,
+  "refusal": null,
+  "scope": "Compile-only private native SDK adapter; no tests/services"
+}

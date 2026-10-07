@@ -1,0 +1,15 @@
+{
+  "actualApplicationSourcePins": {
+    "clients.go": "e1c9f3006ae7f7f36baa1e50c6a931d27e92d7c5b9515188c98be7ae9702c2c3",
+    "config.go": "cf2a4eec361d1d255825e58006e7b07868f5da1e961d3ef94739e068b4893359"
+  },
+  "binarySHA256": "5e2318a356d0a0ef6d6a5c2d0c441fd167a7235d23915b31bf85351ef4a63b5e",
+  "elapsedSeconds": 0.015758827999889036,
+  "format": "current-libraryadapter-native-ready-process-v1",
+  "normalWaitJoined": true,
+  "returncode": 1,
+  "scope": "Existing library Load/Connect/Ready only; real namespace + original owned realFGAmatrix model refs. No fullAPI or production admission.",
+  "sourceSHA256": "43646095739cf3dbc4399ad647db8913a2949867a886b410616b54ff5c14947b",
+  "stderrBytes": 0,
+  "stdoutSHA256": "72b90b38f8bcd34f014d45ff902c4ff37d70c506c04d1059fce017a158b4151e"
+}

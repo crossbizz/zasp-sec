@@ -1,0 +1,509 @@
+{
+  "archiveBytes": 7433625,
+  "archiveSHA256": "95cb9c2e30af30435c0e9ccb7ae935459b03832f5ea5fc9abe2e9210485bb7cf",
+  "commit": "d94e34a1ebba5410a2e7d07119a76896909591aa",
+  "files": [
+    {
+      "bytes": 25,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/database.sql",
+      "relative": "schema/postgresql/v12/temporal/database.sql",
+      "sha256": "c0613dc74fe4ecb2debce68686ed36ac205c6f00e2896553a6751b92259ee0ab"
+    },
+    {
+      "bytes": 12479,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/schema.sql",
+      "relative": "schema/postgresql/v12/temporal/schema.sql",
+      "sha256": "1b0d5e8f40a26fce3e355802ebffc9fe917b121b7af095784135bb5eb8873fa6"
+    },
+    {
+      "bytes": 153,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.0/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.0/manifest.json",
+      "sha256": "51a05e7b897ec9728ffd6d00baf7587c717f2b26cf19824c4227dd7a74490119"
+    },
+    {
+      "bytes": 7185,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.0/schema.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.0/schema.sql",
+      "sha256": "a891a1ef054426475e9f1ef395cfcf58a16dc653fbde082b9dc458e62fb23593"
+    },
+    {
+      "bytes": 218,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.1/cluster_metadata.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.1/cluster_metadata.sql",
+      "sha256": "668e44164102c4d16d82ce7e3a422126145f64693a2ea67501889582ae25d64c"
+    },
+    {
+      "bytes": 175,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.1/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.1/manifest.json",
+      "sha256": "ec3c20dcc25c3af380215201d3bd8b9f320b9cfcb66e62af8763a1a300335822"
+    },
+    {
+      "bytes": 214,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.10/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.10/manifest.json",
+      "sha256": "e9d056c1752c129c8afb20b1a2ce9642c4c92752c8dd93c42c148554af0a47f9"
+    },
+    {
+      "bytes": 813,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.10/task_queue_user_data.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.10/task_queue_user_data.sql",
+      "sha256": "1584e490452ac2f66386aa345669b9a87faf1b555c549c5da82b0f3bf7e6b717"
+    },
+    {
+      "bytes": 181,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.11/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.11/manifest.json",
+      "sha256": "7a3a9a9931053cecca409e1d88bd46fc7da203e742fb55175594bdda1b3dc22e"
+    },
+    {
+      "bytes": 570,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.11/queue_v2.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.11/queue_v2.sql",
+      "sha256": "01ba0267a43a5652f56ae8932814eb29181400e9f8fe294d46bef44f82615748"
+    },
+    {
+      "bytes": 282,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.12/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.12/manifest.json",
+      "sha256": "85812e35f376140262467f2b36f16ff68cbdd3046ba65402098756ef2b43bb0d"
+    },
+    {
+      "bytes": 874,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.12/nexus_incoming_services.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.12/nexus_incoming_services.sql",
+      "sha256": "eb5eae815e1e70446f19425d23691a68e2c1869df9f8003f95f90e43e3fe3e64"
+    },
+    {
+      "bytes": 289,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.13/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.13/manifest.json",
+      "sha256": "d0c0f265e3f1dfe06ef074b326502851fb28a71814667db70177f86391fcb878"
+    },
+    {
+      "bytes": 893,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.13/nexus_endpoints.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.13/nexus_endpoints.sql",
+      "sha256": "ccd24a13c3b6fab209beec97f99bb0221be1b06e3a0cbd09fe81625fde7dce22"
+    },
+    {
+      "bytes": 68,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.14/add_current_executions_start_time.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.14/add_current_executions_start_time.sql",
+      "sha256": "a611406fdbc67c54d448dbd29dfe4ec1fbb3449824bb8bdf358a512ac4fd553c"
+    },
+    {
+      "bytes": 183,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.14/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.14/manifest.json",
+      "sha256": "637968bae7bce16ca9fa2c5fb9037cf8517bb1fd9635f56b3e97d1e3ffc10609"
+    },
+    {
+      "bytes": 106,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.15/add_current_executions_data.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.15/add_current_executions_data.sql",
+      "sha256": "e022ffc5a0b88ce6c3e0f2c357d87a03e63eaaf2a1029fe9d0243124289fb45f"
+    },
+    {
+      "bytes": 202,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.15/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.15/manifest.json",
+      "sha256": "55467d84f3f12585571ef3ef471a8274758284b935ceae43161b70bf53055323"
+    },
+    {
+      "bytes": 147,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.16/fix_data_encoding_column.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.16/fix_data_encoding_column.sql",
+      "sha256": "91f8d355eb4a30f6b3eb0fa541a9f93f13fc331d21cf0542c32a14c2f6244f10"
+    },
+    {
+      "bytes": 202,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.16/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.16/manifest.json",
+      "sha256": "97f64b220406c0f648842eafc4b8dd97c8b019085dc38dce766d974da93513bc"
+    },
+    {
+      "bytes": 363,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.17/add_chasm_node_maps.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.17/add_chasm_node_maps.sql",
+      "sha256": "75630de4e8d8d1eec1816af9fc190c53b15883ff749b0714cb514bd9d5262102"
+    },
+    {
+      "bytes": 174,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.17/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.17/manifest.json",
+      "sha256": "86edca129f2226e29fd1cfbe49ae9fb99227591fd8a09cbe441e407e93c9b240"
+    },
+    {
+      "bytes": 172,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.18/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.18/manifest.json",
+      "sha256": "fbb824fe3befa2ef9f0a5e0c223b7b729b97ec9ca732db23f98ac56027d30ee9"
+    },
+    {
+      "bytes": 755,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.18/tasks_v2.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.18/tasks_v2.sql",
+      "sha256": "4fc07200225aab3a7d1f6232878b03ed12635b4c2ceb1597bb9fce8ad0d8d753"
+    },
+    {
+      "bytes": 619,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.19/current_chasm_executions.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.19/current_chasm_executions.sql",
+      "sha256": "7ab78b15d99dd7cfe6cf1704e5be90f34820743f4f1f2fd961e35ddd76a2cc43"
+    },
+    {
+      "bytes": 217,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.19/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.19/manifest.json",
+      "sha256": "13f82addeb34647042742f9d350c3ee5aca7e0b56b3c3f36ad35eca4bbf190b0"
+    },
+    {
+      "bytes": 163,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.2/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.2/manifest.json",
+      "sha256": "83eb67ba15f24f1ae54dc8205ed8c54838c877ef0471bbd77d2eb3a35f3a3a56"
+    },
+    {
+      "bytes": 158,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.2/queue.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.2/queue.sql",
+      "sha256": "4883f701534d1800d15b3abbbbafa129237f34df76c32ba3a54b1dd46f452232"
+    },
+    {
+      "bytes": 175,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.3/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.3/manifest.json",
+      "sha256": "fe2551ebedd6770e39544055ebe87b855af3630876de914a1eb0188ae0540933"
+    },
+    {
+      "bytes": 189,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.3/visibility_tasks.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.3/visibility_tasks.sql",
+      "sha256": "754fcdfc7fde6f07aa825c75c84b7efe713d44eded504a826ce01de09ca8ab16"
+    },
+    {
+      "bytes": 109,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.4/cluster_metadata.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.4/cluster_metadata.sql",
+      "sha256": "0020fc13586038201878513a81c270ee519dad28912088fa587f240677aeb0ed"
+    },
+    {
+      "bytes": 183,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.4/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.4/manifest.json",
+      "sha256": "68d8e6797a497a32e1911231559da43fbf4f9a1737ceeeea8331a27893b5aee5"
+    },
+    {
+      "bytes": 75,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.5/cluster_membership.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.5/cluster_membership.sql",
+      "sha256": "c6e6647301394d83fa4b7612d23870163bddee6a96c24ee59137caf1c2af8804"
+    },
+    {
+      "bytes": 68,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.5/event.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.5/event.sql",
+      "sha256": "deaaece112c3ba23b26989b84aa7d7987522b9718ce4eaeb7e4352716664092f"
+    },
+    {
+      "bytes": 72,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.5/executions.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.5/executions.sql",
+      "sha256": "8ce796dd40533163f22cd2f4168e900a425fed9fbee7854bf31c34da880a3adb"
+    },
+    {
+      "bytes": 254,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.5/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.5/manifest.json",
+      "sha256": "f454abefed55f3405d161349532a49b1660d75b63a1b2cabaf2f0500a6bb6ed5"
+    },
+    {
+      "bytes": 171,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.6/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.6/manifest.json",
+      "sha256": "834b6865797d3018f86fa01279e522dea5c1518e1147663f477e7b8e3642249d"
+    },
+    {
+      "bytes": 66,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.6/queue_metadata.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.6/queue_metadata.sql",
+      "sha256": "35443ee9947678516bdec5d6f5cd073fb0b7c70be67951018db53931f5803d69"
+    },
+    {
+      "bytes": 323,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.7/cluster_metadata_info.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.7/cluster_metadata_info.sql",
+      "sha256": "abb671c8a220c674ce0826671602a2ecefdf1552391cb6d08f807affc8542846"
+    },
+    {
+      "bytes": 314,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.7/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.7/manifest.json",
+      "sha256": "44a253b5dd097f75fbc847db070f451c082c914f1193a1632e598cd5c1ca02f7"
+    },
+    {
+      "bytes": 72,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.7/no_start_version.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.7/no_start_version.sql",
+      "sha256": "c2071ec631e6c4edd8af07a92dfb0235b6345804fdd9d4329adab6132d8294ed"
+    },
+    {
+      "bytes": 193,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.7/tiered_storage_tasks.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.7/tiered_storage_tasks.sql",
+      "sha256": "0a4f5fe5d1028e546ab3883607a4f0ac855e211abc8440fd7e160d697ce5491b"
+    },
+    {
+      "bytes": 158,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.8/alter_columns.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.8/alter_columns.sql",
+      "sha256": "f74920d15ab74ddbb99b649d63d159957ef2de9ad6192134bdc58d24ecc4f0d0"
+    },
+    {
+      "bytes": 32,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.8/drop_unused_tasks_table.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.8/drop_unused_tasks_table.sql",
+      "sha256": "77fa1af4214012fe66c46f71642b9a743a73f2c5173e5dd7d5aaf8fab9dbdc7f"
+    },
+    {
+      "bytes": 278,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.8/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.8/manifest.json",
+      "sha256": "4553ca34d8092884646100b5c0cc7c68946b6fd8d01ad99265b71b7e19fe2a1b"
+    },
+    {
+      "bytes": 550,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.9/history_tasks_table.sql",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.9/history_tasks_table.sql",
+      "sha256": "65060e189ada7748052adac92f1f4449efde7cc8ee21c1a8598279b593355fe5"
+    },
+    {
+      "bytes": 181,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/temporal/versioned/v1.9/manifest.json",
+      "relative": "schema/postgresql/v12/temporal/versioned/v1.9/manifest.json",
+      "sha256": "5d0594353cf9c4a6087a5e57e2d98e93a7a4b06fc1fdd9005db1f6ad27092173"
+    },
+    {
+      "bytes": 36,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/database.sql",
+      "relative": "schema/postgresql/v12/visibility/database.sql",
+      "sha256": "787760b6cf45daea17bd2502f90954e4a6fa389acea309cc92272aaf83ee07cc"
+    },
+    {
+      "bytes": 21897,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/schema.sql",
+      "relative": "schema/postgresql/v12/visibility/schema.sql",
+      "sha256": "bed502ad6a5bbd11fac92197f39cd69f0454a5c98531b6dff0868e26ea6debd1"
+    },
+    {
+      "bytes": 164,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.0/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.0/manifest.json",
+      "sha256": "f034c1bfc654e754c305a02106167d177d6f2ce8f07b3ceb1764f8232954152a"
+    },
+    {
+      "bytes": 1426,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.0/schema.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.0/schema.sql",
+      "sha256": "055669f05af41b074991cbb59af80e41a24ce2ed9634e8e4f1d496378b3107b7"
+    },
+    {
+      "bytes": 111,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.1/index.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.1/index.sql",
+      "sha256": "1ede44f1145005fb6039cede2f251f67ac0dec5d5397098933549a28e285685d"
+    },
+    {
+      "bytes": 159,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.1/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.1/manifest.json",
+      "sha256": "d6df4733910b83d9eb46c92ec2906b00c2bc49d8e29309a9274d5a2a0c8a03b8"
+    },
+    {
+      "bytes": 287,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.10/add_temporal_reported_columns.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.10/add_temporal_reported_columns.sql",
+      "sha256": "028e029040f551b8b8e9e7a9d5d3bb29643f55ff77f01b16960acb6b930d4596"
+    },
+    {
+      "bytes": 184,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.10/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.10/manifest.json",
+      "sha256": "24e7d231b684d36436b55717135f6d2af85a48bc67f211261cf9ac2c33f8fbf9"
+    },
+    {
+      "bytes": 4433,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.11/add_chasm_search_attributes.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.11/add_chasm_search_attributes.sql",
+      "sha256": "9b2846f2fd8c958748664f70a13bc592b6242531138da579e875eb05312af960"
+    },
+    {
+      "bytes": 186,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.11/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.11/manifest.json",
+      "sha256": "93caff9634af41fe44e89c3d96665d38fd92c02fd464552d00f7751195cef276"
+    },
+    {
+      "bytes": 378,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.12/add_low_cardinality_keyword.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.12/add_low_cardinality_keyword.sql",
+      "sha256": "8b5a5b76f7324285c21b54c8eecc473190163fc50bebb6f0d6203cd11a1edf7c"
+    },
+    {
+      "bytes": 201,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.12/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.12/manifest.json",
+      "sha256": "85b370e024cfae75ddd5a28d92e7d3a921a60363c98d816dbd179799efb67020"
+    },
+    {
+      "bytes": 322,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.13/add_used_deployment_versions_search_attribute.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.13/add_used_deployment_versions_search_attribute.sql",
+      "sha256": "77dc1088aa135c8dfdf6554ddf183d2d2ccd66c5eafdde954a5680e04a3300e8"
+    },
+    {
+      "bytes": 7240,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.13/combined_v1.10_v1.13.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.13/combined_v1.10_v1.13.sql",
+      "sha256": "45e2873d4afeb865621d00d6b7e82aaa88202b621a2797d87c395584917f9668"
+    },
+    {
+      "bytes": 242,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.13/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.13/manifest.json",
+      "sha256": "fb02a828e5632bdc4b86d030749fa3439b09091db57e2e7f09b48ebfacead977"
+    },
+    {
+      "bytes": 1410,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.14/add_external_payload_size_and_count_search_attributes.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.14/add_external_payload_size_and_count_search_attributes.sql",
+      "sha256": "f83ab9614bbc56a6c5babefb56978d7bfe1a2cccb797212882b85b716d749fac"
+    },
+    {
+      "bytes": 273,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.14/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.14/manifest.json",
+      "sha256": "5a58bf0e43377d29655898330b84a8fca092d061cf9edd1ea3752d8ed2d3aa74"
+    },
+    {
+      "bytes": 12071,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.2/advanced_visibility.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.2/advanced_visibility.sql",
+      "sha256": "5859dccb137d0653a43966d8959f8caa500604852023872caf359485871301b7"
+    },
+    {
+      "bytes": 188,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.2/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.2/manifest.json",
+      "sha256": "c3a6b1ba207a22524b9d387b86efb72af53f7dead24b5e7f9a52c09e0388422b"
+    },
+    {
+      "bytes": 222,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.3/add_build_ids_search_attribute.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.3/add_build_ids_search_attribute.sql",
+      "sha256": "02068546eb2c559d9e59dd421d656ac75782dbbad80092c705b98368645e198b"
+    },
+    {
+      "bytes": 250,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.3/add_history_size_bytes.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.3/add_history_size_bytes.sql",
+      "sha256": "cecdcf38fb7b7ad4d76a7605f8a5960f5a3e364914eeacd466d2780b9ea70224"
+    },
+    {
+      "bytes": 256,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.3/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.3/manifest.json",
+      "sha256": "c8598c157fefb2874eb5d584955efb585c57141dc2224d8abdf882966e96148f"
+    },
+    {
+      "bytes": 250,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.4/add_execution_duration.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.4/add_execution_duration.sql",
+      "sha256": "83e16fcf7569a37c6fdf91e78b19428dbe910c985001a07e9ee1a98e7aeab478"
+    },
+    {
+      "bytes": 514,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.4/add_parent_workflow_info.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.4/add_parent_workflow_info.sql",
+      "sha256": "27397af6c23d3697a12c571ef10cf502e80505cf5ceb2883e32cf735adafc663"
+    },
+    {
+      "bytes": 262,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.4/add_state_transition_count.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.4/add_state_transition_count.sql",
+      "sha256": "d54fff6c52e78c5714d347d6b1e4d92526038ff8979be08429c206d4b8cdcd17"
+    },
+    {
+      "bytes": 313,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.4/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.4/manifest.json",
+      "sha256": "13d31287e9fc53df4b06e040bfbaa0ada188d5b47d2f15b1ff3b0c27218f1b00"
+    },
+    {
+      "bytes": 502,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.5/add_root_workflow_info.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.5/add_root_workflow_info.sql",
+      "sha256": "b9c01515993d26a1de0b426e9585855f7aaa26fc516741661eefa7482f17053b"
+    },
+    {
+      "bytes": 189,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.5/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.5/manifest.json",
+      "sha256": "74a788a08aacfc12d20e07b52342d6be911b1af5640d65a71869ec6fa93b60dc"
+    },
+    {
+      "bytes": 715,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.6/fix_root_workflow_info.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.6/fix_root_workflow_info.sql",
+      "sha256": "e26ffe2ff7a64950d6a3d8499c59d9ba58967fa34fa197955167f8e746ca7bde"
+    },
+    {
+      "bytes": 177,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.6/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.6/manifest.json",
+      "sha256": "d065e1fe646b9abeb5eb65a01b0c0d102d5ffe79450ec4bc9bc071ede5356085"
+    },
+    {
+      "bytes": 259,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.7/add_pause_info_search_attribute.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.7/add_pause_info_search_attribute.sql",
+      "sha256": "2dfd982aa4deed6a53829c48df5f6bcf527ed0368705ea32ed893b0a349d2341"
+    },
+    {
+      "bytes": 184,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.7/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.7/manifest.json",
+      "sha256": "91a3097dd5addc9641588bf011c759538ba2cce7d7f0f933af1d31bf10ec0ede"
+    },
+    {
+      "bytes": 1125,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.8/add_deployment_search_attributes.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.8/add_deployment_search_attributes.sql",
+      "sha256": "e54135486e1d24e6525d953eb1084e6ed3e3c9d88fbe608e2fc32aa5c8888a58"
+    },
+    {
+      "bytes": 266,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.8/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.8/manifest.json",
+      "sha256": "c31e2954a0b13baadadbd53aff069b28046655b88de2a6778ea7d8306b2dd15b"
+    },
+    {
+      "bytes": 81,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.9/add_version_column.sql",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.9/add_version_column.sql",
+      "sha256": "004062f42a0ed1727828be6a30fdf87bebf2a452fce5f3cb4aaf2f8ef8ca1ec0"
+    },
+    {
+      "bytes": 162,
+      "path": "/tmp/zasp-temporal132-schema-intake/schema/postgresql/v12/visibility/versioned/v1.9/manifest.json",
+      "relative": "schema/postgresql/v12/visibility/versioned/v1.9/manifest.json",
+      "sha256": "d89354c07e3e1a3e1dfdba2e9c9cba1b2e588e8efe8e3e4f4f3c2e6da6861d72"
+    }
+  ],
+  "format": "official-Temporal132-PostgreSQL-schema-intake-v1",
+  "scope": "Actual official schema bytes only; no migration or service acceptance.",
+  "sourceTag": "v1.32.0",
+  "totalBytes": 88278
+}

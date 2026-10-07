@@ -1,0 +1,11 @@
+{
+  "elapsedSeconds": 0.03199703199970827,
+  "format": "owned-Temporal132-PG-SDK-handshake-process-v1",
+  "helperBinarySHA256": "57069ae75de3d9174383625bbd6bb16ce0a1edb1d8264a524cfa67a09a6ec9aa",
+  "helperSourceSHA256": "559caf639beb2a618a5c7949f490637d62f7315ae8659e4d4c6fb4d999840461",
+  "normalWaitJoined": true,
+  "returncode": 0,
+  "scope": "SDK namespace diagnostic only; no FGA/application Connect or production admission.",
+  "stderrBytes": 0,
+  "stdoutSHA256": "8ecba719a490594bfe46b0a3691aa19bc4c36710b2f18caa22176938d98d2b8a"
+}
