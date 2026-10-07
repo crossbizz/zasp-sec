@@ -1,0 +1,27 @@
+{
+  "format": "explicit-derived-owner-selection",
+  "originalResult": "/workspace/.zasp-cloud-owned/native-test74-diagnostic-current-1b7d6-2i6oqpi9/actual-dk0xqulx/result.json",
+  "originalResultSHA256": "c75aba9d640d150954ffc3d28c121a7a448092020acfb2ea3f285515dd2ea18f",
+  "scope": "Selected fields from whole private original owner result; not the full result or an outer process attestation",
+  "selected": {
+    "completed": true,
+    "elapsedSeconds": 240.61625030100004,
+    "failure": null,
+    "firstRefusal": null,
+    "fgaNormalStop": {
+      "exit": 0,
+      "forcedCleanup": false,
+      "listenersAbsent": true,
+      "normalWait": true,
+      "routineGracefulSIGTERM": true,
+      "sessionAbsent": true
+    },
+    "forced": false,
+    "processCensusUnknown": [],
+    "ownedSessionSurvivors": [],
+    "signals": [],
+    "sourceBeforeSHA256": "6307f30d358d123911d83a9b80b7ec3c495dd0db95fd2dd1744a5f9fb74899fa",
+    "sourceAfterSHA256": "6307f30d358d123911d83a9b80b7ec3c495dd0db95fd2dd1744a5f9fb74899fa",
+    "productionActivated": false
+  }
+}

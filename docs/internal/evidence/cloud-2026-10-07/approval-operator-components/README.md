@@ -1,0 +1,9 @@
+# Approval cutover operator component controls
+
+ROOT executed unchanged private V4 operator sources with an independently reviewed bounded V3 runner: normal outer exit 0 in 10.920469915 seconds. The causal RED omitted only the old-credential HTTP401 requirement and failed the original withdrawalNot401 assertion (one top-level and one subtest FAIL). Coordinator GREEN passed one top-level plus 12 subtests. Raw-model GREEN passed one top-level plus six subtests, including duplicate/trailing/unknown model and matching malformed-UTF8 refusal. No skips occurred.
+
+The six stdout/stderr files are whole original captures. `derived-owner-selection.json` explicitly selects fields from the original full private owner result; it is not a complete original result or an outer process attestation. Whole input/tool/cache maps and normal outer wait remain at `/tmp/operator-v4-stdlib-actual-8594p9yk` and `/tmp/operator-v4-root-outer-tuq79oge`.
+
+All 20 bound source/tool records matched before and after. Each of the three owned process sessions was observed empty after normal leader join, without unknown observations, intervention or forced cleanup. The copied cache was explicitly mutable: 49 added, 257 changed records, zero removed. Original persistent cache authority was not borrowed as current proof. Independent actual review: `8c321d7918346159da9f4b47e9cf0049e77241d701d45480ace38c26570c794d`.
+
+This is product coordination and input-validation component evidence using controlled observers. The real OpenFGA SDK, process/credential withdrawal, operator SQL, distributed writer retirement, deployment and activation were not exercised. Operator sources remain unadopted; production profiles remain inactive. This does not test Temporal or OpenFGA internals and does not close any original requirement or promote ledger rows.

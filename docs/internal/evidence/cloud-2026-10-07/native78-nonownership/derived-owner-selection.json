@@ -1,0 +1,102 @@
+{
+  "format": "explicit-derived-original-owner-selection",
+  "originalResult": "/workspace/.zasp-cloud-owned/native78-test74-current15ce-so8c5qy4/actual-fp7xqozp/result.json",
+  "originalResultSHA256": "8bf1cd7028def0df40f194fc4a277979bac44520ab8f22447f5fd96f112bcb29",
+  "scope": "Selected original owner fields; whole private original unchanged. This is not an original full result or an outer wait attestation.",
+  "selected": {
+    "completed": false,
+    "elapsedSeconds": 383.69040918300016,
+    "failure": "RuntimeError:child stage refused:genuine-single-test-inactive-capture",
+    "forced": false,
+    "ownedSessionSurvivors": [],
+    "processCensusUnknown": [],
+    "signals": [],
+    "fgaNormalStop": {
+      "exit": 0,
+      "forcedCleanup": false,
+      "listenersAbsent": true,
+      "normalWait": true,
+      "routineGracefulSIGTERM": true,
+      "sessionAbsent": true
+    },
+    "inputs": 14004,
+    "sourceBeforeSHA256": "99f9153797bf1ba22d18ffee4c9c14aa7ebd676a501f10f7b1d9fcc51e63049c",
+    "sourceAfterSHA256": "99f9153797bf1ba22d18ffee4c9c14aa7ebd676a501f10f7b1d9fcc51e63049c",
+    "productionActivated": false
+  },
+  "acceptedStages": [
+    {
+      "stage": "owned-credential-admission",
+      "passes": [
+        "TestApprovalMaintenanceOwnedCredentialAdmission/explicit_native",
+        "TestApprovalMaintenanceOwnedCredentialAdmission/legacy_unchanged",
+        "TestApprovalMaintenanceOwnedCredentialAdmission/no_fallback_on_native_refusal",
+        "TestApprovalMaintenanceOwnedCredentialAdmission/private_token_only",
+        "TestApprovalMaintenanceOwnedCredentialAdmission/owned_readonly_ipv6",
+        "TestApprovalMaintenanceOwnedCredentialAdmission/nonexclusive_or_nonregular_token",
+        "TestApprovalMaintenanceOwnedCredentialAdmission/invalid_token_bytes",
+        "TestApprovalMaintenanceOwnedCredentialAdmission",
+        "TestApprovalMaintenanceOwnedCredentialsRequireLiveInputs"
+      ],
+      "fails": [],
+      "skips": []
+    },
+    {
+      "stage": "SQLNULL-original-helper-RED",
+      "passes": [],
+      "fails": [
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/configuration_write",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/configuration_replay",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/family",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/resource",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/definition",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/activate",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/run_context",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/approval_page",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/approval",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/decide_approval",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls"
+      ],
+      "skips": []
+    },
+    {
+      "stage": "SQLNULL-candidate-GREEN",
+      "passes": [
+        "TestTemporalFindingSQLNullRemainsMissingAtGeneralDatabaseBoundary",
+        "TestTemporalFindingConfigurationNonownerReachesTyped74",
+        "TestTemporalFindingConfigurationErrorsNeverDowngrade/missing_owned_record",
+        "TestTemporalFindingConfigurationErrorsNeverDowngrade/permission_refused",
+        "TestTemporalFindingConfigurationErrorsNeverDowngrade/owned_response_remains_handled",
+        "TestTemporalFindingConfigurationErrorsNeverDowngrade",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/configuration_write",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/configuration_replay",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/family",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/resource",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/definition",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/activate",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/run_context",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/approval_page",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/approval",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls/decide_approval",
+        "TestTemporalFindingResponseSQLNullNonownershipAllFixedCalls",
+        "TestTemporalFindingHumanPositiveFamilyDispatch/historical_namespace_absence_remains_unhandled",
+        "TestTemporalFindingHumanPositiveFamilyDispatch/test_family_skips_finding_mutation",
+        "TestTemporalFindingHumanPositiveFamilyDispatch/finding_family_consumes_finding_mutation",
+        "TestTemporalFindingHumanPositiveFamilyDispatch/denied_source_refuses",
+        "TestTemporalFindingHumanPositiveFamilyDispatch/not_found_is_not_nonfamily",
+        "TestTemporalFindingHumanPositiveFamilyDispatch/null_is_not_false",
+        "TestTemporalFindingHumanPositiveFamilyDispatch/malformed_is_not_false",
+        "TestTemporalFindingHumanPositiveFamilyDispatch",
+        "TestTemporalFindingResponseReadBoundary/explicit_nonowner",
+        "TestTemporalFindingResponseReadBoundary/empty_is_unavailable",
+        "TestTemporalFindingResponseReadBoundary/invalid_JSON",
+        "TestTemporalFindingResponseReadBoundary/denied_never_downgrades",
+        "TestTemporalFindingResponseReadBoundary/proof_mismatch_never_downgrades",
+        "TestTemporalFindingResponseReadBoundary/valid_envelope_handled",
+        "TestTemporalFindingResponseReadBoundary"
+      ],
+      "fails": [],
+      "skips": []
+    }
+  ]
+}

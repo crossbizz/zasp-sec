@@ -25,7 +25,9 @@ func queryTemporalFindingResponse(ctx context.Context, db JSONDatabase, statemen
 	if err != nil || !bytes.Equal(bytes.TrimSpace(raw), []byte("true")) {
 		return nil, true, ErrRepositoryUnavailable
 	}
-	raw, err = db.QueryJSON(ctx, statement, args...)
+	// Native family dispatch uses SQL NULL for explicit nonownership.
+	// Preserve real query errors while representing only that scalar NULL as JSON.
+	raw, err = db.QueryJSON(ctx, `SELECT COALESCE((`+statement+`),'null'::jsonb)`, args...)
 	if err != nil {
 		return nil, true, err
 	}

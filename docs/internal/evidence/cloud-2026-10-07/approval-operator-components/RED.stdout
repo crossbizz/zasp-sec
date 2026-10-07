@@ -1,0 +1,8 @@
+=== RUN   TestCoordinatorBoundary
+=== RUN   TestCoordinatorBoundary/withdrawalNot401
+    coordinator_test.go:112: activation boundary mismatch
+--- FAIL: TestCoordinatorBoundary (0.00s)
+    --- FAIL: TestCoordinatorBoundary/withdrawalNot401 (0.00s)
+FAIL
+FAIL	command-line-arguments	0.009s
+FAIL
