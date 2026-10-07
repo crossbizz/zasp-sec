@@ -29,59 +29,61 @@ type RuntimeConfig struct {
 	RuntimeServices                 runtimeservices.Config
 	SecurityAgentOrderedHTTPEnabled bool
 
-	EvidenceExportWorkflow      string
-	AttackLabWorkflow           string
-	ComplianceExports           *complianceAPIRuntimeConfig
-	AuditExports                *auditExportRuntimeConfig
-	Environment                 string
-	DeploymentMode              string
-	OrganizationID              string
-	ProductListenAddress        string
-	InternalListenAddress       string
-	PublicOrigin                string
-	TrustedProxyCIDRs           []string
-	RequestRatePerSecond        int
-	RequestBurst                int
-	CookieSecure                bool
-	ProviderTimeout             time.Duration
-	RequestTimeout              time.Duration
-	ShutdownTimeout             time.Duration
-	ReadinessInterval           time.Duration
-	ReadinessMaxInterval        time.Duration
-	DiscoveryParserVersion      string
-	DiscoveryToolVersion        string
-	PostgresDSN                 string
-	SecurityAgentPostgresDSN    string
-	StytchBaseURL               string
-	StytchAuthorizeURL          string
-	StytchProjectID             string
-	StytchSecret                string
-	StytchWebhookSecret         string
-	StytchPublicToken           string
-	StytchOrganizationID        string
-	WorkflowSigningKey          string
-	TokenRevealKey              []byte
-	ConnectorAWSRegion          string
-	ConnectorRoleARN            string
-	ConnectorTokenFile          string
-	ConnectorKMSKeyARN          string
-	ConnectorSecretPrefix       string
-	PolicyHistoryEndpoint       string
-	RuntimeSessionIndex         string
-	PolicyHistoryIndex          string
-	AWSCustomerRolePrefixes     []string
-	AWSCustomerRoleARNs         []string
-	KubernetesEgressCIDRs       []string
-	FindingTicketEgressCIDRs    []string
-	GitHubClientID              string
-	GitHubSecretReference       string
-	GitHubAppID                 string
-	GitHubPrivateKeyReference   string
-	OktaClientID                string
-	OktaSecretReference         string
-	NangoBaseURL                string
-	NangoServiceSecretReference string
-	NangoEnvironment            string
+	EvidenceExportWorkflow         string
+	AttackLabWorkflow              string
+	ComplianceExports              *complianceAPIRuntimeConfig
+	AuditExports                   *auditExportRuntimeConfig
+	Environment                    string
+	DeploymentMode                 string
+	OrganizationID                 string
+	ProductListenAddress           string
+	InternalListenAddress          string
+	PublicOrigin                   string
+	TrustedProxyCIDRs              []string
+	RequestRatePerSecond           int
+	RequestBurst                   int
+	CookieSecure                   bool
+	ProviderTimeout                time.Duration
+	RequestTimeout                 time.Duration
+	ShutdownTimeout                time.Duration
+	ReadinessInterval              time.Duration
+	ReadinessMaxInterval           time.Duration
+	DiscoveryParserVersion         string
+	DiscoveryToolVersion           string
+	PostgresDSN                    string
+	SecurityAgentPostgresDSN       string
+	ApprovalMaintenancePostgresDSN string
+	ApprovalMaintenanceKeyFile     string
+	StytchBaseURL                  string
+	StytchAuthorizeURL             string
+	StytchProjectID                string
+	StytchSecret                   string
+	StytchWebhookSecret            string
+	StytchPublicToken              string
+	StytchOrganizationID           string
+	WorkflowSigningKey             string
+	TokenRevealKey                 []byte
+	ConnectorAWSRegion             string
+	ConnectorRoleARN               string
+	ConnectorTokenFile             string
+	ConnectorKMSKeyARN             string
+	ConnectorSecretPrefix          string
+	PolicyHistoryEndpoint          string
+	RuntimeSessionIndex            string
+	PolicyHistoryIndex             string
+	AWSCustomerRolePrefixes        []string
+	AWSCustomerRoleARNs            []string
+	KubernetesEgressCIDRs          []string
+	FindingTicketEgressCIDRs       []string
+	GitHubClientID                 string
+	GitHubSecretReference          string
+	GitHubAppID                    string
+	GitHubPrivateKeyReference      string
+	OktaClientID                   string
+	OktaSecretReference            string
+	NangoBaseURL                   string
+	NangoServiceSecretReference    string
+	NangoEnvironment               string
 }
 
 type StoreDependency struct {
@@ -134,7 +136,7 @@ func loadRuntimeConfig(getenv func(string) string) (RuntimeConfig, error) {
 		CookieSecure: cookieSecure, ProviderTimeout: providerTimeout, RequestTimeout: requestTimeout, ShutdownTimeout: shutdownTimeout,
 		ReadinessInterval: readinessInterval, ReadinessMaxInterval: readinessMaxInterval,
 		DiscoveryParserVersion: getenv("ZASP_DISCOVERY_PARSER_VERSION"), DiscoveryToolVersion: getenv("ZASP_DISCOVERY_TOOL_VERSION"),
-		PostgresDSN: getenv("ZASP_POSTGRES_DSN"), SecurityAgentPostgresDSN: getenv("ZASP_SECURITY_AGENT_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchWebhookSecret: getenv("ZASP_STYTCH_WEBHOOK_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
+		ApprovalMaintenancePostgresDSN: getenv("ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN"), ApprovalMaintenanceKeyFile: getenv("ZASP_APPROVAL_MAINTENANCE_KEY_FILE"), PostgresDSN: getenv("ZASP_POSTGRES_DSN"), SecurityAgentPostgresDSN: getenv("ZASP_SECURITY_AGENT_POSTGRES_DSN"), StytchBaseURL: getenv("ZASP_STYTCH_BASE_URL"), StytchAuthorizeURL: getenv("ZASP_STYTCH_AUTHORIZE_URL"), StytchProjectID: getenv("ZASP_STYTCH_PROJECT_ID"), StytchSecret: getenv("ZASP_STYTCH_SECRET"), StytchWebhookSecret: getenv("ZASP_STYTCH_WEBHOOK_SECRET"), StytchPublicToken: getenv("ZASP_STYTCH_PUBLIC_TOKEN"), StytchOrganizationID: getenv("ZASP_STYTCH_ORGANIZATION_ID"), WorkflowSigningKey: getenv("ZASP_WORKFLOW_SIGNING_KEY"),
 		ConnectorAWSRegion: getenv("ZASP_CONNECTOR_AWS_REGION"), ConnectorRoleARN: getenv("ZASP_CONNECTOR_ROLE_ARN"), ConnectorTokenFile: getenv("ZASP_CONNECTOR_WEB_IDENTITY_TOKEN_FILE"), ConnectorKMSKeyARN: getenv("ZASP_CONNECTOR_KMS_KEY_ARN"), ConnectorSecretPrefix: getenv("ZASP_CONNECTOR_SECRET_PREFIX"),
 		PolicyHistoryEndpoint: getenv("ZASP_POLICY_HISTORY_ENDPOINT"), PolicyHistoryIndex: getenv("ZASP_POLICY_HISTORY_INDEX"),
 		RuntimeSessionIndex:     getenv("ZASP_RUNTIME_SESSION_INDEX"),
@@ -219,7 +221,7 @@ func validRuntimeConfig(config RuntimeConfig) bool {
 			return false
 		}
 	}
-	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) {
+	if !validRuntimePostgresAuthorities(config.PostgresDSN, config.SecurityAgentPostgresDSN) || !validApprovalMaintenanceRuntimeConfig(config) {
 		return false
 	}
 	authorize, authorizeErr := url.Parse(config.StytchAuthorizeURL)

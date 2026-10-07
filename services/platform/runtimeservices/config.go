@@ -16,6 +16,7 @@ import (
 var ErrConfiguration = errors.New("runtime services configuration rejected")
 
 type Config struct {
+	ApprovalMaintenanceProfileChecksum                                     string
 	Enabled                                                                bool
 	Environment, TemporalAddress, Namespace, TaskQueue, DiscoveryTaskQueue string
 	TemporalCAFile, TemporalCertFile, TemporalKeyFile                      string
@@ -29,6 +30,9 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 	switch getenv("ZASP_RUNTIME_SERVICES_ENABLED") {
 	case "", "false":
+		if getenv("ZASP_APPROVAL_MAINTENANCE_PROFILE_CHECKSUM") != "" {
+			return Config{}, ErrConfiguration
+		}
 		return Config{}, nil
 	case "true":
 	default:
@@ -38,9 +42,11 @@ func Load(getenv func(string) string) (Config, error) {
 	if err != nil {
 		return Config{}, ErrConfiguration
 	}
-	c := Config{Enabled: true, Environment: getenv("ZASP_ENVIRONMENT"), TemporalAddress: getenv("ZASP_TEMPORAL_ADDRESS"), Namespace: getenv("ZASP_TEMPORAL_NAMESPACE"), TaskQueue: getenv("ZASP_TEMPORAL_TASK_QUEUE"), DiscoveryTaskQueue: getenv("ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE"), TemporalCAFile: getenv("ZASP_TEMPORAL_TLS_CA_FILE"), TemporalCertFile: getenv("ZASP_TEMPORAL_TLS_CERT_FILE"), TemporalKeyFile: getenv("ZASP_TEMPORAL_TLS_KEY_FILE"), FGAURL: getenv("ZASP_OPENFGA_URL"), StoreID: getenv("ZASP_OPENFGA_STORE_ID"), ModelID: getenv("ZASP_OPENFGA_MODEL_ID"), FGATokenFile: getenv("ZASP_OPENFGA_TOKEN_FILE"), FGACAFile: getenv("ZASP_OPENFGA_TLS_CA_FILE"), Timeout: timeout}
+	c := Config{ApprovalMaintenanceProfileChecksum: getenv("ZASP_APPROVAL_MAINTENANCE_PROFILE_CHECKSUM"), Enabled: true, Environment: getenv("ZASP_ENVIRONMENT"), TemporalAddress: getenv("ZASP_TEMPORAL_ADDRESS"), Namespace: getenv("ZASP_TEMPORAL_NAMESPACE"), TaskQueue: getenv("ZASP_TEMPORAL_TASK_QUEUE"), DiscoveryTaskQueue: getenv("ZASP_TEMPORAL_DISCOVERY_TASK_QUEUE"), TemporalCAFile: getenv("ZASP_TEMPORAL_TLS_CA_FILE"), TemporalCertFile: getenv("ZASP_TEMPORAL_TLS_CERT_FILE"), TemporalKeyFile: getenv("ZASP_TEMPORAL_TLS_KEY_FILE"), FGAURL: getenv("ZASP_OPENFGA_URL"), StoreID: getenv("ZASP_OPENFGA_STORE_ID"), ModelID: getenv("ZASP_OPENFGA_MODEL_ID"), FGATokenFile: getenv("ZASP_OPENFGA_TOKEN_FILE"), FGACAFile: getenv("ZASP_OPENFGA_TLS_CA_FILE"), Timeout: timeout}
 	return c, c.Validate()
 }
+
+var approvalMaintenanceChecksumPattern = regexp.MustCompile(`^[a-f0-9]{64}$`)
 
 var namePattern = regexp.MustCompile(`^[a-z][a-z0-9._-]{1,127}$`)
 var ulidPattern = regexp.MustCompile(`^[0-7][0-9A-HJKMNP-TV-Z]{25}$`)
@@ -51,6 +57,9 @@ func (c Config) Validate() error {
 			return ErrConfiguration
 		}
 		return nil
+	}
+	if c.ApprovalMaintenanceProfileChecksum != "" && !approvalMaintenanceChecksumPattern.MatchString(c.ApprovalMaintenanceProfileChecksum) {
+		return ErrConfiguration
 	}
 	if c.Environment != "production" && c.Environment != "development" && c.Environment != "test" {
 		return ErrConfiguration

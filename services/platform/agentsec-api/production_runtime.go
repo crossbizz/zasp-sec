@@ -80,7 +80,7 @@ func buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx context.Contex
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("current-authorization", errRuntimeUnavailable)
 	}
 	checker, checkerErr := authorization.NewOpenFGA(services.FGA, config.RuntimeServices)
-	revisions, revisionErr := authorization.NewPostgresProjectionRepository(pool)
+	revisions, revisionErr := authorization.NewCurrentProjectionRepository(ctx, pool, config.RuntimeServices.ApprovalMaintenanceProfileChecksum)
 	resolver, resolverErr := apiserver.NewPostgresAuthorizationResolverWithSecurityAgent(database, securityAgentDatabase)
 	attestationKey, attestationErr := authorization.NewAttestationKey([]byte(config.WorkflowSigningKey))
 	if checkerErr != nil || revisionErr != nil || resolverErr != nil || attestationErr != nil {
@@ -459,12 +459,20 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 	lifecycleWorkers := []func(context.Context) error{connectorReconciler.Run, func(ctx context.Context) error {
 		return runReconciliationMaintenance(ctx, connectorRepository, metrics)
 	}}
-	var approvalNotificationReconciler *apiserver.ApprovalNotificationReconciler
+	var approvalNotificationReconciler approvalNotificationLifecycle
 	if approvalNotificationRepository != nil {
-		approvalNotificationReconciler, err = apiserver.NewApprovalNotificationReconciler(apiserver.ApprovalNotificationReconcilerConfig{
-			Repository: approvalNotificationRepository, Secrets: ticketSecrets, Webhook: ticketWebhook,
-			Owner: workerOwner, LeaseSeconds: 30, Interval: time.Second, NewLeaseToken: newFindingTicketLeaseToken,
-		})
+		var closer io.Closer
+		approvalNotificationReconciler, closer, err = selectApprovalNotificationLifecycle(config,
+			func() (approvalNotificationLifecycle, io.Closer, error) {
+				return newRuntimeApprovalMaintenance(ctx, config, authorizer, ticketSecrets, ticketWebhook, workerOwner)
+			},
+			func() (approvalNotificationLifecycle, io.Closer, error) {
+				r, e := apiserver.NewApprovalNotificationReconciler(apiserver.ApprovalNotificationReconcilerConfig{Repository: approvalNotificationRepository, Secrets: ticketSecrets, Webhook: ticketWebhook, Owner: workerOwner, LeaseSeconds: 30, Interval: time.Second, NewLeaseToken: newFindingTicketLeaseToken})
+				return r, nil, e
+			})
+		if closer != nil {
+			connectorResources = append(connectorResources, closer)
+		}
 		if err != nil {
 			return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-lifecycle", errRuntimeUnavailable)
 		}
@@ -576,7 +584,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			}
 			if approvalNotificationRepository != nil {
 				checks = append(checks, func(probe context.Context) error {
-					if err := approvalNotificationRepository.ReadyApprovalNotifications(probe); err != nil || approvalNotificationReconciler == nil || !approvalNotificationReconciler.Ready() {
+					if err := approvalNotificationLifecycleReady(probe, approvalNotificationRepository.ReadyApprovalNotifications, approvalNotificationReconciler); err != nil {
 						return errRuntimeUnavailable
 					}
 					return nil
@@ -609,7 +617,7 @@ func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, confi
 			}
 		}
 		if approvalNotificationRepository != nil {
-			if err := approvalNotificationRepository.ReadyApprovalNotifications(ctx); err != nil || approvalNotificationReconciler == nil || !approvalNotificationReconciler.Ready() {
+			if err := approvalNotificationLifecycleReady(ctx, approvalNotificationRepository.ReadyApprovalNotifications, approvalNotificationReconciler); err != nil {
 				return errRuntimeUnavailable
 			}
 		}

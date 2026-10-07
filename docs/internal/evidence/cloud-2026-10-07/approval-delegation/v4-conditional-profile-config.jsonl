@@ -1,0 +1,8 @@
+{"Time":"2026-10-07T09:49:48.064533404Z","Action":"start","Package":"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"}
+{"Time":"2026-10-07T09:49:48.083395314Z","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices","Test":"TestApprovalMaintenanceProfileSelectionConfiguration"}
+{"Time":"2026-10-07T09:49:48.083491819Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices","Test":"TestApprovalMaintenanceProfileSelectionConfiguration","Output":"=== RUN   TestApprovalMaintenanceProfileSelectionConfiguration\n"}
+{"Time":"2026-10-07T09:49:48.083625251Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices","Test":"TestApprovalMaintenanceProfileSelectionConfiguration","Output":"--- PASS: TestApprovalMaintenanceProfileSelectionConfiguration (0.00s)\n"}
+{"Time":"2026-10-07T09:49:48.083631671Z","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices","Test":"TestApprovalMaintenanceProfileSelectionConfiguration","Elapsed":0}
+{"Time":"2026-10-07T09:49:48.083686153Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices","Output":"PASS\n"}
+{"Time":"2026-10-07T09:49:49.08621518Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices","Output":"ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/runtimeservices\t1.021s\n"}
+{"Time":"2026-10-07T09:49:49.086296553Z","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices","Elapsed":1.022}

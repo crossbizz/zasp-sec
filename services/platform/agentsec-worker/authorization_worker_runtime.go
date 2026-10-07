@@ -119,7 +119,12 @@ func bindTemporalWorkerAuthorization(ctx context.Context, cfg workerRuntimeConfi
 		}
 		keys[i] = key
 	}
-	forward, err := authorization.NewWorkerExecutor(pools[0], checker, cfg.RuntimeServices.StoreID, cfg.RuntimeServices.ModelID, keys[0])
+	var forward *authorization.WorkerExecutor
+	if cfg.RuntimeServices.ApprovalMaintenanceProfileChecksum != "" {
+		forward, err = authorization.NewApprovalOriginWorkerExecutor(ctx, pools[0], checker, cfg.RuntimeServices.StoreID, cfg.RuntimeServices.ModelID, keys[0], cfg.RuntimeServices.ApprovalMaintenanceProfileChecksum)
+	} else {
+		forward, err = authorization.NewWorkerExecutor(pools[0], checker, cfg.RuntimeServices.StoreID, cfg.RuntimeServices.ModelID, keys[0])
+	}
 	if err != nil {
 		return errRuntimeUnavailable
 	}

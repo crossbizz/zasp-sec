@@ -208,9 +208,7 @@ func (e *Executor) authorize(ctx context.Context, op Operation, q json.RawMessag
 	if _, err := domain.ParseProductID(d.TaskID); err != nil {
 		return nil, ErrUnavailable
 	}
-	counts := map[string]int{"finding78": 3, "test74": 4, "ordered68": 5}
-	min, ok := counts[f.Family]
-	if !ok || len(origin.Checks) < min || len(origin.Checks) > 5 {
+	if f.Family != "finding78" && f.Family != "test74" && f.Family != "ordered68" && f.Family != "ordered68_progress" || len(origin.Checks) < 2 || len(origin.Checks) > 128 || f.Family == "ordered68_progress" && len(origin.Checks) != 2 {
 		return nil, ErrUnavailable
 	}
 	requiredAgent, requiredRun := false, false
@@ -224,9 +222,10 @@ func (e *Executor) authorize(ctx context.Context, op Operation, q json.RawMessag
 			requiredAgent = true
 		} else if c.Permission == "manage_workflows" && c.Kind == "security_agent_run" && c.ID == origin.RunID {
 			requiredRun = true
-		} else if c.Permission != "view" || (c.Kind != "finding" && c.Kind != "attack_path" && c.Kind != "test" && c.Kind != "agent" && c.Kind != "tool") {
-			return nil, ErrUnavailable
 		}
+		// Every exact native source check is replayed through the unchanged Map
+		// and checker below; no planner-only subset or custom policy grammar.
+
 		identity := c.Kind + "\x00" + c.ID + "\x00" + c.Permission
 		if seen[identity] {
 			return nil, ErrUnavailable

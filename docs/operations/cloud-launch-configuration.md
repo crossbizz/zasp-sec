@@ -52,6 +52,8 @@ The [audit-export bundle](../../services/platform/agentsec-api/audit_export_conf
 
 The [compliance-export bundle](../../services/platform/agentsec-api/compliance_config.go) is optional, but when present requires all five of `ZASP_COMPLIANCE_EXPORT_BUCKET`, `ZASP_COMPLIANCE_EXPORT_BUCKET_OWNER`, `ZASP_COMPLIANCE_EXPORT_KMS_KEY_ARN`, `ZASP_COMPLIANCE_EXPORT_READER_ROLE_ARN` and `ZASP_COMPLIANCE_EXPORT_WEB_IDENTITY_TOKEN_FILE`. The legacy `ZASP_COMPLIANCE_EXPORT_ROLE_ARN` is rejected. Both bundles retain their reader-role, mounted identity and key/resource validation.
 
+The approval-maintenance API bundle is conditional: configure all three of `ZASP_APPROVAL_MAINTENANCE_PROFILE_CHECKSUM`, `ZASP_APPROVAL_MAINTENANCE_POSTGRES_DSN` and `ZASP_APPROVAL_MAINTENANCE_KEY_FILE`, or omit all three. The checksum must match the registered supplementary profile. The DSN must use a third, separately registered maintenance login against the same database authority. The key path must be absolute and clean; the file must contain exactly 32 raw bytes, have mode 0400, belong to the effective UID, and have one link. Runtime construction requires active native caller authority; these settings do not activate it. Worker and projector profile selection must use the same checksum. Do not withdraw the shared SQL login used by the three original outbox consumers.
+
 ## Available mappings and entrypoints
 
 [The API launcher](../../scripts/api-start.mjs) maps only `STYTCH_PROJECT_ID`, `STYTCH_SECRET` and `STYTCH_PUBLIC_TOKEN` to their corresponding `ZASP_` names. Conflicting or explicitly empty aliases are refused. It does not map `DATABASE_URL`, `TEMPORAL_ADDRESS`, generic signing secrets, AWS credentials or other provider keys.

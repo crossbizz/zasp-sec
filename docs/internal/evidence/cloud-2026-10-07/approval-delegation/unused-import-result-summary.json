@@ -1,0 +1,14 @@
+{
+  "format": "native-fga-genuine-finding-root-actual-v1",
+  "completed": false,
+  "failure": "RuntimeError:child stage refused:owned-credential-admission",
+  "elapsedSeconds": 7.0577965100001165,
+  "forced": false,
+  "signals": [],
+  "inputs": 13966,
+  "ownedSessionSurvivors": [],
+  "processCensusUnknown": [],
+  "fgaNormalStop": null,
+  "originalResultSHA256": "f97ad0ab6df04bfb865ac24a50e5888c39c7032dbdfdeacc97afa536dbdc271d",
+  "derivedSummaryOnly": true
+}

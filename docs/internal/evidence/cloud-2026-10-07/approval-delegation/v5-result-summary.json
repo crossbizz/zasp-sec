@@ -1,0 +1,14 @@
+{
+  "format": "approval-delegation-v5-overlay-root-actual-v1",
+  "completed": true,
+  "failure": null,
+  "elapsedSeconds": 146.02219237500003,
+  "forced": false,
+  "signals": [],
+  "inputs": 13956,
+  "ownedSessionSurvivors": [],
+  "processCensusUnknown": [],
+  "fgaNormalStop": null,
+  "originalResultSHA256": "e39d310d1b1cef53dd8346ac4d912f31644adf3e721319c204d7cf26eff575e3",
+  "derivedSummaryOnly": true
+}

@@ -1,0 +1,14 @@
+{
+  "format": "approval-delegation-v5-overlay-root-actual-v1",
+  "completed": false,
+  "failure": "RuntimeError:live refusal:workspace floor",
+  "elapsedSeconds": 120.01574774200026,
+  "forced": true,
+  "signals": [],
+  "inputs": 13955,
+  "ownedSessionSurvivors": [],
+  "processCensusUnknown": [],
+  "fgaNormalStop": null,
+  "originalResultSHA256": "e5b6092cca35b580bcf188bbb363ac1a7de3a1956e6d2016092dd4fead09af4a",
+  "derivedSummaryOnly": true
+}

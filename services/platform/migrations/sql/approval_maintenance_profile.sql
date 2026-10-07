@@ -2,7 +2,8 @@
 -- A reviewed installer must own/register/checksum/fingerprint this module,
 -- provision a distinct restricted maintenance principal and verifier, and
 -- establish composed projection + measured old external writer withdrawal.
--- This source never creates a task/grant or activates a delivery delegation.
+-- Delivery tasks derive ONLY authenticated native same-transaction enqueue.
+-- Projection activation remains closed pending measured old writer withdrawal.
 CREATE SCHEMA zasp_approval_maintenance AUTHORIZATION zasp_discovery_authority;
 REVOKE ALL ON SCHEMA zasp_approval_maintenance FROM PUBLIC;
 CREATE TABLE zasp_approval_maintenance.registration(singleton boolean PRIMARY KEY CHECK(singleton), checksum text NOT NULL, fingerprint text NOT NULL, active boolean NOT NULL DEFAULT false);
@@ -13,7 +14,7 @@ CREATE TABLE zasp_approval_maintenance.verifiers(purpose text NOT NULL CHECK(pur
 -- admission receipt and cannot retroactively authorize an old notification.
 CREATE TABLE zasp_approval_maintenance.origin_intents(
  organization_id text NOT NULL,workspace_id text NOT NULL,environment_id text NOT NULL,run_id text NOT NULL,
- family text NOT NULL CHECK(family IN('finding78','test74','ordered68')),facts jsonb NOT NULL,
+ family text NOT NULL CHECK(family IN('finding78','test74','ordered68','ordered68_progress')),facts jsonb NOT NULL,
  source_digest text NOT NULL CHECK(source_digest~'^[a-f0-9]{64}$'),
  transaction_id bigint NOT NULL,backend_id integer NOT NULL,principal_name name NOT NULL,
  PRIMARY KEY(organization_id,workspace_id,environment_id,run_id,transaction_id));
@@ -33,7 +34,7 @@ CREATE TABLE zasp_approval_maintenance.reservations(
  FOREIGN KEY(organization_id,workspace_id,environment_id,delivery_id) REFERENCES zasp_approval_maintenance.origins);
 
 CREATE FUNCTION zasp_approval_maintenance.fingerprint() RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $f$
- SELECT encode(digest(convert_to(jsonb_build_object('functions',(SELECT jsonb_agg(jsonb_build_array(p.proname,pg_get_function_identity_arguments(p.oid),pg_get_functiondef(p.oid),p.proowner::regrole::text,coalesce(p.proacl::text,'')) ORDER BY p.proname,pg_get_function_identity_arguments(p.oid)) FROM pg_proc p WHERE p.pronamespace='zasp_approval_maintenance'::regnamespace),'columns',(SELECT jsonb_agg(jsonb_build_array(c.relname,a.attname,format_type(a.atttypid,a.atttypmod),a.attnotnull,c.relrowsecurity,c.relforcerowsecurity,c.relowner::regrole::text,coalesce(c.relacl::text,'')) ORDER BY c.relname,a.attnum) FROM pg_class c JOIN pg_attribute a ON a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped WHERE c.relnamespace='zasp_approval_maintenance'::regnamespace AND c.relkind='r'),'policies',(SELECT jsonb_agg(jsonb_build_array(c.relname,p.polname,p.polcmd,p.polpermissive,p.polroles::text,pg_get_expr(p.polqual,p.polrelid),pg_get_expr(p.polwithcheck,p.polrelid)) ORDER BY c.relname,p.polname) FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid WHERE c.relnamespace='zasp_approval_maintenance'::regnamespace),'triggers',(SELECT jsonb_agg(jsonb_build_array(c.relname,t.tgname,pg_get_triggerdef(t.oid),t.tgenabled) ORDER BY c.relname,t.tgname) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid WHERE c.relnamespace='zasp_approval_maintenance'::regnamespace AND NOT t.tgisinternal),'constraints',(SELECT jsonb_agg(jsonb_build_array(c.relname,k.conname,pg_get_constraintdef(k.oid)) ORDER BY c.relname,k.conname) FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid WHERE c.relnamespace='zasp_approval_maintenance'::regnamespace))::text,'UTF8'),'sha256'),'hex')
+ SELECT encode(digest(convert_to(jsonb_build_object('views',(SELECT jsonb_agg(jsonb_build_array(c.relname,pg_get_viewdef(c.oid),c.relowner::regrole::text,coalesce(c.relacl::text,'')) ORDER BY c.relname) FROM pg_class c WHERE c.relnamespace='zasp_approval_maintenance'::regnamespace AND c.relkind='v'),'functions',(SELECT jsonb_agg(jsonb_build_array(p.proname,pg_get_function_identity_arguments(p.oid),pg_get_functiondef(p.oid),p.proowner::regrole::text,coalesce(p.proacl::text,'')) ORDER BY p.proname,pg_get_function_identity_arguments(p.oid)) FROM pg_proc p WHERE p.pronamespace='zasp_approval_maintenance'::regnamespace),'columns',(SELECT jsonb_agg(jsonb_build_array(c.relname,a.attname,format_type(a.atttypid,a.atttypmod),a.attnotnull,c.relrowsecurity,c.relforcerowsecurity,c.relowner::regrole::text,coalesce(c.relacl::text,'')) ORDER BY c.relname,a.attnum) FROM pg_class c JOIN pg_attribute a ON a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped WHERE c.relnamespace='zasp_approval_maintenance'::regnamespace AND c.relkind='r'),'policies',(SELECT jsonb_agg(jsonb_build_array(c.relname,p.polname,p.polcmd,p.polpermissive,p.polroles::text,pg_get_expr(p.polqual,p.polrelid),pg_get_expr(p.polwithcheck,p.polrelid)) ORDER BY c.relname,p.polname) FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid WHERE c.relnamespace='zasp_approval_maintenance'::regnamespace),'triggers',(SELECT jsonb_agg(jsonb_build_array(c.relname,t.tgname,pg_get_triggerdef(t.oid),t.tgenabled) ORDER BY c.relname,t.tgname) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid WHERE c.relnamespace='zasp_approval_maintenance'::regnamespace AND NOT t.tgisinternal),'constraints',(SELECT jsonb_agg(jsonb_build_array(c.relname,k.conname,pg_get_constraintdef(k.oid)) ORDER BY c.relname,k.conname) FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid WHERE c.relnamespace='zasp_approval_maintenance'::regnamespace))::text,'UTF8'),'sha256'),'hex')
 $f$;
 CREATE FUNCTION zasp_approval_maintenance.catalog_ready() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $r$
  SELECT coalesce((SELECT count(*)=1 AND bool_and(singleton AND checksum='-- approval maintenance checksum' AND fingerprint=zasp_approval_maintenance.fingerprint()) FROM zasp_approval_maintenance.registration),false) AND zasp_authorization80_worker.catalog_ready() AND zasp_authorization80_temporal.ready()
@@ -63,13 +64,14 @@ CREATE FUNCTION zasp_approval_maintenance.worker() RETURNS boolean LANGUAGE sql 
 $w$;
 CREATE FUNCTION zasp_approval_maintenance.capture_origin_intent(family_value text,q jsonb) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $capture$
 DECLARE f jsonb;old_facts jsonb;BEGIN
- IF current_setting('transaction_isolation')<>'read committed' OR zasp_approval_maintenance.ready() IS NOT TRUE THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval origin unavailable';END IF;
+ IF current_setting('transaction_isolation')<>'read committed' OR zasp_approval_maintenance.catalog_ready() IS NOT TRUE THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval origin unavailable';END IF;
  -- These are the real original signed/native readers; no caller-supplied
  -- facts, principal, grantor, task, source digest or after-the-fact grant.
  CASE family_value
  WHEN 'finding78' THEN PERFORM zasp_authorization80_worker.require_planning78('admit',q);f:=zasp_authorization80_worker.planning78_source('admit',q);
  WHEN 'test74' THEN PERFORM zasp_authorization80_worker.require_planning74('admit',q);f:=zasp_authorization80_worker.planning74_source('admit',q);
  WHEN 'ordered68' THEN PERFORM zasp_authorization80_worker.require_planning68('admit',q);f:=zasp_authorization80_worker.planning68_source('admit',q);
+ WHEN 'ordered68_progress' THEN PERFORM zasp_authorization80_worker.require_ordered68_test('progress',q);f:=zasp_authorization80_worker.ordered68_test_source('progress',q);
  ELSE RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval origin unsupported';END CASE;
  IF f->>'source_digest' IS NULL OR f->>'source_digest'!~'^[a-f0-9]{64}$' OR f->>'principal_id' IS NULL OR f->>'grantor_id' IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval origin unavailable';END IF;
  INSERT INTO zasp_approval_maintenance.origin_intents VALUES(f->>'organization_id',f->>'workspace_id',f->>'environment_id',f->>'run_id',family_value,f,f->>'source_digest',txid_current(),pg_backend_pid(),session_user) ON CONFLICT DO NOTHING;
@@ -105,7 +107,7 @@ DECLARE n public.zasp_security_agent_approval_notifications%ROWTYPE;BEGIN
  IF zasp_approval_maintenance.worker() IS NOT TRUE OR owner_value IS NULL OR char_length(owner_value) NOT BETWEEN 3 AND 128 OR owner_value<>btrim(owner_value) OR owner_value~E'[\\x00\\r\\n]' OR token_value IS NULL OR seconds_value IS NULL OR token_value!~'^[a-f0-9]{64}$' OR seconds_value NOT BETWEEN 15 AND 60 THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval reservation rejected';END IF;
  -- Only genuinely ACTIVE origins are candidates. Unsupported/inactive origins
  -- remain visible in origins; originals stay durable, not exhausted/deleted.
- SELECT x.* INTO n FROM public.zasp_security_agent_approval_notifications x JOIN zasp_approval_maintenance.origins o USING(organization_id,workspace_id,environment_id,delivery_id) WHERE o.status='active' AND o.delegation IS NOT NULL AND x.attempt<10 AND NOT EXISTS(SELECT 1 FROM zasp_approval_maintenance.reservations y WHERE(y.organization_id,y.workspace_id,y.environment_id,y.delivery_id,y.state)=(x.organization_id,x.workspace_id,x.environment_id,x.delivery_id,'attempted')) AND((x.state IN('pending','retryable') AND x.available_at<=clock_timestamp()) OR(x.state='leased' AND x.lease_expires_at<=clock_timestamp())) ORDER BY x.available_at,x.created_at,x.delivery_id FOR UPDATE OF x SKIP LOCKED LIMIT 1;
+ SELECT x.* INTO n FROM public.zasp_security_agent_approval_notifications x JOIN zasp_approval_maintenance.origins o USING(organization_id,workspace_id,environment_id,delivery_id) WHERE o.status IN('active','paused_denied') AND o.delegation IS NOT NULL AND x.attempt<10 AND NOT EXISTS(SELECT 1 FROM zasp_approval_maintenance.reservations y WHERE(y.organization_id,y.workspace_id,y.environment_id,y.delivery_id,y.state)=(x.organization_id,x.workspace_id,x.environment_id,x.delivery_id,'attempted')) AND((x.state IN('pending','retryable') AND x.available_at<=clock_timestamp()) OR(x.state='leased' AND x.lease_expires_at<=clock_timestamp())) ORDER BY x.available_at,x.created_at,x.delivery_id FOR UPDATE OF x SKIP LOCKED LIMIT 1;
  IF NOT FOUND THEN RETURN '{"found":false}'::jsonb;END IF;
  -- Expired attempted receipts are not blindly resent. Exact recovery policy
  -- must settle/quarantine before another reservation can be issued.
@@ -129,7 +131,7 @@ DECLARE r zasp_approval_maintenance.reservations%ROWTYPE;n public.zasp_security_
  r:=zasp_approval_maintenance.reserved(q);
  SELECT * INTO STRICT n FROM public.zasp_security_agent_approval_notifications WHERE(organization_id,workspace_id,environment_id,delivery_id)=(r.organization_id,r.workspace_id,r.environment_id,r.delivery_id);
  SELECT * INTO STRICT o FROM zasp_approval_maintenance.origins WHERE(organization_id,workspace_id,environment_id,delivery_id)=(r.organization_id,r.workspace_id,r.environment_id,r.delivery_id) FOR SHARE;
- IF o.status<>'active' OR o.delegation IS NULL OR o.family IS NULL OR o.family NOT IN('finding78','test74','ordered68') OR o.source_digest IS NULL OR o.source_digest!~'^[a-f0-9]{64}$' OR o.facts IS NULL OR(o.approval_id,o.run_id,o.payload_digest,o.destination_url,o.secret_reference) IS DISTINCT FROM(n.approval_id,n.run_id,n.payload_digest,n.destination_url,n.secret_reference) OR digest(convert_to(n.payload::text,'UTF8'),'sha256') IS DISTINCT FROM n.payload_digest THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval delegation unavailable';END IF;
+ IF o.status NOT IN('active','paused_denied') OR o.delegation IS NULL OR o.family IS NULL OR o.family NOT IN('finding78','test74','ordered68','ordered68_progress') OR o.source_digest IS NULL OR o.source_digest!~'^[a-f0-9]{64}$' OR o.facts IS NULL OR(o.approval_id,o.run_id,o.payload_digest,o.destination_url,o.secret_reference) IS DISTINCT FROM(n.approval_id,n.run_id,n.payload_digest,n.destination_url,n.secret_reference) OR digest(convert_to(n.payload::text,'UTF8'),'sha256') IS DISTINCT FROM n.payload_digest THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval delegation unavailable';END IF;
  RETURN jsonb_build_object('reference',q,'approval_id',o.approval_id,'run_id',o.run_id,'family',o.family,'source_digest',o.source_digest,'facts',o.facts,'delegation',o.delegation,'destination_digest',encode(digest(convert_to(o.destination_url,'UTF8'),'sha256'),'hex'),'secret_reference_digest',encode(digest(convert_to(o.secret_reference,'UTF8'),'sha256'),'hex'),'lease_expires_at',r.lease_expires_at,'attempt',n.attempt,'session_user',session_user);
 END $source$;
 CREATE FUNCTION zasp_approval_maintenance.require_forward(phase text,q jsonb,envelope_value json) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $forward$
@@ -162,12 +164,17 @@ DECLARE r zasp_approval_maintenance.reservations%ROWTYPE;n public.zasp_security_
  SELECT version,key INTO STRICT version_value,k FROM zasp_approval_maintenance.verifiers WHERE purpose='approval-captured';
  body_value:=convert_to(jsonb_build_object('purpose','approval-captured','key_version',version_value,'reference',q,'attempt',n.attempt,'kind',kind_value,'lease_expires_at',r.lease_expires_at)::text,'UTF8');
  receipt_value:=jsonb_build_object('body',replace(encode(body_value,'base64'),E'\n',''),'version',version_value,'mac',encode(hmac(convert_to('zasp-approval-captured-v1','UTF8')||decode('00','hex')||body_value,k,'sha256'),'hex'));
+ UPDATE zasp_approval_maintenance.origins SET status='active' WHERE(organization_id,workspace_id,environment_id,delivery_id)=(r.organization_id,r.workspace_id,r.environment_id,r.delivery_id) AND status='paused_denied';
  UPDATE zasp_approval_maintenance.reservations SET state='attempted',attempt=n.attempt,kind=kind_value,receipt=receipt_value,forward_digest=decision_digest WHERE(organization_id,workspace_id,environment_id,delivery_id,lease_token)=(r.organization_id,r.workspace_id,r.environment_id,r.delivery_id,r.lease_token);
  RETURN jsonb_build_object('created',true,'captured_proof',replace(encode(convert_to(receipt_value::text,'UTF8'),'base64'),E'\n',''));
 END $begin_attempt$;
 CREATE FUNCTION zasp_approval_maintenance.settle(q jsonb,envelope_value json,successful boolean) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $settle$
 DECLARE r zasp_approval_maintenance.reservations%ROWTYPE;n public.zasp_security_agent_approval_notifications%ROWTYPE;k bytea;b bytea;transition_value text;BEGIN
- IF successful IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval settlement rejected';END IF;r:=zasp_approval_maintenance.reserved(q);
+ IF successful IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval settlement rejected';END IF;
+ -- Match forward org->notification->reservation lock order before touching the
+ -- shared revision on terminal delivery. No later organization lock inversion.
+ PERFORM 1 FROM zasp_authorization79.organizations WHERE organization_id=q->>'organization_id' FOR UPDATE;
+ r:=zasp_approval_maintenance.reserved(q);
  IF r.state<>'attempted' OR successful AND r.kind<>'delivery' OR envelope_value IS NULL OR octet_length(envelope_value::text)>65536 OR NOT zasp_authorization80.unique_json(envelope_value) OR envelope_value::jsonb IS DISTINCT FROM r.receipt THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval captured receipt rejected';END IF;
  SELECT key INTO STRICT k FROM zasp_approval_maintenance.verifiers WHERE purpose='approval-captured' AND version=envelope_value->>'version' FOR SHARE;b:=decode(envelope_value->>'body','base64');
  IF envelope_value->>'mac' IS DISTINCT FROM encode(hmac(convert_to('zasp-approval-captured-v1','UTF8')||decode('00','hex')||b,k,'sha256'),'hex') THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval captured receipt rejected';END IF;
@@ -177,26 +184,61 @@ DECLARE r zasp_approval_maintenance.reservations%ROWTYPE;n public.zasp_security_
  UPDATE public.zasp_security_agent_approval_notifications SET state=transition_value,available_at=CASE WHEN transition_value='retryable' THEN clock_timestamp()+make_interval(secs=>least(60,n.attempt*n.attempt)) ELSE available_at END,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,completed_at=CASE WHEN successful THEN clock_timestamp() ELSE NULL END,updated_at=clock_timestamp() WHERE(organization_id,workspace_id,environment_id,delivery_id,state,lease_owner,lease_token,payload_digest,attempt)=(r.organization_id,r.workspace_id,r.environment_id,r.delivery_id,'leased',r.lease_owner,r.lease_token,r.payload_digest,r.attempt) AND lease_expires_at=r.lease_expires_at AND lease_expires_at>clock_timestamp();
  IF NOT FOUND THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='approval captured lease lost';END IF;
  UPDATE zasp_approval_maintenance.reservations SET state='settled' WHERE(organization_id,workspace_id,environment_id,delivery_id,lease_token)=(r.organization_id,r.workspace_id,r.environment_id,r.delivery_id,r.lease_token);
+ IF transition_value IN('delivered','exhausted') THEN PERFORM zasp_authorization79.touch(r.organization_id);END IF;
  RETURN jsonb_build_object('transition',transition_value);
 END $settle$;
+-- A new delivery-purpose task is derived from an AUTHENTIC enqueue, never
+-- from an independently provided task/grant. Unsupported original shapes pause
+-- durably after preserving the original native result, not by rolling it back.
+CREATE FUNCTION zasp_approval_maintenance.enqueue_delegation(n public.zasp_security_agent_approval_notifications,i zasp_approval_maintenance.origin_intents) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $enqueue_delegation$
+DECLARE task_value text;checks_count integer;
+BEGIN
+ IF zasp_approval_maintenance.catalog_ready() IS NOT TRUE OR
+ (i.transaction_id,i.backend_id,i.principal_name) IS DISTINCT FROM(txid_current(),pg_backend_pid(),session_user)
+ OR (i.organization_id,i.workspace_id,i.environment_id,i.run_id) IS DISTINCT FROM(n.organization_id,n.workspace_id,n.environment_id,n.run_id)
+ OR n.created_at IS DISTINCT FROM transaction_timestamp() OR NOT EXISTS(SELECT 1 FROM public.zasp_security_agent_approval_notifications x WHERE(x.organization_id,x.workspace_id,x.environment_id,x.delivery_id)=(n.organization_id,n.workspace_id,n.environment_id,n.delivery_id) AND x.xmin::text::bigint=txid_current()%4294967296)
+ OR i.source_digest IS DISTINCT FROM i.facts->>'source_digest'
+ OR digest(convert_to(n.payload::text,'UTF8'),'sha256') IS DISTINCT FROM n.payload_digest
+ OR (i.facts->>'organization_id',i.facts->>'workspace_id',i.facts->>'environment_id',i.facts->>'run_id') IS DISTINCT FROM(i.organization_id,i.workspace_id,i.environment_id,i.run_id)
+ OR public.zasp_valid_product_id(i.facts->>'principal_id') IS NOT TRUE OR public.zasp_valid_product_id(i.facts->>'grantor_id') IS NOT TRUE
+ THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval enqueue provenance rejected';END IF;
+ IF jsonb_typeof(i.facts->'checks') IS DISTINCT FROM 'array' OR i.family NOT IN('finding78','test74','ordered68','ordered68_progress') THEN RETURN NULL;END IF;
+ checks_count:=jsonb_array_length(i.facts->'checks');
+ -- The ORIGINAL signed source owns the complete permission set. Runtime Test
+ -- includes up to107 checks (6+101 devices), and signed progress has exactly2.
+ -- Never trim devices or substitute the former 3/4/5 planner-only subset.
+ IF checks_count NOT BETWEEN 2 AND 128
+ OR i.family='ordered68_progress' AND(i.facts->>'execution_phase' IS DISTINCT FROM 'progress' OR checks_count<>2)
+ OR EXISTS(SELECT 1 FROM jsonb_array_elements(i.facts->'checks') c WHERE NOT zasp_sa_multistep_prior.closed(c,ARRAY['kind','id','permission']) OR EXISTS(SELECT 1 FROM jsonb_each(c) WHERE jsonb_typeof(value) IS DISTINCT FROM 'string') OR public.zasp_valid_product_id(c->>'id') IS NOT TRUE OR c->>'kind'!~'^[a-z][a-z0-9_]{0,62}$' OR c->>'permission' NOT IN('investigate_sessions','manage_api_tokens','manage_data_controls','manage_findings','manage_identity','manage_workflows','revoke_sessions','run_tests','view','view_audit','view_compliance'))
+ OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(i.facts->'checks') c WHERE(c->>'kind',c->>'id',c->>'permission')=('security_agent',i.facts->>'definition_id','manage_workflows'))
+ OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(i.facts->'checks') c WHERE(c->>'kind',c->>'id',c->>'permission')=('security_agent_run',i.run_id,'manage_workflows'))
+ OR EXISTS(SELECT 1 FROM jsonb_array_elements(i.facts->'checks') c GROUP BY c->>'kind',c->>'id',c->>'permission' HAVING count(*)>1)
+ THEN RETURN NULL;END IF;
+ -- Exact bounded purpose is one immutable notification and <= original10
+ -- attempts. No added wall-clock expiry truncates post-terminal delivery.
+ task_value:=public.zasp_discovery_canonical_id(n.organization_id,n.workspace_id,n.environment_id,'approval_delivery_task',n.delivery_id||chr(31)||encode(n.payload_digest,'hex'));
+ RETURN jsonb_build_object('task_id',task_value,'purpose','approval_notification_delivery','principal_id',i.facts->>'principal_id','grantor_id',i.facts->>'grantor_id');
+END $enqueue_delegation$;
+
 -- Supported-family wrapper preserves the original native plan/admit body.
 -- Original signed intent is checked BEFORE the original command mutates facts.
 CREATE FUNCTION zasp_approval_maintenance.admit_with_origin(family_value text,q jsonb) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $admit_origin$
-DECLARE result_value jsonb;i zasp_approval_maintenance.origin_intents%ROWTYPE;n public.zasp_security_agent_approval_notifications%ROWTYPE;a public.zasp_security_agent_approvals%ROWTYPE;step_value text;BEGIN
- IF q->>'operation' IS DISTINCT FROM 'admit' THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval admission rejected';END IF;
+DECLARE result_value jsonb;i zasp_approval_maintenance.origin_intents%ROWTYPE;n public.zasp_security_agent_approval_notifications%ROWTYPE;a public.zasp_security_agent_approvals%ROWTYPE;step_value text;delegation_value jsonb;BEGIN
+ IF q->>'operation' IS DISTINCT FROM (CASE family_value WHEN 'ordered68_progress' THEN 'progress' ELSE 'admit' END) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval admission rejected';END IF;
  PERFORM zasp_approval_maintenance.capture_origin_intent(family_value,q);
- CASE family_value WHEN 'finding78' THEN result_value:=zasp_temporal78.plan(q);WHEN 'test74' THEN result_value:=zasp_temporal74.plan(q);WHEN 'ordered68' THEN result_value:=zasp_temporal68.plan(q);ELSE RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval origin unsupported';END CASE;
- IF result_value->>'approval_id' IS NULL THEN RETURN result_value;END IF;
+ CASE family_value WHEN 'finding78' THEN result_value:=zasp_temporal78.plan(q);WHEN 'test74' THEN result_value:=zasp_temporal74.plan(q);WHEN 'ordered68' THEN result_value:=zasp_temporal68.plan(q);WHEN 'ordered68_progress' THEN result_value:=zasp_temporal68.progress(q);ELSE RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='approval origin unsupported';END CASE;
+ IF coalesce(result_value->>'approval_id','')='' THEN RETURN result_value;END IF;
  step_value:=CASE family_value WHEN 'ordered68' THEN result_value->'step_ids'->>0 ELSE result_value->>'step_id' END;
- SELECT * INTO STRICT a FROM public.zasp_security_agent_approvals WHERE(organization_id,workspace_id,environment_id,run_id,approval_id,step_id)=(q->>'organization_id',q->>'workspace_id',q->>'environment_id',q->>'run_id',result_value->>'approval_id',step_value) AND 'sha256:'||encode(plan_hash,'hex')=result_value->>'plan_hash' FOR SHARE;
+ SELECT na.* INTO STRICT a FROM public.zasp_security_agent_approvals na WHERE(na.organization_id,na.workspace_id,na.environment_id,na.run_id,na.approval_id,na.step_id)=(q->>'organization_id',q->>'workspace_id',q->>'environment_id',q->>'run_id',result_value->>'approval_id',step_value) AND(family_value='ordered68_progress' AND EXISTS(SELECT 1 FROM public.zasp_security_agent_plans p WHERE(p.organization_id,p.workspace_id,p.environment_id,p.run_id,p.plan_hash)=(na.organization_id,na.workspace_id,na.environment_id,na.run_id,na.plan_hash)) OR family_value<>'ordered68_progress' AND 'sha256:'||encode(na.plan_hash,'hex')=result_value->>'plan_hash') FOR SHARE;
  SELECT * INTO n FROM public.zasp_security_agent_approval_notifications WHERE(organization_id,workspace_id,environment_id,run_id,approval_id)=(a.organization_id,a.workspace_id,a.environment_id,a.run_id,a.approval_id) AND created_at=transaction_timestamp() AND xmin::text::bigint=txid_current()%4294967296 FOR SHARE;
  -- No notification means original webhook configuration did not enqueue it.
  -- Old replayed notifications are not retroactively attributed to this proof.
  IF n.delivery_id IS NULL THEN RETURN result_value;END IF;
  SELECT * INTO STRICT i FROM zasp_approval_maintenance.origin_intents WHERE(organization_id,workspace_id,environment_id,run_id,transaction_id,backend_id,principal_name,family)=(n.organization_id,n.workspace_id,n.environment_id,n.run_id,txid_current(),pg_backend_pid(),session_user,family_value);
  IF digest(convert_to(n.payload::text,'UTF8'),'sha256') IS DISTINCT FROM n.payload_digest THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='approval payload changed';END IF;
- INSERT INTO zasp_approval_maintenance.origins VALUES(n.organization_id,n.workspace_id,n.environment_id,n.delivery_id,n.approval_id,n.run_id,i.family,i.source_digest,i.facts,n.payload_digest,n.destination_url,n.secret_reference,'captured_inactive',NULL) ON CONFLICT DO NOTHING;
- IF NOT EXISTS(SELECT 1 FROM zasp_approval_maintenance.origins o WHERE(o.organization_id,o.workspace_id,o.environment_id,o.delivery_id,o.approval_id,o.run_id,o.family,o.source_digest,o.facts,o.payload_digest,o.destination_url,o.secret_reference)=(n.organization_id,n.workspace_id,n.environment_id,n.delivery_id,n.approval_id,n.run_id,i.family,i.source_digest,i.facts,n.payload_digest,n.destination_url,n.secret_reference)) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='approval origin changed';END IF;
+ delegation_value:=zasp_approval_maintenance.enqueue_delegation(n,i);
+ INSERT INTO zasp_approval_maintenance.origins VALUES(n.organization_id,n.workspace_id,n.environment_id,n.delivery_id,n.approval_id,n.run_id,i.family,i.source_digest,i.facts,n.payload_digest,n.destination_url,n.secret_reference,CASE WHEN delegation_value IS NULL THEN 'paused_unsupported' ELSE 'captured_inactive' END,delegation_value) ON CONFLICT DO NOTHING;
+ IF NOT EXISTS(SELECT 1 FROM zasp_approval_maintenance.origins o WHERE(o.organization_id,o.workspace_id,o.environment_id,o.delivery_id,o.approval_id,o.run_id,o.family,o.source_digest,o.facts,o.payload_digest,o.destination_url,o.secret_reference,o.delegation) IS NOT DISTINCT FROM(n.organization_id,n.workspace_id,n.environment_id,n.delivery_id,n.approval_id,n.run_id,i.family,i.source_digest,i.facts,n.payload_digest,n.destination_url,n.secret_reference,delegation_value)) THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='approval origin changed';END IF;
  RETURN result_value;
 END $admit_origin$;
 CREATE FUNCTION zasp_approval_maintenance.record_unsupported() RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $unsupported$
@@ -221,6 +263,59 @@ DECLARE n public.zasp_security_agent_approval_notifications%ROWTYPE;BEGIN
  IF n.lease_expires_at<=clock_timestamp() OR zasp_approval_maintenance.reference(n) IS DISTINCT FROM q THEN RAISE EXCEPTION USING ERRCODE='40001',MESSAGE='approval payload lease lost';END IF;
  RETURN jsonb_build_object('organization_id',n.organization_id,'workspace_id',n.workspace_id,'environment_id',n.environment_id,'delivery_id',n.delivery_id,'approval_id',n.approval_id,'run_id',n.run_id,'payload',n.payload::text,'payload_digest','sha256:'||encode(n.payload_digest,'hex'),'destination_url',n.destination_url,'secret_reference',n.secret_reference,'lease_token',n.lease_token,'lease_expires_at',n.lease_expires_at,'attempt',n.attempt);
 END $payload$;
+-- No activation function is exposed. Future activation MUST hold the same
+-- org advisory lock, join the old external writer, bind the actual configured
+-- model/store and measured withdrawal receipt, and touch desired atomically.
+CREATE TABLE zasp_approval_maintenance.projection_activations(
+ organization_id text PRIMARY KEY REFERENCES public.zasp_organizations(id),
+ source_checksum text NOT NULL CHECK(source_checksum='-- approval maintenance checksum'),
+ store_id text NOT NULL CHECK(store_id~'^[0-7][0-9A-HJKMNP-TV-Z]{25}$'),
+ model_id text NOT NULL CHECK(model_id~'^[0-7][0-9A-HJKMNP-TV-Z]{25}$'),
+ withdrawal_reference text NOT NULL CHECK(withdrawal_reference~'^[a-f0-9]{64}$'));
+CREATE VIEW zasp_approval_maintenance.delivery_grants AS
+ SELECT o.organization_id,o.workspace_id,o.environment_id,c->>'kind' kind,c->>'id' id,'service'::text principal_kind,o.delegation->>'principal_id' principal_id,c->>'permission' permission,o.delegation->>'task_id' task_id
+ FROM zasp_approval_maintenance.origins o
+ JOIN zasp_approval_maintenance.projection_activations a ON a.organization_id=o.organization_id
+ JOIN zasp_authorization79.organizations v ON(v.organization_id,v.store_id,v.model_id)=(a.organization_id,a.store_id,a.model_id)
+ JOIN public.zasp_security_agent_approval_notifications n ON(n.organization_id,n.workspace_id,n.environment_id,n.delivery_id)=(o.organization_id,o.workspace_id,o.environment_id,o.delivery_id)
+ JOIN public.zasp_identity_memberships m ON(m.organization_id,m.principal_id)=(o.organization_id,o.delegation->>'grantor_id') AND m.active
+ CROSS JOIN LATERAL jsonb_array_elements(o.facts->'checks') c
+ JOIN zasp_authorization79.resources r ON(r.organization_id,r.workspace_id,r.environment_id,r.kind,r.id)=(o.organization_id,o.workspace_id,o.environment_id,c->>'kind',c->>'id')
+ WHERE zasp_approval_maintenance.ready() IS TRUE AND a.source_checksum='-- approval maintenance checksum'
+ AND o.status IN('active','paused_denied') AND o.delegation->>'purpose'='approval_notification_delivery'
+ AND n.state IN('pending','retryable','leased') AND n.attempt<=10;
+CREATE VIEW zasp_approval_maintenance.projection_members AS
+ SELECT * FROM zasp_authorization79.members
+ UNION SELECT organization_id,'service'::text,principal_id,''::text FROM zasp_approval_maintenance.delivery_grants;
+CREATE VIEW zasp_approval_maintenance.projection_grants AS
+ SELECT * FROM zasp_authorization79.current_grants
+ UNION SELECT * FROM zasp_approval_maintenance.delivery_grants;
+ALTER VIEW zasp_approval_maintenance.delivery_grants OWNER TO zasp_discovery_authority;
+ALTER VIEW zasp_approval_maintenance.projection_members OWNER TO zasp_discovery_authority;
+ALTER VIEW zasp_approval_maintenance.projection_grants OWNER TO zasp_discovery_authority;
+-- Copy the EXACT checked current snapshot, including every existing expiry,
+-- ancestry and source hook. Change only header/pin gate and two source views.
+-- One SELECT still binds full union facts+revision in one statement snapshot.
+DO $composed_snapshot$
+DECLARE d text;needle text;replacement text;n integer;
+BEGIN
+ SELECT pg_get_functiondef('zasp_authorization79.snapshot(text)'::regprocedure) INTO STRICT d;
+ FOR n IN 1..4 LOOP
+  CASE n
+   WHEN 1 THEN needle:='FUNCTION zasp_authorization79.snapshot(o text)';replacement:='FUNCTION zasp_approval_maintenance.snapshot(o text,pin text)';
+   WHEN 2 THEN needle:='BEGIN';replacement:='BEGIN'||E'\n'||' IF zasp_approval_maintenance.catalog_ready() IS NOT TRUE OR pin IS DISTINCT FROM ''-- approval maintenance checksum'' THEN RAISE EXCEPTION USING ERRCODE=''42501'',MESSAGE=''approval snapshot profile rejected'';END IF;';
+   WHEN 3 THEN needle:='FROM zasp_authorization79.members x WHERE organization_id=o';replacement:='FROM zasp_approval_maintenance.projection_members x WHERE organization_id=o';
+   WHEN 4 THEN needle:='FROM zasp_authorization79.current_grants x WHERE organization_id=o';replacement:='FROM zasp_approval_maintenance.projection_grants x WHERE organization_id=o';
+  END CASE;
+  IF(length(d)-length(replace(d,needle,'')))/length(needle)<>1 THEN RAISE EXCEPTION USING ERRCODE='55000',MESSAGE='approval snapshot predecessor changed';END IF;
+  d:=replace(d,needle,replacement);
+ END LOOP;
+ EXECUTE d;
+END $composed_snapshot$;
+-- This fixed metadata reader exposes no credentials, source rows or effects.
+CREATE FUNCTION zasp_approval_maintenance.projection_profile_state() RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $profile_state$
+ SELECT jsonb_build_object('active',active,'checksum',checksum,'catalog_ready',zasp_approval_maintenance.catalog_ready()) FROM zasp_approval_maintenance.registration WHERE singleton
+$profile_state$;
 -- No public/API role can execute any of the functions. Registration and exact
 -- restricted grants are pending reviewed native installer integration.
 DO $seal$ DECLARE n record;BEGIN
@@ -245,3 +340,9 @@ GRANT EXECUTE ON FUNCTION zasp_approval_maintenance.admit_with_origin(text,jsonb
 GRANT EXECUTE ON FUNCTION zasp_approval_maintenance.register_principal(name),zasp_approval_maintenance.register_verifier(text,text,bytea) TO zasp_discovery_authority;
 
 GRANT EXECUTE ON FUNCTION zasp_approval_maintenance.caller_ready(text,text),zasp_approval_maintenance.revision(text),zasp_approval_maintenance.authorized_payload(jsonb,json) TO zasp_approval_maintenance_worker;
+
+GRANT USAGE ON SCHEMA zasp_approval_maintenance TO zasp_outbox_worker;
+GRANT EXECUTE ON FUNCTION zasp_approval_maintenance.snapshot(text,text) TO zasp_outbox_worker;
+
+GRANT USAGE ON SCHEMA zasp_approval_maintenance TO zasp_discovery_api,zasp_security_agent_api,zasp_security_agent_worker;
+GRANT EXECUTE ON FUNCTION zasp_approval_maintenance.projection_profile_state() TO zasp_outbox_worker,zasp_discovery_api,zasp_security_agent_api,zasp_security_agent_worker,zasp_temporal_executor;
