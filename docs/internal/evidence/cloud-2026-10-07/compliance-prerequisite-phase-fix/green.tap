@@ -1,0 +1,1366 @@
+TAP version 13
+# Subtest: already exited owned child cannot authorize a 200
+ok 1 - already exited owned child cannot authorize a 200
+  ---
+  duration_ms: 12.625065
+  type: 'test'
+  ...
+# Subtest: non-readyz endpoint is refused before network dispatch
+ok 2 - non-readyz endpoint is refused before network dispatch
+  ---
+  duration_ms: 3.638292
+  type: 'test'
+  ...
+# Subtest: real transient 503 retries then accepts exactly 200 and closes sockets/listeners
+ok 3 - real transient 503 retries then accepts exactly 200 and closes sockets/listeners
+  ---
+  duration_ms: 18.452088
+  type: 'test'
+  ...
+# Subtest: stalled body and request are aborted then joined at absolute deadline
+ok 4 - stalled body and request are aborted then joined at absolute deadline
+  ---
+  duration_ms: 288.395901
+  type: 'test'
+  ...
+# Subtest: never-ready status has one bounded absolute allowance
+ok 5 - never-ready status has one bounded absolute allowance
+  ---
+  duration_ms: 128.14019
+  type: 'test'
+  ...
+# Subtest: real child exit during 503 polling refuses promptly and closes probe
+ok 6 - real child exit during 503 polling refuses promptly and closes probe
+  ---
+  duration_ms: 5.949986
+  type: 'test'
+  ...
+# Subtest: 200 response arriving after real child exit is not readiness
+ok 7 - 200 response arriving after real child exit is not readiness
+  ---
+  duration_ms: 7.562977
+  type: 'test'
+  ...
+# Subtest: external cleanup cancellation joins a stalled request without raw error disclosure
+ok 8 - external cleanup cancellation joins a stalled request without raw error disclosure
+  ---
+  duration_ms: 8.59353
+  type: 'test'
+  ...
+# Subtest: invalid URL and cap inputs never dispatch and oversized body is refused
+ok 9 - invalid URL and cap inputs never dispatch and oversized body is refused
+  ---
+  duration_ms: 5.977628
+  type: 'test'
+  ...
+# Subtest: browser reload preserves the current top-level browsing context
+ok 10 - browser reload preserves the current top-level browsing context
+  ---
+  duration_ms: 0.32513
+  type: 'test'
+  ...
+# Subtest: macOS preserves the existing application default
+ok 11 - macOS preserves the existing application default
+  ---
+  duration_ms: 1.419128
+  type: 'test'
+  ...
+# Subtest: explicit Linux executable with spaces and shell metacharacters is passed literally
+ok 12 - explicit Linux executable with spaces and shell metacharacters is passed literally
+  ---
+  duration_ms: 4.276455
+  type: 'test'
+  ...
+# Subtest: explicit relative browser path fails without fallback
+ok 13 - explicit relative browser path fails without fallback
+  ---
+  duration_ms: 0.442777
+  type: 'test'
+  ...
+# Subtest: explicit newline browser path fails without fallback
+ok 14 - explicit newline browser path fails without fallback
+  ---
+  duration_ms: 0.200202
+  type: 'test'
+  ...
+# Subtest: explicit NUL browser path fails without fallback
+ok 15 - explicit NUL browser path fails without fallback
+  ---
+  duration_ms: 0.085739
+  type: 'test'
+  ...
+# Subtest: explicit tab browser path fails without fallback
+ok 16 - explicit tab browser path fails without fallback
+  ---
+  duration_ms: 0.069975
+  type: 'test'
+  ...
+# Subtest: explicit DEL browser path fails without fallback
+ok 17 - explicit DEL browser path fails without fallback
+  ---
+  duration_ms: 0.115565
+  type: 'test'
+  ...
+# Subtest: explicit C1 browser path fails without fallback
+ok 18 - explicit C1 browser path fails without fallback
+  ---
+  duration_ms: 0.386963
+  type: 'test'
+  ...
+# Subtest: explicit empty browser path fails without fallback
+ok 19 - explicit empty browser path fails without fallback
+  ---
+  duration_ms: 0.288144
+  type: 'test'
+  ...
+# Subtest: explicit nonexistent path fails despite a valid PATH fallback
+ok 20 - explicit nonexistent path fails despite a valid PATH fallback
+  ---
+  duration_ms: 0.947307
+  type: 'test'
+  ...
+# Subtest: explicit nonexecutable path fails despite a valid PATH fallback
+ok 21 - explicit nonexecutable path fails despite a valid PATH fallback
+  ---
+  duration_ms: 0.59766
+  type: 'test'
+  ...
+# Subtest: explicit directory path fails despite a valid PATH fallback
+ok 22 - explicit directory path fails despite a valid PATH fallback
+  ---
+  duration_ms: 0.426763
+  type: 'test'
+  ...
+# Subtest: Linux resolves installed Chrome from PATH and refuses missing defaults
+ok 23 - Linux resolves installed Chrome from PATH and refuses missing defaults
+  ---
+  duration_ms: 0.652523
+  type: 'test'
+  ...
+# Subtest: checked prerequisites reach setup once with resolved browser and PostgreSQL paths
+ok 24 - checked prerequisites reach setup once with resolved browser and PostgreSQL paths
+  ---
+  duration_ms: 2.871978
+  type: 'test'
+  ...
+# Subtest: missing chrome prevents setup and identifies the prerequisite
+ok 25 - missing chrome prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 1.189483
+  type: 'test'
+  ...
+# Subtest: missing go prevents setup and identifies the prerequisite
+ok 26 - missing go prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 0.645864
+  type: 'test'
+  ...
+# Subtest: missing docker prevents setup and identifies the prerequisite
+ok 27 - missing docker prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 0.692634
+  type: 'test'
+  ...
+# Subtest: missing openssl prevents setup and identifies the prerequisite
+ok 28 - missing openssl prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 0.72357
+  type: 'test'
+  ...
+# Subtest: missing pg_config prevents setup and identifies the prerequisite
+ok 29 - missing pg_config prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 1.141991
+  type: 'test'
+  ...
+# Subtest: missing pg/psql prevents setup and identifies the prerequisite
+ok 30 - missing pg/psql prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 2.638622
+  type: 'test'
+  ...
+# Subtest: missing node_modules/.bin/vinext prevents setup and identifies the prerequisite
+ok 31 - missing node_modules/.bin/vinext prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 2.055373
+  type: 'test'
+  ...
+# Subtest: missing dist/server/index.js prevents setup and identifies the prerequisite
+ok 32 - missing dist/server/index.js prevents setup and identifies the prerequisite
+  ---
+  duration_ms: 2.222304
+  type: 'test'
+  ...
+# Subtest: the actual harness exits nonzero before setup for an invalid explicit browser
+ok 33 - the actual harness exits nonzero before setup for an invalid explicit browser
+  ---
+  duration_ms: 94.197204
+  type: 'test'
+  ...
+# Subtest: invalid relative pg_config output prevents setup
+ok 34 - invalid relative pg_config output prevents setup
+  ---
+  duration_ms: 2.678045
+  type: 'test'
+  ...
+# Subtest: invalid embedded control pg_config output prevents setup
+ok 35 - invalid embedded control pg_config output prevents setup
+  ---
+  duration_ms: 1.848791
+  type: 'test'
+  ...
+# Subtest: invalid empty pg_config output prevents setup
+ok 36 - invalid empty pg_config output prevents setup
+  ---
+  duration_ms: 1.781474
+  type: 'test'
+  ...
+# Subtest: failed pg_config command identifies the tool and prevents setup
+ok 37 - failed pg_config command identifies the tool and prevents setup
+  ---
+  duration_ms: 1.694944
+  type: 'test'
+  ...
+# Subtest: compliance missing owned tool inputs refuses before preparation or compiler dispatch
+ok 38 - compliance missing owned tool inputs refuses before preparation or compiler dispatch
+  ---
+  duration_ms: 3.852306
+  type: 'test'
+  ...
+# Subtest: complete runtime fields validate configuration only and preserve actual readiness gate
+ok 39 - complete runtime fields validate configuration only and preserve actual readiness gate
+  ---
+  duration_ms: 2.974242
+  type: 'test'
+  ...
+# Subtest: noncompliance source path preserves its original owned preparation dispatch
+ok 40 - noncompliance source path preserves its original owned preparation dispatch
+  ---
+  duration_ms: 1.776106
+  type: 'test'
+  ...
+# Subtest: incomplete and mismatched runtime config refuses without publishing input values
+ok 41 - incomplete and mismatched runtime config refuses without publishing input values
+  ---
+  duration_ms: 1.661714
+  type: 'test'
+  ...
+# Subtest: actual compliance API environment propagates validated owned runtime fields instead of ambient settings
+ok 42 - actual compliance API environment propagates validated owned runtime fields instead of ambient settings
+  ---
+  duration_ms: 2.628181
+  type: 'test'
+  ...
+# Subtest: actual retained config refusal has closed startup boundary
+ok 43 - actual retained config refusal has closed startup boundary
+  ---
+  duration_ms: 0.502928
+  type: 'test'
+  ...
+# Subtest: actual retained initial allocation refusal is distinct before custody
+ok 44 - actual retained initial allocation refusal is distinct before custody
+  ---
+  duration_ms: 0.332481
+  type: 'test'
+  ...
+# Subtest: actual retained startup reserve guard remains unchanged and gets fixed boundary
+ok 45 - actual retained startup reserve guard remains unchanged and gets fixed boundary
+  ---
+  duration_ms: 0.287443
+  type: 'test'
+  ...
+# Subtest: actual partial openfga custody refusal joins first tool before diagnostic result
+ok 46 - actual partial openfga custody refusal joins first tool before diagnostic result
+  ---
+  duration_ms: 0.776881
+  type: 'test'
+  ...
+# Subtest: actual nested service verification boundary survives lifetime catch without raw cause
+ok 47 - actual nested service verification boundary survives lifetime catch without raw cause
+  ---
+  duration_ms: 25.320768
+  type: 'test'
+  ...
+# Subtest: actual service generic error replacement preserves fixed token boundary only
+ok 48 - actual service generic error replacement preserves fixed token boundary only
+  ---
+  duration_ms: 1.327861
+  type: 'test'
+  ...
+# Subtest: annotation is fixed, does not inspect private errors, and emission cannot replace error identity
+ok 49 - annotation is fixed, does not inspect private errors, and emission cannot replace error identity
+  ---
+  duration_ms: 0.442507
+  type: 'test'
+  ...
+# Subtest: annotation waits partial custody cleanup before original error escapes
+ok 50 - annotation waits partial custody cleanup before original error escapes
+  ---
+  duration_ms: 1.160409
+  type: 'test'
+  ...
+# Subtest: existing cleanup failure precedence survives fixed diagnostic metadata
+ok 51 - existing cleanup failure precedence survives fixed diagnostic metadata
+  ---
+  duration_ms: 2.918603
+  type: 'test'
+  ...
+# Subtest: actual preparation state allocation refusal preserves original error, emits fixed phase and never starts services
+ok 52 - actual preparation state allocation refusal preserves original error, emits fixed phase and never starts services
+  ---
+  duration_ms: 3.374085
+  type: 'test'
+  ...
+# Subtest: retained observer reports fixed socket refusal without revealing paths
+ok 53 - retained observer reports fixed socket refusal without revealing paths
+  ---
+  duration_ms: 3.527946
+  type: 'test'
+  ...
+# Subtest: retained observer reports fixed symlink refusal without revealing paths
+ok 54 - retained observer reports fixed symlink refusal without revealing paths
+  ---
+  duration_ms: 1.977415
+  type: 'test'
+  ...
+# Subtest: retained observer reports fixed hardlink refusal without revealing paths
+ok 55 - retained observer reports fixed hardlink refusal without revealing paths
+  ---
+  duration_ms: 2.690224
+  type: 'test'
+  ...
+# Subtest: retained observer reports fixed missing refusal without revealing paths
+ok 56 - retained observer reports fixed missing refusal without revealing paths
+  ---
+  duration_ms: 1.303444
+  type: 'test'
+  ...
+# Subtest: sampled reserve refusal remains closed and joins services
+ok 57 - sampled reserve refusal remains closed and joins services
+  ---
+  duration_ms: 0.817733
+  type: 'test'
+  ...
+# Subtest: sampled budget refusal remains closed and joins services
+ok 58 - sampled budget refusal remains closed and joins services
+  ---
+  duration_ms: 2.9062
+  type: 'test'
+  ...
+# Subtest: sampled value refusal remains closed and joins services
+ok 59 - sampled value refusal remains closed and joins services
+  ---
+  duration_ms: 0.37786
+  type: 'test'
+  ...
+# Subtest: real-path orchestration binds namespace and published store/model before returning
+ok 60 - real-path orchestration binds namespace and published store/model before returning
+  ---
+  duration_ms: 4.847976
+  type: 'test'
+  ...
+# Subtest: failure temporal joins every owned child before removing state
+ok 61 - failure temporal joins every owned child before removing state
+  ---
+  duration_ms: 5.871623
+  type: 'test'
+  ...
+# Subtest: failure store joins every owned child before removing state
+ok 62 - failure store joins every owned child before removing state
+  ---
+  duration_ms: 1.341461
+  type: 'test'
+  ...
+# Subtest: failure model joins every owned child before removing state
+ok 63 - failure model joins every owned child before removing state
+  ---
+  duration_ms: 1.674954
+  type: 'test'
+  ...
+# Subtest: failure invalid-store joins every owned child before removing state
+ok 64 - failure invalid-store joins every owned child before removing state
+  ---
+  duration_ms: 1.366129
+  type: 'test'
+  ...
+# Subtest: failure invalid-model joins every owned child before removing state
+ok 65 - failure invalid-model joins every owned child before removing state
+  ---
+  duration_ms: 2.403031
+  type: 'test'
+  ...
+# Subtest: cleanup failure joins remaining children and retains state
+ok 66 - cleanup failure joins remaining children and retains state
+  ---
+  duration_ms: 2.913851
+  type: 'test'
+  ...
+# Subtest: missing run refuses before any launch
+ok 67 - missing run refuses before any launch
+  ---
+  duration_ms: 0.316617
+  type: 'test'
+  ...
+# Subtest: missing tools refuses before any launch
+ok 68 - missing tools refuses before any launch
+  ---
+  duration_ms: 0.095223
+  type: 'test'
+  ...
+# Subtest: ambient authority options refused before launch
+ok 69 - ambient authority options refused before launch
+  ---
+  duration_ms: 0.370699
+  type: 'test'
+  ...
+# Subtest: unadmitted tools refuse before any launch or state allocation
+ok 70 - unadmitted tools refuse before any launch or state allocation
+  ---
+  duration_ms: 1.912052
+  type: 'test'
+  ...
+# Subtest: unexpected owned child exit refuses publication and joins both children
+ok 71 - unexpected owned child exit refuses publication and joins both children
+  ---
+  duration_ms: 1.169303
+  type: 'test'
+  ...
+# Subtest: caller command overrides refuse before launch
+ok 72 - caller command overrides refuse before launch
+  ---
+  duration_ms: 0.173201
+  type: 'test'
+  ...
+# Subtest: service exit cancels and joins losing finite command before service cleanup
+ok 73 - service exit cancels and joins losing finite command before service cleanup
+  ---
+  duration_ms: 1.44606
+  type: 'test'
+  ...
+# Subtest: service exit cancels and finalizes losing publication before service cleanup
+ok 74 - service exit cancels and finalizes losing publication before service cleanup
+  ---
+  duration_ms: 1.198776
+  type: 'test'
+  ...
+# Subtest: health poll losing to service exit is canceled and finalized before service cleanup
+ok 75 - health poll losing to service exit is canceled and finalized before service cleanup
+  ---
+  duration_ms: 1.261431
+  type: 'test'
+  ...
+# Subtest: authenticated exact model readback is required before returning configuration
+ok 76 - authenticated exact model readback is required before returning configuration
+  ---
+  duration_ms: 3.631542
+  type: 'test'
+  ...
+# Subtest: foreign listener refuses before sending authentication token
+ok 77 - foreign listener refuses before sending authentication token
+  ---
+  duration_ms: 1.240249
+  type: 'test'
+  ...
+# Subtest: noncanonical allocation parent refuses before launch undefined
+ok 78 - noncanonical allocation parent refuses before launch undefined
+  ---
+  duration_ms: 0.150316
+  type: 'test'
+  ...
+# Subtest: noncanonical allocation parent refuses before launch relative
+ok 79 - noncanonical allocation parent refuses before launch relative
+  ---
+  duration_ms: 0.078028
+  type: 'test'
+  ...
+# Subtest: noncanonical allocation parent refuses before launch /owned/../elsewhere
+ok 80 - noncanonical allocation parent refuses before launch /owned/../elsewhere
+  ---
+  duration_ms: 0.06656
+  type: 'test'
+  ...
+# Subtest: resource cancellation finalizes finite command before reverse service joins and allocation removal
+ok 81 - resource cancellation finalizes finite command before reverse service joins and allocation removal
+  ---
+  duration_ms: 1.967404
+  type: 'test'
+  ...
+# Subtest: array-shaped empty metadata is not a protobuf empty-object normalization
+ok 82 - array-shaped empty metadata is not a protobuf empty-object normalization
+  ---
+  duration_ms: 2.896305
+  type: 'test'
+  ...
+# Subtest: actual finite service command preserves original rejection and cleanup refusal precedence
+ok 83 - actual finite service command preserves original rejection and cleanup refusal precedence
+  ---
+  duration_ms: 44.169443
+  type: 'test'
+  ...
+# Subtest: actual finite service command cancellation awaits delayed cleanup even after producer completion
+ok 84 - actual finite service command cancellation awaits delayed cleanup even after producer completion
+  ---
+  duration_ms: 10.59095
+  type: 'test'
+  ...
+# Subtest: actual service guard preserves operation identity and sticky cleanup class while deleting operation records
+ok 85 - actual service guard preserves operation identity and sticky cleanup class while deleting operation records
+  ---
+  duration_ms: 7.388685
+  type: 'test'
+  ...
+# Subtest: owned OpenFGA reserves a distinct declared nonzero gRPC port
+ok 86 - owned OpenFGA reserves a distinct declared nonzero gRPC port
+  ---
+  duration_ms: 3.154734
+  type: 'test'
+  ...
+# Subtest: invalid or aliased owned gRPC port refuses before launch 32101
+ok 87 - invalid or aliased owned gRPC port refuses before launch 32101
+  ---
+  duration_ms: 2.410663
+  type: 'test'
+  ...
+# Subtest: invalid or aliased owned gRPC port refuses before launch 32102
+ok 88 - invalid or aliased owned gRPC port refuses before launch 32102
+  ---
+  duration_ms: 0.755739
+  type: 'test'
+  ...
+# Subtest: invalid or aliased owned gRPC port refuses before launch 0
+ok 89 - invalid or aliased owned gRPC port refuses before launch 0
+  ---
+  duration_ms: 0.618532
+  type: 'test'
+  ...
+# Subtest: invalid or aliased owned gRPC port refuses before launch 1023
+ok 90 - invalid or aliased owned gRPC port refuses before launch 1023
+  ---
+  duration_ms: 0.673214
+  type: 'test'
+  ...
+# Subtest: invalid or aliased owned gRPC port refuses before launch 65536
+ok 91 - invalid or aliased owned gRPC port refuses before launch 65536
+  ---
+  duration_ms: 0.98215
+  type: 'test'
+  ...
+# Subtest: invalid or aliased owned gRPC port refuses before launch true
+ok 92 - invalid or aliased owned gRPC port refuses before launch true
+  ---
+  duration_ms: 0.560685
+  type: 'test'
+  ...
+# Subtest: invalid or aliased owned gRPC port refuses before launch 32103.5
+ok 93 - invalid or aliased owned gRPC port refuses before launch 32103.5
+  ---
+  duration_ms: 0.774037
+  type: 'test'
+  ...
+# Subtest: both OpenFGA listeners bind the same owner before and after health and authenticated requests
+ok 94 - both OpenFGA listeners bind the same owner before and after health and authenticated requests
+  ---
+  duration_ms: 2.987893
+  type: 'test'
+  ...
+# Subtest: foreign gRPC listener refuses startup before subsequent authenticated operation
+ok 95 - foreign gRPC listener refuses startup before subsequent authenticated operation
+  ---
+  duration_ms: 1.288166
+  type: 'test'
+  ...
+# Subtest: foreign gRPC listener refuses health before subsequent authenticated operation
+ok 96 - foreign gRPC listener refuses health before subsequent authenticated operation
+  ---
+  duration_ms: 1.256864
+  type: 'test'
+  ...
+# Subtest: foreign gRPC listener refuses write before subsequent authenticated operation
+ok 97 - foreign gRPC listener refuses write before subsequent authenticated operation
+  ---
+  duration_ms: 0.928089
+  type: 'test'
+  ...
+# Subtest: foreign gRPC listener refuses readback before subsequent authenticated operation
+ok 98 - foreign gRPC listener refuses readback before subsequent authenticated operation
+  ---
+  duration_ms: 1.333219
+  type: 'test'
+  ...
+# Subtest: actual health gate refuses successful health followed by lost listener ownership
+ok 99 - actual health gate refuses successful health followed by lost listener ownership
+  ---
+  duration_ms: 7.467724
+  type: 'test'
+  ...
+# Subtest: descriptor-proven complete 312 default projection is accepted without altering readback
+ok 100 - descriptor-proven complete 312 default projection is accepted without altering readback
+  ---
+  duration_ms: 4.531199
+  type: 'test'
+  ...
+# Subtest: every descriptor default path rejects a nondefault and reverses cleanup
+ok 101 - every descriptor default path rejects a nondefault and reverses cleanup
+  ---
+  duration_ms: 741.727574
+  type: 'test'
+  ...
+# Subtest: default projection preserves unknown, oneof, condition, type, relationship, identity and order refusals
+ok 102 - default projection preserves unknown, oneof, condition, type, relationship, identity and order refusals
+  ---
+  duration_ms: 41.154619
+  type: 'test'
+  ...
+# Subtest: each optional message default refuses object metadata including unknown keys
+ok 103 - each optional message default refuses object metadata including unknown keys
+  ---
+  duration_ms: 345.233256
+  type: 'test'
+  ...
+# Subtest: matches actual PID lifetime and exact loopback listener socket inode
+ok 104 - matches actual PID lifetime and exact loopback listener socket inode
+  ---
+  duration_ms: 0.91572
+  type: 'test'
+  ...
+# Subtest: refuses different PID
+ok 105 - refuses different PID
+  ---
+  duration_ms: 0.158259
+  type: 'test'
+  ...
+# Subtest: refuses reused PID
+ok 106 - refuses reused PID
+  ---
+  duration_ms: 0.075874
+  type: 'test'
+  ...
+# Subtest: refuses zombie
+ok 107 - refuses zombie
+  ---
+  duration_ms: 0.063466
+  type: 'test'
+  ...
+# Subtest: refuses nonloopback
+ok 108 - refuses nonloopback
+  ---
+  duration_ms: 0.070076
+  type: 'test'
+  ...
+# Subtest: refuses different port
+ok 109 - refuses different port
+  ---
+  duration_ms: 0.135945
+  type: 'test'
+  ...
+# Subtest: refuses foreign socket inode
+ok 110 - refuses foreign socket inode
+  ---
+  duration_ms: 0.173982
+  type: 'test'
+  ...
+# Subtest: startup refuses before tool intake when reserve plus bounded budget is unavailable
+ok 111 - startup refuses before tool intake when reserve plus bounded budget is unavailable
+  ---
+  duration_ms: 0.357188
+  type: 'test'
+  ...
+# Subtest: post-start reserve refusal awaits actual service finalization before settling completion
+ok 112 - post-start reserve refusal awaits actual service finalization before settling completion
+  ---
+  duration_ms: 1.890539
+  type: 'test'
+  ...
+# Subtest: post-start budget refusal awaits actual service finalization before settling completion
+ok 113 - post-start budget refusal awaits actual service finalization before settling completion
+  ---
+  duration_ms: 0.37832
+  type: 'test'
+  ...
+# Subtest: partial tool intake failure closes the already held capability
+ok 114 - partial tool intake failure closes the already held capability
+  ---
+  duration_ms: 0.220893
+  type: 'test'
+  ...
+# Subtest: actual allocated-byte observer refuses symlink escape within private fixture root
+ok 115 - actual allocated-byte observer refuses symlink escape within private fixture root
+  ---
+  duration_ms: 1.85095
+  type: 'test'
+  ...
+# Subtest: retained startup counts all existing allocation and spends only its unallocated budget
+ok 116 - retained startup counts all existing allocation and spends only its unallocated budget
+  ---
+  duration_ms: 1.004063
+  type: 'test'
+  ...
+# Subtest: retained startup refuses overbudget inventory before reopening any descriptor
+ok 117 - retained startup refuses overbudget inventory before reopening any descriptor
+  ---
+  duration_ms: 0.234263
+  type: 'test'
+  ...
+# Subtest: overlapping retained roots refuse instead of hiding or double-counting consumption
+ok 118 - overlapping retained roots refuse instead of hiding or double-counting consumption
+  ---
+  duration_ms: 0.129746
+  type: 'test'
+  ...
+# Subtest: later retained resource refusal finalizes service join before settling completion
+ok 119 - later retained resource refusal finalizes service join before settling completion
+  ---
+  duration_ms: 0.774657
+  type: 'test'
+  ...
+# Subtest: retained resource observer rejects hardlinked aliases across actual private roots
+ok 120 - retained resource observer rejects hardlinked aliases across actual private roots
+  ---
+  duration_ms: 2.021727
+  type: 'test'
+  ...
+# Subtest: retained observer refuses repeated actual root inode
+ok 121 - retained observer refuses repeated actual root inode
+  ---
+  duration_ms: 0.805333
+  type: 'test'
+  ...
+# Subtest: consumes exact regular executable member and closed auxiliary inventory
+ok 122 - consumes exact regular executable member and closed auxiliary inventory
+  ---
+  duration_ms: 0.834217
+  type: 'test'
+  ...
+# Subtest: refuses duplicate executable
+ok 123 - refuses duplicate executable
+  ---
+  duration_ms: 0.193872
+  type: 'test'
+  ...
+# Subtest: refuses traversal
+ok 124 - refuses traversal
+  ---
+  duration_ms: 0.095233
+  type: 'test'
+  ...
+# Subtest: refuses absolute
+ok 125 - refuses absolute
+  ---
+  duration_ms: 0.163757
+  type: 'test'
+  ...
+# Subtest: refuses symlink
+ok 126 - refuses symlink
+  ---
+  duration_ms: 0.088564
+  type: 'test'
+  ...
+# Subtest: refuses hardlink
+ok 127 - refuses hardlink
+  ---
+  duration_ms: 0.071698
+  type: 'test'
+  ...
+# Subtest: refuses pax extension
+ok 128 - refuses pax extension
+  ---
+  duration_ms: 0.064296
+  type: 'test'
+  ...
+# Subtest: refuses unknown member
+ok 129 - refuses unknown member
+  ---
+  duration_ms: 0.095884
+  type: 'test'
+  ...
+# Subtest: refuses missing executable
+ok 130 - refuses missing executable
+  ---
+  duration_ms: 0.100452
+  type: 'test'
+  ...
+# Subtest: refuses header checksum corruption
+ok 131 - refuses header checksum corruption
+  ---
+  duration_ms: 0.122885
+  type: 'test'
+  ...
+# Subtest: refuses truncated member data
+ok 132 - refuses truncated member data
+  ---
+  duration_ms: 0.105058
+  type: 'test'
+  ...
+# Subtest: refuses trailing nonzero payload
+ok 133 - refuses trailing nonzero payload
+  ---
+  duration_ms: 0.163707
+  type: 'test'
+  ...
+# Subtest: accepts only complete observed temporal regular-name roster
+ok 134 - accepts only complete observed temporal regular-name roster
+  ---
+  duration_ms: 0.770611
+  type: 'test'
+  ...
+# Subtest: refuses observed temporal member ceiling overflow before body consumption
+ok 135 - refuses observed temporal member ceiling overflow before body consumption
+  ---
+  duration_ms: 0.412672
+  type: 'test'
+  ...
+# Subtest: accepts only complete observed openfga regular-name roster
+ok 136 - accepts only complete observed openfga regular-name roster
+  ---
+  duration_ms: 2.407357
+  type: 'test'
+  ...
+# Subtest: refuses observed openfga member ceiling overflow before body consumption
+ok 137 - refuses observed openfga member ceiling overflow before body consumption
+  ---
+  duration_ms: 0.433213
+  type: 'test'
+  ...
+# Subtest: caller descriptor cannot mint held official capability
+ok 138 - caller descriptor cannot mint held official capability
+  ---
+  duration_ms: 0.110066
+  type: 'test'
+  ...
+# Subtest: consumed archive member is linked to held inode and fixed fd3 execution path
+ok 139 - consumed archive member is linked to held inode and fixed fd3 execution path
+  ---
+  duration_ms: 16.88079
+  type: 'test'
+  ...
+# Subtest: consumed byte mutation refuses before any spawn
+ok 140 - consumed byte mutation refuses before any spawn
+  ---
+  duration_ms: 6.884494
+  type: 'test'
+  ...
+# Subtest: substantive hash guard mutant fails its boundary
+ok 141 - substantive hash guard mutant fails its boundary
+  ---
+  duration_ms: 6.043137
+  type: 'test'
+  ...
+# Subtest: substantive path guard mutant fails its boundary
+ok 142 - substantive path guard mutant fails its boundary
+  ---
+  duration_ms: 5.725428
+  type: 'test'
+  ...
+# Subtest: installs existing closed runtime profile and genuine configure/reconcile before returning read-bound projection
+ok 143 - installs existing closed runtime profile and genuine configure/reconcile before returning read-bound projection
+  ---
+  duration_ms: 1.477096
+  type: 'test'
+  ...
+# Subtest: missing real runtime model refuses before any installation
+ok 144 - missing real runtime model refuses before any installation
+  ---
+  duration_ms: 0.21919
+  type: 'test'
+  ...
+# Subtest: receipt applied drift refuses instead of claiming acknowledgement
+ok 145 - receipt applied drift refuses instead of claiming acknowledgement
+  ---
+  duration_ms: 0.912435
+  type: 'test'
+  ...
+# Subtest: receipt model_id drift refuses instead of claiming acknowledgement
+ok 146 - receipt model_id drift refuses instead of claiming acknowledgement
+  ---
+  duration_ms: 0.568286
+  type: 'test'
+  ...
+# Subtest: receipt generation drift refuses instead of claiming acknowledgement
+ok 147 - receipt generation drift refuses instead of claiming acknowledgement
+  ---
+  duration_ms: 0.519402
+  type: 'test'
+  ...
+# Subtest: original installer failure stops before verifier or projector invocation
+ok 148 - original installer failure stops before verifier or projector invocation
+  ---
+  duration_ms: 0.59744
+  type: 'test'
+  ...
+# Subtest: closed owner environment removes ambient product settings without suppressing inherited tool metadata
+ok 149 - closed owner environment removes ambient product settings without suppressing inherited tool metadata
+  ---
+  duration_ms: 0.131248
+  type: 'test'
+  ...
+# Subtest: later projection loop consumes fresh native revisions and stops only after pending pass finalizes
+ok 150 - later projection loop consumes fresh native revisions and stops only after pending pass finalizes
+  ---
+  duration_ms: 0.66345
+  type: 'test'
+  ...
+# Subtest: actual projection failure is reported without publishing a fake applied revision
+ok 151 - actual projection failure is reported without publishing a fake applied revision
+  ---
+  duration_ms: 0.198228
+  type: 'test'
+  ...
+# Subtest: canceled projection cleanup failure remains a refusal and retains failed join
+ok 152 - canceled projection cleanup failure remains a refusal and retains failed join
+  ---
+  duration_ms: 0.159911
+  type: 'test'
+  ...
+# Subtest: inline grant barriers and owned polling serialize real projection passes
+ok 153 - inline grant barriers and owned polling serialize real projection passes
+  ---
+  duration_ms: 1.050293
+  type: 'test'
+  ...
+# Subtest: actual parsed environment builder receives closed owned ambient inputs
+ok 154 - actual parsed environment builder receives closed owned ambient inputs
+  ---
+  duration_ms: 10.388125
+  type: 'test'
+  ...
+# Subtest: actual parsed initial legacy and enabled restart preserve same real runtime/model and both database identities
+ok 155 - actual parsed initial legacy and enabled restart preserve same real runtime/model and both database identities
+  ---
+  duration_ms: 19.627608
+  type: 'test'
+  ...
+# Subtest: actual command cancellation awaits stop finalization after early child completion
+ok 156 - actual command cancellation awaits stop finalization after early child completion
+  ---
+  duration_ms: 10.965635
+  type: 'test'
+  ...
+# Subtest: current fixture is actually consumed before either API lifetime and reverse close precedes current PG deletion
+ok 157 - current fixture is actually consumed before either API lifetime and reverse close precedes current PG deletion
+  ---
+  duration_ms: 16.324951
+  type: 'test'
+  ...
+# Subtest: actual runner command preserves rejection identity unless cancellation join is incomplete
+ok 158 - actual runner command preserves rejection identity unless cancellation join is incomplete
+  ---
+  duration_ms: 22.810686
+  type: 'test'
+  ...
+# Subtest: fixed command classes never include arguments, paths or unknown failure text
+ok 159 - fixed command classes never include arguments, paths or unknown failure text
+  ---
+  duration_ms: 0.374164
+  type: 'test'
+  ...
+# Subtest: actual command timeout retains stop/throw/default30s and emits only fixed class
+ok 160 - actual command timeout retains stop/throw/default30s and emits only fixed class
+  ---
+  duration_ms: 0.664862
+  type: 'test'
+  ...
+# Subtest: actual command nonzero retains original error, explicit deadline and options
+ok 161 - actual command nonzero retains original error, explicit deadline and options
+  ---
+  duration_ms: 0.597049
+  type: 'test'
+  ...
+# Subtest: actual command success and explicit nonreject remain unchanged without annotations
+ok 162 - actual command success and explicit nonreject remain unchanged without annotations
+  ---
+  duration_ms: 0.544671
+  type: 'test'
+  ...
+# Subtest: actual fatal catch uses four fixed phases and preserves Error identity plus original cleanup
+ok 163 - actual fatal catch uses four fixed phases and preserves Error identity plus original cleanup
+  ---
+  duration_ms: 0.576168
+  type: 'test'
+  ...
+# Subtest: actual fatal catch preserves success silence, noncompliance silence and emitter failure
+ok 164 - actual fatal catch preserves success silence, noncompliance silence and emitter failure
+  ---
+  duration_ms: 0.339251
+  type: 'test'
+  ...
+# Subtest: actual fatal catch retains existing cleanup failure semantics and dispose ordering
+ok 165 - actual fatal catch retains existing cleanup failure semantics and dispose ordering
+  ---
+  duration_ms: 0.221554
+  type: 'test'
+  ...
+# Subtest: actual handled migration branch annotates nonzero only without changing status/diagnostic/throw
+ok 166 - actual handled migration branch annotates nonzero only without changing status/diagnostic/throw
+  ---
+  duration_ms: 0.748368
+  type: 'test'
+  ...
+# Subtest: parsed initial PG startup branches retain Error identity, call prefix and actual fatal cleanup
+ok 167 - parsed initial PG startup branches retain Error identity, call prefix and actual fatal cleanup
+  ---
+  duration_ms: 1.02836
+  type: 'test'
+  ...
+# Subtest: parsed mounted startup failures distinguish each owned operation without changing wrapper or cleanup
+ok 168 - parsed mounted startup failures distinguish each owned operation without changing wrapper or cleanup
+  ---
+  duration_ms: 6.199052
+  type: 'test'
+  ...
+# Subtest: parsed success keeps original startup arguments, API deadlines, legacy environment and assertion phase
+ok 169 - parsed success keeps original startup arguments, API deadlines, legacy environment and assertion phase
+  ---
+  duration_ms: 0.370558
+  type: 'test'
+  ...
+# Subtest: parsed noncompliance modes retain errors and cleanup with no phase annotations
+ok 170 - parsed noncompliance modes retain errors and cleanup with no phase annotations
+  ---
+  duration_ms: 0.354284
+  type: 'test'
+  ...
+# Subtest: annotation emitter failure cannot replace a parsed owned startup Error
+ok 171 - annotation emitter failure cannot replace a parsed owned startup Error
+  ---
+  duration_ms: 0.227083
+  type: 'test'
+  ...
+# Subtest: parsed API restart restores browser assertion phase only after readiness succeeds
+ok 172 - parsed API restart restores browser assertion phase only after readiness succeeds
+  ---
+  duration_ms: 0.633034
+  type: 'test'
+  ...
+# Subtest: all fixed startup labels are closed and unknown canary labels emit only unavailable
+ok 173 - all fixed startup labels are closed and unknown canary labels emit only unavailable
+  ---
+  duration_ms: 0.134533
+  type: 'test'
+  ...
+# Subtest: actual original helper exact finite command flow and return remain intact
+ok 174 - actual original helper exact finite command flow and return remain intact
+  ---
+  duration_ms: 1.32078
+  type: 'test'
+  ...
+# Subtest: actual services failure retains exact error and fixed subphase
+ok 175 - actual services failure retains exact error and fixed subphase
+  ---
+  duration_ms: 0.558802
+  type: 'test'
+  ...
+# Subtest: actual postgres failure retains exact error and fixed subphase
+ok 176 - actual postgres failure retains exact error and fixed subphase
+  ---
+  duration_ms: 0.244659
+  type: 'test'
+  ...
+# Subtest: actual principals failure retains exact error and fixed subphase
+ok 177 - actual principals failure retains exact error and fixed subphase
+  ---
+  duration_ms: 0.190888
+  type: 'test'
+  ...
+# Subtest: actual up56 failure retains exact error and fixed subphase
+ok 178 - actual up56 failure retains exact error and fixed subphase
+  ---
+  duration_ms: 0.245941
+  type: 'test'
+  ...
+# Subtest: actual seed failure retains exact error and fixed subphase
+ok 179 - actual seed failure retains exact error and fixed subphase
+  ---
+  duration_ms: 0.188084
+  type: 'test'
+  ...
+# Subtest: actual fixture failure retains exact error and fixed subphase
+ok 180 - actual fixture failure retains exact error and fixed subphase
+  ---
+  duration_ms: 0.185049
+  type: 'test'
+  ...
+# Subtest: actual forward.seed failure retains exact error and fixed subphase
+ok 181 - actual forward.seed failure retains exact error and fixed subphase
+  ---
+  duration_ms: 0.180572
+  type: 'test'
+  ...
+# Subtest: actual reconcile-build failure retains exact error and fixed subphase
+ok 182 - actual reconcile-build failure retains exact error and fixed subphase
+  ---
+  duration_ms: 0.261514
+  type: 'test'
+  ...
+# Subtest: actual current80 failure retains exact error and fixed subphase
+ok 183 - actual current80 failure retains exact error and fixed subphase
+  ---
+  duration_ms: 0.375225
+  type: 'test'
+  ...
+# Subtest: noncompliance finite helper keeps diagnostic phase unchanged
+ok 184 - noncompliance finite helper keeps diagnostic phase unchanged
+  ---
+  duration_ms: 0.30468
+  type: 'test'
+  ...
+# Subtest: new subphase labels are finite constants and never reflect a caller secret
+ok 185 - new subphase labels are finite constants and never reflect a caller secret
+  ---
+  duration_ms: 0.171568
+  type: 'test'
+  ...
+# Subtest: closed current profile migration actions identify a failing command without raw paths or arguments
+ok 186 - closed current profile migration actions identify a failing command without raw paths or arguments
+  ---
+  duration_ms: 0.217377
+  type: 'test'
+  ...
+# Subtest: current profile classification refuses unknown executables and argument shapes
+ok 187 - current profile classification refuses unknown executables and argument shapes
+  ---
+  duration_ms: 0.101233
+  type: 'test'
+  ...
+# Subtest: one exact complete known composite marker identifies every fixed inner step and stage
+ok 188 - one exact complete known composite marker identifies every fixed inner step and stage
+  ---
+  duration_ms: 0.27832
+  type: 'test'
+  ...
+# Subtest: duplicates and mixed arbitrary stderr never become an inner witness
+ok 189 - duplicates and mixed arbitrary stderr never become an inner witness
+  ---
+  duration_ms: 0.102765
+  type: 'test'
+  ...
+# Subtest: unknown malformed partial and nonstring witnesses are refused without coercion
+ok 190 - unknown malformed partial and nonstring witnesses are refused without coercion
+  ---
+  duration_ms: 0.0998
+  type: 'test'
+  ...
+# Subtest: oversized stderr and marker at a shifted boundary cannot be reflected or accepted
+ok 191 - oversized stderr and marker at a shifted boundary cannot be reflected or accepted
+  ---
+  duration_ms: 0.078108
+  type: 'test'
+  ...
+# Subtest: inner witness cannot change original action kind or executable classifications
+ok 192 - inner witness cannot change original action kind or executable classifications
+  ---
+  duration_ms: 0.088123
+  type: 'test'
+  ...
+# Subtest: absence preserves every existing current profile action annotation
+ok 193 - absence preserves every existing current profile action annotation
+  ---
+  duration_ms: 0.133211
+  type: 'test'
+  ...
+# Subtest: actual nonzero command forwards exact captured stderr and preserves original thrown Error/options/ownership
+ok 194 - actual nonzero command forwards exact captured stderr and preserves original thrown Error/options/ownership
+  ---
+  duration_ms: 0.754978
+  type: 'test'
+  ...
+# Subtest: actual deadline joins stop before original error and does not forward partial stderr
+ok 195 - actual deadline joins stop before original error and does not forward partial stderr
+  ---
+  duration_ms: 0.423558
+  type: 'test'
+  ...
+# Subtest: actual successful reject-false and operation-error paths preserve original result/failure without annotations
+ok 196 - actual successful reject-false and operation-error paths preserve original result/failure without annotations
+  ---
+  duration_ms: 0.425591
+  type: 'test'
+  ...
+# Subtest: hosted workflow actually provisions pinned owned runtime inputs before original acceptance
+ok 197 - hosted workflow actually provisions pinned owned runtime inputs before original acceptance
+  ---
+  duration_ms: 17.468415
+  type: 'test'
+  ...
+# Subtest: real intake consumer orders fixed downloads, official capability loads, version joins then only two owned exports
+ok 198 - real intake consumer orders fixed downloads, official capability loads, version joins then only two owned exports
+  ---
+  duration_ms: 3.334966
+  type: 'test'
+  ...
+# Subtest: intake download refusal cannot publish retained paths or start services
+ok 199 - intake download refusal cannot publish retained paths or start services
+  ---
+  duration_ms: 1.192558
+  type: 'test'
+  ...
+# Subtest: intake archive refusal cannot publish retained paths or start services
+ok 200 - intake archive refusal cannot publish retained paths or start services
+  ---
+  duration_ms: 1.218987
+  type: 'test'
+  ...
+# Subtest: intake version refusal cannot publish retained paths or start services
+ok 201 - intake version refusal cannot publish retained paths or start services
+  ---
+  duration_ms: 1.345618
+  type: 'test'
+  ...
+# Subtest: intake close refusal cannot publish retained paths or start services
+ok 202 - intake close refusal cannot publish retained paths or start services
+  ---
+  duration_ms: 1.64569
+  type: 'test'
+  ...
+# Subtest: sampled resource failure aborts and awaits delayed version finalization before close and publication refusal
+ok 203 - sampled resource failure aborts and awaits delayed version finalization before close and publication refusal
+  ---
+  duration_ms: 1.517527
+  type: 'test'
+  ...
+# Subtest: versions must match exact fixed service versions before environment export
+ok 204 - versions must match exact fixed service versions before environment export
+  ---
+  duration_ms: 1.345898
+  type: 'test'
+  ...
+# Subtest: actual finite producer deadline awaits delayed stop finalization before returning refusal
+ok 205 - actual finite producer deadline awaits delayed stop finalization before returning refusal
+  ---
+  duration_ms: 2.635221
+  type: 'test'
+  ...
+# Subtest: workflow successor preserves all34 predecessor step objects and original acceptance bytes
+ok 206 - workflow successor preserves all34 predecessor step objects and original acceptance bytes
+  ---
+  duration_ms: 2.173265
+  type: 'test'
+  ...
+# Subtest: startup capacity reserves whole fixed intake budget and resource excess refuses before export
+ok 207 - startup capacity reserves whole fixed intake budget and resource excess refuses before export
+  ---
+  duration_ms: 1.980745
+  type: 'test'
+  ...
+# Subtest: approved retained official version bytes are accepted and closed malformed variants refuse export
+ok 208 - approved retained official version bytes are accepted and closed malformed variants refuse export
+  ---
+  duration_ms: 12.807211
+  type: 'test'
+  ...
+# Subtest: only canonical valid invocation timestamp varies while complete official version payload stays fixed
+ok 209 - only canonical valid invocation timestamp varies while complete official version payload stays fixed
+  ---
+  duration_ms: 10.938564
+  type: 'test'
+  ...
+# Subtest: raw member comparison retains whitespace, escaped strings and record order
+ok 210 - raw member comparison retains whitespace, escaped strings and record order
+  ---
+  duration_ms: 0.441775
+  type: 'test'
+  ...
+# Subtest: starts only pinned loopback ephemeral PostgreSQL and joins its exact container
+ok 211 - starts only pinned loopback ephemeral PostgreSQL and joins its exact container
+  ---
+  duration_ms: 3.199711
+  type: 'test'
+  ...
+# Subtest: rejects invalid ports before dispatch
+ok 212 - rejects invalid ports before dispatch
+  ---
+  duration_ms: 1.142572
+  type: 'test'
+  ...
+# Subtest: optional discovery helper is one exact readonly regular executable mount
+ok 213 - optional discovery helper is one exact readonly regular executable mount
+  ---
+  duration_ms: 7.926765
+  type: 'test'
+  ...
+# Subtest: isolated browser PostgreSQL has no published port and joins its raw-wire bridge
+ok 214 - isolated browser PostgreSQL has no published port and joins its raw-wire bridge
+  ---
+  duration_ms: 0.926346
+  type: 'test'
+  ...
+# Subtest: initializes the same C UTF8 database as the pinned migration reference fixture
+ok 215 - initializes the same C UTF8 database as the pinned migration reference fixture
+  ---
+  duration_ms: 1.173308
+  type: 'test'
+  ...
+# Subtest: default startup leaves function instrumentation off
+ok 216 - default startup leaves function instrumentation off
+  ---
+  duration_ms: 0.380253
+  type: 'test'
+  ...
+# Subtest: readiness failure still removes the created container
+ok 217 - readiness failure still removes the created container
+  ---
+  duration_ms: 41.186367
+  type: 'test'
+  ...
+# Subtest: early server exit fails readiness even if the CLI already exited successfully
+ok 218 - early server exit fails readiness even if the CLI already exited successfully
+  ---
+  duration_ms: 0.714597
+  type: 'test'
+  ...
+# Subtest: failed start removes the exact created resource
+ok 219 - failed start removes the exact created resource
+  ---
+  duration_ms: 1.017323
+  type: 'test'
+  ...
+# Subtest: lost create response recovers only the invocation name and matching ownership label
+ok 220 - lost create response recovers only the invocation name and matching ownership label
+  ---
+  duration_ms: 0.805854
+  type: 'test'
+  ...
+# Subtest: ambiguous create cannot remove a container without matching ownership
+ok 221 - ambiguous create cannot remove a container without matching ownership
+  ---
+  duration_ms: 0.452932
+  type: 'test'
+  ...
+# Subtest: concurrent and repeated stop perform one exact cleanup
+ok 222 - concurrent and repeated stop perform one exact cleanup
+  ---
+  duration_ms: 0.381375
+  type: 'test'
+  ...
+# Subtest: cancellation joins an in-flight create then recovers and removes its resource
+ok 223 - cancellation joins an in-flight create then recovers and removes its resource
+  ---
+  duration_ms: 0.495377
+  type: 'test'
+  ...
+# Subtest: hung commands are bounded and joined before cleanup
+ok 224 - hung commands are bounded and joined before cleanup
+  ---
+  duration_ms: 30.70017
+  type: 'test'
+  ...
+# Subtest: cleanup failure stays rejected even when repeated and absence checks still run
+ok 225 - cleanup failure stays rejected even when repeated and absence checks still run
+  ---
+  duration_ms: 0.576879
+  type: 'test'
+  ...
+# Subtest: successful CLI removal without observed container absence fails the join
+ok 226 - successful CLI removal without observed container absence fails the join
+  ---
+  duration_ms: 0.41759
+  type: 'test'
+  ...
+1..226
+# tests 226
+# suites 0
+# pass 226
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2390.245059
