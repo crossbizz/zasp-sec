@@ -1,5 +1,20 @@
 # Agent Security Platform Implementation Status
 
+## Inactive approval maintenance integration, October 7, 2026
+
+The guarded native executor/adapter, supplementary installer, original opaque
+worker-decision method and API boundaries have reviewed component evidence:
+53 passing race-test events across 22 tops and 31 subcases, including two actual
+PostgreSQL fixtures. The genuine old-behavior control fails as intended. All
+8,691 fresh inputs have equal pre/post maps; original principals and four
+readiness predicates are preserved. Prior setup/assertion failures and the
+cloud-interrupted retry remain retained. See the [component report](2026-10-07-approval-maintenance-inactive-integration.md).
+
+The module remains inactive. Genuine delegation across every enqueue family,
+production worker/factory selection, composed projection, activation and real
+Stytch/provider deployment acceptance remain open. All 728 IDs and 523/144/61
+recorded categories remain unchanged; no row is promoted by these checks.
+
 ## Cloud source-only assertion receipt, October 6, 2026
 
 The reviewed Linux native379 zero-row assertion integration preserves all

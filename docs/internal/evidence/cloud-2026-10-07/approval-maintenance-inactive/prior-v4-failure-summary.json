@@ -1,0 +1,17 @@
+{
+  "completed": false,
+  "failure": "RuntimeError:child stage refused:actual-owned-native-registration",
+  "elapsedSeconds": 353.84601880000014,
+  "inputs": 8688,
+  "sourceBeforeSHA256": "610e70d7d38654527a6225cab0b3c80eabf03b6a0e133f6a2e013c47f529203a",
+  "sourceAfterSHA256": "610e70d7d38654527a6225cab0b3c80eabf03b6a0e133f6a2e013c47f529203a",
+  "forced": false,
+  "ownedSessionSurvivors": [],
+  "processCensusUnknown": [],
+  "adoptedChildren": [],
+  "signals": [],
+  "productionActivated": false,
+  "format": "derived-actual-result-summary-v1",
+  "originalResultSHA256": "a66b9ebadb95ee7e313919fc92a75f46e1682f5e834d9a74c73da493be7073bf",
+  "scope": "Inactive supplementary integration; full original result and input maps retained privately; no production activation"
+}

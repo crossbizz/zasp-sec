@@ -1,0 +1,17 @@
+{
+  "completed": true,
+  "failure": null,
+  "elapsedSeconds": 266.548784266,
+  "inputs": 8691,
+  "sourceBeforeSHA256": "9a5d16d97a7e60d1548202cf8fb625c722395b23f24bf4e04e5b821b4f171948",
+  "sourceAfterSHA256": "9a5d16d97a7e60d1548202cf8fb625c722395b23f24bf4e04e5b821b4f171948",
+  "forced": false,
+  "ownedSessionSurvivors": [],
+  "processCensusUnknown": [],
+  "adoptedChildren": [],
+  "signals": [],
+  "productionActivated": false,
+  "format": "derived-actual-result-summary-v1",
+  "originalResultSHA256": "828ff038f3c7e908c104705c1ab6cabe7d521f56c3be7adc5b8a8f6da1803ca8",
+  "scope": "Inactive supplementary integration; full original result and input maps retained privately; no production activation"
+}

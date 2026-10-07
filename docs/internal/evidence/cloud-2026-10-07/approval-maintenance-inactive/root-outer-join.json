@@ -1,0 +1,11 @@
+{
+  "elapsedSeconds": 266.60494239999997,
+  "exit": 0,
+  "format": "actual-root-outer-join-v1",
+  "joined": true,
+  "ownerAfterSHA256": "2bb4fad2b8716dad948c0cdcdf47f0834078876a4fa971761b59d589e133ee8a",
+  "ownerSHA256": "2bb4fad2b8716dad948c0cdcdf47f0834078876a4fa971761b59d589e133ee8a",
+  "pid": 964,
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdoutSHA256": "85281ec522f5858851bacd005e78352550a30a8796940641d237d6ba28c1fb48"
+}

@@ -1,0 +1,14 @@
+{
+  "format": "derived-independent-review-summary-v1",
+  "originalReviewSHA256": "4411a2495e6b41a12cac26ebda2d0d670f6af1056d9e35f20a1c615849a7cd96",
+  "rootOuterExit": 0,
+  "actualV6TopPass": 4,
+  "actualV6SubcasePass": 28,
+  "actualV6Fail": 0,
+  "actualV6Skip": 0,
+  "currentInputs": 8691,
+  "inputMapsEqual": true,
+  "priorUnchangedComponentPassEvents": 21,
+  "productionActivated": false,
+  "scope": "Current V6 inactive Go/PG acceptance plus byte association of prior component passes; no deployed/provider acceptance"
+}

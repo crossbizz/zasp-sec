@@ -1,0 +1,8 @@
+{
+  "format": "derived-interrupted-run-summary-v1",
+  "originalObservationSHA256": "837a8cff56a8e028f5113cf3f9411b22ff9c0f385f54b807a71fefcfbb9b5dc5",
+  "outerExit": null,
+  "terminalResultPresent": false,
+  "acceptance": false,
+  "scope": "Observed surviving files only; no test completion, cleanup or source-after equality inferred. Preserve interrupted run. Fresh retry required."
+}
