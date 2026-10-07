@@ -15828,3 +15828,33 @@ compliancebrowserFAIL, advisoryrelease or real deployedStytch/provider acceptanc
 
 
 2026-10-07 cloud continuation: fetched origin/main34a3f07dbe8ab6056ce243755596314be6091c40, confirmed required e13ccb95451b03107681ccb59b3fc6fe175a228f ancestry. Verified batches ea0897f3 (conditional guarded approval capture wiring), 1b7d6d83 (ordered progress61 local native PASS), and15ce9267 (release readiness source-contract repair) are pushed to PR52. Latest dispatch repair preserves SQL nonownership as JSON null across ten fixed finding-response API call sites; genuine installed78 previously prevented typed74 definition creation. Causal original11FAIL/candidate32PASS and post-adoption current-repository32PASS are independently separated from genuine supervised approval FAIL. The latter progressed beyond creation/supervised activation/planning/inactive origin capture and failed distinct-approver decision; no full approval/effect PASS is claimed. See docs/internal/evidence/cloud-2026-10-07/native78-nonownership, approval-test74-followups, approval-readiness-contract, and approval-operator-components. Operator coordination/raw-input20GREEN events and causal2FAIL are component-only; real SDK/proc/SQL/cutover/fleet acceptance remains held. The shared database error and permission guards are unchanged; failed native source is unadopted. M7A-10/14/48/49 remain subject to complete original/deployed requirements; no task/class/count promotion. All728 rows remain523historical production-available/144component-only/61externally blocked. Runtime54 is current/running/connected; missing product configuration/deployment authority, hosted guard success, live Stytch/provider flows, and legacy retirement remain launch gates. Helm official binary restoration is blocked by enforced host policy; full local release verification failed on missing Helm and wrong ambient Go, not accepted. No release/security guard was bypassed.
+
+
+2026-10-07 follow-up from main c1c45b24c5e0eec76b49e80c9f2f632087a6b33f:
+PR52 merged through ordinary repository permissions while CI was running;
+main CI run37621231493 subsequently failed at health:contract:test. Detailed
+log retrieval was policy-blocked; the exact cause remains unknown. A rerun
+is pending, and no release or deployed acceptance is inferred from the merge.
+Future merges require an observed passing check set before submission.
+
+The first approval diagnostic refused its unchanged memory reserve before
+any tests and required forced cleanup. Reviewed readonly file-cache advice
+completed without changing payloads. A separate diagnostic completed normally
+and preserved the original supervised approval failure: four prerequisite
+observations were true, but no approval committed and the result was unavailable.
+The appended fixture selected the discovery login instead of the existing,
+separately registered security-agent API login. Correcting that single literal
+preserved every production guard and original assertion. The genuine V11
+singleton passed with nine credential-control PASS events, zero FAIL/SKIP,
+equal 14,004-input maps and normal owned PostgreSQL/OpenFGA cleanup. ROOT's
+outer wait completed normally in 372.271411376 seconds. Independent actual
+review: 9edb39eb0c02f07cb43ba1cd73993c7e2099ce22974fac42dbc2f96d87a7de68.
+Only the new test74 source was adopted; current-repository API compilation
+passed separately with no tests selected. Complete selected captures, explicitly
+derived results and original task links are under approval-diagnostic-continuation
+and supervised-test74-positive in docs/internal/evidence/cloud-2026-10-07.
+The native approval profile remains inactive. Identity/provider inputs are
+controlled fixtures, without real Stytch/provider or deployed proof. All 728
+rows and classifications remain unchanged: 523 historical production-available,
+144 component-only, 61 externally blocked. Fifty product configuration names
+remain unbound; generic cloud credentials do not establish those bindings.

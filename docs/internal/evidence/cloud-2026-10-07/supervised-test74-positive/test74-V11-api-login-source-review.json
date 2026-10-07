@@ -1,0 +1,31 @@
+{
+  "checks": {
+    "exactOneLiteralReplacementWholeV9BodyOtherwiseEqual": true,
+    "fiveMembersExactHashBytesMode": true,
+    "fixtureSeparateDiscoveryAndSecurityAgentPrincipalRegistration": true,
+    "freshHumanSelfDenialReplayEffectsAndAllOtherAssertionsUnchanged": true,
+    "native74And78APIReadyRequireSecurityAgentAPIPrincipal": true,
+    "newLiteral": "security_agent_v33_api_login",
+    "noNewSQLRoleGrantPermissionOrProductionGuardChanges": true,
+    "oldLiteral": "security_agent_v33_discovery_api_login",
+    "onlyGenuineOverlayTargetChanged": true,
+    "originalRunTemporalTestGrantFixtureUsesNewLogin": true,
+    "routingCandidateUnchanged": true,
+    "sameFourImmutableSourceEvidenceHashes": true
+  },
+  "conditions": [
+    "ROOT fresh current-HEAD owner/source/dependency/tool/overlay readmission before execution.",
+    "Expect credential2tops7subsPASS and genuine1top0subsPASS with original complete assertion body; no diagnostic expectedFAIL substitution.",
+    "Retain originalV9 fail/V10 diagnostic and memory-floor failures unchanged."
+  ],
+  "format": "independent-supervised74-V11-api-login-source-review-v1",
+  "manifestSHA256": "7879b471d415cf0873322385e428c64168664c7d5c8e61e7def7ac7d6f5aeace",
+  "recipeSHA256": "5c891d23bdc9de1140d521ba680edcc0c137576b326e183e7994acf34d207740",
+  "scope": [
+    "Source relationship supports a wrong fixture-login hypothesis; actual repaired approval/native result remains unobserved.",
+    "No tests/runtime/services by reviewer and no approval acceptance or activation inferred.",
+    "V11 source recipe historicalbaseHEAD15ce is not executable current-HEAD admission; fresh concrete owner required."
+  ],
+  "sourceSHA256": "fcb312455a7bcbfc1800f0d0c70334f620e20143ea0c9306dc814b8d1d3b1c7b",
+  "status": "PASS_SOURCE_ONLY_FRESH_OWNER_REQUIRED"
+}

@@ -1,0 +1,111 @@
+{
+  "cleanup": {
+    "FGA": {
+      "exit": 0,
+      "forcedCleanup": false,
+      "listenersAbsent": true,
+      "normalWait": true,
+      "routineGracefulSIGTERM": true,
+      "sessionAbsent": true
+    },
+    "PGCapturedNormalJoin": [
+      {
+        "pgControlExit": 0,
+        "pid": 29835,
+        "serverWaitExit": 0
+      }
+    ],
+    "allNormalJoinedZero": true,
+    "forced": false,
+    "lateRefusalPresent": false,
+    "recordedWaits": [
+      {
+        "joined": true,
+        "pid": 29474,
+        "returnCode": 0,
+        "tag": "base-head"
+      },
+      {
+        "joined": true,
+        "pid": 29476,
+        "returnCode": 0,
+        "tag": "offline-modules"
+      },
+      {
+        "joined": true,
+        "pid": 29483,
+        "returnCode": 0,
+        "tag": "selected-inputs"
+      },
+      {
+        "joined": true,
+        "pid": 29518,
+        "returnCode": 0,
+        "tag": "owned-credential-admission"
+      },
+      {
+        "joined": true,
+        "pid": 29779,
+        "returnCode": 0,
+        "tag": "genuine-single-test-inactive-capture"
+      },
+      {
+        "joined": true,
+        "pid": 29768,
+        "returnCode": 0,
+        "tag": "owned-FGA-normal-stop"
+      }
+    ],
+    "signals": [],
+    "survivors": [],
+    "unknownCensus": []
+  },
+  "format": "independent-test74-V11-genuine-positive-actual-review-v1",
+  "normalOuterExit": 0,
+  "outerPath": "/tmp/test74-positive-v11-root-outer-4a0a5ga9/normal-outer-result.json",
+  "outerSHA256": "ba2e81e6e5a283c70139fd3280709d5d28bb8aae3dfaa8610e14c26a04b8fb67",
+  "outerSeconds": 372.2714113759994,
+  "resultPath": "/workspace/.zasp-cloud-owned/native-test74-positive-v11-currentc1-yhf1m7ve/actual-gb0i3fm0/result.json",
+  "resultSHA256": "5b072a8ab32db78cbae657baab928850823d96f025d41b3997f9e08883c6ada7",
+  "scope": [
+    "Credential9PASS events and one original genuine singletonPASS are distinct actual tests; no failures/skips.",
+    "This admits controlled owned PostgreSQL/OpenFGA inactive supervised test74 fixture with conserved fresh approval/self-denial/replay/effect assertions; not production activation or deployment.",
+    "V11 one literal aligns fixture API principal; earlier V9 genuineFAIL, V10 diagnosticFAIL and memoryrefusal remain preserved.",
+    "No live Stytch/provider credentials, production caller/authentication, legacy retirement, fullfamily acceptance or native379 anchors inferred.",
+    "Reviewer inspected receipts/logs/source/map conservation only; no Go, services or tests rerun."
+  ],
+  "sourceBeforeAfter": {
+    "aggregateSHA256": "3e1a16380fbe817b5a8ae992ca3ee213a4cbf4b1047b6205036a9c604162f9b9",
+    "allCurrentPayloadsNotRereadByReviewer": true,
+    "candidateBoundExact": true,
+    "equal": true,
+    "members": 14004
+  },
+  "sourceConservation": {
+    "candidateSHA256": "fcb312455a7bcbfc1800f0d0c70334f620e20143ea0c9306dc814b8d1d3b1c7b",
+    "diagnosticExpectedFAILNotUsed": true,
+    "fullOriginalSelfDenialApprovalReplayEffectAssertionsRetained": true,
+    "onlyOneV9LiteralChanges": true
+  },
+  "stages": [
+    {
+      "FAIL": 0,
+      "SKIP": 0,
+      "bytes": 9679,
+      "passSubs": 7,
+      "passTops": 2,
+      "sha256": "9439f68d9033de91b4649f1bb080a51ece5145dde9b79a19f930277960810f09",
+      "stage": "owned-credential-admission"
+    },
+    {
+      "FAIL": 0,
+      "SKIP": 0,
+      "bytes": 88563,
+      "passSubs": 0,
+      "passTops": 1,
+      "sha256": "b99bbb613d2004c3ac45ace58bdd9b50bf9ae9c6e04cce2ccee23a2d4a5e2af1",
+      "stage": "genuine-single-test-inactive-capture"
+    }
+  ],
+  "status": "PASS_OWNED_INACTIVE_SUPERVISED_TEST74_SINGLETON"
+}

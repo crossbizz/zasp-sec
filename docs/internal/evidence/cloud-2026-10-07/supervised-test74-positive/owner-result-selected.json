@@ -1,0 +1,130 @@
+{
+  "format": "selected-public-safe-owner-result-v1",
+  "omittedFields": [
+    "activeOverlay",
+    "adoptedChildren",
+    "aliasTargets",
+    "fgaLiveBinding",
+    "ownedReaps",
+    "ownedSessions",
+    "projectionRoot",
+    "resourceHistory",
+    "tokenMetadata"
+  ],
+  "original": {
+    "bytes": 1576904,
+    "identity": {
+      "ctime_ns": 1791379069058079982,
+      "dev": 27,
+      "gid": 1000,
+      "ino": 998588,
+      "mode": "0o400",
+      "mtime_ns": 1791379069058079982,
+      "nlink": 1,
+      "size": 1576904,
+      "uid": 1000
+    },
+    "path": "/workspace/.zasp-cloud-owned/native-test74-positive-v11-currentc1-yhf1m7ve/actual-gb0i3fm0/result.json",
+    "sha256": "5b072a8ab32db78cbae657baab928850823d96f025d41b3997f9e08883c6ada7"
+  },
+  "scope": "Derived scalar selection; owned inactive singleton fixture only. Original private result remains unchanged.",
+  "selected": {
+    "completed": true,
+    "elapsedSeconds": 372.18333395099944,
+    "failure": null,
+    "fgaNormalStop": {
+      "exit": 0,
+      "forcedCleanup": false,
+      "listenersAbsent": true,
+      "normalWait": true,
+      "routineGracefulSIGTERM": true,
+      "sessionAbsent": true
+    },
+    "firstRefusal": null,
+    "forced": false,
+    "format": "native-fga-genuine-finding-root-actual-v1",
+    "inputs": 14004,
+    "ownedSessionSurvivors": [],
+    "positiveOriginalSupervisedTest74": true,
+    "processCensusUnknown": [],
+    "productionActivated": false,
+    "resourcesAfter": {
+      "/dev/shm": 9441349632,
+      "/tmp": 4573782016,
+      "/workspace": 1570525184,
+      "memoryHeadroom": 4301131776
+    },
+    "results": [
+      {
+        "fails": [],
+        "output": "/workspace/.zasp-cloud-owned/native-test74-positive-v11-currentc1-yhf1m7ve/actual-gb0i3fm0/owned-credential-admission.jsonl",
+        "passes": [
+          "TestApprovalMaintenanceOwnedCredentialAdmission/explicit_native",
+          "TestApprovalMaintenanceOwnedCredentialAdmission/legacy_unchanged",
+          "TestApprovalMaintenanceOwnedCredentialAdmission/no_fallback_on_native_refusal",
+          "TestApprovalMaintenanceOwnedCredentialAdmission/private_token_only",
+          "TestApprovalMaintenanceOwnedCredentialAdmission/owned_readonly_ipv6",
+          "TestApprovalMaintenanceOwnedCredentialAdmission/nonexclusive_or_nonregular_token",
+          "TestApprovalMaintenanceOwnedCredentialAdmission/invalid_token_bytes",
+          "TestApprovalMaintenanceOwnedCredentialAdmission",
+          "TestApprovalMaintenanceOwnedCredentialsRequireLiveInputs"
+        ],
+        "sha256": "9439f68d9033de91b4649f1bb080a51ece5145dde9b79a19f930277960810f09",
+        "skips": [],
+        "stage": "owned-credential-admission"
+      },
+      {
+        "fails": [],
+        "output": "/workspace/.zasp-cloud-owned/native-test74-positive-v11-currentc1-yhf1m7ve/actual-gb0i3fm0/genuine-single-test-inactive-capture.jsonl",
+        "passes": [
+          "TestApprovalMaintenanceGenuineSupervisedTest74EnqueueInactive"
+        ],
+        "sha256": "b99bbb613d2004c3ac45ace58bdd9b50bf9ae9c6e04cce2ccee23a2d4a5e2af1",
+        "skips": [],
+        "stage": "genuine-single-test-inactive-capture"
+      }
+    ],
+    "signals": [],
+    "sourceAfterSHA256": "3e1a16380fbe817b5a8ae992ca3ee213a4cbf4b1047b6205036a9c604162f9b9",
+    "sourceBeforeSHA256": "3e1a16380fbe817b5a8ae992ca3ee213a4cbf4b1047b6205036a9c604162f9b9",
+    "tokenValuesPublished": false,
+    "waits": [
+      {
+        "joined": true,
+        "pid": 29474,
+        "returnCode": 0,
+        "tag": "base-head"
+      },
+      {
+        "joined": true,
+        "pid": 29476,
+        "returnCode": 0,
+        "tag": "offline-modules"
+      },
+      {
+        "joined": true,
+        "pid": 29483,
+        "returnCode": 0,
+        "tag": "selected-inputs"
+      },
+      {
+        "joined": true,
+        "pid": 29518,
+        "returnCode": 0,
+        "tag": "owned-credential-admission"
+      },
+      {
+        "joined": true,
+        "pid": 29779,
+        "returnCode": 0,
+        "tag": "genuine-single-test-inactive-capture"
+      },
+      {
+        "joined": true,
+        "pid": 29768,
+        "returnCode": 0,
+        "tag": "owned-FGA-normal-stop"
+      }
+    ]
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "allThreeRootCountsAndByteSumsMatch": true,
+  "cancelled": false,
+  "completed": true,
+  "error": null,
+  "everyLedgerFDPathSecurityMetadataBeforeAfterEqual": true,
+  "everyRowRegularSameDeviceWorkspaceUIDAndReadOnlyAdviceNoPayloadRead": true,
+  "format": "independent-workspace-Go-page-advice-actual-review-v1",
+  "ledgerBytes": 37129843,
+  "ledgerRows": 67652,
+  "ledgerSHA256": "e63e222a36c501ccc6c16504b679fbc120f80ae2668e030f42b6358bd9aefb0f",
+  "logicalBytesAdvised": 3017463666,
+  "memoryAfterAvailable": 4968280064,
+  "memoryBeforeAvailable": 2549395456,
+  "normalROOTWait": {
+    "exit": 0,
+    "session": 90559,
+    "source": "ROOT message actual observation; no separate kernel/outer receipt reconstructed"
+  },
+  "planSHA256": "220401f8ba19d1c4bc15cb20a72fc984e6c5f61079d495bd3dee7e79545c613b",
+  "resultPath": "/tmp/workspace-go-page-advice-actual-fyd91_hz/result.json",
+  "resultSHA256": "33812c692a05a099505ee9df76b7a8abab94c7ee83fd575ad2957f96ef21f8cb",
+  "retry": {
+    "currentHEAD": "c1c45b24c5e0eec76b49e80c9f2f632087a6b33f",
+    "ownerAndRecipeBytesUnchanged": true,
+    "ownerSHA256": "b3281de8db95ee82ab263f8c84eb2be4f81188df9e024a67e75f712cc8685682",
+    "recipeSHA256": "5d508bed4e8bad5da310a849c6f6f8b1c7ec19bbbcbdf09c8c3141270b975f99",
+    "requiresFreshFullPinsFloorsExclusiveWindowAndNewActualOutput": true
+  },
+  "reviewerPointAvailable": 4968570880,
+  "scope": [
+    "Advice is nonmutating kernel cache policy; no file-body posthash because that would rewarm pages. Metadata equality does not substitute for independent full payload hashing.",
+    "Memory differences are point observations, not unique attribution, guaranteed reclaim or lifetime reserve.",
+    "Original V10 memory-floor FAILED attempt remains unchanged; zero markers/tests from it remain zero.",
+    "ROOT may retry unchanged reviewed diagnostic owner after fresh live admission; expected diagnosticFAIL is not approval/nativePASS.",
+    "No byte deletion, pruning, global drop_caches or source/guard weakening admitted. Reviewer read metadata ledger and small pinned sources only; no advice/runtime actions."
+  ],
+  "sourceSHA256": "04d53dd60ace0f42f1518bfe0c26d7cf186d0ad1233b544279519aa227212261",
+  "status": "VERIFIED_READONLY_ADVISORY_COMPLETION_RETRY_CONDITIONAL"
+}

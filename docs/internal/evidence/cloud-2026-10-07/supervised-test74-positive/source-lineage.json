@@ -1,0 +1,59 @@
+{
+  "actualV10Marker": "approver_ready=true approval_current=true run_current=true context_live=true committed_approved=false returned_approved=false error_code=unavailable",
+  "actualV10Status": "ROOT reported normal outer0 diagnostic-control only, genuine1FAIL0subs; not a positive acceptance. Do not reconstruct or replace original receipts.",
+  "baseHEAD": "15ce9267a59e41bb5217a0bb4fa945e67b7d34b9",
+  "candidateGo": {
+    "path": "/workspace/.zasp-cloud-owned/approval-maintenance-test74-supervised-source-v11-api-login/services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+    "sha256": "fcb312455a7bcbfc1800f0d0c70334f620e20143ea0c9306dc814b8d1d3b1c7b"
+  },
+  "delta": "Exactly one literal in appended approveApprovalOriginSupervisedTest74: existing security_agent_v33_discovery_api_login -> existing security_agent_v33_api_login. All original method calls/input/identityfixture/self-denial/replay/effect/capture assertions byteexact otherwise. No SQL/role/grant/task changes.",
+  "format": "supervised74-api-login-one-literal-v11",
+  "originalV9": {
+    "path": "/workspace/.zasp-cloud-owned/approval-maintenance-test74-supervised-source-v9-binding/services/platform/apiserver/approval_maintenance_genuine_test74_postgres_test.go",
+    "sha256": "78ef35330f16b54cf81953cdd9aebea94bc41b323a48a70d88eda4895655118a"
+  },
+  "preservedV10Manifest": {
+    "path": "/workspace/.zasp-cloud-owned/approval-maintenance-test74-approval-diagnostic-v10/manifest.json",
+    "sha256": "e8ee84e09a6cd61bc8764d058374ca24021a10fdff192fd311ec6acf8ec11b2c"
+  },
+  "prospectiveCounts": {
+    "credentialSubs": 7,
+    "credentialTops": 2,
+    "genuineSubs": 0,
+    "genuineTops": 1
+  },
+  "remaining": "Current HEAD executable owner readmission + real native outcome; no author execution and no repaired activation SQL/profile adoption implied.",
+  "routingManifest": {
+    "path": "/workspace/.zasp-cloud-owned/native78-test74-nonownership-source-v3-complete-census/manifest.json",
+    "sha256": "bce5b1a1b763351e4292c362c4f2367ff31f53c6827806874358963734562d9e"
+  },
+  "sourceEvidence": [
+    {
+      "fact": "Separate original discovery and securityagent principal registration, both original fixtures.",
+      "lines": [
+        79,
+        82
+      ],
+      "path": "/workspace/zasp-sec/services/platform/apiserver/security_agent_attack_path_postgres_test.go",
+      "sha256": "c92a2ec95fbf91cf012c549b7aac130cb89c66308c9899691625c458fd20d439"
+    },
+    {
+      "fact": "runTemporalTestGrantFixture inherited API usessecurity_agent_v33_api_login.",
+      "line": 88,
+      "path": "/workspace/zasp-sec/services/platform/apiserver/security_agent_multistep_dependencies_test.go",
+      "sha256": "d40709a376d686af8b54d6e82ab941e6c2f134720207250a16a20516d462590f"
+    },
+    {
+      "fact": "Native api_ready requiresoriginalsecurityagentAPI principal.",
+      "line": 49,
+      "path": "/workspace/zasp-sec/services/platform/migrations/sql/0074_production_temporal_test_executor.up.sql",
+      "sha256": "d54b65716166b76b3e02cabd96d8588b5c5f84f7f16c56e916be789a6d668414"
+    },
+    {
+      "fact": "Finding metadata admission requiresoriginalsecurityagentAPI principal.",
+      "line": 36,
+      "path": "/workspace/zasp-sec/services/platform/migrations/sql/0078_production_temporal_finding_response.up.sql",
+      "sha256": "40d02f7691da348d87f96c24d56ec6805fdd327c4dfd8a2554f451af0e268e56"
+    }
+  ]
+}
