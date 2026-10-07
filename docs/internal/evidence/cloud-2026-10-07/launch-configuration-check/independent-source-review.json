@@ -1,0 +1,74 @@
+{
+  "format": "independent-adopted-api-configuration-check-source-review-v1",
+  "timestampUTC": "2026-10-07T06:24:12.415587+00:00",
+  "repository": "/workspace/zasp-sec",
+  "verdict": "SOURCE_STATIC_PASS",
+  "scope": "Configuration syntax check only; no deployment permission, credential validity, runtime readiness, or production acceptance.",
+  "files": {
+    "services/platform/agentsec-api/main.go": {
+      "sha256": "4d9a5dbf1d47b760260a994cc9d4acf3ec64fe234db5f7bb0f9a3f681e2ebf1c",
+      "bytes": 3302
+    },
+    "services/platform/agentsec-api/configuration_command.go": {
+      "sha256": "e70445e740f19992bb6e720e3e66acab98e38ca625420c5f5488d2f6e4bc9a94",
+      "bytes": 1429
+    },
+    "services/platform/agentsec-api/configuration_command_test.go": {
+      "sha256": "07309a952c4b68780c3dd32866ceb41a6c54cb9d818667debd025a4a9ed5600b",
+      "bytes": 4952
+    },
+    "scripts/api-start.mjs": {
+      "sha256": "7c8d0e8fdf7d640d8327faedfd40a0201d9ec77c12de6870890adb5cd807dcc7",
+      "bytes": 2938
+    },
+    "scripts/api-start.test.mjs": {
+      "sha256": "0f77f05c0bfa2432679713cc3f66be4c880e2b227487570deb9817b9f443aaa2",
+      "bytes": 9768
+    },
+    "scripts/api-check-config.mjs": {
+      "sha256": "b5503aef6913dd8899815fb9871c045630537c1f72a4d5bab87e591e98e63ae0",
+      "bytes": 819
+    },
+    "package.json": {
+      "sha256": "e74ea89b6add5f606263068d6ba88487b35b2c6af1f111cbe680c93363be3034",
+      "bytes": 16986
+    },
+    "docs/internal/launch-configuration-check-2026-10-07.md": {
+      "sha256": "033157b69bd10e60622f8dc0e8ea3154f7138d5c7f0cc33f6bd156d6bb65cc2a",
+      "bytes": 2811
+    },
+    "scripts/owned-command.mjs": {
+      "sha256": "044e151c9260b9356ac78e5cde6b59dbbdd7b934d66ad06732288346831ad47e",
+      "bytes": 4028
+    },
+    "services/platform/agentsec-api/audit_export_config.go": {
+      "sha256": "3a16615696b4b9e9f3a072496c56d3d0817ade12957198839148312eaa39b54b",
+      "bytes": 2845
+    },
+    "services/platform/agentsec-api/runtime.go": {
+      "sha256": "f88bca798eb591dcc719ce3a0f62ca8118626669a63649e212d0ebd1d5744ff5",
+      "bytes": 23922
+    }
+  },
+  "findings": [],
+  "checks": [
+    "First main dispatch returns before dependency construction for exact --check-config, rejects unknown arguments, and leaves no-argument startup unchanged.",
+    "Complete existing runtime/audit/compliance loader reused; enabled native configuration validates its existing syntax contract. Disabled native syntax acceptance is explicitly disclosed and does not bypass production builder.",
+    "Go output is fixed, errors are not formatted, nil/typed-nil/failing/short writers refuse. Parsed mutable signing-key slices cleared.",
+    "Fixed Node entry forwards no caller-controlled argument, uses unchanged three-alias conflict/empty validation, forces local Go toolchain and readonly modules.",
+    "Shared owned-command runner retains existing bounded captured output, signal stop/join and handler removal. Captured child output is never echoed by configuration entry. No new global or escaped-process cleanup guarantee.",
+    "Actual process-entry test uses same compiled test binary, explicit closed fixture environment, 5-second CommandContext, waits CombinedOutput and requires exact syntax message plus PASS. This checks no production construction; no descendant/global custody claim.",
+    "Documentation states syntax-only limits and 50 missing launch-setting names; provider permissions/files/connectivity remain untested by this command."
+  ],
+  "testEvidenceScope": "Review ran no tests or compilation. Parent-reported Node11 and API409/10-skip outcomes require their own actual records; predecessor-main causal test remains parent-owned.",
+  "predecessor": {
+    "path": "/tmp/launch-config-check-source-review-fp32s9op/review.json",
+    "sha256": "955ebf727674a161a137d5a0d6f14c37074e23f943fe4e0dadae2f9f44b39161",
+    "disposition": "Earlier launch-vs-syntax limitation clarified; separate fixed-flag alias-preserving entry and short-write guards implemented."
+  },
+  "limitations": [
+    "Source-static review only.",
+    "Node launcher invokes Go and may compile into caller-configured caches; it does not promise zero toolchain filesystem effects. Product configuration branch itself has no client/listener/file reads.",
+    "Existing unchanged child owner cleanup scope is retained; no broad lifecycle or global process proof inferred."
+  ]
+}
