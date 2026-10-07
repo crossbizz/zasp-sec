@@ -1,0 +1,5 @@
+{
+  "scope": "Original diagnostic descriptor was written before gofmt; this additive record identifies the actual formatted overlay used by Go",
+  "actualFormattedOverlaySHA256": "d5c1b363b71d83896507e74f0fdc30a1d8f1a0d5eb176f38a778c07c70a7dd98",
+  "noProductionSourceEdit": true
+}

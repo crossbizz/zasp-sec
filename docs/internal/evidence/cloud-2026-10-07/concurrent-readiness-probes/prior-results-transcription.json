@@ -1,0 +1,14 @@
+{
+  "red": {
+    "exit": 1,
+    "scope": "actual priorimplementation tooloutput transcription, not rawstdout",
+    "test": "TestAuthorizationIndependentProbesShareOneConcurrentBudget",
+    "reason": "started=1 error=runtime unavailable"
+  },
+  "fixtureDraftFailure": {
+    "exit": 1,
+    "scope": "actual candidate tooloutput transcription, not rawstdout",
+    "test": "TestAuthorizationProbeRefusalCancelsAndJoinsSibling",
+    "reason": "omitted entered handshake close caused parent deadline instead of sibling cancellation; fixture corrected"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "head": "621f076181b3d8fa69eccef2f7f4a080563b0fda",
+  "exit": 1,
+  "seconds": 131.48882590299945,
+  "refusal": null,
+  "trackedBodiesUnchanged": true,
+  "resourceSamples": [
+    {
+      "monotonic": 7102.990879073,
+      "workspaceFree": 7515652096,
+      "tmpFree": 4597891072
+    },
+    {
+      "monotonic": 7112.996519427,
+      "workspaceFree": 6598406144,
+      "tmpFree": 4455030784
+    },
+    {
+      "monotonic": 7123.001722907,
+      "workspaceFree": 6598406144,
+      "tmpFree": 4411293696
+    },
+    {
+      "monotonic": 7133.012395058,
+      "workspaceFree": 6598406144,
+      "tmpFree": 4388069376
+    },
+    {
+      "monotonic": 7143.014346274,
+      "workspaceFree": 6598406144,
+      "tmpFree": 4388069376
+    },
+    {
+      "monotonic": 7153.016481404,
+      "workspaceFree": 6598402048,
+      "tmpFree": 4388069376
+    },
+    {
+      "monotonic": 7163.018455929,
+      "workspaceFree": 6598402048,
+      "tmpFree": 4388069376
+    },
+    {
+      "monotonic": 7173.020697833,
+      "workspaceFree": 6598402048,
+      "tmpFree": 4388069376
+    },
+    {
+      "monotonic": 7183.022838474,
+      "workspaceFree": 6598402048,
+      "tmpFree": 4388069376
+    },
+    {
+      "monotonic": 7193.025098416,
+      "workspaceFree": 6598402048,
+      "tmpFree": 4388069376
+    },
+    {
+      "monotonic": 7203.02700967,
+      "workspaceFree": 6598402048,
+      "tmpFree": 4388069376
+    },
+    {
+      "monotonic": 7213.032621719,
+      "workspaceFree": 6598402048,
+      "tmpFree": 4246257664
+    },
+    {
+      "monotonic": 7223.04756468,
+      "workspaceFree": 6598402048,
+      "tmpFree": 4246253568
+    },
+    {
+      "monotonic": 7233.053335838,
+      "workspaceFree": 6598402048,
+      "tmpFree": 4246253568
+    }
+  ],
+  "scope": "actual local compliance browser only; controlled identity/provider fixtures; not deployed Stytch/provider acceptance"
+}

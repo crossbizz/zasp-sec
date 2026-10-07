@@ -115,16 +115,19 @@ func TestP7GuardedRuntimeReadinessCallback(t *testing.T) {
 				t.Errorf("callback error=%v", err)
 			}
 			wantCore, wantAgent, wantPrevious := 1, 1, 1
+			minCore, minAgent := 1, 1
 			if name == "services refused" {
 				wantCore, wantAgent, wantPrevious = 0, 0, 0
+				minCore, minAgent = 0, 0
 			}
 			if name == "discovery refused" {
-				wantAgent, wantPrevious = 0, 0
+				minAgent, wantPrevious = 0, 0
 			}
 			if name == "agent refused" {
+				minCore = 0
 				wantPrevious = 0
 			}
-			if serviceCalls != 1 || coreDriver.calls != wantCore || agentDriver.calls != wantAgent || previousCalls != wantPrevious {
+			if serviceCalls != 1 || coreDriver.calls < minCore || coreDriver.calls > wantCore || agentDriver.calls < minAgent || agentDriver.calls > wantAgent || previousCalls != wantPrevious {
 				t.Errorf("calls services=%d core=%d agent=%d previous=%d", serviceCalls, coreDriver.calls, agentDriver.calls, previousCalls)
 			}
 		})
@@ -159,13 +162,18 @@ func TestP7GuardedRuntimeReadinessStartupGate(t *testing.T) {
 				t.Fatalf("startup gate error=%v", err)
 			}
 			wantCore, wantAgent := 1, 1
+			minCore, minAgent := 1, 1
 			if name == "discovery refused" {
-				wantAgent = 0
+				minAgent = 0
+			}
+			if name == "agent refused" {
+				minCore = 0
 			}
 			if name == "expired context" || name == "invalid key" {
 				wantCore, wantAgent = 0, 0
+				minCore, minAgent = 0, 0
 			}
-			if coreDriver.calls != wantCore || agentDriver.calls != wantAgent {
+			if coreDriver.calls < minCore || coreDriver.calls > wantCore || agentDriver.calls < minAgent || agentDriver.calls > wantAgent {
 				t.Fatalf("startup gate calls core=%d agent=%d", coreDriver.calls, agentDriver.calls)
 			}
 		})
@@ -211,9 +219,9 @@ func TestStartupAuthorizationFreshBudgetRemainsFailClosed(t *testing.T) {
 					t.Fatal("old spent budget unexpectedly admitted readiness")
 				}
 			}
-			var probeContext context.Context
+			observed := make(chan context.Context, 2)
 			coreDriver.observe = func(ctx context.Context) {
-				probeContext = ctx
+				observed <- ctx
 				deadline, ok := ctx.Deadline()
 				if !ok || time.Until(deadline) > timeout {
 					t.Error("provider timeout widened")
@@ -225,29 +233,146 @@ func TestStartupAuthorizationFreshBudgetRemainsFailClosed(t *testing.T) {
 					cancel()
 				}
 			}
-			agentDriver.observe = func(ctx context.Context) {
-				if ctx != probeContext {
-					t.Error("probes have separate budgets")
-				}
-			}
+			agentDriver.observe = func(ctx context.Context) { observed <- ctx }
 			err := checkAuthorizationRuntimeReadyWithinTimeout(parent, core, agent, key, timeout)
 			healthy := name == "spent connection budget" || name == "earlier parent deadline"
 			if healthy && err != nil || !healthy && !errors.Is(err, errRuntimeUnavailable) {
 				t.Fatalf("readiness error=%v", err)
 			}
 			wantCore, wantAgent := 1, 1
+			minCore, minAgent := 1, 1
 			switch name {
 			case "canceled parent", "expired parent", "zero budget":
 				wantCore, wantAgent = 0, 0
+				minCore, minAgent = 0, 0
 			case "core refusal", "cancel during core":
-				wantAgent = 0
+				minAgent = 0
+			case "agent refusal":
+				minCore = 0
 			}
-			if coreDriver.calls != wantCore || agentDriver.calls != wantAgent {
+			if coreDriver.calls < minCore || coreDriver.calls > wantCore || agentDriver.calls < minAgent || agentDriver.calls > wantAgent {
 				t.Fatalf("probe calls core=%d agent=%d", coreDriver.calls, agentDriver.calls)
 			}
-			if probeContext != nil && probeContext.Err() == nil {
-				t.Error("completed probe context was not canceled")
+			close(observed)
+			var first context.Context
+			for probeContext := range observed {
+				if first != nil && first != probeContext {
+					t.Error("probes have separate budgets")
+				}
+				first = probeContext
+				if probeContext.Err() == nil {
+					t.Error("completed probe context was not canceled")
+				}
 			}
 		})
+	}
+}
+
+func TestAuthorizationIndependentProbesShareOneConcurrentBudget(t *testing.T) {
+	key := strings.Repeat("a", 64)
+	started := make(chan context.Context, 2)
+	release := make(chan struct{})
+	observe := func(ctx context.Context) {
+		started <- ctx
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+	}
+	coreDriver := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_discovery_api", key: key, observe: observe}
+	agentDriver := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_security_agent_api", key: key, observe: observe}
+	core, _ := apiserver.NewPostgresJSONDatabase(coreDriver)
+	agent, _ := apiserver.NewPostgresJSONDatabase(agentDriver)
+	defer core.Close()
+	defer agent.Close()
+	if core.RequireCurrentAuthorization() != nil || agent.RequireCurrentAuthorization() != nil {
+		t.Fatal("enforcing fixture")
+	}
+	parent, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	result := make(chan error, 1)
+	go func() { result <- checkAuthorizationRuntimeReadyWithinTimeout(parent, core, agent, key, time.Second) }()
+	contexts := []context.Context{}
+	for len(contexts) < 2 {
+		select {
+		case ctx := <-started:
+			contexts = append(contexts, ctx)
+		case <-parent.Done():
+			goto joined
+		}
+	}
+joined:
+	close(release)
+	err := <-result
+	if len(contexts) != 2 {
+		t.Fatalf("independent probes did not both start within the original shared budget: started=%d error=%v", len(contexts), err)
+	}
+	if contexts[0] != contexts[1] {
+		t.Fatal("probes did not share one context")
+	}
+	if err != nil {
+		t.Fatalf("both healthy probes refused: %v", err)
+	}
+	if contexts[0].Err() == nil {
+		t.Fatal("probe context not closed after joined completion")
+	}
+}
+
+func TestAuthorizationProbeRefusalCancelsAndJoinsSibling(t *testing.T) {
+	key := strings.Repeat("a", 64)
+	started := make(chan context.Context, 1)
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	coreDriver := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_discovery_api", key: key, fail: true}
+	agentDriver := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_security_agent_api", key: key}
+	parent, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	coreDriver.observe = func(ctx context.Context) {
+		select {
+		case <-entered:
+		case <-ctx.Done():
+		}
+	}
+	agentDriver.observe = func(ctx context.Context) { started <- ctx; close(entered); <-release }
+	core, _ := apiserver.NewPostgresJSONDatabase(coreDriver)
+	agent, _ := apiserver.NewPostgresJSONDatabase(agentDriver)
+	defer core.Close()
+	defer agent.Close()
+	if core.RequireCurrentAuthorization() != nil || agent.RequireCurrentAuthorization() != nil {
+		t.Fatal("enforcing fixture")
+	}
+	result := make(chan error, 1)
+	go func() { result <- checkAuthorizationRuntimeReady(parent, core, agent, key) }()
+	// The core cannot refuse until the sibling has entered its query. The sibling
+	// deliberately delays finishing after cancellation to check the explicit join.
+	var probe context.Context
+	for probe == nil {
+		select {
+		case probe = <-started:
+		case <-parent.Done():
+			close(release)
+			<-result
+			t.Fatal("sibling did not enter probe")
+		}
+	}
+	select {
+	case <-probe.Done():
+	case <-parent.Done():
+	}
+	select {
+	case <-result:
+		close(release)
+		t.Fatal("gate returned before canceled sibling joined")
+	default:
+	}
+	close(release)
+	if err := <-result; !errors.Is(err, errRuntimeUnavailable) {
+		t.Fatalf("refused probe admitted: %v", err)
+	}
+	if probe.Err() != context.Canceled {
+		t.Errorf("sibling context error=%v", probe.Err())
+	}
+	if coreDriver.calls != 1 || agentDriver.calls != 1 {
+		t.Fatalf("probe calls core=%d agent=%d", coreDriver.calls, agentDriver.calls)
 	}
 }

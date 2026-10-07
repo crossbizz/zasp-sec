@@ -1,0 +1,25 @@
+{
+  "head": "621f076181b3d8fa69eccef2f7f4a080563b0fda",
+  "exit": 1,
+  "seconds": 21.430328907999865,
+  "refusal": null,
+  "trackedBodiesUnchanged": true,
+  "resourceSamples": [
+    {
+      "monotonic": 7354.197192498,
+      "workspaceFree": 7361249280,
+      "tmpFree": 4597846016
+    },
+    {
+      "monotonic": 7364.202098529,
+      "workspaceFree": 6444044288,
+      "tmpFree": 4456701952
+    },
+    {
+      "monotonic": 7374.209173901,
+      "workspaceFree": 6453211136,
+      "tmpFree": 4305453056
+    }
+  ],
+  "scope": "actual local compliance browser only; controlled identity/provider fixtures; not deployed Stytch/provider acceptance"
+}

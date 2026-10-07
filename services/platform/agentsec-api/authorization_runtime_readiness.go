@@ -8,10 +8,26 @@ import (
 )
 
 func checkAuthorizationRuntimeReady(ctx context.Context, database, securityAgentDatabase *apiserver.PostgresJSONDatabase, keyVersion string) error {
-	if err := database.CurrentAuthorizationRuntimeReady(ctx, "zasp_discovery_api", keyVersion); err != nil {
+	if ctx == nil || ctx.Err() != nil {
 		return errRuntimeUnavailable
 	}
-	if err := securityAgentDatabase.CurrentAuthorizationRuntimeReady(ctx, "zasp_security_agent_api", keyVersion); err != nil {
+	// Each pool checks only its own fixed bootstrap metadata. Both must pass
+	// within the same budget; cancel and join both before callers close pools.
+	probes, cancel := context.WithCancel(ctx)
+	defer cancel()
+	results := make(chan error, 2)
+	go func() { results <- database.CurrentAuthorizationRuntimeReady(probes, "zasp_discovery_api", keyVersion) }()
+	go func() {
+		results <- securityAgentDatabase.CurrentAuthorizationRuntimeReady(probes, "zasp_security_agent_api", keyVersion)
+	}()
+	failed := false
+	for range 2 {
+		if <-results != nil {
+			failed = true
+			cancel()
+		}
+	}
+	if failed || probes.Err() != nil {
 		return errRuntimeUnavailable
 	}
 	return nil

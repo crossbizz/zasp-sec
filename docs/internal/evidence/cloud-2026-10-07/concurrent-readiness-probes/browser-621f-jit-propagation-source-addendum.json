@@ -1,0 +1,20 @@
+{
+  "scope": "Source-only JIT propagation; actual effective setting/cost unknown until diagnostic",
+  "chain": [
+    "openRuntimePostgres uses ParsePoolConfig",
+    "ParsePoolConfig RuntimeParams[jit]=off",
+    "NewWithConfig retains session parameter",
+    "pgxProductionDriver.QueryRow delegates directly to pool.QueryRow with original ctx/SQL/args",
+    "current SQL SECURITY DEFINER routine SET search_path does not itself setjit"
+  ],
+  "negativeSearchScope": "All migrations/sql *.sql searched for wordjit/RESET ALL/DISCARD ALL: no matches. This source search does not prove server/session GUC at runtime.",
+  "harnessAPI": "Both API DSNs use loopback/sslmode=disable and fixed API LOGINs; no DSN options in this path. API provider budget5s, discovery fixture1s distinct.",
+  "instrumentationRecommendation": "After first sameSQL call outcome, use separately declared diagnostic actualconnection check SHOW/current_setting jit if needed; do not add an extra query into acceptance silently.",
+  "pins": {
+    "services/platform/agentsec-api/production_runtime.go": "3372e5f6ea8cf1c878912f247b4ab715c120174e24edee9f523ccb5b91fc6b9b",
+    "services/platform/runtimepostgres/config.go": "846368d7910d6aade67c9a952ce70da2e0aaa5c302f72b189acf36e48e14bc8c",
+    "services/platform/apiserver/authorization_runtime_readiness.go": "148a993cba12c9c868a993caf63850724b42bb2796345576ae0c6b264bde740d",
+    "services/platform/migrations/sql/0080_authorization_audit_profile.sql": "f2379ee585edcdc37349b10fb09d6cb5e0db788f17f0a66394cb4882c53c5542",
+    "scripts/production-combined-e2e.mjs": "1953c34a5d14bc3200800e14e255570bb032b9bb3f20327a698009589177b27b"
+  }
+}
