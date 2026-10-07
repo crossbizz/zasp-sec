@@ -1,0 +1,14 @@
+{
+  "directPIDsAbsent": {
+    "32202": true,
+    "32226": true
+  },
+  "loopbackPortsBindable": {
+    "54389": true,
+    "8088": true,
+    "8089": true
+  },
+  "workspaceFree": 1515560960,
+  "tmpFree": 5630242816,
+  "scope": "Current direct leaders and listeners only, not an all-descendant census"
+}

@@ -1,0 +1,219 @@
+{
+  "scope": "Explicit native test fixture credential selection/admission only; no wholeAPI/SQL/native/deployed acceptance.",
+  "source_head": "146dceb57fbf5241cb5ed6bec24db2ac4f351ec8",
+  "source": {
+    "services/platform/apiserver/authorization_projection_fga_test.go": {
+      "sha256": "7aa946b921e6e1490126558c49886bbeb6034b8ad5d9aca6a0d936ad206ecc2c"
+    },
+    "services/platform/apiserver/authorization_projection_native_test.go": {
+      "sha256": "961f2373a262482c743cd5ce681f335fa39446ac38b0b8914a1e3be8ffbf7b47"
+    }
+  },
+  "runs": {
+    "native-fixture-red": {
+      "exit": 1,
+      "log_sha256": "da2dd52fcc2623ef26cbe42662d65d2769228404dcef206c961a3e23c5afe259",
+      "cases": [
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/explicit_native",
+          "Action": "fail",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/legacy_unchanged",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/no_fallback_on_native_refusal",
+          "Action": "fail",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/private_token_only",
+          "Action": "fail",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/invalid_token_bytes",
+          "Action": "fail",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission",
+          "Action": "fail",
+          "Elapsed": 0
+        }
+      ],
+      "started": "2026-10-07T00:14:14.741959178Z",
+      "ended": "2026-10-07T00:14:14.751624346Z"
+    },
+    "native-fixture-green": {
+      "exit": 0,
+      "log_sha256": "e45f36fb09f0568019feb93baae87d13602c33093640fbcc8861ea20f6c1e7a6",
+      "cases": [
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/explicit_native",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/legacy_unchanged",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/no_fallback_on_native_refusal",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/private_token_only",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/invalid_token_bytes",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission",
+          "Action": "pass",
+          "Elapsed": 0
+        }
+      ],
+      "started": "2026-10-07T00:14:58.845516189Z",
+      "ended": "2026-10-07T00:14:59.855658391Z"
+    },
+    "native-fixture-comma-red": {
+      "exit": 1,
+      "log_sha256": "c9176fe2f936d5c8abcd6722d8c401ada61fd8ece7e76f428822b8041be52b5b",
+      "cases": [
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/explicit_native",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/legacy_unchanged",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/no_fallback_on_native_refusal",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/private_token_only",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/owned_readonly_ipv6",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/nonexclusive_or_nonregular_token",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/invalid_token_bytes",
+          "Action": "fail",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission",
+          "Action": "fail",
+          "Elapsed": 0
+        }
+      ],
+      "started": "2026-10-07T00:16:19.140390451Z",
+      "ended": "2026-10-07T00:16:19.15090639Z"
+    },
+    "native-fixture-portable-green": {
+      "exit": 0,
+      "log_sha256": "11eb103d038257e4222687f2e413c222fae7a4b0c4cecaefa90908831f893566",
+      "cases": [
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/explicit_native",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/legacy_unchanged",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/no_fallback_on_native_refusal",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/private_token_only",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/owned_readonly_ipv6",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/nonexclusive_or_nonregular_token",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission/invalid_token_bytes",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAuthorizationProjectionNativeCredentialAdmission",
+          "Action": "pass",
+          "Elapsed": 0
+        }
+      ],
+      "started": "2026-10-07T00:17:32.927611004Z",
+      "ended": "2026-10-07T00:17:33.944405979Z"
+    }
+  },
+  "cross_compile": {
+    "target": "darwin/arm64",
+    "CGO_ENABLED": "0",
+    "exit": 0,
+    "runtime_executed": false
+  },
+  "limits": [
+    "Default Docker discovery and transport wrappers/model publication/SQL assertions unchanged.",
+    "Actual native SDK93 proof is separate; old native processes have been cleaned.",
+    "Real SQL test must run in a newly owned live native lifetime; supplied settings alone are not authority.",
+    "Admission baseline was extraction-equivalent original always-Docker resolver; no missing-symbol or compile refusal counted as feature RED."
+  ],
+  "native-fixture-baseline-test.go": {
+    "bytes": 4789,
+    "sha256": "cd03fa3bda7a3f35d75045e9e99f60ddc78ab2e35a9b93c1da0db17478583e8c"
+  },
+  "native-fixture-before-portability.go": {
+    "bytes": 9446,
+    "sha256": "4e8809abe88f33f7257ebfb4d656d6d34bdbf8d2f035d24a1b5a5ee30096d864"
+  },
+  "native-fixture-darwin-arm64.test": {
+    "bytes": 4456434,
+    "sha256": "ed0e538a61b98baa5f4c09cc188eb66930ad744b997c1d6776c4d852b3f376e7"
+  },
+  "native-fixture-darwin-compile.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "native-fixture-darwin-compile.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "command_base": "timeout --signal=TERM --kill-after=10s 120s env -i [pinned Go1.26.8/offline/GOENVoff/GOWORKoff/readonly/no downloads; owned SHM GOCACHE,GOTMPDIR,TMPDIR] go test -race -p=1 -count=1 -timeout=90s services/platform/apiserver/authorization_projection_native_test.go -json"
+}

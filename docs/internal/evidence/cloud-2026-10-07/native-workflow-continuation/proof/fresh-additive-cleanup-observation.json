@@ -1,0 +1,38 @@
+{
+  "deadlineBasis": "first recorded owned initdb startTicks / CLK_TCK + original330s aggregate, conservative later-start bound",
+  "directRecordedPIDsAbsent": {
+    "41691": true,
+    "41708": true,
+    "41718": true,
+    "41720": true,
+    "41728": true,
+    "41736": true,
+    "41745": true,
+    "41763": true,
+    "41795": true
+  },
+  "format": "owned-native-app-continuation-additive-cleanup-observation-v1",
+  "observationElapsedSeconds": 1.531032419999974,
+  "observedMonotonic": 12723.357748438,
+  "originalConservativeDeadlineMonotonic": 12985.46,
+  "originalOwnerStatusUnchanged": "FAILED-PortAbsenceRefusal",
+  "originalResultSHA256": "785ba2aa66240137a280313ea0950fb9c193fdcf11f4c193921f4c31d8812baa",
+  "ownedGroupsRemaining": [],
+  "portsBindable": {
+    "54391": true,
+    "6933": true,
+    "6934": true,
+    "6935": true,
+    "6939": true,
+    "7233": true,
+    "7234": true,
+    "7235": true,
+    "7239": true,
+    "9090": true
+  },
+  "processMetadataUnknownPIDs": [],
+  "scope": "Fresh bounded read-only additive observation. No signals, source changes, socketreuse or rerun; original overall failure remains immutable. Exact original component test PASS is separate.",
+  "selectedTCPRows": [],
+  "sourceUnchanged": true,
+  "status": "PASS-FRESH-CLEANUP-OBSERVATION"
+}

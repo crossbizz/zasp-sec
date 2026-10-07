@@ -1,0 +1,8 @@
+{
+  "binary": "/tmp/zasp-native-supported-tools-h0zqa978/native-sdk-v4.test",
+  "bytes": 68728536,
+  "sha256": "793326b590dd60bf867dfe4343802be03aa86f32b5be746a3e62ad22646c9cf7",
+  "source": "/tmp/zasp-native-supported-tools-h0zqa978/native_model_integration_v4_test.go",
+  "sourceSHA256": "3cc6cd01c07900467894ea345591faeb614764c92248cd2c779a2d2d343ff301",
+  "scope": "Compileartifactonly testsnotyetexecuted"
+}

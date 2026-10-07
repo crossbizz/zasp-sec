@@ -1,0 +1,19 @@
+{
+  "outcome": "PASS assembled evidence/receipt scope before final default indexscan",
+  "newExactOriginalOrHashComparisons": 37,
+  "receiptSHA256": "3484605d05da7212f5ba966e23ce7a940315787d6f1ec86343ff15e0222edc18",
+  "preservedHeadReceiptPrefixSHA256": "627c339e3dff4da7781c254475d10d3dc8f56b1d6d32c5cf25991e4df14eac4c",
+  "checks": [
+    "Priorcombined native/Stytch/Temporal/baseline/cancellation review209898 preserved; additionalfullUI/Helm/threeEXPLAIN copies matchoriginals.",
+    "FullUIproducer normal0/2620PASS0FAIL0SKIP/247files111.640s accurately reported, original0test/symlink andmissingHelm2619PASS1FAIL retained.",
+    "Helm officialsourceGo26build suffix/provenance limits andfailures disclosed.",
+    "Three readiness profiles andcompilefailure/clarification scopeddiagnosis-only; originalcurrent80FAIL andTemporalownerPortAbsenceFAIL retained.",
+    "Receipt appendonly exactHEAD prefix,728 unchanged,589controls6348SQLsteps379rules terminology precise."
+  ],
+  "limits": [
+    "No independentfull103k installedmaps rehash during this copied-tree review; producerdata androotverification evidence accurately bounded.",
+    "Private outputmode transportsGit100644 no lifetimeimmutabilityclaim.",
+    "Actual finalstageddefaultscanner+decodedcompressedproof scan remainROOT gates; no scan0 inferred here.",
+    "No current80/fullAPI/worker/provider/deployed/native379/mergepromotion from componentresults."
+  ]
+}

@@ -1,0 +1,8 @@
+=== RUN   TestAuthorizationProjectionPostgres
+    authorization_projection_postgres_test.go:78: owned OpenFGA store=01M49WKZ6XJC49J6EP7V9CMPNN model=01M49WKZ7EWRDFD9FWTM5D1QFE; active configuration unchanged
+    authorization_projection_postgres_test.go:116: registered source/fenced effect lock inversion aborted, rolled back, then committed once after fresh Check
+    authorization_projection_postgres_test.go:117: product agent/service membership, two independent tasks, per-task/activation/connection revoke, cross-tenant denial and duplicate SQL ancestry verified
+    authorization_projection_postgres_test.go:228: registered projection: 11 durable receipts, fingerprint=4bfdaa7caf34ecc2f04b130ab177adc6b5fde3e90204d39edcc636b8a7180356
+    postgres_integration_test.go:1409: joined owned PostgreSQL pid=32618 data=/dev/shm/native-projection79-fixture-31112e09c7/TestAuthorizationProjectionPostgres117826158/001/data: pg_ctl exit=0 server Wait exit=0 normal-exit
+--- PASS: TestAuthorizationProjectionPostgres (3.25s)
+PASS

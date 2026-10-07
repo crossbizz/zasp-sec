@@ -1,0 +1,20 @@
+[
+  {
+    "original": "/dev/shm/native-projection79-fixture-31112e09c7/sql80.stdout",
+    "original_bytes": 29659,
+    "original_sha256": "1ecfb1bb0a13d9dd353cdd3e959f9dfda9efb98876a86d7913151fa749a257fb",
+    "published": "sql80.stdout.gz",
+    "sanitization": "URI userinfo password replacement only; complete log retained privately",
+    "replacement_count": 0,
+    "decoded_sha256": "1ecfb1bb0a13d9dd353cdd3e959f9dfda9efb98876a86d7913151fa749a257fb"
+  },
+  {
+    "original": "/dev/shm/native-projection79-fixture-31112e09c7/sql80.stderr",
+    "original_bytes": 0,
+    "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "published": "sql80.stderr.gz",
+    "sanitization": "URI userinfo password replacement only; complete log retained privately",
+    "replacement_count": 0,
+    "decoded_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

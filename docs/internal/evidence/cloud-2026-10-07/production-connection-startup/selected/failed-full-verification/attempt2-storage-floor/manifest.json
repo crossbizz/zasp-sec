@@ -1,0 +1,64 @@
+{
+  "format": "spec29-fresh-terminal-selected-proof-v1",
+  "members": [
+    {
+      "path": "result.json",
+      "original_path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/result.json",
+      "sha256": "a5d4ad85742cf56c36fec0b33e6506888d94797713f2dd424bc99e2a9d4d7216",
+      "bytes": 44796
+    },
+    {
+      "path": "process-binding.json",
+      "original_path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/process-binding.json",
+      "sha256": "9884d549e504306471fbae60eb0a6be1ea4c7c8d54f9df5520664259a0cb0a37",
+      "bytes": 1790
+    },
+    {
+      "path": "preparation.json",
+      "original_path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/preparation.json",
+      "sha256": "393b8bd0c509152adf1d24dfbff20dfaed767b5ffcc3d334b8b3af84f50a2c20",
+      "bytes": 617
+    },
+    {
+      "path": "verify.stdout",
+      "original_path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/verify.stdout",
+      "sha256": "47e8667d22b50ba3de4246322fd1063818688700dba193821744d9182e3523aa",
+      "bytes": 4978
+    },
+    {
+      "path": "verify.stderr",
+      "original_path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/verify.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "tool-before.json",
+      "original_path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/tool-before.json",
+      "sha256": "59263d4d9dd2dda7bf612d57669ce5f88ab72839e7891ecefc300482cd3c9b1a",
+      "bytes": 2282
+    },
+    {
+      "path": "tool-after.json",
+      "original_path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/tool-after.json",
+      "sha256": "59263d4d9dd2dda7bf612d57669ce5f88ab72839e7891ecefc300482cd3c9b1a",
+      "bytes": 2282
+    },
+    {
+      "path": "deps-before-summary.json",
+      "original_path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/deps-before-summary.json",
+      "sha256": "ae732593f4b7c720fa094e501adbad49afe13b6c6910fff9ee7fa81d1ea09afa",
+      "bytes": 325
+    },
+    {
+      "path": "deps-after-summary.json",
+      "original_path": "/tmp/full-verify-epoch29-retry-0jqd1mhz/deps-after-summary.json",
+      "sha256": "ac0599054e85dddb8a74a70650e8e77f5545b2a379302ab6e64c088365bec70a",
+      "bytes": 325
+    },
+    {
+      "path": "scope.json",
+      "sha256": "d53154015e3f67263a3eaa8aaa18b7982eec94fb9c2ee61f0e79fd97c36f74c6",
+      "bytes": 1661
+    }
+  ]
+}

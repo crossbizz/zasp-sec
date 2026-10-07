@@ -1,0 +1,545 @@
+{
+  "scope": "Exact selected fresh copies; producer manifests retain their own broader original scope. Full ephemeral binaries/caches/maps excluded; lost prior originals not reconstructed. Fresh full verification still running and not included here.",
+  "files": [
+    {
+      "path": "fresh-tools/PG183-v2-pg183-v2-smoke.py",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/PG183-v2-pg183-v2-smoke.py",
+      "bytes": 3607,
+      "sha256": "aac3d37ffe8d91f8b249beb4c19f47b5c87f9631abaed0df5f76f6b0e2402cb2"
+    },
+    {
+      "path": "fresh-tools/PG183-v2-post-stop-process-observation.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/PG183-v2-post-stop-process-observation.json",
+      "bytes": 175,
+      "sha256": "15d053e7e4335bd57c1a6bc9659408ca7b4f9292f4a8e872943411d59efc6184"
+    },
+    {
+      "path": "fresh-tools/PG183-v2-result.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/PG183-v2-result.json",
+      "bytes": 2420,
+      "sha256": "f6ffc7636b6f7ad6ff6796f15bd20b24d02c29309f8b93b73a56a08e7f689564"
+    },
+    {
+      "path": "fresh-tools/admission.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/admission.json",
+      "bytes": 4539,
+      "sha256": "130efa94bd5f2942ba19fdd550cd2775bf766b6ea4da2a1ac616719766d1a0f6"
+    },
+    {
+      "path": "fresh-tools/fresh-intake-results.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/fresh-intake-results.json",
+      "bytes": 1885,
+      "sha256": "7d9b5dcd02ad72298a518b47c530aeec0437d1bd7467a5890bfab0c390e5f57d"
+    },
+    {
+      "path": "fresh-tools/fresh-tools-admission.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/fresh-tools-admission.json",
+      "bytes": 1809,
+      "sha256": "1a3c55abf0abdee8bceba31f290dc85af84f4ff6620a045390e24bc7a52dd33e"
+    },
+    {
+      "path": "fresh-tools/helm-fresh-build-first-failure.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/helm-fresh-build-first-failure.json",
+      "bytes": 1008,
+      "sha256": "3251c89aa82a1859335b8e473bd8e067cb6488cf71bee58bf7a7ce2d2ee96fc6"
+    },
+    {
+      "path": "fresh-tools/helm-fresh-build-result.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/helm-fresh-build-result.json",
+      "bytes": 1189,
+      "sha256": "e0a02d733db6816fd25100bbc9c8ef3ad0dd7cd8f431d14fd6466095bb3b4091"
+    },
+    {
+      "path": "fresh-tools/helm-fresh-direct-dependency.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/helm-fresh-direct-dependency.json",
+      "bytes": 759,
+      "sha256": "ca55dcf6deb30bb79fdd277444ed56cb1bb34d31da29970e5dfb4e7afa26239d"
+    },
+    {
+      "path": "fresh-tools/helm-fresh-first-failure.stderr",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/helm-fresh-first-failure.stderr",
+      "bytes": 208,
+      "sha256": "343ff3fe47de0695734d7cad0886cff2a2bf912a2610d2f70148312d24c77987"
+    },
+    {
+      "path": "fresh-tools/helm-fresh-source-h1.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/helm-fresh-source-h1.json",
+      "bytes": 274,
+      "sha256": "eb540f5ce720ff61893c81688ed2492033b03194068d6ff2cdd101dcda7785a5"
+    },
+    {
+      "path": "fresh-tools/independent-spec29-fresh-tool-byte-review.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/independent-spec29-fresh-tool-byte-review.json",
+      "bytes": 5257,
+      "sha256": "ab07bebf0aed223b89c81ae6da0fab6daff307af51b48da5b89c571e6f357f24"
+    },
+    {
+      "path": "fresh-tools/manifest.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/manifest.json",
+      "bytes": 7495,
+      "sha256": "2298f34fcc87e5bae9162c63acb800d32a7354b45c6af4181ceac7da2c8601fb"
+    },
+    {
+      "path": "fresh-tools/restore-pg183.py",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/restore-pg183.py",
+      "bytes": 3468,
+      "sha256": "f8be2cc439e6aee4bafa0d897646c2786ec39cd43284ca247d50e4c00cedca8a"
+    },
+    {
+      "path": "fresh-tools/spec29-compress1187-admission.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/spec29-compress1187-admission.json",
+      "bytes": 2600,
+      "sha256": "96e5763305326f318931af2993f33e6af8529f95a329e88da54212a9460f8b70"
+    },
+    {
+      "path": "fresh-tools/spec29-required-five-module-admission.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/spec29-required-five-module-admission.json",
+      "bytes": 2229,
+      "sha256": "87cee2c28ac89352a10e0274d4c9d179c62f00a4d32219f663f28992b9dc9e74"
+    },
+    {
+      "path": "fresh-tools/spec29-required-five-module-download.jsonl",
+      "source": "/workspace/.zasp-cloud-owned/spec29-tool-proof/spec29-required-five-module-download.jsonl",
+      "bytes": 3494,
+      "sha256": "a6f10152bbfb2b2aaee4b2ec6065af131e6dfee4c6235d190bf92a8de401f815"
+    },
+    {
+      "path": "failed-full-verification/attempt1-missing-modules/deps-after-summary.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules/deps-after-summary.json",
+      "bytes": 325,
+      "sha256": "14d6dfe9d3361aa02f804a557bfcc91c4e82c7aa831ca2cb61136d3878862daf"
+    },
+    {
+      "path": "failed-full-verification/attempt1-missing-modules/deps-before-summary.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules/deps-before-summary.json",
+      "bytes": 325,
+      "sha256": "93f584db982477b201cd404af71980c2588cea06301cd527040df3cf2c0a6a7a"
+    },
+    {
+      "path": "failed-full-verification/attempt1-missing-modules/manifest.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules/manifest.json",
+      "bytes": 2286,
+      "sha256": "34545d4826e63019eb771fc82b3c65de75aa03039e9fdb964bffd861ffd04241"
+    },
+    {
+      "path": "failed-full-verification/attempt1-missing-modules/preparation.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules/preparation.json",
+      "bytes": 516,
+      "sha256": "6aa4babf8dc417be3ab68f6784ef2c53904a7e4583fa7bdddfa79d770358c270"
+    },
+    {
+      "path": "failed-full-verification/attempt1-missing-modules/process-binding.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules/process-binding.json",
+      "bytes": 1716,
+      "sha256": "9386eb3d9dbaa0482147c51155cf1f9a3cd0bc645cf9e1487b08d3780ddffecc"
+    },
+    {
+      "path": "failed-full-verification/attempt1-missing-modules/result.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules/result.json",
+      "bytes": 15023,
+      "sha256": "874397e2d1ae9611246675a08a628db8010d483aa828064428c432d0ba11d395"
+    },
+    {
+      "path": "failed-full-verification/attempt1-missing-modules/scope.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules/scope.json",
+      "bytes": 1624,
+      "sha256": "3553414d74443c8ec48e259c97621c4042c76567cd9d0eb669e415a02229745c"
+    },
+    {
+      "path": "failed-full-verification/attempt1-missing-modules/tool-after.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules/tool-after.json",
+      "bytes": 2012,
+      "sha256": "ddfb7c8fce7e56b17aa5d880ab5443db68aa10f15bb859fd95385a5c9d95a711"
+    },
+    {
+      "path": "failed-full-verification/attempt1-missing-modules/tool-before.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules/tool-before.json",
+      "bytes": 2012,
+      "sha256": "ddfb7c8fce7e56b17aa5d880ab5443db68aa10f15bb859fd95385a5c9d95a711"
+    },
+    {
+      "path": "failed-full-verification/attempt1-missing-modules/verify.stderr",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules/verify.stderr",
+      "bytes": 7064,
+      "sha256": "5d3f19003da803d038c220965baaff029980af33e09fec2225bad91f973485fa"
+    },
+    {
+      "path": "failed-full-verification/attempt1-missing-modules/verify.stdout",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt1-missing-modules/verify.stdout",
+      "bytes": 5143,
+      "sha256": "59ad92721d5d4de65072eeaa9bac77c4d0df9dbf121d01273beeff467e1b22e9"
+    },
+    {
+      "path": "failed-full-verification/attempt2-storage-floor/deps-after-summary.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor/deps-after-summary.json",
+      "bytes": 325,
+      "sha256": "ac0599054e85dddb8a74a70650e8e77f5545b2a379302ab6e64c088365bec70a"
+    },
+    {
+      "path": "failed-full-verification/attempt2-storage-floor/deps-before-summary.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor/deps-before-summary.json",
+      "bytes": 325,
+      "sha256": "ae732593f4b7c720fa094e501adbad49afe13b6c6910fff9ee7fa81d1ea09afa"
+    },
+    {
+      "path": "failed-full-verification/attempt2-storage-floor/manifest.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor/manifest.json",
+      "bytes": 2337,
+      "sha256": "1c8aed3df67ed18792add6417af7e5c4adf6e964fd10dba9c8b734516b3a5f6a"
+    },
+    {
+      "path": "failed-full-verification/attempt2-storage-floor/preparation.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor/preparation.json",
+      "bytes": 617,
+      "sha256": "393b8bd0c509152adf1d24dfbff20dfaed767b5ffcc3d334b8b3af84f50a2c20"
+    },
+    {
+      "path": "failed-full-verification/attempt2-storage-floor/process-binding.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor/process-binding.json",
+      "bytes": 1790,
+      "sha256": "9884d549e504306471fbae60eb0a6be1ea4c7c8d54f9df5520664259a0cb0a37"
+    },
+    {
+      "path": "failed-full-verification/attempt2-storage-floor/result.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor/result.json",
+      "bytes": 44796,
+      "sha256": "a5d4ad85742cf56c36fec0b33e6506888d94797713f2dd424bc99e2a9d4d7216"
+    },
+    {
+      "path": "failed-full-verification/attempt2-storage-floor/scope.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor/scope.json",
+      "bytes": 1661,
+      "sha256": "d53154015e3f67263a3eaa8aaa18b7982eec94fb9c2ee61f0e79fd97c36f74c6"
+    },
+    {
+      "path": "failed-full-verification/attempt2-storage-floor/tool-after.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor/tool-after.json",
+      "bytes": 2282,
+      "sha256": "59263d4d9dd2dda7bf612d57669ce5f88ab72839e7891ecefc300482cd3c9b1a"
+    },
+    {
+      "path": "failed-full-verification/attempt2-storage-floor/tool-before.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor/tool-before.json",
+      "bytes": 2282,
+      "sha256": "59263d4d9dd2dda7bf612d57669ce5f88ab72839e7891ecefc300482cd3c9b1a"
+    },
+    {
+      "path": "failed-full-verification/attempt2-storage-floor/verify.stderr",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor/verify.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "failed-full-verification/attempt2-storage-floor/verify.stdout",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/attempt2-storage-floor/verify.stdout",
+      "bytes": 4978,
+      "sha256": "47e8667d22b50ba3de4246322fd1063818688700dba193821744d9182e3523aa"
+    },
+    {
+      "path": "failed-full-verification/offline-module-preflight/manifest.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/offline-module-preflight/manifest.json",
+      "bytes": 678,
+      "sha256": "f3d1019ce98be93f99cd1f72030266deef9d2179628a8aedd63e5be34122e869"
+    },
+    {
+      "path": "failed-full-verification/offline-module-preflight/result.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/offline-module-preflight/result.json",
+      "bytes": 1939,
+      "sha256": "bb584be804dbda64259e22a2ca502ca9f78b924fcee8cb0c9c2e0b1e050f948d"
+    },
+    {
+      "path": "failed-full-verification/offline-module-preflight/runtime-gateway.stderr",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/offline-module-preflight/runtime-gateway.stderr",
+      "bytes": 209,
+      "sha256": "30ac66cbd51d85fbebb9ecdb834e013b499ba2fcc649f3c8026a5579b8aea8dc"
+    },
+    {
+      "path": "failed-full-verification/outer-tool-join-observation.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/outer-tool-join-observation.json",
+      "bytes": 823,
+      "sha256": "b3bdacd5e2c0c40953920b74728a8fad6c8408cedd31724e6795b661c82abaf4"
+    },
+    {
+      "path": "failed-full-verification/selected-scan-receipt.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-verify-proof/selected-scan-receipt.json",
+      "bytes": 570,
+      "sha256": "e31ece9904260067e91673102c9f1c2c59f4a44ead377e742c2ddde46f05006f"
+    },
+    {
+      "path": "independent-reviews/attempt1-missing-modules-default-report.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/attempt1-missing-modules-default-report.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "independent-reviews/attempt1-missing-modules-scan.stderr",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/attempt1-missing-modules-scan.stderr",
+      "bytes": 79,
+      "sha256": "140ce7fff618ea74de323606c570c9f6a96997ea859e192e51fe118035e0125b"
+    },
+    {
+      "path": "independent-reviews/attempt1-missing-modules-scan.stdout",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/attempt1-missing-modules-scan.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "independent-reviews/attempt2-storage-floor-default-report.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/attempt2-storage-floor-default-report.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "independent-reviews/attempt2-storage-floor-scan.stderr",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/attempt2-storage-floor-scan.stderr",
+      "bytes": 79,
+      "sha256": "f859c8f695f155f371da2e052812de84ade6d4e812cc27d5bcb36186753d6df3"
+    },
+    {
+      "path": "independent-reviews/attempt2-storage-floor-scan.stdout",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/attempt2-storage-floor-scan.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "independent-reviews/cache-cleanup-review-originals/after.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/cache-cleanup-review-originals/after.json",
+      "bytes": 330,
+      "sha256": "e1546016be83f5fcd71ccb44415002df5c53311c1351c444e7ac67f66c08bba0"
+    },
+    {
+      "path": "independent-reviews/cache-cleanup-review-originals/before.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/cache-cleanup-review-originals/before.json",
+      "bytes": 573,
+      "sha256": "d0fc071086706b292c64a77a1d86d84e8f1ff75b2a6d147d852ded2beb4bb330"
+    },
+    {
+      "path": "independent-reviews/cache-cleanup-review-originals/independent-default-Go-cache-routine-clean-assessment.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/cache-cleanup-review-originals/independent-default-Go-cache-routine-clean-assessment.json",
+      "bytes": 1039,
+      "sha256": "ac76617cf8559f80dcfbb463d805ac226781ca2ab5f43c9f4b51fb6ab8f91136"
+    },
+    {
+      "path": "independent-reviews/cache-cleanup-review-originals/stderr.log",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/cache-cleanup-review-originals/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "independent-reviews/cache-cleanup-review-originals/stdout.log",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/cache-cleanup-review-originals/stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "independent-reviews/cache-cleanup-review.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/cache-cleanup-review.json",
+      "bytes": 6377,
+      "sha256": "cb0aba65f44abf4f5618e9b7e333301e90f8ae4886aea42092db8d29fd67c8c8"
+    },
+    {
+      "path": "independent-reviews/complete-fresh-proof-default-report.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/complete-fresh-proof-default-report.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "independent-reviews/complete-fresh-proof-default.stderr",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/complete-fresh-proof-default.stderr",
+      "bytes": 81,
+      "sha256": "5943f1588204466e8c7736683918c9a26c865ae9eae13a19378c606baca0fb1c"
+    },
+    {
+      "path": "independent-reviews/complete-fresh-proof-default.stdout",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/complete-fresh-proof-default.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "independent-reviews/fresh-outer-join-and-complete-default-scan-addendum.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/fresh-outer-join-and-complete-default-scan-addendum.json",
+      "bytes": 975,
+      "sha256": "16d1849ac2c582959b943a48ed488874165beb8d18cf62fbf7860bb5b725712e"
+    },
+    {
+      "path": "independent-reviews/fresh-selected-publication-review.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/fresh-selected-publication-review.json",
+      "bytes": 14331,
+      "sha256": "45456073d366db9d0131199c6d4f7c72f005f5e1f375294bd12ac45faca7dd58"
+    },
+    {
+      "path": "independent-reviews/fresh-terminal-observations.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-independent-proof/fresh-terminal-observations.json",
+      "bytes": 1956,
+      "sha256": "2878ed4ca2ce6255341f6c82cbffa0c955e6f749851a4a18dd56e8aca4e09777"
+    },
+    {
+      "path": "default-cache-cleanup/after.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-cache-cleanup/after.json",
+      "bytes": 330,
+      "sha256": "e1546016be83f5fcd71ccb44415002df5c53311c1351c444e7ac67f66c08bba0"
+    },
+    {
+      "path": "default-cache-cleanup/before.json",
+      "source": "/workspace/.zasp-cloud-owned/spec29-cache-cleanup/before.json",
+      "bytes": 573,
+      "sha256": "d0fc071086706b292c64a77a1d86d84e8f1ff75b2a6d147d852ded2beb4bb330"
+    },
+    {
+      "path": "default-cache-cleanup/stderr.log",
+      "source": "/workspace/.zasp-cloud-owned/spec29-cache-cleanup/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "default-cache-cleanup/stdout.log",
+      "source": "/workspace/.zasp-cloud-owned/spec29-cache-cleanup/stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fresh-diagnostic-node/baseline.mjs",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/baseline.mjs",
+      "bytes": 4962,
+      "sha256": "7914e5e94240de82e3fbf65f8a549730b5ec8926e8571607de82e360887c46b1"
+    },
+    {
+      "path": "fresh-diagnostic-node/baseline.stderr.log",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/baseline.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fresh-diagnostic-node/baseline.stdout.log",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/baseline.stdout.log",
+      "bytes": 1022,
+      "sha256": "6994c6a2889929886be21bdcf1fb29460cc464d0c95b14a8c7bae32a4b576979"
+    },
+    {
+      "path": "fresh-diagnostic-node/baseline.test.mjs",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/baseline.test.mjs",
+      "bytes": 427,
+      "sha256": "b557f4427a7ea87cb8d0019009ac39c1cf0c717e804b29a3c4ad107d65b4101d"
+    },
+    {
+      "path": "fresh-diagnostic-node/browser-command-failure.mjs",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/browser-command-failure.mjs",
+      "bytes": 6940,
+      "sha256": "cabd07fd7dd8f2a6d1cdf3a8164a6eafe442555da66cf275b7d7d0f59939d05e"
+    },
+    {
+      "path": "fresh-diagnostic-node/browser-command-failure.test.mjs",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/browser-command-failure.test.mjs",
+      "bytes": 9420,
+      "sha256": "335bf1380f140e48a3067d6f969a5cb2a4d6134dec7aab246f3216ee38746eac"
+    },
+    {
+      "path": "fresh-diagnostic-node/browser-startup-phase.test.mjs",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/browser-startup-phase.test.mjs",
+      "bytes": 10402,
+      "sha256": "e7e2bf19071578299e5f5fcf6a68e4dcfb4cd9afcff559fa4b1a64d5b2e1d215"
+    },
+    {
+      "path": "fresh-diagnostic-node/candidate-causal.stderr.log",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/candidate-causal.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fresh-diagnostic-node/candidate-causal.stdout.log",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/candidate-causal.stdout.log",
+      "bytes": 302,
+      "sha256": "b2cc492025c533e7a5a52c82d6beb9d8b1b706108a984b978db9862b715a1ca9"
+    },
+    {
+      "path": "fresh-diagnostic-node/candidate-five.stderr.log",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/candidate-five.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fresh-diagnostic-node/candidate-five.stdout.log",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/candidate-five.stdout.log",
+      "bytes": 1133,
+      "sha256": "07c4775a5dae99b2cb1e2d6741ec7fee964598def4a053cfc59c9cf665de2d31"
+    },
+    {
+      "path": "fresh-diagnostic-node/candidate.mjs",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/candidate.mjs",
+      "bytes": 6940,
+      "sha256": "cabd07fd7dd8f2a6d1cdf3a8164a6eafe442555da66cf275b7d7d0f59939d05e"
+    },
+    {
+      "path": "fresh-diagnostic-node/candidate.test.mjs",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/candidate.test.mjs",
+      "bytes": 428,
+      "sha256": "6c87a08a2e7a47a65d4ada35ec8982027cc95de25ed1dbf93f22e3c21bf6c1bb"
+    },
+    {
+      "path": "fresh-diagnostic-node/compliance-api-child-stage.test.mjs",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/compliance-api-child-stage.test.mjs",
+      "bytes": 5655,
+      "sha256": "d863bd4ed525b1b7a7ad0b578cba2ad7dbdec144a00c84937549a4a45ed93e11"
+    },
+    {
+      "path": "fresh-diagnostic-node/existing-twenty-two.stderr.log",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/existing-twenty-two.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fresh-diagnostic-node/existing-twenty-two.stdout.log",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/existing-twenty-two.stdout.log",
+      "bytes": 3971,
+      "sha256": "26093acee9d706e4393cfb2d354fae88363851d7377ee71445d3d0349d902814"
+    },
+    {
+      "path": "fresh-diagnostic-node/existing22-corrected-result.json",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/existing22-corrected-result.json",
+      "bytes": 3916,
+      "sha256": "3538f6d638f8a014ec44f163e4f480362b098d3a3fecb9f0bd1c17c391fc4ae8"
+    },
+    {
+      "path": "fresh-diagnostic-node/existing22-corrected.stderr.log",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/existing22-corrected.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "fresh-diagnostic-node/existing22-corrected.stdout.log",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/existing22-corrected.stdout.log",
+      "bytes": 5334,
+      "sha256": "aabae87dda97599798b25272acff8bda91c472f4ba7efc876ca29479f957426b"
+    },
+    {
+      "path": "fresh-diagnostic-node/independent-Node-actual-review.json",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/independent-Node-actual-review.json",
+      "bytes": 2532,
+      "sha256": "c31f19cee86a62e0da1fb338a4577390eadfca3ff4755885f868601636a7c50b"
+    },
+    {
+      "path": "fresh-diagnostic-node/launch-name-status.json",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/launch-name-status.json",
+      "bytes": 11529,
+      "sha256": "3391346a4e8fa98e38faf1642804a78ea7b0ebff35857a08c83a4d44136aa391"
+    },
+    {
+      "path": "fresh-diagnostic-node/node-result.json",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/node-result.json",
+      "bytes": 7235,
+      "sha256": "d5c0d379a1bf3ab4d932b9b2dd1fa7f82b68ba96b0b48336f2cd920936968b92"
+    },
+    {
+      "path": "fresh-diagnostic-node/run-go-seven-and-helper-TDD.py",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/run-go-seven-and-helper-TDD.py",
+      "bytes": 5582,
+      "sha256": "2e7a96c7e5ac3064faa1eb41dac90d21502cefb14c6b1073859cefe256cc3cb5"
+    },
+    {
+      "path": "fresh-diagnostic-node/runtime-dependency-marker.test.mjs",
+      "source": "/workspace/.zasp-diagnostic-refresh-3e0kpex7/runtime-dependency-marker.test.mjs",
+      "bytes": 2341,
+      "sha256": "cdd8696299e81336432421c49d2e2e7d3e6dda04f93833c259686ef1040495ed"
+    }
+  ]
+}

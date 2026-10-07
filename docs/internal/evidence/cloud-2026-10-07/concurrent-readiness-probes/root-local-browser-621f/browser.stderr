@@ -1,0 +1,12 @@
+::error title=Compliance browser command failed::Observed command class: go-worker-test-compile; failure: deadline.
+::error title=Compliance browser phase failed::Observed phase: command-builds.
+file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:7205
+    throw new Error(`${path.basename(executable)} exceeded its deadline`);
+          ^
+
+Error: go exceeded its deadline
+    at command (file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:7205:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:246:3
+
+Node.js v22.23.1

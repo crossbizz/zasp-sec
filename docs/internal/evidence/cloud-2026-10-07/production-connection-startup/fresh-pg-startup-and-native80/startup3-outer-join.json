@@ -1,0 +1,18 @@
+{
+  "scope": "Fresh actual3 startupinputs/currentParsePoolConfig, controlled ownedPGnormalstop/Tini normal0; no wholeAPI/native80",
+  "actualOuterToolExit": 0,
+  "observedUTC": "2026-10-07T03:25:32.851661+00:00",
+  "resultPath": "/tmp/actual-current-helper-startup3-trmwimmw/result.json",
+  "resultSHA256": "5dbd73915858ed27e219d760f8b77bedca8c417fb57b90ccf05dfc92599053da",
+  "bindingsCount": 149,
+  "sourceToolPGResolvedClosureUnchanged": true,
+  "bindingsSHA256": "8494e26426f5f143d2e0b3db801de3097c9faeb5e822a2a46b5b5e30bf3116e7",
+  "binarySHA256": "ebd8d720446aa20b75024448122f35a1c314e27572f91059d19e20e4039c75da",
+  "ownerSourceSHA256": "e4b49e5ebf826757aff6dcb57661e035a21fd68fbe75a4abc9786560fa79a792",
+  "stdoutSHA256": "bbdcf3d0ca9d6a11411d3f1ad48b4de0d45a44aacb4ab00f6aa9625617f18680",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "expectedTopTests": 1,
+  "expectedSubtests": 3,
+  "directServerAbsent": true,
+  "portBindable": true
+}

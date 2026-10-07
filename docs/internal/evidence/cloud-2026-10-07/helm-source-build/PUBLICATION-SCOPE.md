@@ -1,0 +1,1 @@
+The immutable producer manifest and prior reviews describe its full selection. This publication omits the entire `source-admission.json` member after a default staged scanner refusal. Its exact original remains private; `publication-omission.json` identifies its hash and scope. The published packet is a subset. No original evidence or scanner rule was changed.

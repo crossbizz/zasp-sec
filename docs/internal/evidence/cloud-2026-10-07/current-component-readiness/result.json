@@ -1,0 +1,180 @@
+{
+  "scope": "Ordinary API race component/sourcebehavior only; no realbrowser/native/provider/production claim",
+  "head": "7b45b0a88afe1a8c738bcba978c44935b72cdf53",
+  "sourcePinsAtFreeze": {
+    "services/platform/agentsec-api/bounded_parallel_readiness.go": {
+      "currentSHA256": "7d2eaff411966bacfb416b2ab37ad3bb83992744e9fdd6f6a10def264867fc6e",
+      "bytes": 1182,
+      "originalHEADSHA256": null,
+      "newFile": true
+    },
+    "services/platform/agentsec-api/bounded_parallel_readiness_test.go": {
+      "currentSHA256": "d48148963b251a70b39b72704508af953785d5faa750d0f1b80fa9e07f230bf6",
+      "bytes": 7609,
+      "originalHEADSHA256": null,
+      "newFile": true
+    },
+    "services/platform/agentsec-api/production_runtime.go": {
+      "currentSHA256": "c4a2a98eeeea11dae46615f17fe153661847a7f6c4dfa6e41c9a5af9bbda6209",
+      "bytes": 51364,
+      "originalHEADSHA256": "3372e5f6ea8cf1c878912f247b4ab715c120174e24edee9f523ccb5b91fc6b9b",
+      "newFile": false
+    },
+    "services/platform/agentsec-api/authorization_runtime_readiness.go": {
+      "currentSHA256": "97f90755f1dc503dbd39f5cec686ba01e1a62f44e7db3131729935467c4c5ded",
+      "bytes": 2379,
+      "originalHEADSHA256": "fe846905ed262960098faf4b2ca7bf2db3a881b51fd1d72cc1a1548097214819",
+      "newFile": false
+    },
+    "services/platform/agentsec-api/authorization_runtime_readiness_test.go": {
+      "currentSHA256": "18d22b46a04f23c8bfe7afa1356cf56347e614705e8d2c23e4b26cd42376570b",
+      "bytes": 13555,
+      "originalHEADSHA256": "bd378544eb004543f7fc9df518e90054777a605d4d28d9532b24c86766105180",
+      "newFile": false
+    }
+  },
+  "sequentialHelperRed": {
+    "namedPass": 0,
+    "namedFail": 1,
+    "namedSkip": 0,
+    "topPass": 0,
+    "topFail": 1,
+    "topSkip": 0,
+    "package": [
+      {
+        "Time": "2026-10-07T05:27:26.02373734Z",
+        "Action": "fail",
+        "Package": "github.com/zasp-ai/zasp-sec/services/platform/agentsec-api",
+        "Elapsed": 1.097
+      }
+    ],
+    "skipTests": [],
+    "rawSHA256": "f43e0eb515c221082d79eefc6431c4d9f4e15dd1d6e0f42ac115ecbfa032f860",
+    "refusalOutputs": [
+      "bounded_parallel_readiness_test.go:40: checks did not enter together: entered=1 error=runtime unavailable"
+    ]
+  },
+  "exactOriginalCallbackOverlayRed": {
+    "namedPass": 0,
+    "namedFail": 1,
+    "namedSkip": 0,
+    "topPass": 0,
+    "topFail": 1,
+    "topSkip": 0,
+    "package": [
+      {
+        "Time": "2026-10-07T05:29:27.554588272Z",
+        "Action": "fail",
+        "Package": "github.com/zasp-ai/zasp-sec/services/platform/agentsec-api",
+        "Elapsed": 1.5819999999999999
+      }
+    ],
+    "skipTests": [],
+    "rawSHA256": "762fd471f0133979951986e804a7872766868116ffb5684425b612b831a2a5d3",
+    "refusalOutputs": [
+      "bounded_parallel_readiness_test.go:198: metadata pipeline remained serial: entered=2 error=runtime unavailable"
+    ]
+  },
+  "initialGreenBeforeStrictServicesAssertionCorrection": {
+    "namedPass": 397,
+    "namedFail": 0,
+    "namedSkip": 10,
+    "topPass": 135,
+    "topFail": 0,
+    "topSkip": 10,
+    "package": [
+      {
+        "Time": "2026-10-07T05:28:39.177361082Z",
+        "Action": "pass",
+        "Package": "github.com/zasp-ai/zasp-sec/services/platform/agentsec-api",
+        "Elapsed": 5.817
+      }
+    ],
+    "skipTests": [
+      "TestAttackLabBrowserAPIProcess",
+      "TestAttackLabDeploymentRenderedAPIConfig",
+      "TestAuditBrowserAPIProcess",
+      "TestComplianceBrowserAPIProcess",
+      "TestComplianceDeploymentRenderedAPIConfig",
+      "TestConnectorRejectionRuntimePostgres",
+      "TestP7IdentityTracedNativeRuntime",
+      "TestRuntimePostgresCancellationShutdownDiagnostic",
+      "TestReconciliationMaintenancePrometheusExposition",
+      "TestSecurityAgentExportBrowserAPIProcess"
+    ],
+    "rawSHA256": "77528cb050aa463b89a33550f0ac8e10b6526beb0416baf46a1b3e3ee4a5329a",
+    "refusalOutputs": []
+  },
+  "finalGreen": {
+    "namedPass": 397,
+    "namedFail": 0,
+    "namedSkip": 10,
+    "topPass": 135,
+    "topFail": 0,
+    "topSkip": 10,
+    "package": [
+      {
+        "Time": "2026-10-07T05:29:52.285696353Z",
+        "Action": "pass",
+        "Package": "github.com/zasp-ai/zasp-sec/services/platform/agentsec-api",
+        "Elapsed": 5.932
+      }
+    ],
+    "skipTests": [
+      "TestAttackLabBrowserAPIProcess",
+      "TestAttackLabDeploymentRenderedAPIConfig",
+      "TestAuditBrowserAPIProcess",
+      "TestComplianceBrowserAPIProcess",
+      "TestComplianceDeploymentRenderedAPIConfig",
+      "TestConnectorRejectionRuntimePostgres",
+      "TestP7IdentityTracedNativeRuntime",
+      "TestRuntimePostgresCancellationShutdownDiagnostic",
+      "TestReconciliationMaintenancePrometheusExposition",
+      "TestSecurityAgentExportBrowserAPIProcess"
+    ],
+    "rawSHA256": "4cd8891950bb6a64fc415ddcbf601e00e212ae24c21b3da62673589da0bef19c",
+    "refusalOutputs": []
+  },
+  "actualNormalJoins": {
+    "redToolSession63857": 1,
+    "pipelineRedToolSession46264": 1,
+    "initialGreenToolSession40811": 0,
+    "finalGreenToolSession48408": 0
+  },
+  "sourceReviewNotes": [
+    "BOTH current authorization predicates gate parallel component and auth+previous scheduling; nil database CurrentAuthorizationRequired returnsfalse safely; legacysequencefullretained",
+    "servicesrefused test now exact0core/0agent/0previous, not0..1; originalinitialG had weakermaxprevious1 assertion preserved",
+    "allconfiguredcomponent closures retain ownSQL/checksums/principal/order and approvalmetadata-beforeflag; connectorflagonlyafteralljoinedpass",
+    "serviceerroridentity returnedunwrapped beforeanyparallelmetadata; genericcomponentrefusalnormalizedexistingruntimeUnavailable",
+    "currentProbe failure cancels/drains everycompletion including existingtransactionrollbackcleanup; no detachedqueries",
+    "oneSharedbudget with childCancelcontexts; originalProviderTimeout5s/health5s/workflow900/nativecapsunchanged",
+    "no pre/postfulltool/source inventory capturedbytheseordinarycommands; currentfive hashes sealed, GitHEAD preimages preserved; no formalownedclosure/nativeadmission claim"
+  ],
+  "testCommand": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "test",
+    "-race",
+    "-p=1",
+    "-count=1",
+    "-json",
+    "./agentsec-api"
+  ],
+  "env": {
+    "GOROOT": "/tmp/zasp-cloud-tools/go",
+    "GOCACHE": "/dev/shm/zasp-go-cache-current",
+    "GOMODCACHE": "/tmp/zasp-go-module-cache-current",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOFLAGS": "-mod=readonly",
+    "GOMAXPROCS": "2",
+    "GOMEMLIMIT": "512MiB",
+    "GOGC": "50",
+    "TMPDIR": "/tmp"
+  },
+  "resourceObservations": "Before candidateexecution workspace7343198208B/TMP4018003968B/cgroupmax17179869184/current14148067328B, readonlyactualdf. No inventedcontinuouswatchdogclaim.",
+  "diffCheck": "actualgitdiff--check0",
+  "bindingScope": "Rootmayindependentlysource+rawreview; no committing/pushing/receiptmutationbyagent"
+}

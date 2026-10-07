@@ -1,0 +1,7 @@
+{
+  "format": "bounded-Temporal132-adapter-retry-provenance-v1",
+  "originalAdapterFailSHA256": "cd10f65f344998d13f957743960a492846658ba844387bd9ccfb9e2fe19b2795",
+  "originalOwnerResultSHA256": "c00f316160fb788f8367c1ee61f2cd640e17f024096ce1b894b5a15609b03eca",
+  "readOnlyDiagnosticSHA256": "435927b7d44e05a9e9a950f55de8f3fa432f167d11b0221fc40348cabdf32b43",
+  "scope": "Same owned persistent DB/config, fresh240s serverowner, existingcompiledadapter only. No new schemas/roles/Go compile. Original owner shutdown and failedadapter remain immutable."
+}

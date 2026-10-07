@@ -1,0 +1,23 @@
+{
+  "format": "fresh-PG183-v2-Tini-tool-smoke-outer-join-v1",
+  "observedUTC": "2026-10-07T03:18:05.970562+00:00",
+  "argv": [
+    "/tmp/zasp-cloud-tools/bin/tini",
+    "-s",
+    "--",
+    "/usr/bin/python3",
+    "/tmp/pg183-v2-tini-smoke.py"
+  ],
+  "actualToolCallNormalExit": 0,
+  "actualToolCallSessionRunning": false,
+  "receiptScope": "Tool-observed foreground outer joined0, not invented kernelwait trace.",
+  "tiniSHA256": "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c",
+  "ownerSourceSHA256": "52df14f419540f6a3f3c2f86ec63163cf24a2f12f85b6b5e62d42ae1aedce038",
+  "resultPath": "/tmp/pg183-v2-owned-tool-smoke-iw2hrfoy/result.json",
+  "resultSHA256": "0a93452803798846bc984a3806a15e2a2550f9d54ac8d8f25803767cdb33f98e",
+  "stdoutSHA256": "67724423f68c293b087dc0334f32daf1541ea701b7a336aa94fb84a00293c717",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "freshDirectServerAbsent": true,
+  "forcedCleanup": false,
+  "priorZombie17195": "Historical preceding smoke scope retained; not claimed absent."
+}

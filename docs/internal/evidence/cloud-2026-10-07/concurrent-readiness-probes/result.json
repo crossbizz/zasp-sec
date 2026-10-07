@@ -1,0 +1,26 @@
+{
+  "exit": 0,
+  "seconds": 10.91492174599989,
+  "command": [
+    "env",
+    "GOROOT=/tmp/zasp-cloud-tools/go",
+    "GOCACHE=/dev/shm/zasp-go-cache-current",
+    "GOMODCACHE=/tmp/zasp-go-module-cache-current",
+    "GOENV=off",
+    "GOWORK=off",
+    "GOTOOLCHAIN=local",
+    "GOPROXY=off",
+    "GOSUMDB=off",
+    "GOFLAGS=-mod=readonly",
+    "GOMAXPROCS=2",
+    "GOMEMLIMIT=512MiB",
+    "GOGC=50",
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "test",
+    "-race",
+    "-json",
+    "./agentsec-api",
+    "-count=1"
+  ],
+  "scope": "ordinary API component suite; prerequisite SKIPs not verified"
+}

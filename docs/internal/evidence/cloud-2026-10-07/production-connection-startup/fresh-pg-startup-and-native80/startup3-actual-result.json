@@ -1,0 +1,60 @@
+{
+  "scope": "Fresh exact apphelper actual startup3 on owned PG18.3; no native80/fullAPI/provider readiness",
+  "completed": true,
+  "failure": null,
+  "records": [
+    {
+      "stage": "initdb",
+      "exit": 0,
+      "joined": true,
+      "forced": false,
+      "stdoutSHA256": "f3b8760d9f0e102bac5452fe1bbac34ec5b27404037f051ae279cc3b045fe01f",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "start",
+      "exit": 0,
+      "joined": true,
+      "forced": false,
+      "stdoutSHA256": "66afd0411ccc09366e99fdd99b85f21899c8d2d064f5835126859618802153ad",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "startup3",
+      "exit": 0,
+      "joined": true,
+      "forced": false,
+      "stdoutSHA256": "1e485e01b93e6cc06ce15e681f02cddeef82ecd628858d93d98f6df6da967ac2",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "normal-stop",
+      "exit": 0,
+      "joined": true,
+      "forced": false,
+      "stdoutSHA256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "directServerPID": 26557,
+  "directServerAbsent": true,
+  "portBindable": true,
+  "sourceToolPins": {
+    "/workspace/zasp-sec/services/platform/runtimepostgres/config.go": "846368d7910d6aade67c9a952ce70da2e0aaa5c302f72b189acf36e48e14bc8c",
+    "/tmp/runtimepostgres-startup3-owner-v3-3cbdxyhi/config_test.go": "39bba267854e3093444ac9d8b9b647b7652baf00a49923ecf5464a6a108002b9",
+    "/tmp/runtimepostgres-startup3-owner-v3-3cbdxyhi/overlay.json": "dd73ebcc40af0c13e84cbe69cc7849098d596ac1a985b53655827c9672833e54",
+    "/tmp/runtimepostgres-startup3-owner-v3-3cbdxyhi/startup3.test": "ebd8d720446aa20b75024448122f35a1c314e27572f91059d19e20e4039c75da",
+    "/tmp/zasp-pg183-current/pg-bin-v2/pg_config": "cc428ea0d67ca1c04c24480ee8b3c629498f123a03aff426c07e4a1883d76785",
+    "/tmp/zasp-pg183-current/pg-bin-v2/psql": "45cec96b274193ba456d50e9325fc3745cf16f461704ad9b606792523d49a389",
+    "/tmp/zasp-pg183-current/pg-bin-v2/postgres": "606f97b8e3a42a7d6b36b82733a74e9cf851be00c7dbb0909cc8424eca75b76e",
+    "/tmp/zasp-pg183-current/pg-bin-v2/pg_isready": "e298f7151cc378af5f692741b997b0b035da3cbde3b4a8f9dc34f6aaf233527a",
+    "/tmp/zasp-pg183-current/pg-bin-v2/pg_ctl": "7f408b7b01e14b4137ebe77df990eaa45ee8e1a6230c7394b4bbee45ad574d3a",
+    "/tmp/zasp-pg183-current/pg-bin-v2/initdb": "7fbd40eeb98690dd5f4e03db3e089dec7320b7699357b0197835b91d54c70ae1"
+  },
+  "minimumFreeBytes": {
+    "/workspace": 7960981504,
+    "/tmp": 4913278976,
+    "/dev/shm": 7420104704
+  },
+  "elapsed": 0.6724821870000142
+}

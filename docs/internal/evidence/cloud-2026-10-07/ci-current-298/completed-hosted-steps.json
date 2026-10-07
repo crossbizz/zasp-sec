@@ -1,0 +1,605 @@
+{
+  "at": "2026-10-07T01:10:34.058354+00:00",
+  "head": "298e9911024fe36c8872070932019a0263044e1d",
+  "runs": [
+    {
+      "id": 37551664242,
+      "jobs": [
+        {
+          "id": 112568339818,
+          "status": "completed",
+          "conclusion": "failure",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:23:00Z",
+              "completed_at": "2026-10-07T00:23:02Z"
+            },
+            {
+              "name": "Check out repository",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:23:02Z",
+              "completed_at": "2026-10-07T00:23:07Z"
+            },
+            {
+              "name": "Set up Node",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:23:07Z",
+              "completed_at": "2026-10-07T00:23:13Z"
+            },
+            {
+              "name": "Set up Go",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:23:13Z",
+              "completed_at": "2026-10-07T00:23:16Z"
+            },
+            {
+              "name": "Pin npm",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:23:16Z",
+              "completed_at": "2026-10-07T00:23:20Z"
+            },
+            {
+              "name": "Install locked dependencies",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:23:20Z",
+              "completed_at": "2026-10-07T00:24:00Z"
+            },
+            {
+              "name": "Install PostgreSQL 18 reference fixture tools",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:24:00Z",
+              "completed_at": "2026-10-07T00:24:15Z"
+            },
+            {
+              "name": "Install pinned secret scanner",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:24:15Z",
+              "completed_at": "2026-10-07T00:24:44Z"
+            },
+            {
+              "name": "Verify implementation status ledger",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:24:44Z",
+              "completed_at": "2026-10-07T00:24:44Z"
+            },
+            {
+              "name": "Prime platform full-MVS metadata for offline release contracts",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:24:44Z",
+              "completed_at": "2026-10-07T00:24:45Z"
+            },
+            {
+              "name": "Verify runnable UI",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:24:45Z",
+              "completed_at": "2026-10-07T00:57:30Z"
+            },
+            {
+              "name": "Prime native migration compilation cache for compliance browser",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:57:30Z",
+              "completed_at": "2026-10-07T00:58:04Z"
+            },
+            {
+              "name": "Verify current runtime profile inner diagnostic tests",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:58:04Z",
+              "completed_at": "2026-10-07T00:59:05Z"
+            },
+            {
+              "name": "Provision isolated compliance browser prerequisites",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:59:05Z",
+              "completed_at": "2026-10-07T00:59:12Z"
+            },
+            {
+              "name": "Provision pinned owned authorization runtime tools",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:59:12Z",
+              "completed_at": "2026-10-07T00:59:16Z"
+            },
+            {
+              "name": "Verify current compliance browser acceptance",
+              "status": "completed",
+              "conclusion": "failure",
+              "started_at": "2026-10-07T00:59:16Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify Red Team runtime and ledger regressions",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify production release sources",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify session search IAM policies",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify reconciliation maintenance alerts",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify durable runtime sessions, enrollment pairing and candidate authority",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Require audit fixture toolchains and pinned LocalStack image",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify audit codec, configuration and artifact stores",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify audit PostgreSQL authority A-M",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify audit PostgreSQL authority N-Z",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify audit public, worker and compatibility acceptance",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify audit immutable retrieval and provider contracts",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify audit HTTP memory, provider and lifetime helpers",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify audit HTTP process composition and controlled zero source",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify audit full-size functional race children",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify both audit full-size memory sensitivity controls",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify three serial audit full-size normal memory pairs",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify full-size orderly API restart with numeric children",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify full-size orderly API restart with race children",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify sensor lineage and authenticated replay",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify actual daemon lost-success replay",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Verify bounded Attack Lab network enforcement",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Post Set up Go",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Post Set up Node",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Post Check out repository",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T01:02:12Z",
+              "completed_at": "2026-10-07T01:02:12Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 37551660807,
+      "jobs": [
+        {
+          "id": 112568328391,
+          "status": "completed",
+          "conclusion": "failure",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:22:57Z",
+              "completed_at": "2026-10-07T00:22:58Z"
+            },
+            {
+              "name": "Check out repository",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:22:58Z",
+              "completed_at": "2026-10-07T00:23:03Z"
+            },
+            {
+              "name": "Set up Node",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:23:03Z",
+              "completed_at": "2026-10-07T00:23:08Z"
+            },
+            {
+              "name": "Set up Go",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:23:08Z",
+              "completed_at": "2026-10-07T00:23:09Z"
+            },
+            {
+              "name": "Pin npm",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:23:09Z",
+              "completed_at": "2026-10-07T00:23:13Z"
+            },
+            {
+              "name": "Install locked dependencies",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:23:13Z",
+              "completed_at": "2026-10-07T00:23:51Z"
+            },
+            {
+              "name": "Install PostgreSQL 18 reference fixture tools",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:23:51Z",
+              "completed_at": "2026-10-07T00:24:02Z"
+            },
+            {
+              "name": "Install pinned secret scanner",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:24:02Z",
+              "completed_at": "2026-10-07T00:24:30Z"
+            },
+            {
+              "name": "Verify implementation status ledger",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:24:30Z",
+              "completed_at": "2026-10-07T00:24:30Z"
+            },
+            {
+              "name": "Prime platform full-MVS metadata for offline release contracts",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:24:30Z",
+              "completed_at": "2026-10-07T00:24:31Z"
+            },
+            {
+              "name": "Verify runnable UI",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:24:31Z",
+              "completed_at": "2026-10-07T00:56:32Z"
+            },
+            {
+              "name": "Prime native migration compilation cache for compliance browser",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:56:32Z",
+              "completed_at": "2026-10-07T00:57:05Z"
+            },
+            {
+              "name": "Verify current runtime profile inner diagnostic tests",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:57:05Z",
+              "completed_at": "2026-10-07T00:58:04Z"
+            },
+            {
+              "name": "Provision isolated compliance browser prerequisites",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:58:04Z",
+              "completed_at": "2026-10-07T00:58:13Z"
+            },
+            {
+              "name": "Provision pinned owned authorization runtime tools",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T00:58:13Z",
+              "completed_at": "2026-10-07T00:58:16Z"
+            },
+            {
+              "name": "Verify current compliance browser acceptance",
+              "status": "completed",
+              "conclusion": "failure",
+              "started_at": "2026-10-07T00:58:16Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify Red Team runtime and ledger regressions",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify production release sources",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify session search IAM policies",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify reconciliation maintenance alerts",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify durable runtime sessions, enrollment pairing and candidate authority",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Require audit fixture toolchains and pinned LocalStack image",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify audit codec, configuration and artifact stores",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify audit PostgreSQL authority A-M",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify audit PostgreSQL authority N-Z",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify audit public, worker and compatibility acceptance",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify audit immutable retrieval and provider contracts",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify audit HTTP memory, provider and lifetime helpers",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify audit HTTP process composition and controlled zero source",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify audit full-size functional race children",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify both audit full-size memory sensitivity controls",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify three serial audit full-size normal memory pairs",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify full-size orderly API restart with numeric children",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify full-size orderly API restart with race children",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify sensor lineage and authenticated replay",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify actual daemon lost-success replay",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Verify bounded Attack Lab network enforcement",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Post Set up Go",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Post Set up Node",
+              "status": "completed",
+              "conclusion": "skipped",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Post Check out repository",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-07T01:01:08Z",
+              "completed_at": "2026-10-07T01:01:08Z"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "scope": "Actual hosted metadata; both browser acceptance failures preserved, no passing overall guard."
+}

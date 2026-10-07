@@ -1,0 +1,25 @@
+{
+  "actualPinnedFGAModelHTTPStatus": 200,
+  "portsConnected": {
+    "54389": true,
+    "7233": false,
+    "8088": true
+  },
+  "serverResult": {
+    "binding": {
+      "exe": "/tmp/zasp-native-supported-tools-h0zqa978/temporal-server-complete/temporal-server",
+      "pid": 22562,
+      "port": 7233,
+      "socketInode": "31345",
+      "startTicks": "1007377"
+    },
+    "elapsedSeconds": 241.0938868280009,
+    "forcedCleanup": false,
+    "format": "owned-Temporal132-native-PG-process-result-v1",
+    "normalWaitJoined": true,
+    "scope": "Private loopback PostgreSQL Temporal process only; SDK namespace/application proof separate.",
+    "serverReturncode": 0,
+    "status": "NORMAL-OWNED-SHUTDOWN"
+  },
+  "serverResultExists": true
+}

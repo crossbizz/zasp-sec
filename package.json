@@ -9,6 +9,7 @@
   "packageManager": "npm@10.9.8",
   "scripts": {
     "api:start": "node scripts/api-start.mjs",
+    "api:check-config": "node scripts/api-check-config.mjs",
     "audit:emitter:test": "go test -C services/platform -race -count=1 ./audit",
     "aws:client:test": "go test -C services/platform -race -count=1 ./awsclient",
     "featureflags:test": "go test -C services/platform -race -count=1 ./featureflags",
@@ -30,7 +31,7 @@
     "runtime-gateway:health:test": "go test -C services/runtime-gateway -race -count=1 ./...",
     "local:product:test": "node --test deploy/local/manifests.test.mjs deploy/local/run.test.mjs",
     "local:product:run": "node deploy/local/run.mjs",
-    "production:combined-e2e:test": "node --test scripts/browser-e2e-helpers.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/runtime-pipeline-dependencies.test.mjs && npm run build && node scripts/production-combined-e2e.mjs && ZASP_COMBINED_E2E_COMPLIANCE=true node scripts/production-combined-e2e.mjs",
+    "production:combined-e2e:test": "node --test scripts/owned-api-startup-wait.test.mjs scripts/browser-e2e-helpers.test.mjs scripts/production-combined-e2e.test.mjs scripts/audit-export-browser-proof.test.mjs scripts/audit-export-volume-proof.test.mjs scripts/runtime-precision-browser-proof.test.mjs scripts/runtime-pipeline-dependencies.test.mjs && npm run build && node scripts/production-combined-e2e.mjs && ZASP_COMBINED_E2E_COMPLIANCE=true node scripts/production-combined-e2e.mjs",
     "production:release:test": "node --test scripts/production-release-gate.test.mjs deploy/production/release-contract.test.mjs deploy/production/release-gates.test.mjs deploy/production/session-search-rollout.test.mjs deploy/production/discovery-schema60-rollout.test.mjs deploy/production/discovery-schema60-transition.test.mjs deploy/production/security-agent-budget-rollout.test.mjs deploy/production/compatibility-observation.test.mjs deploy/production/sandbox-query-observation.test.mjs deploy/production/audit-export-workloads.test.mjs deploy/production/audit-export-rollout.test.mjs deploy/production/audit-export-network.test.mjs deploy/production/audit-export-operations.test.mjs deploy/production/test-reconciler-workloads.test.mjs deploy/production/test-reconciler-rollout.test.mjs deploy/production/compliance-export-rollout.test.mjs deploy/production/compliance-export-helm.test.mjs deploy/production/compliance-export-toolchain.test.mjs deploy/production/compliance-export-runtime.test.mjs",
     "production:nango-image:proof": "node --test deploy/production/nango-image-proof.test.mjs",
     "production:otel-redaction:proof": "node --test deploy/production/otel-redaction-proof.test.mjs",
@@ -134,7 +135,8 @@
     "saas:tenancy:test": "go test -C services/platform -race -count=1 -timeout=90s ./config ./repository ./eventstore ./artifactstore ./jobqueue ./graphstore ./tenantquota",
     "staging:gate:test": "node --test deploy/staging/gate.test.mjs deploy/staging/preflight.test.mjs deploy/staging/queue-contract.test.mjs deploy/staging/compliance-exports-contract.test.mjs",
     "verify": "npm run dependencies:check && npm run health:contract:test && npm run openapi:test && npm run openapi:lint && npm run openapi:check && npm run ui-api:test && npm run ui-api:check && npm run raw-fetch:test && npm run saas:tenancy:test && npm run graph:neo4j:test && npm run db:tenant-rls:test && npm test && npm run typecheck && npm run lint && npm run production:imports:test && npm run production:imports:source && npm run staging:gate:test && npm run production:release:test && npm run build && npm run production:imports:compiled && npm run implementation:status:check",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "api:prerequisites": "node scripts/api-config-prerequisites.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

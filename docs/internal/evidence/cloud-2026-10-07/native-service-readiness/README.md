@@ -1,0 +1,5 @@
+These are frozen diagnostic sources and observed native-service evidence, not turnkey tools or an ongoing deployment. PostgreSQL 18.3 differs from the pinned local 17.7 profile. Actual OpenFGA 1.21.0 model readback and all 93 original product permission cases passed; Temporal 1.32.0 used PostgreSQL execution and visibility databases. Current application Load/Connect/Ready passed, including missing-namespace refusal. Owned services then stopped normally.
+
+Original model-readback failures and the expired-owner adapter failure remain included. The readback comparison accepts only reviewed optional empty SDK defaults; structural userset presence and nonempty values remain checked. Absolute temporary paths bind historical executions and may be unavailable after a runtime reset. Selected manifests record omitted private artifacts; their omission is not acceptance.
+
+These results do not establish current80 SQL admission, full API/worker flows, mTLS, real Stytch/provider sessions, deployment, legacy retirement, or completion of the 728 requirements. Original ledger categories are unchanged. Publication scan results are recorded separately after assembly.

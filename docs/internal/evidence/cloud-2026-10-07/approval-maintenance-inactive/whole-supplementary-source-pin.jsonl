@@ -1,0 +1,8 @@
+{"Time":"2026-10-07T08:55:24.762440317Z","Action":"start","Package":"github.com/zasp-ai/zasp-sec/services/platform/migrations"}
+{"Time":"2026-10-07T08:55:24.771514021Z","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/migrations","Test":"TestApprovalMaintenanceSourcePinBindsWholeSupplementaryBody"}
+{"Time":"2026-10-07T08:55:24.77155285Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/migrations","Test":"TestApprovalMaintenanceSourcePinBindsWholeSupplementaryBody","Output":"=== RUN   TestApprovalMaintenanceSourcePinBindsWholeSupplementaryBody\n"}
+{"Time":"2026-10-07T08:55:24.771828655Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/migrations","Test":"TestApprovalMaintenanceSourcePinBindsWholeSupplementaryBody","Output":"--- PASS: TestApprovalMaintenanceSourcePinBindsWholeSupplementaryBody (0.00s)\n"}
+{"Time":"2026-10-07T08:55:24.771863087Z","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/migrations","Test":"TestApprovalMaintenanceSourcePinBindsWholeSupplementaryBody","Elapsed":0}
+{"Time":"2026-10-07T08:55:24.772080675Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/migrations","Output":"PASS\n"}
+{"Time":"2026-10-07T08:55:25.773346763Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/migrations","Output":"ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/migrations\t1.011s\n"}
+{"Time":"2026-10-07T08:55:25.773384079Z","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/migrations","Elapsed":1.011}

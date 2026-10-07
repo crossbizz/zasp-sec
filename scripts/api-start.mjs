@@ -21,8 +21,16 @@ export function apiEnvironment(environment) {
 }
 
 export async function runAPI(environment, signals = process) {
+  return runAPICommand(environment, signals, ["run", "-mod=readonly", "./agentsec-api"]);
+}
+
+export async function runAPIConfigurationCheck(environment, signals = process) {
+  return runAPICommand(environment, signals, ["run", "-mod=readonly", "./agentsec-api", "--check-config"]);
+}
+
+async function runAPICommand(environment, signals, args) {
   const env = apiEnvironment(environment);
-  const command = spawnOwnedCommand("go", ["run", "-mod=readonly", "./agentsec-api"], {
+  const command = spawnOwnedCommand("go", args, {
     cwd: path.resolve(fileURLToPath(new URL("../services/platform", import.meta.url))),
     env, maxOutputBytes: 262144,
   });

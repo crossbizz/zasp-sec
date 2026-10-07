@@ -1,0 +1,22 @@
+::error title=Compliance browser phase failed::Observed phase: compliance-runtime-services.
+file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:3314
+  if (cleanupErrors.length) throw new AggregateError(cleanupErrors, `owned resource cleanup failed; temporary root retained: ${temporaryRoot}`);
+                                  ^
+
+AggregateError: owned resource cleanup failed; temporary root retained: /tmp/zasp-production-e2e-VhXpUT
+    at cleanupOwnedResources (file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:3314:35)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:1352:2 {
+  [errors]: [
+    Error: owned runtime resource unavailable
+        at allocationFail (file:///workspace/zasp-sec/scripts/owned-runtime-lifetime.mjs:13:41)
+        at Object.observeRetainedAllocation [as observe] (file:///workspace/zasp-sec/scripts/owned-runtime-lifetime.mjs:49:258)
+        at async startRetainedOwnedRuntimeLifetime (file:///workspace/zasp-sec/scripts/owned-runtime-lifetime.mjs:73:16)
+        at async withOwnedRuntimeStartupDiagnostics (file:///workspace/zasp-sec/scripts/owned-runtime-startup-diagnostics.mjs:20:13)
+        at async prepareOwnedCurrentComplianceRuntime (file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:2226:29)
+        at async exerciseComplianceBrowser (file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:2278:17)
+        at async file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:377:5
+  ]
+}
+
+Node.js v22.23.1

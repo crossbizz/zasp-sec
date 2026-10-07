@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/workspace/zasp-sec/services/platform/apiserver/authorization_projection_fga_test.go": "/dev/shm/native-projection79-fixture-31112e09c7/projection-native-overlay.go"
+  }
+}

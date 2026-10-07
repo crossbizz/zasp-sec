@@ -1,0 +1,48 @@
+{
+  "status": "SOURCE-ONLY; pending independent source review and ROOT execution",
+  "wrapperSha256": "6558e13100d68e3c565cacc8885a8e7088e5070847175c44784a0dc07ac40e21",
+  "originalProofSha256": "856a3c14a7810780abc2768cccbbf71013c3ec6e5d78466ccf74c5158161a29f",
+  "testProjectShapeValid": true,
+  "testSecretShapeValid": true,
+  "fixedOrigin": "https://test.stytch.com",
+  "credentialOrProjectValuesPersisted": false,
+  "operations": [
+    "POST /v1/b2b/organizations",
+    "POST /v1/b2b/passwords/migrate",
+    "POST /v1/b2b/passwords/authenticate",
+    "DELETE /v1/b2b/organizations/<owned TEST ID>",
+    "GET /v1/b2b/organizations/<exact recorded unique slug or owned TEST ID> (recovery/absence only)"
+  ],
+  "messageApisCalled": false,
+  "retainedProjectOrOrganizationUpdates": false,
+  "syntheticEmailVerifiedByMigration": true,
+  "scope": "Owned synthetic TEST password/session diagnostic only; not email ownership, OAuth, SSO or product API session acceptance",
+  "bounds": {
+    "mainMilliseconds": 30000,
+    "requestMilliseconds": 5000,
+    "responseBytes": 65536,
+    "rootTimeoutSeconds": 55,
+    "rootKillAfterSeconds": 10,
+    "originalMainRequests": 4,
+    "recoveryMaximumAdditionalRequests": 3
+  },
+  "ownership": "durable0600 intent/name/slug/UUID before create; only exact marker/slug matching returned TEST ID can be deleted; uncertainty fails and preserves journal for parent recovery",
+  "result": "public result contains scalar status/counts only; private ownership journal excludes credentials/password/hash/JWT/member ID",
+  "recommendedEnvironmentNames": [
+    "HOME",
+    "PATH",
+    "STYTCH_PROJECT_ID",
+    "STYTCH_SECRET",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "NODE_EXTRA_CA_CERTS"
+  ],
+  "forbiddenEnvironmentInputs": [
+    "NODE_OPTIONS",
+    "STYTCH_PROOF_BASE_URL",
+    "STYTCH_PROOF_ALLOW_LOOPBACK"
+  ],
+  "recipe": "Use checksum-admitted Node22.23.1 absolute executable under GNU timeout --signal=TERM --kill-after=10s 55s; one run, no automatic rerun. ROOT actual tool wait+exit required. If cleanup uncertain, separate parent GET exact private recorded slug and marker validation; do not search/delete unowned objects.",
+  "predecessor": "v3 preserved unexecuted; terminal signal refusal begins immediately after cleanup before final result/source publication."
+}

@@ -1,3 +1,4 @@
+import { OwnedAPIStartupError } from './owned-api-startup-wait.mjs';
 const CLASSES=new Map([
  ['build|./agentsec-migrate','go-migration-build'],
  ['test|-c|./agentsec-api','go-api-test-compile'],
@@ -31,7 +32,7 @@ export function browserCommandFailureAnnotation(executable,args,kind,stderr){
  return `${annotation} Observed inner step: ${match[1]}; stage: ${match[2]}.`;
 }
 
-const PHASE_ANNOTATIONS=new Map(['services', 'command-builds', 'schema-bootstrap', 'browser-assertions', 'postgres-startup', 'postgres-instrumentation', 'postgres-principal-provisioning', 'compliance-fixture-provisioning', 'compliance-runtime-services', 'compliance-current-postgres', 'compliance-current-principals', 'compliance-current-schema', 'compliance-current-fixture', 'compliance-current-keys', 'compliance-reconcile-build', 'compliance-current-profile', 'controlled-identity-startup', 'policy-history-startup', 'api-startup', 'api-ready', 'web-startup', 'web-ready', 'tls-provisioning', 'proxy-startup', 'browser-startup'].map(phase=>[phase,`::error title=Compliance browser phase failed::Observed phase: ${phase}.`]));
+const PHASE_ANNOTATIONS=new Map(['services', 'command-builds', 'schema-bootstrap', 'browser-assertions', 'postgres-startup', 'postgres-instrumentation', 'postgres-principal-provisioning', 'compliance-fixture-provisioning', 'compliance-runtime-services', 'compliance-current-postgres', 'compliance-current-principals', 'compliance-current-schema', 'compliance-current-fixture', 'compliance-current-seed', 'compliance-current-fixture-sql', 'compliance-current-keys', 'compliance-reconcile-build', 'compliance-current-profile', 'controlled-identity-startup', 'policy-history-startup', 'api-startup', 'api-ready', 'web-startup', 'web-ready', 'tls-provisioning', 'proxy-startup', 'browser-startup'].map(phase=>[phase,`::error title=Compliance browser phase failed::Observed phase: ${phase}.`]));
 export function emitComplianceBrowserPhaseFailure(phase,emit){
  try{emit(PHASE_ANNOTATIONS.get(phase)??'::error title=Compliance browser phase failed::Observed phase: unavailable.');}catch{/* Diagnostics must not replace the original failure. */}
 }
@@ -40,7 +41,7 @@ export function emitComplianceMigrationFailure(emit){
 }
 
 const COMPLIANCE_API_CHILD_STAGES = new Set(['config-load', 'owned-inputs', 'storage-path', 'bounded-deadline', 'runtime-build', 'serve']);
-export function emitComplianceAPIChildFailure(output, emit) {
+export function emitComplianceAPIChildFailure(output, emit, startupError) {
  let stage = 'unavailable';
  if (typeof output === 'string' && output.length < 16_384) {
   const lines = output.split('\n');
@@ -52,4 +53,34 @@ export function emitComplianceAPIChildFailure(output, emit) {
   }
  }
  try { emit(`::error title=Compliance API startup failed::Observed child stage: ${stage}.`); } catch { /* Preserve the original readiness error. */ }
+ if (stage === "runtime-build" && typeof output === "string" && output.length < 16_384 && output.includes("ZASP_COMPLIANCE_API_FAILED_DEPENDENCY")) emitComplianceAPIDependencyFailure(output, emit);
+ if (startupError !== undefined) emitComplianceAPIStartupFailure(startupError, emit);
+}
+
+const COMPLIANCE_DEPENDENCY_PHASES = new Set(["audit-export", "authorization-components", "authorization-readiness", "compliance-export", "composition", "composition-authorization", "composition-inputs", "connector-lifecycle", "connector-oauth", "connector-providers", "connector-secrets", "construction-context", "core-postgres", "core-repositories", "current-authorization", "edge-middleware", "handler-composition", "identity-authenticator", "identity-repository", "identity-webhook", "native-identity-provider", "native-services", "operational-middleware", "policy-history", "policy-surface", "product-middleware", "production-handlers", "public-surface", "reference-providers", "runtime-inputs", "security-agent-postgres", "security-agent-repositories", "temporal-observer", "ticket-services"]);
+export function emitComplianceAPIDependencyFailure(output, emit) {
+ let phase = 'unavailable';
+ if (typeof output === 'string' && output.length < 16_384) {
+  const lines = output.split('\n'); const partial = lines.pop();
+  const stages = lines.filter(line => line.includes('ZASP_COMPLIANCE_API_FAILED_STAGE'));
+  const dependencies = lines.filter(line => line.includes('ZASP_COMPLIANCE_API_FAILED_DEPENDENCY'));
+  if (stages.length === 1 && stages[0] === 'ZASP_COMPLIANCE_API_FAILED_STAGE=runtime-build' && dependencies.length === 1 && !partial.includes('ZASP_COMPLIANCE_API_FAILED_')) {
+   const value = dependencies[0].slice('ZASP_COMPLIANCE_API_FAILED_DEPENDENCY='.length);
+   if (COMPLIANCE_DEPENDENCY_PHASES.has(value) && dependencies[0] === 'ZASP_COMPLIANCE_API_FAILED_DEPENDENCY='+value) phase = value;
+  }
+ }
+ try { emit('::error title=Compliance API dependency failed::Observed dependency phase: '+phase+'.'); } catch { /* Preserve the original readiness error. */ }
+}
+
+const COMPLIANCE_API_STARTUP_REASONS = new Set(['inputs', 'child-exited', 'canceled', 'deadline', 'body-limit']);
+export function emitComplianceAPIStartupFailure(error, emit) {
+ let reason = 'unavailable';
+ try {
+  if (error instanceof OwnedAPIStartupError) {
+   for (const value of COMPLIANCE_API_STARTUP_REASONS) {
+    if (error.message === `owned API startup refused: ${value}`) reason = value;
+   }
+  }
+ } catch { /* Untrusted error properties do not replace the readiness failure. */ }
+ try { emit(`::error title=Compliance API readiness failed::Observed readiness reason: ${reason}.`); } catch { /* Preserve the original readiness error. */ }
 }

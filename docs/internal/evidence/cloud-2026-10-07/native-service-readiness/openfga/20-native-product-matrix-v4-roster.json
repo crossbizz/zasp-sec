@@ -1,0 +1,23 @@
+{
+  "topLevelPass": [
+    "TestLocalPermissionModel",
+    "TestOwnedNativeProductBootstrap",
+    "TestOwnedNativeEndpointClosure",
+    "TestOwnedNativeModelDefaultEquivalence"
+  ],
+  "subcasePass": [
+    "TestOwnedNativeModelDefaultEquivalence/relation",
+    "TestOwnedNativeModelDefaultEquivalence/condition",
+    "TestOwnedNativeModelDefaultEquivalence/schema",
+    "TestOwnedNativeModelDefaultEquivalence/userset-presence",
+    "TestOwnedNativeModelDefaultEquivalence/extra-relation",
+    "TestOwnedNativeModelDefaultEquivalence/nondefault-object"
+  ],
+  "failEvents": 0,
+  "skipEvents": 0,
+  "permissionChecks": 93,
+  "fullModelReadback": "PASS typed SDKknownprojection, explicitdefault equivalence; rawJSONhashes not equal",
+  "modelSourceSHA256": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
+  "originalLogSHA256": "2716f3bbe0a7e4ea9159b0d0fd83b9fe5a94e67b26b0b15881d764bbd22245f0",
+  "scope": "Actual independent testroster summary, not applicationAPI/deployedSQLreadiness"
+}

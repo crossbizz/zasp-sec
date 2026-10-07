@@ -1,0 +1,34 @@
+{
+  "actualVersion": "v3.19.0+source.go1.26.8+g3d8990f",
+  "buildResult": {
+    "path": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/build-result.json",
+    "sha256": "5818013d225b9d0e3709e0b27511531013861154db50675079e929f3fd4dac6b"
+  },
+  "bytes": 60915874,
+  "format": "current-Helm319-source-built-tool-admission-v1",
+  "mode": "0o500",
+  "moduleVerify": {
+    "returncode": 0,
+    "stdout": "all modules verified",
+    "stdoutSHA256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+  },
+  "officialTagReferenceSHA256": "80c59e20c75a5839fbc3df87274c53b99290628d0acd0bfd12d3b7df225be9dc",
+  "path": "/tmp/zasp-cloud-tools/bin/helm",
+  "priorFailuresPreserved": [
+    "official get.helm.sh checksum endpoint refused",
+    "GOPROXYoff missing dependency",
+    "proxy download one denied storage redirect, resolved ordinary officialGitHubdirect",
+    "Go modverify refused authored symlinkmodule roots, replaced only TMP with canonicalphysical module extraction"
+  ],
+  "scope": "Tool prerequisite only; no release render/test/runtime/deployment authority.",
+  "sha256": "7bb647ba5a84f762ddd0945541c0cf3dd4a159066b705ccfd5a3fb635f2b5509",
+  "signedSumdbLookupSHA256": "6e050f25d38c40787e136d1d1a808aa15caa5d7283ef4da63f0092b21b216664",
+  "sourceAdmissionSHA256": "d2f43d32ddfdb77b96e70faee9f695b48c24733cc30960f210a294bf9e10a23a",
+  "sourceCommit": "3d8990f0836691f0229297773f3524598f46bda6",
+  "sourceH1": "h1:krVyCGa8fa/wzTZgqw0DUiXuRT5BPdeqE/sQXujQ22k=",
+  "sourceMembersUnchanged": 1380,
+  "sourceOrigin": "Official Helm3.19.0 Go module, byte-matched1380members and checksum database admitted; currentGo1.26.8 source-build, not official release binary.",
+  "versionReturncode": 0,
+  "versionStderrBytes": 0,
+  "workspaceOrHomeWrites": false
+}

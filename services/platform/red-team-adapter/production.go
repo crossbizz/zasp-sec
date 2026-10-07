@@ -14,6 +14,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/authorization"
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/redteamadapter"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
 
@@ -24,7 +25,7 @@ type postgresJSONDatabase struct {
 }
 
 func connectAdapterDatabase(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
-	config, err := pgxpool.ParseConfig(dsn)
+	config, err := runtimepostgres.ParsePoolConfig(dsn)
 	if err != nil {
 		return nil, errRuntimeUnavailable
 	}

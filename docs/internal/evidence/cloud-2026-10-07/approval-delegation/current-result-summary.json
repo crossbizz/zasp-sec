@@ -1,0 +1,21 @@
+{
+  "format": "native-fga-genuine-finding-root-actual-v1",
+  "completed": true,
+  "failure": null,
+  "elapsedSeconds": 263.70983190399966,
+  "forced": false,
+  "signals": [],
+  "inputs": 13966,
+  "ownedSessionSurvivors": [],
+  "processCensusUnknown": [],
+  "fgaNormalStop": {
+    "exit": 0,
+    "forcedCleanup": false,
+    "listenersAbsent": true,
+    "normalWait": true,
+    "routineGracefulSIGTERM": true,
+    "sessionAbsent": true
+  },
+  "originalResultSHA256": "2339f27c65b714c2f485daf40a5c16c0d2b11dd69381d3e4e59e2a7283e42e47",
+  "derivedSummaryOnly": true
+}

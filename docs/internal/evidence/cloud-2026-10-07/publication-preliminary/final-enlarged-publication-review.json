@@ -1,0 +1,1340 @@
+{
+  "boundaries": [
+    "current80 original5min expiry remainsopen; diagnosticJIT singlepair notsolecause/productionadoption",
+    "SQL79andTemporalcomponentpasses distinguishedfrom ownercleanupPortAbsenceFAIL/TIMEWAIT",
+    "constructorparity143/defaultcachefloorbreach retained; zombie explicitlynot completeabsence; losslesscacheSHM volatile notprune",
+    "CIruntime-build specificdependencycauseunknown/log403 preserved; no hostedpromotion",
+    "prior compiledoutputs/103kmodulemaps not independentlyrehashed bythiscopyreview"
+  ],
+  "checks": {
+    "decoded13": {
+      "argv": [
+        "/tmp/zasp-cloud-tools/bin/gitleaks",
+        "dir",
+        "/tmp/zasp-cloud-evidence/independent-oct7-enlarged-publication-i6l3qix6/decoded13",
+        "--redact",
+        "--no-banner",
+        "--report-format",
+        "json",
+        "--report-path",
+        "/tmp/zasp-cloud-evidence/independent-oct7-enlarged-publication-i6l3qix6/decoded13-report.json"
+      ],
+      "exit": 0,
+      "findings": 0,
+      "seconds": 0.4148735260023386,
+      "stderrSHA256": "522db18bc6446f0f17790b6554e1af12745d278c3dcf1f140273d9867657fc7b",
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stagedDefault": {
+      "argv": [
+        "/tmp/zasp-cloud-tools/bin/gitleaks",
+        "protect",
+        "--staged",
+        "--redact",
+        "--no-banner",
+        "--report-format",
+        "json",
+        "--report-path",
+        "/tmp/zasp-cloud-evidence/independent-oct7-enlarged-publication-i6l3qix6/staged-report.json"
+      ],
+      "exit": 0,
+      "findings": 0,
+      "seconds": 0.4664672509970842,
+      "stderrSHA256": "fab8d7d9723f662af6a94a93c6b9ce91f92937847b0d1eb094ef0e90152c05b3",
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "whitespace": {
+      "argv": [
+        "git",
+        "diff",
+        "--cached",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.015897139001026517,
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "decoded13": [
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 820,
+      "compressedSHA256": "43ae443a34a699baf0bcce1ec4c2fe7461a89cbb9e72a8d68c73797a841573ad",
+      "decodedBytes": 8016,
+      "decodedSHA256": "c9176fe2f936d5c8abcd6722d8c401ada61fd8ece7e76f428822b8041be52b5b",
+      "source": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-fixture-comma-red.jsonl.gz"
+    },
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 771,
+      "compressedSHA256": "96c3433529d9c6ff250cd76abd9328e6fe2bc48e373e3a5b5257a65a9469fbe8",
+      "decodedBytes": 7745,
+      "decodedSHA256": "11eb103d038257e4222687f2e413c222fae7a4b0c4cecaefa90908831f893566",
+      "source": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-fixture-portable-green.jsonl.gz"
+    },
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 782,
+      "compressedSHA256": "bf3cc2d4bb7fef07a4a4f880efb09c22d3cd88153a16e347710fd6b03d797db1",
+      "decodedBytes": 6939,
+      "decodedSHA256": "da2dd52fcc2623ef26cbe42662d65d2769228404dcef206c961a3e23c5afe259",
+      "source": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-fixture-red.jsonl.gz"
+    },
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 20,
+      "compressedSHA256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+      "decodedBytes": 0,
+      "decodedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80.stderr.gz"
+    },
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 4029,
+      "compressedSHA256": "dbedf11f02849784260f49dd2e8ca0aa29848ed36d946903374bc7cbbbe55c9f",
+      "decodedBytes": 29659,
+      "decodedSHA256": "1ecfb1bb0a13d9dd353cdd3e959f9dfda9efb98876a86d7913151fa749a257fb",
+      "source": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80.stdout.gz"
+    },
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 20,
+      "compressedSHA256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+      "decodedBytes": 0,
+      "decodedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile.stderr.gz"
+    },
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 20,
+      "compressedSHA256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+      "decodedBytes": 0,
+      "decodedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile.stdout.gz"
+    },
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 20,
+      "compressedSHA256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+      "decodedBytes": 0,
+      "decodedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/sql80.stderr.gz"
+    },
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 788,
+      "compressedSHA256": "cf9a52edf74cbcced0fceef60e03d235c9a408e63f34dbbc5c6a23bd48bd5f9c",
+      "decodedBytes": 5203,
+      "decodedSHA256": "afb82a5f0ab0b92d94c976b8b251462874b9ee14fe64f58f61955c44848bb75f",
+      "source": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/sql80.stdout.gz"
+    },
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 20,
+      "compressedSHA256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+      "decodedBytes": 0,
+      "decodedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/compile.stderr.gz"
+    },
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 20,
+      "compressedSHA256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+      "decodedBytes": 0,
+      "decodedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/compile.stdout.gz"
+    },
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 20,
+      "compressedSHA256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+      "decodedBytes": 0,
+      "decodedSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/sql80.stderr.gz"
+    },
+    {
+      "CRCAndEOFValidated": true,
+      "compressedBytes": 480,
+      "compressedSHA256": "a7aa65fcd7cde2f9abd145f1f7394f9c4e30f6a80101f37c530433d65ec3ad9f",
+      "decodedBytes": 1245,
+      "decodedSHA256": "eb77bd1241aa9ce396e364d57607543b8633245e46223d08df791ca307162d32",
+      "source": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/sql80.stdout.gz"
+    }
+  ],
+  "defaultConfigNoExceptions": true,
+  "historicalFailuresPreservedAnd728NoPromotion": true,
+  "ignoreSHA256Unchanged": "a25727ea01ae025b0fede1cd2a61396caa72a687632bc628f53135b123cca6aa",
+  "newGroups": {
+    "CI": 2,
+    "cache": 17,
+    "leaf": 19
+  },
+  "noSharedEdits": true,
+  "receipt": {
+    "appendOnly": true,
+    "committedPrefixBytes": 126923,
+    "committedPrefixSHA256": "627c339e3dff4da7781c254475d10d3dc8f56b1d6d32c5cf25991e4df14eac4c",
+    "receiptBytes": 136155,
+    "receiptSHA256": "c5a01c5509274be4ccc8ea0f5d2f42e7e0fd1490928d7c6f2e576ddd81955e35"
+  },
+  "rootIndexSHA256Unchanged": "3c44629424a8bd9f83a02aef28a3c63a0499f072acf85e7b7b341dafe48ecc84",
+  "scannerSHA256": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509",
+  "scope": "Independent enlargedselecteddoc checkpoint only; no scan rerun on history or productruntime. Alternateindex only, rootindex unchanged. No rawprivateprovider responses copied.",
+  "selectedPathCount": 159,
+  "sourceCopyRows": [
+    {
+      "bytes": 4779,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/compile-owner.py",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/compile-owner.py",
+      "sha256": "334e9d4f20e76c0b0fce7766137e7253f46e0b31fac90bd59cd1c0118ec49736"
+    },
+    {
+      "bytes": 961,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/compile-process-binding.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/compile-process-binding.json",
+      "sha256": "bc5b3e7c76e271510a419d2324410642c86f09aaaab4ad5aa57968fd6be257b9"
+    },
+    {
+      "bytes": 800,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/compile-selected-summary.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/compile-selected-summary.json",
+      "sha256": "0d1ebfafb70907f663d92bd1debb38408e645aae3358d794f6ef810dcc859be0"
+    },
+    {
+      "bytes": 20,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/compile.stderr.gz",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/compile.stderr.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "bytes": 20,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/compile.stdout.gz",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/compile.stdout.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "bytes": 34866,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/diagnostic-overlay.go",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/diagnostic-overlay.go",
+      "sha256": "36fd725c67ade666af74269e90ddc72863206ec6a9c34106aa3177261515bb5d"
+    },
+    {
+      "bytes": 478,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/direct-label-addendum.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/direct-label-addendum.json",
+      "sha256": "a891e1873bfcded06ac087377acf17c9956470bc886bffca4541a2d20cbc6cfc"
+    },
+    {
+      "bytes": 4061,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/original-identities.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/original-identities.json",
+      "sha256": "c9112f254dca508e1951db26b7e2f782fa28863bb2b2daa34e4978b5dc9f20af"
+    },
+    {
+      "bytes": 176,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/overlay.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/overlay.json",
+      "sha256": "8ed39ebb435e78892f8f0eb84f02bbb65f06a0b676b0002d710b4d8dc94a8009"
+    },
+    {
+      "bytes": 1050,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/preparation.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/preparation.json",
+      "sha256": "267064bb2631096e18994a4b4d36db15a949d0fa3589f8f20060b107e000a954"
+    },
+    {
+      "bytes": 6197,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/run-profile-direct-label.py",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/run-profile-direct-label.py",
+      "sha256": "dccfcd51208ddd9b18a51c1dbe8064d8d5b98333df5e98f0b402cf040903fc50"
+    },
+    {
+      "bytes": 665,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/sql80-process-binding.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/sql80-process-binding.json",
+      "sha256": "7b448d37243b328aa7deff264d10bb86d9b9a60f0353dc8835c49b68032aa9d0"
+    },
+    {
+      "bytes": 43810,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/sql80-result.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/sql80-result.json",
+      "sha256": "f4d7c744914ed27f10df1a21f312f9e1532eadf8af8afbca75bc493687abf8f5"
+    },
+    {
+      "bytes": 20,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/sql80.stderr.gz",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/sql80.stderr.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "bytes": 480,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/sql80.stdout.gz",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/sql80.stdout.gz",
+      "sha256": "a7aa65fcd7cde2f9abd145f1f7394f9c4e30f6a80101f37c530433d65ec3ad9f"
+    },
+    {
+      "bytes": 1816,
+      "origin": "/dev/shm/readiness80-leaf-jit-464aj5ll/selected-publication/summary.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/summary.json",
+      "sha256": "95c418a97ae5ba415c20063b8562f588429fa51851ceb3bc718710b34af41392"
+    },
+    {
+      "bytes": 1677,
+      "origin": "/tmp/native379-v3-current-coherent-private-_gkp3vv5/constructor-parity-resource-failure-result.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/original-parity-incomplete-resource-failure.json",
+      "sha256": "1080f079a3607043ac48d4b9375c3695a0b9f985158c1865ddeca9abdc227b75"
+    },
+    {
+      "bytes": 38160,
+      "origin": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/bucket3a-plan.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/bucket3a-plan.json",
+      "sha256": "aa45817a7744a9823a221d939ba7d2539c7edd0fe58ab9dedbe0a3aed91db603"
+    },
+    {
+      "bytes": 12953,
+      "origin": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/relocate-bucket3a-v3.py",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/relocate-bucket3a-v3.py",
+      "sha256": "6c43a345a91c407167ba37f98ce3a4eaa87d18a5e2288f69cecf807d1ef83f4b"
+    },
+    {
+      "bytes": 3484,
+      "origin": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/root-recipe-v3.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/root-recipe-v3.json",
+      "sha256": "97b8b10a16893f46019e0e6bfa58646921596a087fd378fd7c4f91c55f999c15"
+    },
+    {
+      "bytes": 34444,
+      "origin": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/prepared.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/prepared.json",
+      "sha256": "32771de22a3fc088786df6fd8c22624e62b7c6249534648217cddec029c9f71f"
+    },
+    {
+      "bytes": 798,
+      "origin": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/prepare-result.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/prepare-result.json",
+      "sha256": "2f50a95c0c2847c3429ebd218576a488d57972594f9507352fa522a9c6deba0d"
+    },
+    {
+      "bytes": 221,
+      "origin": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/root-prepare-result.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/root-prepare-result.json",
+      "sha256": "146fc65d37c3fcdd128466dfb2da5888281fb85cb21218d68f0ba2d09dc36503"
+    },
+    {
+      "bytes": 452,
+      "origin": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/finalize-intent.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/finalize-intent.json",
+      "sha256": "6ae97e6b7b9d88f0432af43234fe5ef2c9d24b5025c4e46f70ef050b2ce11730"
+    },
+    {
+      "bytes": 14089,
+      "origin": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/unlink-returned.jsonl",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/unlink-returned.jsonl",
+      "sha256": "cf33817d39acb1f7ff9e46802afec6a3793ed66c0d3f5e0f49424bc77d0628bd"
+    },
+    {
+      "bytes": 6565,
+      "origin": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/finalize-result.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/finalize-result.json",
+      "sha256": "efab5504e3809e93ae25d7c15f928a119410c29d81ad8ad2580e8166bbedf643"
+    },
+    {
+      "bytes": 221,
+      "origin": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/root-finalize-result.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/root-finalize-result.json",
+      "sha256": "59888a53bdd60992adddf9635cd43f00287097e6e76226500f5ce6fd236243bd"
+    },
+    {
+      "bytes": 730,
+      "origin": "/tmp/restart-independent-j73g1s1l/cache-bucket3a-v3-source-prepared-review.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/independent-source-prepared-review.json",
+      "sha256": "a8b93a9a7324c0ea04cf613ad1ea505400dfcedf0960be9526eaf4d955e6f561"
+    },
+    {
+      "bytes": 891,
+      "origin": "/tmp/restart-independent-j73g1s1l/cache-bucket3a-final-custody-review.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/independent-final-custody-review.json",
+      "sha256": "5e8bd50f091483ae6962e8d37d22a2ecce56b64bd04a3fce48affe664f2888b1"
+    },
+    {
+      "bytes": 4373,
+      "origin": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/episode-scope.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/episode-scope.json",
+      "sha256": "7211506485f138d89648553975980836ea76bd4a1117d710a9596ce6ba823725"
+    },
+    {
+      "bytes": 2088,
+      "origin": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/README.md",
+      "path": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/README.md",
+      "sha256": "893c4b30a6545cf0299c76bb1c3cd573b3d61af3b475b32a1b05a95c1e5f6cb6"
+    },
+    {
+      "bytes": 2913,
+      "origin": "/tmp/zasp-cloud-evidence/ci298-failure-diagnosis-cq2p_uql/safe-diagnosis.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/ci-current-298/safe-diagnosis.json",
+      "sha256": "44697e2c84a804d02c9365383f4c5a52be08be7ca0ac3378266bc5acf96a82f2"
+    },
+    {
+      "bytes": 23295,
+      "origin": "/tmp/zasp-cloud-evidence/pr52-298-completed-hosted-steps.json",
+      "path": "docs/internal/evidence/cloud-2026-10-07/ci-current-298/completed-hosted-steps.json",
+      "sha256": "983bc8496b46b13f9d90719b63d624936f6296fb33751396edd59ff480c57752"
+    },
+    {
+      "bytes": 136155,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/cloud-continuation-receipt-2026-10-06.md",
+      "sha256": "c5a01c5509274be4ccc8ea0f5d2f42e7e0fd1490928d7c6f2e576ddd81955e35"
+    },
+    {
+      "bytes": 2088,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/README.md",
+      "sha256": "893c4b30a6545cf0299c76bb1c3cd573b3d61af3b475b32a1b05a95c1e5f6cb6"
+    },
+    {
+      "bytes": 38160,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/bucket3a-plan.json",
+      "sha256": "aa45817a7744a9823a221d939ba7d2539c7edd0fe58ab9dedbe0a3aed91db603"
+    },
+    {
+      "bytes": 368,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/clean-page-advice.json",
+      "sha256": "a6e9123f9453cf69c16e37d54f5c4b446f421d1c3ef97b340f596496caea46c8"
+    },
+    {
+      "bytes": 4373,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/episode-scope.json",
+      "sha256": "7211506485f138d89648553975980836ea76bd4a1117d710a9596ce6ba823725"
+    },
+    {
+      "bytes": 452,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/finalize-intent.json",
+      "sha256": "6ae97e6b7b9d88f0432af43234fe5ef2c9d24b5025c4e46f70ef050b2ce11730"
+    },
+    {
+      "bytes": 6565,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/finalize-result.json",
+      "sha256": "efab5504e3809e93ae25d7c15f928a119410c29d81ad8ad2580e8166bbedf643"
+    },
+    {
+      "bytes": 891,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/independent-final-custody-review.json",
+      "sha256": "5e8bd50f091483ae6962e8d37d22a2ecce56b64bd04a3fce48affe664f2888b1"
+    },
+    {
+      "bytes": 730,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/independent-source-prepared-review.json",
+      "sha256": "a8b93a9a7324c0ea04cf613ad1ea505400dfcedf0960be9526eaf4d955e6f561"
+    },
+    {
+      "bytes": 16801,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/manifest.json",
+      "sha256": "a5f9fd90917e9b7ccd418af05fc8925a7a30d1c89be53906a239b9d4c69f8373"
+    },
+    {
+      "bytes": 1677,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/original-parity-incomplete-resource-failure.json",
+      "sha256": "1080f079a3607043ac48d4b9375c3695a0b9f985158c1865ddeca9abdc227b75"
+    },
+    {
+      "bytes": 798,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/prepare-result.json",
+      "sha256": "2f50a95c0c2847c3429ebd218576a488d57972594f9507352fa522a9c6deba0d"
+    },
+    {
+      "bytes": 34444,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/prepared.json",
+      "sha256": "32771de22a3fc088786df6fd8c22624e62b7c6249534648217cddec029c9f71f"
+    },
+    {
+      "bytes": 12953,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/relocate-bucket3a-v3.py",
+      "sha256": "6c43a345a91c407167ba37f98ce3a4eaa87d18a5e2288f69cecf807d1ef83f4b"
+    },
+    {
+      "bytes": 221,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/root-finalize-result.json",
+      "sha256": "59888a53bdd60992adddf9635cd43f00287097e6e76226500f5ce6fd236243bd"
+    },
+    {
+      "bytes": 221,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/root-prepare-result.json",
+      "sha256": "146fc65d37c3fcdd128466dfb2da5888281fb85cb21218d68f0ba2d09dc36503"
+    },
+    {
+      "bytes": 3484,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/root-recipe-v3.json",
+      "sha256": "97b8b10a16893f46019e0e6bfa58646921596a087fd378fd7c4f91c55f999c15"
+    },
+    {
+      "bytes": 14089,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/cache-resource-recovery/unlink-returned.jsonl",
+      "sha256": "cf33817d39acb1f7ff9e46802afec6a3793ed66c0d3f5e0f49424bc77d0628bd"
+    },
+    {
+      "bytes": 23295,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/ci-current-298/completed-hosted-steps.json",
+      "sha256": "983bc8496b46b13f9d90719b63d624936f6296fb33751396edd59ff480c57752"
+    },
+    {
+      "bytes": 2913,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/ci-current-298/safe-diagnosis.json",
+      "sha256": "44697e2c84a804d02c9365383f4c5a52be08be7ca0ac3378266bc5acf96a82f2"
+    },
+    {
+      "bytes": 471,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/ci-superseded-146/pr52-146-superseded-cancel-observed.json",
+      "sha256": "195928ba37772bcbdb160cddc07bee5bab6689cc3a128e048cddbcfe5068c70c"
+    },
+    {
+      "bytes": 589,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/ci-superseded-146/pr52-146-superseded-cancel.json",
+      "sha256": "62515e2e3185ee0d9e2104239ce8d7afeccdcead6a7918d9c920c45d0fcee3c0"
+    },
+    {
+      "bytes": 0,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/fresh-ledger-launch/launch-runner.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2843,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/fresh-ledger-launch/launch-runner.stdout",
+      "sha256": "d90f946f796d7296a24a4260775730343e581d5a3c4851922bfdc51faf647aa1"
+    },
+    {
+      "bytes": 0,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/fresh-ledger-launch/ledger.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 124,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/fresh-ledger-launch/ledger.stdout",
+      "sha256": "d3b4a09f1320384f46537574c5ed07e08faf03eea4f7ddd0c420e0089122e8c1"
+    },
+    {
+      "bytes": 626,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/fresh-ledger-launch/summary.json",
+      "sha256": "94f0ef200495fd7b4ef6a99d2fa1c3bccd13c250aaeeb2c9fdd2d555dada5c9d"
+    },
+    {
+      "bytes": 1113,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/final-full-result.json",
+      "sha256": "6838ee0b573dd29de3e39a65b7146978d7075f5db06f63b14fac1ca8c83b0dc4"
+    },
+    {
+      "bytes": 2081,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/final-full-review.json",
+      "sha256": "3f004be6f711b93f1ccdf2f88ba0749950d2a2ab84893f505702ed66e5b182dd"
+    },
+    {
+      "bytes": 1776,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/helm-admitted-tool-manifest.json",
+      "sha256": "4e802cdf46fd1130c48ec8f47ae2c12890df1f70699e8a774725c0f1642e956c"
+    },
+    {
+      "bytes": 1065,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/helm-independent-review.json",
+      "sha256": "0fb5c19e3f7c0a856283a31374f3685f65c692c78c2cfbfd67e4b9c85b503fd3"
+    },
+    {
+      "bytes": 884,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/initial-zero-test-result.json",
+      "sha256": "e5cb618ad32bef47cf72789ac3dddacf4b0576ea287ef8f8cd1dabf18a660ee3"
+    },
+    {
+      "bytes": 2338,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/manifest.json",
+      "sha256": "998b97333d94b37a5764061a322f260955ff57229a40d11f8e7986eb8092c3cf"
+    },
+    {
+      "bytes": 892,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/missing-helm-full-result.json",
+      "sha256": "a5d2653f06495a2ab32473d228187d78cd9e46c91afd76a2e8eef084b4c06a2b"
+    },
+    {
+      "bytes": 1903,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/missing-helm-review.json",
+      "sha256": "bef0c8012692b79bb9933fc092d1611dbd8298ba80c34858438dc2efa940fa9e"
+    },
+    {
+      "bytes": 808,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/Go-module-admission.json",
+      "sha256": "e3a4b8d4204f7760bfc1f19b3462ac6564c4581d092cc18ed4ff951a9f6d9b4b"
+    },
+    {
+      "bytes": 363,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/PUBLICATION-SCOPE.md",
+      "sha256": "9728ba1edeea2456b505ee85bd434f8a06d1eb0a1cec0332c17b7a78a8c12678"
+    },
+    {
+      "bytes": 1533,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/README.md",
+      "sha256": "e8428f0d492fba24aaaf26e3abc7d0c3fe8b248247565aa9c2872b053aef5322"
+    },
+    {
+      "bytes": 1776,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/admitted-tool-manifest.json",
+      "sha256": "4e802cdf46fd1130c48ec8f47ae2c12890df1f70699e8a774725c0f1642e956c"
+    },
+    {
+      "bytes": 1329,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/build-result.json",
+      "sha256": "5818013d225b9d0e3709e0b27511531013861154db50675079e929f3fd4dac6b"
+    },
+    {
+      "bytes": 6075,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/failure-chronology.json",
+      "sha256": "d8b2469d8f92bb1063cc8cf7867749d927504469ff0dfaadfea0e7f1e2925a0d"
+    },
+    {
+      "bytes": 21,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/final-module-verification.log",
+      "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+    },
+    {
+      "bytes": 1065,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/independent-lightweight-tool-review.json",
+      "sha256": "0fb5c19e3f7c0a856283a31374f3685f65c692c78c2cfbfd67e4b9c85b503fd3"
+    },
+    {
+      "bytes": 13309,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/manifest.json",
+      "sha256": "be364f2d826a2077ac44a58fcc33d60bd8bdb9eba8e43a6f6c71b418be0dde70"
+    },
+    {
+      "bytes": 349,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/official-sumdb-lookup.txt",
+      "sha256": "6e050f25d38c40787e136d1d1a808aa15caa5d7283ef4da63f0092b21b216664"
+    },
+    {
+      "bytes": 129,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/ordinary-official-direct-dependency-result.json",
+      "sha256": "13b603acfb813a8e087f364951f737024dd618d6ab2dbfe70349064d761537cc"
+    },
+    {
+      "bytes": 199,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/original-proxy-dependency-refusal.json",
+      "sha256": "7df1dedd02f565efa9b6c48c47f6a2a743444c8b917f4b3462561eddf718e681"
+    },
+    {
+      "bytes": 176,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/original-release-checksum-fetch-refusal.json",
+      "sha256": "16fdac1f9966ab44208545d78229fb690c46d334034cbe80cc63921a5b54411f"
+    },
+    {
+      "bytes": 667,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/publication-omission.json",
+      "sha256": "631822b975fd4dc82a19be7425ebb343be7f609ef523d644bdace44976c92dd6"
+    },
+    {
+      "bytes": 1039,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/README.md",
+      "sha256": "b5fdc54061b5e428b7899081d27b0372f4589f298a7b10ff199bcab13655f68a"
+    },
+    {
+      "bytes": 7837,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/admission-unit-summary.json",
+      "sha256": "72c8a7494826446927092f1d317b501b14eff377a19aebdef63978265e462c5c"
+    },
+    {
+      "bytes": 4741,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/compile-owner.py",
+      "sha256": "bc1b4f98d00048276882b521b7972cd651af2134ec337a1bac7f1df63088d8b9"
+    },
+    {
+      "bytes": 979,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/compile-process-binding.json",
+      "sha256": "79aacfe08f1cc93d02f9f766bb89b4a8340b58c24c454f278bb6d20ad0254fba"
+    },
+    {
+      "bytes": 803,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/compile-selected-summary.json",
+      "sha256": "c51d18cdb7963971b83c2612580d8ee5f750f95812c81578c9946e34cadb6180"
+    },
+    {
+      "bytes": 3470,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/fixture-candidate.go",
+      "sha256": "7aa946b921e6e1490126558c49886bbeb6034b8ad5d9aca6a0d936ad206ecc2c"
+    },
+    {
+      "bytes": 2964,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/fixture-original.go",
+      "sha256": "eddce9d2e27bf25c47d18cf6b48242c7d1e18dd66c83aa502223931fc4a2748f"
+    },
+    {
+      "bytes": 1938,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/independent-actual-publication-review.json",
+      "sha256": "8fe743c4fd1384c751f58ab9f446c279001b889a53e54d75ab5b90e6cf2bfc48"
+    },
+    {
+      "bytes": 2903,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/independent-pg-fixture-wrapper-source-review.json",
+      "sha256": "28cb076ba36c418d4aece90c608aec72aa8f097e4550c05c1d36a9b47e96561a"
+    },
+    {
+      "bytes": 2358,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/independent-private-overlay-source-review.json",
+      "sha256": "3c7841ead9eab6d325db95248d9a75866c615bcff04c01b0ebf68946b1ab5631"
+    },
+    {
+      "bytes": 913,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/log-transform.json",
+      "sha256": "e330c8234af49d98e0d065632b586893f6a88a4bc021090c76d68ace8520c2e9"
+    },
+    {
+      "bytes": 5474,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/manifest.json",
+      "sha256": "4077128c922184121864112c533e60989f153da034474b50ff224b19522a9d9f"
+    },
+    {
+      "bytes": 10718,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-admission_test.go",
+      "sha256": "961f2373a262482c743cd5ce681f335fa39446ac38b0b8914a1e3be8ffbf7b47"
+    },
+    {
+      "bytes": 820,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-fixture-comma-red.jsonl.gz",
+      "sha256": "43ae443a34a699baf0bcce1ec4c2fe7461a89cbb9e72a8d68c73797a841573ad"
+    },
+    {
+      "bytes": 771,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-fixture-portable-green.jsonl.gz",
+      "sha256": "96c3433529d9c6ff250cd76abd9328e6fe2bc48e373e3a5b5257a65a9469fbe8"
+    },
+    {
+      "bytes": 782,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-fixture-red.jsonl.gz",
+      "sha256": "bf3cc2d4bb7fef07a4a4f880efb09c22d3cd88153a16e347710fd6b03d797db1"
+    },
+    {
+      "bytes": 299,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-service-cleanup-proof.json",
+      "sha256": "a1d015c0c91bc0e2ffae45253ee869d5254756a82f43f114074218f3ab57afef"
+    },
+    {
+      "bytes": 676,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-service-final.json",
+      "sha256": "0eff494a9015a3c17c97f35f4544d9f4835706716228940f20a91441c38f8703"
+    },
+    {
+      "bytes": 10795,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/original-file-identities-final.json",
+      "sha256": "eb29ded1f9ce383953bdfe67e46444683bb7cfd5aa9ec8b8c7e0ec31cde9c8f1"
+    },
+    {
+      "bytes": 10138,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/original-file-identities-pre80-terminal.json",
+      "sha256": "85a0019d81f0097dd7a58d7cae0ed067fadffa5cb7db94d96f2d727a7be5c566"
+    },
+    {
+      "bytes": 194,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/overlay.json",
+      "sha256": "cd14d0e50b12429d50508a7f0a7105a7c8c13202f05410bc359266f3d92e8b70"
+    },
+    {
+      "bytes": 1101,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/pg-fixture-wrapper-manifest.json",
+      "sha256": "410b7d9c29923c9005a7e6ea0bbdfa7d65f60f492f1e070111fc3b1e6987ed81"
+    },
+    {
+      "bytes": 8281,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/projection-native-overlay.go",
+      "sha256": "2319a62ef2e300bb2dc4924f528a46c3ba1dd853f53580504f05207c47ea8fe8"
+    },
+    {
+      "bytes": 7393,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/run-sql79.py",
+      "sha256": "134c123b44a76ceb2280d472b6928aae567219da91af26216ff3d4b561c5114f"
+    },
+    {
+      "bytes": 6213,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/run-sql80.py",
+      "sha256": "9ff522d4b9aeded02ae3dc9cde9cebb01ed3f2ffc60c4604eaaebc6024d727fe"
+    },
+    {
+      "bytes": 917,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql79-process-binding.json",
+      "sha256": "7eb5d2fccac41df6b845613335357569a71eb6ab87ef0ecbc44313aa0c1cf24e"
+    },
+    {
+      "bytes": 2837,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql79-result.json",
+      "sha256": "b3bc82bb2fce4c2471544677226aac0f74efede81d4b75c6107cdda834df8124"
+    },
+    {
+      "bytes": 2138,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql79-tools-before.json",
+      "sha256": "b99d02f0a1f50ebf477c86ebc114f0728a128cd439f9435bd98a23dcdae50b44"
+    },
+    {
+      "bytes": 0,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql79.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1026,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql79.stdout",
+      "sha256": "1ae4fc57fa415c12a030b50af80ae14a6e236bfa018ca9c8315584d9cb16fdde"
+    },
+    {
+      "bytes": 674,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80-process-binding.json",
+      "sha256": "05881b51494453538352400550612c49c645bd166618de97a255bea566343733"
+    },
+    {
+      "bytes": 146724,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80-result.json",
+      "sha256": "26e778303770a59e2636d4f510b1d6f7a146d6e206ead6b659ff9c34ab09854b"
+    },
+    {
+      "bytes": 2138,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80-tools-before.json",
+      "sha256": "b99d02f0a1f50ebf477c86ebc114f0728a128cd439f9435bd98a23dcdae50b44"
+    },
+    {
+      "bytes": 20,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80.stderr.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "bytes": 4029,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80.stdout.gz",
+      "sha256": "dbedf11f02849784260f49dd2e8ca0aa29848ed36d946903374bc7cbbbe55c9f"
+    },
+    {
+      "bytes": 1802,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/summary.json",
+      "sha256": "cad1eb8df0728fbf9856e3c95cc9e7cc1ef7d20653b1b04d47ee9048375a63b3"
+    },
+    {
+      "bytes": 1614,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/README.md",
+      "sha256": "4d3f4f549b1188f95ea290e6f7b0993050a1b233c9ae2f74297e4bdafe4baf0b"
+    },
+    {
+      "bytes": 13608,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/manifest.json",
+      "sha256": "ca0230a846c74dacba3049302161da0b029d409eba779d4485b4c3893c8dab3e"
+    },
+    {
+      "bytes": 1031,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/TIME-WAIT-readonly-diagnostic.json",
+      "sha256": "3b8394898fa9c785fba8642ab6dd0179f37970902ab17e84011950a9097b3cc3"
+    },
+    {
+      "bytes": 1113,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/compile-provenance-addendum.json",
+      "sha256": "375409a66b99f181862010dcdc99d923229e358d24e43e48e82f26b6fe549ade"
+    },
+    {
+      "bytes": 551,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/compile-result.json",
+      "sha256": "5014f458a0a1b6c8711e0a7b4a976c6bd5777de01e17f8e3cdd0ced996950235"
+    },
+    {
+      "bytes": 1287,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/fresh-additive-cleanup-observation.json",
+      "sha256": "beab27dc0a4fc11856fcf59896f1641548ca5a12f6265d0c570c52eaf2500470"
+    },
+    {
+      "bytes": 3141,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/original-overall-failure.json",
+      "sha256": "785ba2aa66240137a280313ea0950fb9c193fdcf11f4c193921f4c31d8812baa"
+    },
+    {
+      "bytes": 132734,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/original-test.log",
+      "sha256": "adfd5a3ba718278c896f3e17c2e063ed8eef3672d3a294b5fa5f6b7e82aee356"
+    },
+    {
+      "bytes": 520,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/owned-readiness.json",
+      "sha256": "f904b83fdb4873a49c88bf3de4078bececc633356ccb37f29c1364e3c3f82cb7"
+    },
+    {
+      "bytes": 826,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/timing-floor-clarification.json",
+      "sha256": "9cba1edd0c507bf05291cba4f828f525af95e67b35b3ee59a355d4b522d7df57"
+    },
+    {
+      "bytes": 1804,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/reviews/actual-review.json",
+      "sha256": "e3fb0a55cfdd867e63a6fb3b6d914fb3f294a2e0676044555fdc101a0a2c58bd"
+    },
+    {
+      "bytes": 1118,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/reviews/source-review.json",
+      "sha256": "1c1af2e6dd376d2d099bdcddeae9e85ec36938facde686ee72b61b86604475fb"
+    },
+    {
+      "bytes": 4234,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/source/original-single-test-live-test.go",
+      "sha256": "ba075b3b89f1378d370a6dd6d6bfb1812a94d3fb81eec497e0c7d20de30c6307"
+    },
+    {
+      "bytes": 9787,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/source/run-owned-v3.py",
+      "sha256": "9ca9e5b5d9d2ecd8e2cb2bd64b218a1a362fa61801c3892912ba94be54b97785"
+    },
+    {
+      "bytes": 2287,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/publication-preliminary/complete-decoded-compressed-log-scan.json",
+      "sha256": "b25ca94146490f1c407c71dc9b708acbd4f41a2472d496e7eb80722afd8c5d3d"
+    },
+    {
+      "bytes": 216,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/publication-preliminary/decoded-compressed-logs.json",
+      "sha256": "ab4d40f3f2f022cf12ccd3de81dd2a6911a61388d90a47bff69e9cbfbd60289c"
+    },
+    {
+      "bytes": 59765,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/publication-preliminary/enlarged-original-scanner-refusal.json",
+      "sha256": "a039a001ed86054e51946c44d8264c66b38ac663962d315411129cd70d4d65f1"
+    },
+    {
+      "bytes": 994,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/publication-preliminary/independent-combined-copy-review.json",
+      "sha256": "20989883e6e03dade6ebb4b8502bdfa12934d0fa9d282076091ee29657b6963b"
+    },
+    {
+      "bytes": 1431,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/publication-preliminary/independent-final-combined-copy-review.json",
+      "sha256": "acbf25411355812d5b6e8b2f53ee5041e7140a67543bccddd4a532aa27982a1e"
+    },
+    {
+      "bytes": 304,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/publication-preliminary/selected-staged.json",
+      "sha256": "1c1142cd775096225e615a322dd343e188e0cca30804bb9525fc8a4b8322a688"
+    },
+    {
+      "bytes": 858,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/README.md",
+      "sha256": "9c59ea411a86ace34dd5c4427e2a9941837e07b9205bc47c0f0cec018998a525"
+    },
+    {
+      "bytes": 4778,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile-owner.py",
+      "sha256": "3f53f6edb68cf436115c57334fee3bdb56c6a6531c7a488f354509114b298f5d"
+    },
+    {
+      "bytes": 959,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile-process-binding.json",
+      "sha256": "87f345f6f0f7c7f0ad4ec3bc09e0dfd344caf5ecc0a5a93e59396bb9e097f516"
+    },
+    {
+      "bytes": 798,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile-selected-summary.json",
+      "sha256": "26742df2d335c284c8cbae05d26486b999fb85be57079737e371f68b4df8dbd2"
+    },
+    {
+      "bytes": 20,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile.stderr.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "bytes": 20,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile.stdout.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "bytes": 30062,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/diagnostic-overlay.go",
+      "sha256": "5e49c9f06afa8d80559f890a5c5045edc1f18729fde7e62bccd10468a5df02bb"
+    },
+    {
+      "bytes": 1839,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/first-attempt-compile-result.json",
+      "sha256": "b10a3172ee55be0989172896c37d17f54327d8e03b664c3b778f6f64a23926ab"
+    },
+    {
+      "bytes": 220,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/first-attempt-compile.stderr",
+      "sha256": "f5077fae7f8cbd71f642aa44b5a4cd3766564e278922bf95488ac5fc974b7d43"
+    },
+    {
+      "bytes": 1566,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/independent-actual-publication-review.json",
+      "sha256": "67ec8f7921fcd13fb226ecc3536933473e04af21d5b60957a518839fe64148ba"
+    },
+    {
+      "bytes": 2698,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/manifest.json",
+      "sha256": "3a22d8d6b7866e63fb1aa1d5b829e649aaea00a3f12a8423d6afe6ebf9d8f8e0"
+    },
+    {
+      "bytes": 5708,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/original-identities.json",
+      "sha256": "5dd6059a302816763c79a2ad1316a57b2dbe771f7f68adfc0f9082ef6b8d4cfa"
+    },
+    {
+      "bytes": 175,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/overlay.json",
+      "sha256": "d46505e3fe69275706978f0c40349c245541d014da9007c7ca2d79a7aaf82360"
+    },
+    {
+      "bytes": 1114,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/preparation.json",
+      "sha256": "d603d0a4285e7bd9d0f1066f5de624c08a58f94257bb906419723dcb1e12d990"
+    },
+    {
+      "bytes": 524,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/publication-clarification.json",
+      "sha256": "dce2c978d492759a884f01b2414dc317bd6661f61233f156f0fa64c347827174"
+    },
+    {
+      "bytes": 6128,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/run-profile.py",
+      "sha256": "4a23f7f589b8e4d914f67cd8cda5cc27103f764bf1e0de697fefa05960fd19f0"
+    },
+    {
+      "bytes": 662,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/sql80-process-binding.json",
+      "sha256": "28e560c9b9ce689666306661a3113e79a25d634199b01fbdb448c247926f9c0a"
+    },
+    {
+      "bytes": 76185,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/sql80-result.json",
+      "sha256": "cc7144e2c288c4ed4e833e3599becc8c0f604948693dd4198cb7189c48ec7657"
+    },
+    {
+      "bytes": 20,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/sql80.stderr.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "bytes": 788,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/sql80.stdout.gz",
+      "sha256": "cf9a52edf74cbcced0fceef60e03d235c9a408e63f34dbbc5c6a23bd48bd5f9c"
+    },
+    {
+      "bytes": 2816,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/summary.json",
+      "sha256": "3a117f6162a4cba7a2984966346e62479e4e4cb4ae08fd7baaddb0efab9ac354"
+    },
+    {
+      "bytes": 693,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/README.md",
+      "sha256": "60cee56b0fae63c99c8ceba3601d6936dd3657c844357b67ed02a42e39affb17"
+    },
+    {
+      "bytes": 4779,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/compile-owner.py",
+      "sha256": "334e9d4f20e76c0b0fce7766137e7253f46e0b31fac90bd59cd1c0118ec49736"
+    },
+    {
+      "bytes": 961,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/compile-process-binding.json",
+      "sha256": "bc5b3e7c76e271510a419d2324410642c86f09aaaab4ad5aa57968fd6be257b9"
+    },
+    {
+      "bytes": 800,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/compile-selected-summary.json",
+      "sha256": "0d1ebfafb70907f663d92bd1debb38408e645aae3358d794f6ef810dcc859be0"
+    },
+    {
+      "bytes": 20,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/compile.stderr.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "bytes": 20,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/compile.stdout.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "bytes": 34866,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/diagnostic-overlay.go",
+      "sha256": "36fd725c67ade666af74269e90ddc72863206ec6a9c34106aa3177261515bb5d"
+    },
+    {
+      "bytes": 478,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/direct-label-addendum.json",
+      "sha256": "a891e1873bfcded06ac087377acf17c9956470bc886bffca4541a2d20cbc6cfc"
+    },
+    {
+      "bytes": 1590,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/independent-actual-publication-review.json",
+      "sha256": "422eeb19b8034f821efd0da44b5b5d064d146d12afcddc3e5049fa6c88e97d85"
+    },
+    {
+      "bytes": 2536,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/manifest.json",
+      "sha256": "54eea08346499de831ececd523c9b819d05d3c24423c7f330854d0d5ac483d93"
+    },
+    {
+      "bytes": 4061,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/original-identities.json",
+      "sha256": "c9112f254dca508e1951db26b7e2f782fa28863bb2b2daa34e4978b5dc9f20af"
+    },
+    {
+      "bytes": 176,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/overlay.json",
+      "sha256": "8ed39ebb435e78892f8f0eb84f02bbb65f06a0b676b0002d710b4d8dc94a8009"
+    },
+    {
+      "bytes": 1050,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/preparation.json",
+      "sha256": "267064bb2631096e18994a4b4d36db15a949d0fa3589f8f20060b107e000a954"
+    },
+    {
+      "bytes": 6197,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/run-profile-direct-label.py",
+      "sha256": "dccfcd51208ddd9b18a51c1dbe8064d8d5b98333df5e98f0b402cf040903fc50"
+    },
+    {
+      "bytes": 665,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/sql80-process-binding.json",
+      "sha256": "7b448d37243b328aa7deff264d10bb86d9b9a60f0353dc8835c49b68032aa9d0"
+    },
+    {
+      "bytes": 43810,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/sql80-result.json",
+      "sha256": "f4d7c744914ed27f10df1a21f312f9e1532eadf8af8afbca75bc493687abf8f5"
+    },
+    {
+      "bytes": 20,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/sql80.stderr.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "bytes": 480,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/sql80.stdout.gz",
+      "sha256": "a7aa65fcd7cde2f9abd145f1f7394f9c4e30f6a80101f37c530433d65ec3ad9f"
+    },
+    {
+      "bytes": 1816,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/readiness-session-jit-diagnostic/summary.json",
+      "sha256": "95c418a97ae5ba415c20063b8562f588429fa51851ceb3bc718710b34af41392"
+    },
+    {
+      "bytes": 1545,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/README.md",
+      "sha256": "e8ae5c0a4c414a7d5b0f4399aa3fe615ce011e12fe046d7036ceacbe7c3c04fc"
+    },
+    {
+      "bytes": 844,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/actual/child-result.json",
+      "sha256": "be9f494cd04f3cbcca57adc6a277fb54c675d369ca2bfbca871796688cfc02ff"
+    },
+    {
+      "bytes": 854,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/actual/parent-result.json",
+      "sha256": "6e4d464547a0d64fb70c21c5b939207499e22fda93b2716562e7dc429580c27c"
+    },
+    {
+      "bytes": 1310,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/independent-publication-copy-review.json",
+      "sha256": "abcc7f5f49e1fb952d7231e294cdd1f3172078fd826776128917700ca0af8deb"
+    },
+    {
+      "bytes": 12708,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/manifest.json",
+      "sha256": "3d45e1c1ba66b88164085ef1654a6e03de234bde2a61d582cf20065bd548fd8d"
+    },
+    {
+      "bytes": 6541,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/offline/controls-corrected.py",
+      "sha256": "f71ff68ca5bcdf8ef45908e228f9c5e38e58af2b53f99eb93b9453ca1d3a3fa7"
+    },
+    {
+      "bytes": 403,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/offline/preserved-first-attempt.json",
+      "sha256": "ddddd3c2637600749a006de91aa3f6e4d0f311399114f5e6f2085eec2fbcdd64"
+    },
+    {
+      "bytes": 3531,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/offline/result.json",
+      "sha256": "3dd7d8861e5ed91e250458fc01325fc27b82b8e236f71e52b8a54e3cd70f8ff2"
+    },
+    {
+      "bytes": 1389,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/publication-safety-review.json",
+      "sha256": "40346a719b10ad3fc424e8454b1fb95cac8a88fb092c1c661fd4e7d99627773e"
+    },
+    {
+      "bytes": 3144,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/reviews/actual-real-TEST-review.json",
+      "sha256": "6457d138d37a1d599c6d6f716a1ee003aaa6d0e6b9e0fdf93c7ce6a53b4716a1"
+    },
+    {
+      "bytes": 11384,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/reviews/offline-consistency-review.json",
+      "sha256": "ea3d1eb2bf3643cd7fd34fade0c685fea6a09bf41e9b9a71438dbd5839d3f8af"
+    },
+    {
+      "bytes": 3746,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/reviews/source-review.json",
+      "sha256": "939d42352146e971fb54e6bbaa2b9ff3897297cfe89cc43a4fa11fc80b287fb1"
+    },
+    {
+      "bytes": 8701,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/source/run.mjs",
+      "sha256": "6558e13100d68e3c565cacc8885a8e7088e5070847175c44784a0dc07ac40e21"
+    },
+    {
+      "bytes": 2323,
+      "gitMode": "100644",
+      "selectedPath": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/source/scope.json",
+      "sha256": "9292129465485b4d4b19db3e26bfabefc22c5ae9207053a3c702befdb46ac68c"
+    }
+  ],
+  "status": "PASS"
+}

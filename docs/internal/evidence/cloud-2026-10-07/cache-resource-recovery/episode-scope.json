@@ -1,0 +1,129 @@
+{
+  "actualRootJoins": {
+    "finalize": {
+      "bytes": 221,
+      "metadata": {
+        "dev": "34",
+        "gid": 1000,
+        "ino": "131261",
+        "mode": "0o600",
+        "mtimeNs": 1791338852150662232,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/root-finalize-result.json",
+      "sha256": "59888a53bdd60992adddf9635cd43f00287097e6e76226500f5ce6fd236243bd"
+    },
+    "prepare": {
+      "bytes": 221,
+      "metadata": {
+        "dev": "34",
+        "gid": 1000,
+        "ino": "131254",
+        "mode": "0o600",
+        "mtimeNs": 1791338734513347170,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/root-prepare-result.json",
+      "sha256": "146fc65d37c3fcdd128466dfb2da5888281fb85cb21218d68f0ba2d09dc36503"
+    }
+  },
+  "format": "default-Go-cache-custody-episode-safe-scalar-v1",
+  "knownZombieAtCustody": {
+    "pid": 57473,
+    "scope": "No completeabsence/reap or whole-registrycleanup claim",
+    "startTicks": "1381665",
+    "state": "Z"
+  },
+  "originalFailure": {
+    "beforeCacheInventory": "NOT_CAPTURED; no task-created-only attribution",
+    "explicitControlledEnvironmentMissing": true,
+    "identity": {
+      "bytes": 1677,
+      "metadata": {
+        "dev": "34",
+        "gid": 1000,
+        "ino": "131223",
+        "mode": "0o400",
+        "mtimeNs": 1791335223811423924,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "/tmp/native379-v3-current-coherent-private-_gkp3vv5/constructor-parity-resource-failure-result.json",
+      "sha256": "1080f079a3607043ac48d4b9375c3695a0b9f985158c1865ddeca9abdc227b75"
+    },
+    "inferredDefaultGOCACHE": "/home/agent/.cache/go-build",
+    "inferredDefaultGOMODCACHE": "/home/agent/go/pkg/mod",
+    "ownerExit": 143,
+    "status": "FAILED-INCOMPLETE-RESOURCE-FLOOR"
+  },
+  "protectedOtherCacheFiles": {
+    "count": 18619,
+    "producerBeforeAfterFullSHA": "Checked by exact reviewed source with pinned privatefullinventory; independent final reviewer verifies producerreceipt and outside topology/metadata, not separately rehashing all6.3GB."
+  },
+  "reportedWorkspaceFreeBytesAfter": 1605713920,
+  "scanner": "NOT_RUN",
+  "scope": "Recovery custody only; not parity/native/runtime acceptance",
+  "selectedWholeBucket": {
+    "allPayloadBytesRetained": true,
+    "destinationPath": "/dev/shm/zasp-default-go-cache-custody-3f40727d6cf74424942b1b7b2097cdbe/3a",
+    "files": 73,
+    "logicalBytes": 320655218,
+    "metadataScope": "Source physical dev/ino/ctime retained as historical record, destination necessarilynew; no promise originalphysicalmetadatarestoration.",
+    "oldPathNowSymlink": true,
+    "originalPhysicalDirectoryAbsent": true,
+    "relativePath": "3a",
+    "sourcePath": "/home/agent/.cache/go-build/3a"
+  },
+  "sourceOnlyCheckpointHistory": [
+    {
+      "bytes": 10287,
+      "metadata": {
+        "dev": "34",
+        "gid": 1000,
+        "ino": "131229",
+        "mode": "0o400",
+        "mtimeNs": 1791335432341151425,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/relocate-bucket3a.py",
+      "sha256": "2fcefffcb08309ba488a5e433034c48d313180b98889343b81c960148df2e2e1"
+    },
+    {
+      "bytes": 11532,
+      "metadata": {
+        "dev": "34",
+        "gid": 1000,
+        "ino": "131231",
+        "mode": "0o400",
+        "mtimeNs": 1791335490751953069,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/relocate-bucket3a-v2.py",
+      "sha256": "2213bb50a1b2afdf12f3f1666ead7f2a0b789eb3d238fc672b99ea4af5b53cb9"
+    }
+  ],
+  "wholePostFailureCacheObservation": {
+    "bodyCopied": false,
+    "directories": 257,
+    "files": 18692,
+    "fullInventoryPrivateReference": {
+      "bytes": 9256606,
+      "metadata": {
+        "dev": "34",
+        "gid": 1000,
+        "ino": "131225",
+        "mode": "0o400",
+        "mtimeNs": 1791335278035772922,
+        "nlink": 1,
+        "uid": 1000
+      },
+      "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/source-inventory.json",
+      "sha256": "9db0efc4963e1853e46ebd14e627af274db779cd379e6824864c20ef627f6e6e"
+    },
+    "logicalBytes": 6610855639
+  }
+}

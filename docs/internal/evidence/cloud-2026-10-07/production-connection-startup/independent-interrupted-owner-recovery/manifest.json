@@ -1,0 +1,71 @@
+{
+  "format": "spec33-selected-interruption-recovery-proof-v1",
+  "members": [
+    {
+      "path": "process-binding.json",
+      "originalPath": "/tmp/spec29-release-retry-pjxx8p8a/process-binding.json",
+      "bytes": 2026,
+      "sha256": "e66f364f61f059b907c6129e4187c1174e860f2f065217c75b368adf8c6e8232"
+    },
+    {
+      "path": "preparation.json",
+      "originalPath": "/tmp/spec29-release-retry-pjxx8p8a/preparation.json",
+      "bytes": 736,
+      "sha256": "066dfa7a809e0cbb1ac62161cd0245eb7816466427d8811f04da183f95af926c"
+    },
+    {
+      "path": "source-refresh.json",
+      "originalPath": "/tmp/spec29-release-retry-pjxx8p8a/source-refresh.json",
+      "bytes": 22328,
+      "sha256": "451b820b492db3814bbb6bdfddc2dab2fa9a115e3d97d62ace487349941ce928"
+    },
+    {
+      "path": "verify.stdout",
+      "originalPath": "/tmp/spec29-release-retry-pjxx8p8a/verify.stdout",
+      "bytes": 56174,
+      "sha256": "e4ad71490d8f6ecf8cc889f87b8426e9d1570b5d9bf9169d039cd0451698e1e2"
+    },
+    {
+      "path": "verify.stderr",
+      "originalPath": "/tmp/spec29-release-retry-pjxx8p8a/verify.stderr",
+      "bytes": 681,
+      "sha256": "ffffccf258213f2ea8035ce243cb1fae57e16be7b8ad340a1719f65fcaef8283"
+    },
+    {
+      "path": "tool-before.json",
+      "originalPath": "/tmp/spec29-release-retry-pjxx8p8a/tool-before.json",
+      "bytes": 3046,
+      "sha256": "d646f432cff3a5739dbbe8094390fcda96d1ad5a13b1c9c7bc2394975fe96532"
+    },
+    {
+      "path": "deps-before-summary.json",
+      "originalPath": "/tmp/spec29-release-retry-pjxx8p8a/deps-before-summary.json",
+      "bytes": 325,
+      "sha256": "efff8b0059a28a86f2b7ef65860c8b2779180df31d531302f34516f00da4e6c2"
+    },
+    {
+      "path": "recovery-result.json",
+      "originalPath": "/tmp/spec33-release-recovery-7hes6fyp/recovery-result.json",
+      "bytes": 1403,
+      "sha256": "bf4a2e5063256b528b04cea5abede48abbfad9a7480d0d30cd64e7f0b2b15639"
+    },
+    {
+      "path": "kernel-stat.txt",
+      "originalPath": "/tmp/spec33-release-recovery-7hes6fyp/kernel-stat.txt",
+      "bytes": 189,
+      "sha256": "9f033c25366a0add9c0e9b4f9c27ba3c16090f30a2c6aa0dc355f7d7aebfe93d"
+    },
+    {
+      "path": "fresh-tool-after.json",
+      "originalPath": "/tmp/spec33-release-recovery-7hes6fyp/fresh-tool-after.json",
+      "bytes": 3046,
+      "sha256": "d646f432cff3a5739dbbe8094390fcda96d1ad5a13b1c9c7bc2394975fe96532"
+    },
+    {
+      "path": "scope.json",
+      "bytes": 1989,
+      "sha256": "66fe3ce0278f8940c0608cc16a97ca8efcdfdab6e47b64ccd9a73cf88d945ce5"
+    }
+  ],
+  "payloadBytes": 91943
+}

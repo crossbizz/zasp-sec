@@ -16,6 +16,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/healthserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeevent"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
 
@@ -60,7 +61,7 @@ func buildWorkerRuntimeWithIO(ctx context.Context, config workerRuntimeConfig, e
 	}
 	connectCtx, cancel := context.WithTimeout(ctx, minDuration(config.LeaseDuration/2, 5*time.Second))
 	defer cancel()
-	poolConfig, err := pgxpool.ParseConfig(config.PostgresDSN)
+	poolConfig, err := runtimepostgres.ParsePoolConfig(config.PostgresDSN)
 	if err != nil {
 		return workerRuntimeDependencies{}, errRuntimeUnavailable
 	}

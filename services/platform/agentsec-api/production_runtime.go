@@ -23,6 +23,7 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
 	platformidentity "github.com/zasp-ai/zasp-sec/services/platform/identity"
 	"github.com/zasp-ai/zasp-sec/services/platform/orchestration"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 	"github.com/zasp-ai/zasp-sec/services/platform/runtimeservices"
 )
 
@@ -42,25 +43,30 @@ func buildRuntimeDependenciesWithStorage(ctx context.Context, config RuntimeConf
 }
 
 func buildRuntimeDependenciesWithReadinessTransport(ctx context.Context, config RuntimeConfig, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, readinessTransport http.RoundTripper) (RuntimeDependencies, error) {
+	dependencies, err := buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx, config, factory, complianceFactory, readinessTransport)
+	return dependencies, runtimeDependencyPublicError(err)
+}
+
+func buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx context.Context, config RuntimeConfig, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, readinessTransport http.RoundTripper) (RuntimeDependencies, error) {
 	if ctx == nil || ctx.Err() != nil || factory == nil || complianceFactory == nil || !validRuntimeConfig(config) || !config.RuntimeServices.Enabled {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("runtime-inputs", errRuntimeUnavailable)
 	}
 	connectCtx, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
 	defer cancel()
 	database, pool, err := openRuntimePostgres(connectCtx, config.PostgresDSN, config.ProviderTimeout)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("core-postgres", errRuntimeUnavailable)
 	}
 	securityAgentDatabase, securityAgentPool, err := openRuntimePostgres(connectCtx, config.SecurityAgentPostgresDSN, config.ProviderTimeout)
 	if err != nil {
 		_ = database.Close()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("security-agent-postgres", errRuntimeUnavailable)
 	}
 	services, err := runtimeservices.Connect(ctx, config.RuntimeServices)
 	if err != nil || services == nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("native-services", errRuntimeUnavailable)
 	}
 	keepServices := false
 	defer func() {
@@ -71,34 +77,34 @@ func buildRuntimeDependenciesWithReadinessTransport(ctx context.Context, config 
 	if database.RequireCurrentAuthorization() != nil || securityAgentDatabase.RequireCurrentAuthorization() != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("current-authorization", errRuntimeUnavailable)
 	}
 	checker, checkerErr := authorization.NewOpenFGA(services.FGA, config.RuntimeServices)
-	revisions, revisionErr := authorization.NewPostgresProjectionRepository(pool)
+	revisions, revisionErr := authorization.NewCurrentProjectionRepository(ctx, pool, config.RuntimeServices.ApprovalMaintenanceProfileChecksum)
 	resolver, resolverErr := apiserver.NewPostgresAuthorizationResolverWithSecurityAgent(database, securityAgentDatabase)
 	attestationKey, attestationErr := authorization.NewAttestationKey([]byte(config.WorkflowSigningKey))
 	if checkerErr != nil || revisionErr != nil || resolverErr != nil || attestationErr != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("authorization-components", errRuntimeUnavailable)
 	}
-	if err := checkAuthorizationRuntimeReady(connectCtx, database, securityAgentDatabase, attestationKey.Version()); err != nil {
+	if err := checkAuthorizationRuntimeReadyWithinTimeout(ctx, database, securityAgentDatabase, attestationKey.Version(), config.ProviderTimeout); err != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("authorization-readiness", errRuntimeUnavailable)
 	}
 	authorizer := &apiserver.OpenFGAAuthorizer{Reader: revisions, Checker: checker, Resolver: resolver, StoreID: config.RuntimeServices.StoreID, ModelID: config.RuntimeServices.ModelID, AttestationKey: attestationKey}
 	authenticator, err := apiserver.NewStytchOAuthAuthenticator(config.StytchBaseURL, config.StytchProjectID, config.StytchSecret, config.ProviderTimeout, func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) })
 	if err != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("identity-authenticator", errRuntimeUnavailable)
 	}
 	repository, err := apiserver.NewPostgresRepository(database)
 	if err != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("identity-repository", errRuntimeUnavailable)
 	}
 	provider, err := apiserver.NewRepositoryIdentityProviderWithStart(authenticator, repository, repository, config.StytchAuthorizeURL, config.StytchPublicToken, config.StytchOrganizationID, config.PublicOrigin+"/auth/callback")
 	if err == nil {
@@ -107,19 +113,19 @@ func buildRuntimeDependenciesWithReadinessTransport(ctx context.Context, config 
 	if err != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("native-identity-provider", errRuntimeUnavailable)
 	}
 	observer, observerErr := orchestration.NewSingleTestOriginalObserver(services.Temporal, 5*time.Second)
 	if observerErr != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("temporal-observer", errRuntimeUnavailable)
 	}
-	dependencies, err := composeRuntimeDependenciesWithRecovery(ctx, config, database, securityAgentDatabase, provider, factory, complianceFactory, os.Stdout, readinessTransport, observer, authorizer)
+	dependencies, err := composeRuntimeDependenciesWithRecoveryDiagnostic(ctx, config, database, securityAgentDatabase, provider, factory, complianceFactory, os.Stdout, readinessTransport, observer, authorizer)
 	if err != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
-		return RuntimeDependencies{}, err
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("composition", err)
 	}
 	dependencies.Closers = append(dependencies.Closers, securityAgentDatabase, database)
 	if services != nil {
@@ -137,7 +143,7 @@ func buildRuntimeDependenciesWithReadinessTransport(ctx context.Context, config 
 }
 
 func openRuntimePostgres(ctx context.Context, dsn string, healthCheckPeriod time.Duration) (*apiserver.PostgresJSONDatabase, *pgxpool.Pool, error) {
-	poolConfig, err := pgxpool.ParseConfig(dsn)
+	poolConfig, err := runtimepostgres.ParsePoolConfig(dsn)
 	if err != nil {
 		return nil, nil, errRuntimeUnavailable
 	}
@@ -189,12 +195,17 @@ func composeRuntimeDependenciesWithReadinessTransport(ctx context.Context, confi
 }
 
 func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, output io.Writer, readinessTransport http.RoundTripper, observer orchestration.SingleTestOriginalObserver, authorizers ...apiserver.RequestAuthorizer) (RuntimeDependencies, error) {
+	dependencies, err := composeRuntimeDependenciesWithRecoveryDiagnostic(ctx, config, database, securityAgentDatabase, provider, factory, complianceFactory, output, readinessTransport, observer, authorizers...)
+	return dependencies, runtimeDependencyPublicError(err)
+}
+
+func composeRuntimeDependenciesWithRecoveryDiagnostic(ctx context.Context, config RuntimeConfig, database, securityAgentDatabase apiserver.JSONDatabase, provider apiserver.CallbackProvider, factory auditExportStorageFactory, complianceFactory complianceStorageFactory, output io.Writer, readinessTransport http.RoundTripper, observer orchestration.SingleTestOriginalObserver, authorizers ...apiserver.RequestAuthorizer) (RuntimeDependencies, error) {
 	if ctx == nil || ctx.Err() != nil || factory == nil || complianceFactory == nil || invalidRuntimeValue(output) || !validRuntimeConfig(config) {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-inputs", errRuntimeUnavailable)
 	}
 	var authorizer apiserver.RequestAuthorizer
 	if len(authorizers) > 1 {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-authorization", errRuntimeUnavailable)
 	}
 	if len(authorizers) == 1 {
 		authorizer = authorizers[0]
@@ -205,11 +216,11 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 	}
 	if config.RuntimeServices.Enabled || currentRequired(database) || currentRequired(securityAgentDatabase) || !invalidRuntimeValue(authorizer) {
 		if !config.RuntimeServices.Enabled || invalidRuntimeValue(authorizer) || !currentRequired(database) || !currentRequired(securityAgentDatabase) {
-			return RuntimeDependencies{}, errRuntimeUnavailable
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-authorization", errRuntimeUnavailable)
 		}
 	}
 	if config.EvidenceExportWorkflow == "enabled" && (config.ComplianceExports == nil || invalidRuntimeValue(securityAgentDatabase)) {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("composition-authorization", errRuntimeUnavailable)
 	}
 	metrics := newOperationalMetrics()
 	exporter := newStructuredSpanExporter(output)
@@ -225,17 +236,17 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 		var securityAgentErr error
 		securityAgentRepository, securityAgentErr = apiserver.NewSecurityAgentPostgresRepository(tracedSecurityAgentDatabase)
 		if securityAgentErr != nil {
-			return RuntimeDependencies{}, errRuntimeUnavailable
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("security-agent-repositories", errRuntimeUnavailable)
 		}
 		approvalNotificationRepository, securityAgentErr = apiserver.NewApprovalNotificationPostgresRepository(tracedSecurityAgentDatabase)
 		if securityAgentErr != nil {
-			return RuntimeDependencies{}, errRuntimeUnavailable
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("security-agent-repositories", errRuntimeUnavailable)
 		}
 	}
 	tracedProvider := &tracedCallbackProvider{next: provider, metrics: metrics, exporter: exporter}
 	policyHistory, err := newProductionPolicyHistory(config)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("policy-history", errRuntimeUnavailable)
 	}
 	searchResourcesOwned := true
 	defer func() {
@@ -245,30 +256,30 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 	}()
 	repository, err := apiserver.NewPostgresRepositoryWithRuntimeSessionSearchIndex(tracedDatabase, policyHistory.sessionSearch, config.RuntimeSessionIndex)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("core-repositories", errRuntimeUnavailable)
 	}
 	connectorRepository, err := apiserver.NewConnectorRepository(tracedDatabase)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("core-repositories", errRuntimeUnavailable)
 	}
 	referenceRepository, err := apiserver.NewReferenceAuthorizationRepository(tracedDatabase)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("core-repositories", errRuntimeUnavailable)
 	}
 	secretsClient, secretsTransport, err := newConnectorSecretsClient(config)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-secrets", errRuntimeUnavailable)
 	}
 	secretsDriver := &connectorSecretsDriver{client: secretsClient}
 	ticketSecrets, err := newFindingTicketSecretResolver(secretsDriver, config.ConnectorSecretPrefix, config.ProviderTimeout)
 	if err != nil {
 		secretsTransport.CloseIdleConnections()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("ticket-services", errRuntimeUnavailable)
 	}
 	ticketWebhook, err := apiserver.NewProductionFindingTicketWebhook(config.FindingTicketEgressCIDRs, config.ProviderTimeout)
 	if err != nil {
 		secretsTransport.CloseIdleConnections()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("ticket-services", errRuntimeUnavailable)
 	}
 	ticketService, err := apiserver.NewFindingTicketService(apiserver.FindingTicketServiceConfig{
 		Repository:   repository,
@@ -282,7 +293,7 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 	})
 	if err != nil {
 		secretsTransport.CloseIdleConnections()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("ticket-services", errRuntimeUnavailable)
 	}
 	webhookTestService, err := apiserver.NewIntegrationWebhookTestService(apiserver.IntegrationWebhookTestServiceConfig{
 		Repository: repository, Secrets: ticketSecrets, Webhook: ticketWebhook, LeaseSeconds: 15,
@@ -291,23 +302,23 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 	})
 	if err != nil {
 		secretsTransport.CloseIdleConnections()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("ticket-services", errRuntimeUnavailable)
 	}
 	secretStore, err := apiserver.NewDurableOAuthSecretStore(secretsDriver, config.ConnectorSecretPrefix, config.ConnectorKMSKeyARN, config.ProviderTimeout, func() time.Time { return time.Now().UTC() })
 	if err != nil {
 		secretsTransport.CloseIdleConnections()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-oauth", errRuntimeUnavailable)
 	}
 	providerHTTP, err := newConnectorHTTPClient(config.ProviderTimeout)
 	if err != nil {
 		secretsTransport.CloseIdleConnections()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-oauth", errRuntimeUnavailable)
 	}
 	providerTransport, ok := providerHTTP.Transport.(*http.Transport)
 	if !ok {
 		secretsTransport.CloseIdleConnections()
 		providerHTTP.CloseIdleConnections()
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-oauth", errRuntimeUnavailable)
 	}
 	connectorResources := []io.Closer{transportCloser{secretsTransport}, transportCloser{providerTransport}}
 	keepConnectorResources := false
@@ -327,17 +338,17 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 			connectorResources = append(connectorResources, transportCloser{resources.transport})
 		}
 		if complianceErr != nil {
-			return RuntimeDependencies{}, errRuntimeUnavailable
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("compliance-export", errRuntimeUnavailable)
 		}
 		resources.config.CursorSigningKey = []byte(config.WorkflowSigningKey)
 		compliance, complianceErr = apiserver.NewComplianceProductionHandler(ctx, tracedDatabase, resources.config)
 		if complianceErr != nil {
-			return RuntimeDependencies{}, errRuntimeUnavailable
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("compliance-export", errRuntimeUnavailable)
 		}
 		if tracedSecurityAgentDatabase != nil {
 			agentExports, complianceErr = apiserver.NewSecurityAgentExportProductionHandler(ctx, tracedSecurityAgentDatabase, resources.config)
 			if complianceErr != nil {
-				return RuntimeDependencies{}, errRuntimeUnavailable
+				return RuntimeDependencies{}, markRuntimeDependencyFailure("compliance-export", errRuntimeUnavailable)
 			}
 			if config.EvidenceExportWorkflow == "enabled" && !invalidRuntimeValue(agentExports) {
 				tracedSecurityAgentDatabase.exportReady = newExportWorkflowReadiness(readinessTransport)
@@ -351,23 +362,23 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 			connectorResources = append(connectorResources, transportCloser{transport})
 		}
 		if exportErr != nil || transport == nil {
-			return RuntimeDependencies{}, errRuntimeUnavailable
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("audit-export", errRuntimeUnavailable)
 		}
 		exportContext, cancel := context.WithTimeout(ctx, config.ProviderTimeout)
 		auditExports, exportErr = apiserver.NewAuditExportProductionHandler(exportContext, tracedDatabase, apiserver.AuditExportHandlerConfiguration{Storage: entries, CursorSigningKey: config.AuditExports.CursorSigningKey, ProviderTimeout: config.ProviderTimeout})
 		cancel()
 		if exportErr != nil {
-			return RuntimeDependencies{}, errRuntimeUnavailable
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("audit-export", errRuntimeUnavailable)
 		}
 		auditPublicPages, exportErr = apiserver.NewAuditPublicPageRepository(ctx, tracedDatabase)
 		if exportErr != nil {
-			return RuntimeDependencies{}, errRuntimeUnavailable
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("audit-export", errRuntimeUnavailable)
 		}
 	}
 	providerSecrets := &connectorProviderSecrets{driver: secretsDriver, root: strings.TrimSuffix(config.ConnectorSecretPrefix, "/oauth"), kmsKey: config.ConnectorKMSKeyARN}
 	githubAdapter, err := githubdiscovery.NewAdapter(githubdiscovery.Config{ClientID: config.GitHubClientID, ClientSecretReference: config.GitHubSecretReference, CallbackURL: config.PublicOrigin + "/api/v1/integrations/oauth/callback"}, &githubExchangeClient{http: providerHTTP, secrets: providerSecrets, appID: config.GitHubAppID, privateKeyReference: config.GitHubPrivateKeyReference}, config.ProviderTimeout)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-providers", errRuntimeUnavailable)
 	}
 	connectorProviders := map[string]apiserver.ConnectorOAuthProviderDefinition{
 		"github": {Provider: &githubOAuthProvider{adapter: githubAdapter}, RequestedScopes: []string{"actions:read", "contents:read", "metadata:read"}, CredentialClass: "github_installation_reference"},
@@ -381,81 +392,89 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 	}
 	nangoSecrets, err := newNangoServiceSecretResolver("/var/run/secrets/zasp-nango/service-key")
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-providers", errRuntimeUnavailable)
 	}
 	nangoCloser, err := addProductionNangoProvider(config, nangoSecrets, connectorProviders, connectorChecks)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-providers", errRuntimeUnavailable)
 	}
 	if nangoCloser != nil {
 		connectorResources = append(connectorResources, nangoCloser)
 	}
 	connectorRegistry, err := apiserver.NewConnectorProviderRegistry(connectorProviders, connectorChecks)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-providers", errRuntimeUnavailable)
 	}
 	connectorHandler, err := apiserver.NewConnectorHTTPHandler(apiserver.ConnectorHTTPConfig{
 		Repository: connectorRepository, Workflows: repository, Secrets: secretStore, Clock: func() time.Time { return time.Now().UTC() }, Registry: connectorRegistry,
 	})
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-providers", errRuntimeUnavailable)
 	}
 	referenceResolver := &referenceSecretResolver{driver: secretsDriver, root: strings.TrimSuffix(config.ConnectorSecretPrefix, "/oauth")}
 	referenceAWSClient, referenceAWSTransport, err := newReferenceAWSClient(config)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)
 	}
 	connectorResources = append(connectorResources, transportCloser{referenceAWSTransport})
 	awsAdapter, err := awsdiscovery.NewAdapter(referenceAWSClient, referenceResolver, config.ProviderTimeout)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)
 	}
 	referenceProbes := map[string]apiserver.ReferenceAuthorizationProbe{"aws": &awsReferenceProbe{adapter: awsAdapter}}
 	referenceChecks := map[string]apiserver.ConnectorCapabilityCheck{"aws": func(context.Context) error { return nil }}
 	if len(config.KubernetesEgressCIDRs) > 0 {
 		cidrs, cidrErr := parseReferenceCIDRs(config.KubernetesEgressCIDRs)
 		if cidrErr != nil {
-			return RuntimeDependencies{}, errRuntimeUnavailable
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)
 		}
 		probeClient := &kubernetesProbeClient{resolver: referenceResolver, cidrs: cidrs, lookup: net.DefaultResolver.LookupIPAddr, timeout: config.ProviderTimeout}
 		kubernetesAdapter, adapterErr := kubernetesdiscovery.NewAdapter(probeClient, config.ProviderTimeout)
 		if adapterErr != nil {
-			return RuntimeDependencies{}, errRuntimeUnavailable
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)
 		}
 		referenceProbes["kubernetes"] = &kubernetesReferenceProbe{adapter: kubernetesAdapter, resolver: referenceResolver}
 		referenceChecks["kubernetes"] = func(context.Context) error { return nil }
 	}
 	referenceRegistry, err := apiserver.NewReferenceConnectorRegistry(referenceProbes, referenceChecks)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)
 	}
 	referenceHandler, err := apiserver.NewReferenceAuthorizationHTTPHandler(apiserver.ReferenceAuthorizationHTTPConfig{Repository: referenceRepository, Workflows: repository, Registry: referenceRegistry})
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)
 	}
 	connectorSurface, err := apiserver.NewConnectorSurfaceHandler(connectorHandler, referenceHandler)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("reference-providers", errRuntimeUnavailable)
 	}
 	workerOwner, err := newConnectorWorkerOwner(os.Getenv("HOSTNAME"), rand.Reader)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-lifecycle", errRuntimeUnavailable)
 	}
 	connectorReconciler, err := apiserver.NewConnectorReconciler(apiserver.ConnectorReconcilerConfig{Repository: connectorRepository, Workflows: repository, Registry: connectorRegistry, Secrets: secretStore, Owner: workerOwner, LeaseSeconds: 30, Limit: 25, Interval: time.Second})
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-lifecycle", errRuntimeUnavailable)
 	}
 	lifecycleWorkers := []func(context.Context) error{connectorReconciler.Run, func(ctx context.Context) error {
 		return runReconciliationMaintenance(ctx, connectorRepository, metrics)
 	}}
-	var approvalNotificationReconciler *apiserver.ApprovalNotificationReconciler
+	var approvalNotificationReconciler approvalNotificationLifecycle
 	if approvalNotificationRepository != nil {
-		approvalNotificationReconciler, err = apiserver.NewApprovalNotificationReconciler(apiserver.ApprovalNotificationReconcilerConfig{
-			Repository: approvalNotificationRepository, Secrets: ticketSecrets, Webhook: ticketWebhook,
-			Owner: workerOwner, LeaseSeconds: 30, Interval: time.Second, NewLeaseToken: newFindingTicketLeaseToken,
-		})
+		var closer io.Closer
+		approvalNotificationReconciler, closer, err = selectApprovalNotificationLifecycle(config,
+			func() (approvalNotificationLifecycle, io.Closer, error) {
+				return newRuntimeApprovalMaintenance(ctx, config, authorizer, ticketSecrets, ticketWebhook, workerOwner)
+			},
+			func() (approvalNotificationLifecycle, io.Closer, error) {
+				r, e := apiserver.NewApprovalNotificationReconciler(apiserver.ApprovalNotificationReconcilerConfig{Repository: approvalNotificationRepository, Secrets: ticketSecrets, Webhook: ticketWebhook, Owner: workerOwner, LeaseSeconds: 30, Interval: time.Second, NewLeaseToken: newFindingTicketLeaseToken})
+				return r, nil, e
+			})
+		if closer != nil {
+			connectorResources = append(connectorResources, closer)
+		}
 		if err != nil {
-			return RuntimeDependencies{}, errRuntimeUnavailable
+			return RuntimeDependencies{}, markRuntimeDependencyFailure("connector-lifecycle", errRuntimeUnavailable)
 		}
 		lifecycleWorkers = append(lifecycleWorkers, approvalNotificationReconciler.Run)
 	}
@@ -468,7 +487,7 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 		cookie.SingleTestRecoveryReady = verifier.SingleTestRecoveryAvailable
 		cookie.SingleTestOriginalObserver = observer
 	} else if currentRequired(securityAgentDatabase) {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("production-handlers", errRuntimeUnavailable)
 	}
 	var handlers apiserver.Dependencies
 	var authenticate apiserver.Authenticator
@@ -478,21 +497,21 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 		handlers, authenticate, err = apiserver.NewProductionHandlers(repository, tracedProvider, connectorSurface, cookie)
 	}
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("production-handlers", errRuntimeUnavailable)
 	}
 	connectorResources = append(connectorResources, policyHistory)
 	searchResourcesOwned = false // The existing connector-resource cleanup now owns it.
 	policyDecisions, err := apiserver.NewPolicyDecisionRepository(tracedDatabase)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("policy-surface", errRuntimeUnavailable)
 	}
 	policyHandler, err := apiserver.NewPolicyPublicHTTPHandler(apiserver.PolicyPublicHTTPConfig{Workflows: repository, History: policyHistory, Decisions: policyDecisions})
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("policy-surface", errRuntimeUnavailable)
 	}
 	handlers.Workflow, err = apiserver.NewPolicyWorkflowSurface(handlers.Workflow, policyHandler)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("policy-surface", errRuntimeUnavailable)
 	}
 	var composition http.Handler
 	handlers.Authorizer = authorizer
@@ -506,13 +525,13 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 		composition, err = apiserver.NewComposition(handlers)
 	}
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("handler-composition", errRuntimeUnavailable)
 	}
 	product, err := apiserver.NewProductMiddleware(apiserver.ProductSecurity{
 		PublicOrigin: config.PublicOrigin, MaximumBodyBytes: 16 * 1024, Authenticate: authenticate, GenerateCorrelationID: generateCorrelationID,
 	}, composition)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("product-middleware", errRuntimeUnavailable)
 	}
 	var stytchWebhook http.Handler
 	if currentRequired(database) {
@@ -523,22 +542,22 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 		stytchWebhook, err = apiserver.NewProductionStytchWebhookHandler(repository, config.StytchProjectID, config.StytchWebhookSecret, func() time.Time { return time.Now().UTC().Truncate(time.Millisecond) })
 	}
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("identity-webhook", errRuntimeUnavailable)
 	}
 	publicSurface, err := mountPublicSurface(product, stytchWebhook)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("public-surface", errRuntimeUnavailable)
 	}
 	operational, err := newOperationalMiddleware(output, metrics, newRequestLimiter(config.RequestRatePerSecond, config.RequestBurst, 10000, time.Now), config.RequestTimeout, exporter, publicSurface)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("operational-middleware", errRuntimeUnavailable)
 	}
 	edge, err := newEdgeSecurityMiddleware(edgeSecurityConfig{PublicOrigin: config.PublicOrigin, TrustedProxyCIDRs: config.TrustedProxyCIDRs}, operational)
 	if err != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("edge-middleware", errRuntimeUnavailable)
 	}
 	if ctx.Err() != nil {
-		return RuntimeDependencies{}, errRuntimeUnavailable
+		return RuntimeDependencies{}, markRuntimeDependencyFailure("construction-context", errRuntimeUnavailable)
 	}
 	stores := []StoreDependency{{Name: "postgres-core", Durable: true}, {Name: "postgres-security-agent", Durable: true}, {Name: "aws-secrets-manager-oauth", Durable: true}, {Name: "aws-secrets-manager-webhook", Durable: true}, {Name: "opensearch-runtime-policy-history", Durable: true}}
 	if compliance != nil {
@@ -549,6 +568,31 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 	}
 	keepConnectorResources = true
 	return RuntimeDependencies{ProductHandler: edge, Metrics: metrics, LifecycleWorker: func(ctx context.Context) error { return runLifecycleWorkers(ctx, lifecycleWorkers...) }, ReadinessCheck: func(ctx context.Context) error {
+		if currentRequired(database) && currentRequired(securityAgentDatabase) {
+			checks := []func(context.Context) error{repository.Ready, connectorRepository.Ready, referenceRepository.Ready, policyHandler.Ready, tracedProvider.Ready}
+			if agentExports != nil {
+				checks = append(checks, agentExports.Ready)
+			}
+			if compliance != nil {
+				checks = append(checks, compliance.Ready)
+			}
+			if auditExports != nil {
+				checks = append(checks, auditExports.Ready)
+			}
+			if securityAgentRepository != nil {
+				checks = append(checks, securityAgentRepository.Ready)
+			}
+			if approvalNotificationRepository != nil {
+				checks = append(checks, func(probe context.Context) error {
+					if err := approvalNotificationLifecycleReady(probe, approvalNotificationRepository.ReadyApprovalNotifications, approvalNotificationReconciler); err != nil {
+						return errRuntimeUnavailable
+					}
+					return nil
+				})
+			}
+			return currentComponentReadiness(ctx, connectorReconciler.Ready, checks...)
+		}
+
 		if agentExports != nil {
 			if err := agentExports.Ready(ctx); err != nil {
 				return errRuntimeUnavailable
@@ -573,7 +617,7 @@ func composeRuntimeDependenciesWithRecovery(ctx context.Context, config RuntimeC
 			}
 		}
 		if approvalNotificationRepository != nil {
-			if err := approvalNotificationRepository.ReadyApprovalNotifications(ctx); err != nil || approvalNotificationReconciler == nil || !approvalNotificationReconciler.Ready() {
+			if err := approvalNotificationLifecycleReady(ctx, approvalNotificationRepository.ReadyApprovalNotifications, approvalNotificationReconciler); err != nil {
 				return errRuntimeUnavailable
 			}
 		}

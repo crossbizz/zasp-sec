@@ -1,0 +1,2214 @@
+{"original_tap_line": "TAP version 13\n"}
+{"original_tap_line": "# Subtest: exports have mode-specific dependency access and privately scraped healthy workers\n"}
+{"original_tap_line": "not ok 1 - exports have mode-specific dependency access and privately scraped healthy workers\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 19.414811\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/audit-export-network.test.mjs:15:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/audit-export-network.test.mjs:17:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: endpoint normalization rejects executable array entries without invoking them\n"}
+{"original_tap_line": "ok 2 - endpoint normalization rejects executable array entries without invoking them\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.125589\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: exports refuse missing, broad or noncanonical endpoint snapshots\n"}
+{"original_tap_line": "ok 3 - exports refuse missing, broad or noncanonical endpoint snapshots\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 14.733844\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: export workers have bounded scaling, spread and separate availability rules\n"}
+{"original_tap_line": "not ok 4 - export workers have bounded scaling, spread and separate availability rules\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 30.413327\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/audit-export-operations.test.mjs:7:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/audit-export-operations.test.mjs:9:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: export normalization copies closed configuration and every historical policy\n"}
+{"original_tap_line": "ok 5 - export normalization copies closed configuration and every historical policy\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.808308\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: export normalization refuses malformed authority before rendering\n"}
+{"original_tap_line": "    # Subtest: null\n"}
+{"original_tap_line": "    ok 1 - null\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 4.284783\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: disabled\n"}
+{"original_tap_line": "    ok 2 - disabled\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.422559\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: alias\n"}
+{"original_tap_line": "    ok 3 - alias\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.214074\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: missing\n"}
+{"original_tap_line": "    ok 4 - missing\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.455419\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: role\n"}
+{"original_tap_line": "    ok 5 - role\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.483061\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: account\n"}
+{"original_tap_line": "    ok 6 - account\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.333174\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: region\n"}
+{"original_tap_line": "    ok 7 - region\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.428007\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: queue\n"}
+{"original_tap_line": "    ok 8 - queue\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.324441\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: secret\n"}
+{"original_tap_line": "    ok 9 - secret\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.642102\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: principal\n"}
+{"original_tap_line": "    ok 10 - principal\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.247645\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: sharedPrincipal\n"}
+{"original_tap_line": "    ok 11 - sharedPrincipal\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.211851\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: previous\n"}
+{"original_tap_line": "    ok 12 - previous\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.755804\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: current\n"}
+{"original_tap_line": "    ok 13 - current\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.242417\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: unknownPolicy\n"}
+{"original_tap_line": "    ok 14 - unknownPolicy\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.15872\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: unsafeInteger\n"}
+{"original_tap_line": "    ok 15 - unsafeInteger\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.160754\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: numericString\n"}
+{"original_tap_line": "    ok 16 - numericString\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.273364\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: timeout\n"}
+{"original_tap_line": "    ok 17 - timeout\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.213063\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: duplicatePolicy\n"}
+{"original_tap_line": "    ok 18 - duplicatePolicy\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.182636\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: empty\n"}
+{"original_tap_line": "    ok 19 - empty\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.137898\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: symbol\n"}
+{"original_tap_line": "    ok 20 - symbol\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.089315\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: policyAlias\n"}
+{"original_tap_line": "    ok 21 - policyAlias\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.1587\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: policyGetter\n"}
+{"original_tap_line": "    ok 22 - policyGetter\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.256899\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: arrayProperty\n"}
+{"original_tap_line": "    ok 23 - arrayProperty\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 0.207895\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    1..23\n"}
+{"original_tap_line": "ok 6 - export normalization refuses malformed authority before rendering\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 16.219381\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: normalization retains explicit prior selection and safe boundary values\n"}
+{"original_tap_line": "ok 7 - normalization retains explicit prior selection and safe boundary values\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.266754\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: actual export manifests are pinned to independent expectations and reject authority mutations\n"}
+{"original_tap_line": "not ok 8 - actual export manifests are pinned to independent expectations and reject authority mutations\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 34.76361\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/audit-export-rollout.test.mjs:65:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/audit-export-rollout.test.mjs:67:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: absent configuration rejects renamed export consumers and direct Secret settings\n"}
+{"original_tap_line": "ok 9 - absent configuration rejects renamed export consumers and direct Secret settings\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.95596\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: direct Helm refuses unsafe endpoint ranges and can disable metric scraping\n"}
+{"original_tap_line": "not ok 10 - direct Helm refuses unsafe endpoint ranges and can disable metric scraping\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 194.856139\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/audit-export-workloads.test.mjs:43:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: export workers render isolated production modes with owned credentials\n"}
+{"original_tap_line": "not ok 11 - export workers render isolated production modes with owned credentials\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 14.321479\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/audit-export-workloads.test.mjs:59:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: migration selects explicit policy and preserves canonical limits and predecessor\n"}
+{"original_tap_line": "not ok 12 - migration selects explicit policy and preserves canonical limits and predecessor\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 13.988575\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/audit-export-workloads.test.mjs:100:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: migration integer limits are exact and malformed retained history is rejected\n"}
+{"original_tap_line": "not ok 13 - migration integer limits are exact and malformed retained history is rejected\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 6.895244\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/audit-export-workloads.test.mjs:115:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: migration shell stops at credential read and each failed command\n"}
+{"original_tap_line": "not ok 14 - migration shell stops at credential read and each failed command\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 12.850564\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/audit-export-workloads.test.mjs:127:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: actual chart defaults disable exports and both precision phases retain bounded history\n"}
+{"original_tap_line": "not ok 15 - actual chart defaults disable exports and both precision phases retain bounded history\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 22.447383\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/audit-export-workloads.test.mjs:145:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: API export configuration uses only reader policy and mounted cursor secret\n"}
+{"original_tap_line": "not ok 16 - API export configuration uses only reader policy and mounted cursor secret\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 7.514175\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/audit-export-workloads.test.mjs:154:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: export workload activation refuses missing or incompatible authority\n"}
+{"original_tap_line": "not ok 17 - export workload activation refuses missing or incompatible authority\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.799209\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/audit-export-workloads.test.mjs:178:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: export activation rejects malformed flags and deployment boundaries\n"}
+{"original_tap_line": "ok 18 - export activation rejects malformed flags and deployment boundaries\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 47.418967\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema52 consumers observation retains full11 identity and exact schema isolation\n"}
+{"original_tap_line": "ok 19 - schema52 consumers observation retains full11 identity and exact schema isolation\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 27.464105\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema52 consumers observation rejects missing consumers and consistently pinned wrong intake\n"}
+{"original_tap_line": "ok 20 - schema52 consumers observation rejects missing consumers and consistently pinned wrong intake\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 21.816785\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema52 intake observation retains full11 identity and exact schema isolation\n"}
+{"original_tap_line": "ok 21 - schema52 intake observation retains full11 identity and exact schema isolation\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 12.878125\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema52 intake observation rejects missing consumers and consistently pinned wrong intake\n"}
+{"original_tap_line": "ok 22 - schema52 intake observation rejects missing consumers and consistently pinned wrong intake\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 23.204761\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: observer spends only the inherited deadline across sequential reads\n"}
+{"original_tap_line": "ok 23 - observer spends only the inherited deadline across sequential reads\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.55583\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: invalid or expired inherited deadlines never invoke kubectl\n"}
+{"original_tap_line": "ok 24 - invalid or expired inherited deadlines never invoke kubectl\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.813076\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: a clock rewind cannot replenish an observation deadline\n"}
+{"original_tap_line": "ok 25 - a clock rewind cannot replenish an observation deadline\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.827522\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: precision intake observation requires completed v2 intake and unchanged consumers\n"}
+{"original_tap_line": "ok 26 - precision intake observation requires completed v2 intake and unchanged consumers\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 9.636991\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: precision intake revalidation rejects expiry and pod replacement\n"}
+{"original_tap_line": "ok 27 - precision intake revalidation rejects expiry and pod replacement\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 7.476462\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: observes all precision consumers with intake still v1\n"}
+{"original_tap_line": "ok 28 - observes all precision consumers with intake still v1\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.051683\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: precision observation refuses a consistently pinned old coordinator or early intake\n"}
+{"original_tap_line": "ok 29 - precision observation refuses a consistently pinned old coordinator or early intake\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.517232\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: precision observation refuses an orphan coordinator pod via label\n"}
+{"original_tap_line": "ok 30 - precision observation refuses an orphan coordinator pod via label\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.325916\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: precision observation refuses an orphan coordinator pod via serviceAccount\n"}
+{"original_tap_line": "ok 31 - precision observation refuses an orphan coordinator pod via serviceAccount\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.173835\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: precision observation refuses an orphan coordinator pod via mode\n"}
+{"original_tap_line": "ok 32 - precision observation refuses an orphan coordinator pod via mode\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.195279\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: observes the complete compatible consumer set and revalidates unchanged identities\n"}
+{"original_tap_line": "ok 33 - observes the complete compatible consumer set and revalidates unchanged identities\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.925439\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects staleGeneration\n"}
+{"original_tap_line": "ok 34 - rejects staleGeneration\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.938741\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects oldReplicas\n"}
+{"original_tap_line": "ok 35 - rejects oldReplicas\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.862916\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects missingConsumer\n"}
+{"original_tap_line": "ok 36 - rejects missingConsumer\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.426575\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects missingPod\n"}
+{"original_tap_line": "ok 37 - rejects missingPod\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.804941\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects terminatingPod\n"}
+{"original_tap_line": "ok 38 - rejects terminatingPod\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.227837\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects nonReady\n"}
+{"original_tap_line": "ok 39 - rejects nonReady\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.959672\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects wrongOwner\n"}
+{"original_tap_line": "ok 40 - rejects wrongOwner\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.952371\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects configDrift\n"}
+{"original_tap_line": "ok 41 - rejects configDrift\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.884288\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects podDrift\n"}
+{"original_tap_line": "ok 42 - rejects podDrift\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.973343\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects imageDrift\n"}
+{"original_tap_line": "ok 43 - rejects imageDrift\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.597407\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects wrongNamespace\n"}
+{"original_tap_line": "ok 44 - rejects wrongNamespace\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.490572\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects wrongSchema\n"}
+{"original_tap_line": "ok 45 - rejects wrongSchema\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.81283\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects staleReplicaSet\n"}
+{"original_tap_line": "ok 46 - rejects staleReplicaSet\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.899681\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects addedHostNetwork\n"}
+{"original_tap_line": "ok 47 - rejects addedHostNetwork\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.961835\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects addedHostPID\n"}
+{"original_tap_line": "ok 48 - rejects addedHostPID\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.000904\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects injectedInit\n"}
+{"original_tap_line": "ok 49 - rejects injectedInit\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.001896\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects injectedEphemeral\n"}
+{"original_tap_line": "ok 50 - rejects injectedEphemeral\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.112934\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects changedPodLabel\n"}
+{"original_tap_line": "ok 51 - rejects changedPodLabel\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.908725\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects changedPodAnnotation\n"}
+{"original_tap_line": "ok 52 - rejects changedPodAnnotation\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.008085\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rejects addedPodLabel\n"}
+{"original_tap_line": "ok 53 - rejects addedPodLabel\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.979321\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: revalidation rejects expiry and replacement pods with unchanged images\n"}
+{"original_tap_line": "ok 54 - revalidation rejects expiry and replacement pods with unchanged images\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 4.061295\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: observes rendered schema49 compatibility with controlled provider metadata\n"}
+{"original_tap_line": "not ok 55 - observes rendered schema49 compatibility with controlled provider metadata\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 16.501548\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compatibility-observation.test.mjs:271:4'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/compatibility-observation.test.mjs:274:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: observes rendered schema50 backfill with controlled provider metadata\n"}
+{"original_tap_line": "not ok 56 - observes rendered schema50 backfill with controlled provider metadata\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 7.01924\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compatibility-observation.test.mjs:271:4'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/compatibility-observation.test.mjs:274:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: observes rendered schema51 precision-consumers with controlled provider metadata\n"}
+{"original_tap_line": "not ok 57 - observes rendered schema51 precision-consumers with controlled provider metadata\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 6.718025\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compatibility-observation.test.mjs:271:4'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/compatibility-observation.test.mjs:274:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: observes rendered schema51 precision-intake with controlled provider metadata\n"}
+{"original_tap_line": "not ok 58 - observes rendered schema51 precision-intake with controlled provider metadata\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 7.578507\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compatibility-observation.test.mjs:271:4'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/compatibility-observation.test.mjs:274:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: observes rendered schema52 precision-consumers with controlled provider metadata\n"}
+{"original_tap_line": "not ok 59 - observes rendered schema52 precision-consumers with controlled provider metadata\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.441913\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compatibility-observation.test.mjs:271:4'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/compatibility-observation.test.mjs:274:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: observes rendered schema52 precision-intake with controlled provider metadata\n"}
+{"original_tap_line": "not ok 60 - observes rendered schema52 precision-intake with controlled provider metadata\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.896873\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compatibility-observation.test.mjs:271:4'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/compatibility-observation.test.mjs:274:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: observes completed intended init containers and rejects failed or wrong-image initialization\n"}
+{"original_tap_line": "ok 61 - observes completed intended init containers and rejects failed or wrong-image initialization\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.606538\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: direct Helm rejects malformed compliance authority without the JS normalizer\n"}
+{"original_tap_line": "not ok 62 - direct Helm rejects malformed compliance authority without the JS normalizer\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 21.594584\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compliance-export-helm.test.mjs:11:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: compliance API startup rejects shell authority and command changes with and without audit\n"}
+{"original_tap_line": "not ok 63 - compliance API startup rejects shell authority and command changes with and without audit\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 25.101791\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compliance-export-rollout.test.mjs:15:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/compliance-export-rollout.test.mjs:19:19)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: migration uses the published registration environment names\n"}
+{"original_tap_line": "not ok 64 - migration uses the published registration environment names\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 10.181354\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compliance-export-rollout.test.mjs:36:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/compliance-export-rollout.test.mjs:37:16)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: closed compliance input refuses authority confusion and snapshots before await\n"}
+{"original_tap_line": "not ok 65 - closed compliance input refuses authority confusion and snapshots before await\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 10.975377\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compliance-export-rollout.test.mjs:45:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/compliance-export-rollout.test.mjs:62:16)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rendered compliance rejects authority, sidecar, readiness and additive network mutations\n"}
+{"original_tap_line": "not ok 66 - rendered compliance rejects authority, sidecar, readiness and additive network mutations\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 13.710425\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compliance-export-rollout.test.mjs:68:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/compliance-export-rollout.test.mjs:70:17)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: compliance56 coexists with both optional predecessors in both phases\n"}
+{"original_tap_line": "not ok 67 - compliance56 coexists with both optional predecessors in both phases\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.742528\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compliance-export-rollout.test.mjs:101:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/compliance-export-rollout.test.mjs:107:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema55 predecessors still render and59 stays closed\n"}
+{"original_tap_line": "not ok 68 - schema55 predecessors still render and59 stays closed\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 7.132582\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compliance-export-rollout.test.mjs:119:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/compliance-export-rollout.test.mjs:120:3)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: real Go loaders consume enabled and disabled rendered compliance environments\n"}
+{"original_tap_line": "not ok 69 - real Go loaders consume enabled and disabled rendered compliance environments\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 25.686084\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/compliance-export-runtime.test.mjs:16:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: |-\n"}
+{"original_tap_line": "    Command failed: go env GOVERSION\n"}
+{"original_tap_line": "    Go: Unknown option: env\n"}
+{"original_tap_line": "    \n"}
+{"original_tap_line": "  code: 1\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    genericNodeError (node:internal/errors:983:15)\n"}
+{"original_tap_line": "    wrappedFn (node:internal/errors:537:14)\n"}
+{"original_tap_line": "    ChildProcess.exithandler (node:child_process:417:12)\n"}
+{"original_tap_line": "    ChildProcess.emit (node:events:519:28)\n"}
+{"original_tap_line": "    maybeClose (node:internal/child_process:1101:16)\n"}
+{"original_tap_line": "    Socket.<anonymous> (node:internal/child_process:456:11)\n"}
+{"original_tap_line": "    Socket.emit (node:events:519:28)\n"}
+{"original_tap_line": "    Pipe.<anonymous> (node:net:347:12)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: Go test launch preserves setup-go PATH and configured cache without ambient credentials\n"}
+{"original_tap_line": "ok 70 - Go test launch preserves setup-go PATH and configured cache without ambient credentials\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.642335\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: Go test launch accepts an explicit executable outside Homebrew and leaves default cache portable\n"}
+{"original_tap_line": "ok 71 - Go test launch accepts an explicit executable outside Homebrew and leaves default cache portable\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.550763\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: Go test launch refuses an unpinned or malformed toolchain version\n"}
+{"original_tap_line": "ok 72 - Go test launch refuses an unpinned or malformed toolchain version\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.485325\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema60 requires a schema59 scheduler fence before the release60 scheduler starts\n"}
+{"original_tap_line": "not ok 73 - schema60 requires a schema59 scheduler fence before the release60 scheduler starts\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 10.965762\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/discovery-schema60-rollout.test.mjs:12:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/discovery-schema60-rollout.test.mjs:13:23)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema60 rollout rejects an absent fence, a fenced new scheduler, and unknown successors\n"}
+{"original_tap_line": "not ok 74 - schema60 rollout rejects an absent fence, a fenced new scheduler, and unknown successors\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 8.297304\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/discovery-schema60-rollout.test.mjs:42:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/discovery-schema60-rollout.test.mjs:52:23)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: the canonical release suite and runbook require the live schema60 transition guard\n"}
+{"original_tap_line": "ok 75 - the canonical release suite and runbook require the live schema60 transition guard\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 6.389929\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema60 transition applies maintenance, proves the scheduler is drained, then activates the reviewed image\n"}
+{"original_tap_line": "ok 76 - schema60 transition applies maintenance, proves the scheduler is drained, then activates the reviewed image\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 4.430138\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema60 transition refuses activation while any old or terminating scheduler pod remains\n"}
+{"original_tap_line": "ok 77 - schema60 transition refuses activation while any old or terminating scheduler pod remains\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.036268\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema60 transition rejects mutable images and namespace replacement before invoking tools\n"}
+{"original_tap_line": "ok 78 - schema60 transition rejects mutable images and namespace replacement before invoking tools\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.370431\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release removes its owned export values after Helm success or refusal\n"}
+{"original_tap_line": "not ok 79 - release removes its owned export values after Helm success or refusal\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 85.788523\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:19:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: |-\n"}
+{"original_tap_line": "    Command failed: /workspace/.zasp-cloud-owned/spec44-runtime-tools/node-v22.23.1-linux-x64/bin/node --input-type=module -e \n"}
+{"original_tap_line": "            import { renderRelease } from \"file:///workspace/zasp-sec/deploy/production/release-contract.mjs\";\n"}
+{"original_tap_line": "            import { productionReleaseFixture as release } from \"file:///workspace/zasp-sec/deploy/production/release-fixture.mjs\";\n"}
+{"original_tap_line": "            import { auditExportReleaseFixture } from \"file:///workspace/zasp-sec/deploy/production/audit-export-release-fixture.mjs\";\n"}
+{"original_tap_line": "            const config = auditExportReleaseFixture();\n"}
+{"original_tap_line": "            const expectFailure = process.argv[1] === \"failure\";\n"}
+{"original_tap_line": "            // This conflict is validated by the actual chart against its connector role.\n"}
+{"original_tap_line": "            if (expectFailure) config.readerRoleArn = release.connectors.roleArn;\n"}
+{"original_tap_line": "            let failed = false;\n"}
+{"original_tap_line": "            try { await renderRelease(release, {schemaVersion:52, sessionSearchPhase:\"precision-intake\", auditExports:config}); }\n"}
+{"original_tap_line": "            catch (error) { if (error.message !== \"release rejected\") throw error; failed = true; }\n"}
+{"original_tap_line": "            if (failed !== expectFailure) throw new Error(\"unexpected render outcome\");\n"}
+{"original_tap_line": "           success\n"}
+{"original_tap_line": "    file:///workspace/zasp-sec/[eval1]:12\n"}
+{"original_tap_line": "            if (failed !== expectFailure) throw new Error(\"unexpected render outcome\");\n"}
+{"original_tap_line": "                                                ^\n"}
+{"original_tap_line": "    \n"}
+{"original_tap_line": "    Error: unexpected render outcome\n"}
+{"original_tap_line": "        at file:///workspace/zasp-sec/[eval1]:12:45\n"}
+{"original_tap_line": "    \n"}
+{"original_tap_line": "    Node.js v22.23.1\n"}
+{"original_tap_line": "    \n"}
+{"original_tap_line": "  code: 1\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    file:///workspace/zasp-sec/[eval1]:12:45\n"}
+{"original_tap_line": "    genericNodeError (node:internal/errors:983:15)\n"}
+{"original_tap_line": "    wrappedFn (node:internal/errors:537:14)\n"}
+{"original_tap_line": "    ChildProcess.exithandler (node:child_process:417:12)\n"}
+{"original_tap_line": "    ChildProcess.emit (node:events:519:28)\n"}
+{"original_tap_line": "    maybeClose (node:internal/child_process:1101:16)\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:304:5)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release owns its export configuration while Helm runs\n"}
+{"original_tap_line": "not ok 80 - release owns its export configuration while Helm runs\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 18.208772\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:50:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:56:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release refuses export activation outside its approved schema and phase\n"}
+{"original_tap_line": "ok 81 - release refuses export activation outside its approved schema and phase\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 4.430233\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: full release renders export API workers and selected migration policy together\n"}
+{"original_tap_line": "not ok 82 - full release renders export API workers and selected migration policy together\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 10.525105\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:71:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:73:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: routing release requires the dual-version correlation worker\n"}
+{"original_tap_line": "not ok 83 - routing release requires the dual-version correlation worker\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 6.895663\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:96:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:97:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: sandbox compatibility staging explicitly pins49 before future activation\n"}
+{"original_tap_line": "not ok 84 - sandbox compatibility staging explicitly pins49 before future activation\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.987053\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:121:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:122:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: compatibility staging explicitly pins48 without activating routing\n"}
+{"original_tap_line": "not ok 85 - compatibility staging explicitly pins48 without activating routing\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 8.700815\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:133:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:134:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: production CI runs sensor lineage and authenticated replay regressions\n"}
+{"original_tap_line": "ok 86 - production CI runs sensor lineage and authenticated replay regressions\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 10.312684\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: customer edge selects precise source only explicitly\n"}
+{"original_tap_line": "not ok 87 - customer edge selects precise source only explicitly\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 9.938768\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:176:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'edge release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderCustomerEdgeRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:447:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:178:23)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: customer edge isolates lineage producer, consumer and layout initialization\n"}
+{"original_tap_line": "not ok 88 - customer edge isolates lineage producer, consumer and layout initialization\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 11.906826\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:185:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'edge release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderCustomerEdgeRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:447:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:186:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: session query API IAM grants only fixed read endpoints\n"}
+{"original_tap_line": "ok 89 - session query API IAM grants only fixed read endpoints\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 4.168482\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: runtime session search bootstrap and worker IAM have separate fixed paths\n"}
+{"original_tap_line": "ok 90 - runtime session search bootstrap and worker IAM have separate fixed paths\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 4.662084\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: Attack Lab release requires a separate same-account test role\n"}
+{"original_tap_line": "ok 91 - Attack Lab release requires a separate same-account test role\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.534331\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: Attack Lab test IAM identity trusts only its run service account and denies cloud permissions\n"}
+{"original_tap_line": "ok 92 - Attack Lab test IAM identity trusts only its run service account and denies cloud permissions\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.360852\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: Attack Lab routes image pulls through its own bucket-restricted S3 endpoint\n"}
+{"original_tap_line": "ok 93 - Attack Lab routes image pulls through its own bucket-restricted S3 endpoint\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.534738\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: Attack Lab security group consumes the executable bounded egress contract\n"}
+{"original_tap_line": "ok 94 - Attack Lab security group consumes the executable bounded egress contract\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 9.693576\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: production container builds are exact, non-root, health-bound, and secret-free\n"}
+{"original_tap_line": "ok 95 - production container builds are exact, non-root, health-bound, and secret-free\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 4.497074\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: customer edge renders database-free gateway, multi-node sensor, and pinned Tetragon\n"}
+{"original_tap_line": "not ok 96 - customer edge renders database-free gateway, multi-node sensor, and pinned Tetragon\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 9.109735\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:362:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'edge release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderCustomerEdgeRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:447:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:363:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: customer edge rejects mutable sensors, broad networks, shared secrets, and ambient state\n"}
+{"original_tap_line": "ok 97 - customer edge rejects mutable sensors, broad networks, shared secrets, and ambient state\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.306897\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: production release renders private Nango dependency plus a fail-closed local Collector\n"}
+{"original_tap_line": "not ok 98 - production release renders private Nango dependency plus a fail-closed local Collector\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 4.003077\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:537:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:538:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: rendered release rejects an unreviewed job identity\n"}
+{"original_tap_line": "not ok 99 - rendered release rejects an unreviewed job identity\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.374836\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:730:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:731:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: Grafana and New Relic Collector overlays bound remote failure with one exact secret\n"}
+{"original_tap_line": "not ok 100 - Grafana and New Relic Collector overlays bound remote failure with one exact secret\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.904976\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:742:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:747:23)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release renders one TLS origin, split ports, private internals, and migration/schema gates\n"}
+{"original_tap_line": "not ok 101 - release renders one TLS origin, split ports, private internals, and migration/schema gates\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.550512\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:789:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:790:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release runs the security agent with one exact database authority\n"}
+{"original_tap_line": "not ok 102 - release runs the security agent with one exact database authority\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.413214\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:885:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:886:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release runs temporary policy actions with a separate signing identity\n"}
+{"original_tap_line": "not ok 103 - release runs temporary policy actions with a separate signing identity\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.061379\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:941:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:942:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release deploys the central policy writer with one exact signing identity\n"}
+{"original_tap_line": "not ok 104 - release deploys the central policy writer with one exact signing identity\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 6.233051\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:977:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:978:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies\n"}
+{"original_tap_line": "not ok 105 - release applies non-root rollout, zone and host spread, drain, PDB, and default-deny policies\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.717331\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1017:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1018:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release ships the complete v15 runtime data plane behind exact workload authorities\n"}
+{"original_tap_line": "not ok 106 - release ships the complete v15 runtime data plane behind exact workload authorities\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.219168\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1067:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1068:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release gives the runtime data plane bounded ingress and dependency egress\n"}
+{"original_tap_line": "not ok 107 - release gives the runtime data plane bounded ingress and dependency egress\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.342738\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1128:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1129:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release monitors, scales, and independently alerts every runtime workload\n"}
+{"original_tap_line": "not ok 108 - release monitors, scales, and independently alerts every runtime workload\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.693839\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1158:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1159:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release mounts distinct risk and graph projections behind exact DB, Neo4j, and schema authorities\n"}
+{"original_tap_line": "not ok 109 - release mounts distinct risk and graph projections behind exact DB, Neo4j, and schema authorities\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.368724\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1176:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1177:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release isolates the discovery outbox publisher behind exact DB, queue, and web-identity authority\n"}
+{"original_tap_line": "not ok 110 - release isolates the discovery outbox publisher behind exact DB, queue, and web-identity authority\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.102531\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1232:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1233:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release mounts one readiness-gated discovery worker with exact provider and artifact authority\n"}
+{"original_tap_line": "not ok 111 - release mounts one readiness-gated discovery worker with exact provider and artifact authority\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.901417\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1256:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1257:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release isolates the red team outbox runner and tenant target adapter\n"}
+{"original_tap_line": "not ok 112 - release isolates the red team outbox runner and tenant target adapter\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.000156\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1289:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1290:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release isolates Attack Lab execution behind a proxy-only Fargate authority\n"}
+{"original_tap_line": "not ok 113 - release isolates Attack Lab execution behind a proxy-only Fargate authority\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.175541\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1363:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1364:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release gives only API an explicit connector identity, reference-only config, and bounded provider egress\n"}
+{"original_tap_line": "not ok 114 - release gives only API an explicit connector identity, reference-only config, and bounded provider egress\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.953369\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1447:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1448:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release gives finding tickets exact API-only webhook egress and secret-read authority\n"}
+{"original_tap_line": "not ok 115 - release gives finding tickets exact API-only webhook egress and secret-read authority\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.983061\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1528:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1530:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release renders read-only synthetic and exact SLO budgets without credential values\n"}
+{"original_tap_line": "not ok 116 - release renders read-only synthetic and exact SLO budgets without credential values\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.920816\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1554:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1555:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release rejects unpinned images and hostile public identifiers\n"}
+{"original_tap_line": "not ok 117 - release rejects unpinned images and hostile public identifiers\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.50438\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1614:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: |-\n"}
+{"original_tap_line": "    Got unwanted rejection.\n"}
+{"original_tap_line": "    Actual message: \"release rejected\"\n"}
+{"original_tap_line": "  code: 'ERR_ASSERTION'\n"}
+{"original_tap_line": "  name: 'AssertionError'\n"}
+{"original_tap_line": "  actual:\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async waitForActual (node:assert:644:5)\n"}
+{"original_tap_line": "    async Function.doesNotReject (node:assert:787:33)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1615:3)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  operator: 'doesNotReject'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1615:3)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: terraform binds each shipped secret consumer to one exact least-privilege IRSA role\n"}
+{"original_tap_line": "ok 118 - terraform binds each shipped secret consumer to one exact least-privilege IRSA role\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 13.562001\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: terraform isolates connector mutation and reference authorization behind one API-only web-identity role\n"}
+{"original_tap_line": "ok 119 - terraform isolates connector mutation and reference authorization behind one API-only web-identity role\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.909209\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: terraform isolates red team queue evidence and target credentials behind three identities\n"}
+{"original_tap_line": "ok 120 - terraform isolates red team queue evidence and target credentials behind three identities\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.283321\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: terraform isolates Attack Lab queue evidence proxy and runner pod networks\n"}
+{"original_tap_line": "ok 121 - terraform isolates Attack Lab queue evidence proxy and runner pod networks\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.477068\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: terraform provisions the exact encrypted v15 runtime plane and isolated identities\n"}
+{"original_tap_line": "ok 122 - terraform provisions the exact encrypted v15 runtime plane and isolated identities\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.228773\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: production recovery renders isolated inert workers and least-privilege cloud authority\n"}
+{"original_tap_line": "not ok 123 - production recovery renders isolated inert workers and least-privilege cloud authority\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.648778\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:1992:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-contract.test.mjs:1993:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: API build dependency stage resolves its copied local health module\n"}
+{"original_tap_line": "not ok 124 - API build dependency stage resolves its copied local health module\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 4.077319\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-contract.test.mjs:2087:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: |-\n"}
+{"original_tap_line": "    Command failed: go env GOVERSION\n"}
+{"original_tap_line": "    Go: Unknown option: env\n"}
+{"original_tap_line": "    \n"}
+{"original_tap_line": "  code: 1\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    genericNodeError (node:internal/errors:983:15)\n"}
+{"original_tap_line": "    wrappedFn (node:internal/errors:537:14)\n"}
+{"original_tap_line": "    ChildProcess.exithandler (node:child_process:417:12)\n"}
+{"original_tap_line": "    ChildProcess.emit (node:events:519:28)\n"}
+{"original_tap_line": "    maybeClose (node:internal/child_process:1101:16)\n"}
+{"original_tap_line": "    Socket.<anonymous> (node:internal/child_process:456:11)\n"}
+{"original_tap_line": "    Socket.emit (node:events:519:28)\n"}
+{"original_tap_line": "    Pipe.<anonymous> (node:net:347:12)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release policy binds performance, resilience, supply-chain, and owned proof gates\n"}
+{"original_tap_line": "ok 125 - release policy binds performance, resilience, supply-chain, and owned proof gates\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.780584\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: read-only synthetic proves web and authenticated API correlation without leaking token\n"}
+{"original_tap_line": "ok 126 - read-only synthetic proves web and authenticated API correlation without leaking token\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 37.512299\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: read-only synthetic refuses invalid trace and span identifiers\n"}
+{"original_tap_line": "    # Subtest: valid sampled\n"}
+{"original_tap_line": "    ok 1 - valid sampled\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 7.662403\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: valid unsampled\n"}
+{"original_tap_line": "    ok 2 - valid unsampled\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 6.092288\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: zero span\n"}
+{"original_tap_line": "    ok 3 - zero span\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 5.323886\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: zero trace\n"}
+{"original_tap_line": "    ok 4 - zero trace\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 5.715417\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    # Subtest: malformed\n"}
+{"original_tap_line": "    ok 5 - malformed\n"}
+{"original_tap_line": "      ---\n"}
+{"original_tap_line": "      duration_ms: 3.552175\n"}
+{"original_tap_line": "      type: 'test'\n"}
+{"original_tap_line": "      ...\n"}
+{"original_tap_line": "    1..5\n"}
+{"original_tap_line": "ok 127 - read-only synthetic refuses invalid trace and span identifiers\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 30.997451\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: release sources contain truthful runbooks, canary, SBOM/license/image/secret gates\n"}
+{"original_tap_line": "not ok 128 - release sources contain truthful runbooks, canary, SBOM/license/image/secret gates\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 13.576692\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/release-gates.test.mjs:86:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async verifyReleaseSources (file:///workspace/zasp-sec/deploy/production/release-gates.mjs:61:23)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/release-gates.test.mjs:87:18)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: bridge binds opaque API resourceVersion from the same validated backfill snapshot\n"}
+{"original_tap_line": "not ok 129 - bridge binds opaque API resourceVersion from the same validated backfill snapshot\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 16.115874\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:40:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async fixture (file:///workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:17:19)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:42:13)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: bridge refuses malformed requests before any cluster read\n"}
+{"original_tap_line": "not ok 130 - bridge refuses malformed requests before any cluster read\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.434052\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:55:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async fixture (file:///workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:17:19)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:57:13)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: bridge cannot substitute an API version from an invalid or missing deployment\n"}
+{"original_tap_line": "not ok 131 - bridge cannot substitute an API version from an invalid or missing deployment\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 4.007233\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:64:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async fixture (file:///workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:17:19)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:67:15)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: bridge refuses deadline expiry or clock rewind after full observer validation\n"}
+{"original_tap_line": "not ok 132 - bridge refuses deadline expiry or clock rewind after full observer validation\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.933492\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:76:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async fixture (file:///workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:17:19)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:78:15)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: read-only bridge process refuses malformed or oversized input without exposing it\n"}
+{"original_tap_line": "ok 133 - read-only bridge process refuses malformed or oversized input without exposing it\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 209.584053\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: bridge process returns the validated snapshot through its real stdin/stdout protocol\n"}
+{"original_tap_line": "not ok 134 - bridge process returns the validated snapshot through its real stdin/stdout protocol\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 8.57175\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:97:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async fixture (file:///workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:17:19)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:98:13)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: query observation requires all ready query consumers and refuses old API replicas\n"}
+{"original_tap_line": "not ok 135 - query observation requires all ready query consumers and refuses old API replicas\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.982272\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:126:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async fixture (file:///workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:17:19)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/sandbox-query-observation.test.mjs:127:17)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: security-agent schema53 preserves precision-consumers, exports=false\n"}
+{"original_tap_line": "not ok 136 - security-agent schema53 preserves precision-consumers, exports=false\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 12.191116\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:18:5'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:20:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: security-agent schema53 preserves precision-consumers, exports=true\n"}
+{"original_tap_line": "not ok 137 - security-agent schema53 preserves precision-consumers, exports=true\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 11.097602\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:18:5'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:20:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: security-agent schema53 preserves precision-intake, exports=false\n"}
+{"original_tap_line": "not ok 138 - security-agent schema53 preserves precision-intake, exports=false\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.681357\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:18:5'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:20:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: security-agent schema53 preserves precision-intake, exports=true\n"}
+{"original_tap_line": "not ok 139 - security-agent schema53 preserves precision-intake, exports=true\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.59804\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:18:5'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:20:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: security-agent schema54 preserves precision-consumers, exports=false\n"}
+{"original_tap_line": "not ok 140 - security-agent schema54 preserves precision-consumers, exports=false\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.717702\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:18:5'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:20:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: security-agent schema54 preserves precision-consumers, exports=true\n"}
+{"original_tap_line": "not ok 141 - security-agent schema54 preserves precision-consumers, exports=true\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 6.034491\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:18:5'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:20:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: security-agent schema54 preserves precision-intake, exports=false\n"}
+{"original_tap_line": "not ok 142 - security-agent schema54 preserves precision-intake, exports=false\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 4.140234\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:18:5'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:20:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: security-agent schema54 preserves precision-intake, exports=true\n"}
+{"original_tap_line": "not ok 143 - security-agent schema54 preserves precision-intake, exports=true\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.316875\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:18:5'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:20:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: budget release keeps default49 and rejects implicit or future phases\n"}
+{"original_tap_line": "not ok 144 - budget release keeps default49 and rejects implicit or future phases\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 7.142917\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:52:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/security-agent-budget-rollout.test.mjs:53:16)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema55 retains precision-consumers and audit exports=false with reconciler disabled\n"}
+{"original_tap_line": "not ok 145 - schema55 retains precision-consumers and audit exports=false with reconciler disabled\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 14.368521\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:16:5'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:18:24)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema55 retains precision-consumers and audit exports=true with reconciler disabled\n"}
+{"original_tap_line": "not ok 146 - schema55 retains precision-consumers and audit exports=true with reconciler disabled\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 13.56898\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:16:5'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:18:24)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema55 retains precision-intake and audit exports=false with reconciler disabled\n"}
+{"original_tap_line": "not ok 147 - schema55 retains precision-intake and audit exports=false with reconciler disabled\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.646664\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:16:5'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:18:24)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: schema55 retains precision-intake and audit exports=true with reconciler disabled\n"}
+{"original_tap_line": "not ok 148 - schema55 retains precision-intake and audit exports=true with reconciler disabled\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.033947\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:16:5'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:18:24)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: audit schema52 preserves precision-consumers without activating export workloads\n"}
+{"original_tap_line": "not ok 149 - audit schema52 preserves precision-consumers without activating export workloads\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.767066\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:51:3'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:52:22)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: audit schema52 preserves precision-intake without activating export workloads\n"}
+{"original_tap_line": "not ok 150 - audit schema52 preserves precision-intake without activating export workloads\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.922358\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:51:3'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:52:22)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: audit schema52 requires an explicit supported precision phase\n"}
+{"original_tap_line": "ok 151 - audit schema52 requires an explicit supported precision phase\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 6.2719\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: precision intake changes only admitted schema after consumer upgrade\n"}
+{"original_tap_line": "not ok 152 - precision intake changes only admitted schema after consumer upgrade\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.444338\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:101:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:102:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: precision consumers install51 with dual readers while intake remains v1\n"}
+{"original_tap_line": "not ok 153 - precision consumers install51 with dual readers while intake remains v1\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.460506\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:115:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:116:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: session search backfill keeps independent v1 and v2 resources\n"}
+{"original_tap_line": "not ok 154 - session search backfill keeps independent v1 and v2 resources\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 3.289107\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:142:3'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:143:23)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: session search query keeps independent v1 and v2 resources\n"}
+{"original_tap_line": "not ok 155 - session search query keeps independent v1 and v2 resources\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.723911\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:142:3'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:143:23)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: compatibility keeps only v1 and rejects mixed phase/schema selections\n"}
+{"original_tap_line": "not ok 156 - compatibility keeps only v1 and rejects mixed phase/schema selections\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.955612\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:186:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:187:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: historical phases reject accidental precision producer and consumer selectors\n"}
+{"original_tap_line": "not ok 157 - historical phases reject accidental precision producer and consumer selectors\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.638743\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:199:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/session-search-rollout.test.mjs:200:21)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: full release reconciler opt-in pins workload authority and rejects tampering\n"}
+{"original_tap_line": "not ok 158 - full release reconciler opt-in pins workload authority and rejects tampering\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 17.378575\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/test-reconciler-rollout.test.mjs:11:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/test-reconciler-rollout.test.mjs:13:16)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: reconciler refuses indirect RBAC grants through authenticated service-account groups\n"}
+{"original_tap_line": "not ok 159 - reconciler refuses indirect RBAC grants through authenticated service-account groups\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 6.724705\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/test-reconciler-rollout.test.mjs:50:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/test-reconciler-rollout.test.mjs:52:16)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: reconciler composes with audit exports in both precision phases\n"}
+{"original_tap_line": "not ok 160 - reconciler composes with audit exports in both precision phases\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 6.239471\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/test-reconciler-rollout.test.mjs:66:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/test-reconciler-rollout.test.mjs:69:18)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: reconciler metrics remain private and retain unready targets for alerting\n"}
+{"original_tap_line": "not ok 161 - reconciler metrics remain private and retain unready targets for alerting\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.686874\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/test-reconciler-rollout.test.mjs:74:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/test-reconciler-rollout.test.mjs:76:16)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: reconciler rejects terminal newlines in authority strings\n"}
+{"original_tap_line": "ok 162 - reconciler rejects terminal newlines in authority strings\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.16325\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: reconciler configuration is explicit and snapshots all authority inputs\n"}
+{"original_tap_line": "ok 163 - reconciler configuration is explicit and snapshots all authority inputs\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.651065\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: reconciler rejects ambiguous and cross-account authority\n"}
+{"original_tap_line": "ok 164 - reconciler rejects ambiguous and cross-account authority\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 0.890327\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: reconciler rejects unsafe endpoint snapshots and never invokes input accessors\n"}
+{"original_tap_line": "ok 165 - reconciler rejects unsafe endpoint snapshots and never invokes input accessors\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.687886\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: reconciler network validator rejects widened dependencies and additive policies\n"}
+{"original_tap_line": "not ok 166 - reconciler network validator rejects widened dependencies and additive policies\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 13.872325\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/test-reconciler-workloads.test.mjs:38:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/test-reconciler-workloads.test.mjs:40:20)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: shared chart policies cannot broaden the reconciler DNS-only allowance\n"}
+{"original_tap_line": "not ok 167 - shared chart policies cannot broaden the reconciler DNS-only allowance\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.778934\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/test-reconciler-workloads.test.mjs:89:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'release rejected'\n"}
+{"original_tap_line": "  code: 'ERR_TEST_FAILURE'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    renderRelease (file:///workspace/zasp-sec/deploy/production/release-contract.mjs:388:11)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n"}
+{"original_tap_line": "    async TestContext.<anonymous> (file:///workspace/zasp-sec/deploy/production/test-reconciler-workloads.test.mjs:92:18)\n"}
+{"original_tap_line": "    async Test.run (node:internal/test_runner/test:1054:7)\n"}
+{"original_tap_line": "    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: reconciler is opt-in and refuses incompatible deployment authority\n"}
+{"original_tap_line": "not ok 168 - reconciler is opt-in and refuses incompatible deployment authority\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 10.092561\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/test-reconciler-workloads.test.mjs:103:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: reconciler renders isolated credentials, fixed runtime and bounded shutdown\n"}
+{"original_tap_line": "not ok 169 - reconciler renders isolated credentials, fixed runtime and bounded shutdown\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.20087\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/test-reconciler-workloads.test.mjs:115:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: turning chart monitoring off removes scrape resources and closes ingress\n"}
+{"original_tap_line": "not ok 170 - turning chart monitoring off removes scrape resources and closes ingress\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 5.428293\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/test-reconciler-workloads.test.mjs:141:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: reconciler egress is closed to declared database and cloud ranges plus cluster DNS\n"}
+{"original_tap_line": "not ok 171 - reconciler egress is closed to declared database and cloud ranges plus cluster DNS\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 10.484173\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  location: '/workspace/zasp-sec/deploy/production/test-reconciler-workloads.test.mjs:150:1'\n"}
+{"original_tap_line": "  failureType: 'testCodeFailure'\n"}
+{"original_tap_line": "  error: 'spawn helm ENOENT'\n"}
+{"original_tap_line": "  code: 'ENOENT'\n"}
+{"original_tap_line": "  stack: |-\n"}
+{"original_tap_line": "    ChildProcess._handle.onexit (node:internal/child_process:285:19)\n"}
+{"original_tap_line": "    onErrorNT (node:internal/child_process:483:16)\n"}
+{"original_tap_line": "    process.processTicksAndRejections (node:internal/process/task_queues:89:21)\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: standalone release gate runs canonical rollout tests before later release checks\n"}
+{"original_tap_line": "ok 172 - standalone release gate runs canonical rollout tests before later release checks\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 6.031396\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: missing advisory evidence blocks release without an audit request or clearance claim\n"}
+{"original_tap_line": "ok 173 - missing advisory evidence blocks release without an audit request or clearance claim\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 1.581974\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "# Subtest: failed canonical rollout tests stop standalone release before any audit invocation\n"}
+{"original_tap_line": "ok 174 - failed canonical rollout tests stop standalone release before any audit invocation\n"}
+{"original_tap_line": "  ---\n"}
+{"original_tap_line": "  duration_ms: 2.044324\n"}
+{"original_tap_line": "  type: 'test'\n"}
+{"original_tap_line": "  ...\n"}
+{"original_tap_line": "1..174\n"}
+{"original_tap_line": "# tests 202\n"}
+{"original_tap_line": "# suites 0\n"}
+{"original_tap_line": "# pass 106\n"}
+{"original_tap_line": "# fail 96\n"}
+{"original_tap_line": "# cancelled 0\n"}
+{"original_tap_line": "# skipped 0\n"}
+{"original_tap_line": "# todo 0\n"}
+{"original_tap_line": "# duration_ms 1075.431792\n"}

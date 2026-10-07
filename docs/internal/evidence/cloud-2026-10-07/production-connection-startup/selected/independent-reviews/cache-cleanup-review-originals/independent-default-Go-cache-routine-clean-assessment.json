@@ -1,0 +1,24 @@
+{
+  "status": "SAFE_ROUTINE_BUILD_CACHE_CLEAN_SCOPE",
+  "cache": "/home/agent/.cache/go-build",
+  "metadata": {
+    "standardGoArtifactFiles": 18616,
+    "cachedExecutableDirectories": 1,
+    "cachedExecutableName": "test2json",
+    "rootFiles": [
+      "README",
+      "trim.txt"
+    ],
+    "dangling3aTargetExists": false,
+    "payloadBytes": 6287889865
+  },
+  "liveCompilerMetadataSnapshot": [],
+  "source": "/tmp/zasp-cloud-tools/go/src/cmd/go/internal/clean/clean.go:145-183",
+  "requiredScope": "Exact Go1.26.8 clean -cache only, explicit GOCACHE, no package args/modcache/fuzzcache flags; ROOT default-cache writer exclusion during action.",
+  "limits": [
+    "Read-only metadata and source assessment; no cache mutation by reviewer.",
+    "No full payload hashes or universal evidence-content census; observed topology is ordinary build artifacts.",
+    "Current no compiler-process observation does not guarantee future absence.",
+    "Dangling historical3a symlink removes only alias; old lostSHM custody not resurrected."
+  ]
+}

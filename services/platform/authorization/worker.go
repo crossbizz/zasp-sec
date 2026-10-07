@@ -108,12 +108,13 @@ type WorkerDecision struct {
 }
 
 type WorkerExecutor struct {
-	pool             *pgxpool.Pool
-	checker          Checker
-	storeID, modelID string
-	key              *WorkerKey
-	adapter          bool
-	discovery        bool
+	approvalOriginProfile string
+	pool                  *pgxpool.Pool
+	checker               Checker
+	storeID, modelID      string
+	key                   *WorkerKey
+	adapter               bool
+	discovery             bool
 }
 
 func NewWorkerExecutor(pool *pgxpool.Pool, checker Checker, storeID, modelID string, key *WorkerKey) (*WorkerExecutor, error) {
@@ -353,6 +354,11 @@ func (e *WorkerExecutor) Execute(ctx context.Context, decision WorkerDecision) (
 	spec, supported := workerOperation(decision.operation)
 	if e == nil || e.key == nil || e.pool == nil || ctx == nil || !supported || e.adapter != spec.adapter || e.discovery != spec.discovery || len(decision.envelope) == 0 || e.key.purpose != spec.purpose {
 		return nil, ErrInvalid
+	}
+	if e.approvalOriginProfile != "" {
+		if _, supported := approvalOriginStatement(decision.operation); supported {
+			return e.ExecuteWithApprovalOrigin(ctx, decision)
+		}
 	}
 	return e.executeWorkerStatement(ctx, decision, spec.statement)
 }

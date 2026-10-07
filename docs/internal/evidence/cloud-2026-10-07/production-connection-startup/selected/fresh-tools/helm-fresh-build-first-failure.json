@@ -1,0 +1,25 @@
+{
+  "format": "fresh-spec29-Helm-source-build-v1",
+  "exit": 1,
+  "normalJoined": true,
+  "failure": null,
+  "elapsed": 1.7524903329999972,
+  "minimumFreeBytes": {
+    "/workspace": 1604198400,
+    "/tmp": 7161716736,
+    "/dev/shm": 9434034176
+  },
+  "argv": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "build",
+    "-mod=readonly",
+    "-trimpath",
+    "-ldflags",
+    "-w -s -X helm.sh/helm/v3/internal/version.version=v3.19.0 -X helm.sh/helm/v3/internal/version.metadata=source.go1.26.8 -X helm.sh/helm/v3/internal/version.gitCommit=3d8990f0836691f0229297773f3524598f46bda6 -X helm.sh/helm/v3/internal/version.gitTreeState=source-verified -X helm.sh/helm/v3/pkg/lint/rules.k8sVersionMajor=1 -X helm.sh/helm/v3/pkg/lint/rules.k8sVersionMinor=34 -X helm.sh/helm/v3/pkg/chartutil.k8sVersionMajor=1 -X helm.sh/helm/v3/pkg/chartutil.k8sVersionMinor=34",
+    "-o",
+    "/tmp/zasp-cloud-tools/bin/helm",
+    "./cmd/helm"
+  ],
+  "sourceMembersByteMatched": 1380,
+  "sourceBuiltNotOfficialReleaseBinary": true
+}

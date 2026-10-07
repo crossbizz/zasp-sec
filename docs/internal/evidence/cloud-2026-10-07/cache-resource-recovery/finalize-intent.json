@@ -1,0 +1,8 @@
+{
+  "destination": "/dev/shm/zasp-default-go-cache-custody-3f40727d6cf74424942b1b7b2097cdbe/3a",
+  "logicalBytes": 320655218,
+  "planSHA256": "aa45817a7744a9823a221d939ba7d2539c7edd0fe58ab9dedbe0a3aed91db603",
+  "preparedSHA256": "32771de22a3fc088786df6fd8c22624e62b7c6249534648217cddec029c9f71f",
+  "quarantine": "/home/agent/.cache/go-build/.3a-lossless-custody-ef6fb768aa064f0e8db01374d9ed2d7c",
+  "sourceBucket": "/home/agent/.cache/go-build/3a"
+}

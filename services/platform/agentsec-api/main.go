@@ -23,6 +23,12 @@ var (
 )
 
 func main() {
+	if handled, err := runConfigurationCommand(os.Args[1:], os.LookupEnv, os.Stdout); handled {
+		if err != nil {
+			os.Exit(1)
+		}
+		return
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	config, err := loadRuntimeConfigFromEnvironment(os.LookupEnv)

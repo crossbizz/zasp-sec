@@ -2,6 +2,30 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ESLint } from "eslint";
 
+const stytchProofSnapshot = "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/source/run.mjs";
+
+test("the immutable Stytch proof keeps lint coverage for locally caught cleanup throws", { timeout: 10000 }, async () => {
+  const eslint = new ESLint();
+  assert.equal(await eslint.isPathIgnored(stytchProofSnapshot), false);
+  const [actual] = await eslint.lintFiles(stytchProofSnapshot);
+  assert.equal(actual.errorCount, 0, JSON.stringify(actual.messages));
+  const [otherRules] = await eslint.lintText("const unused = 1; const expression = /\\x00/; console.log(expression);", { filePath: stytchProofSnapshot });
+  assert.ok(otherRules.messages.some(message => message.ruleId === "@typescript-eslint/no-unused-vars"));
+  assert.ok(otherRules.messages.some(message => message.ruleId === "no-control-regex"));
+});
+
+test("ordinary scripts and unreviewed proof neighbors reject throws from finally", { timeout: 10000 }, async () => {
+  const eslint = new ESLint();
+  for (const filePath of [
+    "scripts/ordinary-cleanup.mjs",
+    "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/source/neighbor.mjs",
+    "docs/internal/evidence/cloud-2026-10-08/stytch-owned-test-session/source/run.mjs",
+  ]) {
+    const [result] = await eslint.lintText("try { console.log('work'); } finally { throw new Error('cleanup'); }", { filePath });
+    assert.ok(result.messages.some(message => message.ruleId === "no-unsafe-finally"));
+  }
+});
+
 test("lint excludes local agent evidence without excluding product code or durable tests", { timeout: 10000 }, async () => {
   const eslint = new ESLint();
   assert.equal(await eslint.isPathIgnored(".superpowers/sdd/example/standalone-smoke.mjs"), true);

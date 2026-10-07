@@ -1,0 +1,14 @@
+{
+  "binding": {
+    "exe": "/tmp/zasp-native-supported-tools-h0zqa978/temporal-server-complete/temporal-server",
+    "pid": 26704,
+    "port": 7233,
+    "socketInode": "33762",
+    "startTicks": "1039637"
+  },
+  "databasePreparationSHA256": "4a0f5feacc87c01f643608fb39aea2ca1146df50539d239800751cce6c1b9340",
+  "elapsedSeconds": 0.3872713910004677,
+  "format": "owned-Temporal132-PG-frontend-ready-v1",
+  "processOwnerPID": 26701,
+  "scope": "Actual owned frontend TCP listener only; not SDK namespace/application or production proof."
+}

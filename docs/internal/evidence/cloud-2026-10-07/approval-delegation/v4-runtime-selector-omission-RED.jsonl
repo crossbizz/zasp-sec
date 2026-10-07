@@ -1,0 +1,9 @@
+{"Time":"2026-10-07T09:49:31.996721984Z","Action":"start","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-api"}
+{"Time":"2026-10-07T09:49:32.08767105Z","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-api","Test":"TestApprovalNotificationRuntimeSelectionPreservesBoundaries"}
+{"Time":"2026-10-07T09:49:32.087714045Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-api","Test":"TestApprovalNotificationRuntimeSelectionPreservesBoundaries","Output":"=== RUN   TestApprovalNotificationRuntimeSelectionPreservesBoundaries\n"}
+{"Time":"2026-10-07T09:49:32.087779283Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-api","Test":"TestApprovalNotificationRuntimeSelectionPreservesBoundaries","Output":"    approval_maintenance_runtime_test.go:123: old claims selected in native path or original path changed\n"}
+{"Time":"2026-10-07T09:49:32.087787926Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-api","Test":"TestApprovalNotificationRuntimeSelectionPreservesBoundaries","Output":"--- FAIL: TestApprovalNotificationRuntimeSelectionPreservesBoundaries (0.00s)\n"}
+{"Time":"2026-10-07T09:49:32.087836029Z","Action":"fail","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-api","Test":"TestApprovalNotificationRuntimeSelectionPreservesBoundaries","Elapsed":0}
+{"Time":"2026-10-07T09:49:32.088103003Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-api","Output":"FAIL\n"}
+{"Time":"2026-10-07T09:49:32.092337096Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-api","Output":"FAIL\tgithub.com/zasp-ai/zasp-sec/services/platform/agentsec-api\t0.095s\n"}
+{"Time":"2026-10-07T09:49:32.09237262Z","Action":"fail","Package":"github.com/zasp-ai/zasp-sec/services/platform/agentsec-api","Elapsed":0.096}

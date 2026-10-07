@@ -1,0 +1,25 @@
+{
+  "status": "SOURCE_ARCHITECTURE_SUPPORTED_SUBJECT_TO_EXACT_IMPLEMENTATION_AND_TDD",
+  "observedDiagnostic": "Root reports core3332ms success/live; second agent1668ms refused/deadline in unchanged combined5s. Reported actual, underlying root records not independently reconciled by this source-only review.",
+  "contract": "Two independently authorized fixed bootstrap metadata reads, all-or-refuse. Original SQL/checksum/key/authority/input/currentAuthorization/RLS checks remain per-principal and immutable.",
+  "legitimateOrderingChange": "Agent own metadata may now be read before core finishes or after core later refuses. This is not product user/tenant query permission expansion; role and driver remain fixed. Sequential previous expectation agent0oncorefalse must be revised honestly.",
+  "requiredLifecycle": [
+    "derive cancel context from existing bounded5s parent; no second timeout/cap increase",
+    "both started once, each delivers exactly one buffered completion",
+    "cancel on any failure and always wait/drain both completions before returning; no detached queries after caller cleanup",
+    "services gate remains before launch; previous readiness callback remains after both passes",
+    "final context.Err check after join; no success from canceled/deadline context",
+    "invalid initial context/key retain zero SQL; cancellation race can legitimately suppress or start other metadata query"
+  ],
+  "sourceConcurrency": "Per-database RWMutex read guard surrounds QueryRow.Scan; Close takes exclusive lock. Production pgx driver delegates to concurrency-safe pgxpool; separate production pools/principals. Parent must not close either pool until both goroutines joined.",
+  "meaningfulTests": [
+    "bounded channel barrier proves both probes start without sleeps; sequential baseline fails",
+    "one refuses while other awaits cancellation, verify sibling canceled and both exited before return",
+    "reverse-direction failure/cancellation",
+    "one success cannot admit while sibling blocked/refused",
+    "parent canceled/shorter deadline preserves same bound and drains",
+    "callbacks observe common context via race-safe channel/mutex; reading counters only after join",
+    "same four SQL parameters/exact two booleans per role remain asserted"
+  ],
+  "limitations": "Concurrent scheduling addresses measured sequential sum but same physical PostgreSQL CPU can contend. Actual unchanged browser is needed; no success/native/provider claim from source architecture. No timeout/predicate/checksum relaxation."
+}

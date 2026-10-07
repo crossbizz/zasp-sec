@@ -1,0 +1,21 @@
+{
+  "attempts": [
+    {
+      "observedToolExitCode": 1,
+      "originalResult": "/tmp/full-verify-epoch29-0z96r_91/result.json",
+      "originalResultBytes": 15023,
+      "originalResultSHA256": "874397e2d1ae9611246675a08a628db8010d483aa828064428c432d0ba11d395",
+      "sessionID": 3153
+    },
+    {
+      "observedToolExitCode": 1,
+      "originalResult": "/tmp/full-verify-epoch29-retry-0jqd1mhz/result.json",
+      "originalResultBytes": 44796,
+      "originalResultSHA256": "a5d4ad85742cf56c36fec0b33e6506888d94797713f2dd424bc99e2a9d4d7216",
+      "sessionID": 41874
+    }
+  ],
+  "format": "spec29-outer-tool-join-observation-v1",
+  "recordedUTC": "2026-10-07T03:08:50Z",
+  "scope": "Tool observations transcribed after actual terminal responses; no reconstructed process binding or unavailable historical records."
+}

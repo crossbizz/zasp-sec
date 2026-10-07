@@ -1,0 +1,49 @@
+{
+  "format": "spec29-exact-five-locked-module-admission-v1",
+  "modules": [
+    {
+      "path": "golang.org/x/sys",
+      "version": "v0.47.0",
+      "sum": "h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=",
+      "goModSum": "h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=",
+      "directory": "/tmp/zasp-go-module-cache-current/golang.org/x/sys@v0.47.0",
+      "zipSHA256": "cdac013ddced0262926ec29ffcda645da39670e61c7e5b761e572b6b1809bb1b"
+    },
+    {
+      "path": "google.golang.org/grpc",
+      "version": "v1.83.2",
+      "sum": "h1:EManeRomTObA0BU7I8vXgg/78uE5MJ9M8B39EX2WscU=",
+      "goModSum": "h1:YPI1hK3kDked6iHvgX3tR0y+nX/qpMFKhPgFsokw1S8=",
+      "directory": "/tmp/zasp-go-module-cache-current/google.golang.org/grpc@v1.83.2",
+      "zipSHA256": "84292905a694e17862d15abc123a6f7f7efa9e1e3a77e80120982ff95b2605ea"
+    },
+    {
+      "path": "golang.org/x/sync",
+      "version": "v0.22.0",
+      "sum": "h1:SZjpbeLmrCk4xhRSZFNZW5gFUeCeFgjekvI/+gfScek=",
+      "goModSum": "h1:9xrNwdLfx4jkKbNva9FpL6vEN7evnE43NNNJQ2LF3+0=",
+      "directory": "/tmp/zasp-go-module-cache-current/golang.org/x/sync@v0.22.0",
+      "zipSHA256": "4bc67d258ce7867cfc1a43765c43d98b4c49b90c46dd0b86f896a5a4909fade0"
+    },
+    {
+      "path": "golang.org/x/net",
+      "version": "v0.58.0",
+      "sum": "h1:ynWG7rqYi4ccpTEuPZ2QGWHktVEM9DMCj9yzDE0Q7To=",
+      "goModSum": "h1:YwCddHnFlT7eLQqVprV19OnhLGtc5xOKgE0RyqgfWAU=",
+      "directory": "/tmp/zasp-go-module-cache-current/golang.org/x/net@v0.58.0",
+      "zipSHA256": "aa78bbf8d55db3e6995630165e2bcd7dce6d0b8831c166fa03b80ac94fb650e7"
+    },
+    {
+      "path": "golang.org/x/crypto",
+      "version": "v0.56.0",
+      "sum": "h1:GUh5Ii4J5jtcseSMiRqr1jXCNHoxjeV9Fmekc2oLy6Y=",
+      "goModSum": "h1:OMW5y6CY9l38uPLmxU6l6pwcXp1obtLo3e6gT7gQR2I=",
+      "directory": "/tmp/zasp-go-module-cache-current/golang.org/x/crypto@v0.56.0",
+      "zipSHA256": "fdffb67dc8c0ecea55664eb42c323c2e3b5af9fa72cd120939106c2cdc11dcb4"
+    }
+  ],
+  "goModGoSumEqualIndex": true,
+  "gosumdb": "sum.golang.org",
+  "proxy": "https://proxy.golang.org",
+  "scope": "Go checksum validation plus exact committed go.sum matches; no standalone independent signed checkpoint replay and no app compile/test."
+}

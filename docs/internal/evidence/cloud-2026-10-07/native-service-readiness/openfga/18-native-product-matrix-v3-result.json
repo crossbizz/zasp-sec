@@ -1,0 +1,10 @@
+{
+  "returncode": 1,
+  "elapsedSeconds": 0.47092892399996344,
+  "pid": 22828,
+  "joined": true,
+  "binarySHA256": "f02acb4c5ef755d752ef7c220403fc70aa24e8da2e4b7b3d28a68bf9dd52dbf2",
+  "binaryBytes": 68726528,
+  "logSHA256": "62e9dee6c42966dd62aa2a076b0f79e3bd1e5fafe16bcf47a53cad7f7c452240",
+  "scope": "Actual native ownedFGA fullknownmodel default-equivalent bootstrap and original93matrix"
+}

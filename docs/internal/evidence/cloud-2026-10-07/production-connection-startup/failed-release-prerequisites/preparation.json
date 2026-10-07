@@ -1,0 +1,6 @@
+{
+  "scope": "Preparation only; not launched or source frozen until root publication notice. Prior full attempt FAIL retained. Exact remaining command sequence original order, no skips/cap changes.",
+  "ownerSHA256": "b358cbf3dc0803d0b2ba1bfd471b9d03c387043e8081d462db4cd163e25ea4f4",
+  "originalFailedAttempt": "/tmp/full-verify-spec29-final-3tx4rm_i",
+  "command": "npm run lint && npm run production:imports:test && npm run production:imports:source && npm run staging:gate:test && npm run production:release:test && npm run build && npm run production:imports:compiled && npm run implementation:status:check"
+}

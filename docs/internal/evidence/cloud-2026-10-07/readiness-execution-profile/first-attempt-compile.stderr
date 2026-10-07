@@ -1,0 +1,2 @@
+# github.com/zasp-ai/zasp-sec/services/platform/apiserver [github.com/zasp-ai/zasp-sec/services/platform/apiserver.test]
+/dev/shm/readiness80-cost-82wqqm9u/diagnostic-overlay.go:569:3: declared and not used: preciseWire

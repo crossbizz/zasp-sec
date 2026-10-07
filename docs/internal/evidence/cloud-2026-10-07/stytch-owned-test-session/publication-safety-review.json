@@ -1,0 +1,18 @@
+{
+  "candidate": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv",
+  "checked": [
+    "Every original selection byte-identical with original/copy identities distinguished; closed file roster verified.",
+    "Wrapper source and fake driver reviewed as code, credential reads by name and synthetic fixture literals only; no actual credential/password/sessionJWT/authheaders copied. Current Stytch project/secret values checked absent in each copied original without printing values.",
+    "Scalar actual/offline/review/first-attempt JSON checked; private journal and raw response/log bodies excluded.",
+    "Original failed-driver expectation chronology preserved in exact safe receipt and private original-driver hash reference.",
+    "No archives/compression/network/scanner/execution or shared repository mutations."
+  ],
+  "filesIncludingManifest": 12,
+  "format": "Stytch-selected-complete-publication-safety-review-v1",
+  "limits": "This is author publication-safety/closure review, not a second independent review or global scanner clearance. ROOT exact staged scan and independent combined batch review remain required.",
+  "manifestSHA256": "3d45e1c1ba66b88164085ef1654a6e03de234bde2a61d582cf20065bd548fd8d",
+  "observedUTC": "2026-10-07T00:40:32.861184+00:00",
+  "payloadBytes": 43016,
+  "scanner": "NOT_RUN",
+  "status": "PASS-BOUNDED-PUBLICATION-SAFETY"
+}

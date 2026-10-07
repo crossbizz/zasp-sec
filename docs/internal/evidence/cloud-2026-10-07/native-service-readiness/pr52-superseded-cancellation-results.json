@@ -1,0 +1,41 @@
+{
+  "latestHeadUntouched": "146dceb57fbf5241cb5ed6bec24db2ac4f351ec8",
+  "results": [
+    {
+      "id": 37549559484,
+      "head": "ff7f86ff665642e6d9e9d0aa678d631e226299bc",
+      "action": "cancel-requested",
+      "exit": 0
+    },
+    {
+      "id": 37549555576,
+      "head": "ff7f86ff665642e6d9e9d0aa678d631e226299bc",
+      "action": "cancel-requested",
+      "exit": 0
+    },
+    {
+      "id": 37549119405,
+      "head": "1fd02829f08c1e1957af578fc466961505e10200",
+      "action": "cancel-requested",
+      "exit": 0
+    },
+    {
+      "id": 37549114815,
+      "head": "1fd02829f08c1e1957af578fc466961505e10200",
+      "action": "cancel-requested",
+      "exit": 0
+    },
+    {
+      "id": 37548749536,
+      "head": "1f81c512d64a1eaf1411c0c56fd3b38b6a3bd183",
+      "action": "cancel-requested",
+      "exit": 0
+    },
+    {
+      "id": 37548675731,
+      "head": "1f81c512d64a1eaf1411c0c56fd3b38b6a3bd183",
+      "action": "cancel-requested",
+      "exit": 0
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "status": "READONLY-STARTUP-READINESS-CONTEXT-AUDIT",
+  "sourceBindings": [
+    {
+      "path": "/workspace/zasp-sec/services/platform/agentsec-api/production_runtime.go",
+      "sha256": "7f71dcba243b538a0d6cdd6625fa41f284598b18a731daf87a9175ed8d68af7f",
+      "bytes": 50317
+    },
+    {
+      "path": "/workspace/zasp-sec/services/platform/agentsec-api/authorization_runtime_readiness.go",
+      "sha256": "b4140a7195722fe36b10e3d7d1a2bbeeef49679fb1e7611498ef9d98ff884e0a",
+      "bytes": 1126
+    },
+    {
+      "path": "/workspace/zasp-sec/services/platform/apiserver/authorization_runtime_readiness.go",
+      "sha256": "148a993cba12c9c868a993caf63850724b42bb2796345576ae0c6b264bde740d",
+      "bytes": 1541
+    },
+    {
+      "path": "/workspace/zasp-sec/services/platform/apiserver/authorization_transaction.go",
+      "sha256": "95a188b5d23de72a69a9f82c8719bf1b040295642710c1e87e1c617be65a6471",
+      "bytes": 4789
+    },
+    {
+      "path": "/workspace/zasp-sec/services/platform/agentsec-worker/production_runtime.go",
+      "sha256": "60f45695f22887e886f219cd289ec03928b3e92727a3fa9d1bf40be6b23997d6",
+      "bytes": 48278
+    },
+    {
+      "path": "/workspace/zasp-sec/services/platform/agentsec-worker/authorization_worker_runtime.go",
+      "sha256": "b245023aa4dcc3431f30156b795a840b161cbfc1964d40e088499e2dda2ec803",
+      "bytes": 4942
+    },
+    {
+      "path": "/workspace/zasp-sec/services/platform/runtimeservices/clients.go",
+      "sha256": "e1c9f3006ae7f7f36baa1e50c6a931d27e92d7c5b9515188c98be7ae9702c2c3",
+      "bytes": 4732
+    }
+  ],
+  "observedHostedScope": "Actual annotation identifies runtime-build / authorization-readiness / api-ready only; no underlying SQL/context error or causal duration available.",
+  "findings": [
+    {
+      "source": "agentsec-api/production_runtime.go:54-91",
+      "finding": "connectCtx created before both pool initializations and reused for authorization readiness after runtimeservices.Connect(parentctx), authorization components and checksum preparation. Native connect has own c.Timeout bound but consumes walltime of earlier connectCtx."
+    },
+    {
+      "source": "apiserver/authorization_transaction.go:31; production_runtime.go:77",
+      "finding": "RequireCurrentAuthorization already prewarms sync.OnceValues compiledchecksums synchronously before activation; on this startup path coldmetadata runs here, not first inside CurrentAuthorizationRuntimeReady. It still consumes earlier connectCtx budget."
+    },
+    {
+      "source": "apiserver/authorization_runtime_readiness.go:18-39",
+      "finding": "Entry ctx validation, database activation/closed checks, fixedchecksums and two exactSQLboolean predicates remain failclosed. Coldchecksum computation on other firstcall paths has no interruptiblecontext, but QueryRow/terminalctx refuse expiredbudget."
+    },
+    {
+      "source": "agentsec-api/authorization_runtime_readiness.go:20-29",
+      "finding": "Recurring readiness already creates fresh timeout AFTER servicesReady and keeps combinedcore/securityagent checks within one bound."
+    },
+    {
+      "source": "agentsec-worker/production_runtime.go:62-78",
+      "finding": "Worker startup shares min(lease/2,5s) across parse/pool/Ping/profile readiness; similar scheduling exposure, not this observed API failure and should not be changed speculatively."
+    },
+    {
+      "source": "agentsec-worker/authorization_worker_runtime.go:63-77",
+      "finding": "Temporalworker profile probe independently bounds pool creation+probe10s. No evidence here of same postnative-services reusedcontext."
+    }
+  ],
+  "safestCandidate": "Create fresh context.WithTimeout(original parentctx, unchangedconfig.ProviderTimeout) only for combinedtwo authorization probes immediately after successful services/components/RequireCurrentAuthorization. Keep originalpoolconnectCtx/limits, allSQL/checksums/RLS/authority strings/cleanup error markers/order, parentcancellation/deadline and outerstartupcap. Explicitly scheduling change, not newSQLcap.",
+  "meaningfulTDD": [
+    "Causalfixture setup consumes/expires priorconnectionchild while originalparentlive; require originalsharedchildfailure and newfreshcombinedreadinesssuccess with actualcaller budget boundary.",
+    "Parentcancelled/deadlineexpired mustrefuse; first/second readiness false/error stillrefuse and combinedprobe uses one unchangedtimeout.",
+    "SlowSQL readiness exceeding ProviderTimeout mustfail; noreset between core and securityagent probes.",
+    "All originalSQL args/checksum/roles and resourcecleanup retained. Coldcompiledmetadata measuredseparately beforeclaiming it causedhostedfailure."
+  ],
+  "reviewerExecution": "Read/hashinspection only; no runtime/tests or source edits",
+  "limitations": [
+    "Nohostedunderlyingcause established",
+    "No timeouts/checksums/guards changed",
+    "Worker potentialsimilarity not permission to broadrefactor"
+  ]
+}

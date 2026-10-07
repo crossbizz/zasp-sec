@@ -1,0 +1,10 @@
+{
+  "currentFileSHA256": "55825905996ca5301aee88420259bc894084f9e7f7eb060ad95ef824c70ce534",
+  "exactSourceBindingKey": "scripts/api-start.mjs",
+  "missingEffectiveNames": 50,
+  "priorReviewSHA256": "d204baca82bd5cb92dc716041832f012e830b5c93bab3bb3518fc2e8d2391460",
+  "requiredNames": 53,
+  "scope": "Private original parsed read only; no field values beyond public source digest/scalar counts copied. Presence is not readiness.",
+  "status": "PASS_EXACT_FIELD_ASSOCIATION_AND_SCALAR_RECOMPUTATION",
+  "supportedAliasesPresent": 3
+}

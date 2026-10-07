@@ -1,0 +1,28 @@
+{
+  "status": "PASS_CURRENT_HELPER_ACTUAL_STARTUP3_AND_NORMAL_CLEANUP_SCOPE",
+  "resultSHA256": "5dbd73915858ed27e219d760f8b77bedca8c417fb57b90ccf05dfc92599053da",
+  "outerSHA256": "be87a2ca92dc93555513157dd6ce2e5d1e1261e9a4a2ee9402f4e0369b9cd203",
+  "compileSHA256": "d1dfe1be23a883904e92b53e27bb4e5ccfa9fa938fdb97c4bf06b82edc6d3552",
+  "compiledBinarySHA256": "ebd8d720446aa20b75024448122f35a1c314e27572f91059d19e20e4039c75da",
+  "current149DistinctBindingsPreCompileRuntimeEqualAndHashesVerified": true,
+  "topPass": 1,
+  "subtests": [
+    "ordinary",
+    "dsn-options-jit-on",
+    "pgoptions-jit-on"
+  ],
+  "testFail": 0,
+  "testSkip": 0,
+  "childCommands": 4,
+  "allNormalJoinedExit0NoForce": true,
+  "freshPGPID": 26557,
+  "directPIDAbsentProducerObserved": true,
+  "port54398BindableProducerObserved": true,
+  "durableCopies": 6,
+  "limits": [
+    "Actual helper executes SHOW jit and row_security assertions; exact current helper846368 only, no application/native80/fullAPI/provider acceptance.",
+    "Original smoke17195zombie/incompletecleanup kept separately; no absenceclaim for oldPID.",
+    "ROOTtool-observed outer0 and persistedownerobservations only, no invented kernelwait/completeprocesscensus.",
+    "No test/service/compile rerun by reviewer; 179library aliases separate from149distinctresolvedfile bindings."
+  ]
+}

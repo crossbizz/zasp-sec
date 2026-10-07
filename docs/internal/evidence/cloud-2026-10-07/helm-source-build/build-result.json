@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "build",
+    "-mod=readonly",
+    "-trimpath",
+    "-ldflags",
+    "-w -s -X helm.sh/helm/v3/internal/version.version=v3.19.0 -X helm.sh/helm/v3/internal/version.metadata=source.go1.26.8 -X helm.sh/helm/v3/internal/version.gitCommit=3d8990f0836691f0229297773f3524598f46bda6 -X helm.sh/helm/v3/internal/version.gitTreeState=source-verified -X helm.sh/helm/v3/pkg/lint/rules.k8sVersionMajor=1 -X helm.sh/helm/v3/pkg/lint/rules.k8sVersionMinor=34 -X helm.sh/helm/v3/pkg/chartutil.k8sVersionMajor=1 -X helm.sh/helm/v3/pkg/chartutil.k8sVersionMinor=34",
+    "-o",
+    "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/helm",
+    "./cmd/helm"
+  ],
+  "binaryBytes": 60915874,
+  "binarySHA256": "7bb647ba5a84f762ddd0945541c0cf3dd4a159066b705ccfd5a3fb635f2b5509",
+  "compilerSHA256": "d9a2fa19c7ef8b57f420012c21f49f235c46f08a68c12077d9c753dbb6ccdc34",
+  "elapsedSeconds": 35.844555744999525,
+  "failure": null,
+  "forced": false,
+  "format": "checksum-admitted-Helm319-source-build-result-v1",
+  "minimumFreeBytes": {
+    "/tmp": 2505408512,
+    "/workspace": 1514405888
+  },
+  "normalJoined": true,
+  "returncode": 0,
+  "scope": "Source-built official Helm3.19.0 body with Go1.26.8, explicit source metadata; not official release binary.",
+  "sourceGoModSumUnchanged": true
+}

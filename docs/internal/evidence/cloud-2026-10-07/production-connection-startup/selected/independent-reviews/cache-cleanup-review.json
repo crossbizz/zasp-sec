@@ -1,0 +1,144 @@
+{
+  "current16WorkingIndexPostimages": [
+    {
+      "path": "scripts/browser-command-failure.mjs",
+      "sha256": "cabd07fd7dd8f2a6d1cdf3a8164a6eafe442555da66cf275b7d7d0f59939d05e"
+    },
+    {
+      "path": "scripts/runtime-dependency-marker.test.mjs",
+      "sha256": "cdd8696299e81336432421c49d2e2e7d3e6dda04f93833c259686ef1040495ed"
+    },
+    {
+      "path": "services/platform/agentsec-api/compliance_browser_process_test.go",
+      "sha256": "2cb2ad01b1254a9f7c853e64567d65527e7c7d538f2c28f75b60ba5fa2452068"
+    },
+    {
+      "path": "services/platform/agentsec-api/production_runtime.go",
+      "sha256": "7f71dcba243b538a0d6cdd6625fa41f284598b18a731daf87a9175ed8d68af7f"
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime_dependency_diagnostic.go",
+      "sha256": "963eb2a1b047a5a50a7f9344dd16477f048ae481a07c02c1a68c44be060d7215"
+    },
+    {
+      "path": "services/platform/agentsec-api/runtime_dependency_diagnostic_test.go",
+      "sha256": "02cde62c1c085ea3bca73880f71febcfa0eeffbc63e38ae75f8ff0f44af2772f"
+    },
+    {
+      "path": "services/platform/agentsec-worker/authorization_worker_discovery_runtime.go",
+      "sha256": "f5440f9139950f17a5a72ed87e5ae3f80987c1d9316cb5558d9ab6e2dde052c8"
+    },
+    {
+      "path": "services/platform/agentsec-worker/authorization_worker_runtime.go",
+      "sha256": "b245023aa4dcc3431f30156b795a840b161cbfc1964d40e088499e2dda2ec803"
+    },
+    {
+      "path": "services/platform/agentsec-worker/production_runtime.go",
+      "sha256": "60f45695f22887e886f219cd289ec03928b3e92727a3fa9d1bf40be6b23997d6"
+    },
+    {
+      "path": "services/platform/agentsec-worker/recovery_job.go",
+      "sha256": "3fd9c61e3adba2d59bb89da4c4cd69f98f47acc49983fe980f4fd8de6413b713"
+    },
+    {
+      "path": "services/platform/agentsec-worker/security_agent_temporal_runtime.go",
+      "sha256": "dbe2a5f7554a1d09b2a0e072b330bf0ec89457f0792d2a034f2ecbc0705445ca"
+    },
+    {
+      "path": "services/platform/attack-lab-proxy/production.go",
+      "sha256": "b06236753cb6519cd7de59e6c32609fa12cf480dea5d27a2388e701bcfc39fb8"
+    },
+    {
+      "path": "services/platform/cmd/zasp-authorization-reconcile/main.go",
+      "sha256": "2c37036e51a98fb5a96c3b42387c834157b06b3b75bc0db470c3657faccaa8ce"
+    },
+    {
+      "path": "services/platform/red-team-adapter/production.go",
+      "sha256": "441b0c0673cd55deedb3a87108d9b8553cb11ff247636661587a0f6dfbbddff1"
+    },
+    {
+      "path": "services/platform/runtimepostgres/config.go",
+      "sha256": "846368d7910d6aade67c9a952ce70da2e0aaa5c302f72b189acf36e48e14bc8c"
+    },
+    {
+      "path": "services/platform/runtimepostgres/config_test.go",
+      "sha256": "11189493313147452bc1495d8654b3b4ed762188f2b046f3bc508140a71b9060"
+    }
+  ],
+  "independentDispositionReview": {
+    "durableCopy": "/workspace/.zasp-cloud-owned/spec29-independent-proof/cache-cleanup-review-originals/independent-default-Go-cache-routine-clean-assessment.json",
+    "sha256": "ac76617cf8559f80dcfbb463d805ac226781ca2ab5f43c9f4b51fb6ab8f91136"
+  },
+  "limits": [
+    "Before18619/6290200421 and exit0/time/freecapacity are retained ROOT observations, not independent fullbeforepayloadcensus or kernelwait trace.",
+    "Release reviewer metadata estimate6287889865 excludes executable bytes; not rewritten to equal recursive root count.",
+    "No before toolcommandenvironment receipt retained here; defaultcache path is declared by producer, aftertopology independently observed.",
+    "Lost historical TMP/SHM cache aliases and proofs remain lost; no restoration or replay claim.",
+    "Cleanup is resource recovery only, not fullnpm/native/browser/CI/provider acceptance."
+  ],
+  "noGitEdits": true,
+  "noRuntimeCleanupOrTestsByReviewer": true,
+  "observedAfterCacheTopLevel": [
+    "README",
+    "trim.txt"
+  ],
+  "originals": [
+    {
+      "bytes": 330,
+      "copy": "/workspace/.zasp-cloud-owned/spec29-independent-proof/cache-cleanup-review-originals/after.json",
+      "path": "/workspace/.zasp-cloud-owned/spec29-cache-cleanup/after.json",
+      "sha256": "e1546016be83f5fcd71ccb44415002df5c53311c1351c444e7ac67f66c08bba0"
+    },
+    {
+      "bytes": 573,
+      "copy": "/workspace/.zasp-cloud-owned/spec29-independent-proof/cache-cleanup-review-originals/before.json",
+      "path": "/workspace/.zasp-cloud-owned/spec29-cache-cleanup/before.json",
+      "sha256": "d0fc071086706b292c64a77a1d86d84e8f1ff75b2a6d147d852ded2beb4bb330"
+    },
+    {
+      "bytes": 0,
+      "copy": "/workspace/.zasp-cloud-owned/spec29-independent-proof/cache-cleanup-review-originals/stderr.log",
+      "path": "/workspace/.zasp-cloud-owned/spec29-cache-cleanup/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "copy": "/workspace/.zasp-cloud-owned/spec29-independent-proof/cache-cleanup-review-originals/stdout.log",
+      "path": "/workspace/.zasp-cloud-owned/spec29-cache-cleanup/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "producerAfter": {
+    "command": [
+      "/tmp/zasp-cloud-tools/go/bin/go",
+      "clean",
+      "-cache"
+    ],
+    "exit_code": 0,
+    "new_verification_result": "Not yet run; cleanup is not application validation.",
+    "observed_utc": "2026-10-07T03:14:46Z",
+    "remaining_top_level": [
+      "README",
+      "trim.txt"
+    ],
+    "workspace_available": 7961948160
+  },
+  "producerBefore": {
+    "cache_path": "/home/agent/.cache/go-build",
+    "observed_utc": "2026-10-07T03:14:46Z",
+    "regular_bytes": 6290200421,
+    "regular_files": 18619,
+    "scope": "Disposable default Go compiler cache only; source, module cache and evidence excluded. Active verifier uses distinct SHM GOCACHE; module input aliases reviewed as independent.",
+    "symlinks": [
+      {
+        "exists": false,
+        "path": "/home/agent/.cache/go-build/3a",
+        "target": "/dev/shm/zasp-default-go-cache-custody-3f40727d6cf74424942b1b7b2097cdbe/3a"
+      }
+    ],
+    "workspace_available": 1603092480
+  },
+  "sourceDisposition": "Go1.26.8 clean.go145\u2013183 -cache/no package args removes hex cache buckets plus log.txt; source/modulecache flags not requested. Independently read current source; original root remains.",
+  "status": "PASS_SMALL_RECEIPT_AND_GO_SOURCE_DISPOSITION_SCOPE",
+  "workspaceAvailableDelta": 6358855680
+}

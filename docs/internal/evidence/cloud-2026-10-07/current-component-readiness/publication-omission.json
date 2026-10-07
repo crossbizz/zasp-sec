@@ -1,0 +1,7 @@
+{
+  "omitted": "independent-review.json",
+  "sha256": "092d88c12000dab3d90793f986fd122f1ba9f3e2127b37f5839697669d1e95b8",
+  "bytes": 4230,
+  "retainedOriginal": "/workspace/.zasp-cloud-owned/root-component-readiness-wave/root-independent-review-original.json",
+  "reason": "Default staged scanner refused a descriptive source-path hash field. Original review and failed scan remain unchanged; entire review omitted from publication without scanner suppression. Published raw tests and narrative remain in scope."
+}

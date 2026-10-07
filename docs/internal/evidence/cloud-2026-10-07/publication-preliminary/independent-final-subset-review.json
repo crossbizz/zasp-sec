@@ -1,0 +1,525 @@
+{
+  "HEAD": "298e9911024fe36c8872070932019a0263044e1d",
+  "additionalCopyChecks": [
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/admitted-tool-manifest.json",
+      "sha256": "4e802cdf46fd1130c48ec8f47ae2c12890df1f70699e8a774725c0f1642e956c"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/build-result.json",
+      "sha256": "5818013d225b9d0e3709e0b27511531013861154db50675079e929f3fd4dac6b"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/official-sumdb-lookup.txt",
+      "sha256": "6e050f25d38c40787e136d1d1a808aa15caa5d7283ef4da63f0092b21b216664"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/Go-module-admission.json",
+      "sha256": "e3a4b8d4204f7760bfc1f19b3462ac6564c4581d092cc18ed4ff951a9f6d9b4b"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/original-release-checksum-fetch-refusal.json",
+      "sha256": "16fdac1f9966ab44208545d78229fb690c46d334034cbe80cc63921a5b54411f"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/original-proxy-dependency-refusal.json",
+      "sha256": "7df1dedd02f565efa9b6c48c47f6a2a743444c8b917f4b3462561eddf718e681"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/ordinary-official-direct-dependency-result.json",
+      "sha256": "13b603acfb813a8e087f364951f737024dd618d6ab2dbfe70349064d761537cc"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/final-module-verification.log",
+      "sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/independent-lightweight-tool-review.json",
+      "sha256": "0fb5c19e3f7c0a856283a31374f3685f65c692c78c2cfbfd67e4b9c85b503fd3"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/failure-chronology.json",
+      "sha256": "d8b2469d8f92bb1063cc8cf7867749d927504469ff0dfaadfea0e7f1e2925a0d"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/helm-source-build/README.md",
+      "sha256": "e8428f0d492fba24aaaf26e3abc7d0c3fe8b248247565aa9c2872b053aef5322"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/source/run-owned-v3.py",
+      "sha256": "9ca9e5b5d9d2ecd8e2cb2bd64b218a1a362fa61801c3892912ba94be54b97785"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/source/original-single-test-live-test.go",
+      "sha256": "ba075b3b89f1378d370a6dd6d6bfb1812a94d3fb81eec497e0c7d20de30c6307"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/compile-result.json",
+      "sha256": "5014f458a0a1b6c8711e0a7b4a976c6bd5777de01e17f8e3cdd0ced996950235"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/compile-provenance-addendum.json",
+      "sha256": "375409a66b99f181862010dcdc99d923229e358d24e43e48e82f26b6fe549ade"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/owned-readiness.json",
+      "sha256": "f904b83fdb4873a49c88bf3de4078bececc633356ccb37f29c1364e3c3f82cb7"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/original-test.log",
+      "sha256": "adfd5a3ba718278c896f3e17c2e063ed8eef3672d3a294b5fa5f6b7e82aee356"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/original-overall-failure.json",
+      "sha256": "785ba2aa66240137a280313ea0950fb9c193fdcf11f4c193921f4c31d8812baa"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/TIME-WAIT-readonly-diagnostic.json",
+      "sha256": "3b8394898fa9c785fba8642ab6dd0179f37970902ab17e84011950a9097b3cc3"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/fresh-additive-cleanup-observation.json",
+      "sha256": "beab27dc0a4fc11856fcf59896f1641548ca5a12f6265d0c570c52eaf2500470"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/proof/timing-floor-clarification.json",
+      "sha256": "9cba1edd0c507bf05291cba4f828f525af95e67b35b3ee59a355d4b522d7df57"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/reviews/source-review.json",
+      "sha256": "1c1af2e6dd376d2d099bdcddeae9e85ec36938facde686ee72b61b86604475fb"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/reviews/actual-review.json",
+      "sha256": "e3fb0a55cfdd867e63a6fb3b6d914fb3f294a2e0676044555fdc101a0a2c58bd"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-workflow-continuation/README.md",
+      "sha256": "4d3f4f549b1188f95ea290e6f7b0993050a1b233c9ae2f74297e4bdafe4baf0b"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/actual/parent-result.json",
+      "sha256": "6e4d464547a0d64fb70c21c5b939207499e22fda93b2716562e7dc429580c27c"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/actual/child-result.json",
+      "sha256": "be9f494cd04f3cbcca57adc6a277fb54c675d369ca2bfbca871796688cfc02ff"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/reviews/actual-real-TEST-review.json",
+      "sha256": "6457d138d37a1d599c6d6f716a1ee003aaa6d0e6b9e0fdf93c7ce6a53b4716a1"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/source/run.mjs",
+      "sha256": "6558e13100d68e3c565cacc8885a8e7088e5070847175c44784a0dc07ac40e21"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/source/scope.json",
+      "sha256": "9292129465485b4d4b19db3e26bfabefc22c5ae9207053a3c702befdb46ac68c"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/offline/result.json",
+      "sha256": "3dd7d8861e5ed91e250458fc01325fc27b82b8e236f71e52b8a54e3cd70f8ff2"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/offline/controls-corrected.py",
+      "sha256": "f71ff68ca5bcdf8ef45908e228f9c5e38e58af2b53f99eb93b9453ca1d3a3fa7"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/reviews/source-review.json",
+      "sha256": "939d42352146e971fb54e6bbaa2b9ff3897297cfe89cc43a4fa11fc80b287fb1"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/reviews/offline-consistency-review.json",
+      "sha256": "ea3d1eb2bf3643cd7fd34fade0c685fea6a09bf41e9b9a71438dbd5839d3f8af"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/offline/preserved-first-attempt.json",
+      "sha256": "ddddd3c2637600749a006de91aa3f6e4d0f311399114f5e6f2085eec2fbcdd64"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/README.md",
+      "sha256": "e8ae5c0a4c414a7d5b0f4399aa3fe615ce011e12fe046d7036ceacbe7c3c04fc"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/initial-zero-test-result.json",
+      "sha256": "e5cb618ad32bef47cf72789ac3dddacf4b0576ea287ef8f8cd1dabf18a660ee3"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/missing-helm-full-result.json",
+      "sha256": "a5d2653f06495a2ab32473d228187d78cd9e46c91afd76a2e8eef084b4c06a2b"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/missing-helm-review.json",
+      "sha256": "bef0c8012692b79bb9933fc092d1611dbd8298ba80c34858438dc2efa940fa9e"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/final-full-result.json",
+      "sha256": "6838ee0b573dd29de3e39a65b7146978d7075f5db06f63b14fac1ca8c83b0dc4"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/final-full-review.json",
+      "sha256": "3f004be6f711b93f1ccdf2f88ba0749950d2a2ab84893f505702ed66e5b182dd"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/helm-admitted-tool-manifest.json",
+      "sha256": "4e802cdf46fd1130c48ec8f47ae2c12890df1f70699e8a774725c0f1642e956c"
+    },
+    {
+      "originalMatched": true,
+      "path": "docs/internal/evidence/cloud-2026-10-07/full-ui-baseline/helm-independent-review.json",
+      "sha256": "0fb5c19e3f7c0a856283a31374f3685f65c692c78c2cfbfd67e4b9c85b503fd3"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/README.md",
+      "producerManifestMatched": true,
+      "sha256": "b5fdc54061b5e428b7899081d27b0372f4589f298a7b10ff199bcab13655f68a"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/admission-unit-summary.json",
+      "producerManifestMatched": true,
+      "sha256": "72c8a7494826446927092f1d317b501b14eff377a19aebdef63978265e462c5c"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/compile-owner.py",
+      "producerManifestMatched": true,
+      "sha256": "bc1b4f98d00048276882b521b7972cd651af2134ec337a1bac7f1df63088d8b9"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/compile-process-binding.json",
+      "producerManifestMatched": true,
+      "sha256": "79aacfe08f1cc93d02f9f766bb89b4a8340b58c24c454f278bb6d20ad0254fba"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/compile-selected-summary.json",
+      "producerManifestMatched": true,
+      "sha256": "c51d18cdb7963971b83c2612580d8ee5f750f95812c81578c9946e34cadb6180"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/fixture-candidate.go",
+      "producerManifestMatched": true,
+      "sha256": "7aa946b921e6e1490126558c49886bbeb6034b8ad5d9aca6a0d936ad206ecc2c"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/fixture-original.go",
+      "producerManifestMatched": true,
+      "sha256": "eddce9d2e27bf25c47d18cf6b48242c7d1e18dd66c83aa502223931fc4a2748f"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/independent-pg-fixture-wrapper-source-review.json",
+      "producerManifestMatched": true,
+      "sha256": "28cb076ba36c418d4aece90c608aec72aa8f097e4550c05c1d36a9b47e96561a"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/independent-private-overlay-source-review.json",
+      "producerManifestMatched": true,
+      "sha256": "3c7841ead9eab6d325db95248d9a75866c615bcff04c01b0ebf68946b1ab5631"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/log-transform.json",
+      "producerManifestMatched": true,
+      "sha256": "e330c8234af49d98e0d065632b586893f6a88a4bc021090c76d68ace8520c2e9"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-admission_test.go",
+      "producerManifestMatched": true,
+      "sha256": "961f2373a262482c743cd5ce681f335fa39446ac38b0b8914a1e3be8ffbf7b47"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-fixture-comma-red.jsonl.gz",
+      "producerManifestMatched": true,
+      "sha256": "43ae443a34a699baf0bcce1ec4c2fe7461a89cbb9e72a8d68c73797a841573ad"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-fixture-portable-green.jsonl.gz",
+      "producerManifestMatched": true,
+      "sha256": "96c3433529d9c6ff250cd76abd9328e6fe2bc48e373e3a5b5257a65a9469fbe8"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-fixture-red.jsonl.gz",
+      "producerManifestMatched": true,
+      "sha256": "bf3cc2d4bb7fef07a4a4f880efb09c22d3cd88153a16e347710fd6b03d797db1"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-service-cleanup-proof.json",
+      "producerManifestMatched": true,
+      "sha256": "a1d015c0c91bc0e2ffae45253ee869d5254756a82f43f114074218f3ab57afef"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/native-service-final.json",
+      "producerManifestMatched": true,
+      "sha256": "0eff494a9015a3c17c97f35f4544d9f4835706716228940f20a91441c38f8703"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/original-file-identities-final.json",
+      "producerManifestMatched": true,
+      "sha256": "eb29ded1f9ce383953bdfe67e46444683bb7cfd5aa9ec8b8c7e0ec31cde9c8f1"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/original-file-identities-pre80-terminal.json",
+      "producerManifestMatched": true,
+      "sha256": "85a0019d81f0097dd7a58d7cae0ed067fadffa5cb7db94d96f2d727a7be5c566"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/overlay.json",
+      "producerManifestMatched": true,
+      "sha256": "cd14d0e50b12429d50508a7f0a7105a7c8c13202f05410bc359266f3d92e8b70"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/pg-fixture-wrapper-manifest.json",
+      "producerManifestMatched": true,
+      "sha256": "410b7d9c29923c9005a7e6ea0bbdfa7d65f60f492f1e070111fc3b1e6987ed81"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/projection-native-overlay.go",
+      "producerManifestMatched": true,
+      "sha256": "2319a62ef2e300bb2dc4924f528a46c3ba1dd853f53580504f05207c47ea8fe8"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/run-sql79.py",
+      "producerManifestMatched": true,
+      "sha256": "134c123b44a76ceb2280d472b6928aae567219da91af26216ff3d4b561c5114f"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/run-sql80.py",
+      "producerManifestMatched": true,
+      "sha256": "9ff522d4b9aeded02ae3dc9cde9cebb01ed3f2ffc60c4604eaaebc6024d727fe"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql79-process-binding.json",
+      "producerManifestMatched": true,
+      "sha256": "7eb5d2fccac41df6b845613335357569a71eb6ab87ef0ecbc44313aa0c1cf24e"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql79-result.json",
+      "producerManifestMatched": true,
+      "sha256": "b3bc82bb2fce4c2471544677226aac0f74efede81d4b75c6107cdda834df8124"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql79-tools-before.json",
+      "producerManifestMatched": true,
+      "sha256": "b99d02f0a1f50ebf477c86ebc114f0728a128cd439f9435bd98a23dcdae50b44"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql79.stderr",
+      "producerManifestMatched": true,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql79.stdout",
+      "producerManifestMatched": true,
+      "sha256": "1ae4fc57fa415c12a030b50af80ae14a6e236bfa018ca9c8315584d9cb16fdde"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80-process-binding.json",
+      "producerManifestMatched": true,
+      "sha256": "05881b51494453538352400550612c49c645bd166618de97a255bea566343733"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80-result.json",
+      "producerManifestMatched": true,
+      "sha256": "26e778303770a59e2636d4f510b1d6f7a146d6e206ead6b659ff9c34ab09854b"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80-tools-before.json",
+      "producerManifestMatched": true,
+      "sha256": "b99d02f0a1f50ebf477c86ebc114f0728a128cd439f9435bd98a23dcdae50b44"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80.stderr.gz",
+      "producerManifestMatched": true,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/sql80.stdout.gz",
+      "producerManifestMatched": true,
+      "sha256": "dbedf11f02849784260f49dd2e8ca0aa29848ed36d946903374bc7cbbbe55c9f"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/native-authorization-sql/summary.json",
+      "producerManifestMatched": true,
+      "sha256": "cad1eb8df0728fbf9856e3c95cc9e7cc1ef7d20653b1b04d47ee9048375a63b3"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile-owner.py",
+      "producerManifestMatched": true,
+      "sha256": "3f53f6edb68cf436115c57334fee3bdb56c6a6531c7a488f354509114b298f5d"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile-process-binding.json",
+      "producerManifestMatched": true,
+      "sha256": "87f345f6f0f7c7f0ad4ec3bc09e0dfd344caf5ecc0a5a93e59396bb9e097f516"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile-selected-summary.json",
+      "producerManifestMatched": true,
+      "sha256": "26742df2d335c284c8cbae05d26486b999fb85be57079737e371f68b4df8dbd2"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile.stderr.gz",
+      "producerManifestMatched": true,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/compile.stdout.gz",
+      "producerManifestMatched": true,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/diagnostic-overlay.go",
+      "producerManifestMatched": true,
+      "sha256": "5e49c9f06afa8d80559f890a5c5045edc1f18729fde7e62bccd10468a5df02bb"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/first-attempt-compile-result.json",
+      "producerManifestMatched": true,
+      "sha256": "b10a3172ee55be0989172896c37d17f54327d8e03b664c3b778f6f64a23926ab"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/first-attempt-compile.stderr",
+      "producerManifestMatched": true,
+      "sha256": "f5077fae7f8cbd71f642aa44b5a4cd3766564e278922bf95488ac5fc974b7d43"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/original-identities.json",
+      "producerManifestMatched": true,
+      "sha256": "5dd6059a302816763c79a2ad1316a57b2dbe771f7f68adfc0f9082ef6b8d4cfa"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/overlay.json",
+      "producerManifestMatched": true,
+      "sha256": "d46505e3fe69275706978f0c40349c245541d014da9007c7ca2d79a7aaf82360"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/preparation.json",
+      "producerManifestMatched": true,
+      "sha256": "d603d0a4285e7bd9d0f1066f5de624c08a58f94257bb906419723dcb1e12d990"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/run-profile.py",
+      "producerManifestMatched": true,
+      "sha256": "4a23f7f589b8e4d914f67cd8cda5cc27103f764bf1e0de697fefa05960fd19f0"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/sql80-process-binding.json",
+      "producerManifestMatched": true,
+      "sha256": "28e560c9b9ce689666306661a3113e79a25d634199b01fbdb448c247926f9c0a"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/sql80-result.json",
+      "producerManifestMatched": true,
+      "sha256": "cc7144e2c288c4ed4e833e3599becc8c0f604948693dd4198cb7189c48ec7657"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/sql80.stderr.gz",
+      "producerManifestMatched": true,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/sql80.stdout.gz",
+      "producerManifestMatched": true,
+      "sha256": "cf9a52edf74cbcced0fceef60e03d235c9a408e63f34dbbc5c6a23bd48bd5f9c"
+    },
+    {
+      "path": "docs/internal/evidence/cloud-2026-10-07/readiness-execution-profile/summary.json",
+      "producerManifestMatched": true,
+      "sha256": "3a117f6162a4cba7a2984966346e62479e4e4cb4ae08fd7baaddb0efab9ac354"
+    }
+  ],
+  "finalActualScanRecord": {
+    "decodedCompleteLogs": 13,
+    "decodedDefaultExit": 0,
+    "decodedFindings": 0,
+    "defaultIgnoreUnchanged": true,
+    "noScannerExceptions": true,
+    "path": "/tmp/zasp-cloud-evidence/independent-oct7-enlarged-publication-i6l3qix6/result.json",
+    "rootIndexUnchanged": true,
+    "selectedDefaultStagedExit": 0,
+    "selectedFindings": 0,
+    "selectedWhitespaceExit": 0,
+    "sha256": "8f4227db8503f3f29756f1e137525efc8083a342ccd5402cf55d7079145abbc9"
+  },
+  "ledger": {
+    "IDsEqual": true,
+    "bothBodiesUnchangedFromHEAD": true,
+    "classCounts": {
+      "blocked/external": 61,
+      "component-only": 144,
+      "production-available": 523
+    },
+    "owners": 728,
+    "rows": 728
+  },
+  "limits": [
+    "Original SQL80 timeout and remaining failures retained; JIT single pair does not prove original cause or production benefit.",
+    "Temporal owner cleanup refusal, constructor cache-floor breach and zombie preserved; SHM cache custody volatile.",
+    "Hosted compliance failed; specific runtime dependency cause remains unknown and protected log response403 not bypassed.",
+    "Previously reviewed source/module/cache bulk inventories not rehashed by this selected-copy review.",
+    "Any subsequent attachment or edit changes selected scan scope and requires a fresh final selected scan."
+  ],
+  "newLeafCacheCICopies": "Detailed final actual record independently matches producer originals/manifests.",
+  "preservedEarlierScannerRefusal": {
+    "findings": 1,
+    "immutableProducerManifestRetained": true,
+    "originalRetainedSHA256": "d2f43d32ddfdb77b96e70faee9f695b48c24733cc30960f210a294bf9e10a23a",
+    "path": "/tmp/zasp-cloud-evidence/independent-oct7-enlarged-publication-b1krwq2n/result.json",
+    "publicationSubsetExplicit": true,
+    "sha256": "a039a001ed86054e51946c44d8264c66b38ac663962d315411129cd70d4d65f1",
+    "stagedExit": 1,
+    "wholeMemberOmitted": "source-admission.json"
+  },
+  "receipt": {
+    "appendOnly": true,
+    "bytes": 136155,
+    "committedPrefixBytes": 126923,
+    "committedPrefixSHA256": "627c339e3dff4da7781c254475d10d3dc8f56b1d6d32c5cf25991e4df14eac4c",
+    "sha256": "c5a01c5509274be4ccc8ea0f5d2f42e7e0fd1490928d7c6f2e576ddd81955e35"
+  },
+  "scope": "Exact selected publication and append-only receipt checkpoint; no runtime, deployment, full-history or universal secret-clearance claim.",
+  "selectedFilesystemModes": {
+    "0o600": 159
+  },
+  "selectedPaths": 159,
+  "status": "PASS"
+}

@@ -1,0 +1,27 @@
+{
+  "format": "derived-public-independent-review-summary-v1",
+  "scope": "Controlled startup diagnostic tests; no browser/native/production clearance",
+  "status": "PASS",
+  "baseline": {
+    "tests": 1,
+    "fail": 1,
+    "skip": 0
+  },
+  "green": {
+    "tests": 4,
+    "pass": 4,
+    "fail": 0,
+    "skip": 0
+  },
+  "affectedRegressions": {
+    "tests": 23,
+    "pass": 23,
+    "fail": 0,
+    "skip": 0
+  },
+  "sourceInputs": 29,
+  "recordedInputsUnchanged": true,
+  "outerNormalExit": 0,
+  "originalReceiptDigest": "adc6ee1d3d4a1e48db6a4b49d9e8afd67ad4ef50b9aee418a19e39e253d5025a",
+  "fullReceipt": "Private original unchanged; this separate scalar summary omits source hash maps."
+}

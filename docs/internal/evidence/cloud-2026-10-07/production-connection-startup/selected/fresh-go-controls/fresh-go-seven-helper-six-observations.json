@@ -1,0 +1,156 @@
+{
+  "scope": "Fresh actual staged-source diagnostic and JIT component/compile observations; no hosted CI cause/provider/service/kerneltrace assertion",
+  "disposition": "Expected test outcomes and six-package compilation observed; original aggregate owner normal exit1 preserved as package-skip interpretation error",
+  "originalResultSHA256": "d95f3e30aff7d7671bc677648fe6ca393a03fac686fcf9eafd8395c1f4cb419e",
+  "originalOwnerStatus": "FAIL",
+  "originalOwnerFailureClass": "AssertionError",
+  "sourceUnchanged": true,
+  "sourceEntryCount": 83,
+  "stages": [
+    {
+      "stage": "diagnostic-three",
+      "exitCode": 0,
+      "normalWait": true,
+      "forced": false,
+      "seconds": 1.817050017999918,
+      "topPassNames": [
+        "TestRuntimeDependencyDiagnosticPreservesCause",
+        "TestRuntimeDependencyDiagnosticFiniteProjection",
+        "TestRuntimeDependencyDiagnosticPublicBoundaryIdentity"
+      ],
+      "fail": 0,
+      "skip": 0,
+      "testFailures": [],
+      "skipEvents": [],
+      "logs": [
+        {
+          "name": "diagnostic-three.stdout.log",
+          "bytes": 2777,
+          "sha256": "968cd7b305c84ed85ba18789b22a688dd393cedf7d339c8de543a9afda6c1451"
+        },
+        {
+          "name": "diagnostic-three.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "stage": "sentinel-four",
+      "exitCode": 0,
+      "normalWait": true,
+      "forced": false,
+      "seconds": 5.588061198999867,
+      "topPassNames": [
+        "TestAuditExportFactoryBuildRejectsAuthorityBeforeDatabaseDial",
+        "TestAuditExportRuntimeCompositionLateCancellation",
+        "TestAuditPublicPageCompositionSelectedAndLegacy",
+        "TestAuditPublicPageCompositionSelectedStartupRefusal"
+      ],
+      "fail": 0,
+      "skip": 0,
+      "testFailures": [],
+      "skipEvents": [],
+      "logs": [
+        {
+          "name": "sentinel-four.stdout.log",
+          "bytes": 80854,
+          "sha256": "0cc152eb00e8f87e52b567d5f2e4ebfd3cd8ab16f935d356bc83a3a24e80dbb7"
+        },
+        {
+          "name": "sentinel-four.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "stage": "helper-original-parser-red",
+      "exitCode": 1,
+      "normalWait": true,
+      "forced": false,
+      "seconds": 1.0668362920000618,
+      "topPassNames": [
+        "TestPoolTuningPreservesConnectionAuthority",
+        "TestPoolTuningPreservesMalformedDSNRefusal"
+      ],
+      "fail": 2,
+      "skip": 0,
+      "testFailures": [
+        "TestOwnedPoolAvoidsReadinessJIT"
+      ],
+      "skipEvents": [],
+      "logs": [
+        {
+          "name": "helper-original-parser-red.stdout.log",
+          "bytes": 3524,
+          "sha256": "2722838a3eaae42335b2c2d7ec3ece26d110ece9cc3828fc0abf24fb201d40d9"
+        },
+        {
+          "name": "helper-original-parser-red.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "stage": "helper-current-green",
+      "exitCode": 0,
+      "normalWait": true,
+      "forced": false,
+      "seconds": 1.9573755230001098,
+      "topPassNames": [
+        "TestOwnedPoolAvoidsReadinessJIT",
+        "TestPoolTuningPreservesConnectionAuthority",
+        "TestPoolTuningPreservesMalformedDSNRefusal"
+      ],
+      "fail": 0,
+      "skip": 0,
+      "testFailures": [],
+      "skipEvents": [],
+      "logs": [
+        {
+          "name": "helper-current-green.stdout.log",
+          "bytes": 3260,
+          "sha256": "4a024d77477be7efc42e2fce73fa3419ddc8e2738b2e20cc39b4011b15e0583f"
+        },
+        {
+          "name": "helper-current-green.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "stage": "six-production-compile",
+      "exitCode": 0,
+      "normalWait": true,
+      "forced": false,
+      "seconds": 22.412982731000056,
+      "topPassNames": [],
+      "fail": 0,
+      "skip": 1,
+      "testFailures": [],
+      "skipEvents": [
+        {
+          "package": "github.com/zasp-ai/zasp-sec/services/platform/cmd/zasp-authorization-reconcile",
+          "test": null
+        }
+      ],
+      "logs": [
+        {
+          "name": "six-production-compile.stdout.log",
+          "bytes": 4842,
+          "sha256": "aaf3b545eea7bae315765c3c2d3fdbec3646adcfc16a1565193757d17ad97cfb"
+        },
+        {
+          "name": "six-production-compile.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    }
+  ],
+  "packageSkipExplanation": "Go test -run ^$ emitted package-level skip for reconcile CLI with no test files; no test was skipped. Compile command normal exit0. Original strict zero-all-skip aggregator refused; original not rewritten.",
+  "baselineExplanation": "Fresh private overlay directly delegates helper ParsePoolConfig to original pgxpool.ParseConfig. SAME three current tests: one genuine JIT assertion fail, two authority/refusal pass. New fixture identity, no reconstruction of lost historical receipt."
+}

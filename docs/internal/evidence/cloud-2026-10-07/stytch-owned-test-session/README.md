@@ -1,0 +1,7 @@
+Disposable Stytch TEST password/session and owned cleanup
+
+The exact V4 wrapper and unchanged original proof produced one real disposable TEST organization/member/password session. Create, migrate, authenticate and owned DELETE returned 200; subsequent exact-owned GET returned 404. ROOT normal exit 0 in 2.220 seconds, without timeout or force; recorded process is absent. The 178-byte stderr was the expected undici proxy experimental warning.
+
+Seven separate fake-transport controls covered success, uncertain create recovery, uncertain absence refusal, foreign ownership refusal, signal cleanup, authentication refusal and delete refusal. First driver c817 failed its expected-wording assertion after four children; this is preserved separately. Corrected driver f71 completed all seven with the wrapper unchanged. Offline controls are not real-provider outcomes. The source review and offline review preserve their original conditional scope; the actual review closes only this real disposable diagnostic.
+
+No email ownership, OAuth/SSO, product API session or production acceptance is claimed. No messaging or retained configuration updates were performed. Private ownership journal, passwords, JWTs, authorization values and raw response/log bodies are excluded. Source contains environment-variable names and synthetic fixture strings only. Original source and failures remain unchanged. Scanner NOT_RUN on this candidate; ROOT stages and scans the exact final combined batch. Copies are mode0600 with separate original/copy identities.

@@ -1,0 +1,19 @@
+{
+  "format": "fresh-unchanged-native80-tool-outer-join-v1",
+  "observedUTC": "2026-10-07T03:31:04.059588+00:00",
+  "actualToolSession": 6813,
+  "actualOuterToolExit": 0,
+  "scope": "Tool-observed normal Python controller join and actualTini/testnormal0; no invented kerneltrace or globalPIDroster.",
+  "testRUN": 31,
+  "testPASS": 31,
+  "testFAIL": 0,
+  "testSKIP": 0,
+  "ownerSourceSHA256": "4ccbdf380bb5d501d71c2de4897e2191714adf4c986b0134553056f68b91a885",
+  "resultSHA256": "ba54e45e6eebf794fd348603c7d715845eb7ca33a458f7583acb24b7bc41fda7",
+  "sourceToolBindingsCount": 3159,
+  "allLoggedFixturePIDsAbsent": true,
+  "stdoutSHA256": "dfb597579320fac7fbc5d1bbf5c0a15468086eb65bff3e47205fdd611748b60c",
+  "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "limits": "Original5minbody;default10mtest;650outerguard;floorsWS1.5GB/TMP100MB/SHM100MB;4MiBcapture",
+  "result": "PASS_SCOPED_UNCHANGED_NATIVE80_NOT_WHOLE_API"
+}

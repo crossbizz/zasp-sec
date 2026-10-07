@@ -49,6 +49,13 @@ const eslintConfig = defineConfig([
   },
   {
     files: [
+      // Immutable proof snapshot: cleanup throws are caught inside its finally.
+      "docs/internal/evidence/cloud-2026-10-07/stytch-owned-test-session/source/run.mjs",
+    ],
+    rules: { "no-unsafe-finally": "off" },
+  },
+  {
+    files: [
       // Exact immutable source-only replay snapshots keep every other rule.
       "docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/source/build-ordered-current-linux-successor-v1.mjs",
       "docs/internal/evidence/cloud-2026-10-06/linux-reference-source-five/source/ordered-current-linux-provenance-v1.test.mjs",

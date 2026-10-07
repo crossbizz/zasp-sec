@@ -1,0 +1,16 @@
+{
+  "binding": {
+    "exe": "/tmp/zasp-native-supported-tools-h0zqa978/temporal-server-complete/temporal-server",
+    "pid": 26704,
+    "port": 7233,
+    "socketInode": "33762",
+    "startTicks": "1039637"
+  },
+  "elapsedSeconds": 11.068695921001563,
+  "forcedCleanup": false,
+  "format": "owned-Temporal132-native-PG-process-result-v1",
+  "normalWaitJoined": true,
+  "scope": "Private loopback PostgreSQL Temporal process only; SDK namespace/application proof separate.",
+  "serverReturncode": 0,
+  "status": "NORMAL-OWNED-SHUTDOWN"
+}

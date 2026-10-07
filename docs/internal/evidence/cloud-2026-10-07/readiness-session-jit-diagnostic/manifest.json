@@ -1,0 +1,85 @@
+{
+  "format": "readiness80-leaf-jit-selected-v1",
+  "files": [
+    {
+      "path": "compile-owner.py",
+      "bytes": 4779,
+      "sha256": "334e9d4f20e76c0b0fce7766137e7253f46e0b31fac90bd59cd1c0118ec49736"
+    },
+    {
+      "path": "compile-process-binding.json",
+      "bytes": 961,
+      "sha256": "bc5b3e7c76e271510a419d2324410642c86f09aaaab4ad5aa57968fd6be257b9"
+    },
+    {
+      "path": "compile-selected-summary.json",
+      "bytes": 800,
+      "sha256": "0d1ebfafb70907f663d92bd1debb38408e645aae3358d794f6ef810dcc859be0"
+    },
+    {
+      "path": "compile.stderr.gz",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "path": "compile.stdout.gz",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "path": "diagnostic-overlay.go",
+      "bytes": 34866,
+      "sha256": "36fd725c67ade666af74269e90ddc72863206ec6a9c34106aa3177261515bb5d"
+    },
+    {
+      "path": "direct-label-addendum.json",
+      "bytes": 478,
+      "sha256": "a891e1873bfcded06ac087377acf17c9956470bc886bffca4541a2d20cbc6cfc"
+    },
+    {
+      "path": "original-identities.json",
+      "bytes": 4061,
+      "sha256": "c9112f254dca508e1951db26b7e2f782fa28863bb2b2daa34e4978b5dc9f20af"
+    },
+    {
+      "path": "overlay.json",
+      "bytes": 176,
+      "sha256": "8ed39ebb435e78892f8f0eb84f02bbb65f06a0b676b0002d710b4d8dc94a8009"
+    },
+    {
+      "path": "preparation.json",
+      "bytes": 1050,
+      "sha256": "267064bb2631096e18994a4b4d36db15a949d0fa3589f8f20060b107e000a954"
+    },
+    {
+      "path": "run-profile-direct-label.py",
+      "bytes": 6197,
+      "sha256": "dccfcd51208ddd9b18a51c1dbe8064d8d5b98333df5e98f0b402cf040903fc50"
+    },
+    {
+      "path": "sql80-process-binding.json",
+      "bytes": 665,
+      "sha256": "7b448d37243b328aa7deff264d10bb86d9b9a60f0353dc8835c49b68032aa9d0"
+    },
+    {
+      "path": "sql80-result.json",
+      "bytes": 43810,
+      "sha256": "f4d7c744914ed27f10df1a21f312f9e1532eadf8af8afbca75bc493687abf8f5"
+    },
+    {
+      "path": "sql80.stderr.gz",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "path": "sql80.stdout.gz",
+      "bytes": 480,
+      "sha256": "a7aa65fcd7cde2f9abd145f1f7394f9c4e30f6a80101f37c530433d65ec3ad9f"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 1816,
+      "sha256": "95c418a97ae5ba415c20063b8562f588429fa51851ceb3bc718710b34af41392"
+    }
+  ]
+}

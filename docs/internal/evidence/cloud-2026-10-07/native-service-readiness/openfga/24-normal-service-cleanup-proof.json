@@ -1,0 +1,71 @@
+{
+  "ownerSession": 97102,
+  "observedOwnerTerminalReturncode": 0,
+  "finalResultSHA256": "5e2e34e5f0e054c87642ca829cd614ac90f942544bad94bbb064bd508b39030a",
+  "final": {
+    "failureClass": null,
+    "signals": [],
+    "renewals": 0,
+    "records": [
+      {
+        "phase": "initdb",
+        "returncode": 0,
+        "elapsedSeconds": 0.5164864079997642
+      },
+      {
+        "phase": "create-fga-db",
+        "returncode": 0,
+        "elapsedSeconds": 0.06418411499907961
+      },
+      {
+        "phase": "fga-migrate",
+        "returncode": 0,
+        "elapsedSeconds": 0.06581464299961226
+      }
+    ],
+    "cleanup": [
+      {
+        "name": "openfga",
+        "returncode": 0,
+        "joined": true
+      },
+      {
+        "name": "postgres",
+        "returncode": 0,
+        "joined": true
+      }
+    ],
+    "scope": "Owned service lifecycle only; actual SDK/domain test evidence separate"
+  },
+  "ownedLeaderAbsence": [
+    {
+      "name": "postgresPID",
+      "pid": 18412,
+      "procAbsent": true
+    },
+    {
+      "name": "fgaPID",
+      "pid": 18449,
+      "procAbsent": true
+    }
+  ],
+  "ownedPortAbsence": [
+    {
+      "port": 54389,
+      "absentByBind": true
+    },
+    {
+      "port": 8088,
+      "absentByBind": true
+    },
+    {
+      "port": 8089,
+      "absentByBind": true
+    }
+  ],
+  "floors": {
+    "/workspace": 1516281856,
+    "/tmp": 6020419584
+  },
+  "scope": "Actual normal owned service teardown; direct leaders and all three boundlisteners, no globaldescendant censusclaim"
+}

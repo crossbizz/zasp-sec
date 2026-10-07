@@ -1,0 +1,37 @@
+{
+  "scope": "Selected component diagnostic only; explicit one-existing-file overlay. No current80 full projection, native379 admission, standard suite, production API, Stytch or browser acceptance.",
+  "source_head_compile_before_after": "298e9911024fe36c8872070932019a0263044e1d",
+  "compile": {
+    "exit": 0,
+    "seconds": 86.459889767,
+    "input_files": 9840,
+    "source_inputs_unchanged": true
+  },
+  "sql79": {
+    "exit": 0,
+    "seconds": 5.973326418,
+    "top_pass": 1,
+    "skip": 0,
+    "own_pg_cleanup": true
+  },
+  "sql80": {
+    "exit": 1,
+    "seconds": 328.333293283,
+    "top_pass": 0,
+    "skip": 0,
+    "immediate_pass": 3,
+    "immediate_fail": 7,
+    "first_failure_source": "authorization_runtime_profile_postgres_test.go:176",
+    "first_failure": "same-call readiness implication false false true timeout: context deadline exceeded",
+    "original_context": "5 minutes after setup; unchanged",
+    "outer_owner_seconds": 650,
+    "go_default_test_timeout": "10m; unchanged",
+    "own_pg_cleanup": true,
+    "source_inputs_unchanged": true,
+    "survivors": []
+  },
+  "diagnosis_limits": "Observed context expiry during first same-call readiness comparison; no statement-level timing trace, no load attribution, no implementation cause established. Later connection failures occurred after context expiry.",
+  "native_services": "Separate FGA1.21/PG18.3 owner STOP normal0; original selected SQL79 ownPG separate; listener and PID absence receipt retained.",
+  "portability": "7 pure admission cases PASS/race; Darwin ARM64 crosscompile only, not executed.",
+  "omitted_large_inputs": "Full9840 source maps/go-list/binary omitted from publication; exact original identities retained. Maps are conservative selected-input supersets, not full host/kernel/toolchain closure."
+}

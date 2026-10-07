@@ -1,0 +1,7 @@
+{
+  "command": "go vet ./agentsec-api",
+  "exit": 0,
+  "stdout": "",
+  "stderr": "",
+  "scope": "same explicitGo26/cache/readonly configuration as race suite"
+}

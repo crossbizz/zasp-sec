@@ -1,5 +1,6 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
+import { createDevAPIProxy } from "./scripts/dev-api-proxy.mjs";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
@@ -32,7 +33,7 @@ const localBindingConfig = {
     : [],
 };
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ command, isPreview }) => {
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= "false";
@@ -42,9 +43,14 @@ export default defineConfig(async () => {
   // Wrangler snapshots its log path while the Cloudflare plugin is imported.
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
+  // Browser clients keep same-origin requests. Only an explicit development
+  // authority enables forwarding; deployed API routing remains with ingress.
+  const proxy = command === "serve" && !isPreview
+    ? createDevAPIProxy(process.env.ZASP_DEV_API_ORIGIN)
+    : undefined;
   return {
-    server: isCodexSeatbeltSandbox
-      ? { watch: { useFsEvents: false, usePolling: true } }
+    server: isCodexSeatbeltSandbox || proxy
+      ? { ...(isCodexSeatbeltSandbox ? { watch: { useFsEvents: false, usePolling: true } } : {}), ...(proxy ? { proxy } : {}) }
       : undefined,
     plugins: [
       vinext(),

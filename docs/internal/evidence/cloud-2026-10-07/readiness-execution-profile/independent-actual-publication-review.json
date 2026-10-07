@@ -1,0 +1,38 @@
+{
+  "outcome": "PASS actual three-query cost diagnostic + selected17 closure, no readiness acceptance",
+  "manifestSHA256": "3a22d8d6b7866e63fb1aa1d5b829e649aaea00a3f12a8423d6afe6ebf9d8f8e0",
+  "selectedMembers": 17,
+  "actualResultSHA256": "cc7144e2c288c4ed4e833e3599becc8c0f604948693dd4198cb7189c48ec7657",
+  "elapsedSeconds": 169.7997646010008,
+  "plans": [
+    {
+      "statement": "temporal78",
+      "planning_ms": 0.023,
+      "execution_ms": 17459.864,
+      "sharedHits": 196089
+    },
+    {
+      "statement": "authorization80",
+      "planning_ms": 0.009,
+      "execution_ms": 16872.371,
+      "sharedHits": 150478
+    },
+    {
+      "statement": "same-call-implication",
+      "planning_ms": 0.022,
+      "execution_ms": 51762.295,
+      "sharedHits": 433641
+    }
+  ],
+  "checks": [
+    "Exactthree completeEXPLAINJSON parsed fromoriginal log matches scalar summary.",
+    "All17 memberhashes andfourgzip roundtrip exact originalbytes.",
+    "Singleton diagnosticPASS/noSKIP/normal0 andPGfixturecleanup; sourcebefore members unchanged.",
+    "Clarification separate fromsealedmanifest: predecessor original_context_failure_preserved is unusedwirecompileFAIL; originalcontextFAIL is earlier4077packet."
+  ],
+  "limits": [
+    "Executiontimes17.46/16.87/51.76s dominate planning.023/.009/.022ms; highsharedhits/read0/temp0, not isolatednestedcallee/solecause proof.",
+    "No originalSQLbody/context/assertion changes/cachewaiver/current80acceptance/deployment/native379 promotion.",
+    "Diagnostic5min maintained; failed first compile retained."
+  ]
+}

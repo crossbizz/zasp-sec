@@ -1,0 +1,30 @@
+{
+  "scope": "New explicit ownedfixture wrapper source only; original5 wrappers unchanged",
+  "members": [
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-fixture-bin/initdb",
+      "sha256": "75bccbdd934d15e266d7e5cfccfdb2a36d938e52cb98be24459adfe2516c84c4",
+      "bytes": 499
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-fixture-bin/postgres",
+      "sha256": "7fffa38d6b7da140aa09d9472d01e9a3db9df76ffd4f332ab73cdce20fa50aec",
+      "bytes": 412
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-fixture-bin/pg_ctl",
+      "sha256": "9d90530516e622d5399122d072fc4b38bc750eafb9686f5b9913f50e6a4725d9",
+      "bytes": 410
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-fixture-bin/psql",
+      "sha256": "ac4248ed98f3410bb29dcc4d0c9344eefcf97493b2406cb29222e0ef54cb46a7",
+      "bytes": 408
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-fixture-bin/pg_isready",
+      "sha256": "c036a0ba47b288f4e48903e0c6a2aca852254ae1b7a43bfdbab7ed45106e28d7",
+      "bytes": 414
+    }
+  ]
+}

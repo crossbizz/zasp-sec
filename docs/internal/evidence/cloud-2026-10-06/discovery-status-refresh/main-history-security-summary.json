@@ -1,0 +1,46 @@
+{
+  "head": "34a3f07dbe8ab6056ce243755596314be6091c40",
+  "toolSHA256": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509",
+  "scope": "Committed Git main only; no working-tree refresh candidate clearance",
+  "exact": {
+    "exit": 0,
+    "elapsedSeconds": 1.4311503520002589,
+    "findings": 0,
+    "argv": [
+      "/tmp/zasp-cloud-tools/bin/gitleaks",
+      "git",
+      "--no-banner",
+      "--redact",
+      "--log-opts=34a3f07dbe8ab6056ce243755596314be6091c40^..34a3f07dbe8ab6056ce243755596314be6091c40",
+      "--report-format",
+      "json",
+      "--report-path",
+      "/tmp/restart-security-eqlzfedb/exact.json"
+    ]
+  },
+  "history": {
+    "exit": 0,
+    "elapsedSeconds": 85.31812969600105,
+    "findings": 0,
+    "argv": [
+      "/tmp/zasp-cloud-tools/bin/gitleaks",
+      "git",
+      "--no-banner",
+      "--redact",
+      "--log-opts=HEAD",
+      "--report-format",
+      "json",
+      "--report-path",
+      "/tmp/restart-security-eqlzfedb/history.json"
+    ]
+  },
+  "headAfter": "34a3f07dbe8ab6056ce243755596314be6091c40",
+  "ignoreSHA256After": "a25727ea01ae025b0fede1cd2a61396caa72a687632bc628f53135b123cca6aa",
+  "ignoreUnchanged": true,
+  "limitations": [
+    "HEAD ancestry as observed through current Git object database, not all objects or unavailable refs",
+    "Exact merge range follows ordinary Git diff semantics; no claim every merge-parent content individually rescanned",
+    "No scanner config or ignore edits; existing exact historical fingerprints remain",
+    "Current workingtree application candidate covered separately by source/tests, not this committed Git scan"
+  ]
+}

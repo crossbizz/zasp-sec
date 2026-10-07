@@ -1,0 +1,42 @@
+{
+  "outcome": "PASS component application change",
+  "head": "34a3f07dbe8ab6056ce243755596314be6091c40",
+  "sourceSHA256": {
+    "app/features/workflows/ProductionWorkflowViews.tsx": "83d17be2547a1809cd282fad44adf0f8a7c96ffb07268cfbdce4b29f47211412",
+    "app/features/workflows/ProductionWorkflowDiscovery.test.tsx": "23e8a6b17d8814c305d4ffe1f5d7e1df1ed751699c7bb712261dde994b099b24"
+  },
+  "independentFocusedRun": {
+    "numTotalTests": 11,
+    "numPassedTests": 11,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "success": true
+  },
+  "authorGroupedRun": {
+    "numTotalTests": 29,
+    "numPassedTests": 29,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "success": true
+  },
+  "authorBehavioralRED": {
+    "passed": 7,
+    "failed": 3,
+    "failedTests": [
+      "refreshes queued discovery from authoritative history, detail and projection readback",
+      "does not show an old sync detail after closing and reopening its integration",
+      "refuses to invent discovery completion on refresh failure and permits an authoritative retry"
+    ]
+  },
+  "review": [
+    "Refresh reads existing authoritative freshness, history and selected sync detail only; no inferred completion",
+    "Separate selection/detail/refresh counters reject stale responses after close/reopen, newer selection and unmount",
+    "Loading/error states remove stale freshness; retry reissues authoritative reads",
+    "Existing permission, conflict, canonical202 mutation receipt, schedule edit and projection-state behavior retained"
+  ],
+  "limits": [
+    "Author first RED had ambiguous Close fixture and remains retained; corrected RED demonstrates three actual missing behaviors",
+    "Independent run covers discovery11 tests; author adjacent group covers29; root typecheck separate",
+    "No backend/provider/runtime acceptance or ledger promotion"
+  ]
+}

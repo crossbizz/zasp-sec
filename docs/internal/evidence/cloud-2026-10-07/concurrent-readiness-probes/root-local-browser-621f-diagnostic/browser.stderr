@@ -1,0 +1,22 @@
+::error title=Compliance API startup failed::Observed child stage: runtime-build.
+::error title=Compliance API dependency failed::Observed dependency phase: authorization-readiness.
+::error title=Compliance browser phase failed::Observed phase: api-ready.
+::error title=Compliance browser command failed::Observed command class: other-command; failure: nonzero-exit.
+file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:2293
+  const startAPI=async(enabled=true)=>{const previousCompliancePhase=compliancePhase;const environment={...apiEnvironment};if(!enabled){for(const key of Object.keys(environment))if(key.startsWith("ZASP_COMPLIANCE_EXPORT_"))delete environment[key];environment.ZASP_COMPLIANCE_BROWSER_LEGACY="true";}if(complianceBrowserMode)compliancePhase="api-startup";api=startChild(apiBinary,["-test.run=^TestComplianceBrowserAPIProcess$","-test.v","-test.timeout=21m"],{env:environment});if(complianceBrowserMode)compliancePhase="api-ready";try{await waitForHTTP(`http://127.0.0.1:${healthPort}/readyz`,200);}catch(e){if(complianceBrowserMode)emitComplianceAPIChildFailure(api.output(),message=>console.error(message));throw new Error(`${e.message}; ${api.output()}`);}if(complianceBrowserMode)compliancePhase=previousCompliancePhase;};
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ^
+
+Error: endpoint did not become ready: http://127.0.0.1:41585/readyz; last={"status":0,"body":"connect ECONNREFUSED 127.0.0.1:41585"}; === RUN   TestComplianceBrowserAPIProcess
+ZASP_PRIVATE_AUTH_PROBE core duration_ms=3332 refused=false deadline=false canceled=false
+ZASP_PRIVATE_AUTH_PROBE agent duration_ms=1668 refused=true deadline=true canceled=false
+ZASP_COMPLIANCE_API_FAILED_STAGE=runtime-build
+ZASP_COMPLIANCE_API_FAILED_DEPENDENCY=authorization-readiness
+    compliance_browser_process_test.go:111: compliance browser runtime refused runtime unavailable
+--- FAIL: TestComplianceBrowserAPIProcess (5.21s)
+FAIL
+
+    at startAPI (file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:2293:713)
+    at async exerciseComplianceBrowser (file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:2294:3)
+    at async file:///workspace/zasp-sec/scripts/production-combined-e2e.mjs:377:5
+
+Node.js v22.23.1

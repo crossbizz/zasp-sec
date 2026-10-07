@@ -1,0 +1,48 @@
+{
+  "outcome": "PASS scoped P3 applicationdeadline source and actual grouped evidence",
+  "sources": {
+    "services/platform/orchestration/security_agent_workflow.go": "82fafcf5577a096474d9a3c63d696ed1ea0e939741a1e6a750edaffe623a3165",
+    "services/platform/orchestration/security_agent_workflow_test.go": "67aadea112ceb4408b25483e36d9324f029d161b9747ec60cebbce2641b21edf"
+  },
+  "verified": [
+    "Version marker gates changed options, postObserve fence, waits and deadline reason; DefaultVersion retains originalcommands",
+    "FreshObserve and all four actioncalls receive positive min(original,remaining) activityStartToClose/ScheduleToClose budgets",
+    "Original disconnectedcleanup20mStartToClose/2hScheduleToClose unchanged; cancellation reasonstillwins; cleanupfailurestillfailure",
+    "Signals remainwakeuponly; fresh authoritativeSQL-facing read decides actions; late read cannot dispatch freshwork",
+    "Meaningful publicactivity boundary receives<=15s actualoptions+ctxdeadline forObserve and Plan/Apply/Advance/Test, cleanupretainsoriginalbudgets"
+  ],
+  "actualRuns": {
+    "originalLateAuthorityRED": {
+      "exit": 1,
+      "failedParents": 1,
+      "latePhaseSubcases": 4,
+      "sha256": "f836138a4ce94ab34fc9e877e11d805d123099d0521ef2951a84eac731f48ed8"
+    },
+    "finalPackageGREEN": {
+      "exit": 0,
+      "topPass": 62,
+      "topSkip": 2,
+      "topFail": 0,
+      "elapsedSeconds": 9.722,
+      "sha256": "ecf4e3410c1373f44fb27594a5346aadf8b5f64ad3c42fe179f6435a1d52ed6b"
+    },
+    "baselineBudgetBoundaryRED": {
+      "exit": 1,
+      "failedParents": 1,
+      "elapsedSeconds": 1.543,
+      "sha256": "5b3c65bf269c2f69708983ef388a1e5f5dbb9b670760333d3c565b1831f8892a",
+      "baselineProductionSHA256": "6da42a7bdd940c947e356f3c278c1b66d5f941edf193888da6de4f5d479a5148",
+      "failure": "Actual own activityObserve20m allowance exceeds15s remaining; allfour producteffects invoked"
+    }
+  },
+  "chronology": "Original four lateauthority cases RED preceded productionfix. Additional independent-requested boundary test GREEN was followed by authentic committedbaseline overlayRED with same finaltestbody; not initial historicalTDD. Prior firstGREEN4parents and package61PASS2SKIP remain unchanged.",
+  "skipNames": [
+    "TestAutomaticSourceRetainedHistoryDiagnostic",
+    "TestSingleTestLiveCleanupContinuation"
+  ],
+  "limits": [
+    "No nativeTemporal/FGA/internalvendor tests or provider/deployed acceptance",
+    "Existing DefaultVersion histories retain original behavior: deploymustdrain/handle explicitly; no retroactive correction/replay acceptance",
+    "Independent source/JSONevidence review, no duplicatedGo run"
+  ]
+}

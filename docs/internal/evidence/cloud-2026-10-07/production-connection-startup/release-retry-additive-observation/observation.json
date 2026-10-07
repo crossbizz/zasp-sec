@@ -1,0 +1,27 @@
+{
+  "observed_utc": "2026-10-07T03:59:05Z",
+  "kind": "Fresh additive read-only observation after owner interruption; not original terminal result",
+  "original_owner_result_available": false,
+  "source_members": 8148,
+  "private_projection_mismatches": [],
+  "current_repository_byte_mismatches": [],
+  "tool_before_after_mismatches": [],
+  "source_before_sha256": "1767871e98cdf74b5b8a74fa47ab2cb0cd4aa9601145d8bc41111028810ca90b",
+  "tool_before_sha256": "d646f432cff3a5739dbbe8094390fcda96d1ad5a13b1c9c7bc2394975fe96532",
+  "recorded_process": {
+    "recorded_pid": 38432,
+    "recorded_pgid": 38432,
+    "recorded_start_ticks": "277146",
+    "observation": "current recorded PID; identity requires start_ticks comparison",
+    "state": "Z",
+    "ppid": 1,
+    "pgid": 38432,
+    "start_ticks": "277146"
+  },
+  "limitations": [
+    "Original Python owner disappeared; cause and terminal exit unknown.",
+    "Recorded Tini remains PID1-owned zombie if observation state Z; no full process absence claimed.",
+    "Stdout records completed release/build/compiled/ledger stages; this is not a single full npm verify PASS.",
+    "This later byte comparison is not a lifetime/kernel custody proof."
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "outcome": "PASS_SOURCE_ONLY",
+  "scope": "Independent source review of registration-authored five PG fixture wrappers. No PostgreSQL invocation/SQL execution. Fixed owned loader/library context and initdb-L share binding only, original argument forwarding preserved; no version spoof/GUC/schema changes.",
+  "manifest_sha256": "410b7d9c29923c9005a7e6ea0bbdfa7d65f60f492f1e070111fc3b1e6987ed81",
+  "members": [
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-fixture-bin/initdb",
+      "sha256": "75bccbdd934d15e266d7e5cfccfdb2a36d938e52cb98be24459adfe2516c84c4",
+      "raw_tool": "/tmp/zasp-native-supported-tools-h0zqa978/postgres18.3-root/usr/lib/postgresql/18/bin/initdb",
+      "raw_tool_sha256": "1e91d292fc9af5c4491193e4de72e5afea2c294feea26166a442eec9830869d7",
+      "loader_sha256": "593bb1d5355658e645f36e6b1f49832691b24e177209765914e4cce51499dbb4"
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-fixture-bin/postgres",
+      "sha256": "7fffa38d6b7da140aa09d9472d01e9a3db9df76ffd4f332ab73cdce20fa50aec",
+      "raw_tool": "/tmp/zasp-native-supported-tools-h0zqa978/postgres18.3-root/usr/lib/postgresql/18/bin/postgres",
+      "raw_tool_sha256": "4cc2a6c517a0ecb52ac1269108c0a4a70e8fb53cf32c249fad89970bf9acc8df",
+      "loader_sha256": "593bb1d5355658e645f36e6b1f49832691b24e177209765914e4cce51499dbb4"
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-fixture-bin/pg_ctl",
+      "sha256": "9d90530516e622d5399122d072fc4b38bc750eafb9686f5b9913f50e6a4725d9",
+      "raw_tool": "/tmp/zasp-native-supported-tools-h0zqa978/postgres18.3-root/usr/lib/postgresql/18/bin/pg_ctl",
+      "raw_tool_sha256": "87c630d71627b975655d550aafac312909afce28ac0331fcc1409bd463d9fb3d",
+      "loader_sha256": "593bb1d5355658e645f36e6b1f49832691b24e177209765914e4cce51499dbb4"
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-fixture-bin/psql",
+      "sha256": "ac4248ed98f3410bb29dcc4d0c9344eefcf97493b2406cb29222e0ef54cb46a7",
+      "raw_tool": "/tmp/zasp-native-supported-tools-h0zqa978/postgres18.3-root/usr/lib/postgresql/18/bin/psql",
+      "raw_tool_sha256": "9b19f53d3de23ea9d7d909e551e0bbb803d796db54fc7b906c5027805c9bf1f5",
+      "loader_sha256": "593bb1d5355658e645f36e6b1f49832691b24e177209765914e4cce51499dbb4"
+    },
+    {
+      "path": "/tmp/zasp-native-supported-tools-h0zqa978/pg-fixture-bin/pg_isready",
+      "sha256": "c036a0ba47b288f4e48903e0c6a2aca852254ae1b7a43bfdbab7ed45106e28d7",
+      "raw_tool": "/tmp/zasp-native-supported-tools-h0zqa978/postgres18.3-root/usr/lib/postgresql/18/bin/pg_isready",
+      "raw_tool_sha256": "c12a9e768c17edeaf36a9c4bdb738255d0de47b56950a1af88c205e1bb9d141e",
+      "loader_sha256": "593bb1d5355658e645f36e6b1f49832691b24e177209765914e4cce51499dbb4"
+    }
+  ],
+  "reviewer": "connected_flow_gap_audit (author of native credential adapter, not these wrappers)"
+}

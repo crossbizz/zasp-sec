@@ -1,0 +1,21 @@
+{
+  "scope": "Fresh unchanged native80 apiserver compile only",
+  "argv": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "test",
+    "-mod=readonly",
+    "-c",
+    "-o",
+    "/tmp/unchanged-native80-spec29-ingpnppe/native80.test",
+    "./apiserver"
+  ],
+  "exit": 0,
+  "normalJoined": true,
+  "forced": false,
+  "failure": null,
+  "elapsed": 62.627458226000044,
+  "bindingCount": 3158,
+  "bindingsBeforeSHA256": "c5c8afe6071930e84f26b360818b966c4a8657dc86e37d0d74eb7425d1c1af17",
+  "bindingsAfterSHA256": "c5c8afe6071930e84f26b360818b966c4a8657dc86e37d0d74eb7425d1c1af17",
+  "binarySHA256": "c6db5ab6acd7b00698f2e83ea486c223c25827abc9bcc5f61d40885f32a7117b"
+}

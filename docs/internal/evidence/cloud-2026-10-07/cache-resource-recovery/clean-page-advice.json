@@ -1,0 +1,10 @@
+{
+  "scope": "Read-only clean-page eviction advice for already verified outside Go cache files; no bytes removed or changed, no modeled reclaim credit",
+  "files": 18619,
+  "logicalBytesAdvised": 6290200421,
+  "memoryBefore": 17161625600,
+  "memoryAfter": 12821958656,
+  "memoryMax": 17179869184,
+  "actualHeadroomAfter": 4357910528,
+  "elapsed": 0.3139948710013414
+}

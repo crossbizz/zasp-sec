@@ -1,0 +1,40 @@
+{
+  "counts": {
+    "numFailedTestSuites": 2,
+    "numFailedTests": 1,
+    "numPassedTestSuites": 501,
+    "numPassedTests": 2619,
+    "numPendingTestSuites": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "numTotalTestSuites": 503,
+    "numTotalTests": 2620,
+    "success": false
+  },
+  "floorRefused": false,
+  "forced": false,
+  "head": "298e9911024fe36c8872070932019a0263044e1d",
+  "initialProjectionFailurePreserved": "/tmp/zasp-cloud-evidence/fresh-full-ui-u6pnx_qz/result.json",
+  "initialProjectionZeroTests": true,
+  "limitations": [
+    "Missing Helm means baseline remains failed; no failed assertion suppressed",
+    "Direct child normal wait is observed; no separate descendant or kernel trace claimed",
+    "Shared repository receipt changed during test; full primary census equality is false"
+  ],
+  "nestedDiagnosticExitCode": 1,
+  "nestedDiagnosticStdoutPath": "/tmp/zasp-cloud-evidence/fresh-full-ui-physical-qeirnht9/nested-diagnostic.stdout.log",
+  "normalJoined": true,
+  "observedNestedFailure": "renderRelease catches Helm invocation failure at release-contract.mjs:388; helm not installed in closed test PATH or parent PATH",
+  "onlyFailedAssertion": "M3 connector and sensor implementation batch keeps Nango private, pinned, bounded, and secret-referenced",
+  "physicalFrozenProjectionAll7825BytesMatchBefore": true,
+  "primaryAll102138ModuleEntriesUnchanged": true,
+  "resultPath": "/tmp/zasp-cloud-evidence/fresh-full-ui-physical-qeirnht9/result.json",
+  "resultSHA256": "a5d2653f06495a2ab32473d228187d78cd9e46c91afd76a2e8eef084b4c06a2b",
+  "scope": "Full Vitest fixture/component baseline only; no API/provider/deployment acceptance",
+  "sharedChangedTrackedPaths": [
+    "docs/internal/cloud-continuation-receipt-2026-10-06.md"
+  ],
+  "status": "ACTUAL-FULL-UI-BASELINE-FAIL-MISSING-HELM",
+  "strictWholePrimaryBeforeAfterEqual": false,
+  "ui3050Modified": false
+}

@@ -1,0 +1,35 @@
+{
+  "failureClass": null,
+  "signals": [],
+  "renewals": 0,
+  "records": [
+    {
+      "phase": "initdb",
+      "returncode": 0,
+      "elapsedSeconds": 0.46862840199901257
+    },
+    {
+      "phase": "create-fga-db",
+      "returncode": 0,
+      "elapsedSeconds": 0.06408012400061125
+    },
+    {
+      "phase": "fga-migrate",
+      "returncode": 0,
+      "elapsedSeconds": 0.11408308799946099
+    }
+  ],
+  "cleanup": [
+    {
+      "name": "openfga",
+      "returncode": 0,
+      "joined": true
+    },
+    {
+      "name": "postgres",
+      "returncode": 0,
+      "joined": true
+    }
+  ],
+  "scope": "Owned service lifecycle only; actual SDK/domain test evidence separate"
+}

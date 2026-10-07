@@ -1,0 +1,90 @@
+{
+  "format": "readiness80-three-explain-selected-v1",
+  "files": [
+    {
+      "path": "compile-owner.py",
+      "bytes": 4778,
+      "sha256": "3f53f6edb68cf436115c57334fee3bdb56c6a6531c7a488f354509114b298f5d"
+    },
+    {
+      "path": "compile-process-binding.json",
+      "bytes": 959,
+      "sha256": "87f345f6f0f7c7f0ad4ec3bc09e0dfd344caf5ecc0a5a93e59396bb9e097f516"
+    },
+    {
+      "path": "compile-selected-summary.json",
+      "bytes": 798,
+      "sha256": "26742df2d335c284c8cbae05d26486b999fb85be57079737e371f68b4df8dbd2"
+    },
+    {
+      "path": "compile.stderr.gz",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "path": "compile.stdout.gz",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "path": "diagnostic-overlay.go",
+      "bytes": 30062,
+      "sha256": "5e49c9f06afa8d80559f890a5c5045edc1f18729fde7e62bccd10468a5df02bb"
+    },
+    {
+      "path": "first-attempt-compile-result.json",
+      "bytes": 1839,
+      "sha256": "b10a3172ee55be0989172896c37d17f54327d8e03b664c3b778f6f64a23926ab"
+    },
+    {
+      "path": "first-attempt-compile.stderr",
+      "bytes": 220,
+      "sha256": "f5077fae7f8cbd71f642aa44b5a4cd3766564e278922bf95488ac5fc974b7d43"
+    },
+    {
+      "path": "original-identities.json",
+      "bytes": 5708,
+      "sha256": "5dd6059a302816763c79a2ad1316a57b2dbe771f7f68adfc0f9082ef6b8d4cfa"
+    },
+    {
+      "path": "overlay.json",
+      "bytes": 175,
+      "sha256": "d46505e3fe69275706978f0c40349c245541d014da9007c7ca2d79a7aaf82360"
+    },
+    {
+      "path": "preparation.json",
+      "bytes": 1114,
+      "sha256": "d603d0a4285e7bd9d0f1066f5de624c08a58f94257bb906419723dcb1e12d990"
+    },
+    {
+      "path": "run-profile.py",
+      "bytes": 6128,
+      "sha256": "4a23f7f589b8e4d914f67cd8cda5cc27103f764bf1e0de697fefa05960fd19f0"
+    },
+    {
+      "path": "sql80-process-binding.json",
+      "bytes": 662,
+      "sha256": "28e560c9b9ce689666306661a3113e79a25d634199b01fbdb448c247926f9c0a"
+    },
+    {
+      "path": "sql80-result.json",
+      "bytes": 76185,
+      "sha256": "cc7144e2c288c4ed4e833e3599becc8c0f604948693dd4198cb7189c48ec7657"
+    },
+    {
+      "path": "sql80.stderr.gz",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "path": "sql80.stdout.gz",
+      "bytes": 788,
+      "sha256": "cf9a52edf74cbcced0fceef60e03d235c9a408e63f34dbbc5c6a23bd48bd5f9c"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 2816,
+      "sha256": "3a117f6162a4cba7a2984966346e62479e4e4cb4ae08fd7baaddb0efab9ac354"
+    }
+  ]
+}

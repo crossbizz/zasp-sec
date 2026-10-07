@@ -1,0 +1,36 @@
+{
+  "corrects": "Parent message incorrectly summed all terminal top-level events as PASS. Original summary contains exact per-test Action values; original bytes/logs preserved.",
+  "package": "61 top-level PASS, 2 existing opt-in SKIP, 0FAIL; package exit0",
+  "skip_tests": [
+    "TestAutomaticSourceRetainedHistoryDiagnostic",
+    "TestSingleTestLiveCleanupContinuation"
+  ],
+  "skip_output": [
+    {
+      "test": "TestAutomaticSourceRetainedHistoryDiagnostic",
+      "output": "=== RUN   TestAutomaticSourceRetainedHistoryDiagnostic"
+    },
+    {
+      "test": "TestAutomaticSourceRetainedHistoryDiagnostic",
+      "output": "automatic_source_history_diagnostic_test.go:21: requires exact owned retained execution"
+    },
+    {
+      "test": "TestAutomaticSourceRetainedHistoryDiagnostic",
+      "output": "--- SKIP: TestAutomaticSourceRetainedHistoryDiagnostic (0.00s)"
+    },
+    {
+      "test": "TestSingleTestLiveCleanupContinuation",
+      "output": "=== RUN   TestSingleTestLiveCleanupContinuation"
+    },
+    {
+      "test": "TestSingleTestLiveCleanupContinuation",
+      "output": "single_test_live_test.go:51: requires explicit owned local Temporal test"
+    },
+    {
+      "test": "TestSingleTestLiveCleanupContinuation",
+      "output": "--- SKIP: TestSingleTestLiveCleanupContinuation (0.00s)"
+    }
+  ],
+  "no_additional_run": true,
+  "limits": "Neither skipped diagnostic/live cleanup opt-in path was accepted by this component run."
+}

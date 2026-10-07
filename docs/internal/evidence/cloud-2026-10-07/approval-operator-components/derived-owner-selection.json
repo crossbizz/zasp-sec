@@ -1,0 +1,94 @@
+{
+  "format": "explicit-derived-component-owner-selection",
+  "originalResult": "/tmp/operator-v4-stdlib-actual-8594p9yk/result.json",
+  "originalResultSHA256": "cda38606ffd4b188753dbaed4106943ed9280ea4c34d0725e3c6952e0bf1bcda",
+  "scope": "Stdlib mock coordination/raw grammar component only. No native SDK/process/SQL/provider/activation/fleet acceptance.",
+  "completed": true,
+  "forced": false,
+  "cancelled": false,
+  "error": null,
+  "stages": [
+    {
+      "stage": "RED",
+      "exit": 1,
+      "runs": [
+        "=== RUN   TestCoordinatorBoundary",
+        "=== RUN   TestCoordinatorBoundary/withdrawalNot401"
+      ],
+      "passes": [],
+      "failures": [
+        "--- FAIL: TestCoordinatorBoundary (0.00s)",
+        "--- FAIL: TestCoordinatorBoundary/withdrawalNot401 (0.00s)"
+      ],
+      "skips": [],
+      "normalWaitObserved": true
+    },
+    {
+      "stage": "GREEN",
+      "exit": 0,
+      "runs": [
+        "=== RUN   TestCoordinatorBoundary",
+        "=== RUN   TestCoordinatorBoundary/success",
+        "=== RUN   TestCoordinatorBoundary/oldCredentialUnauthenticated",
+        "=== RUN   TestCoordinatorBoundary/writerIdentityChanged",
+        "=== RUN   TestCoordinatorBoundary/withdrawalNot401",
+        "=== RUN   TestCoordinatorBoundary/writerStillPresent",
+        "=== RUN   TestCoordinatorBoundary/newWholeModelMismatch",
+        "=== RUN   TestCoordinatorBoundary/expired",
+        "=== RUN   TestCoordinatorBoundary/foreignPermit",
+        "=== RUN   TestCoordinatorBoundary/oneUse",
+        "=== RUN   TestCoordinatorBoundary/uncertainSQLNoResend",
+        "=== RUN   TestCoordinatorBoundary/withdrawalChangesUnderLock",
+        "=== RUN   TestCoordinatorBoundary/cancelled"
+      ],
+      "passes": [
+        "--- PASS: TestCoordinatorBoundary (0.00s)",
+        "--- PASS: TestCoordinatorBoundary/success (0.00s)",
+        "--- PASS: TestCoordinatorBoundary/oldCredentialUnauthenticated (0.00s)",
+        "--- PASS: TestCoordinatorBoundary/writerIdentityChanged (0.00s)",
+        "--- PASS: TestCoordinatorBoundary/withdrawalNot401 (0.00s)",
+        "--- PASS: TestCoordinatorBoundary/writerStillPresent (0.00s)",
+        "--- PASS: TestCoordinatorBoundary/newWholeModelMismatch (0.00s)",
+        "--- PASS: TestCoordinatorBoundary/expired (0.00s)",
+        "--- PASS: TestCoordinatorBoundary/foreignPermit (0.00s)",
+        "--- PASS: TestCoordinatorBoundary/oneUse (0.00s)",
+        "--- PASS: TestCoordinatorBoundary/uncertainSQLNoResend (0.00s)",
+        "--- PASS: TestCoordinatorBoundary/withdrawalChangesUnderLock (0.00s)",
+        "--- PASS: TestCoordinatorBoundary/cancelled (0.00s)"
+      ],
+      "failures": [],
+      "skips": [],
+      "normalWaitObserved": true
+    },
+    {
+      "stage": "RAW-GREEN",
+      "exit": 0,
+      "runs": [
+        "=== RUN   TestRawModelSafety",
+        "=== RUN   TestRawModelSafety/same",
+        "=== RUN   TestRawModelSafety/duplicate",
+        "=== RUN   TestRawModelSafety/unknown",
+        "=== RUN   TestRawModelSafety/wrongModel",
+        "=== RUN   TestRawModelSafety/trailing",
+        "=== RUN   TestRawModelSafety/malformedUTF8"
+      ],
+      "passes": [
+        "--- PASS: TestRawModelSafety (0.00s)",
+        "--- PASS: TestRawModelSafety/same (0.00s)",
+        "--- PASS: TestRawModelSafety/duplicate (0.00s)",
+        "--- PASS: TestRawModelSafety/unknown (0.00s)",
+        "--- PASS: TestRawModelSafety/wrongModel (0.00s)",
+        "--- PASS: TestRawModelSafety/trailing (0.00s)",
+        "--- PASS: TestRawModelSafety/malformedUTF8 (0.00s)"
+      ],
+      "failures": [],
+      "skips": [],
+      "normalWaitObserved": true
+    }
+  ],
+  "cacheDeltaCounts": {
+    "added": 49,
+    "removed": 0,
+    "changed": 257
+  }
+}

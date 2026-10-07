@@ -1,0 +1,18 @@
+{
+  "outcome": "PASS exact selected Stytch source/scalar publication copies and scope",
+  "candidate": "/tmp/zasp-cloud-evidence/Stytch-owned-TEST-selected-complete-t26t0umv",
+  "manifestSHA256": "3d45e1c1ba66b88164085ef1654a6e03de234bde2a61d582cf20065bd548fd8d",
+  "candidateClosedPayloads": 11,
+  "copiedMembersIncludingManifest": 12,
+  "checks": [
+    "Every11 closed payload hash/size; ten original byte copies plus README authoredscope exact. All12 copied repository files match candidate.",
+    "Source V4 unchanged6558 wrapper; seven fake transport controls and preserved initial assertion-driver failure explicitly separate from real provider results.",
+    "Actual scalar calls POSTcreate/password/password200, ownedDELETE200, subsequent exactownedGET404; parent normal0/no force/2.220seconds recorded.",
+    "No actual credential/JWT/password/authheader/rawownershipjournal/providerbody in selected originals."
+  ],
+  "limits": [
+    "Disposable TEST password/session only, not email ownership/OAuth/SSO/product API session/provider-production readiness or ledger promotion.",
+    "Any additional root provenance supplement checked separately; candidate scanner NOT_RUN not clearance.",
+    "ROOT actual final staged default scan mandatory; source includes synthetic strings, not real values."
+  ]
+}

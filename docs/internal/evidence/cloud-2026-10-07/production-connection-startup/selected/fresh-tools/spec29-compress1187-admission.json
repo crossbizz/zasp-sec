@@ -1,0 +1,55 @@
+{
+  "format": "spec29-compress1187-four-offline-module-admission-v1",
+  "module": "github.com/klauspost/compress",
+  "version": "v1.18.7",
+  "sum": "h1:aUyZsS4kH3QTKurYhAOwAHxllVPnOthb3vPfnF1Ehjw=",
+  "goModSum": "h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=",
+  "zipSHA256": "4e5cef30576a158c16e824ebb9c1ded91d8331bf339655e95ebb19710050c39c",
+  "proxyAttempt": "FAILED_NETWORK_POLICY_RAW_PRIVATE",
+  "ordinaryOfficialGitDirect": "NORMAL_EXIT_0",
+  "goChecksumValidation": "GOSUMDB=sum.golang.org enabled; exact committedgo.sum agreement, no independent signedcheckpoint replay",
+  "checks": [
+    {
+      "module": "health",
+      "exit": 0,
+      "elapsed": 0.11909393600012663,
+      "packageLines": 211,
+      "stdoutSHA256": "552124512e90d73f38bc10bf49af704af41358370e5171cb863b2174cfd78516",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "module": "platform",
+      "exit": 0,
+      "elapsed": 0.45045408700002554,
+      "packageLines": 836,
+      "stdoutSHA256": "dd0ba998e2d06036b2a5f64ef8c3291ab276eb115a233333c79328df797e2980",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "module": "event-ingest",
+      "exit": 0,
+      "elapsed": 0.08297866699990664,
+      "packageLines": 337,
+      "stdoutSHA256": "5a18448b93ca0f63250eee6b0cf447c2d0aceecb6de5f1169869042375ef017e",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "module": "runtime-gateway",
+      "exit": 0,
+      "elapsed": 0.11605310799996005,
+      "packageLines": 487,
+      "stdoutSHA256": "61abc0872400dc9a2b358c6ed34f1c2fd5b5cdb7a7c72b13b5b501bc316055b3",
+      "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "modSumBeforeAfter": {
+    "health/go.mod": "800feb2d307b99dc161ce73170609d4cbe535f840aedf013c7c8392977ba9737",
+    "platform/go.mod": "6124e67918a745352fefa19df1c2ebf40bff877abcff57f731219125a16016b5",
+    "platform/go.sum": "649357372614cdb1202e67ee55e0ffcfc71907ba5be317f3eeedfcdf356a79fe",
+    "event-ingest/go.mod": "f275f4a8cd64cf2e6cb20f591db8096e0316cb4218ac8aadd378305ecdfb28a1",
+    "event-ingest/go.sum": "e7a85381cac36364c7c9a75e3b50926ece9fa405e84e5626ff70cc1769f7b529",
+    "runtime-gateway/go.mod": "70ef3f810cded6244a50b32c8cf40b6cdbb2e5732960b558e35dcd8284e9a5f5",
+    "runtime-gateway/go.sum": "72cfcd6ee70d31a21d1175f585c3db32aa9e7b258c181774cbeb897a9bc284c5"
+  },
+  "scope": "Metadata dependency closure only; no compilation/tests/native/fullAPI readiness."
+}

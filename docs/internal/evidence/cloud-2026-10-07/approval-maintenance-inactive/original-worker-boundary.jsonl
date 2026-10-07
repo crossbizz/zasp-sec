@@ -1,0 +1,8 @@
+{"Time":"2026-10-07T08:55:19.013937197Z","Action":"start","Package":"github.com/zasp-ai/zasp-sec/services/platform/authorization"}
+{"Time":"2026-10-07T08:55:19.039540828Z","Action":"run","Package":"github.com/zasp-ai/zasp-sec/services/platform/authorization","Test":"TestApprovalOriginExecutionRejectsUnprovedAndNonAdmitOperations"}
+{"Time":"2026-10-07T08:55:19.039571184Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/authorization","Test":"TestApprovalOriginExecutionRejectsUnprovedAndNonAdmitOperations","Output":"=== RUN   TestApprovalOriginExecutionRejectsUnprovedAndNonAdmitOperations\n"}
+{"Time":"2026-10-07T08:55:19.03960202Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/authorization","Test":"TestApprovalOriginExecutionRejectsUnprovedAndNonAdmitOperations","Output":"--- PASS: TestApprovalOriginExecutionRejectsUnprovedAndNonAdmitOperations (0.00s)\n"}
+{"Time":"2026-10-07T08:55:19.039605495Z","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/authorization","Test":"TestApprovalOriginExecutionRejectsUnprovedAndNonAdmitOperations","Elapsed":0}
+{"Time":"2026-10-07T08:55:19.039660929Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/authorization","Output":"PASS\n"}
+{"Time":"2026-10-07T08:55:20.04218059Z","Action":"output","Package":"github.com/zasp-ai/zasp-sec/services/platform/authorization","Output":"ok  \tgithub.com/zasp-ai/zasp-sec/services/platform/authorization\t1.028s\n"}
+{"Time":"2026-10-07T08:55:20.042221322Z","Action":"pass","Package":"github.com/zasp-ai/zasp-sec/services/platform/authorization","Elapsed":1.028}

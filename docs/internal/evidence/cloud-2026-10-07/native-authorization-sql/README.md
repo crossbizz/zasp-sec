@@ -1,0 +1,5 @@
+SQL79 projection/reconcile/ack passed using real owned PostgreSQL18.3 and OpenFGA1.21. The unchanged current80 module-fence test failed when its original five-minute context expired during the readiness implication check; later connection operations also failed after expiry. Both test processes joined normally and their PostgreSQL fixtures cleaned up.
+
+The compiled API test binary uses an explicit private overlay for one existing FGA fixture file. Shared source and its immutable original hash stay unchanged. Current80 does not call that FGA helper. This packet supports selected component diagnostics only; it establishes no native379, full standard suite, current80 full projection, Stytch, deployed API or browser acceptance.
+
+Original raw logs, large source maps and binary remain private with hash/size identities. The SQL80 gzip contains the complete log after the declared URI-password sanitization (zero replacements). Original five-minute context, default Go ten-minute timeout, and all original assertions remain unchanged.

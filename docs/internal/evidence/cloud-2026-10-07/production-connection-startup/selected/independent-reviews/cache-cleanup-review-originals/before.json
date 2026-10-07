@@ -1,0 +1,15 @@
+{
+  "observed_utc": "2026-10-07T03:14:46Z",
+  "cache_path": "/home/agent/.cache/go-build",
+  "regular_files": 18619,
+  "regular_bytes": 6290200421,
+  "symlinks": [
+    {
+      "path": "/home/agent/.cache/go-build/3a",
+      "target": "/dev/shm/zasp-default-go-cache-custody-3f40727d6cf74424942b1b7b2097cdbe/3a",
+      "exists": false
+    }
+  ],
+  "workspace_available": 1603092480,
+  "scope": "Disposable default Go compiler cache only; source, module cache and evidence excluded. Active verifier uses distinct SHM GOCACHE; module input aliases reviewed as independent."
+}

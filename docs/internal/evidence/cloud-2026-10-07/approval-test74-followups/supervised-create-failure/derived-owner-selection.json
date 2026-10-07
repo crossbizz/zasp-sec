@@ -1,0 +1,33 @@
+{
+  "format": "explicit-derived-owner-selection",
+  "originalResult": "/workspace/.zasp-cloud-owned/native-test74-supervised-current1b7d-tvf53lx1/actual-i5cev0rm/result.json",
+  "originalResultSHA256": "3deb680c4f26d474c2a26116b1e6e90d9ae00c8360f512d8c46c0d0fe2e3f1b4",
+  "scope": "Selected fields from whole private original owner result; not the full result or an outer process attestation",
+  "selected": {
+    "completed": false,
+    "elapsedSeconds": 173.30105594199995,
+    "failure": "RuntimeError:child stage refused:genuine-single-test-inactive-capture",
+    "firstRefusal": {
+      "elapsedSeconds": 172.62211901199953,
+      "phase": "genuine-single-test-inactive-capture",
+      "reason": "RuntimeError:child stage refused:genuine-single-test-inactive-capture",
+      "resources": null,
+      "signals": []
+    },
+    "fgaNormalStop": {
+      "exit": 0,
+      "forcedCleanup": false,
+      "listenersAbsent": true,
+      "normalWait": true,
+      "routineGracefulSIGTERM": true,
+      "sessionAbsent": true
+    },
+    "forced": false,
+    "processCensusUnknown": [],
+    "ownedSessionSurvivors": [],
+    "signals": [],
+    "sourceBeforeSHA256": "ffa0598bc019fd1ef4d11f0dde62cb0357b01aea2b126cdc1f52607b6ede5e88",
+    "sourceAfterSHA256": "ffa0598bc019fd1ef4d11f0dde62cb0357b01aea2b126cdc1f52607b6ede5e88",
+    "productionActivated": false
+  }
+}

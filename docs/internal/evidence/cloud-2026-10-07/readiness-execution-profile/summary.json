@@ -1,0 +1,76 @@
+{
+  "scope": "Read-only cost diagnostic; not readiness acceptance or product root cause proof. Original suite/window/SQL unchanged.",
+  "plans": [
+    {
+      "statement": "temporal78",
+      "wall": "17.46206289s",
+      "planning_ms": 0.023,
+      "execution_ms": 17459.864,
+      "blocks": {
+        "Shared Hit Blocks": 196089,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0
+      }
+    },
+    {
+      "statement": "authorization80",
+      "wall": "16.873750578s",
+      "planning_ms": 0.009,
+      "execution_ms": 16872.371,
+      "blocks": {
+        "Shared Hit Blocks": 150478,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0
+      }
+    },
+    {
+      "statement": "same-call-implication",
+      "wall": "51.763661571s",
+      "planning_ms": 0.022,
+      "execution_ms": 51762.295,
+      "blocks": {
+        "Shared Hit Blocks": 433641,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0
+      }
+    }
+  ],
+  "result": {
+    "completed": true,
+    "elapsed": 169.7997646010008,
+    "exit": 0,
+    "failure": null,
+    "fixture_postgres_cleanup_log": true,
+    "scope": "Diagnostic EXPLAIN ANALYZE of three exact fixed readiness statements once each after same78/80 install with ownPG18.3. Private appended test overlay, original suite unchanged. No FGA/current80 acceptance/native379/browser claim.",
+    "skip": 0,
+    "source_inputs_unchanged": true,
+    "stdout_sha256": "afb82a5f0ab0b92d94c976b8b251462874b9ee14fe64f58f61955c44848bb75f",
+    "survivors": [],
+    "top_pass": 1,
+    "wait_joined": true
+  },
+  "interpretation": "Outer planning negligible; execution includes nested SQL/PLpgSQL planning and execution. Shared buffer hits, no observed disk or temporary reads. Third comparison independently executes original exact expression once; no persistent cache/SQL/role changes.",
+  "original_context_failure_preserved": "/dev/shm/readiness80-cost-82wqqm9u/compile-result.json",
+  "maps": "9842 conservative selected inputs plus separately admitted five wrapper records; union unchanged. Large maps/binary omitted with identity hashes."
+}

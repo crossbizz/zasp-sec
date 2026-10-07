@@ -1,0 +1,28 @@
+=== RUN   TestCoordinatorBoundary
+=== RUN   TestCoordinatorBoundary/success
+=== RUN   TestCoordinatorBoundary/oldCredentialUnauthenticated
+=== RUN   TestCoordinatorBoundary/writerIdentityChanged
+=== RUN   TestCoordinatorBoundary/withdrawalNot401
+=== RUN   TestCoordinatorBoundary/writerStillPresent
+=== RUN   TestCoordinatorBoundary/newWholeModelMismatch
+=== RUN   TestCoordinatorBoundary/expired
+=== RUN   TestCoordinatorBoundary/foreignPermit
+=== RUN   TestCoordinatorBoundary/oneUse
+=== RUN   TestCoordinatorBoundary/uncertainSQLNoResend
+=== RUN   TestCoordinatorBoundary/withdrawalChangesUnderLock
+=== RUN   TestCoordinatorBoundary/cancelled
+--- PASS: TestCoordinatorBoundary (0.00s)
+    --- PASS: TestCoordinatorBoundary/success (0.00s)
+    --- PASS: TestCoordinatorBoundary/oldCredentialUnauthenticated (0.00s)
+    --- PASS: TestCoordinatorBoundary/writerIdentityChanged (0.00s)
+    --- PASS: TestCoordinatorBoundary/withdrawalNot401 (0.00s)
+    --- PASS: TestCoordinatorBoundary/writerStillPresent (0.00s)
+    --- PASS: TestCoordinatorBoundary/newWholeModelMismatch (0.00s)
+    --- PASS: TestCoordinatorBoundary/expired (0.00s)
+    --- PASS: TestCoordinatorBoundary/foreignPermit (0.00s)
+    --- PASS: TestCoordinatorBoundary/oneUse (0.00s)
+    --- PASS: TestCoordinatorBoundary/uncertainSQLNoResend (0.00s)
+    --- PASS: TestCoordinatorBoundary/withdrawalChangesUnderLock (0.00s)
+    --- PASS: TestCoordinatorBoundary/cancelled (0.00s)
+PASS
+ok  	command-line-arguments	1.011s

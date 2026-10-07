@@ -1,0 +1,434 @@
+{
+  "scope": "P3/M7A-49/M7A-59 workflow fresh-work deadline; component verification only",
+  "source_head": "ff7f86ff665642e6d9e9d0aa678d631e226299bc",
+  "tools": "go version go1.26.8 linux/amd64",
+  "sources": {
+    "services/platform/orchestration/security_agent_workflow.go": {
+      "before_sha256": "6da42a7bdd940c947e356f3c278c1b66d5f941edf193888da6de4f5d479a5148",
+      "after_sha256": "82fafcf5577a096474d9a3c63d696ed1ea0e939741a1e6a750edaffe623a3165"
+    },
+    "services/platform/orchestration/security_agent_workflow_test.go": {
+      "before_sha256": "208e8fb1d70eb2d08f150729adcc4655efece1ae1527a26470d7269c329e69e3",
+      "after_sha256": "b80309dc2903906220e5f3c993eeaa8d0e9a652339eae6bed3ece1460479c867"
+    }
+  },
+  "runs": {
+    "red": {
+      "exit": 1,
+      "sha256": "f836138a4ce94ab34fc9e877e11d805d123099d0521ef2951a84eac731f48ed8",
+      "top_level": [
+        {
+          "Test": "TestSecurityAgentWorkflowLateAuthorityCannotStartEffects",
+          "Action": "fail",
+          "Elapsed": 5.86
+        }
+      ],
+      "package_terminal": [
+        {
+          "Action": "fail",
+          "Elapsed": 5.8870000000000005
+        }
+      ],
+      "started": "2026-10-07T00:00:11.550994039Z",
+      "ended": "2026-10-07T00:00:17.438118386Z",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "green": {
+      "exit": 0,
+      "sha256": "4f70b63007f51013170b455800e544725b861c12cacc08f1cd5412e8bf6a395f",
+      "top_level": [
+        {
+          "Test": "TestSecurityAgentWorkflowVerifiedOrdering",
+          "Action": "pass",
+          "Elapsed": 0.1
+        },
+        {
+          "Test": "TestSecurityAgentWorkflowSignalsAreHints",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestSecurityAgentWorkflowCleanupFailureRemainsFailure",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestSecurityAgentWorkflowLateAuthorityCannotStartEffects",
+          "Action": "pass",
+          "Elapsed": 6.36
+        }
+      ],
+      "package_terminal": [
+        {
+          "Action": "pass",
+          "Elapsed": 7.503
+        }
+      ],
+      "started": "2026-10-07T00:01:13.458267559Z",
+      "ended": "2026-10-07T00:01:20.961181336Z",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "package-green": {
+      "exit": 0,
+      "sha256": "b9296949f03d2c382e9b23ea19eda33f752f07e1f1c75a711b451f954803207d",
+      "top_level": [
+        {
+          "Test": "TestActivitiesDrainRetainsActiveCompensation",
+          "Action": "pass",
+          "Elapsed": 0.02
+        },
+        {
+          "Test": "TestActivityErrorsDoNotLeakProviderDetails",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAutomaticSourceRetainedHistoryDiagnostic",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAutomaticSourceRelayRotatesBeforeStartAndAcknowledgesOnlyAcceptance",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAutomaticSourceRelayFailureDoesNotStrandLaterPending",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestTemporalAutomaticScheduleSelection",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAutomaticSourceStartAcknowledgesOnlyExactDurableAcceptance",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestAutomaticWorkflowsFinishSweepBeforeDeferredRetry",
+          "Action": "pass",
+          "Elapsed": 0.07
+        },
+        {
+          "Test": "TestAutomaticSourceContinuationCarriesProgressAndDeferral",
+          "Action": "pass",
+          "Elapsed": 0.04
+        },
+        {
+          "Test": "TestAutomaticSourceRejectsInvalidPageAndForgedContinuation",
+          "Action": "pass",
+          "Elapsed": 0.01
+        },
+        {
+          "Test": "TestDiscoveryStartDeliveryVerifiesContinuedChain",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryStartDeliveryMatchesHistoryAndOriginalBudget",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryScheduleReconciliation",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryScheduleRefusesStaleForeignAndUnknownWrites",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryScheduleCompactActionAndExactLegacyRepair",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryWorkflowSettlesFailedPageAuthorityFromEvidence",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryScheduleChangeDuringReconcileRequiresRedelivery",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryOutageCoalescesOldestDueAndReconciliationRepair",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryDuePolicyRejectsInvalidAndFutureDue",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryRetryConsumesAdvancingProductReceipt",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryOriginalDeadlineBoundsFreshWorkAndSettlesEvidence",
+          "Action": "pass",
+          "Elapsed": 0.01
+        },
+        {
+          "Test": "TestDiscoveryScheduleProjectsNonEarlyWholeSecondWakeup",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryWorkflowCancellationRecordsTypedProductOutcome",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryWorkflowRejectsForeignScheduledAdmission",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryWorkflowIdentityAndMissingScheduleEvidence",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryWorkflowLargeInventoryContinuesWithCheckpoint",
+          "Action": "pass",
+          "Elapsed": 0.12
+        },
+        {
+          "Test": "TestDiscoveryWorkflowBindsPageCommandToCheckpointReceipt",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryWorkflowCheckpointAndTerminalContracts",
+          "Action": "pass",
+          "Elapsed": 0.01
+        },
+        {
+          "Test": "TestDiscoveryScheduledWorkflowUsesExactOccurrenceAndAdmission",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestDiscoveryScheduledDuplicateWakeupDoesNotCollect",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestFindingResponseStarterExactMapping",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestFindingResponseStarterVerifiesRoot",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestFindingResponseStarterVerifiesEveryCleanupLink",
+          "Action": "pass",
+          "Elapsed": 0.01
+        },
+        {
+          "Test": "TestFindingResponseWorkflowProductAuthority",
+          "Action": "pass",
+          "Elapsed": 0.02
+        },
+        {
+          "Test": "TestFindingResponseWorkflowApprovedWakeRereadsProduct",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestFindingResponseCleanupContinuationPreservesDebtAndOutcome",
+          "Action": "pass",
+          "Elapsed": 0.13
+        },
+        {
+          "Test": "TestFindingResponseCleanupTransientExhaustionRetainsDebt",
+          "Action": "pass",
+          "Elapsed": 0.01
+        },
+        {
+          "Test": "TestFindingResponseActivitiesCloseDrainsBorrowedProduct",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestStartMappingAndConflict",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestRelayBoundsWholeBatch",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestNotifyMappingAndValidation",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestRelayAcceptanceBeforeAckAndScope",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestRelayAdvancesBeforeDeadline",
+          "Action": "pass",
+          "Elapsed": 0.02
+        },
+        {
+          "Test": "TestRelayAttemptFailurePreventsDispatch",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestSecurityAgentWorkflowVerifiedOrdering",
+          "Action": "pass",
+          "Elapsed": 0.02
+        },
+        {
+          "Test": "TestSecurityAgentWorkflowSignalsAreHints",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestSecurityAgentWorkflowCleanupFailureRemainsFailure",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestSecurityAgentWorkflowLegacyVersionRetainsOrdering",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestSecurityAgentWorkflowLateAuthorityCannotStartEffects",
+          "Action": "pass",
+          "Elapsed": 6.27
+        },
+        {
+          "Test": "TestSingleTestCleanupActivityErrorContract",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestSingleTestLiveCleanupContinuation",
+          "Action": "skip",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestSingleTestRecoveryStartAndObserveContracts",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestSingleTestRecoveryWorkflowContracts",
+          "Action": "pass",
+          "Elapsed": 0.04
+        },
+        {
+          "Test": "TestSingleTestCancelNeverStartsOrTreatsNotFoundAsDelivered",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestSingleTestStartVerifiesCleanupContinuationChain",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestSingleTestStartAndWakeIdentity",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestSingleTestCleanupRecoversExhaustedTransientBatch",
+          "Action": "pass",
+          "Elapsed": 0.03
+        },
+        {
+          "Test": "TestSingleTestCleanupTransientBatchContinuesSameIdentity",
+          "Action": "pass",
+          "Elapsed": 0.04
+        },
+        {
+          "Test": "TestSingleTestPendingCleanupOutlivesRetryExhaustion",
+          "Action": "pass",
+          "Elapsed": 0.02
+        },
+        {
+          "Test": "TestSingleTestPendingCleanupContinuesWithoutNewBusinessDeadline",
+          "Action": "pass",
+          "Elapsed": 0.07
+        },
+        {
+          "Test": "TestSingleTestWorkflowRequiresParentSettlement",
+          "Action": "pass",
+          "Elapsed": 0.01
+        },
+        {
+          "Test": "TestTestSelectorReconciliation",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Test": "TestTestSelectorRefusesInvalidStaleForeignAndUnknown",
+          "Action": "pass",
+          "Elapsed": 0.01
+        }
+      ],
+      "package_terminal": [
+        {
+          "Action": "pass",
+          "Elapsed": 8.054
+        }
+      ],
+      "started": "2026-10-07T00:01:34.849006495Z",
+      "ended": "2026-10-07T00:01:42.902780671Z",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "rollout": "GetVersion marker gates all altered activity options, post-read fence, wait durations and deadline error reason. Existing DefaultVersion histories retain legacy command sequence; not retroactively corrected. Original disconnected cleanup and SQL budgets unchanged.",
+  "execution": {
+    "cwd": "/workspace/zasp-sec/services/platform",
+    "base": [
+      "go",
+      "test",
+      "-race",
+      "-p=1",
+      "-count=1",
+      "-timeout=90s",
+      "./orchestration",
+      "-json"
+    ],
+    "red_filter": "^TestSecurityAgentWorkflowLateAuthorityCannotStartEffects$",
+    "first_green_filter": "^TestSecurityAgentWorkflow",
+    "final_green_filter": null,
+    "outer": "timeout --signal=TERM --kill-after=10s 180s",
+    "closed_environment": {
+      "GOMODCACHE": "/tmp/zasp-native-supported-tools-h0zqa978/module-cache",
+      "GOCACHE": "/dev/shm/security-agent-deadline-tdd/cache",
+      "GOTMPDIR": "/dev/shm/security-agent-deadline-tdd/tmp",
+      "TMPDIR": "/dev/shm/security-agent-deadline-tdd/tmp",
+      "GOENV": "off",
+      "GOWORK": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOFLAGS": "-mod=readonly",
+      "CGO_ENABLED": "1"
+    },
+    "limitation": "Host Go26 temporary cache compilation used; no native services or deployed replay acceptance. Initial final-test insertion attempted wrong cwd and failed before any source write; first GREEN omitted subsequent legacy test; final package run includes it."
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "databases": {
+    "execution": "zt_exec_17785598",
+    "visibility": "zt_vis_17785598"
+  },
+  "format": "owned-Temporal132-PG-schema-preparation-v1",
+  "pgPort": 54389,
+  "privateConfig": "/tmp/zasp-temporal132-pg-qafobrl1/private-temporal.yaml",
+  "records": [
+    {
+      "elapsedSeconds": 0.06429471099909279,
+      "normalJoined": true,
+      "phase": "create-execution",
+      "returncode": 0
+    },
+    {
+      "elapsedSeconds": 0.03212732999963919,
+      "normalJoined": true,
+      "phase": "setup-execution",
+      "returncode": 0
+    },
+    {
+      "elapsedSeconds": 0.11408821999975771,
+      "normalJoined": true,
+      "phase": "update-execution",
+      "returncode": 0
+    },
+    {
+      "elapsedSeconds": 0.06426026299959631,
+      "normalJoined": true,
+      "phase": "create-visibility",
+      "returncode": 0
+    },
+    {
+      "elapsedSeconds": 0.03198619700015115,
+      "normalJoined": true,
+      "phase": "setup-visibility",
+      "returncode": 0
+    },
+    {
+      "elapsedSeconds": 0.16469465999944077,
+      "normalJoined": true,
+      "phase": "update-visibility",
+      "returncode": 0
+    }
+  ],
+  "roles": {
+    "execution": "zt_exec_17785598",
+    "visibility": "zt_vis_17785598"
+  },
+  "scope": "Separate disposable role/databases and official schema commands only; no FGA mutation, server/namespace/application acceptance.",
+  "sourceSchemaRecordSHA256": "607b1ebbe9fa9305261eedaf5673f5da02919d574ecc13b9b550f337a43c4a98",
+  "status": "POSTGRESQL-SCHEMAS-PREPARED-ONLY",
+  "timestampUTC": "2026-10-07T00:01:56.691075+00:00"
+}

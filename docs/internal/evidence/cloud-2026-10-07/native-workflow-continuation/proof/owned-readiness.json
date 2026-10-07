@@ -1,0 +1,17 @@
+{
+  "postgres": {
+    "exe": "/tmp/zasp-native-supported-tools-h0zqa978/postgres18.3-root/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+    "pid": 41708,
+    "port": 54391,
+    "socketInode": "59717",
+    "startTicks": "1265619"
+  },
+  "scope": "Owned loopback listeners; test outcome separately recorded",
+  "temporal": {
+    "exe": "/tmp/zasp-native-supported-tools-h0zqa978/temporal-server-complete/temporal-server",
+    "pid": 41763,
+    "port": 7233,
+    "socketInode": "58108",
+    "startTicks": "1265711"
+  }
+}

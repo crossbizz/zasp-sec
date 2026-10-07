@@ -93,3 +93,34 @@ test("published npm command connects to this launcher without changing web start
   assert.equal(pkg.scripts["api:start"],"node scripts/api-start.mjs");
   assert.equal(pkg.scripts.start,"WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start");
 });
+
+test("configuration check uses fixed Go flag and the same credential and ownership boundary", async()=>instrument(async directory=>{
+  let observed, stops=0;const signals=new EventEmitter();
+  globalThis.__apiTestSpawn=(...args)=>{observed=args;return{completed:Promise.resolve({status:0,signal:null}),stop:async()=>{stops++;}};};
+  const {runAPIConfigurationCheck}=await import(path.join(directory,"api-start.mjs"));
+  assert.deepEqual(await runAPIConfigurationCheck({...fixture(),GOTOOLCHAIN:"auto"},signals),{status:0,signal:null});
+  assert.equal(observed[0],"go");
+  assert.deepEqual(observed[1],["run","-mod=readonly","./agentsec-api","--check-config"]);
+  assert.equal(observed[2].env.GOTOOLCHAIN,"local");
+  assert.equal(observed[2].env.ZASP_STYTCH_SECRET,"sample-1");
+  assert.equal(observed[2].maxOutputBytes,262144);assert.equal(stops,1);
+  for(const name of ["SIGINT","SIGTERM","SIGHUP"])assert.equal(signals.listenerCount(name),0);
+  let calls=0;globalThis.__apiTestSpawn=()=>{calls++;throw Error("private");};
+  await assert.rejects(runAPIConfigurationCheck({STYTCH_SECRET:"one",ZASP_STYTCH_SECRET:"two"},signals),/API credential mapping refused/);
+  assert.equal(calls,0);
+}));
+
+test("configuration entrypoint refuses arguments and never echoes captured child output",async()=>instrument(async directory=>{
+ const candidate=await readFile(new URL('./api-check-config.mjs',import.meta.url),'utf8');
+ await writeFile(path.join(directory,'api-check-config.mjs'),candidate);
+ const original=await readFile(path.join(directory,'api-start.mjs'),'utf8');
+ await writeFile(path.join(directory,'api-start.mjs'),'globalThis.__apiTestSpawn=()=>({completed:Promise.resolve({status:0,signal:null,stdout:"private-child-output",stderr:"private-child-error"}),stop:async()=>{}});\n'+original);
+ async function run(args){
+  const child=spawn(process.execPath,[path.join(directory,'api-check-config.mjs'),...args],{env:{PATH:process.env.PATH},stdio:['ignore','pipe','pipe']});
+  let stdout='',stderr='';child.stdout.on('data',v=>stdout+=v);child.stderr.on('data',v=>stderr+=v);
+  const timer=setTimeout(()=>child.kill('SIGKILL'),3000);
+  try{return await new Promise((resolve,reject)=>{child.on('error',reject);child.on('close',(status,signal)=>resolve({status,signal,stdout,stderr}));});}finally{clearTimeout(timer);}
+ }
+ assert.deepEqual(await run([]),{status:0,signal:null,stdout:'API configuration syntax accepted; runtime access and production readiness are unverified.\n',stderr:''});
+ assert.deepEqual(await run(['private-argument']),{status:1,signal:null,stdout:'',stderr:'API configuration check refused\n'});
+}));

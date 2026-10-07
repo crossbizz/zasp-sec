@@ -1,0 +1,8 @@
+{
+  "scope": "Publication omission only; original source admission evidence is retained unchanged privately. Original manifest and reviews describe the producer selection, not this reduced public selection.",
+  "omittedMember": "source-admission.json",
+  "bytes": 709,
+  "sha256": "d2f43d32ddfdb77b96e70faee9f695b48c24733cc30960f210a294bf9e10a23a",
+  "privateOriginal": "/tmp/zasp-cloud-evidence/Helm319-source-built-selected-wq8md3s6/source-admission.json",
+  "reason": "Default staged Gitleaks generic-api-key rule matched a descriptive source-location field. No rule exception, redaction or original evidence rewrite. This omission is not credential clearance."
+}

@@ -1,0 +1,10 @@
+{
+  "format": "derived-independent-review-summary-v1",
+  "originalReviewSHA256": "d1e3cbb82aa8a7040d76d51eb9e1ab499ab3ac0ccd384216134144ecb3f55fe1",
+  "scope": "Independent exact four-file Node22 prerequisite rerun and one-array expectation/control source review",
+  "normalExit": 0,
+  "passes": 226,
+  "failures": 0,
+  "skips": 0,
+  "productionVerified": false
+}

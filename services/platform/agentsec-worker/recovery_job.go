@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 	"github.com/zasp-ai/zasp-sec/services/platform/domain"
+	"github.com/zasp-ai/zasp-sec/services/platform/runtimepostgres"
 )
 
 type recoveryJobMode string
@@ -151,7 +152,7 @@ func runProductionRecoveryJob(ctx context.Context, getenv func(string) string, r
 	if err != nil || resultPath != "/dev/termination-log" {
 		return errWorkerExecution
 	}
-	poolConfig, err := pgxpool.ParseConfig(config.PostgresDSN)
+	poolConfig, err := runtimepostgres.ParsePoolConfig(config.PostgresDSN)
 	if err != nil {
 		return errWorkerExecution
 	}

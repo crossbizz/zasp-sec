@@ -1,0 +1,60 @@
+{
+  "scope": "source-extracted exact runtime-assertion suffix only; no Helm render, provider, Go or native activation",
+  "cases": [
+    {
+      "name": "authentic_stale_readiness_source_RED",
+      "expectedContractPass": false,
+      "observedContractPass": false,
+      "assertionRefusal": true
+    },
+    {
+      "name": "current_readiness_source_GREEN",
+      "expectedContractPass": true,
+      "observedContractPass": true,
+      "assertionRefusal": false
+    },
+    {
+      "name": "probe_call_omitted",
+      "expectedContractPass": false,
+      "observedContractPass": false,
+      "assertionRefusal": true
+    },
+    {
+      "name": "startup_call_omitted",
+      "expectedContractPass": false,
+      "observedContractPass": false,
+      "assertionRefusal": true
+    },
+    {
+      "name": "metadata_guard_omitted",
+      "expectedContractPass": false,
+      "observedContractPass": false,
+      "assertionRefusal": true
+    },
+    {
+      "name": "selected_ready_omitted",
+      "expectedContractPass": false,
+      "observedContractPass": false,
+      "assertionRefusal": true
+    },
+    {
+      "name": "late_cancellation_omitted",
+      "expectedContractPass": false,
+      "observedContractPass": false,
+      "assertionRefusal": true
+    },
+    {
+      "name": "native_secret_binding_omitted",
+      "expectedContractPass": false,
+      "observedContractPass": false,
+      "assertionRefusal": true
+    },
+    {
+      "name": "native_selector_omitted",
+      "expectedContractPass": false,
+      "observedContractPass": false,
+      "assertionRefusal": true
+    }
+  ],
+  "completed": true
+}

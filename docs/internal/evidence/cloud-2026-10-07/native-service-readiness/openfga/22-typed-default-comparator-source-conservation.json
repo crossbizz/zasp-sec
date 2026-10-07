@@ -1,0 +1,9 @@
+{
+  "originalPermissionFunctionExactBytesUnchanged": true,
+  "sourceModelSHA256": "329f49e1f2effecbe1a0e9caf6c89be939b1e36e034155d74977bfc82c73cc2c",
+  "sourceV2SHA256": "b51ebb43f6207dce21582e82dd69ce19d7340a413294fe661b436d7e220e4e63",
+  "sourceV3SHA256": "48a50e4e5f73a499e0ab625c9e41e622959acfbd22c4699d08b59b286a1b6e5f",
+  "actualOriginalMatrix": "PASS93",
+  "actualOriginalBootstrap": "FAIL knownprojectionbytes serverexplicitdefaults",
+  "scope": "Privateadapter sourcechange only, no model/source application mutation"
+}

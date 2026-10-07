@@ -1,0 +1,12 @@
+{
+  "status": "PASS-ACTUAL-LOSSLESS-CUSTODY",
+  "checks": 19174,
+  "files": 73,
+  "logicalBytes": 320655218,
+  "workspaceFreeBytesObserved": 1605713920,
+  "rootNormalExit": 0,
+  "rootElapsedSeconds": 15.544798619001085,
+  "protectedOtherFiles": 18619,
+  "independentVerification": "Full same-FD rehash of all73 destination payloads, prepared identity preserved, original alias resolves same copies, exact73 unlink ledger, quarantine absent; all outside topology/securitymetadata independently unchanged. Outside full18619 payload SHA verified by producer executed protected(full=True) before normal0; not duplicated by reviewer.",
+  "limitations": "Read-mutable atime excluded. Original inode/dev/ctime historical; known57473 zombie retained, no all-process absence or root FD visibility claim. No attribution/pruning/runtime/native acceptance. Writer scheduling remains ROOT-controlled."
+}

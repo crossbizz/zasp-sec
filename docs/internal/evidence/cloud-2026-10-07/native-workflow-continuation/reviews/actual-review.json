@@ -1,0 +1,31 @@
+{
+  "outcome": "PASS component test and fresh additive cleanup; original owner FAILED remains unchanged",
+  "originalOwnerResultSHA256": "785ba2aa66240137a280313ea0950fb9c193fdcf11f4c193921f4c31d8812baa",
+  "originalOwnerOutcome": "FAILED-PortAbsenceRefusal",
+  "component": {
+    "test": "TestSingleTestLiveCleanupContinuation",
+    "PASS": 1,
+    "FAIL": 0,
+    "SKIP": 0,
+    "normalTestExit": 0,
+    "elapsedSeconds": 4.043278967001243,
+    "logSHA256": "adfd5a3ba718278c896f3e17c2e063ed8eef3672d3a294b5fa5f6b7e82aee356"
+  },
+  "cleanup": {
+    "all9DirectLeadersNormalJoined0": true,
+    "freshReadonlyRecordedPIDsAbsent": true,
+    "forced": false,
+    "originalBindRefusalPort": 6939,
+    "diagnosticTCPState": "06 TIME_WAIT, inode0, no listeners/FD matches observed after failure",
+    "freshAdditiveAll10PortsBindable": true,
+    "additiveSHA256": "beab27dc0a4fc11856fcf59896f1641548ca5a12f6265d0c570c52eaf2500470",
+    "diagnosticSHA256": "3b8394898fa9c785fba8642ab6dd0179f37970902ab17e84011950a9097b3cc3"
+  },
+  "limits": [
+    "Original owner outer1/resultFAILED is not reclassified PASS by later cleanup observation.",
+    "Kernel postfailure TIME_WAIT is consistent with bind refusal, not proof of exact historical socket/sole causal identity.",
+    "Recorded additive deadline uses firstinitdbstart bound slightly later than actual ownerstart; it is not an exact owner-start deadline receipt. Observed sequence far earlier than330s, producer elapsed1.531s.",
+    "Actual real Temporal continuation64pending/same workflow cleanup/terminal repeat-start exercised controlled product path. No real productSQL/provider/effect acceptance/fullAPI/native379/deployed or728 promotion.",
+    "No reviewer runtime/rerun/signals/config/password/serverlog reads; original test/source unchanged."
+  ]
+}

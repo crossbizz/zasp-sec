@@ -24,9 +24,9 @@ func (d *findingHumanFamilyDB) QueryJSON(_ context.Context, sql string, _ ...any
 		return json.RawMessage(`true`), nil
 	case `SELECT to_jsonb(zasp_temporal78.api_ready($1,$2))`:
 		return json.RawMessage(`true`), nil
-	case `SELECT to_jsonb(zasp_temporal78.family($1,$2,$3,$4,$5))`:
+	case `SELECT COALESCE((SELECT to_jsonb(zasp_temporal78.family($1,$2,$3,$4,$5))),'null'::jsonb)`:
 		return d.family, d.familyError
-	case `SELECT zasp_temporal78.resource($1::jsonb)`:
+	case `SELECT COALESCE((SELECT zasp_temporal78.resource($1::jsonb)),'null'::jsonb)`:
 		d.mutations++
 		if string(d.family) == "false" {
 			// The installed native nonfamily branch returns SQL NULL. QueryJSON

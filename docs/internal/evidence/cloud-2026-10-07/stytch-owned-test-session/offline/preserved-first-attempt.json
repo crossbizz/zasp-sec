@@ -1,0 +1,8 @@
+{
+  "status": "FAILED-CONTROL-EXPECTATION",
+  "outerExit": 1,
+  "completedChildren": 4,
+  "failedControl": "create-uncertain-mismatch",
+  "reason": "Expected generic cleanup wording; wrapper final classification truthfully reports uncertain create. Zero DELETE/failed cleanup was observed. No real network.",
+  "initialDriverSha256": "c817f1a03b0c0896df749135b4d2f7b8e47b8b7775563124d09c0e0c8bd8dbcb"
+}

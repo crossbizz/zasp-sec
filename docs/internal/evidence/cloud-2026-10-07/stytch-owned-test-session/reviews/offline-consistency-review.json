@@ -1,0 +1,270 @@
+{
+  "cases": [
+    {
+      "case": "normal",
+      "childExit": 0,
+      "cleanupAbsent": true,
+      "completed": true,
+      "deleteCalls": 1,
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-64ktn1_7/fixture-metadata.json",
+      "forced": false,
+      "joined": true,
+      "resultPath": "/tmp/zasp-stytch-disposable-aa579fc9-a4f5-48de-84bb-b0a35520fae2/result.json",
+      "status": "PASS"
+    },
+    {
+      "case": "create-uncertain-recover",
+      "childExit": 1,
+      "cleanupAbsent": true,
+      "completed": false,
+      "deleteCalls": 1,
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-gealr20s/fixture-metadata.json",
+      "forced": false,
+      "joined": true,
+      "resultPath": "/tmp/zasp-stytch-disposable-2176051c-2e58-4a76-b34f-10e6a05cac91/result.json",
+      "status": "PASS"
+    },
+    {
+      "case": "create-uncertain-absent",
+      "childExit": 1,
+      "cleanupAbsent": false,
+      "completed": false,
+      "deleteCalls": 0,
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-gzsrccje/fixture-metadata.json",
+      "forced": false,
+      "joined": true,
+      "resultPath": "/tmp/zasp-stytch-disposable-1d436d85-071c-440c-ab75-27d33b3093ef/result.json",
+      "status": "PASS"
+    },
+    {
+      "case": "create-uncertain-mismatch",
+      "childExit": 1,
+      "cleanupAbsent": false,
+      "completed": false,
+      "deleteCalls": 0,
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-793c48em/fixture-metadata.json",
+      "forced": false,
+      "joined": true,
+      "resultPath": "/tmp/zasp-stytch-disposable-e1ab60fe-5ebf-4943-be07-322e50d05e94/result.json",
+      "status": "PASS"
+    },
+    {
+      "case": "cancel-migrate",
+      "childExit": 1,
+      "cleanupAbsent": true,
+      "completed": false,
+      "deleteCalls": 1,
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-ip8ad2ud/fixture-metadata.json",
+      "forced": false,
+      "joined": true,
+      "resultPath": "/tmp/zasp-stytch-disposable-a5d10e99-17a1-4769-9343-01b8049d130a/result.json",
+      "status": "PASS"
+    },
+    {
+      "case": "auth-refused",
+      "childExit": 1,
+      "cleanupAbsent": true,
+      "completed": false,
+      "deleteCalls": 1,
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-pmtftics/fixture-metadata.json",
+      "forced": false,
+      "joined": true,
+      "resultPath": "/tmp/zasp-stytch-disposable-20f81e35-ab3a-4a7a-91dd-c57e7086a5ba/result.json",
+      "status": "PASS"
+    },
+    {
+      "case": "cleanup-refused",
+      "childExit": 1,
+      "cleanupAbsent": false,
+      "completed": false,
+      "deleteCalls": 2,
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-hhba_mwi/fixture-metadata.json",
+      "forced": false,
+      "joined": true,
+      "resultPath": "/tmp/zasp-stytch-disposable-e53c6ec7-95d4-4101-b9b5-85ae4686fa26/result.json",
+      "status": "PASS"
+    }
+  ],
+  "driverSHA256": "f71ff68ca5bcdf8ef45908e228f9c5e38e58af2b53f99eb93b9453ca1d3a3fa7",
+  "providerResultSHA256": "3dd7d8861e5ed91e250458fc01325fc27b82b8e236f71e52b8a54e3cd70f8ff2",
+  "retainedIdentities": [
+    {
+      "bytes": 844,
+      "path": "/tmp/zasp-stytch-disposable-aa579fc9-a4f5-48de-84bb-b0a35520fae2/result.json",
+      "sha256": "be9f494cd04f3cbcca57adc6a277fb54c675d369ca2bfbca871796688cfc02ff"
+    },
+    {
+      "bytes": 252,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-64ktn1_7/fixture-metadata.json",
+      "sha256": "e1ceee6c4a18c669ba5e80581647641b0d33173ee2907f958fb149bdf390268d"
+    },
+    {
+      "bytes": 132,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-64ktn1_7/stdout.log",
+      "sha256": "25507c02721d6a8629c66806993b7fbdbbacdb33b468714555674b242fa656c0"
+    },
+    {
+      "bytes": 0,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-64ktn1_7/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 11666,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-64ktn1_7/boundary.mjs",
+      "sha256": "f99e3005f158bf6d2b204d142c8c552fca447e0a76b4eeb76223dae7efa37160"
+    },
+    {
+      "bytes": 702,
+      "path": "/tmp/zasp-stytch-disposable-2176051c-2e58-4a76-b34f-10e6a05cac91/result.json",
+      "sha256": "c691804ba994d4301b06f04b28ce05027c8dd1b9d8d58e114b9d43fc74f4b7e5"
+    },
+    {
+      "bytes": 213,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-gealr20s/fixture-metadata.json",
+      "sha256": "52822f3ffd46bc8f53a2518b7bd93574309d5d6b4b07a988ec7db6c9f656af41"
+    },
+    {
+      "bytes": 133,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-gealr20s/stdout.log",
+      "sha256": "eeda65019e4e3a206c54d9e546175918d28ef02fc9045cbb53a602a9c6b7058e"
+    },
+    {
+      "bytes": 0,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-gealr20s/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 11684,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-gealr20s/boundary.mjs",
+      "sha256": "492b289d1dae4c4f89306887ca4696fac216b8f0d336a9d5bdc687f66301d1e0"
+    },
+    {
+      "bytes": 531,
+      "path": "/tmp/zasp-stytch-disposable-1d436d85-071c-440c-ab75-27d33b3093ef/result.json",
+      "sha256": "b1cec0f3e7761d4dbbb40991dc8282d2c90a6df700f639672d4744e5a549fa78"
+    },
+    {
+      "bytes": 136,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-gzsrccje/fixture-metadata.json",
+      "sha256": "bda9def2dfdfe3e3e743b84096132e53b34a0539033356da5e29d8351b5cc8ff"
+    },
+    {
+      "bytes": 134,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-gzsrccje/stdout.log",
+      "sha256": "9591f85664b99e344c309f38dad9aae49e401cc6e08f719cd969d105de9a4c3d"
+    },
+    {
+      "bytes": 0,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-gzsrccje/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 11683,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-gzsrccje/boundary.mjs",
+      "sha256": "43a6e07964e034f3b1726280ec5245c39f9462509dc25797b495beaeca2f8516"
+    },
+    {
+      "bytes": 532,
+      "path": "/tmp/zasp-stytch-disposable-e1ab60fe-5ebf-4943-be07-322e50d05e94/result.json",
+      "sha256": "be4d8e1d373c622376ec9b74377416812fcf058200803676dcf8a7b0e9a05289"
+    },
+    {
+      "bytes": 136,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-793c48em/fixture-metadata.json",
+      "sha256": "bda9def2dfdfe3e3e743b84096132e53b34a0539033356da5e29d8351b5cc8ff"
+    },
+    {
+      "bytes": 134,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-793c48em/stdout.log",
+      "sha256": "8098bf38df41320a517bae150dc0e4367bf5fa376acb88678f176864ec75699e"
+    },
+    {
+      "bytes": 0,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-793c48em/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 11685,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-793c48em/boundary.mjs",
+      "sha256": "b4d5b9e90b37baa939657447469638f5193aa7bd2b04204c3a0b7b2ef56c144a"
+    },
+    {
+      "bytes": 702,
+      "path": "/tmp/zasp-stytch-disposable-a5d10e99-17a1-4769-9343-01b8049d130a/result.json",
+      "sha256": "c9491c3c2885f102bbd1674f5dbf3a481d4b07e74a3cd37ae817513c820928af"
+    },
+    {
+      "bytes": 212,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-ip8ad2ud/fixture-metadata.json",
+      "sha256": "0a35b9cbba8ef750eb7c470b85ddb0b3ee9187613702129e096c67dc3fd6a9bf"
+    },
+    {
+      "bytes": 133,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-ip8ad2ud/stdout.log",
+      "sha256": "777ed8b2bdca06395d021e68c436e6ecbe46d14d103af251049c0211ca57345e"
+    },
+    {
+      "bytes": 0,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-ip8ad2ud/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 11674,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-ip8ad2ud/boundary.mjs",
+      "sha256": "9140593dc7dd4f9ad85fa99e673e327f8d0d6b0fff393130b648542d60c2106a"
+    },
+    {
+      "bytes": 885,
+      "path": "/tmp/zasp-stytch-disposable-20f81e35-ab3a-4a7a-91dd-c57e7086a5ba/result.json",
+      "sha256": "39b1f8e8e7045f2b0965bcf6649dda99872c1a9669a83ea1f5ae0e4014d25639"
+    },
+    {
+      "bytes": 252,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-pmtftics/fixture-metadata.json",
+      "sha256": "e1ceee6c4a18c669ba5e80581647641b0d33173ee2907f958fb149bdf390268d"
+    },
+    {
+      "bytes": 133,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-pmtftics/stdout.log",
+      "sha256": "8f1c2ecaf6d69508a145d86f6cc5c5a9b889e2269f74f8f033af028f566a72d5"
+    },
+    {
+      "bytes": 0,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-pmtftics/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 11672,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-pmtftics/boundary.mjs",
+      "sha256": "97cff86ff0d0736d144139522c2a1fb2d411a416b4a62151e5976d8fc6a906b4"
+    },
+    {
+      "bytes": 908,
+      "path": "/tmp/zasp-stytch-disposable-e53c6ec7-95d4-4101-b9b5-85ae4686fa26/result.json",
+      "sha256": "920ceb3a93e4a81d4202d9e48a406aa4bf0d7f86e1c9bb375127b06193127ecc"
+    },
+    {
+      "bytes": 259,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-hhba_mwi/fixture-metadata.json",
+      "sha256": "f17cdd0f759de2dca5011dd059796d80e9c9ec4a1c2ee8fbef0fe844f3beb8ff"
+    },
+    {
+      "bytes": 134,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-hhba_mwi/stdout.log",
+      "sha256": "540611aae79008088772c94d60bce3f19aa1b89fd6a4dcf9ddf097ae0f33cfff"
+    },
+    {
+      "bytes": 0,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-hhba_mwi/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 11675,
+      "path": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-hhba_mwi/boundary.mjs",
+      "sha256": "5c99560aa84b7a76736808d3de6bac00ffbcf8d5649081749300339b90b47739"
+    }
+  ],
+  "scope": "Read-only independent retained-source/assertion/result consistency review. Seven fake-transport child runs as recorded by provider; no independent rerun or provider calls. First wrong-expectation partial attempt remains preserved. Not remote acceptance. ROOT own exact env/outer normal join still required.",
+  "sourceReviewSHA256": "939d42352146e971fb54e6bbaa2b9ff3897297cfe89cc43a4fa11fc80b287fb1",
+  "status": "PASS-RETAINED-SEVEN-OFFLINE-CONTROLS-CONSISTENCY"
+}

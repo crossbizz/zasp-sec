@@ -1,0 +1,14 @@
+{
+  "format": "approval-delegation-v4-root-actual-v1",
+  "completed": false,
+  "failure": "RuntimeError:child stage refused:actual-owned-native-registration",
+  "elapsedSeconds": 224.84106413100017,
+  "forced": false,
+  "signals": [],
+  "inputs": 13953,
+  "ownedSessionSurvivors": [],
+  "processCensusUnknown": [],
+  "fgaNormalStop": null,
+  "originalResultSHA256": "724e89b77ffc7e5fdca7bef530eb25a60be9371274bbce012eac891a8a5b71ed",
+  "derivedSummaryOnly": true
+}

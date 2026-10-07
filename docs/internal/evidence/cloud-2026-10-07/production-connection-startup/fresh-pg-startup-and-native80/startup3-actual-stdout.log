@@ -1,0 +1,9 @@
+=== RUN   TestActualOwnedPoolStartupJIT
+=== RUN   TestActualOwnedPoolStartupJIT/ordinary
+=== RUN   TestActualOwnedPoolStartupJIT/dsn-options-jit-on
+=== RUN   TestActualOwnedPoolStartupJIT/pgoptions-jit-on
+--- PASS: TestActualOwnedPoolStartupJIT (0.01s)
+    --- PASS: TestActualOwnedPoolStartupJIT/ordinary (0.01s)
+    --- PASS: TestActualOwnedPoolStartupJIT/dsn-options-jit-on (0.00s)
+    --- PASS: TestActualOwnedPoolStartupJIT/pgoptions-jit-on (0.00s)
+PASS

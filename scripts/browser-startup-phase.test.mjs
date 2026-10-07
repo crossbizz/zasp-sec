@@ -34,6 +34,7 @@ function harness({kind='mounted',fail,mode=true,emitterFails=false}={}){
  mkdtemp:async(...args)=>{call('storage',args);return '/owned/CANARY_TEMP';},startIdentityServer:async(...args)=>{call('identity',args);return {owned:true};},startPolicyHistoryServer:async(...args)=>{call('history',args);return {owned:true};},
  combinedAPIEnvironment:(...args)=>{call('api-environment',args);return {ZASP_COMPLIANCE_EXPORT_REMOVED:'CANARY_VALUE',KEEP:'owned'};},
  startChild:(...args)=>{call(args[0]===configuration.apiBinary?'api-spawn':'web-spawn',args);return {owned:true,output:()=> 'CANARY_CHILD_OUTPUT'};},
+ waitForOwnedAPIStartup:async({target,child})=>{assert.equal(child.owned,true);call('api-ready',[target,child]);},
  waitForHTTP:async(...args)=>{call(args[0].includes('/readyz')?'api-ready':'web-ready',args);},startProxy:async(...args)=>{call('proxy',args);return {owned:true};},startBrowser:async(...args)=>{call('browser',args);return {owned:true,cdp:{}};},
  Error:function(message){const error=Error(message);wrappers.push(error);return error;}};
  const run=new Function(...Object.keys(deps),`return (async()=>{let compliancePhase="${kind==='initial'?'services':'schema-bootstrap'}";let postgres,identity,policyHistory,api,web,proxy,browser;${mountedPrefix}\ntry{${kind==='initial'?initial:'await exerciseComplianceBrowser(configuration);'}}${main.catchClause.getText(tree)}finally${main.finallyBlock.getText(tree)}return compliancePhase;})();`);
@@ -45,13 +46,13 @@ test('parsed initial PG startup branches retain Error identity, call prefix and 
 });
 test('parsed mounted startup failures distinguish each owned operation without changing wrapper or cleanup',async()=>{
  for(const fail of mountedOrder){
-  const h=harness({fail});await assert.rejects(h.run(),e=>e===(fail==='api-ready'?h.wrappers[0]:h.owned));assert.deepEqual(h.calls.map(x=>x.name),[...mountedOrder.slice(0,mountedOrder.indexOf(fail)+1),'cleanup','dispose']);assert.equal(h.wrappers.length,fail==='api-ready'?1:0);assert.deepEqual(h.annotations,[...(fail==='api-ready'?['::error title=Compliance API startup failed::Observed child stage: unavailable.']:[]),`::error title=Compliance browser phase failed::Observed phase: ${labels[fail]}.`]);assert.doesNotMatch(h.annotations.join(''),/CANARY|SECRET|URL|TENANT|owned/);
+  const h=harness({fail});await assert.rejects(h.run(),e=>e===(fail==='api-ready'?h.wrappers[0]:h.owned));assert.deepEqual(h.calls.map(x=>x.name),[...mountedOrder.slice(0,mountedOrder.indexOf(fail)+1),'cleanup','dispose']);assert.equal(h.wrappers.length,fail==='api-ready'?1:0);assert.deepEqual(h.annotations,[...(fail==='api-ready'?['::error title=Compliance API startup failed::Observed child stage: unavailable.', '::error title=Compliance API readiness failed::Observed readiness reason: unavailable.']:[]),`::error title=Compliance browser phase failed::Observed phase: ${labels[fail]}.`]);assert.doesNotMatch(h.annotations.join(''),/CANARY|SECRET|URL|TENANT|owned/);
  }
 });
 test('parsed success keeps original startup arguments, API deadlines, legacy environment and assertion phase',async()=>{
  const h=harness();assert.equal(await h.run(),'browser-assertions');assert.deepEqual(h.calls.map(x=>x.name),[...mountedOrder,'cleanup','dispose']);assert.deepEqual(h.annotations,[]);
  const api=h.calls.find(x=>x.name==='api-spawn').args;assert.deepEqual(api.slice(0,2),['/owned/api',['-test.run=^TestComplianceBrowserAPIProcess$','-test.v','-test.timeout=21m']]);assert.equal(api[2].env.ZASP_COMPLIANCE_BROWSER_LEGACY,'true');assert.equal(api[2].env.KEEP,'owned');assert.ok(Object.keys(api[2].env).every(k=>!k.startsWith('ZASP_COMPLIANCE_EXPORT_')));
- assert.deepEqual(h.calls.find(x=>x.name==='api-ready').args,['http://127.0.0.1:14/readyz',200]);assert.deepEqual(h.calls.find(x=>x.name==='web-ready').args,['http://127.0.0.1:15/sign-in',200]);assert.deepEqual(h.calls.find(x=>x.name==='web-spawn').args.slice(0,2),['/repo/node_modules/.bin/vinext',['start','--port','15','--hostname','127.0.0.1']]);
+ const readiness=h.calls.find(x=>x.name==='api-ready').args;assert.equal(readiness[0],'http://127.0.0.1:14/readyz');assert.equal(readiness[1].owned,true);assert.deepEqual(h.calls.find(x=>x.name==='web-ready').args,['http://127.0.0.1:15/sign-in',200]);assert.deepEqual(h.calls.find(x=>x.name==='web-spawn').args.slice(0,2),['/repo/node_modules/.bin/vinext',['start','--port','15','--hostname','127.0.0.1']]);
  assert.deepEqual(h.calls.find(x=>x.name==='tls').args.slice(0,2),['openssl',['req','-x509','-newkey','rsa:2048','-nodes','-days','1','-subj','/CN=CANARY_HOST','-addext','subjectAltName=DNS:CANARY_HOST','-keyout','/owned/tmp/compliance-tls.key','-out','/owned/tmp/compliance-tls.crt']]);
 });
 test('parsed noncompliance modes retain errors and cleanup with no phase annotations',async()=>{
@@ -64,8 +65,8 @@ test('parsed API restart restores browser assertion phase only after readiness s
  const declaration=mounted.body.statements.find(n=>n.getText(tree).startsWith('const startAPI=async(')).getText(tree);
  for(const fail of [null,'spawn','ready']){
   const calls=[],owned=Error('CANARY_RESTART'),wrappers=[];
-  const run=new Function('complianceBrowserMode','apiEnvironment','apiBinary','healthPort','startChild','waitForHTTP','Error',`const emitComplianceAPIChildFailure=()=>{};const console={error:()=>{}};return(async()=>{let compliancePhase='browser-assertions',api;${declaration}try{await startAPI();return {phase:compliancePhase};}catch(error){return {phase:compliancePhase,error};}})();`);
-  const result=await run(true,{KEEP:'fixed'},'/owned/api',14,()=>{calls.push('spawn');if(fail==='spawn')throw owned;return {output:()=> 'CANARY_OUTPUT'};},async()=>{calls.push('ready');if(fail==='ready')throw owned;},function(message){const error=Error(message);wrappers.push(error);return error;});
+  const run=new Function('complianceBrowserMode','apiEnvironment','apiBinary','healthPort','startChild','waitForOwnedAPIStartup','Error',`const emitComplianceAPIChildFailure=()=>{};const console={error:()=>{}};return(async()=>{let compliancePhase='browser-assertions',api;${declaration}try{await startAPI();return {phase:compliancePhase};}catch(error){return {phase:compliancePhase,error};}})();`);
+  const result=await run(true,{KEEP:'fixed'},'/owned/api',14,()=>{calls.push('spawn');if(fail==='spawn')throw owned;return {output:()=> 'CANARY_OUTPUT'};},async({target,child})=>{assert.equal(target,'http://127.0.0.1:14/readyz');assert.equal(typeof child.output,'function');calls.push('ready');if(fail==='ready')throw owned;},function(message){const error=Error(message);wrappers.push(error);return error;});
   assert.deepEqual(calls,fail==='spawn'?['spawn']:['spawn','ready']);assert.equal(result.phase,fail==='spawn'?'api-startup':fail==='ready'?'api-ready':'browser-assertions');assert.equal(result.error,fail==='spawn'?owned:fail==='ready'?wrappers[0]:undefined);
  }
 });

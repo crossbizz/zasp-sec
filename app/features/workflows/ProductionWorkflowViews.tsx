@@ -141,6 +141,14 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
   const [syncDetail, setSyncDetail] = useState<DiscoveryLoad<Versioned<IntegrationSync>>>({ status: "idle" });
   const [scheduleCadence, setScheduleCadence] = useState("3600");
   const discoveryGeneration = useRef(0);
+  const discoveryRefreshGeneration = useRef(0);
+  const syncDetailGeneration = useRef(0);
+  const selectedSyncID = useRef<string | null>(null);
+  useEffect(() => () => {
+    discoveryGeneration.current += 1;
+    discoveryRefreshGeneration.current += 1;
+    syncDetailGeneration.current += 1;
+  }, []);
   const [revocationClock, setRevocationClock] = useState(() => Date.now());
   const pendingRevocation = mutation.knownPending?.kind === "integration_revocation" ? mutation.knownPending : null;
   const pendingReferenceConflict = mutation.knownPending?.kind === "reference_authorization_conflict" ? mutation.knownPending : null;
@@ -199,6 +207,9 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
     const id = integration.id;
     const generation = discoveryGeneration.current + 1;
     discoveryGeneration.current = generation;
+    discoveryRefreshGeneration.current += 1;
+    syncDetailGeneration.current += 1;
+    selectedSyncID.current = null;
     setWebhookStatus({ status: "idle" });
     if (integration.connector_key === "generic-webhook") {
       setFreshness({ status: "idle" }); setSetupStatus({ status: "idle" }); setSchedule({ status: "idle" }); setSyncs({ status: "idle" }); setSyncDetail({ status: "idle" });
@@ -317,11 +328,37 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
       return { kind: "schedule-deleted", receipt: await api.deleteIntegrationSchedule(frozen.id, frozen.version, attempt) };
     })));
   };
-  const openSync = (syncID: string) => {
-    if (!selected) return;
-    const integrationID = selected.value.id;
+  const loadSyncDetail = (integrationID: string, syncID: string) => {
+    const generation = discoveryGeneration.current;
+    const detailGeneration = ++syncDetailGeneration.current;
+    selectedSyncID.current = syncID;
     setSyncDetail({ status: "loading" });
-    void api.getIntegrationSync(integrationID, syncID).then((value) => setSyncDetail({ status: "success", value }), () => setSyncDetail({ status: "error" }));
+    const current = () => discoveryGeneration.current === generation && syncDetailGeneration.current === detailGeneration;
+    void api.getIntegrationSync(integrationID, syncID).then(
+      (value) => { if (current()) setSyncDetail({ status: "success", value }); },
+      () => { if (current()) setSyncDetail({ status: "error" }); },
+    );
+  };
+  const openSync = (syncID: string) => {
+    if (selected) loadSyncDetail(selected.value.id, syncID);
+  };
+  const refreshDiscovery = () => {
+    if (!selected) return;
+    const id = selected.value.id;
+    const generation = discoveryGeneration.current;
+    const refreshGeneration = ++discoveryRefreshGeneration.current;
+    const current = () => discoveryGeneration.current === generation && discoveryRefreshGeneration.current === refreshGeneration;
+    setFreshness({ status: "loading" });
+    setSyncs({ status: "loading" });
+    void api.getIntegrationFreshness(id).then(
+      (value) => { if (current()) setFreshness({ status: "success", value }); },
+      () => { if (current()) setFreshness({ status: "error" }); },
+    );
+    void api.listIntegrationSyncs(id).then(
+      (value) => { if (current()) setSyncs({ status: "success", value }); },
+      () => { if (current()) setSyncs({ status: "error" }); },
+    );
+    if (selectedSyncID.current) loadSyncDetail(id, selectedSyncID.current);
   };
   const remove = () => selected && runMutation(() => mutation.execute({ kind: "delete", id: selected.value.id, version: selected.version }, async (intent, attempt) => { if (intent.kind !== "delete") throw new TypeError("Invalid retained integration intent"); return { kind: "deleted", receipt: await api.deleteIntegration(intent.id, intent.version, attempt) }; }));
   const retryMutation = () => {
@@ -334,7 +371,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
   };
   const retryReferenceConflictRefetch = () => pendingReferenceConflict && void run(() => reconcileReferenceConflict(pendingReferenceConflict.integrationID));
   const retryDiscoveryConflictRefetch = () => pendingDiscoveryConflict && void run(() => reconcileDiscoveryConflict(pendingDiscoveryConflict));
-  const closeSelected = () => { discoveryGeneration.current += 1; setSelected(null); setFreshness({ status: "idle" }); setSetupStatus({ status: "idle" }); setSchedule({ status: "idle" }); setSyncs({ status: "idle" }); setSyncDetail({ status: "idle" }); };
+  const closeSelected = () => { discoveryGeneration.current += 1; discoveryRefreshGeneration.current += 1; syncDetailGeneration.current += 1; selectedSyncID.current = null; setSelected(null); setFreshness({ status: "idle" }); setSetupStatus({ status: "idle" }); setSchedule({ status: "idle" }); setSyncs({ status: "idle" }); setSyncDetail({ status: "idle" }); };
   const visibleSelected = selected ?? pendingRevocation?.receipt ?? null;
   const visibleConfiguration = selected ? configuration : pendingRevocation?.receipt.value.configuration ?? configuration;
   const revocationPending = visibleSelected?.value.status === "revoking" && mutation.isUnresolved && pendingRevocation !== null;
@@ -687,6 +724,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
                 onSaveSchedule={saveSchedule}
                 onDeleteSchedule={removeSchedule}
                 onOpenSync={openSync}
+                onRefresh={refreshDiscovery}
               />
             )}
           </div>
@@ -696,7 +734,7 @@ export function ProductionIntegrationsView({ canWrite, navigateAuthorization = d
   );
 }
 
-function IntegrationDiscoveryPanel({ freshness, schedule, syncs, syncDetail, cadence, canWrite, canSync, locked, onCadence, onSync, onSaveSchedule, onDeleteSchedule, onOpenSync }: {
+function IntegrationDiscoveryPanel({ freshness, schedule, syncs, syncDetail, cadence, canWrite, canSync, locked, onCadence, onSync, onSaveSchedule, onDeleteSchedule, onOpenSync, onRefresh }: {
   freshness: DiscoveryLoad<Versioned<IntegrationFreshness>>;
   schedule: DiscoveryLoad<Versioned<IntegrationSchedule> | null>;
   syncs: DiscoveryLoad<readonly IntegrationSync[]>;
@@ -710,11 +748,13 @@ function IntegrationDiscoveryPanel({ freshness, schedule, syncs, syncDetail, cad
   onSaveSchedule(state?: "enabled" | "disabled"): void;
   onDeleteSchedule(): void;
   onOpenSync(syncID: string): void;
+  onRefresh(): void;
 }) {
   const cadenceValue = Number(cadence);
   const cadenceValid = Number.isSafeInteger(cadenceValue) && cadenceValue >= 300 && cadenceValue <= 2_678_400;
   return <section aria-label="Automatic discovery" className="form-stack">
     <h3>Automatic discovery</h3>
+    <Button disabled={locked || freshness.status === "loading" || syncs.status === "loading"} onClick={onRefresh}>Refresh discovery status</Button>
     {freshness.status === "loading" && <p>Loading discovery freshness…</p>}
     {freshness.status === "error" && <p>Discovery freshness is unavailable.</p>}
     {freshness.status === "success" && freshness.value && <div aria-label="Projection freshness">

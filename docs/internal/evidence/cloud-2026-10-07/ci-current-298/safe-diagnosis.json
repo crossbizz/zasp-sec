@@ -1,0 +1,62 @@
+{
+  "bounds": "Job-log capture30sec/12MiB stdout/64KiB stderr; both actual<1sec/0stdout/~526Bstderr; no policy bypass.",
+  "classification": "Runtime acceptance failed, not the preceding browser prerequisite-unit shell branch. Inner current-profile diagnostics separately report all-tests-pass:2top/28subtests.",
+  "mutations": "None: GitHub read-only API, TMP private captures only; no WS writes/builds/comments",
+  "privateCaptureDirectory": "/tmp/zasp-cloud-evidence/ci298-failure-diagnosis-cq2p_uql",
+  "runs": [
+    {
+      "annotationMessages": [
+        "Process completed with exit code 1.",
+        "Compliance browser runtime acceptance failed (exit 1)",
+        "Observed command class: other-command; failure: nonzero-exit.",
+        "Observed phase: api-ready.",
+        "Observed child stage: runtime-build.",
+        "Current profile inner diagnostics: all-tests-pass; tops=2; subtests=28."
+      ],
+      "conclusion": "failure",
+      "failedStep": "Verify current compliance browser acceptance",
+      "fullUIStep": [
+        {
+          "conclusion": "success",
+          "name": "Verify runnable UI"
+        }
+      ],
+      "jobID": 112568339818,
+      "logFetchError": "Signed redirected log receiver refused: Forbidden. Signed URL retained privately and not emitted.",
+      "logFetchExitCode": 1,
+      "logsRetrieved": false,
+      "runID": 37551664242
+    },
+    {
+      "annotationMessages": [
+        "Process completed with exit code 1.",
+        "Compliance browser runtime acceptance failed (exit 1)",
+        "Observed command class: other-command; failure: nonzero-exit.",
+        "Observed phase: api-ready.",
+        "Observed child stage: runtime-build.",
+        "Current profile inner diagnostics: all-tests-pass; tops=2; subtests=28."
+      ],
+      "conclusion": "failure",
+      "failedStep": "Verify current compliance browser acceptance",
+      "fullUIStep": [
+        {
+          "conclusion": "success",
+          "name": "Verify runnable UI"
+        }
+      ],
+      "jobID": 112568328391,
+      "logFetchError": "Signed redirected log receiver refused: Forbidden. Signed URL retained privately and not emitted.",
+      "logFetchExitCode": 1,
+      "logsRetrieved": false,
+      "runID": 37551660807
+    }
+  ],
+  "sourceRefs": [
+    ".github/workflows/runnable-ui.yml:109",
+    "scripts/browser-command-failure.mjs:42",
+    "services/platform/agentsec-api/compliance_browser_process_test.go:107"
+  ],
+  "sourceStageMeaning": "TestComplianceBrowserAPIProcess emitted runtime-build only when buildRuntimeDependenciesWithStorage returned an error. api-ready is the parent readiness-wait phase. This is dependency construction, not evidence of a Go compiler failure.",
+  "specificError": "UNKNOWN: detailed child err is only in unavailable private job log. No dependency/service cause inferred.",
+  "status": "ACTUAL-CI-FAILURE-STAGE-IDENTIFIED-SPECIFIC-CAUSE-UNKNOWN"
+}

@@ -1,0 +1,64 @@
+{
+  "status": "PASS_SOURCE_AND_ORDINARY_API_RACE_COMPONENT_SCOPE",
+  "currentHead": "621f076181b3d8fa69eccef2f7f4a080563b0fda",
+  "sourcePinsAtReview": {
+    "services/platform/agentsec-api/authorization_runtime_readiness.go": "fe846905ed262960098faf4b2ca7bf2db3a881b51fd1d72cc1a1548097214819",
+    "services/platform/agentsec-api/authorization_runtime_readiness_test.go": "bd378544eb004543f7fc9df518e90054777a605d4d28d9532b24c86766105180"
+  },
+  "exactDelta": "Readiness helper sequential twoSQL\u2192two parallel fixedprincipal calls under context.WithCancel(originalboundedparent), buffered2 completion channel, cancelanyerror, drainboth, finalprobes.Errrefusal. OriginalSQL/arguments/checksums/database role/currentAuthorization guards unchanged. Only existing testfile adapted/addsbarrier and cancellationjoin cases.",
+  "safety": [
+    "same5s budget, no SQL/predicate/roles change",
+    "both query Scan calls finish before helper returns; callers may safely Close onlyafterreturn",
+    "nil/canceledctx preflight retains refusal; original method guards invalidkey zeroSQL",
+    "servicesrefused callback exactly0core/0agent/0previous; neither side launched",
+    "refused principal mustbecheckedonce, otherfixedprincipal may execute0or1duecancelrace",
+    "previous callback runs only bothsuccess",
+    "common probe context observations synchronized bufferedchannel; counters read only after completions; no shared observedcontext variable"
+  ],
+  "newTestReview": {
+    "barrier": "both query calls block on same release; sequential baseline cannotstartsecondbeforeparent1s deadline. Close release then alwaysreceive completion. No sleeps. Bothsamectx/finalcanceled checked.",
+    "join": "core waits for agententered handshake before refusing; agent blocks completion even aftercancel. Helper must notreturnuntilrelease, then samecontextCanceled and bothcalls1. Original omittedhandshake draft documented and corrected.",
+    "flakiness": "1second parent fixtures can fail conservatively under extreme scheduling starvation; they do not admitincorrectsuccess or extendproductbudget. Delayed cancellation untilparentexpiry yieldsDeadlineExceeded failure ratherthanpassing joinproof.",
+    "raceScope": "Actual -race package run reports no races; doesnotprove allproductionpossibleinterleavings."
+  },
+  "actual": {
+    "resultPath": "/workspace/.zasp-cloud-owned/root-concurrent-readiness/result.json",
+    "resultSHA256": "df960aa495e7e6a54fabb1508f817f1c2f479d17ea874538861b13380c7621d0",
+    "jsonlSHA256": "7e53afd7c9bfa54abe247c8db158b54f27f6e3bb4a36de45e7ff191bf98305f3",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "exit": 0,
+    "wallSeconds": 10.91492174599989,
+    "packageSeconds": 6.124,
+    "topPass": 127,
+    "topSkip": 10,
+    "namedPass": 386,
+    "namedSkip": 10,
+    "fail": 0,
+    "newBarrierPass": true,
+    "newCancellationJoinPass": true,
+    "skipTests": [
+      "TestAttackLabBrowserAPIProcess",
+      "TestAttackLabDeploymentRenderedAPIConfig",
+      "TestAuditBrowserAPIProcess",
+      "TestComplianceBrowserAPIProcess",
+      "TestComplianceDeploymentRenderedAPIConfig",
+      "TestConnectorRejectionRuntimePostgres",
+      "TestP7IdentityTracedNativeRuntime",
+      "TestRuntimePostgresCancellationShutdownDiagnostic",
+      "TestReconciliationMaintenancePrometheusExposition",
+      "TestSecurityAgentExportBrowserAPIProcess"
+    ],
+    "bindingLimit": "Result command explicitlyrace/count1; source pins inspected now. No perstage pre/post source/toolmap serialized in this result, so no wholeimmutableclosure claim."
+  },
+  "priorAttempts": {
+    "path": "/workspace/.zasp-cloud-owned/root-concurrent-readiness/prior-results-transcription.json",
+    "sha256": "cf4814e806cf54c6ce7ff02db96d8a67ae456f9ea4620a4a4fb213ec7b7ef291",
+    "scope": "Root tool-observed transcription preserved; not reconstructed byte-original stdout. Authentic sequentialbarrierRED and initialdraftjoinFAIL remain distinct."
+  },
+  "limitations": [
+    "originalbrowser API child skippedinordinarysuite; no browser success/provider/native/production admission",
+    "concurrent queries on samePG may contend; actual unchanged fullbrowser required",
+    "ordering explicitlychangesagentfixedmetadatareadwhen corelaterrefuses; no tenantproductquery permission expansion",
+    "no new productsource edits/runtimebyreviewer"
+  ]
+}

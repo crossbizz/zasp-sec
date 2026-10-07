@@ -1,0 +1,148 @@
+TAP version 13
+# Subtest: parsed initial PG startup branches retain Error identity, call prefix and actual fatal cleanup
+ok 1 - parsed initial PG startup branches retain Error identity, call prefix and actual fatal cleanup
+  ---
+  duration_ms: 3.127774
+  type: 'test'
+  ...
+# Subtest: parsed mounted startup failures distinguish each owned operation without changing wrapper or cleanup
+ok 2 - parsed mounted startup failures distinguish each owned operation without changing wrapper or cleanup
+  ---
+  duration_ms: 12.717806
+  type: 'test'
+  ...
+# Subtest: parsed success keeps original startup arguments, API deadlines, legacy environment and assertion phase
+ok 3 - parsed success keeps original startup arguments, API deadlines, legacy environment and assertion phase
+  ---
+  duration_ms: 0.466745
+  type: 'test'
+  ...
+# Subtest: parsed noncompliance modes retain errors and cleanup with no phase annotations
+ok 4 - parsed noncompliance modes retain errors and cleanup with no phase annotations
+  ---
+  duration_ms: 1.091869
+  type: 'test'
+  ...
+# Subtest: annotation emitter failure cannot replace a parsed owned startup Error
+ok 5 - annotation emitter failure cannot replace a parsed owned startup Error
+  ---
+  duration_ms: 0.369588
+  type: 'test'
+  ...
+# Subtest: parsed API restart restores browser assertion phase only after readiness succeeds
+ok 6 - parsed API restart restores browser assertion phase only after readiness succeeds
+  ---
+  duration_ms: 0.752436
+  type: 'test'
+  ...
+# Subtest: all fixed startup labels are closed and unknown canary labels emit only unavailable
+ok 7 - all fixed startup labels are closed and unknown canary labels emit only unavailable
+  ---
+  duration_ms: 0.530241
+  type: 'test'
+  ...
+# Subtest: closed child marker parser emits only six fixed failed stages
+ok 8 - closed child marker parser emits only six fixed failed stages
+  ---
+  duration_ms: 1.764595
+  type: 'test'
+  ...
+# Subtest: missing malformed duplicate ambiguous and oversized evidence refuses without raw values
+ok 9 - missing malformed duplicate ambiguous and oversized evidence refuses without raw values
+  ---
+  duration_ms: 0.286312
+  type: 'test'
+  ...
+# Subtest: actual readiness catch emits fixed child stage preserving original wrapper and prior order
+ok 10 - actual readiness catch emits fixed child stage preserving original wrapper and prior order
+  ---
+  duration_ms: 1.317951
+  type: 'test'
+  ...
+# Subtest: other modes and emitter faults cannot replace the original readiness wrapper
+ok 11 - other modes and emitter faults cannot replace the original readiness wrapper
+  ---
+  duration_ms: 0.561388
+  type: 'test'
+  ...
+# Subtest: all actual published Go producer markers join the same closed parser roster
+ok 12 - all actual published Go producer markers join the same closed parser roster
+  ---
+  duration_ms: 0.737603
+  type: 'test'
+  ...
+# Subtest: actual sliced output refuses leading fragments and unterminated marker lines
+ok 13 - actual sliced output refuses leading fragments and unterminated marker lines
+  ---
+  duration_ms: 0.193813
+  type: 'test'
+  ...
+# Subtest: exact tail boundary retains leading marker poison in ambiguous evidence refusal
+ok 14 - exact tail boundary retains leading marker poison in ambiguous evidence refusal
+  ---
+  duration_ms: 0.181374
+  type: 'test'
+  ...
+# Subtest: already exited owned child cannot authorize a 200
+ok 15 - already exited owned child cannot authorize a 200
+  ---
+  duration_ms: 14.910637
+  type: 'test'
+  ...
+# Subtest: non-readyz endpoint is refused before network dispatch
+ok 16 - non-readyz endpoint is refused before network dispatch
+  ---
+  duration_ms: 3.964066
+  type: 'test'
+  ...
+# Subtest: real transient 503 retries then accepts exactly 200 and closes sockets/listeners
+ok 17 - real transient 503 retries then accepts exactly 200 and closes sockets/listeners
+  ---
+  duration_ms: 21.140546
+  type: 'test'
+  ...
+# Subtest: stalled body and request are aborted then joined at absolute deadline
+ok 18 - stalled body and request are aborted then joined at absolute deadline
+  ---
+  duration_ms: 305.645762
+  type: 'test'
+  ...
+# Subtest: never-ready status has one bounded absolute allowance
+ok 19 - never-ready status has one bounded absolute allowance
+  ---
+  duration_ms: 130.200803
+  type: 'test'
+  ...
+# Subtest: real child exit during 503 polling refuses promptly and closes probe
+ok 20 - real child exit during 503 polling refuses promptly and closes probe
+  ---
+  duration_ms: 9.364221
+  type: 'test'
+  ...
+# Subtest: 200 response arriving after real child exit is not readiness
+ok 21 - 200 response arriving after real child exit is not readiness
+  ---
+  duration_ms: 7.621369
+  type: 'test'
+  ...
+# Subtest: external cleanup cancellation joins a stalled request without raw error disclosure
+ok 22 - external cleanup cancellation joins a stalled request without raw error disclosure
+  ---
+  duration_ms: 4.645635
+  type: 'test'
+  ...
+# Subtest: invalid URL and cap inputs never dispatch and oversized body is refused
+ok 23 - invalid URL and cap inputs never dispatch and oversized body is refused
+  ---
+  duration_ms: 3.879468
+  type: 'test'
+  ...
+1..23
+# tests 23
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 635.61803

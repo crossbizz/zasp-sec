@@ -1,0 +1,142 @@
+{
+  "status": "PASS_TOOL_BYTE_AND_RECEIPT_SCOPE",
+  "records": [
+    {
+      "path": "/tmp/zasp-cloud-tools/fresh-tools-admission.json",
+      "sha256": "1a3c55abf0abdee8bceba31f290dc85af84f4ff6620a045390e24bc7a52dd33e",
+      "bytes": 1809,
+      "mode": "0o600",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+      "sha256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068",
+      "bytes": 124835376,
+      "mode": "0o755",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/bin/node",
+      "sha256": "93956de2e59480474a7b46571da1651180b1a050cdf32641ebec4ce6e478e068",
+      "bytes": 124835376,
+      "mode": "0o755",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/go/bin/go",
+      "sha256": "d9a2fa19c7ef8b57f420012c21f49f235c46f08a68c12077d9c753dbb6ccdc34",
+      "bytes": 15434687,
+      "mode": "0o755",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/bin/tini",
+      "sha256": "93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a8117fa82c",
+      "bytes": 24064,
+      "mode": "0o500",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/bin/gitleaks",
+      "sha256": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509",
+      "bytes": 21958840,
+      "mode": "0o500",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/node.tar.xz",
+      "sha256": "9749e988f437343b7fa832c69ded82a312e41a03116d766797ac14f6f9eee578",
+      "bytes": 31068444,
+      "mode": "0o600",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/go.tar.gz",
+      "sha256": "d0f743b33e8d8945e6b1f432edd15785c70507121d6e2a723b21285eddf8b57b",
+      "bytes": 66897291,
+      "mode": "0o600",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/gitleaks.tar.gz",
+      "sha256": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
+      "bytes": 8230402,
+      "mode": "0o600",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/bin/helm",
+      "sha256": "96220fdc4f98089d3924532b20df4804fa28631651e8ba44d0a6134e294feb73",
+      "bytes": 78382640,
+      "mode": "0o500",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/fresh-intake-results.json",
+      "sha256": "7d9b5dcd02ad72298a518b47c530aeec0437d1bd7467a5890bfab0c390e5f57d",
+      "bytes": 1885,
+      "mode": "0o600",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/helm-fresh-build-result.json",
+      "sha256": "e0a02d733db6816fd25100bbc9c8ef3ad0dd7cd8f431d14fd6466095bb3b4091",
+      "bytes": 1189,
+      "mode": "0o600",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/helm-fresh-source-h1.json",
+      "sha256": "eb540f5ce720ff61893c81688ed2492033b03194068d6ff2cdd101dcda7785a5",
+      "bytes": 274,
+      "mode": "0o600",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/helm-fresh-direct-dependency.json",
+      "sha256": "ca55dcf6deb30bb79fdd277444ed56cb1bb34d31da29970e5dfb4e7afa26239d",
+      "bytes": 759,
+      "mode": "0o600",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/helm-fresh-build-first-failure.json",
+      "sha256": "3251c89aa82a1859335b8e473bd8e067cb6488cf71bee58bf7a7ce2d2ee96fc6",
+      "bytes": 1008,
+      "mode": "0o600",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/lib/node_modules/npm/package.json",
+      "sha256": "3f6dff62de33c82d89e986a05ddd5644e6b613344a54ecf2820a612bfbaee7d7",
+      "bytes": 6706,
+      "mode": "0o644",
+      "sameFDStable": true
+    },
+    {
+      "path": "/tmp/zasp-cloud-tools/node-v22.23.1-linux-x64/lib/node_modules/npm/bin/npm-cli.js",
+      "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+      "bytes": 54,
+      "mode": "0o755",
+      "sameFDStable": true
+    },
+    {
+      "path": "/home/agent/go/pkg/mod/cache/download/helm.sh/helm/v3/@v/v3.19.0.zip",
+      "sha256": "f27b3090b8f4c0d5657aefa906c4556de1fc16550cfb5ca83b77ff3e4dfd839a",
+      "bytes": 1380462,
+      "mode": "0o600",
+      "sameFDStable": true
+    }
+  ],
+  "helmZipLogicalPath": "/tmp/zasp-go-module-cache-current/cache/download/helm.sh/helm/v3/@v/v3.19.0.zip",
+  "helmZipResolvedPath": "/home/agent/go/pkg/mod/cache/download/helm.sh/helm/v3/@v/v3.19.0.zip",
+  "helmZipH1": "h1:krVyCGa8fa/wzTZgqw0DUiXuRT5BPdeqE/sQXujQ22k=",
+  "helmSourceMembersByteCompared": 1380,
+  "limits": [
+    "No version/build/network rerun; versions, normal joins and floors are producer observations.",
+    "Helm source-built with Go1.26.8, not vendor release binary. Historical published sumdb authority matched by fresh ZIP computation; no new network sumdb claim.",
+    "Read-only cached ZIP resolves under HOME; no write performed. No independent cache-write census claimed.",
+    "npm admission hashes Node; current CLI/package separately bound here, not entire npm dependency closure.",
+    "First Helm build exit1 and official get.helm.sh curl22 remain failures. No application/release/native acceptance."
+  ]
+}

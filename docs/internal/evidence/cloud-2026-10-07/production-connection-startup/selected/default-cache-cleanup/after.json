@@ -1,0 +1,15 @@
+{
+  "observed_utc": "2026-10-07T03:14:46Z",
+  "command": [
+    "/tmp/zasp-cloud-tools/go/bin/go",
+    "clean",
+    "-cache"
+  ],
+  "exit_code": 0,
+  "workspace_available": 7961948160,
+  "remaining_top_level": [
+    "README",
+    "trim.txt"
+  ],
+  "new_verification_result": "Not yet run; cleanup is not application validation."
+}

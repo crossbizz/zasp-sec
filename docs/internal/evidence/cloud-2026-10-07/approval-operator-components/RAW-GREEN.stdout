@@ -1,0 +1,16 @@
+=== RUN   TestRawModelSafety
+=== RUN   TestRawModelSafety/same
+=== RUN   TestRawModelSafety/duplicate
+=== RUN   TestRawModelSafety/unknown
+=== RUN   TestRawModelSafety/wrongModel
+=== RUN   TestRawModelSafety/trailing
+=== RUN   TestRawModelSafety/malformedUTF8
+--- PASS: TestRawModelSafety (0.00s)
+    --- PASS: TestRawModelSafety/same (0.00s)
+    --- PASS: TestRawModelSafety/duplicate (0.00s)
+    --- PASS: TestRawModelSafety/unknown (0.00s)
+    --- PASS: TestRawModelSafety/wrongModel (0.00s)
+    --- PASS: TestRawModelSafety/trailing (0.00s)
+    --- PASS: TestRawModelSafety/malformedUTF8 (0.00s)
+PASS
+ok  	command-line-arguments	1.011s

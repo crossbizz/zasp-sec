@@ -1,0 +1,44 @@
+{
+  "status": "FRESH-STARTUP-AUTHORIZATION-BUDGET-SOURCE-REVIEW-PASS",
+  "sourceBindings": [
+    {
+      "path": "/workspace/zasp-sec/services/platform/agentsec-api/production_runtime.go",
+      "sha256": "3372e5f6ea8cf1c878912f247b4ab715c120174e24edee9f523ccb5b91fc6b9b",
+      "bytes": 50347,
+      "headPreimageSHA256": "7f71dcba243b538a0d6cdd6625fa41f284598b18a731daf87a9175ed8d68af7f"
+    },
+    {
+      "path": "/workspace/zasp-sec/services/platform/agentsec-api/authorization_runtime_readiness.go",
+      "sha256": "4dadfc4acdb555f926e8489fafc95c36367fe76fc95c0f78d2688dcc0c9f9406",
+      "bytes": 1570,
+      "headPreimageSHA256": "b4140a7195722fe36b10e3d7d1a2bbeeef49679fb1e7611498ef9d98ff884e0a"
+    },
+    {
+      "path": "/workspace/zasp-sec/services/platform/agentsec-api/authorization_runtime_readiness_test.go",
+      "sha256": "d196ff3665852b2c70187328d281e57f2ee5001b45025037405f3d3615638256",
+      "bytes": 9175,
+      "headPreimageSHA256": "778143507e03add77dc0b7ff9c1bb52264ca62e4969ac9d0a14776e071eac026"
+    }
+  ],
+  "productionDiff": "Exactly one startup call changes spent connectCtx to WithinTimeout(originalctx,...unchangedconfig.ProviderTimeout); readiness helper centralizes originalcombinedtwo probes and recurringwrapper adoptsit.",
+  "safety": [
+    "Both fixedcore/securityagent probes shareonefreshcontext; noperprobeextension.",
+    "Originalparentcancellation/deadline remainsupperbound; defercancelreleasesbudgetafterreturn.",
+    "Originalpoolconnecttimeout,SQLqueries/checksums/roles/currentauthorizationactivation,RLS/nativeguards,redactederrorphase anddatabase/services cleanupordering unchanged.",
+    "Startup validatesnon-nilparent/config before helper; recurringwrapper nilcontext behavior unchanged frompreviouscontext.WithTimeout use.",
+    "Recurringprevious(ctx) isstillgivenoriginalparent; only unusedprobechild nowcancelledbeforepreviouscallback."
+  ],
+  "tests": [
+    "Source AST regression identifiesstartupspentchild vsactualparent freshhelper call; behavioralnewcasesexerciseactualReadiness SQLdriver boundary.",
+    "Eight casegroup coversspentoldchildthenfreshparent success/earlierparentdeadline/cancelledexpiredparent/zero/corefalse/agentfalse/cancelmidcore.",
+    "DriverspreservefixedSQL/key/authority checks; bothprobescontextidentity andafterreturn cancellationasserted.",
+    "Oldspentcontextfailure andnewfreshcontextsuccess directlydemonstratebudgetscoping,notcoldmetadata orhostedcause."
+  ],
+  "limitations": [
+    "No reviewerGo/test/runtimeexecution.",
+    "ActualRED/GREENlogs notsuppliedwiththissourcegate; rootactualevidence separate.",
+    "No observedhostedunderlyingcause asserted.",
+    "No slowactualSQLtimeoutcase addedhere; inheritedcontextdeadline correctness andoldreadiness testsremain."
+  ],
+  "smallNonblockingTestNote": "ASTcase indexes call.Args[0] before lencheck; actualreviewedcallhas5args. Forfuturezeroargregressions testwouldpanicratherthanerror, notproductrisk."
+}

@@ -1,0 +1,16 @@
+{
+	"Path": "github.com/klauspost/compress",
+	"Version": "v1.18.0",
+	"Info": "/tmp/zasp-go-module-cache-current/cache/download/github.com/klauspost/compress/@v/v1.18.0.info",
+	"GoMod": "/tmp/zasp-go-module-cache-current/cache/download/github.com/klauspost/compress/@v/v1.18.0.mod",
+	"Zip": "/tmp/zasp-go-module-cache-current/cache/download/github.com/klauspost/compress/@v/v1.18.0.zip",
+	"Dir": "/tmp/zasp-go-module-cache-current/github.com/klauspost/compress@v1.18.0",
+	"Sum": "h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=",
+	"GoModSum": "h1:2Pp+KzxcywXVXMr50+X0Q/Lsb43OQHYWRCY2AiWywWQ=",
+	"Origin": {
+		"VCS": "git",
+		"URL": "https://github.com/klauspost/compress",
+		"Hash": "8e79dc4b98d4c5a09c62a2546b79c14edf7c3e38",
+		"Ref": "refs/tags/v1.18.0"
+	}
+}

@@ -1,0 +1,21 @@
+{
+  "format": "native-fga-genuine-finding-root-actual-v1",
+  "completed": false,
+  "failure": "RuntimeError:exact test census refused:genuine-finding-inactive-capture",
+  "elapsedSeconds": 366.41929137600073,
+  "forced": false,
+  "signals": [],
+  "inputs": 13965,
+  "ownedSessionSurvivors": [],
+  "processCensusUnknown": [],
+  "fgaNormalStop": {
+    "exit": 0,
+    "forcedCleanup": false,
+    "listenersAbsent": true,
+    "normalWait": true,
+    "routineGracefulSIGTERM": true,
+    "sessionAbsent": true
+  },
+  "originalResultSHA256": "070c6619844d7b0a96178b948dcf1e7acb85e55787ba878be48336b612ef62b4",
+  "derivedSummaryOnly": true
+}

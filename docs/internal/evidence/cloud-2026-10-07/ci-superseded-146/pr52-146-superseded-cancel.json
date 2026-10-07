@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-07T00:40:04.955404+00:00",
+  "preservedHead": "298e9911024fe36c8872070932019a0263044e1d",
+  "preservedRuns": [
+    37551664242,
+    37551660807
+  ],
+  "supersededRuns": [
+    {
+      "id": 37550267961,
+      "oldHead": "146dceb57fbf5241cb5ed6bec24db2ac4f351ec8",
+      "cancelExit": 0,
+      "wasStatus": "in_progress"
+    },
+    {
+      "id": 37550262689,
+      "oldHead": "146dceb57fbf5241cb5ed6bec24db2ac4f351ec8",
+      "cancelExit": 0,
+      "wasStatus": "in_progress"
+    }
+  ],
+  "scope": "Superseded in-progress runs only; cancellation is not a passed guard."
+}

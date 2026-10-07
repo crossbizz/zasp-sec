@@ -1,0 +1,10 @@
+{
+  "exitCode": 0,
+  "findings": 0,
+  "format": "spec29-selected-terminal-proof-scan-v1",
+  "logSHA256": "16262b5b9bf1eb52f00a8d57807d35f26a4fad59bfa1f9a860f1e9720ed6e48e",
+  "reportSHA256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "scanner": "/tmp/zasp-cloud-tools/bin/gitleaks",
+  "scannerSHA256": "88f91962aa2f93ac6ab281d553b9e125f5197bbbce38f9f2437f7299c32e5509",
+  "scope": "Only selected durable terminal proof files existing at scan; no whole source/history/module clearance. Default rules, no custom config, comments not allowed."
+}

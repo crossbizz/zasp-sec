@@ -1,0 +1,6 @@
+{
+  "scope": "Metadata-only owner successor: result.scope describes direct SELECT timing, not EXPLAIN; all lifecycle/source/query/caps unchanged. Original reviewedowner retained.",
+  "original_owner_sha256": "e841f945a62f81dbbd622ae8bf5dd0d7744b4d1cbb11b630f1c1ca8aaf5de155",
+  "successor_owner_sha256": "dccfcd51208ddd9b18a51c1dbe8064d8d5b98333df5e98f0b402cf040903fc50",
+  "prepared_source_manifest_sha256": "267064bb2631096e18994a4b4d36db15a949d0fa3589f8f20060b107e000a954"
+}

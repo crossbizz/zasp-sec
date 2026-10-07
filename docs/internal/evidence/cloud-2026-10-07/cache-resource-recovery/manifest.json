@@ -1,0 +1,517 @@
+{
+  "format": "default-Go-cache-bucket3a-small-selected-custody-publication-v1",
+  "members": [
+    {
+      "copy": {
+        "bytes": 1677,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131286",
+          "mode": "0o600",
+          "mtimeNs": 1791339079447206020,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/original-parity-incomplete-resource-failure.json",
+        "sha256": "1080f079a3607043ac48d4b9375c3695a0b9f985158c1865ddeca9abdc227b75"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 1677,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131223",
+          "mode": "0o400",
+          "mtimeNs": 1791335223811423924,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/native379-v3-current-coherent-private-_gkp3vv5/constructor-parity-resource-failure-result.json",
+        "sha256": "1080f079a3607043ac48d4b9375c3695a0b9f985158c1865ddeca9abdc227b75"
+      },
+      "relativePath": "original-parity-incomplete-resource-failure.json"
+    },
+    {
+      "copy": {
+        "bytes": 38160,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131287",
+          "mode": "0o600",
+          "mtimeNs": 1791339079447380585,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/bucket3a-plan.json",
+        "sha256": "aa45817a7744a9823a221d939ba7d2539c7edd0fe58ab9dedbe0a3aed91db603"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 38160,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131228",
+          "mode": "0o400",
+          "mtimeNs": 1791335360073987107,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/bucket3a-plan.json",
+        "sha256": "aa45817a7744a9823a221d939ba7d2539c7edd0fe58ab9dedbe0a3aed91db603"
+      },
+      "relativePath": "bucket3a-plan.json"
+    },
+    {
+      "copy": {
+        "bytes": 12953,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131288",
+          "mode": "0o600",
+          "mtimeNs": 1791339079447556623,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/relocate-bucket3a-v3.py",
+        "sha256": "6c43a345a91c407167ba37f98ce3a4eaa87d18a5e2288f69cecf807d1ef83f4b"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 12953,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131248",
+          "mode": "0o400",
+          "mtimeNs": 1791335570584858168,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/relocate-bucket3a-v3.py",
+        "sha256": "6c43a345a91c407167ba37f98ce3a4eaa87d18a5e2288f69cecf807d1ef83f4b"
+      },
+      "relativePath": "relocate-bucket3a-v3.py"
+    },
+    {
+      "copy": {
+        "bytes": 3484,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131289",
+          "mode": "0o600",
+          "mtimeNs": 1791339079447631146,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/root-recipe-v3.json",
+        "sha256": "97b8b10a16893f46019e0e6bfa58646921596a087fd378fd7c4f91c55f999c15"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 3484,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131249",
+          "mode": "0o400",
+          "mtimeNs": 1791335590897535337,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/root-recipe-v3.json",
+        "sha256": "97b8b10a16893f46019e0e6bfa58646921596a087fd378fd7c4f91c55f999c15"
+      },
+      "relativePath": "root-recipe-v3.json"
+    },
+    {
+      "copy": {
+        "bytes": 34444,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131290",
+          "mode": "0o600",
+          "mtimeNs": 1791339079447739650,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/prepared.json",
+        "sha256": "32771de22a3fc088786df6fd8c22624e62b7c6249534648217cddec029c9f71f"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 34444,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131250",
+          "mode": "0o400",
+          "mtimeNs": 1791338734502571833,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/prepared.json",
+        "sha256": "32771de22a3fc088786df6fd8c22624e62b7c6249534648217cddec029c9f71f"
+      },
+      "relativePath": "prepared.json"
+    },
+    {
+      "copy": {
+        "bytes": 798,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131291",
+          "mode": "0o600",
+          "mtimeNs": 1791339079447898982,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/prepare-result.json",
+        "sha256": "2f50a95c0c2847c3429ebd218576a488d57972594f9507352fa522a9c6deba0d"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 798,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131251",
+          "mode": "0o400",
+          "mtimeNs": 1791338734502571833,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/prepare-result.json",
+        "sha256": "2f50a95c0c2847c3429ebd218576a488d57972594f9507352fa522a9c6deba0d"
+      },
+      "relativePath": "prepare-result.json"
+    },
+    {
+      "copy": {
+        "bytes": 221,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131292",
+          "mode": "0o600",
+          "mtimeNs": 1791339079447950811,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/root-prepare-result.json",
+        "sha256": "146fc65d37c3fcdd128466dfb2da5888281fb85cb21218d68f0ba2d09dc36503"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 221,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131254",
+          "mode": "0o600",
+          "mtimeNs": 1791338734513347170,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/root-prepare-result.json",
+        "sha256": "146fc65d37c3fcdd128466dfb2da5888281fb85cb21218d68f0ba2d09dc36503"
+      },
+      "relativePath": "root-prepare-result.json"
+    },
+    {
+      "copy": {
+        "bytes": 452,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131293",
+          "mode": "0o600",
+          "mtimeNs": 1791339079447996540,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/finalize-intent.json",
+        "sha256": "6ae97e6b7b9d88f0432af43234fe5ef2c9d24b5025c4e46f70ef050b2ce11730"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 452,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131256",
+          "mode": "0o400",
+          "mtimeNs": 1791338838013130136,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/finalize-intent.json",
+        "sha256": "6ae97e6b7b9d88f0432af43234fe5ef2c9d24b5025c4e46f70ef050b2ce11730"
+      },
+      "relativePath": "finalize-intent.json"
+    },
+    {
+      "copy": {
+        "bytes": 14089,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131294",
+          "mode": "0o600",
+          "mtimeNs": 1791339079448079556,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/unlink-returned.jsonl",
+        "sha256": "cf33817d39acb1f7ff9e46802afec6a3793ed66c0d3f5e0f49424bc77d0628bd"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 14089,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131257",
+          "mode": "0o400",
+          "mtimeNs": 1791338838977154023,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/unlink-returned.jsonl",
+        "sha256": "cf33817d39acb1f7ff9e46802afec6a3793ed66c0d3f5e0f49424bc77d0628bd"
+      },
+      "relativePath": "unlink-returned.jsonl"
+    },
+    {
+      "copy": {
+        "bytes": 6565,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131295",
+          "mode": "0o600",
+          "mtimeNs": 1791339079448156673,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/finalize-result.json",
+        "sha256": "efab5504e3809e93ae25d7c15f928a119410c29d81ad8ad2580e8166bbedf643"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 6565,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131258",
+          "mode": "0o400",
+          "mtimeNs": 1791338852141479318,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/finalize-result.json",
+        "sha256": "efab5504e3809e93ae25d7c15f928a119410c29d81ad8ad2580e8166bbedf643"
+      },
+      "relativePath": "finalize-result.json"
+    },
+    {
+      "copy": {
+        "bytes": 221,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131296",
+          "mode": "0o600",
+          "mtimeNs": 1791339079448208352,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/root-finalize-result.json",
+        "sha256": "59888a53bdd60992adddf9635cd43f00287097e6e76226500f5ce6fd236243bd"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 221,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131261",
+          "mode": "0o600",
+          "mtimeNs": 1791338852150662232,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/root-finalize-result.json",
+        "sha256": "59888a53bdd60992adddf9635cd43f00287097e6e76226500f5ce6fd236243bd"
+      },
+      "relativePath": "root-finalize-result.json"
+    },
+    {
+      "copy": {
+        "bytes": 730,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131297",
+          "mode": "0o600",
+          "mtimeNs": 1791339079448256545,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/independent-source-prepared-review.json",
+        "sha256": "a8b93a9a7324c0ea04cf613ad1ea505400dfcedf0960be9526eaf4d955e6f561"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 730,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131255",
+          "mode": "0o400",
+          "mtimeNs": 1791338818559488428,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/restart-independent-j73g1s1l/cache-bucket3a-v3-source-prepared-review.json",
+        "sha256": "a8b93a9a7324c0ea04cf613ad1ea505400dfcedf0960be9526eaf4d955e6f561"
+      },
+      "relativePath": "independent-source-prepared-review.json"
+    },
+    {
+      "copy": {
+        "bytes": 891,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131298",
+          "mode": "0o600",
+          "mtimeNs": 1791339079448304097,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/independent-final-custody-review.json",
+        "sha256": "5e8bd50f091483ae6962e8d37d22a2ecce56b64bd04a3fce48affe664f2888b1"
+      },
+      "encoding": "none-byte-identical",
+      "original": {
+        "bytes": 891,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131262",
+          "mode": "0o400",
+          "mtimeNs": 1791338885307542470,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/restart-independent-j73g1s1l/cache-bucket3a-final-custody-review.json",
+        "sha256": "5e8bd50f091483ae6962e8d37d22a2ecce56b64bd04a3fce48affe664f2888b1"
+      },
+      "relativePath": "independent-final-custody-review.json"
+    },
+    {
+      "copy": {
+        "bytes": 4373,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131299",
+          "mode": "0o600",
+          "mtimeNs": 1791339079459758965,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/episode-scope.json",
+        "sha256": "7211506485f138d89648553975980836ea76bd4a1117d710a9596ce6ba823725"
+      },
+      "encoding": "new-safe-scalar-scope",
+      "relativePath": "episode-scope.json"
+    },
+    {
+      "copy": {
+        "bytes": 2088,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131300",
+          "mode": "0o600",
+          "mtimeNs": 1791339079459855331,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-bucket3a-custody-selected-ckl7hfjt/README.md",
+        "sha256": "893c4b30a6545cf0299c76bb1c3cd573b3d61af3b475b32a1b05a95c1e5f6cb6"
+      },
+      "encoding": "new-scope-only",
+      "relativePath": "README.md"
+    }
+  ],
+  "omissions": [
+    {
+      "identity": {
+        "bytes": 9256606,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131225",
+          "mode": "0o400",
+          "mtimeNs": 1791335278035772922,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/source-inventory.json",
+        "sha256": "9db0efc4963e1853e46ebd14e627af274db779cd379e6824864c20ef627f6e6e"
+      },
+      "reason": "9.25MB fullcacheinventory keptprivate; no source map/body copied."
+    },
+    {
+      "identity": {
+        "bytes": 10287,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131229",
+          "mode": "0o400",
+          "mtimeNs": 1791335432341151425,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/relocate-bucket3a.py",
+        "sha256": "2fcefffcb08309ba488a5e433034c48d313180b98889343b81c960148df2e2e1"
+      },
+      "reason": "Original source checkpoint preserved privately."
+    },
+    {
+      "identity": {
+        "bytes": 11532,
+        "metadata": {
+          "dev": "34",
+          "gid": 1000,
+          "ino": "131231",
+          "mode": "0o400",
+          "mtimeNs": 1791335490751953069,
+          "nlink": 1,
+          "uid": 1000
+        },
+        "path": "/tmp/zasp-cloud-evidence/default-Go-cache-lossless-plan-rpjizha4/relocate-bucket3a-v2.py",
+        "sha256": "2213bb50a1b2afdf12f3f1666ead7f2a0b789eb3d238fc672b99ea4af5b53cb9"
+      },
+      "reason": "Intermediate source checkpoint preserved privately."
+    },
+    {
+      "category": "Cache file bodies and parity rawlog",
+      "reason": "Allcachebytes keptinownedSHM/cache, rawlogsprivate; selected metadata/proofonly."
+    }
+  ],
+  "publicationSafety": "Only source code, safe scalar process/cachemetadata, fullpublicfileSHA pins and custody receipts; no keys/passwords/JWT/rawnetworkURLs or cachepayloads.",
+  "scanner": "NOT_RUN",
+  "status": "PRIVATE-PUBLICATION-CANDIDATE"
+}

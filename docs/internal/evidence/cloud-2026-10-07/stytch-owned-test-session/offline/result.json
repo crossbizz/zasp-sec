@@ -1,0 +1,95 @@
+{
+  "status": "ACTUAL-WRAPPER-OFFLINE-CONTROLS-PASS",
+  "scope": "Seven own wrapper-boundary controls using injected fake transport and unchanged original proof; no vendor-internal or real-provider acceptance",
+  "wrapperSha256": "6558e13100d68e3c565cacc8885a8e7088e5070847175c44784a0dc07ac40e21",
+  "cases": [
+    {
+      "case": "normal",
+      "status": "PASS",
+      "childExit": 0,
+      "joined": true,
+      "forced": false,
+      "completed": true,
+      "cleanupAbsent": true,
+      "deleteCalls": 1,
+      "resultPath": "/tmp/zasp-stytch-disposable-aa579fc9-a4f5-48de-84bb-b0a35520fae2/result.json",
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-64ktn1_7/fixture-metadata.json"
+    },
+    {
+      "case": "create-uncertain-recover",
+      "status": "PASS",
+      "childExit": 1,
+      "joined": true,
+      "forced": false,
+      "completed": false,
+      "cleanupAbsent": true,
+      "deleteCalls": 1,
+      "resultPath": "/tmp/zasp-stytch-disposable-2176051c-2e58-4a76-b34f-10e6a05cac91/result.json",
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-gealr20s/fixture-metadata.json"
+    },
+    {
+      "case": "create-uncertain-absent",
+      "status": "PASS",
+      "childExit": 1,
+      "joined": true,
+      "forced": false,
+      "completed": false,
+      "cleanupAbsent": false,
+      "deleteCalls": 0,
+      "resultPath": "/tmp/zasp-stytch-disposable-1d436d85-071c-440c-ab75-27d33b3093ef/result.json",
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-gzsrccje/fixture-metadata.json"
+    },
+    {
+      "case": "create-uncertain-mismatch",
+      "status": "PASS",
+      "childExit": 1,
+      "joined": true,
+      "forced": false,
+      "completed": false,
+      "cleanupAbsent": false,
+      "deleteCalls": 0,
+      "resultPath": "/tmp/zasp-stytch-disposable-e1ab60fe-5ebf-4943-be07-322e50d05e94/result.json",
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-793c48em/fixture-metadata.json"
+    },
+    {
+      "case": "cancel-migrate",
+      "status": "PASS",
+      "childExit": 1,
+      "joined": true,
+      "forced": false,
+      "completed": false,
+      "cleanupAbsent": true,
+      "deleteCalls": 1,
+      "resultPath": "/tmp/zasp-stytch-disposable-a5d10e99-17a1-4769-9343-01b8049d130a/result.json",
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-ip8ad2ud/fixture-metadata.json"
+    },
+    {
+      "case": "auth-refused",
+      "status": "PASS",
+      "childExit": 1,
+      "joined": true,
+      "forced": false,
+      "completed": false,
+      "cleanupAbsent": true,
+      "deleteCalls": 1,
+      "resultPath": "/tmp/zasp-stytch-disposable-20f81e35-ab3a-4a7a-91dd-c57e7086a5ba/result.json",
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-pmtftics/fixture-metadata.json"
+    },
+    {
+      "case": "cleanup-refused",
+      "status": "PASS",
+      "childExit": 1,
+      "joined": true,
+      "forced": false,
+      "completed": false,
+      "cleanupAbsent": false,
+      "deleteCalls": 2,
+      "resultPath": "/tmp/zasp-stytch-disposable-e53c6ec7-95d4-4101-b9b5-85ae4686fa26/result.json",
+      "fixtureMetadataPath": "/tmp/zasp-cloud-evidence/Stytch-wrapper-offline-controls/case-hhba_mwi/fixture-metadata.json"
+    }
+  ],
+  "networkCalls": false,
+  "realCredentialsInherited": false,
+  "repoSourceChanged": false,
+  "sourceUnchanged": true
+}

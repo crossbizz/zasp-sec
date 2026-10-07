@@ -1,0 +1,54 @@
+{
+  "failedAttemptsPreserved": 2,
+  "finalFailed": 0,
+  "finalPassed": 2620,
+  "finalSkipped": 0,
+  "omitted": "Full102138module maps,7825tracked maps,raw logs and full Vitest assertion report retained privately; no credential or provider journal copied",
+  "originals": [
+    {
+      "bytes": 884,
+      "name": "initial-zero-test-result.json",
+      "originalPath": "/tmp/zasp-cloud-evidence/fresh-full-ui-u6pnx_qz/result.json",
+      "sha256": "e5cb618ad32bef47cf72789ac3dddacf4b0576ea287ef8f8cd1dabf18a660ee3"
+    },
+    {
+      "bytes": 892,
+      "name": "missing-helm-full-result.json",
+      "originalPath": "/tmp/zasp-cloud-evidence/fresh-full-ui-physical-qeirnht9/result.json",
+      "sha256": "a5d2653f06495a2ab32473d228187d78cd9e46c91afd76a2e8eef084b4c06a2b"
+    },
+    {
+      "bytes": 1903,
+      "name": "missing-helm-review.json",
+      "originalPath": "/tmp/zasp-cloud-evidence/fresh-full-ui-physical-qeirnht9/actual-baseline-review.json",
+      "sha256": "bef0c8012692b79bb9933fc092d1611dbd8298ba80c34858438dc2efa940fa9e"
+    },
+    {
+      "bytes": 1113,
+      "name": "final-full-result.json",
+      "originalPath": "/tmp/zasp-cloud-evidence/fresh-full-ui-helm-mqyyxc2s/result.json",
+      "sha256": "6838ee0b573dd29de3e39a65b7146978d7075f5db06f63b14fac1ca8c83b0dc4"
+    },
+    {
+      "bytes": 2081,
+      "name": "final-full-review.json",
+      "originalPath": "/tmp/zasp-cloud-evidence/fresh-full-ui-helm-mqyyxc2s/actual-full-ui-review.json",
+      "sha256": "3f004be6f711b93f1ccdf2f88ba0749950d2a2ab84893f505702ed66e5b182dd"
+    },
+    {
+      "bytes": 1776,
+      "name": "helm-admitted-tool-manifest.json",
+      "originalPath": "/tmp/zasp-cloud-tools/helm-v3.19.0-official-lcmvixk7/admitted-tool-manifest.json",
+      "sha256": "4e802cdf46fd1130c48ec8f47ae2c12890df1f70699e8a774725c0f1642e956c"
+    },
+    {
+      "bytes": 1065,
+      "name": "helm-independent-review.json",
+      "originalPath": "/tmp/restart-independent-j73g1s1l/helm-source-built-lightweight-tool-review.json",
+      "sha256": "0fb5c19e3f7c0a856283a31374f3685f65c692c78c2cfbfd67e4b9c85b503fd3"
+    }
+  ],
+  "scanner": "NOT_RUN",
+  "scope": "Full UI Vitest fixture/component baseline only; no deployment/provider acceptance",
+  "tool": "Helm3.19.0 source-built with Go1.26.8 from checksum/sumdb verified official source; not vendor binary"
+}

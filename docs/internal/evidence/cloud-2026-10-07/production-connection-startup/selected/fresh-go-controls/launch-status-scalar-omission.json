@@ -1,0 +1,14 @@
+{
+  "scope": "Safe names/counts only, current process observation not provider validation or launch readiness",
+  "requiredNamesCount": 53,
+  "missingRequiredNamesAndSupportedAliasesCount": 50,
+  "availableSupportedAliasesCount": 3,
+  "supportedAliases": [
+    "STYTCH_PROJECT_ID",
+    "STYTCH_SECRET",
+    "STYTCH_PUBLIC_TOKEN"
+  ],
+  "omittedOriginal": "launch-name-status.json",
+  "omittedOriginalSHA256": "3391346a4e8fa98e38faf1642804a78ea7b0ebff35857a08c83a4d44136aa391",
+  "omissionReason": "Default secret scan refusal at source digest field. Independent exact comparison confirms digest of local launcher source, not a credential. Entire selected receipt omitted without suppression or editing original. Original scan failure must remain retained."
+}

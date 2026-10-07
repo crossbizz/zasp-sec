@@ -1546,7 +1546,12 @@ test("release gives finding tickets exact API-only webhook egress and secret-rea
 	assert.match(runtime, /NewApprovalNotificationPostgresRepository\(tracedSecurityAgentDatabase\)/);
 	assert.match(runtime, /NewApprovalNotificationReconciler[\s\S]*Repository: approvalNotificationRepository[\s\S]*Secrets: ticketSecrets[\s\S]*Webhook: ticketWebhook/);
 	assert.match(runtime, /lifecycleWorkers = append\(lifecycleWorkers, approvalNotificationReconciler\.Run\)/);
-	assert.match(runtime, /ReadyApprovalNotifications\(ctx\)[\s\S]*approvalNotificationReconciler\.Ready\(\)/);
+	assert.match(runtime, /approvalNotificationLifecycleReady\(probe, approvalNotificationRepository\.ReadyApprovalNotifications, approvalNotificationReconciler\)/);
+	assert.match(runtime, /approvalNotificationLifecycleReady\(ctx, approvalNotificationRepository\.ReadyApprovalNotifications, approvalNotificationReconciler\)/);
+	const approvalRuntime = await readFile(new URL("../../services/platform/agentsec-api/approval_maintenance_runtime.go", import.meta.url), "utf8");
+	assert.match(approvalRuntime, /func approvalNotificationLifecycleReady\([\s\S]*metadata\(ctx\) != nil \|\| !r\.Ready\(\) \|\| ctx\.Err\(\) != nil/);
+	assert.match(runtime, /selectApprovalNotificationLifecycle\(config,[\s\S]*newRuntimeApprovalMaintenance\(ctx, config, authorizer, ticketSecrets, ticketWebhook, workerOwner\)[\s\S]*NewApprovalNotificationReconciler/);
+	assert.match(approvalRuntime, /chosen := legacy[\s\S]*if c\.ApprovalMaintenancePostgresDSN != "" \{\s*chosen = native/);
 	const webhook = await readFile(new URL("../../services/platform/apiserver/finding_ticket_webhook.go", import.meta.url), "utf8");
 	assert.match(webhook, /DeliverApprovalNotification[\s\S]*security_agent\.approval_required[\s\S]*X-Zasp-Signature/);
 });

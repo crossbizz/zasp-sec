@@ -1,0 +1,34 @@
+TAP version 13
+# Subtest: development API routing preserves browser security headers, cookies and product errors
+ok 1 - development API routing preserves browser security headers, cookies and product errors
+  ---
+  duration_ms: 599.876363
+  type: 'test'
+  ...
+# Subtest: absent development authority leaves API routing unconfigured
+ok 2 - absent development authority leaves API routing unconfigured
+  ---
+  duration_ms: 0.233653
+  type: 'test'
+  ...
+# Subtest: development authority rejects credentials, ambiguous URL components and insecure remote origins
+ok 3 - development authority rejects credentials, ambiguous URL components and insecure remote origins
+  ---
+  duration_ms: 0.722142
+  type: 'test'
+  ...
+# Subtest: development authority accepts HTTPS and explicit loopback without changing TLS or cookie authority
+ok 4 - development authority accepts HTTPS and explicit loopback without changing TLS or cookie authority
+  ---
+  duration_ms: 0.188315
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 776.645613

@@ -1,0 +1,85 @@
+{
+  "scope": "Created but never started cached official image; exported public image filesystem; container removed",
+  "imageID": "sha256:3c67953c3a90a3a846b72e6cd2cfa418b0487e06156ed470dbbeaeb4cac09178",
+  "repoDigest": "postgres@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba",
+  "records": [
+    {
+      "argv": [
+        "env",
+        "-u",
+        "DOCKER_HOST",
+        "-u",
+        "DOCKER_CONTEXT",
+        "-u",
+        "DOCKER_TLS",
+        "-u",
+        "DOCKER_TLS_VERIFY",
+        "-u",
+        "DOCKER_CERT_PATH",
+        "docker",
+        "--host=unix:///var/run/docker.sock",
+        "create",
+        "--name",
+        "zasp-native-pg-extract-d3f5cf73df0e",
+        "--network",
+        "none",
+        "--read-only",
+        "--entrypoint",
+        "/bin/true",
+        "sha256:3c67953c3a90a3a846b72e6cd2cfa418b0487e06156ed470dbbeaeb4cac09178"
+      ],
+      "returncode": 0,
+      "elapsedSeconds": 2.375820543998998,
+      "stdoutBytes": 65,
+      "stderrBytes": 0
+    },
+    {
+      "argv": [
+        "env",
+        "-u",
+        "DOCKER_HOST",
+        "-u",
+        "DOCKER_CONTEXT",
+        "-u",
+        "DOCKER_TLS",
+        "-u",
+        "DOCKER_TLS_VERIFY",
+        "-u",
+        "DOCKER_CERT_PATH",
+        "docker",
+        "--host=unix:///var/run/docker.sock",
+        "export",
+        "--output",
+        "/tmp/zasp-native-supported-tools-h0zqa978/postgres18.3-official-rootfs.tar",
+        "259301095c6f2acd38bcdb268c848998c494c5f0eb7ab1a980c6b49a4142c6c5"
+      ],
+      "returncode": 0,
+      "elapsedSeconds": 2.4973738370008505,
+      "stdoutBytes": 0,
+      "stderrBytes": 0
+    },
+    {
+      "argv": [
+        "env",
+        "-u",
+        "DOCKER_HOST",
+        "-u",
+        "DOCKER_CONTEXT",
+        "-u",
+        "DOCKER_TLS",
+        "-u",
+        "DOCKER_TLS_VERIFY",
+        "-u",
+        "DOCKER_CERT_PATH",
+        "docker",
+        "--host=unix:///var/run/docker.sock",
+        "rm",
+        "259301095c6f2acd38bcdb268c848998c494c5f0eb7ab1a980c6b49a4142c6c5"
+      ],
+      "returncode": 0,
+      "elapsedSeconds": 0.2128546460007783,
+      "stdoutBytes": 65,
+      "stderrBytes": 0
+    }
+  ]
+}

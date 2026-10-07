@@ -1,0 +1,23 @@
+{
+  "binary": {
+    "bytes": 154651941,
+    "ctime_ns": 1791334291278799475,
+    "dev": 26,
+    "ino": 18308,
+    "mode": 33216,
+    "mtime_ns": 1791334288082863101,
+    "resolved_path": "/dev/shm/readiness80-cost-v2-7m89y4ci/apiserver-native79.test",
+    "sha256": "0c362d51e0fc65cfe9b307766390e947415a3231026bc4a369a111e334dc52a5"
+  },
+  "completed": true,
+  "elapsed": 56.8011087240011,
+  "exit": 0,
+  "failure": null,
+  "head_after": "298e9911024fe36c8872070932019a0263044e1d",
+  "head_before": "298e9911024fe36c8872070932019a0263044e1d",
+  "input_files": 9842,
+  "scope": "Compilation only of explicit new current80 readiness-cost diagnostic overlay; original suite and SQL unchanged. No tests/services executed.",
+  "source_inputs_unchanged": true,
+  "survivors": [],
+  "wait_joined": true
+}

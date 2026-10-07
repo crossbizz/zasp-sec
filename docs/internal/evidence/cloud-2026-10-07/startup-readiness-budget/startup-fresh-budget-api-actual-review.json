@@ -1,0 +1,71 @@
+{
+  "status": "ACTUAL-API-COMPONENT-RACE-SUITE-RECONCILED-PASS",
+  "inputs": [
+    {
+      "path": "/workspace/.zasp-cloud-owned/root-startup-budget/tests.jsonl",
+      "sha256": "36f851e2dba304385866b344dcc41595ae50a8902b7ed4c37915c4703597aecc",
+      "bytes": 901617
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/root-startup-budget/tests.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/root-startup-budget/result.json",
+      "sha256": "fc534df384ab25bfdaa1a46cb1183eb2541e49dc65698f848f50eaab700816bf",
+      "bytes": 593
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/root-startup-budget/red.txt",
+      "sha256": "30c0a37e787e99fb6a2983926ac563b5291ec56fa82e663f2efae16a9354b2bb",
+      "bytes": 266
+    },
+    {
+      "path": "/workspace/.zasp-cloud-owned/root-startup-budget/red-scope.json",
+      "sha256": "e52841a6230ca11baa21e5679a7b5e5b27cb8db3eb04710b81fbe334a6c9a6de",
+      "bytes": 184
+    }
+  ],
+  "actual": {
+    "namedPass": 384,
+    "topLevelPass": 125,
+    "topLevelSkip": 10,
+    "fail": 0,
+    "packageSeconds": 5.839,
+    "parentWallSeconds": 18.60475754737854,
+    "parentExit": 0,
+    "commandRaceCount1": true,
+    "stderrBytes": 0,
+    "newBehaviorCasesPass": 8,
+    "sourceASTRegressionPass": true
+  },
+  "bindings": "All three current working source hashes match prior reviewedpostimages. No wholeproject/sourceprepost or liveownedclosure independently claimed from this ordinary result/log.",
+  "skipNames": [
+    "TestAttackLabBrowserAPIProcess",
+    "TestAttackLabDeploymentRenderedAPIConfig",
+    "TestAuditBrowserAPIProcess",
+    "TestComplianceBrowserAPIProcess",
+    "TestComplianceDeploymentRenderedAPIConfig",
+    "TestConnectorRejectionRuntimePostgres",
+    "TestP7IdentityTracedNativeRuntime",
+    "TestRuntimePostgresCancellationShutdownDiagnostic",
+    "TestReconciliationMaintenancePrometheusExposition",
+    "TestSecurityAgentExportBrowserAPIProcess"
+  ],
+  "skipScope": "Originalownedbrowser/rendered/native/PostgreSQL/connector/export and optionalpromtool prerequisites missing; not deployedacceptance.",
+  "redScope": "red.txt is root tool-outputtranscription with explicit nooriginalrawstdoutcapture inred-scope; do notcall it rawarchive fidelity. Genuine source regression is supported by originalcall plusrootobservation.",
+  "testRiskAssessment": [
+    "No sleeps or concurrentdata races added; synchronousdriver capturescontext/handlesparentcancel and exactfixedSQL.",
+    "Positive earlierparent test uses500ms parent against1s provider; longschedulerpausecanlegitimatelyexpireparent andfalsefail intendedhealthycase. Ordinarily instant with prewarmedpins; nonblockingknownflakinessrisk, nottimeoutguardweakening.",
+    "ASTtest is sourcewiring assertion, not realstartupservices integration; other8 cases exercise actualreadinessdriver boundary but fake trueSQLrows.",
+    "ASTtest scansallnamedcalls infile and indexes Args[0] beforelengthcheck: futurezeroargcallwouldpanic asregressionfailure, notproductionrisk; eventualscope-tightening optional.",
+    "Postreturnprobecontext cancellation asserted; combinedprobesidentity assuresonebudget, notseparateextension."
+  ],
+  "claimsExcluded": [
+    "Hostedfailureunderlyingcauseunproven",
+    "Noproductionorbrowser/providerreadiness",
+    "NofullnativeSQLsource/envelopeacceptance"
+  ],
+  "reviewerExecution": "Read/hash/loginspection only; no tests/runtime/sourceedits"
+}
