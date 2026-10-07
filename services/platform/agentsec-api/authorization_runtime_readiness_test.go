@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"strings"
 	"testing"
 	"time"
@@ -11,15 +14,48 @@ import (
 	"github.com/zasp-ai/zasp-sec/services/platform/apiserver"
 )
 
+// Startup must derive readiness from the runtime parent, after connection and
+// metadata preparation, rather than reuse the spent connection deadline.
+func TestStartupAuthorizationUsesIndependentParentBudget(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "production_runtime.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		name, ok := call.Fun.(*ast.Ident)
+		if !ok || (name.Name != "checkAuthorizationRuntimeReady" && name.Name != "checkAuthorizationRuntimeReadyWithinTimeout") {
+			return true
+		}
+		found = true
+		parent, ok := call.Args[0].(*ast.Ident)
+		if name.Name != "checkAuthorizationRuntimeReadyWithinTimeout" || !ok || parent.Name != "ctx" || len(call.Args) != 5 {
+			t.Error("startup readiness reuses the connection budget instead of the runtime parent")
+		}
+		return true
+	})
+	if !found {
+		t.Fatal("startup readiness gate missing")
+	}
+}
+
 type runtimeAuthorizationProbeDriver struct {
 	t         *testing.T
 	role, key string
 	calls     int
 	fail      bool
+	observe   func(context.Context)
 }
 
 func (d *runtimeAuthorizationProbeDriver) QueryRow(ctx context.Context, q string, args ...any) apiserver.PostgresRow {
 	d.calls++
+	if d.observe != nil {
+		d.observe(ctx)
+	}
 	if q != `SELECT zasp_authorization80.ready($1), zasp_authorization80_audit.production_ready($1,$2,$3,$4)` || len(args) != 4 || args[2] != d.key || args[3] != d.role {
 		d.t.Errorf("wrong fixed runtime readiness query or binding")
 	}
@@ -131,6 +167,86 @@ func TestP7GuardedRuntimeReadinessStartupGate(t *testing.T) {
 			}
 			if coreDriver.calls != wantCore || agentDriver.calls != wantAgent {
 				t.Fatalf("startup gate calls core=%d agent=%d", coreDriver.calls, agentDriver.calls)
+			}
+		})
+	}
+}
+
+func TestStartupAuthorizationFreshBudgetRemainsFailClosed(t *testing.T) {
+	for _, name := range []string{"spent connection budget", "earlier parent deadline", "canceled parent", "expired parent", "zero budget", "core refusal", "agent refusal", "cancel during core"} {
+		t.Run(name, func(t *testing.T) {
+			key := strings.Repeat("a", 64)
+			coreDriver := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_discovery_api", key: key, fail: name == "core refusal"}
+			agentDriver := &runtimeAuthorizationProbeDriver{t: t, role: "zasp_security_agent_api", key: key, fail: name == "agent refusal"}
+			core, _ := apiserver.NewPostgresJSONDatabase(coreDriver)
+			agent, _ := apiserver.NewPostgresJSONDatabase(agentDriver)
+			defer core.Close()
+			defer agent.Close()
+			if core.RequireCurrentAuthorization() != nil || agent.RequireCurrentAuthorization() != nil {
+				t.Fatal("enforcing fixture")
+			}
+			parent, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			timeout := time.Second
+			if name == "earlier parent deadline" {
+				var c context.CancelFunc
+				parent, c = context.WithTimeout(parent, 500*time.Millisecond)
+				defer c()
+			}
+			if name == "expired parent" {
+				var c context.CancelFunc
+				parent, c = context.WithDeadline(parent, time.Now().Add(-time.Second))
+				defer c()
+			}
+			if name == "canceled parent" {
+				cancel()
+			}
+			if name == "zero budget" {
+				timeout = 0
+			}
+			if name == "spent connection budget" {
+				spent, c := context.WithDeadline(parent, time.Now().Add(-time.Second))
+				defer c()
+				if checkAuthorizationRuntimeReady(spent, core, agent, key) == nil {
+					t.Fatal("old spent budget unexpectedly admitted readiness")
+				}
+			}
+			var probeContext context.Context
+			coreDriver.observe = func(ctx context.Context) {
+				probeContext = ctx
+				deadline, ok := ctx.Deadline()
+				if !ok || time.Until(deadline) > timeout {
+					t.Error("provider timeout widened")
+				}
+				if d, ok := parent.Deadline(); ok && !deadline.Equal(d) {
+					t.Error("parent deadline widened")
+				}
+				if name == "cancel during core" {
+					cancel()
+				}
+			}
+			agentDriver.observe = func(ctx context.Context) {
+				if ctx != probeContext {
+					t.Error("probes have separate budgets")
+				}
+			}
+			err := checkAuthorizationRuntimeReadyWithinTimeout(parent, core, agent, key, timeout)
+			healthy := name == "spent connection budget" || name == "earlier parent deadline"
+			if healthy && err != nil || !healthy && !errors.Is(err, errRuntimeUnavailable) {
+				t.Fatalf("readiness error=%v", err)
+			}
+			wantCore, wantAgent := 1, 1
+			switch name {
+			case "canceled parent", "expired parent", "zero budget":
+				wantCore, wantAgent = 0, 0
+			case "core refusal", "cancel during core":
+				wantAgent = 0
+			}
+			if coreDriver.calls != wantCore || agentDriver.calls != wantAgent {
+				t.Fatalf("probe calls core=%d agent=%d", coreDriver.calls, agentDriver.calls)
+			}
+			if probeContext != nil && probeContext.Err() == nil {
+				t.Error("completed probe context was not canceled")
 			}
 		})
 	}

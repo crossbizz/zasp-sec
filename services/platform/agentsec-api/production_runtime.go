@@ -88,7 +88,7 @@ func buildRuntimeDependenciesWithReadinessTransportDiagnostic(ctx context.Contex
 		_ = database.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("authorization-components", errRuntimeUnavailable)
 	}
-	if err := checkAuthorizationRuntimeReady(connectCtx, database, securityAgentDatabase, attestationKey.Version()); err != nil {
+	if err := checkAuthorizationRuntimeReadyWithinTimeout(ctx, database, securityAgentDatabase, attestationKey.Version(), config.ProviderTimeout); err != nil {
 		_ = securityAgentDatabase.Close()
 		_ = database.Close()
 		return RuntimeDependencies{}, markRuntimeDependencyFailure("authorization-readiness", errRuntimeUnavailable)

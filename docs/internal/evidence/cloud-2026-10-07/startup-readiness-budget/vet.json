@@ -1,0 +1,6 @@
+{
+  "scope": "go vet ./agentsec-api, same explicit Go1.26.8 environment as race run",
+  "exit": 0,
+  "stdout": "",
+  "stderr": ""
+}
