@@ -1,0 +1,58 @@
+{
+  "actual": {
+    "GREEN": {
+      "counts": {
+        "cancelled": 0,
+        "fail": 0,
+        "pass": 246,
+        "skipped": 0,
+        "tests": 246,
+        "todo": 0
+      },
+      "path": "/tmp/launch-prerequisites-corrected.log",
+      "sha256": "6bb709044c3ac7ca75c064cbdfa3c6843964312fc32908af0545db16230ef34b"
+    },
+    "RED": {
+      "counts": {
+        "cancelled": 0,
+        "fail": 2,
+        "pass": 235,
+        "skipped": 0,
+        "tests": 237,
+        "todo": 0
+      },
+      "failures": [
+        "hosted workflow actually provisions pinned owned runtime inputs before original acceptance",
+        "workflow successor preserves all34 predecessor step objects and original acceptance bytes"
+      ],
+      "path": "/tmp/launch-prerequisites-fresh-baseline.log",
+      "sha256": "534bd8241f8e8889885e1f18cf63c071fe60d47d3dcd7145cd4fe48765980b19"
+    },
+    "normalExitObservations": "ROOT1 then0; fullrawTAP independentlyread, no owned/inputmap receipt invented."
+  },
+  "implementationWorkflowPackageLockUnchangedPins": {
+    ".github/workflows/runnable-ui.yml": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98",
+    "package-lock.json": "d34f213a3222a5fd3cecea449bb4242ebe725bdb8a3c73a08d2eb3a66d687b01",
+    "package.json": "a7d4f3ec6b222bd3cc63b057c9e51452382a526ae282d1b5f485b6480755e7c5",
+    "scripts/hosted-runtime-tool-intake.mjs": "2dfb5ff525e74ff13699c054962218fb44b2f18f7b01b6f6bb62c562b603eb7e"
+  },
+  "inverseOriginalCasesEqual": true,
+  "newControls": [
+    "omitted",
+    "duplicate",
+    "skipped",
+    "allowed failure",
+    "timeout",
+    "command",
+    "environment",
+    "order",
+    "shell"
+  ],
+  "original34SHAUnchanged": "f6f95021c07f605176460b70065c985eda5fe82e14f3793cef7173236efb9fcb",
+  "postimageSHA256": "6ebe8e057f2f81c5fbd6be7f7af7c3111c31e261c49b19d7c044998d268a8c51",
+  "preimageSHA256": "dca81349f4667a4c7a7f268f0a10c8106d62ea169c627fcd189ab158d4439bf0",
+  "scope": "All original cases/assertions conserved plus9. Test-only update; no intakeparser/product/workflow changes. Initial lint missingTMP dependency setupfailure retained; rerunlint/defaultscans separate. No futurehosted/fullrelease/native/deployed acceptance.",
+  "sourcePath": "/tmp/zasp-startup-diagnostic-checkout/scripts/hosted-runtime-tool-intake.test.mjs",
+  "validator": "Exactlyone complete name/10m/3-parent race command; immediately aftermetadata beforeverify; unsupportedfields refuted by deepEqual.",
+  "verdict": "PASS-hosted-intake37-contract-source-and-actual246"
+}

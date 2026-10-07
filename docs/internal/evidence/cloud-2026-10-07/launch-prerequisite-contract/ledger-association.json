@@ -1,0 +1,12 @@
+{
+  "canonicalLedgerSHA256": "68a57855b6a4c76eb0fe9a9100b473ae818ca984e1ca3cf940d092fa48296b0e",
+  "derivedRemainingTSVSHA256": "431497e706ff2451f0d67c6a5605148808589efb32a8fdf0e2344fce1373eafb",
+  "originalRows": 728,
+  "remainingRecordedRows": 205,
+  "counts": {
+    "production-available": 523,
+    "component-only": 144,
+    "blocked/external": 61
+  },
+  "scope": "Derived snapshot only; no canonical row edits or deployed promotion."
+}

@@ -1,0 +1,337 @@
+{
+  "verdict": "PASS_EXACT205_LEDGER_DERIVATION_AND_TESTONLY_PUBLICATION",
+  "canonicalLedger": {
+    "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/implementation_production_availability_v1.5.tsv",
+    "sha256": "68a57855b6a4c76eb0fe9a9100b473ae818ca984e1ca3cf940d092fa48296b0e",
+    "bytes": 170871,
+    "metadata": {
+      "dev": 34,
+      "ino": 104089,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1,
+      "size": 170871,
+      "mtime_ns": 1791384364130666985,
+      "ctime_ns": 1791384364130666985
+    }
+  },
+  "canonicalOwners": {
+    "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/implementation_production_availability_owners_v1.5.tsv",
+    "sha256": "b32873f73e38097f167f3075fbdacb216836c89a858cf47f3107a113cd41c125",
+    "bytes": 20196,
+    "metadata": {
+      "dev": 34,
+      "ino": 104088,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1,
+      "size": 20196,
+      "mtime_ns": 1791384364130666985,
+      "ctime_ns": 1791384364130666985
+    }
+  },
+  "derivedRemainingTSV": {
+    "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/launch-remaining-tasks-2026-10-07.tsv",
+    "sha256": "431497e706ff2451f0d67c6a5605148808589efb32a8fdf0e2344fce1373eafb",
+    "bytes": 8982,
+    "metadata": {
+      "dev": 34,
+      "ino": 141999,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1,
+      "size": 8982,
+      "mtime_ns": 1791417067623743168,
+      "ctime_ns": 1791417067623743168
+    }
+  },
+  "readinessMD": {
+    "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/launch-readiness-2026-10-07.md",
+    "sha256": "5e645667df254fb64eb6de5129fca09ff806e651063eca0cab4c080a69014725",
+    "bytes": 4321,
+    "metadata": {
+      "dev": 34,
+      "ino": 142000,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1,
+      "size": 4321,
+      "mtime_ns": 1791417067623927747,
+      "ctime_ns": 1791417067623927747
+    }
+  },
+  "ledgerAssociation": {
+    "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/ledger-association.json",
+    "sha256": "e9526bb305e2b1d4b74169853fd3d1703abf0cb156d96dc2806961f0e935e330",
+    "bytes": 441,
+    "metadata": {
+      "dev": 34,
+      "ino": 142007,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1,
+      "size": 441,
+      "mtime_ns": 1791417067624561295,
+      "ctime_ns": 1791417067624561295
+    }
+  },
+  "counts": {
+    "production-available": 523,
+    "component-only": 144,
+    "blocked/external": 61
+  },
+  "rows": 728,
+  "remaining": 205,
+  "exactIDsOrderClassMilestoneOwner": true,
+  "duplicates": 0,
+  "canonicalAndOwnersUnchangedVsHEAD": true,
+  "milestoneCounts": {
+    "M0": 20,
+    "M1": 11,
+    "M1A": 10,
+    "M2": 5,
+    "M3": 2,
+    "M7": 32,
+    "M7A": 18,
+    "M8": 107
+  },
+  "ownerCounts": {
+    "T11-identity-admin": 8,
+    "T04-discovery-worker": 14,
+    "EXT-live-aws": 2,
+    "T03-launch-connectors": 7,
+    "T12-red-team": 1,
+    "EXT-live-fargate": 2,
+    "T14-data-workflows": 41,
+    "T07-security-agent-authority": 2,
+    "T10-product-ui": 7,
+    "T15-deployment": 18,
+    "EXT-cloud-deploy": 42,
+    "EXT-human-observation": 13,
+    "T08-supervised-agent": 6,
+    "T09-agent-actions": 5,
+    "T16-recovery-ops": 35,
+    "EXT-image-attestation": 2
+  },
+  "publicRawPairs": [
+    {
+      "original": {
+        "path": "/tmp/launch-prerequisites-fresh-baseline.log",
+        "sha256": "534bd8241f8e8889885e1f18cf63c071fe60d47d3dcd7145cd4fe48765980b19",
+        "bytes": 51207,
+        "metadata": {
+          "dev": 34,
+          "ino": 141147,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 51207,
+          "mtime_ns": 1791416868785453058,
+          "ctime_ns": 1791416868785453058
+        }
+      },
+      "copy": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/original-prerequisites-red.log",
+        "sha256": "534bd8241f8e8889885e1f18cf63c071fe60d47d3dcd7145cd4fe48765980b19",
+        "bytes": 51207,
+        "metadata": {
+          "dev": 34,
+          "ino": 142002,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 51207,
+          "mtime_ns": 1791417067624007608,
+          "ctime_ns": 1791417067624007608
+        }
+      }
+    },
+    {
+      "original": {
+        "path": "/tmp/launch-prerequisites-corrected.log",
+        "sha256": "6bb709044c3ac7ca75c064cbdfa3c6843964312fc32908af0545db16230ef34b",
+        "bytes": 51562,
+        "metadata": {
+          "dev": 34,
+          "ino": 141576,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 51562,
+          "mtime_ns": 1791416952495712874,
+          "ctime_ns": 1791416952495712874
+        }
+      },
+      "copy": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/corrected-prerequisites-green.log",
+        "sha256": "6bb709044c3ac7ca75c064cbdfa3c6843964312fc32908af0545db16230ef34b",
+        "bytes": 51562,
+        "metadata": {
+          "dev": 34,
+          "ino": 142003,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 51562,
+          "mtime_ns": 1791417067624059286,
+          "ctime_ns": 1791417067624059286
+        }
+      }
+    },
+    {
+      "original": {
+        "path": "/tmp/launch-prerequisites-eslint.log",
+        "sha256": "b7504f909ab8fa9e5031e2c0ca8028b507c6448b0f8da70ca30bbd52edb7891d",
+        "bytes": 782,
+        "metadata": {
+          "dev": 34,
+          "ino": 141997,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 782,
+          "mtime_ns": 1791416982832531456,
+          "ctime_ns": 1791416982832531456
+        }
+      },
+      "copy": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/lint-setup-failure.log",
+        "sha256": "b7504f909ab8fa9e5031e2c0ca8028b507c6448b0f8da70ca30bbd52edb7891d",
+        "bytes": 782,
+        "metadata": {
+          "dev": 34,
+          "ino": 142004,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 782,
+          "mtime_ns": 1791417067624119577,
+          "ctime_ns": 1791417067624119577
+        }
+      }
+    },
+    {
+      "original": {
+        "path": "/tmp/launch-prerequisites-eslint-corrected.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "metadata": {
+          "dev": 34,
+          "ino": 141998,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 0,
+          "mtime_ns": 1791417065978775410,
+          "ctime_ns": 1791417065978775410
+        }
+      },
+      "copy": {
+        "path": "/tmp/zasp-startup-diagnostic-checkout/docs/internal/evidence/cloud-2026-10-07/launch-prerequisite-contract/scoped-lint.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "metadata": {
+          "dev": 34,
+          "ino": 142005,
+          "mode": 33152,
+          "uid": 1000,
+          "gid": 1000,
+          "nlink": 1,
+          "size": 0,
+          "mtime_ns": 1791417067624119577,
+          "ctime_ns": 1791417067624119577
+        }
+      }
+    }
+  ],
+  "testPostimage": {
+    "path": "/tmp/zasp-startup-diagnostic-checkout/scripts/hosted-runtime-tool-intake.test.mjs",
+    "sha256": "6ebe8e057f2f81c5fbd6be7f7af7c3111c31e261c49b19d7c044998d268a8c51",
+    "bytes": 14836,
+    "metadata": {
+      "dev": 34,
+      "ino": 105474,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "nlink": 1,
+      "size": 14836,
+      "mtime_ns": 1791416949884143969,
+      "ctime_ns": 1791416949884143969
+    }
+  },
+  "workflowAndIntakeUnchanged": [
+    {
+      "path": "/tmp/zasp-startup-diagnostic-checkout/.github/workflows/runnable-ui.yml",
+      "sha256": "fd98a81d520fbd8b80fb6d404b7a8a0d0e154268f0e3adb5073a47ee4c7d4d98",
+      "bytes": 17837,
+      "metadata": {
+        "dev": 34,
+        "ino": 99846,
+        "mode": 33152,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 17837,
+        "mtime_ns": 1791389582388210354,
+        "ctime_ns": 1791389582388210354
+      }
+    },
+    {
+      "path": "/tmp/zasp-startup-diagnostic-checkout/scripts/hosted-runtime-tool-intake.mjs",
+      "sha256": "2dfb5ff525e74ff13699c054962218fb44b2f18f7b01b6f6bb62c562b603eb7e",
+      "bytes": 8186,
+      "metadata": {
+        "dev": 34,
+        "ino": 105473,
+        "mode": 33152,
+        "uid": 1000,
+        "gid": 1000,
+        "nlink": 1,
+        "size": 8186,
+        "mtime_ns": 1791384364226522492,
+        "ctime_ns": 1791384364226522492
+      }
+    }
+  ],
+  "actualCounts": {
+    "RED": {
+      "tests": 237,
+      "pass": 235,
+      "fail": 2
+    },
+    "GREEN": {
+      "tests": 246,
+      "pass": 246,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "retainedLint": "Originaldefaultlint missingminimalTMPtypescrip-eslint setuperror retained; correctedoriginalconfiglint rawlog retained(empty stdout). No inventedownedinputmap/actualexitreceipt.",
+  "honestScope": [
+    "523historicalproduction-available categories explicitlynotfreshdeployment; fullfreshdeployedcoverage stillrequiredall728.",
+    "Bothapproval+connector nativeconsumers/all8repositorymethods/metadataauthorization/captureprovenance open; no legacyoriginlessretroauthorization.",
+    "CurrentnativeTemporal/FGA/PGprojection/cutover andoriginalSQLconsumerisolation remainopen.",
+    "Scopedtargetroles/store-model-migrations/Stytchorg-member-session/providerpermissions notestablishedby51genericvariables.",
+    "Completeofficialadvisoryintake/Go-npm-image-SBOMclearance andops/recovery/humanobservation remainopen.",
+    "No ledgerpromotion/launch/deployed/hostedPASS orfailedCImergeauthorization."
+  ],
+  "rootFinalRequirements": [
+    "Stage derivedMD/TSV/status alongside exacttestonlychange/publicrawcopies.",
+    "Freshdefaultstagedsecret/diffchecks andnormalcommit/push; no merge whilehostedchecksfailed/pending."
+  ],
+  "reviewOnlyNoEditRuntime": true,
+  "noMaterialBlocker": true
+}
